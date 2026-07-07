@@ -44,13 +44,13 @@
 
 ## 5. Render Fallback (BR-06)
 
-- BR-06: WHEN loading the active theme fails at render time (missing folder, re-validation failure, unreadable file), the system shall render the response with the default built-in (`paper`), log one structured error naming the theme id and cause, and shall NOT modify `presentation_settings` (repair is an explicit operator/agent action — EC-09).
+- BR-06: WHEN loading the active theme fails at render time (missing folder, re-validation failure, unreadable file), the system shall render the response with the default built-in (`tovu-official`, else the first valid discovered theme), log one structured error naming the theme id and cause, and shall NOT modify `presentation_settings` (repair is an explicit operator/agent action — EC-09).
 
 ## 6. Default Values
 
 | Field | Default | Why |
 |---|---|---|
-| Fallback theme | `paper` | Deterministic, always-present built-in; matches current `pageShell` fallback |
+| Fallback theme | `tovu-official` (else first valid) | Deterministic default built-in; matches `resolveActiveTheme` fallback |
 | `typography.headingFontFamily` | `typography.fontFamily` | Most themes share one stack; optional override |
 | `component.props` | `{}` with component defaults | EC-08 — v1 components never throw on props |
 | Discovery in legacy mode | built-ins only | No `themes/` dir exists (EC-07) |

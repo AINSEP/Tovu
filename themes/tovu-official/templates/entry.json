@@ -1,0 +1,72 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "component",
+      "id": "tovu/nav",
+      "props": {
+        "brand": "Tovu",
+        "items": [
+          { "label": "About", "href": "/about" },
+          {
+            "label": "Docs",
+            "href": "#",
+            "children": [
+              { "label": "How themes work", "href": "/how-themes-work" },
+              { "label": "How plugins work", "href": "/how-plugins-work" },
+              { "label": "The plugin API", "href": "/plugin-api" }
+            ]
+          },
+          {
+            "label": "Writing",
+            "href": "#",
+            "children": [
+              { "label": "The Weight of Type", "href": "/the-weight-of-type" },
+              { "label": "Slow Mornings", "href": "/slow-mornings" }
+            ]
+          },
+          { "label": "Self-hosting", "href": "/self-hosting" }
+        ],
+        "cta": { "label": "Open the admin", "href": "/admin/" }
+      }
+    },
+    { "type": "component", "id": "tovu/entry-content", "props": {} },
+    {
+      "type": "component",
+      "id": "tovu/footer",
+      "props": {
+        "brand": "Tovu",
+        "blurb": "A content platform you actually own — your content, your themes, your data.",
+        "social": [
+          { "label": "GitHub", "href": "#" },
+          { "label": "X", "href": "#" }
+        ],
+        "columns": [
+          {
+            "title": "Product",
+            "links": [
+              { "label": "How themes work", "href": "/how-themes-work" },
+              { "label": "How plugins work", "href": "/how-plugins-work" },
+              { "label": "The editor", "href": "/admin/" }
+            ]
+          },
+          {
+            "title": "Developers",
+            "links": [
+              { "label": "Plugin API", "href": "/plugin-api" },
+              { "label": "Self-hosting", "href": "/self-hosting" }
+            ]
+          },
+          {
+            "title": "Company",
+            "links": [
+              { "label": "About", "href": "/about" },
+              { "label": "Writing", "href": "/the-weight-of-type" }
+            ]
+          }
+        ],
+        "legal": "© 2026 Tovu — MIT licensed."
+      }
+    }
+  ]
+}

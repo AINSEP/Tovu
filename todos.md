@@ -13,6 +13,59 @@
 > **Start with the v1 first slice in `START-HERE.md`** before working down this list —
 > most items below are gated behind that walking skeleton.
 
+---
+
+## ⛔ BLOCKER — Admin Section Spec Sweep (DO FIRST NEXT SESSION)
+
+**Added 2026-07-07.** These are the admin nav sections currently rendering a generic
+**placeholder** (real screen not built, no spec). Each needs its own spec before it can be
+built. This is the breadth gap: v1 has only ~5 real capabilities (posts/pages, themes,
+audit-undo, auth, workspaces) vs dozens in mature CMSs. **Treat this as the next-session
+starting point.**
+
+**Process for each (do NOT jump straight to a spec):**
+1. **Competitor teardown** — how did each platform do it, and *who did it best*? Mine
+   `other-repos-specs/` (wordpress 78 · directus 29 · medusa · shopify · woocommerce) +
+   `competitor-analysis.md` (Ghost/Payload/Directus). Map each to the `tovu-v2-design.md
+   §3.5` capability tier it belongs to.
+2. **Deep debate** — architecture options, trade-offs, build-vs-bundled-plugin placement
+   (§3.5 placement rule: tier-2 core lib vs tier-3 bundled plugin). Use `/debate` +
+   `/consensus`.
+3. **Audit** — pressure-test the chosen architecture with `/audit-work` (codex + gemini/agy)
+   before committing.
+4. **ADR** — record the decision (the parity/coverage decisions are currently NOT
+   ADR-governed — see gap note below).
+5. **Spec** — only then write the SPEC-NNN package.
+
+**Sections needing this treatment (each → competitor study → debate → audit → ADR → spec):**
+
+- [ ] **Media** — asset library, upload pipeline, image transforms, storage port (`media` lib, §3.5 tier 2)
+- [ ] **Collections** — custom content types / structured collections (schema registry consumer)
+- [ ] **Menus** — navigation trees as editable content (`navigation` lib, tier 2)
+- [ ] **Categories & Tags** — taxonomy, hierarchies, term relations (`taxonomy` lib, tier 2)
+- [ ] **Forms** — form builder + submissions (likely bundled plugin, tier 3)
+- [ ] **User management** — users CRUD screen over `identity` (Directus roles→policies model)
+- [ ] **Roles & Permissions** — RBAC/policy model (identity; blocks the Art. VI auth exception)
+- [ ] **Members** — front-end membership/subscribers (Ghost members is the reference)
+- [ ] **Comments** — moderation queue, own tables/hooks (bundled plugin — SDK stress test, §3.5 tier 3)
+- [ ] **SEO** — metadata, sitemaps, `page.head` hook (dogfood plugin, v2-design Phase 4)
+- [ ] **Redirects** — redirect rules over `routing`
+- [ ] **Newsletter** — email campaigns over `MailerPort` (bundled plugin)
+- [ ] **Analytics** — traffic/usage surface (privacy-first; who did this best?)
+- [ ] **Database** — admin DB/health/migration surface over Drizzle (ADR-015)
+- [ ] **Integrations / API** — API keys, webhooks, outbound integrations (`identity` app tokens + outbox)
+- [ ] **Backups** — backup/restore + export (UF-13 portability; pairs with `tovu build` export)
+- [ ] **Settings** — typed schema-registered settings, scoped global/workspace/user (`settings` lib, replaces WP options grab-bag)
+
+**Coverage-gap note (surfaced 2026-07-07 audit-of-parity):** the parity map lives in
+`tovu-v2-design.md §3.5` (mutable design doc) and the corpus `coverage-audit.md` files —
+**it is NOT reconciled into ADRs or the specs.** Recommended first artifact next session: a
+**coverage/parity ADR + matrix** mapping each competitor subsystem → {v1 / bundled-plugin /
+deferred / dropped} with the owning ADR, so "are we implementing everything the others have?"
+has one authoritative answer instead of being spread across four docs.
+
+---
+
 ## Completed (WordPress Specs)
 All WordPress spec work is complete. See `wordpress_specs/` for the full library (53 files).
 - ✓ wp-includes (20 specs)

@@ -34,7 +34,7 @@
 
 ## 4. Hook Firing (BR-04)
 
-- BR-04: WHEN a content entry is created or updated, the system shall run every enabled plugin's `content.entry.beforeSave` filter, in deterministic order (built-ins first by id asc, then site plugins by id asc — same order as TB-01), composing the returned draft into the next filter, before persisting. The composed draft is what SPEC-002's write persists. Disabled plugins' filters shall not run. In v1 exactly one hook point exists; `content.entry.beforeSave` is a **filter** (returns the possibly-mutated draft), not an action.
+- BR-04: WHEN a content entry is created or updated, the system shall run every enabled plugin's `content.entry.beforeSave` filter, in deterministic order (built-ins first by id asc, then site plugins by id asc — same order as TB-01). Each filter receives the **read-only** entry draft and returns an `ExtPatch`; the system merges each patch into that plugin's own `ext.{pluginId}` namespace (validated per BR-06) before persisting. Filters cannot mutate core entry fields (`title`/`slug`/`status`/`bodyJson`) — a returned key targeting a core field is rejected `FIELD_PATH_INVALID` (RT-001). Because each plugin writes only its own namespace, filter order does not create write conflicts. Disabled plugins' filters shall not run. In v1 exactly one hook point exists.
 
 ## 5. Enable / Disable Lifecycle (BR-05)
 
@@ -42,11 +42,15 @@
 
 ## 6. `ext` Field Writes (BR-06)
 
-- BR-06: WHEN an enabled plugin writes an `ext` field inside a `beforeSave` filter, the system shall validate: the path is `ext.{selfId}.{field}` for a field the plugin declared (`FIELD_PATH_INVALID` otherwise), and the value matches the declared type (`FIELD_TYPE_MISMATCH` otherwise). The value is written into the record's `ext` JSON column within the same transaction as the SPEC-002 entry write. No DDL runs (INV-01).
+- BR-06: WHEN an enabled plugin writes an `ext` field inside a `beforeSave` filter, the system shall validate: the path is `ext.{selfId}.{field}` for a field the plugin declared (`FIELD_PATH_INVALID` otherwise), and the value matches the declared type (`FIELD_TYPE_MISMATCH` otherwise). The value is written into the record's `ext` JSON column within the same transaction as the SPEC-002 entry write — and is therefore part of the entry pre-image the SPEC-001 gateway captures for revert (BR-08). No DDL runs (INV-01).
 
 ## 7. Fail-Closed Handling (BR-07)
 
 - BR-07: WHEN a `content.entry.beforeSave` filter throws, OR triggers `CAPABILITY_DENIED`, OR produces an invalid `ext` write, the containing content operation shall fail with `PLUGIN_HOOK_FAILED` (500), the entry shall be unchanged, NO change set shall be recorded, and one structured error shall be logged naming the plugin id and cause. (Automatic plugin quarantine / safe-mode is deferred to the `recovery` library — OQ-06.)
+
+## 7a. `ext` Under Gateway Revert (BR-08)
+
+- BR-08: WHEN the SPEC-001 gateway captures the inverse pre-image for a content-entry create or update (SPEC-001 BR-02), the pre-image shall include the entry's pre-edit `ext` object alongside its core fields, so the change-set item's `inversePayload` restores `ext` together with `title`/`slug`/`bodyJson`/`status`. WHEN a content-save change set is reverted, the restoring write shall re-apply the stored pre-edit `ext` snapshot verbatim and shall **NOT** fire `content.entry.beforeSave` — a revert re-applies a pre-image, it is not a genuine create/update (BR-04 fires only on the latter) — so no plugin recompute occurs during the revert; the next genuine save recomputes `ext` through the hook. Restoring the `ext` snapshot shall not require the contributing plugin to be enabled or installed (its data is retained inert per INV-03; the restore is a pure data write). This keeps SPEC-001's undo promise whole: revert returns the entry — core fields and plugin-derived `ext` — to exactly its pre-edit state in one step, with no stale plugin-visible values.
 
 ## 8. Deduplication Rules
 

@@ -45,6 +45,7 @@ ThemeJson:                       # theme.json
   class: "declarative"           # only accepted value in v1 (OQ-01)
   engine: integer                # theme-contract version; 1 in v1; > runtime supported ⇒ invalid
   description: string|null
+  fonts: string[]|null           # optional — managed webfont specs (e.g. "Inter:wght@400;600"); loaded via a managed <link>, NOT via CSS @import (REQ-02/REQ-06)
   settingsSchema: object|null    # parsed + retained; unused in v1 (OQ-03)
   # unknown top-level keys ⇒ validation error (REQ-02)
 
@@ -120,7 +121,7 @@ active theme deleted/corrupted ──render──▶ fallback to built-in defaul
 
 ## 7) Persistence Notes
 
-- **Built-ins live in the runtime** (repo `themes/paper|atlas|glassmorphic/` per the v2-design layout), loaded from the installed package path — never copied into site dirs at init (ADR-012: runtime is shared; site `themes/` is for site-installed themes only).
+- **Built-ins live in the runtime** (repo `themes/tovu-official|column|signal/`), loaded from the installed package path — never copied into site dirs at init (ADR-012: runtime is shared; site `themes/` is for site-installed themes only).
 - **No db changes.** Theme identity in the db remains the string `active_theme_id`. Validation state is deliberately not persisted — it must be recomputed (INV-02), and persisting it would create a second source of truth.
 - **Engine versioning:** `engine` (integer) gates package-format evolution; the runtime declares its supported engine and rejects newer ones at validation — same posture as SPEC-003's `schemaVersion` guard.
 - **Future:** the ADR-004 artifact envelope (signatures, integrity hashes) wraps this package format without changing it — the folder contents above are what gets signed (OQ-02).

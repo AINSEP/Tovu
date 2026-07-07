@@ -1,0 +1,13 @@
+{
+  "id": "tovu-official",
+  "name": "Tovu Official",
+  "version": "1.0.0",
+  "class": "declarative",
+  "engine": 1,
+  "description": "The official Tovu explainer theme — a Strapi-inspired product landing page that documents the product it is built on: how themes work, how plugins work, and where your data lives. This page is itself a declarative theme.",
+  "fonts": [
+    "Sora:wght@400;500;600;700;800",
+    "Inter:wght@400;500;600",
+    "JetBrains+Mono:wght@400;500"
+  ]
+}

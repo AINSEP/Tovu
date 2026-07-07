@@ -1,9 +1,9 @@
-import type { ThemeId } from "../../../../features/presentation";
 import {
   PresentationSettingsNotFoundError,
   PresentationSettingsValidationError,
   setActiveTheme,
 } from "../../../../features/presentation";
+import { validThemeIds } from "../../../../features/theme";
 import { toAdminPresentationResponse } from "../../../../server/http/admin/presentation";
 import type { RouteRegistrar } from "../../../routes/types";
 
@@ -16,10 +16,14 @@ export const registerAdminPresentationPatchRoute: RouteRegistrar = (app, deps) =
 
     try {
       const result = await setActiveTheme({
-        deps: { repo: deps.presentationRepo, clock: deps.clock },
+        deps: {
+          repo: deps.presentationRepo,
+          clock: deps.clock,
+          availableThemeIds: validThemeIds(deps.themes),
+        },
         input: {
           workspaceId: deps.workspaceId,
-          activeThemeId: String(req.body?.activeThemeId ?? "") as ThemeId,
+          activeThemeId: String(req.body?.activeThemeId ?? ""),
         },
       });
 

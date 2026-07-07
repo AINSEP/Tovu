@@ -201,4 +201,6 @@
 | Role | Name/Agent | Date | Result |
 |------|-----------|------|--------|
 | Spec Agent | Spec Agent (Claude Fable 5, AI Dev Shop pipeline) | 2026-07-02T20:45:00Z | PASS — ready for human spec checkpoint, then Red-Team |
-| Coordinator | | | |
+| Spec Agent | Spec Agent (Claude Opus 4.8, AI Dev Shop pipeline) | 2026-07-07T04:15:00Z | PASS (revision R2) — applied Red-Team ADVISORY fixes RT-001/RT-002/RT-006 + `tovu/→src/` path drift; re-validated. Cleared for Software Architect. |
+| Coordinator | Coordinator (Claude Opus 4.8, AI Dev Shop pipeline) | 2026-07-07T04:20:00Z | PASS — Planning Preflight cleared against spec hash 0230e96c…c7a0. Human spec checkpoint approved (owner Leon Aburime, in-session); Red-Team reaffirmed on the R2 delta; 1 CONSTITUTION_FLAG (RT-007) human-decided; constitution bootstrapped. Cleared for Software Architect dispatch. |
+| Spec Agent | Spec Agent (Claude Opus 4.8, AI Dev Shop pipeline) | 2026-07-07T05:30:00Z | PASS (audit R3 reconciliation) — external audit `20260707T043122Z` applied blockers F1–F4 to the package (atomicity REQ-01/BR-04/EC-08/AC-17; ext-under-revert AC-02/AC-10). Re-validated with `--update-hash` (strict Speckit PASS); feature hash 0230e96c…c7a0 → **768af10e…e5d6**. Red-Team re-affirmed 0 BLOCKING. Downstream (ADR-018/tasks/outline/ledger) re-pointed to the new hash. |

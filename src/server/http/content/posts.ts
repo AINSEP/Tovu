@@ -1,5 +1,4 @@
 import type { PostRecord } from "../../../features/post";
-import type { ThemeId } from "../../../features/presentation";
 import type { ContentPostPayload } from "../../../headless";
 import { toHeadlessContentPost } from "../shared/post";
 
@@ -8,7 +7,7 @@ import { toHeadlessContentPost } from "../shared/post";
  */
 export function toContentPostResponse(
   post: PostRecord,
-  activeThemeId: ThemeId
+  activeThemeId: string
 ): ContentPostPayload {
   return {
     post: toHeadlessContentPost(post),

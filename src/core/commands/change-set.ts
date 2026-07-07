@@ -55,6 +55,12 @@ export interface ChangeSetItemRecord {
    * entities must not be mutated by agents.
    */
   inversePayload?: JsonObject;
+  /**
+   * Entity version *after* the mutation (REQ-08 guard input). Revert refuses
+   * unless the entity's current version still equals this — otherwise the entity
+   * has moved on since. Undefined for entity types without a version.
+   */
+  entityVersionAtApply?: number;
   /** Apply order; revert walks positions in reverse. */
   position: number;
 }

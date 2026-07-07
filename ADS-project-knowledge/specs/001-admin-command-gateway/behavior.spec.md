@@ -13,7 +13,7 @@
 | feature_name | FEAT-001-admin-command-gateway |
 | version | 1.0.0 |
 | content_hash | sha256:see feature.spec.md (package hash of record) |
-| last_edited | 2026-07-02T20:45:00Z |
+| last_edited | 2026-07-07T04:15:00Z |
 
 **Purpose:** Deterministic ordering and precedence rules for the gateway and revert executor. All rules use EARS syntax.
 
@@ -24,7 +24,7 @@
 - BR-01: WHEN a command arrives with an idempotency key, the gateway shall check `(workspaceId, idempotencyKey)` uniqueness BEFORE capturing any inverse and BEFORE executing the mutation.
 - BR-02: The gateway shall capture the inverse snapshot BEFORE executing the mutation, and shall not re-read the snapshot afterward.
 - BR-03: IF the wrapped feature execution throws, THEN the gateway shall persist no change-set rows and enqueue no events, and shall rethrow the original error unmodified.
-- BR-04: WHEN the mutation succeeds, the gateway shall persist the change-set header and item in the same logical step, then enqueue `change-set.applied`; event enqueue failure shall not roll back the recorded change set (outbox is best-effort in v1; rows are the source of truth).
+- BR-04: WHEN the mutation succeeds, the gateway shall commit the feature mutation, the change-set header, and the change-set item within a single transaction / unit of work, THEN enqueue `change-set.applied`. IF persisting the header or item fails, THEN the whole unit — feature mutation included — shall roll back and the error shall propagate (no mutation without a record; INV-01, EC-08). Event enqueue is the only step outside the transaction: enqueue failure shall NOT roll back the committed change set (outbox is best-effort in v1; rows are the source of truth).
 
 ## 2. Revert Ordering and Guard Precedence (BR-05…BR-09)
 
@@ -43,6 +43,8 @@
 | `ChangeSetItemRecord.position` | `0` | v1 change sets are single-item |
 | `actorId` | `"user-local"` | REQ-12 — fixed local principal until identity lands |
 | `Idempotency-Key` header | absent ⇒ no idempotency check | Existing human-driven shells don't send keys; agents will be required to |
+| `summary` (wired post route) | `Update post {postId}` | REQ-04 — the wired route supplies the required non-empty summary; `{postId}` is the path param |
+| `summary` (wired presentation route) | `Set active theme {activeThemeId}` | REQ-05 — the wired route supplies the required non-empty summary; `{activeThemeId}` is the requested theme |
 
 ## 4. Limits and Bounds
 

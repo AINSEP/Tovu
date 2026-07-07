@@ -68,9 +68,10 @@ ExtColumnValue:                      # posts.ext shape (ADR-003)
 
 SdkSurface:                          # @tovu/sdk public exports (ADR-005) — the plugin author contract
   definePlugin: "(def: PluginDefinition) => Plugin"
-  ContentEntryDraft: type            # the entry shape a beforeSave filter receives/returns
+  ContentEntryDraft: type            # the entry shape a beforeSave filter receives — READ-ONLY (RT-001)
+  ExtPatch: type                     # "{ [field: string]: string|integer|number|boolean }" — the filter's return; merged into ext.{pluginId}
   HookContext: type
-  HOOK_CONTENT_ENTRY_BEFORE_SAVE: "content.entry.beforeSave"   # name constant + typed signature
+  HOOK_CONTENT_ENTRY_BEFORE_SAVE: "content.entry.beforeSave"   # signature: (Readonly<ContentEntryDraft>, HookContext) => ExtPatch
   capabilities: { CONTENT_READ, CONTENT_EXTEND, HOOKS_ATTACH } # the three tokens (REQ-04)
 ```
 

@@ -114,7 +114,7 @@
 |---|------|--------|-------|
 | D-01 | Precedence rules cover multi-source fields | PASS | Template resolution chain (BR-01); discovery precedence + shadowing (BR-04) |
 | D-02 | Precedence rules ordered | PASS | BR-01 home→post/page→entry→not-found; BR-05 activation guard order, gateway last |
-| D-03 | Default values table covers non-obvious defaults | PASS | Missing optional templates fall through; `paper` render fallback default |
+| D-03 | Default values table covers non-obvious defaults | PASS | Missing optional templates fall through; `tovu-official` render fallback default |
 | D-04 | Why column has rationale | PASS | |
 | D-05 | Limits table covers behavior-affecting numerics | PASS | CSS ≤128 KiB, package ≤10 MiB, depth ≤50, nodes ≤5000 |
 | D-06 | Enforcement column filled | PASS | Validation pipeline (REQ-06, EC-04) |

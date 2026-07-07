@@ -6,7 +6,7 @@ SPEC PACKAGE FILE: `framework/spec-providers/speckit/templates/spec-system/state
 - Feature: `FEAT-001-admin-command-gateway`
 - Version: `1.0.0`
 - Content Hash: `sha256:see feature.spec.md (package hash of record)`
-- Last Edited: `2026-07-02T20:45:00Z`
+- Last Edited: `2026-07-07T04:15:00Z`
 
 ## Purpose
 Defines the durable change-set state, legal transitions, and invariants (ADR-008 v1 storage shape). This is backend durable state, not frontend store state.
@@ -36,7 +36,9 @@ ChangeSetRecord:
 ChangeSetItemRecord:
   id: string (uuid)
   changeSetId: string (uuid)
-  entityType: string              # applier-registry key, e.g. "post", "presentation-settings"
+  entityType: string              # applier-registry key. "post" (entityId = post id);
+                                  # "presentation-settings" (entityId = workspaceId, since
+                                  # presentation is workspace-keyed with no standalone id)
   entityId: string
   operation: enum[create, update, delete, activate]
   beforeRevisionId: string|null   # reserved (revisions feature); always null in v1
@@ -49,7 +51,10 @@ PresentationSettingsRecord:      # MODIFIED by this feature (REQ-05)
   workspaceId: string
   activeThemeId: string
   updatedAt: string (date-time)
-  version: integer               # NEW — starts at 1, +1 per write
+  version: integer               # NEW — starts at 1, +1 per write.
+                                 # Backfill: any presentation-settings row that predates
+                                 # this feature is read/migrated as version 1 (never
+                                 # undefined), so the first guard/increment is deterministic.
 ```
 
 ## 3) Action Catalog (state-changing operations)
@@ -88,4 +93,5 @@ Illegal transitions (must be impossible or rejected): `reverted → *`, `applied
 
 - v1 adapter: in-memory (`InMemoryChangeSetRepo`), matching every existing Tovu repo.
 - The port is shaped so the Phase 1 SQLite adapter is a drop-in: tables `change_sets`, `change_set_items` per ADR-008, with a unique index on `(workspaceId, idempotencyKey)` and FK `change_set_items.changeSetId → change_sets.id`.
-- `inversePayload` stored as validated JSON text in SQLite, `jsonb` in Postgres (PROJECT_MEMORY portability rule).
+- `inversePayload` stored as validated JSON text in SQLite, `jsonb` in Postgres (JSON portability rule).
+- Adding `version` to `PresentationSettingsRecord` (REQ-05) is an additive column with default `1`; the existing seeded settings row backfills to `1`. If migrations are Drizzle-managed (ADR-015), the column addition + default lands in the migration set.

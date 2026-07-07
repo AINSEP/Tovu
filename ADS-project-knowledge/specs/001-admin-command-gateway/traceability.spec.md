@@ -13,7 +13,7 @@
 | feature_name | FEAT-001-admin-command-gateway |
 | version | 1.0.0 |
 | content_hash | sha256:see feature.spec.md (package hash of record) |
-| last_edited | 2026-07-02T20:45:00Z |
+| last_edited | 2026-07-07T04:15:00Z |
 | traceability_status | PENDING IMPLEMENTATION |
 
 ---
@@ -30,10 +30,10 @@
 | AC-03 (REQ-03) | Same key, same workspace ⇒ DUPLICATE_COMMAND with original changeSetId | P1 | pending | pending | pending | pending | PENDING |
 | AC-04 (REQ-03) | Same key, different workspace ⇒ executes normally | P2 | pending | pending | pending | pending | PENDING |
 | REQ-04 | Post update route through gateway; response contract preserved; Idempotency-Key header | — | pending | pending | pending | pending | PENDING |
-| AC-05 (REQ-04) | PUT posts success response shape unchanged; change set recorded | P1 | pending | pending | pending | pending | PENDING |
+| AC-05 (REQ-04) | PUT posts success response shape unchanged; change set recorded with summary `Update post {postId}` | P1 | pending | pending | pending | pending | PENDING |
 | AC-06 (REQ-04) | Duplicate Idempotency-Key on PUT posts ⇒ 409 DUPLICATE_COMMAND; post unchanged | P1 | pending | pending | pending | pending | PENDING |
 | REQ-05 | Presentation patch through gateway; PresentationSettingsRecord gains version | — | pending | pending | pending | pending | PENDING |
-| AC-07 (REQ-05) | Two patches ⇒ version 2 then 3; inverse holds prior activeThemeId | P1 | pending | pending | pending | pending | PENDING |
+| AC-07 (REQ-05) | Two patches ⇒ version 2 then 3 (seed backfilled to 1); inverse holds prior activeThemeId; item entityType `presentation-settings`/entityId=workspaceId; summary `Set active theme {activeThemeId}` | P1 | pending | pending | pending | pending | PENDING |
 | REQ-06 | List and get change-set endpoints, workspace-scoped | — | pending | pending | pending | pending | PENDING |
 | AC-08 (REQ-06) | List returns own workspace newest-first | P1 | pending | pending | pending | pending | PENDING |
 | AC-09 (REQ-06) | Get returns header+items; unknown id ⇒ 404 CHANGE_SET_NOT_FOUND | P2 | pending | pending | pending | pending | PENDING |
@@ -50,6 +50,7 @@
 | AC-15 (REQ-11) | Validation failure ⇒ no change set, no event | P1 | pending | pending | pending | pending | PENDING |
 | REQ-12 | Fixed local actor until identity feature | — | pending | pending | pending | pending | PENDING |
 | AC-16 (REQ-12) | actorId == "user-local" on every change set | P1 | pending | pending | pending | pending | PENDING |
+| AC-17 (REQ-01) | Injected change-set persist failure rolls back the feature mutation; no change set, no event (atomic unit of work) | P1 | pending | pending | pending | pending | PENDING |
 
 ---
 
@@ -76,6 +77,7 @@
 | EC-05 | captureInverse returns null | pending | pending | PENDING |
 | EC-06 | No applier registered at revert time | pending | pending | PENDING |
 | EC-07 | Concurrent same-key commands (single-process serialization) | pending | pending | PENDING |
+| EC-08 | Change-set persist failure after feature mutation ⇒ full rollback (INV-01) | pending | pending | PENDING |
 
 ---
 

@@ -118,41 +118,18 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    label: "Marketing",
-    items: [
-      {
-        id: "seo",
-        label: "SEO & Metadata",
-        soon: true,
-        icon: '<circle cx="8" cy="8" r="5.5"/><path d="M12 12l3.5 3.5"/>',
-      },
-      {
-        id: "redirects",
-        label: "Redirects",
-        soon: true,
-        icon: '<path d="M3 6h8a3 3 0 010 6H6M3 6l2.5-2.5M3 6l2.5 2.5"/>',
-      },
-      {
-        id: "newsletter",
-        label: "Newsletter",
-        soon: true,
-        icon: '<rect x="2.5" y="4" width="13" height="9" rx="1.5"/><path d="M2.5 5.5L9 9.5l6.5-4"/>',
-      },
-      {
-        id: "analytics",
-        label: "Analytics",
-        soon: true,
-        icon: '<path d="M3 15V9M8 15V4M13 15v-4"/>',
-      },
-    ],
-  },
-  {
     label: "Design & System",
     items: [
       {
+        id: "themes",
+        label: "Themes",
+        href: "#/section/themes",
+        icon: '<circle cx="6.2" cy="7" r="3.4"/><circle cx="11.8" cy="7" r="3.4"/><circle cx="9" cy="11.6" r="3.4"/>',
+      },
+      {
         id: "appearance",
         label: "Appearance",
-        href: "#/section/appearance",
+        soon: true,
         icon: '<circle cx="9" cy="9" r="6.5"/><path d="M9 2.5v13M2.5 6h13M2.5 12h13"/>',
       },
       {
@@ -184,6 +161,35 @@ export const NAV: NavGroup[] = [
         label: "Settings",
         href: "#/section/settings",
         icon: '<circle cx="9" cy="9" r="2.5"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.2 4.2l1.4 1.4M12.4 12.4l1.4 1.4M4.2 13.8l1.4-1.4M12.4 5.6l1.4-1.4"/>',
+      },
+    ],
+  },
+  {
+    label: "Marketing",
+    items: [
+      {
+        id: "seo",
+        label: "SEO & Metadata",
+        soon: true,
+        icon: '<circle cx="8" cy="8" r="5.5"/><path d="M12 12l3.5 3.5"/>',
+      },
+      {
+        id: "redirects",
+        label: "Redirects",
+        soon: true,
+        icon: '<path d="M3 6h8a3 3 0 010 6H6M3 6l2.5-2.5M3 6l2.5 2.5"/>',
+      },
+      {
+        id: "newsletter",
+        label: "Newsletter",
+        soon: true,
+        icon: '<rect x="2.5" y="4" width="13" height="9" rx="1.5"/><path d="M2.5 5.5L9 9.5l6.5-4"/>',
+      },
+      {
+        id: "analytics",
+        label: "Analytics",
+        soon: true,
+        icon: '<path d="M3 15V9M8 15V4M13 15v-4"/>',
       },
     ],
   },

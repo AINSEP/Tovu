@@ -37,13 +37,13 @@ test("packet-one admin and content routes expose the seeded post loop", async (t
   const themeUpdate = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/presentation`, {
     method: "PATCH",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ activeThemeId: "glassmorphic" }),
+    body: JSON.stringify({ activeThemeId: "signal" }),
   });
   assert.equal(themeUpdate.status, 200);
   const themePayload = (await themeUpdate.json()) as {
     settings: { activeThemeId: string };
   };
-  assert.equal(themePayload.settings.activeThemeId, "glassmorphic");
+  assert.equal(themePayload.settings.activeThemeId, "signal");
 
   const saveResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/posts/post-home`, {
     method: "PUT",
@@ -75,5 +75,5 @@ test("packet-one admin and content routes expose the seeded post loop", async (t
   assert.equal(contentPayload.post.workspaceId, undefined);
   assert.equal(contentPayload.post.version, undefined);
   assert.equal(contentPayload.post.status, undefined);
-  assert.equal(contentPayload.presentation.activeThemeId, "glassmorphic");
+  assert.equal(contentPayload.presentation.activeThemeId, "signal");
 });

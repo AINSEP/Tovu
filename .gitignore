@@ -12,3 +12,5 @@ uploads/
 
 # Vendored dev toolkit — cloned separately, has its own git history (not part of Tovu)
 AI-Dev-Shop/
+
+.playwright-mcp/

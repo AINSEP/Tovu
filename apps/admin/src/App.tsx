@@ -77,7 +77,12 @@ export function App() {
       content = <PostEditor postId={route.postId} />;
       break;
     case "section":
-      content = route.sectionId === "appearance" ? <Appearance /> : <Placeholder sectionId={route.sectionId} />;
+      content =
+        route.sectionId === "themes" || route.sectionId === "appearance" ? (
+          <Appearance />
+        ) : (
+          <Placeholder sectionId={route.sectionId} />
+        );
       break;
   }
 
