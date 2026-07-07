@@ -1,0 +1,13 @@
+{
+  "id": "column",
+  "name": "Column",
+  "version": "1.0.0",
+  "class": "declarative",
+  "engine": 1,
+  "description": "A reading-first literary theme: a single centered column, serif body, and a mono folio index of entries.",
+  "fonts": [
+    "Fraunces:opsz,wght@9..144,400;9..144,600",
+    "Newsreader:opsz,wght@6..72,400;6..72,500",
+    "JetBrains+Mono:wght@400;500"
+  ]
+}

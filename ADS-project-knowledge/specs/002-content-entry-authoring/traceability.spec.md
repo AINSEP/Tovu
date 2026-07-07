@@ -105,7 +105,8 @@
 | Rule | Section in behavior.spec.md | Test File | Test ID | Status |
 |------|-----------------------------|-----------|---------|--------|
 | BR-01 slug derivation algorithm | § 1 | pending | pending | PENDING |
-| BR-02 suffix resolution + bound | § 1 | pending | pending | PENDING |
+| BR-02 suffix resolution + bound (incl. reserved-derived-slug) | § 1 | pending | pending | PENDING |
+| BR-02b UNIQUE-constraint violation → SLUG_CONFLICT (RT-001) | § 1 | pending | pending | PENDING |
 | BR-03 validation order (pure first, repo last) | § 2 | pending | pending | PENDING |
 | BR-04 create inside gateway; null inverse | § 2 | pending | pending | PENDING |
 | BR-05 kind guard before gateway; 404 parity | § 2 | pending | pending | PENDING |

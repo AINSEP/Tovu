@@ -40,6 +40,7 @@
 | REQ-07 | Enable/disable through gateway; disable retains data | — | pending | pending | pending | pending | PENDING |
 | AC-02 (REQ-07) | One change set per transition; disabled stops writing, retains value | P1 | pending | pending | pending | pending | PENDING |
 | AC-13 (REQ-07) | Reverting enable change set disables; ext untouched | P1 | pending | pending | pending | pending | PENDING |
+| AC-17 (REQ-06/SPEC-001 REQ-07) | Reverting a content save restores bodyJson + ext together; hook does not re-fire; restore needs no plugin | P1 | pending | pending | pending | pending | PENDING |
 | REQ-08 | Minimal @tovu/sdk + snapshot test; core internals blocked | — | pending | pending | pending | pending | PENDING |
 | AC-10 (REQ-08) | Snapshot passes; deep @tovu/core import fails to resolve | P1 | pending | pending | pending | pending | PENDING |
 | REQ-09 | Bundled word-count dogfood plugin | — | pending | pending | pending | pending | PENDING |
@@ -110,6 +111,7 @@
 | BR-05 enable/disable via gateway | § 5 | pending | pending | PENDING |
 | BR-06 ext field write validation | § 6 | pending | pending | PENDING |
 | BR-07 fail-closed handling | § 7 | pending | pending | PENDING |
+| BR-08 ext under gateway revert (pre-image + no hook re-fire) | § 7a | pending | pending | PENDING |
 | DUP-01 id duplicate / shadowing | § 8 | pending | pending | PENDING |
 | TB-01 list + composition ordering | § 9 | pending | pending | PENDING |
 

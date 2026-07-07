@@ -56,7 +56,7 @@
 | INV-01 | No writes outside the install dir | pending | pending | PENDING |
 | INV-02 | Failed init never leaves a partial dir; marker implies completeness | pending | pending | PENDING |
 | INV-03 | Template sources read-only at runtime | pending | pending | PENDING |
-| INV-04 | serve writes only content.db (+ schemaVersion bump) | pending | pending | PENDING |
+| INV-04 | serve writes only content.db (+ schemaVersion & schemaTag stamp, both together) | pending | pending | PENDING |
 | INV-05 | schemaVersion monotonic, never above runtime | pending | pending | PENDING |
 | INV-06 | Layout identical across standalone/desktop creation | pending | pending | PENDING |
 
@@ -75,6 +75,7 @@
 | EC-07 | unknown templateId in meta (warn, proceed) | pending | pending | PENDING |
 | EC-08 | dir argument + legacy env vars (dir wins, warn) | pending | pending | PENDING |
 | EC-09 | crash mid-migration; idempotent re-run | pending | pending | PENDING |
+| EC-10 | init filesystem write failure (ENOSPC/EACCES); cleanup + INV-02 holds (RT-003) | pending | pending | PENDING |
 
 ---
 

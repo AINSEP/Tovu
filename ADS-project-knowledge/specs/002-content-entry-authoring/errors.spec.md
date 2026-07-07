@@ -35,6 +35,8 @@ changeSetId: string|null   # only for DUPLICATE_COMMAND (SPEC-001)
 
 Existing modified endpoints (`POST_GET`, `POST_UPDATE`, `POSTS_LIST`, `CONTENT_ENTRY_BY_SLUG`) keep their legacy message-only 404/400/409 payloads for pre-feature failure kinds; new failure kinds introduced by this feature (kind mismatch) reuse the legacy 404 shape there (compatibility rule in api.spec.md §7).
 
+**Inherited code (RT-006):** `REVERT_NOT_POSSIBLE` (422) is referenced by AC-07 (reverting a create) but is **defined in SPEC-001 REQ-10**, not redefined here — creates record `inversePayload: null`, so the SPEC-001 revert path returns it. Listed here only for traceability; its status/shape are owned by SPEC-001.
+
 ## 3) Per-Code Details Schema
 
 ```yaml

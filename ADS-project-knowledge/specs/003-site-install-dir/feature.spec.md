@@ -12,7 +12,7 @@
 | spec_id | SPEC-003 |
 | version | 1.0.0 |
 | status | APPROVED |
-| content_hash | sha256:d8a65a90f1249a8380bbeafb8827b2a44ab1ea101e18e502b8e405c927c67465 |
+| content_hash | sha256:c2547dc39b9e12bc7fb199d3c32e472804a3fea9690014a8000f421db1846142 |
 | feature_name | FEAT-003-site-install-dir |
 | last_edited | 2026-07-07T02:20:00Z |
 | owner | Leon Aburime |
@@ -80,11 +80,11 @@ ADR-012's create→serve flow, made real: `tovu init <dir>` instantiates the bui
 
 ## Requirements
 
-- REQ-01: An install dir consists of exactly: `config.json` (static identity: required `name`, optional `domain`, optional `port`), `content.db` (SQLite, existing schema), `uploads/`, `themes/`, `plugins/`, `overrides/` (all created empty), and `.site-meta.json` (`templateId`, `templateVersion`, `schemaVersion`, `createdAt`, `siteId`). No other files are required or created.
+- REQ-01: An install dir consists of exactly: `config.json` (static identity: required `name`, optional `domain`, optional `port`), `content.db` (SQLite, existing schema), `uploads/`, `themes/`, `plugins/`, `overrides/` (all created empty), and `.site-meta.json` (`templateId`, `templateVersion`, `schemaVersion`, `schemaTag`, `createdAt`, `siteId`). No other files are required or created.
 - REQ-02: The starter template is versioned data in the repo at `templates/starter/`: `template.json` (`id "starter"`, semver `version`, `name`, `defaultConfig`) plus a declarative seed file (`seed-content.json`: one workspace, entries, presentation settings) whose content equals today's seed module output (including the SPEC-002 `about` page). Template instantiation reads this data — no template code executes.
 - REQ-03: `tovu init <dir> [--name <name>]` performs, in order: (1) target validation (EC-01/EC-02), (2) directory creation, (3) `config.json` write, (4) `content.db` creation + migrations, (5) seed insertion from the template (repo-level writes; no change sets — seeds predate the site's audit trail, matching SPEC-002 INV-03's seed exemption), (6) `.site-meta.json` write **last** (commit marker). On any failure before (6), the CLI removes everything it created (no partial install dir).
 - REQ-04: `tovu serve <dir> [--port <n>]` validates before listening: `config.json` parseable with a non-empty `name`; `.site-meta.json` present and parseable; `content.db` present. Any miss aborts with `SITE_DIR_INVALID` (exit 3) and serves nothing.
-- REQ-05: Schema compatibility guard: the runtime's schema version is the count of Drizzle migrations it bundles under `drizzle/` (read from `drizzle/meta/_journal.json`). `.site-meta.json.schemaVersion` greater than the runtime's version aborts with `SITE_NEWER_THAN_RUNTIME` (exit 4). A lower (or equal-but-unapplied) version triggers forward migration — Drizzle's `migrate()` applies the pending generated migrations from `drizzle/`, idempotently via the db's `__drizzle_migrations` journal — and the recorded `schemaVersion` is set to the runtime's version before listening. (Drizzle's journal tracks *which* migrations are applied to this db; `.site-meta.json.schemaVersion` is the install-dir portability stamp answering *"is this site newer than the runtime?"* — the two are complementary, not redundant.)
+- REQ-05: Schema compatibility guard. The runtime identifies its schema by the latest Drizzle migration it bundles under `drizzle/` (read from `drizzle/meta/_journal.json`): `schemaVersion` = that migration's integer index (ordering), `schemaTag` = its tag/hash identity. The guard compares the site's `.site-meta.json` stamp to the runtime: (a) site `schemaVersion` **greater than** the runtime's ⇒ `SITE_NEWER_THAN_RUNTIME` (exit 4); (b) **equal** index but a **different** `schemaTag` ⇒ also `SITE_NEWER_THAN_RUNTIME` (divergent migration lineage — a fork or a different runtime build at the same index; RT-005); (c) otherwise Drizzle's `migrate()` applies any pending generated migrations (idempotent via the db's `__drizzle_migrations` journal), and both `schemaVersion` and `schemaTag` are set to the runtime's before listening. (Drizzle's journal tracks *which* migrations a given db has applied; the `.site-meta.json` stamp is the portability guard answering *"is this site newer than, or divergent from, this runtime?"* — complementary, not redundant. Comparing the tag, not just the count, is what makes divergent lineages detectable.)
 - REQ-06: The serving workspace id is resolved from `content.db`: exactly one workspace row is required; zero or multiple rows abort with `SITE_CORRUPT` (exit 5). The hardcoded seeded-workspace id in `server/deps.ts` is removed from the install-dir path.
 - REQ-07: Precedence rules: port = `--port` flag > `config.json.port` > `PORT` env > 3000; site name at init = `--name` flag > directory basename. Both are deterministic (BR-02/BR-03).
 - REQ-08: Neither `init` nor `serve` persists absolute paths in any install-dir file; a moved/renamed dir serves identically (AC-10).
@@ -95,13 +95,13 @@ ADR-012's create→serve flow, made real: `tovu init <dir>` instantiates the bui
 
 ## Acceptance Criteria
 
-- AC-01 (REQ-03) [P1]: Given a clean path, when `tovu init demo --name "Demo"` runs, then the dir contains exactly the REQ-01 layout, `config.json.name == "Demo"`, `.site-meta.json` records `templateId "starter"`, the current `templateVersion` and `schemaVersion`, and a generated `siteId`.
+- AC-01 (REQ-03) [P1]: Given a clean path, when `tovu init demo --name "Demo"` runs, then the dir contains exactly the REQ-01 layout, `config.json.name == "Demo"`, `.site-meta.json` records `templateId "starter"`, the current `templateVersion`, `schemaVersion` + `schemaTag` (the runtime's latest bundled migration), and a generated `siteId`.
 - AC-02 (REQ-02) [P1]: Given a fresh init, when the site is served, then the seeded content equals the starter template's declarative seed (welcome post, glass-demo post, `about` page, presentation `paper`) — byte-equivalent to the pre-feature seed module output.
 - AC-03 (REQ-03) [P1]: Given `init` fails at the seed step (fault injection), when it exits, then the target path does not exist (full cleanup) and the exit code is nonzero.
 - AC-04 (REQ-03) [P1]: Given an existing non-empty directory, when `tovu init` targets it, then the CLI exits 3 with `INIT_DIR_NOT_EMPTY` and the directory is unmodified.
 - AC-05 (REQ-04) [P1]: Given a dir missing `.site-meta.json` (crashed init), when `tovu serve` targets it, then the CLI exits 3 with `SITE_DIR_INVALID` and nothing listens.
-- AC-06 (REQ-05) [P1]: Given `.site-meta.json.schemaVersion` greater than the runtime's, when served, then the CLI exits 4 with `SITE_NEWER_THAN_RUNTIME` and `content.db` is not written.
-- AC-07 (REQ-05) [P2]: Given a site with an older `schemaVersion`, when served, then migrations run, `.site-meta.json.schemaVersion` equals the runtime version afterward, and the server starts.
+- AC-06 (REQ-05) [P1]: Given `.site-meta.json.schemaVersion` greater than the runtime's — or equal index but a different `schemaTag` (divergent lineage) — when served, then the CLI exits 4 with `SITE_NEWER_THAN_RUNTIME` and `content.db` is not written.
+- AC-07 (REQ-05) [P2]: Given a site with an older `schemaVersion`, when served, then migrations run, and afterward `.site-meta.json.schemaVersion` **and** `.site-meta.json.schemaTag` both equal the runtime's bundled-migration identity (index and tag written together), and the server starts. A follow-up serve of the now-migrated site with the same runtime must pass the guard cleanly (no false `SITE_NEWER_THAN_RUNTIME`), proving the tag was stamped, not just the index.
 - AC-08 (REQ-06) [P1]: Given a served install dir, when content is edited via the admin API and the server restarts, then edits persist and the workspace id used by routes equals the one row in the site's `workspaces` table.
 - AC-09 (REQ-06) [P1]: Given a `content.db` with zero workspace rows, when served, then the CLI exits 5 with `SITE_CORRUPT`.
 - AC-10 (REQ-08) [P1]: Given an initialized, previously served dir, when it is moved to a different absolute path and served, then all content, settings, and behavior are identical.
@@ -117,7 +117,7 @@ ADR-012's create→serve flow, made real: `tovu init <dir>` instantiates the bui
 - INV-01: `init` and `serve` must never write any file outside the target install dir (stdout/stderr excepted).
 - INV-02: A failed `init` must never leave a partial install dir behind; `.site-meta.json` must only exist in dirs where every prior init step completed.
 - INV-03: `serve` must never mutate template sources (`templates/starter/` is read-only at runtime).
-- INV-04: `content.db` must be the only file inside the install dir that `serve` writes to (until the media spec adds `uploads/`), plus the `schemaVersion` field of `.site-meta.json` during forward migration.
+- INV-04: `content.db` must be the only file inside the install dir that `serve` writes to (until the media spec adds `uploads/`), plus the `schemaVersion` and `schemaTag` fields of `.site-meta.json`, which are updated together atomically after a forward migration (a stamp that carries a bumped `schemaVersion` beside a stale `schemaTag` is an illegal state — it would trip a false divergent-lineage guard on the next serve; RT-005).
 - INV-05: `.site-meta.json.schemaVersion` must never exceed the runtime's schema version after a successful `serve` start, and must never decrease.
 - INV-06: The install-dir layout must be identical whether the site was created by standalone CLI or (later) the desktop host — it is the ADR-011 portability contract.
 
@@ -142,7 +142,9 @@ ADR-012's create→serve flow, made real: `tovu init <dir>` instantiates the bui
 - EC-08: What happens when both an install-dir argument and legacy `TOVU_CONTENT_DB` are present?
   Expected behavior: the explicit install dir wins; the env var is ignored with a logged warning (BR-04).
 - EC-09: What happens when `serve` crashes mid-migration?
-  Expected behavior: additive migrations are idempotent (existing guarantee); the next serve re-runs them; `.site-meta.json.schemaVersion` is only bumped after migrations complete.
+  Expected behavior: the generated Drizzle migrations are idempotent via the `__drizzle_migrations` journal; the next serve re-applies any not-yet-recorded migration; the `.site-meta.json` `schemaVersion` and `schemaTag` stamp is only updated (both fields together) after `migrate()` completes.
+- EC-10: What happens when an `init` filesystem write fails mid-flight (disk full `ENOSPC`, permission `EACCES`/`EROFS`)?
+  Expected behavior: exit `INTERNAL` (1) after best-effort cleanup; if cleanup also fails, the message names the partial dir. The commit marker is never written, so `serve` refuses the partial dir regardless — INV-02 holds even under failed cleanup (RT-003).
 
 ---
 
@@ -221,7 +223,7 @@ Note: `ADS-project-knowledge/governance/constitution.md` is still not bootstrapp
 
 Always:
 - Write `.site-meta.json` last during init and treat its presence as the only "init completed" signal.
-- Keep the generated Drizzle migrations additive; rely on Drizzle's `__drizzle_migrations` journal for idempotency; bump the recorded `.site-meta.json.schemaVersion` only after `migrate()` completes.
+- Keep the generated Drizzle migrations additive; rely on Drizzle's `__drizzle_migrations` journal for idempotency; update the recorded `.site-meta.json` `schemaVersion` and `schemaTag` (both together) only after `migrate()` completes.
 - Resolve the workspace from the site's own db — never reintroduce a hardcoded workspace id on the install-dir path.
 
 Ask before:

@@ -26,10 +26,10 @@ export function Dashboard() {
           </p>
         </div>
         <div className="dash-card">
-          <h3>Appearance</h3>
+          <h3>Theme</h3>
           <p className="dash-number">{themeId ?? "…"}</p>
           <p>
-            active theme · <a href="#/section/appearance">switch</a>
+            active theme · <a href="#/section/themes">switch</a>
           </p>
         </div>
         <div className="dash-card">

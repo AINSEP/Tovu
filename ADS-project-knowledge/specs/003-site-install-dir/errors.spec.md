@@ -38,8 +38,10 @@ SITE_DIR_INVALID:
   reason: string                                          # parse error / missing / not a file
 
 SITE_NEWER_THAN_RUNTIME:
-  siteSchemaVersion: integer
-  runtimeSchemaVersion: integer
+  siteSchemaVersion: integer        # site .site-meta.json index
+  runtimeSchemaVersion: integer     # runtime latest-migration index
+  siteSchemaTag: string             # site tag (shown when divergence, not just newer)
+  runtimeSchemaTag: string          # runtime latest-migration tag
 
 PORT_IN_USE:
   port: integer
@@ -52,7 +54,7 @@ PORT_IN_USE:
 | `VALIDATION` | CLI arg parser | CLI main | usage printed after the error line |
 | `INIT_DIR_NOT_EMPTY` | init target validation (step 1, BR-01) | CLI main | checked before anything is created |
 | `SITE_DIR_INVALID` | `readSiteDir` selector | CLI main | serve-time; also covers crashed-init dirs (missing commit marker) |
-| `SITE_NEWER_THAN_RUNTIME` | schema guard (serve step 2, BR-05) | CLI main | compares `.site-meta.json.schemaVersion` to the runtime constant |
+| `SITE_NEWER_THAN_RUNTIME` | schema guard (serve step 4, BR-05) | CLI main | compares `.site-meta.json` `schemaVersion`/`schemaTag` to the runtime's latest bundled Drizzle migration (index for ordering, tag for divergence — RT-005) |
 | `SITE_CORRUPT` | `resolveWorkspace` / db open | CLI main | includes SQLite busy/lock (EC-05) |
 | `PORT_IN_USE` | HTTP listener `EADDRINUSE` | CLI main | after all validation passed |
 | `INTERNAL` | any uncaught error | CLI main | init path runs cleanup before reporting (INV-02) |

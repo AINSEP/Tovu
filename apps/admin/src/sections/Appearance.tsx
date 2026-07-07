@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { api, type PresentationSettings } from "../lib/api";
 
 const THEME_BLURBS: Record<string, string> = {
-  paper: "Editorial and warm — serif type on cream.",
-  atlas: "Bold and atmospheric — light on deep navy.",
-  glassmorphic: "Translucent and layered — frosted panels.",
+  "tovu-official": "The official explainer — a landing page that documents Tovu itself.",
+  column: "A reading-first literary theme — serif type in a single column.",
+  signal: "A bright product-blog — cobalt masthead and a rounded card grid.",
 };
 
 export function Appearance() {
@@ -41,9 +41,9 @@ export function Appearance() {
 
   return (
     <div>
-      <h1>Appearance</h1>
+      <h1>Themes</h1>
       <p>
-        Active theme drives the public site. <a href="/" target="_blank" rel="noreferrer">View site ↗</a>
+        The active theme drives the public site. <a href="/" target="_blank" rel="noreferrer">View site ↗</a>
       </p>
       {error ? <div className="notice error">{error}</div> : null}
       <div className="theme-grid">

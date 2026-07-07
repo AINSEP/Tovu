@@ -2,6 +2,7 @@ import {
   getPresentationSettings,
   PresentationSettingsNotFoundError,
 } from "../../../../features/presentation";
+import { validThemeIds } from "../../../../features/theme";
 import { toAdminPresentationResponse } from "../../../../server/http/admin/presentation";
 import type { RouteRegistrar } from "../../../routes/types";
 
@@ -14,7 +15,7 @@ export const registerAdminPresentationGetRoute: RouteRegistrar = (app, deps) => 
 
     try {
       const result = await getPresentationSettings({
-        deps: { repo: deps.presentationRepo },
+        deps: { repo: deps.presentationRepo, availableThemeIds: validThemeIds(deps.themes) },
         input: { workspaceId: deps.workspaceId },
       });
 

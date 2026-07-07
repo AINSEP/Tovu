@@ -6,7 +6,7 @@ SPEC PACKAGE FILE: `framework/spec-providers/speckit/templates/spec-system/api.s
 - Feature: `FEAT-001-admin-command-gateway`
 - Version: `1.0.0`
 - Content Hash: `sha256:see feature.spec.md (package hash of record)`
-- Last Edited: `2026-07-02T20:45:00Z`
+- Last Edited: `2026-07-07T04:15:00Z`
 
 ## Purpose
 Source of truth for the HTTP surface this feature adds or modifies, independent of implementation.
@@ -65,6 +65,8 @@ Idempotency-Key: { type: string, required: false, maxLength: 200 }
 ### Endpoint: `PRESENTATION_PATCH` (modified)
 - Unchanged body contract: `{ activeThemeId: string }`
 - New optional header: `Idempotency-Key` as above.
+
+**Gateway summary (both modified endpoints):** the request bodies carry no `summary`, so each wired route supplies the non-empty summary the gateway requires — `POST_UPDATE` records `Update post {postId}`, `PRESENTATION_PATCH` records `Set active theme {activeThemeId}` (behavior.spec.md §3; REQ-04/REQ-05).
 
 ## 5) Response Contracts
 

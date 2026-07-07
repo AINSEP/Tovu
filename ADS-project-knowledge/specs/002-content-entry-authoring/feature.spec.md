@@ -12,7 +12,7 @@
 | spec_id | SPEC-002 |
 | version | 1.0.0 |
 | status | APPROVED |
-| content_hash | sha256:a7cb993a5926fbef1ddf6069587615c7e98314507aef0dbcd172d5b075a0c79e |
+| content_hash | sha256:b0127bc03ca46fe1e1a870f6bcff28a20fddfd82872ed4f67a7b9bf1d7dd4675 |
 | feature_name | FEAT-002-content-entry-authoring |
 | last_edited | 2026-07-07T02:05:00Z |
 | owner | Leon Aburime |
@@ -116,7 +116,7 @@ The MVP authoring loop for the Tovu walking skeleton: an admin (human now, AI ag
 - AC-13 (REQ-09) [P1]: Given a published page with slug `about`, when `GET /api/content/v1/workspaces/:workspaceId/posts/about` and site `GET /about` are requested, then both return 200 (JSON payload includes `kind "page"`; site returns rendered HTML).
 - AC-14 (REQ-09) [P1]: Given a published page and a published post, when site `GET /` is requested, then the home listing contains the post and not the page.
 - AC-15 (REQ-09) [P2]: Given a draft page, when the content API and site `GET /:slug` are requested for its slug, then both respond 404.
-- AC-16 (REQ-11) [P1]: Given a pre-existing `content.db` created before this feature, when the server boots, then the `kind` column exists with every prior row reading `kind "post"` and no rows lost; given a fresh database, then the seed contains the published `about` page.
+- AC-16 (REQ-11) [P1]: Given a `content.db` at the Drizzle migration baseline immediately *before* the `kind` migration (its `posts` table lacks `kind`), when the server boots and applies migrations, then the `kind` column exists with every prior row reading `kind "post"` and no rows lost; given a fresh database, then the seed contains the published `about` page.
 - AC-17 (REQ-12) [P1]: Given the admin Posts section, when the New Post action is used with a title, then a create request fires and the editor transitions to edit mode for the returned id (per ui.spec.md events).
 - AC-18 (REQ-12) [P1]: Given the admin Pages section, when it loads, then it lists `kind "page"` entries from `GET …/pages`, and New Page creates a page via `POST …/pages`.
 - AC-19 (REQ-01) [P2]: Given an update request body that includes a `kind` property, when it is handled, then the property is ignored and the entry's kind is unchanged.
@@ -153,8 +153,8 @@ The MVP authoring loop for the Tovu walking skeleton: an admin (human now, AI ag
   Expected behavior: no entry, no change set, no outbox event; the error maps per errors.spec.md (SPEC-001 BR-03 inherited).
 - EC-08: What happens when site `GET /:slug` matches a draft entry?
   Expected behavior: the site 404 page renders (draft never served, INV-04).
-- EC-09: What happens when an old `content.db` (no `kind` column) boots with the new runtime?
-  Expected behavior: additive migration adds the column with default `'post'`; all rows preserved (AC-16).
+- EC-09: What happens when a `content.db` at the pre-`kind` Drizzle baseline (no `kind` column) boots with the new runtime?
+  Expected behavior: the generated additive migration adds the column with default `'post'`; all rows preserved; re-runs are no-ops via the Drizzle journal (AC-16).
 - EC-10: What happens when the same derived base slug is created concurrently twice (single-process dev server)?
   Expected behavior: event-loop serialization means the second create derives the next free suffix; both succeed with distinct slugs.
 

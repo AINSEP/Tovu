@@ -33,6 +33,8 @@ details: object|null       # THEME_INVALID carries the validation error list her
 
 ## 3) Validation Error Vocabulary (inside `THEME_INVALID.details.errors[]` and `THEMES_LIST.themes[].errors[]`)
 
+> **Scoping (suite-wide namespace rule).** These codes are **envelope-scoped detail identifiers**, not global error codes. Their canonical identity is the pair `(THEME_INVALID, <code>)` — equivalently `THEME_INVALID.details.errors[].code` — and they live only inside the `THEME_INVALID` / `THEMES_LIST` surfaces owned by the theme validator. SPEC-005 defines a **deliberately parallel** vocabulary scoped to `PLUGIN_INVALID`; identical strings (`MANIFEST_MISSING`, `ID_DUPLICATE`, `ENGINE_UNSUPPORTED`, …) in the two specs are **distinct scoped codes with distinct owners**, not a redefinition of one global code. Suite-level tooling, generated enums, and traceability checks MUST key these by `(parent envelope, code)`, never by the bare string.
+
 | Validation code | Trigger | REQ/EC |
 |---|---|---|
 | `MANIFEST_MISSING` | no `theme.json` | REQ-01 |
@@ -47,7 +49,7 @@ details: object|null       # THEME_INVALID carries the validation error list her
 | `TEMPLATE_TOO_COMPLEX` | depth > 50 or nodes > 5000 | EC-04 |
 | `COMPONENT_UNKNOWN` | component id not in the registry | REQ-04 / AC-05 |
 | `TOKENS_MISSING` / `TOKENS_MALFORMED` | required token absent / bad value | EC-03 |
-| `CSS_FORBIDDEN` | `@import`, external `url()`, `javascript:` URL | REQ-06 / AC-04 |
+| `CSS_FORBIDDEN` | fails the CSS allowlist: `@import`, external or `data:` `url()`, `@font-face` external `src`, `javascript:`/`expression()`/`-moz-binding`, or any other non-allowlisted construct | REQ-06 / AC-04 |
 | `CSS_TOO_LARGE` | `styles.css` > 128 KiB | REQ-06 |
 | `PACKAGE_TOO_LARGE` | total > 10 MiB | REQ-06 |
 | `FILE_NOT_ALLOWED` | file outside the allowed set | REQ-06 |

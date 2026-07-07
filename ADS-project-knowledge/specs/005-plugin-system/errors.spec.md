@@ -35,6 +35,8 @@ details: object|null       # PLUGIN_INVALID carries the validation error list he
 
 ## 3) Validation Error Vocabulary (inside `PLUGIN_INVALID.details.errors[]` and `PLUGINS_LIST.plugins[].errors[]`)
 
+> **Scoping (suite-wide namespace rule).** These codes are **envelope-scoped detail identifiers**, not global error codes. Their canonical identity is the pair `(PLUGIN_INVALID, <code>)` — equivalently `PLUGIN_INVALID.details.errors[].code` — and they live only inside the `PLUGIN_INVALID` / `PLUGINS_LIST` surfaces owned by the plugin validator. SPEC-004 defines a **deliberately parallel** vocabulary scoped to `THEME_INVALID`; identical strings (`MANIFEST_MISSING`, `ID_DUPLICATE`, `ENGINE_UNSUPPORTED`, …) in the two specs are **distinct scoped codes with distinct owners**, not a shared global code. Suite-level tooling, generated enums, and traceability checks MUST key these by `(parent envelope, code)`, never by the bare string. The two validators intentionally mirror each other's shape but never share a registry.
+
 | Validation code | Trigger | REQ/EC |
 |---|---|---|
 | `MANIFEST_MISSING` | no `tovu.plugin.json` | REQ-01 |

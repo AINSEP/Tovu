@@ -12,9 +12,9 @@
 | spec_id | SPEC-001 |
 | version | 1.0.0 |
 | status | APPROVED |
-| content_hash | sha256:d47c72376bb7ff82b5506e9b69b03215f50eae1ea24b98573fb43ffc103aba73 |
+| content_hash | sha256:768af10e49fcde7a6e8d9dc0f4b1193c0302201a480afc01d9fe20fafe25e5d6 |
 | feature_name | FEAT-001-admin-command-gateway |
-| last_edited | 2026-07-02T20:45:00Z |
+| last_edited | 2026-07-07T04:15:00Z |
 | owner | Leon Aburime |
 | spec_agent | Spec Agent |
 | spec_mode | brownfield |
@@ -56,7 +56,7 @@ Every admin mutation in Tovu — whether a human hits save or an AI agent execut
 ## Scope
 
 **In scope:**
-- `executeCommand` gateway in `tovu/src/core/commands/` (single mutation write path) — REQ-01, REQ-02, REQ-11, REQ-12
+- `executeCommand` gateway in `src/core/commands/` (single mutation write path) — REQ-01, REQ-02, REQ-11, REQ-12
 - Change-set + change-set-item records and an in-memory repository behind a port — REQ-02
 - Idempotency-key rejection — REQ-03
 - Wiring `PUT …/posts/:postId` and `PATCH …/presentation` through the gateway — REQ-04, REQ-05
@@ -79,11 +79,11 @@ Every admin mutation in Tovu — whether a human hits save or an AI agent execut
 
 ## Requirements
 
-- REQ-01: The command gateway executes a mutation only in this order: idempotency check, inverse capture, feature execution, change-set record. Each successful execution records exactly one change set with status `applied` containing exactly one item.
+- REQ-01: The command gateway executes a mutation only in this order: idempotency check, inverse capture, feature execution, change-set record. Each successful execution records exactly one change set with status `applied` containing exactly one item. The feature mutation, the change-set header, and the change-set item commit **atomically as one unit of work** (one transaction on the SQL adapter; the equivalent all-or-nothing commit on the memory adapter): if the change-set header or item fails to persist after the feature mutation has been applied, the entire unit — including the feature mutation — rolls back, leaving no persistent trace and propagating the error to the caller (INV-01, EC-08). Only outbox event enqueue sits outside this boundary (BR-04).
 - REQ-02: A change-set record persists `id`, `workspaceId`, `actorId`, `status`, `summary`, optional `idempotencyKey`, optional `intentRef`, `createdAt`, `appliedAt`; its item persists `entityType`, `entityId`, `operation`, `inversePayload` (nullable), `entityVersionAtApply` (nullable), `position`.
 - REQ-03: When a command carries an idempotency key already recorded for the same workspace, the gateway rejects it without executing the mutation, returning error `DUPLICATE_COMMAND` that carries the original change-set id.
-- REQ-04: `PUT /api/admin/v1/workspaces/:workspaceId/posts/:postId` executes through the gateway, accepts an optional `Idempotency-Key` header, and returns the same success response shape as before this feature.
-- REQ-05: `PATCH /api/admin/v1/workspaces/:workspaceId/presentation` executes through the gateway; `PresentationSettingsRecord` gains an integer `version` starting at 1 that increments by exactly 1 on every write.
+- REQ-04: `PUT /api/admin/v1/workspaces/:workspaceId/posts/:postId` executes through the gateway, accepts an optional `Idempotency-Key` header, and returns the same success response shape as before this feature. The route records the change set with the summary `Update post {postId}` (the wired route supplies the non-empty summary the gateway requires).
+- REQ-05: `PATCH /api/admin/v1/workspaces/:workspaceId/presentation` executes through the gateway with the summary `Set active theme {activeThemeId}`; the recorded change-set item uses `entityType "presentation-settings"` and `entityId` equal to the `workspaceId` (presentation settings are workspace-keyed — one row per workspace, no standalone id). `PresentationSettingsRecord` gains an integer `version` starting at 1 that increments by exactly 1 on every write; when this feature lands, any pre-existing presentation-settings row is backfilled to `version` 1.
 - REQ-06: `GET /api/admin/v1/workspaces/:workspaceId/change-sets` returns the workspace's change sets ordered newest-first; `GET …/change-sets/:changeSetId` returns the record with its items; both are workspace-scoped.
 - REQ-07: `POST …/change-sets/:changeSetId/revert` applies each item's inverse in descending `position` order via a registered inverse applier, then sets status `reverted` and stamps `revertedAt`.
 - REQ-08: Revert is refused with error `REVERT_CONFLICT` when the target entity's current version does not equal the item's `entityVersionAtApply`; the change set remains `applied` and the entity is unmodified.
@@ -97,21 +97,22 @@ Every admin mutation in Tovu — whether a human hits save or an AI agent execut
 ## Acceptance Criteria
 
 - AC-01 (REQ-01) [P1]: Given a valid post edit, when it is saved through the gateway, then exactly one change set with status `applied` and exactly one item exists for it, and `appliedAt` equals `createdAt`.
-- AC-02 (REQ-02) [P1]: Given a post edit through the gateway, when the recorded item is read, then it contains `entityType "post"`, the post id, operation `update`, an `inversePayload` holding the pre-edit `title`, `slug`, `bodyJson`, `status`, and `entityVersionAtApply` equal to the post's version after the edit.
+- AC-02 (REQ-02) [P1]: Given a post edit through the gateway, when the recorded item is read, then it contains `entityType "post"`, the post id, operation `update`, an `inversePayload` holding the pre-edit `title`, `slug`, `bodyJson`, `status` — and, when the post carries plugin `ext` data, the pre-edit `ext` snapshot (SPEC-005 owns this reconciliation: the content-entry inverse pre-image captures `ext` alongside core fields so revert restores it, per SPEC-005 BR-08 / AC-17) — and `entityVersionAtApply` equal to the post's version after the edit.
 - AC-03 (REQ-03) [P1]: Given a command executed with idempotency key K, when a second command with key K arrives in the same workspace, then no mutation occurs and the caller receives `DUPLICATE_COMMAND` carrying the first command's change-set id.
 - AC-04 (REQ-03) [P2]: Given a command executed with idempotency key K in workspace A, when a command with key K arrives in workspace B, then it executes normally.
-- AC-05 (REQ-04) [P1]: Given the seeded post, when `PUT …/posts/post-home` succeeds, then the HTTP response body shape equals the pre-feature contract (post fields, no change-set fields) and a change set was recorded.
+- AC-05 (REQ-04) [P1]: Given the seeded post, when `PUT …/posts/post-home` succeeds, then the HTTP response body shape equals the pre-feature contract (post fields, no change-set fields) and a change set was recorded whose `summary` is `Update post post-home`.
 - AC-06 (REQ-04) [P1]: Given a `PUT …/posts/:postId` with header `Idempotency-Key: K` already used in the workspace, when the request is handled, then the response is HTTP 409 with `code "DUPLICATE_COMMAND"` and the post is unchanged.
-- AC-07 (REQ-05) [P1]: Given the seeded presentation settings, when the active theme is patched twice, then `version` is 2 then 3 (seed = 1), and each patch recorded a change set with the prior `activeThemeId` in its inverse payload.
+- AC-07 (REQ-05) [P1]: Given the seeded presentation settings (backfilled to `version` 1), when the active theme is patched twice, then `version` is 2 then 3, and each patch recorded a change set with the prior `activeThemeId` in its inverse payload, a change-set item with `entityType "presentation-settings"` and `entityId` equal to the workspace id, and a `summary` of `Set active theme {activeThemeId}`.
 - AC-08 (REQ-06) [P1]: Given three applied change sets in a workspace, when `GET …/change-sets` is called, then all three return ordered newest-first and none from other workspaces appear.
 - AC-09 (REQ-06) [P2]: Given an existing change set id, when `GET …/change-sets/:id` is called, then the response contains the header fields of REQ-02 and its items; an unknown id returns HTTP 404 `CHANGE_SET_NOT_FOUND`.
-- AC-10 (REQ-07) [P1]: Given an applied change set for a post edit and no later edits, when revert is called, then the post's `title`, `slug`, `bodyJson`, `status` equal their pre-edit values, the post `version` increased by 1, and the change set is `reverted` with `revertedAt` set.
+- AC-10 (REQ-07) [P1]: Given an applied change set for a post edit and no later edits, when revert is called, then the post's `title`, `slug`, `bodyJson`, `status` — and its plugin `ext` data, when present (SPEC-005 AC-17) — equal their pre-edit values, the `content.entry.beforeSave` hook does not fire during the restore (a revert re-applies the pre-image; it is not a genuine create/update, SPEC-005 BR-08), the post `version` increased by 1, and the change set is `reverted` with `revertedAt` set.
 - AC-11 (REQ-08) [P1]: Given an applied change set for a post edit followed by another edit of the same post, when revert is called on the first change set, then the response is HTTP 409 `REVERT_CONFLICT`, the post is unchanged, and the change set stays `applied`.
 - AC-12 (REQ-07) [P1]: Given a change set already `reverted`, when revert is called again, then the response is HTTP 409 `CHANGE_SET_INVALID_STATUS` and no entity changes.
 - AC-13 (REQ-09) [P1]: Given a gateway execution and a revert, when the outbox is inspected, then it contains `change-set.applied` and `change-set.reverted` events each carrying `workspaceId`, `actorId "user-local"`, and the change-set id.
 - AC-14 (REQ-10) [P1]: Given a change set whose single item has a null `inversePayload`, when revert is called, then the response is HTTP 422 `REVERT_NOT_POSSIBLE` and the change set stays `applied`.
 - AC-15 (REQ-11) [P1]: Given a post edit that fails validation (empty title), when it is submitted through the gateway, then the caller receives the validation error, and no change set and no outbox event were created.
 - AC-16 (REQ-12) [P1]: Given any successful command, when its change set is read, then `actorId` equals `user-local`.
+- AC-17 (REQ-01) [P1]: Given a post edit whose feature mutation applies but whose change-set item persistence is made to fail (injected adapter error), when it is submitted through the gateway, then the caller receives the error, the post is unchanged (feature mutation rolled back), and no change set and no outbox event exist — proving the mutation and its record commit atomically (INV-01, EC-08).
 
 ---
 
@@ -142,16 +143,19 @@ Every admin mutation in Tovu — whether a human hits save or an AI agent execut
 - EC-07: What happens when two concurrent requests supply the same new idempotency key?
   Expected behavior: with the current single-process in-memory adapter, requests are serialized by the event loop; the second receives `DUPLICATE_COMMAND`. Multi-process uniqueness is deferred to the SQLite adapter (unique index on `(workspaceId, idempotencyKey)`).
 
+- EC-08: What happens when the feature mutation succeeds but persisting the change-set header or item then fails (e.g. a SQL adapter error)?
+  Expected behavior: the whole unit of work rolls back (REQ-01, BR-04) — the feature mutation is undone, no change set and no outbox event exist, and the underlying error propagates to the caller. INV-01 holds: there is no mutation without a record.
+
 ---
 
 ## Dependencies
 
 | Dependency | What It Provides | Failure Mode | Fallback |
 |------------|------------------|--------------|----------|
-| `tovu/src/core/ports.ts` | `DomainEvent` envelope with `actorId`/`changeSetId`, `ClockPort`, `IdGeneratorPort`, `OutboxPort` | Type drift breaks event stamping | none — blocks feature |
-| `tovu/src/features/post` | `updatePost`, `PostRepoPort`, `version` field | Contract change breaks inverse applier | none — blocks REQ-04 |
-| `tovu/src/features/presentation` | `setActiveTheme`, `PresentationSettingsRepoPort` | Missing `version` field blocks guard | Add field in this feature (REQ-05) |
-| `tovu/src/core/events` outbox | Reliable async delivery of change-set events | Events not delivered; audit projection stale | Change-set rows remain source of truth; events re-enqueueable |
+| `src/core/ports.ts` | `DomainEvent` envelope with `actorId`/`changeSetId`, `ClockPort`, `IdGeneratorPort`, `OutboxPort` | Type drift breaks event stamping | none — blocks feature |
+| `src/features/post` | `updatePost`, `PostRepoPort`, `version` field | Contract change breaks inverse applier | none — blocks REQ-04 |
+| `src/features/presentation` | `setActiveTheme`, `PresentationSettingsRepoPort` | Missing `version` field blocks guard | Add field in this feature (REQ-05) |
+| `src/core/events` outbox | Reliable async delivery of change-set events | Events not delivered; audit projection stale | Change-set rows remain source of truth; events re-enqueueable |
 | Express route layer (`server/routes`) | HTTP transport for new endpoints | none beyond existing app | none — existing infrastructure |
 
 ---
@@ -217,7 +221,7 @@ Note: `ADS-project-knowledge/governance/constitution.md` is not yet bootstrapped
 ## Agent Directives (optional)
 
 Always:
-- Follow `tovu/AGENTS.md` conventions: parameter objects (required first, optional second defaulting to `{}`), `INFO.md` + `index.ts` per module, `__tests__/` and `__specs__/` folders.
+- Follow `AGENTS.md` (repo root) conventions, mirrored in each module's `INFO.md`: parameter objects (required first, optional second defaulting to `{}`), `INFO.md` + `index.ts` per module, `__tests__/` and `__specs__/` folders.
 - Keep `core/commands` provider-agnostic — depend only on `core/ports` contracts.
 
 Ask before:

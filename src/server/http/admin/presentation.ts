@@ -1,9 +1,9 @@
-import type { PresentationSettingsRecord, ThemeId } from "../../../features/presentation";
+import type { PresentationSettingsRecord } from "../../../features/presentation";
 import type { AdminPresentation } from "../../../headless";
 
 export function toAdminPresentationResponse(
   settings: PresentationSettingsRecord,
-  availableThemeIds: ThemeId[]
+  availableThemeIds: string[]
 ): AdminPresentation {
   return {
     settings: {

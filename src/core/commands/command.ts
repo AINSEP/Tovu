@@ -60,6 +60,23 @@ export interface CommandMutation<TResult> {
   captureInverse(): Promise<JsonObject | null>;
   /** The actual feature call. Runs only after inverse capture succeeds. */
   execute(): Promise<TResult>;
+  /**
+   * Read the entity's version from the execute result (the version *after* the
+   * mutation, REQ-08 / AC-02). Stamped onto the item as the revert guard input.
+   * Omit for entity types without a version.
+   */
+  captureEntityVersion?(result: TResult): number | null;
+  /**
+   * Compensating rollback for the memory adapter's all-or-nothing guarantee
+   * (REQ-01 / BR-04 / EC-08 / AC-17). If the change-set record fails to persist
+   * *after* `execute()` has applied the feature mutation, the gateway calls this
+   * to undo the mutation — restoring the entity to its exact pre-`execute` state
+   * (verbatim, including `version`) so no "mutation without a record" survives
+   * (INV-01). On the SQLite adapter (RT-004) a real transaction replaces this and
+   * `rollback` becomes a no-op/omitted. Omit only for a mutation whose record step
+   * cannot fail independently of its feature write (none in v1).
+   */
+  rollback?(): Promise<void>;
 }
 
 /** Dependencies for executeCommand. */
@@ -100,6 +117,13 @@ export class DuplicateCommandError extends Error {
  * Order matters: idempotency check → inverse capture → execute → record.
  * If execute throws, nothing is recorded; if inverse capture throws, the
  * mutation never runs.
+ *
+ * The feature mutation and its change-set record commit as one unit of work
+ * (REQ-01 / BR-04): if `changeSets.insert` fails after `execute` has applied the
+ * mutation, the gateway rolls the mutation back via `mutation.rollback` and
+ * re-throws, so no change set and no outbox event survive (EC-08 / AC-17,
+ * INV-01). Outbox enqueue is the only step outside this boundary (BR-04) — an
+ * enqueue failure propagates but never rolls back the committed change set.
  */
 export async function executeCommand<TResult>(
   required: ExecuteCommandRequired<TResult>,
@@ -123,33 +147,49 @@ export async function executeCommand<TResult>(
   const inversePayload = await mutation.captureInverse();
   const result = await mutation.execute();
 
+  const entityVersionAtApply = mutation.captureEntityVersion?.(result) ?? undefined;
+
   const now = deps.clock.nowIso();
   const changeSetId = deps.idGen.newId();
 
-  await deps.changeSets.insert(
-    {
-      id: changeSetId,
-      workspaceId: command.workspaceId,
-      actorId: command.actor.id,
-      status: "applied",
-      summary: command.summary,
-      idempotencyKey: command.idempotencyKey,
-      intentRef: command.intentRef,
-      createdAt: now,
-      appliedAt: now,
-    },
-    [
+  // Unit of work: the change-set record must land, or the feature mutation is
+  // rolled back (REQ-01 / BR-04 / EC-08). On the in-memory adapter this is a
+  // compensating restore via `mutation.rollback`; the SQLite adapter (RT-004)
+  // does this as one real transaction and the rollback becomes a no-op.
+  try {
+    await deps.changeSets.insert(
       {
-        id: deps.idGen.newId(),
-        changeSetId,
-        entityType: mutation.entityType,
-        entityId: mutation.entityId,
-        operation: mutation.operation,
-        inversePayload: inversePayload ?? undefined,
-        position: 0,
+        id: changeSetId,
+        workspaceId: command.workspaceId,
+        actorId: command.actor.id,
+        status: "applied",
+        summary: command.summary,
+        idempotencyKey: command.idempotencyKey,
+        intentRef: command.intentRef,
+        createdAt: now,
+        appliedAt: now,
       },
-    ]
-  );
+      [
+        {
+          id: deps.idGen.newId(),
+          changeSetId,
+          entityType: mutation.entityType,
+          entityId: mutation.entityId,
+          operation: mutation.operation,
+          inversePayload: inversePayload ?? undefined,
+          entityVersionAtApply,
+          position: 0,
+        },
+      ]
+    );
+  } catch (recordError) {
+    // AC-17 / EC-08: the mutation applied but its record did not. Undo the
+    // mutation so INV-01 holds (no mutation without a record). We surface the
+    // original persist error; a rollback that itself throws is a harder failure
+    // that the SQLite transaction path is designed to remove.
+    await mutation.rollback?.();
+    throw recordError;
+  }
 
   if (deps.outbox) {
     const event: DomainEvent<{ changeSetId: UUID; entityType: string; entityId: UUID }> = {

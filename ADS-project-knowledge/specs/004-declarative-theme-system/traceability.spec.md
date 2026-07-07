@@ -44,7 +44,7 @@
 | REQ-09 | THEMES_LIST endpoint | — | pending | pending | pending | pending | PENDING |
 | AC-12 (REQ-09) | Full list with source/status/errors/active | P2 | pending | pending | pending | pending | PENDING |
 | REQ-10 | Render-time fallback | — | pending | pending | pending | pending | PENDING |
-| AC-11 (REQ-10) | Deleted active theme ⇒ paper fallback, 200, logged | P1 | pending | pending | pending | pending | PENDING |
+| AC-11 (REQ-10) | Deleted active theme ⇒ tovu-official fallback, 200, logged | P1 | pending | pending | pending | pending | PENDING |
 | REQ-11 | Appearance UI | — | pending | pending | pending | pending | PENDING |
 | AC-14 (REQ-11) | Grouped list, badges, activation rules | P1 | pending | pending | pending | pending | PENDING |
 

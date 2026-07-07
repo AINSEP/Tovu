@@ -1,11 +1,18 @@
 import type { ClockPort, UUID } from "../../core/ports";
 
+/**
+ * Legacy hardcoded theme ids. Retained as the fallback allowlist when no
+ * discovered theme set is injected (keeps pure unit tests hermetic). SPEC-004
+ * replaces this with the ids of discovered `valid` themes, passed in via
+ * `availableThemeIds` — see `features/theme` + the presentation routes.
+ */
 export const ALLOWED_THEME_IDS = ["paper", "atlas", "glassmorphic"] as const;
 export type ThemeId = (typeof ALLOWED_THEME_IDS)[number];
 
 export interface PresentationSettingsRecord {
   workspaceId: UUID;
-  activeThemeId: ThemeId;
+  /** Id of the active theme. Validated against discovered themes at write time. */
+  activeThemeId: string;
   updatedAt: string;
 }
 
@@ -15,20 +22,26 @@ export interface PresentationSettingsRepoPort {
 }
 
 export interface GetPresentationSettingsRequired {
-  deps: { repo: PresentationSettingsRepoPort };
+  deps: {
+    repo: PresentationSettingsRepoPort;
+    /** Discovered valid theme ids; falls back to ALLOWED_THEME_IDS when absent. */
+    availableThemeIds?: readonly string[];
+  };
   input: { workspaceId: UUID };
 }
 
 export interface SetActiveThemeDeps {
   clock: ClockPort;
   repo: PresentationSettingsRepoPort;
+  /** Discovered valid theme ids; falls back to ALLOWED_THEME_IDS when absent. */
+  availableThemeIds?: readonly string[];
 }
 
 export interface SetActiveThemeRequired {
   deps: SetActiveThemeDeps;
   input: {
     workspaceId: UUID;
-    activeThemeId: ThemeId;
+    activeThemeId: string;
   };
 }
 
@@ -40,7 +53,7 @@ export class PresentationSettingsValidationError extends Error {}
 export async function getPresentationSettings(
   required: GetPresentationSettingsRequired,
   _optional: PresentationOptional = {}
-): Promise<{ settings: PresentationSettingsRecord; availableThemeIds: ThemeId[] }> {
+): Promise<{ settings: PresentationSettingsRecord; availableThemeIds: string[] }> {
   const settings = await required.deps.repo.findByWorkspaceId(required.input.workspaceId);
   if (!settings) {
     throw new PresentationSettingsNotFoundError(
@@ -50,16 +63,17 @@ export async function getPresentationSettings(
 
   return {
     settings,
-    availableThemeIds: [...ALLOWED_THEME_IDS],
+    availableThemeIds: [...(required.deps.availableThemeIds ?? ALLOWED_THEME_IDS)],
   };
 }
 
 export async function setActiveTheme(
   required: SetActiveThemeRequired,
   _optional: PresentationOptional = {}
-): Promise<{ settings: PresentationSettingsRecord; availableThemeIds: ThemeId[] }> {
+): Promise<{ settings: PresentationSettingsRecord; availableThemeIds: string[] }> {
   const { deps, input } = required;
-  if (!ALLOWED_THEME_IDS.includes(input.activeThemeId)) {
+  const allowed = deps.availableThemeIds ?? ALLOWED_THEME_IDS;
+  if (!allowed.includes(input.activeThemeId)) {
     throw new PresentationSettingsValidationError(
       `theme '${input.activeThemeId}' is not supported`
     );
@@ -82,6 +96,6 @@ export async function setActiveTheme(
 
   return {
     settings,
-    availableThemeIds: [...ALLOWED_THEME_IDS],
+    availableThemeIds: [...allowed],
   };
 }

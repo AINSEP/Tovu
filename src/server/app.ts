@@ -2,10 +2,13 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../core/events";
+import { InMemoryChangeSetRepo } from "../core/commands";
 import { InMemoryPostRepo } from "../features/post";
 import { InMemoryPresentationSettingsRepo } from "../features/presentation";
+import { discoverThemes } from "../features/theme";
 import { createWorkspace, InMemoryWorkspaceRepo, WorkspaceConflictError, WorkspaceValidationError } from "../features/workspace";
 import path from "node:path";
+import { builtInThemesDir } from "./deps";
 import { seededPosts, seededPresentation, seededWorkspace } from "./seed";
 
 import { applyDevCors } from "./middleware/dev-cors";
@@ -17,6 +20,9 @@ import { registerAdminPresentationGetRoute } from "./routes/admin/presentation/g
 import { registerAdminPresentationPatchRoute } from "./routes/admin/presentation/patch-active-theme";
 import { registerAdminPostGetRoute } from "./routes/admin/posts/get-by-id";
 import { registerAdminPostUpdateRoute } from "./routes/admin/posts/update";
+import { registerAdminChangeSetListRoute } from "./routes/admin/change-sets/list";
+import { registerAdminChangeSetGetRoute } from "./routes/admin/change-sets/get";
+import { registerAdminChangeSetRevertRoute } from "./routes/admin/change-sets/revert";
 import { registerContentPostGetRoute } from "./routes/content/posts/get-by-slug";
 import { registerHealthRoute } from "./routes/ops/health";
 import type { RouteDeps } from "./routes/types";
@@ -50,6 +56,8 @@ export function createRouteDeps(): RouteDeps {
     workspaceRepo,
     postRepo,
     presentationRepo,
+    changeSets: new InMemoryChangeSetRepo(),
+    themes: discoverThemes(builtInThemesDir(), "built-in"),
     outbox: new InMemoryOutbox(),
     bus: new InMemoryEventBus(),
     clock: { nowIso: () => new Date().toISOString() },
@@ -77,6 +85,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerAdminPostListRoute(app, routeDeps);
   registerAdminPostGetRoute(app, routeDeps);
   registerAdminPostUpdateRoute(app, routeDeps);
+  registerAdminChangeSetListRoute(app, routeDeps);
+  registerAdminChangeSetGetRoute(app, routeDeps);
+  registerAdminChangeSetRevertRoute(app, routeDeps);
   registerAdminPresentationGetRoute(app, routeDeps);
   registerAdminPresentationPatchRoute(app, routeDeps);
   registerContentPostGetRoute(app, routeDeps);

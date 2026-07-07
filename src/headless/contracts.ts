@@ -1,4 +1,9 @@
-export type HeadlessThemeId = "paper" | "atlas" | "glassmorphic";
+/**
+ * A theme id. Open string since SPEC-004: themes are discovered from disk, so
+ * the valid set is dynamic (the built-in trio was the pre-SPEC-004 hardcode).
+ * Clients read the current valid ids from `availableThemeIds`.
+ */
+export type HeadlessThemeId = string;
 
 export interface AdminPost {
   id: string;

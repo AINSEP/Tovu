@@ -1,0 +1,211 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "component",
+      "id": "tovu/announcement",
+      "props": {
+        "text": "Tovu v1 is open-source and self-hosted.",
+        "link": { "label": "Star it on GitHub", "href": "#" }
+      }
+    },
+
+    {
+      "type": "component",
+      "id": "tovu/nav",
+      "props": {
+        "brand": "Tovu",
+        "items": [
+          {
+            "label": "Product",
+            "href": "#",
+            "children": [
+              { "label": "Themes", "href": "#themes" },
+              { "label": "Plugins", "href": "#plugins" },
+              { "label": "The editor", "href": "/admin/" },
+              { "label": "AI assistant", "href": "#" }
+            ]
+          },
+          {
+            "label": "Developers",
+            "href": "#",
+            "children": [
+              { "label": "Getting started", "href": "#" },
+              { "label": "Theme guide", "href": "#themes" },
+              { "label": "Plugin API", "href": "#plugins" },
+              { "label": "Self-hosting", "href": "#data" }
+            ]
+          },
+          { "label": "Pricing", "href": "#" },
+          { "label": "Blog", "href": "/welcome" }
+        ],
+        "cta": { "label": "Open the admin", "href": "/admin/" }
+      }
+    },
+
+    {
+      "type": "component",
+      "id": "tovu/hero",
+      "props": {
+        "badge": "v1 · self-hosted",
+        "title": "A CMS you actually own.",
+        "subtitle": "Tovu runs on your machine — your content, your themes, your data. No lock-in, no per-seat pricing, no black boxes. Just a fast content platform you can read, edit, and extend.",
+        "actions": [
+          { "label": "How it works", "href": "#themes" },
+          { "label": "View source", "href": "#" }
+        ],
+        "media": { "label": "Dashboard preview", "ratio": "16 / 10" }
+      }
+    },
+
+    {
+      "type": "component",
+      "id": "tovu/feature-grid",
+      "props": {
+        "eyebrow": "THE SHORT VERSION",
+        "title": "Three ideas hold the whole thing up.",
+        "items": [
+          {
+            "tag": "Themes",
+            "title": "Design is data",
+            "body": "A theme is a folder of tokens, templates, and CSS — no code. Safe to install from anyone, easy to edit, and an AI can restyle it for you."
+          },
+          {
+            "tag": "Plugins",
+            "title": "Behavior is opt-in",
+            "body": "Plugins add capabilities — new fields, typed hooks, components — behind explicit permissions. Themes arrange them; plugins power them."
+          },
+          {
+            "tag": "AI-native",
+            "title": "Every change is tracked",
+            "body": "Edits flow through one audited gateway with change-sets and one-click revert, so an assistant can safely drive the whole admin."
+          }
+        ]
+      }
+    },
+
+    {
+      "type": "component",
+      "id": "tovu/section",
+      "props": {
+        "id": "themes",
+        "side": "right",
+        "eyebrow": "THEMES",
+        "title": "Themes are data, not code.",
+        "lead": "The page you're reading is a theme. Nothing here is compiled — it's JSON templates, design tokens, and a stylesheet the server renders.",
+        "body": [
+          "Because a theme is just data, it's safe to install from anyone and simple to change. Swap the palette in tokens.json, rearrange sections in the template, or hand it to an AI: “make it dark and move the intro up.”",
+          "Interactivity comes from a small set of building blocks. The nav, hero, feature grid, and footer on this page are all reusable components a theme references by name."
+        ],
+        "bullets": [
+          "No executable code ships inside a theme",
+          "Full control of layout, type, and color",
+          "Editable by hand or by an AI, under change-sets"
+        ],
+        "media": { "label": "theme.json · tokens · templates", "ratio": "4 / 3" }
+      }
+    },
+
+    {
+      "type": "component",
+      "id": "tovu/section",
+      "props": {
+        "id": "plugins",
+        "side": "left",
+        "eyebrow": "PLUGINS",
+        "title": "Plugins add power, safely.",
+        "lead": "When a theme needs something new — a word counter, an SEO panel, a custom block — a plugin provides it.",
+        "body": [
+          "Plugins declare exactly what they touch: content fields, a handful of typed hooks, and admin surfaces. Nothing gets a private back door. A plugin can extend a post with its own data, but it never runs raw migrations against your database.",
+          "The split stays simple: plugins are capabilities (code you trust), themes are arrangement (data anyone can edit)."
+        ],
+        "bullets": [
+          "Capability-scoped permissions",
+          "Typed hooks like content.entry.beforeSave",
+          "Extends content without owning your schema"
+        ],
+        "media": { "label": "Plugin capabilities", "ratio": "4 / 3" }
+      }
+    },
+
+    {
+      "type": "component",
+      "id": "tovu/section",
+      "props": {
+        "id": "data",
+        "side": "right",
+        "eyebrow": "YOUR DATA",
+        "title": "Runs on SQLite. Ready for more.",
+        "lead": "Today Tovu stores everything in a single SQLite file you can copy, back up, or inspect. It's the whole database — no server to run. When you want more, you can point Tovu at another database like Postgres or Supabase later, without rewriting your site.",
+        "body": [
+          "The data layer sits behind ports, so the storage engine is a swap, not a rewrite. When you outgrow a file, moving to Postgres is a configuration change — your content, themes, and plugins don't notice.",
+          "Your site lives in one folder: the database, your uploads, your themes, and your plugins. Move it, version it, or hand it to someone else."
+        ],
+        "bullets": [
+          "One portable SQLite file today",
+          "Postgres- or Supabase-ready behind the same interface",
+          "Your whole site is a folder you own"
+        ],
+        "media": { "label": "content.db  →  Postgres", "ratio": "4 / 3" }
+      }
+    },
+
+    {
+      "type": "component",
+      "id": "tovu/cta",
+      "props": {
+        "eyebrow": "GET STARTED",
+        "title": "Make it yours.",
+        "subtitle": "Switch themes from the admin, drop a new theme folder into your site, or just start writing. This whole page is a starting point you can rewrite.",
+        "actions": [
+          { "label": "Open the admin", "href": "/admin/" },
+          { "label": "Read a post", "href": "/welcome" }
+        ]
+      }
+    },
+
+    {
+      "type": "component",
+      "id": "tovu/footer",
+      "props": {
+        "brand": "Tovu",
+        "blurb": "A content platform you actually own — your content, your themes, your data, on your machine.",
+        "social": [
+          { "label": "GitHub", "href": "#" },
+          { "label": "X", "href": "#" },
+          { "label": "Discord", "href": "#" }
+        ],
+        "columns": [
+          {
+            "title": "Product",
+            "links": [
+              { "label": "Themes", "href": "#themes" },
+              { "label": "Plugins", "href": "#plugins" },
+              { "label": "The editor", "href": "/admin/" },
+              { "label": "Roadmap", "href": "#" }
+            ]
+          },
+          {
+            "title": "Developers",
+            "links": [
+              { "label": "Docs", "href": "#" },
+              { "label": "Theme guide", "href": "#themes" },
+              { "label": "Plugin API", "href": "#plugins" },
+              { "label": "Self-hosting", "href": "#data" }
+            ]
+          },
+          {
+            "title": "Company",
+            "links": [
+              { "label": "About", "href": "#" },
+              { "label": "Blog", "href": "/welcome" },
+              { "label": "Contact", "href": "#" },
+              { "label": "License", "href": "#" }
+            ]
+          }
+        ],
+        "legal": "© 2026 Tovu — MIT licensed."
+      }
+    }
+  ]
+}

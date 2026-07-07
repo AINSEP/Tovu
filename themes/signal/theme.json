@@ -1,0 +1,12 @@
+{
+  "id": "signal",
+  "name": "Signal",
+  "version": "1.0.0",
+  "class": "declarative",
+  "engine": 1,
+  "description": "A bright, confident product-blog theme: a cobalt masthead band, geometric sans, and a rounded card grid.",
+  "fonts": [
+    "Space+Grotesk:wght@400;500;600;700",
+    "Inter:wght@400;500;600"
+  ]
+}

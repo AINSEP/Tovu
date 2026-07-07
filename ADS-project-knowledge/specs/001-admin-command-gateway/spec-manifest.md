@@ -12,7 +12,7 @@
 | spec_id | SPEC-001 |
 | feature_name | FEAT-001-admin-command-gateway |
 | version | 1.0.0 |
-| last_edited | 2026-07-02T20:45:00Z |
+| last_edited | 2026-07-07T04:15:00Z |
 | spec_naming | prefixed |
 | spec_root | ADS-project-knowledge/specs/001-admin-command-gateway/ |
 | spec_entrypoint | feature.spec.md |
@@ -53,15 +53,15 @@
 
 | Evidence / Touchpoint | Type | Why It Matters |
 |---|---|---|
-| `tovu/src/core/ports.ts` (`DomainEvent.actorId`/`changeSetId`) | source touchpoint | ADR-008 vocabulary already on the event envelope; gateway must stamp both fields |
+| `src/core/ports.ts` (`DomainEvent.actorId`/`changeSetId`) | source touchpoint | ADR-008 vocabulary already on the event envelope; gateway must stamp both fields |
 | `ADS-project-knowledge/reports/architecture/ADR-008-change-sets.md` | codebase-analysis | Governing decision: storage shape, auto-applied single-item rule, revert semantics |
 | `ADS-project-knowledge/reports/architecture/admin-section-architecture-outline.md` (rev 3 §7) | codebase-analysis | Upstream analysis that motivated this feature (agent plane requires audit/undo first) |
-| `tovu/src/features/post/post.ts` (`updatePost`, `version`) | source touchpoint | Wrapped mutation #1; version field feeds the revert guard |
-| `tovu/src/features/presentation/presentation.ts` (`setActiveTheme`, no `version`) | source touchpoint | Wrapped mutation #2; record gains `version` (REQ-05) |
-| `tovu/src/server/routes/admin/posts/update.ts`, `…/presentation/patch-active-theme.ts` | source touchpoint | Routes to rewire; response contracts must not change (REQ-04) |
-| `tovu/src/core/events/` (outbox, memory bus, `processOutbox`) | source touchpoint | Event delivery lane for change-set.applied/reverted |
-| `tovu/src/core/commands/{change-set,command,repo.memory}.ts` (pre-pipeline draft, uncommitted) | source touchpoint | Draft implementation written before pipeline boot; Programmer reconciles it against certified tests — treat as VibeCoder-grade input, not ground truth |
-| `tovu/AGENTS.md`, `tovu/PROJECT_MEMORY.md` | codebase-analysis | Module conventions (parameter objects, INFO.md/index.ts, __tests__/__specs__) that Agent Directives enforce |
+| `src/features/post/post.ts` (`updatePost`, `version`) | source touchpoint | Wrapped mutation #1; version field feeds the revert guard |
+| `src/features/presentation/presentation.ts` (`setActiveTheme`, no `version`) | source touchpoint | Wrapped mutation #2; record gains `version` (REQ-05) |
+| `src/server/routes/admin/posts/update.ts`, `…/presentation/patch-active-theme.ts` | source touchpoint | Routes to rewire; response contracts must not change (REQ-04) |
+| `src/core/events/` (outbox-worker, memory-bus) | source touchpoint | Event delivery lane for change-set.applied/reverted |
+| `src/core/commands/{change-set,command,repo.memory}.ts` (pre-pipeline draft, uncommitted) | source touchpoint | Draft implementation written before pipeline boot; Programmer reconciles it against certified tests — treat as VibeCoder-grade input, not ground truth |
+| `AGENTS.md` (repo root) + per-module `INFO.md` files | codebase-analysis | Module conventions (parameter objects, INFO.md/index.ts, __tests__/__specs__) that Agent Directives enforce |
 
 ---
 
@@ -72,3 +72,4 @@
 - Validator manual waiver: N/A
 - Canonical hash verified at: 2026-07-02T21:05:00Z (sha256:d47c72376bb7ff82b5506e9b69b03215f50eae1ea24b98573fb43ffc103aba73)
 - Notes: first run flagged collapsed DoD rows B-21…B-32 and missing NA justifications on F-03/F-04/F-05; repaired and revalidated clean.
+- Revision R2 (2026-07-07): applied Red-Team ADVISORY fixes RT-001 (wired-route summaries), RT-002 (presentation change-set item `entityType`/`entityId`), RT-006 (presentation `version` backfill); corrected stale `tovu/src/…` brownfield paths to `src/…` after the repo split. Version held at 1.0.0 (content-only clarification, mirroring SPEC-002/003 revision convention); content hash recomputed via `--update-hash`.
