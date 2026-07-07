@@ -1,27 +1,32 @@
-# Competitor Analysis: Ghost, Payload, Directus
+# Competitor Analysis: Strapi, Ghost, Payload, Directus
 
-*Research date: February 18, 2026. All version numbers, star counts, and release dates verified directly from GitHub API and official sources.*
+*Research date: February 18, 2026; **Strapi added + stars/AI refreshed July 6, 2026.**
+Version numbers, star counts, and release dates verified from the GitHub API and
+official sources. Strapi's architecture is grounded in the Codebase Memory MCP index —
+see the fuller companion `strapi-deep-dive.md` for the code-level detail.*
 
 ---
 
 ## Overview Comparison Table
 
-| Property | Ghost | Payload CMS | Directus |
-|---|---|---|---|
-| **Founded** | April 2013 | January 2021 (repo) | December 2012 (repo); v9 rewrite Nov 2021 |
-| **First stable release** | v0.3.0 — Oct 2013; v1.0 — Jul 2017 | v1.0 — Nov 2021; v2.0 — Oct 2023; v3.0 — Nov 2024 | v9.0.0 — Nov 2021 (Vue/TS rewrite) |
-| **Current version** | 6.19.1 | 3.77.0 | 11.15.4 |
-| **License** | MIT | MIT | BUSL-1.1 (changed from GPL in Apr 2023; free for orgs under $5M revenue; GPL after 3 years) |
-| **Primary language** | JavaScript (Node.js) with partial TypeScript migration | TypeScript | TypeScript |
-| **Tech stack** | Node.js 22, Express, Bookshelf ORM, Knex, Handlebars, Ember.js admin | TypeScript, Next.js 15, React 19, Drizzle ORM, Mongoose or Postgres/SQLite adapters | TypeScript, Express, Knex, Vue 3.5, Editor.js |
-| **Database** | SQLite or MySQL/MariaDB | MongoDB, PostgreSQL, SQLite, Vercel Postgres, D1 (Cloudflare) | PostgreSQL, MySQL, MariaDB, SQLite, MS SQL Server, CockroachDB, OracleDB |
-| **Primary use case** | Publishing platform — blogs, newsletters, memberships | Developer-first headless CMS / app framework | Headless CMS + data platform; wraps any existing SQL DB |
-| **GitHub stars (Feb 2026)** | ~51,840 | ~40,661 | ~34,243 |
-| **Business model** | Non-profit foundation; Ghost(Pro) managed hosting | MIT open source; Payload Cloud managed hosting; enterprise support | BUSL license; Directus Cloud ($99+/mo); self-hosted requires license for >$5M revenue orgs |
-| **Monorepo** | Yes (Yarn/Nx — 4 core + 13 app packages) | Yes (pnpm/Turborepo — 40+ packages) | Yes (pnpm — 30+ packages across api/, app/, packages/) |
-| **Admin UI** | Ember.js (legacy) — being migrated to React | React 19 / Next.js App Router (auto-generated from config) | Vue 3.5 (SPA, built with Vite) |
-| **Plugin/extension model** | None (webhooks + custom integrations via API keys only) | First-class plugin system (TypeScript config functions) | Extension SDK (Interfaces, Displays, Layouts, Modules, Hooks, Endpoints, Operations, Panels) |
-| **AI features** | None native; Koenig editor has no AI writing assistant | MCP plugin (`@payloadcms/plugin-mcp`) | Deep native AI: multi-provider support (OpenAI, Anthropic, Google), AI sidebar, context staging, prompts, visual element highlighting, MCP server built-in |
+*Stars are current as of Jul 6, 2026 — **Strapi leads the category.***
+
+| Property | Strapi | Ghost | Payload CMS | Directus |
+|---|---|---|---|---|
+| **GitHub stars** | **~72,616** | ~54,302 | ~43,425 | ~36,421 |
+| **Founded** | 2015 (repo Sep 2015) | April 2013 | January 2021 (repo) | December 2012; v9 rewrite Nov 2021 |
+| **First stable release** | v3 (2020, JS); v4 (Nov 2021); v5 (2024, TS-first) | v0.3.0 — Oct 2013; v1.0 — Jul 2017 | v1.0 — Nov 2021; v2.0 — Oct 2023; v3.0 — Nov 2024 | v9.0.0 — Nov 2021 (Vue/TS rewrite) |
+| **Current version** | 5.50.0 | 6.19.1 | 3.77.0 | 11.15.4 |
+| **License** | **MIT core + `ee/` Enterprise carve-out** (open-core) | MIT | MIT | BUSL-1.1 (from GPL Apr 2023; free <$5M rev; GPL after 3 yrs) |
+| **Primary language** | TypeScript (TS-first since v5) | JavaScript (Node.js) + partial TS | TypeScript | TypeScript |
+| **Tech stack** | Node.js, Koa, Knex + Dialect layer, React 18 + Vite admin | Node.js 22, Express, Bookshelf ORM, Knex, Handlebars, Ember.js admin | TypeScript, Next.js 15, React 19, Drizzle ORM, Mongoose or Postgres/SQLite adapters | TypeScript, Express, Knex, Vue 3.5, Editor.js |
+| **Database** | PostgreSQL, MySQL/MariaDB, SQLite | SQLite or MySQL/MariaDB | MongoDB, PostgreSQL, SQLite, Vercel Postgres, D1 | PostgreSQL, MySQL, MariaDB, SQLite, MSSQL, CockroachDB, OracleDB |
+| **Primary use case** | General-purpose headless CMS; **non-devs model data in a GUI** | Publishing — blogs, newsletters, memberships | Developer-first headless CMS / app framework | Headless CMS + data platform; wraps any existing SQL DB |
+| **Business model** | Open-core (MIT + paid Enterprise); Strapi Cloud; VC-backed | Non-profit foundation; Ghost(Pro) hosting | MIT; Payload Cloud; enterprise support | BUSL; Directus Cloud ($99+/mo); license for >$5M rev |
+| **Monorepo** | Yes (Yarn/Nx — `core/*`, `plugins/*`, `providers/*`, `cli/*`) | Yes (Yarn/Nx — 4 core + 13 app packages) | Yes (pnpm/Turborepo — 40+ packages) | Yes (pnpm — 30+ packages) |
+| **Admin UI** | React 18 + Vite (Strapi Design System) | Ember.js (legacy) → migrating to React | React 19 / Next.js App Router (auto-generated) | Vue 3.5 (SPA, Vite) |
+| **Plugin/extension model** | Plugins (`register`/`bootstrap`/`destroy`) + provider adapters (`email-*`/`upload-*`) | None (webhooks + API-key integrations only) | First-class plugin system (config functions) | Extension SDK (Interface/Display/Layout/Module/Hook/Endpoint/Operation/Panel) |
+| **AI features** | **New in v5: built-in MCP server** (tool/prompt/resource registries, **RBAC-filtered**) + `ai-tooling` | None native | MCP plugin (`@payloadcms/plugin-mcp`) | Deepest native AI: multi-provider, AI sidebar, context staging, visual highlighting, built-in MCP |
 
 ---
 
@@ -597,9 +602,116 @@ Directus operates under a **dual-track model**:
 
 ---
 
+## Strapi
+
+*Added Jul 2026. The most-starred headless CMS (~72,616 ⭐) — it out-stars every other
+CMS here by ~18k. Full code-grounded treatment in `strapi-deep-dive.md`; summary below.*
+
+### History & Founding
+
+Strapi was created in **2015** by **Pierre Burgy, Aurélien Georget, and Jim Laurie**
+(French engineers; the name = *bootstrap* + *API*). It's the second-oldest project here
+after WordPress/pre-v9 Directus. Unlike Ghost (non-profit) or Payload (lean agency
+origin), **Strapi is VC-backed** — which shapes its open-core licensing and cloud/
+enterprise monetization. Arc: **v3 (2020)** last JS-first; **v4 (Nov 2021)** modern
+plugin API + Design System + RBAC; **v5 (2024)** the Document Service, Vite/React admin,
+and TypeScript-first codebase.
+
+### Architecture
+
+A Yarn/Nx monorepo with a clean three-bucket taxonomy: `packages/core/*` (the runtime,
+`database`, `content-manager`, `content-type-builder`, `permissions`, `upload`, `email`,
+`admin`), `packages/plugins/*` (graphql, i18n, users-permissions, …), and
+`packages/providers/*` (the swappable adapters). Everything hangs off a central `Strapi`
+runtime object that plugins reach into — and which reaches back into plugins
+(bidirectional core↔plugin calls; the earlier graph analysis measured **8.3%
+cross-prefix coupling**, vs Directus's 2.0% — porous by design).
+
+Three architectural pillars stand out:
+- **Content-Type Builder** — a first-party admin app that lets a **non-developer define
+  the data model in a GUI**, writing schema files to the project. This is Strapi's
+  identity and the reason agencies pick it — the exact thing code-first Payload refuses
+  to do.
+- **Document Service (v5)** — the content API is now based on *documents*, unifying
+  **draft/publish** and **i18n locales** as first-class (one id → draft/published ×
+  locales), replacing the v4 Entity Service. The best content model in the set.
+- **Data layer** — **Knex** query builder + a per-engine **`Dialect`** class abstraction
+  (Postgres/MySQL/SQLite); schema derived from content-types; lifecycle hooks fire on
+  writes. Same multi-DB strategy as Directus — and, like Directus, **untyped** at the
+  query layer (the reason we chose Drizzle instead).
+
+### Plugin / Extension System
+
+Two tiers. **Plugins** expose typed lifecycle hooks — `register` / `bootstrap` /
+`destroy` — and can add content types, routes, services, policies, and admin UI (deep
+access to the `Strapi` object). **Providers** are the narrow swappable-adapter tier:
+`packages/providers/email-{nodemailer,sendgrid,mailgun,amazon-ses,sendmail}` and
+`upload-{local,aws-s3,cloudinary}` — one capability contract, a family of thin adapter
+packages chosen by config. The provider pattern is the cleanest, most reusable idea in
+the codebase; the plugin tier is powerful but porous.
+
+### AI Integration (new — not in the Feb analysis)
+
+Strapi moved from **no AI** to **MCP-native** in v5. `packages/core/core/src/services/
+mcp/*` ships an **MCP server** with `McpToolRegistry`, `McpCapabilityRegistry`,
+`McpPromptRegistry`, and `McpResourceRegistry` — the full MCP surface (tools + prompts +
+resources) — and critically it is **RBAC-filtered**: an integration test
+(`mcp-content-manager-rbac`) confirms tools are gated by the same permission engine as
+the admin, so an AI agent can't exceed the caller's role. An `ai-tooling` package and
+`/schemas/chat/*` routes indicate editor-side AI chat is landing too. Not as deep as
+Directus's editor sidebar yet, but the **tool-surface-gated-by-RBAC** design is the
+cleanest AI-safety model in the set.
+
+### Business Model
+
+**Open-core, VC-backed.** Core (`packages/*` outside `ee/`) is **MIT**; anything under
+an **`ee/` directory is proprietary Enterprise Edition** (SSO/SAML, advanced RBAC, audit
+logs, deeper workflows), gated by a license key. **Strapi Cloud** is managed hosting.
+GitHub shows `NOASSERTION` for the dual license. Sits between MIT (Ghost/Payload) and
+BUSL (Directus) — the visible code is mostly MIT, enterprise features are paywalled.
+
+### Strengths
+
+- **GUI content-type builder** — non-developers model data without code. The #1 driver
+  of its category-leading adoption.
+- **Largest ecosystem** — most stars, biggest plugin marketplace, deepest hiring pool.
+- **Clean provider adapters** (`email-*`/`upload-*`) — textbook capability-port pattern.
+- **Event Hub** — clean in-process `emit`/`subscribe` for domain events + webhooks.
+- **v5 Document Service** — draft/publish + i18n unified behind a document id.
+- **MCP-native + RBAC-filtered AI** — caught up on AI with a well-scoped, safe design.
+- **Auto REST + first-party GraphQL**, multi-database via Knex.
+
+### Weaknesses / Common Complaints
+
+- **Porous core↔plugin boundaries** (8.3% cross-prefix) — heavy framework gravity, hard
+  to keep minimal or embed.
+- **GUI-writes-files schema** — an awkward middle: not git-clean code-first (types can
+  drift), not DB-introspected. Some downsides of both.
+- **Knex, not a typed ORM** — no compile-time safety at the data layer (vs Payload).
+- **Rough major upgrades** (v3→v4→v5) — hence the dedicated `utils/upgrade` codemod runner.
+- **Open-core paywall** — SSO/advanced RBAC/audit logs live behind `ee/`; the free line
+  can surprise evaluators. VC monetization pressure.
+
+### Key Architectural Decisions
+
+1. **GUI-defined content types** — accessibility for non-devs, at the cost of a
+   code-first DX. The inverse of Payload's config-as-code bet.
+2. **Knex + per-dialect classes** — broad DB support, no typed query layer (same trade
+   as Directus).
+3. **Deep `Strapi`-object plugin access** — maximum extensibility, minimum boundary
+   discipline (the porosity smell).
+4. **Provider packages per capability** — the cleanest, most copyable part.
+5. **v5 Document Service** — documents over entities; the right content model.
+6. **MCP-native, RBAC-filtered AI** — led with a safe agent tool surface rather than an
+   editor sidebar; arguably the more foundational order for an agent-driven future.
+
+---
+
 ## Lessons for Tovu
 
-This section synthesizes what Tovu should copy, what it should avoid, and where the gap exists that Tovu fills.
+This section synthesizes what Tovu should copy, what it should avoid, and where the gap
+exists that Tovu fills. **Updated Jul 2026** for Strapi + the current AI/MCP landscape +
+Tovu's own build state.
 
 ---
 
@@ -623,6 +735,25 @@ Both Payload (plugin) and Directus (built-in) support MCP. Tovu's Protocol Layer
 **From Directus: Richest extension system.**
 Directus's extension type taxonomy (Interface, Display, Layout, Module, Hook, Endpoint, Operation, Panel, Bundle) maps every layer of the system to an extension point. Tovu's plugin system should think at the same granularity: plugins can extend field renderers, admin views, API routes, lifecycle hooks, AI tools, and the theme system — not just "add a new post type."
 
+**From Strapi: The provider-adapter family + the Event Hub.**
+Strapi's `packages/providers/{email-*,upload-*}` is the exact capability-port shape Tovu
+wants for storage and email: one contract, a family of thin adapter packages selected by
+config. And its Event Hub (`emit`/`subscribe`/`once`) validates the `EventBusPort` we
+already ship — keep ours (we add durable outbox delivery, which Strapi's in-process hub
+lacks).
+
+**From Strapi: The v5 Document Service content model.**
+When Tovu adds draft/publish + i18n, model it as *documents* (one id → draft/published ×
+locales), not as status/locale columns bolted onto a flat posts table. Our `PostStatus`
+is the seed; grow it toward the Document Service shape rather than reinventing it.
+
+**From Strapi: MCP tool surface gated by RBAC.**
+The single most relevant reference for ADR-013/014. Strapi's `services/mcp/*` registries
+route every AI tool through the same permission engine as the admin
+(`mcp-content-manager-rbac` test) — an agent cannot exceed the caller's role. Tovu's
+assistant tool surface (`tools.ts` `surface` seam + per-workspace grants) must enforce
+the *same* auth as the admin; Strapi is the reference implementation.
+
 **From Ghost: Non-profit foundation structure (if applicable).**
 Ghost's foundation structure builds deep long-term trust. If Tovu's positioning includes community trust and anti-VC sentiment, the legal structure matters. Ghost cannot be acquired. That guarantee attracts a specific type of user who has been burned by VC-backed open source pivots (MongoDB going SSPL, Elastic going proprietary, etc.).
 
@@ -636,7 +767,7 @@ Ghost's block editor (Koenig) demonstrates how to build a card-based rich text e
 
 ### What Tovu Should Avoid
 
-**Avoid Ghost's Bookshelf ORM.** Bookshelf is legacy. It predates TypeScript, lacks Postgres support, and makes the data layer hard to modernize. Use Drizzle (as Payload does) or an equivalent TypeScript-native query builder.
+**Avoid Ghost's Bookshelf ORM — and Strapi/Directus's untyped Knex layer.** Bookshelf is legacy; Knex (Strapi + Directus) is a query builder with no compile-time type safety at the data layer. **Tovu adopted Drizzle on 2026-07-06** (a code-first schema in `src/infra/db/schema.ts` → generated migrations in `drizzle/` → typed adapters behind the feature ports) — Payload's shared-schema shape, so the future Postgres/Supabase adapter reuses one typed schema instead of hand-written per-dialect SQL.
 
 **Avoid Ghost's Ember.js admin.** Choosing a niche admin framework creates a talent problem. Ghost is now migrating away from Ember after years of technical debt. Tovu's admin should be React (aligned with the largest component ecosystem) or Vue (Directus's choice), but not an outlier framework.
 
@@ -650,6 +781,10 @@ Ghost's block editor (Koenig) demonstrates how to build a card-based rich text e
 
 **Avoid Ghost's no-plugin decision.** Ghost's explicit non-plugin stance is appropriate for their narrow publishing use case. Tovu is a general-purpose CMS — the plugin system is not optional. Every CMS that aimed to be general-purpose without extensibility eventually lost to competitors with plugins.
 
+**Avoid Strapi's porous plugin boundaries.** Strapi's plugins get deep access to the central `Strapi` runtime object, and the core calls back into plugins — measured at 8.3% cross-prefix coupling vs Directus's 2.0%. The result is heavy "framework gravity" that's hard to keep minimal. Give plugins **declared capabilities**, not the kernel; enforce the boundary with dependency-cruiser (todos.md §24) + contract tests per entry point. This is the difference between Directus-clean (~2%) and Strapi-porous (~8%) — hold the Directus line as the package split grows.
+
+**Avoid Strapi's GUI-writes-schema-files middle ground.** Strapi lets non-devs model data in a GUI that writes schema files — accessible, but types drift and it's neither git-clean code-first nor DB-introspected. Tovu's answer (below) is code-first schema edited *by the assistant*, getting Strapi's accessibility without its drift.
+
 ---
 
 ### Where the Gap Is That Tovu Fills
@@ -658,13 +793,23 @@ The three competitors establish a clear market topology:
 
 | Position | CMS | Who it's for | Where it fails |
 |---|---|---|---|
+| General-purpose, GUI-modeled | **Strapi** (most popular) | Agencies, mixed teams, non-dev modelers | Porous plugin boundaries; open-core paywall; untyped Knex; rough upgrades; AI is new/shallow |
 | Publishing-first | Ghost | Creators, journalists, newsletters | No extensibility; MySQL-only; no AI; no custom data models |
 | Developer-first, framework-bound | Payload | Next.js developers | Next.js dependency; no AI in UI; non-technical users can't self-service |
 | Data-platform-first | Directus | Data teams, BaaS use cases | BUSL license; schema in DB not code; Vue-only extensions; overwhelming complexity |
 
 **The gap Tovu fills is the intersection of three properties that no single existing CMS provides simultaneously:**
 
-1. **AI-native by design** — Not "AI added to a CMS" (Directus), not "CMS with MCP plugin" (Payload), not "CMS with no AI" (Ghost). Tovu's architecture places the AI Context Engine as a core module alongside the Content Engine and Plugin Runtime. Every content operation — create, update, relate, publish — is AI-aware at the architecture level.
+1. **AI-native by design — against a moving target.** *Update Jul 2026:* the AI gap is
+   closing fast. Directus ships a deep editor AI sidebar; **Strapi now ships a built-in,
+   RBAC-filtered MCP server** (it was "no AI" five months ago); Payload has an MCP plugin.
+   The whole category is **bolting AI onto a CMS that was designed before AI**. Tovu's
+   differentiation is no longer "has AI" — it's **born AI-native**: the AI Context Engine
+   is a core module alongside the Content Engine and Plugin Runtime, every content
+   operation is AI-aware at the architecture level, and — crucially — **the assistant is
+   the primary interface for modeling the site**, not a sidebar bolted next to a
+   human-first admin. Watch Strapi's `services/mcp/*` as the closest competitor: match its
+   RBAC-gated tool safety, then beat it on being agent-first rather than agent-added.
 
 2. **Framework-agnostic + code-first** — Payload showed that code-first schema is the right model for developers. But Payload coupled it to Next.js. Directus showed that framework-independence is valuable. But Directus coupled it to database-stored schema. Tovu delivers code-first TypeScript schema (Payload's strength) with framework-agnostic deployment (Directus's strength). The core is an adapter-pattern library that works with Next.js, Nuxt, SvelteKit, Astro, or standalone.
 
@@ -682,4 +827,17 @@ A development team building a content-rich application in 2026 that:
 
 This is not a small niche. It is the modern full-stack developer building anything from a media brand to a SaaS product's documentation system to an e-commerce catalog — anyone who needs content infrastructure that doesn't fight their stack.
 
-The single phrase that captures the gap: **Ghost is for publishers. Payload is for Next.js developers. Directus is for data teams. Tovu is for teams building AI-powered applications that happen to have a content layer.**
+**Squaring the GUI-vs-code tension (the Strapi lesson).** Strapi's category lead proves
+one thing decisively: **the need for non-developers to model content is real and large.**
+Strapi serves it with a GUI that writes schema files (accessible, but drift-prone);
+Payload refuses it to stay code-first (clean, but developer-only). Tovu's AI-native angle
+*dissolves* the tension instead of picking a side: the **assistant is the modeling
+interface** — a non-developer says "add an FAQ page with a question/answer repeater," and
+the assistant edits the **code-first, git-tracked, type-safe** schema. Strapi's
+accessibility without Strapi's drift; Payload's rigor without Payload's developer-only
+ceiling. This is the sharpest strategic wedge the competitive set reveals.
+
+The single phrase that captures the gap: **Strapi is the popular GUI-modeled generalist.
+Ghost is for publishers. Payload is for Next.js developers. Directus is for data teams.
+Tovu is for teams building AI-powered applications that happen to have a content layer —
+where the assistant, not a form, is how the site gets built.**

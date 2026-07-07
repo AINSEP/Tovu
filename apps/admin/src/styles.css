@@ -1,5 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ============================================================
+   Tovu Admin — design tokens (Port-derived, light default + dark)
+   Introduced with the grouped sidebar; the shell + nav read these.
+   Section bodies still use legacy WordPress colors below (later pass).
+   ============================================================ */
+:root {
+  --bg:            oklch(98.4% 0.004 250);
+  --surface:       oklch(100% 0 0);
+  --surface-2:     oklch(96.6% 0.006 250);
+  --surface-3:     oklch(94% 0.008 250);
+  --fg:            oklch(24% 0.022 262);
+  --fg-2:          oklch(34% 0.02 262);
+  --muted:         oklch(53% 0.016 258);
+  --faint:         oklch(66% 0.012 258);
+  --border:        oklch(91.5% 0.007 255);
+  --border-strong: oklch(86% 0.010 255);
+
+  --accent:      oklch(22% 0.006 260);
+  --accent-ink:  oklch(99% 0 0);
+  --accent-text: oklch(26% 0.006 260);
+  --accent-dim:  oklch(22% 0.006 260 / 0.07);
+  --accent-ring: oklch(22% 0.006 260 / 0.16);
+
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-ui:      'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  --r-sm: 7px; --r-md: 11px; --r-lg: 16px; --r-pill: 999px;
+  --shadow-sm: 0 1px 2px rgba(20,28,45,0.05), 0 1px 3px rgba(20,28,45,0.05);
+  --shadow-md: 0 4px 14px rgba(20,28,45,0.07), 0 2px 5px rgba(20,28,45,0.05);
+}
+
+:root[data-theme="dark"] {
+  --bg:            oklch(14% 0.018 255);
+  --surface:       oklch(18.5% 0.018 255);
+  --surface-2:     oklch(22% 0.016 255);
+  --surface-3:     oklch(26% 0.015 255);
+  --fg:            oklch(96% 0.004 250);
+  --fg-2:          oklch(86% 0.006 250);
+  --muted:         oklch(70% 0.012 250);
+  --faint:         oklch(56% 0.012 250);
+  --border:        oklch(100% 0 0 / 0.11);
+  --border-strong: oklch(100% 0 0 / 0.18);
+
+  --accent:      oklch(97% 0 0);
+  --accent-ink:  oklch(18% 0.006 260);
+  --accent-text: oklch(97% 0 0);
+  --accent-dim:  oklch(100% 0 0 / 0.10);
+  --accent-ring: oklch(100% 0 0 / 0.18);
+}
+
 * { box-sizing: border-box; }
-body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f0f1; color: #1d2327; }
+body { margin: 0; font-family: var(--font-ui); background: var(--bg); color: var(--fg); -webkit-font-smoothing: antialiased; }
 a { color: #2271b1; text-decoration: none; }
 a:hover { text-decoration: underline; }
 button { background: #2271b1; color: #fff; border: none; border-radius: 4px; padding: 0.5rem 1rem; cursor: pointer; font-size: 0.9rem; }
@@ -7,7 +60,7 @@ button:hover { background: #135e96; }
 button:disabled { opacity: 0.6; cursor: default; }
 input, select { padding: 0.45rem 0.6rem; border: 1px solid #8c8f94; border-radius: 4px; font-size: 0.95rem; }
 
-.boot-screen { display: grid; place-items: center; height: 100vh; font-size: 1.1rem; color: #50575e; }
+.boot-screen { display: grid; place-items: center; height: 100vh; font-size: 1.1rem; color: var(--muted); }
 
 /* Login */
 .login-screen { display: grid; place-items: center; height: 100vh; background: #1d2327; }
@@ -19,26 +72,59 @@ input, select { padding: 0.45rem 0.6rem; border: 1px solid #8c8f94; border-radiu
 .login-hint { font-size: 0.75rem; color: #8c8f94; text-align: center; }
 
 /* Layout */
-.admin-layout { display: flex; min-height: 100vh; }
-.admin-content { flex: 1; padding: 2rem 2.5rem; max-width: 70rem; }
+.admin-layout { display: flex; height: 100vh; overflow: hidden; }
+.admin-content { flex: 1; overflow-y: auto; padding: 2rem 2.5rem; }
 
-/* Sidebar — WordPress-shaped */
-.sidebar { width: 190px; background: #1d2327; color: #c3c4c7; min-height: 100vh; padding-bottom: 3rem; flex-shrink: 0; }
-.sidebar-brand { font-size: 1.15rem; font-weight: 700; color: #fff; padding: 1rem; }
-.sidebar-sep { border: none; border-top: 1px solid #3c434a; margin: 0.5rem 0; }
-.sidebar-promo { background: #2c3338; margin: 0.5rem 0.6rem; padding: 0.6rem; border-radius: 6px; font-size: 0.75rem; }
-.sidebar-promo a { color: #72aee6; font-weight: 600; }
-.sidebar-item a { display: flex; align-items: center; gap: 0.55rem; color: #c3c4c7; padding: 0.5rem 1rem; font-size: 0.85rem; }
-.sidebar-item a:hover { color: #72aee6; text-decoration: none; }
-.sidebar-item.current > a { background: #2271b1; color: #fff; }
-.sidebar-item.product > a { opacity: 0.75; }
-.sidebar-icon { display: inline-block; width: 1.5rem; font-size: 0.7rem; font-weight: 700; opacity: 0.8; }
-.sidebar-badge { margin-left: auto; background: #72aee6; color: #1d2327; font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 8px; font-weight: 700; }
-.sidebar-children { background: #2c3338; padding: 0.3rem 0; }
-.sidebar-children a { display: block; padding: 0.35rem 1rem 0.35rem 2.8rem; color: #c3c4c7; font-size: 0.8rem; }
-.sidebar-children a.current { color: #fff; font-weight: 600; }
-.sidebar-logout { margin: 1.5rem 1rem 0; background: transparent; border: 1px solid #3c434a; color: #c3c4c7; width: calc(100% - 2rem); }
-.sidebar-logout:hover { background: #2c3338; }
+/* ============================================================
+   SIDEBAR — grouped .cms-nav (replaces the WordPress-shaped menu)
+   ============================================================ */
+.cms-nav {
+  width: 232px; flex-shrink: 0; height: 100%;
+  background: var(--surface); border-right: 1px solid var(--border);
+  overflow-y: auto; padding: 14px 12px 10px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.cms-section { display: flex; flex-direction: column; gap: 2px; }
+.cms-group {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--faint); padding: 14px 10px 6px;
+}
+.cms-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-md);
+  font-size: 13px; font-weight: 500; color: var(--fg-2); cursor: pointer;
+  transition: background 0.14s, color 0.14s; position: relative; text-decoration: none;
+}
+.cms-item:hover { background: var(--surface-2); text-decoration: none; }
+.cms-item svg { width: 16px; height: 16px; color: var(--muted); flex-shrink: 0; }
+.cms-item > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.cms-item.active { background: var(--accent-dim); color: var(--accent-text); font-weight: 600; }
+.cms-item.active svg { color: var(--accent-text); }
+.cms-item.active::before {
+  content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 18px; border-radius: 0 3px 3px 0; background: var(--accent-text);
+}
+
+.cms-item.is-soon { cursor: default; color: var(--faint); }
+.cms-item.is-soon:hover { background: transparent; }
+.cms-item.is-soon svg { color: var(--faint); }
+.cms-item .soon {
+  margin-left: auto; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--faint); border: 1px solid var(--border); padding: 1px 5px; border-radius: 5px;
+}
+
+.cms-foot { margin-top: auto; padding-top: 10px; }
+.cms-logout {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px;
+  background: transparent; color: var(--muted); border: none; border-radius: var(--r-md);
+  font-family: var(--font-ui); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.14s, color 0.14s;
+}
+.cms-logout:hover { background: var(--surface-2); color: var(--fg); }
+.cms-logout svg { width: 16px; height: 16px; }
+
+.cms-nav::-webkit-scrollbar { width: 8px; }
+.cms-nav::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
+.cms-nav::-webkit-scrollbar-track { background: transparent; }
 
 /* Content bits */
 .notice { background: #fff; border-left: 4px solid #72aee6; padding: 0.8rem 1rem; border-radius: 4px; box-shadow: 0 1px 1px rgba(0,0,0,0.04); }
@@ -65,7 +151,21 @@ input, select { padding: 0.45rem 0.6rem; border: 1px solid #8c8f94; border-radiu
 .editor-title { font-size: 1.6rem; font-weight: 700; padding: 0.6rem 0.8rem; width: 100%; }
 .editor-slug { color: #50575e; font-size: 0.85rem; display: flex; gap: 0.4rem; align-items: center; }
 .editor-slug input { width: 14rem; }
-.editor-body { background: #fff; border-radius: 8px; padding: 1.5rem 2rem; min-height: 22rem; box-shadow: 0 1px 1px rgba(0,0,0,0.04); }
+.editor-shell { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow-sm); }
+.editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; padding: 8px 10px; background: var(--surface-2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
+.editor-toolbar .grp { display: flex; gap: 2px; padding-right: 8px; margin-right: 0; border-right: 1px solid var(--border); }
+.editor-toolbar .grp:last-child { border-right: none; padding-right: 0; }
+.tb-btn {
+  min-width: 30px; height: 30px; padding: 0 8px; display: inline-grid; place-items: center;
+  font-family: var(--font-ui); font-size: 12.5px; font-weight: 600; line-height: 1;
+  color: var(--ink-2); background: transparent; border: 1px solid transparent; border-radius: 7px; cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.tb-btn:hover:not(:disabled) { background: var(--surface); border-color: var(--border); }
+.tb-btn.on { background: var(--accent-dim); color: var(--accent-text); }
+.tb-btn:disabled { opacity: 0.38; cursor: default; }
+.tb-btn i { font-style: italic; } .tb-btn s { text-decoration: line-through; }
+.editor-body { background: var(--surface); padding: 1.5rem 2rem; min-height: 22rem; }
 .editor-body .tiptap { outline: none; min-height: 20rem; }
 .editor-body .tiptap p { line-height: 1.6; }
 .editor-body .tiptap pre { background: #1d2327; color: #e8ecf4; padding: 1rem; border-radius: 6px; overflow-x: auto; }
