@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import type { AdminCurrentKey } from "@tovu/admin-shell";
 import { Sidebar } from "./components/Sidebar";
 import { api, type AdminUser } from "./lib/api";
 import { Appearance } from "./sections/Appearance";
@@ -26,32 +25,17 @@ function parseHash(hash: string): Route {
   return { view: "dashboard" };
 }
 
-function currentKeysFor(route: Route): AdminCurrentKey[] {
+/** Which sidebar NavItem.id is highlighted for the current route. */
+function activeSectionId(route: Route): string {
   switch (route.view) {
     case "dashboard":
-      return ["dashboard"];
+      return "dashboard";
     case "posts":
-      return ["posts", "post-list"];
     case "post-editor":
-      return ["posts", "post-editor"];
+      return "posts";
     case "section":
-      return isCurrentKey(route.sectionId) ? [route.sectionId] : [];
+      return route.sectionId;
   }
-}
-
-function isCurrentKey(value: string): value is AdminCurrentKey {
-  return [
-    "dashboard",
-    "posts",
-    "media",
-    "pages",
-    "comments",
-    "appearance",
-    "plugins",
-    "users",
-    "tools",
-    "settings",
-  ].includes(value);
 }
 
 export function App() {
@@ -99,7 +83,7 @@ export function App() {
 
   return (
     <div className="admin-layout">
-      <Sidebar currentKeys={currentKeysFor(route)} onLogout={logout} />
+      <Sidebar activeId={activeSectionId(route)} onLogout={logout} />
       <main className="admin-content">{content}</main>
     </div>
   );

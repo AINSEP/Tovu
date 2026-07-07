@@ -1,3 +1,6 @@
+import { eq } from "drizzle-orm";
+
+import { presentationSettings } from "../../infra/db/schema";
 import type { ContentDb } from "../../infra/sqlite/content-db";
 import type {
   PresentationSettingsRecord,
@@ -6,22 +9,18 @@ import type {
 } from "./presentation";
 
 /**
- * @file better-sqlite3 presentation-settings repository adapter.
+ * @file Drizzle/SQLite presentation-settings repository adapter.
  *
- * Satisfies the same `PresentationSettingsRepoPort` as `repo.memory.ts`. One row
- * per workspace; `save` upserts on `workspace_id`.
+ * Satisfies the same `PresentationSettingsRepoPort` as `repo.memory.ts`. One row per
+ * workspace; `save` upserts on `workspace_id`.
  */
-interface PresentationRow {
-  workspace_id: string;
-  active_theme_id: string;
-  updated_at: string;
-}
+type PresentationRow = typeof presentationSettings.$inferSelect;
 
 function toRecord(row: PresentationRow): PresentationSettingsRecord {
   return {
-    workspaceId: row.workspace_id,
-    activeThemeId: row.active_theme_id as ThemeId,
-    updatedAt: row.updated_at,
+    workspaceId: row.workspaceId,
+    activeThemeId: row.activeThemeId as ThemeId,
+    updatedAt: row.updatedAt,
   };
 }
 
@@ -29,23 +28,22 @@ export class SqlitePresentationSettingsRepo implements PresentationSettingsRepoP
   constructor(private readonly db: ContentDb) {}
 
   async findByWorkspaceId(workspaceId: string): Promise<PresentationSettingsRecord | null> {
-    const row = this.db
-      .prepare(
-        "SELECT workspace_id, active_theme_id, updated_at FROM presentation_settings WHERE workspace_id = ?"
-      )
-      .get(workspaceId) as PresentationRow | undefined;
-    return row ? toRecord(row) : null;
+    const rows = this.db
+      .select()
+      .from(presentationSettings)
+      .where(eq(presentationSettings.workspaceId, workspaceId))
+      .all();
+    return rows[0] ? toRecord(rows[0]) : null;
   }
 
   async save(record: PresentationSettingsRecord): Promise<void> {
     this.db
-      .prepare(
-        `INSERT INTO presentation_settings (workspace_id, active_theme_id, updated_at)
-         VALUES (@workspaceId, @activeThemeId, @updatedAt)
-         ON CONFLICT (workspace_id) DO UPDATE SET
-           active_theme_id = excluded.active_theme_id,
-           updated_at      = excluded.updated_at`
-      )
-      .run(record);
+      .insert(presentationSettings)
+      .values(record)
+      .onConflictDoUpdate({
+        target: presentationSettings.workspaceId,
+        set: { activeThemeId: record.activeThemeId, updatedAt: record.updatedAt },
+      })
+      .run();
   }
 }

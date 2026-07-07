@@ -1,7 +1,58 @@
 import { useEffect, useState } from "react";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { api, type AdminPost } from "../lib/api";
+
+/** Formatting toolbar wired to the live editor. Active state stays in sync via useEditorState. */
+function Toolbar({ editor }: { editor: Editor }) {
+  const s = useEditorState({
+    editor,
+    selector: ({ editor }) => ({
+      bold: editor?.isActive("bold") ?? false,
+      italic: editor?.isActive("italic") ?? false,
+      strike: editor?.isActive("strike") ?? false,
+      code: editor?.isActive("code") ?? false,
+      h1: editor?.isActive("heading", { level: 1 }) ?? false,
+      h2: editor?.isActive("heading", { level: 2 }) ?? false,
+      h3: editor?.isActive("heading", { level: 3 }) ?? false,
+      bullet: editor?.isActive("bulletList") ?? false,
+      ordered: editor?.isActive("orderedList") ?? false,
+      quote: editor?.isActive("blockquote") ?? false,
+      codeBlock: editor?.isActive("codeBlock") ?? false,
+      canUndo: editor?.can().undo() ?? false,
+      canRedo: editor?.can().redo() ?? false,
+    }),
+  });
+
+  const chain = () => editor.chain().focus();
+
+  return (
+    <div className="editor-toolbar" role="toolbar" aria-label="Formatting">
+      <div className="grp">
+        <button className={`tb-btn${s.bold ? " on" : ""}`} title="Bold (⌘B)" aria-pressed={s.bold} onClick={() => chain().toggleBold().run()}><b>B</b></button>
+        <button className={`tb-btn${s.italic ? " on" : ""}`} title="Italic (⌘I)" aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
+        <button className={`tb-btn${s.strike ? " on" : ""}`} title="Strikethrough" aria-pressed={s.strike} onClick={() => chain().toggleStrike().run()}><s>S</s></button>
+        <button className={`tb-btn${s.code ? " on" : ""}`} title="Inline code" aria-pressed={s.code} onClick={() => chain().toggleCode().run()}>&lt;/&gt;</button>
+      </div>
+      <div className="grp">
+        <button className={`tb-btn${s.h1 ? " on" : ""}`} title="Heading 1" aria-pressed={s.h1} onClick={() => chain().toggleHeading({ level: 1 }).run()}>H1</button>
+        <button className={`tb-btn${s.h2 ? " on" : ""}`} title="Heading 2" aria-pressed={s.h2} onClick={() => chain().toggleHeading({ level: 2 }).run()}>H2</button>
+        <button className={`tb-btn${s.h3 ? " on" : ""}`} title="Heading 3" aria-pressed={s.h3} onClick={() => chain().toggleHeading({ level: 3 }).run()}>H3</button>
+      </div>
+      <div className="grp">
+        <button className={`tb-btn${s.bullet ? " on" : ""}`} title="Bullet list" aria-pressed={s.bullet} onClick={() => chain().toggleBulletList().run()}>• List</button>
+        <button className={`tb-btn${s.ordered ? " on" : ""}`} title="Numbered list" aria-pressed={s.ordered} onClick={() => chain().toggleOrderedList().run()}>1. List</button>
+        <button className={`tb-btn${s.quote ? " on" : ""}`} title="Quote" aria-pressed={s.quote} onClick={() => chain().toggleBlockquote().run()}>&ldquo; Quote</button>
+        <button className={`tb-btn${s.codeBlock ? " on" : ""}`} title="Code block" aria-pressed={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}>{"{ }"}</button>
+        <button className="tb-btn" title="Divider" onClick={() => chain().setHorizontalRule().run()}>―</button>
+      </div>
+      <div className="grp">
+        <button className="tb-btn" title="Undo (⌘Z)" disabled={!s.canUndo} onClick={() => chain().undo().run()}>↺</button>
+        <button className="tb-btn" title="Redo (⌘⇧Z)" disabled={!s.canRedo} onClick={() => chain().redo().run()}>↻</button>
+      </div>
+    </div>
+  );
+}
 
 export function PostEditor(props: { postId: string }) {
   const [post, setPost] = useState<AdminPost | null>(null);
@@ -72,8 +123,11 @@ export function PostEditor(props: { postId: string }) {
           view ↗
         </a>
       </div>
-      <div className="editor-body">
-        <EditorContent editor={editor} />
+      <div className="editor-shell">
+        {editor ? <Toolbar editor={editor} /> : null}
+        <div className="editor-body">
+          <EditorContent editor={editor} />
+        </div>
       </div>
     </div>
   );

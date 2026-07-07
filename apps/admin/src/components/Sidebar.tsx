@@ -1,61 +1,62 @@
-import {
-  buildAdminMenuEntries,
-  createEmptyAdminCurrentState,
-  type AdminCurrentKey,
-  type AdminMenuTarget,
-} from "@tovu/admin-shell";
+import { NAV, type NavItem } from "../nav";
 
-function targetToHash(target: AdminMenuTarget): string {
-  if (target.kind === "dashboard") return "#/";
-  if (target.kind === "default-post-editor") return "#/posts/post-home";
-  if (target.sectionId === "posts") return "#/posts";
-  return `#/section/${target.sectionId}`;
+/**
+ * Grouped admin sidebar (the `.cms-nav` design). Replaces the flat,
+ * WordPress-shaped menu. `activeId` matches a NavItem.id (see App.activeSectionId).
+ */
+function Icon(props: { markup: string }) {
+  return (
+    <svg
+      viewBox="0 0 18 18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      dangerouslySetInnerHTML={{ __html: props.markup }}
+    />
+  );
 }
 
-export function Sidebar(props: { currentKeys: AdminCurrentKey[]; onLogout: () => void }) {
-  const current = createEmptyAdminCurrentState();
-  for (const key of props.currentKeys) current[key] = true;
+function Item(props: { item: NavItem; active: boolean }) {
+  const { item, active } = props;
 
-  const entries = buildAdminMenuEntries({
-    current,
-    resolveTargetHref: targetToHash,
-  });
+  if (item.soon || !item.href) {
+    return (
+      <div className="cms-item is-soon" aria-disabled="true">
+        <Icon markup={item.icon} />
+        <span>{item.label}</span>
+        <span className="soon">Soon</span>
+      </div>
+    );
+  }
 
   return (
-    <nav className="sidebar">
-      <div className="sidebar-brand">Tovu</div>
-      {entries.map((entry) => {
-        if (entry.kind === "separator") return <hr key={entry.key} className="sidebar-sep" />;
-        if (entry.kind === "promo") {
-          return (
-            <div key={entry.key} className="sidebar-promo">
-              <div>{entry.title}</div>
-              <a href={entry.href}>{entry.actionLabel}</a>
-            </div>
-          );
-        }
-        return (
-          <div key={entry.key} className={`sidebar-item${entry.current ? " current" : ""}${entry.tone === "product" ? " product" : ""}`}>
-            <a href={entry.href}>
-              <span className="sidebar-icon">{entry.icon}</span>
-              <span>{entry.label}</span>
-              {entry.badge ? <span className="sidebar-badge">{entry.badge}</span> : null}
-            </a>
-            {entry.current && entry.children ? (
-              <div className="sidebar-children">
-                {entry.children.map((child) => (
-                  <a key={child.key} href={child.href} className={child.current ? "current" : ""}>
-                    {child.label}
-                  </a>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        );
-      })}
-      <button className="sidebar-logout" onClick={props.onLogout}>
-        Log out
-      </button>
+    <a className={`cms-item${active ? " active" : ""}`} href={item.href} aria-current={active ? "page" : undefined}>
+      <Icon markup={item.icon} />
+      <span>{item.label}</span>
+    </a>
+  );
+}
+
+export function Sidebar(props: { activeId: string; onLogout: () => void }) {
+  return (
+    <nav className="cms-nav scroll" aria-label="Admin">
+      {NAV.map((group, gi) => (
+        <div className="cms-section" key={group.label ?? `top-${gi}`}>
+          {group.label ? <div className="cms-group">{group.label}</div> : null}
+          {group.items.map((item) => (
+            <Item key={item.id} item={item} active={item.id === props.activeId} />
+          ))}
+        </div>
+      ))}
+
+      <div className="cms-foot">
+        <button className="cms-logout" onClick={props.onLogout}>
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5}>
+            <path d="M7 15H4a1.5 1.5 0 01-1.5-1.5v-9A1.5 1.5 0 014 3h3M11.5 12L15 9l-3.5-3M15 9H7" />
+          </svg>
+          <span>Log out</span>
+        </button>
+      </div>
     </nav>
   );
 }
