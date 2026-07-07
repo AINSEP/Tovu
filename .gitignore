@@ -1,0 +1,14 @@
+node_modules/
+dist/
+apps/admin/dist/
+*.log
+.DS_Store
+.env
+.env.*
+content.db
+content.db-wal
+content.db-shm
+uploads/
+
+# Vendored dev toolkit — cloned separately, has its own git history (not part of Tovu)
+AI-Dev-Shop/

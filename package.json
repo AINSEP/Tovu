@@ -1,0 +1,29 @@
+{
+  "name": "tovu",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tovu — the website product: CMS runtime (public site + per-site admin + content model).",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/src/index.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "admin:install": "npm --prefix apps/admin install",
+    "admin:build": "npm --prefix apps/admin run build",
+    "admin:dev": "npm --prefix apps/admin run dev",
+    "setup": "npm install && npm run admin:install && npm run admin:build"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

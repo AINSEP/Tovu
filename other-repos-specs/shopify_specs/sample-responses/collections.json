@@ -1,0 +1,76 @@
+{
+  "collections": {
+    "edges": [
+      {
+        "node": {
+          "id": "gid://shopify/Collection/659271450805",
+          "title": "Home page",
+          "handle": "frontpage",
+          "descriptionHtml": "",
+          "updatedAt": "2026-04-17T21:02:52Z",
+          "image": null,
+          "seo": {
+            "title": null,
+            "description": null
+          },
+          "productsCount": {
+            "count": 1
+          },
+          "products": {
+            "edges": [
+              {
+                "node": {
+                  "id": "gid://shopify/Product/10415507636405",
+                  "title": "Modern Oak Desk",
+                  "handle": "modern-oak-desk"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "node": {
+          "id": "gid://shopify/Collection/659271844021",
+          "title": "Home Office Collection",
+          "handle": "home-office-collection",
+          "descriptionHtml": "<p>Everything you need for a productive, beautiful home office. Curated pieces that combine function with modern design.</p>",
+          "updatedAt": "2026-04-17T21:03:39Z",
+          "image": null,
+          "seo": {
+            "title": null,
+            "description": null
+          },
+          "productsCount": {
+            "count": 3
+          },
+          "products": {
+            "edges": [
+              {
+                "node": {
+                  "id": "gid://shopify/Product/10415507734709",
+                  "title": "Minimalist Walnut Bookshelf",
+                  "handle": "minimalist-walnut-bookshelf"
+                }
+              },
+              {
+                "node": {
+                  "id": "gid://shopify/Product/10415507701941",
+                  "title": "Ergonomic Lounge Chair",
+                  "handle": "ergonomic-lounge-chair"
+                }
+              },
+              {
+                "node": {
+                  "id": "gid://shopify/Product/10415507636405",
+                  "title": "Modern Oak Desk",
+                  "handle": "modern-oak-desk"
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
