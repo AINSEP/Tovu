@@ -1,0 +1,411 @@
+{
+  "products": {
+    "edges": [
+      {
+        "node": {
+          "id": "gid://shopify/Product/10415507636405",
+          "title": "Modern Oak Desk",
+          "handle": "modern-oak-desk",
+          "descriptionHtml": "<p>A sleek modern desk crafted from solid white oak. Features clean lines, cable management, and a spacious work surface.</p><ul>\n<li>Solid white oak construction</li>\n<li>Built-in cable management</li>\n<li>60\" x 30\" work surface</li>\n</ul>",
+          "productType": "Desks",
+          "vendor": "Tovu Furniture Co",
+          "status": "ACTIVE",
+          "tags": [
+            "desk",
+            "home-office",
+            "modern",
+            "oak",
+            "sustainable"
+          ],
+          "createdAt": "2026-04-17T21:02:52Z",
+          "updatedAt": "2026-04-17T21:05:17Z",
+          "seo": {
+            "title": null,
+            "description": null
+          },
+          "options": [
+            {
+              "id": "gid://shopify/ProductOption/12980387545269",
+              "name": "Size",
+              "values": [
+                "48 inch",
+                "60 inch",
+                "72 inch"
+              ]
+            }
+          ],
+          "variants": {
+            "edges": [
+              {
+                "node": {
+                  "id": "gid://shopify/ProductVariant/52440705990837",
+                  "title": "48 inch",
+                  "price": "0.00",
+                  "compareAtPrice": null,
+                  "selectedOptions": [
+                    {
+                      "name": "Size",
+                      "value": "48 inch"
+                    }
+                  ]
+                }
+              },
+              {
+                "node": {
+                  "id": "gid://shopify/ProductVariant/52440717000885",
+                  "title": "60 inch",
+                  "price": "1099.00",
+                  "compareAtPrice": null,
+                  "selectedOptions": [
+                    {
+                      "name": "Size",
+                      "value": "60 inch"
+                    }
+                  ]
+                }
+              },
+              {
+                "node": {
+                  "id": "gid://shopify/ProductVariant/52440717033653",
+                  "title": "72 inch",
+                  "price": "1299.00",
+                  "compareAtPrice": null,
+                  "selectedOptions": [
+                    {
+                      "name": "Size",
+                      "value": "72 inch"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "metafields": {
+            "edges": [
+              {
+                "node": {
+                  "namespace": "custom",
+                  "key": "material",
+                  "value": "Solid White Oak",
+                  "type": "single_line_text_field",
+                  "description": null,
+                  "createdAt": "2026-04-17T21:03:44Z",
+                  "updatedAt": "2026-04-17T21:03:44Z"
+                }
+              },
+              {
+                "node": {
+                  "namespace": "custom",
+                  "key": "weight_kg",
+                  "value": "35",
+                  "type": "number_integer",
+                  "description": null,
+                  "createdAt": "2026-04-17T21:03:44Z",
+                  "updatedAt": "2026-04-17T21:03:44Z"
+                }
+              },
+              {
+                "node": {
+                  "namespace": "custom",
+                  "key": "assembly_required",
+                  "value": "true",
+                  "type": "boolean",
+                  "description": null,
+                  "createdAt": "2026-04-17T21:03:44Z",
+                  "updatedAt": "2026-04-17T21:03:44Z"
+                }
+              },
+              {
+                "node": {
+                  "namespace": "custom",
+                  "key": "warranty_years",
+                  "value": "5",
+                  "type": "number_integer",
+                  "description": null,
+                  "createdAt": "2026-04-17T21:03:44Z",
+                  "updatedAt": "2026-04-17T21:03:44Z"
+                }
+              },
+              {
+                "node": {
+                  "namespace": "custom",
+                  "key": "care_instructions",
+                  "value": "Wipe with damp cloth. Apply wood oil every 6 months. Avoid direct sunlight.",
+                  "type": "multi_line_text_field",
+                  "description": null,
+                  "createdAt": "2026-04-17T21:03:44Z",
+                  "updatedAt": "2026-04-17T21:03:44Z"
+                }
+              }
+            ]
+          },
+          "collections": {
+            "edges": [
+              {
+                "node": {
+                  "id": "gid://shopify/Collection/659271450805",
+                  "title": "Home page",
+                  "handle": "frontpage"
+                }
+              },
+              {
+                "node": {
+                  "id": "gid://shopify/Collection/659271844021",
+                  "title": "Home Office Collection",
+                  "handle": "home-office-collection"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "node": {
+          "id": "gid://shopify/Product/10415507701941",
+          "title": "Ergonomic Lounge Chair",
+          "handle": "ergonomic-lounge-chair",
+          "descriptionHtml": "<p>AI-designed ergonomic lounge chair with memory foam cushions and adjustable lumbar support. Perfect for long reading sessions.</p>",
+          "productType": "Chairs",
+          "vendor": "Tovu Furniture Co",
+          "status": "ACTIVE",
+          "tags": [
+            "AI-designed",
+            "chair",
+            "ergonomic",
+            "lounge",
+            "memory-foam"
+          ],
+          "createdAt": "2026-04-17T21:02:57Z",
+          "updatedAt": "2026-04-17T21:05:17Z",
+          "seo": {
+            "title": null,
+            "description": null
+          },
+          "options": [
+            {
+              "id": "gid://shopify/ProductOption/12980387610805",
+              "name": "Color",
+              "values": [
+                "Charcoal",
+                "Sand",
+                "Forest Green"
+              ]
+            }
+          ],
+          "variants": {
+            "edges": [
+              {
+                "node": {
+                  "id": "gid://shopify/ProductVariant/52440706154677",
+                  "title": "Charcoal",
+                  "price": "0.00",
+                  "compareAtPrice": null,
+                  "selectedOptions": [
+                    {
+                      "name": "Color",
+                      "value": "Charcoal"
+                    }
+                  ]
+                }
+              },
+              {
+                "node": {
+                  "id": "gid://shopify/ProductVariant/52440717131957",
+                  "title": "Sand",
+                  "price": "749.00",
+                  "compareAtPrice": null,
+                  "selectedOptions": [
+                    {
+                      "name": "Color",
+                      "value": "Sand"
+                    }
+                  ]
+                }
+              },
+              {
+                "node": {
+                  "id": "gid://shopify/ProductVariant/52440717164725",
+                  "title": "Forest Green",
+                  "price": "799.00",
+                  "compareAtPrice": null,
+                  "selectedOptions": [
+                    {
+                      "name": "Color",
+                      "value": "Forest Green"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "metafields": {
+            "edges": []
+          },
+          "collections": {
+            "edges": [
+              {
+                "node": {
+                  "id": "gid://shopify/Collection/659271844021",
+                  "title": "Home Office Collection",
+                  "handle": "home-office-collection"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "node": {
+          "id": "gid://shopify/Product/10415507734709",
+          "title": "Minimalist Walnut Bookshelf",
+          "handle": "minimalist-walnut-bookshelf",
+          "descriptionHtml": "<p>A floating walnut bookshelf with hidden mounting hardware. 5 adjustable shelves, each rated for 40lbs.</p><p>Available in 3 widths.</p>",
+          "productType": "Storage",
+          "vendor": "Tovu Furniture Co",
+          "status": "ACTIVE",
+          "tags": [
+            "bookshelf",
+            "minimalist",
+            "storage",
+            "wall-mounted",
+            "walnut"
+          ],
+          "createdAt": "2026-04-17T21:03:02Z",
+          "updatedAt": "2026-04-17T21:05:26Z",
+          "seo": {
+            "title": null,
+            "description": null
+          },
+          "options": [
+            {
+              "id": "gid://shopify/ProductOption/12980387709109",
+              "name": "Width",
+              "values": [
+                "24 inch",
+                "36 inch",
+                "48 inch"
+              ]
+            }
+          ],
+          "variants": {
+            "edges": [
+              {
+                "node": {
+                  "id": "gid://shopify/ProductVariant/52440706187445",
+                  "title": "24 inch",
+                  "price": "0.00",
+                  "compareAtPrice": null,
+                  "selectedOptions": [
+                    {
+                      "name": "Width",
+                      "value": "24 inch"
+                    }
+                  ]
+                }
+              },
+              {
+                "node": {
+                  "id": "gid://shopify/ProductVariant/52440717328565",
+                  "title": "36 inch",
+                  "price": "549.00",
+                  "compareAtPrice": null,
+                  "selectedOptions": [
+                    {
+                      "name": "Width",
+                      "value": "36 inch"
+                    }
+                  ]
+                }
+              },
+              {
+                "node": {
+                  "id": "gid://shopify/ProductVariant/52440717361333",
+                  "title": "48 inch",
+                  "price": "699.00",
+                  "compareAtPrice": null,
+                  "selectedOptions": [
+                    {
+                      "name": "Width",
+                      "value": "48 inch"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "metafields": {
+            "edges": []
+          },
+          "collections": {
+            "edges": [
+              {
+                "node": {
+                  "id": "gid://shopify/Collection/659271844021",
+                  "title": "Home Office Collection",
+                  "handle": "home-office-collection"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "node": {
+          "id": "gid://shopify/Product/10415507800245",
+          "title": "Concrete and Steel Coffee Table",
+          "handle": "concrete-and-steel-coffee-table",
+          "descriptionHtml": "<p>Industrial-modern coffee table combining polished concrete with powder-coated steel legs. Each piece is unique due to the natural concrete curing process.</p>",
+          "productType": "Tables",
+          "vendor": "Tovu Furniture Co",
+          "status": "ACTIVE",
+          "tags": [
+            "coffee-table",
+            "concrete",
+            "industrial",
+            "modern",
+            "steel"
+          ],
+          "createdAt": "2026-04-17T21:03:06Z",
+          "updatedAt": "2026-04-17T21:03:40Z",
+          "seo": {
+            "title": null,
+            "description": null
+          },
+          "options": [
+            {
+              "id": "gid://shopify/ProductOption/12980385153205",
+              "name": "Title",
+              "values": [
+                "Default Title"
+              ]
+            }
+          ],
+          "variants": {
+            "edges": [
+              {
+                "node": {
+                  "id": "gid://shopify/ProductVariant/52440706547893",
+                  "title": "Default Title",
+                  "price": "0.00",
+                  "compareAtPrice": null,
+                  "selectedOptions": [
+                    {
+                      "name": "Title",
+                      "value": "Default Title"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "metafields": {
+            "edges": []
+          },
+          "collections": {
+            "edges": []
+          }
+        }
+      }
+    ]
+  }
+}

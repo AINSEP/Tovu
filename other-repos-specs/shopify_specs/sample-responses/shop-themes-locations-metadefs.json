@@ -1,0 +1,52 @@
+{
+  "shop": {
+    "name": "AI Powered Furniture Sales",
+    "email": "mike.theforeverbachelor@gmail.com",
+    "myshopifyDomain": "ai-powered-furniture-sales.myshopify.com",
+    "plan": {
+      "displayName": "Development"
+    },
+    "currencyCode": "USD",
+    "primaryDomain": {
+      "host": "ai-powered-furniture-sales.myshopify.com"
+    },
+    "timezoneAbbreviation": "EDT",
+    "billingAddress": {
+      "city": null,
+      "province": null,
+      "country": "United States"
+    }
+  },
+  "themes": {
+    "edges": [
+      {
+        "node": {
+          "id": "gid://shopify/OnlineStoreTheme/189897867445",
+          "name": "Horizon",
+          "role": "MAIN",
+          "createdAt": "2026-04-17T20:37:35Z",
+          "updatedAt": "2026-04-17T20:37:50Z"
+        }
+      }
+    ]
+  },
+  "locations": {
+    "edges": [
+      {
+        "node": {
+          "id": "gid://shopify/Location/115077185717",
+          "name": "Shop location",
+          "isActive": true,
+          "address": {
+            "city": null,
+            "province": null,
+            "country": "United States"
+          }
+        }
+      }
+    ]
+  },
+  "metafieldDefinitions": {
+    "edges": []
+  }
+}
