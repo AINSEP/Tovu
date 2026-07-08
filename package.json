@@ -19,7 +19,8 @@
   "dependencies": {
     "better-sqlite3": "^11.8.1",
     "drizzle-orm": "^0.44.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "liquidjs": "^10.27.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",

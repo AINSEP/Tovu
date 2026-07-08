@@ -1,0 +1,43 @@
+{%- comment -%}
+  Dispatch — entry (single post). Demonstrates the {{ content | raw }} seam:
+  `content` is the server-rendered, pre-sanitized TipTap body, emitted with `raw`
+  so autoescape (on) doesn't double-escape it. The "More dispatches" list uses
+  assign + plus + a slug comparison to show a few OTHER entries.
+{%- endcomment -%}
+{% render_block component: "tovu/site-header", compact: true %}
+
+<main class="dispatch">
+  {%- if post -%}
+    <article class="entry">
+      <div class="wrap wrap--narrow">
+        <a class="entry__back" href="/">← {{ site.title }}</a>
+        <p class="entry__kicker">Dispatch</p>
+        <h1 class="entry__title">{{ post.title }}</h1>
+        <p class="entry__meta"><time>{{ post.date | date: "%B %e, %Y" }}</time></p>
+        <div class="prose">{{ post.content | raw }}</div>
+      </div>
+    </article>
+
+    {%- assign shown = 0 -%}
+    <section class="more">
+      <div class="wrap wrap--narrow">
+        <h2 class="more__title">More dispatches</h2>
+        <ul class="more__list">
+          {%- for other in posts -%}
+            {%- if other.slug != post.slug -%}
+              {%- assign shown = shown | plus: 1 -%}
+              {%- if shown <= 3 -%}
+                <li>
+                  <a href="/{{ other.slug }}">{{ other.title }}</a>
+                  <time>{{ other.date | date: "%b %e" }}</time>
+                </li>
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+        </ul>
+      </div>
+    </section>
+  {%- endif -%}
+</main>
+
+{% render_block component: "tovu/site-footer" %}

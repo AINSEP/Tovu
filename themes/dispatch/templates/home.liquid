@@ -1,0 +1,45 @@
+{%- comment -%}
+  Dispatch — home (Tier-2 / LiquidJS demonstrator).
+  Header + footer come from Tovu's shared component registry via {% render_block %};
+  the entry grid below is authored in Liquid (loop + forloop + conditionals + filters)
+  — the logic a fixed-component declarative template cannot express.
+{%- endcomment -%}
+{% render_block component: "tovu/site-header", tagline: "Dispatches, essays & field notes" %}
+
+<main class="dispatch">
+  <section class="masthead">
+    <div class="wrap">
+      <p class="masthead__kicker">The {{ site.title }} Dispatch</p>
+      <h1 class="masthead__title">Words worth the ink.</h1>
+      <p class="masthead__lead">
+        A <strong>templated</strong> theme — this front page is rendered by LiquidJS.
+        The grid below is a loop over your entries, not a fixed set of blocks.
+      </p>
+    </div>
+  </section>
+
+  <section class="feed">
+    <div class="wrap">
+      {%- if posts.size == 0 -%}
+        <p class="feed__empty">No published entries yet — check back soon.</p>
+      {%- else -%}
+        <ol class="grid">
+          {%- for post in posts -%}
+            <li class="card{% if forloop.first %} card--lead{% endif %}">
+              <a class="card__link" href="/{{ post.slug }}">
+                <span class="card__folio">{% if forloop.index < 10 %}0{% endif %}{{ forloop.index }}</span>
+                <h2 class="card__title">{{ post.title }}</h2>
+                <p class="card__meta">
+                  <time>{{ post.date | date: "%b %e, %Y" }}</time>
+                  {%- if forloop.first %} <span class="card__badge">Latest</span>{% endif -%}
+                </p>
+              </a>
+            </li>
+          {%- endfor -%}
+        </ol>
+      {%- endif -%}
+    </div>
+  </section>
+</main>
+
+{% render_block component: "tovu/site-footer" %}
