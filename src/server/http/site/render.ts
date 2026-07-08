@@ -1,7 +1,9 @@
+import { Liquid, Hash, type TagToken, type Context } from "liquidjs";
+
 import type { JsonObject, JsonValue } from "../../../core/ports";
 import type { PostRecord } from "../../../features/post";
 import type { DiscoveredTheme, TemplateNode } from "../../../features/theme";
-import { resolveTemplateId } from "../../../features/theme";
+import { resolveTemplateId, resolveLiquidTemplateId } from "../../../features/theme";
 
 /**
  * @file Template-tree renderer for the public site (SPEC-004 spike slice).
@@ -333,6 +335,75 @@ const COMPONENTS: Record<string, Component> = {
 };
 
 // ---------------------------------------------------------------------------
+// Templated tier (LiquidJS) — ADR-020 Tier 2.
+//
+// A "templated" theme ships `.liquid` files instead of JSON block trees. Liquid
+// gives authors loops / conditionals / filters that the fixed-component
+// declarative tier can't express — while executing NO theme JavaScript.
+//
+// Two seams bridge Liquid back into the trusted core:
+//   • {% render_block component: "tovu/site-header", tagline: "…" %} renders a
+//     component from the SAME registry the declarative tier uses (COMPONENTS).
+//   • {{ content | raw }} injects the server-rendered, pre-sanitized TipTap body.
+//     Output autoescaping is ON (outputEscape: "escape"), so a bare
+//     {{ post.title }} is escaped and only explicitly-`raw` values pass HTML.
+//
+// Spike scope (VibeCoder): autoescape + zero filesystem access is the safety
+// baseline. The full Tier-2 guardrails — tag/filter allowlist, render isolation,
+// template lint-before-publish (ADR-020 §Guardrails / C6 / REQ-06) — are
+// deferred to the C6 validation pipeline.
+// ---------------------------------------------------------------------------
+
+/** Key under which the live render context is passed to the render_block tag. */
+const CTX_KEY = "__siteCtx";
+
+const liquid = new Liquid({
+  outputEscape: "escape",
+  strictVariables: false,
+  strictFilters: false,
+  jsTruthy: true,
+  cache: false,
+});
+
+liquid.registerTag("render_block", {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  parse(this: any, token: TagToken) {
+    this.hash = new Hash(token.args);
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  *render(this: any, ctx: Context): Generator<unknown, string, unknown> {
+    const props = (yield this.hash.render(ctx)) as JsonObject;
+    const id = typeof props.component === "string" ? props.component : "";
+    const { component: _component, ...rest } = props;
+    void _component;
+    const siteCtx = ctx.getSync([CTX_KEY]) as SiteRenderContext | undefined;
+    const component = COMPONENTS[id];
+    if (!component || !siteCtx) return `<!-- unknown component: ${escapeHtml(id)} -->`;
+    return component(siteCtx, rest);
+  },
+});
+
+/**
+ * Render a templated-tier theme body via LiquidJS. Sync render (no async
+ * filters/tags, no filesystem access) preserves `renderSite`'s signature.
+ * Throws propagate to the caller, which falls back to a minimal body.
+ */
+function renderLiquidBody(source: string, ctx: SiteRenderContext): string {
+  const data = {
+    site: { title: ctx.siteTitle },
+    theme: { name: ctx.themeName },
+    route: ctx.route,
+    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: p.updatedAt })),
+    // `content` is pre-sanitized HTML; templates emit it with `| raw`.
+    post: ctx.post
+      ? { title: ctx.post.title, slug: ctx.post.slug, date: ctx.post.updatedAt, content: renderDocNode(ctx.post.bodyJson) }
+      : null,
+    [CTX_KEY]: ctx,
+  };
+  return liquid.parseAndRenderSync(source, data);
+}
+
+// ---------------------------------------------------------------------------
 // Slots — raw context injection points a template can drop in directly.
 // ---------------------------------------------------------------------------
 
@@ -443,11 +514,24 @@ export function renderSite(required: {
     themeName: theme.manifest.name,
   };
 
-  const templateId = resolveTemplateId(route, theme.templates);
-  const tree = templateId ? theme.templates[templateId] : undefined;
-  const body = tree
-    ? renderBlock(tree, ctx)
-    : `${siteHeader(ctx, {})}${route === "post" ? entryContent(ctx) : entryList(ctx, {})}${siteFooter(ctx)}`;
+  const fallbackBody = (): string =>
+    `${siteHeader(ctx, {})}${route === "post" ? entryContent(ctx) : entryList(ctx, {})}${siteFooter(ctx)}`;
+
+  let body: string;
+  if (theme.manifest.tier === "templated") {
+    const liquidId = resolveLiquidTemplateId(route, theme.liquidTemplates);
+    const source = liquidId ? theme.liquidTemplates[liquidId] : undefined;
+    try {
+      body = source ? renderLiquidBody(source, ctx) : fallbackBody();
+    } catch (err) {
+      // A broken Liquid template must not 500 the site (SPEC-004 REQ-10 spirit).
+      body = `<!-- theme render error: ${escapeHtml((err as Error).message)} -->${fallbackBody()}`;
+    }
+  } else {
+    const templateId = resolveTemplateId(route, theme.templates);
+    const tree = templateId ? theme.templates[templateId] : undefined;
+    body = tree ? renderBlock(tree, ctx) : fallbackBody();
+  }
 
   const title = route === "post" && required.post
     ? `${required.post.title} — ${required.siteTitle}`

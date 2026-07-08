@@ -128,21 +128,29 @@ needs new engine work.
   is the fuller flagship. No new "basic theme" needed. Refine an existing one only if a
   gap shows up.
 
-### 5a. Make a LiquidJS (Tier-2) theme — LATER (owner-deferred 2026-07-07)
+### 5a. Make a LiquidJS (Tier-2) theme — SPIKE DONE (VibeCoder, 2026-07-08)
 
-The "templated" tier demonstrator. **Not being built now**; parked here on purpose.
+The "templated" tier demonstrator. **Renderer built + one Liquid theme live-verified.**
 
-- **Blocked on the Tier-2 renderer** (its own build): wire **LiquidJS (pin ≥ 10.26.0)**
-  into the render path behind `theme.json.tier: "templated"`, over the **existing
-  component registry** (`{% render_block %}` ↔ today's `component` nodes), with the
-  `{{ content }}` seam injecting the TipTap body (mark pre-sanitized HTML safe so
-  autoescape doesn't double-escape). Isolated render + allowlisted tags/filters,
-  lint-before-publish — extends the C6 / REQ-06 validation pipeline.
-- **Then author the theme:** a Liquid theme that actually uses loops / conditionals /
-  includes / filters + layout inheritance — the thing the fixed-component declarative
-  tier can't express. This is what *proves* ADR-020 end-to-end.
-- Approach options when picked up: VibeCoder spike (prove it live on :3999 first) or the
-  proper theme-tiers + LiquidJS spec slice first. Lean: spike, then formalize.
+- **DONE — Tier-2 renderer:** **LiquidJS 10.27.1** (pin ≥ 10.26.0) wired into
+  `src/server/http/site/render.ts` behind `theme.json.tier: "templated"`, over the
+  **existing component registry** via a `{% render_block component: "tovu/…", … %}`
+  tag, with the `{{ content | raw }}` seam injecting the pre-sanitized TipTap body.
+  `outputEscape: "escape"` (autoescape ON) + zero filesystem access is the safety
+  baseline; sync render (`parseAndRenderSync`) keeps `renderSite` sync. Loader
+  (`src/features/theme/theme.ts`) now reads `tier`, discovers `.liquid` templates
+  into `liquidTemplates`, and gates the required set per tier.
+- **DONE — demonstrator theme:** `themes/dispatch/` (an editorial/magazine theme).
+  `home.liquid` builds the entry grid with a `{% for %}` loop + `forloop.first`
+  featured card + folio zero-pad conditional + `date` filter; `entry.liquid` uses
+  `assign`/`plus`/slug-compare for a "More dispatches" list and `{{ content | raw }}`
+  for the body. Verified live: home + `/welcome` render 200 with no unrendered tags,
+  titles auto-escaped, content raw-injected, C7 link sanitization intact.
+- **STILL OPEN — hardening (→ C6/REQ-06):** tag/filter allowlist, render isolation,
+  template lint-before-publish. The spike's autoescape+no-fs baseline is NOT the full
+  Tier-2 guardrail set. The "install a templated theme from anyone safely" claim
+  depends on C6. Also not test-certified beyond the live check (add unit coverage for
+  the `render_block` seam + a VRT baseline once #2 lands).
 
 ### 5b. JavaScript-in-theme with Framer Motion (Tier-3) — LATER
 

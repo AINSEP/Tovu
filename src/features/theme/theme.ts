@@ -18,12 +18,24 @@ import type { JsonObject, JsonValue } from "../../core/ports";
  * proper SPEC-004 build. Treat this as exploratory, not test-certified.
  */
 
+/**
+ * ADR-020 capability tier. `declarative` = data-only (safe from anyone),
+ * `templated` = LiquidJS-rendered (sandboxed logic, no JS), `code` = trusted
+ * signed-plugin JS (not built yet). Absent in `theme.json` ⇒ `declarative`.
+ */
+export type ThemeTier = "declarative" | "templated" | "code";
+
+const THEME_TIERS: readonly ThemeTier[] = ["declarative", "templated", "code"];
+
 /** `theme.json` — static theme identity. */
 export interface ThemeManifest {
   id: string;
   name: string;
   version: string;
-  class: "declarative";
+  /** ADR-020 capability tier (defaults to `declarative` when omitted). */
+  tier: ThemeTier;
+  /** Legacy pre-ADR-020 field; retained for back-compat, superseded by `tier`. */
+  class?: "declarative";
   engine: number;
   description?: string;
   /**
@@ -45,8 +57,10 @@ export type TemplateNode = JsonValue;
 export interface DiscoveredTheme {
   manifest: ThemeManifest;
   tokens: ThemeTokens;
-  /** Template id (`home`, `post`, …) → block tree. */
+  /** Template id (`home`, `post`, …) → block tree (declarative tier). */
   templates: Record<string, TemplateNode>;
+  /** Template id → raw LiquidJS source (templated tier, ADR-020). */
+  liquidTemplates: Record<string, string>;
   /** Raw theme stylesheet (unsanitized in the spike). */
   css: string;
   source: "built-in" | "site";
@@ -63,6 +77,13 @@ function readJson(path: string): JsonValue {
   return JSON.parse(readFileSync(path, "utf8")) as JsonValue;
 }
 
+/** Coerce `theme.json.tier` to a known tier, defaulting to `declarative`. */
+function parseTier(value: JsonValue | undefined): ThemeTier {
+  return typeof value === "string" && (THEME_TIERS as readonly string[]).includes(value)
+    ? (value as ThemeTier)
+    : "declarative";
+}
+
 /**
  * Load one theme folder. Returns a DiscoveredTheme with `status: "invalid"` and
  * a populated `errors` list instead of throwing, so one bad theme never breaks
@@ -70,7 +91,7 @@ function readJson(path: string): JsonValue {
  */
 export function loadTheme(themeDir: string, id: string, source: "built-in" | "site"): DiscoveredTheme {
   const errors: string[] = [];
-  const empty: ThemeManifest = { id, name: id, version: "0.0.0", class: "declarative", engine: 1 };
+  const empty: ThemeManifest = { id, name: id, version: "0.0.0", tier: "declarative", engine: 1 };
 
   let manifest = empty;
   try {
@@ -80,7 +101,7 @@ export function loadTheme(themeDir: string, id: string, source: "built-in" | "si
       id: String(raw.id ?? id),
       name: String(raw.name ?? id),
       version: String(raw.version ?? "0.0.0"),
-      class: "declarative",
+      tier: parseTier(raw.tier),
       engine: typeof raw.engine === "number" ? raw.engine : 1,
       description: typeof raw.description === "string" ? raw.description : undefined,
       fonts: Array.isArray(raw.fonts) ? raw.fonts.map(String) : undefined,
@@ -100,22 +121,32 @@ export function loadTheme(themeDir: string, id: string, source: "built-in" | "si
   }
 
   const templates: Record<string, TemplateNode> = {};
+  const liquidTemplates: Record<string, string> = {};
   const templatesDir = join(themeDir, "templates");
   if (existsSync(templatesDir)) {
     for (const file of readdirSync(templatesDir)) {
-      if (!file.endsWith(".json")) continue;
-      const templateId = file.slice(0, -".json".length);
-      try {
-        templates[templateId] = readJson(join(templatesDir, file));
-      } catch (err) {
-        errors.push(`templates/${file}: ${(err as Error).message}`);
+      if (file.endsWith(".json")) {
+        const templateId = file.slice(0, -".json".length);
+        try {
+          templates[templateId] = readJson(join(templatesDir, file));
+        } catch (err) {
+          errors.push(`templates/${file}: ${(err as Error).message}`);
+        }
+      } else if (file.endsWith(".liquid")) {
+        // Templated tier (ADR-020): raw LiquidJS source, rendered by the engine
+        // in render.ts. Template-content validation/lint is C6/REQ-06 (deferred).
+        const templateId = file.slice(0, -".liquid".length);
+        liquidTemplates[templateId] = readFileSync(join(templatesDir, file), "utf8");
       }
     }
   }
   // REQ-01: a theme's required template minimum is home + entry (the base). C3:
   // post/page are optional specializations that fall through to entry (REQ-03).
-  if (!templates.home) errors.push("templates/home.json is required");
-  if (!templates.entry) errors.push("templates/entry.json is required");
+  // The required set is tier-aware: templated themes ship `.liquid`, others JSON.
+  const ext = manifest.tier === "templated" ? "liquid" : "json";
+  const required = manifest.tier === "templated" ? liquidTemplates : templates;
+  if (!required.home) errors.push(`templates/home.${ext} is required`);
+  if (!required.entry) errors.push(`templates/entry.${ext} is required`);
 
   let css = "";
   const cssPath = join(themeDir, "styles.css");
@@ -125,6 +156,7 @@ export function loadTheme(themeDir: string, id: string, source: "built-in" | "si
     manifest,
     tokens,
     templates,
+    liquidTemplates,
     css,
     source,
     status: errors.length === 0 ? "valid" : "invalid",
@@ -171,5 +203,20 @@ export function resolveTemplateId(
   if (route === "home") return templates.home ? "home" : null;
   if (templates.post) return "post";
   if (templates.entry) return "entry";
+  return null;
+}
+
+/**
+ * Templated-tier (LiquidJS) analogue of `resolveTemplateId`: same REQ-03
+ * fallthrough (`home` → `home`; `post` → `post` else `entry`) over the raw
+ * `.liquid` source map.
+ */
+export function resolveLiquidTemplateId(
+  route: "home" | "post",
+  liquidTemplates: Record<string, string>
+): string | null {
+  if (route === "home") return liquidTemplates.home ? "home" : null;
+  if (liquidTemplates.post) return "post";
+  if (liquidTemplates.entry) return "entry";
   return null;
 }
