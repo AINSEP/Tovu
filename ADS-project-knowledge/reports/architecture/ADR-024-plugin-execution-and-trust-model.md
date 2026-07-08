@@ -101,9 +101,9 @@ Tier-1's safety rests on it being **non-Turing-complete with no side effects**. 
 ### 8. Client / admin plugin JS is a separate, decide-now ADR
 Plugin-contributed admin/editor/client JS has the **same-origin session-theft** problem ADR-020
 identified for theme JS (same-origin code can `fetch()` core admin APIs with the operator's cookie).
-The fix (sandboxed iframe + `postMessage`, aligned with the §3 serializable ABI) is captured in a
-**separate plugin-client-JS ADR** that generalizes ADR-020; admin-panel work (OQ-07) is blocked until
-it lands. *(Recorded here as the dependency; written as its own ADR.)*
+The fix (sandboxed iframe + `postMessage`, aligned with the §3 serializable ABI) is captured in
+**ADR-025 (plugin client / admin JS isolation)**, which generalizes ADR-020; admin-panel work (OQ-07)
+is blocked until it lands.
 
 ### 9. Organizing spine for the roadmap
 The plugin roadmap is sequenced by **two ladders** (temporal invariant) informed by **control vs
@@ -132,7 +132,7 @@ extension planes** (spatial implementation map):
 - **Dependent decisions unblocked:** ADR-023 (plugin data) can now finalize **split** — its
   recoverability guarantees stand unconditionally; its access-control guarantees carry an explicit
   *"advisory until Tier-2 isolation ships"* clause. ADR-022 gains the attribution + expression-language
-  bounds amendment. The plugin-client-JS ADR is unblocked (§8).
+  bounds amendment. ADR-025 (plugin client/admin JS isolation) is unblocked (§8).
 - **Safe-mode / recovery is foundational, not a feature** — it is the recovery ladder, built early.
 
 ## Open — deferred (designed-for, not built now)

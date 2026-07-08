@@ -214,3 +214,56 @@ visibly show the left-anchored column.
 > Lesson worth writing into the test plan: **verify the fix on every page type and width
 > it claims to cover, not just the one page you were looking at.** The home page looked
 > fixed; content pages were never checked.
+
+---
+
+## 6. Plugin extensibility ceiling — find the compromise (owner not sold, 2026-07-08)
+
+**Status:** RESOLVED as a decision (2026-07-08) → **ADR-023 (Core-Mediated Plugin Data
+Modules), PROPOSED.** A 2-round swarm debate picked Candidate 1 (core-mediated declarative
+tables) with Candidate 2's consent model, split-finalized per ADR-024: recoverability
+guarantees hold now, access-control guarantees are advisory until Tier-2 isolation ships.
+v1 commits the seams only; the reconciliation engine is built v-next against a real demand
+plugin. Remaining owner action: DRAFT→ACCEPTED sign-off on ADR-023. Owed evidence for a
+"commerce-grade" claim: a ~50k-product faceted-catalog benchmark on end-user SQLite.
+
+<details><summary>Original tension + candidates (kept for context)</summary>
+
+**Status (original):** OPEN. Owner is not sold on the no-plugin-own-tables limitation and wants a
+compromise before it becomes load-bearing. Needs its own ADR (and likely a swarm debate).
+
+### The tension
+ADR-003 (Accepted) + ADR-022 (Accepted, content model) forbid plugins from running DDL:
+plugin fields live in a namespaced JSON bag with core-provisioned expression indexes. This is
+what makes "never brick on update" structural — but it **caps relational-heavy / commerce-scale
+plugins** (WooCommerce-style faceted catalogs, directories, big custom datasets). That ceiling
+is the deliberate cost of the safety guarantee, and the owner wants it liftable.
+
+### The seam already exists (don't reinvent)
+ADR-003 Consequences already names the escape hatch: *"if a plugin genuinely needs its own
+tables, that is a **tier promotion**: the tables enter **core's** migration engine under the
+plugin's namespace — a deliberate, reviewed act, not an install-time side effect."* The
+invariant is *"no plugin corrupts the DB,"* NOT *"no plugin ever has tables."* So the
+compromise is **core-mediated DDL**, not plugin DDL.
+
+### Candidate compromises to weigh in the ADR (rank/debate these)
+1. **Core-mediated declarative tables (lead candidate).** Plugin *declares* tables/columns/
+   indexes in its manifest (schema-as-data); **core's migration engine executes** the DDL,
+   versioned, snapshot-before, rollback-able; plugin never holds a DB handle. Uninstall =
+   core drops/retains per policy. Gives WooCommerce-grade tables while keeping never-brick.
+2. **Capability-gated "data tier" plugin (mirror ADR-020 theme tiers).** A trusted plugin tier
+   that may request table-owning capability, shown to the user with explicit *"this plugin
+   creates database tables"* consent + a pre-change snapshot. Opt-in, trust-based — same
+   philosophy as the theme capability tiers, applied to plugin data.
+3. **Per-plugin sandboxed database** (`ATTACH DATABASE`/namespace). Plugin gets its own file/
+   schema it fully controls; blast radius contained; uninstall = drop the file. Trade:
+   cross-plugin/core joins are harder.
+4. Do nothing — accept the ceiling; relational-heavy = out of scope (the status quo).
+
+### Acceptance
+An ADR (next free number) that picks a path (likely 1, possibly + 2's consent model), proves
+it preserves never-brick (every schema change is core-owned, snapshotted, reversible), and
+defines the manifest declaration + migration/rollback + uninstall semantics. Relates to
+ADR-003, ADR-022, ADR-021 (plugin capabilities axis), and the recovery/UF-01 (safe-mode) work.
+
+</details>
