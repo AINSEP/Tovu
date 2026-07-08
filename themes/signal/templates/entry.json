@@ -1,8 +1,0 @@
-{
-  "type": "doc",
-  "content": [
-    { "type": "component", "id": "tovu/site-header", "props": { "compact": true } },
-    { "type": "component", "id": "tovu/entry-content", "props": {} },
-    { "type": "component", "id": "tovu/site-footer", "props": {} }
-  ]
-}
