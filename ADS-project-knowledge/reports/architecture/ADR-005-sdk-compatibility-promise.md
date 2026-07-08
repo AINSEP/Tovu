@@ -3,6 +3,7 @@
 - Status: ACCEPTED
 - Date: 2026-07-01
 - Author: Claude Fable 5 / Leon Aburime (design session, `tovu-v1-design.md` §8 W4)
+- Amended: 2026-07-08 (ADR-024 plugin execution & trust model, from a swarm planning debate) — adds the **transport-agnostic ABI rule** (§6)
 
 ## Context
 
@@ -28,6 +29,19 @@ added retroactively.
    the executable spec for what plugins may rely on.
 5. Hook points, capability names, event names, and manifest fields are part of
    the public surface and follow the same ladder.
+6. **Transport-agnostic ABI (amendment 2026-07-08, ADR-024 §3).** The SDK
+   hook/callback surface is frozen **as if a process boundary already existed**,
+   even while v1 runs in-process: hooks are **asynchronous only** (no synchronous
+   hook may block the shared multi-site host event loop), payloads are
+   **serializable only** (structured-clone-safe), and **no live core objects**
+   cross the SDK surface — capabilities are passed **by handle, not by
+   reference**. Rationale: under the semver promise (§2), switching
+   sync→async or live-object→serializable once third-party plugins exist is an
+   ecosystem-wide breaking change that cannot be retrofitted; freezing it now
+   (zero third parties) is what keeps Tier-2 out-of-process isolation a later
+   runtime swap (ADR-024 §4) rather than an ecosystem rupture. SPEC-005's single
+   existing hook (`content.entry.beforeSave`) must be audited against this rule
+   now. This is part of the public surface and follows the same ladder.
 
 ## Consequences
 
