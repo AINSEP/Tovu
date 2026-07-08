@@ -1,6 +1,6 @@
 # ADR-024: Plugin Execution & Trust Model — Tiered Capabilities, Marketplace-Gated Isolation, Transport-Agnostic ABI
 
-- Status: PROPOSED 2026-07-08 (from a 2-round swarm *planning* debate; gate to ACCEPTED = the plugin-catalog demand audit, see Open)
+- Status: ACCEPTED 2026-07-08 (from a 2-round swarm *planning* debate; the ACCEPTED gate — the plugin-catalog demand audit — was delivered and cleared, see Open: Tier-1 covers ~60–73% of real demand vs the ~50% vindication bar)
 - Author: Leon Aburime / Coordinator (Opus 4.8 Primary) with peers Codex `gpt-5.5`, Gemini 3.1 (`agy`), Fable
 - Extends: **ADR-020** (generalizes the theme capability tiers to plugins), **ADR-004** (artifact + signed manifest), **ADR-005** (SDK — this ADR **amends its ABI rule**, §3)
 - Relates: ADR-003 / ADR-023 (plugin data), ADR-021 (capabilities are a separate axis), ADR-022 (write chokepoint — attribution amendment), ADR-011 (Electron multi-site topology), ADR-019 (theme→plugin dependency plane), SPEC-005 (plugin walking skeleton), TODO §6
@@ -145,11 +145,19 @@ extension planes** (spatial implementation map):
   destructive), **background jobs** (Electron sleep/catch-up semantics), **compat doctor/preflight**,
   **plugin-update channel** (staged rollout, version pin, per-plugin rollback), **conformance/DX kit**,
   **signing/provenance + advisory revocation** (never remote auto-disable — that is itself a brick vector).
-- **⚠️ Gate to ACCEPTED — the owed evidence.** A **plugin-catalog demand audit**: enumerate the first
-  ~10–15 real target plugins and classify Tier-1-declarative vs needs-code. If Tier-1 covers <~20% of
-  demand, the on-ramp claim collapses and *B (isolation-first)* regains urgency; if it covers ~half (as
-  the WordPress content-pack category suggests), this ADR is strongly vindicated. This is the planning
-  analog of ADR-022/023's owed 100k-entry benchmark.
+- **✅ Gate to ACCEPTED — the owed evidence, now DELIVERED.** A **plugin-catalog demand audit**:
+  enumerate the first ~10–15 real target plugins and classify Tier-1-declarative vs needs-code. If
+  Tier-1 covers <~20% of demand, the on-ramp claim collapses and *B (isolation-first)* regains
+  urgency; if it covers ~half (as the WordPress content-pack category suggests), this ADR is strongly
+  vindicated. **Result (2026-07-08, `reports/audits/20260708-plugin-catalog-demand-audit.md`):
+  Tier-1 covers ~60–73% of real WordPress-proxy demand (~27–40% needs code) — well above the ~50%
+  vindication line, nowhere near the <20% collapse line. VINDICATED → recommend flip to ACCEPTED,
+  pending owner sign-off.** Two conditions from the audit: (1) the T1 share depends on core shipping a
+  small set of **core-mediated primitives** (webhook dispatch, snippet/asset injection, mail adapter,
+  redirect executor, form-submission sink) — these belong on the near-term core roadmap; (2) the
+  highest-value single plugin (WooCommerce) is squarely Tier-2 + ADR-023 `dataModule`, so this
+  vindicates the *sequencing* (Tier-1 on-ramp, marketplace = Tier-2), not "Tier-1 is enough." This
+  was the planning analog of ADR-022/023's owed 100k-entry / 50k-product benchmarks (both still open).
 
 ## Debate record
 
