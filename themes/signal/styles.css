@@ -82,6 +82,11 @@ article.entry .entry-title {
   letter-spacing: -0.02em;
   margin: 0 0 0.5rem;
 }
+/* C8: the reader was left-anchored inside the 60rem wrap on wide screens. Narrow
+   ONLY the content wrap (the one holding article.entry) so back-link, title and
+   body center together as one readable column; prose then fills that column. */
+.wrap:has(> article.entry) { max-width: 44rem; }
+article.entry .prose { max-width: none; }
 .prose { font-size: 1.1rem; line-height: 1.7; margin-top: 2rem; max-width: 40rem; }
 .prose p { margin: 0 0 1.3rem; }
 .prose h2, .prose h3 { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; margin: 2rem 0 0.7rem; }
