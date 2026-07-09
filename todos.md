@@ -39,23 +39,37 @@ starting point.**
 
 **Sections needing this treatment (each → competitor study → debate → audit → ADR → spec):**
 
-- [ ] **Media** — asset library, upload pipeline, image transforms, storage port (`media` lib, §3.5 tier 2)
-- [ ] **Collections** — custom content types / structured collections (schema registry consumer)
-- [ ] **Menus** — navigation trees as editable content (`navigation` lib, tier 2)
-- [ ] **Categories & Tags** — taxonomy, hierarchies, term relations (`taxonomy` lib, tier 2)
-- [ ] **Forms** — form builder + submissions (likely bundled plugin, tier 3)
-- [ ] **User management** — users CRUD screen over `identity` (Directus roles→policies model)
-- [ ] **Roles & Permissions** — RBAC/policy model (identity; blocks the Art. VI auth exception)
-- [ ] **Members** — front-end membership/subscribers (Ghost members is the reference)
-- [ ] **Comments** — moderation queue, own tables/hooks (bundled plugin — SDK stress test, §3.5 tier 3)
-- [ ] **SEO** — metadata, sitemaps, `page.head` hook (dogfood plugin, v2-design Phase 4)
-- [ ] **Redirects** — redirect rules over `routing`
-- [ ] **Newsletter** — email campaigns over `MailerPort` (bundled plugin)
-- [ ] **Analytics** — traffic/usage surface (privacy-first; who did this best?)
-- [ ] **Database** — admin DB/health/migration surface over Drizzle (ADR-015)
-- [ ] **Integrations / API** — API keys, webhooks, outbound integrations (`identity` app tokens + outbox)
-- [ ] **Backups** — backup/restore + export (UF-13 portability; pairs with `tovu build` export)
-- [ ] **Settings** — typed schema-registered settings, scoped global/workspace/user (`settings` lib, replaces WP options grab-bag)
+> **Status legend:** ✅ decided (ADR exists) · 🟡 in progress · ⬜ open (needs the full cycle).
+> **Progress:** 4 decided, 1 in progress, 12 open. Next ADR candidates called out below.
+
+- 🟡 **Database → "Storage"** — **DEBATE DONE 2026-07-09** (3-round swarm; report
+  `reports/swarm-consensus/runs/20260709-storage-database-surface-consensus-report.md`). Decision locked
+  (build a read-first "Storage/Timeline" surface, not a raw DB editor). **ADR parked** at owner's request
+  — a punch-list of 3 blockers + 6 must-fix items is captured in the report, to fold before writing the ADR.
+- ✅ **Collections** — DECIDED: **ADR-022** (content-types-as-data registry). Screen still to build.
+- ✅ **Categories & Tags** — DECIDED: **ADR-022** (taxonomies + terms). Screen still to build.
+- ✅ **User management** — DECIDED: **ADR-021 + SPEC-006** (APPROVED 2026-07-09). Screen still to build.
+- ✅ **Roles & Permissions** — DECIDED: **ADR-021 + SPEC-006** (APPROVED 2026-07-09) — retires the Art. VI
+  auth exception. Screen still to build.
+- 🟡 **Forms** — tracked as the **Tier-1 sample plugin** (see AW-7); decision folds into that build.
+- ⬜ **Media** — asset library, upload pipeline, image transforms, storage port (`media` lib, §3.5 tier 2).
+  **← top open ADR candidate** (no ADR yet; the "media/content" gap the owner flagged).
+- ⬜ **Menus** — navigation trees as editable content (`navigation` lib, tier 2)
+- ⬜ **Members** — front-end membership/subscribers (Ghost members is the reference)
+- ⬜ **Comments** — moderation queue, own tables/hooks (bundled plugin — SDK stress test, §3.5 tier 3)
+- ⬜ **SEO** — metadata, sitemaps, `page.head` hook (dogfood plugin; large AEO/GEO backlog in §22)
+- ⬜ **Redirects** — redirect rules over `routing`
+- ⬜ **Newsletter** — email campaigns over `MailerPort` (bundled plugin)
+- ⬜ **Analytics** — traffic/usage surface (privacy-first; who did this best?)
+- ⬜ **Integrations / API** — API keys, webhooks, outbound integrations (`identity` app tokens + outbox).
+  **← owner named this next after Database** (webhooks).
+- ⬜ **Backups** — backup/restore + export (UF-13 portability; pairs with `tovu build` export). NOTE: shares
+  the one snapshot library with the Storage debate above — sequence it right after the Storage ADR.
+- ⬜ **Settings** — typed schema-registered settings, scoped global/workspace/user (`settings` lib, replaces WP options grab-bag)
+
+> **Not on this list but the owner wants ADRs for them (2026-07-09):** **Accessibility** (a cross-cutting
+> baseline, currently only in §21/§20 backlog — candidate for its own ADR) and the **coverage/parity ADR +
+> matrix** recommended in the gap note below (the "are we building everything the others have?" answer).
 
 **Coverage-gap note (surfaced 2026-07-07 audit-of-parity):** the parity map lives in
 `tovu-v2-design.md §3.5` (mutable design doc) and the corpus `coverage-audit.md` files —
@@ -63,6 +77,105 @@ starting point.**
 **coverage/parity ADR + matrix** mapping each competitor subsystem → {v1 / bundled-plugin /
 deferred / dropped} with the owning ADR, so "are we implementing everything the others have?"
 has one authoritative answer instead of being spread across four docs.
+
+---
+
+## Active Working Items (merged from `TODO.md`, 2026-07-09)
+
+> These were the standalone `TODO.md` (now folded here so there is one backlog). They are near-term
+> bugs + build tasks, distinct from the Admin Section Spec Sweep above and finer-grained than the
+> Master Build Inventory (§8 Theme System / §9 Plugin System overlap — de-dupe later if needed).
+> The ⭐ item (sample plugins) is the current **build-next**.
+
+### AW-1. Fix the mobile nav drawer (header) — via a visual regression test
+**Status:** known bug, intentionally left unfixed until AW-2 (VRT) exists, so the test proves the bug
+and guards the fix. On narrow viewports (`< 52rem`) tapping the hamburger opens the drawer but its top
+edge doesn't line up with the sticky header bottom — first item ("Product") is clipped. Cause (confirm
+with the test): `.nav-menu` uses a hard-coded `top: 3.7rem` offset in `themes/tovu-official/styles.css`
+(`@media (max-width: 52rem)` block, ~line 226), which doesn't match real header height at every
+font-size/zoom. Candidate fixes: full-height drawer (`top:0;bottom:0`) w/ its own close affordance; or
+drive the offset from real header height (drawer inside sticky header + `top:100%`, or a CSS var); add a
+scrim + body-scroll-lock. **Acceptance:** 390×844 — hamburger opens a drawer whose top meets the header
+cleanly, no clipped items, all items+CTA reachable, closes on toggle; VRT captures it and stays green.
+
+### AW-2. Learn visual regression testing (the skill that fixes AW-1 + AW-4)
+Goal: a test that renders the site at set viewports, screenshots key states, and fails on pixel drift
+from an approved baseline. Tool: Playwright's built-in `toHaveScreenshot()` (already using Playwright;
+no paid service to start). Path: (1) read Playwright "Visual comparisons"; (2) `npm i -D
+@playwright/test` + `npx playwright install chromium` + a `playwright.config.ts` with a `webServer` that
+boots `PORT=3999 TOVU_DB=memory node --import tsx src/index.ts`; (3) first spec `e2e/theme-visual.spec.ts`
+→ `/` → `toHaveScreenshot('home-desktop.png')`, baseline + commit; (4) add the states that matter: home
+desktop 1280 + wide 2560 (guards the band fix), home mobile 390 drawer closed→open (`label.nav-burger`
+click — this is AW-1's test; baseline only after the fix), a post page `/welcome`; (5) workflow: `npx
+playwright test`, diffs land in `test-results/`, re-baseline with `--update-snapshots` intentionally;
+(6) tame flakiness (disable animations, `document.fonts.ready`, pin viewport/deviceScaleFactor, small
+`maxDiffPixelRatio`, headless). **Gotcha:** the server caches the theme at boot (no hot-reload of
+`themes/**`) — a VRT must boot a fresh server (the `webServer` block) or it tests a stale theme. Also
+file a task: **add theme hot-reload in dev.** Stretch: cross-platform baseline drift (Mac vs CI Linux) →
+pinned Docker image or hosted service (Chromatic/Percy/`reg-suit`).
+
+### AW-3. Theme trust model + theme bundles — **DECIDED** (pointer)
+**ADR-019 ACCEPTED** (theme bundles / plugin deps) + **ADR-020 ACCEPTED** (theme capability tiers:
+Declarative / Templated=LiquidJS / Code via `theme.json.tier`). Themes stay pure data; behavior lives in
+plugins. **Still open:** the standalone spec slices (theme bundles; theme tiers + LiquidJS renderer +
+sandbox — see AW-5a C6 hardening).
+
+### AW-4. Fix content-page (entry) wide-screen layout — via a visual regression test
+**Status:** known bug, intentionally left unfixed until AW-2 (write the test first). On a content page
+(`/about`, any `/:slug`) at ≥~1600px (obvious at 2560px), nav + footer go full-width but the article
+column is anchored left with the right half empty — stretching just grows white space. Cause (verified):
+`tovu/entry-content` renders `.wrap`(max-width 75rem, centered) → `article.entry` → `.prose`(max-width
+42rem, **no auto margins**, `themes/tovu-official/styles.css` ~line 187), so the article is left-aligned
+inside the centered wrap. Candidate fixes: `article.entry { max-width:46rem; margin:0 auto }` (and/or a
+`.wrap--narrow`); optional full-bleed band to match home rhythm; check `column` theme too. **Acceptance:**
+at 1280/1920/2560 the article is a centered readable column with balanced gutters (no dead right half),
+baselined per theme. Lesson: **verify a fix on every page type + width it claims to cover, not just the
+one page you were looking at** (home looked fixed; content pages were never checked).
+
+### AW-5. Build a theme at each capability tier (owner roadmap)
+- **Tier 1 — basic declarative theme: DONE.** `column` is the barebones starter; `tovu-official` the
+  flagship. (`signal` removed 2026-07-08 as redundant.)
+- **AW-5a. Tier-2 LiquidJS theme — SPIKE DONE (2026-07-08).** Renderer (LiquidJS 10.27.1, pin ≥10.26.0)
+  wired into `src/server/http/site/render.ts` behind `theme.json.tier:"templated"`, over the existing
+  component registry via `{% render_block %}` + `{{content|raw}}`; autoescape ON + zero fs = the safety
+  baseline; loader (`src/features/theme/theme.ts`) reads `tier` + discovers `.liquid`. Demonstrator
+  `themes/dispatch/` verified live (home + `/welcome` 200, no unrendered tags, titles escaped, content
+  raw, C7 link-sanitization intact). **STILL OPEN — C6/REQ-06 hardening:** tag/filter allowlist, render
+  isolation, template lint-before-publish (the "install a templated theme from anyone safely" claim
+  depends on this); add unit coverage for the `render_block` seam + a VRT baseline once AW-2 lands.
+- **AW-5b. Tier-3 JS-in-theme (Framer Motion) — LATER.** Framework-agnostic (Astro or Next); client-side
+  islands under strict CSP, build-time compiled → static HTML + hydrated islands. **Blocked on the
+  Tier-3 isolation design (its own future ADR):** separate cookie-less origin + CSP `connect-src 'none'`
+  (ADR-020 §6 amendment — same-origin theme JS can steal the admin session). Trust-based tier, explicit
+  "this runs JS on your site" consent.
+
+### AW-6. Plugin extensibility ceiling (plugins owning tables) — **DECIDED** (pointer)
+**RESOLVED → ADR-023 (Core-Mediated Plugin Data Modules), PROPOSED** (2-round swarm debate picked
+core-mediated declarative tables + consent model; split-finalized per ADR-024). Plugins may own real
+`p_{pluginId}__*` tables via schema-as-data core executes; snapshot-before-DDL; retain-on-uninstall.
+**Remaining:** owner DRAFT→ACCEPTED sign-off on ADR-023; owed evidence for "commerce-grade" = a
+~50k-product faceted-catalog benchmark on end-user SQLite.
+
+### ⭐ AW-7. HIGH PRIORITY — build one sample plugin at each tier (build-next)
+Approved 2026-07-08. Prove the plugin design (ADR-024 accepted; ADR-023/025 proposed) in real running
+code, the way the Tier-2 LiquidJS spike surfaced real seams. Each sample is genuinely wanted *and*
+stress-tests a different part of the design.
+
+| Tier | Sample | Why users want it | What it stress-tests |
+|---|---|---|---|
+| **1 — declarative** | **Contact form** (submissions as core entries; email/webhook on submit) | forms = top-3 install category | the zero-code surface **and** forces ADR-024 audit-condition #1: it can't send/notify until core ships the **core-mediated primitives** (mail adapter, webhook dispatch, form-submission sink) |
+| **2 — sandboxed code** | **SEO / content analyzer** (readability, TOC, reading-time) | SEO = biggest plugin category | running stranger code safely: pure computation, no fs/network → cleanest test of the frozen async/serializable ABI. Build the **ABI-boundary slice (worker/RPC), NOT the real `utilityProcess` sandbox** (deferred, ADR-024 §4) |
+| **3 — trusted, full access** | **Store / commerce** (products→cart→orders→checkout→payments) | the CMS-choice driver; Tovu's thesis | everything: a plugin that **owns real tables** (ADR-023 `dataModule`), external network, heavy work — if "plugins can own tables" has a flaw, a store finds it |
+
+**Build order:** (1) **Tier-3 thin store slice** = products → own table → listed on site (tests the
+irreversible foundation — the plugin↔Tovu ABI + plugin-owned tables w/ snapshot-before-schema-change —
+on ~200 lines); (2) **Tier-1 contact form** (exposes the missing core-mediated primitives as a concrete
+"dead without them"); (3) **Tier-2 content analyzer** (proves stranger-code survives the frozen contract,
+no sandbox). Optional pre-check: a ~1hr throwaway Tier-3 plugin against the ABI to feel whether the frozen
+contract is painful. **Acceptance:** three plugins run + live-verified (hand owner the commands, don't
+auto-run); Tier-3 slice proves owned-tables end-to-end w/ snapshot-before-change; Tier-1 yields the
+written list of core-mediated primitives core must build; Tier-2 runs over the ABI via worker/RPC with a
+written note on any DX pain.
 
 ---
 
