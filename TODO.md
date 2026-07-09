@@ -1,5 +1,8 @@
 # TODO
 
+> ⭐ **HIGH PRIORITY / build next → §7: one sample plugin at each tier** (Tier-1 contact form,
+> Tier-2 SEO/content analyzer, Tier-3 store). Start with the thin store slice. Added 2026-07-08.
+
 ## 1. Fix the mobile nav drawer (header) — via a visual regression test
 
 **Status:** known bug, intentionally left unfixed. Fix it *after* you've set up visual
@@ -267,3 +270,54 @@ defines the manifest declaration + migration/rollback + uninstall semantics. Rel
 ADR-003, ADR-022, ADR-021 (plugin capabilities axis), and the recovery/UF-01 (safe-mode) work.
 
 </details>
+
+---
+
+## 7. ⭐ HIGH PRIORITY — Build one sample plugin at each tier (surface real problems in code)
+
+**Status:** HIGH PRIORITY, build next. Approved by owner 2026-07-08. Purpose: prove the plugin
+design (ADR-024 accepted; ADR-023 + ADR-025 proposed) in **real running code**, the same way the
+Tier-2 LiquidJS theme spike (§5a) surfaced real seams. Each sample is something users genuinely
+want (all near the top of the install charts) *and* stress-tests a different part of the design.
+Build order is chosen so the cheapest, most-irreversible tests come first.
+
+### The three samples
+
+| Tier | Sample plugin | Why users want it | What it stress-tests |
+|---|---|---|---|
+| **1 — declarative, install-from-anyone-safe** | **Contact form** — build a form, collect submissions (as core entries), "email me / POST a webhook on submit" | Forms are a top-3 install category (CF7/WPForms, 10M+ sites each). | The whole zero-code surface (types/fields/settings/declarative admin) **and** it cannot send/notify until core ships the **core-mediated primitives** (mail adapter, webhook dispatch, form-submission sink) — so it forces ADR-024 audit condition #1 into the open. |
+| **2 — sandboxed code, ships with the marketplace** | **SEO / content analyzer** — score readability + keyword use, suggest fixes, add reading-time + auto table-of-contents | SEO is the single biggest plugin category (Yoast: 13M sites). | Running **stranger code** safely: pure computation over content, **no fs/network needed** → the cleanest test of "run untrusted code over the frozen async/serializable ABI in a sealed box." Build the **ABI-boundary slice (worker/RPC), NOT the real per-site `utilityProcess` sandbox** — the sandbox stays deferred (ADR-024 §4). |
+| **3 — trusted, full access (first-party)** | **Store / commerce** (WooCommerce-like): products, cart, orders, checkout, payments | The reason a huge share of people pick a CMS; it's Tovu's whole thesis (ADR-001, agentic commerce). | Everything at once: a **plugin that owns its own real tables** (ADR-023 `dataModule` — the big new capability), external network (payments), heavy work. If "plugins can safely own tables" has a flaw, a store finds it. |
+
+### Notes / decisions already made
+- **Commerce is Tier-3 *for now*** (full access, first-party/trusted) and becomes the reference
+  **Tier-2** plugin later once the sandbox ships. No conflict with ADR-024's sequencing.
+- **Tier-2 = fake the sandbox, don't build it.** Run the analyzer over the frozen ABI as-if-walled
+  (worker/message channel); do NOT build the real per-site process isolation (that is the expensive
+  rung the tiered plan deliberately defers).
+- **Start with the store as a THIN SLICE:** just **products → their own table → listed on the
+  site.** Nothing else. That already exercises the two irreversible things (the plugin↔Tovu ABI
+  contract, and plugin-owned tables with snapshot-before-every-schema-change). Checkout + payments
+  come after the slice proves the foundation holds.
+- Optional cheaper pre-check: a tiny throwaway Tier-3 plugin against the ABI first (~1hr) to feel
+  fast whether the frozen contract is painful, before committing to the store slice.
+
+### Recommended build order
+1. **Tier-3 thin store slice** (products own-table + list on site) — highest-stakes, tests the
+   irreversible foundation on ~200 lines before anything is built on top of it.
+2. **Tier-1 contact form** — cheap, and exposes the missing core-mediated primitives (audit
+   condition #1) as a concrete "this sample is dead without them," not a footnote.
+3. **Tier-2 content analyzer** (ABI-boundary slice) — proves stranger-code survives the frozen
+   contract without building the sandbox.
+
+### Acceptance
+- Three sample plugins exist and run; each is live-verified (hand the owner the commands — do not
+  auto-run the dev server).
+- The Tier-3 slice proves plugin-owned tables work end-to-end with a snapshot taken before the
+  schema change (never-brick, ADR-023 recoverability half).
+- The Tier-1 form produces a written list of the exact **core-mediated primitives** core must build
+  (feeds the near-term core roadmap).
+- The Tier-2 analyzer runs over the async/serializable ABI via a worker/RPC boundary, with a written
+  note on any DX pain the frozen contract caused (this is the whole point — find it now).
+- Relates to ADR-024 (accepted), ADR-023 + ADR-025 (proposed), SPEC-005 (plugin skeleton), and
+  §5a (the theme-tier spike this mirrors).
