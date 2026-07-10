@@ -16,6 +16,7 @@ import { registerAdminStatic } from "./middleware/admin-static";
 import { registerAuthRoutes, requireAdminSession } from "./middleware/dev-auth";
 import { registerAdminPostListRoute } from "./routes/admin/posts/list";
 import { registerSiteRoutes } from "./routes/site/pages";
+import { registerStoreRoutes } from "./routes/site/store";
 import { registerAdminPresentationGetRoute } from "./routes/admin/presentation/get";
 import { registerAdminPresentationPatchRoute } from "./routes/admin/presentation/patch-active-theme";
 import { registerAdminPostGetRoute } from "./routes/admin/posts/get-by-id";
@@ -138,6 +139,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
       res.status(500).json({ error: "internal error" });
     }
   });
+
+  // SPIKE: sample Tier-3 store page — must precede the site `/:slug` catch-all.
+  registerStoreRoutes(app, routeDeps);
 
   // Public dummy site — registered last (GET /:slug is a catch-all).
   registerSiteRoutes(app, routeDeps);
