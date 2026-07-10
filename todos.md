@@ -62,7 +62,8 @@ starting point.**
   immutable-URL+transform-name lifecycle, original-serving-origin) + 6 advisories, **all with converged drafted fixes**
   (`.local-artifacts/external-audit/proposed-fixes/20260709-media/proposed-fixes.md`; report
   `reports/external-audit/runs/20260709-media-design-external-audit-report.md`). B2 URL resolved → Fable version-in-path
-  `/m/{assetId}/{transformName}.v{version}/{slug}`. **DONE → fixes folded → ADR-027 written → round-2 re-audit PASS (Fable 8.7 PASS; Codex 8.3 clause-gaps; Gemini degraded) → 6 clause-gap amendments folded → ADR-027 ACCEPTED.** Next stage for Media = SPEC-NNN (or the build-structure/package-layout pass).
+  `/m/{assetId}/{transformName}.v{version}/{slug}`. **DONE → fixes folded → ADR-027 written → round-2 re-audit PASS (Fable 8.7 PASS; Codex 8.3 clause-gaps; Gemini degraded) → 6 clause-gap amendments folded → ADR-027 ACCEPTED.**
+  ⚠️ **OWES CONFIRM-AUDIT (added 2026-07-09):** the round-2 re-audit ran against the **pre-amendment PROPOSED** version; the **6 clause-gap amendments applied this session were NOT themselves audited** (I applied the auditors' recommended-fix wording but no one verified the implementation). Run `/audit-work` diff-only (amended ADR-027 vs the round-2 recommendations, Codex + agy + fresh Fable) to confirm the 6 edits land the fixes without introducing new gaps — **before treating ACCEPTED as final**. Next stage for Media = SPEC-NNN (or the build-structure/package-layout pass).
 - ⬜ **Menus** — navigation trees as editable content (`navigation` lib, tier 2)
 - ⬜ **Members** — front-end membership/subscribers (Ghost members is the reference)
 - ⬜ **Comments** — moderation queue, own tables/hooks (bundled plugin — SDK stress test, §3.5 tier 3)
