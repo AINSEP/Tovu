@@ -20,6 +20,17 @@ export interface RouteDeps {
   bus: EventBusPort;
   clock: { nowIso(): string };
   idGen: { newId(): string };
+  /** SPIKE: seam for the sample Tier-3 store plugin (data lives in plugin-owned `p_store__*`
+   * tables). Optional — only the SQLite runtime wires it (see `index.ts`). */
+  store?: {
+    listProducts(): { id: string; title: string; price: number; stock: number; version: number }[];
+    checkout(
+      productId: string,
+      qty: number
+    ):
+      | { ok: true; orderId: string; remainingStock: number; retries: number }
+      | { ok: false; reason: "not-found" | "out-of-stock" | "conflict"; retries: number };
+  };
 }
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;
