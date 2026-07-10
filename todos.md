@@ -40,7 +40,7 @@ starting point.**
 **Sections needing this treatment (each → competitor study → debate → audit → ADR → spec):**
 
 > **Status legend:** ✅ decided (ADR exists) · 🟡 in progress · ⬜ open (needs the full cycle).
-> **Progress:** 4 decided, 1 in progress, 12 open. Next ADR candidates called out below.
+> **Progress:** 5 decided (Media → ADR-027 ACCEPTED 2026-07-09), 3 in progress (Storage, Forms, Settings — debated, awaiting audit→ADR), 10 open. Next ADR candidates called out below.
 
 - 🟡 **Database → "Storage"** — **DEBATE DONE 2026-07-09** (3-round swarm; report
   `reports/swarm-consensus/runs/20260709-storage-database-surface-consensus-report.md`). Decision locked
@@ -52,8 +52,17 @@ starting point.**
 - ✅ **Roles & Permissions** — DECIDED: **ADR-021 + SPEC-006** (APPROVED 2026-07-09) — retires the Art. VI
   auth exception. Screen still to build.
 - 🟡 **Forms** — tracked as the **Tier-1 sample plugin** (see AW-7); decision folds into that build.
-- ⬜ **Media** — asset library, upload pipeline, image transforms, storage port (`media` lib, §3.5 tier 2).
-  **← top open ADR candidate** (no ADR yet; the "media/content" gap the owner flagged).
+- ✅ **Media** — **ADR-027 ACCEPTED 2026-07-09**. **DEBATE DONE 2026-07-09** (2-round swarm: Opus + Codex gpt-5.5 + Gemini 3.1 Pro + Fable; report
+  `reports/swarm-consensus/runs/20260709-media-admin-section-consensus-report.md`). Converged (~0.92) on hybrid
+  `media` entry + `asset_blobs`/`asset_renditions` sidecars, `BlobStorePort` (content-addressed) + `ImageTransformPort`
+  (out-of-process worker), named-only transforms, origin-isolated serving under a frozen renditions-only URL contract,
+  entry_refs safe-delete + 2-phase GC. Maximize-v1: ~22 items IN, deferred only TUS/arbitrary-transforms/live-scanner/
+  transcoding/S3-adapter. **AUDIT DONE 2026-07-09** (`/audit-work` TM-media-001; Codex+Gemini external + Fable internal
+  verifier): architecture endorsed but round-1 **FAIL** (8.1/8.0 vs 8.5 floor) — 3 blockers (GC/dedup byte-deletion race,
+  immutable-URL+transform-name lifecycle, original-serving-origin) + 6 advisories, **all with converged drafted fixes**
+  (`.local-artifacts/external-audit/proposed-fixes/20260709-media/proposed-fixes.md`; report
+  `reports/external-audit/runs/20260709-media-design-external-audit-report.md`). B2 URL resolved → Fable version-in-path
+  `/m/{assetId}/{transformName}.v{version}/{slug}`. **DONE → fixes folded → ADR-027 written → round-2 re-audit PASS (Fable 8.7 PASS; Codex 8.3 clause-gaps; Gemini degraded) → 6 clause-gap amendments folded → ADR-027 ACCEPTED.** Next stage for Media = SPEC-NNN (or the build-structure/package-layout pass).
 - ⬜ **Menus** — navigation trees as editable content (`navigation` lib, tier 2)
 - ⬜ **Members** — front-end membership/subscribers (Ghost members is the reference)
 - ⬜ **Comments** — moderation queue, own tables/hooks (bundled plugin — SDK stress test, §3.5 tier 3)
@@ -65,7 +74,18 @@ starting point.**
   **← owner named this next after Database** (webhooks).
 - ⬜ **Backups** — backup/restore + export (UF-13 portability; pairs with `tovu build` export). NOTE: shares
   the one snapshot library with the Storage debate above — sequence it right after the Storage ADR.
-- ⬜ **Settings** — typed schema-registered settings, scoped global/workspace/user (`settings` lib, replaces WP options grab-bag)
+- 🟡 **Settings** — **DEBATE + DESIGN DONE 2026-07-09** (3-round swarm: Opus + Codex gpt-5.5 xhigh + Gemini 3.1 Pro/agy + Fable).
+  R1–R2 position debate → consensus (~0.92) on a dedicated **"Layered Settings Ledger"** (own tables reusing ADR-022's
+  chokepoint/revision discipline, NOT settings-as-entries — killed by the authz-collapse argument: `content.write` reaches
+  agents, so settings-as-entries lets any agent flip site security). R3 concrete design (full DDL/resolver/ops) surfaced
+  **8 issues** (2 multi-peer-confirmed: rename+retype-in-one-op; the composite user-FK can't be table-wide → split value
+  tables). Reports: `reports/swarm-consensus/runs/20260709-settings-architecture-consensus-report.md` +
+  `…-settings-r3-design-report.md`. Round-1 external audit `TM-settings-001` **FAIL** (agy 4 / Codex 8.1 / Fable 8.2; 4
+  blockers) → **all fixes folded into `ADR-028-settings-layered-ledger.md` (status PROPOSED, 2026-07-09)**.
+  ⚠️ **STILL OWES ROUND-2 RE-AUDIT** — ADR-028 is NOT Accepted; the diff-only re-audit (same `TM-settings-001`, Prior-Round
+  Disposition Ledger, Codex + agy + fresh Fable) is pending. On PASS (no unresolved blocker AND scores ≥8.5) → ACCEPTED.
+  Handoff with the exact re-audit plan: `.local-artifacts/handoff/20260710T042154Z-handoff.md`.
+  Core-only subset greenlit to spec independently of the plugin/secret gates. (`settings` lib, replaces WP options grab-bag)
 
 > **Not on this list but the owner wants ADRs for them (2026-07-09):** **Accessibility** (a cross-cutting
 > baseline, currently only in §21/§20 backlog — candidate for its own ADR) and the **coverage/parity ADR +
