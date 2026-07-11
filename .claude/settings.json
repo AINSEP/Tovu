@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "mcp__plugin_playwright_playwright__browser_wait_for",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__plugin_playwright_playwright__browser_console_messages",
+      "mcp__codebase-memory-mcp__search_graph",
+      "mcp__codebase-memory-mcp__search_code",
+      "mcp__codebase-memory-mcp__get_code_snippet",
+      "mcp__codebase-memory-mcp__trace_path",
+      "mcp__codebase-memory-mcp__query_graph",
+      "mcp__codebase-memory-mcp__get_architecture",
+      "mcp__codebase-memory-mcp__get_graph_schema",
+      "mcp__codebase-memory-mcp__index_status",
+      "mcp__codebase-memory-mcp__list_projects",
+      "Bash(~/.local/bin/codebase-memory-mcp cli *)",
+      "Bash(codebase-memory-mcp cli *)",
+      "Bash(node integrations/codegraph/upstream/dist/bin/codegraph.js *)",
+      "Bash(node integrations/understand-anything/search-graph.mjs *)",
+      "Bash(node integrations/understand-anything/build-graph.mjs *)",
+      "Bash(graphify explain *)",
+      "Bash(graphify path *)",
+      "Bash(graphify diagnose *)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"$CLAUDE_PROJECT_DIR\"; f=\"$d/framework/operations/scripts/ads-initialization.sh\"; if [ -f \"$f\" ] && [ ! -L \"$f\" ]; then bash \"$f\"; else m=\"$(find \"$d\" -maxdepth 6 -type d \\( -name .git -o -name node_modules -o -name .venv -o -name dist -o -name build \\) -prune -o -type f -path '*/framework/operations/scripts/ads-initialization.sh' -print 2>/dev/null)\"; n=\"$(printf '%s\\n' \"$m\" | grep -c .)\"; if [ \"$n\" = \"1\" ] && [ -f \"$m\" ] && [ ! -L \"$m\" ]; then bash \"$m\"; fi; fi; true",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
