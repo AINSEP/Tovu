@@ -15,8 +15,8 @@
 | spec_support_paths | api.spec.md, state.spec.md, ui.spec.md, behavior.spec.md, errors.spec.md, traceability.spec.md, spec-manifest.md |
 | spec_naming | standard |
 | spec_mode | brownfield |
-| spec_hash | sha256:3ffb7aa77706b639a00c3b931eddb3f4968bc40203e10a3bf3035bfcecdc8bee |
-| spec_hash_verified_at | 2026-07-11 (provider-local validator, --phase spec) |
+| spec_hash | sha256:768c5eeb06b1fd41fd77ac677fb5fd8b2c80eb2ebe212e219f934baaa73f9bdd |
+| spec_hash_verified_at | 2026-07-11 (provider-local validator, --phase spec, post-clarify) |
 | planning_preflight_status | pending (owed before /plan) |
 | planning_preflight_checked_at | pending |
 | validator_result | PASS (--phase spec) |
@@ -33,3 +33,6 @@
 - Brownfield: retires the existing `PresentationSettingsRepoPort` (`src/features/presentation/*`)
   into `core.presentation.activeThemeId`; theme presets → `theme.{themeId}`.
 - Reconciles the pre-existing spec stub at `src/server/__specs__/70-settings-admin/`.
+- v0.2.0 `/clarify` pass (2026-07-11) resolved OQ-01 (defer revision-history screen, no scope change)
+  and OQ-02 (ship `PrincipalSelector` target-principal affordance now — added REQ-11 language, AC-22,
+  AC-23). Hash recomputed and validator rerun (`--phase spec --update-hash`), PASS.
