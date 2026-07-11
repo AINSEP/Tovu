@@ -118,9 +118,16 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      scale (parse to a scaled integer, do the arithmetic, re-render as a canonical decimal string) —
      never `Number` arithmetic on the string. `money-int` fields are BigInt-safe by construction and need
      no such conversion.
-   - Core validates canonical format and representation kind for tagged scalars at command **registration
-     time** (§1), before any invocation is compiled; an author never discovers a scalar-representation
-     mismatch at the SQLite bind step. *(Amends ADR-023 §7.)*
+   - **Canonical-format and representation-kind validation applies at both checkpoints, same as operand
+     bounds (round-2 audit fix, Codex).** Core validates canonical format and representation kind for a
+     field's *statically declared* tagged-scalar type at command registration time (§1). But any tagged
+     scalar value supplied from runtime `params` MUST be re-validated at **invocation time** — against
+     the field's declared representation kind (`money-int` vs `money-decimal`, ISO-8601 date), canonical
+     format, and finiteness/UTC rules — before the compiled IR is admitted to transaction execution. A
+     permissive param schema cannot be used to smuggle a non-canonical or wrong-representation runtime
+     value past registration-time-only checks. Either checkpoint failing rejects the write before it
+     reaches the transaction; an author never discovers a scalar-representation mismatch at the SQLite
+     bind step. *(Amends ADR-023 §7.)*
 6. **Cross-plugin scope: a frozen discriminant, not a built mechanism.** Every command/envelope carries
    `scope: "plugin" | "coordinated"`. `"plugin"` (the only executable value in v1) means every op in the
    batch belongs to the invoking plugin's own tables. **Core derives the allowed table namespace from
@@ -263,6 +270,32 @@ proposed fixes
 `ADS-project-knowledge/.local-artifacts/external-audit/proposed-fixes/20260711T164621Z/proposed-fixes.md`,
 raw offloads `ADS-project-knowledge/.local-artifacts/external-audit/offloads/20260711T164621Z/`.
 
-**Status remains PROPOSED** — a **round-2 diff-only re-audit** (same `TM-adr026-atomic-write-001`,
-Prior-Round Disposition Ledger carrying forward this round's five findings) is owed before ACCEPTED,
-same gate ADR-023 and ADR-028 both cleared this session.
+Before round-2 dispatch, the Coordinator also ran the `/audit-work` directive's **Internal Subagent
+Verification** step (skipped by the round-1 audit subagent) with falsification framing against all 7
+mandatory invariants, and found one genuine gap neither external round-1 auditor caught: the
+registration-time-only operand-bound check didn't account for runtime-`params`-supplied guard operand
+values, letting an author smuggle an oversized `in` array past the bound at invocation. Fixed inline
+(§2, "applies at both checkpoints") before round-2 dispatch. Full record:
+`.local-artifacts/external-audit/internal-verification/20260711T171500Z-adr026-round2-internal-verification.md`.
+
+**Round-2 diff-only re-audit** (`TM-adr026-atomic-write-001`, same Prior-Round Disposition Ledger plus
+the new internal-verification item), run 2026-07-11, **returned FAIL**: agy/Gemini 3.1 Pro (High) **10.0**
+(0 findings — all 8 ledger items independently verified resolved), Codex `gpt-5.5` **8.0** (1 new
+blocker — the internal-verification fix for operand bounds only extended invocation-time re-checking to
+byte/precision/scale/cardinality limits, not to scalar *representation kind and canonical format*; §5
+still said that validation happens "at registration time," leaving a gap where a permissive param schema
+could supply a runtime `money-decimal`/date value that satisfies size limits but is non-canonical or the
+wrong representation kind — the same class of registration-vs-invocation gap as round 1's `codex-B1`,
+only partially closed by the round-2 fix). Independently recomputed gate: **FAIL** (one auditor's blocker
+alone fails it, regardless of the other's clean score). Codex explicitly did not re-litigate any settled
+round-1 item, including the `agy-B3` disagreement, absent new evidence — this finding was novel, scoped
+tightly to the un-reviewed internal-verification text, and directly on-target for the threat model's
+scalar-vocabulary-corruption domain. Fixed inline (§5, "Canonical-format and representation-kind
+validation applies at both checkpoints, same as operand bounds") — the same both-checkpoints pattern
+now covers representation/canonical-format validation, not just size bounds. Full round-2 trace:
+`.local-artifacts/external-audit/runs/20260711T171700Z-external-audit-report.md` (to be written),
+offloads `.local-artifacts/external-audit/offloads/20260711T171700Z/`.
+
+**Status remains PROPOSED** — a **round-3 diff-only re-audit** (same `TM-adr026-atomic-write-001`,
+carrying forward this round's one new finding) is owed before ACCEPTED, same 3-round pattern ADR-023
+went through this session.
