@@ -1,20 +1,31 @@
 # ADR-026: Core-Mediated Atomic Multi-Write Primitive for Plugin Data
 
-- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 10th completed
+- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 11th completed
   `/audit-work` round under `TM-adr026-atomic-write-001`**, per **standing hard rule** (not a soft
   preference) to always use broad/full-pass, 3-auditor audits, never narrow diff-only. Briefly ACCEPTED
   after round 3, reopened by an independent Fable pass + rounds 4/5, closed structurally in round 5.
   Rounds 6-8 found and fixed 4 further gaps in the numeric/money corner. Round 9 (first with 3-auditor
   coverage: Codex + agy + Fable) found 5 more (generic-number integer requirement, intra-batch guard
-  ordering, date calendar validity, money-decimal min scale, money-int wording), all fixed. **Round 10
+  ordering, date calendar validity, money-decimal min scale, money-int wording), all fixed. Round 10
   (agreed exit condition: clean or advisory-only across all 3 = ACCEPTED) returned Codex 9.6 PASS
   (1 advisory), agy 10.0 PASS (zero findings), and Fable 8.6 FAIL — one real blocker: the
   `p_{pluginId}__{tableName}` namespace encoding was not injective, letting plugin `shop` alias into
   `shop__eu`'s tables via a table literally named `eu__orders`, breaking the core cross-plugin isolation
   guarantee — plus 3 low advisories (coordinated-scope rejection checkpoint unstated,
-  `expectedVersion`'s operand kind unspecified, column affinity unstated for date/number/boolean).** All
-  5 fixed — see "Debate + Audit record" for the full history. **Round-11 full-pass re-audit** owed
-  before ACCEPTED, same 3-auditor + agreed exit condition). **Amends ADR-024 §3** and **ADR-023 §7**.
+  `expectedVersion`'s operand kind unspecified, column affinity unstated for date/number/boolean). All
+  5 fixed — but the fix was itself incomplete. **Round 11 (same agreed exit condition, not met) returned
+  Codex 6.8 FAIL and Fable 7.0 FAIL — two independent auditors found two different, non-overlapping
+  residual collisions in the exact namespace encoding round 10 just "fixed": Codex found a case-folding
+  collision (SQLite resolves table identifiers case-insensitively, so `Shop` and `shop` still collide
+  under a delimiter-only ban); Fable found a boundary-underscore-merge collision (`acme_`+`inventory` and
+  `acme`+`_inventory` both compile to `p_acme___inventory`) — plus Codex found generic `string`/`null`
+  column affinity still unstated, and agy (10.0→9.8, PASS, advisory-only) independently corroborated the
+  string-affinity gap at advisory severity while missing both real collisions, the same pattern as round
+  10.** All findings fixed by closing the namespace-encoding defect class structurally (a restricted
+  lowercase-alphanumeric-plus-hyphen grammar with no underscore permitted in either component, replacing
+  the round-10 delimiter-ban-only rule) rather than patching each newly-demonstrated collision pattern —
+  see "Debate + Audit record" for the full history. **Round-12 full-pass re-audit** owed before ACCEPTED,
+  same 3-auditor + agreed exit condition). **Amends ADR-024 §3** and **ADR-023 §7**.
 - Author: Leon Aburime / Coordinator (Claude Sonnet 5 Primary) with debate peers Codex `gpt-5.5`,
   Gemini 3.1 Pro (`agy`); original `/cowork` probe with Opus 4.8/Fable/Codex/agy
 - Extends / amends: **ADR-024** (§3 transport-agnostic frozen ABI), **ADR-023** (§7 typed core-owned writes)
@@ -175,8 +186,20 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      kind in the closed scalar vocabulary — the one guard operand the closed-vocabulary rule's own
      enumeration didn't formally reach, the same recurring "a scalar the vocabulary rule doesn't reach"
      shape this ADR's history keeps finding. `expectedVersion`'s operand is core-defined: a non-negative
-     safe integer (the entry revision counter, ADR-022), validated at registration and invocation like
-     any other operand — never a plugin-suppliable arbitrary scalar. **Intra-batch execution order is
+     safe integer, validated at registration and invocation like any other operand — never a
+     plugin-suppliable arbitrary scalar. **The counter `expectedVersion` compares against is normative
+     per target table family, not literally the `entries` table's column alone (round-11 audit fix,
+     Fable's r11-A1 finding):** the round-10 text cited "the entry revision counter, ADR-022," but a
+     `scope: "plugin"` command's ops target `p_{pluginId}__*` plugin-owned tables (ADR-023), not the
+     `entries` table itself. Every table core mediates writes for — `entries` and every
+     `p_{pluginId}__*` plugin table alike — carries its own per-row monotonic revision counter under the
+     same ADR-022 discipline (ADR-023 §7's inherited revision journal); `expectedVersion` compares
+     against that row's own counter on whichever table the op targets, never against a different table's
+     counter. **`expectedVersion` against a nonexistent row is normative (round-11 audit fix, agy's
+     r11-A3 finding):** the predicate presupposes the row exists — if the targeted row does not exist,
+     the guard fails (`conflicts`) regardless of the supplied value, including `expectedVersion: 0`. An
+     author asserting "this row must not exist" MUST use `notExists`, never `expectedVersion`, which is
+     not an existence check. **Intra-batch execution order is
      normative, not implementation-defined (round-9 audit
      fix, Codex's r9-B2 finding):** the ordered batch executes strictly sequentially in its declared
      order — for each op, its guard(s) are evaluated immediately before that op, against the
@@ -345,7 +368,19 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      restriction on relative mutation (above) already guarantees exactness within SQLite's native numeric
      storage, so no fixed-point/string workaround is needed here. `boolean` fields compile to an
      **INTEGER-affinity** column using the canonical `0`/`1` encoding (SQLite has no native boolean
-     type); core never stores or reads a `boolean` field as any other representation.
+     type); core never stores or reads a `boolean` field as any other representation. **Round-10's
+     affinity rule still omitted two scalar kinds (round-11 audit fix, Codex's r11-B2 finding,
+     corroborated at advisory severity by agy's r11-A1):** generic `string` fields compile to a
+     **TEXT-affinity** column — the same canonicalization/exact-identity guarantee `eq`/`ne`/`in` rely on
+     for strings (above) requires the stored bytes to round-trip exactly, which only TEXT affinity
+     guarantees; a NUMERIC/REAL-affinity column would silently coerce a numeric-looking string literal
+     (e.g. `"123"`) through SQLite's type-affinity conversion, breaking exact string-identity comparison.
+     **`null` is not itself a declarable field kind and has no independent column affinity:** every
+     field's declared kind (`money-int`, `money-decimal`, date, generic `string`, generic `number`,
+     `boolean`) may independently permit a `NULL` value in its own column, governed by that field's own
+     affinity above and checked via `isNull`-style guards; the closed-vocabulary enumeration lists
+     `boolean`/`null` together only to state that neither defines ordered comparison or relative
+     mutation, not to declare `null` a sixth scalar storage kind.
    - **The date canonical form's year domain is explicit, not delegated to host `Date` parsing
      (round-10 audit fix, Codex's r10-A1 finding):** `YYYY` is a 4-digit proleptic-Gregorian year in the
      range `0001`-`9999`; core validation performs its own calendar-range check against this fixed
@@ -369,12 +404,38 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
    table — a direct violation of the mandatory cross-plugin isolation invariant, using only plausible,
    non-exotic names. This is the same recurring defect shape as the date canonical-form gap (round 9):
    an encoding whose *safety property* (here, injectivity; there, the string-to-instant bijection) was
-   never actually validated, only assumed from the encoding's shape. **Core's registration-time
-   validation (§1) MUST reject, as out-of-grammar, any plugin-registered table name containing the
-   literal `__` delimiter sequence, and MUST require the `pluginId` grammar itself to exclude `__`** —
-   this makes the `p_{pluginId}__{tableName}` encoding unambiguous (the first `__` after the fixed `p_`
-   prefix is always the boundary) and closes the collision for both the mutation-scope rule above and
-   the guard-target rule in §2 at once, since both rules derive from this same namespace encoding.
+   never actually validated, only assumed from the encoding's shape. **Round-10's `__`-delimiter ban did
+   not actually achieve injectivity (round-11 audit fix, Codex's r11-B1 and Fable's r11-B1 findings, two
+   independent counterexamples in the same area, found by two different auditors):** banning only the
+   literal `__` substring closes the *embedded-`__`* family of collisions (`shop` + `eu__orders` vs.
+   `shop__eu` + `orders`) but leaves two further residual collision families untouched, both demonstrated
+   concretely: (1) **boundary-underscore merge** — a single trailing `_` on a `pluginId` (or single
+   leading `_` on a `tableName`) merges with the `__` delimiter itself, so `acme_` + `inventory` and
+   `acme` + `_inventory` both compile to `p_acme___inventory`, with neither component containing the
+   banned `__` sequence; (2) **case-folding collision** — SQLite resolves table identifiers
+   case-insensitively regardless of what this ADR's grammar permits, so distinct case-sensitive strings
+   `Shop` and `shop` (both valid under a charset rule that bans only `__`) compile to identifiers SQLite
+   treats as identical, e.g. `p_Shop__orders` and `p_shop__orders`. Both defects independently reopen the
+   same mandatory cross-plugin isolation invariant round 10 already found broken once — patching each
+   newly-demonstrated collision pattern one at a time is the exact whack-a-mole this ADR's
+   scalar-vocabulary history (rounds 1-5) already proved doesn't converge. **Core's registration-time
+   validation (§1) therefore closes the whole defect class structurally, replacing the round-10 rule
+   rather than extending it:** both `pluginId` and every plugin-registered `tableName` MUST match the
+   fixed grammar `^[a-z0-9]+(-[a-z0-9]+)*$` — lowercase ASCII alphanumerics and internal hyphens only, no
+   underscore anywhere, no uppercase, non-empty, never starting or ending with a hyphen. Core rejects any
+   `pluginId` or `tableName` violating this grammar at registration time, as out-of-grammar (§1). Because
+   neither component can contain `_` at all, the `p_{pluginId}__{tableName}` encoding's `__` delimiter
+   cannot be produced by any component-boundary merge — the first (and only) `__` after the fixed `p_`
+   prefix is unconditionally the boundary, closing collision family (1). Because the grammar admits only
+   lowercase characters, SQLite's case-fold has no effect on an already-canonical-case string, so no two
+   grammar-admissible, textually-distinct `(pluginId, tableName)` pairs can resolve to the same SQLite
+   identifier, closing collision family (2). **The injectivity obligation this ADR states explicitly, for
+   any future revision of this grammar:** no two distinct `(pluginId, tableName)` pairs admissible under
+   the grammar may concatenate, under SQLite's own identifier-equality semantics (not merely
+   byte-equality), to the same physical table name — verifying only byte-level distinctness, as the
+   round-10 fix implicitly did, is not sufficient. This closes the collision for both the mutation-scope
+   rule above and the guard-target rule in §2 at once, since both rules derive from this same namespace
+   encoding.
    **A registered `scope: "coordinated"` command is accepted at registration and rejected only at
    invocation (round-10 audit fix, Fable's r10-L1 finding):** this was previously unstated — either
    choice would have preserved the non-breaking-v2 invariant, but leaving the checkpoint unstated risked
@@ -436,10 +497,13 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
   between the two debate peers, and not blocking.
 - **Interaction with ADR-023 §10 transform DSL + backfill jobs** — the command/envelope primitive is the
   runtime write path; the DSL is the migration path; keep them distinct.
-- **This design is PROPOSED, 10 audit rounds completed** — see the Status line and "Debate + Audit
-  record" for the full history, including round 9's 5 fixes and round 10's 5 fixes (namespace-encoding
+- **This design is PROPOSED, 11 audit rounds completed** — see the Status line and "Debate + Audit
+  record" for the full history, including round 9's 5 fixes, round 10's 5 fixes (namespace-encoding
   injectivity, coordinated-scope rejection checkpoint, `expectedVersion` operand kind, column affinity
-  for date/number/boolean, date year-domain convention). A **round-11 full-pass re-audit**
+  for date/number/boolean, date year-domain convention), and round 11's 5 fixes (namespace encoding
+  closed structurally via a restricted lowercase-alphanumeric-plus-hyphen grammar rather than a
+  delimiter-ban patch, generic-string/`null` column affinity, `expectedVersion`'s per-table-family
+  counter source, `expectedVersion`-against-nonexistent-row semantics). A **round-12 full-pass re-audit**
   (`TM-adr026-atomic-write-001`) is owed before ACCEPTED, same agreed exit condition (clean or
   advisory-only across all 3 auditors).
 - Depends on ADR-023 (now **ACCEPTED** 2026-07-11 — see ADR-023's own round-3 audit closure).
@@ -863,3 +927,78 @@ architecture's core shape. `fable-r10-B1` is arguably the single most consequent
 because a third, independent model was specifically cross-referencing this ADR against its own upstream
 dependencies (ADR-023/024/004) rather than reading ADR-026 in isolation. A **round-11 full-pass
 re-audit** is owed before ACCEPTED, under the same agreed exit condition.
+
+**Round-11 full-pass re-audit** (`TM-adr026-atomic-write-001`, 3-auditor coverage continued, agreed exit
+condition in effect, explicit instruction not to treat namespace injectivity as closed just because
+round 10's specific counterexample was fixed), run 2026-07-11, **returned Codex 6.8 FAIL, agy 9.8 PASS,
+Fable 7.0 FAIL — exit condition not met, two independent auditors found two different real collisions in
+the same area round 10 had just "fixed"**:
+
+- **Codex `gpt-5.5` 6.8, FAIL, 2 blockers:** `codex-r11-B1` (domain 5, high confidence) — verified the
+  round-10 `__`-delimiter ban against actual SQLite identifier semantics (a live `CREATE TABLE` probe,
+  the same cross-reference-against-reality method that closed round 10's finding) and found SQLite
+  resolves table identifiers **case-insensitively**: `CREATE TABLE p_Shop__orders` followed by
+  `CREATE TABLE p_shop__orders` fails because SQLite treats them as the same identifier. Neither ADR-023
+  (which requires only a "stable, globally-unique" `pluginId`, no case rule) nor ADR-026's round-10 fix
+  (which bans only the substring `__`) constrains case, so two distinct, grammar-admissible plugin IDs
+  differing only in case still collide on the physical table they produce. `codex-r11-B2` (domain 3) —
+  the round-10 column-affinity fix names date/number/boolean/money-int/money-decimal but never states
+  required affinity for generic `string` or `null`, leaving both implementation-discretionary despite
+  being named scalar kinds in the closed vocabulary.
+- **agy/Gemini 3.1 Pro (High) 9.8, PASS, advisory-only:** a full fresh sweep including explicit
+  re-verification of all 5 round-10 fixes; scored the namespace-injectivity fix as "provably injective"
+  and found zero blockers there — the same claim, in the same area, that both Codex and Fable
+  independently falsified in this same round, a second instance of the round-9/round-10 pattern where
+  agy's own adversarial pass reads an area as closed that a different method proves is not. Surfaced 3
+  low-severity notes independently: `agy-r11-A1` (generic string column affinity unstated — corroborating
+  half of `codex-r11-B2` at advisory rather than blocker severity), `agy-r11-A2` (identifier charset
+  bounds unstated beyond the `__` ban), `agy-r11-A3` (`expectedVersion` semantics unspecified when the
+  guarded row does not exist).
+- **Fable (independent subagent, no author rationale, falsification framing, explicitly instructed not
+  to treat the namespace-injectivity area as closed) 7.0, FAIL, 1 blocker + 1 low:** `fable-r11-B1`
+  (domain 5, high confidence) — did not assume the round-10 `__`-ban achieved injectivity; searched for a
+  residual collision using only that ban as the constraint and found one, verified programmatically:
+  `pluginId` `acme` + table `_inventory`, and `pluginId` `acme_` + table `inventory`, both compile to
+  physical table `p_acme___inventory` — neither component contains the banned `__` sequence (each has
+  only a single underscore), so both pass round-10's registration-time check unchanged, yet a single
+  trailing/leading `_` merges with the `__` delimiter itself, reproducing the exact collision class round
+  10 was meant to close. Fable confirmed both plugins' capability-derived prefix checks (`p_acme__` and
+  `p_acme___`) independently pass on the shared physical name — a direct, concretely demonstrated
+  cross-plugin isolation bypass, the same invariant as `fable-r10-B1`, reopened one layer deeper. One low
+  note: `fable-r11-A1` — `expectedVersion`'s round-10 fix cites "the entry revision counter, ADR-022," but
+  `scope: "plugin"` commands target `p_{pluginId}__*` plugin tables (ADR-023), not the `entries` table;
+  ADR-023 §7 states plugin-table writes inherit ADR-022's revision *journal* but never explicitly states
+  each plugin-table row carries its own per-row version counter `expectedVersion` can compare against — a
+  cross-reference tension, not a demonstrated break. Fable independently re-verified the other 4 round-10
+  fixes (coordinated-scope checkpoint, column affinity for date/number/boolean, date year-domain) as
+  correct and complete, and declined to re-litigate `agy-B3`.
+
+**Codex and Fable independently found two non-overlapping counterexamples in the same namespace-encoding
+area, using different methods** (Codex: a live SQLite identifier-semantics probe; Fable: a from-scratch
+search for a residual collision pattern under the stated grammar) — the same "two independent auditors
+converge on the same broken invariant via different routes" signal that made round 10's finding
+high-confidence. This is the second round in a row finding the namespace encoding non-injective, which
+this ADR's own history (rounds 1-5 patching the scalar-vocabulary defect class one instance at a time
+before round 5 closed it structurally) says is the signal to stop patching individual counterexamples and
+close the whole defect class at once. **Fixed structurally, not as two more instance-patches:** §6 now
+requires both `pluginId` and every plugin-registered `tableName` to match a fixed grammar (lowercase ASCII
+alphanumerics and internal hyphens only, no underscore, no uppercase) — replacing the round-10
+delimiter-ban rule rather than extending it, closing both the boundary-underscore-merge family and the
+case-folding family at once, plus stating an explicit injectivity obligation (no two grammar-admissible
+pairs may collide under SQLite's own identifier-equality semantics, not just byte-equality) for any future
+grammar revision. §5 now states TEXT affinity for generic `string` and clarifies `null` is not an
+independent storage kind. §2 now clarifies `expectedVersion`'s counter is per-row on whichever table
+family a command targets (not literally the `entries` table), and states nonexistent-row semantics
+(`expectedVersion` fails, `notExists` is the correct predicate for existence assertions). Full round-11
+trace: packet
+`.local-artifacts/external-audit/packets/20260711T185630Z-adr026-atomic-write-round11-audit-packet.md`,
+offloads `.local-artifacts/external-audit/offloads/20260711T185630Z/`.
+
+**Status remains PROPOSED, 11 audit rounds completed.** No finding across any round has disputed the
+architecture's core shape. The namespace-injectivity invariant has now been found broken twice in two
+consecutive rounds (`fable-r10-B1`, then `codex-r11-B1`/`fable-r11-B1`) — the round-11 fix moves from
+patching specific demonstrated collisions to a structurally injective grammar precisely because a second
+round of instance-patching would repeat the same mistake this ADR's own scalar-vocabulary history already
+made once. A **round-12 full-pass re-audit** is owed before ACCEPTED, under the same agreed exit
+condition, with explicit focus on whether the new structural grammar actually closes the defect class
+this time rather than admitting a third residual family.
