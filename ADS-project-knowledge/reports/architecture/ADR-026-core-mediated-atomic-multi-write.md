@@ -109,18 +109,74 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
 ## Consequences
 
 - **Store / commerce plugins stop re-implementing fragile compensation logic** — the correctness-critical
-  path moves into core, where it is written and tested once.
-- **Never-brick and the write chokepoint survive** — core still executes and can still snapshot/attribute.
-- **The ABI stays retrofit-free** toward ADR-024 §4 isolation — the envelope is serializable and
-  process-boundary-ready by construction.
-- **Scope discipline:** this ADR is *only* the atomic-write gap. SDK ergonomics (typed query builders,
-  handle sugar) are deliberately excluded — they are fixable post-freeze without an ecosystem break.
+  path (guard evaluation + relative mutation) moves into core, where it is written and tested once, and
+  authors invoke it by domain command name rather than reconstructing it from table primitives.
+- **Never-brick and the write chokepoint survive** — core still executes, attributes, revisions, and can
+  still snapshot every command's compiled mutations.
+- **The ABI stays retrofit-free** toward ADR-024 §4 isolation — commands and their compiled envelopes are
+  serializable and process-boundary-ready by construction.
+- **The guard grammar and scalar vocabulary are decided now, not deferred** — reverses the original
+  draft's biggest risk (an underpowered version-equality-only v1 that ADR-005's semver promise would make
+  expensive to widen later).
+- **Cross-plugin atomicity is explicitly named and explicitly deferred** — the `scope` discriminant means
+  a future coordinated-execution feature is additive, not a breaking change to every existing command.
+- **Scope discipline maintained:** SDK ergonomics beyond the command-registration surface itself (codegen,
+  typed param builders) remain deliberately excluded — fixable post-freeze without an ecosystem break.
 
 ## Open
 
-- **Exact envelope grammar** is frozen only when the engine is built (inherits ADR-022's
-  totality/bounded-cost constraint on any expression it admits); this ADR freezes the *shape*, not the grammar.
-- **Guard expressiveness** beyond version-equality (ranges, existence, `stock >= n`) — designed-now, decided-later.
-- **Interaction with ADR-023 §10 transform DSL + backfill jobs** — the envelope is the runtime write path;
-  the DSL is the migration path; keep them distinct.
-- Depends on ADR-023 graduating PROPOSED → ACCEPTED (owner sign-off still owed).
+- **Command registration format** — the exact manifest shape for registering a command (name, param
+  schema, underlying guarded mutations) is designed-now / frozen when the SDK is built; this ADR freezes
+  the *contract* (named commands compiling to a guarded, transactional IR), not the manifest's literal
+  JSON Schema.
+- **Coordinated-scope execution** — deliberately not built in v1 (see Decision §6); owed once ADR-024's
+  authorization/dependency/trust model for cross-plugin interaction exists past Phase-0.
+- **Ergonomics-only consistent-read helper** — raised in debate as a possible future SDK-sugar addition
+  (e.g. a `readSnapshot()`-style call), explicitly **not** part of this ADR's correctness guarantee either
+  way (reads remain advisory per Decision §7); unresolved even as a "should we ever build it" question
+  between the two debate peers, and not blocking.
+- **Interaction with ADR-023 §10 transform DSL + backfill jobs** — the command/envelope primitive is the
+  runtime write path; the DSL is the migration path; keep them distinct.
+- **This design is PROPOSED, not ACCEPTED** — owed: an `/audit-work` round (same gate ADR-023/ADR-028
+  went through) before this ADR can graduate.
+- Depends on ADR-023 (now **ACCEPTED** 2026-07-11 — see ADR-023's own round-3 audit closure).
+
+## Debate + Audit record
+
+**Origin (2026-07-09):** a throwaway 4-model `/cowork` engineering probe (Opus + Fable + Codex `gpt-5.5`
++ Gemini 3.1 Pro) built a real ABI probe against better-sqlite3 and found the frozen ADR-024 §3 ABI's one
+correctness-shaped cost: no transaction can cross an `await`, forcing hand-rolled optimistic-concurrency
+guards plus a compensating undo for any multi-row invariant — and the probe proved even a careful,
+reviewed compensating undo was itself racy (lost updates under concurrent load without a version guard).
+That finding produced this ADR's first draft: a declarative write envelope, shape frozen now, guard
+grammar and cross-plugin scope left as "designed-now, decided-later."
+
+**Formal `/debate` (2026-07-11, `TM`-free swarm consensus, 2 rounds, full trace:
+`ADS-project-knowledge/reports/swarm-consensus/runs/20260711T160337Z-adr026-atomic-write-consensus-report.md`).**
+Per the user's explicit prior instruction, the original draft's informal `/cowork` convergence was
+treated as a starting hypothesis to be pressure-tested, not a decision — this debate superseded it
+rather than rubber-stamping it. Round 1 (blind, neutral framing — no candidate solution presented as
+the answer): Claude Sonnet 5 (Primary), Codex `gpt-5.5`, and Gemini 3.1 Pro (`agy`) independently
+converged on 4 points (version-equality-only guards insufficient; freeze-grammar-now beats
+freeze-later; explicit tagged-scalar vocabulary for dates/money; saga/outbox rejected as reintroducing
+the exact plugin-authored-compensation hazard the probe proved dangerous) and surfaced three deltas:
+how much cross-plugin scope must be real vs. scaffolded in v1; whether the author surface should be raw
+table tuples or something command/aggregate-oriented (Codex and agy independently proposed adjacent but
+different alternatives — a stored-command primitive vs. event sourcing); and whether a consistent-read
+companion primitive is needed. Round 2 (informed — Coordinator synthesis shared, no bare "still agree"
+allowed): agy explicitly reversed two of its own Round-1 positions after weighing the tradeoffs —
+abandoning event-sourcing as "too radical an architectural pivot" from read-your-own-writes, and
+retracting "build cross-plugin now" as failing to respect the blast radius of the authorization/trust
+machinery that would require — landing on full agreement with Codex's command-oriented design and
+scope-deferral position. All three decision points closed at 3/3 convergence, clearing `min_confidence`
+after 2 rounds; the debate stopped rather than running a third round to re-litigate settled ground. One
+explicitly non-blocking residual: whether a future, ergonomics-only consistent-read sibling primitive is
+ever worth building (Codex: maybe, later; agy: no, never) — out of this ADR's scope either way.
+
+**This revision folds the full consensus** as normative text: named/manifest-registered commands as the
+public author surface (§1); a frozen bounded-predicate + relative-mutation guard grammar reusing
+ADR-024 §5's total/bounded-cost discipline, not deferred (§2); explicit tagged scalars for dates/money
+(§5); a frozen `scope: "plugin" | "coordinated"` discriminant with only `plugin` executable in v1 (§6);
+and an explicit reads-are-advisory correctness statement (§7). **Status remains PROPOSED** — an
+`/audit-work` round against this revised design is owed before ACCEPTED, same gate ADR-023 and ADR-028
+both cleared this session.
