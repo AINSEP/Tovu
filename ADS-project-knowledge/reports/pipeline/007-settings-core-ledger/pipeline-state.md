@@ -4,7 +4,7 @@
 |---|---|
 | feat_id | FEAT-007-settings-core-ledger |
 | spec_id | SPEC-007 |
-| stage | spec |
+| stage | architecture |
 | spec_provider | speckit |
 | provider_version_ref | github/spec-kit @ 2c2fea8783f33085652b8c87e839bae84a6eb78d |
 | provider_native_root | specs/ |
@@ -23,6 +23,10 @@
 | red_team_status | PASS (0 BLOCKING) — confirm-pass against v0.3.1 closed RT-001/002/003; RT-004 ADVISORY carries forward |
 | red_team_spec_hash | sha256:fc322f69fe3cc586dbe9823c4d3d6d5225e419d538be554bdfe88873a40a501b (v0.3.1) |
 | governing_adr | ADR-028 (Settings — Layered Settings Ledger), ACCEPTED 2026-07-11 |
+| pipeline_adr | ADS-project-knowledge/reports/pipeline/007-settings-core-ledger/adr.md — ADR-PIPE-007, status PROPOSED, awaiting human approval |
+| implementation_outline | ADS-project-knowledge/reports/pipeline/007-settings-core-ledger/implementation-outline.md — Status: PRODUCED (5 triggers: Boundary Cross, Contract Change, Data And Persistence, Brownfield Dependency, Critical Cross-Boundary Invariant) |
+| governance_adr_promotion | Evaluated, not promoted — ADR-PIPE-007 applies existing governance ADRs (006/007/015/021/022), introduces no new durable cross-cutting rule |
+| research_artifact | N/A — no library/technology/persistence choice open (all reused per ADR-015/021/022) |
 
 ## Notes
 
