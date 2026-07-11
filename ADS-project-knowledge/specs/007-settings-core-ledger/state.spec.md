@@ -4,9 +4,9 @@ SPEC PACKAGE FILE: `framework/spec-providers/speckit/templates/spec-system/state
 
 - Spec ID: `SPEC-007`
 - Feature: `FEAT-007-settings-core-ledger`
-- Version: `0.3.0`
+- Version: `0.3.1`
 - Content Hash: `anchored in feature.spec.md`
-- Last Edited: `2026-07-11T20:00:00Z`
+- Last Edited: `2026-07-11T20:15:00Z`
 
 ## Purpose
 Defines the persistent server state (tables), legal transitions, resolver selectors, and state
@@ -73,7 +73,7 @@ SettingRevision:
 | `RENAME_DEFINITION` | old key, new name | same schema; new name free | UPDATE active def ns/key (same setting_id/version) + INSERT v1 alias marker at old name | reject `RENAME_RETYPE_CONFLICT` / `ALIAS_DEPTH_EXCEEDED` |
 | `RETYPE_DEFINITION` | new schema, coercer | coercer present for every prior version | insert version+1 `active`, flip prior active → `deprecated` | reject `DEFINITION_INVALID` |
 | `TOMBSTONE_DEFINITION` | key | def exists | set status `tombstone` (values retained) | reject `DEFINITION_NOT_FOUND` |
-| `SET_VALUE` | key, scope, value | authorized (self/other derivation §see behavior.spec §1.3 for scope=user); scope ∈ scopes; value valid; when scope=user and `principalId` ≠ caller, `principalId` must be an active `kind='user'` member of `workspace_id` (REQ-13/INV-09) | upsert value row (`state='set'`) + append `op='set'` revision (same tx) | reject `FORBIDDEN`/`SCOPE_NOT_ALLOWED`/`VALUE_VALIDATION_FAILED`/`PRINCIPAL_NOT_FOUND` |
+| `SET_VALUE` | key, scope, value | authorized (self/other derivation, behavior.spec §1.3, for scope=user); scope ∈ scopes; value valid; when scope=user and `principalId` ≠ caller, `principalId` must resolve to an active `kind='user'` principal whose own `workspace_id` equals the request's `workspace_id` (ADR-007 structural scoping — REQ-13/INV-09) | upsert value row (`state='set'`) + append `op='set'` revision (same tx) | reject `FORBIDDEN`/`SCOPE_NOT_ALLOWED`/`VALUE_VALIDATION_FAILED`/`PRINCIPAL_NOT_FOUND` |
 | `CLEAR_VALUE` | key, scope | authorized (same self/other derivation); when scope=user and `principalId` ≠ caller, same membership check as `SET_VALUE` | set value row `state='cleared'` + append `op='clear'` revision (same tx) | reject `FORBIDDEN`/`PRINCIPAL_NOT_FOUND` |
 | `RESET_NAMESPACE` | namespace, scope | authorized `settings.reset.*` | loop `CLEAR_VALUE` in reset-authorized context; each emits `op='clear'` | reject `FORBIDDEN` |
 | `PURGE_TENANT` | workspace_id or principal | authorized once | append `op='purge'` redacted revision per row, delete rows (one tx) | reject `FORBIDDEN` |
@@ -95,8 +95,8 @@ SettingRevision:
 - [ ] `setting_revisions` is append-only; purge appends before delete; no cascade-delete (INV-06).
 - [ ] `secret` is always false for accepted definitions (INV-08).
 - [ ] A `setting_values_user` row is never written or addressable for a `(workspace_id, principal_id)`
-      pair whose `principal_id` is not, at write time, an active `kind='user'` member of `workspace_id`
-      (INV-09).
+      pair where `principal_id` does not, at write time, resolve to an active `kind='user'` principal
+      whose own `workspace_id` equals that `workspace_id` (INV-09, ADR-007 structural scoping).
 
 ## 6) Acceptance Checklist
 - [ ] All actions have explicit before/after behavior.

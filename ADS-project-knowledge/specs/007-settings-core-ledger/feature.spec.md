@@ -10,11 +10,11 @@
 | Field | Value |
 |-------|-------|
 | spec_id | SPEC-007 |
-| version | 0.3.0 |
+| version | 0.3.1 |
 | status | APPROVED |
-| content_hash | sha256:7deff736934b36e0544daaf5a424e639222d15478ac7f6c246762a0801e05ccd |
+| content_hash | sha256:fc322f69fe3cc586dbe9823c4d3d6d5225e419d538be554bdfe88873a40a501b |
 | feature_name | FEAT-007-settings-core-ledger |
-| last_edited | 2026-07-11T20:00:00Z |
+| last_edited | 2026-07-11T20:15:00Z |
 | owner | Leon Aburime |
 | spec_agent | Spec Agent |
 | spec_mode | brownfield |
@@ -160,9 +160,11 @@ totality are specified in `behavior.spec.md`.
 - REQ-12: Effective reads are served from a per-layer cache invalidated one key at a time on write;
   the definition cache is workspace-qualified so site-owned definitions never leak across workspaces.
 - REQ-13: For any scope=user write or clear whose `principalId` differs from the caller, the write
-  chokepoint validates that `principalId` resolves to an active `kind='user'` principal that is a
-  member of `workspaceId` before authorizing or writing, rejecting `PRINCIPAL_NOT_FOUND` when it does
-  not; no value row and no revision are written on rejection.
+  chokepoint validates that `principalId` resolves to an active `kind='user'` principal whose
+  `workspace_id` equals the request's `workspaceId` (ADR-007 structural workspace scoping — a
+  principal belongs to exactly one workspace, not a membership join) before authorizing or writing,
+  rejecting `PRINCIPAL_NOT_FOUND` when it does not; no value row and no revision are written on
+  rejection.
 
 ---
 
@@ -220,9 +222,10 @@ totality are specified in `behavior.spec.md`.
 - AC-23 (REQ-11) [P1]: Given an operator without `settings.user.write`, when they open the Settings
   screen, then no target-principal identifier field is offered, and a direct write attempt to another
   principal's user layer is rejected `FORBIDDEN`.
-- AC-24 (REQ-13) [P2]: Given a set or clear at scope=user whose `principalId` is not an active member
-  of `workspaceId`, when the write chokepoint runs, then it is rejected `PRINCIPAL_NOT_FOUND` and no
-  value row and no revision are written.
+- AC-24 (REQ-13) [P2]: Given a set or clear at scope=user whose `principalId` does not resolve to an
+  active principal whose own `workspace_id` equals the request's `workspaceId`, when the write
+  chokepoint runs, then it is rejected `PRINCIPAL_NOT_FOUND` and no value row and no revision are
+  written.
 - AC-25 (REQ-06) [P1]: Given an operator holding `settings.user.self.write` but not
   `settings.user.write`, when they call `SETTINGS_SET` with `principalId` set to a different
   principal, then it is rejected `FORBIDDEN`.
@@ -253,8 +256,8 @@ totality are specified in `behavior.spec.md`.
   inner per-key `clear()` runs in a reset-authorized internal context and still emits its revision.
 - INV-08: `registerDefinitions` must never accept a definition with `secret: true` in this subset.
 - INV-09: A `setting_values_user` row must never be written or remain addressable for a
-  `(workspace_id, principal_id)` pair where `principal_id` is not, at write time, an active `kind='user'`
-  member of `workspace_id`.
+  `(workspace_id, principal_id)` pair where `principal_id` does not, at write time, resolve to an
+  active `kind='user'` principal whose own `workspace_id` equals that `workspace_id`.
 
 ---
 
@@ -285,8 +288,8 @@ totality are specified in `behavior.spec.md`.
   resolver returns the typed-absent result defined in the contract (never a stale value), surfaced as
   `DEFINITION_TOMBSTONED` on the write path.
 - EC-11: What happens when a scope=user write or clear targets a `principalId` that does not exist or
-  is not a member of `workspaceId`? Expected behavior: rejected `PRINCIPAL_NOT_FOUND` (REQ-13); no
-  value row and no revision are written.
+  whose `workspace_id` does not equal the request's `workspaceId`? Expected behavior: rejected
+  `PRINCIPAL_NOT_FOUND` (REQ-13); no value row and no revision are written.
 
 ---
 
