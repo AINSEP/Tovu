@@ -1,10 +1,14 @@
 # ADR-026: Core-Mediated Atomic Multi-Write Primitive for Plugin Data
 
-- Status: ACCEPTED 2026-07-11 (redesigned from a 2-round formal `/debate` — supersedes the original
-  2026-07-09 `/cowork`-spike draft's guard-grammar deferral and raw-tuple author surface; cleared 3
-  rounds of `/audit-work` under `TM-adr026-atomic-write-001` — round 1 FAIL (5 findings + 1 documented
-  disagreement) → round 2 FAIL (1 new finding in a self-found fix) → round 3 unanimous PASS, agy
-  10.0/Codex 10.0, zero findings). **Amends ADR-024 §3** and **ADR-023 §7**.
+- Status: PROPOSED 2026-07-11 (**reopened from ACCEPTED** — redesigned from a 2-round formal `/debate`;
+  cleared 3 rounds of `/audit-work` under `TM-adr026-atomic-write-001` — round 1 FAIL (5 findings + 1
+  documented disagreement) → round 2 FAIL (1 new finding in a self-found fix) → round 3 unanimous PASS,
+  agy 10.0/Codex 10.0, zero findings — **then reopened** by an independent Fable-model verification pass
+  (explicitly requested to check the two prior externals' work rather than trust a clean unanimous PASS
+  at face value), which found 2 further genuine gaps neither Codex nor agy caught across 3 rounds:
+  unspecified/unsafe comparison-guard evaluation semantics for `money-decimal` (F1) and an unscoped/
+  contradictory guard-target namespace rule (F2). Both fixed inline; a narrow **round-4 diff-only
+  re-audit** is owed before ACCEPTED again). **Amends ADR-024 §3** and **ADR-023 §7**.
 - Author: Leon Aburime / Coordinator (Claude Sonnet 5 Primary) with debate peers Codex `gpt-5.5`,
   Gemini 3.1 Pro (`agy`); original `/cowork` probe with Opus 4.8/Fable/Codex/agy
 - Extends / amends: **ADR-024** (§3 transport-agnostic frozen ABI), **ADR-023** (§7 typed core-owned writes)
@@ -73,7 +77,17 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      row the command does not otherwise mutate — e.g. "insert this order only if the referenced user is
      active" without writing to the user row. This closes the gap where the v1 draft only let guards
      attach to mutated ops, which would have forced authors back into the forbidden read-then-write
-     pattern (§7) for any precondition on an unmutated row.
+     pattern (§7) for any precondition on an unmutated row. **Guard-target scope is normative, same as
+     mutation scope (Fable independent-verification fix, F2):** a guard target — mutated or read-only —
+     is subject to the exact same `pluginId`-derived namespace as §6's mutation-scope rule. A `scope:
+     "plugin"` command MAY guard against its own `p_{pluginId}__*` tables plus an explicitly enumerated
+     set of **core-published guardable read surfaces** (the same "own namespace plus core-published read
+     views" boundary ADR-023 §8 already draws for authorizer-sandboxed reads) — never another plugin's
+     namespaced tables. This resolves the apparent conflict between this section's own example (a guard
+     on a core `users` row) and §6: the example is valid only because `users` is core-published, not
+     because guard targets are unscoped. A conflict result for a guard on a core-published surface
+     discloses pass/fail only (`committed`/`conflicts`), never the underlying row's values — a failed
+     guard is not usable as an oracle to probe state a plugin has no read capability for.
    - **Bounded operand limits are normative, not just "total/bounded-cost" in spirit (round-1 audit fix,
      Codex #1):** `in` operands MUST have a core-defined maximum cardinality, and every scalar operand
      MUST satisfy core-defined byte/precision/scale limits. **This bound applies at both checkpoints,
@@ -118,7 +132,19 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      `money-decimal` fields using integer/BigInt-safe fixed-point arithmetic at the field's declared
      scale (parse to a scaled integer, do the arithmetic, re-render as a canonical decimal string) —
      never `Number` arithmetic on the string. `money-int` fields are BigInt-safe by construction and need
-     no such conversion.
+     no such conversion. **The same non-float rule applies to comparison guards, not only mutations
+     (Fable independent-verification fix, F1):** ordered-comparison predicates (`lt`/`lte`/`gt`/`gte`)
+     against a `money-decimal` field MUST be evaluated using the same BigInt-safe fixed-point semantics
+     as relative mutations — parsed to a scaled integer for comparison, never compared as raw text
+     (lexicographic string comparison is wrong for decimal strings of differing length, e.g. `"9.50" >=
+     "10.00"` is lexicographically true) and never parsed through JS `Number`. Equality/inequality
+     (`eq`/`ne`/`in`) on canonical decimal strings remain safe as plain string comparison, since
+     canonicalization makes string equality equal value equality — this rule applies only to ordered
+     comparisons. **`money-decimal` fields MUST compile to a TEXT-affinity SQLite column** (never
+     NUMERIC/REAL affinity) — a NUMERIC-affinity column would silently coerce an inserted canonical
+     string through a 64-bit float on write, corrupting the value without ever failing a bind, which
+     would defeat this vocabulary's entire purpose one layer below where any validation-time check could
+     catch it.
    - **Canonical-format and representation-kind validation applies at both checkpoints, same as operand
      bounds (round-2 audit fix, Codex).** Core validates canonical format and representation kind for a
      field's *statically declared* tagged-scalar type at command registration time (§1). But any tagged
@@ -189,8 +215,11 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
   between the two debate peers, and not blocking.
 - **Interaction with ADR-023 §10 transform DSL + backfill jobs** — the command/envelope primitive is the
   runtime write path; the DSL is the migration path; keep them distinct.
-- **This design is ACCEPTED** — cleared all 3 `/audit-work` rounds under `TM-adr026-atomic-write-001`
-  (round 3: unanimous PASS, agy 10.0/Codex 10.0, zero findings).
+- **This design is PROPOSED again, reopened from ACCEPTED** — an independent Fable-model verification
+  pass, requested specifically to check the 3-round external audit rather than trust a unanimous PASS at
+  face value, found 2 further genuine gaps (comparison-guard evaluation semantics for `money-decimal`;
+  unscoped/contradictory guard-target namespace). Both fixed inline; a **round-4 diff-only re-audit**
+  (`TM-adr026-atomic-write-001`) is owed before ACCEPTED again.
 - Depends on ADR-023 (now **ACCEPTED** 2026-07-11 — see ADR-023's own round-3 audit closure).
 
 ## Debate + Audit record
@@ -305,10 +334,50 @@ further recurrence of the registration-vs-invocation gap shape. Full round-3 tra
 `.local-artifacts/external-audit/runs/20260711T173000Z-external-audit-report.md`,
 offloads `.local-artifacts/external-audit/offloads/20260711T173000Z/`.
 
-**ADR-026 is ACCEPTED.** Across 3 rounds under `TM-adr026-atomic-write-001`: round 1 surfaced 5 real,
-independently-converged-or-novel findings plus one Coordinator disagreement (documented, not silently
-resolved); round 2 caught a genuine gap in a Coordinator-authored fix that no external auditor had yet
-reviewed, proving the extra round was worth the cost; round 3 closed clean and unanimous. No finding at
-any round disputed the architecture's core shape — named-command surface, core-owned compiled IR,
-chokepoint preservation, reads-are-advisory correctness rule — only its precision on operand bounds,
-scalar representation, guard coverage, and namespace enforcement, all now resolved.
+**Round 3 was not the end of the story.** Across the first 3 rounds under `TM-adr026-atomic-write-001`:
+round 1 surfaced 5 real, independently-converged-or-novel findings plus one Coordinator disagreement
+(documented, not silently resolved); round 2 caught a genuine gap in a Coordinator-authored fix that no
+external auditor had yet reviewed, proving the extra round was worth the cost; round 3 closed clean and
+unanimous (agy 10.0/Codex 10.0, zero findings). ADR-026 was marked ACCEPTED on that basis.
+
+**Independent Fable-model verification (2026-07-11, explicitly requested rather than assumed
+unnecessary after a clean unanimous PASS).** The user asked directly whether a Fable pass had been run
+across any of this ADR's debate or audit work — it had not; every external dispatch (debate + all 3
+audit rounds) used Codex + agy only, and even the Internal Subagent Verification step before round 2 was
+done by the same Sonnet 5 instance that authored the fix being checked, not a genuinely separate model.
+A fresh Fable subagent was dispatched with falsification framing against the same frozen threat model,
+deliberately withheld any of the authoring/auditing agent's own rationale, and evaluated the ACCEPTED
+text cold. **It found 2 further genuine gaps that 2 external auditors across 3 rounds had missed
+entirely:**
+- **F1 (hard blocker under the frozen TM, domain 3 — scalar-vocabulary data corruption):** the ADR never
+  specified how ordered-comparison guards (`lt`/`lte`/`gt`/`gte`) evaluate a `money-decimal` field.
+  Lexicographic string comparison is wrong (`"9.50" >= "10.00"` is true as text); JS `Number` parsing
+  reintroduces the exact float-precision bug §5 exists to prevent — and neither failure mode trips any
+  validation-time check, so both "natural" implementations silently corrupt the guarantee. Separately,
+  no column-affinity rule meant a NUMERIC-affinity SQLite column could silently coerce a canonical
+  decimal string through a 64-bit float on storage, corrupting the value one layer below any bind-time
+  check. This is the same defect *class* all three prior audit rounds kept finding (mutation arithmetic
+  in round 1, invocation-time representation checks in round 2) recurring a third time in predicate
+  evaluation — a shape none of the prior narrow-scoped rounds were framed to catch, since each was
+  scoped to verify a specific prior finding, not sweep the whole grammar fresh.
+- **F2 (escalation, domain 5 — scope-discriminant unsoundness):** §2's own flagship read-only-guard
+  example ("insert order only if the referenced user is active") named a **core** table as a guard
+  target, while §6 said every op in a `scope: "plugin"` batch belongs to the invoking plugin's own
+  tables — an unresolved internal contradiction. Read literally, guard targets were unscoped, meaning a
+  plugin could attach guards to *another plugin's* tables and use the `committed`/`conflicts` result as
+  a pass/fail oracle to probe state it has no read capability for.
+
+Both fixed inline: F1 extends the existing "same non-float rule as mutations" pattern to comparison
+guards and mandates TEXT-affinity storage for `money-decimal` columns (§5); F2 imports ADR-023 §8's
+"own namespace plus core-published read views" boundary for guard targets specifically, resolving the
+§2/§6 contradiction and closing the oracle risk (§2). Fable's own falsification pass otherwise confirmed
+every other invariant held — including independently re-deriving that the Coordinator's `agy-B3`
+disagreement (keeping the `coordinated` scope discriminant as designed) was defensible, without being
+shown the prior reasoning.
+
+**Status reopened to PROPOSED.** A narrow **round-4 diff-only re-audit** (`TM-adr026-atomic-write-001`,
+scoped to F1 and F2 only, everything else settled) is owed before ACCEPTED again. No finding across any
+of the 4 rounds (3 external + 1 independent-verification) has disputed the architecture's core shape —
+named-command surface, core-owned compiled IR, chokepoint preservation, reads-are-advisory correctness
+rule — only its precision on operand bounds, scalar representation (now including comparison semantics
+and storage affinity), guard coverage, and namespace enforcement (now including guard targets).
