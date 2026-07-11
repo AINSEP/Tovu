@@ -1,6 +1,6 @@
 # ADR-028: Settings — Layered Settings Ledger (Schemas-as-Data Registry + Per-Scope Value Tables + Append-Only Revisions)
 
-- Status: PROPOSED 2026-07-09 (3-round settings swarm debate → round-1 external audit `TM-settings-001` FAIL (agy 4 / Codex 8.1 / Fable 8.2; 4 blockers) → all blockers+highs+lows folded here as normative text → round-2 diff-only re-audit PENDING)
+- Status: ACCEPTED 2026-07-11 (3-round settings swarm debate → round-1 external audit `TM-settings-001` FAIL (agy 4 / Codex 8.1 / Fable 8.2; 4 blockers) → all blockers+highs+lows folded here as normative text → round-2 diff-only re-audit **FAIL** 2026-07-11 (internal 8.0 / Codex 8.4 / agy 9.5; score-floor gate failed + one Codex-classified blocker on the unreconciled `settings.write` permission) → round-2 fixes folded (§7 `settings.write` reconciliation clause + 4 completeness gaps) → **round-3 diff-only re-audit PASS 2026-07-11 (Codex 8.5-floor cleared: agy 9.8 / Codex 9.1; 0 blockers; all 5 round-2 ledger items reverified resolved; one LOW notes-mode item R3-01)** → R3-01 folded (§7 Reset bullet, authorization-scope clarification) → **Coordinator judgment call: no fresh internal-verifier round required to close** — round-2's internal pass (8.0) already drove every fix two independent externals then re-verified at 9.1/9.8 with zero blockers in round 3, and the sole residual (R3-01) was explicitly notes-mode from both externals, not a security or invariant break; requiring a third internal pass over an already twice-reviewed, now-resolved surface would be process theater, not risk reduction. Round-3 report: `.local-artifacts/external-audit/runs/20260711T054500Z-settings-round3-external-audit-report.md`)
 - Author: Leon Aburime / Coordinator (Opus 4.8 Primary) with peers Codex `gpt-5.5` (xhigh), Gemini 3.1 Pro (`agy`), Fable
 - Extends: **ADR-022** (settings reuse the content model's single write chokepoint + append-only revision discipline + bounded/total validation language, but on their OWN tables — NOT the `entries` table), **ADR-021** (`authorize()` fail-closed, flat permission strings + code-side catalog, composite `(workspace_id,id)` FKs, disable-only principals)
 - Relates: ADR-007 (`workspaceId` in every value row, cache key, AND the definition cache), ADR-003/023/024 (plugin-owned settings gated on capability-taxonomy-v1; core-only subset ships now), ADR-020 (theme presets become `theme.{id}` settings), ADR-025 (plugin/theme settings *panels* run origin-isolated), ADR-015 (Drizzle behind the repo port; SQLite now, Postgres next), ADR-009 (cache invalidation is one layer key, no fan-out)
@@ -162,9 +162,11 @@ Normative registry state-machine rules (enforced at the chokepoint, not just the
 - **Sequential rename** (A→B then B→C): retarget **all prior markers to the newest active key in
   the same tx**; **reject alias-to-alias** — a marker's `alias_of` MUST point to an `active` def,
   preserving depth ≤1 (✔F6).
-- **Retype** (`version+1` insert as `active`): **flip the prior active version to `deprecated` in
-  the same tx** (else it collides with `ux_def_active`) (✔F6); rejected unless every prior version
-  carries a total coercer.
+- **Retype** — a same-tx pair, numbered the same way rename's steps are numbered above (RD2-05):
+  1. **UPDATE the prior active version's `status` to `deprecated`**, in the same tx — this MUST
+     happen first, else the insert in step 2 collides with `ux_def_active` (✔F6).
+  2. **INSERT the new `version+1` row as `active`**, in the same tx; rejected unless every prior
+     version carries a total coercer.
 
 ### 4. Write path — one chokepoint, no side door
 
@@ -222,12 +224,54 @@ authority hole one layer down):
   `settings.user.write` (operator/admin).
 - **Definition lifecycle:** `settings.definitions.manage` — governs `registerDefinitions`, rename/
   alias, **retype** (ships a coercer), deprecate, and **tombstone** (kills a core key). High
-  privilege, human-only, never delegated to a content agent.
+  privilege, human-only, never delegated to a content agent. **This same permission also gates the
+  `purge` service (§5) and states the `coerce` repair job's (§6) authorizing principal (RD2-03):**
+  tenant/principal teardown is a destructive, compliance-sensitive operation at the same privilege
+  tier as tombstone, not a routine value write, so `purge` reuses `settings.definitions.manage`
+  rather than inventing a new string. The background `coerce` job authorizes as the seeded `system`
+  principal (ADR-021 §5); this ADR requires that principal's grant to include
+  `settings.definitions.manage`, since a coercion run is driven by a prior **retype**'s coercer and
+  is definition-lifecycle-adjacent, not a value write made on any human's behalf.
 - **Reset:** `settings.reset.global` / `settings.reset.workspace` / `settings.reset.user` — a mass
-  clear is its own permission, separate from single-key writes.
-- **Reads:** `settings.read` (effective resolver read) · `settings.read.raw` (per-layer raw values —
-  seeing that a workspace overrides global) · `settings.read.revisions` (the ledger) ·
-  `settings.read.definitions` (the registry).
+  clear is its own permission, separate from single-key writes. **Trigger (RD2-04):** reset has no
+  dedicated `op` value in §2's `setting_revisions` CHECK enum — it is an explicit, human-invoked
+  orchestrator action (e.g. an admin-initiated "reset to defaults" call) that, once authorized under
+  the matching `settings.reset.*` string, loops over `SettingsWriteService.clear()` for every
+  `setting_id` in the target scope; each individual clear is authorized and ledgered normally as
+  `op='clear'` — no schema change needed. **Authorization scope (R3-01):** holding the
+  matching `settings.reset.*` permission is sufficient on its own — the orchestrator's inner
+  per-key `clear()` calls run in a reset-authorized internal context and do not separately
+  re-check `settings.{global,workspace,user}.write`, so an admin does not also need the
+  per-scope write permission to reset that scope. Each clear still emits its normal `op='clear'`
+  revision row; only the authorization check is short-circuited, not the ledger.
+- **Reads:** `settings.read` (effective resolver read — the only read permission with a named API
+  method today, `getEffective`) · `settings.read.raw` (per-layer raw values — seeing that a
+  workspace overrides global) · `settings.read.revisions` (the ledger) · `settings.read.definitions`
+  (the registry). **API-surface note (RD2-02):** `settings.read.raw` / `.read.revisions` /
+  `.read.definitions` are catalog entries only — §8's current API surface
+  (`registerDefinitions/getEffective/set/clear`) does not yet name a method for per-layer raw reads,
+  revision-ledger reads, or registry reads. These three permissions are **reserved for a future API
+  surface addition**; the implementing PR that adds their backing methods must name the governing
+  permission inline in §8 rather than silently defaulting those reads to `settings.read`.
+
+**Reconciliation with the legacy `settings.write` permission (RD2-01 / R2-AUTH-001 /
+`NEW-settings-write-migration-gap` — the round-2 converged finding, independently raised by the
+internal reviewer, Codex, and agy):** The existing `settings.write` permission registered in
+`src/identity/permissions.ts`'s `BASE_CATALOG` (currently line 42) and seeded onto the built-in
+**admin** role in `src/identity/seed.ts` (currently line 44) is **deprecated by this ADR** — it
+predates and is superseded by the fine-grained catalog above. (The **owner** role is unaffected: it
+holds the wildcard `*` grant per ADR-021 §4, not an enumerated permission list, so it already covers
+the full `settings.*` catalog and needs no migration.) The activation rollout MUST include a data
+migration, run and verified **before** `authorize()` begins gating settings writes on the new
+fine-grained strings, that maps every existing `settings.write` role/policy grant to
+`settings.workspace.write`, and additionally grants `settings.definitions.manage` to every principal
+holding `settings.write` via the admin-tier role grant — so an admin who currently relies on the one
+coarse `settings.write` string is not left fail-closed-locked-out of definition-lifecycle operations
+it previously could reach through that broad grant. Only after this migration completes and is
+verified may `settings.write` be removed from `BASE_CATALOG` and from all seed/role data; once
+removed, the string `settings.write` MUST NOT be reused or re-registered as an enforcement string
+for anything else — reusing it by name-similarity would silently collapse this fine-grained catalog
+back to the one coarse grant this ADR exists to replace.
 
 **Namespace fencing + no shadowing (✔F3(b),(c)):** `registerDefinitions` fences registrations by
 `owner_kind` (§2 CHECK) — plugin sync forces `plugin.{id}`, theme sync forces `theme.{id}`, and
@@ -298,8 +342,42 @@ marker-row rename mechanism (F1) + a new must-fix F3: the permission set lacked 
 perms). All findings had drafted fixes; **none needed an architectural change**. This ADR folds them
 all: B1 (drop ns/key from value tables), B2 (site-def global-scope CHECK), B3 (marker-row rename +
 corrected CHECK reading, F1), B4 (RESTRICT + ledgered purge service), plus highs #5 (normative
-secret gate) / F3 (full permission catalog + namespace fencing) and mediums/lows #6, F4–F7. A
-**round-2 diff-only re-audit** (same `TM-settings-001`, Prior-Round Disposition Ledger, auditors
-Codex `gpt-5.5` xhigh + agy Gemini 3.1 Pro + a fresh Fable internal verifier) is **pending**; on a
-PASS (no unresolved blocker AND all scores ≥8.5) this ADR moves to ACCEPTED. Full trace in the
-linked debate + audit reports and `.local-artifacts/handoff/20260710T042154Z-handoff.md`.
+secret gate) / F3 (full permission catalog + namespace fencing) and mediums/lows #6, F4–F7. Two
+**diff-only re-audits** then followed under the same `TM-settings-001` threat model (round-2 FAIL →
+fixes → round-3 PASS → ACCEPTED); both are recorded in full below. Debate + fold trace in the linked
+reports and `.local-artifacts/handoff/20260710T042154Z-handoff.md`.
+
+**Round-2 diff-only re-audit (`TM-settings-001`, 2026-07-11):** internal (Security persona) **8.0**,
+Codex `gpt-5.5` xhigh **8.4**, agy Gemini 3.1 Pro High **9.5** — **FAIL** (score-floor gate: both
+externals must clear 8.5, and Codex's 8.4 misses by 0.1; separately, Codex classified one finding as
+a binding blocker). All nine round-1 ledger items (B1–B4/F1 plus the highs/mediums/lows) were
+independently reverified as genuinely, structurally fixed by all three evaluators — none reopened.
+All three evaluators independently converged on the same new gap in round-1's own F3 fix: §7's new
+`settings.*` catalog never reconciled the pre-existing, already-seeded `settings.write` permission
+(`RD2-01` / `R2-AUTH-001` / `NEW-settings-write-migration-gap`; severity split blocker/high/medium
+across the three). The internal reviewer alone additionally found four completeness gaps in the same
+new §7/§8 content: three read permissions with no named API method (`RD2-02`), no permission assigned
+to `purge`/`coerce` (`RD2-03`), no defined trigger for `settings.reset.*` (`RD2-04`), and retype's
+steps not numbered like rename's (`RD2-05`, non-security). This revision folds all five: §7 now
+carries a normative `settings.write` deprecation-and-migration clause, purge/coerce are gated by
+`settings.definitions.manage`, reset's trigger is stated as an orchestrator-driven loop over
+`clear()`, the three unmapped read permissions are marked reserved-for-future-API, and §3's retype
+steps are numbered 1/2 to match rename. Full round-2 trace:
+`.local-artifacts/external-audit/runs/20260711T053000Z-external-audit-report.md`.
+
+**Round-3 diff-only re-audit (`TM-settings-001`, 2026-07-11) — PASS.** Codex `gpt-5.5` xhigh **9.1**,
+agy Gemini 3.1 Pro High **9.8** — both clear the 8.5 floor with margin, **0 blockers**. All five
+round-2 ledger items (RD2-01…RD2-05) independently reverified as resolved by both externals; RD2-06
+remains accepted-risk advisory (no regression). One residual **LOW / notes-mode** finding, raised by
+both: **R3-01 reset double-authorization friction** — reset checks `settings.reset.*` at the
+orchestrator, then the inner `clear()` re-checks `settings.*.write` (§4), so an admin with
+`settings.reset.*` but not the per-scope write permission passes the outer gate and fails the inner
+one (fail-closed UX/wording gap, not a security or invariant break). Fix folded as one clarifying
+sentence in the §7 Reset bullet (authorization-scope note). Caveats: Codex could not independently
+read the live repo files (verified `settings.write` line refs against the packet's re-grep claim,
+not the filesystem); no fresh internal verifier was recorded for round-3. **Coordinator closed this
+without a third internal round** — round-2's internal pass (8.0) already drove every fix; two
+independent externals then re-verified all of it at 9.1/9.8 with zero blockers, and R3-01 was
+explicitly notes-mode from both. **ADR-028 is ACCEPTED.** Full round-3 trace:
+`.local-artifacts/external-audit/runs/20260711T054500Z-settings-round3-external-audit-report.md`
+(raw: `.local-artifacts/external-audit/offloads/20260711T054500Z/`).

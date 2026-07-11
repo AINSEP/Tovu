@@ -40,7 +40,7 @@ starting point.**
 **Sections needing this treatment (each → competitor study → debate → audit → ADR → spec):**
 
 > **Status legend:** ✅ decided (ADR exists) · 🟡 in progress · ⬜ open (needs the full cycle).
-> **Progress:** 5 decided (Media → ADR-027 ACCEPTED 2026-07-09), 3 in progress (Storage, Forms, Settings — debated, awaiting audit→ADR), 10 open. Next ADR candidates called out below.
+> **Progress:** 6 decided (Media → ADR-027, Settings → ADR-028, both ACCEPTED), 2 in progress (Storage, Forms — debated, awaiting audit→ADR), 10 open. Next ADR candidates called out below.
 
 - 🟡 **Database → "Storage"** — **DEBATE DONE 2026-07-09** (3-round swarm; report
   `reports/swarm-consensus/runs/20260709-storage-database-surface-consensus-report.md`). Decision locked
@@ -75,18 +75,20 @@ starting point.**
   **← owner named this next after Database** (webhooks).
 - ⬜ **Backups** — backup/restore + export (UF-13 portability; pairs with `tovu build` export). NOTE: shares
   the one snapshot library with the Storage debate above — sequence it right after the Storage ADR.
-- 🟡 **Settings** — **DEBATE + DESIGN DONE 2026-07-09** (3-round swarm: Opus + Codex gpt-5.5 xhigh + Gemini 3.1 Pro/agy + Fable).
+- ✅ **Settings** — **DECIDED: ADR-028 ACCEPTED 2026-07-11.** (3-round swarm: Opus + Codex gpt-5.5 xhigh + Gemini 3.1 Pro/agy + Fable.) Screen still to build.
   R1–R2 position debate → consensus (~0.92) on a dedicated **"Layered Settings Ledger"** (own tables reusing ADR-022's
   chokepoint/revision discipline, NOT settings-as-entries — killed by the authz-collapse argument: `content.write` reaches
   agents, so settings-as-entries lets any agent flip site security). R3 concrete design (full DDL/resolver/ops) surfaced
   **8 issues** (2 multi-peer-confirmed: rename+retype-in-one-op; the composite user-FK can't be table-wide → split value
   tables). Reports: `reports/swarm-consensus/runs/20260709-settings-architecture-consensus-report.md` +
-  `…-settings-r3-design-report.md`. Round-1 external audit `TM-settings-001` **FAIL** (agy 4 / Codex 8.1 / Fable 8.2; 4
-  blockers) → **all fixes folded into `ADR-028-settings-layered-ledger.md` (status PROPOSED, 2026-07-09)**.
-  ⚠️ **STILL OWES ROUND-2 RE-AUDIT** — ADR-028 is NOT Accepted; the diff-only re-audit (same `TM-settings-001`, Prior-Round
-  Disposition Ledger, Codex + agy + fresh Fable) is pending. On PASS (no unresolved blocker AND scores ≥8.5) → ACCEPTED.
-  Handoff with the exact re-audit plan: `.local-artifacts/handoff/20260710T042154Z-handoff.md`.
+  `…-settings-r3-design-report.md`. **Audit history (`TM-settings-001`, all in `ADR-028-settings-layered-ledger.md`,
+  status ACCEPTED 2026-07-11):** R1 **FAIL** (agy 4 / Codex 8.1 / Fable 8.2; 4 blockers) → fixes folded · R2 **FAIL** 2026-07-11
+  (internal 8.0 / Codex 8.4 / agy 9.5; `settings.write` reconciliation gap + 4 completeness gaps) → fixes folded ·
+  **R3 PASS 2026-07-11 (agy 9.8 / Codex 9.1; 0 blockers; all round-2 items reverified resolved; one LOW notes-mode R3-01
+  folded into §7)** → Coordinator closed without a 3rd internal round (2 clean externals + round-2 internal drove the fixes)
+  → **ACCEPTED**. Round-3 report: `.local-artifacts/external-audit/runs/20260711T054500Z-settings-round3-external-audit-report.md`.
   Core-only subset greenlit to spec independently of the plugin/secret gates. (`settings` lib, replaces WP options grab-bag)
+  **Next: build the Settings admin screen + write the core-only SPEC.**
 
 > **Not on this list but the owner wants ADRs for them (2026-07-09):** **Accessibility** (a cross-cutting
 > baseline, currently only in §21/§20 backlog — candidate for its own ADR) and the **coverage/parity ADR +
