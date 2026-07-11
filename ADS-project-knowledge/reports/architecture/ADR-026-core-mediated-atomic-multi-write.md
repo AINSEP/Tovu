@@ -7,8 +7,11 @@
   (explicitly requested to check the two prior externals' work rather than trust a clean unanimous PASS
   at face value), which found 2 further genuine gaps neither Codex nor agy caught across 3 rounds:
   unspecified/unsafe comparison-guard evaluation semantics for `money-decimal` (F1) and an unscoped/
-  contradictory guard-target namespace rule (F2). Both fixed inline; a narrow **round-4 diff-only
-  re-audit** is owed before ACCEPTED again). **Amends ADR-024 §3** and **ADR-023 §7**.
+  contradictory guard-target namespace rule (F2). Both fixed → **round-4 diff-only re-audit FAIL**
+  (agy 10.0/PASS/0 findings; Codex 8.0/FAIL — found the same gap shape as F1 recurring for ISO-8601
+  date ordered-comparisons, no fixed-width canonical form guaranteeing lexicographic order = chronological
+  order). Fixed inline; a narrow **round-5 diff-only re-audit** is owed before ACCEPTED). **Amends
+  ADR-024 §3** and **ADR-023 §7**.
 - Author: Leon Aburime / Coordinator (Claude Sonnet 5 Primary) with debate peers Codex `gpt-5.5`,
   Gemini 3.1 Pro (`agy`); original `/cowork` probe with Opus 4.8/Fable/Codex/agy
 - Extends / amends: **ADR-024** (§3 transport-agnostic frozen ABI), **ADR-023** (§7 typed core-owned writes)
@@ -118,7 +121,18 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
    list.** The spike showed a `Date` is structured-clone-safe yet rejected at the SQLite bind step, and
    the debate concluded "pin string/number/boolean/null" is necessary but not sufficient for a commerce
    plugin ecosystem specifically:
-   - Dates cross the ABI as **ISO-8601 UTC strings**, never a raw `Date` object.
+   - Dates cross the ABI as **ISO-8601 UTC strings**, never a raw `Date` object. **The canonical form is
+     frozen fixed-width (round-4 audit fix, Codex, same gap shape as F1 recurring for dates):**
+     `YYYY-MM-DDTHH:mm:ss.sssZ` — always millisecond precision, always the literal `Z` suffix, never a
+     numeric timezone offset or a variable number of fractional-second digits. Under this exact
+     fixed-width canonical form (and only under it), plain lexicographic string comparison is guaranteed
+     to equal chronological order, so ordered-comparison guards (`lt`/`lte`/`gt`/`gte`) on date fields
+     MAY be evaluated as plain string comparison — unlike `money-decimal` (Decision item below), where
+     variable integer-part length makes lexicographic order unsafe and fixed-point parsing is required
+     instead. Core validation rejects any date string that isn't in this exact canonical form (a
+     differently-formatted-but-otherwise-valid ISO-8601 string is a validation failure, not a silently
+     accepted alternate representation) — this is what makes the lexicographic-comparison shortcut safe
+     rather than an assumption.
    - **Money and exact-decimal fields have exactly one declared representation each — never a choice
      (round-1 audit fix, converged finding: Codex #2 + agy #2).** A field's manifest schema declares it
      as `type: "money-int"` (minor-unit integer, e.g. cents) or `type: "money-decimal"` (canonical,
@@ -215,11 +229,11 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
   between the two debate peers, and not blocking.
 - **Interaction with ADR-023 §10 transform DSL + backfill jobs** — the command/envelope primitive is the
   runtime write path; the DSL is the migration path; keep them distinct.
-- **This design is PROPOSED again, reopened from ACCEPTED** — an independent Fable-model verification
-  pass, requested specifically to check the 3-round external audit rather than trust a unanimous PASS at
-  face value, found 2 further genuine gaps (comparison-guard evaluation semantics for `money-decimal`;
-  unscoped/contradictory guard-target namespace). Both fixed inline; a **round-4 diff-only re-audit**
-  (`TM-adr026-atomic-write-001`) is owed before ACCEPTED again.
+- **This design is PROPOSED, reopened twice now** — an independent Fable-model verification pass found
+  2 gaps (F1/F2) the 3-round external audit missed; round 4's re-audit then found the same gap shape as
+  F1 recurring for date fields (no fixed-width canonical form, so ordered-comparison semantics were
+  unspecified). All three fixed inline; a **round-5 diff-only re-audit** (`TM-adr026-atomic-write-001`)
+  is owed before ACCEPTED again.
 - Depends on ADR-023 (now **ACCEPTED** 2026-07-11 — see ADR-023's own round-3 audit closure).
 
 ## Debate + Audit record
@@ -375,9 +389,34 @@ every other invariant held — including independently re-deriving that the Coor
 disagreement (keeping the `coordinated` scope discriminant as designed) was defensible, without being
 shown the prior reasoning.
 
-**Status reopened to PROPOSED.** A narrow **round-4 diff-only re-audit** (`TM-adr026-atomic-write-001`,
-scoped to F1 and F2 only, everything else settled) is owed before ACCEPTED again. No finding across any
-of the 4 rounds (3 external + 1 independent-verification) has disputed the architecture's core shape —
-named-command surface, core-owned compiled IR, chokepoint preservation, reads-are-advisory correctness
-rule — only its precision on operand bounds, scalar representation (now including comparison semantics
-and storage affinity), guard coverage, and namespace enforcement (now including guard targets).
+**Round-4 diff-only re-audit** (`TM-adr026-atomic-write-001`, scoped to F1/F2 plus one requested fresh
+sweep for the same gap shape recurring elsewhere), run 2026-07-11, **returned FAIL**: agy/Gemini 3.1 Pro
+(High) **10.0** (0 findings — F1 and F2 both independently verified fixed, fresh sweep found nothing
+further), Codex `gpt-5.5` **8.0** (F1 and F2 both verified fixed, but the requested fresh sweep found
+**one new recurrence of the exact same gap shape**: ordered-comparison guards (`lt`/`lte`/`gt`/`gte`) on
+ISO-8601 date fields had no specified evaluation semantics either — the ADR never froze a fixed-width
+canonical date form, so a natural lexicographic-string-comparison implementation is only safe under an
+assumption the text never actually guaranteed). This is the *fourth* instance of the same underlying
+defect class surfacing across this ADR's audit history (round 1: mutation arithmetic; round 2:
+invocation-time representation checks; Fable's F1: comparison guards on money-decimal; round 4: the same
+comparison-guard gap recurring for dates) — evidence that "unspecified scalar evaluation/storage
+semantics" was a systemic blind spot in how this ADR's scalar vocabulary section was drafted, not a
+one-off. Fixed inline (§5): the date canonical form is now frozen fixed-width
+(`YYYY-MM-DDTHH:mm:ss.sssZ`, always millisecond precision, always literal `Z`), with an explicit
+statement that only under this exact fixed-width form is lexicographic order guaranteed to equal
+chronological order — and that core validation rejects any differently-formatted-but-valid ISO-8601
+string rather than silently accepting it, which is what makes the comparison shortcut sound rather than
+assumed. Before dispatching round 5, the Coordinator also self-swept every other scalar kind (plain
+`number`, generic `string`, `boolean`, `null`, `money-int`) for the same gap shape and found none —
+`money-int` is BigInt-safe by construction, plain `number`/`string`/`boolean` have no representation-
+vs-order mismatch to begin with. Full round-4 trace:
+`.local-artifacts/external-audit/runs/20260711T180000Z-external-audit-report.md`,
+offloads `.local-artifacts/external-audit/offloads/20260711T180000Z/`.
+
+**Status remains PROPOSED (reopened, now on its 5th audit round total).** A narrow **round-5 diff-only
+re-audit** (`TM-adr026-atomic-write-001`, scoped to the date-canonical-form fix, plus a final fresh-sweep
+request) is owed before ACCEPTED again. No finding across any round — 3 external, 1 independent Fable
+verification, 1 more external — has disputed the architecture's core shape: named-command surface,
+core-owned compiled IR, chokepoint preservation, reads-are-advisory correctness rule. Every finding has
+been precision/completeness gaps in operand bounds, scalar representation and evaluation semantics, guard
+coverage, and namespace enforcement — real, but narrowing in scope each round.
