@@ -1,31 +1,29 @@
 # ADR-026: Core-Mediated Atomic Multi-Write Primitive for Plugin Data
 
-- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 11th completed
-  `/audit-work` round under `TM-adr026-atomic-write-001`**, per **standing hard rule** (not a soft
-  preference) to always use broad/full-pass, 3-auditor audits, never narrow diff-only. Briefly ACCEPTED
-  after round 3, reopened by an independent Fable pass + rounds 4/5, closed structurally in round 5.
-  Rounds 6-8 found and fixed 4 further gaps in the numeric/money corner. Round 9 (first with 3-auditor
-  coverage: Codex + agy + Fable) found 5 more (generic-number integer requirement, intra-batch guard
-  ordering, date calendar validity, money-decimal min scale, money-int wording), all fixed. Round 10
-  (agreed exit condition: clean or advisory-only across all 3 = ACCEPTED) returned Codex 9.6 PASS
-  (1 advisory), agy 10.0 PASS (zero findings), and Fable 8.6 FAIL — one real blocker: the
-  `p_{pluginId}__{tableName}` namespace encoding was not injective, letting plugin `shop` alias into
-  `shop__eu`'s tables via a table literally named `eu__orders`, breaking the core cross-plugin isolation
-  guarantee — plus 3 low advisories (coordinated-scope rejection checkpoint unstated,
-  `expectedVersion`'s operand kind unspecified, column affinity unstated for date/number/boolean). All
-  5 fixed — but the fix was itself incomplete. **Round 11 (same agreed exit condition, not met) returned
-  Codex 6.8 FAIL and Fable 7.0 FAIL — two independent auditors found two different, non-overlapping
-  residual collisions in the exact namespace encoding round 10 just "fixed": Codex found a case-folding
-  collision (SQLite resolves table identifiers case-insensitively, so `Shop` and `shop` still collide
-  under a delimiter-only ban); Fable found a boundary-underscore-merge collision (`acme_`+`inventory` and
-  `acme`+`_inventory` both compile to `p_acme___inventory`) — plus Codex found generic `string`/`null`
-  column affinity still unstated, and agy (10.0→9.8, PASS, advisory-only) independently corroborated the
-  string-affinity gap at advisory severity while missing both real collisions, the same pattern as round
-  10.** All findings fixed by closing the namespace-encoding defect class structurally (a restricted
-  lowercase-alphanumeric-plus-hyphen grammar with no underscore permitted in either component, replacing
-  the round-10 delimiter-ban-only rule) rather than patching each newly-demonstrated collision pattern —
-  see "Debate + Audit record" for the full history. **Round-12 full-pass re-audit** owed before ACCEPTED,
-  same 3-auditor + agreed exit condition). **Amends ADR-024 §3** and **ADR-023 §7**.
+- Status: **ACCEPTED** 2026-07-11 (redesigned from a 2-round formal `/debate`; cleared **12 rounds** of
+  `/audit-work` under `TM-adr026-atomic-write-001`, per **standing hard rule** (not a soft preference) to
+  always use broad/full-pass, 3-auditor audits, never narrow diff-only, plus the **agreed exit
+  condition** established after round 9 — a round returning clean or advisory-only across all 3 auditors
+  closes the loop. Briefly ACCEPTED after round 3, reopened by an independent Fable pass + rounds 4/5,
+  closed structurally in round 5. Rounds 6-8 found and fixed 4 further gaps in the numeric/money corner.
+  Round 9 (first with 3-auditor coverage) found 5 more, all fixed. Round 10 found the
+  `p_{pluginId}__{tableName}` namespace encoding was not injective (a genuine cross-plugin isolation
+  bypass) — fixed with a delimiter-ban rule that round 11 then found was itself incomplete (Codex found a
+  case-folding collision; Fable independently found a boundary-underscore-merge collision) — fixed
+  structurally with a restricted lowercase-alphanumeric-plus-hyphen grammar (no underscore permitted in
+  either component), replacing the delimiter-ban patch. **Round 12 met the exit condition: Codex 9.1 PASS
+  (4 advisories), agy 10.0 PASS (zero findings), Fable 9.4 PASS (4 advisories) — zero blockers from any
+  auditor, the first unanimous zero-blocker round since round 3 (itself later reopened).** The
+  namespace-injectivity invariant — the single highest-suspicion area entering round 12 after being found
+  broken in both of the prior two rounds — survived independent from-scratch falsification attempts by
+  both Codex and Fable across cross-checked attack families (case-folding, boundary-underscore merges,
+  hyphen-boundary effects, Unicode normalization, empty components, SQLite identifier-quoting/DQS
+  behavior, identifier truncation, prefix-subsumption) with zero collisions found by either. All 5
+  corroborated round-12 advisories folded (mandatory SQLite identifier quoting given the grammar admits
+  hyphens; an ADR-023 pluginId-charset alignment note; a core-defined identifier length bound; explicit
+  `null`-guard lowering via `isNull` rather than `eq`/`ne`/`in` with a null operand; generic-`number`
+  affinity pinned to `REAL` rather than left as `REAL`-or-`INTEGER`). See "Debate + Audit record" for the
+  full 12-round history. **Amends ADR-024 §3** and **ADR-023 §7**.
 - Author: Leon Aburime / Coordinator (Claude Sonnet 5 Primary) with debate peers Codex `gpt-5.5`,
   Gemini 3.1 Pro (`agy`); original `/cowork` probe with Opus 4.8/Fable/Codex/agy
 - Extends / amends: **ADR-024** (§3 transport-agnostic frozen ABI), **ADR-023** (§7 typed core-owned writes)
@@ -181,7 +179,13 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      `exists`/`notExists`, and bounded comparison predicates (`eq`/`ne`/`lt`/`lte`/`gt`/`gte`/`in`/
      `isNull`) evaluated against **live row state inside the same transaction** as the write (this is a
      read-modify-write done atomically within one SQLite transaction, not a read-outside/write-inside
-     pattern). **`expectedVersion`'s operand kind is normative (round-10 audit fix, Fable's r10-L2
+     pattern). **A `null` operand for `eq`/`ne`/`in` is out-of-grammar, rejected at registration
+     (round-12 audit fix, Codex's r12-A3 finding):** SQL's three-valued NULL comparison semantics mean
+     `= NULL` never evaluates true even when the column is actually `NULL`, so a naively-lowered
+     `eq: null` guard would silently never match and never fail loudly — the exact "unspecified
+     evaluation semantics" trap the closed-vocabulary rule exists to close. A `null`-valued comparison
+     MUST be expressed via `isNull`, never `eq`/`ne`/`in` with a `null` operand. **`expectedVersion`'s
+     operand kind is normative (round-10 audit fix, Fable's r10-L2
      finding):** unlike every other guard predicate, `expectedVersion` was not tied to a declared field
      kind in the closed scalar vocabulary — the one guard operand the closed-vocabulary rule's own
      enumeration didn't formally reach, the same recurring "a scalar the vocabulary rule doesn't reach"
@@ -364,9 +368,11 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      remaining kinds were left to implementation discretion, an unclosed representation-ambiguity gap of
      the same class this ADR exists to prevent. Date fields compile to a **TEXT-affinity** column
      (dates cross the ABI and store as the frozen canonical string, never a numeric encoding). Generic
-     `number` fields compile to a **REAL or INTEGER-affinity** column, never TEXT — the safe-integer
-     restriction on relative mutation (above) already guarantees exactness within SQLite's native numeric
-     storage, so no fixed-point/string workaround is needed here. `boolean` fields compile to an
+     `number` fields compile to a **REAL-affinity** column, never TEXT or INTEGER (round-12 audit fix,
+     Fable's r12-A4 finding, pinning what round 10 originally left as an open "REAL or INTEGER" choice —
+     see below) — the safe-integer restriction on relative mutation (above) already guarantees exactness
+     within SQLite's native numeric storage, so no fixed-point/string workaround is needed here. `boolean`
+     fields compile to an
      **INTEGER-affinity** column using the canonical `0`/`1` encoding (SQLite has no native boolean
      type); core never stores or reads a `boolean` field as any other representation. **Round-10's
      affinity rule still omitted two scalar kinds (round-11 audit fix, Codex's r11-B2 finding,
@@ -375,7 +381,15 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      for strings (above) requires the stored bytes to round-trip exactly, which only TEXT affinity
      guarantees; a NUMERIC/REAL-affinity column would silently coerce a numeric-looking string literal
      (e.g. `"123"`) through SQLite's type-affinity conversion, breaking exact string-identity comparison.
-     **`null` is not itself a declarable field kind and has no independent column affinity:** every
+     **Generic `number` fields compile to `REAL` affinity specifically, not "REAL or INTEGER" (round-12
+     audit fix, Fable's r12-A4 finding):** leaving the choice open is the same "two conforming
+     implementations may observably diverge" gap shape this ADR's coordinated-scope checkpoint rule
+     already closes elsewhere (§6) — a raw Tier-3 read could observe a different underlying SQLite
+     storage class depending on which affinity an implementation picked. `REAL` is pinned as the single
+     required affinity: every value admissible under the safe-integer/finite/`-0`-excluded rules above
+     round-trips exactly through SQLite's `REAL` storage class, so pinning it costs nothing while
+     removing the divergence. **`null` is not itself a declarable field kind and has no independent
+     column affinity:** every
      field's declared kind (`money-int`, `money-decimal`, date, generic `string`, generic `number`,
      `boolean`) may independently permit a `NULL` value in its own column, governed by that field's own
      affinity above and checked via `isNull`-style guards; the closed-vocabulary enumeration lists
@@ -435,7 +449,27 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
    byte-equality), to the same physical table name — verifying only byte-level distinctness, as the
    round-10 fix implicitly did, is not sufficient. This closes the collision for both the mutation-scope
    rule above and the guard-target rule in §2 at once, since both rules derive from this same namespace
-   encoding.
+   encoding. **`pluginId` and `tableName` MUST additionally satisfy a core-defined maximum length limit
+   (round-12 audit fix, corroborated by Codex's r12-A4 and Fable's r12-A3 findings):** this is a
+   resource/cost-bound requirement, consistent with §2's existing operand-bound discipline applied
+   uniformly elsewhere — not an injectivity requirement, since SQLite does not truncate identifiers (a
+   future fix-by-truncation would itself re-break injectivity and MUST NOT be used to enforce this
+   bound; truncation-based enforcement is out-of-grammar, oversized input is rejected outright). **Every
+   compiled physical identifier MUST be emitted as a properly quoted SQLite identifier in all generated
+   SQL (round-12 audit fix, corroborated by Codex's r12-A1 and Fable's r12-A2 findings):** because the
+   grammar admits hyphens, a compiled name such as `p_acme-shop__orders` is not a valid unquoted SQLite
+   identifier — unquoted, it either fails to parse or, if SQLite's legacy double-quoted-string
+   misfeature is enabled, could silently resolve as a string literal in a context where the identifier
+   was expected. Implementations MUST quote every compiled physical identifier universally and SHOULD
+   build/configure SQLite with double-quoted-string literals disabled (`SQLITE_DQS=0`), so a missed
+   quote fails loudly rather than silently misresolving. **This ADR's grammar governs
+   command-registration-time enforcement; ADR-023's own `pluginId`-uniqueness rule should be read as
+   scoped to this same charset (round-12 audit fix, corroborated by Codex's r12-A2 and Fable's r12-A1
+   findings):** a `pluginId` admitted by ADR-023 outside this grammar would install successfully yet be
+   unable to register any command under this ADR — a confusing late failure, not an injectivity break
+   (the reject-don't-fold design here means two ADR-023-distinct plugin IDs are never merged together
+   regardless), but ADR-023's own text should state this same charset as its `pluginId` uniqueness
+   domain to avoid cross-document drift.
    **A registered `scope: "coordinated"` command is accepted at registration and rejected only at
    invocation (round-10 audit fix, Fable's r10-L1 finding):** this was previously unstated — either
    choice would have preserved the non-breaking-v2 invariant, but leaving the checkpoint unstated risked
@@ -497,15 +531,15 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
   between the two debate peers, and not blocking.
 - **Interaction with ADR-023 §10 transform DSL + backfill jobs** — the command/envelope primitive is the
   runtime write path; the DSL is the migration path; keep them distinct.
-- **This design is PROPOSED, 11 audit rounds completed** — see the Status line and "Debate + Audit
-  record" for the full history, including round 9's 5 fixes, round 10's 5 fixes (namespace-encoding
-  injectivity, coordinated-scope rejection checkpoint, `expectedVersion` operand kind, column affinity
-  for date/number/boolean, date year-domain convention), and round 11's 5 fixes (namespace encoding
-  closed structurally via a restricted lowercase-alphanumeric-plus-hyphen grammar rather than a
-  delimiter-ban patch, generic-string/`null` column affinity, `expectedVersion`'s per-table-family
-  counter source, `expectedVersion`-against-nonexistent-row semantics). A **round-12 full-pass re-audit**
-  (`TM-adr026-atomic-write-001`) is owed before ACCEPTED, same agreed exit condition (clean or
-  advisory-only across all 3 auditors).
+- **This design is ACCEPTED, 12 audit rounds completed** — see the Status line and "Debate + Audit
+  record" for the full history, including round 9's 5 fixes, round 10's 5 fixes, round 11's 5 fixes
+  (namespace encoding closed structurally via a restricted lowercase-alphanumeric-plus-hyphen grammar
+  rather than a delimiter-ban patch, generic-string/`null` column affinity, `expectedVersion`'s
+  per-table-family counter source and nonexistent-row semantics), and round 12's 5 folded advisories
+  (mandatory identifier quoting, ADR-023 charset alignment, identifier length bound, `null`-guard
+  lowering, generic-`number` affinity pinned to `REAL`). Round 12 met the agreed exit condition (clean or
+  advisory-only across all 3 auditors) with zero blockers from any of the 3 auditors — no further audit
+  round is owed under `TM-adr026-atomic-write-001` absent a future material change to this ADR's text.
 - Depends on ADR-023 (now **ACCEPTED** 2026-07-11 — see ADR-023's own round-3 audit closure).
 
 ## Debate + Audit record
@@ -1002,3 +1036,70 @@ round of instance-patching would repeat the same mistake this ADR's own scalar-v
 made once. A **round-12 full-pass re-audit** is owed before ACCEPTED, under the same agreed exit
 condition, with explicit focus on whether the new structural grammar actually closes the defect class
 this time rather than admitting a third residual family.
+
+**Round-12 full-pass re-audit** (`TM-adr026-atomic-write-001`, 3-auditor coverage continued, agreed exit
+condition in effect, explicit instruction to actively hunt for a residual namespace collision rather than
+assume the round-11 structural grammar is correct because it looks principled), run 2026-07-11,
+**returned Codex 9.1 PASS, agy 10.0 PASS, Fable 9.4 PASS — exit condition met, zero blockers from any
+auditor**:
+
+- **Codex `gpt-5.5` 9.1, PASS, 4 advisories:** ran its own full-document pass plus internal sidecar
+  checks (disclosed transparently in its scope-check output as inherited-model helpers, not claiming to
+  be the external agy/Fable identities), including direct SQLite probes of identifier quoting and
+  case-fold behavior. Retried every prior collision family (embedded-`__`, boundary-underscore-merge,
+  case-folding) against the round-11 grammar and confirmed all three are now rejected outright, plus
+  tested empty/hyphen edge cases and Unicode normalization — found no collision. 4 advisories, none
+  blocking: `codex-r12-A1` (hyphen-admitting grammar needs a normative quoting requirement — the exact
+  gap this round's fix closes), `codex-r12-A2` (ADR-023's `pluginId` charset should mirror this grammar
+  to avoid cross-document drift), `codex-r12-A3` (`null`-valued `eq`/`ne`/`in` guard lowering needs
+  explicit semantics given SQL's three-valued NULL comparison), `codex-r12-A4` (no core-defined identifier
+  length bound, inconsistent with this ADR's own bounded-cost discipline applied everywhere else).
+- **agy/Gemini 3.1 Pro (High) 10.0, PASS, zero findings:** verified all 7 round-11 ledger items as
+  correctly fixed, including an explicit structural argument for injectivity (exactly three underscores
+  in any compiled name under the no-underscore-in-components grammar, making the delimiter position
+  unique) and confirmation that SQLite's case-insensitive identifier resolution is a no-op against an
+  all-lowercase-admissible grammar.
+- **Fable (independent subagent, no author rationale, falsification framing, explicitly instructed to
+  hunt for a fresh collision rather than confirm the fix) 9.4, PASS, 4 advisories:** ran the most
+  exhaustive verification of this ADR's history on the namespace question — nine distinct attack families
+  attempted against the round-11 grammar (a from-scratch underscore-position injectivity derivation;
+  hyphen-boundary merge attempts; SQLite's actual ASCII-only case-fold semantics, ruled out via
+  `sqlite3StrICmp` behavior rather than assumption; Unicode confusables/normalization; empty-component
+  edge cases; a prefix-subsumption attack against the scope-check mechanism itself, not just name
+  collision; SQLite identifier quoting/escaping and the legacy double-quoted-string misfeature;
+  identifier truncation, contrasted explicitly with Postgres's 63-byte silent truncation which *would*
+  break injectivity; and the ADR-023 `pluginId`-charset interaction) — found no collision after genuinely
+  trying all nine, the first time in three rounds this specific claim survives an exhaustive from-scratch
+  falsification rather than a plausibility read. 4 advisories, 3 overlapping with Codex's independently:
+  `fable-r12-A1` (ADR-023 charset-mirroring, same as `codex-r12-A2`), `fable-r12-A2` (mandatory quoting +
+  DQS-disable recommendation, same as `codex-r12-A1`), `fable-r12-A3` (identifier length bound, same as
+  `codex-r12-A4`), `fable-r12-A4` (generic-`number`'s "REAL or INTEGER" affinity choice left open is the
+  same observable-divergence gap shape the coordinated-scope checkpoint rule already closes elsewhere —
+  not found by Codex).
+
+**Two independent auditors converging on zero collisions after genuinely adversarial, from-scratch
+attempts — rather than one auditor's clean pass being contradicted by another's real finding, the pattern
+in both of the prior two rounds — is the strongest evidence available that the round-11 structural fix
+actually closes the namespace-injectivity defect class.** All 5 distinct corroborated advisories folded in
+the same commit as this record, consistent with this ADR's standing batching discipline: mandatory SQLite
+identifier quoting given the grammar admits hyphens (`codex-r12-A1`/`fable-r12-A2`); an ADR-023
+`pluginId`-charset alignment note (`codex-r12-A2`/`fable-r12-A1`); a core-defined identifier length bound,
+explicitly barring truncation as an enforcement mechanism since truncation would itself re-break
+injectivity (`codex-r12-A4`/`fable-r12-A3`); explicit `null`-guard lowering via `isNull` rather than
+`eq`/`ne`/`in` with a null operand (`codex-r12-A3`); and generic-`number` affinity pinned to `REAL`
+rather than left as an implementation choice (`fable-r12-A4`). Full round-12 trace: packet
+`.local-artifacts/external-audit/packets/20260711T220835Z-adr026-atomic-write-round12-audit-packet.md`,
+offloads `.local-artifacts/external-audit/offloads/20260711T220835Z/`.
+
+**Status: ACCEPTED, 12 audit rounds completed.** The agreed exit condition (clean or advisory-only across
+all 3 auditors) is met for the first time since round 3 — and unlike round 3, this closure survives an
+independent Fable pass explicitly tasked with trying to reopen it, rather than one dispatched only after
+the fact. No finding across any of the 12 rounds ultimately disputed this ADR's core architectural shape:
+named-command surface, core-owned compiled IR, chokepoint preservation, reads-are-advisory correctness
+rule. Every real finding across the 12-round history was a precision, boundary, or representation-
+ambiguity gap in the decided text, not a shape-level objection — the single most consequential of them
+(`fable-r10-B1`'s cross-plugin isolation bypass, reopened by round 11's finding that the first fix was
+itself incomplete) is now closed by a structural grammar rather than a case-by-case patch, matching how
+this ADR's earlier scalar-vocabulary defect class was closed in round 5 after 5 rounds of the same
+whack-a-mole pattern. No further audit round is owed under `TM-adr026-atomic-write-001` absent a future
+material change to this ADR's text.
