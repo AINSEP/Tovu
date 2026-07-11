@@ -1,6 +1,6 @@
 # ADR-038: `core/http` — HttpClientPort + structural SSRF EgressPolicy
 
-- Status: PROPOSED 2026-07-10 (from `/debate sweep-crosscutting-001`, 4-way consensus D3; round-2 re-audit `sweep-crosscutting-002` folded 2026-07-10 — see Round-2 amendments; owes the normal per-ADR audit before ACCEPTED)
+- Status: ACCEPTED 2026-07-10 (from `/debate sweep-crosscutting-001`, 4-way consensus D3; round-2 re-audit `sweep-crosscutting-002` folded 2026-07-10 — see Round-2 amendments; cleared `/audit-work` gate: 3-round audit under `TM-admin-sweep-001`, Codex + Gemini/agy + Fable internal verifier — this ADR's own text needed no fold across all 3 rounds, only its `src/http` implementation stub did (Codex AS-003, resolved); round 3 unanimous PASS, scores 9.1-10.0, zero blockers)
 - Extends: ADR-006 (rule-of-two), ADR-024 (§3 ABI; capability-mediated network), ADR-025 (egress lineage)
 - Relates: ADR-036 (Integrations webhooks — the first consumer, but not the owner), ADR-034 (Newsletter HTTP mailer), ADR-035 (Analytics ForwardingSink), ADR-027 §6 (MediaIngressPolicy — the ingress mirror)
 - Supersedes: `HttpClientPort` + `WebhookEgressPolicy` being declared inside `036-integrations-api`.

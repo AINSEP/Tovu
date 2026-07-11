@@ -1,6 +1,6 @@
 # ADR-033: Redirects — Tier-2 Rules Over Routing, Core-Owned Tables, Bounded Matching Seam, In-Transaction Auto-Redirect on Slug Change
 
-- Status: PROPOSED 2026-07-10 (autonomous Opus 4.8 sweep agent — design-only, no peer audit; owes debate+audit before ACCEPTED)
+- Status: ACCEPTED 2026-07-10 (autonomous Opus 4.8 sweep agent, design-only draft → cleared `/audit-work` gate: 3-round audit under `TM-admin-sweep-001`, Codex + Gemini/agy + Fable internal verifier; round 1 FAIL → Round-3 fold → round 2 FAIL (1 converged blocker) → Round-4 fold → round 3 unanimous PASS, scores 9.1-10.0, zero blockers)
 - Author: autonomous Opus 4.8 sweep agent
 - Extends: **ADR-022** (redirect rules reuse the content model's *discipline* — single write chokepoint + append-only revisions + ULIDs + bounded/total validation + CI canary — on **dedicated core-owned tables**, NOT on `entries`; consumes the content chokepoint's slug-change extension point), **ADR-027** (applies the media-sidecar precedent: high-write operational state that would violate the revision-per-write rule lives in a core-owned sidecar that *explicitly narrows* INV-3)
 - Relates: ADR-009 (typed calls for in-tx capture; outbox events for async hit counts; sync filter hook for resolution extensibility), ADR-021 (flat `redirects.*` permission strings + gated `redirects.use_regex`; composite workspace scoping), ADR-007 (`workspaceId` on every row + composite FKs), ADR-006 (`RedirectRepoPort` passes rule-of-two; matcher/hit-sink stay internal seams), ADR-015 (repo behind a port, in-memory + Drizzle/SQLite), ADR-012 (rows in the per-site `content.db`; redirect table travels with the install-dir), ADR-023 (own-tables lineage — but redirects is a **core library**, so it owns core tables directly, NOT via the plugin core-mediated path), ADR-028 (same "own tables reusing ADR-022 discipline" call as settings)
@@ -280,3 +280,12 @@ Folds `sweep-crosscutting-decisions-20260710.md` §C-033 + round-2. PROPOSED; ow
 - **Read-path open-redirect:** re-validate hook-supplied `location` against `core/origin` `isAllowedRedirectTarget` (ADR-040) on the **read** path — write-time-only today.
 - **Permission namespace:** `admin.redirects.manage`.
 - **Wave 2.**
+
+---
+
+## Round-3 audit fold (TM-admin-sweep-001, 2026-07-10)
+External audit found the read-path open-redirect check too narrow (misses interpolated dynamic targets — a live exploit path) and the write-path check still duplicating a pre-ADR-040 allowlist. Folded:
+
+1. **Read-path oracle covers the final resolved location (Gemini/agy — BLOCKER fix).** The prior Round-2 fold's read-path re-validation ("re-validate hook-supplied `location`") is corrected to: **every** emitted redirect location — including a `wildcard`/`regex` rule's **fully interpolated** target (post-capture-substitution), not just hook-supplied locations — MUST pass `core/origin` `isAllowedRedirectTarget` (ADR-040) immediately before the HTTP redirect is emitted. Write-time validation only sees the unexpanded template and cannot catch a capture group injecting `@`/`?`/`/` authority-mutating characters at request time; this closes that gap.
+2. **Write-path uses the same oracle (Fable F10).** §7's "host allowlist... enforced at the write chokepoint" is superseded: write-time validation of an absolute `toTarget` uses the identical `isAllowedRedirectTarget` (ADR-040) pipeline as the read path — one oracle, not a second per-module allowlist that can drift weaker.
+3. **Regex engine named (Fable F11).** §3's "linear-time / RE2 semantics... no backtracking engine" claim is a hard precondition, not an aspiration: `validatePattern()` REJECTS enabling `matchType:'regex'` (`redirects.use_regex`) unless a linear-time engine (an RE2-class native binding, not stock JS `RegExp`) is present. Absent that dependency, regex authoring stays off — the existing default-deny already makes this fail-closed; this amendment makes the *reason* explicit so "just support regex with careful patterns" doesn't quietly reopen the ReDoS surface.
