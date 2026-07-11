@@ -10,11 +10,11 @@
 | Field | Value |
 |-------|-------|
 | spec_id | SPEC-007 |
-| version | 0.1.0 |
+| version | 0.2.0 |
 | status | APPROVED |
-| content_hash | sha256:3ffb7aa77706b639a00c3b931eddb3f4968bc40203e10a3bf3035bfcecdc8bee |
+| content_hash | sha256:768c5eeb06b1fd41fd77ac677fb5fd8b2c80eb2ebe212e219f934baaa73f9bdd |
 | feature_name | FEAT-007-settings-core-ledger |
-| last_edited | 2026-07-11T16:55:07Z |
+| last_edited | 2026-07-11T19:10:00Z |
 | owner | Leon Aburime |
 | spec_agent | Spec Agent |
 | spec_mode | brownfield |
@@ -76,7 +76,9 @@ integration test. The active theme is served from `core.presentation.activeTheme
 4. **Alternate paths:** If the operator lacks the scope's write permission, the save control is
    disabled and a server write is rejected `FORBIDDEN`. If the value fails the definition schema, the
    field shows an inline `VALUE_VALIDATION_FAILED` error and nothing is written. If they write to a
-   scope the definition does not declare, the server rejects `SCOPE_NOT_ALLOWED`.
+   scope the definition does not declare, the server rejects `SCOPE_NOT_ALLOWED`. An operator holding
+   `settings.user.write` may first select a target principal in the screen; the `user`-scope edit then
+   applies to that principal's layer instead of the operator's own.
 
 Note: deterministic resolver precedence, rename/alias, retype ordering, reset semantics, and default
 totality are specified in `behavior.spec.md`.
@@ -145,8 +147,10 @@ totality are specified in `behavior.spec.md`.
 - REQ-10: The admin HTTP surface exposes register-definitions, get-effective, set, clear, and reset
   operations, each gated by the matching `settings.*` permission through `authorize()`.
 - REQ-11: The Settings admin screen lists definitions grouped by namespace, shows each setting's
-  effective value plus present per-layer values and default, and lets a permitted operator set or
-  clear a value at a scope and reset a namespace to defaults.
+  effective value plus present per-layer values and default, lets a permitted operator set or clear a
+  value at a scope and reset a namespace to defaults, and — for an operator holding
+  `settings.user.write` — offers a target-principal selector to set or clear another principal's
+  user-layer value.
 - REQ-12: Effective reads are served from a per-layer cache invalidated one key at a time on write;
   the definition cache is workspace-qualified so site-owned definitions never leak across workspaces.
 
@@ -200,6 +204,12 @@ totality are specified in `behavior.spec.md`.
   workspace's definition cache entry is read, then it never returns the other workspace's definition.
 - AC-21 (REQ-03) [P1]: Given a value stored under a stale `def_version`, when `getEffective` is called,
   then the value is coerced in memory to the current version and returned, with no write-back.
+- AC-22 (REQ-11) [P2]: Given an operator holding `settings.user.write`, when they select another
+  principal in the Settings screen and set that principal's user-layer value, then the value is
+  written to that principal's user layer and a revision is recorded.
+- AC-23 (REQ-11) [P1]: Given an operator without `settings.user.write`, when they open the Settings
+  screen, then no target-principal selector is offered, and a direct write attempt to another
+  principal's user layer is rejected `FORBIDDEN`.
 
 ---
 
@@ -270,11 +280,16 @@ totality are specified in `behavior.spec.md`.
 
 ## Open Questions
 
-- OQ-01: Should the Settings screen expose the revision history (per-setting audit view) in this
-  iteration, or defer it to a later pass? — Owner: Leon Aburime — Resolve by: 2026-07-25
-- OQ-02: For `settings.user.write` (writing another principal's user layer), does the core-only subset
-  ship an admin UI affordance, or is it API-only until a later pass? — Owner: Leon Aburime — Resolve
-  by: 2026-07-25
+- OQ-01 — **RESOLVED 2026-07-11** (Coordinator `/clarify` pass): Should the Settings screen expose the
+  revision history (per-setting audit view) in this iteration, or defer it to a later pass? —
+  **Decision: Defer.** v1 ships set/clear/reset only; `setting_revisions` rows are still written on
+  every change (REQ-04, INV-01) — a later spec adds the audit-view screen against that existing data.
+  No REQ/AC change required. — Owner: Leon Aburime.
+- OQ-02 — **RESOLVED 2026-07-11** (Coordinator `/clarify` pass): For `settings.user.write` (writing
+  another principal's user layer), does the core-only subset ship an admin UI affordance, or is it
+  API-only until a later pass? — **Decision: Ship a UI affordance now.** REQ-11 and AC-22/AC-23 add a
+  target-principal selector gated by `settings.user.write`; see `ui.spec.md` `PrincipalSelector`. —
+  Owner: Leon Aburime.
 
 ---
 

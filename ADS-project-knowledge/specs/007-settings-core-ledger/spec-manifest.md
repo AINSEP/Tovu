@@ -10,8 +10,8 @@
 |-------|-------|
 | spec_id | SPEC-007 |
 | feature_name | FEAT-007-settings-core-ledger |
-| version | 0.1.0 |
-| last_edited | 2026-07-11T16:55:07Z |
+| version | 0.2.0 |
+| last_edited | 2026-07-11T19:10:00Z |
 | spec_naming | standard |
 | spec_root | ADS-project-knowledge/specs/007-settings-core-ledger |
 | spec_entrypoint | feature.spec.md |
@@ -70,9 +70,12 @@ presentation settings port into the general ledger. Concrete touchpoints:
 
 ## Validation Notes
 
-- Validator last run: 2026-07-11 (spec phase, `--update-hash`)
+- Validator last run: 2026-07-11 (spec phase, `--update-hash`, post-clarify)
 - Validator result: PASS
 - Validator manual waiver: N/A
 - Canonical hash verified at: 2026-07-11 (provider-local validator)
-- Notes: v0.1.0 initial Spec Agent package for the ADR-028 core-only subset. Ready for `/clarify` and
-  Red-Team; plugin-owned settings and the secret path remain out of scope by ADR gates.
+- Notes: v0.1.0 initial Spec Agent package for the ADR-028 core-only subset. v0.2.0 resolves OQ-01
+  (defer revision-history screen, no scope change) and OQ-02 (ship the `PrincipalSelector`
+  target-principal affordance now — REQ-11, AC-22, AC-23) via Coordinator `/clarify`. Ready for
+  Coordinator Planning Preflight and Red-Team; plugin-owned settings and the secret path remain out of
+  scope by ADR gates.

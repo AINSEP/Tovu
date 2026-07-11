@@ -10,9 +10,9 @@
 |-------|-------|
 | spec_id | SPEC-007 |
 | feature_name | FEAT-007-settings-core-ledger |
-| version | 0.1.0 |
+| version | 0.2.0 |
 | content_hash | anchored in feature.spec.md |
-| last_edited | 2026-07-11T16:55:07Z |
+| last_edited | 2026-07-11T19:10:00Z |
 | traceability_status | PENDING IMPLEMENTATION |
 
 **Purpose:** Traces every REQ/AC/INV/EC and error code from the package to its implementation and
@@ -54,6 +54,8 @@ test. At spec stage all impl/test cells are "pending" (TDD has not run).
 | REQ-11 | Settings admin screen | — | pending | pending | pending | pending | PENDING |
 | AC-17 (REQ-11) | Screen shows effective + per-layer + default | P1 | pending | pending | pending | pending | PENDING |
 | AC-18 (REQ-11) | Save shows new effective + records revision | P2 | pending | pending | pending | pending | PENDING |
+| AC-22 (REQ-11) | user.write holder sets another principal's user layer | P2 | pending | pending | pending | pending | PENDING |
+| AC-23 (REQ-11) | No user.write → no selector; direct write FORBIDDEN | P1 | pending | pending | pending | pending | PENDING |
 | REQ-12 | Per-layer cache + workspace-qualified def cache | — | pending | pending | pending | pending | PENDING |
 | AC-19 (REQ-12) | Global write invalidates one key, no fan-out | P2 | pending | pending | pending | pending | PENDING |
 | AC-20 (REQ-12) | Def cache never leaks across workspaces | P2 | pending | pending | pending | pending | PENDING |
@@ -184,7 +186,7 @@ test. At spec stage all impl/test cells are "pending" (TDD has not run).
 
 | Role | Name / Agent | Date (ISO-8601) | Notes |
 |------|--------------|-----------------|-------|
-| Spec Agent | Spec Agent | 2026-07-11 | Rows seeded from feature.spec.md v0.1.0; impl/test pending TDD |
+| Spec Agent | Spec Agent | 2026-07-11 | Rows seeded from feature.spec.md v0.1.0; AC-22/AC-23 added in v0.2.0 `/clarify` pass; impl/test pending TDD |
 | TDD Agent | | | |
 | Programmer Agent | | | |
 | Code Review Agent | | | |
