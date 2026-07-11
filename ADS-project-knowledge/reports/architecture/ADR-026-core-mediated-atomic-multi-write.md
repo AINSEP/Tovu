@@ -1,21 +1,21 @@
 # ADR-026: Core-Mediated Atomic Multi-Write Primitive for Plugin Data
 
-- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 8th completed
+- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 9th completed
   `/audit-work` round under `TM-adr026-atomic-write-001`**, per **standing hard rule** (not a soft
-  preference) to always use broad/full-pass audits, never narrow diff-only, after rounds 1-5's narrow
-  scoping caused repeated same-class misses. Briefly ACCEPTED after round 3, reopened by an independent
-  Fable pass + rounds 4/5 (recurring "unspecified scalar evaluation/storage semantics" — money-decimal,
-  dates, strings), closed structurally in round 5 with a closed-vocabulary rule. Round 6 (full-pass)
-  found the closed-vocabulary rule itself had 3 bugs, all fixed. Round 7 (full-pass) found the
-  generic-`number` fix still had 2 gaps (execution-time checkpoint missing; `-0` not excluded), both
-  fixed. A pre-round-8 Coordinator self-review (no external tokens) found 2 more instances of the same
-  defect shape (`money-int`'s wire representation never specified; `money-decimal`'s canonical form
-  never defined), both fixed. **Round 8 (full-pass, dispatched as a confirmation pass) returned agy 10.0
-  PASS (zero findings, all 7 prior fixes verified) and Codex 8.0 FAIL (1 blocker): the execution-time
-  result-validation checkpoint added in round 7 was scoped to generic `number` only — money relative
-  mutations have the identical live-row-unknown-until-execution problem and needed the same fix.** Fixed
-  — see "Debate + Audit record" for the full history. **Round-9 full-pass re-audit** owed before
-  ACCEPTED). **Amends ADR-024 §3** and **ADR-023 §7**.
+  preference) to always use broad/full-pass audits, never narrow diff-only. Briefly ACCEPTED after
+  round 3, reopened by an independent Fable pass + rounds 4/5, closed structurally in round 5 with a
+  closed-vocabulary rule. Round 6 found the closed-vocabulary rule itself had 3 bugs, all fixed. Round 7
+  found the generic-`number` fix still had 2 gaps, both fixed. A pre-round-8 self-review found 2 more
+  instances of the same defect shape, both fixed. Round 8 found the execution-time checkpoint was scoped
+  to generic `number` only, not money types — fixed. **Round 9 added a third independent auditor (a
+  Fable subagent, alongside Codex + agy) and returned agy 10.0 PASS (zero findings) plus 5 real findings
+  across the other two: Codex 7.0 FAIL (generic `number` allowed precision-losing fractional relative
+  mutations near its safe-integer bound; intra-batch guard-evaluation ordering was never made
+  normative, risking a stale-guard race within one transaction) and Fable 8.2 FAIL (the date canonical
+  form specified shape only, not calendar validity, admitting `T24:00:00.000Z` which aliases the next
+  day's `T00:00:00.000Z`; plus 2 low-severity notes on `money-decimal` scale-0 and `money-int` wording).**
+  All 5 fixed — see "Debate + Audit record" for the full history. **Round-10 full-pass re-audit** owed
+  before ACCEPTED). **Amends ADR-024 §3** and **ADR-023 §7**.
 - Author: Leon Aburime / Coordinator (Claude Sonnet 5 Primary) with debate peers Codex `gpt-5.5`,
   Gemini 3.1 Pro (`agy`); original `/cowork` probe with Opus 4.8/Fable/Codex/agy
 - Extends / amends: **ADR-024** (§3 transport-agnostic frozen ABI), **ADR-023** (§7 typed core-owned writes)
@@ -87,7 +87,10 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      baseline explicit and separate from the ordered-comparison/relative-mutation enumeration below.)
 
      The closed enumeration below covers ONLY ordered comparison and relative mutation:
-     - `money-int`: both use native BigInt-safe integer semantics (safe by construction).
+     - `money-int`: both use native BigInt-safe integer semantics — arithmetically exact by
+       construction (round-9 audit fix, Fable's r9-L2 finding: the prior "safe by construction"
+       phrasing read as if it exempted `money-int` from any further check; it does not — result
+       bounds remain subject to the execution-time checkpoint below, same as every other kind).
      - `money-decimal`: both use BigInt-safe fixed-point arithmetic at the field's declared scale (never
        string collation, never `Number` parsing — see below); storage is TEXT-affinity.
      - Date (ISO-8601, fixed-width canonical form): ordered comparison only (relative mutation on dates
@@ -125,7 +128,23 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
        on round-trip — a silent representation collision for an accepted value, the exact class of bug
        this vocabulary exists to prevent. Core rejects any supplied or computed generic-`number` value
        for which `Object.is(value, -0)` is true, at registration, invocation, and the execution-time
-       mutation-result checkpoint alike — never silently canonicalized to `0`.
+       mutation-result checkpoint alike — never silently canonicalized to `0`. **Relative mutation on
+       generic `number` is restricted to safe-integer arithmetic only (round-9 audit fix, Codex's
+       r9-B1 finding):** the safe-integer *range* bound above does not by itself require the value to
+       *be* an integer — a fractional operand (e.g. `increment: 0.1`) is still "within range" and
+       "finite," but IEEE-754 double precision loses granularity as magnitude approaches
+       `Number.MAX_SAFE_INTEGER` (the gap between adjacent representable doubles grows past 1 near that
+       bound), so a fractional increment applied to a live value near that bound can silently round to
+       no observable change at all — a committed write that had no actual effect, passing every stated
+       finiteness/range/`-0` check. `set`/`eq`/`ne`/`in`/`isNull` remain usable with any finite in-range
+       value, fractional or not (they do no arithmetic, so no precision risk exists). But `increment`/
+       `decrement` on generic `number` additionally requires the supplied operand, the live current
+       value read from the row, and the computed result to each satisfy `Number.isSafeInteger` — at
+       registration (operand, where statically known), invocation (operand), and the execution-time
+       checkpoint (live current value and computed result) — rejecting the whole batch if any of the
+       three is a safe-integer-range value that is not itself an integer. Authors needing fractional
+       relative mutation should use `money-decimal`'s fixed-point arithmetic, which has no such
+       precision boundary within its declared scale.
 
      **The execution-time result checkpoint generalizes to every scalar kind with relative mutation,
      not generic `number` alone (round-8 audit fix, Codex's r8-B1 finding):** `money-int` and
@@ -152,7 +171,18 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      `exists`/`notExists`, and bounded comparison predicates (`eq`/`ne`/`lt`/`lte`/`gt`/`gte`/`in`/
      `isNull`) evaluated against **live row state inside the same transaction** as the write (this is a
      read-modify-write done atomically within one SQLite transaction, not a read-outside/write-inside
-     pattern).
+     pattern). **Intra-batch execution order is normative, not implementation-defined (round-9 audit
+     fix, Codex's r9-B2 finding):** the ordered batch executes strictly sequentially in its declared
+     order — for each op, its guard(s) are evaluated immediately before that op, against the
+     transactional state as of that point, which reflects every prior op in the same batch that has
+     already applied. No implementation may hoist or batch-evaluate guards against pre-batch state.
+     Concretely: two sequential ops on the same row, each guarded `stock >= 1` with a `decrement: 1`
+     mutation, starting from `stock = 1` — the first op's guard passes and applies, leaving `stock = 0`;
+     the second op's guard then evaluates against that updated state, sees `stock = 0`, fails, and rolls
+     back the whole batch. An implementation that pre-evaluates all guards against the pre-batch
+     snapshot instead of sequentially would incorrectly let both ops pass and store `stock = -1`,
+     violating the guard's own invariant while still technically reading "live row state inside the same
+     transaction" — this rule closes that reading gap.
    - Mutations include **relative/atomic update operators** (e.g. `increment`/`decrement` on numeric
      fields), not just absolute overwrites — this is what lets core express "reserve if `stock >= 1`,
      decrement by 1" as one guarded op, rather than forcing the author into a client-side
@@ -213,7 +243,20 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      instead. Core validation rejects any date string that isn't in this exact canonical form (a
      differently-formatted-but-otherwise-valid ISO-8601 string is a validation failure, not a silently
      accepted alternate representation) — this is what makes the lexicographic-comparison shortcut safe
-     rather than an assumption.
+     rather than an assumption. **Canonical form additionally requires calendar-valid component ranges,
+     not fixed-width shape alone (round-9 audit fix, Fable's r9-B1 finding):** `MM` must be `01`-`12`;
+     `DD` must be valid for the given month and year (accounting for leap years); `HH` must be
+     `00`-`23`; `mm` and `ss` must each be `00`-`59`. Shape-only validation (matching the fixed-width
+     pattern without checking these ranges) is insufficient and creates exactly the representation
+     collision this canonical form exists to prevent: `T24:00:00.000Z` is valid ISO-8601:2004 shape and
+     matches the fixed-width pattern exactly, yet denotes the same instant as the following day's
+     `T00:00:00.000Z` — two accepted strings for one instant, breaking both `eq` (false for equal
+     instants) and the lexicographic-order-equals-chronological-order guarantee this whole shortcut
+     depends on. Leap-second `:60` is rejected for the same bijection reason. A calendar-impossible
+     value (`02-30`, month `13`) is shape-canonical under a naive width-only regex but denotes no instant
+     at all — core validation MUST check calendar validity, not merely component width, at both
+     checkpoints (registration, invocation; dates define no relative mutation, so no execution-time case
+     applies here).
    - **Money and exact-decimal fields have exactly one declared representation each — never a choice
      (round-1 audit fix, converged finding: Codex #2 + agy #2).** A field's manifest schema declares it
      as `type: "money-int"` (minor-unit integer, e.g. cents) or `type: "money-decimal"` (canonical,
@@ -262,6 +305,12 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      (exactly `"0"` when the integer part is zero, never `"00"` or similar), a literal `.` decimal point,
      and **exactly the field's declared `scale` fractional digits** — never fewer (e.g. `"9.5"` for a
      scale-2 field is invalid; `"9.50"` is required) and never more. No exponent notation, no whitespace.
+     **Declared `scale` MUST be at least 1 (round-9 audit fix, Fable's r9-L1 finding):** a scale of `0`
+     would require a canonical form with zero fractional digits — a dangling decimal point (`"9."`) with
+     no principled resolution for whether the point is even present, breaking the same canonical-
+     uniqueness guarantee this grammar exists to provide. A field with no fractional precision is a
+     `money-int` field by definition; core's registration-time validation (§1) rejects any `money-decimal`
+     field declared with `scale: 0`.
      Equality/inequality on two canonical strings is safe as plain string comparison specifically
      *because* this exact grammar makes canonical form a bijection with value — a differently-formatted
      but numerically-equal string (extra/missing trailing zeros, a `+` sign, `-0.00`) is a validation
@@ -341,11 +390,12 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
   between the two debate peers, and not blocking.
 - **Interaction with ADR-023 §10 transform DSL + backfill jobs** — the command/envelope primitive is the
   runtime write path; the DSL is the migration path; keep them distinct.
-- **This design is PROPOSED, 8 audit rounds completed** — see the Status line and "Debate + Audit
-  record" for the full history, including round 6's 3 fixes, round 7's 2 fixes, a pre-round-8 self-review
-  with 2 further fixes, and round 8's 1 fix (generalizing the execution-time result checkpoint from
-  generic `number` to money relative mutations too). A **round-9 full-pass re-audit**
-  (`TM-adr026-atomic-write-001`) is owed before ACCEPTED again.
+- **This design is PROPOSED, 9 audit rounds completed** — see the Status line and "Debate + Audit
+  record" for the full history, including round 6's 3 fixes, round 7's 2 fixes, a pre-round-8
+  self-review's 2 fixes, round 8's 1 fix, and round 9's 5 fixes (generic-number safe-integer relative
+  mutation, intra-batch guard ordering, date calendar validity, money-decimal minimum scale, money-int
+  wording). A **round-10 full-pass re-audit** (`TM-adr026-atomic-write-001`) is owed before ACCEPTED
+  again.
 - Depends on ADR-023 (now **ACCEPTED** 2026-07-11 — see ADR-023's own round-3 audit closure).
 
 ## Debate + Audit record
@@ -648,13 +698,65 @@ generic-`number`-specific carve-out. Full round-8 trace:
 `.local-artifacts/external-audit/packets/20260711T175952Z-adr026-atomic-write-round8-audit-packet.md`,
 offloads `.local-artifacts/external-audit/offloads/20260711T175952Z/`.
 
-**Status remains PROPOSED, 8 audit rounds completed plus the pre-round-8 self-review.** No finding
+**Round-9 full-pass re-audit** (`TM-adr026-atomic-write-001`, dispatched with a third independent
+auditor — a Fable subagent, alongside Codex + agy, per the user's request to add Fable coverage), run
+2026-07-11, **returned agy 10.0 PASS, Codex 7.0 FAIL, Fable 8.2 FAIL — genuinely new findings from both
+non-agy auditors, no overlap between them**:
+
+- **agy/Gemini 3.1 Pro (High) 10.0** — zero findings, a fresh full sweep after an earlier transport
+  timeout on the first dispatch attempt (agy's own client-side "timeout waiting for response," not a
+  malformed prompt — a cheap handshake probe confirmed the transport was healthy before a clean retry
+  succeeded).
+- **Codex `gpt-5.5` 7.0 FAIL, 2 blockers:** `codex-r9-B1` — generic `number`'s safe-integer *range*
+  bound never required `Number.isSafeInteger`; a fractional `increment` (e.g. `0.1`) applied to a live
+  value near `Number.MAX_SAFE_INTEGER` can silently round to no observable change at all (IEEE-754's
+  representable-value gap exceeds 1 near that magnitude), a committed write with no actual effect,
+  passing every stated finiteness/range/`-0` check — the same "silently loses precision without
+  tripping any validation-time check" defect class this ADR exists to close, recurring for generic
+  `number` specifically under relative mutation. `codex-r9-B2` — intra-batch guard-evaluation ordering
+  was never made normative: nothing states whether each op's guards are evaluated sequentially against
+  state as mutated by prior ops in the same batch, or hoisted upfront against pre-batch state: for two
+  sequential `decrement: 1` ops guarded `stock >= 1` starting from `stock = 1`, sequential evaluation
+  correctly rejects the second op (stock is 0 after the first), while upfront/hoisted evaluation would
+  incorrectly let both pass and store `stock = -1` — a genuine atomicity-adjacent guard-soundness gap
+  (domain 2), not scalar vocabulary.
+- **Fable (independent subagent, no author rationale shown, falsification framing) 8.2 FAIL, 1 blocker
+  + 2 low:** `fable-r9-B1` — the date canonical form specified fixed-width *shape* only, never calendar
+  validity; `T24:00:00.000Z` is valid ISO-8601:2004 shape and matches the canonical pattern exactly, yet
+  aliases the following day's `T00:00:00.000Z` — one instant, two accepted strings, breaking both `eq`
+  and the lexicographic-order-equals-chronological-order guarantee the whole date-comparison shortcut
+  depends on; a naive shape-only validator would also admit calendar-impossible values (`02-30`, month
+  `13`) that denote no instant at all. This is the same recurring defect class (an "asserted canonical"
+  form that wasn't actually fully specified) landing in the one remaining corner — dates' calendar
+  validity — that 8 prior rounds focused on numeric/money representation never reached. `fable-r9-L1`
+  (low) — `money-decimal`'s canonical grammar required "exactly `scale` fractional digits," which for a
+  hypothetical `scale: 0` field would require a dangling decimal point with no principled resolution;
+  fixed by requiring `scale >= 1` for `money-decimal` (a scale-0 field is `money-int` by definition).
+  `fable-r9-L2` (low, doc-hygiene) — `money-int`'s "safe by construction" phrasing could be misread as
+  exempting it from the round-8 execution-time result check, which it is not; reworded for clarity.
+  Fable independently re-derived `agy-B3` as `not_reopened` without new evidence, and confirmed all 8
+  prior ledger items (round 6 x3, round 7 x2, self-review x2, round 8 x1) as genuinely fixed by
+  cross-referencing each fix's stated commit against the current text.
+
+All 5 real findings fixed inline: generic `number`'s `increment`/`decrement` now requires
+`Number.isSafeInteger` on the supplied operand, live current value, and computed result alike (§2, not
+just finiteness/range/`-0`) — `set`/`eq`/etc. remain usable with any finite in-range value including
+fractions, since only relative mutation carries the arithmetic precision risk; the ordered batch's
+execution order is now explicit — strictly sequential, each op's guards evaluated against the state as
+of immediately before that op including all prior successful ops in the same batch (§2); the date
+canonical form now requires calendar-valid component ranges in addition to fixed-width shape, with
+`T24:00` and leap-second `:60` explicitly rejected (§5); `money-decimal`'s declared `scale` must be at
+least 1 (§5); `money-int`'s "safe by construction" phrasing now explicitly notes result bounds remain
+subject to the execution-time checkpoint (§2). Full round-9 trace:
+`.local-artifacts/external-audit/runs/20260711T181056Z-external-audit-report.md`, packet
+`.local-artifacts/external-audit/packets/20260711T181056Z-adr026-atomic-write-round9-audit-packet.md`,
+offloads `.local-artifacts/external-audit/offloads/20260711T181056Z/`.
+
+**Status remains PROPOSED, 9 audit rounds completed plus the pre-round-8 self-review.** No finding
 across any round or the self-review has disputed the architecture's core shape: named-command surface,
 core-owned compiled IR, chokepoint preservation, reads-are-advisory correctness rule. Every finding has
-been a precision/completeness gap in the scalar vocabulary — real, and this specific corner
-(numeric/money representation, canonicalization, and now execution-time result validation) has produced
-a finding in 5 consecutive full-pass-or-self-review efforts (round 6, round 7, 2 in the self-review, and
-round 8). A **round-9 full-pass re-audit** is owed before ACCEPTED, dispatched as a confirmation pass —
-this corner has now been hit from enough angles (bounds, `-0`, representation, canonical grammar,
-execution-time generalization) that a clean round-9 result is a real possibility, not just a hopeful
-default.
+been a precision/completeness gap — real, and round 9 (the first round with 3-auditor coverage) found
+its 2 sharpest findings (date calendar validity, intra-batch guard ordering) in corners no prior round
+had examined, while a fourth auditor perspective (agy) came back clean, illustrating that different
+models continue to catch genuinely different gaps in this same document even at round 9. A **round-10
+full-pass re-audit** is owed before ACCEPTED.
