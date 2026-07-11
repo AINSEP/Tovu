@@ -1,18 +1,25 @@
 # ADR-026: Core-Mediated Atomic Multi-Write Primitive for Plugin Data
 
-- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 7th `/audit-work`
-  round under `TM-adr026-atomic-write-001`**, per user instruction to prefer broad/full-pass audits over
-  narrow diff-only ones after rounds 1-5's narrow scoping caused repeated same-class misses. Briefly
-  ACCEPTED after round 3, reopened by an independent Fable pass + rounds 4/5 (recurring "unspecified
-  scalar evaluation/storage semantics" — money-decimal, dates, strings), closed structurally in round 5
-  with a closed-vocabulary rule. Round 6 (full-pass) found the closed-vocabulary rule itself had 3 bugs
-  (baseline-op regression, missing `MIN_SAFE_INTEGER`, missing `NaN`/`Infinity`/`-Infinity` exclusion),
-  all fixed. **Round 7 (full-pass) found the generic-`number` fix still had 2 gaps**: agy found the
-  "both checkpoints" bound language couldn't actually apply to a relative-mutation *result* (the current
-  row value isn't known until execution, so an in-transaction execution-time check was missing); Codex
-  found `-0` wasn't excluded despite passing every other check, silently colliding with `0` on
-  storage/round-trip. Both fixed — see "Debate + Audit record" for the full history. **Round-8 full-pass
-  re-audit** owed before ACCEPTED). **Amends ADR-024 §3** and **ADR-023 §7**.
+- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 7th completed
+  `/audit-work` round under `TM-adr026-atomic-write-001`, round 8 in progress**, per **standing hard
+  rule** (not a soft preference) to always use broad/full-pass audits, never narrow diff-only, after
+  rounds 1-5's narrow scoping caused repeated same-class misses. Briefly ACCEPTED after round 3, reopened
+  by an independent Fable pass + rounds 4/5 (recurring "unspecified scalar evaluation/storage semantics"
+  — money-decimal, dates, strings), closed structurally in round 5 with a closed-vocabulary rule. Round 6
+  (full-pass) found the closed-vocabulary rule itself had 3 bugs (baseline-op regression, missing
+  `MIN_SAFE_INTEGER`, missing `NaN`/`Infinity`/`-Infinity` exclusion), all fixed. **Round 7 (full-pass)
+  found the generic-`number` fix still had 2 gaps**: agy found the "both checkpoints" bound language
+  couldn't actually apply to a relative-mutation *result* (the current row value isn't known until
+  execution, so an in-transaction execution-time check was missing); Codex found `-0` wasn't excluded
+  despite passing every other check, silently colliding with `0` on storage/round-trip. Both fixed.
+  **Before dispatching round 8, a Coordinator self-review (no external tokens spent) found 2 more
+  instances of the identical defect shape neither of the first 7 rounds had reached**: `money-int`'s
+  wire representation was never specified at all (leaving its "BigInt-safe by construction" claim
+  unfounded), and `money-decimal`'s "canonical" form was asserted but never actually defined (the same
+  omission the date fix closed in round 4, recurring for decimals). Both fixed — see "Debate + Audit
+  record" for the full history. **Round-8 full-pass external re-audit** now dispatching as a
+  confirmation pass over all self-review fixes plus a fresh sweep). **Amends ADR-024 §3** and
+  **ADR-023 §7**.
 - Author: Leon Aburime / Coordinator (Claude Sonnet 5 Primary) with debate peers Codex `gpt-5.5`,
   Gemini 3.1 Pro (`agy`); original `/cowork` probe with Opus 4.8/Fable/Codex/agy
 - Extends / amends: **ADR-024** (§3 transport-agnostic frozen ABI), **ADR-023** (§7 typed core-owned writes)
@@ -201,7 +208,24 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      as `type: "money-int"` (minor-unit integer, e.g. cents) or `type: "money-decimal"` (canonical,
      finite, scale-bounded decimal string) — never both. Binary floating-point `number` is explicitly
      rejected by core validation for either kind, not discovered as a runtime error at the storage layer
-     the way the spike's Date rejection was.
+     the way the spike's Date rejection was. **`money-int`'s wire representation is a canonical base-10
+     integer string, not a JS `number` (pre-round-8 self-review fix, same gap shape as the original Date
+     trap):** every other scalar kind states its exact wire/storage representation explicitly (dates as
+     ISO-8601 strings, `money-decimal` as a decimal string below) — `money-int` previously said only
+     "minor-unit integer" without stating the representation, leaving the "BigInt-safe by construction"
+     claim unfounded: if the value crossed the ABI as a JS `number`, it would be exactly as
+     float-precision-vulnerable as generic `number`, with none of generic `number`'s stated bounds.
+     `money-int` crosses the ABI, is validated, and is stored as a base-10 integer string (optional
+     single leading `-` for strictly negative values, never present for zero, no leading zeros beyond a
+     mandatory single `0`, no decimal point, no exponent notation) — parsed to a native `BigInt` for
+     comparison and relative mutation, re-rendered as the same canonical string form afterward, never
+     passed through a JS `number` at any point. Same `-0`-shaped rule as generic `number` (round-7 fix):
+     a canonical zero `money-int` string is always `"0"`, never `"-0"`; core rejects a supplied or
+     stored value violating this at every checkpoint. **`money-int` fields MUST compile to a
+     TEXT-affinity SQLite column**, same rationale and same rule as `money-decimal` below — an
+     INTEGER-affinity column is bounded to 64-bit signed range and could still silently truncate an
+     unusually large aggregate value; TEXT-affinity plus explicit `BigInt` arithmetic removes that
+     ceiling entirely, matching the "safe by construction" claim this type makes.
    - **Relative mutations on `money-decimal` fields never touch binary float (round-1 audit fix, agy's
      novel finding).** The original draft's `increment`/`decrement` operators, if implemented with native
      JS arithmetic on a decimal string, would silently coerce through IEEE-754 float — reintroducing the
@@ -217,7 +241,21 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      "10.00"` is lexicographically true) and never parsed through JS `Number`. Equality/inequality
      (`eq`/`ne`/`in`) on canonical decimal strings remain safe as plain string comparison, since
      canonicalization makes string equality equal value equality — this rule applies only to ordered
-     comparisons. **`money-decimal` fields MUST compile to a TEXT-affinity SQLite column** (never
+     comparisons. **The canonical decimal-string form is exactly specified (pre-round-8 self-review fix,
+     same "asserted canonical, never defined" gap shape the date fix (round 4) already closed once):**
+     prior text called this representation "canonical" without ever stating the grammar — the same
+     omission the original Date trap and round-4's date fix both existed to close, just not yet applied
+     here. The canonical form is: an optional single leading `-` for strictly negative values only
+     (never present when the value is zero, at any scale — `"-0.00"` is invalid, canonical zero is
+     always unsigned, e.g. `"0.00"`), no `+` sign, an integer part with no redundant leading zeros
+     (exactly `"0"` when the integer part is zero, never `"00"` or similar), a literal `.` decimal point,
+     and **exactly the field's declared `scale` fractional digits** — never fewer (e.g. `"9.5"` for a
+     scale-2 field is invalid; `"9.50"` is required) and never more. No exponent notation, no whitespace.
+     Equality/inequality on two canonical strings is safe as plain string comparison specifically
+     *because* this exact grammar makes canonical form a bijection with value — a differently-formatted
+     but numerically-equal string (extra/missing trailing zeros, a `+` sign, `-0.00`) is a validation
+     failure at both checkpoints, never a silently accepted alternate representation, same as the date
+     rule. **`money-decimal` fields MUST compile to a TEXT-affinity SQLite column** (never
      NUMERIC/REAL affinity) — a NUMERIC-affinity column would silently coerce an inserted canonical
      string through a 64-bit float on write, corrupting the value without ever failing a bind, which
      would defeat this vocabulary's entire purpose one layer below where any validation-time check could
@@ -292,10 +330,12 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
   between the two debate peers, and not blocking.
 - **Interaction with ADR-023 §10 transform DSL + backfill jobs** — the command/envelope primitive is the
   runtime write path; the DSL is the migration path; keep them distinct.
-- **This design is PROPOSED, on its 7th audit round** — see the Status line and "Debate + Audit record"
-  for the full history, including round 6's 3 fixes to the round-5 closed-vocabulary rule and round 7's
-  2 fixes to the round-6 numeric-bounding fix itself. A **round-8 full-pass re-audit**
-  (`TM-adr026-atomic-write-001`) is owed before ACCEPTED again.
+- **This design is PROPOSED, 7 audit rounds completed, round 8 in progress** — see the Status line and
+  "Debate + Audit record" for the full history, including round 6's 3 fixes to the round-5
+  closed-vocabulary rule, round 7's 2 fixes to the round-6 numeric-bounding fix, and a pre-round-8
+  Coordinator self-review's 2 further fixes (`money-int` representation, `money-decimal` canonical
+  form). A **round-8 full-pass external re-audit** (`TM-adr026-atomic-write-001`) is dispatching now as
+  confirmation of all fixes to date plus a fresh sweep.
 - Depends on ADR-023 (now **ACCEPTED** 2026-07-11 — see ADR-023's own round-3 audit closure).
 
 ## Debate + Audit record
@@ -546,13 +586,41 @@ round-7 trace: `.local-artifacts/external-audit/runs/20260711T174228Z-external-a
 `.local-artifacts/external-audit/packets/20260711T174228Z-adr026-atomic-write-round7-audit-packet.md`,
 offloads `.local-artifacts/external-audit/offloads/20260711T174228Z/`.
 
-**Status remains PROPOSED, on its 8th audit round owed.** A **round-8 full-pass re-audit**
-(`TM-adr026-atomic-write-001`) is owed before ACCEPTED. No finding across any round has disputed the
-architecture's core shape: named-command surface, core-owned compiled IR, chokepoint preservation,
-reads-are-advisory correctness rule. Every finding has been a precision/completeness gap — real, and
-both round 6 and round 7 (the first two genuinely broad passes) caught defects in the very fix meant to
-close the prior round's finding, which narrow diff-only scoping had been missing. The recurring pattern
-across rounds 6-7 specifically (a fix for one numeric-bounding gap introducing or leaving an adjacent
-numeric-bounding gap) is worth naming honestly: this defect class may need one more full-pass round
-before the Coordinator can defensibly expect a clean sweep, the same way round 5's structural
-closed-vocabulary rule was needed after 4 rounds of one-off scalar-semantics patches.
+**User feedback after round 7 (2026-07-11, escalated from a preference to a hard rule):** the user
+reacted strongly to reaching round 8 with each round catching one narrow numeric edge case at a time —
+"dont EVER do narrow /audit-work scope again unless I tell you!!" Full/broad scope was already in effect
+since round 6 and was never actually narrowed, but the underlying frustration was legitimate: paying for
+two external LLM rounds to surface one narrow bug at a time is a bad trade when the Coordinator could
+plausibly find more of the same shape itself, for free, first. Saved as a permanent standing rule (not
+situational), and applied immediately below.
+
+**Pre-round-8 Coordinator self-review (2026-07-11, no external tokens spent).** Before dispatching
+another external round, the Coordinator re-read §2/§5 adversarially against the exact recurring defect
+shape (an "asserted safe" scalar type whose actual wire/storage representation or canonical format was
+never pinned down) and found **2 more instances neither of the first 7 rounds had reached**:
+- **`money-int`'s wire representation was never specified at all.** Every other scalar kind states its
+  exact representation (dates as ISO-8601 strings, `money-decimal` as a decimal string) — `money-int`
+  was described only as "minor-unit integer," leaving its "BigInt-safe by construction" claim unfounded:
+  if it crossed the ABI as a JS `number`, it would be exactly as float-precision-vulnerable as generic
+  `number`, with none of generic `number`'s stated bounds. This is the original Date-trap shape recurring
+  in a spot no round-1-through-7 audit had examined, because every prior round's adversarial attention
+  was drawn to the fields that already *had* a stated representation to attack.
+- **`money-decimal`'s "canonical" form was asserted but never defined.** Unlike the date's exact frozen
+  grammar, nothing stated the required fractional-digit count, leading-zero rule, sign rule, or whether
+  `-0.00`-shaped values are legal — the same `-0` collision class round 7 just fixed for generic
+  `number`, recurring for decimals, and the same "canonical without a grammar" omission the date fix
+  (round 4) already closed once elsewhere in this same section.
+
+Both fixed inline (§5): `money-int` now crosses the ABI as a canonical base-10 integer string (parsed to
+native `BigInt` for arithmetic/comparison, TEXT-affinity storage, same `-0`-exclusion rule as generic
+`number`) rather than an unspecified representation; `money-decimal`'s canonical form is now exactly
+specified (sign rule, leading-zero rule, exact scale-matched fractional-digit count, no exponent,
+`-0.00` explicitly invalid) with the same both-checkpoints validation pattern used elsewhere in this ADR.
+
+**Status remains PROPOSED, 7 audit rounds completed plus this self-review, round 8 dispatching now.** No
+finding across any round or the self-review has disputed the architecture's core shape: named-command
+surface, core-owned compiled IR, chokepoint preservation, reads-are-advisory correctness rule. Every
+finding has been a precision/completeness gap in the scalar vocabulary — real, and this specific corner
+(numeric/money representation and canonicalization) has now produced a finding in 4 consecutive
+full-pass efforts (round 6, round 7, and 2 in this self-review). Round 8 is dispatched explicitly as a
+confirmation pass over everything fixed so far, not a fishing expedition for a fifth.
