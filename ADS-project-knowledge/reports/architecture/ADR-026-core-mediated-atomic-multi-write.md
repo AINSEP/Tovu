@@ -1,21 +1,20 @@
 # ADR-026: Core-Mediated Atomic Multi-Write Primitive for Plugin Data
 
-- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 9th completed
+- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 10th completed
   `/audit-work` round under `TM-adr026-atomic-write-001`**, per **standing hard rule** (not a soft
-  preference) to always use broad/full-pass audits, never narrow diff-only. Briefly ACCEPTED after
-  round 3, reopened by an independent Fable pass + rounds 4/5, closed structurally in round 5 with a
-  closed-vocabulary rule. Round 6 found the closed-vocabulary rule itself had 3 bugs, all fixed. Round 7
-  found the generic-`number` fix still had 2 gaps, both fixed. A pre-round-8 self-review found 2 more
-  instances of the same defect shape, both fixed. Round 8 found the execution-time checkpoint was scoped
-  to generic `number` only, not money types — fixed. **Round 9 added a third independent auditor (a
-  Fable subagent, alongside Codex + agy) and returned agy 10.0 PASS (zero findings) plus 5 real findings
-  across the other two: Codex 7.0 FAIL (generic `number` allowed precision-losing fractional relative
-  mutations near its safe-integer bound; intra-batch guard-evaluation ordering was never made
-  normative, risking a stale-guard race within one transaction) and Fable 8.2 FAIL (the date canonical
-  form specified shape only, not calendar validity, admitting `T24:00:00.000Z` which aliases the next
-  day's `T00:00:00.000Z`; plus 2 low-severity notes on `money-decimal` scale-0 and `money-int` wording).**
-  All 5 fixed — see "Debate + Audit record" for the full history. **Round-10 full-pass re-audit** owed
-  before ACCEPTED). **Amends ADR-024 §3** and **ADR-023 §7**.
+  preference) to always use broad/full-pass, 3-auditor audits, never narrow diff-only. Briefly ACCEPTED
+  after round 3, reopened by an independent Fable pass + rounds 4/5, closed structurally in round 5.
+  Rounds 6-8 found and fixed 4 further gaps in the numeric/money corner. Round 9 (first with 3-auditor
+  coverage: Codex + agy + Fable) found 5 more (generic-number integer requirement, intra-batch guard
+  ordering, date calendar validity, money-decimal min scale, money-int wording), all fixed. **Round 10
+  (agreed exit condition: clean or advisory-only across all 3 = ACCEPTED) returned Codex 9.6 PASS
+  (1 advisory), agy 10.0 PASS (zero findings), and Fable 8.6 FAIL — one real blocker: the
+  `p_{pluginId}__{tableName}` namespace encoding was not injective, letting plugin `shop` alias into
+  `shop__eu`'s tables via a table literally named `eu__orders`, breaking the core cross-plugin isolation
+  guarantee — plus 3 low advisories (coordinated-scope rejection checkpoint unstated,
+  `expectedVersion`'s operand kind unspecified, column affinity unstated for date/number/boolean).** All
+  5 fixed — see "Debate + Audit record" for the full history. **Round-11 full-pass re-audit** owed
+  before ACCEPTED, same 3-auditor + agreed exit condition). **Amends ADR-024 §3** and **ADR-023 §7**.
 - Author: Leon Aburime / Coordinator (Claude Sonnet 5 Primary) with debate peers Codex `gpt-5.5`,
   Gemini 3.1 Pro (`agy`); original `/cowork` probe with Opus 4.8/Fable/Codex/agy
 - Extends / amends: **ADR-024** (§3 transport-agnostic frozen ABI), **ADR-023** (§7 typed core-owned writes)
@@ -171,7 +170,14 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      `exists`/`notExists`, and bounded comparison predicates (`eq`/`ne`/`lt`/`lte`/`gt`/`gte`/`in`/
      `isNull`) evaluated against **live row state inside the same transaction** as the write (this is a
      read-modify-write done atomically within one SQLite transaction, not a read-outside/write-inside
-     pattern). **Intra-batch execution order is normative, not implementation-defined (round-9 audit
+     pattern). **`expectedVersion`'s operand kind is normative (round-10 audit fix, Fable's r10-L2
+     finding):** unlike every other guard predicate, `expectedVersion` was not tied to a declared field
+     kind in the closed scalar vocabulary — the one guard operand the closed-vocabulary rule's own
+     enumeration didn't formally reach, the same recurring "a scalar the vocabulary rule doesn't reach"
+     shape this ADR's history keeps finding. `expectedVersion`'s operand is core-defined: a non-negative
+     safe integer (the entry revision counter, ADR-022), validated at registration and invocation like
+     any other operand — never a plugin-suppliable arbitrary scalar. **Intra-batch execution order is
+     normative, not implementation-defined (round-9 audit
      fix, Codex's r9-B2 finding):** the ordered batch executes strictly sequentially in its declared
      order — for each op, its guard(s) are evaluated immediately before that op, against the
      transactional state as of that point, which reflects every prior op in the same batch that has
@@ -330,14 +336,54 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      value past registration-time-only checks. Either checkpoint failing rejects the write before it
      reaches the transaction; an author never discovers a scalar-representation mismatch at the SQLite
      bind step. *(Amends ADR-023 §7.)*
+   - **Column affinity is normative for every scalar kind, not money kinds alone (round-10 audit fix,
+     Fable's r10-L3 finding):** `money-int`/`money-decimal` already require TEXT-affinity above; the
+     remaining kinds were left to implementation discretion, an unclosed representation-ambiguity gap of
+     the same class this ADR exists to prevent. Date fields compile to a **TEXT-affinity** column
+     (dates cross the ABI and store as the frozen canonical string, never a numeric encoding). Generic
+     `number` fields compile to a **REAL or INTEGER-affinity** column, never TEXT — the safe-integer
+     restriction on relative mutation (above) already guarantees exactness within SQLite's native numeric
+     storage, so no fixed-point/string workaround is needed here. `boolean` fields compile to an
+     **INTEGER-affinity** column using the canonical `0`/`1` encoding (SQLite has no native boolean
+     type); core never stores or reads a `boolean` field as any other representation.
+   - **The date canonical form's year domain is explicit, not delegated to host `Date` parsing
+     (round-10 audit fix, Codex's r10-A1 finding):** `YYYY` is a 4-digit proleptic-Gregorian year in the
+     range `0001`-`9999`; core validation performs its own calendar-range check against this fixed
+     4-digit domain rather than delegating to a host `Date` parser, whose leap-year and edge-year
+     handling varies across runtimes and could silently accept or reject differently than this ADR's own
+     stated grammar.
 6. **Cross-plugin scope: a frozen discriminant, not a built mechanism.** Every command/envelope carries
    `scope: "plugin" | "coordinated"`. `"plugin"` (the only executable value in v1) means every op in the
    batch belongs to the invoking plugin's own tables. **Core derives the allowed table namespace from
    the invoking capability's `pluginId`, not from anything the manifest declares (round-1 audit fix,
    Codex #4)** — a `scope: "plugin"` command's manifest-provided table names can never override or widen
-   that namespace; this is enforced at compilation, same as any other IR grammar rule. `"coordinated"` is
-   recognized and its shape reserved (a `participants`/coordination metadata slot) but rejected in v1
-   with a stable error (`COORDINATED_SCOPE_UNSUPPORTED`) — real cross-plugin execution depends on
+   that namespace; this is enforced at compilation, same as any other IR grammar rule. **The
+   `p_{pluginId}__{tableName}` encoding MUST be injective, enforced at registration time (round-10 audit
+   fix, Fable's r10-B1 finding):** the prefix-check namespace derivation is only a real isolation
+   boundary if no two distinct `(pluginId, tableName)` pairs can compile to the same physical table
+   name. As stated through round 9, nothing constrained either grammar, so this was false: plugin
+   `shop` registering an "own" table literally named `eu__orders` compiles to physical table
+   `p_shop__eu__orders` — the exact same physical name plugin `shop__eu` registering table `orders`
+   would compile to. A `scope: "plugin"` command from `shop__eu` would then pass the capability-derived
+   `p_shop__eu__` prefix check while actually mutating (or, via a read-only guard, probing) `shop`'s
+   table — a direct violation of the mandatory cross-plugin isolation invariant, using only plausible,
+   non-exotic names. This is the same recurring defect shape as the date canonical-form gap (round 9):
+   an encoding whose *safety property* (here, injectivity; there, the string-to-instant bijection) was
+   never actually validated, only assumed from the encoding's shape. **Core's registration-time
+   validation (§1) MUST reject, as out-of-grammar, any plugin-registered table name containing the
+   literal `__` delimiter sequence, and MUST require the `pluginId` grammar itself to exclude `__`** —
+   this makes the `p_{pluginId}__{tableName}` encoding unambiguous (the first `__` after the fixed `p_`
+   prefix is always the boundary) and closes the collision for both the mutation-scope rule above and
+   the guard-target rule in §2 at once, since both rules derive from this same namespace encoding.
+   **A registered `scope: "coordinated"` command is accepted at registration and rejected only at
+   invocation (round-10 audit fix, Fable's r10-L1 finding):** this was previously unstated — either
+   choice would have preserved the non-breaking-v2 invariant, but leaving the checkpoint unstated risked
+   two conforming implementations diverging observably (one refusing to install a coordinated-shaped
+   manifest, another installing it and only failing at invocation). Registration-accept /
+   invocation-reject is the stated rule, since it lets authors ship v2-ready manifests before
+   coordinated execution exists. `"coordinated"` is recognized and its shape reserved (a
+   `participants`/coordination metadata slot) but rejected at invocation in v1 with a stable error
+   (`COORDINATED_SCOPE_UNSUPPORTED`) — real cross-plugin execution depends on
    authorization/dependency/trust decisions ADR-024 has already deferred past Phase-0, and building it
    now would drag those unresolved questions into this ADR. Freezing the discriminant (rather than
    omitting it) means a future v2 that adds coordinated execution does not need a breaking
@@ -390,12 +436,12 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
   between the two debate peers, and not blocking.
 - **Interaction with ADR-023 §10 transform DSL + backfill jobs** — the command/envelope primitive is the
   runtime write path; the DSL is the migration path; keep them distinct.
-- **This design is PROPOSED, 9 audit rounds completed** — see the Status line and "Debate + Audit
-  record" for the full history, including round 6's 3 fixes, round 7's 2 fixes, a pre-round-8
-  self-review's 2 fixes, round 8's 1 fix, and round 9's 5 fixes (generic-number safe-integer relative
-  mutation, intra-batch guard ordering, date calendar validity, money-decimal minimum scale, money-int
-  wording). A **round-10 full-pass re-audit** (`TM-adr026-atomic-write-001`) is owed before ACCEPTED
-  again.
+- **This design is PROPOSED, 10 audit rounds completed** — see the Status line and "Debate + Audit
+  record" for the full history, including round 9's 5 fixes and round 10's 5 fixes (namespace-encoding
+  injectivity, coordinated-scope rejection checkpoint, `expectedVersion` operand kind, column affinity
+  for date/number/boolean, date year-domain convention). A **round-11 full-pass re-audit**
+  (`TM-adr026-atomic-write-001`) is owed before ACCEPTED, same agreed exit condition (clean or
+  advisory-only across all 3 auditors).
 - Depends on ADR-023 (now **ACCEPTED** 2026-07-11 — see ADR-023's own round-3 audit closure).
 
 ## Debate + Audit record
@@ -758,5 +804,62 @@ core-owned compiled IR, chokepoint preservation, reads-are-advisory correctness 
 been a precision/completeness gap — real, and round 9 (the first round with 3-auditor coverage) found
 its 2 sharpest findings (date calendar validity, intra-batch guard ordering) in corners no prior round
 had examined, while a fourth auditor perspective (agy) came back clean, illustrating that different
-models continue to catch genuinely different gaps in this same document even at round 9. A **round-10
-full-pass re-audit** is owed before ACCEPTED.
+models continue to catch genuinely different gaps in this same document even at round 9. **After round
+9, given the sheer round count, the Coordinator and user agreed an explicit exit condition rather than
+continuing open-ended: if a future round returns clean or advisory-only across all 3 auditors, ADR-026
+is marked ACCEPTED and the loop stops there** — auditors still apply full adversarial effort regardless;
+the exit condition only affects what the Coordinator does with a clean/advisory-only result.
+
+**Round-10 full-pass re-audit** (`TM-adr026-atomic-write-001`, 3-auditor coverage continued, agreed exit
+condition in effect), run 2026-07-11, **returned Codex 9.6 PASS, agy 10.0 PASS, Fable 8.6 FAIL — exit
+condition not met, one real blocker found**:
+
+- **Codex `gpt-5.5` 9.6, PASS, 1 advisory (`codex-r10-A1`):** all 5 round-9 fixes independently verified
+  correct and complete (including an explicit arithmetic argument for the safe-integer fix: any sum that
+  would round under IEEE-754 necessarily lands outside the safe-integer range, where the execution-time
+  checkpoint rejects it — exactness inside the accepted range is structural, not incidental). One
+  advisory, not blocking: the date canonical form's year domain (`YYYY`) was never pinned to an explicit
+  range, risking silent divergence if an implementation delegates calendar validation to a host `Date`
+  parser instead of its own grammar.
+- **agy/Gemini 3.1 Pro (High) 10.0, PASS, zero findings:** a full fresh sweep including explicit
+  stress-testing of "the `scope: 'plugin'` namespace isolation" — notably, this specific claim is where
+  Fable (below) found a real gap agy's own adversarial pass missed, underscoring that even a model
+  that explicitly targets the right area doesn't always find what's there.
+- **Fable (independent subagent, no author rationale, falsification framing) 8.6, FAIL, 1 blocker +
+  3 low (`fable-r10-B1` through `fable-r10-L3`):** `fable-r10-B1` (domain 5, high confidence) — the
+  `p_{pluginId}__{tableName}` namespace-derivation encoding was never required to be injective. Fable
+  cross-referenced ADR-023, ADR-024, and ADR-004 and found no grammar constraint on either `pluginId` or
+  plugin table names that would prevent this: plugin `shop` registering an "own" table literally named
+  `eu__orders` compiles to physical table `p_shop__eu__orders` — the identical physical name plugin
+  `shop__eu` registering table `orders` would produce. A `scope: "plugin"` command from `shop__eu` would
+  pass the capability-derived prefix check while actually mutating (or guard-probing) `shop`'s table, a
+  direct cross-plugin isolation violation using only plausible names, no exotic exploit. Same recurring
+  defect shape as the round-9 date-aliasing bug: an encoding whose safety property (there, the
+  string-to-instant bijection; here, prefix injectivity) was assumed from shape, never actually
+  validated. Three low-severity notes: `fable-r10-L1` — the checkpoint for `scope: "coordinated"`
+  rejection (registration vs. invocation) was never stated, an implementation-divergence risk; `fable-r10-L2`
+  — `expectedVersion`'s guard operand was the one predicate the closed-vocabulary rule's own enumeration
+  didn't formally reach; `fable-r10-L3` — column affinity was normative for `money-int`/`money-decimal`
+  only, leaving date/number/boolean's SQLite storage representation to implementation discretion. Fable
+  also independently re-verified all 5 round-9 fixes (agreeing with Codex) and explicitly declined to
+  re-litigate `agy-B3`.
+
+All 5 findings fixed inline: §6 now requires the `p_{pluginId}__{tableName}` encoding to be injective,
+enforced at registration time by rejecting any plugin table name or `pluginId` containing the literal
+`__` delimiter — closing the collision for both the mutation-scope rule and the §2 guard-target rule at
+once, since both derive from this same encoding; §6 also now states the `scope: "coordinated"` rejection
+checkpoint explicitly (registration-accept, invocation-reject); §2 now specifies `expectedVersion`'s
+operand kind (a core-defined non-negative safe integer, ADR-022's revision counter); §5 now specifies
+column affinity for every scalar kind (date → TEXT, generic `number` → REAL/INTEGER never TEXT,
+`boolean` → INTEGER 0/1) and pins the date canonical form's year domain to an explicit `0001`-`9999`
+4-digit range validated by core's own grammar, not delegated to host `Date` parsing. Full round-10
+trace: `.local-artifacts/external-audit/runs/20260711T183554Z-external-audit-report.md`, packet
+`.local-artifacts/external-audit/packets/20260711T183554Z-adr026-atomic-write-round10-audit-packet.md`,
+offloads `.local-artifacts/external-audit/offloads/20260711T183554Z/`.
+
+**Status remains PROPOSED, 10 audit rounds completed.** No finding across any round has disputed the
+architecture's core shape. `fable-r10-B1` is arguably the single most consequential finding across all
+10 rounds — a genuine cross-plugin data-isolation bypass, not a scalar-precision edge case — found only
+because a third, independent model was specifically cross-referencing this ADR against its own upstream
+dependencies (ADR-023/024/004) rather than reading ADR-026 in isolation. A **round-11 full-pass
+re-audit** is owed before ACCEPTED, under the same agreed exit condition.
