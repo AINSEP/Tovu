@@ -1,25 +1,21 @@
 # ADR-026: Core-Mediated Atomic Multi-Write Primitive for Plugin Data
 
-- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 7th completed
-  `/audit-work` round under `TM-adr026-atomic-write-001`, round 8 in progress**, per **standing hard
-  rule** (not a soft preference) to always use broad/full-pass audits, never narrow diff-only, after
-  rounds 1-5's narrow scoping caused repeated same-class misses. Briefly ACCEPTED after round 3, reopened
-  by an independent Fable pass + rounds 4/5 (recurring "unspecified scalar evaluation/storage semantics"
-  — money-decimal, dates, strings), closed structurally in round 5 with a closed-vocabulary rule. Round 6
-  (full-pass) found the closed-vocabulary rule itself had 3 bugs (baseline-op regression, missing
-  `MIN_SAFE_INTEGER`, missing `NaN`/`Infinity`/`-Infinity` exclusion), all fixed. **Round 7 (full-pass)
-  found the generic-`number` fix still had 2 gaps**: agy found the "both checkpoints" bound language
-  couldn't actually apply to a relative-mutation *result* (the current row value isn't known until
-  execution, so an in-transaction execution-time check was missing); Codex found `-0` wasn't excluded
-  despite passing every other check, silently colliding with `0` on storage/round-trip. Both fixed.
-  **Before dispatching round 8, a Coordinator self-review (no external tokens spent) found 2 more
-  instances of the identical defect shape neither of the first 7 rounds had reached**: `money-int`'s
-  wire representation was never specified at all (leaving its "BigInt-safe by construction" claim
-  unfounded), and `money-decimal`'s "canonical" form was asserted but never actually defined (the same
-  omission the date fix closed in round 4, recurring for decimals). Both fixed — see "Debate + Audit
-  record" for the full history. **Round-8 full-pass external re-audit** now dispatching as a
-  confirmation pass over all self-review fixes plus a fresh sweep). **Amends ADR-024 §3** and
-  **ADR-023 §7**.
+- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 8th completed
+  `/audit-work` round under `TM-adr026-atomic-write-001`**, per **standing hard rule** (not a soft
+  preference) to always use broad/full-pass audits, never narrow diff-only, after rounds 1-5's narrow
+  scoping caused repeated same-class misses. Briefly ACCEPTED after round 3, reopened by an independent
+  Fable pass + rounds 4/5 (recurring "unspecified scalar evaluation/storage semantics" — money-decimal,
+  dates, strings), closed structurally in round 5 with a closed-vocabulary rule. Round 6 (full-pass)
+  found the closed-vocabulary rule itself had 3 bugs, all fixed. Round 7 (full-pass) found the
+  generic-`number` fix still had 2 gaps (execution-time checkpoint missing; `-0` not excluded), both
+  fixed. A pre-round-8 Coordinator self-review (no external tokens) found 2 more instances of the same
+  defect shape (`money-int`'s wire representation never specified; `money-decimal`'s canonical form
+  never defined), both fixed. **Round 8 (full-pass, dispatched as a confirmation pass) returned agy 10.0
+  PASS (zero findings, all 7 prior fixes verified) and Codex 8.0 FAIL (1 blocker): the execution-time
+  result-validation checkpoint added in round 7 was scoped to generic `number` only — money relative
+  mutations have the identical live-row-unknown-until-execution problem and needed the same fix.** Fixed
+  — see "Debate + Audit record" for the full history. **Round-9 full-pass re-audit** owed before
+  ACCEPTED). **Amends ADR-024 §3** and **ADR-023 §7**.
 - Author: Leon Aburime / Coordinator (Claude Sonnet 5 Primary) with debate peers Codex `gpt-5.5`,
   Gemini 3.1 Pro (`agy`); original `/cowork` probe with Opus 4.8/Fable/Codex/agy
 - Extends / amends: **ADR-024** (§3 transport-agnostic frozen ABI), **ADR-023** (§7 typed core-owned writes)
@@ -130,6 +126,21 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
        this vocabulary exists to prevent. Core rejects any supplied or computed generic-`number` value
        for which `Object.is(value, -0)` is true, at registration, invocation, and the execution-time
        mutation-result checkpoint alike — never silently canonicalized to `0`.
+
+     **The execution-time result checkpoint generalizes to every scalar kind with relative mutation,
+     not generic `number` alone (round-8 audit fix, Codex's r8-B1 finding):** `money-int` and
+     `money-decimal` have the identical live-row-unknown-until-execution problem as generic `number` —
+     a bounded current value plus a bounded operand can compute a result that exceeds the field's
+     core-defined byte/precision/scale limit even though neither the current value nor the operand
+     individually did (e.g. a scale-2 `money-decimal` field bounded to `999.99` receiving `increment:
+     0.01` computes `1000.00`, one digit past the field's declared precision). Core MUST validate the
+     computed post-mutation result of any relative mutation — `money-int`, `money-decimal`, or generic
+     `number` alike — against the target field's declared representation kind, canonical grammar,
+     `-0`/`-0.00` exclusion, scale, and core-defined byte/precision limits, inside the same transaction
+     as the write, before the result is stored; failure rolls back the whole batch (same all-or-nothing
+     rule as any other guard/op failure, §2). This is the same both/now-three-checkpoints pattern applied
+     uniformly across every scalar kind capable of relative mutation, not a generic-`number`-specific
+     carve-out.
      - `boolean`/`null`: ordered comparison is not permitted (no relative mutation is defined for these
        either) — there is no meaningful order, and permitting it would just be another unspecified-
        semantics trap. The baseline `eq`/`ne`/`isNull` above remain available (`in` is permitted but
@@ -330,12 +341,11 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
   between the two debate peers, and not blocking.
 - **Interaction with ADR-023 §10 transform DSL + backfill jobs** — the command/envelope primitive is the
   runtime write path; the DSL is the migration path; keep them distinct.
-- **This design is PROPOSED, 7 audit rounds completed, round 8 in progress** — see the Status line and
-  "Debate + Audit record" for the full history, including round 6's 3 fixes to the round-5
-  closed-vocabulary rule, round 7's 2 fixes to the round-6 numeric-bounding fix, and a pre-round-8
-  Coordinator self-review's 2 further fixes (`money-int` representation, `money-decimal` canonical
-  form). A **round-8 full-pass external re-audit** (`TM-adr026-atomic-write-001`) is dispatching now as
-  confirmation of all fixes to date plus a fresh sweep.
+- **This design is PROPOSED, 8 audit rounds completed** — see the Status line and "Debate + Audit
+  record" for the full history, including round 6's 3 fixes, round 7's 2 fixes, a pre-round-8 self-review
+  with 2 further fixes, and round 8's 1 fix (generalizing the execution-time result checkpoint from
+  generic `number` to money relative mutations too). A **round-9 full-pass re-audit**
+  (`TM-adr026-atomic-write-001`) is owed before ACCEPTED again.
 - Depends on ADR-023 (now **ACCEPTED** 2026-07-11 — see ADR-023's own round-3 audit closure).
 
 ## Debate + Audit record
@@ -617,10 +627,34 @@ native `BigInt` for arithmetic/comparison, TEXT-affinity storage, same `-0`-excl
 specified (sign rule, leading-zero rule, exact scale-matched fractional-digit count, no exponent,
 `-0.00` explicitly invalid) with the same both-checkpoints validation pattern used elsewhere in this ADR.
 
-**Status remains PROPOSED, 7 audit rounds completed plus this self-review, round 8 dispatching now.** No
-finding across any round or the self-review has disputed the architecture's core shape: named-command
-surface, core-owned compiled IR, chokepoint preservation, reads-are-advisory correctness rule. Every
-finding has been a precision/completeness gap in the scalar vocabulary — real, and this specific corner
-(numeric/money representation and canonicalization) has now produced a finding in 4 consecutive
-full-pass efforts (round 6, round 7, and 2 in this self-review). Round 8 is dispatched explicitly as a
-confirmation pass over everything fixed so far, not a fishing expedition for a fifth.
+**Round-8 full-pass re-audit** (`TM-adr026-atomic-write-001`, dispatched as a confirmation pass over
+round 6/7/self-review fixes plus a fresh full-document sweep), run 2026-07-11, **returned agy 10.0 PASS,
+Codex 8.0 FAIL**: agy/Gemini 3.1 Pro (High) **10.0** (zero findings — independently verified all 7 prior
+ledger items as genuinely fixed, including both self-review fixes, after real adversarial effort against
+generic-number edge cases, money representation ambiguity, scope-escape attempts, and command-
+registration gaps). Codex `gpt-5.5` **8.0** (1 blocker, `codex-r8-B1`: the execution-time result-
+validation checkpoint added in round 7 was scoped to generic `number` only — `money-int` and
+`money-decimal` relative mutations have the identical live-row-unknown-until-execution problem; a
+bounded current value plus a bounded operand can compute a result exceeding the field's core-defined
+byte/precision/scale limit, e.g. a scale-2 `money-decimal` field bounded to `999.99` receiving
+`increment: 0.01` computes `1000.00`, one digit past its declared precision, and nothing catches this
+before storage). This is the exact same defect shape recurring a further time — an execution-time
+checkpoint fix (round 7) that was correct but scoped to only one of several scalar kinds needing it,
+the same class of "fix doesn't generalize" gap round 6 found in round 5's closed-vocabulary rule. Fixed
+inline (§2): the execution-time result-validation rule is now stated as applying to every scalar kind
+capable of relative mutation — `money-int`, `money-decimal`, and generic `number` alike — not a
+generic-`number`-specific carve-out. Full round-8 trace:
+`.local-artifacts/external-audit/runs/20260711T175952Z-external-audit-report.md`, packet
+`.local-artifacts/external-audit/packets/20260711T175952Z-adr026-atomic-write-round8-audit-packet.md`,
+offloads `.local-artifacts/external-audit/offloads/20260711T175952Z/`.
+
+**Status remains PROPOSED, 8 audit rounds completed plus the pre-round-8 self-review.** No finding
+across any round or the self-review has disputed the architecture's core shape: named-command surface,
+core-owned compiled IR, chokepoint preservation, reads-are-advisory correctness rule. Every finding has
+been a precision/completeness gap in the scalar vocabulary — real, and this specific corner
+(numeric/money representation, canonicalization, and now execution-time result validation) has produced
+a finding in 5 consecutive full-pass-or-self-review efforts (round 6, round 7, 2 in the self-review, and
+round 8). A **round-9 full-pass re-audit** is owed before ACCEPTED, dispatched as a confirmation pass —
+this corner has now been hit from enough angles (bounds, `-0`, representation, canonical grammar,
+execution-time generalization) that a clean round-9 result is a real possibility, not just a hopeful
+default.
