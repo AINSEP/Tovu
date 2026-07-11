@@ -10,8 +10,8 @@
 |-------|-------|
 | spec_id | SPEC-007 |
 | feature_name | FEAT-007-settings-core-ledger |
-| version | 0.3.0 |
-| last_edited | 2026-07-11T20:00:00Z |
+| version | 0.3.1 |
+| last_edited | 2026-07-11T20:15:00Z |
 | spec_naming | standard |
 | spec_root | ADS-project-knowledge/specs/007-settings-core-ledger |
 | spec_entrypoint | feature.spec.md |
@@ -70,7 +70,7 @@ presentation settings port into the general ledger. Concrete touchpoints:
 
 ## Validation Notes
 
-- Validator last run: 2026-07-11 (spec phase, `--update-hash`, post-clarify)
+- Validator last run: 2026-07-11 (spec phase, `--update-hash`, post-redteam-fix precision pass)
 - Validator result: PASS
 - Validator manual waiver: N/A
 - Canonical hash verified at: 2026-07-11 (provider-local validator)
@@ -81,6 +81,10 @@ presentation settings port into the general ledger. Concrete touchpoints:
   RT-001 (no target-principal validation/error code) → REQ-13, AC-24, INV-09, EC-11,
   `PRINCIPAL_NOT_FOUND`; RT-002 (undefined `PrincipalSelector` data source) → redefined as a validated
   identifier field, not a directory picker — no new cross-spec dependency; RT-003 (ambiguous
-  self-vs-other permission derivation) → behavior.spec.md §1.3, AC-25, AC-26. Ready for re-run
-  Coordinator Planning Preflight and Red-Team confirm-pass; plugin-owned settings and the secret path
+  self-vs-other permission derivation) → behavior.spec.md §1.3, AC-25, AC-26. v0.3.1 is a precision
+  patch: REQ-13/INV-09/AC-24/EC-11 reworded to say "principal whose own `workspace_id` equals the
+  request's `workspaceId`" (ADR-007 structural scoping — a principal belongs to exactly one workspace,
+  no membership join) instead of the looser "member of" phrasing, after confirming SPEC-006 has no
+  workspace-membership concept to borrow. Ready for re-run Coordinator Planning Preflight and Red-Team
+  confirm-pass; plugin-owned settings and the secret path
   remain out of scope by ADR gates.

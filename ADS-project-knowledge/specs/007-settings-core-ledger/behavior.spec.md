@@ -11,9 +11,9 @@
 |-------|-------|
 | spec_id | SPEC-007 |
 | feature_name | FEAT-007-settings-core-ledger |
-| version | 0.3.0 |
+| version | 0.3.1 |
 | content_hash | anchored in feature.spec.md |
-| last_edited | 2026-07-11T20:00:00Z |
+| last_edited | 2026-07-11T20:15:00Z |
 
 **Purpose:** Captures the deterministic resolver, lifecycle, and authorization rules that acceptance
 criteria alone do not fully express. The resolver precedence and the rename/retype ordering are the
@@ -185,4 +185,4 @@ scope replaces the value and appends a new `op='set'` revision. There is no valu
 | Reset by an actor with `settings.reset.*` but not `*.write` | WHILE the reset orchestrator runs, WHEN it calls the inner `clear()`, the system shall authorize the clear in the reset-authorized internal context and shall still emit an `op='clear'` revision. | Yes |
 | `getEffective` for a tombstoned key | WHEN the resolved definition is `tombstone`, the resolver shall return the typed-absent result and shall not return a stale value. | Yes |
 | A global write to namespace N | WHEN a global value in namespace N commits, the cache shall invalidate only the `settings:global:N` key and shall not fan out per tenant. | Yes |
-| A scope=user write/clear targets a `principalId` that does not exist or is not a member of `workspaceId` | IF the target `principalId` is not an active `kind='user'` member of `workspaceId`, THEN the write chokepoint shall reject `PRINCIPAL_NOT_FOUND` and shall write no value row and no revision. | Yes |
+| A scope=user write/clear targets a `principalId` that does not exist or whose `workspace_id` differs from the request's `workspaceId` | IF the target `principalId` does not resolve to an active `kind='user'` principal whose own `workspace_id` equals the request's `workspaceId` (ADR-007 structural scoping), THEN the write chokepoint shall reject `PRINCIPAL_NOT_FOUND` and shall write no value row and no revision. | Yes |

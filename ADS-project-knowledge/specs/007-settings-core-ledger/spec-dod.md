@@ -10,9 +10,9 @@
 |-------|-------|
 | spec_id | SPEC-007 |
 | feature_name | FEAT-007-settings-core-ledger |
-| version | 0.3.0 |
+| version | 0.3.1 |
 | filled_by | Spec Agent |
-| filled_date | 2026-07-11T20:00:00Z |
+| filled_date | 2026-07-11T20:15:00Z |
 | reviewed_by | Coordinator (pending re-run Planning Preflight after Red-Team fix) |
 | reviewed_date | pending |
 
@@ -47,11 +47,11 @@ Software Architect dispatch until all items are PASS or NA and the Sign-Off Bloc
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | B-01 | `spec_id` assigned and unique | PASS | SPEC-007; SPEC-001..006 exist |
-| B-02 | `version` correct semver | PASS | 0.3.0 (minor bump — Red-Team fix pass closes RT-001/002/003) |
+| B-02 | `version` correct semver | PASS | 0.3.1 (patch — precision pass ties principal validation to ADR-007 structural scoping) |
 | B-03 | `status` is APPROVED | PASS | APPROVED for spec handoff |
 | B-04 | `content_hash` computed per canonical rule | PASS | Set by provider-local validator --update-hash |
 | B-05 | `feature_name` matches FEAT folder name | PASS | FEAT-007-settings-core-ledger / 007-settings-core-ledger |
-| B-06 | `last_edited` valid ISO-8601 UTC | PASS | 2026-07-11T16:55:07Z |
+| B-06 | `last_edited` valid ISO-8601 UTC | PASS | 2026-07-11T20:15:00Z |
 | B-07 | `owner` set to a named human/team | PASS | Leon Aburime |
 | B-08 | Overview present (1–3 sentences) | PASS | Present |
 | B-09 | Problem Statement complete (current/desired/why now/success) | PASS | All four filled |
@@ -150,7 +150,7 @@ Software Architect dispatch until all items are PASS or NA and the Sign-Off Bloc
 | F-05 | Orchestrator InputProps defaults match behavior defaults | NA | No orchestrator.spec.md; UI/API defaults are reconciled against behavior.spec §3 directly |
 | F-06 | Rate-limit values match behavior Limits table | PASS | 30/60s write, 300/60s read in both api §3 and behavior §4 |
 | F-07 | All files share spec_id and feature_name | PASS | SPEC-007 / FEAT-007-settings-core-ledger everywhere |
-| F-08 | Consistent version numbers | PASS | All 0.3.0 (bumped together during Red-Team fix pass) |
+| F-08 | Consistent version numbers | PASS | All 0.3.1 (bumped together during Red-Team fix + precision pass) |
 
 ---
 
@@ -214,6 +214,7 @@ Software Architect dispatch until all items are PASS or NA and the Sign-Off Bloc
 | Spec Agent | Spec Agent | 2026-07-11T19:10:00Z | SPEC-007-v0.2.0-clarify-update |
 | Coordinator | Coordinator | 2026-07-11T19:25:00Z | SPEC-007-v0.2.0-preflight-pass (superseded — Red-Team found 3 BLOCKING against this version) |
 | Spec Agent | Spec Agent | 2026-07-11T20:00:00Z | SPEC-007-v0.3.0-redteam-fix |
+| Spec Agent | Spec Agent | 2026-07-11T20:15:00Z | SPEC-007-v0.3.1-precision-fix (ADR-007 structural-scoping wording) |
 | Coordinator | | | |
 
 > By signing, the Coordinator confirms all items are PASS/NA, the package is internally consistent,

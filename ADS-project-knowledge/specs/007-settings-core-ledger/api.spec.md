@@ -4,9 +4,9 @@ SPEC PACKAGE FILE: `framework/spec-providers/speckit/templates/spec-system/api.s
 
 - Spec ID: `SPEC-007`
 - Feature: `FEAT-007-settings-core-ledger`
-- Version: `0.3.0`
+- Version: `0.3.1`
 - Content Hash: `anchored in feature.spec.md`
-- Last Edited: `2026-07-11T20:00:00Z`
+- Last Edited: `2026-07-11T20:15:00Z`
 
 ## Purpose
 Source of truth for the Settings admin HTTP surface, independent of implementation language. All
