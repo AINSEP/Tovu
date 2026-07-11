@@ -75,9 +75,14 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
      pattern (§7) for any precondition on an unmutated row.
    - **Bounded operand limits are normative, not just "total/bounded-cost" in spirit (round-1 audit fix,
      Codex #1):** `in` operands MUST have a core-defined maximum cardinality, and every scalar operand
-     MUST satisfy core-defined byte/precision/scale limits, checked at command **registration time**
-     (§1) — a command whose IR would exceed those limits is rejected before it can ever reach
-     transaction execution, not discovered as a runtime failure mid-transaction.
+     MUST satisfy core-defined byte/precision/scale limits. **This bound applies at both checkpoints,
+     not registration alone (internal round-2 verification fix):** a command's *statically declared*
+     guard/mutation shape is checked at registration time (§1), but `in` lists and scalar values that a
+     command's param schema allows to be populated from runtime `params` are re-checked against the same
+     limits at **invocation time**, before the compiled IR is admitted to transaction execution — a
+     command definition that only fixes shape at registration cannot be used to smuggle an oversized
+     runtime-supplied operand (e.g. an unbounded `in` array passed as a param) past the bound. Either
+     checkpoint failing rejects the write before it reaches the transaction, never mid-transaction.
    - The grammar inherits ADR-024 §5's existing total/bounded-cost, no-side-effect discipline (same
      family as the Tier-1 expression language) — no new class of Turing-completeness or DoS risk.
    - Any op failure or guard miss rolls the whole batch back; the result is plain serializable data
