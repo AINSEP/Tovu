@@ -13,8 +13,8 @@
 | version | 0.3.1 |
 | filled_by | Spec Agent |
 | filled_date | 2026-07-11T20:15:00Z |
-| reviewed_by | Coordinator (pending re-run Planning Preflight after Red-Team fix) |
-| reviewed_date | pending |
+| reviewed_by | Coordinator |
+| reviewed_date | 2026-07-11T20:25:00Z |
 
 ---
 
@@ -215,7 +215,7 @@ Software Architect dispatch until all items are PASS or NA and the Sign-Off Bloc
 | Coordinator | Coordinator | 2026-07-11T19:25:00Z | SPEC-007-v0.2.0-preflight-pass (superseded — Red-Team found 3 BLOCKING against this version) |
 | Spec Agent | Spec Agent | 2026-07-11T20:00:00Z | SPEC-007-v0.3.0-redteam-fix |
 | Spec Agent | Spec Agent | 2026-07-11T20:15:00Z | SPEC-007-v0.3.1-precision-fix (ADR-007 structural-scoping wording) |
-| Coordinator | | | |
+| Coordinator | Coordinator | 2026-07-11T20:25:00Z | SPEC-007-v0.3.1-preflight-pass (Red-Team confirm-pass 0 BLOCKING) |
 
 > By signing, the Coordinator confirms all items are PASS/NA, the package is internally consistent,
 > H-01 is PASS, and the spec is authorized for Software Architect dispatch.

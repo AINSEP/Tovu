@@ -17,11 +17,11 @@
 | spec_mode | brownfield |
 | spec_hash | sha256:fc322f69fe3cc586dbe9823c4d3d6d5225e419d538be554bdfe88873a40a501b |
 | spec_hash_verified_at | 2026-07-11 (provider-local validator, --phase spec, post-redteam-fix-precision-pass) |
-| planning_preflight_status | pending (superseded by v0.3.1 content change — re-run owed) |
-| planning_preflight_checked_at | pending |
+| planning_preflight_status | PASS (--phase preflight, v0.3.1) |
+| planning_preflight_checked_at | 2026-07-11T20:25:00Z |
 | validator_result | PASS (--phase spec) |
-| red_team_status | v0.2.0 FAIL (3 BLOCKING) fixed in v0.3.0/v0.3.1 — confirm-pass owed before Architect dispatch |
-| red_team_spec_hash | sha256:768c5eeb06b1fd41fd77ac677fb5fd8b2c80eb2ebe212e219f934baaa73f9bdd (v0.2.0, superseded) |
+| red_team_status | PASS (0 BLOCKING) — confirm-pass against v0.3.1 closed RT-001/002/003; RT-004 ADVISORY carries forward |
+| red_team_spec_hash | sha256:fc322f69fe3cc586dbe9823c4d3d6d5225e419d538be554bdfe88873a40a501b (v0.3.1) |
 | governing_adr | ADR-028 (Settings — Layered Settings Ledger), ACCEPTED 2026-07-11 |
 
 ## Notes
