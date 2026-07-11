@@ -4,7 +4,7 @@
 |---|---|
 | feat_id | FEAT-007-settings-core-ledger |
 | spec_id | SPEC-007 |
-| stage | architecture |
+| stage | tasks |
 | spec_provider | speckit |
 | provider_version_ref | github/spec-kit @ 2c2fea8783f33085652b8c87e839bae84a6eb78d |
 | provider_native_root | specs/ |
@@ -27,6 +27,7 @@
 | implementation_outline | ADS-project-knowledge/reports/pipeline/007-settings-core-ledger/implementation-outline.md — Status: PRODUCED (5 triggers: Boundary Cross, Contract Change, Data And Persistence, Brownfield Dependency, Critical Cross-Boundary Invariant) |
 | governance_adr_promotion | Evaluated, not promoted — ADR-PIPE-007 applies existing governance ADRs (006/007/015/021/022), introduces no new durable cross-cutting rule |
 | research_artifact | N/A — no library/technology/persistence choice open (all reused per ADR-015/021/022) |
+| tasks_path | ADS-project-knowledge/reports/pipeline/007-settings-core-ledger/tasks.md — 55 tasks, 8 phases (0 Setup, 1 Foundational, 2 Def lifecycle, 3 Purge, 4 Presentation retirement, 5 API, 6 UI, 7 Cache, N Polish) |
 
 ## Notes
 
