@@ -1,17 +1,12 @@
 # ADR-026: Core-Mediated Atomic Multi-Write Primitive for Plugin Data
 
-- Status: PROPOSED 2026-07-11 (**reopened from ACCEPTED** — redesigned from a 2-round formal `/debate`;
-  cleared 3 rounds of `/audit-work` under `TM-adr026-atomic-write-001` — round 1 FAIL (5 findings + 1
-  documented disagreement) → round 2 FAIL (1 new finding in a self-found fix) → round 3 unanimous PASS,
-  agy 10.0/Codex 10.0, zero findings — **then reopened** by an independent Fable-model verification pass
-  (explicitly requested to check the two prior externals' work rather than trust a clean unanimous PASS
-  at face value), which found 2 further genuine gaps neither Codex nor agy caught across 3 rounds:
-  unspecified/unsafe comparison-guard evaluation semantics for `money-decimal` (F1) and an unscoped/
-  contradictory guard-target namespace rule (F2). Both fixed → **round-4 diff-only re-audit FAIL**
-  (agy 10.0/PASS/0 findings; Codex 8.0/FAIL — found the same gap shape as F1 recurring for ISO-8601
-  date ordered-comparisons, no fixed-width canonical form guaranteeing lexicographic order = chronological
-  order). Fixed inline; a narrow **round-5 diff-only re-audit** is owed before ACCEPTED). **Amends
-  ADR-024 §3** and **ADR-023 §7**.
+- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 5th `/audit-work`
+  round under `TM-adr026-atomic-write-001`** — briefly ACCEPTED after round 3's unanimous PASS, then
+  reopened twice by findings in the same recurring defect class (unspecified scalar evaluation/storage
+  semantics — money-decimal comparisons, then dates, then generic strings), most recently by round 5.
+  Round 5's fix closes the whole defect class with a general closed-vocabulary rule rather than another
+  one-off patch — see "Debate + Audit record" for the full round-by-round history. A **round-6 diff-only
+  re-audit** is owed before ACCEPTED again). **Amends ADR-024 §3** and **ADR-023 §7**.
 - Author: Leon Aburime / Coordinator (Claude Sonnet 5 Primary) with debate peers Codex `gpt-5.5`,
   Gemini 3.1 Pro (`agy`); original `/cowork` probe with Opus 4.8/Fable/Codex/agy
 - Extends / amends: **ADR-024** (§3 transport-agnostic frozen ABI), **ADR-023** (§7 typed core-owned writes)
@@ -67,6 +62,35 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
 2. **Internal execution — the compiled IR — is the frozen envelope + a small guard grammar (frozen now,
    not deferred).** Core compiles a command invocation into an ordered batch of typed mutations plus
    per-op guards, executed inside **one transaction, all-or-nothing**:
+   - **Closed-vocabulary rule for scalar operations (round-5 audit fix, closing the recurring defect
+     class F1/`codex-r4-B1`/`codex-r5-B1`):** an operator applied to a scalar kind has normatively
+     specified evaluation and storage semantics, or it is **not permitted** in v1 — never
+     implementation-defined by default. This ADR previously specified evaluation/storage semantics
+     piecemeal (money-decimal, then dates) as each gap was found across 3 audit rounds; rather than
+     continue finding these one type at a time, the full closed enumeration for the frozen v1 vocabulary
+     is:
+     - `money-int`: all six comparison operators (`eq`/`ne`/`lt`/`lte`/`gt`/`gte`) and relative
+       `increment`/`decrement` use native BigInt-safe integer semantics (safe by construction).
+     - `money-decimal`: all six comparison operators and relative mutations use BigInt-safe fixed-point
+       arithmetic at the field's declared scale (never string collation, never `Number` parsing — see
+       below); storage is TEXT-affinity.
+     - Date (ISO-8601, fixed-width canonical form): all six comparison operators use plain
+       lexicographic string comparison, safe only because the canonical form is fixed-width (see below).
+     - Generic `string`: **only `eq`/`ne`/`in`/`isNull` are permitted.** Ordered comparison
+       (`lt`/`lte`/`gt`/`gte`) on a generic string field is **not permitted in v1** — collation semantics
+       (byte-order vs. code-unit order vs. locale-aware vs. Unicode-normalized) are exactly the kind of
+       cross-implementation ambiguity this rule exists to close, and no single choice is obviously
+       correct the way fixed-width lexicographic order is for the frozen date form. `eq`/`ne`/`in`
+       remain safe as exact string-identity comparison, independent of collation.
+     - Generic `number`: all six comparison operators and relative `increment`/`decrement` use native JS
+       number semantics, **bounded to `Number.MAX_SAFE_INTEGER`** — core rejects a `number` value or a
+       relative-mutation result that would exceed that bound, rather than silently losing integer
+       precision.
+     - `boolean`/`null`: **only `eq`/`ne`/`isNull` are permitted.** Ordered comparison is not permitted
+       (there is no meaningful order, and permitting it would just be another unspecified-semantics
+       trap).
+     - Any scalar kind or operator combination not enumerated above is rejected at registration time
+       (§1) as out-of-grammar, not silently allowed under an implementation's default behavior.
    - Guards are not limited to version-equality. The frozen v1 grammar includes: `expectedVersion`,
      `exists`/`notExists`, and bounded comparison predicates (`eq`/`ne`/`lt`/`lte`/`gt`/`gte`/`in`/
      `isNull`) evaluated against **live row state inside the same transaction** as the write (this is a
@@ -229,11 +253,10 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
   between the two debate peers, and not blocking.
 - **Interaction with ADR-023 §10 transform DSL + backfill jobs** — the command/envelope primitive is the
   runtime write path; the DSL is the migration path; keep them distinct.
-- **This design is PROPOSED, reopened twice now** — an independent Fable-model verification pass found
-  2 gaps (F1/F2) the 3-round external audit missed; round 4's re-audit then found the same gap shape as
-  F1 recurring for date fields (no fixed-width canonical form, so ordered-comparison semantics were
-  unspecified). All three fixed inline; a **round-5 diff-only re-audit** (`TM-adr026-atomic-write-001`)
-  is owed before ACCEPTED again.
+- **This design is PROPOSED, on its 5th audit round** — see the Status line and "Debate + Audit record"
+  for the full history. Round 5's fix (§2) closes the recurring "unspecified scalar evaluation/storage
+  semantics" defect class with a general closed-vocabulary rule instead of patching one more instance —
+  a **round-6 diff-only re-audit** (`TM-adr026-atomic-write-001`) is owed before ACCEPTED again.
 - Depends on ADR-023 (now **ACCEPTED** 2026-07-11 — see ADR-023's own round-3 audit closure).
 
 ## Debate + Audit record
@@ -413,10 +436,40 @@ vs-order mismatch to begin with. Full round-4 trace:
 `.local-artifacts/external-audit/runs/20260711T180000Z-external-audit-report.md`,
 offloads `.local-artifacts/external-audit/offloads/20260711T180000Z/`.
 
-**Status remains PROPOSED (reopened, now on its 5th audit round total).** A narrow **round-5 diff-only
-re-audit** (`TM-adr026-atomic-write-001`, scoped to the date-canonical-form fix, plus a final fresh-sweep
-request) is owed before ACCEPTED again. No finding across any round — 3 external, 1 independent Fable
-verification, 1 more external — has disputed the architecture's core shape: named-command surface,
+**Round-5 diff-only re-audit** (`TM-adr026-atomic-write-001`, scoped to `codex-r4-B1`'s date fix plus a
+final fresh-sweep request), run 2026-07-11, **returned FAIL**: agy/Gemini 3.1 Pro (High) **10.0** (0
+findings — the date fix confirmed, fresh sweep across §2/§5 for scalar comparison/mutation/storage
+semantics and namespace scopes found nothing further), Codex `gpt-5.5` **8.0** (date fix confirmed, but
+the requested fresh sweep found a **fifth** instance of the same defect class: generic `string` fields
+had no specified ordered-comparison collation semantics — "lexicographic" is not itself a single
+well-defined comparator across a JS-string / SQLite-BINARY / SQLite-NOCASE / locale-aware / Unicode-
+normalized set of candidate implementations, unlike the fixed-width date form where lexicographic order
+has one unambiguous meaning).
+
+**Rather than fix this one more instance and risk a sixth recurrence, the Coordinator closed the whole
+defect class.** §2 now states a **closed-vocabulary rule**: every scalar-kind/operator combination in
+the frozen v1 grammar must have normatively specified evaluation and storage semantics, or it is **not
+permitted** — never implementation-defined by default. The full enumeration: `money-int` and
+`money-decimal` (as already specified), the fixed-width date form (as already specified), generic
+`string` restricted to `eq`/`ne`/`in`/`isNull` only (ordered comparison **disallowed** in v1, closing
+`codex-r5-B1` by removing the ambiguous operation rather than picking one more arbitrary collation),
+generic `number` bounded to `Number.MAX_SAFE_INTEGER` for both comparison and relative mutation
+(a gap the audits hadn't yet reached, closed pre-emptively), and `boolean`/`null` restricted to
+`eq`/`ne`/`isNull` (ordered comparison disallowed, same reasoning as strings). Any combination not
+enumerated is rejected at registration time as out-of-grammar.
+
+This closes 5 rounds of the same recurring defect class — round 1 (mutation arithmetic), round 2
+(invocation-time checks), Fable's F1 (money-decimal comparisons), round 4 (dates), round 5 (strings) —
+with a structural rule rather than a sixth type-specific patch, and pre-emptively closes the one
+remaining scalar kind (generic `number`) no round had reached yet. Full round-5 trace:
+`.local-artifacts/external-audit/runs/20260711T183000Z-external-audit-report.md`,
+offloads `.local-artifacts/external-audit/offloads/20260711T183000Z/`.
+
+**Status remains PROPOSED, on its 6th audit round.** A **round-6 diff-only re-audit**
+(`TM-adr026-atomic-write-001`) — explicitly asked to try hard to find a sixth instance, given the
+pattern — is owed before ACCEPTED again. No finding across any round (3 external + 1 independent Fable
+verification + 2 more external) has disputed the architecture's core shape: named-command surface,
 core-owned compiled IR, chokepoint preservation, reads-are-advisory correctness rule. Every finding has
-been precision/completeness gaps in operand bounds, scalar representation and evaluation semantics, guard
-coverage, and namespace enforcement — real, but narrowing in scope each round.
+been a precision/completeness gap in operand bounds, scalar representation and evaluation semantics,
+guard coverage, or namespace enforcement — real, and this round aims to close the last recurring class
+of them structurally rather than case-by-case.
