@@ -1,9 +1,10 @@
 # ADR-026: Core-Mediated Atomic Multi-Write Primitive for Plugin Data
 
-- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate` — supersedes the original
-  2026-07-09 `/cowork`-spike draft's guard-grammar deferral and raw-tuple author surface; pending its
-  own `/audit-work` round before ACCEPTED, same gate ADR-023/ADR-028 went through). **Amends ADR-024
-  §3** and **ADR-023 §7**.
+- Status: ACCEPTED 2026-07-11 (redesigned from a 2-round formal `/debate` — supersedes the original
+  2026-07-09 `/cowork`-spike draft's guard-grammar deferral and raw-tuple author surface; cleared 3
+  rounds of `/audit-work` under `TM-adr026-atomic-write-001` — round 1 FAIL (5 findings + 1 documented
+  disagreement) → round 2 FAIL (1 new finding in a self-found fix) → round 3 unanimous PASS, agy
+  10.0/Codex 10.0, zero findings). **Amends ADR-024 §3** and **ADR-023 §7**.
 - Author: Leon Aburime / Coordinator (Claude Sonnet 5 Primary) with debate peers Codex `gpt-5.5`,
   Gemini 3.1 Pro (`agy`); original `/cowork` probe with Opus 4.8/Fable/Codex/agy
 - Extends / amends: **ADR-024** (§3 transport-agnostic frozen ABI), **ADR-023** (§7 typed core-owned writes)
@@ -188,9 +189,8 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
   between the two debate peers, and not blocking.
 - **Interaction with ADR-023 §10 transform DSL + backfill jobs** — the command/envelope primitive is the
   runtime write path; the DSL is the migration path; keep them distinct.
-- **This design is PROPOSED, not ACCEPTED** — round-1 `/audit-work` returned FAIL and its fixes are now
-  folded above; a **round-2 diff-only re-audit** (`TM-adr026-atomic-write-001`) is owed before ACCEPTED,
-  same gate ADR-023/ADR-028 went through.
+- **This design is ACCEPTED** — cleared all 3 `/audit-work` rounds under `TM-adr026-atomic-write-001`
+  (round 3: unanimous PASS, agy 10.0/Codex 10.0, zero findings).
 - Depends on ADR-023 (now **ACCEPTED** 2026-07-11 — see ADR-023's own round-3 audit closure).
 
 ## Debate + Audit record
@@ -293,9 +293,22 @@ tightly to the un-reviewed internal-verification text, and directly on-target fo
 scalar-vocabulary-corruption domain. Fixed inline (§5, "Canonical-format and representation-kind
 validation applies at both checkpoints, same as operand bounds") — the same both-checkpoints pattern
 now covers representation/canonical-format validation, not just size bounds. Full round-2 trace:
-`.local-artifacts/external-audit/runs/20260711T171700Z-external-audit-report.md` (to be written),
+`.local-artifacts/external-audit/runs/20260711T171700Z-external-audit-report.md`,
 offloads `.local-artifacts/external-audit/offloads/20260711T171700Z/`.
 
-**Status remains PROPOSED** — a **round-3 diff-only re-audit** (same `TM-adr026-atomic-write-001`,
-carrying forward this round's one new finding) is owed before ACCEPTED, same 3-round pattern ADR-023
-went through this session.
+**Round-3 diff-only re-audit** (`TM-adr026-atomic-write-001`, narrow scope — verify only `codex-r2-B1`'s
+fix and scan for any recurrence of the same gap shape), run 2026-07-11, **returned a unanimous clean
+PASS**: agy/Gemini 3.1 Pro (High) **10.0**, Codex `gpt-5.5` **10.0**, zero findings from either. Both
+independently confirmed the §5 fix genuinely closes the invocation-time representation/canonical-format
+gap; Codex explicitly ran a consistency pass across §2 and §5 before returning its verdict and found no
+further recurrence of the registration-vs-invocation gap shape. Full round-3 trace:
+`.local-artifacts/external-audit/runs/20260711T173000Z-external-audit-report.md`,
+offloads `.local-artifacts/external-audit/offloads/20260711T173000Z/`.
+
+**ADR-026 is ACCEPTED.** Across 3 rounds under `TM-adr026-atomic-write-001`: round 1 surfaced 5 real,
+independently-converged-or-novel findings plus one Coordinator disagreement (documented, not silently
+resolved); round 2 caught a genuine gap in a Coordinator-authored fix that no external auditor had yet
+reviewed, proving the extra round was worth the cost; round 3 closed clean and unanimous. No finding at
+any round disputed the architecture's core shape — named-command surface, core-owned compiled IR,
+chokepoint preservation, reads-are-advisory correctness rule — only its precision on operand bounds,
+scalar representation, guard coverage, and namespace enforcement, all now resolved.
