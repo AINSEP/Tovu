@@ -15,13 +15,13 @@
 | spec_support_paths | api.spec.md, state.spec.md, ui.spec.md, behavior.spec.md, errors.spec.md, traceability.spec.md, spec-manifest.md |
 | spec_naming | standard |
 | spec_mode | brownfield |
-| spec_hash | sha256:768c5eeb06b1fd41fd77ac677fb5fd8b2c80eb2ebe212e219f934baaa73f9bdd |
-| spec_hash_verified_at | 2026-07-11 (provider-local validator, --phase spec, post-clarify) |
-| planning_preflight_status | PASS (--phase preflight) |
-| planning_preflight_checked_at | 2026-07-11T19:25:00Z |
+| spec_hash | sha256:7deff736934b36e0544daaf5a424e639222d15478ac7f6c246762a0801e05ccd |
+| spec_hash_verified_at | 2026-07-11 (provider-local validator, --phase spec, post-redteam-fix) |
+| planning_preflight_status | pending (superseded by v0.3.0 content change — re-run owed) |
+| planning_preflight_checked_at | pending |
 | validator_result | PASS (--phase spec) |
-| red_team_status | FAIL — 3 BLOCKING (see red-team-findings.md), routed back to Spec Agent |
-| red_team_spec_hash | sha256:768c5eeb06b1fd41fd77ac677fb5fd8b2c80eb2ebe212e219f934baaa73f9bdd |
+| red_team_status | v0.2.0 FAIL (3 BLOCKING) fixed in v0.3.0 — confirm-pass owed before Architect dispatch |
+| red_team_spec_hash | sha256:768c5eeb06b1fd41fd77ac677fb5fd8b2c80eb2ebe212e219f934baaa73f9bdd (v0.2.0, superseded) |
 | governing_adr | ADR-028 (Settings — Layered Settings Ledger), ACCEPTED 2026-07-11 |
 
 ## Notes
@@ -36,3 +36,8 @@
 - v0.2.0 `/clarify` pass (2026-07-11) resolved OQ-01 (defer revision-history screen, no scope change)
   and OQ-02 (ship `PrincipalSelector` target-principal affordance now — added REQ-11 language, AC-22,
   AC-23). Hash recomputed and validator rerun (`--phase spec --update-hash`), PASS.
+- v0.3.0 (2026-07-11) fixes 3 Red-Team BLOCKING findings against v0.2.0 (red-team-findings.md):
+  RT-001 → REQ-13 + AC-24 + INV-09 + EC-11 + `PRINCIPAL_NOT_FOUND`; RT-002 → `PrincipalSelector`
+  redefined as a validated identifier field (no new cross-spec dependency); RT-003 →
+  behavior.spec.md §1.3 + AC-25/AC-26. Validator PASS, hash recomputed. Owes a Red-Team confirm-pass
+  and a fresh Coordinator Planning Preflight before Software Architect dispatch.

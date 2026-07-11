@@ -4,9 +4,9 @@ SPEC PACKAGE FILE: `framework/spec-providers/speckit/templates/spec-system/ui.sp
 
 - Spec ID: `SPEC-007`
 - Feature: `FEAT-007-settings-core-ledger`
-- Version: `0.2.0`
+- Version: `0.3.0`
 - Content Hash: `anchored in feature.spec.md`
-- Last Edited: `2026-07-11T19:10:00Z`
+- Last Edited: `2026-07-11T20:00:00Z`
 
 ## Purpose
 Defines the Settings admin screen component contracts, events, rendering conditions, and
@@ -18,7 +18,7 @@ panels — ADR-025, out of scope).
 | Component | Responsibility | Inputs Ref | Events Ref |
 |---|---|---|---|
 | `SettingsContainer` | Top-level screen wiring; loads definitions + effective values | 2.1 | 3.1 |
-| `PrincipalSelector` | Lets an operator holding `settings.user.write` pick a target principal | 2.1a | 3.1a |
+| `PrincipalSelector` | Lets an operator holding `settings.user.write` enter and validate a target principal identifier (id/email) — a validated text field, not a browsable directory (no principal-list dependency) | 2.1a | 3.1a |
 | `NamespaceGroupList` | Lists definitions grouped by namespace | 2.2 | 3.2 |
 | `SettingRow` | One setting: name, effective value, source-layer badge | 2.3 | 3.3 |
 | `SettingDetailPanel` | Effective + per-layer values + default; scope editor | 2.4 | 3.4 |
@@ -41,7 +41,9 @@ panels — ADR-025, out of scope).
 | Input | Required | Type | Notes |
 |---|---|---|---|
 | `visible` | yes | `boolean` | `true` only when `canWriteScopes.userOther` is true |
-| `selectedPrincipalId` | no | `string|null` | currently selected target principal |
+| `value` | no | `string|null` | raw identifier text (id or email) the operator has entered |
+| `validationState` | no | `enum {idle, checking, valid, error}` | reflects the outcome of the last resolve attempt against REQ-13 |
+| `lastError` | no | `string|null` | `PRINCIPAL_NOT_FOUND` message when `validationState == error` |
 
 ### 2.2 NamespaceGroupList
 | Input | Required | Type | Notes |
@@ -92,7 +94,8 @@ panels — ADR-025, out of scope).
 ### 3.1a PrincipalSelector
 | Event | Payload | Trigger | Expected Outcome |
 |---|---|---|---|
-| `onSelectPrincipal` | `{principalId: string|null}` | operator picks or clears a target principal | container re-resolves `user`-scope values against `targetPrincipalId`; `null` returns to the operator's own user layer |
+| `onSubmitPrincipal` | `{principalIdRaw: string}` | operator submits/blurs the identifier field with a non-empty value | container calls `getEffective`/raw read scoped to `principalIdRaw`; on success sets `targetPrincipalId` and re-resolves `user`-scope values against it; on `PRINCIPAL_NOT_FOUND` sets `validationState='error'` and does not change `targetPrincipalId` |
+| `onClearPrincipal` | none | operator clears the identifier field | `targetPrincipalId` returns to `null` (the operator's own user layer) |
 
 ### 3.2 NamespaceGroupList / 3.3 SettingRow
 | Event | Payload | Trigger |
@@ -121,6 +124,8 @@ panels — ADR-025, out of scope).
       edits always apply to the operator's own principal.
 - [ ] When `targetPrincipalId` is non-null, the `user`-scope value shown and edited in
       `SettingDetailPanel`/`ValueEditor` is that principal's, not the operator's own.
+- [ ] `PrincipalSelector` shows an inline `PRINCIPAL_NOT_FOUND` error (`validationState='error'`) and
+      does not set `targetPrincipalId` when resolution fails.
 - [ ] The source-layer badge on `SettingRow` reflects the resolved `sourceLayer` (user/workspace/global/default).
 - [ ] `ValueEditor` shows an inline validation error (mapped from `VALUE_VALIDATION_FAILED`) and blocks submit until valid.
 - [ ] `ErrorBanner` displays the latest recoverable error with a retry affordance.

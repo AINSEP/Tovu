@@ -10,11 +10,11 @@
 |-------|-------|
 | spec_id | SPEC-007 |
 | feature_name | FEAT-007-settings-core-ledger |
-| version | 0.2.0 |
+| version | 0.3.0 |
 | filled_by | Spec Agent |
-| filled_date | 2026-07-11T19:10:00Z |
-| reviewed_by | Coordinator |
-| reviewed_date | 2026-07-11T19:25:00Z |
+| filled_date | 2026-07-11T20:00:00Z |
+| reviewed_by | Coordinator (pending re-run Planning Preflight after Red-Team fix) |
+| reviewed_date | pending |
 
 ---
 
@@ -47,7 +47,7 @@ Software Architect dispatch until all items are PASS or NA and the Sign-Off Bloc
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | B-01 | `spec_id` assigned and unique | PASS | SPEC-007; SPEC-001..006 exist |
-| B-02 | `version` correct semver | PASS | 0.2.0 (minor bump — `/clarify` resolved OQ-01/OQ-02, OQ-02 added REQ-11 scope) |
+| B-02 | `version` correct semver | PASS | 0.3.0 (minor bump — Red-Team fix pass closes RT-001/002/003) |
 | B-03 | `status` is APPROVED | PASS | APPROVED for spec handoff |
 | B-04 | `content_hash` computed per canonical rule | PASS | Set by provider-local validator --update-hash |
 | B-05 | `feature_name` matches FEAT folder name | PASS | FEAT-007-settings-core-ledger / 007-settings-core-ledger |
@@ -60,18 +60,18 @@ Software Architect dispatch until all items are PASS or NA and the Sign-Off Bloc
 | B-12 | Out-of-scope list present and non-empty | PASS | Present (plugin/secret gates, sync, batch repair) |
 | B-13 | Zero `[NEEDS CLARIFICATION]` markers | PASS | None |
 | B-14 | Open Questions have owner AND date | PASS | OQ-01/OQ-02 both owned + dated; both RESOLVED 2026-07-11 via `/clarify` |
-| B-15 | ≥1 REQ-* item | PASS | REQ-01..12 |
+| B-15 | ≥1 REQ-* item | PASS | REQ-01..13 |
 | B-16 | REQ-* observable/testable, no vague qualifiers | PASS | Reviewed |
 | B-17 | REQ-* independently verifiable | PASS | Reviewed |
-| B-18 | ≥1 AC-* item | PASS | AC-01..23 |
+| B-18 | ≥1 AC-* item | PASS | AC-01..26 |
 | B-19 | Every REQ-* has ≥1 AC-* | PASS | Verified in traceability §1 |
 | B-20 | AC-* follow Given/When/Then | PASS | All ACs Given/When/Then |
 | B-21 | AC-* have [P1]/[P2]/[P3] | PASS | All tagged |
 | B-22 | P1 ACs independently testable | PASS | Reviewed |
 | B-23 | No AC requires implementation knowledge | PASS | Behavioral outcomes only |
-| B-24 | ≥1 INV-* item | PASS | INV-01..08 |
+| B-24 | ≥1 INV-* item | PASS | INV-01..09 |
 | B-25 | INV-* absolute statements | PASS | "must always"/"must never" |
-| B-26 | ≥1 EC-* item | PASS | EC-01..10 |
+| B-26 | ≥1 EC-* item | PASS | EC-01..11 |
 | B-27 | EC-* concrete scenarios | PASS | Each names a scenario |
 | B-28 | EC-* have explicit Expected Behavior | PASS | Each has one |
 | B-29 | Dependencies table complete (no blank cells) | PASS | All rows filled |
@@ -129,11 +129,11 @@ Software Architect dispatch until all items are PASS or NA and the Sign-Off Bloc
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | E-01 | traceability.spec.md present | PASS | Present |
-| E-02 | Every REQ-* in §1 | PASS | REQ-01..12 present |
-| E-03 | Every AC-* in §1 | PASS | AC-01..23 present |
-| E-04 | Every INV-* in §2 | PASS | INV-01..08 present |
-| E-05 | Every EC-* in §3 | PASS | EC-01..10 present |
-| E-06 | Every error code in §4 | PASS | 15 codes present |
+| E-02 | Every REQ-* in §1 | PASS | REQ-01..13 present |
+| E-03 | Every AC-* in §1 | PASS | AC-01..26 present |
+| E-04 | Every INV-* in §2 | PASS | INV-01..09 present |
+| E-05 | Every EC-* in §3 | PASS | EC-01..11 present |
+| E-06 | Every error code in §4 | PASS | 16 codes present |
 | E-07 | Pending rows acceptable at spec stage | PASS | All impl/test cells pending (pre-TDD) |
 | E-08 | §7 Untraced is empty | PASS | Empty |
 
@@ -150,7 +150,7 @@ Software Architect dispatch until all items are PASS or NA and the Sign-Off Bloc
 | F-05 | Orchestrator InputProps defaults match behavior defaults | NA | No orchestrator.spec.md; UI/API defaults are reconciled against behavior.spec §3 directly |
 | F-06 | Rate-limit values match behavior Limits table | PASS | 30/60s write, 300/60s read in both api §3 and behavior §4 |
 | F-07 | All files share spec_id and feature_name | PASS | SPEC-007 / FEAT-007-settings-core-ledger everywhere |
-| F-08 | Consistent version numbers | PASS | All 0.2.0 (bumped together during `/clarify`) |
+| F-08 | Consistent version numbers | PASS | All 0.3.0 (bumped together during Red-Team fix pass) |
 
 ---
 
@@ -212,7 +212,9 @@ Software Architect dispatch until all items are PASS or NA and the Sign-Off Bloc
 |------|-----------------|---------------------|-----------|
 | Spec Agent | Spec Agent | 2026-07-11T16:55:07Z | SPEC-007-v0.1.0-spec-handoff |
 | Spec Agent | Spec Agent | 2026-07-11T19:10:00Z | SPEC-007-v0.2.0-clarify-update |
-| Coordinator | Coordinator | 2026-07-11T19:25:00Z | SPEC-007-v0.2.0-preflight-pass |
+| Coordinator | Coordinator | 2026-07-11T19:25:00Z | SPEC-007-v0.2.0-preflight-pass (superseded — Red-Team found 3 BLOCKING against this version) |
+| Spec Agent | Spec Agent | 2026-07-11T20:00:00Z | SPEC-007-v0.3.0-redteam-fix |
+| Coordinator | | | |
 
 > By signing, the Coordinator confirms all items are PASS/NA, the package is internally consistent,
 > H-01 is PASS, and the spec is authorized for Software Architect dispatch.
