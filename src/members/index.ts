@@ -2,9 +2,10 @@
  * @file Public surface (barrel) for the `members` Tier-2 core library (ADR-030).
  *
  * ADR-009 §1: a module's public contract is its `index.ts`; boundary lint
- * forbids deep imports. This sweep ships INTERFACES AND TYPES ONLY — the command
- * functions, repo adapters, resolver, and write-service implementations are the
- * ADR-030 follow-up build, not this design-only PR.
+ * forbids deep imports. This now ships the real in-memory repo adapters, the
+ * console mail adapter, the `MemberAccessResolver` implementation, and the
+ * `MembersWriteService` implementation (the ADR-030 follow-up build) in
+ * addition to the original interfaces/types.
  *
  * Placement note: this staging location is `src/members/` per the design brief;
  * the module's production home is `src/features/membership/` (matching the admin
@@ -42,9 +43,42 @@ export type {
   MemberSubscriptionRepoPort,
   MemberSessionRepoPort,
   MagicLinkTokenRepoPort,
-  OutboundEmail,
-  MailerPort,
   MemberAccessResolver,
   MembersWriteServiceDeps,
   MembersWriteService,
 } from "./ports";
+
+// `MailerPort` is the shared `../mail` core primitive (ADR-037) — re-exported here so existing
+// `members` consumers don't need to know the type moved.
+export type { MailerPort, OutboundEmail } from "../mail";
+
+export {
+  InMemoryMagicLinkTokenRepo,
+  InMemoryMemberRepo,
+  InMemoryMemberSessionRepo,
+  InMemoryMemberSubscriptionRepo,
+  InMemoryMemberTierRepo,
+} from "./repo.memory";
+
+export { ConsoleMailerAdapter, type ConsoleMailerAdapterDeps } from "./mailer.console";
+
+export {
+  DefaultMemberAccessResolver,
+  type MemberAccessResolverDeps,
+} from "./access-resolver";
+
+export {
+  compSubscription,
+  completeSignIn,
+  disableMember,
+  membersWriteService,
+  requestSignInLink,
+  setSubscriptionStatus,
+  updateProfile,
+} from "./write-service";
+
+// `SubscriberDirectoryPort` consumer-side seam Members implements (`../newsletter/ports`).
+export {
+  MembersSubscriberDirectory,
+  type MembersSubscriberDirectoryDeps,
+} from "./subscriber-directory";

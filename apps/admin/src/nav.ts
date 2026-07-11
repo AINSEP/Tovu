@@ -71,7 +71,7 @@ export const NAV: NavGroup[] = [
       {
         id: "menus",
         label: "Menus",
-        soon: true,
+        href: "#/menus",
         icon: '<path d="M4 3h10M4 7h10M4 11h6M2 3v.01M2 7v.01M2 11v.01"/>',
       },
       {
@@ -106,7 +106,7 @@ export const NAV: NavGroup[] = [
       {
         id: "members",
         label: "Members",
-        soon: true,
+        href: "#/section/members",
         icon: '<circle cx="7" cy="6" r="2.5"/><path d="M2 15c0-2.8 2.2-5 5-5s5 2.2 5 5"/><path d="M12.5 6.5l1.3 1.3 2.2-2.5"/>',
       },
       {
@@ -147,7 +147,7 @@ export const NAV: NavGroup[] = [
       {
         id: "integrations",
         label: "Integrations & API",
-        soon: true,
+        href: "#/integrations",
         icon: '<path d="M6 6l-3 3 3 3M12 6l3 3-3 3M10 4l-2 10"/>',
       },
       {
@@ -188,7 +188,7 @@ export const NAV: NavGroup[] = [
       {
         id: "analytics",
         label: "Analytics",
-        soon: true,
+        href: "#/section/analytics",
         icon: '<path d="M3 15V9M8 15V4M13 15v-4"/>',
       },
     ],

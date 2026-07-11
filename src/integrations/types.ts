@@ -56,7 +56,7 @@ export interface WebhookSubscriptionRecord {
   ownerPrincipalId: UUID;
   /** Human/AI-facing label shown in the admin surface. */
   label: string;
-  /** Absolute https target. Validated against {@link WebhookEgressPolicy} before every delivery. */
+  /** Absolute https target. Validated against {@link EgressPolicy} (`../http`) before every delivery. */
   targetUrl: string;
   /**
    * Topics this subscription matches. Empty = matches nothing (fail-closed). Each entry is a

@@ -1,4 +1,4 @@
-import { DuplicateCommandError, executeCommand } from "../../../../core/commands";
+import { DuplicateCommandError, ForbiddenError, executeCommand } from "../../../../core/commands";
 import {
   PostConflictError,
   PostNotFoundError,
@@ -7,6 +7,7 @@ import {
   type PostRecord,
 } from "../../../../features/post";
 import { toAdminPostResponse } from "../../../../server/http/admin/posts";
+import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { RouteRegistrar } from "../../../routes/types";
 
 /**
@@ -15,6 +16,11 @@ import type { RouteRegistrar } from "../../../routes/types";
  * The gateway records an auditable, revertible change set around the existing
  * `updatePost` call. Success response shape is unchanged from before the gateway
  * (REQ-04); a reused `Idempotency-Key` is rejected with `DUPLICATE_COMMAND`.
+ *
+ * SPEC-006 REQ-05 wiring proof: the gateway now authorizes `content.write`
+ * for the real authenticated principal instead of the hardcoded `"user-local"`
+ * actor, and runs that check before the idempotency lookup (INV-04) — see
+ * `executeCommand`.
  */
 export const registerAdminPostUpdateRoute: RouteRegistrar = (app, deps) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/posts/:postId", async (req, res) => {
@@ -33,18 +39,24 @@ export const registerAdminPostUpdateRoute: RouteRegistrar = (app, deps) => {
     let priorPost: PostRecord | null = null;
 
     try {
+      // Inside the try: requireAdminSession always sets res.locals.principal before this
+      // route runs, but Express 4 doesn't catch a synchronous throw from an async handler
+      // outside try/catch (the request would otherwise hang instead of 500ing).
+      const principal = getAuthedPrincipal(res);
       const { result } = await executeCommand({
         deps: {
           clock: deps.clock,
           idGen: deps.idGen,
           changeSets: deps.changeSets,
           outbox: deps.outbox,
+          authorize: deps.authorize,
         },
         command: {
           workspaceId: deps.workspaceId,
-          actor: { id: "user-local", kind: "user" },
+          actor: { id: principal.id, kind: "user" },
           summary: `Update post ${postId}`,
           idempotencyKey,
+          permission: "content.write",
         },
         mutation: {
           entityType: "post",
@@ -81,6 +93,15 @@ export const registerAdminPostUpdateRoute: RouteRegistrar = (app, deps) => {
 
       res.json(toAdminPostResponse(result.post));
     } catch (err) {
+      if (err instanceof ForbiddenError) {
+        res.status(403).json({
+          error: err.message,
+          code: "FORBIDDEN",
+          details: { permission: err.permission, reason: err.reason },
+        });
+        return;
+      }
+
       if (err instanceof DuplicateCommandError) {
         res.status(409).json({
           error: err.message,

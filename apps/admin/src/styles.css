@@ -164,6 +164,22 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); box
 .status-published { background: var(--ok-bg); color: var(--ok); }
 .status-draft { background: var(--surface-3); color: var(--muted); }
 
+/* Media (ADR-027 walking skeleton) */
+.status-active { background: var(--ok-bg); color: var(--ok); }
+.status-trashed { background: var(--danger-bg); color: var(--danger); }
+
+/* Integrations (webhook subscriptions + delivery log) */
+.status-sub-active { background: var(--ok-bg); color: var(--ok); }
+.status-sub-paused { background: var(--surface-3); color: var(--muted); }
+.status-sub-disabled { background: var(--danger-bg); color: var(--danger); }
+.status-delivery-delivered { background: var(--ok-bg); color: var(--ok); }
+.status-delivery-pending, .status-delivery-delivering { background: var(--surface-3); color: var(--muted); }
+.status-delivery-failed, .status-delivery-dead { background: var(--danger-bg); color: var(--danger); }
+.status-delivery-canceled { background: var(--surface-3); color: var(--faint); }
+.muted-cell { color: var(--faint); font-size: 0.85rem; }
+.integrations-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
+.integrations-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.82rem; color: var(--fg-2); width: 100%; max-width: 28rem; }
+
 /* Dashboard */
 .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1.2rem; }
 .dash-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1.3rem 1.4rem; box-shadow: var(--shadow-sm); transition: box-shadow 0.14s, border-color 0.14s; }
