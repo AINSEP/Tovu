@@ -45,6 +45,24 @@ const BUILTIN_ADMIN_PERMISSIONS: readonly string[] = [
   "apikey.manage",
   "navigation.manage",
   "integration.manage",
+  // SPEC-007 (ADR-028 §7 migration clause): every settings.write holder also
+  // gets settings.definitions.manage, so the admin role isn't left
+  // fail-closed-locked-out of definition-lifecycle operations it previously
+  // reached through the coarse settings.write grant. No separate migration
+  // script is needed pre-launch — this seed function is the sole source of
+  // built-in role grants (no existing installation's data to migrate yet).
+  "settings.definitions.manage",
+  "settings.global.write",
+  "settings.workspace.write",
+  "settings.user.self.write",
+  "settings.user.write",
+  "settings.reset.global",
+  "settings.reset.workspace",
+  "settings.reset.user",
+  "settings.read",
+  "settings.read.raw",
+  "settings.read.revisions",
+  "settings.read.definitions",
   // Owner-only per REQ-09: "user.manage", "role.manage" are deliberately absent.
 ];
 

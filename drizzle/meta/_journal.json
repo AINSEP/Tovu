@@ -15,6 +15,13 @@
       "when": 1783735072572,
       "tag": "0001_amused_crystal",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1783796903066,
+      "tag": "0002_skinny_network",
+      "breakpoints": true
     }
   ]
 }

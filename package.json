@@ -11,6 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:generate": "drizzle-kit generate",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "test:cov": "rm -rf coverage && mkdir -p coverage && node --import tsx --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test-reporter=spec --test-reporter-destination=stdout \"src/**/*.test.ts\"",
     "admin:install": "npm --prefix apps/admin install",
     "admin:build": "npm --prefix apps/admin run build",
     "admin:dev": "npm --prefix apps/admin run dev",

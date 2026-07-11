@@ -39,8 +39,59 @@ const BASE_CATALOG: readonly PermissionDescriptor[] = [
   { id: "member.manage", owner: "core", description: "Manage front-end members and subscriptions." },
   { id: "user.manage", owner: "core", description: "Create/disable operator users and principals." },
   { id: "role.manage", owner: "core", description: "Manage roles, policies, and grants." },
-  { id: "settings.write", owner: "core", description: "Change workspace settings." },
+  {
+    id: "settings.write",
+    owner: "core",
+    description:
+      "DEPRECATED (ADR-028 §7) — superseded by the fine-grained settings.* catalog below. Retained until the data migration that maps existing grants to settings.workspace.write + settings.definitions.manage completes and is verified; do not reuse this string for anything else afterward.",
+  },
   { id: "apikey.manage", owner: "core", description: "Issue and revoke API keys." },
+  // SPEC-007 settings.* catalog (ADR-028 §7, core-only subset).
+  { id: "settings.global.write", owner: "settings", description: "Set/clear a setting's global-layer value." },
+  {
+    id: "settings.workspace.write",
+    owner: "settings",
+    description: "Set/clear a setting's workspace-layer value.",
+  },
+  {
+    id: "settings.user.self.write",
+    owner: "settings",
+    description: "Set/clear a setting's own user-layer value.",
+  },
+  {
+    id: "settings.user.write",
+    owner: "settings",
+    description: "Set/clear another principal's user-layer value.",
+  },
+  {
+    id: "settings.definitions.manage",
+    owner: "settings",
+    description:
+      "Register/rename/retype/deprecate/tombstone setting definitions; also gates the purge service and authorizes the background coerce repair job (ADR-028 §7).",
+  },
+  { id: "settings.reset.global", owner: "settings", description: "Reset a namespace's global-layer values to defaults." },
+  {
+    id: "settings.reset.workspace",
+    owner: "settings",
+    description: "Reset a namespace's workspace-layer values to defaults.",
+  },
+  { id: "settings.reset.user", owner: "settings", description: "Reset a namespace's user-layer values to defaults." },
+  { id: "settings.read", owner: "settings", description: "Read effective setting values (getEffective)." },
+  {
+    id: "settings.read.raw",
+    owner: "settings",
+    description: "Read per-layer raw setting values. Reserved for a future API surface (ADR-028 §7 RD2-02).",
+  },
+  {
+    id: "settings.read.revisions",
+    owner: "settings",
+    description: "Read the setting_revisions ledger. Reserved for a future API surface (ADR-028 §7 RD2-02).",
+  },
+  {
+    id: "settings.read.definitions",
+    owner: "settings",
+    description: "List setting definitions grouped by namespace.",
+  },
 ] as const;
 
 /**
