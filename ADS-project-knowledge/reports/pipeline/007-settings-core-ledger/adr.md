@@ -1,6 +1,6 @@
 # ADR-PIPE-007: Settings (Core-Only Layered Ledger) — Implementation Architecture
 
-- Status: PROPOSED
+- Status: ACCEPTED 2026-07-11 (human approval: Leon Aburime, via Coordinator walkthrough — approved with acknowledged uncertainty; reversible if the module layout or migration plan needs revision once implementation starts)
 - Date: 2026-07-11
 - Spec: SPEC-007 v0.3.1 (hash: sha256:fc322f69fe3cc586dbe9823c4d3d6d5225e419d538be554bdfe88873a40a501b)
 - Author: Software Architect Agent (Coordinator, sequential single-agent mode)
