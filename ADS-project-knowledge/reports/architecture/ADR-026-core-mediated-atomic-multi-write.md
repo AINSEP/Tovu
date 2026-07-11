@@ -1,16 +1,18 @@
 # ADR-026: Core-Mediated Atomic Multi-Write Primitive for Plugin Data
 
-- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 6th `/audit-work`
+- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 7th `/audit-work`
   round under `TM-adr026-atomic-write-001`**, per user instruction to prefer broad/full-pass audits over
   narrow diff-only ones after rounds 1-5's narrow scoping caused repeated same-class misses. Briefly
   ACCEPTED after round 3, reopened by an independent Fable pass + rounds 4/5 (recurring "unspecified
   scalar evaluation/storage semantics" — money-decimal, dates, strings), closed structurally in round 5
-  with a closed-vocabulary rule. **Round 6 (full-pass, not diff-only) found the closed-vocabulary rule
-  itself had 3 bugs**: agy found the enumeration accidentally banned baseline `set`/`in`/`isNull` for
-  every type (a grammar-breaking regression) and that generic-`number` bounding omitted
-  `MIN_SAFE_INTEGER`; Codex found it didn't exclude `NaN`/`Infinity`/`-Infinity`. All three fixed — see
-  "Debate + Audit record" for the full history. **Round-7 full-pass re-audit** owed before ACCEPTED).
-  **Amends ADR-024 §3** and **ADR-023 §7**.
+  with a closed-vocabulary rule. Round 6 (full-pass) found the closed-vocabulary rule itself had 3 bugs
+  (baseline-op regression, missing `MIN_SAFE_INTEGER`, missing `NaN`/`Infinity`/`-Infinity` exclusion),
+  all fixed. **Round 7 (full-pass) found the generic-`number` fix still had 2 gaps**: agy found the
+  "both checkpoints" bound language couldn't actually apply to a relative-mutation *result* (the current
+  row value isn't known until execution, so an in-transaction execution-time check was missing); Codex
+  found `-0` wasn't excluded despite passing every other check, silently colliding with `0` on
+  storage/round-trip. Both fixed — see "Debate + Audit record" for the full history. **Round-8 full-pass
+  re-audit** owed before ACCEPTED). **Amends ADR-024 §3** and **ADR-023 §7**.
 - Author: Leon Aburime / Coordinator (Claude Sonnet 5 Primary) with debate peers Codex `gpt-5.5`,
   Gemini 3.1 Pro (`agy`); original `/cowork` probe with Opus 4.8/Fable/Codex/agy
 - Extends / amends: **ADR-024** (§3 transport-agnostic frozen ABI), **ADR-023** (§7 typed core-owned writes)
@@ -100,10 +102,27 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
        past the lower bound free to silently lose precision the same way an unbounded upper end would;
        it also didn't explicitly exclude `NaN`/`Infinity`/`-Infinity` — a range check alone doesn't catch
        `NaN`, since every comparison involving `NaN`, ordered or otherwise, evaluates `false`, so a
-       naive "reject if `value > MAX_SAFE_INTEGER`" check silently admits it). Core rejects, at both
-       checkpoints, any `number` value or relative-mutation result that is non-finite (`NaN`, `Infinity`,
-       `-Infinity`) or falls outside the safe-integer range, using an explicit finiteness check
-       (`Number.isFinite`) before the range comparison — never a bare range comparison alone.
+       naive "reject if `value > MAX_SAFE_INTEGER`" check silently admits it). Core rejects any supplied
+       `number` value that is non-finite (`NaN`, `Infinity`, `-Infinity`) or falls outside the
+       safe-integer range at both pre-execution checkpoints (registration §1, invocation), using an
+       explicit finiteness check (`Number.isFinite`) before the range comparison — never a bare range
+       comparison alone. **A relative-mutation *result* requires a third, execution-time checkpoint
+       (round-7 audit fix, agy's r7-B1 finding):** `increment`/`decrement` operands can only be bounded
+       at registration/invocation as *supplied values* — the result of applying them depends on the
+       live row value, which is not known until the operation executes inside the transaction. Claiming
+       the result-bound is enforced "at both checkpoints" is impossible for a value that doesn't exist
+       yet at either checkpoint. Core MUST additionally compute the post-mutation value inside the same
+       transaction as the write and reject the whole batch (same all-or-nothing rollback as any other
+       guard/op failure, §2) if that computed result is non-finite or falls outside
+       `[Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER]` — this execution-time check is in addition
+       to, not a replacement for, bounding the supplied operand at registration/invocation. **Generic
+       `number` additionally rejects `-0` at every checkpoint, including this execution-time one
+       (round-7 audit fix, Codex's r7-B1 finding):** `-0` passes both `Number.isFinite` and the safe-
+       integer range check, but typical SQLite storage and JSON-style serialization collapse it to `0`
+       on round-trip — a silent representation collision for an accepted value, the exact class of bug
+       this vocabulary exists to prevent. Core rejects any supplied or computed generic-`number` value
+       for which `Object.is(value, -0)` is true, at registration, invocation, and the execution-time
+       mutation-result checkpoint alike — never silently canonicalized to `0`.
      - `boolean`/`null`: ordered comparison is not permitted (no relative mutation is defined for these
        either) — there is no meaningful order, and permitting it would just be another unspecified-
        semantics trap. The baseline `eq`/`ne`/`isNull` above remain available (`in` is permitted but
@@ -273,9 +292,10 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
   between the two debate peers, and not blocking.
 - **Interaction with ADR-023 §10 transform DSL + backfill jobs** — the command/envelope primitive is the
   runtime write path; the DSL is the migration path; keep them distinct.
-- **This design is PROPOSED, on its 6th audit round** — see the Status line and "Debate + Audit record"
-  for the full history, including round 6's 3 fixes to the round-5 closed-vocabulary rule itself. A
-  **round-7 full-pass re-audit** (`TM-adr026-atomic-write-001`) is owed before ACCEPTED again.
+- **This design is PROPOSED, on its 7th audit round** — see the Status line and "Debate + Audit record"
+  for the full history, including round 6's 3 fixes to the round-5 closed-vocabulary rule and round 7's
+  2 fixes to the round-6 numeric-bounding fix itself. A **round-8 full-pass re-audit**
+  (`TM-adr026-atomic-write-001`) is owed before ACCEPTED again.
 - Depends on ADR-023 (now **ACCEPTED** 2026-07-11 — see ADR-023's own round-3 audit closure).
 
 ## Debate + Audit record
@@ -501,9 +521,38 @@ separate from the ordered-comparison/relative-mutation enumeration; generic `num
 `Number.isFinite` plus a symmetric `[MIN_SAFE_INTEGER, MAX_SAFE_INTEGER]` range check, in that order.
 Full round-6 trace: `.local-artifacts/external-audit/runs/20260711T190000Z-external-audit-report.md`.
 
-**Status remains PROPOSED, on its 7th audit round.** A **round-7 full-pass re-audit**
+**Round-7 full-pass re-audit** (`TM-adr026-atomic-write-001`, continuing the standing broad-scope
+preference, explicit ask to verify round 6's fixes plus a fresh full-document adversarial sweep), run
+2026-07-11, **returned FAIL — both auditors found new blockers in round 6's own fix**: agy/Gemini 3.1 Pro
+(High) **6.5** (1 blocker, `agy-r7-B1`: the generic-`number` bound's "at both checkpoints" language
+cannot actually apply to a relative-mutation *result* — `increment`/`decrement` operands can only be
+bounded as supplied values at registration/invocation; the live row value needed to compute the actual
+result doesn't exist until the operation executes inside the transaction, so a decrement past
+`MIN_SAFE_INTEGER` on a row already near that bound would underflow silently, uncaught by either
+pre-execution checkpoint), Codex `gpt-5.5` **8.0** (1 blocker, `codex-r7-B1`: generic `number` still
+admitted `-0` — it passes both `Number.isFinite` and the safe-integer range check, but typical SQLite
+storage and JSON-style serialization collapse `-0` to `0` on round-trip, a silent representation
+collision for an accepted value, the exact class of bug this vocabulary exists to prevent). Both
+auditors independently confirmed round 6's three fixes (baseline-op universality, `MIN_SAFE_INTEGER`
+symmetry, `NaN`/`Infinity`/`-Infinity` exclusion) as genuinely resolved before finding these two new,
+narrower gaps in the same fix — evidence the full-pass policy continues to earn its cost. Neither
+auditor re-litigated `agy-B3`; agy's ledger update explicitly confirmed it `not_reopened`, no new
+evidence found. Both fixed inline (§2): a third, execution-time checkpoint now requires core to compute
+the post-mutation value inside the same transaction as the write and reject the whole batch if it is
+non-finite or out-of-range, in addition to (not instead of) bounding the supplied operand at the two
+pre-execution checkpoints; generic `number` now also rejects `-0` (via `Object.is(value, -0)`) at every
+checkpoint including the new execution-time one, rather than silently canonicalizing it to `0`. Full
+round-7 trace: `.local-artifacts/external-audit/runs/20260711T174228Z-external-audit-report.md`, packet
+`.local-artifacts/external-audit/packets/20260711T174228Z-adr026-atomic-write-round7-audit-packet.md`,
+offloads `.local-artifacts/external-audit/offloads/20260711T174228Z/`.
+
+**Status remains PROPOSED, on its 8th audit round owed.** A **round-8 full-pass re-audit**
 (`TM-adr026-atomic-write-001`) is owed before ACCEPTED. No finding across any round has disputed the
 architecture's core shape: named-command surface, core-owned compiled IR, chokepoint preservation,
 reads-are-advisory correctness rule. Every finding has been a precision/completeness gap — real, and
-round 6 (the first genuinely broad pass) caught defects in the very fix meant to close them, which
-narrow diff-only scoping had been missing.
+both round 6 and round 7 (the first two genuinely broad passes) caught defects in the very fix meant to
+close the prior round's finding, which narrow diff-only scoping had been missing. The recurring pattern
+across rounds 6-7 specifically (a fix for one numeric-bounding gap introducing or leaving an adjacent
+numeric-bounding gap) is worth naming honestly: this defect class may need one more full-pass round
+before the Coordinator can defensibly expect a clean sweep, the same way round 5's structural
+closed-vocabulary rule was needed after 4 rounds of one-off scalar-semantics patches.
