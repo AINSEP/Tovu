@@ -91,7 +91,7 @@ pressure point once RT-001/RT-002/RT-003 are resolved.
 
 ---
 
-## Routing Decision
+## Routing Decision (original, v0.2.0)
 
 **3 BLOCKING findings.** Route back to Spec Agent — spec is NOT cleared for Software Architect
 dispatch. All three trace to the OQ-02 "ship a UI affordance now" resolution added in this session's
@@ -101,3 +101,35 @@ before continuing, or (b) fall back to OQ-02's other option (API-only, no UI aff
 which removes the underspecified surface entirely and reopens `/plan` immediately.
 
 ADVISORY finding RT-004 is included in Software Architect context if/when dispatch proceeds.
+
+---
+
+## Confirm-Pass (v0.3.1, 2026-07-11T20:20:00Z)
+
+Human chose (a): fix in place. Re-checked each BLOCKING finding against the v0.3.1 package.
+
+- **RT-001 — CLOSED.** REQ-13 adds the target-principal check; `PRINCIPAL_NOT_FOUND` is registered in
+  `errors.spec.md` §2/§4 and wired into `api.spec.md` §6 for `SETTINGS_SET`/`SETTINGS_CLEAR` (404);
+  `state.spec.md` §3 `SET_VALUE`/`CLEAR_VALUE` preconditions and §5 now state the check; AC-24/EC-11
+  certify it. During this confirm-pass, a follow-up precision issue was caught and fixed in v0.3.1:
+  the initial v0.3.0 wording ("member of workspaceId") implied a workspace-membership join that
+  doesn't exist in this codebase's identity model — SPEC-006/ADR-007 tie each principal to exactly one
+  `workspace_id` directly (structural scoping, no join table). Reworded to "principal whose own
+  `workspace_id` equals the request's `workspaceId`" throughout (REQ-13, INV-09, AC-24, EC-11,
+  state.spec.md, behavior.spec.md), referencing the already-listed ADR-007 dependency. No outstanding
+  gap.
+- **RT-002 — CLOSED.** `PrincipalSelector` (ui.spec.md §2.1a/3.1a) is now specified as a validated
+  identifier text field with its own resolve/error contract (`onSubmitPrincipal`,
+  `validationState`/`lastError`), not a directory/search picker. No dependency on an unbuilt
+  principal-listing endpoint remains; the existing `SETTINGS_SET`/`SETTINGS_GET_EFFECTIVE`
+  `principalId` parameter plus the new `PRINCIPAL_NOT_FOUND` response are sufficient to back it.
+- **RT-003 — CLOSED.** `behavior.spec.md` §1.3 states the exact self-vs-other derivation rule;
+  `api.spec.md` §2 `AUTH_WRITE_SCOPED` notes reference it; `feature.spec.md` REQ-06 states it inline;
+  AC-25 (negative) and AC-26 (positive) certify both branches.
+
+No new BLOCKING or ADVISORY findings surfaced in this confirm-pass beyond the RT-001 precision fix
+already folded into v0.3.1.
+
+**Updated Routing Decision: 0 BLOCKING findings remain. Spec is cleared for Software Architect
+dispatch** (pending a fresh Coordinator Planning Preflight sign-off against v0.3.1, per the compatibility
+gate). RT-004 (ADVISORY, rate-limit note) remains open and travels with the spec into Architect context.
