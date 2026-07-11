@@ -1,12 +1,16 @@
 # ADR-026: Core-Mediated Atomic Multi-Write Primitive for Plugin Data
 
-- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 5th `/audit-work`
-  round under `TM-adr026-atomic-write-001`** — briefly ACCEPTED after round 3's unanimous PASS, then
-  reopened twice by findings in the same recurring defect class (unspecified scalar evaluation/storage
-  semantics — money-decimal comparisons, then dates, then generic strings), most recently by round 5.
-  Round 5's fix closes the whole defect class with a general closed-vocabulary rule rather than another
-  one-off patch — see "Debate + Audit record" for the full round-by-round history. A **round-6 diff-only
-  re-audit** is owed before ACCEPTED again). **Amends ADR-024 §3** and **ADR-023 §7**.
+- Status: PROPOSED 2026-07-11 (redesigned from a 2-round formal `/debate`; **on its 6th `/audit-work`
+  round under `TM-adr026-atomic-write-001`**, per user instruction to prefer broad/full-pass audits over
+  narrow diff-only ones after rounds 1-5's narrow scoping caused repeated same-class misses. Briefly
+  ACCEPTED after round 3, reopened by an independent Fable pass + rounds 4/5 (recurring "unspecified
+  scalar evaluation/storage semantics" — money-decimal, dates, strings), closed structurally in round 5
+  with a closed-vocabulary rule. **Round 6 (full-pass, not diff-only) found the closed-vocabulary rule
+  itself had 3 bugs**: agy found the enumeration accidentally banned baseline `set`/`in`/`isNull` for
+  every type (a grammar-breaking regression) and that generic-`number` bounding omitted
+  `MIN_SAFE_INTEGER`; Codex found it didn't exclude `NaN`/`Infinity`/`-Infinity`. All three fixed — see
+  "Debate + Audit record" for the full history. **Round-7 full-pass re-audit** owed before ACCEPTED).
+  **Amends ADR-024 §3** and **ADR-023 §7**.
 - Author: Leon Aburime / Coordinator (Claude Sonnet 5 Primary) with debate peers Codex `gpt-5.5`,
   Gemini 3.1 Pro (`agy`); original `/cowork` probe with Opus 4.8/Fable/Codex/agy
 - Extends / amends: **ADR-024** (§3 transport-agnostic frozen ABI), **ADR-023** (§7 typed core-owned writes)
@@ -62,35 +66,51 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
 2. **Internal execution — the compiled IR — is the frozen envelope + a small guard grammar (frozen now,
    not deferred).** Core compiles a command invocation into an ordered batch of typed mutations plus
    per-op guards, executed inside **one transaction, all-or-nothing**:
-   - **Closed-vocabulary rule for scalar operations (round-5 audit fix, closing the recurring defect
-     class F1/`codex-r4-B1`/`codex-r5-B1`):** an operator applied to a scalar kind has normatively
-     specified evaluation and storage semantics, or it is **not permitted** in v1 — never
-     implementation-defined by default. This ADR previously specified evaluation/storage semantics
-     piecemeal (money-decimal, then dates) as each gap was found across 3 audit rounds; rather than
-     continue finding these one type at a time, the full closed enumeration for the frozen v1 vocabulary
-     is:
-     - `money-int`: all six comparison operators (`eq`/`ne`/`lt`/`lte`/`gt`/`gte`) and relative
-       `increment`/`decrement` use native BigInt-safe integer semantics (safe by construction).
-     - `money-decimal`: all six comparison operators and relative mutations use BigInt-safe fixed-point
-       arithmetic at the field's declared scale (never string collation, never `Number` parsing — see
-       below); storage is TEXT-affinity.
-     - Date (ISO-8601, fixed-width canonical form): all six comparison operators use plain
-       lexicographic string comparison, safe only because the canonical form is fixed-width (see below).
-     - Generic `string`: **only `eq`/`ne`/`in`/`isNull` are permitted.** Ordered comparison
-       (`lt`/`lte`/`gt`/`gte`) on a generic string field is **not permitted in v1** — collation semantics
-       (byte-order vs. code-unit order vs. locale-aware vs. Unicode-normalized) are exactly the kind of
-       cross-implementation ambiguity this rule exists to close, and no single choice is obviously
-       correct the way fixed-width lexicographic order is for the frozen date form. `eq`/`ne`/`in`
-       remain safe as exact string-identity comparison, independent of collation.
-     - Generic `number`: all six comparison operators and relative `increment`/`decrement` use native JS
-       number semantics, **bounded to `Number.MAX_SAFE_INTEGER`** — core rejects a `number` value or a
-       relative-mutation result that would exceed that bound, rather than silently losing integer
-       precision.
-     - `boolean`/`null`: **only `eq`/`ne`/`isNull` are permitted.** Ordered comparison is not permitted
-       (there is no meaningful order, and permitting it would just be another unspecified-semantics
-       trap).
-     - Any scalar kind or operator combination not enumerated above is rejected at registration time
-       (§1) as out-of-grammar, not silently allowed under an implementation's default behavior.
+   - **Closed-vocabulary rule for scalar operations (round-5 audit fix; corrected round-6, agy's
+     r6-B1/r6-B2 findings):** an operator applied to a scalar kind has normatively specified evaluation
+     and storage semantics, or it is **not permitted** in v1 — never implementation-defined by default.
+     This applies specifically to the two operation classes that require a defined notion of "order" or
+     "arithmetic" — **ordered comparison** (`lt`/`lte`/`gt`/`gte`) and **relative mutation**
+     (`increment`/`decrement`) — because those are where cross-implementation ambiguity actually lives.
+     **Baseline operations are universal and unrestricted for every scalar kind, not part of this
+     enumeration:** absolute `set` (overwrite, validated against the field's declared type/format at
+     both checkpoints per §1/§5), `eq`, `ne`, `in`, and `isNull` are always permitted for every scalar
+     kind — canonicalization already makes exact-identity/existence checks safe regardless of ordering
+     semantics, so these carry no representation ambiguity and need no per-type carve-out. (Round-6
+     correction: an earlier draft of this rule read, if applied literally, as banning absolute writes
+     and `in`/`isNull` for every type — a grammar-breaking regression this paragraph fixes by making the
+     baseline explicit and separate from the ordered-comparison/relative-mutation enumeration below.)
+
+     The closed enumeration below covers ONLY ordered comparison and relative mutation:
+     - `money-int`: both use native BigInt-safe integer semantics (safe by construction).
+     - `money-decimal`: both use BigInt-safe fixed-point arithmetic at the field's declared scale (never
+       string collation, never `Number` parsing — see below); storage is TEXT-affinity.
+     - Date (ISO-8601, fixed-width canonical form): ordered comparison only (relative mutation on dates
+       is not part of the v1 vocabulary — no "add N days" primitive is defined) uses plain lexicographic
+       string comparison, safe only because the canonical form is fixed-width (see below).
+     - Generic `string`: **ordered comparison is not permitted in v1** (no relative mutation is defined
+       for strings either) — collation semantics (byte-order vs. code-unit order vs. locale-aware vs.
+       Unicode-normalized) are exactly the kind of cross-implementation ambiguity this rule exists to
+       close, and no single choice is obviously correct the way fixed-width lexicographic order is for
+       the frozen date form. The baseline `eq`/`ne`/`in`/`isNull` above remain available and are safe as
+       exact string-identity comparison, independent of collation.
+     - Generic `number`: both use native JS number semantics, restricted to **finite values only, within
+       the inclusive safe-integer range `[Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER]`** (round-6
+       fixes: the prior text bounded only the upper end, leaving large-negative values or decrements
+       past the lower bound free to silently lose precision the same way an unbounded upper end would;
+       it also didn't explicitly exclude `NaN`/`Infinity`/`-Infinity` — a range check alone doesn't catch
+       `NaN`, since every comparison involving `NaN`, ordered or otherwise, evaluates `false`, so a
+       naive "reject if `value > MAX_SAFE_INTEGER`" check silently admits it). Core rejects, at both
+       checkpoints, any `number` value or relative-mutation result that is non-finite (`NaN`, `Infinity`,
+       `-Infinity`) or falls outside the safe-integer range, using an explicit finiteness check
+       (`Number.isFinite`) before the range comparison — never a bare range comparison alone.
+     - `boolean`/`null`: ordered comparison is not permitted (no relative mutation is defined for these
+       either) — there is no meaningful order, and permitting it would just be another unspecified-
+       semantics trap. The baseline `eq`/`ne`/`isNull` above remain available (`in` is permitted but
+       rarely meaningful for `boolean`/`null`).
+     - Any ordered-comparison or relative-mutation operator applied to a scalar kind not listed above as
+       supporting it is rejected at registration time (§1) as out-of-grammar — the baseline operations
+       are never affected by this rejection rule, regardless of scalar kind.
    - Guards are not limited to version-equality. The frozen v1 grammar includes: `expectedVersion`,
      `exists`/`notExists`, and bounded comparison predicates (`eq`/`ne`/`lt`/`lte`/`gt`/`gte`/`in`/
      `isNull`) evaluated against **live row state inside the same transaction** as the write (this is a
@@ -253,10 +273,9 @@ Round-1 position after weighing the tradeoffs) — see "Debate + Audit record" b
   between the two debate peers, and not blocking.
 - **Interaction with ADR-023 §10 transform DSL + backfill jobs** — the command/envelope primitive is the
   runtime write path; the DSL is the migration path; keep them distinct.
-- **This design is PROPOSED, on its 5th audit round** — see the Status line and "Debate + Audit record"
-  for the full history. Round 5's fix (§2) closes the recurring "unspecified scalar evaluation/storage
-  semantics" defect class with a general closed-vocabulary rule instead of patching one more instance —
-  a **round-6 diff-only re-audit** (`TM-adr026-atomic-write-001`) is owed before ACCEPTED again.
+- **This design is PROPOSED, on its 6th audit round** — see the Status line and "Debate + Audit record"
+  for the full history, including round 6's 3 fixes to the round-5 closed-vocabulary rule itself. A
+  **round-7 full-pass re-audit** (`TM-adr026-atomic-write-001`) is owed before ACCEPTED again.
 - Depends on ADR-023 (now **ACCEPTED** 2026-07-11 — see ADR-023's own round-3 audit closure).
 
 ## Debate + Audit record
@@ -465,11 +484,26 @@ remaining scalar kind (generic `number`) no round had reached yet. Full round-5 
 `.local-artifacts/external-audit/runs/20260711T183000Z-external-audit-report.md`,
 offloads `.local-artifacts/external-audit/offloads/20260711T183000Z/`.
 
-**Status remains PROPOSED, on its 6th audit round.** A **round-6 diff-only re-audit**
-(`TM-adr026-atomic-write-001`) — explicitly asked to try hard to find a sixth instance, given the
-pattern — is owed before ACCEPTED again. No finding across any round (3 external + 1 independent Fable
-verification + 2 more external) has disputed the architecture's core shape: named-command surface,
-core-owned compiled IR, chokepoint preservation, reads-are-advisory correctness rule. Every finding has
-been a precision/completeness gap in operand bounds, scalar representation and evaluation semantics,
-guard coverage, or namespace enforcement — real, and this round aims to close the last recurring class
-of them structurally rather than case-by-case.
+**User feedback, applied starting round 6:** asked directly why audits were scoped so narrowly; the goal
+is to surface and fix as many mistakes as possible, not minimize audit cost. Rounds 1-5 used
+progressively narrower diff-only scope, which is exactly what let the same defect class hide in a new
+corner each round. Saved as a standing preference for future `/audit-work` re-audits on this project.
+
+**Round-6 full-pass re-audit** (`TM-adr026-atomic-write-001`, first full-document pass since round 1,
+explicit adversarial focus on breaking the round-5 fix), run 2026-07-11, **returned FAIL — and it was
+worth doing broad**: agy **4.0** (2 blockers: the closed-vocabulary enumeration, read literally, banned
+baseline `set`/`in`/`isNull` for every scalar kind — a grammar-breaking regression from round 5's own
+fix; generic-`number` bounding omitted `Number.MIN_SAFE_INTEGER`, leaving large-negative values
+unprotected), Codex **8.0** (1 blocker: the same bounding also never excluded `NaN`/`Infinity`/
+`-Infinity` — a bare range check doesn't catch `NaN`, since every comparison involving it is `false`).
+All three fixed: §2 now states baseline operations (`set`/`eq`/`ne`/`in`/`isNull`) as universal and
+separate from the ordered-comparison/relative-mutation enumeration; generic `number` now requires
+`Number.isFinite` plus a symmetric `[MIN_SAFE_INTEGER, MAX_SAFE_INTEGER]` range check, in that order.
+Full round-6 trace: `.local-artifacts/external-audit/runs/20260711T190000Z-external-audit-report.md`.
+
+**Status remains PROPOSED, on its 7th audit round.** A **round-7 full-pass re-audit**
+(`TM-adr026-atomic-write-001`) is owed before ACCEPTED. No finding across any round has disputed the
+architecture's core shape: named-command surface, core-owned compiled IR, chokepoint preservation,
+reads-are-advisory correctness rule. Every finding has been a precision/completeness gap — real, and
+round 6 (the first genuinely broad pass) caught defects in the very fix meant to close them, which
+narrow diff-only scoping had been missing.
