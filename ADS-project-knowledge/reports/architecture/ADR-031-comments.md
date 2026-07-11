@@ -1,6 +1,6 @@
 # ADR-031: Comments — Bundled Tier-3 Plugin, Own Tables via Core-Mediated dataModule, Ingress-Gated Moderation Queue
 
-- Status: PROPOSED 2026-07-10 (autonomous Opus 4.8 sweep agent — design-only, no peer audit; owes debate+audit before ACCEPTED)
+- Status: ACCEPTED 2026-07-10 (autonomous Opus 4.8 sweep agent, design-only draft → cleared `/audit-work` gate: 3-round audit under `TM-admin-sweep-001`, Codex + Gemini/agy + Fable internal verifier; round 1 FAIL → Round-3 fold → round 2 FAIL (1 converged blocker) → Round-4 fold → round 3 unanimous PASS, scores 9.1-10.0, zero blockers)
 - Author: autonomous Opus 4.8 sweep agent
 - Extends: **§3.5** (comments = Tier-3 bundled module `plugins/comments`, not a core library), **ADR-024** (delivered as the deliberate SDK stress test / demand plugin), **ADR-023** (first real consumer of the core-mediated plugin-own-tables path)
 - Relates: ADR-021 (`authorize()` + flat `comments.*` strings), ADR-022 (attaches to `entries`; write-chokepoint + revision discipline), ADR-025 (comment widget + moderation panel origin isolation), ADR-026 (atomic status-flip + audit-log write), ADR-009 (hooks/outbox events), ADR-007 (workspace scoping), ADR-006 (`SpamCheckPort` rule-of-two), ADR-028 (settings), ADR-027 (depth/pattern benchmark — ingress-policy + trash→purge lineage)
@@ -212,3 +212,11 @@ Folds `sweep-crosscutting-decisions-20260710.md` §C-031 + round-2. PROPOSED; ow
 - **Round-2 (GDPR erasure):** Comments stores member-attributed PII → implement a `principal.erasure.requested` handler (decisions §E) that anonymizes/purges on receipt.
 - **Permission namespace:** `feature.comments.post` (runtime) / `admin.comments.moderate` (management).
 - **Wave 2.**
+
+---
+
+## Round-3 audit fold (TM-admin-sweep-001, 2026-07-10)
+External audit found the plugin-owned-tables Wave gate understates what ADR-023 actually requires, and found the public-ingress-sourced author-notification email is an unguarded abuse vector. Folded:
+
+1. **dataModule gate corrected (Codex AS-002 — BLOCKER fix).** The "proceed once ADR-023 grammar-growth... lands" gate is corrected: ADR-023 v1 does not merely lack the grammar — it **actively rejects every `dataModule` declaration** until its reconciliation/backfill engine ships (ADR-023 §12). Comments' two `p_comments__*` tables therefore have **no available creation path in v1** under the current ADR-023 text. This ADR's Wave-2 readiness is gated on **whichever comes first**: (a) ADR-023's reconciliation engine shipping, or (b) a fully specified first-party, core-executed interim table-creation path (with its own snapshot-before-DDL, write-chokepoint, and re-home-to-plugin-DDL rule) added to this ADR by name. Neither exists today; do not treat this ADR as Wave-2-ready until one does.
+2. **Notification mail gated on verified recipients (Fable F7).** §8's "author notification (the core `MailerPort`)" is corrected: import ADR-037 (`sourceContext:{module:'comments'}`, required `idempotencyKey`). Notification mail is sent **only** to a verified recipient — a member-attributed commenter, or an anonymous `author_email` **after** a confirm-link challenge (reusing the Members/D1c consent-challenge shape) — default OFF for unconfirmed anonymous addresses. Without this, an anonymous visitor can enter a victim's address as `author_email` and farm reply-notification emails at them through the public, rate-limited-but-otherwise-open ingress — a backscatter/abuse channel ADR-037's suppression ledger only helps *after* a complaint, not before.

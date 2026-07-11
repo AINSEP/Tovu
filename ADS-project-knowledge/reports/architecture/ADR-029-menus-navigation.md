@@ -1,6 +1,6 @@
 # ADR-029: Menus / Navigation — Entry-Native Menu Trees, `entry_refs` Link Integrity, Derived Location-Binding Index
 
-- Status: PROPOSED 2026-07-10 (autonomous Opus 4.8 sweep agent — design-only, no peer audit; owes debate+audit before ACCEPTED)
+- Status: ACCEPTED 2026-07-10 (autonomous Opus 4.8 sweep agent, design-only draft → cleared `/audit-work` gate: 3-round audit under `TM-admin-sweep-001`, Codex + Gemini/agy + Fable internal verifier; round 1 FAIL → Round-3 fold → round 2 FAIL (1 converged blocker) → Round-4 fold → round 3 unanimous PASS, scores 9.1-10.0, zero blockers)
 - Author: autonomous Opus 4.8 sweep agent
 - Extends: **ADR-022** (a menu is a seeded content-type entry; its item tree is the entry's validated `bodyJson`; link targets reuse `entry_refs`), **ADR-020 §6** (themes receive a fully-resolved nav *model* — data, not code)
 - Relates: ADR-006 (rule-of-two — one new port `NavLocationBindingRepoPort`, resolver stays one-evaluator), ADR-008 (menus mutate through the change-set gateway; whole-tree revisions + revert), ADR-009 (typed calls for resolve, outbox events, hook points for extension), ADR-021 (flat `navigation.*` strings, `authorize()` at the gateway, agents as delegated principals), ADR-007 (workspace-scoped, composite keys), ADR-012 (per-site `content.db`), ADR-024 (Tier-1 declarative-safe: bounded/total tree validation; `pluginId` attribution), ADR-027 (the hybrid-reuse pattern this ADR follows; deletion ladder), ADR-015 (core owns the derived index table via the core migration engine), ADR-028 (why location assignment is *not* a settings ledger entry)
@@ -301,3 +301,11 @@ Folds `sweep-crosscutting-decisions-20260710.md` §C-029 + round-2 amendments. P
 - **Term targets:** ADR-022 §5 is entry-to-entry only → define an `entry_refs` term-target schema OR add `term_refs` (content-lib sign-off owed).
 - **Permission namespace:** `admin.menus.manage` (decisions §E convention).
 - **Wave 1** — acceptable once ADR-039 shape frozen + both Wave-1 blockers (ADR-040 `core/origin`, permission-namespace) ruled.
+
+---
+
+## Round-3 audit fold (TM-admin-sweep-001, 2026-07-10)
+External audit found the `termRef` link-integrity claim has no compatible ADR-022 schema, and found the binding-index maintenance is a real second in-transaction participant that ADR-039's v0 slot doesn't yet name. Folded:
+
+1. **Term-link schema promoted from Open to Wave-1 blocker (Codex AS-004).** §3's "`termRef`... **integrity-tracked**" claim is not yet true: ADR-022 §5 defines `entry_refs` for entry-to-entry references only, with no term-target schema. What was Open item 3 ("content-lib sign-off owed") is promoted to an explicit **Wave-1 acceptance blocker**: this ADR cannot claim `termRef` integrity-tracking until either a typed `term_refs` index or an accepted `entry_refs` extension for term targets is specified (workspace-scoped keys/FKs, rebuild semantics, delete behavior included).
+2. **Second in-tx participant acknowledged (Fable F4).** §4's binding-index write + the displaced-menu revision write are, in fact, a **second in-transaction participant** alongside ADR-039's `SlugChangeCapture` slot — ADR-039 v0 only names one slot. Until ADR-039 generalizes its slot into the small ordered core-only registry it already names as its own promotion trigger, this ADR's in-tx writes are **intra-core composition outside the named slot mechanism**, bound by the same constraints ADR-039 §4 sets (idempotent, no external I/O, no in-tx publish, content-row-before-redirect-row-style lock ordering generalized to content-row-before-nav-row). See the mirrored note in ADR-039.

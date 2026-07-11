@@ -1,6 +1,6 @@
 # ADR-030: Members / Front-End Membership — Distinct `member` Principal, Dedicated Core Tables, Entitlement-Gated Content, Origin-Isolated Passwordless Sign-In
 
-- Status: PROPOSED 2026-07-10 (autonomous Opus 4.8 sweep agent — design-only, no peer audit; owes debate+audit before ACCEPTED)
+- Status: ACCEPTED 2026-07-10 (autonomous Opus 4.8 sweep agent, design-only draft → cleared `/audit-work` gate: 3-round audit under `TM-admin-sweep-001`, Codex + Gemini/agy + Fable internal verifier; round 1 FAIL → Round-3 fold → round 2 FAIL (1 converged blocker) → Round-4 fold → round 3 unanimous PASS, scores 9.1-10.0, zero blockers)
 - Date: 2026-07-10
 - Author: autonomous Opus 4.8 sweep agent
 - Extends: **ADR-021** (identity & authorization — members are a new principal *kind* governed by a separate entitlement axis, not operator RBAC), **ADR-022** (gated-content access is a namespaced ext field on `entries`; member state lives in dedicated core tables under the §4 chokepoint discipline)
@@ -316,3 +316,10 @@ Folds `sweep-crosscutting-decisions-20260710.md` §C-030 + §B (D1c) + round-2. 
 - **Magic-link:** fix `MagicLinkTokenRecord.memberId` vs upsert-on-first-use contradiction. Rate-limit/enumeration gate is a **HARD** pre-enable precondition (a module-local limiter satisfies it; shared primitive is later). Magic-link URLs consume `core/origin` (ADR-040), not raw request host.
 - **Permission namespace:** `admin.members.*`.
 - **Wave 1.**
+
+---
+
+## Round-3 audit fold (TM-admin-sweep-001, 2026-07-10)
+External audit (Fable F12) found no at-rest statement for the member session token, unlike the magic-link token's explicit "hashed, raw token never stored" clause. Folded:
+
+1. **Session token hashed at rest.** §3 is extended: `member_sessions` stores only a **hash digest** of the session token (constant-time compare on lookup), never the raw bearer value — parity with the magic-link token clause. Without this, a copied/backed-up `content.db` (ADR-012's portability model) would carry live, usable session bearer material alongside everything else in the folder.

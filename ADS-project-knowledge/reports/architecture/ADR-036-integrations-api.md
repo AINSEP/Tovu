@@ -1,6 +1,6 @@
 # ADR-036: Integrations / API — Outbound Webhooks on the Outbox, Derived-Not-Stored Signing, API Keys Reused from Identity
 
-- Status: PROPOSED 2026-07-10 (autonomous Opus 4.8 sweep agent — design-only, no peer audit; owes debate+audit before ACCEPTED)
+- Status: ACCEPTED 2026-07-10 (autonomous Opus 4.8 sweep agent, design-only draft → cleared `/audit-work` gate: 3-round audit under `TM-admin-sweep-001`, Codex + Gemini/agy + Fable internal verifier; round 1 FAIL → Round-3 fold → round 2 FAIL (1 converged blocker) → Round-4 fold → round 3 unanimous PASS, scores 9.1-10.0, zero blockers)
 - Author: autonomous Opus 4.8 sweep agent
 - Extends: **ADR-009** (outbox is the async side-effect spine — webhooks are its canonical example), **ADR-021** (reuses `api_keys` + `authorize()` + flat permission strings; adds no new identity mechanism)
 - Relates: ADR-006 (`HttpClientPort` rule-of-two; dispatch is core code, not a port), ADR-007 (workspace-scoped rows + composite FKs), ADR-012 (portable install-dir → the secret-egress problem), ADR-022 (core-owned tables reuse the write-chokepoint/ULID/attribution discipline), ADR-023 (the ext path for *third-party* integration plugins, not the core subsystem), ADR-024 (§1 core-mediated webhooks are the Tier-1 declarative primitive; §3 async/serializable ABI; the deferred secret-store invariant), ADR-025 (origin isolation lineage), ADR-027 (§6 SSRF policy — mirrored in the egress direction; §A6 export `--blobs` — mirrored as `--secrets`), ADR-028 (its secret path is explicitly *gated on this ADR*)
@@ -254,3 +254,19 @@ Folds `sweep-crosscutting-decisions-20260710.md` §C-036 + round-2. PROPOSED; ow
 - Root-key management remains the **audit-first** crux (owner call).
 - **Permission namespace:** `admin.integrations.manage`.
 - **Wave 1** (needs ADR-038 homed + both Wave-1 blockers ruled).
+
+---
+
+## Round-3 audit fold (TM-admin-sweep-001, 2026-07-10)
+External audit (Fable F2, F5) found the `beforeDispatch` hook-failure fix only corrected a mislabeled comment without pinning actual fail-closed behavior, and found `KeyringPort` has three cross-ADR consumers but no crosscutting home. Folded:
+
+1. **`beforeDispatch` failure is fail-closed by behavior, not just by label.** §7 is corrected: on any `webhooks.beforeDispatch` contributor error or timeout, the delivery attempt **fails** (retryable, rides the existing backoff) — it never dispatches a partially-filtered or un-redacted envelope. The prior Round-2 fold only corrected the *label* ("fail-open" was mislabeled "fail-closed") without pinning the behavior itself; under the old wording a throwing redaction hook would silently ship the unredacted (possibly PII-bearing) payload. Per ADR-024 §7, default is fail-closed; an availability escape (deliver un-redacted rather than skip) must be an explicit, operator-visible per-subscription opt-in, never the default.
+2. **`KeyringPort` homed as a crosscutting Tier-2 primitive.** `KeyringPort` (§5: root-key custody + HKDF derivation) is not integrations-local — Newsletter's unsubscribe-token derivation (ADR-034 fold) and Analytics' salt derivation (ADR-035 Round-3 fold) both consume it, the same multi-consumer-single-home problem ADR-037/038 were minted to fix. `lib/keyring/` is a **Tier-2 core primitive** owning `KeyringPort` (root-key custody, HKDF derivation API, rotation story); Integrations, Newsletter, Analytics, and Settings' gated secret path all consume it. A dedicated ADR-041 is the eventual proper home; until written, this ADR §5 is the canonical shape and other consumers cite it directly (not a silent duplicate).
+
+---
+
+## Round-4 audit fold (TM-admin-sweep-001, 2026-07-10)
+Round-2 re-audit — three independent auditors (Codex R2-002, Gemini/agy gemini-r2-001, Fable R2-002) converged on the same gap in the Round-3 fold above: claiming `KeyringPort`'s shape is "unchanged from this ADR's §5" cannot be true simultaneously with Analytics and Newsletter actually consuming it, because §5's only derivation method (`deriveSigningSecret`) is hardwired to the webhook-subscription info-string shape (`workspaceId:subscriptionId:version`) and cannot express Analytics' `analytics-salt:{workspaceId}:{utcDate}` or Newsletter's `consent_revision_id`-carrying unsubscribe payload. Folded:
+
+1. **`KeyringPort` gains a generic derivation method.** §5's `KeyringPort` is corrected from "shape unchanged" to: `deriveSigningSecret` stays exactly as declared (the webhook-specific method), and a new method is added — `derive(input: { workspaceId: UUID; purpose: string; info: string }): Promise<Uint8Array>` — for crosscutting consumers whose payload doesn't fit the webhook shape. `purpose` namespaces the caller (`'analytics-salt'`, `'newsletter-unsubscribe'`); `info` is the caller-owned, fully-formed HKDF info string. Same root-key-never-crosses-the-interface custody guarantee as `deriveSigningSecret` — implemented in `src/integrations/ports.ts`.
+2. Analytics' salt derivation (ADR-035) and Newsletter's unsubscribe-token derivation (ADR-034) both cite `KeyringPort.derive()`, not `deriveSigningSecret()`, going forward.

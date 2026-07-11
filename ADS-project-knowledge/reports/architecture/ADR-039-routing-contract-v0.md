@@ -1,6 +1,6 @@
 # ADR-039: `routing` contract v0 — resolution pipeline + inverse `urlFor` + RouteTarget
 
-- Status: PROPOSED 2026-07-10 (from `/debate sweep-crosscutting-001`, 4-way consensus D2a/D2b; round-2 re-audit `sweep-crosscutting-002` folded 2026-07-10 — see Round-2 amendments; owes the normal per-ADR audit before ACCEPTED)
+- Status: ACCEPTED 2026-07-10 (from `/debate sweep-crosscutting-001`, 4-way consensus D2a/D2b; round-2 re-audit `sweep-crosscutting-002` folded 2026-07-10 — see Round-2 amendments; cleared `/audit-work` gate: 3-round audit under `TM-admin-sweep-001`, Codex + Gemini/agy + Fable internal verifier; round 1 FAIL → Round-3 fold → round 2 FAIL (1 converged blocker, unrelated to routing itself) → Round-4 fold → round 3 unanimous PASS, scores 9.1-10.0, zero blockers)
 - Extends: ADR-009 (typed calls; this is core-only registration, NOT an open plugin hook in v1), ADR-022 (the write chokepoint hosts the D2b in-tx slot)
 - Relates: ADR-029 Menus (consumes inverse `urlFor`/active-state), ADR-032 SEO (consumes `canonicalUrl`), ADR-033 Redirects (consumes the forward chain + the in-tx slug slot), ADR-007 (workspace scoping)
 - Scope: v0 = only the four things the three sweep modules already depend on. NOT permalink-structure design (deferred; separable, as WP's own split proves).
@@ -60,3 +60,10 @@ The content chokepoint calls it **inside** the rename transaction: `update entry
 ## Internal-verification fixes (TM-sweep-foundations-001, 2026-07-10)
 - **Transactional-outbox wording (F6).** Round-2 amendment 2 is clarified: the slot performs no **network** I/O and **publishes/dispatches** no message inside the tx; the `redirect.created` outbox **row IS written in-tx** (transactional outbox, ADR-009) and the dispatcher **publishes it post-commit**. Insert-in-tx / publish-post-commit — never a post-commit insert (a crash between COMMIT and enqueue would lose the invalidation).
 - **Registration canary (path-to-10).** Add a core-only-registration CI canary for `SlugChangeCapture` mirroring ADR-038's import-boundary canary, so "no plugin supplies the slot" is *enforced*, not merely incidental to there being no plugin-facing registration path today.
+
+---
+
+## Round-3 audit fold (TM-admin-sweep-001, 2026-07-10)
+External audit (Fable F4) found Menus (ADR-029 §4) is already a real second in-transaction participant on the content chokepoint (binding-index write + displaced-menu revision), which this ADR's v0 single-slot model (`SlugChangeCapture` only) does not yet name. Folded:
+
+1. **Menus acknowledged as a second in-tx participant.** This ADR's own §4 promotion trigger ("the day a second in-tx participant is real... generalize the slot into a small ordered core-only registry — a mechanical refactor") is **triggered now**, not hypothetically: ADR-029's binding-index maintenance is that second participant. Until the registry generalization lands, ADR-029's in-tx writes are intra-core composition bound by this ADR's §4 constraints (idempotent by `changeSetId`, no external I/O, no in-tx publish, strict lock ordering) but outside the named `SlugChangeCapture` slot — stated explicitly rather than left implicit.

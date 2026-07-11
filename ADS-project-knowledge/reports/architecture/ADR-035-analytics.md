@@ -1,6 +1,6 @@
 # ADR-035: Analytics — Privacy-First, Cookie-Less Traffic/Usage Surface (Core-Owned Ingest Seam + Aggregate Time-Series Storage)
 
-- Status: PROPOSED 2026-07-10 (autonomous Opus 4.8 sweep agent — design-only, no peer audit; owes debate+audit before ACCEPTED)
+- Status: ACCEPTED 2026-07-10 (autonomous Opus 4.8 sweep agent, design-only draft → cleared `/audit-work` gate: 3-round audit under `TM-admin-sweep-001`, Codex + Gemini/agy + Fable internal verifier; round 1 FAIL → Round-3 fold → round 2 FAIL (1 converged blocker) → Round-4 fold → round 3 unanimous PASS, scores 9.1-10.0, zero blockers)
 - Author: autonomous Opus 4.8 sweep agent
 - Extends: **ADR-027** (media precedent — core-owned single-writer sidecars that deliberately narrow ADR-022 INV-3, cookie-less origin isolation for a public byte/beacon path), **ADR-009** (the outbox/scheduler spine carries rollup + retention jobs, not per-hit events)
 - Relates: ADR-007 (workspace-scoped rows + composite keys), ADR-022 (revision chokepoint that these operational tables narrow; goals registry reuses content-types-as-data + the total/bounded expression-language amendment), ADR-023 (v1 = core-executed DDL / seams-only; plugin-ownable data tier deferred), ADR-024 (Tier model; frozen async serializable ABI for hooks), ADR-025 (cookie-less origin lineage the beacon inherits), ADR-021 (`authorize()` + flat `analytics.*` strings; the read/manage path is gated, the public ingest path is not), ADR-015 (Drizzle repo behind ports — in-memory + SQLite rule-of-two), ADR-006 (`AnalyticsSinkPort` rule-of-two; no `StatsQueryPort`), ADR-012 (per-site `content.db` storage + retention job), ADR-028 (per-site config lives in the settings ledger)
@@ -254,3 +254,19 @@ Folds `sweep-crosscutting-decisions-20260710.md` §C-035 (D4 split) + round-2. P
 - Analytics store PII → `principal.erasure.requested` handler.
 - **Permission namespace:** `admin.analytics.view`.
 - **Wave 2** (least-blocking).
+
+---
+
+## Round-3 audit fold (TM-admin-sweep-001, 2026-07-10)
+External audit (`/audit-work`: Codex + Gemini/agy + internal Fable verifier) found the PII-death claim as literally worded is contradicted by the persisted schema, plus an unpinned salt-custody mechanism and a self-contradicting erasure clause. Folded:
+
+1. **PII claim corrected (Codex AS-001 — BLOCKER fix).** `visitorHash` and `sessionId` are **pseudonymous personal data, not PII-free data** — they deliberately link an individual's hits within a day/session, which is exactly what makes uniques/sessions work. The Consequences claim "no PII at rest" is corrected to: **no *directly-identifying* PII at rest** (no IP, no UA string, no fingerprint, no persistent cross-day/cross-site identifier). `visitorHash`/`sessionId` are retained, rotating (24h), per-site pseudonymous identifiers — a materially weaker but still accurate and still strong privacy property (the Plausible/Fathom precedent this ADR cites makes the identical claim under the identical mechanism). State this precisely rather than the stronger, false claim.
+2. **Salt custody pinned (Fable F3).** `daily_server_salt` is **derived, never stored**: `HKDF(rootKey, "analytics-salt:" + workspaceId + ":" + utcDate)` over the `KeyringPort` root key (ADR-036 §5, which already lives outside `content.db`). Nothing persists; rotation is free; a copied/backed-up `content.db` alone cannot reconstruct the salt, closing the dictionary-attack risk.
+3. **Erasure clause reconciled (Fable F8).** The Round-2 fold's `principal.erasure.requested` handler scope is corrected to: analytics holds no directly-identifying data to erase per-principal; the handler's actual job is dropping/anonymizing any **goal-event properties** that happen to carry a member-supplied value (rare, bounded, closed-enum per §4) and honoring raw-buffer TTL. Aggregate HLL sketches are **structurally non-erasable by design** (you cannot remove one visitor from a sketch) and are explicitly out of erasure scope — a stated privacy/architecture tradeoff, not an oversight.
+
+---
+
+## Round-4 audit fold (TM-admin-sweep-001, 2026-07-10)
+Round-2 re-audit — three independent auditors converged on a gap in item 2 above: `KeyringPort`'s only declared method (`deriveSigningSecret`) is hardwired to a webhook-subscription info string and can't actually express `"analytics-salt:" + workspaceId + ":" + utcDate`. Folded:
+
+1. **Salt derivation cites the corrected `KeyringPort` shape.** Item 2's `HKDF(rootKey, ...)` call is now `KeyringPort.derive({ workspaceId, purpose: 'analytics-salt', info: "analytics-salt:" + workspaceId + ":" + utcDate })` — the generic method added to `KeyringPort` in ADR-036's Round-4 fold, not `deriveSigningSecret`. No change to the actual salt-custody guarantee (still derived, never stored); only the method name/shape is corrected to something that actually compiles against the canonical primitive.

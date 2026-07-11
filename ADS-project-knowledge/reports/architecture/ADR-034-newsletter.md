@@ -1,6 +1,6 @@
 # ADR-034: Newsletter — Email Campaigns as a Tier-3 Bundled Plugin over a Tier-2 MailerPort, Outbox-Driven Async Sending
 
-- Status: PROPOSED 2026-07-10 (autonomous Opus 4.8 sweep agent — design-only, no peer audit; owes debate+audit before ACCEPTED)
+- Status: ACCEPTED 2026-07-10 (autonomous Opus 4.8 sweep agent, design-only draft → cleared `/audit-work` gate: 3-round audit under `TM-admin-sweep-001`, Codex + Gemini/agy + Fable internal verifier; round 1 FAIL → Round-3 fold → round 2 FAIL (1 converged blocker) → Round-4 fold → round 3 unanimous PASS, scores 9.1-10.0, zero blockers)
 - Author: autonomous Opus 4.8 sweep agent
 - Extends: **ADR-024** (Newsletter is a bundled plugin exercising the tiered trust model; §3.5 tier-3), **ADR-022** (campaigns are a seeded content-type on `entries`; editorial half reused), **ADR-023** (relational audience/delivery state via core-mediated `dataModule` own-tables)
 - Relates: ADR-006 (`MailerPort` + `SubscriberDirectoryPort` rule-of-two), ADR-009 (outbox async + hooks + compensation), ADR-021 (`authorize()` + flat `newsletter.*` strings), ADR-007 (workspace scoping + composite FKs), ADR-026 (atomic multi-write for counters/ledger transitions), ADR-020/025/027 (cookie-less origin isolation lineage — unsubscribe + webhook endpoints), ADR-012 (per-site `content.db` + install-dir portability)
@@ -247,3 +247,12 @@ Folds `sweep-crosscutting-decisions-20260710.md` §C-034 + §B (D1c) + round-2. 
 - Send-log PII → `principal.erasure.requested` handler.
 - **Permission namespace:** `admin.newsletter.send` / `admin.newsletter.manage`.
 - **Wave 2.**
+
+---
+
+## Round-3 audit fold (TM-admin-sweep-001, 2026-07-10)
+External audit found `SubscriberDirectoryPort` is not a real ADR-006 port (no genuine second production adapter), found the feedback-webhook/suppression-ownership split still reads as Newsletter-owned despite importing ADR-037, and found the plugin-owned-tables Wave gate understates what ADR-023 actually requires. Folded:
+
+1. **`SubscriberDirectoryPort` demoted from port to internal capability (Gemini/agy — BLOCKER fix).** §4's "rule-of-two = Members-backed adapter + in-memory test double" is corrected: an in-memory double does not count as a second production adapter (ADR-037 Amendment 6 precedent), so this is a **single-evaluator typed dependency on the Members lib**, not an ADR-006 port — matching the honest treatment ADR-033/035 already give `RedirectMatcher`/`StatsQueryPort`. Promote to a real port only if a second genuine directory adapter (e.g. an external ESP sync) is actually built.
+2. **Feedback ownership corrected (Fable F6).** §7 step 4 / §8 are corrected to match ADR-037 §3/F1: the provider feedback-webhook endpoint is **`lib/mail`-owned** (not Newsletter's); Newsletter consumes the `mail.feedback.received` event filtered on `sourceContext.module='newsletter'`. Bounce/complaint **suppression is recorded in the Tier-2 mail-lib ledger** (ADR-037 F8) via Newsletter-supplied policy; the `p_newsletter__subscriptions` status flip is a **downstream projection** of that ledger, never the suppression record of record — otherwise a complained address recorded only in the Tier-3 table would still get mailed by other consumers (e.g. Members lifecycle mail), which is exactly what ADR-037 F8's ledger exists to prevent.
+3. **dataModule gate corrected (Codex AS-002 — BLOCKER fix).** The "Depends on ADR-023 grammar + ADR-026" gate is corrected: ADR-023 v1 **rejects every `dataModule` declaration** until its reconciliation engine ships (ADR-023 §12) — this is not merely a missing grammar feature. Newsletter's four `p_newsletter__*` tables have **no available creation path in v1** under the current ADR-023 text. Gate Wave-2 readiness on **whichever comes first**: (a) ADR-023's reconciliation engine shipping, or (b) a fully specified first-party core-executed interim table-creation path (own snapshot-before-DDL + write-chokepoint + re-home rule) named in this ADR. Neither exists today.

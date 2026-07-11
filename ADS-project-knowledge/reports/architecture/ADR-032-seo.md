@@ -1,6 +1,6 @@
 # ADR-032: SEO Subsystem — Dogfood Bundled Plugin, Per-Entry Meta on ext Fields, page.head Render Hook, Declarative Sitemap/robots
 
-- Status: PROPOSED 2026-07-10 (autonomous Opus 4.8 sweep agent — design-only, no peer audit; owes debate+audit before ACCEPTED)
+- Status: ACCEPTED 2026-07-10 (autonomous Opus 4.8 sweep agent, design-only draft → cleared `/audit-work` gate: 3-round audit under `TM-admin-sweep-001`, Codex + Gemini/agy + Fable internal verifier; round 1 FAIL → Round-3 fold → round 2 FAIL (1 converged blocker) → Round-4 fold → round 3 unanimous PASS, scores 9.1-10.0, zero blockers)
 - Author: autonomous Opus 4.8 sweep agent
 - Extends: **ADR-022** (per-entry meta reuses the namespaced `fields.ext.seo.*` bag + a partial expression index; zero new tables), **ADR-020** (the `page.head` output is the canonical render IR, injected at the theme `<head>` seam; ties to theme tiers), **ADR-024** (the SEO plugin is the Phase-4 dogfood: it conforms to the frozen async + serializable ABI so it drops into the future Tier-2 sandbox unchanged)
 - Relates: ADR-009 (hooks = extension mechanism; outbox events for cache invalidation), ADR-021 (flat `seo.*` permission strings + code-side catalog), ADR-028 (site-level SEO config as `seo.*` setting definitions), ADR-007 (workspace-scoped queries/cache keys), ADR-012 (bundled plugin ships in the install-dir `plugins/`), ADR-006 (rule-of-two — no new port warranted), ADR-027 (media refs for social images; origin/URL discipline reused), ADR-003 (plugins never run DDL)
@@ -266,3 +266,10 @@ Folds `sweep-crosscutting-decisions-20260710.md` §C-032 + round-2. PROPOSED; ow
 - The `page.head` render seam is owed to the theme-contract owner.
 - **Permission namespace:** `admin.seo.manage`.
 - **Wave 1 — contingent on ADR-028 reaching ACCEPTED** (028 round-2 re-audit pending) + ADR-039/040 shapes frozen.
+
+---
+
+## Round-3 audit fold (TM-admin-sweep-001, 2026-07-10)
+External audit (Fable F1) found `seo.base_url` remains a separately-authoritative setting even after the fold routes `canonicalUrl` through ADR-040 — two origin authorities for the same value. Folded:
+
+1. **Single origin authority.** `seo.base_url` is **retired** from the `SeoSettings` definition set (§3) — it is not redefined as a read-through alias, it is removed. Every absolute URL SEO emits (canonical `<link>`, sitemap `<loc>`, OG/Twitter URLs) is composed **exclusively** from ADR-039 `urlFor`/`canonicalUrl` over the ADR-040-verified `canonicalOrigin` — never from a second, independently-configured setting. Open item 5 is corrected accordingly: "per-workspace absolute base" is the ADR-040 verified origin, full stop, not a SEO-local setting that could drift from it.

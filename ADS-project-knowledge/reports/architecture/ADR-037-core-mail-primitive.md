@@ -1,6 +1,6 @@
 # ADR-037: `core/mail` — the single MailerPort primitive
 
-- Status: PROPOSED 2026-07-10 (from `/debate sweep-crosscutting-001`, 4-way consensus D1a; round-2 re-audit `sweep-crosscutting-002` folded 2026-07-10 — see Round-2 amendments; owes the normal per-ADR audit before ACCEPTED)
+- Status: ACCEPTED 2026-07-10 (from `/debate sweep-crosscutting-001`, 4-way consensus D1a; round-2 re-audit `sweep-crosscutting-002` folded 2026-07-10 — see Round-2 amendments; cleared `/audit-work` gate: 3-round audit under `TM-admin-sweep-001`, Codex + Gemini/agy + Fable internal verifier; round 1 FAIL → Round-3 fold → round 2 FAIL (1 converged blocker, rule-of-two doctrine wording) → Round-4 fold → round 3 unanimous PASS, scores 9.1-10.0, zero blockers)
 - Extends: ADR-006 (rule-of-two), ADR-009 (outbox), ADR-024 (§3 async/serializable ABI, §1 core-mediated primitives)
 - Relates: ADR-030 (Members), ADR-034 (Newsletter), ADR-021 (identity magic-link), ADR-036 (feedback webhook egress), ADR-027 (`capabilities()` precedent), ADR-005 (freeze shape now)
 - Supersedes: the two colliding `MailerPort` definitions in `030-members/src/members/ports.ts` and `034-newsletter/src/newsletter/ports.ts`.
@@ -50,3 +50,10 @@ These fold into the Decision above and are load-bearing because §6 freezes the 
 Falsification pass caught an INV-3/D3 **blocker** + a D3 advisory. Folded:
 8. **Suppression ledger is Tier-2 (F1 — BLOCKER fix).** The do-not-send **ledger** (records keyed by `workspaceId` + normalized address + scope `{global|module}`) is owned by the Tier-2 `lib/mail/` store with an always-present write path; the mail lib applies it. Consumers supply only **policy** (which `MailerFeedbackEvent` categories map to which suppression scope). **`MailerPort.send()` MUST consult the ledger and fail-closed** (`MailerSendResult.ok=false, errorCode='SUPPRESSED'`) for a suppressed recipient — no consumer can bypass it. **No suppression/unsubscribe/complaint record may reside solely in a Tier-3 module** (ADR-034 Newsletter is disable-able; a record there is lost on disable → INV-3 violation, and re-enable could re-mail a complained address).
 9. **Non-idempotent-provider dedup (F7).** The mail lib maintains a `(workspaceId, idempotencyKey)` send-dedup ledger; when `capabilities().supportsIdempotencyKey=false` (e.g. SMTP) the lib enforces at-most-once via this ledger before dispatch, so ADR-009 outbox redelivery cannot double-send. Pin before the §6 freeze (ties amendment 7).
+
+---
+
+## Round-3 audit fold (TM-admin-sweep-001, 2026-07-10)
+External audit (Fable F13) found amendment 6 ("in-memory doubles do NOT count toward rule-of-two") reads as contradicting the ADR-015 convention that ordinary repo ports pass rule-of-two on in-memory + SQLite. Folded:
+
+10. **Amendment 6 scope clarified.** The "no test-double credit" rule is specific to **external-effect ports** (mail, egress, blob stores — anything where the adapter's whole job is talking to a real outside system, and a console/in-memory double proves nothing about that effect actually working). ADR-015's in-memory + SQLite convention for **ordinary repo ports** (pure persistence, no external effect) is unaffected and remains the house rule. One doctrine, scoped by port kind, not two competing rules.
