@@ -4,9 +4,9 @@ SPEC PACKAGE FILE: `framework/spec-providers/speckit/templates/spec-system/error
 
 - Spec ID: `SPEC-007`
 - Feature: `FEAT-007-settings-core-ledger`
-- Version: `0.1.0`
+- Version: `0.2.0`
 - Content Hash: `anchored in feature.spec.md`
-- Last Edited: `2026-07-11T16:55:07Z`
+- Last Edited: `2026-07-11T19:10:00Z`
 
 ## Purpose
 Canonical error registry for the core-only Settings feature, independent of stack/language.

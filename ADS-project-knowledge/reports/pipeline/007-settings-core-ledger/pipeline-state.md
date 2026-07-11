@@ -17,11 +17,11 @@
 | spec_mode | brownfield |
 | spec_hash | sha256:768c5eeb06b1fd41fd77ac677fb5fd8b2c80eb2ebe212e219f934baaa73f9bdd |
 | spec_hash_verified_at | 2026-07-11 (provider-local validator, --phase spec, post-clarify) |
-| planning_preflight_status | pending (owed before /plan) |
-| planning_preflight_checked_at | pending |
+| planning_preflight_status | PASS (--phase preflight) |
+| planning_preflight_checked_at | 2026-07-11T19:25:00Z |
 | validator_result | PASS (--phase spec) |
-| red_team_status | pending |
-| red_team_spec_hash | pending |
+| red_team_status | FAIL — 3 BLOCKING (see red-team-findings.md), routed back to Spec Agent |
+| red_team_spec_hash | sha256:768c5eeb06b1fd41fd77ac677fb5fd8b2c80eb2ebe212e219f934baaa73f9bdd |
 | governing_adr | ADR-028 (Settings — Layered Settings Ledger), ACCEPTED 2026-07-11 |
 
 ## Notes

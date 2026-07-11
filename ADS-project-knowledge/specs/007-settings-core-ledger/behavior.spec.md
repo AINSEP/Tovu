@@ -11,9 +11,9 @@
 |-------|-------|
 | spec_id | SPEC-007 |
 | feature_name | FEAT-007-settings-core-ledger |
-| version | 0.1.0 |
+| version | 0.2.0 |
 | content_hash | anchored in feature.spec.md |
-| last_edited | 2026-07-11T16:55:07Z |
+| last_edited | 2026-07-11T19:10:00Z |
 
 **Purpose:** Captures the deterministic resolver, lifecycle, and authorization rules that acceptance
 criteria alone do not fully express. The resolver precedence and the rename/retype ordering are the
