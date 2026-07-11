@@ -10,11 +10,11 @@
 | Field | Value |
 |-------|-------|
 | spec_id | SPEC-007 |
-| version | 0.2.0 |
+| version | 0.3.0 |
 | status | APPROVED |
-| content_hash | sha256:768c5eeb06b1fd41fd77ac677fb5fd8b2c80eb2ebe212e219f934baaa73f9bdd |
+| content_hash | sha256:7deff736934b36e0544daaf5a424e639222d15478ac7f6c246762a0801e05ccd |
 | feature_name | FEAT-007-settings-core-ledger |
-| last_edited | 2026-07-11T19:10:00Z |
+| last_edited | 2026-07-11T20:00:00Z |
 | owner | Leon Aburime |
 | spec_agent | Spec Agent |
 | spec_mode | brownfield |
@@ -100,6 +100,8 @@ totality are specified in `behavior.spec.md`.
   `theme.{themeId}`, including the one-time value migration.
 - Admin HTTP API (register/getEffective/set/clear/reset) and the Settings admin screen.
 - Per-layer cache with single-key invalidation; workspace-qualified definition cache.
+- Target-principal membership validation for `settings.user.write` operations (REQ-13); no principal
+  directory/search endpoint — the operator enters a raw identifier, validated on submit.
 
 **Out of scope:**
 - Plugin-owned settings, capability-checked plugin writes, and ADR-025 sandboxed settings panels —
@@ -134,7 +136,10 @@ totality are specified in `behavior.spec.md`.
   (`settings.global.write`, `settings.workspace.write`, `settings.user.self.write`,
   `settings.user.write`), `settings.definitions.manage`, `settings.reset.{global,workspace,user}`,
   and reads (`settings.read`, `settings.read.raw`, `settings.read.revisions`,
-  `settings.read.definitions`).
+  `settings.read.definitions`). For scope=user operations, the required permission is
+  `settings.user.write` when the request's `principalId` differs from the caller's own principal id,
+  and `settings.user.self.write` when `principalId` is omitted or equals the caller's own id
+  (behavior.spec.md §1.3).
 - REQ-07: Tenant/principal teardown runs through a ledgered purge service that authorizes once,
   enumerates affected value rows, appends a redacted `op='purge'` revision per row, and deletes the
   rows in one transaction; value-table foreign keys are `ON DELETE RESTRICT` (never `CASCADE`) and the
@@ -149,10 +154,15 @@ totality are specified in `behavior.spec.md`.
 - REQ-11: The Settings admin screen lists definitions grouped by namespace, shows each setting's
   effective value plus present per-layer values and default, lets a permitted operator set or clear a
   value at a scope and reset a namespace to defaults, and — for an operator holding
-  `settings.user.write` — offers a target-principal selector to set or clear another principal's
-  user-layer value.
+  `settings.user.write` — offers a target-principal identifier field (a validated id/email entry, not a
+  browsable directory) to set or clear another principal's user-layer value, validated per REQ-13 on
+  submit.
 - REQ-12: Effective reads are served from a per-layer cache invalidated one key at a time on write;
   the definition cache is workspace-qualified so site-owned definitions never leak across workspaces.
+- REQ-13: For any scope=user write or clear whose `principalId` differs from the caller, the write
+  chokepoint validates that `principalId` resolves to an active `kind='user'` principal that is a
+  member of `workspaceId` before authorizing or writing, rejecting `PRINCIPAL_NOT_FOUND` when it does
+  not; no value row and no revision are written on rejection.
 
 ---
 
@@ -204,12 +214,21 @@ totality are specified in `behavior.spec.md`.
   workspace's definition cache entry is read, then it never returns the other workspace's definition.
 - AC-21 (REQ-03) [P1]: Given a value stored under a stale `def_version`, when `getEffective` is called,
   then the value is coerced in memory to the current version and returned, with no write-back.
-- AC-22 (REQ-11) [P2]: Given an operator holding `settings.user.write`, when they select another
-  principal in the Settings screen and set that principal's user-layer value, then the value is
-  written to that principal's user layer and a revision is recorded.
+- AC-22 (REQ-11) [P2]: Given an operator holding `settings.user.write`, when they enter another
+  principal's identifier in the Settings screen and set that principal's user-layer value, then the
+  value is written to that principal's user layer and a revision is recorded.
 - AC-23 (REQ-11) [P1]: Given an operator without `settings.user.write`, when they open the Settings
-  screen, then no target-principal selector is offered, and a direct write attempt to another
+  screen, then no target-principal identifier field is offered, and a direct write attempt to another
   principal's user layer is rejected `FORBIDDEN`.
+- AC-24 (REQ-13) [P2]: Given a set or clear at scope=user whose `principalId` is not an active member
+  of `workspaceId`, when the write chokepoint runs, then it is rejected `PRINCIPAL_NOT_FOUND` and no
+  value row and no revision are written.
+- AC-25 (REQ-06) [P1]: Given an operator holding `settings.user.self.write` but not
+  `settings.user.write`, when they call `SETTINGS_SET` with `principalId` set to a different
+  principal, then it is rejected `FORBIDDEN`.
+- AC-26 (REQ-06) [P2]: Given an operator holding `settings.user.self.write` but not
+  `settings.user.write`, when they call `SETTINGS_SET` with `principalId` omitted or equal to their
+  own principal id, then it succeeds and a revision is recorded.
 
 ---
 
@@ -233,6 +252,9 @@ totality are specified in `behavior.spec.md`.
   mutates any value (fail-closed) — with the sole documented exception that the reset orchestrator's
   inner per-key `clear()` runs in a reset-authorized internal context and still emits its revision.
 - INV-08: `registerDefinitions` must never accept a definition with `secret: true` in this subset.
+- INV-09: A `setting_values_user` row must never be written or remain addressable for a
+  `(workspace_id, principal_id)` pair where `principal_id` is not, at write time, an active `kind='user'`
+  member of `workspace_id`.
 
 ---
 
@@ -262,6 +284,9 @@ totality are specified in `behavior.spec.md`.
 - EC-10: What happens when `getEffective` is called for a tombstoned key? Expected behavior: the
   resolver returns the typed-absent result defined in the contract (never a stale value), surfaced as
   `DEFINITION_TOMBSTONED` on the write path.
+- EC-11: What happens when a scope=user write or clear targets a `principalId` that does not exist or
+  is not a member of `workspaceId`? Expected behavior: rejected `PRINCIPAL_NOT_FOUND` (REQ-13); no
+  value row and no revision are written.
 
 ---
 
@@ -289,7 +314,11 @@ totality are specified in `behavior.spec.md`.
   another principal's user layer), does the core-only subset ship an admin UI affordance, or is it
   API-only until a later pass? — **Decision: Ship a UI affordance now.** REQ-11 and AC-22/AC-23 add a
   target-principal selector gated by `settings.user.write`; see `ui.spec.md` `PrincipalSelector`. —
-  Owner: Leon Aburime.
+  Owner: Leon Aburime. **Follow-up:** Red-Team (2026-07-11) found 3 BLOCKING gaps in this addition
+  (no principal validation/error code, no defined selector data source, ambiguous self-vs-other
+  permission derivation) — resolved in v0.3.0 by REQ-13, AC-24/25/26, INV-09, EC-11, and by
+  redefining `PrincipalSelector` as a validated identifier field rather than a directory picker (no
+  new cross-spec dependency). See `red-team-findings.md`.
 
 ---
 

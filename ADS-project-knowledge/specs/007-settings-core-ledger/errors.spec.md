@@ -4,9 +4,9 @@ SPEC PACKAGE FILE: `framework/spec-providers/speckit/templates/spec-system/error
 
 - Spec ID: `SPEC-007`
 - Feature: `FEAT-007-settings-core-ledger`
-- Version: `0.2.0`
+- Version: `0.3.0`
 - Content Hash: `anchored in feature.spec.md`
-- Last Edited: `2026-07-11T19:10:00Z`
+- Last Edited: `2026-07-11T20:00:00Z`
 
 ## Purpose
 Canonical error registry for the core-only Settings feature, independent of stack/language.
@@ -29,6 +29,7 @@ details: object|null
 | `FORBIDDEN` | authz | `api` | 403 | no | "You do not have permission to change this setting." |
 | `VALIDATION_ERROR` | validation | `api` | 400 | no | "Please correct the highlighted fields." |
 | `DEFINITION_NOT_FOUND` | resource | `api` | 404 | no | "That setting does not exist." |
+| `PRINCIPAL_NOT_FOUND` | resource | `api` | 404 | no | "That user could not be found in this workspace." |
 | `DEFINITION_INVALID` | validation | `api` | 400 | no | "This setting definition is not valid (namespace or scope violation)." |
 | `SCOPE_NOT_ALLOWED` | validation | `api` | 400 | no | "This setting cannot be changed at that scope." |
 | `SECRET_NOT_SUPPORTED` | validation | `api` | 400 | no | "Secret settings are not supported yet." |
@@ -71,6 +72,7 @@ RATE_LIMIT_EXCEEDED:
 |---|---|---|---|
 | `FORBIDDEN` | `authorize()` (ADR-021) | API + UI | Fail-closed; never discloses current value |
 | `DEFINITION_INVALID` | `registerDefinitions` (namespace/scope fence) | API | INV-05 enforcement |
+| `PRINCIPAL_NOT_FOUND` | `SettingsWriteService.set/clear` (target-principal membership check) | API + UI | REQ-13/INV-09 enforcement; UI surfaces inline on `PrincipalSelector` |
 | `SECRET_NOT_SUPPORTED` | `registerDefinitions` | API | INV-08 enforcement |
 | `SCOPE_NOT_ALLOWED` | `SettingsWriteService.set/clear` | API + UI | UI hides disallowed scopes; server is authoritative |
 | `VALUE_VALIDATION_FAILED` | `SettingsWriteService` schema validation | API + UI | UI maps to inline field error |

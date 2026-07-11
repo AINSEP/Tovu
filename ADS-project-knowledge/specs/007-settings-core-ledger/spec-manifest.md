@@ -10,8 +10,8 @@
 |-------|-------|
 | spec_id | SPEC-007 |
 | feature_name | FEAT-007-settings-core-ledger |
-| version | 0.2.0 |
-| last_edited | 2026-07-11T19:10:00Z |
+| version | 0.3.0 |
+| last_edited | 2026-07-11T20:00:00Z |
 | spec_naming | standard |
 | spec_root | ADS-project-knowledge/specs/007-settings-core-ledger |
 | spec_entrypoint | feature.spec.md |
@@ -76,6 +76,11 @@ presentation settings port into the general ledger. Concrete touchpoints:
 - Canonical hash verified at: 2026-07-11 (provider-local validator)
 - Notes: v0.1.0 initial Spec Agent package for the ADR-028 core-only subset. v0.2.0 resolves OQ-01
   (defer revision-history screen, no scope change) and OQ-02 (ship the `PrincipalSelector`
-  target-principal affordance now — REQ-11, AC-22, AC-23) via Coordinator `/clarify`. Ready for
-  Coordinator Planning Preflight and Red-Team; plugin-owned settings and the secret path remain out of
-  scope by ADR gates.
+  target-principal affordance now — REQ-11, AC-22, AC-23) via Coordinator `/clarify`. v0.3.0 fixes 3
+  Red-Team BLOCKING findings from the v0.2.0 addition (`red-team-findings.md`, 2026-07-11):
+  RT-001 (no target-principal validation/error code) → REQ-13, AC-24, INV-09, EC-11,
+  `PRINCIPAL_NOT_FOUND`; RT-002 (undefined `PrincipalSelector` data source) → redefined as a validated
+  identifier field, not a directory picker — no new cross-spec dependency; RT-003 (ambiguous
+  self-vs-other permission derivation) → behavior.spec.md §1.3, AC-25, AC-26. Ready for re-run
+  Coordinator Planning Preflight and Red-Team confirm-pass; plugin-owned settings and the secret path
+  remain out of scope by ADR gates.

@@ -4,9 +4,9 @@ SPEC PACKAGE FILE: `framework/spec-providers/speckit/templates/spec-system/api.s
 
 - Spec ID: `SPEC-007`
 - Feature: `FEAT-007-settings-core-ledger`
-- Version: `0.2.0`
+- Version: `0.3.0`
 - Content Hash: `anchored in feature.spec.md`
-- Last Edited: `2026-07-11T19:10:00Z`
+- Last Edited: `2026-07-11T20:00:00Z`
 
 ## Purpose
 Source of truth for the Settings admin HTTP surface, independent of implementation language. All
@@ -31,7 +31,7 @@ endpoints are admin-origin, mounted under the SPEC-001 command gateway, and gate
 | `AUTH_READ_RAW` | `true` | session (admin origin) | `settings.read.raw` | admin, operator | Per-layer raw values (see workspace vs global) |
 | `AUTH_READ_DEFS` | `true` | session (admin origin) | `settings.read.definitions` | admin, operator | Registry listing |
 | `AUTH_DEFINITIONS_MANAGE` | `true` | session (admin origin) | `settings.definitions.manage` | admin | Human-only; never delegated to a content agent |
-| `AUTH_WRITE_SCOPED` | `true` | session (admin origin) | one of `settings.global.write` / `settings.workspace.write` / `settings.user.self.write` / `settings.user.write` matching the request scope | admin, operator | Server derives the required permission from the target scope |
+| `AUTH_WRITE_SCOPED` | `true` | session (admin origin) | one of `settings.global.write` / `settings.workspace.write` / `settings.user.self.write` / `settings.user.write` matching the request scope | admin, operator | For `scope=global`/`workspace`, the matching write permission. For `scope=user`: `settings.user.write` when `principalId` differs from the caller's own id; `settings.user.self.write` when `principalId` is omitted or equals the caller's own id (behavior.spec.md §1.3) |
 | `AUTH_RESET_SCOPED` | `true` | session (admin origin) | one of `settings.reset.global` / `settings.reset.workspace` / `settings.reset.user` matching the request scope | admin | Reset is its own permission, separate from single-key writes |
 
 ## 3) Rate Limit Profiles
@@ -155,10 +155,11 @@ Reference canonical codes in `errors.spec.md`.
 | `SETTINGS_SET` | `400` | `VALIDATION_ERROR, SCOPE_NOT_ALLOWED, VALUE_VALIDATION_FAILED` |
 | `SETTINGS_SET` | `401` | `UNAUTHENTICATED` |
 | `SETTINGS_SET` | `403` | `FORBIDDEN` |
-| `SETTINGS_SET` | `404` | `DEFINITION_NOT_FOUND` |
+| `SETTINGS_SET` | `404` | `DEFINITION_NOT_FOUND, PRINCIPAL_NOT_FOUND` |
 | `SETTINGS_SET` | `409` | `DEFINITION_TOMBSTONED` |
 | `SETTINGS_SET` | `429` | `RATE_LIMIT_EXCEEDED` |
 | `SETTINGS_CLEAR` | `403` | `FORBIDDEN` |
+| `SETTINGS_CLEAR` | `404` | `DEFINITION_NOT_FOUND, PRINCIPAL_NOT_FOUND` |
 | `SETTINGS_RESET` | `403` | `FORBIDDEN` |
 | `SETTINGS_GET_EFFECTIVE` | `401` | `UNAUTHENTICATED` |
 | `SETTINGS_GET_EFFECTIVE` | `403` | `FORBIDDEN` |

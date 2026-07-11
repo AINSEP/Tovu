@@ -10,9 +10,9 @@
 |-------|-------|
 | spec_id | SPEC-007 |
 | feature_name | FEAT-007-settings-core-ledger |
-| version | 0.2.0 |
+| version | 0.3.0 |
 | content_hash | anchored in feature.spec.md |
-| last_edited | 2026-07-11T19:10:00Z |
+| last_edited | 2026-07-11T20:00:00Z |
 | traceability_status | PENDING IMPLEMENTATION |
 
 **Purpose:** Traces every REQ/AC/INV/EC and error code from the package to its implementation and
@@ -59,6 +59,10 @@ test. At spec stage all impl/test cells are "pending" (TDD has not run).
 | REQ-12 | Per-layer cache + workspace-qualified def cache | — | pending | pending | pending | pending | PENDING |
 | AC-19 (REQ-12) | Global write invalidates one key, no fan-out | P2 | pending | pending | pending | pending | PENDING |
 | AC-20 (REQ-12) | Def cache never leaks across workspaces | P2 | pending | pending | pending | pending | PENDING |
+| REQ-13 | Target-principal membership validation for scope=user | — | pending | pending | pending | pending | PENDING |
+| AC-24 (REQ-13) | Non-member principalId → PRINCIPAL_NOT_FOUND, no rows | P2 | pending | pending | pending | pending | PENDING |
+| AC-25 (REQ-06) | self.write-only holder targets other → FORBIDDEN | P1 | pending | pending | pending | pending | PENDING |
+| AC-26 (REQ-06) | self.write-only holder targets self → succeeds | P2 | pending | pending | pending | pending | PENDING |
 
 ---
 
@@ -74,6 +78,7 @@ test. At spec stage all impl/test cells are "pending" (TDD has not run).
 | INV-06 | Ledger append-only; purge before delete; no cascade | pending | pending | PENDING |
 | INV-07 | authorize() before any disclose/mutate (fail-closed) | pending | pending | PENDING |
 | INV-08 | registerDefinitions never accepts secret:true | pending | pending | PENDING |
+| INV-09 | setting_values_user row never written/addressable for non-member principal | pending | pending | PENDING |
 
 ---
 
@@ -91,6 +96,7 @@ test. At spec stage all impl/test cells are "pending" (TDD has not run).
 | EC-08 | Stale def_version read → in-memory coerce, no write | pending | pending | PENDING |
 | EC-09 | reset.* without *.write → reset succeeds (internal ctx) | pending | pending | PENDING |
 | EC-10 | getEffective tombstoned key → typed-absent | pending | pending | PENDING |
+| EC-11 | scope=user write/clear non-member principalId → PRINCIPAL_NOT_FOUND | pending | pending | PENDING |
 
 ---
 
@@ -109,6 +115,7 @@ test. At spec stage all impl/test cells are "pending" (TDD has not run).
 | RENAME_RETYPE_CONFLICT | pending | pending | pending | PENDING |
 | ALIAS_DEPTH_EXCEEDED | pending | pending | pending | PENDING |
 | DEFINITION_TOMBSTONED | pending | pending | pending | PENDING |
+| PRINCIPAL_NOT_FOUND | pending | pending | pending | PENDING |
 | PURGE_REQUIRED | pending | pending | pending | PENDING |
 | RATE_LIMIT_EXCEEDED | pending | pending | pending | PENDING |
 | INTERNAL_ERROR | pending | pending | pending | PENDING |
@@ -129,6 +136,7 @@ test. At spec stage all impl/test cells are "pending" (TDD has not run).
 | Alias depth ≤1 | § 4 | pending | pending | PENDING |
 | Duplicate definition idempotency | § 5.2 | pending | pending | PENDING |
 | Total-order layer tie-break | § 6.1 | pending | pending | PENDING |
+| Self vs. other permission derivation (scope=user) | § 1.3 | pending | pending | PENDING |
 
 ---
 
@@ -186,7 +194,7 @@ test. At spec stage all impl/test cells are "pending" (TDD has not run).
 
 | Role | Name / Agent | Date (ISO-8601) | Notes |
 |------|--------------|-----------------|-------|
-| Spec Agent | Spec Agent | 2026-07-11 | Rows seeded from feature.spec.md v0.1.0; AC-22/AC-23 added in v0.2.0 `/clarify` pass; impl/test pending TDD |
+| Spec Agent | Spec Agent | 2026-07-11 | Rows seeded from feature.spec.md v0.1.0; AC-22/AC-23 added in v0.2.0 `/clarify` pass; REQ-13/AC-24/AC-25/AC-26/INV-09/EC-11 added in v0.3.0 Red-Team fix pass; impl/test pending TDD |
 | TDD Agent | | | |
 | Programmer Agent | | | |
 | Code Review Agent | | | |

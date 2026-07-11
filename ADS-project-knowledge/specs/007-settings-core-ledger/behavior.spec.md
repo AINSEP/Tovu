@@ -11,9 +11,9 @@
 |-------|-------|
 | spec_id | SPEC-007 |
 | feature_name | FEAT-007-settings-core-ledger |
-| version | 0.2.0 |
+| version | 0.3.0 |
 | content_hash | anchored in feature.spec.md |
-| last_edited | 2026-07-11T19:10:00Z |
+| last_edited | 2026-07-11T20:00:00Z |
 
 **Purpose:** Captures the deterministic resolver, lifecycle, and authorization rules that acceptance
 criteria alone do not fully express. The resolver precedence and the rename/retype ordering are the
@@ -53,6 +53,25 @@ language ("should", "may") is not used.
 **Rule:** A `cleared` row is treated as "no value at this layer" for precedence — resolution falls through to the next lower layer. A `cleared` row is distinct from a stored JSON `null` value, which is a real value only if the schema admits null.
 
 ---
+
+### 1.3 Self vs. Other Permission Derivation (scope=user)
+
+**Situation:** When a caller invokes `SETTINGS_SET`/`SETTINGS_CLEAR` at `scope=user` and the server must
+choose which permission to require.
+
+**Rule:** The server compares the request's `principalId` to the caller's own principal id.
+- If `principalId` is omitted, or is present and equals the caller's own principal id, the required
+  permission is `settings.user.self.write`.
+- If `principalId` is present and differs from the caller's own principal id, the required permission
+  is `settings.user.write`. Holding `settings.user.self.write` alone is never sufficient for this case.
+
+**Rationale:** This is the sole rule the write chokepoint uses to pick between the two `scope=user`
+permissions (REQ-06); it removes the ambiguity in `AUTH_WRITE_SCOPED`'s "matching the request scope"
+description flagged by Red-Team RT-003.
+
+**Test requirement:** The TDD Agent must write a test for a `settings.user.self.write`-only holder
+targeting (a) their own principal (succeeds, AC-26) and (b) another principal (rejected `FORBIDDEN`,
+AC-25).
 
 ## 2. Ordering Rules
 
@@ -166,3 +185,4 @@ scope replaces the value and appends a new `op='set'` revision. There is no valu
 | Reset by an actor with `settings.reset.*` but not `*.write` | WHILE the reset orchestrator runs, WHEN it calls the inner `clear()`, the system shall authorize the clear in the reset-authorized internal context and shall still emit an `op='clear'` revision. | Yes |
 | `getEffective` for a tombstoned key | WHEN the resolved definition is `tombstone`, the resolver shall return the typed-absent result and shall not return a stale value. | Yes |
 | A global write to namespace N | WHEN a global value in namespace N commits, the cache shall invalidate only the `settings:global:N` key and shall not fan out per tenant. | Yes |
+| A scope=user write/clear targets a `principalId` that does not exist or is not a member of `workspaceId` | IF the target `principalId` is not an active `kind='user'` member of `workspaceId`, THEN the write chokepoint shall reject `PRINCIPAL_NOT_FOUND` and shall write no value row and no revision. | Yes |
