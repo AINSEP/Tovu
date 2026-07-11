@@ -2,15 +2,21 @@
  * @file Port contracts introduced by the `integrations` library (ADR-036).
  *
  * Purpose:
- * The dependency-inversion seams webhook delivery needs. Each port here passes the ADR-006
- * rule-of-two (two plausible adapters, one built now); dispatch itself is deliberately NOT a
+ * The dependency-inversion seams webhook delivery needs. `HttpClientPort`/`EgressPolicy` are
+ * imported from the shared `../http` core primitive (ADR-038) — Round-3 audit fold
+ * (TM-admin-sweep-001): these were previously declared locally here, but Newsletter's
+ * `HttpApiMailerAdapter` and Analytics' `ForwardingSink` also need the same SSRF-guarded
+ * client, so the port + policy moved to a shared home. Dispatch itself is deliberately NOT a
  * port — it is ordinary core code on the outbox spine (ADR-006 features-not-ports; ADR-009
  * rejected a mediator layer), exactly as ADR-021's `authorize()` is core code, not a port.
  *
  * How it relates to the project:
- * - `HttpClientPort` is the outbound transport (tovu-v2-design §3.5 names it a core port).
  * - `KeyringPort` / `SecretSealerPort` keep secret material out of the portable `content.db`
- *   (ADR-024 secret invariant; ADR-012 install-dir portability).
+ *   (ADR-024 secret invariant; ADR-012 install-dir portability). Per the ADR-036 Round-3 fold,
+ *   this is the canonical home for `KeyringPort` until a dedicated ADR-041 is written — other
+ *   consumers (Newsletter's unsubscribe token, Analytics' salt derivation) use the generic
+ *   `derive()` method (Round-4 audit fold) rather than the webhook-specific
+ *   `deriveSigningSecret()`.
  * - The repo ports mirror the existing `OutboxPort` / `ChangeSetRepoPort` shape and are
  *   workspace-scoped in their required-parameters object (ADR-007 §1).
  *
@@ -19,6 +25,7 @@
  * production second half of each rule-of-two.
  */
 import type { ISODateTime, UUID } from "../core/ports";
+import type { EgressPolicy, HttpClientPort } from "../http";
 import type {
   IntegrationId,
   IntegrationSecretRecord,
@@ -29,54 +36,7 @@ import type {
   WebhookTopic,
 } from "./types";
 
-/* -------------------------------------------------------------------------- */
-/* Outbound transport (rule-of-two: undici/fetch adapter now + test-double)   */
-/* -------------------------------------------------------------------------- */
-
-export interface HttpRequest {
-  method: "POST" | "GET" | "PUT" | "PATCH" | "DELETE";
-  url: string;
-  headers: Readonly<Record<string, string>>;
-  /** Raw request body exactly as signed — the signer signs these bytes, so no re-serialization. */
-  body?: string;
-  /** Hard per-attempt timeout (ms). The worker, not the adapter, owns retry/backoff. */
-  timeoutMs: number;
-}
-
-export interface HttpResponse {
-  status: number;
-  headers: Readonly<Record<string, string>>;
-  /** Truncated response body captured for delivery diagnostics (bounded by the egress policy). */
-  bodyText: string;
-}
-
-/**
- * Outbound HTTP as a port so it is mockable, rate-limitable, and — critically — routed through
- * one SSRF-guarded chokepoint. Adapters MUST enforce {@link WebhookEgressPolicy} (resolve-then-
- * connect IP pinning, redirect re-verification), the egress analog of ADR-027 §6's
- * `MediaIngressPolicy`. A transport failure rejects; a non-2xx resolves normally (the worker
- * decides retry from the status), so egress-policy violations are the only throw path.
- */
-export interface HttpClientPort {
-  send(request: HttpRequest): Promise<HttpResponse>;
-}
-
-/**
- * SSRF / abuse policy every outbound request is checked against before connecting. Mirrors
- * ADR-027 §6 in the egress direction. Not a port — a value object the `HttpClientPort` adapter
- * consults — but typed here so the contract is explicit and testable.
- */
-export interface WebhookEgressPolicy {
-  /** Allowed URL schemes. Default `['https:']`; `http:` only for an explicitly allowed dev host. */
-  readonly allowedSchemes: readonly string[];
-  /** Deny RFC1918 / link-local / loopback / metadata (169.254.169.254) after DNS resolution. */
-  readonly denyPrivateAddresses: boolean;
-  /** Allow-list of hosts exempt from {@link denyPrivateAddresses} (self-hosted localhost testing). */
-  readonly devHostAllowlist: readonly string[];
-  readonly maxRedirects: number;
-  readonly connectTimeoutMs: number;
-  readonly maxResponseBytes: number;
-}
+export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "../http";
 
 /* -------------------------------------------------------------------------- */
 /* Secret material — kept OUT of the portable content.db                       */
@@ -106,6 +66,23 @@ export interface KeyringPort {
     subscriptionId: IntegrationId;
     version: number;
   }): Promise<Uint8Array>;
+  /**
+   * Generic labeled derivation for crosscutting consumers whose payload doesn't fit
+   * {@link deriveSigningSecret}'s webhook-specific shape (Round-4 audit fold, TM-admin-sweep-001 —
+   * round-2 re-audit finding `gemini-r2-001`/Codex `R2-002`/Fable `R2-002`: three independent
+   * auditors converged on the same gap — `deriveSigningSecret`'s fixed `subscriptionId`/`version`
+   * fields can't express Analytics' `analytics-salt:{workspaceId}:{utcDate}` info string or
+   * Newsletter's unsubscribe-token info string, which must include `consent_revision_id`).
+   * `purpose` namespaces the caller (e.g. `'analytics-salt'`, `'newsletter-unsubscribe'`); `info`
+   * is the caller-owned, fully-formed HKDF info string. Same root-key custody guarantee as
+   * `deriveSigningSecret` — no raw key material crosses this interface, only derived output.
+   * **Implementations MUST bind `purpose` into the derivation** (e.g. effective HKDF info =
+   * `${purpose}:${info}`, or `purpose` as the HKDF salt/label) and MUST keep `derive()`
+   * domain-separated from `deriveSigningSecret()`'s derivation — round-3 audit finding
+   * `fable-r3-003`: as originally worded, a conforming implementation could HKDF over `info`
+   * alone, making `purpose` decorative rather than a real separation boundary.
+   */
+  derive(input: { workspaceId: UUID; purpose: string; info: string }): Promise<Uint8Array>;
 }
 
 /**

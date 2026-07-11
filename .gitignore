@@ -14,3 +14,9 @@ uploads/
 AI-Dev-Shop/
 
 .playwright-mcp/
+
+# stray/local artifacts (do not track)
+admin-page.png
+content.db.snapshot-store-*
+.claude/settings.local.json
+ADS-project-knowledge/tmp/

@@ -17,10 +17,12 @@
     "setup": "npm install && npm run admin:install && npm run admin:build"
   },
   "dependencies": {
+    "argon2": "^0.44.0",
     "better-sqlite3": "^11.8.1",
     "drizzle-orm": "^0.44.7",
     "express": "^4.21.2",
-    "liquidjs": "^10.27.1"
+    "liquidjs": "^10.27.1",
+    "sharp": "^0.35.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",

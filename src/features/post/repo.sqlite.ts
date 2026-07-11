@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { JsonObject } from "../../core/ports";
 import { posts } from "../../infra/db/schema";
 import type { ContentDb } from "../../infra/sqlite/content-db";
-import type { PostRecord, PostRepoPort, PostStatus } from "./post";
+import type { PostKind, PostRecord, PostRepoPort, PostStatus } from "./post";
 
 /**
  * @file Drizzle/SQLite post repository adapter.
@@ -22,6 +22,7 @@ function toRecord(row: PostRow): PostRecord {
     slug: row.slug,
     bodyJson: JSON.parse(row.bodyJson) as JsonObject,
     status: row.status as PostStatus,
+    kind: row.kind as PostKind,
     updatedAt: row.updatedAt,
     version: row.version,
   };
@@ -66,6 +67,7 @@ export class SqlitePostRepo implements PostRepoPort {
           slug: row.slug,
           bodyJson: row.bodyJson,
           status: row.status,
+          kind: row.kind,
           updatedAt: row.updatedAt,
           version: row.version,
         },

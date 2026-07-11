@@ -9,7 +9,36 @@ import { discoverThemes } from "../features/theme";
 import { SqliteWorkspaceRepo } from "../features/workspace";
 import { openContentDb } from "../infra/sqlite/content-db";
 import { seededWorkspace } from "./seed";
+import { LocalBufferSink } from "../analytics/repo.memory";
+import {
+  ConsoleMailerAdapter,
+  InMemoryMagicLinkTokenRepo,
+  InMemoryMemberRepo,
+  InMemoryMemberSessionRepo,
+  InMemoryMemberSubscriptionRepo,
+  InMemoryMemberTierRepo,
+} from "../members";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../navigation/repo.memory";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../integrations";
+import { createFixedSecretSigner } from "../integrations/signing";
+import {
+  InMemoryAssetBlobRepo,
+  InMemoryAssetRenditionRepo,
+  InMemoryMediaRepo,
+  InMemoryTransformDefinitionRepo,
+  LocalFsBlobStore,
+  SharpImageTransformer,
+} from "../media";
+import { createInMemoryIdentityRouteDeps } from "../identity";
 import type { RouteDeps } from "./routes/types";
+
+/**
+ * Root directory `LocalFsBlobStore` writes blob bytes under (ADR-012 `uploads/`
+ * convention, mirroring `builtInThemesDir()`/`defaultContentDbPath()` above).
+ */
+export function mediaUploadsDir(): string {
+  return process.env.TOVU_MEDIA_UPLOADS_DIR ?? join(process.cwd(), "uploads");
+}
 
 /** Built-in themes ship in the repo-root `themes/` dir (SPEC-004 spike). */
 export function builtInThemesDir(): string {
@@ -37,6 +66,11 @@ export function defaultContentDbPath(): string {
 
 export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): RouteDeps {
   const db = openContentDb(dbPath);
+  const clock = { nowIso: () => new Date().toISOString() };
+  const idGen = { newId: () => randomUUID() };
+  // No SQLite adapter exists yet for `identity` either — in-memory, same disclosed precedent as
+  // members/navigation/integrations/analytics/media below (see identity/INFO.md).
+  const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen });
 
   return {
     workspaceId: seededWorkspace.id,
@@ -47,7 +81,41 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     themes: discoverThemes(builtInThemesDir(), "built-in"),
     outbox: new InMemoryOutbox(),
     bus: new InMemoryEventBus(),
-    clock: { nowIso: () => new Date().toISOString() },
-    idGen: { newId: () => randomUUID() },
+    clock,
+    idGen,
+    // No SQLite adapters exist yet for these newer libraries (members/navigation/integrations/
+    // analytics) — in-memory here too, same as changeSets/outbox/bus above, until each grows one.
+    analyticsSink: new LocalBufferSink(),
+    ...identity,
+    memberRepo: new InMemoryMemberRepo([]),
+    memberTierRepo: new InMemoryMemberTierRepo([]),
+    memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo([]),
+    memberSessionRepo: new InMemoryMemberSessionRepo([]),
+    magicLinkRepo: new InMemoryMagicLinkTokenRepo([]),
+    mailer: new ConsoleMailerAdapter(),
+    menuRepo: new InMemoryMenuRepo(),
+    navLocationBindingRepo: new InMemoryNavLocationBindingRepo(),
+    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
+    webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
+    webhookSigner: createFixedSecretSigner(new Map()),
+    // `media` (ADR-027 walking skeleton): rows stay in-memory (same disclosed precedent as the
+    // other newer libraries above — no SQLite adapter built for this pass), but bytes use the
+    // real `LocalFsBlobStore` here (unlike `server/app.ts`'s hermetic-test composition) because
+    // durable byte storage is the one piece of Media that's pointless to fake in the actual
+    // running server — the local filesystem adapter is ADR-006's "one being built now" half.
+    mediaRepo: new InMemoryMediaRepo([]),
+    assetBlobRepo: new InMemoryAssetBlobRepo([]),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
+    blobStore: new LocalFsBlobStore({ rootDir: mediaUploadsDir() }),
+    // ADR-027 §4 transform registry + rendition generation (new in this task): registry rows stay
+    // in-memory (no SQLite adapter yet, same precedent as the media repos above), but the real
+    // running server gets `SharpImageTransformer` (unlike `server/app.ts`'s hermetic-test
+    // composition, which uses the deterministic in-memory double) — DISCLOSED BLOCKER: `sharp` is
+    // not an installed dependency in this repo as of this task, so `SharpImageTransformer` will
+    // throw `ImageTransformUnavailableError` the first time a real transform is requested against
+    // this composition, until `npm install sharp` is run. See
+    // `src/media/image-transformer.sharp.ts`'s file header.
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
+    imageTransformer: new SharpImageTransformer(),
   };
 }

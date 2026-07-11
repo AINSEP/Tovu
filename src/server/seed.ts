@@ -72,7 +72,11 @@ function doc(...kids: Node[]): JsonObject {
   return { type: "doc", content: kids };
 }
 
-function page(id: string, title: string, slug: string, body: JsonObject): PostRecord {
+// NOTE: named `seededPost` (not `page`) to avoid colliding with the real
+// `PostKind` "page" value now that `kind` exists on `PostRecord` — every row
+// this helper builds is `kind: "post"` (see the file comment above: these
+// explainer docs predate the `kind` field and were never re-classified).
+function seededPost(id: string, title: string, slug: string, body: JsonObject): PostRecord {
   return {
     id,
     workspaceId: seededWorkspace.id,
@@ -80,6 +84,7 @@ function page(id: string, title: string, slug: string, body: JsonObject): PostRe
     slug,
     bodyJson: body,
     status: "published",
+    kind: "post",
     updatedAt: "2026-07-07T00:00:00.000Z",
     version: 1,
   };
@@ -219,14 +224,14 @@ const morningsDoc = doc(
 );
 
 export const seededPosts: PostRecord[] = [
-  page("post-home", "Welcome to Tovu", "welcome", welcomeDoc),
-  page("page-about", "What Is Tovu?", "about", aboutDoc),
-  page("page-themes", "How Themes Work", "how-themes-work", themesDoc),
-  page("page-plugins", "How Plugins Work", "how-plugins-work", pluginsDoc),
-  page("page-plugin-api", "The Plugin API", "plugin-api", pluginApiDoc),
-  page("page-self-hosting", "Self-Hosting — Coming Soon", "self-hosting", selfHostingDoc),
-  page("post-typography", "Field Notes: The Weight of Type", "the-weight-of-type", typographyDoc),
-  page("post-mornings", "Slow Mornings", "slow-mornings", morningsDoc),
+  seededPost("post-home", "Welcome to Tovu", "welcome", welcomeDoc),
+  seededPost("page-about", "What Is Tovu?", "about", aboutDoc),
+  seededPost("page-themes", "How Themes Work", "how-themes-work", themesDoc),
+  seededPost("page-plugins", "How Plugins Work", "how-plugins-work", pluginsDoc),
+  seededPost("page-plugin-api", "The Plugin API", "plugin-api", pluginApiDoc),
+  seededPost("page-self-hosting", "Self-Hosting — Coming Soon", "self-hosting", selfHostingDoc),
+  seededPost("post-typography", "Field Notes: The Weight of Type", "the-weight-of-type", typographyDoc),
+  seededPost("post-mornings", "Slow Mornings", "slow-mornings", morningsDoc),
 ];
 
 export const seededPresentation: PresentationSettingsRecord = {

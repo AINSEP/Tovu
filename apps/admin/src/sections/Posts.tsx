@@ -4,6 +4,7 @@ import { api, type AdminPost } from "../lib/api";
 export function Posts() {
   const [posts, setPosts] = useState<AdminPost[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     api
@@ -12,12 +13,29 @@ export function Posts() {
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load posts"));
   }, []);
 
+  async function createPost() {
+    setCreating(true);
+    setError(null);
+    try {
+      const { post } = await api.createPost("Untitled");
+      window.location.hash = `#/posts/${post.id}`;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to create post");
+      setCreating(false);
+    }
+  }
+
   if (error) return <div className="notice error">{error}</div>;
   if (!posts) return <div className="notice">Loading posts…</div>;
 
   return (
     <div>
-      <h1>Posts</h1>
+      <div className="editor-header">
+        <h1>Posts</h1>
+        <button onClick={createPost} disabled={creating}>
+          {creating ? "Creating…" : "New Post"}
+        </button>
+      </div>
       <table className="list-table">
         <thead>
           <tr>

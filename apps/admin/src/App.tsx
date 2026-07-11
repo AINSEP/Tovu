@@ -7,11 +7,24 @@ import { Login } from "./sections/Login";
 import { PostEditor } from "./sections/PostEditor";
 import { Placeholder } from "./sections/Placeholder";
 import { Posts } from "./sections/Posts";
+import { Pages } from "./sections/Pages";
+import { Members } from "./sections/Members";
+import { Analytics } from "./sections/Analytics";
+import { Media } from "./sections/Media";
+import { Menus } from "./sections/Menus";
+import { MenuEditor } from "./sections/MenuEditor";
+import { Integrations } from "./sections/Integrations";
+import { IntegrationDeliveries } from "./sections/IntegrationDeliveries";
+import { Users } from "./sections/Users";
 
 type Route =
   | { view: "dashboard" }
   | { view: "posts" }
   | { view: "post-editor"; postId: string }
+  | { view: "menus" }
+  | { view: "menu-editor"; menuId: string | null }
+  | { view: "integrations" }
+  | { view: "integration-deliveries"; subscriptionId: string }
   | { view: "section"; sectionId: string };
 
 function parseHash(hash: string): Route {
@@ -19,6 +32,12 @@ function parseHash(hash: string): Route {
   if (parts.length === 0) return { view: "dashboard" };
   if (parts[0] === "posts" && parts[1]) return { view: "post-editor", postId: parts[1] };
   if (parts[0] === "posts") return { view: "posts" };
+  if (parts[0] === "menus" && parts[1] === "new") return { view: "menu-editor", menuId: null };
+  if (parts[0] === "menus" && parts[1]) return { view: "menu-editor", menuId: parts[1] };
+  if (parts[0] === "menus") return { view: "menus" };
+  if (parts[0] === "integrations" && parts[1])
+    return { view: "integration-deliveries", subscriptionId: parts[1] };
+  if (parts[0] === "integrations") return { view: "integrations" };
   if (parts[0] === "appearance" || (parts[0] === "section" && parts[1] === "appearance"))
     return { view: "section", sectionId: "appearance" };
   if (parts[0] === "section" && parts[1]) return { view: "section", sectionId: parts[1] };
@@ -33,6 +52,12 @@ function activeSectionId(route: Route): string {
     case "posts":
     case "post-editor":
       return "posts";
+    case "menus":
+    case "menu-editor":
+      return "menus";
+    case "integrations":
+    case "integration-deliveries":
+      return "integrations";
     case "section":
       return route.sectionId;
   }
@@ -76,10 +101,32 @@ export function App() {
     case "post-editor":
       content = <PostEditor postId={route.postId} />;
       break;
+    case "menus":
+      content = <Menus />;
+      break;
+    case "menu-editor":
+      content = <MenuEditor menuId={route.menuId} />;
+      break;
+    case "integrations":
+      content = <Integrations />;
+      break;
+    case "integration-deliveries":
+      content = <IntegrationDeliveries subscriptionId={route.subscriptionId} />;
+      break;
     case "section":
       content =
         route.sectionId === "themes" || route.sectionId === "appearance" ? (
           <Appearance />
+        ) : route.sectionId === "members" ? (
+          <Members />
+        ) : route.sectionId === "users" ? (
+          <Users />
+        ) : route.sectionId === "analytics" ? (
+          <Analytics />
+        ) : route.sectionId === "media" ? (
+          <Media />
+        ) : route.sectionId === "pages" ? (
+          <Pages />
         ) : (
           <Placeholder sectionId={route.sectionId} />
         );

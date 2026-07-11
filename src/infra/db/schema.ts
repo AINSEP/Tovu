@@ -27,6 +27,8 @@ export const posts = sqliteTable(
     slug: text("slug").notNull(),
     bodyJson: text("body_json").notNull(),
     status: text("status").notNull(),
+    /** Discriminates the `post` vs `page` admin lens over this one table (see `features/post/post.ts`). */
+    kind: text("kind").notNull().default("post"),
     updatedAt: text("updated_at").notNull(),
     version: integer("version").notNull(),
   },

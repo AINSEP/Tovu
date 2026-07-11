@@ -7,9 +7,17 @@ import {
   revertChangeSet,
 } from "../../../../core/commands";
 import { toChangeSetHeaderResponse } from "../../../../server/http/admin/change-sets";
+import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { RouteRegistrar } from "../../../routes/types";
 
-/** POST revert an applied change set (SPEC-001 REQ-07/08/10). */
+/**
+ * POST revert an applied change set (SPEC-001 REQ-07/08/10).
+ *
+ * Gated by the existing `changeset.revert` permission, checked directly via `authorize()` —
+ * `revertChangeSet` is a standalone `core/commands` function called directly by this route, not
+ * routed through `executeCommand` (that gateway wraps forward mutations, not reverts), so this
+ * uses the same in-route pattern as `members/disable.ts` rather than the gateway pair.
+ */
 export const registerAdminChangeSetRevertRoute: RouteRegistrar = (app, deps) => {
   const registry = defaultRevertRegistry();
 
@@ -19,7 +27,26 @@ export const registerAdminChangeSetRevertRoute: RouteRegistrar = (app, deps) => 
       return;
     }
 
+    const changeSetId = String(req.params.changeSetId ?? "");
+
     try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "changeset.revert",
+        workspaceId: deps.workspaceId,
+        entityType: "change_set",
+        entityId: changeSetId,
+      });
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'changeset.revert' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "changeset.revert", reason: authResult.reason },
+        });
+        return;
+      }
+
       const reverted = await revertChangeSet({
         deps: {
           changeSets: deps.changeSets,
@@ -35,7 +62,7 @@ export const registerAdminChangeSetRevertRoute: RouteRegistrar = (app, deps) => 
         },
         input: {
           workspaceId: deps.workspaceId,
-          changeSetId: String(req.params.changeSetId ?? ""),
+          changeSetId,
         },
       });
 

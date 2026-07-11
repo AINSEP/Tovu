@@ -45,6 +45,13 @@ export interface CommandEnvelope {
   idempotencyKey?: string;
   /** Chat message / plan step that motivated this command. */
   intentRef?: string;
+  /**
+   * The permission this mutation requires (SPEC-006 REQ-05), e.g.
+   * `"content.write"`. Must be supplied together with `ExecuteCommandDeps.authorize`
+   * — see that field's doc for the migration story. Optional only so gateway
+   * callers not yet migrated to real identity/authorize wiring keep compiling.
+   */
+  permission?: string;
 }
 
 /** The entity write a command performs, with its inverse capture. */
@@ -79,6 +86,23 @@ export interface CommandMutation<TResult> {
   rollback?(): Promise<void>;
 }
 
+/**
+ * The shape of the SPEC-006 `authorize()` gate, kept generic here so
+ * `core/commands` never imports the `identity` library (that would invert the
+ * dependency direction — `features`/libraries depend on `core`, not the
+ * reverse; see `identity/authorize.ts`'s file header). Composition roots
+ * (`server/app.ts` / `server/deps.ts`) bind a closure over the real
+ * `identity.authorize()` and its repos, and pass that closure as
+ * `ExecuteCommandDeps.authorize`.
+ */
+export type AuthorizeFn = (params: {
+  principalId: UUID;
+  permission: string;
+  workspaceId: UUID;
+  entityType?: string;
+  entityId?: UUID;
+}) => Promise<{ allowed: boolean; reason: string }>;
+
 /** Dependencies for executeCommand. */
 export interface ExecuteCommandDeps {
   clock: ClockPort;
@@ -86,6 +110,16 @@ export interface ExecuteCommandDeps {
   changeSets: ChangeSetRepoPort;
   /** When provided, `change-set.applied` is enqueued for async consumers. */
   outbox?: OutboxPort;
+  /**
+   * SPEC-006 REQ-05 authorization gate. Must be supplied together with
+   * `CommandEnvelope.permission` — omitting one while supplying the other is a
+   * wiring bug (see `executeCommand`'s guard) rather than something that
+   * should silently allow or silently skip. Omitting BOTH is the legacy
+   * pre-identity path, kept so gateway callers not yet migrated to real
+   * identity/authorize wiring keep compiling and passing (see the Programmer
+   * handoff for which routes remain unconverted this pass).
+   */
+  authorize?: AuthorizeFn;
 }
 
 /** Required parameters for executeCommand. */
@@ -112,6 +146,23 @@ export class DuplicateCommandError extends Error {
 }
 
 /**
+ * Thrown when `authorize()` denies the caller (SPEC-006 REQ-05). Routes map
+ * this to 403 `FORBIDDEN`. Raised before the idempotency check (INV-04) — a
+ * replayed command id from a denied caller therefore never produces
+ * `DuplicateCommandError` either (EC-08).
+ */
+export class ForbiddenError extends Error {
+  readonly permission: string;
+  readonly reason: string;
+
+  constructor(message: string, permission: string, reason: string) {
+    super(message);
+    this.permission = permission;
+    this.reason = reason;
+  }
+}
+
+/**
  * Execute a mutation through the command gateway.
  *
  * Order matters: idempotency check → inverse capture → execute → record.
@@ -130,6 +181,34 @@ export async function executeCommand<TResult>(
   _optional: ExecuteCommandOptional = {}
 ): Promise<{ result: TResult; changeSetId: UUID }> {
   const { deps, command, mutation } = required;
+
+  // SPEC-006 REQ-05/INV-04: authorize() runs BEFORE the idempotency check, so
+  // a denied caller never learns whether a replayed command id previously
+  // succeeded (no DUPLICATE_COMMAND / changeSetId leak, EC-08). `permission`
+  // and `authorize` are wired together or not at all (see ExecuteCommandDeps
+  // doc) — partial wiring is a programming error, not a silent allow/skip.
+  if (Boolean(deps.authorize) !== Boolean(command.permission)) {
+    throw new Error(
+      "executeCommand: command.permission and deps.authorize must be supplied together (SPEC-006 REQ-05) " +
+        "— partial wiring would silently skip or misapply authorization"
+    );
+  }
+  if (deps.authorize && command.permission) {
+    const authResult = await deps.authorize({
+      principalId: command.actor.id,
+      permission: command.permission,
+      workspaceId: command.workspaceId,
+      entityType: mutation.entityType,
+      entityId: mutation.entityId,
+    });
+    if (!authResult.allowed) {
+      throw new ForbiddenError(
+        `principal '${command.actor.id}' is not authorized for '${command.permission}' (${authResult.reason})`,
+        command.permission,
+        authResult.reason
+      );
+    }
+  }
 
   if (command.idempotencyKey) {
     const existing = await deps.changeSets.findByIdempotencyKey({

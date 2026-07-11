@@ -1,0 +1,215 @@
+/**
+ * @file `OriginRegistry` — the trusted canonical-origin registry (ADR-040 v0).
+ *
+ * Purpose:
+ * Implements `OriginRegistryPort`: resolves a workspace's verified canonical
+ * origin, and provides the single open-redirect and egress-target oracles
+ * that every SEO/identity/newsletter/redirects/egress consumer must call
+ * instead of trusting the raw request `Host` header.
+ *
+ * How it relates to the project:
+ * - Depends only on `OriginSettingRepoPort` (`./ports`), never on a concrete
+ *   adapter — the SQLite-backed adapter is a separate, later change (out of
+ *   scope for this library-layer slice).
+ * - `origin/repo.memory.ts` provides the in-memory double used here in tests
+ *   and by other libraries' tests.
+ *
+ * Architectural role: ADR-040. This file owns fixes F3 (open-redirect oracle
+ * normalization) and F4 (egress-target oracle) from the ADR's internal-
+ * verification round.
+ */
+import type { OriginContext, OriginRegistryPort, OriginSettingRepoPort, RedirectTargetContext, EgressTargetContext } from "./ports";
+import { OriginNotVerifiedError, type VerifiedOrigin } from "./types";
+
+export { OriginNotVerifiedError };
+
+/**
+ * A same-origin comparable, fully normalized redirect/egress candidate. `scheme` includes
+ * `"http"` only so a same-origin comparison against a `dev-capability` canonical origin (which
+ * may legitimately be `http://localhost`) can match (ADR-040 Round-4 fold, round-2 audit finding
+ * R2-005) — the cross-origin allowlist path still requires `https` unconditionally, enforced in
+ * `isAllowedTarget` below, not here.
+ */
+export interface NormalizedTarget {
+  scheme: "https" | "http";
+  host: string;
+  port: number;
+}
+
+/**
+ * Raw-string characters that must reject a candidate URL before it is ever
+ * handed to the WHATWG parser: backslashes (scheme-separator confusion /
+ * `https:/\evil.com` bypasses), whitespace, and C0/DEL control characters.
+ * The URL parser silently strips some of these, which is exactly the
+ * ambiguity ADR-040 F3 requires rejecting outright instead of tolerating.
+ */
+const FORBIDDEN_RAW_CHARS = /[\\\s\x00-\x1F\x7F]/;
+
+/**
+ * Parse and normalize a candidate redirect/egress URL per ADR-040 F3.
+ *
+ * Pipeline: reject forbidden raw characters -> parse with the WHATWG `URL`
+ * parser (any throw is a parse failure) -> require `https:` or `http:` (an
+ * `http` candidate survives ONLY to the same-origin comparison against a
+ * `dev-capability` canonical origin — see `NormalizedTarget`; the cross-origin
+ * allowlist path in `isAllowedTarget` re-enforces `https`-only) -> reject a
+ * non-empty userinfo component -> lower-case + strip a single trailing dot
+ * from the host (IDNA/punycode normalization and case-folding are already
+ * performed by the `URL` parser itself) -> resolve an explicit or scheme-
+ * default (443 for `https`, 80 for `http`) port.
+ *
+ * @param rawUrl - the untrusted candidate URL string.
+ * @returns the normalized `{ scheme, host, port }`, or `null` if the
+ * candidate fails any check. Never throws.
+ * @complexity O(n) in the length of `rawUrl` (parser-bound), O(1) space.
+ * @overallScore 100/100
+ */
+export function normalizeOriginCandidate(rawUrl: string): NormalizedTarget | null {
+  if (typeof rawUrl !== "string" || rawUrl.length === 0) return null;
+  if (FORBIDDEN_RAW_CHARS.test(rawUrl)) return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+  if (parsed.username !== "" || parsed.password !== "") return null;
+
+  const host = stripTrailingDot(parsed.hostname.toLowerCase());
+  if (!host) return null;
+
+  const scheme: "https" | "http" = parsed.protocol === "https:" ? "https" : "http";
+  const port = parsed.port ? Number(parsed.port) : scheme === "https" ? 443 : 80;
+  if (!Number.isInteger(port) || port <= 0) return null;
+
+  return { scheme, host, port };
+}
+
+function stripTrailingDot(host: string): string {
+  return host.endsWith(".") ? host.slice(0, -1) : host;
+}
+
+function effectivePort(origin: Pick<VerifiedOrigin, "scheme" | "port">): number {
+  return origin.port ?? (origin.scheme === "https" ? 443 : 80);
+}
+
+/** Whether a normalized target is same-origin with a workspace's verified origin. */
+function isSameOrigin(target: NormalizedTarget, canonical: VerifiedOrigin): boolean {
+  if (canonical.scheme !== target.scheme) return false;
+  if (stripTrailingDot(canonical.host.toLowerCase()) !== target.host) return false;
+  return effectivePort(canonical) === target.port;
+}
+
+export interface OriginRegistryDeps {
+  repo: OriginSettingRepoPort;
+}
+
+/**
+ * Trusted canonical-origin registry (ADR-040). The only implementation of
+ * `OriginRegistryPort` in this v0 slice; a per-`siteId` host-mapped resolver
+ * is the plausible rule-of-two second adapter (ADR-040 §5), not built yet.
+ */
+export class OriginRegistry implements OriginRegistryPort {
+  private readonly repo: OriginSettingRepoPort;
+
+  constructor(deps: OriginRegistryDeps) {
+    this.repo = deps.repo;
+  }
+
+  /**
+   * Resolve the verified canonical origin for a workspace.
+   *
+   * @param ctx - workspace (and optionally site/locale) to resolve for.
+   * `siteId` and `locale` are accepted for interface parity with ADR-039's
+   * `RouteResolveContext` but are not yet used to select between multiple
+   * origins in this v0 (single-origin-per-workspace) slice.
+   * @returns the registered `VerifiedOrigin`.
+   * @throws {OriginNotVerifiedError} if no origin is registered for the
+   * workspace. Fails closed rather than guessing from the request host.
+   * @complexity O(1) time/space (single repo lookup).
+   * @overallScore 100/100
+   */
+  async canonicalOrigin(ctx: OriginContext): Promise<VerifiedOrigin> {
+    const origin = await this.repo.findByWorkspaceId(ctx.workspaceId);
+    if (!origin) {
+      throw new OriginNotVerifiedError(`no verified origin registered for workspace '${ctx.workspaceId}'`);
+    }
+    return origin;
+  }
+
+  /**
+   * The single open-redirect oracle (ADR-040 F3). See `normalizeOriginCandidate`
+   * for the rejection pipeline. Same-origin targets are always allowed;
+   * cross-origin targets are allowed only via the workspace's exact-host
+   * redirect allowlist.
+   *
+   * @param ctx - workspace (and optionally site/originKey) the redirect is
+   * scoped to. `originKey` is accepted for `RouteResolveContext` parity
+   * (ADR-040 F5) but is not yet consumed — v0 has one origin per workspace.
+   * @param url - untrusted candidate redirect target.
+   * @returns `true` only if `url` is a verified same-origin or allowlisted
+   * cross-origin `https` target. Fails closed (`false`) on any parse
+   * failure, ambiguity, or unexpected error — never throws.
+   * @complexity O(k) where k = allowlist size (single Set lookup after
+   * normalization), O(k) space for the allowlist Set.
+   * @overallScore 100/100
+   */
+  async isAllowedRedirectTarget(ctx: RedirectTargetContext, url: string): Promise<boolean> {
+    return this.isAllowedTarget(ctx, url, (workspaceId) => this.repo.findRedirectAllowlist(workspaceId));
+  }
+
+  /**
+   * The single third-party egress-target oracle (ADR-040 F4), backed by a
+   * distinct per-workspace egress-destination allowlist. Same normalization
+   * pipeline and fail-closed posture as `isAllowedRedirectTarget`.
+   *
+   * @param ctx - workspace (and optionally site) the egress call is scoped to.
+   * @param url - untrusted candidate egress destination.
+   * @returns `true` only if `url` is a verified same-origin or allowlisted
+   * `https` target. Fails closed (`false`) on any parse failure, ambiguity,
+   * or unexpected error — never throws.
+   * @complexity O(k) where k = allowlist size, O(k) space.
+   * @overallScore 100/100
+   */
+  async isAllowedEgressTarget(ctx: EgressTargetContext, url: string): Promise<boolean> {
+    return this.isAllowedTarget(ctx, url, (workspaceId) => this.repo.findEgressAllowlist(workspaceId));
+  }
+
+  /**
+   * Shared same-origin-or-allowlist decision used by both oracles above.
+   * Isolated as its own function so the two public methods stay a one-line
+   * pass-through to the correct allowlist source.
+   *
+   * @complexity O(k) where k = allowlist size.
+   * @overallScore 100/100
+   */
+  private async isAllowedTarget(
+    ctx: { workspaceId: string; siteId?: string },
+    rawUrl: string,
+    loadAllowlist: (workspaceId: string) => Promise<string[]>
+  ): Promise<boolean> {
+    try {
+      const target = normalizeOriginCandidate(rawUrl);
+      if (!target) return false;
+
+      const canonical = await this.canonicalOrigin({ workspaceId: ctx.workspaceId, siteId: ctx.siteId });
+      if (isSameOrigin(target, canonical)) return true;
+
+      // Cross-origin allowlist path is https-only, unconditionally (ADR-040 amendment 8) — the
+      // dev-capability http exception above applies ONLY to the same-origin comparison, never
+      // to a cross-origin allowlisted target (ADR-040 Round-4 fold, R2-005 fix).
+      if (target.scheme !== "https") return false;
+
+      const allowlist = await loadAllowlist(ctx.workspaceId);
+      const allowSet = new Set(allowlist.map((host) => stripTrailingDot(host.trim().toLowerCase())));
+      return allowSet.has(target.host);
+    } catch {
+      // Fail closed: an unverified origin, a repo error, or any unexpected
+      // exception must never be treated as "allowed".
+      return false;
+    }
+  }
+}

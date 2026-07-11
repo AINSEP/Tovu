@@ -9,7 +9,10 @@
  *
  * Ports declared here (each has a real second adapter in v1 → rule-of-two honest):
  *  - Member{,Tier,Subscription,Session,MagicLinkToken}RepoPort — in-memory + SQLite.
- *  - MailerPort — dev-console adapter now, SMTP/provider next (magic-link delivery).
+ *
+ * `MailerPort` is imported from the shared `../mail` core primitive (ADR-037) — it is no
+ * longer declared locally (Round-3 audit fold, TM-admin-sweep-001: the local shape here
+ * predated ADR-037 and didn't match its frozen contract).
  *
  * NOT a port in v1 (ADR-006 letter — no second adapter *being built now*):
  *  - Payment/billing. It is a deferred tier-3 seam, not core code: a billing
@@ -19,6 +22,7 @@
  * Interfaces and types only — no feature logic.
  */
 import type { ClockPort, IdGeneratorPort, ISODateTime, UUID } from "../core/ports";
+import type { MailerPort } from "../mail";
 import type {
   MagicLinkTokenRecord,
   MemberAccessDecision,
@@ -94,28 +98,11 @@ export interface MagicLinkTokenRepoPort {
 }
 
 /* -------------------------------------------------------------------------- */
-/* MailerPort (rule-of-two: dev-console adapter now, SMTP/provider next)        */
+/* MailerPort — imported from the shared `mail` core primitive (ADR-037).     */
+/* Members' `send(email)` simplicity survives as SDK sugar (`mail.sendSimple`)*/
+/* over the one shared port — one interface, one wrapper, never a second     */
+/* port (ADR-037 §5). The members lib never talks to a provider SDK.         */
 /* -------------------------------------------------------------------------- */
-
-/** A rendered outbound email. The members lib never talks to a provider SDK. */
-export interface OutboundEmail {
-  workspaceId: UUID;
-  to: string;
-  subject: string;
-  /** Plain-text body; HTML rendering is the adapter's concern. */
-  text: string;
-  /** Optional pre-rendered HTML. */
-  html?: string;
-}
-
-/**
- * Email delivery seam. Adapters: `ConsoleMailerAdapter` (logs the link in dev,
- * built now) → `SmtpMailerAdapter`/provider (next). Shared core port; the
- * members lib consumes it for magic-link + lifecycle notifications.
- */
-export interface MailerPort {
-  send(email: OutboundEmail): Promise<void>;
-}
 
 /* -------------------------------------------------------------------------- */
 /* Core-code contracts that are NOT ports (single evaluator — ADR-006/021)     */
