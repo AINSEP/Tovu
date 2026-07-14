@@ -1,0 +1,127 @@
+import type { UUID } from "../core/ports";
+import type { PostRepoPort } from "../features/post/post";
+import type { SettingsRepoPort } from "../features/settings/ports";
+import type { ResolveSeoImageRefDeps } from "./media";
+import { getEntryMeta } from "./seo";
+import { getSeoSettings } from "./settings";
+import type { RobotsPolicy, SitemapEntry } from "./types";
+import type { SeoEventSubscriptions, SitemapCollectHook } from "./ports";
+
+/**
+ * @file `buildSitemap`/`buildRobots`/`regenerateSitemapCache`/
+ * `invalidateSitemapCache` (ADR-PIPE-008 Decision §5/§7, C-008..C-011) — a
+ * cache-backed sitemap/robots build over an in-module `Map<string,string>`
+ * (no new `CachePort` — none exists in this codebase and none is warranted
+ * for a single workspace-keyed value, ADR-006). Never leaks non-published or
+ * `noindex` entries (INV-04/05). The empty `seo.sitemap.collect` registry
+ * (OQ-01) ships live-but-empty — a real seam, zero real registrants in v1.
+ */
+
+/** INV-08 — always this shape; the only file that constructs the cache key. */
+function cacheKey(workspaceId: UUID): string {
+  return `ws:${workspaceId}:seo:sitemap`;
+}
+
+/** Cached value is the `JSON.stringify`d `SitemapEntry[]` for that workspace. */
+const sitemapCache = new Map<string, string>();
+
+// ---------------------------------------------------------------------------
+// `seo.sitemap.collect` (OQ-01) — a real, empty, in-module ordered registry.
+// ---------------------------------------------------------------------------
+
+let sitemapCollectHooks: SitemapCollectHook[] = [];
+
+/** Registers a `seo.sitemap.collect` contributor. Live-but-empty in v1 (OQ-01) — no real registrant ships with this feature. */
+export function registerSitemapCollectHook(hook: SitemapCollectHook): void {
+  sitemapCollectHooks.push(hook);
+}
+
+/** Test-only reset of the module-level registry. */
+export function resetSitemapCollectHooksForTests(): void {
+  sitemapCollectHooks = [];
+}
+
+export interface SeoSitemapDeps {
+  postRepo: PostRepoPort;
+  settingsRepo: SettingsRepoPort;
+  media: ResolveSeoImageRefDeps;
+}
+
+async function computeSitemapEntries(deps: SeoSitemapDeps, workspaceId: UUID): Promise<SitemapEntry[]> {
+  const posts = [...(await deps.postRepo.list({ workspaceId }))].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
+  const entries: SitemapEntry[] = [];
+  for (const post of posts) {
+    if (post.status !== "published") continue;
+    const meta = await getEntryMeta(deps, { workspaceId, entryId: post.id });
+    if (meta.robots.noindex) continue;
+    entries.push({ loc: meta.canonical, lastmod: post.updatedAt });
+  }
+
+  for (const hook of [...sitemapCollectHooks].sort((a, b) => a.priority - b.priority)) {
+    const collected = await hook.handle({ workspaceId, baseUrl: "" });
+    entries.push(...collected);
+  }
+
+  return entries;
+}
+
+/**
+ * REQ-08/10 — cache-checked build of `SitemapEntry[]`. Never `null`; `[]`
+ * when empty (EC-04). Never includes a non-published or effective-`noindex`
+ * entry (INV-04/05).
+ */
+export async function buildSitemap(deps: SeoSitemapDeps, input: { workspaceId: UUID }): Promise<SitemapEntry[]> {
+  const key = cacheKey(input.workspaceId);
+  const cached = sitemapCache.get(key);
+  if (cached !== undefined) return JSON.parse(cached) as SitemapEntry[];
+
+  const entries = await computeSitemapEntries(deps, input.workspaceId);
+  sitemapCache.set(key, JSON.stringify(entries));
+  return entries;
+}
+
+/**
+ * REQ-09 — composes `RobotsPolicy` from `SeoSettings.robotsRules` +
+ * computed `sitemapUrls` (never persisted as one shape — computed fresh at
+ * read time). `sitemapUrls` is `[]` when `sitemapEnabled` is `false`.
+ *
+ * The advertised sitemap URL is a site-relative path (`/sitemap.xml`) rather
+ * than an absolute one — this repo has no wired origin-resolution source yet
+ * (`routing`'s own documented ADR-040 TODO); SEO never fabricates a local
+ * origin (INV-07), consistent with `getEntryMeta`'s `canonical` fallback.
+ */
+export async function buildRobots(
+  deps: { settingsRepo: SettingsRepoPort },
+  input: { workspaceId: UUID }
+): Promise<RobotsPolicy> {
+  const settings = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: input.workspaceId });
+  return {
+    rules: settings.robotsRules,
+    sitemapUrls: settings.sitemapEnabled ? ["/sitemap.xml"] : [],
+  };
+}
+
+/** REQ-13 — force-rebuilds the cache entry now, bypassing the cache-hit path. */
+export async function regenerateSitemapCache(deps: SeoSitemapDeps, input: { workspaceId: UUID }): Promise<void> {
+  const entries = await computeSitemapEntries(deps, input.workspaceId);
+  sitemapCache.set(cacheKey(input.workspaceId), JSON.stringify(entries));
+}
+
+/** REQ-10/INV-08 — clears the workspace's cache entry. Idempotent: a repeat call on an already-clear key is a no-op. */
+export function invalidateSitemapCache(input: { workspaceId: UUID }): void {
+  sitemapCache.delete(cacheKey(input.workspaceId));
+}
+
+/**
+ * REQ-10 — the 3 outbox-event subscription handlers (idempotent per
+ * ADR-009): any `entry.published`/`entry.updated`/`entry.unpublished`
+ * delivery invalidates that workspace's sitemap cache entry. Wired to
+ * `bus.subscribe` at `server/app.ts` boot (T038).
+ */
+export function createSeoEventSubscriptions(): SeoEventSubscriptions {
+  const handler = async (event: { payload: { entryId: UUID; contentType: string }; workspaceId: UUID }) => {
+    invalidateSitemapCache({ workspaceId: event.workspaceId });
+  };
+  return { onEntryPublished: handler, onEntryUpdated: handler, onEntryUnpublished: handler };
+}

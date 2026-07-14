@@ -472,14 +472,24 @@ function fontLink(theme: DiscoveredTheme): string {
   return `<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="stylesheet" href="https://fonts.googleapis.com/css2?${families}&display=swap"/>`;
 }
 
-function pageShell(required: { title: string; theme: DiscoveredTheme; body: string }): string {
-  const { theme } = required;
+/**
+ * `extraHead` is `page-head.ts`'s `serializeHeadElements()` output (SPEC-008
+ * ADR-PIPE-008 T048) — already-escaped markup, inserted verbatim. When it
+ * contains its own `<title>` (SEO's fold always emits one, per
+ * `page-head-contributor.ts`'s priority-100 title element), this shell's own
+ * hardcoded `<title>` is suppressed rather than emitting two competing tags.
+ */
+function pageShell(required: { title: string; theme: DiscoveredTheme; body: string; extraHead?: string }): string {
+  const { theme, extraHead } = required;
+  const foldHasTitle = extraHead?.includes("<title>") ?? false;
+  const titleTag = foldHasTitle ? "" : `<title>${escapeHtml(required.title)}</title>`;
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>${escapeHtml(required.title)}</title>
+${titleTag}
+${extraHead ?? ""}
 ${fontLink(theme)}
 <style>${BASE_STYLE}${tokensToCss(theme.tokens)}${theme.css}</style>
 </head>
@@ -504,6 +514,8 @@ export function renderSite(required: {
   siteTitle: string;
   posts: PostRecord[];
   post?: PostRecord;
+  /** SPEC-008 T049 — pre-serialized `page.head` fold output, threaded through to `pageShell`. */
+  extraHead?: string;
 }): string {
   const { theme, route } = required;
   const ctx: SiteRenderContext = {
@@ -537,5 +549,5 @@ export function renderSite(required: {
     ? `${required.post.title} — ${required.siteTitle}`
     : required.siteTitle;
 
-  return pageShell({ title, theme, body });
+  return pageShell({ title, theme, body, extraHead: required.extraHead });
 }

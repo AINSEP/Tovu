@@ -1,45 +1,55 @@
 /**
- * @file SEO core type definitions (ADR-032, design-only draft).
+ * @file SEO core type definitions (SPEC-008, ADR-PIPE-008).
  *
- * Types ONLY — no feature logic. These are the domain shapes the SEO dogfood
- * plugin (`plugins/seo`, §3.5 tier-3 bundled module) introduces. They are written
- * to compile against the live repo types (`../core/ports`, `../features/post/post`,
- * `../features/theme/theme`) so the design is grounded, not sketched.
- *
- * Load-bearing ADR ties:
- * - ADR-022 §2/§3: per-entry meta lives in the namespaced JSON ext bag
- *   `fields.ext.seo.*` (validated on write), NOT in new tables; the one queryable
- *   field (`noindex`) rides a core-provisioned partial expression index.
- * - ADR-020 §2: head output is the canonical *render IR* (serializable
- *   descriptors), never raw HTML strings — the largest injection surface.
- * - ADR-024 §3: every payload crossing the SEO plugin boundary is
- *   structured-clone-serializable; no live core objects (e.g. no live PostRecord).
- * - ADR-028: site-level SEO config are `seo.*` setting definitions in the
- *   Layered Settings Ledger, resolved workspace-scoped.
+ * Types ONLY — no feature logic. Fills in the ADR-032 design-only stub with
+ * the shapes ADR-PIPE-008 actually commits to. Deviations from the original
+ * stub (state.spec.md §5 + ADR-PIPE-008 Context, all disclosed there):
+ *  - No `baseUrl`/`seo.base_url` anywhere (INV-07 — single-origin-authority;
+ *    every absolute URL comes from `routing.urlFor`'s `canonicalUrl`).
+ *  - `RobotsPolicy` stays computed-only (`sitemapUrls` is never persisted);
+ *    only `robotsRules: RobotsRule[]` is stored.
+ *  - `SeoPermission`'s 5-string vocabulary is replaced by the single string
+ *    `"admin.seo.manage"`, used directly at call sites (no type needed).
+ *  - `SeoFieldDecl`/`SeoExpressionIndexDecl` (ADR-022 generic-entries-model
+ *    registration vocabulary) are dropped — this feature stores overrides on
+ *    the bespoke `posts.seo_ext_json` column (state.spec.md §0), not a
+ *    generic ext-bag with a content-type field registry.
+ *  - `HeadElement`/`HeadElementKey`/`PageHeadContext`/`PageHeadEntryRef` move
+ *    to `src/server/http/site/page-head.ts` (ADR-PIPE-008 Decision §2 — the
+ *    render seam is core-owned, not SEO-owned); re-exported here for
+ *    convenience so `seo` callers don't need two import paths.
  */
-import type { ISODateTime, JsonObject, UUID } from "../core/ports";
+import type { JsonObject } from "../core/ports";
 import type { PostRecord } from "../features/post/post";
-import type { ThemeTier } from "../features/theme/theme";
+
+export type {
+  HeadElement,
+  HeadElementKey,
+  JsonLd,
+  PageHeadContext,
+  PageHeadEntryRef,
+  PageHeadHook,
+} from "../server/http/site/page-head";
 
 // ---------------------------------------------------------------------------
-// 1. Stored per-entry meta — the validated `fields.ext.seo.*` bag (ADR-022 §2)
+// 1. Stored per-entry meta — the validated `posts.seo_ext_json` bag
 // ---------------------------------------------------------------------------
 
 /** Twitter card kind (Twitter/X card meta). */
 export type TwitterCardKind = "summary" | "summary_large_image";
 
-/** OpenGraph object type (v1 subset; extends via the registry, not code). */
+/** OpenGraph object type (v1 subset). */
 export type OpenGraphType = "website" | "article" | "profile";
 
 /**
- * The author-authored override bag persisted at `entries.fields.ext.seo.*`.
- * Every field is OPTIONAL — absence means "derive from the entry + site
- * defaults". Unregistered keys are rejected at the ADR-022 write chokepoint;
+ * The author-authored override bag persisted at `posts.seo_ext_json`. Every
+ * field is OPTIONAL — absence means "derive from the entry + site defaults".
+ * Unregistered keys are rejected at the write chokepoint (`write-service.ts`);
  * this interface is the registered, validated shape.
  *
- * `ogImage`/`twitterImage` hold a media *ref* (`{assetId, transformName}`
- * serialized as a string `"{assetId}:{transformName}"`) or an absolute URL —
- * never a frozen `/m/` URL (ADR-027 §4: internal content stores refs, not URLs).
+ * `ogImage`/`twitterImage` hold a media *ref* (`"{assetId}:{transformName}"`)
+ * or an absolute URL — never a frozen `/m/` URL directly (ADR-027 §4: internal
+ * content stores refs, not URLs) — resolved to a URL at read time by `media.ts`.
  */
 export interface SeoExtFields {
   /** Meta title override; falls back to `entry.title` run through the template. */
@@ -66,40 +76,8 @@ export interface SeoExtFields {
   twitterImage?: string;
 }
 
-/**
- * Content-type registry declaration (data, ADR-022 §1/§2) for one SEO field.
- * The plugin ships these as declarative field registrations on every content
- * type — the Tier-1-safe half of the design (installable-from-anyone-shaped).
- */
-export interface SeoFieldDecl {
-  /** Short key; stored at `fields.ext.seo.{key}`. */
-  readonly key: keyof SeoExtFields & string;
-  readonly type: "text" | "boolean" | "url" | "enum";
-  /** Declares a core-provisioned expression index (ADR-022 §3). Only `noindex`. */
-  readonly queryable?: boolean;
-  readonly enumValues?: readonly string[];
-}
-
-/**
- * A core-provisioned partial expression index request (ADR-022 §3) — the sitemap
- * query filters published, non-`noindex` entries per type, so `noindex` is the
- * one SEO field that gets an index. Emitted as `CREATE INDEX` by core, never DDL
- * authored by the plugin (ADR-003).
- *
- * Shape mirrors ADR-022 §3:
- *   CREATE INDEX q_{contentType}_seo_{field}
- *     ON entries(CAST(json_extract(fields,'$.ext.seo.{field}') AS {sqlType}), id)
- *     WHERE type='{contentType}'
- */
-export interface SeoExpressionIndexDecl {
-  readonly contentType: string;
-  readonly ns: "seo";
-  readonly field: keyof SeoExtFields & string;
-  readonly sqlType: "TEXT" | "INTEGER" | "REAL";
-}
-
 // ---------------------------------------------------------------------------
-// 2. Resolved per-entry meta — what the render + AI tool actually consume
+// 2. Resolved per-entry meta — what the render + admin preview + analyze consume
 // ---------------------------------------------------------------------------
 
 export interface OpenGraph {
@@ -124,14 +102,14 @@ export interface RobotsDirective {
   nofollow: boolean;
 }
 
-/** JSON-LD is a plain JSON object graph (schema.org). Serializable (ADR-024 §3). */
-export type JsonLd = JsonObject;
+/** JSON-LD is a plain JSON object graph (schema.org). */
+export type JsonLdObject = JsonObject;
 
 /**
- * The fully-resolved effective meta for one page: author overrides layered over
- * site defaults layered over derived-from-entry. This is the single source the
- * head renderer + the `analyze_seo` AI tool + the admin panel all read (one
- * handler, no back door — §3.5 dogfood rule / ADR-027 INV-6).
+ * The fully-resolved effective meta for one page: author overrides layered
+ * over site defaults layered over derived-from-entry (behavior.spec.md §1.1).
+ * This is the single source `getEntryMeta`/`analyzeEntry`/the head contributor
+ * all read (one evaluator, no back door — INV-09).
  */
 export interface SeoMeta {
   title: string;
@@ -140,104 +118,33 @@ export interface SeoMeta {
   robots: RobotsDirective;
   openGraph: OpenGraph;
   twitter: TwitterCard;
-  jsonLd: JsonLd[];
-}
-
-// ---------------------------------------------------------------------------
-// 3. Head render IR (ADR-020 §2) — serializable descriptors, never raw HTML
-// ---------------------------------------------------------------------------
-
-/**
- * One `<head>` contribution as a canonical render-IR node. Core serializes +
- * sanitizes these into the theme's `<head>` seam (`{% head %}`), so a plugin can
- * never inject arbitrary markup (ADR-020 §2/§6). Deduped by `HeadElementKey`.
- */
-export type HeadElement =
-  | { readonly kind: "title"; readonly text: string }
-  | { readonly kind: "meta"; readonly name: string; readonly content: string }
-  | { readonly kind: "og"; readonly property: string; readonly content: string }
-  | { readonly kind: "link"; readonly rel: string; readonly href: string; readonly hreflang?: string }
-  | { readonly kind: "jsonld"; readonly data: JsonLd };
-
-/** Stable dedup key for a HeadElement (last-writer-wins by priority). */
-export type HeadElementKey = string;
-
-// ---------------------------------------------------------------------------
-// 4. page.head hook context — serializable page snapshot (ADR-024 §3)
-// ---------------------------------------------------------------------------
-
-/**
- * A serializable snapshot of the entry being rendered. NOT a live `PostRecord`:
- * the ABI forbids live core objects crossing the plugin surface (ADR-024 §3).
- * Core extracts this at the render seam and hands it to the hook by value.
- */
-export interface PageHeadEntryRef {
-  id: UUID;
-  type: string;
-  slug: string;
-  title: string;
-  status: string;
-  publishedAt?: ISODateTime;
-  updatedAt: ISODateTime;
-  /** The already-extracted, validated seo ext bag (serialized, not live). */
-  ext: SeoExtFields;
-  /** Plain-text excerpt derived from `bodyJson` by core (for auto-descriptions). */
-  excerpt?: string;
+  jsonLd: JsonLdObject[];
 }
 
 /**
- * Compile-time guard: the snapshot's identity fields must remain a subset of the
- * live `PostRecord`. If `PostRecord` renames/removes one of these, this alias
- * fails to typecheck — the design is pinned to the real content record, not a
- * copy that can silently drift (ADR-007 workspace-scoped identity included).
+ * Compile-time guard: `PageHeadEntryRef`'s identity fields must remain a
+ * subset of the live `PostRecord`. If `PostRecord` renames/removes one of
+ * these, this alias fails to typecheck — pinned to the real content record.
  */
-export type EntrySnapshotIdentity = Pick<
-  PostRecord,
-  "id" | "workspaceId" | "slug" | "title" | "status"
->;
-
-/**
- * Everything the `page.head` filter hook needs, by value. `route`/`contentType`
- * let a contributor tailor output (home vs entry vs archive); `canonicalUrl` is
- * pre-resolved by the routing lib (ADR-009 §1 typed call) so the plugin never
- * reimplements permalink logic.
- */
-export interface PageHeadContext {
-  workspaceId: UUID;
-  route: string;
-  contentType?: string;
-  entry?: PageHeadEntryRef;
-  canonicalUrl: string;
-  siteTitle: string;
-  locale?: string;
-  /** The active theme tier — head serialization stays IR-canonical across tiers. */
-  themeTier?: ThemeTier;
-}
+export type EntrySnapshotIdentity = Pick<PostRecord, "id" | "workspaceId" | "slug" | "title" | "status">;
 
 // ---------------------------------------------------------------------------
-// 5. Sitemap + robots (ADR-024 §1 core-mediated declarative outputs)
+// 3. Sitemap + robots (declarative, cache-backed outputs)
 // ---------------------------------------------------------------------------
 
-export type ChangeFreq =
-  | "always"
-  | "hourly"
-  | "daily"
-  | "weekly"
-  | "monthly"
-  | "yearly"
-  | "never";
+export type ChangeFreq = "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
 
 export interface SitemapEntry {
   loc: string;
-  lastmod?: ISODateTime;
+  lastmod?: string;
   changefreq?: ChangeFreq;
-  /** 0.0–1.0 (schema-validated on write). */
+  /** 0.0–1.0. */
   priority?: number;
 }
 
-/** Context handed to the `seo.sitemap.collect` filter hook (serializable). */
+/** Context handed to the (v1 empty) `seo.sitemap.collect` hook. */
 export interface SitemapCollectContext {
-  workspaceId: UUID;
+  workspaceId: string;
   baseUrl: string;
 }
 
@@ -247,31 +154,35 @@ export interface RobotsRule {
   disallow?: string[];
 }
 
+/** Computed at `buildRobots()` read time — never persisted as one shape (state.spec.md §5 item 4). */
 export interface RobotsPolicy {
   rules: RobotsRule[];
-  /** Absolute sitemap URLs advertised in robots.txt. */
+  /** Absolute sitemap URLs advertised in robots.txt (`[]` when `sitemapEnabled` is false). */
   sitemapUrls: string[];
 }
 
 // ---------------------------------------------------------------------------
-// 6. Site-level settings — resolved from the ADR-028 ledger (`seo.*` defs)
+// 4. Site-level settings — resolved from the `site.seo.*` ledger definitions
 // ---------------------------------------------------------------------------
 
-/** Flat `seo.*` setting ids registered as ADR-028 `setting_definitions`. */
+/**
+ * Registered `site.seo.*` ledger keys (ADR-PIPE-008 Decision §3's mapping
+ * table — 8 registered keys backing 7 `SeoSettings` fields, since
+ * `defaultRobots` decomposes into 2 booleans; see `settings.ts`'s file header
+ * for the disclosed "7 vs 8" tasks.md wording note).
+ */
 export type SeoSettingKey =
-  | "seo.base_url"
-  | "seo.title_template"
-  | "seo.default_description"
-  | "seo.default_og_image"
-  | "seo.twitter_site"
-  | "seo.default_robots"
-  | "seo.sitemap_enabled"
-  | "seo.robots_policy";
+  | "title_template"
+  | "default_description"
+  | "default_og_image"
+  | "twitter_site"
+  | "default_robots_noindex"
+  | "default_robots_nofollow"
+  | "sitemap_enabled"
+  | "robots_rules";
 
-/** The resolved, workspace-scoped SEO settings (ADR-028 resolver output). */
+/** The resolved, workspace-scoped SEO settings. No `baseUrl` field exists (INV-07). */
 export interface SeoSettings {
-  /** Canonical origin, e.g. `https://example.com` (no trailing slash). */
-  baseUrl: string;
   /** e.g. `"%s — My Site"`; `%s` is the per-page title. */
   titleTemplate: string;
   defaultDescription?: string;
@@ -279,20 +190,12 @@ export interface SeoSettings {
   twitterSite?: string;
   defaultRobots: RobotsDirective;
   sitemapEnabled: boolean;
-  robotsPolicy: RobotsPolicy;
+  robotsRules: RobotsRule[];
 }
 
 // ---------------------------------------------------------------------------
-// 7. Permissions (ADR-021 flat strings) + AI analysis output
+// 5. Analysis output
 // ---------------------------------------------------------------------------
-
-/** Flat `seo.*` permission strings, code-side catalog (ADR-021 §3). */
-export type SeoPermission =
-  | "seo.read"
-  | "seo.meta.write"
-  | "seo.settings.manage"
-  | "seo.sitemap.manage"
-  | "seo.analyze";
 
 export type SeoIssueSeverity = "error" | "warning" | "info";
 
@@ -304,9 +207,8 @@ export interface SeoIssue {
   field?: keyof SeoMeta & string;
 }
 
-/** Output of the `analyze_seo` AI tool (ADR-014 registry entry; Phase-5 exposure). */
 export interface SeoAnalysis {
-  entryId: UUID;
+  entryId: string;
   score: number;
   issues: SeoIssue[];
   resolved: SeoMeta;

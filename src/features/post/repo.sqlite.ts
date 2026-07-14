@@ -25,6 +25,7 @@ function toRecord(row: PostRow): PostRecord {
     kind: row.kind as PostKind,
     updatedAt: row.updatedAt,
     version: row.version,
+    seoExtJson: row.seoExtJson ?? null,
   };
 }
 
@@ -55,7 +56,7 @@ export class SqlitePostRepo implements PostRepoPort {
   }
 
   async save(record: PostRecord): Promise<void> {
-    const row = { ...record, bodyJson: JSON.stringify(record.bodyJson) };
+    const row = { ...record, bodyJson: JSON.stringify(record.bodyJson), seoExtJson: record.seoExtJson ?? null };
     this.db
       .insert(posts)
       .values(row)
@@ -70,6 +71,7 @@ export class SqlitePostRepo implements PostRepoPort {
           kind: row.kind,
           updatedAt: row.updatedAt,
           version: row.version,
+          seoExtJson: row.seoExtJson,
         },
       })
       .run();
