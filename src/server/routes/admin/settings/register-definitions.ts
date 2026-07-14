@@ -1,4 +1,5 @@
 import type { JsonValue } from "../../../../core/ports";
+import { NON_REGISTER_DEFINITION_OPS } from "../../../../features/settings/definitions-dispatch";
 import {
   AliasDepthExceededError,
   DefinitionInvalidError,
@@ -9,13 +10,7 @@ import {
 } from "../../../../features/settings/errors";
 import type { DefinitionInput } from "../../../../features/settings/settings";
 import type { SettingOwnerKind, SettingValueSchema } from "../../../../features/settings/types";
-import {
-  deprecateDefinition,
-  registerDefinitions,
-  renameDefinition,
-  retypeDefinition,
-  tombstoneDefinition,
-} from "../../../../features/settings/write-service";
+import { registerDefinitions } from "../../../../features/settings/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { RouteRegistrar } from "../../../routes/types";
 import { toWriteServiceDeps } from "./shared";
@@ -81,6 +76,7 @@ export const registerAdminSettingsRegisterDefinitionsRoute: RouteRegistrar = (ap
       }
 
       const writeDeps = toWriteServiceDeps(deps);
+      const opCtx = { deps: writeDeps, callerPrincipalId: principal.id, authWorkspaceId: deps.workspaceId };
       const applied: Array<{ key: string; op: string; status: string }> = [];
       const toRegister: DefinitionInput[] = [];
 
@@ -94,80 +90,39 @@ export const registerAdminSettingsRegisterDefinitionsRoute: RouteRegistrar = (ap
         // id (REQ-02 namespace fence, `settings.ts`'s `NAMESPACE_FENCE`).
         const workspaceId = ownerKind === "site" ? deps.workspaceId : null;
 
-        switch (op) {
-          case "register": {
-            toRegister.push({
-              namespace,
-              key,
-              ownerKind,
-              workspaceId,
-              schema: item.schemaJson as SettingValueSchema,
-              defaultValue: (item.defaultJson ?? null) as JsonValue | null,
-              scopes: Number(item.scopes),
-              secret: Boolean(item.secret ?? false),
-            });
-            applied.push({ key: `${namespace}.${key}`, op, status: "applied" });
-            break;
-          }
-          case "rename": {
-            await renameDefinition({
-              deps: writeDeps,
-              input: {
-                namespace,
-                key,
-                workspaceId,
-                newNamespace: String(item.newNamespace ?? ""),
-                newKey: String(item.newKey ?? ""),
-                callerPrincipalId: principal.id,
-                authWorkspaceId: deps.workspaceId,
-              },
-            });
-            applied.push({ key: `${namespace}.${key}`, op, status: "applied" });
-            break;
-          }
-          case "retype": {
-            const coercionJson = item.coercionJson as string | { tag?: string } | undefined;
-            const coercionTag =
-              typeof coercionJson === "string" ? coercionJson : (coercionJson?.tag ?? "identity");
-            await retypeDefinition({
-              deps: writeDeps,
-              input: {
-                namespace,
-                key,
-                workspaceId,
-                schema: item.schemaJson as SettingValueSchema,
-                defaultValue: (item.defaultJson ?? null) as JsonValue | null,
-                coercionTag,
-                newNamespace: item.newNamespace as string | undefined,
-                newKey: item.newKey as string | undefined,
-                callerPrincipalId: principal.id,
-                authWorkspaceId: deps.workspaceId,
-              },
-            });
-            applied.push({ key: `${namespace}.${key}`, op, status: "applied" });
-            break;
-          }
-          case "deprecate": {
-            await deprecateDefinition({
-              deps: writeDeps,
-              input: { namespace, key, workspaceId, callerPrincipalId: principal.id, authWorkspaceId: deps.workspaceId },
-            });
-            applied.push({ key: `${namespace}.${key}`, op, status: "applied" });
-            break;
-          }
-          case "tombstone": {
-            await tombstoneDefinition({
-              deps: writeDeps,
-              input: { namespace, key, workspaceId, callerPrincipalId: principal.id, authWorkspaceId: deps.workspaceId },
-            });
-            applied.push({ key: `${namespace}.${key}`, op, status: "applied" });
-            break;
-          }
-          default: {
-            res.status(400).json({ error: `unknown op '${op}'`, code: "VALIDATION_ERROR" });
-            return;
-          }
+        if (op === "register") {
+          toRegister.push({
+            namespace,
+            key,
+            ownerKind,
+            workspaceId,
+            schema: item.schemaJson as SettingValueSchema,
+            defaultValue: (item.defaultJson ?? null) as JsonValue | null,
+            scopes: Number(item.scopes),
+            secret: Boolean(item.secret ?? false),
+          });
+          applied.push({ key: `${namespace}.${key}`, op, status: "applied" });
+          continue;
         }
+
+        const handler = NON_REGISTER_DEFINITION_OPS[op];
+        if (!handler) {
+          res.status(400).json({ error: `unknown op '${op}'`, code: "VALIDATION_ERROR" });
+          return;
+        }
+
+        await handler(opCtx, {
+          namespace,
+          key,
+          ownerKind,
+          workspaceId,
+          newNamespace: item.newNamespace as string | undefined,
+          newKey: item.newKey as string | undefined,
+          schemaJson: item.schemaJson as SettingValueSchema,
+          defaultJson: (item.defaultJson ?? null) as JsonValue | null,
+          coercionJson: item.coercionJson as string | { tag?: string } | undefined,
+        });
+        applied.push({ key: `${namespace}.${key}`, op, status: "applied" });
       }
 
       if (toRegister.length > 0) {
