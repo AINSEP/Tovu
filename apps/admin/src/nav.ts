@@ -127,12 +127,6 @@ export const NAV: NavGroup[] = [
         icon: '<circle cx="6.2" cy="7" r="3.4"/><circle cx="11.8" cy="7" r="3.4"/><circle cx="9" cy="11.6" r="3.4"/>',
       },
       {
-        id: "appearance",
-        label: "Appearance",
-        soon: true,
-        icon: '<circle cx="9" cy="9" r="6.5"/><path d="M9 2.5v13M2.5 6h13M2.5 12h13"/>',
-      },
-      {
         id: "plugins",
         label: "Plugins",
         href: "#/section/plugins",
