@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { presentationSettings } from "../../infra/db/schema";
 import type { ContentDb } from "../../infra/sqlite/content-db";
+import { findOneBy } from "../../infra/sqlite/repo-helpers";
 import type {
   PresentationSettingsRecord,
   PresentationSettingsRepoPort,
@@ -28,12 +29,7 @@ export class SqlitePresentationSettingsRepo implements PresentationSettingsRepoP
   constructor(private readonly db: ContentDb) {}
 
   async findByWorkspaceId(workspaceId: string): Promise<PresentationSettingsRecord | null> {
-    const rows = this.db
-      .select()
-      .from(presentationSettings)
-      .where(eq(presentationSettings.workspaceId, workspaceId))
-      .all();
-    return rows[0] ? toRecord(rows[0]) : null;
+    return findOneBy(this.db, presentationSettings, [eq(presentationSettings.workspaceId, workspaceId)], toRecord);
   }
 
   async save(record: PresentationSettingsRecord): Promise<void> {

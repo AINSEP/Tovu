@@ -12,6 +12,7 @@ import {
   sessions,
 } from "../infra/db/schema";
 import type { ContentDb } from "../infra/sqlite/content-db";
+import { findOneBy } from "../infra/sqlite/repo-helpers";
 
 import type {
   PolicyPermissionRepoPort,
@@ -66,12 +67,12 @@ export class SqlitePrincipalRepo implements PrincipalRepoPort {
   constructor(private readonly db: ContentDb) {}
 
   async findById(required: { workspaceId: string; id: string }): Promise<PrincipalRecord | null> {
-    const rows = this.db
-      .select()
-      .from(principals)
-      .where(and(eq(principals.workspaceId, required.workspaceId), eq(principals.id, required.id)))
-      .all();
-    return rows[0] ? toPrincipalRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      principals,
+      [eq(principals.workspaceId, required.workspaceId), eq(principals.id, required.id)],
+      toPrincipalRecord
+    );
   }
 
   async list(required: { workspaceId: string }): Promise<PrincipalRecord[]> {
@@ -115,31 +116,21 @@ export class SqliteUserRepo implements UserRepoPort {
     workspaceId: string;
     principalId: string;
   }): Promise<UserRecord | null> {
-    const rows = this.db
-      .select()
-      .from(identityUsers)
-      .where(
-        and(
-          eq(identityUsers.workspaceId, required.workspaceId),
-          eq(identityUsers.principalId, required.principalId)
-        )
-      )
-      .all();
-    return rows[0] ? toUserRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      identityUsers,
+      [eq(identityUsers.workspaceId, required.workspaceId), eq(identityUsers.principalId, required.principalId)],
+      toUserRecord
+    );
   }
 
   async findByUsername(required: { workspaceId: string; username: string }): Promise<UserRecord | null> {
-    const rows = this.db
-      .select()
-      .from(identityUsers)
-      .where(
-        and(
-          eq(identityUsers.workspaceId, required.workspaceId),
-          eq(identityUsers.username, required.username)
-        )
-      )
-      .all();
-    return rows[0] ? toUserRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      identityUsers,
+      [eq(identityUsers.workspaceId, required.workspaceId), eq(identityUsers.username, required.username)],
+      toUserRecord
+    );
   }
 
   async list(required: { workspaceId: string }): Promise<UserRecord[]> {
@@ -186,26 +177,24 @@ export class SqliteSessionRepo implements SessionRepoPort {
   constructor(private readonly db: ContentDb) {}
 
   async findById(required: { workspaceId: string; id: string }): Promise<SessionRecord | null> {
-    const rows = this.db
-      .select()
-      .from(sessions)
-      .where(and(eq(sessions.workspaceId, required.workspaceId), eq(sessions.id, required.id)))
-      .all();
-    return rows[0] ? toSessionRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      sessions,
+      [eq(sessions.workspaceId, required.workspaceId), eq(sessions.id, required.id)],
+      toSessionRecord
+    );
   }
 
   async findByTokenHash(required: {
     workspaceId: string;
     tokenHash: string;
   }): Promise<SessionRecord | null> {
-    const rows = this.db
-      .select()
-      .from(sessions)
-      .where(
-        and(eq(sessions.workspaceId, required.workspaceId), eq(sessions.tokenHash, required.tokenHash))
-      )
-      .all();
-    return rows[0] ? toSessionRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      sessions,
+      [eq(sessions.workspaceId, required.workspaceId), eq(sessions.tokenHash, required.tokenHash)],
+      toSessionRecord
+    );
   }
 
   async save(record: SessionRecord): Promise<void> {
@@ -240,21 +229,21 @@ export class SqliteRoleRepo implements RoleRepoPort {
   constructor(private readonly db: ContentDb) {}
 
   async findById(required: { workspaceId: string; id: string }): Promise<RoleRecord | null> {
-    const rows = this.db
-      .select()
-      .from(roles)
-      .where(and(eq(roles.workspaceId, required.workspaceId), eq(roles.id, required.id)))
-      .all();
-    return rows[0] ? toRoleRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      roles,
+      [eq(roles.workspaceId, required.workspaceId), eq(roles.id, required.id)],
+      toRoleRecord
+    );
   }
 
   async findByName(required: { workspaceId: string; name: string }): Promise<RoleRecord | null> {
-    const rows = this.db
-      .select()
-      .from(roles)
-      .where(and(eq(roles.workspaceId, required.workspaceId), eq(roles.name, required.name)))
-      .all();
-    return rows[0] ? toRoleRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      roles,
+      [eq(roles.workspaceId, required.workspaceId), eq(roles.name, required.name)],
+      toRoleRecord
+    );
   }
 
   async list(required: { workspaceId: string }): Promise<RoleRecord[]> {
@@ -287,21 +276,21 @@ export class SqlitePolicyRepo implements PolicyRepoPort {
   constructor(private readonly db: ContentDb) {}
 
   async findById(required: { workspaceId: string; id: string }): Promise<PolicyRecord | null> {
-    const rows = this.db
-      .select()
-      .from(policies)
-      .where(and(eq(policies.workspaceId, required.workspaceId), eq(policies.id, required.id)))
-      .all();
-    return rows[0] ? toPolicyRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      policies,
+      [eq(policies.workspaceId, required.workspaceId), eq(policies.id, required.id)],
+      toPolicyRecord
+    );
   }
 
   async findByName(required: { workspaceId: string; name: string }): Promise<PolicyRecord | null> {
-    const rows = this.db
-      .select()
-      .from(policies)
-      .where(and(eq(policies.workspaceId, required.workspaceId), eq(policies.name, required.name)))
-      .all();
-    return rows[0] ? toPolicyRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      policies,
+      [eq(policies.workspaceId, required.workspaceId), eq(policies.name, required.name)],
+      toPolicyRecord
+    );
   }
 
   async list(required: { workspaceId: string }): Promise<PolicyRecord[]> {

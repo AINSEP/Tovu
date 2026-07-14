@@ -3,6 +3,7 @@ import { and, desc, eq, lt, or } from "drizzle-orm";
 import type { UUID } from "../core/ports";
 import { formDefinitions, formSubmissions } from "../infra/db/schema";
 import type { ContentDb } from "../infra/sqlite/content-db";
+import { findOneBy } from "../infra/sqlite/repo-helpers";
 import { FormSlugConflictError } from "./errors";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports";
 import type {
@@ -77,21 +78,21 @@ export class SqliteFormDefinitionRepo implements FormDefinitionRepoPort {
   constructor(private readonly db: ContentDb) {}
 
   async findById(required: { workspaceId: UUID; id: UUID }): Promise<FormDefinitionRecord | null> {
-    const rows = this.db
-      .select()
-      .from(formDefinitions)
-      .where(and(eq(formDefinitions.workspaceId, required.workspaceId), eq(formDefinitions.id, required.id)))
-      .all();
-    return rows[0] ? toDefinitionRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      formDefinitions,
+      [eq(formDefinitions.workspaceId, required.workspaceId), eq(formDefinitions.id, required.id)],
+      toDefinitionRecord
+    );
   }
 
   async findBySlug(required: { workspaceId: UUID; slug: string }): Promise<FormDefinitionRecord | null> {
-    const rows = this.db
-      .select()
-      .from(formDefinitions)
-      .where(and(eq(formDefinitions.workspaceId, required.workspaceId), eq(formDefinitions.slug, required.slug)))
-      .all();
-    return rows[0] ? toDefinitionRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      formDefinitions,
+      [eq(formDefinitions.workspaceId, required.workspaceId), eq(formDefinitions.slug, required.slug)],
+      toDefinitionRecord
+    );
   }
 
   async list(required: { workspaceId: UUID }): Promise<FormDefinitionRecord[]> {
@@ -128,12 +129,12 @@ export class SqliteFormSubmissionRepo implements FormSubmissionRepoPort {
   constructor(private readonly db: ContentDb) {}
 
   async findById(required: { workspaceId: UUID; id: UUID }): Promise<FormSubmissionRecord | null> {
-    const rows = this.db
-      .select()
-      .from(formSubmissions)
-      .where(and(eq(formSubmissions.workspaceId, required.workspaceId), eq(formSubmissions.id, required.id)))
-      .all();
-    return rows[0] ? toSubmissionRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      formSubmissions,
+      [eq(formSubmissions.workspaceId, required.workspaceId), eq(formSubmissions.id, required.id)],
+      toSubmissionRecord
+    );
   }
 
   async create(record: FormSubmissionRecord): Promise<void> {

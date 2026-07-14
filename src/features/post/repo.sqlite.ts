@@ -1,8 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import type { JsonObject } from "../../core/ports";
 import { posts } from "../../infra/db/schema";
 import type { ContentDb } from "../../infra/sqlite/content-db";
+import { findOneBy } from "../../infra/sqlite/repo-helpers";
 import type { PostKind, PostRecord, PostRepoPort, PostStatus } from "./post";
 
 /**
@@ -33,21 +34,21 @@ export class SqlitePostRepo implements PostRepoPort {
   constructor(private readonly db: ContentDb) {}
 
   async findById(required: { workspaceId: string; id: string }): Promise<PostRecord | null> {
-    const rows = this.db
-      .select()
-      .from(posts)
-      .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
-      .all();
-    return rows[0] ? toRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      posts,
+      [eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)],
+      toRecord
+    );
   }
 
   async findBySlug(required: { workspaceId: string; slug: string }): Promise<PostRecord | null> {
-    const rows = this.db
-      .select()
-      .from(posts)
-      .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.slug, required.slug)))
-      .all();
-    return rows[0] ? toRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      posts,
+      [eq(posts.workspaceId, required.workspaceId), eq(posts.slug, required.slug)],
+      toRecord
+    );
   }
 
   async list(required: { workspaceId: string }): Promise<PostRecord[]> {
