@@ -93,3 +93,18 @@ export {
   permissionCatalog,
   type PermissionDescriptor,
 } from "./permissions";
+
+/**
+ * ADR-PIPE-012: the shared deprecate-old/grant-new permission migration
+ * mechanism. Sibling remediation ADRs (Members/Analytics/Integrations)
+ * register their own `{from, to}` pair via `registerPermissionMigration`
+ * rather than hand-rolling a divergent copy (ADR-PIPE-012 Enforcement).
+ */
+export {
+  registerPermissionMigration,
+  listPermissionMigrations,
+  migrateDeprecatedPermissionGrants,
+  type PermissionMigration,
+  type MigrateDeprecatedPermissionGrantsDeps,
+  type MigrateDeprecatedPermissionGrantsResult,
+} from "./permission-migrations";

@@ -4,10 +4,8 @@ import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 /**
  * GET one menu by id, including its full item tree (ADR-029).
  *
- * Gated by `navigation.manage` — no dedicated read permission exists for the `navigation` domain
- * (no other route in this pass split a domain into `.read`/`.manage`), so the same single
- * permission that gates menu mutations also gates this read, mirroring `member.manage`'s coverage
- * of its whole domain.
+ * Gated by `admin.menus.read` (ADR-PIPE-012 D-1/D-2/D-9 — renamed/split from
+ * the old flat navigation permission).
  */
 export const registerAdminMenuGetRoute: MenuRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/menus/:menuId", async (req, res) => {
@@ -22,16 +20,16 @@ export const registerAdminMenuGetRoute: MenuRouteRegistrar = (app, deps) => {
       const principal = getAuthedPrincipal(res);
       const authResult = await deps.authorize({
         principalId: principal.id,
-        permission: "navigation.manage",
+        permission: "admin.menus.read",
         workspaceId: deps.workspaceId,
         entityType: "menu",
         entityId: menuId,
       });
       if (!authResult.allowed) {
         res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'navigation.manage' (${authResult.reason})`,
+          error: `principal '${principal.id}' is not authorized for 'admin.menus.read' (${authResult.reason})`,
           code: "FORBIDDEN",
-          details: { permission: "navigation.manage", reason: authResult.reason },
+          details: { permission: "admin.menus.read", reason: authResult.reason },
         });
         return;
       }

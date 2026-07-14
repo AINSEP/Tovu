@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { DomainEvent, OutboxPort } from "../../core/ports";
 import {
   assignLocation,
   createMenu,
@@ -27,6 +28,20 @@ function fakeIdGen(prefix = "id") {
   return { newId: () => `${prefix}-${++counter}` };
 }
 
+/** Records every enqueued event (ADR-PIPE-012 D-11 — outbox-enqueue assertions, T020-T023). */
+function fakeOutbox(): { outbox: OutboxPort; enqueued: DomainEvent[] } {
+  const enqueued: DomainEvent[] = [];
+  const outbox: OutboxPort = {
+    enqueue: async (event) => {
+      enqueued.push(event);
+    },
+    claimPending: async () => [],
+    markDelivered: async () => {},
+    markFailed: async () => {},
+  };
+  return { outbox, enqueued };
+}
+
 function item(overrides: Partial<NavItemNode> & { id: string }): NavItemNode {
   return {
     label: "Home",
@@ -43,9 +58,10 @@ test("createMenu stores a new menu at version 1", async () => {
   const repo = new InMemoryMenuRepo();
   const clock = fakeClock();
   const idGen = fakeIdGen("menu");
+  const { outbox } = fakeOutbox();
 
   const { menu } = await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: {
       workspaceId: "ws-1",
       title: "Primary Nav",
@@ -68,16 +84,17 @@ test("createMenu rejects duplicate slug in the same workspace", async () => {
   const repo = new InMemoryMenuRepo();
   const clock = fakeClock();
   const idGen = fakeIdGen();
+  const { outbox } = fakeOutbox();
 
   await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav" },
   });
 
   await assert.rejects(
     () =>
       createMenu({
-        deps: { repo, clock, idGen },
+        deps: { repo, clock, idGen, outbox },
         input: { workspaceId: "ws-1", title: "Another Nav", slug: "primary-nav" },
       }),
     MenuConflictError
@@ -88,14 +105,15 @@ test("updateMenuTree replaces the tree and increments version on a matching expe
   const repo = new InMemoryMenuRepo();
   const clock = fakeClock();
   const idGen = fakeIdGen();
+  const { outbox } = fakeOutbox();
 
   const { menu } = await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav" },
   });
 
   const { menu: updated } = await updateMenuTree({
-    deps: { repo, clock: fakeClock("2026-07-10T01:00:00.000Z") },
+    deps: { repo, clock: fakeClock("2026-07-10T01:00:00.000Z"), idGen, outbox },
     input: {
       workspaceId: "ws-1",
       id: menu.id,
@@ -113,15 +131,16 @@ test("updateMenuTree rejects a stale expectedVersion (OCC conflict)", async () =
   const repo = new InMemoryMenuRepo();
   const clock = fakeClock();
   const idGen = fakeIdGen();
+  const { outbox } = fakeOutbox();
 
   const { menu } = await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav" },
   });
 
   // Simulate a second admin already having advanced the version.
   await updateMenuTree({
-    deps: { repo, clock },
+    deps: { repo, clock, idGen, outbox },
     input: {
       workspaceId: "ws-1",
       id: menu.id,
@@ -133,7 +152,7 @@ test("updateMenuTree rejects a stale expectedVersion (OCC conflict)", async () =
   await assert.rejects(
     () =>
       updateMenuTree({
-        deps: { repo, clock },
+        deps: { repo, clock, idGen, outbox },
         input: {
           workspaceId: "ws-1",
           id: menu.id,
@@ -154,16 +173,17 @@ test("updateMenuTree rejects a tree with duplicate item ids (adversarial aggrega
   const repo = new InMemoryMenuRepo();
   const clock = fakeClock();
   const idGen = fakeIdGen();
+  const { outbox } = fakeOutbox();
 
   const { menu } = await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav" },
   });
 
   await assert.rejects(
     () =>
       updateMenuTree({
-        deps: { repo, clock },
+        deps: { repo, clock, idGen, outbox },
         input: {
           workspaceId: "ws-1",
           id: menu.id,
@@ -187,9 +207,10 @@ test("updateMenuTree rejects a tree nested past the max depth", async () => {
   const repo = new InMemoryMenuRepo();
   const clock = fakeClock();
   const idGen = fakeIdGen();
+  const { outbox } = fakeOutbox();
 
   const { menu } = await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav" },
   });
 
@@ -202,7 +223,7 @@ test("updateMenuTree rejects a tree nested past the max depth", async () => {
   await assert.rejects(
     () =>
       updateMenuTree({
-        deps: { repo, clock },
+        deps: { repo, clock, idGen, outbox },
         input: {
           workspaceId: "ws-1",
           id: menu.id,
@@ -218,16 +239,17 @@ test("updateMenuTree rejects a reserved (not-yet-supported) target kind", async 
   const repo = new InMemoryMenuRepo();
   const clock = fakeClock();
   const idGen = fakeIdGen();
+  const { outbox } = fakeOutbox();
 
   const { menu } = await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav" },
   });
 
   await assert.rejects(
     () =>
       updateMenuTree({
-        deps: { repo, clock },
+        deps: { repo, clock, idGen, outbox },
         input: {
           workspaceId: "ws-1",
           id: menu.id,
@@ -249,16 +271,17 @@ test("updateMenuTree rejects a javascript: url target", async () => {
   const repo = new InMemoryMenuRepo();
   const clock = fakeClock();
   const idGen = fakeIdGen();
+  const { outbox } = fakeOutbox();
 
   const { menu } = await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav" },
   });
 
   await assert.rejects(
     () =>
       updateMenuTree({
-        deps: { repo, clock },
+        deps: { repo, clock, idGen, outbox },
         input: {
           workspaceId: "ws-1",
           id: menu.id,
@@ -279,14 +302,15 @@ test("assignLocation binds a menu to a location and writes both the menu field a
   const bindingRepo = new InMemoryNavLocationBindingRepo();
   const clock = fakeClock();
   const idGen = fakeIdGen();
+  const { outbox } = fakeOutbox();
 
   const { menu } = await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav" },
   });
 
   const { menu: updated, binding, displacedMenu } = await assignLocation({
-    deps: { repo, bindingRepo, clock },
+    deps: { repo, bindingRepo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", menuId: menu.id, locationKey: "primary" },
   });
 
@@ -303,23 +327,24 @@ test("assignLocation reassigns a location already bound elsewhere (last-writer-w
   const bindingRepo = new InMemoryNavLocationBindingRepo();
   const clock = fakeClock();
   const idGen = fakeIdGen();
+  const { outbox } = fakeOutbox();
 
   const { menu: menuA } = await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", title: "Menu A", slug: "menu-a" },
   });
   const { menu: menuB } = await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", title: "Menu B", slug: "menu-b" },
   });
 
   await assignLocation({
-    deps: { repo, bindingRepo, clock },
+    deps: { repo, bindingRepo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", menuId: menuA.id, locationKey: "primary" },
   });
 
   const { menu: updatedB, displacedMenu } = await assignLocation({
-    deps: { repo, bindingRepo, clock: fakeClock("2026-07-10T02:00:00.000Z") },
+    deps: { repo, bindingRepo, clock: fakeClock("2026-07-10T02:00:00.000Z"), idGen, outbox },
     input: { workspaceId: "ws-1", menuId: menuB.id, locationKey: "primary" },
   });
 
@@ -348,18 +373,19 @@ test("deleteMenu soft-deletes (trash) on first call, then blocks purge while bou
   const bindingRepo = new InMemoryNavLocationBindingRepo();
   const clock = fakeClock();
   const idGen = fakeIdGen();
+  const { outbox } = fakeOutbox();
 
   const { menu } = await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav" },
   });
   await assignLocation({
-    deps: { repo, bindingRepo, clock },
+    deps: { repo, bindingRepo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", menuId: menu.id, locationKey: "primary" },
   });
 
   const { menu: trashed, purged } = await deleteMenu({
-    deps: { repo, bindingRepo, clock },
+    deps: { repo, bindingRepo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", id: menu.id },
   });
   assert.equal(purged, false);
@@ -368,7 +394,7 @@ test("deleteMenu soft-deletes (trash) on first call, then blocks purge while bou
   await assert.rejects(
     () =>
       deleteMenu({
-        deps: { repo, bindingRepo, clock },
+        deps: { repo, bindingRepo, clock, idGen, outbox },
         input: { workspaceId: "ws-1", id: menu.id },
       }),
     MenuLocationBoundError
@@ -384,15 +410,19 @@ test("deleteMenu purges once unassigned, removing the menu row and its bindings"
   const bindingRepo = new InMemoryNavLocationBindingRepo();
   const clock = fakeClock();
   const idGen = fakeIdGen();
+  const { outbox } = fakeOutbox();
 
   const { menu } = await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav" },
   });
 
-  await deleteMenu({ deps: { repo, bindingRepo, clock }, input: { workspaceId: "ws-1", id: menu.id } });
+  await deleteMenu({
+    deps: { repo, bindingRepo, clock, idGen, outbox },
+    input: { workspaceId: "ws-1", id: menu.id },
+  });
   const { menu: purgedResult, purged } = await deleteMenu({
-    deps: { repo, bindingRepo, clock },
+    deps: { repo, bindingRepo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", id: menu.id },
   });
 
@@ -406,19 +436,23 @@ test("deleteMenu force-purges past the bound-location guard", async () => {
   const bindingRepo = new InMemoryNavLocationBindingRepo();
   const clock = fakeClock();
   const idGen = fakeIdGen();
+  const { outbox } = fakeOutbox();
 
   const { menu } = await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav" },
   });
   await assignLocation({
-    deps: { repo, bindingRepo, clock },
+    deps: { repo, bindingRepo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", menuId: menu.id, locationKey: "primary" },
   });
-  await deleteMenu({ deps: { repo, bindingRepo, clock }, input: { workspaceId: "ws-1", id: menu.id } });
+  await deleteMenu({
+    deps: { repo, bindingRepo, clock, idGen, outbox },
+    input: { workspaceId: "ws-1", id: menu.id },
+  });
 
   const { purged } = await deleteMenu({
-    deps: { repo, bindingRepo, clock },
+    deps: { repo, bindingRepo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", id: menu.id, force: true },
   });
 
@@ -431,13 +465,196 @@ test("deleteMenu on an unknown id throws MenuNotFoundError", async () => {
   const repo = new InMemoryMenuRepo();
   const bindingRepo = new InMemoryNavLocationBindingRepo();
   const clock = fakeClock();
+  const idGen = fakeIdGen();
+  const { outbox } = fakeOutbox();
 
   await assert.rejects(
     () =>
       deleteMenu({
-        deps: { repo, bindingRepo, clock },
+        deps: { repo, bindingRepo, clock, idGen, outbox },
         input: { workspaceId: "ws-1", id: "missing" },
       }),
     MenuNotFoundError
   );
+});
+
+// ---------------------------------------------------------------------------
+// ADR-PIPE-012 D-11 — outbox event publication (T020-T023, C-004..C-007)
+// ---------------------------------------------------------------------------
+
+test("C-004: createMenu enqueues exactly one navigation.menu.created on success; zero on a rejection", async () => {
+  const repo = new InMemoryMenuRepo();
+  const clock = fakeClock();
+  const idGen = fakeIdGen("menu");
+  const { outbox, enqueued } = fakeOutbox();
+
+  const { menu } = await createMenu({
+    deps: { repo, clock, idGen, outbox },
+    input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav" },
+  });
+
+  assert.equal(enqueued.length, 1);
+  assert.equal(enqueued[0].name, "navigation.menu.created");
+  assert.equal(enqueued[0].workspaceId, "ws-1");
+  assert.deepEqual(enqueued[0].payload, { menuId: menu.id, slug: "primary-nav" });
+
+  // A rejected (duplicate-slug) attempt enqueues nothing.
+  await assert.rejects(
+    () =>
+      createMenu({
+        deps: { repo, clock, idGen, outbox },
+        input: { workspaceId: "ws-1", title: "Another Nav", slug: "primary-nav" },
+      }),
+    MenuConflictError
+  );
+  assert.equal(enqueued.length, 1, "the rejected create enqueued nothing");
+});
+
+test("C-005: updateMenuTree enqueues exactly one navigation.menu.updated on success; zero on an OCC/validation rejection", async () => {
+  const repo = new InMemoryMenuRepo();
+  const clock = fakeClock();
+  const idGen = fakeIdGen();
+  const { outbox, enqueued } = fakeOutbox();
+
+  const { menu } = await createMenu({
+    deps: { repo, clock, idGen, outbox },
+    input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav" },
+  });
+  enqueued.length = 0; // isolate the update assertions from the create's own event
+
+  await updateMenuTree({
+    deps: { repo, clock, idGen, outbox },
+    input: {
+      workspaceId: "ws-1",
+      id: menu.id,
+      expectedVersion: menu.version,
+      items: [item({ id: "item-1" })],
+    },
+  });
+
+  assert.equal(enqueued.length, 1);
+  assert.equal(enqueued[0].name, "navigation.menu.updated");
+  assert.deepEqual(enqueued[0].payload, { menuId: menu.id, slug: "primary-nav" });
+
+  // Stale OCC rejection enqueues nothing.
+  await assert.rejects(
+    () =>
+      updateMenuTree({
+        deps: { repo, clock, idGen, outbox },
+        input: {
+          workspaceId: "ws-1",
+          id: menu.id,
+          expectedVersion: menu.version, // stale — real version already advanced
+          items: [item({ id: "item-2" })],
+        },
+      }),
+    MenuConflictError
+  );
+  assert.equal(enqueued.length, 1, "the rejected update enqueued nothing");
+
+  // Validation rejection also enqueues nothing.
+  await assert.rejects(
+    () =>
+      updateMenuTree({
+        deps: { repo, clock, idGen, outbox },
+        input: {
+          workspaceId: "ws-1",
+          id: menu.id,
+          expectedVersion: 2,
+          items: [item({ id: "dup" }), item({ id: "dup" })],
+        },
+      }),
+    MenuValidationError
+  );
+  assert.equal(enqueued.length, 1, "the rejected (validation) update enqueued nothing");
+});
+
+test("C-006: assignLocation enqueues one 'assigned' on a fresh assign; 'assigned' + 'unassigned' on reassignment; no 'unassigned' with no prior binding", async () => {
+  const repo = new InMemoryMenuRepo();
+  const bindingRepo = new InMemoryNavLocationBindingRepo();
+  const clock = fakeClock();
+  const idGen = fakeIdGen();
+  const { outbox, enqueued } = fakeOutbox();
+
+  const { menu: menuA } = await createMenu({
+    deps: { repo, clock, idGen, outbox },
+    input: { workspaceId: "ws-1", title: "Menu A", slug: "menu-a" },
+  });
+  const { menu: menuB } = await createMenu({
+    deps: { repo, clock, idGen, outbox },
+    input: { workspaceId: "ws-1", title: "Menu B", slug: "menu-b" },
+  });
+  enqueued.length = 0;
+
+  await assignLocation({
+    deps: { repo, bindingRepo, clock, idGen, outbox },
+    input: { workspaceId: "ws-1", menuId: menuA.id, locationKey: "primary" },
+  });
+
+  assert.equal(enqueued.length, 1, "a fresh assign with no prior binding enqueues only 'assigned'");
+  assert.equal(enqueued[0].name, "navigation.location.assigned");
+  assert.deepEqual(enqueued[0].payload, { locationKey: "primary", menuId: menuA.id });
+
+  enqueued.length = 0;
+
+  await assignLocation({
+    deps: { repo, bindingRepo, clock, idGen, outbox },
+    input: { workspaceId: "ws-1", menuId: menuB.id, locationKey: "primary" },
+  });
+
+  assert.equal(enqueued.length, 2, "reassignment enqueues both an 'assigned' and an 'unassigned'");
+  const assignedEvent = enqueued.find((e) => e.name === "navigation.location.assigned");
+  const unassignedEvent = enqueued.find((e) => e.name === "navigation.location.unassigned");
+  assert.ok(assignedEvent, "'assigned' event present");
+  assert.deepEqual(assignedEvent?.payload, { locationKey: "primary", menuId: menuB.id });
+  assert.ok(unassignedEvent, "'unassigned' event present for the displaced menu");
+  assert.deepEqual(unassignedEvent?.payload, { locationKey: "primary", menuId: menuA.id });
+});
+
+test("C-007: deleteMenu's trash step enqueues navigation.menu.updated; a purge enqueues navigation.menu.deleted; a blocked purge enqueues nothing", async () => {
+  const repo = new InMemoryMenuRepo();
+  const bindingRepo = new InMemoryNavLocationBindingRepo();
+  const clock = fakeClock();
+  const idGen = fakeIdGen();
+  const { outbox, enqueued } = fakeOutbox();
+
+  const { menu } = await createMenu({
+    deps: { repo, clock, idGen, outbox },
+    input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav" },
+  });
+  await assignLocation({
+    deps: { repo, bindingRepo, clock, idGen, outbox },
+    input: { workspaceId: "ws-1", menuId: menu.id, locationKey: "primary" },
+  });
+  enqueued.length = 0;
+
+  // First call: trash step.
+  await deleteMenu({
+    deps: { repo, bindingRepo, clock, idGen, outbox },
+    input: { workspaceId: "ws-1", id: menu.id },
+  });
+  assert.equal(enqueued.length, 1);
+  assert.equal(enqueued[0].name, "navigation.menu.updated");
+  enqueued.length = 0;
+
+  // Second call: blocked purge (still bound to "primary") — enqueues nothing.
+  await assert.rejects(
+    () =>
+      deleteMenu({
+        deps: { repo, bindingRepo, clock, idGen, outbox },
+        input: { workspaceId: "ws-1", id: menu.id },
+      }),
+    MenuLocationBoundError
+  );
+  assert.equal(enqueued.length, 0, "a blocked purge enqueues nothing");
+
+  // Force-purge succeeds.
+  const { purged } = await deleteMenu({
+    deps: { repo, bindingRepo, clock, idGen, outbox },
+    input: { workspaceId: "ws-1", id: menu.id, force: true },
+  });
+  assert.equal(purged, true);
+  assert.equal(enqueued.length, 1);
+  assert.equal(enqueued[0].name, "navigation.menu.deleted");
+  assert.deepEqual(enqueued[0].payload, { menuId: menu.id, slug: "primary-nav" });
 });

@@ -6,8 +6,12 @@
  * - **`NavLocationBindingRepoPort` IS a port.** It persists the derived
  *   `nav_location_bindings` index and has two real adapters, one built now:
  *   in-memory (dev/tests) + SQLite (persistent) — the same shape every other
- *   repo in this codebase already follows (`PostRepoPort`,
- *   `PresentationSettingsRepoPort`, `ChangeSetRepoPort`). Rule-of-two passes.
+ *   repo in this codebase already follows (`PostRepoPort`, `SettingsRepoPort`,
+ *   `ChangeSetRepoPort`). Rule-of-two passes. (Previously cited
+ *   `PresentationSettingsRepoPort` here — SPEC-007/ADR-PIPE-007 retires that
+ *   port in favor of `settings`' `getEffective`/`SettingsRepoPort`; this file
+ *   has no functional dependency on either, so only the analogy reference
+ *   changes.)
  *
  * - **Menus themselves add NO new persistence port.** A menu is an ADR-022
  *   entry; it rides the existing entries repo (in-memory + SQLite), which

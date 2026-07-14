@@ -20,11 +20,11 @@ import { registerAdminMenuUpdateTreeRoute } from "../routes/admin/menus/update-t
 /**
  * @file Route-level tests for the admin `menus` HTTP surface (ADR-029).
  *
- * The registrars are gated by `navigation.manage` (SPEC-006 REQ-05, wired in this pass — see the
- * Programmer handoff), so this suite mirrors `admin-integrations-routes.test.ts`'s already-working
- * pattern: `createRouteDeps()` for a real `authorize()` + identity repos, real auth middleware, and
- * a real login before hitting any route, instead of the unauthenticated bare-Express harness this
- * file used before gating landed.
+ * ADR-PIPE-012 D-1/D-2/D-9: the six routes now each check an action-specific `admin.menus.*`
+ * permission instead of the single flat `navigation.manage` (SPEC-006 REQ-05's original gating).
+ * This suite mirrors `admin-integrations-routes.test.ts`'s already-working pattern:
+ * `createRouteDeps()` for a real `authorize()` + identity repos, real auth middleware, and a real
+ * login before hitting any route.
  */
 function buildTestApp(): { app: express.Express; deps: MenuRouteDeps } {
   const deps: MenuRouteDeps = {
@@ -96,6 +96,72 @@ async function loginAsBarePrincipal(deps: MenuRouteDeps, baseUrl: string) {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ username: "bare-menus", password: "bare-pw" }),
+  });
+  assert.equal(login.status, 200);
+  return login.headers.get("set-cookie")?.split(";")[0] ?? "";
+}
+
+let grantCounter = 0;
+
+/**
+ * Registers a principal holding ONLY the given permission strings (no role, no wildcard) — proves
+ * the per-action `admin.menus.*` cutover grants exactly what it names, nothing more (ADR-PIPE-012
+ * C-010a..f). Mirrors `loginAsBarePrincipal`'s login-then-return-cookie shape, plus a direct
+ * `principal_policies` grant instead of zero grants.
+ */
+async function loginWithPermissions(
+  deps: MenuRouteDeps,
+  baseUrl: string,
+  permissions: readonly string[]
+): Promise<string> {
+  await deps.identityReady;
+  const suffix = `${++grantCounter}`;
+  const principalId = `grant-principal-menus-${suffix}`;
+  const policyId = `grant-policy-menus-${suffix}`;
+  const username = `grant-menus-${suffix}`;
+
+  await deps.principalRepo.save({
+    id: principalId,
+    workspaceId: deps.workspaceId,
+    kind: "user",
+    displayName: `Grants: ${permissions.join(", ")}`,
+    status: "active",
+    createdAt: deps.clock.nowIso(),
+  });
+  await deps.userRepo.save({
+    principalId,
+    workspaceId: deps.workspaceId,
+    username,
+    passwordHash: await deps.passwordHasher.hash("grant-pw"),
+  });
+  await deps.policyRepo.save({
+    id: policyId,
+    workspaceId: deps.workspaceId,
+    name: `grant-policy-${suffix}`,
+    isBuiltin: false,
+    isFrozen: false,
+  });
+  for (const permission of permissions) {
+    await deps.policyPermissionRepo.save({
+      id: `grant-pp-${suffix}-${permission}`,
+      workspaceId: deps.workspaceId,
+      policyId,
+      permission,
+      resourceType: null,
+      constraintJson: null,
+    });
+  }
+  await deps.principalPolicyRepo.save({
+    id: `grant-link-${suffix}`,
+    workspaceId: deps.workspaceId,
+    principalId,
+    policyId,
+  });
+
+  const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username, password: "grant-pw" }),
   });
   assert.equal(login.status, 200);
   return login.headers.get("set-cookie")?.split(";")[0] ?? "";
@@ -265,7 +331,7 @@ test("admin menus routes: 404s for unknown workspace and unknown menu id", async
   assert.equal(missingMenu.status, 404);
 });
 
-test("admin menus routes: SPEC-006 REQ-05 — a principal without navigation.manage is denied 403 on every route, and a grant restores access", async (t) => {
+test("admin menus routes: ADR-PIPE-012 D-1/D-2/D-9 — a principal with no grants is denied 403 on every route with the new per-action permission named, and a grant restores access", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -276,7 +342,7 @@ test("admin menus routes: SPEC-006 REQ-05 — a principal without navigation.man
   assert.equal(listDenied.status, 403);
   const listDeniedBody = (await listDenied.json()) as { code: string; details: { permission: string; reason: string } };
   assert.equal(listDeniedBody.code, "FORBIDDEN");
-  assert.equal(listDeniedBody.details.permission, "navigation.manage");
+  assert.equal(listDeniedBody.details.permission, "admin.menus.read");
   assert.equal(listDeniedBody.details.reason, "no_grant");
 
   const createDenied = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`, {
@@ -285,7 +351,9 @@ test("admin menus routes: SPEC-006 REQ-05 — a principal without navigation.man
     body: JSON.stringify({ title: "Should not be created", slug: "should-not-be-created" }),
   });
   assert.equal(createDenied.status, 403);
-  assert.equal(((await createDenied.json()) as { code: string }).code, "FORBIDDEN");
+  const createDeniedBody = (await createDenied.json()) as { code: string; details: { permission: string } };
+  assert.equal(createDeniedBody.code, "FORBIDDEN");
+  assert.equal(createDeniedBody.details.permission, "admin.menus.create");
 
   // No menu was created for the denied caller.
   const listAfterDenied = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`, {
@@ -308,6 +376,10 @@ test("admin menus routes: SPEC-006 REQ-05 — a principal without navigation.man
     headers: { cookie: bareCookie },
   });
   assert.equal(getDenied.status, 403);
+  assert.equal(
+    ((await getDenied.json()) as { details: { permission: string } }).details.permission,
+    "admin.menus.read"
+  );
 
   const updateDenied = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
     method: "PUT",
@@ -315,6 +387,10 @@ test("admin menus routes: SPEC-006 REQ-05 — a principal without navigation.man
     body: JSON.stringify({ expectedVersion: 1, title: "Owner Nav", slug: "owner-nav", items: [] }),
   });
   assert.equal(updateDenied.status, 403);
+  assert.equal(
+    ((await updateDenied.json()) as { details: { permission: string } }).details.permission,
+    "admin.menus.update"
+  );
 
   const assignDenied = await fetch(
     `${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}/locations`,
@@ -325,12 +401,20 @@ test("admin menus routes: SPEC-006 REQ-05 — a principal without navigation.man
     }
   );
   assert.equal(assignDenied.status, 403);
+  assert.equal(
+    ((await assignDenied.json()) as { details: { permission: string } }).details.permission,
+    "admin.menus.assign"
+  );
 
   const deleteDenied = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
     method: "DELETE",
     headers: { cookie: bareCookie },
   });
   assert.equal(deleteDenied.status, 403);
+  assert.equal(
+    ((await deleteDenied.json()) as { details: { permission: string } }).details.permission,
+    "admin.menus.delete"
+  );
 
   // The menu is untouched by any of the denied mutation attempts.
   const stillThere = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
@@ -340,4 +424,163 @@ test("admin menus routes: SPEC-006 REQ-05 — a principal without navigation.man
   const stillThereBody = (await stillThere.json()) as { menu: { version: number; status: string } };
   assert.equal(stillThereBody.menu.version, 1, "the denied update must not have applied");
   assert.equal(stillThereBody.menu.status, "draft");
+});
+
+// ---------------------------------------------------------------------------
+// ADR-PIPE-012 C-010a..f — per-route permission cutover (T029-T034)
+// ---------------------------------------------------------------------------
+
+test("T029/C-010a: list.ts is gated by admin.menus.read specifically — that grant alone succeeds", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl } = await bootAuthenticated(app, t);
+  const cookie = await loginWithPermissions(deps, baseUrl, ["admin.menus.read"]);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`, {
+    headers: { cookie },
+  });
+  assert.equal(res.status, 200);
+});
+
+test("T030/C-010a: get-by-id.ts is gated by admin.menus.read specifically — that grant alone succeeds", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+
+  const created = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ title: "Nav", slug: "get-by-id-nav" }),
+  });
+  const { menu } = (await created.json()) as { menu: { id: string } };
+
+  const cookie = await loginWithPermissions(deps, baseUrl, ["admin.menus.read"]);
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
+    headers: { cookie },
+  });
+  assert.equal(res.status, 200);
+});
+
+test("T031/C-010b: create.ts is gated by admin.menus.create specifically — that grant alone succeeds", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl } = await bootAuthenticated(app, t);
+  const cookie = await loginWithPermissions(deps, baseUrl, ["admin.menus.create"]);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Create-only Nav", slug: "create-only-nav" }),
+  });
+  assert.equal(res.status, 201);
+});
+
+test("T032/C-010c: update-tree.ts is gated by admin.menus.update specifically — that grant alone succeeds", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+
+  const created = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ title: "Nav", slug: "update-only-nav" }),
+  });
+  const { menu } = (await created.json()) as { menu: { id: string } };
+
+  const cookie = await loginWithPermissions(deps, baseUrl, ["admin.menus.update"]);
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ expectedVersion: 1, title: "Renamed", slug: "update-only-nav", items: [] }),
+  });
+  assert.equal(res.status, 200);
+});
+
+test("T033/C-010d: assign-location.ts is gated by admin.menus.assign specifically — that grant alone succeeds", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+
+  const created = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ title: "Nav", slug: "assign-only-nav" }),
+  });
+  const { menu } = (await created.json()) as { menu: { id: string } };
+
+  const cookie = await loginWithPermissions(deps, baseUrl, ["admin.menus.assign"]);
+  const res = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}/locations`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ locationKey: "primary" }),
+    }
+  );
+  assert.equal(res.status, 200);
+});
+
+test("T034/C-010e: delete.ts — admin.menus.delete alone succeeds on trash + blocked-purge-409; ?force=true without admin.menus.delete.force is 403 (not a silent downgrade); both present succeeds the force-purge", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+
+  const created = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ title: "Nav", slug: "delete-only-nav" }),
+  });
+  const { menu } = (await created.json()) as { menu: { id: string } };
+  await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}/locations`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ locationKey: "primary" }),
+  });
+
+  const deleteOnlyCookie = await loginWithPermissions(deps, baseUrl, ["admin.menus.delete"]);
+
+  // Trash step: admin.menus.delete alone succeeds.
+  const trashRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
+    method: "DELETE",
+    headers: { cookie: deleteOnlyCookie },
+  });
+  assert.equal(trashRes.status, 200);
+
+  // Blocked purge (still bound to "primary"): admin.menus.delete alone still succeeds (409, not 403).
+  const blockedRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
+    method: "DELETE",
+    headers: { cookie: deleteOnlyCookie },
+  });
+  assert.equal(blockedRes.status, 409);
+
+  // ?force=true WITHOUT admin.menus.delete.force: 403, not a silent downgrade to the ordinary 409.
+  const forceDeniedRes = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}?force=true`,
+    { method: "DELETE", headers: { cookie: deleteOnlyCookie } }
+  );
+  assert.equal(forceDeniedRes.status, 403);
+  const forceDeniedBody = (await forceDeniedRes.json()) as { details: { permission: string } };
+  assert.equal(forceDeniedBody.details.permission, "admin.menus.delete.force");
+
+  // Both permissions present: force-purge succeeds.
+  const bothCookie = await loginWithPermissions(deps, baseUrl, [
+    "admin.menus.delete",
+    "admin.menus.delete.force",
+  ]);
+  const forcedRes = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}?force=true`,
+    { method: "DELETE", headers: { cookie: bothCookie } }
+  );
+  assert.equal(forcedRes.status, 200);
+  const forcedBody = (await forcedRes.json()) as { purged: boolean };
+  assert.equal(forcedBody.purged, true);
+});
+
+test("T041/INV-NEW-02: zero navigation.manage string literals remain in src/server/routes/admin/menus/*.ts after cutover", async () => {
+  const { readFileSync, readdirSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const dir = join(__dirname, "../routes/admin/menus");
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith(".ts")) continue;
+    const contents = readFileSync(join(dir, file), "utf8");
+    assert.equal(
+      contents.includes("navigation.manage"),
+      false,
+      `${file} still references the deprecated 'navigation.manage' string literal`
+    );
+  }
 });

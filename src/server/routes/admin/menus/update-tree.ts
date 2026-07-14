@@ -19,8 +19,9 @@ import { getAuthedPrincipal } from "../../../middleware/dev-auth";
  * as a policy question for the coordinator rather than resolved unilaterally
  * here.
  *
- * Gated by `navigation.manage`, checked directly via `authorize()` (same in-route pattern as
- * `members/disable.ts`, appropriate here since this bypasses the gateway).
+ * Gated by `admin.menus.update` (ADR-PIPE-012 D-1/D-2/D-9 — renamed/split from the old flat navigation permission),
+ * checked directly via `authorize()` (same in-route pattern as `members/disable.ts`, appropriate
+ * here since this bypasses the gateway).
  */
 export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = (app, deps) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/menus/:menuId", async (req, res) => {
@@ -40,22 +41,22 @@ export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = (app, deps) 
       const principal = getAuthedPrincipal(res);
       const authResult = await deps.authorize({
         principalId: principal.id,
-        permission: "navigation.manage",
+        permission: "admin.menus.update",
         workspaceId: deps.workspaceId,
         entityType: "menu",
         entityId: menuId,
       });
       if (!authResult.allowed) {
         res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'navigation.manage' (${authResult.reason})`,
+          error: `principal '${principal.id}' is not authorized for 'admin.menus.update' (${authResult.reason})`,
           code: "FORBIDDEN",
-          details: { permission: "navigation.manage", reason: authResult.reason },
+          details: { permission: "admin.menus.update", reason: authResult.reason },
         });
         return;
       }
 
       const { menu } = await updateMenuTree({
-        deps: { repo: deps.menuRepo, clock: deps.clock },
+        deps: { repo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox },
         input: {
           workspaceId: deps.workspaceId,
           id: menuId,

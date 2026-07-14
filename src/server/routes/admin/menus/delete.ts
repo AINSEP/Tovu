@@ -6,11 +6,12 @@ import { getAuthedPrincipal } from "../../../middleware/dev-auth";
  * DELETE a menu — trash on first call, hard-purge on a second call against an
  * already-trashed menu (ADR-029 §6 deletion ladder, mirrors ADR-027 media).
  *
- * `?force=true` bypasses the 409 dangling-location guard on purge. A separate
- * `navigation.delete.force` permission (an idea floated in this route's earlier doc comment) was
- * not registered — no other route in this pass splits a single mutation into per-flag permissions,
- * and ADR-029 itself never finalized that split (see the Programmer handoff's naming-inconsistency
- * disclosure). `navigation.manage` gates the whole delete/purge/force-purge ladder uniformly.
+ * `?force=true` bypasses the 409 dangling-location guard on purge. ADR-PIPE-012 D-1 closes the gap
+ * this route's earlier doc comment named: force-purge is now gated by its own
+ * `admin.menus.delete.force` permission, checked in addition to (not instead of) `admin.menus.delete`
+ * — both are checked before any repo call, so a caller holding only `admin.menus.delete` who
+ * requests `?force=true` is denied 403 rather than silently downgraded to the ordinary blocked-purge
+ * 409 (INV-NEW-02-adjacent discipline; see ADR-PIPE-012 Contract Map C-010a..f).
  */
 export const registerAdminMenuDeleteRoute: MenuRouteRegistrar = (app, deps) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/menus/:menuId", async (req, res) => {
@@ -26,18 +27,36 @@ export const registerAdminMenuDeleteRoute: MenuRouteRegistrar = (app, deps) => {
       const principal = getAuthedPrincipal(res);
       const authResult = await deps.authorize({
         principalId: principal.id,
-        permission: "navigation.manage",
+        permission: "admin.menus.delete",
         workspaceId: deps.workspaceId,
         entityType: "menu",
         entityId: menuId,
       });
       if (!authResult.allowed) {
         res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'navigation.manage' (${authResult.reason})`,
+          error: `principal '${principal.id}' is not authorized for 'admin.menus.delete' (${authResult.reason})`,
           code: "FORBIDDEN",
-          details: { permission: "navigation.manage", reason: authResult.reason },
+          details: { permission: "admin.menus.delete", reason: authResult.reason },
         });
         return;
+      }
+
+      if (force) {
+        const forceAuthResult = await deps.authorize({
+          principalId: principal.id,
+          permission: "admin.menus.delete.force",
+          workspaceId: deps.workspaceId,
+          entityType: "menu",
+          entityId: menuId,
+        });
+        if (!forceAuthResult.allowed) {
+          res.status(403).json({
+            error: `principal '${principal.id}' is not authorized for 'admin.menus.delete.force' (${forceAuthResult.reason})`,
+            code: "FORBIDDEN",
+            details: { permission: "admin.menus.delete.force", reason: forceAuthResult.reason },
+          });
+          return;
+        }
       }
 
       const { menu, purged } = await deleteMenu({
@@ -45,6 +64,8 @@ export const registerAdminMenuDeleteRoute: MenuRouteRegistrar = (app, deps) => {
           repo: deps.menuRepo,
           bindingRepo: deps.navLocationBindingRepo,
           clock: deps.clock,
+          idGen: deps.idGen,
+          outbox: deps.outbox,
         },
         input: {
           workspaceId: deps.workspaceId,

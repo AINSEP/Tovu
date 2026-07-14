@@ -39,18 +39,24 @@ const fakeResolveTargetHref: ResolveTargetHrefFn = async (target: NavTarget) => 
   return null;
 };
 
+/** No-op outbox — this suite exercises `resolver.ts`'s reads, not `menu-service.ts`'s event publication. */
+function fakeOutbox() {
+  return { enqueue: async () => {}, claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {} };
+}
+
 async function seedMenuBoundToLocation(items: readonly NavItemNode[]) {
   const repo = new InMemoryMenuRepo();
   const bindingRepo = new InMemoryNavLocationBindingRepo();
   const clock = fakeClock();
   const idGen = fakeIdGen();
+  const outbox = fakeOutbox();
 
   const { menu } = await createMenu({
-    deps: { repo, clock, idGen },
+    deps: { repo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", title: "Primary Nav", slug: "primary-nav", items },
   });
   await assignLocation({
-    deps: { repo, bindingRepo, clock },
+    deps: { repo, bindingRepo, clock, idGen, outbox },
     input: { workspaceId: "ws-1", menuId: menu.id, locationKey: "primary" },
   });
 

@@ -11,9 +11,10 @@ import { getAuthedPrincipal } from "../../../middleware/dev-auth";
  * uniqueness, depth/count bounds, target-kind allowlist, `url` scheme
  * denylist) — this route only rejects a non-array `items` before handing off.
  *
- * Gated by `navigation.manage` (registered in `identity/permissions.ts`), checked directly via
- * `authorize()` — mirrors `members/disable.ts`'s pattern since menu mutations are a direct feature
- * call, not routed through the SPEC-001 command gateway (see `update-tree.ts`'s doc for why).
+ * Gated by `admin.menus.create` (ADR-PIPE-012 D-1/D-2/D-9 — renamed/split from the old flat navigation permission),
+ * checked directly via `authorize()` — mirrors `members/disable.ts`'s pattern since menu mutations
+ * are a direct feature call, not routed through the SPEC-001 command gateway (see `update-tree.ts`'s
+ * doc for why).
  */
 export const registerAdminMenuCreateRoute: MenuRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/menus", async (req, res) => {
@@ -35,21 +36,21 @@ export const registerAdminMenuCreateRoute: MenuRouteRegistrar = (app, deps) => {
       const principal = getAuthedPrincipal(res);
       const authResult = await deps.authorize({
         principalId: principal.id,
-        permission: "navigation.manage",
+        permission: "admin.menus.create",
         workspaceId: deps.workspaceId,
         entityType: "menu",
       });
       if (!authResult.allowed) {
         res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'navigation.manage' (${authResult.reason})`,
+          error: `principal '${principal.id}' is not authorized for 'admin.menus.create' (${authResult.reason})`,
           code: "FORBIDDEN",
-          details: { permission: "navigation.manage", reason: authResult.reason },
+          details: { permission: "admin.menus.create", reason: authResult.reason },
         });
         return;
       }
 
       const { menu } = await createMenu({
-        deps: { repo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen },
+        deps: { repo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox },
         input: {
           workspaceId: deps.workspaceId,
           title: String(req.body?.title ?? ""),
