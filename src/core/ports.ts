@@ -84,6 +84,13 @@ export interface EventBusPort {
     eventName: string,
     handler: (event: DomainEvent<TPayload>) => Promise<void>
   ): Promise<() => Promise<void>>;
+  /**
+   * Subscribe a handler to every event published on this bus, regardless of name (C-009,
+   * ADR-PIPE-015 Phase 0). Additive to `subscribe` — existing per-name callers are unaffected.
+   * The Integrations fan-out (`registerWebhookFanout`) is the first real consumer: it narrows
+   * by topic itself rather than requiring a fixed list of event names up front.
+   */
+  subscribeAll(handler: (event: DomainEvent) => Promise<void>): Promise<() => Promise<void>>;
 }
 
 /**
