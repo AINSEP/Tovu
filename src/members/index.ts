@@ -28,6 +28,12 @@ export type {
   MemberContentAccess,
   MemberContext,
   MemberAccessDecision,
+  ConsentPurpose,
+  ConsentStatus,
+  ConsentEvidence,
+  ConsentRevisionOp,
+  MemberConsentRecord,
+  MemberConsentRevisionRecord,
 } from "./types";
 
 export {
@@ -43,6 +49,7 @@ export type {
   MemberSubscriptionRepoPort,
   MemberSessionRepoPort,
   MagicLinkTokenRepoPort,
+  MemberConsentRepoPort,
   MemberAccessResolver,
   MembersWriteServiceDeps,
   MembersWriteService,
@@ -54,6 +61,7 @@ export type { MailerPort, OutboundEmail } from "../mail";
 
 export {
   InMemoryMagicLinkTokenRepo,
+  InMemoryMemberConsentRepo,
   InMemoryMemberRepo,
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
@@ -76,6 +84,15 @@ export {
   setSubscriptionStatus,
   updateProfile,
 } from "./write-service";
+
+// D1c consent chokepoint (ADR-PIPE-013 Decision §4) — kept separate from `write-service.ts`.
+export {
+  checkConsent,
+  confirmConsent,
+  requestConsent,
+  revokeConsent,
+  type ConsentServiceDeps,
+} from "./consent-service";
 
 // `SubscriberDirectoryPort` consumer-side seam Members implements (`../newsletter/ports`).
 export {

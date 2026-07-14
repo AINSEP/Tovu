@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createRateLimiter, LOGIN_STRICT, resolveClientIp, type RateLimitProfile } from "../rate-limit";
+import {
+  createRateLimiter,
+  LOGIN_STRICT,
+  MAGIC_LINK_COMPLETE_ATTEMPT,
+  MAGIC_LINK_PER_EMAIL,
+  MAGIC_LINK_PER_IP,
+  resolveClientIp,
+  type RateLimitProfile,
+} from "../rate-limit";
 
 /**
  * @file Unit coverage for the REQ-14/AC-18 `LOGIN_STRICT` rate-limit
@@ -123,4 +131,70 @@ test("resolveClientIp: a trusted peer with no forwarded-for header falls back to
     headers: {},
   };
   assert.equal(resolveClientIp(req, ["10.0.0.1"]), "10.0.0.1");
+});
+
+/**
+ * @file FEAT-013 Phase 2 (ADR-PIPE-013 Decision §2-3, ADR-030 OQ-8) — the
+ * three new magic-link rate-limit profiles. Boundary behavior only
+ * (Nth request denied, window reset); the profiles are plain
+ * `RateLimitProfile` data constants, so `createRateLimiter` itself (already
+ * covered above) does all the real work.
+ */
+
+test("T010: MAGIC_LINK_PER_EMAIL — the 6th request within the window for the same email is denied with retryAfterSeconds", () => {
+  const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
+  const limiter = createRateLimiter(MAGIC_LINK_PER_EMAIL, clock);
+
+  for (let i = 0; i < MAGIC_LINK_PER_EMAIL.max; i++) {
+    assert.equal(limiter.check("jane@example.com").allowed, true, `request ${i + 1} should pass`);
+  }
+
+  const sixth = limiter.check("jane@example.com");
+  assert.equal(sixth.allowed, false);
+  if (sixth.allowed) throw new Error("unreachable");
+  assert.ok(Number.isInteger(sixth.retryAfterSeconds));
+  assert.ok(sixth.retryAfterSeconds > 0);
+});
+
+test("T010: MAGIC_LINK_PER_EMAIL — the window resets correctly", () => {
+  const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
+  const limiter = createRateLimiter(MAGIC_LINK_PER_EMAIL, clock);
+
+  for (let i = 0; i < MAGIC_LINK_PER_EMAIL.max; i++) {
+    assert.equal(limiter.check("jane@example.com").allowed, true);
+  }
+  assert.equal(limiter.check("jane@example.com").allowed, false);
+
+  advanceMs(MAGIC_LINK_PER_EMAIL.windowSeconds * 1000 - 1);
+  assert.equal(limiter.check("jane@example.com").allowed, false);
+
+  advanceMs(1);
+  assert.equal(limiter.check("jane@example.com").allowed, true);
+});
+
+test("T011: MAGIC_LINK_PER_IP — the 21st request within the window for the same IP is denied", () => {
+  const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
+  const limiter = createRateLimiter(MAGIC_LINK_PER_IP, clock);
+
+  for (let i = 0; i < MAGIC_LINK_PER_IP.max; i++) {
+    assert.equal(limiter.check("203.0.113.9").allowed, true, `request ${i + 1} should pass`);
+  }
+
+  const twentyFirst = limiter.check("203.0.113.9");
+  assert.equal(twentyFirst.allowed, false);
+});
+
+test("T012: MAGIC_LINK_COMPLETE_ATTEMPT — the 26th attempt within 60s from one IP is denied", () => {
+  const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
+  const limiter = createRateLimiter(MAGIC_LINK_COMPLETE_ATTEMPT, clock);
+
+  const effectiveMax = MAGIC_LINK_COMPLETE_ATTEMPT.max + MAGIC_LINK_COMPLETE_ATTEMPT.burst;
+  assert.equal(effectiveMax, 25, "sanity: max+burst should be 25 so the 26th attempt is the first denial");
+
+  for (let i = 0; i < effectiveMax; i++) {
+    assert.equal(limiter.check("203.0.113.9").allowed, true, `attempt ${i + 1} should pass`);
+  }
+
+  const twentySixth = limiter.check("203.0.113.9");
+  assert.equal(twentySixth.allowed, false);
 });
