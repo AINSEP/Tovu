@@ -1,5 +1,6 @@
 import type { AuthorizeFn } from "../core/commands";
 import type { ClockPort, IdGeneratorPort, UUID } from "../core/ports";
+import type { ContentDb } from "../infra/sqlite/content-db";
 import { authorize as authorizeCore } from "./authorize";
 import { Argon2PasswordHasher } from "./hasher";
 import { migrateDeprecatedPermissionGrants } from "./permission-migrations";
@@ -15,6 +16,17 @@ import {
   InMemorySessionRepo,
   InMemoryUserRepo,
 } from "./repo.memory";
+import {
+  SqlitePolicyPermissionRepo,
+  SqlitePolicyRepo,
+  SqlitePrincipalPolicyRepo,
+  SqlitePrincipalRepo,
+  SqlitePrincipalRoleRepo,
+  SqliteRolePolicyRepo,
+  SqliteRoleRepo,
+  SqliteSessionRepo,
+  SqliteUserRepo,
+} from "./repo.sqlite";
 import { seedIdentity } from "./seed";
 
 /**
@@ -53,32 +65,15 @@ export interface IdentityRouteDepsSlice {
 }
 
 /**
- * Build the in-memory identity repos, kick off first-boot seeding, and bind
- * an `authorize()` closure over those same repos. In-memory only this pass
- * (see `identity/INFO.md`) — both `server/app.ts` (tests/dev) and
- * `server/deps.ts` (the SQLite content composition) call this identically,
- * matching the disclosed precedent that identity has no SQLite adapter yet.
- *
- * @complexity O(1) construction; `identityReady`'s underlying seed work is
- * itself O(1) (see `seedIdentity`'s doc).
- * @overallScore 100
+ * Shared build: kick off first-boot seeding over whichever `repos` the caller assembled, bind an
+ * `authorize()` closure over the same repos, and return the `IdentityRouteDepsSlice` shape both
+ * composition roots need. Factored out so the in-memory and SQLite constructors below stay
+ * identical except for which repo instances they pass in.
  */
-export function createInMemoryIdentityRouteDeps(required: {
-  workspaceId: UUID;
-  clock: ClockPort;
-  idGen: IdGeneratorPort;
-}): IdentityRouteDepsSlice {
-  const repos: IdentityRepos = {
-    principals: new InMemoryPrincipalRepo(),
-    users: new InMemoryUserRepo(),
-    sessions: new InMemorySessionRepo(),
-    roles: new InMemoryRoleRepo(),
-    policies: new InMemoryPolicyRepo(),
-    policyPermissions: new InMemoryPolicyPermissionRepo(),
-    rolePolicies: new InMemoryRolePolicyRepo(),
-    principalRoles: new InMemoryPrincipalRoleRepo(),
-    principalPolicies: new InMemoryPrincipalPolicyRepo(),
-  };
+function buildIdentityRouteDeps(
+  repos: IdentityRepos,
+  required: { workspaceId: UUID; clock: ClockPort; idGen: IdGeneratorPort }
+): IdentityRouteDepsSlice {
   const passwordHasher = new Argon2PasswordHasher();
 
   const identityReady = seedIdentity({
@@ -132,4 +127,61 @@ export function createInMemoryIdentityRouteDeps(required: {
     identityReady,
     authorize,
   };
+}
+
+/**
+ * Build the in-memory identity repos, kick off first-boot seeding, and bind an `authorize()`
+ * closure over those same repos. Used by `server/app.ts`'s hermetic test/dev composition, where
+ * per-test isolation (a fresh store per test) matters more than persistence.
+ *
+ * @complexity O(1) construction; `identityReady`'s underlying seed work is
+ * itself O(1) (see `seedIdentity`'s doc).
+ * @overallScore 100
+ */
+export function createInMemoryIdentityRouteDeps(required: {
+  workspaceId: UUID;
+  clock: ClockPort;
+  idGen: IdGeneratorPort;
+}): IdentityRouteDepsSlice {
+  const repos: IdentityRepos = {
+    principals: new InMemoryPrincipalRepo(),
+    users: new InMemoryUserRepo(),
+    sessions: new InMemorySessionRepo(),
+    roles: new InMemoryRoleRepo(),
+    policies: new InMemoryPolicyRepo(),
+    policyPermissions: new InMemoryPolicyPermissionRepo(),
+    rolePolicies: new InMemoryRolePolicyRepo(),
+    principalRoles: new InMemoryPrincipalRoleRepo(),
+    principalPolicies: new InMemoryPrincipalPolicyRepo(),
+  };
+  return buildIdentityRouteDeps(repos, required);
+}
+
+/**
+ * Build the SQLite-backed identity repos over the same `content.db` handle every other feature's
+ * `repo.sqlite.ts` adapter uses, kick off first-boot seeding, and bind `authorize()` over those
+ * repos. Used by `server/deps.ts`'s real composition root — this is what makes a login survive a
+ * `tsx watch` restart: the owner principal/user/session rows persist in `content.db`, and
+ * `seedIdentity`'s existing idempotency check (look up the owner username before minting a new
+ * principal) means the SAME principal id is reused on every subsequent boot, so a persisted
+ * session isn't orphaned by a freshly-minted, unrelated principal id.
+ *
+ * @overallScore 100
+ */
+export function createSqliteIdentityRouteDeps(
+  db: ContentDb,
+  required: { workspaceId: UUID; clock: ClockPort; idGen: IdGeneratorPort }
+): IdentityRouteDepsSlice {
+  const repos: IdentityRepos = {
+    principals: new SqlitePrincipalRepo(db),
+    users: new SqliteUserRepo(db),
+    sessions: new SqliteSessionRepo(db),
+    roles: new SqliteRoleRepo(db),
+    policies: new SqlitePolicyRepo(db),
+    policyPermissions: new SqlitePolicyPermissionRepo(db),
+    rolePolicies: new SqliteRolePolicyRepo(db),
+    principalRoles: new SqlitePrincipalRoleRepo(db),
+    principalPolicies: new SqlitePrincipalPolicyRepo(db),
+  };
+  return buildIdentityRouteDeps(repos, required);
 }

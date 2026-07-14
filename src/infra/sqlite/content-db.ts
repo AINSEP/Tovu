@@ -18,7 +18,7 @@ import * as schema from "../db/schema";
  * How it relates to the project:
  * - The composition root (`server/deps.ts`) opens the db here and injects the
  *   typed Drizzle handle into the per-feature `repo.sqlite.ts` adapters.
- * - Schema is code-first (`infra/db/schema.ts`) → `drizzle/` migrations, so the
+ * - Schema is code-first (`infra/db/schema.ts`) → `infra/drizzle/` migrations, so
  *   same schema maps cleanly to a future Postgres adapter (ADR-006 rule-of-two,
  *   Payload's shared-schema shape).
  *
@@ -28,8 +28,8 @@ import * as schema from "../db/schema";
  */
 export type ContentDb = BetterSQLite3Database<typeof schema>;
 
-/** Generated migrations live at repo-root `drizzle/` (resolved from this file). */
-const MIGRATIONS_DIR = path.resolve(__dirname, "../../../drizzle");
+/** Generated migrations live at `src/infra/drizzle/` (resolved from this file). */
+const MIGRATIONS_DIR = path.resolve(__dirname, "../drizzle");
 
 /** Open (or create) the content.db, apply pragmas, migrate, and seed if empty. */
 export function openContentDb(filePath: string): ContentDb {

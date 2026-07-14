@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
+import { openContentDb } from "../../infra/sqlite/content-db";
 // Side-effect import: registers the real BASE_CATALOG + the real permission-migration pairs
 // (navigation.manage -> admin.menus.*, integration.manage -> admin.integrations.manage) before
 // the tests below run.
 import "../permissions";
-import { createInMemoryIdentityRouteDeps } from "../wiring";
+import { createInMemoryIdentityRouteDeps, createSqliteIdentityRouteDeps } from "../wiring";
 
 const WORKSPACE = "workspace-1";
 const fixedClock = { nowIso: () => "2026-07-14T00:00:00.000Z" };
@@ -75,4 +79,52 @@ test("createInMemoryIdentityRouteDeps: identityReady resolves even with no pre-e
   });
 
   await assert.doesNotReject(() => deps.identityReady);
+});
+
+test("createSqliteIdentityRouteDeps: a session survives a simulated restart (fresh wiring call against the same content.db file)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tovu-identity-wiring-test-"));
+  const dbPath = join(dir, "content.db");
+  try {
+    const ws = "workspace-restart-test";
+
+    // "First boot."
+    const db1 = openContentDb(dbPath);
+    const first = createSqliteIdentityRouteDeps(db1, { workspaceId: ws, clock: fixedClock, idGen: counterIdGen() });
+    await first.identityReady;
+
+    const ownerBefore = await first.userRepo.findByUsername({ workspaceId: ws, username: "admin" });
+    assert.ok(ownerBefore, "owner user was seeded on first boot");
+
+    await first.sessionRepo.save({
+      id: "session-1",
+      workspaceId: ws,
+      principalId: ownerBefore!.principalId,
+      tokenHash: "fixed-token-hash",
+      createdAt: fixedClock.nowIso(),
+      expiresAt: "2099-01-01T00:00:00.000Z",
+    });
+
+    // "Restart": a brand-new content.db handle + a brand-new createSqliteIdentityRouteDeps call
+    // against the SAME on-disk file — this is exactly what `tsx watch` does to the real process.
+    const db2 = openContentDb(dbPath);
+    const second = createSqliteIdentityRouteDeps(db2, { workspaceId: ws, clock: fixedClock, idGen: counterIdGen() });
+    await second.identityReady;
+
+    const ownerAfter = await second.userRepo.findByUsername({ workspaceId: ws, username: "admin" });
+    assert.equal(
+      ownerAfter?.principalId,
+      ownerBefore!.principalId,
+      "seedIdentity's idempotency check reuses the SAME principal id across restarts, not a fresh random one"
+    );
+
+    const sessionAfter = await second.sessionRepo.findByTokenHash({ workspaceId: ws, tokenHash: "fixed-token-hash" });
+    assert.ok(sessionAfter, "the session persisted across the simulated restart");
+    assert.equal(
+      sessionAfter?.principalId,
+      ownerAfter?.principalId,
+      "the persisted session still points at a real, current principal — not orphaned"
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
