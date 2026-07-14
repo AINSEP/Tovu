@@ -179,16 +179,16 @@ function ItemRow(props: {
             />
           </>
         ) : null}
-        <button onClick={() => onMove(path, -1)} title="Move up">
+        <button className="tb-btn" onClick={() => onMove(path, -1)} title="Move up">
           ↑
         </button>
-        <button onClick={() => onMove(path, 1)} title="Move down">
+        <button className="tb-btn" onClick={() => onMove(path, 1)} title="Move down">
           ↓
         </button>
-        <button onClick={() => onAddChild(path)} title="Add child item">
+        <button className="tb-btn" onClick={() => onAddChild(path)} title="Add child item">
           + child
         </button>
-        <button onClick={() => onRemove(path)} title="Remove item">
+        <button className="tb-btn" onClick={() => onRemove(path)} title="Remove item">
           ✕
         </button>
       </div>
