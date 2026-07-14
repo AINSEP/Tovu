@@ -72,15 +72,25 @@ function safeHref(value: JsonValue | undefined): string {
 }
 
 /**
- * Sanitize a content `image` src the same way `safeHref` sanitizes a link href: only
- * same-origin relative (`/…`) and `http(s)://` targets are allowed. `javascript:`/`data:`/
- * anything else collapses to a transparent 1x1 placeholder rather than rendering unsafely.
+ * `data:` URLs allowed as an image src, restricted to raster formats only. `image/svg+xml` is
+ * deliberately excluded — SVG is an XML document and a needlessly larger attack surface (embedded
+ * `<script>`/event handlers) even though `<img>` contexts don't execute them in practice; no reason
+ * to depend on that browser guarantee holding forever.
+ */
+const ALLOWED_DATA_IMAGE_PREFIX = /^data:image\/(png|jpe?g|gif|webp);base64,/i;
+
+/**
+ * Sanitize a content `image` src the same way `safeHref` sanitizes a link href: same-origin
+ * relative (`/…`), `http(s)://`, or a raster `data:` URL (dropped-local-file images have no
+ * media-library serving route to reference instead — see PostEditor.tsx). `javascript:`/`data:`
+ * of any other kind/anything else collapses to empty rather than rendering unsafely.
  */
 function safeImageSrc(value: JsonValue | undefined): string {
   if (typeof value !== "string") return "";
   const src = value.trim();
   if (src.startsWith("/")) return src;
   if (/^https?:\/\//i.test(src)) return src;
+  if (ALLOWED_DATA_IMAGE_PREFIX.test(src)) return src;
   return "";
 }
 
