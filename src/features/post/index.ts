@@ -1,4 +1,5 @@
 export {
+  classifyStatusTransition,
   createPost,
   getAdminPostById,
   getPublishedPostBySlug,

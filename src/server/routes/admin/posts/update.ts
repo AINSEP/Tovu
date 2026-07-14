@@ -1,4 +1,5 @@
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "../../../../core/commands";
+import { processOutbox } from "../../../../core/events";
 import {
   PostConflictError,
   PostNotFoundError,
@@ -74,7 +75,7 @@ export const registerAdminPostUpdateRoute: RouteRegistrar = (app, deps) => {
           },
           execute: () =>
             updatePost({
-              deps: { repo: deps.postRepo, clock: deps.clock },
+              deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox },
               input: {
                 workspaceId: deps.workspaceId,
                 id: postId,
@@ -90,6 +91,13 @@ export const registerAdminPostUpdateRoute: RouteRegistrar = (app, deps) => {
           },
         },
       });
+
+      // SPEC-008 (ADR-PIPE-008 Decision §5) — drains the outbox so `updatePost`'s
+      // `entry.published`/`entry.updated`/`entry.unpublished` event (if any) actually reaches
+      // `bus.subscribe`d consumers (SEO's sitemap-cache invalidation) instead of sitting pending
+      // indefinitely (this composition root has no background outbox poller — mirrors the
+      // `/workspaces` route's identical inline `processOutbox` call).
+      await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
 
       res.json(toAdminPostResponse(result.post));
     } catch (err) {

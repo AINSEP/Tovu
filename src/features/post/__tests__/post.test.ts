@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { OutboxPort } from "../../../core/ports";
 import {
   createPost,
   getPublishedPostBySlug,
@@ -12,6 +13,20 @@ import {
   updatePost,
 } from "../post";
 import { InMemoryPostRepo } from "../repo.memory";
+
+/**
+ * `updatePost`'s `deps` gained a required `outbox` (ADR-PIPE-008 Decision §5,
+ * T010) — this file's pre-existing assertions are about title/slug/status/
+ * version behavior, not event emission, so a no-op stub is enough here.
+ * `post.transition-events.test.ts` is the dedicated certification of the
+ * outbox-emission behavior itself.
+ */
+const noopOutbox: OutboxPort = {
+  enqueue: async () => {},
+  claimPending: async () => [],
+  markDelivered: async () => {},
+  markFailed: async () => {},
+};
 
 const seedPost = {
   id: "post-1",
@@ -30,7 +45,7 @@ test("updatePost stores edits and increments version", async () => {
   const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
 
   const result = await updatePost({
-    deps: { repo, clock },
+    deps: { repo, clock, outbox: noopOutbox },
     input: {
       workspaceId: "workspace-1",
       id: "post-1",
@@ -61,7 +76,7 @@ test("updatePost rejects duplicate slug", async () => {
   await assert.rejects(
     () =>
       updatePost({
-        deps: { repo, clock },
+        deps: { repo, clock, outbox: noopOutbox },
         input: {
           workspaceId: "workspace-1",
           id: "post-1",
@@ -82,7 +97,7 @@ test("updatePost rejects invalid title", async () => {
   await assert.rejects(
     () =>
       updatePost({
-        deps: { repo, clock },
+        deps: { repo, clock, outbox: noopOutbox },
         input: {
           workspaceId: "workspace-1",
           id: "post-1",
@@ -185,7 +200,7 @@ test("updatePost preserves the existing record's kind (not editable after creati
   const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
 
   const result = await updatePost({
-    deps: { repo, clock },
+    deps: { repo, clock, outbox: noopOutbox },
     input: {
       workspaceId: "workspace-1",
       id: "page-1",

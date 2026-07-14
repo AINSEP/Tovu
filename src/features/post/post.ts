@@ -1,4 +1,4 @@
-import type { ClockPort, JsonObject, UUID } from "../../core/ports";
+import type { ClockPort, JsonObject, OutboxPort, UUID } from "../../core/ports";
 
 export type PostStatus = "draft" | "published";
 
@@ -21,6 +21,16 @@ export interface PostRecord {
   kind: PostKind;
   updatedAt: string;
   version: number;
+  /**
+   * SPEC-008 (ADR-PIPE-008 Decision §4) — the raw JSON-serialized per-entry
+   * SEO override bag (`SeoExtFields`), or `null` when no overrides have ever
+   * been written. Written ONLY through `src/seo/write-service.ts`'s
+   * `setEntrySeoOverrides` chokepoint (INV-01) — no other caller may write
+   * this field. Kept as an opaque string here (not parsed) so `post`/its repo
+   * adapters stay ignorant of `seo`'s value shape; `seo.ts`/`write-service.ts`
+   * own the `JSON.parse`/`JSON.stringify` boundary.
+   */
+  seoExtJson?: string | null;
 }
 
 export interface PostRepoPort {
@@ -63,6 +73,15 @@ export interface UpdatePostInput {
 export interface UpdatePostDeps {
   clock: ClockPort;
   repo: PostRepoPort;
+  /**
+   * SPEC-008 (ADR-PIPE-008 Decision §5) — required because every real caller
+   * already has one available on `RouteDeps`. `updatePost` compares the
+   * existing vs incoming `status` and enqueues at most one of
+   * `entry.published`/`entry.updated`/`entry.unpublished` per the 4-row
+   * transition table (INV-010) — the sole real signal source
+   * `src/seo/sitemap.ts`'s cache invalidation (REQ-10) depends on.
+   */
+  outbox: OutboxPort;
 }
 
 export interface UpdatePostRequired {
@@ -167,7 +186,39 @@ export async function updatePost(
   };
 
   await deps.repo.save(post);
+
+  const transitionEventName = classifyStatusTransition(existing.status, post.status);
+  if (transitionEventName) {
+    await deps.outbox.enqueue({
+      id: `${post.id}-${transitionEventName}-${post.version}`,
+      name: transitionEventName,
+      occurredAt: post.updatedAt,
+      aggregateId: post.id,
+      workspaceId: post.workspaceId,
+      payload: { entryId: post.id, contentType: post.kind },
+    });
+  }
+
   return { post };
+}
+
+/**
+ * ADR-PIPE-008 Decision §5 / INV-010 — the 4-row status-transition table,
+ * certified in isolation by `post.transition-events.test.ts` (T004) before
+ * `updatePost` (above) or any SEO-side subscription depends on it. Returns
+ * `null` for the "no event" row (not-published -> not-published).
+ */
+export function classifyStatusTransition(
+  previousStatus: PostStatus,
+  nextStatus: PostStatus
+): "entry.published" | "entry.updated" | "entry.unpublished" | null {
+  const wasPublished = previousStatus === "published";
+  const isPublished = nextStatus === "published";
+
+  if (!wasPublished && isPublished) return "entry.published";
+  if (wasPublished && isPublished) return "entry.updated";
+  if (wasPublished && !isPublished) return "entry.unpublished";
+  return null;
 }
 
 export interface ListPostsRequired {
