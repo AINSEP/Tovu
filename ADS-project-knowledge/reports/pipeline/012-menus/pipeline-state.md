@@ -148,3 +148,20 @@
   `/audit-work` against this ADR (the permission-migration mechanism is security-relevant and
   shared across up to four features — worth an external pass before ACCEPTED), in parallel with
   the Coordinator resolving the Article II exception before any TDD/Programmer dispatch.
+
+## T002 gate resolution (2026-07-14 continuation session)
+
+**T002 recorded as an explicit human waiver, not a completed `/audit-work` pass.** The Coordinator
+began building an `/audit-work` packet against `src/identity/permission-migrations.ts` (per T002's
+own recommendation). The user interrupted mid-build: "lets not do /audit-work and dont do it
+unless I tell you," then "just continue with the fixes." T013 (wiring
+`migrateDeprecatedPermissionGrants()` into the live boot path) proceeded on that explicit
+direction, not on the Coordinator's own judgment that the gate was satisfied.
+
+Basis for proceeding without the external audit: the mechanism is additive-only by construction
+(no delete/update against `policy_permissions` anywhere in `permission-migrations.ts`) and already
+has a dedicated, fixture-driven internal test suite (`permission-migrations.test.ts`) certifying
+it before this wiring. This is a real risk acceptance, not a claim that external audit would have
+found nothing — a real `/audit-work` pass is still recommended before this mechanism gains
+callers beyond Menus/Integrations (e.g. Members/Analytics, if their own permission strings are
+ever renamed per `sweep-crosscutting-decisions-20260710.md`'s compliance-status note).
