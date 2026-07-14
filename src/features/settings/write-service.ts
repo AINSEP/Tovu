@@ -806,40 +806,6 @@ export interface DeprecateDefinitionRequired {
   };
 }
 
-/** Flips the active definition's status to `deprecated`, ledgered `op='deprecate'` -- same-tx, chokepoint-gated. */
-export async function deprecateDefinition(
-  required: DeprecateDefinitionRequired
-): Promise<{ settingId: string; version: number }> {
-  const { deps, input } = required;
-  await authorizeDefinitionsManage(deps, input.callerPrincipalId, input.authWorkspaceId);
-
-  const current = await resolveActiveDefinitionOrThrow(deps, input, "deprecate");
-
-  const result = await deps.repo.transaction(async () => {
-    const now = deps.clock.nowIso();
-    await deps.repo.saveDefinition({ ...current, status: "deprecated", updatedAt: now });
-    await deps.repo.appendRevision({
-      entityKind: "definition",
-      settingId: current.settingId,
-      scope: null,
-      workspaceId: current.workspaceId,
-      principalId: null,
-      op: "deprecate",
-      beforeJson: null,
-      afterJson: null,
-      defVersion: current.version,
-      actor: input.callerPrincipalId,
-      originPluginId: null,
-      changeSetId: null,
-      createdAt: now,
-    });
-    return { settingId: current.settingId, version: current.version };
-  });
-
-  invalidateDefinitionNamespaceCache(deps.repo, input.namespace);
-  return result;
-}
-
 export interface TombstoneDefinitionRequired {
   deps: SettingsWriteServiceDeps;
   input: {
@@ -851,25 +817,31 @@ export interface TombstoneDefinitionRequired {
   };
 }
 
-/** Flips the active definition's status to `tombstone` (kills a core key), ledgered `op='tombstone'` -- same-tx, chokepoint-gated. */
-export async function tombstoneDefinition(
-  required: TombstoneDefinitionRequired
+/**
+ * ADR-042 item 2: `deprecateDefinition`/`tombstoneDefinition` were a jaccard-1.0
+ * duplicate pair (same authorize -> resolve -> same-tx status flip + revision
+ * shape, differing only in the target status string). This is that shape,
+ * written once; both thin exports below just name their target status.
+ */
+async function transitionDefinitionStatus(
+  deps: SettingsWriteServiceDeps,
+  input: { namespace: string; key: string; workspaceId: UUID | null; callerPrincipalId: UUID; authWorkspaceId: UUID },
+  target: { status: "deprecated" | "tombstone"; revisionOp: "deprecate" | "tombstone" }
 ): Promise<{ settingId: string; version: number }> {
-  const { deps, input } = required;
   await authorizeDefinitionsManage(deps, input.callerPrincipalId, input.authWorkspaceId);
 
-  const current = await resolveActiveDefinitionOrThrow(deps, input, "tombstone");
+  const current = await resolveActiveDefinitionOrThrow(deps, input, target.revisionOp);
 
   const result = await deps.repo.transaction(async () => {
     const now = deps.clock.nowIso();
-    await deps.repo.saveDefinition({ ...current, status: "tombstone", updatedAt: now });
+    await deps.repo.saveDefinition({ ...current, status: target.status, updatedAt: now });
     await deps.repo.appendRevision({
       entityKind: "definition",
       settingId: current.settingId,
       scope: null,
       workspaceId: current.workspaceId,
       principalId: null,
-      op: "tombstone",
+      op: target.revisionOp,
       beforeJson: null,
       afterJson: null,
       defVersion: current.version,
@@ -883,4 +855,24 @@ export async function tombstoneDefinition(
 
   invalidateDefinitionNamespaceCache(deps.repo, input.namespace);
   return result;
+}
+
+/** Flips the active definition's status to `deprecated`, ledgered `op='deprecate'` -- same-tx, chokepoint-gated. */
+export async function deprecateDefinition(
+  required: DeprecateDefinitionRequired
+): Promise<{ settingId: string; version: number }> {
+  return transitionDefinitionStatus(required.deps, required.input, {
+    status: "deprecated",
+    revisionOp: "deprecate",
+  });
+}
+
+/** Flips the active definition's status to `tombstone` (kills a core key), ledgered `op='tombstone'` -- same-tx, chokepoint-gated. */
+export async function tombstoneDefinition(
+  required: TombstoneDefinitionRequired
+): Promise<{ settingId: string; version: number }> {
+  return transitionDefinitionStatus(required.deps, required.input, {
+    status: "tombstone",
+    revisionOp: "tombstone",
+  });
 }
