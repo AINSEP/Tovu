@@ -1,8 +1,9 @@
 import type Database from "better-sqlite3";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 import { redirectRevisions, redirects as redirectsTable } from "../infra/db/schema";
 import type { ContentDb } from "../infra/sqlite/content-db";
+import { findOneBy } from "../infra/sqlite/repo-helpers";
 
 import type { RedirectDbHandle } from "./ports.internal";
 import type { RedirectRepoPort } from "./ports";
@@ -120,12 +121,12 @@ export class SqliteRedirectRepo implements RedirectRepoPort, RedirectDbHandle {
   }
 
   async findById(required: { workspaceId: string; id: string }): Promise<RedirectRecord | null> {
-    const rows = this.db
-      .select()
-      .from(redirectsTable)
-      .where(and(eq(redirectsTable.workspaceId, required.workspaceId), eq(redirectsTable.id, required.id)))
-      .all();
-    return rows[0] ? toRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      redirectsTable,
+      [eq(redirectsTable.workspaceId, required.workspaceId), eq(redirectsTable.id, required.id)],
+      toRecord
+    );
   }
 
   async lookupExact(required: {

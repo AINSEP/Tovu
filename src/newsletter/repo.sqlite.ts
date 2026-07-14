@@ -21,6 +21,7 @@ import { asc, eq, gt, and } from "drizzle-orm";
 
 import { newsletterCampaignRevisions, newsletterCampaigns } from "../infra/db/schema";
 import type { ContentDb } from "../infra/sqlite/content-db";
+import { findOneBy } from "../infra/sqlite/repo-helpers";
 import { NEWSLETTER_TABLE_NAMES } from "./data-module-manifest";
 import type {
   NewsletterAudienceSnapshotRepoPort,
@@ -114,12 +115,12 @@ export class SqliteNewsletterCampaignRepo implements NewsletterCampaignRepoPort 
   constructor(private readonly db: ContentDb) {}
 
   async findById(required: { workspaceId: string; id: string }): Promise<CampaignRecord | null> {
-    const rows = this.db
-      .select()
-      .from(newsletterCampaigns)
-      .where(and(eq(newsletterCampaigns.workspaceId, required.workspaceId), eq(newsletterCampaigns.id, required.id)))
-      .all();
-    return rows[0] ? toCampaignRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      newsletterCampaigns,
+      [eq(newsletterCampaigns.workspaceId, required.workspaceId), eq(newsletterCampaigns.id, required.id)],
+      toCampaignRecord
+    );
   }
 
   async list(required: { workspaceId: string; afterId?: string; limit?: number }): Promise<CampaignRecord[]> {

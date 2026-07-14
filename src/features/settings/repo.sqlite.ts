@@ -10,6 +10,7 @@ import {
   settingValuesWorkspace,
 } from "../../infra/db/schema";
 import type { ContentDb } from "../../infra/sqlite/content-db";
+import { findOneBy } from "../../infra/sqlite/repo-helpers";
 import type { SettingsRepoPort } from "./ports";
 import type {
   DefinitionStatus,
@@ -205,29 +206,27 @@ export class SqliteSettingsRepo implements SettingsRepoPort {
   }
 
   async getGlobalValue(settingId: string): Promise<SettingValueRecord | null> {
-    const rows = this.db
-      .select()
-      .from(settingValuesGlobal)
-      .where(eq(settingValuesGlobal.settingId, settingId))
-      .all();
-    return rows[0] ? toValueRecord(rows[0], "global", null, null) : null;
+    return findOneBy(
+      this.db,
+      settingValuesGlobal,
+      [eq(settingValuesGlobal.settingId, settingId)],
+      (row) => toValueRecord(row, "global", null, null)
+    );
   }
 
   async getWorkspaceValue(required: {
     workspaceId: string;
     settingId: string;
   }): Promise<SettingValueRecord | null> {
-    const rows = this.db
-      .select()
-      .from(settingValuesWorkspace)
-      .where(
-        and(
-          eq(settingValuesWorkspace.workspaceId, required.workspaceId),
-          eq(settingValuesWorkspace.settingId, required.settingId)
-        )
-      )
-      .all();
-    return rows[0] ? toValueRecord(rows[0], "workspace", required.workspaceId, null) : null;
+    return findOneBy(
+      this.db,
+      settingValuesWorkspace,
+      [
+        eq(settingValuesWorkspace.workspaceId, required.workspaceId),
+        eq(settingValuesWorkspace.settingId, required.settingId),
+      ],
+      (row) => toValueRecord(row, "workspace", required.workspaceId, null)
+    );
   }
 
   async getUserValue(required: {
@@ -235,18 +234,16 @@ export class SqliteSettingsRepo implements SettingsRepoPort {
     principalId: string;
     settingId: string;
   }): Promise<SettingValueRecord | null> {
-    const rows = this.db
-      .select()
-      .from(settingValuesUser)
-      .where(
-        and(
-          eq(settingValuesUser.workspaceId, required.workspaceId),
-          eq(settingValuesUser.principalId, required.principalId),
-          eq(settingValuesUser.settingId, required.settingId)
-        )
-      )
-      .all();
-    return rows[0] ? toValueRecord(rows[0], "user", required.workspaceId, required.principalId) : null;
+    return findOneBy(
+      this.db,
+      settingValuesUser,
+      [
+        eq(settingValuesUser.workspaceId, required.workspaceId),
+        eq(settingValuesUser.principalId, required.principalId),
+        eq(settingValuesUser.settingId, required.settingId),
+      ],
+      (row) => toValueRecord(row, "user", required.workspaceId, required.principalId)
+    );
   }
 
   async saveGlobalValue(record: SettingValueRecord): Promise<void> {

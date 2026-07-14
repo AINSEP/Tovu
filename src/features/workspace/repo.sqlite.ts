@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { workspaces } from "../../infra/db/schema";
 import type { ContentDb } from "../../infra/sqlite/content-db";
+import { findOneBy } from "../../infra/sqlite/repo-helpers";
 import type { WorkspaceRecord, WorkspaceRepoPort } from "./create";
 
 /**
@@ -24,7 +25,6 @@ export class SqliteWorkspaceRepo implements WorkspaceRepoPort {
   }
 
   async findBySlug(slug: string): Promise<WorkspaceRecord | null> {
-    const rows = this.db.select().from(workspaces).where(eq(workspaces.slug, slug)).all();
-    return rows[0] ? toRecord(rows[0]) : null;
+    return findOneBy(this.db, workspaces, [eq(workspaces.slug, slug)], toRecord);
   }
 }

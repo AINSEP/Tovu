@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import { webhookDeliveries, webhookSubscriptions } from "../infra/db/schema";
 import type { ContentDb } from "../infra/sqlite/content-db";
+import { findOneBy } from "../infra/sqlite/repo-helpers";
 
 import type { DeliveryEnvelopeStore } from "./repo.memory";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports";
@@ -127,17 +128,12 @@ export class SqliteWebhookSubscriptionRepo implements WebhookSubscriptionRepoPor
     workspaceId: string;
     id: IntegrationId;
   }): Promise<WebhookSubscriptionRecord | null> {
-    const rows = this.db
-      .select()
-      .from(webhookSubscriptions)
-      .where(
-        and(
-          eq(webhookSubscriptions.workspaceId, required.workspaceId),
-          eq(webhookSubscriptions.id, required.id)
-        )
-      )
-      .all();
-    return rows[0] ? toSubscriptionRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      webhookSubscriptions,
+      [eq(webhookSubscriptions.workspaceId, required.workspaceId), eq(webhookSubscriptions.id, required.id)],
+      toSubscriptionRecord
+    );
   }
 
   async listByWorkspace(required: { workspaceId: string }): Promise<WebhookSubscriptionRecord[]> {
@@ -303,14 +299,12 @@ export class SqliteWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Deliv
     workspaceId: string;
     id: IntegrationId;
   }): Promise<WebhookDeliveryRecord | null> {
-    const rows = this.db
-      .select()
-      .from(webhookDeliveries)
-      .where(
-        and(eq(webhookDeliveries.workspaceId, required.workspaceId), eq(webhookDeliveries.id, required.id))
-      )
-      .all();
-    return rows[0] ? toDeliveryRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      webhookDeliveries,
+      [eq(webhookDeliveries.workspaceId, required.workspaceId), eq(webhookDeliveries.id, required.id)],
+      toDeliveryRecord
+    );
   }
 
   async listBySubscription(required: {

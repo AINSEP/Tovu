@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import { menus, navLocationBindings } from "../infra/db/schema";
 import type { ContentDb } from "../infra/sqlite/content-db";
+import { findOneBy } from "../infra/sqlite/repo-helpers";
 import type { MenuRepoPort } from "./repo.memory";
 import type { NavLocationBindingRepoPort } from "./ports";
 import type { MenuStatus, NavLocationBindingRow, NavLocationKey, NavMenuDoc, NavMenuEntry } from "./types";
@@ -56,21 +57,21 @@ export class SqliteMenuRepo implements MenuRepoPort {
   constructor(private readonly db: ContentDb) {}
 
   async findById(required: { workspaceId: string; id: string }): Promise<NavMenuEntry | null> {
-    const rows = this.db
-      .select()
-      .from(menus)
-      .where(and(eq(menus.workspaceId, required.workspaceId), eq(menus.id, required.id)))
-      .all();
-    return rows[0] ? toMenuRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      menus,
+      [eq(menus.workspaceId, required.workspaceId), eq(menus.id, required.id)],
+      toMenuRecord
+    );
   }
 
   async findBySlug(required: { workspaceId: string; slug: string }): Promise<NavMenuEntry | null> {
-    const rows = this.db
-      .select()
-      .from(menus)
-      .where(and(eq(menus.workspaceId, required.workspaceId), eq(menus.slug, required.slug)))
-      .all();
-    return rows[0] ? toMenuRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      menus,
+      [eq(menus.workspaceId, required.workspaceId), eq(menus.slug, required.slug)],
+      toMenuRecord
+    );
   }
 
   async list(required: { workspaceId: string }): Promise<NavMenuEntry[]> {
@@ -124,17 +125,15 @@ export class SqliteNavLocationBindingRepo implements NavLocationBindingRepoPort 
     workspaceId: string;
     locationKey: NavLocationKey;
   }): Promise<NavLocationBindingRow | null> {
-    const rows = this.db
-      .select()
-      .from(navLocationBindings)
-      .where(
-        and(
-          eq(navLocationBindings.workspaceId, required.workspaceId),
-          eq(navLocationBindings.locationKey, required.locationKey)
-        )
-      )
-      .all();
-    return rows[0] ? toBindingRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      navLocationBindings,
+      [
+        eq(navLocationBindings.workspaceId, required.workspaceId),
+        eq(navLocationBindings.locationKey, required.locationKey),
+      ],
+      toBindingRecord
+    );
   }
 
   async listByMenu(required: { workspaceId: string; menuId: string }): Promise<NavLocationBindingRow[]> {

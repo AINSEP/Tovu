@@ -12,6 +12,7 @@ import {
   memberTiers,
 } from "../infra/db/schema";
 import type { ContentDb } from "../infra/sqlite/content-db";
+import { findOneBy } from "../infra/sqlite/repo-helpers";
 import type {
   MagicLinkTokenRepoPort,
   MemberConsentRepoPort,
@@ -76,22 +77,22 @@ export class SqliteMemberRepo implements MemberRepoPort {
   constructor(private readonly db: ContentDb) {}
 
   async findById(required: { workspaceId: string; id: string }): Promise<MemberRecord | null> {
-    const rows = this.db
-      .select()
-      .from(members)
-      .where(and(eq(members.workspaceId, required.workspaceId), eq(members.id, required.id)))
-      .all();
-    return rows[0] ? toMemberRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      members,
+      [eq(members.workspaceId, required.workspaceId), eq(members.id, required.id)],
+      toMemberRecord
+    );
   }
 
   async findByEmail(required: { workspaceId: string; email: string }): Promise<MemberRecord | null> {
     const normalized = required.email.trim().toLowerCase();
-    const rows = this.db
-      .select()
-      .from(members)
-      .where(and(eq(members.workspaceId, required.workspaceId), eq(members.email, normalized)))
-      .all();
-    return rows[0] ? toMemberRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      members,
+      [eq(members.workspaceId, required.workspaceId), eq(members.email, normalized)],
+      toMemberRecord
+    );
   }
 
   async list(required: { workspaceId: string; afterId?: string; limit?: number }): Promise<MemberRecord[]> {
@@ -155,21 +156,21 @@ export class SqliteMemberTierRepo implements MemberTierRepoPort {
   constructor(private readonly db: ContentDb) {}
 
   async findById(required: { workspaceId: string; id: string }): Promise<MemberTierRecord | null> {
-    const rows = this.db
-      .select()
-      .from(memberTiers)
-      .where(and(eq(memberTiers.workspaceId, required.workspaceId), eq(memberTiers.id, required.id)))
-      .all();
-    return rows[0] ? toMemberTierRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      memberTiers,
+      [eq(memberTiers.workspaceId, required.workspaceId), eq(memberTiers.id, required.id)],
+      toMemberTierRecord
+    );
   }
 
   async findBySlug(required: { workspaceId: string; slug: string }): Promise<MemberTierRecord | null> {
-    const rows = this.db
-      .select()
-      .from(memberTiers)
-      .where(and(eq(memberTiers.workspaceId, required.workspaceId), eq(memberTiers.slug, required.slug)))
-      .all();
-    return rows[0] ? toMemberTierRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      memberTiers,
+      [eq(memberTiers.workspaceId, required.workspaceId), eq(memberTiers.slug, required.slug)],
+      toMemberTierRecord
+    );
   }
 
   async list(required: { workspaceId: string }): Promise<MemberTierRecord[]> {
@@ -225,12 +226,12 @@ export class SqliteMemberSubscriptionRepo implements MemberSubscriptionRepoPort 
   constructor(private readonly db: ContentDb) {}
 
   async findById(required: { workspaceId: string; id: string }): Promise<MemberSubscriptionRecord | null> {
-    const rows = this.db
-      .select()
-      .from(memberSubscriptions)
-      .where(and(eq(memberSubscriptions.workspaceId, required.workspaceId), eq(memberSubscriptions.id, required.id)))
-      .all();
-    return rows[0] ? toMemberSubscriptionRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      memberSubscriptions,
+      [eq(memberSubscriptions.workspaceId, required.workspaceId), eq(memberSubscriptions.id, required.id)],
+      toMemberSubscriptionRecord
+    );
   }
 
   async listByMember(required: { workspaceId: string; memberId: string }): Promise<MemberSubscriptionRecord[]> {
@@ -314,12 +315,12 @@ export class SqliteMemberSessionRepo implements MemberSessionRepoPort {
   constructor(private readonly db: ContentDb) {}
 
   async findByTokenHash(required: { workspaceId: string; tokenHash: string }): Promise<MemberSessionRecord | null> {
-    const rows = this.db
-      .select()
-      .from(memberSessions)
-      .where(and(eq(memberSessions.workspaceId, required.workspaceId), eq(memberSessions.tokenHash, required.tokenHash)))
-      .all();
-    return rows[0] ? toMemberSessionRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      memberSessions,
+      [eq(memberSessions.workspaceId, required.workspaceId), eq(memberSessions.tokenHash, required.tokenHash)],
+      toMemberSessionRecord
+    );
   }
 
   async listByMember(required: { workspaceId: string; memberId: string }): Promise<MemberSessionRecord[]> {
@@ -387,14 +388,12 @@ export class SqliteMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
   constructor(private readonly db: ContentDb) {}
 
   async findByTokenHash(required: { workspaceId: string; tokenHash: string }): Promise<MagicLinkTokenRecord | null> {
-    const rows = this.db
-      .select()
-      .from(memberMagicTokens)
-      .where(
-        and(eq(memberMagicTokens.workspaceId, required.workspaceId), eq(memberMagicTokens.tokenHash, required.tokenHash))
-      )
-      .all();
-    return rows[0] ? toMagicLinkTokenRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      memberMagicTokens,
+      [eq(memberMagicTokens.workspaceId, required.workspaceId), eq(memberMagicTokens.tokenHash, required.tokenHash)],
+      toMagicLinkTokenRecord
+    );
   }
 
   async save(record: MagicLinkTokenRecord): Promise<void> {
@@ -482,18 +481,16 @@ export class SqliteMemberConsentRepo implements MemberConsentRepoPort {
     memberId: string;
     purpose: ConsentPurpose;
   }): Promise<MemberConsentRecord | null> {
-    const rows = this.db
-      .select()
-      .from(memberConsents)
-      .where(
-        and(
-          eq(memberConsents.workspaceId, required.workspaceId),
-          eq(memberConsents.memberId, required.memberId),
-          eq(memberConsents.purpose, required.purpose)
-        )
-      )
-      .all();
-    return rows[0] ? toMemberConsentRecord(rows[0]) : null;
+    return findOneBy(
+      this.db,
+      memberConsents,
+      [
+        eq(memberConsents.workspaceId, required.workspaceId),
+        eq(memberConsents.memberId, required.memberId),
+        eq(memberConsents.purpose, required.purpose),
+      ],
+      toMemberConsentRecord
+    );
   }
 
   async save(record: MemberConsentRecord): Promise<void> {
