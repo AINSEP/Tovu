@@ -16,16 +16,27 @@ import { setEntrySeoOverrides } from "../write-service";
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 
 function openTestDb() {
-  // openContentDb(":memory:") seeds the demo workspace + posts (infra/sqlite/content-db.ts).
+  // ADR-042 item 3: openContentDb no longer auto-seeds demo content (that was an infra->server
+  // layer violation) - each test builds its own fixture row via the repo instead.
   return openContentDb(":memory:");
 }
 
 test("setEntrySeoOverrides: PUT-then-GET round trip persists into posts.seo_ext_json via the real SQLite adapter", async () => {
   const db = openTestDb();
   const repo = new SqlitePostRepo(db);
-  const seeded = await repo.list({ workspaceId: "workspace-local" });
-  const entry = seeded[0];
-  assert.ok(entry, "content-db.ts must seed at least one post for workspace-1");
+  await repo.save({
+    id: "post-1",
+    workspaceId: "workspace-local",
+    title: "Fixture Post",
+    slug: "fixture-post",
+    bodyJson: { type: "doc", content: [] },
+    status: "published",
+    kind: "post",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    version: 1,
+  });
+  const entry = await repo.findById({ workspaceId: "workspace-local", id: "post-1" });
+  assert.ok(entry, "fixture post was inserted");
 
   const result = await setEntrySeoOverrides({
     deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: () => {} },
