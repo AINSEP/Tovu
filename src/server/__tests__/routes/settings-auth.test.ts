@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import test from "node:test";
+
+import { bootAuthenticated } from "../helpers/http-test-server";
 
 import express from "express";
 
@@ -39,26 +38,6 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAdminSettingsClearRoute(app, deps);
   registerAdminSettingsResetRoute(app, deps);
   return { app, deps };
-}
-
-async function bootAuthenticated(app: express.Express, t: import("node:test").TestContext) {
-  const server = createServer(app);
-  server.listen(0);
-  await once(server, "listening");
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
-
-  const address = server.address() as AddressInfo;
-  const baseUrl = `http://127.0.0.1:${address.port}`;
-
-  const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ username: "admin", password: "tovu-dev" }),
-  });
-  assert.equal(login.status, 200);
-  const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
-
-  return { baseUrl, cookie };
 }
 
 /** A principal with a login but zero role/policy grants — `authorize()` returns `no_grant` for anything. */
