@@ -32,6 +32,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import type { MailerSendOptions, OutboundEmail } from "../mail";
+import { OriginNotVerifiedError } from "../origin";
 import {
   MemberAuthError,
   MemberConflictError,
@@ -136,12 +137,35 @@ async function requestSignInLink(required: {
     expiresAt: isoPlusMs(nowIso, MAGIC_LINK_TTL_MS),
   });
 
-  // No `core/origin` port exists yet in this repo (ADR-030 Round-2 fold names it
-  // as the eventual seam) — the link path is relative; a real origin/base URL
-  // must be supplied by the caller until that primitive lands.
-  const linkPath = `/auth/magic?token=${rawToken}${
+  // ADR-PIPE-013 Decision §3: `core/origin` (ADR-040) now exists and is the
+  // trusted seam for absolute magic-link URLs — the stale "no core/origin
+  // port exists yet" note this file used to carry is corrected here. `origin`
+  // is an optional dep (see `ports.ts`'s doc): no composition root wires a
+  // real instance in yet, so an absent dep is treated identically to
+  // `OriginNotVerifiedError` (silent relative-path fallback, no warning log —
+  // that's a repo-wiring gap, not an operator misconfiguration to flag).
+  const relativePath = `/auth/magic?token=${rawToken}${
     input.redirectPath ? `&redirect=${encodeURIComponent(input.redirectPath)}` : ""
   }`;
+  let linkPath = relativePath;
+  if (deps.origin) {
+    try {
+      const origin = await deps.origin.canonicalOrigin({ workspaceId: input.workspaceId });
+      const portSuffix = origin.port ? `:${origin.port}` : "";
+      const basePath = origin.basePath ?? "";
+      linkPath = `${origin.scheme}://${origin.host}${portSuffix}${basePath}${relativePath}`;
+    } catch (err) {
+      if (!(err instanceof OriginNotVerifiedError)) throw err;
+      // INV-06: a missing/unverified origin must never fail the call or
+      // change the caller-facing response — fall back to the relative link,
+      // and surface the gap only as an observability signal (workspaceId
+      // only — never the email or the raw token, both in scope elsewhere in
+      // this function).
+      console.warn(
+        `[members] requestSignInLink: no verified origin for workspaceId=${input.workspaceId}, falling back to a relative sign-in link`
+      );
+    }
+  }
 
   const message: OutboundEmail = {
     workspaceId: input.workspaceId,

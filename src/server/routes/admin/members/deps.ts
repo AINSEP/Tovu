@@ -33,6 +33,7 @@ import type {
   MemberTierRepoPort,
   MembersWriteServiceDeps,
 } from "../../../../members";
+import type { RateLimiter } from "../../../middleware/rate-limit";
 import type { RouteDeps } from "../../types";
 
 /**
@@ -48,6 +49,14 @@ export interface MembersRouteDeps extends RouteDeps {
   memberSessionRepo: MemberSessionRepoPort;
   magicLinkRepo: MagicLinkTokenRepoPort;
   mailer: MailerPort;
+  /**
+   * ADR-PIPE-013 Decision §2-3 (Phase 2) — the SAME `MAGIC_LINK_PER_EMAIL`
+   * limiter instance the new public `routes/members/sign-in.ts` route also
+   * consults (C-015: one shared counter per email, not two). Consulted by
+   * `request-magic-link.ts` strictly AFTER its `authorize()` call (T008),
+   * never before (INV-NEW-03).
+   */
+  magicLinkPerEmailLimiter: RateLimiter;
 }
 
 /**

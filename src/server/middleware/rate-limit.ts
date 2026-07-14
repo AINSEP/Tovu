@@ -52,6 +52,40 @@ export const LOGIN_STRICT: RateLimitProfile = {
   burst: 0,
 };
 
+/**
+ * ADR-PIPE-013 Decision §2-3 (FEAT-013 Phase 2) — magic-link rate limiting,
+ * the hard pre-launch precondition ADR-030 OQ-8 names. Keyed by the
+ * normalized target email; bounds spam to one inbox regardless of source IP.
+ * Consulted by both the new public sign-in-request route and (defense in
+ * depth) the existing admin-triggered request-magic-link route.
+ */
+export const MAGIC_LINK_PER_EMAIL: RateLimitProfile = {
+  windowSeconds: 3600,
+  max: 5,
+  burst: 0,
+};
+
+/**
+ * ADR-PIPE-013 Decision §2-3 — keyed by `resolveClientIp(req)`, public sign-in
+ * route only. Bounds a single attacker's ability to enumerate many emails.
+ */
+export const MAGIC_LINK_PER_IP: RateLimitProfile = {
+  windowSeconds: 3600,
+  max: 20,
+  burst: 0,
+};
+
+/**
+ * ADR-PIPE-013 Decision §2-3 — lighter defense-in-depth profile on the public
+ * complete-sign-in route, keyed by IP. The 256-bit raw token makes brute
+ * force computationally infeasible regardless; this is a secondary control.
+ */
+export const MAGIC_LINK_COMPLETE_ATTEMPT: RateLimitProfile = {
+  windowSeconds: 60,
+  max: 20,
+  burst: 5,
+};
+
 /** Outcome of a single `checkRateLimit` call. */
 export type RateLimitResult =
   | { allowed: true }

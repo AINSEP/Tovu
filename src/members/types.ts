@@ -220,3 +220,73 @@ export class MemberValidationError extends Error {}
 export class MemberConflictError extends Error {}
 /** Raised when a member, tier, or subscription is not found in the workspace. */
 export class MemberNotFoundError extends Error {}
+
+/**
+ * D1c consent — Members-owned, purpose-keyed consent records (ADR-PIPE-013
+ * Decision §4, crosscutting-sweep D1c LOCKED 4-0).
+ *
+ * Purpose is a module-prefixed string (e.g. `"marketing-email"`,
+ * `"newsletter:{listId}"`, `"feature:{ns}:{id}"`) rather than a closed union —
+ * new modules mint their own namespaced purposes without touching this file
+ * (Article III: no speculative enum, just a documented string convention).
+ */
+export type ConsentPurpose = string;
+
+/** Consent lifecycle. Only `confirmConsent` may produce `'granted'` (INV-NEW-02) — see `consent-service.ts`. */
+export type ConsentStatus = "pending" | "granted" | "revoked";
+
+/** Evidence captured alongside a consent state change (never the raw consent-text body — a reference/hash only). */
+export interface ConsentEvidence {
+  /** Reference to the consent copy shown (e.g. a CMS entry id), not the text itself. */
+  consentTextRef?: string;
+  /** Hash of the consent copy shown, for tamper-evidence without storing the body. */
+  consentTextHash?: string;
+  /** Where the request/confirmation originated, e.g. `"newsletter-signup-form"`. */
+  source: string;
+  /** The magic/confirm-token id that authorized a `confirmConsent` call, when applicable. */
+  confirmTokenId?: string;
+  ip?: string;
+  userAgent?: string;
+}
+
+/**
+ * A member's consent record for one `(memberId, purpose)` pair. Reaches
+ * `status: 'granted'` ONLY via `requestConsent` then `confirmConsent` in
+ * sequence (INV-NEW-02) — no caller may assert `granted` directly.
+ */
+export interface MemberConsentRecord {
+  id: UUID;
+  workspaceId: UUID;
+  /** Composite FK → members(workspace_id, id). */
+  memberId: UUID;
+  purpose: ConsentPurpose;
+  status: ConsentStatus;
+  evidence: ConsentEvidence;
+  grantedAt?: ISODateTime;
+  revokedAt?: ISODateTime;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+  version: number;
+}
+
+/** A consent state-change op recorded on the shared `member_revisions` ledger (`entity_kind='consent'`). */
+export type ConsentRevisionOp = "consent_request" | "consent_confirm" | "consent_revoke";
+
+/**
+ * One append-only `member_revisions` row documenting a consent state change.
+ * `originModule` attributes the call to the caller (e.g. `"newsletter"`) —
+ * satisfies "attributed" without inventing ADR-024 capability infrastructure
+ * (ADR-PIPE-013 Decision §4 capability-gating scope decision).
+ */
+export interface MemberConsentRevisionRecord {
+  seq: number;
+  workspaceId: UUID;
+  memberId: UUID;
+  consentId: UUID;
+  purpose: ConsentPurpose;
+  op: ConsentRevisionOp;
+  beforeJson: JsonObject | null;
+  afterJson: JsonObject | null;
+  originModule: string;
+  createdAt: ISODateTime;
+}

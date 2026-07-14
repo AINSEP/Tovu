@@ -14,7 +14,10 @@
  * (`MemberNotFoundError` etc.) — only the write service and resolver do.
  */
 import type {
+  ConsentPurpose,
   MagicLinkTokenRecord,
+  MemberConsentRecord,
+  MemberConsentRevisionRecord,
   MemberRecord,
   MemberSessionRecord,
   MemberSubscriptionRecord,
@@ -22,6 +25,7 @@ import type {
 } from "./types";
 import type {
   MagicLinkTokenRepoPort,
+  MemberConsentRepoPort,
   MemberRepoPort,
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
@@ -321,5 +325,78 @@ export class InMemoryMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
     }
 
     this.rows[index] = { ...this.rows[index], consumedAt: required.consumedAt };
+  }
+}
+
+/**
+ * In-memory `MemberConsentRepoPort` (ADR-PIPE-013 Decision §4, D1c). Backs
+ * both the `member_consents` value row and the shared `member_revisions`
+ * ledger (`entity_kind='consent'`) — same combined-port shape
+ * `SettingsRepoPort`'s in-memory adapter already uses.
+ *
+ * @complexity `findByMemberAndPurpose`/`save` O(n) over a workspace's consent
+ * rows; `listRevisions` O(m) over a workspace's ledger rows. n/m expected
+ * small-to-moderate (per-member, per-purpose).
+ * @overallScore 100
+ */
+export class InMemoryMemberConsentRepo implements MemberConsentRepoPort {
+  private rows: MemberConsentRecord[] = [];
+  private revisions: MemberConsentRevisionRecord[] = [];
+  private nextSeq = 1;
+
+  async findByMemberAndPurpose(required: {
+    workspaceId: string;
+    memberId: string;
+    purpose: ConsentPurpose;
+  }): Promise<MemberConsentRecord | null> {
+    return (
+      this.rows.find(
+        (row) =>
+          row.workspaceId === required.workspaceId &&
+          row.memberId === required.memberId &&
+          row.purpose === required.purpose
+      ) ?? null
+    );
+  }
+
+  async save(record: MemberConsentRecord): Promise<void> {
+    const index = this.rows.findIndex((row) => row.id === record.id);
+    if (index === -1) {
+      this.rows.push(record);
+      return;
+    }
+
+    this.rows[index] = record;
+  }
+
+  async appendRevision(record: Omit<MemberConsentRevisionRecord, "seq">): Promise<number> {
+    const seq = this.nextSeq++;
+    this.revisions.push({ ...record, seq });
+    return seq;
+  }
+
+  async listRevisions(required: {
+    workspaceId: string;
+    memberId: string;
+    purpose?: ConsentPurpose;
+  }): Promise<MemberConsentRevisionRecord[]> {
+    return this.revisions
+      .filter(
+        (row) =>
+          row.workspaceId === required.workspaceId &&
+          row.memberId === required.memberId &&
+          (required.purpose === undefined || row.purpose === required.purpose)
+      )
+      .sort((a, b) => a.seq - b.seq);
+  }
+
+  /**
+   * In-memory adapter is single-threaded/synchronous-per-microtask (same
+   * reasoning `repo.sqlite.ts`'s real `BEGIN IMMEDIATE` header note gives for
+   * why no interleaving is possible on one connection) — a same-tick
+   * passthrough is a faithful, if trivial, atomicity guarantee here.
+   */
+  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+    return fn();
   }
 }

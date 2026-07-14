@@ -1,5 +1,6 @@
 import type { MemberRecord } from "../../../../members";
 import { toAdminMemberResponse } from "../../../http/admin/members";
+import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { RouteRegistrar } from "../../../routes/types";
 import type { MembersRouteDeps } from "./deps";
 
@@ -14,6 +15,11 @@ import type { MembersRouteDeps } from "./deps";
  * That port is already keyset-paginated and bounded (`DEFAULT_LIST_LIMIT =
  * 100` in `repo.memory.ts`), so an `afterId`/`limit` query pair is passed
  * through rather than re-implementing a cap here.
+ *
+ * ADR-PIPE-013 §1 (FEAT-013 Phase 1): previously ran behind session auth only
+ * — no per-action `authorize()` call, unlike `disable.ts`. Closes that live
+ * authorization gap by requiring `member.manage`, copying `disable.ts`'s
+ * exact call shape (workspace-id 404 check first, then authorize).
  */
 export const registerAdminMemberListRoute: RouteRegistrar = (app, routeDeps) => {
   const deps = routeDeps as MembersRouteDeps;
@@ -24,11 +30,28 @@ export const registerAdminMemberListRoute: RouteRegistrar = (app, routeDeps) => 
       return;
     }
 
-    const afterId = typeof req.query.afterId === "string" ? req.query.afterId : undefined;
-    const rawLimit = typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
-    const limit = rawLimit !== undefined && Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : undefined;
-
     try {
+      const principal = getAuthedPrincipal(res);
+
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "member.manage",
+        workspaceId: deps.workspaceId,
+        entityType: "member",
+      });
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'member.manage' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "member.manage", reason: authResult.reason },
+        });
+        return;
+      }
+
+      const afterId = typeof req.query.afterId === "string" ? req.query.afterId : undefined;
+      const rawLimit = typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
+      const limit = rawLimit !== undefined && Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : undefined;
+
       const members: MemberRecord[] = await deps.memberRepo.list({
         workspaceId: deps.workspaceId,
         afterId,

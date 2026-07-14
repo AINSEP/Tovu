@@ -23,9 +23,13 @@
  */
 import type { ClockPort, IdGeneratorPort, ISODateTime, UUID } from "../core/ports";
 import type { MailerPort } from "../mail";
+import type { OriginRegistryPort } from "../origin";
 import type {
+  ConsentPurpose,
   MagicLinkTokenRecord,
   MemberAccessDecision,
+  MemberConsentRecord,
+  MemberConsentRevisionRecord,
   MemberContentAccess,
   MemberContext,
   MemberRecord,
@@ -97,6 +101,40 @@ export interface MagicLinkTokenRepoPort {
   consume(required: { workspaceId: UUID; id: UUID; consumedAt: ISODateTime }): Promise<void>;
 }
 
+/**
+ * D1c consent persistence seam (ADR-PIPE-013 Decision §4, C-002). Backs the
+ * `member_consents` value table plus the shared `member_revisions` ledger
+ * (`entity_kind='consent'`) — mirrors `SettingsRepoPort`'s combined
+ * value+revision-ledger shape (`repo.ts`/`repo.sqlite.ts` both implement one
+ * port covering both tables, not two separate ports). Package-private write
+ * access is enforced at `consent-service.ts`'s module boundary, not here — no
+ * other module may import `repo.memory.ts`/`repo.sqlite.ts` directly.
+ */
+export interface MemberConsentRepoPort {
+  findByMemberAndPurpose(required: {
+    workspaceId: UUID;
+    memberId: UUID;
+    purpose: ConsentPurpose;
+  }): Promise<MemberConsentRecord | null>;
+  /** Upsert by `id` (mirrors every other repo port's `save` shape). */
+  save(record: MemberConsentRecord): Promise<void>;
+  /** Append one immutable ledger row; returns the assigned monotonic `seq`. */
+  appendRevision(record: Omit<MemberConsentRevisionRecord, "seq">): Promise<number>;
+  /** Read the ledger, ascending by `seq`. Mainly a test/audit seam — no shipping caller reads this yet. */
+  listRevisions(required: {
+    workspaceId: UUID;
+    memberId: UUID;
+    purpose?: ConsentPurpose;
+  }): Promise<MemberConsentRevisionRecord[]>;
+  /**
+   * Wrap a value write + its same-tx revision append atomically (mirrors
+   * `SettingsRepoPort.transaction`). The in-memory adapter's implementation is
+   * a same-tick passthrough (no real rollback possible/needed); the SQLite
+   * adapter uses a real `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK`.
+   */
+  transaction<T>(fn: () => Promise<T>): Promise<T>;
+}
+
 /* -------------------------------------------------------------------------- */
 /* MailerPort — imported from the shared `mail` core primitive (ADR-037).     */
 /* Members' `send(email)` simplicity survives as SDK sugar (`mail.sendSimple`)*/
@@ -157,6 +195,16 @@ export interface MembersWriteServiceDeps {
   sessions: MemberSessionRepoPort;
   magicLinks: MagicLinkTokenRepoPort;
   mailer: MailerPort;
+  /**
+   * ADR-040 canonical-origin registry (ADR-PIPE-013 Decision §3) — optional:
+   * no composition root in this repo wires a real `OriginRegistryPort`
+   * instance into `members` yet. `requestSignInLink` treats an absent
+   * `origin` exactly like `OriginNotVerifiedError` (relative-link fallback,
+   * no warning log — an unwired dependency isn't an operator
+   * misconfiguration). When present, a workspace with a verified origin gets
+   * an absolute magic-link URL instead of today's relative path.
+   */
+  origin?: OriginRegistryPort;
 }
 
 export interface MembersWriteService {

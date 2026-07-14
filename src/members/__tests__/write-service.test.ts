@@ -4,6 +4,7 @@ import test from "node:test";
 
 import type { MailerCapabilities, MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "../../mail";
 import type { ClockPort, IdGeneratorPort } from "../../core/ports";
+import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "../../origin";
 import {
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberRepo,
@@ -86,6 +87,18 @@ function makeDeps(overrides: Partial<MembersWriteServiceDeps> = {}) {
   };
 
   return { deps, clock, sent };
+}
+
+/** Fake `OriginRegistryPort` — only `canonicalOrigin` matters for these tests. */
+function makeOriginRegistry(overrides: Partial<OriginRegistryPort> = {}): OriginRegistryPort {
+  return {
+    canonicalOrigin: async () => {
+      throw new OriginNotVerifiedError("no verified origin registered for this workspace");
+    },
+    isAllowedRedirectTarget: async () => false,
+    isAllowedEgressTarget: async () => false,
+    ...overrides,
+  };
 }
 
 function extractRawToken(linkText: string): string {
@@ -208,6 +221,81 @@ test("requestSignInLink rejects a malformed email", async () => {
     () => requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "not-an-email" } }),
     MemberValidationError
   );
+});
+
+/**
+ * T013/C-007/INV-06 (ADR-PIPE-013 Decision §3) — `requestSignInLink`'s
+ * origin-fallback branch: a workspace with a verified origin gets an
+ * absolute magic-link URL via `OriginRegistryPort.canonicalOrigin`; a
+ * workspace that throws `OriginNotVerifiedError` (or has no `origin` dep
+ * wired at all) falls back to today's relative-path link, and the response
+ * shape (`{delivered:true}`) never varies either way (INV-06 preserved).
+ */
+test("T013: requestSignInLink builds an absolute link when the workspace has a verified origin", async () => {
+  const verified: VerifiedOrigin = {
+    scheme: "https",
+    host: "members.example.com",
+    verifiedAt: "2026-07-01T00:00:00.000Z",
+    source: "workspace-setting",
+  };
+  const { deps, sent } = makeDeps({ origin: makeOriginRegistry({ canonicalOrigin: async () => verified }) });
+
+  const result = await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "verified@example.com" } });
+
+  assert.deepEqual(result, { delivered: true });
+  assert.equal(sent.length, 1);
+  assert.match(
+    sent[0].message.text!,
+    /Sign in using this link \(expires in 15 minutes\): https:\/\/members\.example\.com\/auth\/magic\?token=/
+  );
+});
+
+test("T013: requestSignInLink falls back to a relative link when OriginNotVerifiedError is thrown, and still returns {delivered:true}", async () => {
+  const { deps, sent } = makeDeps({ origin: makeOriginRegistry() }); // default fake always throws OriginNotVerifiedError
+
+  const result = await requestSignInLink({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, email: "unverified@example.com" },
+  });
+
+  assert.deepEqual(result, { delivered: true });
+  assert.equal(sent.length, 1);
+  assert.match(sent[0].message.text!, /Sign in using this link \(expires in 15 minutes\): \/auth\/magic\?token=/);
+});
+
+test("T013: requestSignInLink with no origin dep wired at all behaves exactly like today (relative link, no error)", async () => {
+  const { deps, sent } = makeDeps(); // no `origin` override — field absent entirely
+
+  const result = await requestSignInLink({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, email: "no-origin-wired@example.com" },
+  });
+
+  assert.deepEqual(result, { delivered: true });
+  assert.match(sent[0].message.text!, /Sign in using this link \(expires in 15 minutes\): \/auth\/magic\?token=/);
+});
+
+test("T013: the origin-fallback path logs one warning-level line carrying workspaceId only — never the email or the raw token", async () => {
+  const { deps, sent } = makeDeps({ origin: makeOriginRegistry() });
+  const originalWarn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
+
+  try {
+    await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "secret@example.com" } });
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  assert.equal(warnings.length, 1, "exactly one warning-level log line for the fallback");
+  const loggedText = warnings[0].map(String).join(" ");
+  assert.ok(loggedText.includes(WORKSPACE_ID), "must carry the workspaceId");
+  assert.ok(!loggedText.includes("secret@example.com"), "must never carry the recipient email");
+
+  const rawToken = extractRawToken(sent[0].message.text!);
+  assert.ok(!loggedText.includes(rawToken), "must never carry the raw token");
 });
 
 test("disableMember is disable-only (idempotent, never hard-deleted) and revokes live sessions", async () => {
