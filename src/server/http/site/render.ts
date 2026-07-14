@@ -71,6 +71,19 @@ function safeHref(value: JsonValue | undefined): string {
   return "#";
 }
 
+/**
+ * Sanitize a content `image` src the same way `safeHref` sanitizes a link href: only
+ * same-origin relative (`/…`) and `http(s)://` targets are allowed. `javascript:`/`data:`/
+ * anything else collapses to a transparent 1x1 placeholder rather than rendering unsafely.
+ */
+function safeImageSrc(value: JsonValue | undefined): string {
+  if (typeof value !== "string") return "";
+  const src = value.trim();
+  if (src.startsWith("/")) return src;
+  if (/^https?:\/\//i.test(src)) return src;
+  return "";
+}
+
 function renderMarks(text: string, marks: JsonValue[] | undefined): string {
   let html = escapeHtml(text);
   for (const mark of marks ?? []) {
@@ -119,6 +132,16 @@ export function renderDocNode(node: JsonValue): string {
       return `<li>${renderNodes(content)}</li>`;
     case "blockquote":
       return `<blockquote>${renderNodes(content)}</blockquote>`;
+    case "image": {
+      const attrs = isObject(node.attrs) ? node.attrs : {};
+      const src = safeImageSrc(attrs.src);
+      if (!src) return "";
+      const alt = typeof attrs.alt === "string" ? attrs.alt : "";
+      const title = typeof attrs.title === "string" ? attrs.title : undefined;
+      return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"${
+        title ? ` title="${escapeHtml(title)}"` : ""
+      }/>`;
+    }
     case "codeBlock":
       return `<pre><code>${renderNodes(content)}</code></pre>`;
     case "horizontalRule":
