@@ -83,7 +83,7 @@ export const NAV: NavGroup[] = [
       {
         id: "forms",
         label: "Forms",
-        soon: true,
+        href: "#/forms",
         icon: '<rect x="3" y="2" width="12" height="14" rx="1.5"/><path d="M6 6h6M6 9h6M6 12h3"/>',
       },
     ],
@@ -170,7 +170,7 @@ export const NAV: NavGroup[] = [
       {
         id: "seo",
         label: "SEO & Metadata",
-        soon: true,
+        href: "#/section/seo",
         icon: '<circle cx="8" cy="8" r="5.5"/><path d="M12 12l3.5 3.5"/>',
       },
       {

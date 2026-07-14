@@ -1,6 +1,6 @@
-import type { ClockPort, UUID } from "../ports";
+import type { ClockPort, OutboxPort, UUID } from "../ports";
 import { updatePost, type PostRepoPort, type PostStatus } from "../../features/post";
-import type { PresentationSettingsRepoPort } from "../../features/presentation";
+import type { SettingsRepoPort } from "../../features/settings/ports";
 import type { ChangeSetItemRecord } from "./change-set";
 
 /**
@@ -13,14 +13,21 @@ import type { ChangeSetItemRecord } from "./change-set";
  * branching — new revertible entity types register here.
  *
  * v1 scope: `post/update` is registered. `presentation-settings/update` lands
- * once the presentation `version` field exists (REQ-05 / RT-006).
+ * once the presentation `version` field exists (REQ-05 / RT-006) — that future
+ * reverter will read the pre-edit value via `getEffective('core.presentation.
+ * activeThemeId', …)` against `settingsRepo` below, not the retired
+ * `PresentationSettingsRepoPort` (SPEC-007 REQ-08; ADR-PIPE-007 Migration
+ * Safety). This field is unused until that reverter exists — it is re-pointed
+ * now purely so nothing in this file depends on the retiring port.
  */
 
 /** Adapters an entity reverter may need to read/restore its entity. */
 export interface ReverterDeps {
   postRepo: PostRepoPort;
-  presentationRepo: PresentationSettingsRepoPort;
+  settingsRepo: SettingsRepoPort;
   clock: ClockPort;
+  /** SPEC-008 (ADR-PIPE-008 Decision §5) — `updatePost` now requires an `outbox` in its own deps. */
+  outbox: OutboxPort;
 }
 
 /** Restore + version-read behavior for one `(entityType, operation)`. */
@@ -71,7 +78,7 @@ export const postUpdateReverter: EntityReverter = {
     }
     // updatePost bumps version by 1 and refreshes updatedAt — INV-04 (never restore the old number).
     await updatePost({
-      deps: { repo: deps.postRepo, clock: deps.clock },
+      deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox },
       input: {
         workspaceId,
         id: item.entityId,

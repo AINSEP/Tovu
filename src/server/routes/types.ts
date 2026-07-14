@@ -16,6 +16,7 @@ import type {
 } from "../../identity";
 import type { PostRepoPort } from "../../features/post";
 import type { PresentationSettingsRepoPort } from "../../features/presentation";
+import type { SettingsRepoPort } from "../../features/settings/ports";
 import type { DiscoveredTheme } from "../../features/theme";
 import type { WorkspaceRepoPort } from "../../features/workspace";
 import type { LocalBufferSink } from "../../analytics/repo.memory";
@@ -39,12 +40,39 @@ import type {
   MediaRepoPort,
   TransformDefinitionRepoPort,
 } from "../../media";
+import type { OriginRegistryPort } from "../../origin";
+import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../redirects";
+import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../forms/ports";
+import type { RateLimiter } from "../middleware/rate-limit";
 
 export interface RouteDeps {
   workspaceId: UUID;
   workspaceRepo: WorkspaceRepoPort;
   postRepo: PostRepoPort;
   presentationRepo: PresentationSettingsRepoPort;
+  /**
+   * SPEC-007 — the settings ledger's repo port. `core.commands.appliers`
+   * (via `revert.ts`) reads through this now instead of
+   * `PresentationSettingsRepoPort` (ADR-PIPE-007 Migration Safety); the
+   * admin `settings.*` routes (Phase 5, not yet wired) will consume it too.
+   */
+  settingsRepo: SettingsRepoPort;
+  /**
+   * Resolves once the one-time `migrateLegacyPresentationSettings()` boot
+   * migration (SPEC-007 REQ-08) completes. Mirrors `identityReady`'s
+   * fire-and-forget pattern (`identity/wiring.ts`): the composition roots
+   * stay synchronous, and any settings-reading route/consumer should await
+   * this before treating `settingsRepo` reads as post-migration-complete.
+   */
+  settingsReady: Promise<void>;
+  /**
+   * SPEC-008 (ADR-PIPE-008 Decision §3, T012) — resolves once the one-time
+   * `ensureSeoSettingDefinitions()` boot call registers the 7 `site.seo.*`
+   * setting definitions. Mirrors `settingsReady`'s exact shape/convention;
+   * the admin `seo` settings routes (`get-settings.ts`/`put-settings.ts`)
+   * await this first, same as `settings/get-effective.ts` awaits `settingsReady`.
+   */
+  seoReady: Promise<void>;
   /** Change-set store for the command gateway (in-memory in v1, ADR-008/018). */
   changeSets: ChangeSetRepoPort;
   /** Themes discovered at boot (built-in + site themes/ dir), SPEC-004 spike. */
@@ -134,6 +162,33 @@ export interface RouteDeps {
    * see `AuthorizeFn`'s doc in `core/commands/command.ts`).
    */
   authorize: AuthorizeFn;
+  /**
+   * `forms` library ports (SPEC-010, ADR-PIPE-010 — mirrors the existing
+   * `webhookSubscriptionRepo`/`webhookDeliveryRepo` field-addition precedent). `formsRateLimiter`
+   * is a single, process-lifetime `createRateLimiter(FORMS_SUBMIT_PROFILE, clock)` instance (not
+   * constructed per-request) so its fixed-window counters persist across requests.
+   */
+  formDefinitionRepo: FormDefinitionRepoPort;
+  formSubmissionRepo: FormSubmissionRepoPort;
+  formsRateLimiter: RateLimiter;
+  /**
+   * SPEC-009 / ADR-PIPE-009 — `redirects` + first-time `origin` composition-
+   * root wiring. `redirectRepo`/`redirectHitSink` back the admin HTTP surface
+   * (Phase 2) and the `phase-handler.ts` read path; `originRegistry` is the
+   * single open-redirect/canonical-origin oracle (ADR-040), wired into the
+   * composition root for the first time by this feature — no other library
+   * had a real consumer for it before now. `redirectsWriteDeps` bundles the
+   * write chokepoint's full dependency set (repo/db/transaction/matcher/
+   * originRegistry/clock/idGen/outbox) — a single pre-built object rather
+   * than exposing the package-private `RedirectDbHandle`/transaction-wrapper
+   * types on this shared file (INV-07's chokepoint boundary stays {
+   * `redirects.ts`, `capture.ts`, `ports.internal.ts` } — routes only ever
+   * see the already-composed `RedirectsWriteDeps`, never the raw db handle).
+   */
+  redirectRepo: RedirectRepoPort;
+  redirectHitSink: RedirectHitSink;
+  originRegistry: OriginRegistryPort;
+  redirectsWriteDeps: RedirectsWriteDeps;
   /** SPIKE: seam for the sample Tier-3 store plugin (data lives in plugin-owned `p_store__*`
    * tables). Optional — only the SQLite runtime wires it (see `index.ts`). */
   store?: {

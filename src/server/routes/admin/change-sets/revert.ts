@@ -53,8 +53,9 @@ export const registerAdminChangeSetRevertRoute: RouteRegistrar = (app, deps) => 
           registry,
           reverterDeps: {
             postRepo: deps.postRepo,
-            presentationRepo: deps.presentationRepo,
+            settingsRepo: deps.settingsRepo,
             clock: deps.clock,
+            outbox: deps.outbox,
           },
           clock: deps.clock,
           idGen: deps.idGen,

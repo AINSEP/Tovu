@@ -1,6 +1,11 @@
 import type { JsonObject } from "../core/ports";
 import type { PostRecord } from "../features/post";
 import type { PresentationSettingsRecord } from "../features/presentation";
+import {
+  migrateLegacyPresentationSettings,
+  type MigrateLegacyPresentationSettingsDeps,
+  type MigrateLegacyPresentationSettingsResult,
+} from "../features/settings/migration";
 import type { WorkspaceRecord } from "../features/workspace";
 
 /**
@@ -13,6 +18,13 @@ import type { WorkspaceRecord } from "../features/workspace";
  * - The in-memory route deps seed these into their constructors (dev/tests).
  * - The SQLite content.db seeds these once, only when the store is empty
  *   (`infra/sqlite/content-db.ts` → `seedContentDb`).
+ * - `seedSettingsFromPresentation` (below) is this module's boot-time entry
+ *   point for the SPEC-007 REQ-08 legacy-presentation → settings-ledger
+ *   migration (ADR-PIPE-007 Migration Safety): both composition roots
+ *   (`server/app.ts`, `server/deps.ts`) call it right after constructing
+ *   their `presentationRepo`/`settingsRepo` pair, mirroring how this file is
+ *   already "the one source of truth" for workspace/post/presentation seed
+ *   data — it is now also the one call site for kicking off that migration.
  *
  * Architectural role:
  * Keeps seed data out of both the composition root and the storage adapters so
@@ -239,3 +251,26 @@ export const seededPresentation: PresentationSettingsRecord = {
   activeThemeId: "tovu-official",
   updatedAt: "2026-04-06T00:00:00.000Z",
 };
+
+/**
+ * The trusted boot-time actor `seedSettingsFromPresentation`'s writes are
+ * attributed to (mirrors `identity/seed.ts`'s well-known `system` principal
+ * convention — kept here rather than importing from `identity` so `settings`
+ * doesn't need a real, resolved identity principal row to run this migration
+ * before `identity`'s own async seed completes).
+ */
+export const SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID = "system-settings-migration";
+
+/**
+ * SPEC-007 REQ-08 boot entry point (ADR-PIPE-007 Migration Safety): a thin
+ * pass-through to `migrateLegacyPresentationSettings`, kept here (rather than
+ * called directly by each composition root) so this module stays the single
+ * place both composition roots' seed-time behavior is defined. Idempotent —
+ * safe to call on every boot (W-003); fire-and-forget from the caller (see
+ * `RouteDeps.settingsReady`).
+ */
+export function seedSettingsFromPresentation(
+  deps: MigrateLegacyPresentationSettingsDeps
+): Promise<MigrateLegacyPresentationSettingsResult> {
+  return migrateLegacyPresentationSettings(deps);
+}
