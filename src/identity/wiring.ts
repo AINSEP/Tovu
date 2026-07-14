@@ -2,6 +2,7 @@ import type { AuthorizeFn } from "../core/commands";
 import type { ClockPort, IdGeneratorPort, UUID } from "../core/ports";
 import { authorize as authorizeCore } from "./authorize";
 import { Argon2PasswordHasher } from "./hasher";
+import { migrateDeprecatedPermissionGrants } from "./permission-migrations";
 import type { IdentityRepos, PasswordHasherPort } from "./ports";
 import {
   InMemoryPolicyPermissionRepo,
@@ -83,7 +84,21 @@ export function createInMemoryIdentityRouteDeps(required: {
   const identityReady = seedIdentity({
     deps: { repos, hasher: passwordHasher, clock: required.clock, idGen: required.idGen },
     input: { workspaceId: required.workspaceId },
-  }).then(() => undefined);
+  })
+    .then(() =>
+      // ADR-PIPE-012 T013/T014: every registered {from, to} permission-migration pair (currently
+      // navigation.manage -> admin.menus.* and integration.manage -> admin.integrations.manage)
+      // fans out to any pre-existing policy still holding the deprecated string. Additive-only
+      // and idempotent (permission-migrations.ts) — safe to run on every boot, no-ops once every
+      // policy already holds the new string(s).
+      migrateDeprecatedPermissionGrants({
+        policyPermissions: repos.policyPermissions,
+        policies: repos.policies,
+        idGen: required.idGen,
+        workspaceId: required.workspaceId,
+      })
+    )
+    .then(() => undefined);
 
   const authorize: AuthorizeFn = (params) =>
     authorizeCore({

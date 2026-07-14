@@ -47,11 +47,11 @@ const BUILTIN_ADMIN_PERMISSIONS: readonly string[] = [
   // workspace gets the 6 new admin.menus.* CRUD strings directly, so it never depends on
   // migrateDeprecatedPermissionGrants() for its own built-in role grants. The now-legacy
   // "navigation.manage" is deliberately dropped from THIS seed list only — the string itself
-  // stays registered (deprecated) in identity/permissions.ts. NOTE: migrateDeprecatedPermissionGrants()
-  // is built and fully tested (permission-migrations.ts) but NOT YET wired into this function's
-  // boot path below — that wiring is gated on a real `/audit-work` pass over ADR-PIPE-012
-  // (security-adjacent, reused by up to 3 sibling remediations) and is deliberately left
-  // uncalled in this pass. See ADR-PIPE-012 tasks.md T002/T013.
+  // stays registered (deprecated) in identity/permissions.ts. migrateDeprecatedPermissionGrants()
+  // now IS wired into live boot (identity/wiring.ts, chained right after seedIdentity resolves)
+  // so any pre-existing policy still holding navigation.manage/integration.manage also gains
+  // the new string(s) — this fresh-seed list just doesn't need to depend on that fan-out for its
+  // own built-in role grants. See ADR-PIPE-012 tasks.md T013/T014.
   "admin.menus.read",
   "admin.menus.create",
   "admin.menus.update",
