@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Image from "@tiptap/extension-image";
 import { api, type AdminPost } from "../lib/api";
 
 /** Formatting toolbar wired to the live editor. Active state stays in sync via useEditorState. */
@@ -50,6 +51,20 @@ function Toolbar({ editor }: { editor: Editor }) {
         <button className="tb-btn" title="Undo (⌘Z)" disabled={!s.canUndo} onClick={() => chain().undo().run()}>↺</button>
         <button className="tb-btn" title="Redo (⌘⇧Z)" disabled={!s.canRedo} onClick={() => chain().redo().run()}>↻</button>
       </div>
+      <div className="grp">
+        <button
+          className="tb-btn"
+          title="Insert image by URL"
+          onClick={() => {
+            const src = window.prompt("Image URL:");
+            if (!src) return;
+            const alt = window.prompt("Alt text (optional):") ?? "";
+            chain().setImage({ src, alt: alt || undefined }).run();
+          }}
+        >
+          Img
+        </button>
+      </div>
     </div>
   );
 }
@@ -62,7 +77,7 @@ export function PostEditor(props: { postId: string }) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const editor = useEditor({ extensions: [StarterKit], content: "" });
+  const editor = useEditor({ extensions: [StarterKit, Image], content: "" });
 
   useEffect(() => {
     setPost(null);

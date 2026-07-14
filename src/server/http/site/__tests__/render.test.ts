@@ -50,3 +50,29 @@ test("C7: link composes with an emphasis mark on the same text", () => {
   );
   assert.equal(html, '<p><a href="/x"><strong>here</strong></a></p>');
 });
+
+test("an image node renders an <img> tag with its src/alt/title, escaped", () => {
+  const html = renderDocNode({
+    type: "doc",
+    content: [{ type: "image", attrs: { src: "https://example.com/a.png", alt: "<x>", title: "cap" } }],
+  });
+  assert.equal(html, '<img src="https://example.com/a.png" alt="&lt;x&gt;" title="cap"/>');
+});
+
+test("an image node with only a src renders without a title attribute", () => {
+  const html = renderDocNode({
+    type: "doc",
+    content: [{ type: "image", attrs: { src: "/local.png" } }],
+  });
+  assert.equal(html, '<img src="/local.png" alt=""/>');
+});
+
+test("an image node with a javascript:/data:/non-string src renders nothing (no script smuggling)", () => {
+  for (const src of ["javascript:alert(1)", "data:text/html,<script>", 42, null, undefined]) {
+    const html = renderDocNode({
+      type: "doc",
+      content: [{ type: "image", attrs: { src } as never }],
+    });
+    assert.equal(html, "");
+  }
+});
