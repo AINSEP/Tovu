@@ -334,7 +334,8 @@ test("integrations routes: deliveries endpoint returns the log newest-first and 
 /**
  * Registers a principal with a login but no role/policy grants at all — `authorize()` returns
  * `no_grant` for any permission it's checked against (mirrors `identity-routes.test.ts`'s viewer
- * construction, minus the role assignment). Used to prove the denied side of `integration.manage`.
+ * construction, minus the role assignment). Used to prove the denied side of
+ * `admin.integrations.manage`.
  */
 async function loginAsBarePrincipal(
   deps: ReturnType<typeof buildTestApp>["deps"],
@@ -366,7 +367,7 @@ async function loginAsBarePrincipal(
   return login.headers.get("set-cookie")?.split(";")[0] ?? "";
 }
 
-test("integrations routes: SPEC-006 REQ-05 — a principal without integration.manage is denied 403 on every route, and a grant restores access", async (t) => {
+test("integrations routes: SPEC-006 REQ-05 — a principal without admin.integrations.manage is denied 403 on every route, and a grant restores access", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
   const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -380,7 +381,7 @@ test("integrations routes: SPEC-006 REQ-05 — a principal without integration.m
     details: { permission: string; reason: string };
   };
   assert.equal(listDeniedBody.code, "FORBIDDEN");
-  assert.equal(listDeniedBody.details.permission, "integration.manage");
+  assert.equal(listDeniedBody.details.permission, "admin.integrations.manage");
   assert.equal(listDeniedBody.details.reason, "no_grant");
 
   const createDenied = await fetch(

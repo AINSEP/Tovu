@@ -15,7 +15,7 @@ const LAST_DELIVERY_LOOKUP_LIMIT = 50;
  * GET all webhook subscriptions for the workspace, each annotated with its most recent delivery
  * (list screen: label, target URL, status, last delivery).
  *
- * Gated by `integration.manage`, same reasoning as `deliveries.ts` (no split `.read` permission
+ * Gated by `admin.integrations.manage`, same reasoning as `deliveries.ts` (no split `.read` permission
  * exists for this domain).
  */
 export const registerAdminIntegrationsListRoute: IntegrationsRouteRegistrar = (app, deps) => {
@@ -29,15 +29,15 @@ export const registerAdminIntegrationsListRoute: IntegrationsRouteRegistrar = (a
       const principal = getAuthedPrincipal(res);
       const authResult = await deps.authorize({
         principalId: principal.id,
-        permission: "integration.manage",
+        permission: "admin.integrations.manage",
         workspaceId: deps.workspaceId,
         entityType: "webhook_subscription",
       });
       if (!authResult.allowed) {
         res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'integration.manage' (${authResult.reason})`,
+          error: `principal '${principal.id}' is not authorized for 'admin.integrations.manage' (${authResult.reason})`,
           code: "FORBIDDEN",
-          details: { permission: "integration.manage", reason: authResult.reason },
+          details: { permission: "admin.integrations.manage", reason: authResult.reason },
         });
         return;
       }

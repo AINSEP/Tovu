@@ -18,7 +18,7 @@ function resolvePageSize(rawLimit: unknown): number {
  * GET the delivery log for one subscription (status, attempts, last response, timestamp),
  * newest-first.
  *
- * Gated by `integration.manage` — no dedicated read permission exists for the `integrations`
+ * Gated by `admin.integrations.manage` — no dedicated read permission exists for the `integrations`
  * domain (no other route in this pass split it into `.read`/`.manage`), so the same single
  * permission that gates subscription mutations also gates this read, mirroring `member.manage`'s
  * coverage of its whole domain.
@@ -38,16 +38,16 @@ export const registerAdminIntegrationsDeliveriesRoute: IntegrationsRouteRegistra
         const principal = getAuthedPrincipal(res);
         const authResult = await deps.authorize({
           principalId: principal.id,
-          permission: "integration.manage",
+          permission: "admin.integrations.manage",
           workspaceId: deps.workspaceId,
           entityType: "webhook_subscription",
           entityId: subscriptionId,
         });
         if (!authResult.allowed) {
           res.status(403).json({
-            error: `principal '${principal.id}' is not authorized for 'integration.manage' (${authResult.reason})`,
+            error: `principal '${principal.id}' is not authorized for 'admin.integrations.manage' (${authResult.reason})`,
             code: "FORBIDDEN",
-            details: { permission: "integration.manage", reason: authResult.reason },
+            details: { permission: "admin.integrations.manage", reason: authResult.reason },
           });
           return;
         }
