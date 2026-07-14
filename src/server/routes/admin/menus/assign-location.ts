@@ -9,7 +9,8 @@ import { getAuthedPrincipal } from "../../../middleware/dev-auth";
  * that menu is displaced (its `locations` field loses the key) and the
  * response includes it as `displacedMenu` so the UI can show what changed.
  *
- * Gated by `navigation.manage`, checked directly via `authorize()` (same pattern as `create.ts`).
+ * Gated by `admin.menus.assign` (ADR-PIPE-012 D-1/D-2/D-9 — renamed/split from the old flat
+ * navigation permission), checked directly via `authorize()` (same pattern as `create.ts`).
  */
 export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/menus/:menuId/locations", async (req, res) => {
@@ -30,16 +31,16 @@ export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = (app, de
       const principal = getAuthedPrincipal(res);
       const authResult = await deps.authorize({
         principalId: principal.id,
-        permission: "navigation.manage",
+        permission: "admin.menus.assign",
         workspaceId: deps.workspaceId,
         entityType: "menu",
         entityId: menuId,
       });
       if (!authResult.allowed) {
         res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'navigation.manage' (${authResult.reason})`,
+          error: `principal '${principal.id}' is not authorized for 'admin.menus.assign' (${authResult.reason})`,
           code: "FORBIDDEN",
-          details: { permission: "navigation.manage", reason: authResult.reason },
+          details: { permission: "admin.menus.assign", reason: authResult.reason },
         });
         return;
       }
@@ -49,6 +50,8 @@ export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = (app, de
           repo: deps.menuRepo,
           bindingRepo: deps.navLocationBindingRepo,
           clock: deps.clock,
+          idGen: deps.idGen,
+          outbox: deps.outbox,
         },
         input: {
           workspaceId: deps.workspaceId,

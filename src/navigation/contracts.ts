@@ -22,20 +22,26 @@ import type {
 // ---------------------------------------------------------------------------
 
 /**
- * The `navigation.*` permission strings, validated against the ADR-021 code-side
- * catalog and enforced by the gateway `authorize()` call before every mutation.
- * `assign` is split from `update` because changing where a menu appears on the
- * live site is higher-trust than editing an item label (mirrors ADR-027's
- * `media.delete.force` / `media.upload_svg` splits).
+ * The `admin.menus.*` permission strings (ADR-PIPE-012 D-1/D-2/D-9 — renamed
+ * from the flat `navigation.manage` to the frozen `admin.<section>.<action>`
+ * convention, and split by action so force-purge no longer shares a
+ * permission with ordinary edits). `assign` is split from `update` because
+ * changing where a menu appears on the live site is higher-trust than
+ * editing an item label (mirrors ADR-027's `media.delete.force` /
+ * `media.upload_svg` splits); `delete.force` is split from `delete` for the
+ * same reason (ADR-PIPE-012 Decision). The legacy `navigation.manage` string
+ * stays registered (deprecated, not deleted) in `identity/permissions.ts`
+ * until the Point of No Return (ADR-PIPE-012 Migration Safety) — it is not
+ * part of this catalog.
  */
 export const NAVIGATION_PERMISSIONS = [
-  "navigation.read",
-  "navigation.create",
-  "navigation.update",
-  "navigation.delete",
-  "navigation.delete.force",
-  "navigation.assign",
-  "navigation.manage",
+  "admin.menus.read",
+  "admin.menus.create",
+  "admin.menus.update",
+  "admin.menus.delete",
+  "admin.menus.delete.force",
+  "admin.menus.assign",
+  "admin.menus.manage",
 ] as const;
 
 export type NavigationPermission = (typeof NAVIGATION_PERMISSIONS)[number];

@@ -63,8 +63,7 @@ index, and the resolved render model themes consume.
 ## Future direction
 
 - Swap `InMemoryMenuRepo` for an entries-backed adapter once the ADR-022
-  generic entries system exists as reusable code; add the SQLite
-  `NavLocationBindingRepoPort` adapter (ADR-015 core migration engine).
+  generic entries system exists as reusable code.
 - Wire `resolver.ts`'s `ResolveTargetHrefFn` to `src/routing`'s real
   `urlFor`/`isActive` once that library's shape is stable (ADR-039).
 - Add the `term_refs` (or extended `entry_refs`) schema once content-lib
@@ -72,3 +71,44 @@ index, and the resolved render model themes consume.
   integrity tracking.
 - Route all mutations through the ADR-008 command gateway once it exists,
   retiring the "call these functions directly" stand-in.
+
+## ADR-PIPE-012 (Menus remediation) additions
+
+- **`repo.sqlite.ts` (NEW)** — `SqliteMenuRepo`/`SqliteNavLocationBindingRepo`,
+  the rule-of-two SQLite adapter for both `MenuRepoPort` and
+  `NavLocationBindingRepoPort` (D-5). Mirrors `SqlitePostRepo`'s
+  `ContentDb`/Drizzle pattern; `doc`/`locations` are JSON-text columns. Certified
+  by the same contract-test suite `InMemoryMenuRepo`/
+  `InMemoryNavLocationBindingRepo` already pass
+  (`__tests__/repo.sqlite.test.ts`), plus a DB-level unique-constraint proof for
+  `nav_location_bindings`' `UNIQUE(workspace_id, location_key)` (INV-02
+  strengthened over the in-memory adapter's single-threaded-only guarantee).
+  Wired into `server/deps.ts`'s SQLite composition root only — `server/app.ts`'s
+  in-memory root is unchanged (the other rule-of-two half).
+- **`reconcile.ts` (NEW)** — `rebuildNavLocationBindings()`, the first real
+  caller of the already-implemented `NavLocationBindingRepoPort
+  .rebuildForWorkspace` (D-8). Reads every menu's `.locations` field and
+  replaces the whole workspace's binding index in one shot; idempotent. Called
+  once at boot from `server/deps.ts`, after the SQLite db opens.
+- **Outbox event publication (D-11)** — `createMenu`/`updateMenuTree`/
+  `assignLocation`/`deleteMenu` each now take an `outbox: OutboxPort` dependency
+  and enqueue their matching `NAVIGATION_EVENTS` entry after their repo write(s)
+  succeed (never on a rejection path): `navigation.menu.created`/`.updated`/
+  `.deleted`, `navigation.location.assigned`/`.unassigned`. `updateMenuTree`/
+  `assignLocation`/`deleteMenu` also gained an `idGen: IdGeneratorPort`
+  dependency (needed to mint the event id) where they didn't already have one.
+- **Permission catalog rename/split (D-1/D-2/D-9)** — `NAVIGATION_PERMISSIONS`
+  (`contracts.ts`) is now the `admin.menus.{read,create,update,delete,
+  delete.force,assign,manage}` 7-entry catalog, replacing the single flat
+  `navigation.manage` (still registered, deprecated, in
+  `identity/permissions.ts`, resolvable until a future Point of No Return). All
+  six admin route files check the action-specific string; `delete.ts` checks
+  both `admin.menus.delete` (always) and `admin.menus.delete.force`
+  (additionally, only when `?force=true`) before any repo call. The shared
+  `registerPermissionMigration()`/`migrateDeprecatedPermissionGrants()`
+  mechanism (`src/identity/permission-migrations.ts`) exists to fan out any
+  pre-existing `navigation.manage` grant to the six new strings, but is **not
+  yet wired into `identity/seed.ts`'s live boot path** — gated on a real
+  `/audit-work` pass (security-adjacent, reused by up to three sibling
+  remediations). See that module's own file header and `identity/seed.ts`'s
+  doc comment.

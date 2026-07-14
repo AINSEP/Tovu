@@ -22,7 +22,7 @@
  * Feature logic only. No Express/route code, no direct SQL — everything goes
  * through the injected repo ports (`deps`).
  */
-import type { ClockPort, IdGeneratorPort, UUID } from "../core/ports";
+import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort, UUID } from "../core/ports";
 import type { MenuRepoPort } from "./repo.memory";
 import type { NavLocationBindingRepoPort } from "./ports";
 import {
@@ -35,6 +35,39 @@ import {
   type NavTarget,
   type NavUrlTarget,
 } from "./types";
+
+// ---------------------------------------------------------------------------
+// Outbox event publication (ADR-PIPE-012 D-11) — each mutating function below
+// enqueues its matching NAVIGATION_EVENTS entry after its repo write(s)
+// succeed, never on a rejection path. Mirrors `features/workspace/create.ts`'s
+// already-proven `outbox.enqueue()` call shape.
+// ---------------------------------------------------------------------------
+
+/**
+ * `payload` is typed as a plain `Record<string, unknown>` (not the specific
+ * `NavMenuChangedPayload`/`NavLocationChangedPayload` shape) so the result
+ * assigns directly to `OutboxPort.enqueue`'s `DomainEvent` parameter (whose
+ * default payload type is `Record<string, unknown>`) without a cast — every
+ * call site below still passes a fresh object literal matching one of those
+ * two contract shapes exactly (`contracts.ts`), just not nominally typed here.
+ */
+function buildEvent(required: {
+  idGen: IdGeneratorPort;
+  clock: ClockPort;
+  name: string;
+  workspaceId: UUID;
+  aggregateId: UUID;
+  payload: Record<string, unknown>;
+}): DomainEvent {
+  return {
+    id: required.idGen.newId(),
+    name: required.name,
+    occurredAt: required.clock.nowIso(),
+    aggregateId: required.aggregateId,
+    workspaceId: required.workspaceId,
+    payload: required.payload,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Typed errors
@@ -166,6 +199,8 @@ export interface CreateMenuDeps {
   repo: MenuRepoPort;
   clock: ClockPort;
   idGen: IdGeneratorPort;
+  /** ADR-PIPE-012 D-11: enqueues `navigation.menu.created` after a successful save. */
+  outbox: OutboxPort;
 }
 
 export interface CreateMenuServiceInput {
@@ -220,6 +255,18 @@ export async function createMenu(
   };
 
   await deps.repo.save(menu);
+
+  await deps.outbox.enqueue(
+    buildEvent({
+      idGen: deps.idGen,
+      clock: deps.clock,
+      name: "navigation.menu.created",
+      workspaceId: menu.workspaceId,
+      aggregateId: menu.id,
+      payload: { menuId: menu.id, slug: menu.slug },
+    })
+  );
+
   return { menu };
 }
 
@@ -230,6 +277,10 @@ export async function createMenu(
 export interface UpdateMenuTreeDeps {
   repo: MenuRepoPort;
   clock: ClockPort;
+  /** ADR-PIPE-012 D-11: not previously present on this deps bag — needed to mint the outbox event's id. */
+  idGen: IdGeneratorPort;
+  /** ADR-PIPE-012 D-11: enqueues `navigation.menu.updated` after a successful save. */
+  outbox: OutboxPort;
 }
 
 export interface UpdateMenuTreeServiceInput {
@@ -309,6 +360,18 @@ export async function updateMenuTree(
   };
 
   await deps.repo.save(menu);
+
+  await deps.outbox.enqueue(
+    buildEvent({
+      idGen: deps.idGen,
+      clock: deps.clock,
+      name: "navigation.menu.updated",
+      workspaceId: menu.workspaceId,
+      aggregateId: menu.id,
+      payload: { menuId: menu.id, slug: menu.slug },
+    })
+  );
+
   return { menu };
 }
 
@@ -320,6 +383,10 @@ export interface AssignLocationDeps {
   repo: MenuRepoPort;
   bindingRepo: NavLocationBindingRepoPort;
   clock: ClockPort;
+  /** ADR-PIPE-012 D-11: not previously present on this deps bag — needed to mint outbox event ids. */
+  idGen: IdGeneratorPort;
+  /** ADR-PIPE-012 D-11: enqueues `navigation.location.assigned` (+ `.unassigned` on reassignment). */
+  outbox: OutboxPort;
 }
 
 export interface AssignLocationServiceInput {
@@ -414,6 +481,30 @@ export async function assignLocation(
     boundAt: now,
   });
 
+  if (displacedMenu) {
+    await deps.outbox.enqueue(
+      buildEvent({
+        idGen: deps.idGen,
+        clock: deps.clock,
+        name: "navigation.location.unassigned",
+        workspaceId: input.workspaceId,
+        aggregateId: displacedMenu.id,
+        payload: { locationKey: input.locationKey, menuId: displacedMenu.id },
+      })
+    );
+  }
+
+  await deps.outbox.enqueue(
+    buildEvent({
+      idGen: deps.idGen,
+      clock: deps.clock,
+      name: "navigation.location.assigned",
+      workspaceId: input.workspaceId,
+      aggregateId: input.menuId,
+      payload: { locationKey: input.locationKey, menuId: input.menuId },
+    })
+  );
+
   return { menu: updatedMenu, binding, displacedMenu };
 }
 
@@ -425,6 +516,10 @@ export interface DeleteMenuDeps {
   repo: MenuRepoPort;
   bindingRepo: NavLocationBindingRepoPort;
   clock: ClockPort;
+  /** ADR-PIPE-012 D-11: not previously present on this deps bag — needed to mint outbox event ids. */
+  idGen: IdGeneratorPort;
+  /** ADR-PIPE-012 D-11: enqueues `navigation.menu.updated` (trash) or `navigation.menu.deleted` (purge); nothing on a blocked purge. */
+  outbox: OutboxPort;
 }
 
 export interface DeleteMenuServiceInput {
@@ -474,6 +569,18 @@ export async function deleteMenu(
       version: existing.version + 1,
     };
     await deps.repo.save(trashed);
+
+    await deps.outbox.enqueue(
+      buildEvent({
+        idGen: deps.idGen,
+        clock: deps.clock,
+        name: "navigation.menu.updated",
+        workspaceId: trashed.workspaceId,
+        aggregateId: trashed.id,
+        payload: { menuId: trashed.id, slug: trashed.slug },
+      })
+    );
+
     return { menu: trashed, purged: false };
   }
 
@@ -492,6 +599,17 @@ export async function deleteMenu(
 
   await deps.repo.remove({ workspaceId: input.workspaceId, id: input.id });
   await deps.bindingRepo.removeByMenu({ workspaceId: input.workspaceId, menuId: input.id });
+
+  await deps.outbox.enqueue(
+    buildEvent({
+      idGen: deps.idGen,
+      clock: deps.clock,
+      name: "navigation.menu.deleted",
+      workspaceId: existing.workspaceId,
+      aggregateId: existing.id,
+      payload: { menuId: existing.id, slug: existing.slug },
+    })
+  );
 
   return { menu: null, purged: true };
 }
