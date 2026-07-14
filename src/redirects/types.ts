@@ -166,24 +166,6 @@ export type RedirectResolution =
       matchType: RedirectMatchType;
     };
 
-/**
- * Input to the in-transaction auto-capture called by the content chokepoint when
- * an entry's routable slug/path changes (ADR-033 §5). Runs synchronously in the
- * SAME write transaction as the rename so no request can observe the moved entry
- * without its redirect.
- */
-export interface SlugChangeCapture {
-  workspaceId: UUID;
-  entryId: UUID;
-  /** Old routable path (source of the new redirect). */
-  fromPath: string;
-  /** New routable path (target). */
-  toPath: string;
-  /** The principal performing the content edit (attributed onto the auto rule). */
-  actorId: UUID;
-  pluginId?: string;
-}
-
 /** Create-rule command envelope (mirrors the features/* Required/Deps/Input idiom). */
 export interface CreateRedirectInput {
   workspaceId: UUID;
@@ -226,3 +208,11 @@ export class RedirectValidationError extends Error {}
 export class RedirectConflictError extends Error {}
 /** Raised when a create/update would introduce a cycle that cannot be collapsed. */
 export class RedirectLoopError extends Error {}
+/**
+ * Raised by the write chokepoint (`redirects.ts`) when an absolute/off-site
+ * `toTarget` fails `OriginRegistryPort.isAllowedRedirectTarget` (REQ-08,
+ * errors.spec.md `REDIRECT_TARGET_NOT_ALLOWED`). The read-path oracle
+ * rejection (`phase-handler.ts`, REQ-09/10) never raises this — it resolves
+ * to `{ matched: false }` instead (never surfaced as an HTTP error).
+ */
+export class RedirectTargetNotAllowedError extends Error {}

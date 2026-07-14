@@ -6,6 +6,8 @@ export {
   registerResolvePhase,
   registerSlugChangeCapture,
   resolve,
+  runPostContentPhase,
+  runPreContentPhase,
   RouteResolutionError,
   urlFor,
 } from "./routing";
