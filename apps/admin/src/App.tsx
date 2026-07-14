@@ -18,6 +18,7 @@ import { IntegrationDeliveries } from "./sections/IntegrationDeliveries";
 import { Users } from "./sections/Users";
 import { Settings } from "./sections/Settings";
 import { Seo } from "./sections/Seo";
+import { Redirects } from "./sections/Redirects";
 import { FormsList } from "./sections/FormsList";
 import { FormEditor } from "./sections/FormEditor";
 
@@ -136,6 +137,8 @@ export function App() {
           <Appearance />
         ) : route.sectionId === "seo" ? (
           <Seo />
+        ) : route.sectionId === "redirects" ? (
+          <Redirects />
         ) : route.sectionId === "members" ? (
           <Members />
         ) : route.sectionId === "users" ? (

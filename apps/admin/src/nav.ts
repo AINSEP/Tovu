@@ -176,7 +176,7 @@ export const NAV: NavGroup[] = [
       {
         id: "redirects",
         label: "Redirects",
-        soon: true,
+        href: "#/section/redirects",
         icon: '<path d="M3 6h8a3 3 0 010 6H6M3 6l2.5-2.5M3 6l2.5 2.5"/>',
       },
       {
