@@ -1,7 +1,4 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import express from "express";
@@ -11,6 +8,7 @@ import { registerAdminRedirectCreateRoute } from "../../routes/admin/redirects/c
 import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
 import { registerSiteRoutes } from "../../routes/site/pages";
 import type { RouteDeps } from "../../routes/types";
+import { startTestServer, loginAsOwner } from "../helpers/http-test-server";
 
 /**
  * @file Coordinator-authored (2026-07-13), post-session-limit resume. Proves
@@ -37,29 +35,10 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   return { app, deps };
 }
 
-async function boot(app: express.Express, t: import("node:test").TestContext) {
-  const server = createServer(app);
-  server.listen(0);
-  await once(server, "listening");
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
-  const address = server.address() as AddressInfo;
-  return `http://127.0.0.1:${address.port}`;
-}
-
-async function loginCookie(baseUrl: string): Promise<string> {
-  const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ username: "admin", password: "tovu-dev" }),
-  });
-  assert.equal(login.status, 200);
-  return login.headers.get("set-cookie")?.split(";")[0] ?? "";
-}
-
 test("T041/INV-03: a real GET request to a redirect rule's source path is actually redirected by the live site route, not just resolvable in-domain", async (t) => {
   const { app } = buildTestApp();
-  const baseUrl = await boot(app, t);
-  const cookie = await loginCookie(baseUrl);
+  const baseUrl = await startTestServer(app, t);
+  const cookie = await loginAsOwner(baseUrl);
 
   const create = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects`, {
     method: "POST",
@@ -81,7 +60,7 @@ test("T041/INV-03: a real GET request to a redirect rule's source path is actual
 
 test("T041b: a path with no matching redirect rule still 404s through the normal site route (no false-positive redirect)", async (t) => {
   const { app } = buildTestApp();
-  const baseUrl = await boot(app, t);
+  const baseUrl = await startTestServer(app, t);
 
   const visit = await fetch(`${baseUrl}/definitely-not-a-real-page-or-rule`, { redirect: "manual" });
   assert.equal(visit.status, 404);

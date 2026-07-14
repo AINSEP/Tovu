@@ -1,7 +1,4 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import express from "express";
@@ -11,6 +8,7 @@ import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-au
 import { registerAdminSeoGetEntryRoute } from "../../routes/admin/seo/get-entry";
 import { registerAdminSeoPutEntryRoute } from "../../routes/admin/seo/put-entry";
 import type { RouteDeps } from "../../routes/types";
+import { startTestServer, loginAsOwner } from "../helpers/http-test-server";
 
 /**
  * @file Coordinator-authored (2026-07-13), post-session-limit resume. SPEC-008's
@@ -36,28 +34,9 @@ function buildAdminTestApp(): { app: express.Express; deps: RouteDeps } {
   return { app, deps };
 }
 
-async function boot(app: express.Express, t: import("node:test").TestContext) {
-  const server = createServer(app);
-  server.listen(0);
-  await once(server, "listening");
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
-  const address = server.address() as AddressInfo;
-  return `http://127.0.0.1:${address.port}`;
-}
-
-async function loginCookie(baseUrl: string): Promise<string> {
-  const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ username: "admin", password: "tovu-dev" }),
-  });
-  assert.equal(login.status, 200);
-  return login.headers.get("set-cookie")?.split(";")[0] ?? "";
-}
-
 test("T042: GET entry-meta without admin.seo.manage is denied 403", async (t) => {
   const { app, deps } = buildAdminTestApp();
-  const baseUrl = await boot(app, t);
+  const baseUrl = await startTestServer(app, t);
   await deps.seoReady;
   const post = (await deps.postRepo.list({ workspaceId: WORKSPACE_ID }))[0];
 
@@ -68,8 +47,8 @@ test("T042: GET entry-meta without admin.seo.manage is denied 403", async (t) =>
 
 test("T042: GET/PUT entry-meta round trip via the real chokepoint", async (t) => {
   const { app, deps } = buildAdminTestApp();
-  const baseUrl = await boot(app, t);
-  const cookie = await loginCookie(baseUrl);
+  const baseUrl = await startTestServer(app, t);
+  const cookie = await loginAsOwner(baseUrl);
   await deps.seoReady;
   const post = (await deps.postRepo.list({ workspaceId: WORKSPACE_ID }))[0];
 
@@ -93,7 +72,7 @@ test("T042: GET/PUT entry-meta round trip via the real chokepoint", async (t) =>
 test("T040/T041: /sitemap.xml and /robots.txt are reachable through the real running app, unauthenticated", async (t) => {
   const deps = createRouteDeps();
   const app = createApp(deps);
-  const baseUrl = await boot(app, t);
+  const baseUrl = await startTestServer(app, t);
   await deps.seoReady;
 
   const sitemap = await fetch(`${baseUrl}/sitemap.xml`);
@@ -109,7 +88,7 @@ test("T040/T041: /sitemap.xml and /robots.txt are reachable through the real run
 test("T045: the real home-page render includes SEO's folded <title> tag, not just the raw shell default", async (t) => {
   const deps = createRouteDeps();
   const app = createApp(deps);
-  const baseUrl = await boot(app, t);
+  const baseUrl = await startTestServer(app, t);
   await deps.seoReady;
 
   const home = await fetch(`${baseUrl}/`);

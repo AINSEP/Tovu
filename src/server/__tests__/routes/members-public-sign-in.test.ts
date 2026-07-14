@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import test from "node:test";
+
+import { startTestServer } from "../helpers/http-test-server";
 
 import express from "express";
 
@@ -42,15 +41,6 @@ function buildPublicApp(): { app: express.Express; deps: MemberPublicRouteDeps }
   return { app, deps };
 }
 
-async function boot(app: express.Express, t: import("node:test").TestContext): Promise<string> {
-  const server = createServer(app);
-  server.listen(0);
-  await once(server, "listening");
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
-  const address = server.address() as AddressInfo;
-  return `http://127.0.0.1:${address.port}`;
-}
-
 async function postSignIn(baseUrl: string, workspaceId: string, email: string) {
   return fetch(`${baseUrl}/api/members/v1/workspaces/${workspaceId}/sign-in`, {
     method: "POST",
@@ -61,7 +51,7 @@ async function postSignIn(baseUrl: string, workspaceId: string, email: string) {
 
 test("T015/W-002: MAGIC_LINK_PER_EMAIL — the 6th sign-in request for the same email is denied 429; a different email is unaffected", async (t) => {
   const { app, deps } = buildPublicApp();
-  const baseUrl = await boot(app, t);
+  const baseUrl = await startTestServer(app, t);
 
   for (let i = 0; i < MAGIC_LINK_PER_EMAIL.max; i++) {
     const res = await postSignIn(baseUrl, deps.workspaceId, "budget-a@example.com");
@@ -79,7 +69,7 @@ test("T015/W-002: MAGIC_LINK_PER_EMAIL — the 6th sign-in request for the same 
 
 test("T015/W-003: MAGIC_LINK_PER_IP — the 21st sign-in request from this IP (across distinct emails) is denied 429", async (t) => {
   const { app, deps } = buildPublicApp();
-  const baseUrl = await boot(app, t);
+  const baseUrl = await startTestServer(app, t);
 
   for (let i = 0; i < MAGIC_LINK_PER_IP.max; i++) {
     const res = await postSignIn(baseUrl, deps.workspaceId, `distinct-${i}@example.com`);
@@ -94,7 +84,7 @@ test("T015/W-003: MAGIC_LINK_PER_IP — the 21st sign-in request from this IP (a
 
 test("INV-06: a registered and an unregistered email both get {delivered:true} below the limit, identically", async (t) => {
   const { app, deps } = buildPublicApp();
-  const baseUrl = await boot(app, t);
+  const baseUrl = await startTestServer(app, t);
   await deps.memberRepo.save({
     id: "existing-member",
     workspaceId: deps.workspaceId,
@@ -115,7 +105,7 @@ test("INV-06: a registered and an unregistered email both get {delivered:true} b
 
 test("INV-06: a registered and an unregistered email both get 429 identically once exceeded", async (t) => {
   const { app, deps } = buildPublicApp();
-  const baseUrl = await boot(app, t);
+  const baseUrl = await startTestServer(app, t);
   await deps.memberRepo.save({
     id: "existing-member-2",
     workspaceId: deps.workspaceId,
@@ -145,7 +135,7 @@ test("INV-06: a registered and an unregistered email both get 429 identically on
 
 test("404s on a workspace id that does not match the deployed workspace", async (t) => {
   const { app } = buildPublicApp();
-  const baseUrl = await boot(app, t);
+  const baseUrl = await startTestServer(app, t);
 
   const res = await postSignIn(baseUrl, "some-other-workspace", "whoever@example.com");
   assert.equal(res.status, 404);

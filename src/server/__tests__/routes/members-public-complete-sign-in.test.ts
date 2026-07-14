@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import test from "node:test";
+
+import { startTestServer } from "../helpers/http-test-server";
 
 import express from "express";
 
@@ -43,15 +42,6 @@ function buildPublicApp(): { app: express.Express; deps: MemberPublicRouteDeps }
   return { app, deps };
 }
 
-async function boot(app: express.Express, t: import("node:test").TestContext): Promise<string> {
-  const server = createServer(app);
-  server.listen(0);
-  await once(server, "listening");
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
-  const address = server.address() as AddressInfo;
-  return `http://127.0.0.1:${address.port}`;
-}
-
 /** Requests a sign-in link and extracts the raw token straight from the console-mailer test double's outbound message. */
 async function requestAndExtractToken(
   baseUrl: string,
@@ -81,7 +71,7 @@ async function requestAndExtractToken(
 
 test("T016/INV-NEW-01: complete-sign-in sets ONLY tovu_member_session, never tovu_session", async (t) => {
   const { app, deps } = buildPublicApp();
-  const baseUrl = await boot(app, t);
+  const baseUrl = await startTestServer(app, t);
   const token = await requestAndExtractToken(baseUrl, deps, "cookie-isolation@example.com");
 
   const res = await fetch(`${baseUrl}/api/members/v1/workspaces/${deps.workspaceId}/sign-in/complete`, {
@@ -102,7 +92,7 @@ test("T016/INV-NEW-01: complete-sign-in sets ONLY tovu_member_session, never tov
 
 test("INV-NEW-01: a request carrying only a tovu_session (admin) cookie, no token, is rejected — the admin cookie has zero effect here", async (t) => {
   const { app, deps } = buildPublicApp();
-  const baseUrl = await boot(app, t);
+  const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/api/members/v1/workspaces/${deps.workspaceId}/sign-in/complete`, {
     method: "POST",
@@ -116,7 +106,7 @@ test("INV-NEW-01: a request carrying only a tovu_session (admin) cookie, no toke
 
 test("PublicMemberResponse excludes emailVerifiedAt/workspaceId/version/note/fields", async (t) => {
   const { app, deps } = buildPublicApp();
-  const baseUrl = await boot(app, t);
+  const baseUrl = await startTestServer(app, t);
   const token = await requestAndExtractToken(baseUrl, deps, "serializer-check@example.com");
 
   const res = await fetch(`${baseUrl}/api/members/v1/workspaces/${deps.workspaceId}/sign-in/complete`, {
@@ -137,7 +127,7 @@ test("PublicMemberResponse excludes emailVerifiedAt/workspaceId/version/note/fie
 
 test("T016/W-004: MAGIC_LINK_COMPLETE_ATTEMPT — the 26th completion attempt from this IP within 60s is denied 429", async (t) => {
   const { app, deps } = buildPublicApp();
-  const baseUrl = await boot(app, t);
+  const baseUrl = await startTestServer(app, t);
 
   const effectiveMax = MAGIC_LINK_COMPLETE_ATTEMPT.max + MAGIC_LINK_COMPLETE_ATTEMPT.burst;
   for (let i = 0; i < effectiveMax; i++) {
@@ -161,7 +151,7 @@ test("T016/W-004: MAGIC_LINK_COMPLETE_ATTEMPT — the 26th completion attempt fr
 
 test("404s on a workspace id that does not match the deployed workspace", async (t) => {
   const { app } = buildPublicApp();
-  const baseUrl = await boot(app, t);
+  const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/api/members/v1/workspaces/some-other-workspace/sign-in/complete`, {
     method: "POST",
