@@ -44,7 +44,44 @@ These fold into the Decision above and are load-bearing because §6 freezes the 
 ## Open
 - Whether transactional-vs-bulk email reputation needs adapter-level separation (deferred; a `capabilities()`/opts concern, not a second port).
 - Exact `MailerCapabilities` field set (iterate).
-- Backoff/redelivery semantics for `retryable` sends over the ADR-009 outbox (must be pinned before the shape freezes — amendment 7).
+
+## Round-4 amendment (ADR-042 item 4 shape review, 2026-07-13)
+
+`src/mail` was still interfaces-only (no adapter file exists yet) but already had fan-in from
+`newsletter`, `members`, and `forms` — exactly the condition ADR-042 flagged as needing a shape
+review *before* a real adapter forces a breaking 3-module signature change. Reviewed templating,
+attachments, retries, and the `MailerSendResult` union against what's actually implemented:
+
+11. **Attachments (real gap, closed).** `OutboundEmail` had no attachment field at all. Added
+    `attachments?: readonly EmailAttachment[]` (`{ filename, contentType, contentBase64 }`) —
+    optional, so no existing consumer's call sites change. Content travels as base64, never a
+    live stream/handle/path (ADR-024 §3 serializable-only ABI), consistent with how every other
+    field on this port is already required to be plain data. `MailerCapabilities.supportsAttachments`
+    was added alongside it so a consumer needing attachments can check adapter support instead of
+    assuming every adapter forwards them (`ConsoleMailerAdapter` reports `false`).
+12. **Templating (reviewed, deliberately not added).** No `OutboundEmail` field is a template
+    reference, and none should be. `subject`/`html`/`text` are always fully rendered by the
+    caller before `send()` — the port transports finished content only, it never renders. Adding
+    a template-id/variables field would make the port responsible for choosing and running a
+    template engine, which is business logic that belongs in the calling module (Newsletter's
+    `hooks.ts`/hook chain already owns exactly this shaping step for its own sends).
+13. **`MailerSendResult` union (verified, no change).** Already implemented exactly as amendment
+    1 pinned it (`{ok:true; providerMessageId; acceptedAt} | {ok:false; retryable; errorCode;
+    message}`) — no drift found between this ADR and `src/mail/types.ts`.
+14. **Retries / backoff (Open item closed at the port-shape level).** `MailerSendResult.retryable`
+    already gives a caller everything the *port* needs to expose for a retry decision. The
+    outstanding question in amendment 7 — the actual backoff/redelivery schedule — lives in the
+    generic ADR-009 outbox worker (`src/core/events/outbox-worker.ts`), not in this port's shape;
+    it applies to every outbox consumer, not mail specifically, so it is out of scope for a
+    MailerPort shape review and is not re-opened here. (Note for whoever picks up the outbox
+    worker next: `markFailed(id, error, nextAttemptAt)` currently gets called with `nextAttemptAt
+    = now`, i.e. no actual delay between retries — that's a pre-existing generic-outbox gap, not
+    a mail-specific one.)
+
+No consumer (`newsletter`, `members`, `forms`) changed behavior — every change here is additive
+and optional. This amendment has not been through `/debate` or `/audit-work`, consistent with
+ADR-042's own "not yet audited" status; it should clear a review pass before the first real
+(`Smtp`/`HttpApi`) adapter is built against this shape.
 
 ## Internal-verification fixes (TM-sweep-foundations-001, 2026-07-10)
 Falsification pass caught an INV-3/D3 **blocker** + a D3 advisory. Folded:

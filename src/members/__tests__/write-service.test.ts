@@ -53,6 +53,7 @@ function makeMailer(): { mailer: MailerPort; sent: Array<{ message: OutboundEmai
     supportsIdempotencyKey: true,
     supportsWebhookFeedback: false,
     maxBatchSize: 1,
+    supportsAttachments: false,
   };
   const mailer: MailerPort = {
     capabilities: () => capabilities,

@@ -34,11 +34,25 @@ export interface OutboundEmail {
    * `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 8058) here.
    */
   headers?: Readonly<Record<string, string>>;
+  /**
+   * ADR-042 item 4 (shape review before the first real adapter): optional, so adding it does
+   * not force a signature change on existing consumers. No `OutboundEmail` field is a template
+   * reference — `subject`/`html`/`text` are always fully rendered by the caller before `send()`;
+   * the port transports finished content only, it never renders.
+   */
+  attachments?: readonly EmailAttachment[];
 }
 
 export interface EmailAddress {
   email: string;
   name?: string;
+}
+
+/** Serializable-only (ADR-024 §3) — content travels as base64, never a live stream/handle/path. */
+export interface EmailAttachment {
+  filename: string;
+  contentType: string;
+  contentBase64: string;
 }
 
 /**
@@ -73,6 +87,12 @@ export interface MailerCapabilities {
   supportsWebhookFeedback: boolean;
   /** 1 ⇒ the mail-lib façade loops `send()` per recipient (amendment 3); never branch on this. */
   maxBatchSize: number;
+  /**
+   * Whether the adapter forwards `OutboundEmail.attachments` to the provider. A consumer that
+   * requires attachments MUST check this rather than assume every adapter supports them
+   * (ADR-042 item 4) — `ConsoleMailerAdapter` logs a message and may reasonably say `false`.
+   */
+  supportsAttachments: boolean;
 }
 
 /**
