@@ -2,14 +2,15 @@ import type { Express } from "express";
 
 import type { LocalBufferSink } from "../../../../analytics/repo.memory";
 import type { DeviceClass, HitKind, NormalizedHit } from "../../../../analytics/types";
+import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { RouteDeps } from "../../../routes/types";
 
 /**
- * @file Admin "recent hits" read route for the `analytics` library (ADR-035).
+ * @file Admin "recent hits" read route for the `analytics` library (ADR-035, ADR-PIPE-014).
  *
  * Purpose:
- * Registers `GET /api/admin/v1/workspaces/:workspaceId/analytics/recent-hits` — an authenticated
- * read straight over the ingest-side `LocalBufferSink`'s in-memory buffer.
+ * Registers `GET /api/admin/v1/workspaces/:workspaceId/analytics/recent-hits` — an authenticated,
+ * `analytics.read`-gated read straight over the ingest-side `LocalBufferSink`'s in-memory buffer.
  *
  * IMPORTANT — this is deliberately NOT a dashboard. Only the ingest half of ADR-035 is built
  * (beacon → normalize → `LocalBufferSink`); there is no rollup/aggregation/time-series query layer
@@ -18,17 +19,17 @@ import type { RouteDeps } from "../../../routes/types";
  *
  * How it relates to the project:
  * - Mirrors `routes/admin/posts/list.ts`'s registrar shape and workspace-guard convention.
- * - Auth is NOT checked in this file — `server/app.ts` gates all of `/api/admin` behind
- *   `requireAdminSession` before any admin registrar runs (see `middleware/dev-auth.ts`), exactly
- *   like every other admin route in this codebase.
- * - `analyticsSink` is not yet a `RouteDeps` field (adding it is out of this task's scope to edit
- *   directly); this file's deps type only requires the subset of `RouteDeps` it actually uses
- *   (`Pick<RouteDeps, "workspaceId">`) plus the sink, so it composes cleanly once `RouteDeps` grows
- *   that field (see handoff notes for the exact `RouteDeps`/`app.ts` wiring text).
+ * - `server/app.ts` gates all of `/api/admin` behind `requireAdminSession` before any admin
+ *   registrar runs (see `middleware/dev-auth.ts`), same as every other admin route — but that only
+ *   proves *authentication*. FEAT-014/ADR-PIPE-014 closes the remaining *authorization* gap: this
+ *   route previously had zero per-action `authorize()` call, unlike every sibling admin route.
+ *   The principal-resolution → `authorize()` → 403-on-denial → proceed block below is byte-for-byte
+ *   the same shape used by `settings/get-effective.ts` and `integrations/list.ts` (workspace-id
+ *   404 check first, then authorize) — see ADR-PIPE-014 Decision §1/Enforcement.
  */
 
-/** Deps this route needs: the workspace scope from `RouteDeps`, plus the ingest sink to read. */
-export type AdminAnalyticsRecentHitsDeps = Pick<RouteDeps, "workspaceId"> & {
+/** Deps this route needs: the workspace scope + authorize seam from `RouteDeps`, plus the ingest sink to read. */
+export type AdminAnalyticsRecentHitsDeps = Pick<RouteDeps, "workspaceId" | "authorize"> & {
   analyticsSink: LocalBufferSink;
 };
 
@@ -67,9 +68,25 @@ function parseLimitParam(raw: unknown): number | undefined {
 }
 
 export function registerAdminAnalyticsRecentHitsRoute(app: Express, deps: AdminAnalyticsRecentHitsDeps): void {
-  app.get("/api/admin/v1/workspaces/:workspaceId/analytics/recent-hits", (req, res) => {
+  app.get("/api/admin/v1/workspaces/:workspaceId/analytics/recent-hits", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
+      return;
+    }
+
+    const principal = getAuthedPrincipal(res);
+    const authResult = await deps.authorize({
+      principalId: principal.id,
+      permission: "analytics.read",
+      workspaceId: deps.workspaceId,
+      entityType: "analytics-hit",
+    });
+    if (!authResult.allowed) {
+      res.status(403).json({
+        error: `principal '${principal.id}' is not authorized for 'analytics.read' (${authResult.reason})`,
+        code: "FORBIDDEN",
+        details: { permission: "analytics.read", reason: authResult.reason },
+      });
       return;
     }
 
