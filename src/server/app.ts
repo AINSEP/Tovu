@@ -38,7 +38,8 @@ import {
 } from "../members";
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../navigation/repo.memory";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../integrations";
-import { createFixedSecretSigner } from "../integrations/signing";
+import { InMemoryKeyring } from "../integrations/keyring.memory";
+import { createKeyringBackedSigner } from "../integrations/signing.keyring";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
@@ -222,6 +223,10 @@ export function createRouteDeps(): NewsletterRouteDeps {
           verifiedAt: clock.nowIso(),
           source: "dev-capability",
         }),
+        // ADR-PIPE-015 T016: a dev-capability egress allowlist entry so the real
+        // isAllowedEgressTarget oracle doesn't fail-closed on every fresh dev server — matches the
+        // `example.com` target every integrations fixture/test in this repo already uses.
+        egressAllowlist: ["example.com"],
       },
     ]),
   });
@@ -282,11 +287,11 @@ export function createRouteDeps(): NewsletterRouteDeps {
     navLocationBindingRepo: new InMemoryNavLocationBindingRepo(),
     webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
     webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
-    // DEV-ONLY: no real secret material — createFixedSecretSigner resolves from this empty map,
-    // so it has nothing to sign with until either (a) manual testing maps a specific
-    // subscription id to a placeholder Buffer secret, or (b) this is replaced by a
-    // KeyringPort.derive()-backed signer (ADR-036 §5) once that port's home lands.
-    webhookSigner: createFixedSecretSigner(new Map()),
+    // ADR-PIPE-015 Phase 1 T017: the real createKeyringBackedSigner code path, backed by an
+    // in-memory KeyringPort so this hermetic test/dev composition never touches a real file or
+    // env var. The delivery worker is still the first real consumer — activation stays gated
+    // (Phase 4) until the real KeyringPort/HttpClientPort/SQLite adapters are wired in deps.ts.
+    webhookSigner: createKeyringBackedSigner(new InMemoryKeyring()),
     // `media` (ADR-027 walking skeleton): in-memory rows + in-memory blob bytes here so tests
     // stay hermetic (no filesystem writes) — the real running server (`server/deps.ts`) uses
     // `LocalFsBlobStore` for actual byte durability while keeping rows in-memory too (see that

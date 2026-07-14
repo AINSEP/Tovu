@@ -20,11 +20,16 @@ import type { DomainEvent, EventBusPort, OutboxPort, OutboxRecord } from "../por
 export class InMemoryEventBus implements EventBusPort {
   /** Map of event name -> subscribed handlers. */
   private handlers = new Map<string, Array<(event: DomainEvent) => Promise<void>>>();
+  /** Handlers subscribed to every event regardless of name (C-009). */
+  private allHandlers: Array<(event: DomainEvent) => Promise<void>> = [];
 
-  /** Publish a single event to all handlers registered for `event.name`. */
+  /** Publish a single event to all handlers registered for `event.name`, then every `subscribeAll` handler. */
   async publish<TPayload>(event: DomainEvent<TPayload>): Promise<void> {
     const eventHandlers = this.handlers.get(event.name) ?? [];
     for (const handler of eventHandlers) {
+      await handler(event as DomainEvent);
+    }
+    for (const handler of this.allHandlers) {
       await handler(event as DomainEvent);
     }
   }
@@ -51,6 +56,15 @@ export class InMemoryEventBus implements EventBusPort {
         eventName,
         current.filter((h) => h !== (handler as (event: DomainEvent) => Promise<void>))
       );
+    };
+  }
+
+  /** Register a handler for every event; returns an async unsubscriber (C-009). */
+  async subscribeAll(handler: (event: DomainEvent) => Promise<void>): Promise<() => Promise<void>> {
+    this.allHandlers.push(handler);
+
+    return async () => {
+      this.allHandlers = this.allHandlers.filter((h) => h !== handler);
     };
   }
 }

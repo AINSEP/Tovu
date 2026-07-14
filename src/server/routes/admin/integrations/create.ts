@@ -4,18 +4,6 @@ import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { IntegrationsRouteRegistrar } from "./deps";
 
 /**
- * Dev-only stand-in for `WebhookSubscriptionDeps.isAllowedTarget` (the egress allowlist seam
- * `src/integrations/subscriptions.ts` injects rather than importing `src/origin` directly, per
- * its own file header/`INFO.md` "Future direction" note). Permits every `https://` target that
- * already passed `subscriptions.ts`'s own scheme check.
- *
- * KNOWN GAP, not solved by this task: production wiring should replace this with
- * `core/origin`'s `isAllowedRedirectTarget`/`isAllowedEgressTarget` (ADR-040) once the
- * composition root wires that real cross-module dependency in — see the handoff report.
- */
-const permitAllHttpsTargets = async (): Promise<boolean> => true;
-
-/**
  * POST create a webhook subscription.
  *
  * Gated by `integration.manage` (registered in `identity/permissions.ts`), checked directly via
@@ -52,7 +40,10 @@ export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = 
           clock: deps.clock,
           repo: deps.webhookSubscriptionRepo,
           idGenerator: deps.idGen,
-          isAllowedTarget: permitAllHttpsTargets,
+          // ADR-PIPE-015 GAP-06: the real core/origin egress oracle, replacing the dev-only
+          // permitAllHttpsTargets stand-in. Fails closed on any parse failure or ambiguity.
+          isAllowedTarget: (url: string) =>
+            deps.originRegistry.isAllowedEgressTarget({ workspaceId: deps.workspaceId }, url),
         },
         input: {
           workspaceId: deps.workspaceId,

@@ -33,7 +33,8 @@ import {
 import { rebuildNavLocationBindings } from "../navigation/reconcile";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../navigation/repo.sqlite";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../integrations";
-import { createFixedSecretSigner } from "../integrations/signing";
+import { EnvOrFileKeyring } from "../integrations/keyring.env";
+import { createKeyringBackedSigner } from "../integrations/signing.keyring";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
@@ -187,6 +188,10 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
           verifiedAt: clock.nowIso(),
           source: "dev-capability",
         }),
+        // ADR-PIPE-015 T016: a dev-capability egress allowlist entry so the real
+        // isAllowedEgressTarget oracle doesn't fail-closed on every fresh dev server — matches the
+        // `example.com` target every integrations fixture/test in this repo already uses.
+        egressAllowlist: ["example.com"],
       },
     ]),
   });
@@ -247,7 +252,10 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     navLocationBindingRepo,
     webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
     webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
-    webhookSigner: createFixedSecretSigner(new Map()),
+    // ADR-PIPE-015 Phase 1: the real KeyringPort-backed signer (GAP-02/GAP-03). Inert until
+    // Phase 4 registers the fan-out subscriber + delivery worker — no route calls this directly
+    // yet, so wiring it now carries no live-traffic risk ahead of that gated activation.
+    webhookSigner: createKeyringBackedSigner(new EnvOrFileKeyring()),
     // `media` (ADR-027 walking skeleton): rows stay in-memory (same disclosed precedent as the
     // other newer libraries above — no SQLite adapter built for this pass), but bytes use the
     // real `LocalFsBlobStore` here (unlike `server/app.ts`'s hermetic-test composition) because

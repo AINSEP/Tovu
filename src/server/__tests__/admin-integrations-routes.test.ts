@@ -146,6 +146,36 @@ test("integrations routes: create validates https:// and never leaks secret mate
   assert.equal(subscription.secretVersion, 1);
 });
 
+test("integrations routes: create rejects a private-IP target via the real OriginRegistry oracle (ADR-PIPE-015 GAP-06)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const rejected = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        label: "SSRF attempt",
+        targetUrl: "https://169.254.169.254/latest/meta-data",
+        topics: ["post.published"],
+      }),
+    }
+  );
+  assert.equal(rejected.status, 400);
+  const body = (await rejected.json()) as { error: string };
+  assert.match(body.error, /not an allowed egress target/);
+
+  // A host on the dev-capability egress allowlist (see app.ts's `createRouteDeps`) still works —
+  // proves this isn't a blanket rejection of every target.
+  const allowed = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ label: "OK", targetUrl: "https://example.com/hooks", topics: ["post.published"] }),
+  });
+  assert.equal(allowed.status, 201);
+});
+
 test("integrations routes: pause toggles active <-> paused, and a disabled subscription rejects pause", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

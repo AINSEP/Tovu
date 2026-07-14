@@ -57,10 +57,10 @@ This is not a soft recommendation. Per ADR-PIPE-015 Migration Safety, **"Point o
 
 Additive to `src/core/`. Not itself security-sensitive or gated — it is a plain interface extension Stage A (Phase 4) will consume. Safe to build first, independently of Phases 1-3.
 
-- [ ] T001 [P] [C-009] Write failing test: `InMemoryEventBus.subscribeAll` delivers events of several different names to one handler; unsubscribing stops delivery — `src/core/events/__tests__/memory-bus.test.ts` (new file; only `outbox-worker.test.ts` exists in `src/core/events/__tests__/` today)
-- [ ] T002 [C-009] Add `EventBusPort.subscribeAll(handler): Promise<() => Promise<void>>` as an additive interface method (existing `subscribe(eventName, handler)` callers unaffected) — `src/core/ports.ts` (depends T001)
-- [ ] T003 [C-009] Implement `InMemoryEventBus.subscribeAll` — `src/core/events/memory-bus.ts` (depends T002)
-- [ ] T004 Run Phase 0 tests to convergence
+- [x] T001 [P] [C-009] Write failing test: `InMemoryEventBus.subscribeAll` delivers events of several different names to one handler; unsubscribing stops delivery — `src/core/events/__tests__/memory-bus.test.ts` (new file; only `outbox-worker.test.ts` exists in `src/core/events/__tests__/` today)
+- [x] T002 [C-009] Add `EventBusPort.subscribeAll(handler): Promise<() => Promise<void>>` as an additive interface method (existing `subscribe(eventName, handler)` callers unaffected) — `src/core/ports.ts` (depends T001)
+- [x] T003 [C-009] Implement `InMemoryEventBus.subscribeAll` — `src/core/events/memory-bus.ts` (depends T002)
+- [x] T004 Run Phase 0 tests to convergence
 
 **Checkpoint**: `subscribeAll` real and tested. Does not touch any gated activation surface — Phase 4's `fanout.ts` is its first real consumer.
 
@@ -72,20 +72,20 @@ Additive to `src/core/`. Not itself security-sensitive or gated — it is a plai
 
 GAP-06 (wiring the real `core/origin` egress oracle at `create.ts`, replacing `permitAllHttpsTargets`) is grouped into this phase, not its own: the ADR's own Rationale frames the egress allowlist fix alongside the signer/transport fixes as the same "never let 'wired' and 'safe' diverge" driver, and it is a read-only consumption of an oracle that already exists (`OriginRegistry`, ADR-040) — it has no dependency on persistence (Phase 2) or the permission rename (Phase 3).
 
-- [ ] T005 [P] [GAP-02, GAP-03] Write failing tests: `EnvOrFileKeyring` — env-var override; generated-file fallback outside the portable site folder; HKDF determinism (same input → same output; different `version`/`subscriptionId`/`purpose` → different output); missing root key throws, never returns a placeholder secret — `src/integrations/__tests__/keyring.env.test.ts`
-- [ ] T006 [P] [GAP-02] Write failing test: `createKeyringBackedSigner` constructs the same signature `createFixedSecretSigner` would for an equivalent secret (behavior-preserving swap, proven at the signing-math level) — `src/integrations/__tests__/signing.keyring.test.ts`
-- [ ] T007 [GAP-03] Implement `EnvOrFileKeyring` (C-001, implements `KeyringPort`) — `src/integrations/keyring.env.ts` (depends T005)
-- [ ] T008 [GAP-02] Implement `createKeyringBackedSigner` (C-002) — `src/integrations/signing.keyring.ts` (depends T006, T007)
-- [ ] T009 [P] [GAP-04, INV-P3] Write failing import-boundary canary: `transport.fetch.ts` must not be importable outside `src/http/` or the named composition-root files (`server/app.ts`, `server/deps.ts`) — `src/http/__tests__/import-boundary.test.ts`
-- [ ] T010 [P] [GAP-04] Write failing tests: `createHttpClient` rejects a private/loopback/link-local/metadata target pre-connect for each address family (via a policy-widened `devHostAllowlist` test capability per Constitution Article V — never consumer-side bypass code); a cross-origin redirect strips auth headers and is re-verified against policy; response/decompressed-byte caps and connect/read timeouts enforced — `src/http/__tests__/client.test.ts`
-- [ ] T011 [GAP-04] Implement module-private `HttpTransportAdapter` over Node's `fetch`/undici (the raw half of C-007) — `src/http/transport.fetch.ts` (depends T009)
-- [ ] T012 [GAP-04] Implement `createHttpClient(transport, policy): HttpClientPort`, the only exported constructor (C-007) — `src/http/client.ts` (depends T010, T011)
-- [ ] T013 [P] [GAP-06, INV-P2] Write failing test: `create.ts`'s route rejects a private-IP target end-to-end via the real `OriginRegistry.isAllowedEgressTarget` oracle — `src/server/__tests__/admin-integrations-routes.test.ts` — ⚠ **same file as T026 (Phase 3)**, see intra-feature collision note below
-- [ ] T014 [GAP-06] Drop `permitAllHttpsTargets`; inject `deps.originRegistry.isAllowedEgressTarget` as `isAllowedTarget` — `src/server/routes/admin/integrations/create.ts` (depends T013) — ⚠ **same file as T029's `create.ts` edit (Phase 3)**, see intra-feature collision note below
-- [ ] T015 [GAP-06] Add `RouteDeps.originRegistry: OriginRegistryPort`; correct `webhookSigner`'s stale "not consumed by any route yet" doc comment — `src/server/routes/types.ts` (depends T014) — **NOT `[P]`** — cross-feature file collision, see note below
-- [ ] T016 [GAP-06] Seed a dev-capability verified origin + egress allowlist entry at boot (so the real oracle doesn't fail-closed on every fresh dev server) — `src/server/seed.ts` (depends T015)
-- [ ] T017 Wire in-memory `KeyringPort`/`HttpClientPort` test doubles + an in-memory `OriginRegistry` into `src/server/app.ts`'s hermetic `RouteDeps` composition; must **NOT** call `registerWebhookFanout`/`startWebhookDeliveryWorker` (activation stays out of the hermetic test composition) — `src/server/app.ts` (depends T007, T008, T012, T015) — **NOT `[P]`** — cross-feature file collision, see note below
-- [ ] T018 Run Phase 1 tests to convergence — signer, transport, import-boundary canary, and egress wiring all green
+- [x] T005 [P] [GAP-02, GAP-03] Write failing tests: `EnvOrFileKeyring` — env-var override; generated-file fallback outside the portable site folder; HKDF determinism (same input → same output; different `version`/`subscriptionId`/`purpose` → different output); missing root key throws, never returns a placeholder secret — `src/integrations/__tests__/keyring.env.test.ts`
+- [x] T006 [P] [GAP-02] Write failing test: `createKeyringBackedSigner` constructs the same signature `createFixedSecretSigner` would for an equivalent secret (behavior-preserving swap, proven at the signing-math level) — `src/integrations/__tests__/signing.keyring.test.ts`
+- [x] T007 [GAP-03] Implement `EnvOrFileKeyring` (C-001, implements `KeyringPort`) — `src/integrations/keyring.env.ts` (depends T005)
+- [x] T008 [GAP-02] Implement `createKeyringBackedSigner` (C-002) — `src/integrations/signing.keyring.ts` (depends T006, T007)
+- [x] T009 [P] [GAP-04, INV-P3] Write failing import-boundary canary: `transport.fetch.ts` must not be importable outside `src/http/` or the named composition-root files (`server/app.ts`, `server/deps.ts`) — `src/http/__tests__/import-boundary.test.ts`
+- [x] T010 [P] [GAP-04] Write failing tests: `createHttpClient` rejects a private/loopback/link-local/metadata target pre-connect for each address family (via a policy-widened `devHostAllowlist` test capability per Constitution Article V — never consumer-side bypass code); a cross-origin redirect strips auth headers and is re-verified against policy; response/decompressed-byte caps and connect/read timeouts enforced — `src/http/__tests__/client.test.ts`
+- [x] T011 [GAP-04] Implement module-private `HttpTransportAdapter` over Node's `fetch`/undici (the raw half of C-007) — `src/http/transport.fetch.ts` (depends T009)
+- [x] T012 [GAP-04] Implement `createHttpClient(transport, policy): HttpClientPort`, the only exported constructor (C-007) — `src/http/client.ts` (depends T010, T011)
+- [x] T013 [P] [GAP-06, INV-P2] Write failing test: `create.ts`'s route rejects a private-IP target end-to-end via the real `OriginRegistry.isAllowedEgressTarget` oracle — `src/server/__tests__/admin-integrations-routes.test.ts` — ⚠ **same file as T026 (Phase 3)**, see intra-feature collision note below
+- [x] T014 [GAP-06] Drop `permitAllHttpsTargets`; inject `deps.originRegistry.isAllowedEgressTarget` as `isAllowedTarget` — `src/server/routes/admin/integrations/create.ts` (depends T013) — ⚠ **same file as T029's `create.ts` edit (Phase 3)**, see intra-feature collision note below
+- [x] T015 [GAP-06] Add `RouteDeps.originRegistry: OriginRegistryPort`; correct `webhookSigner`'s stale "not consumed by any route yet" doc comment — `src/server/routes/types.ts` (depends T014) — **NOT `[P]`** — cross-feature file collision, see note below
+- [x] T016 [GAP-06] Seed a dev-capability verified origin + egress allowlist entry at boot (so the real oracle doesn't fail-closed on every fresh dev server) — `src/server/seed.ts` (depends T015)
+- [x] T017 Wire in-memory `KeyringPort`/`HttpClientPort` test doubles + an in-memory `OriginRegistry` into `src/server/app.ts`'s hermetic `RouteDeps` composition; must **NOT** call `registerWebhookFanout`/`startWebhookDeliveryWorker` (activation stays out of the hermetic test composition) — `src/server/app.ts` (depends T007, T008, T012, T015) — **NOT `[P]`** — cross-feature file collision, see note below
+- [x] T018 Run Phase 1 tests to convergence — signer, transport, import-boundary canary, and egress wiring all green
 
 > **Cross-feature file collision — `src/server/app.ts` and `src/server/routes/types.ts`**: T015 and T017 are marked **NOT `[P]`**. Forms (FEAT-010) is simultaneously generating a `tasks.md` that also edits `src/server/app.ts` (to wire a `form.submission.received` subscriber) and touches the same shared composition/deps surface. **This task and Forms' equivalent `server/app.ts` edit must be sequenced by the Coordinator at Programmer-dispatch time.**
 >

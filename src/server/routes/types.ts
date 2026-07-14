@@ -99,10 +99,13 @@ export interface RouteDeps {
   /** ADR-036 `webhook_deliveries` persistence. */
   webhookDeliveryRepo: WebhookDeliveryRepoPort;
   /**
-   * ADR-036 §5 outbound HMAC signer. DEV-ONLY placeholder wiring (see `createRouteDeps()`):
-   * built via `createFixedSecretSigner` with an empty dev secret map, not a real
-   * `KeyringPort`-derived signer. Not consumed by any route yet — the delivery worker is the
-   * first real consumer.
+   * ADR-036 §5 outbound HMAC signer. ADR-PIPE-015 Phase 1: built via `createKeyringBackedSigner`
+   * over a real `KeyringPort` (`server/deps.ts`'s composition uses `EnvOrFileKeyring`;
+   * `server/app.ts`'s hermetic test/dev composition uses the in-memory `InMemoryKeyring` test
+   * double instead, to avoid touching real files/env in tests). Not consumed by any route yet —
+   * the delivery worker is the first real consumer, and its activation stays gated behind
+   * ADR-PIPE-015's Phase 4 "point of no return" until the real signer, guarded transport, and
+   * SQLite adapters are all merged and code-reviewed.
    */
   webhookSigner: WebhookSigner;
   /**
