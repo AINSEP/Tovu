@@ -6,7 +6,7 @@ import type { IntegrationsRouteRegistrar } from "./deps";
 /**
  * POST create a webhook subscription.
  *
- * Gated by `integration.manage` (registered in `identity/permissions.ts`), checked directly via
+ * Gated by `admin.integrations.manage` (registered in `identity/permissions.ts`), checked directly via
  * `authorize()` — mirrors `members/disable.ts`'s pattern since subscription mutations are a direct
  * feature call, not routed through the SPEC-001 command gateway.
  */
@@ -21,15 +21,15 @@ export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = 
       const principal = getAuthedPrincipal(res);
       const authResult = await deps.authorize({
         principalId: principal.id,
-        permission: "integration.manage",
+        permission: "admin.integrations.manage",
         workspaceId: deps.workspaceId,
         entityType: "webhook_subscription",
       });
       if (!authResult.allowed) {
         res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'integration.manage' (${authResult.reason})`,
+          error: `principal '${principal.id}' is not authorized for 'admin.integrations.manage' (${authResult.reason})`,
           code: "FORBIDDEN",
-          details: { permission: "integration.manage", reason: authResult.reason },
+          details: { permission: "admin.integrations.manage", reason: authResult.reason },
         });
         return;
       }

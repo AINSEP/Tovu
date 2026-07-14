@@ -3,6 +3,10 @@ import test from "node:test";
 
 import { authorize } from "../authorize";
 import { Argon2PasswordHasher } from "../hasher";
+import { migrateDeprecatedPermissionGrants } from "../permission-migrations";
+// Side-effect import: registers the real BASE_CATALOG + the real integration.manage ->
+// admin.integrations.manage migration pair (ADR-PIPE-015 Phase 3) before the T025 test below runs.
+import "../permissions";
 import {
   InMemoryPolicyPermissionRepo,
   InMemoryPolicyRepo,
@@ -156,4 +160,60 @@ test("integration: the seeded owner is authorized for a permission a feature reg
   });
 
   assert.deepEqual(result, { allowed: true, reason: "owner_wildcard" });
+});
+
+test("ADR-PIPE-015 Phase 3 T025: a policy holding the deprecated integration.manage also gains admin.integrations.manage after migration, idempotently", async () => {
+  const deps = buildDeps();
+  await seedIdentity({ deps, input: { workspaceId: WORKSPACE } });
+
+  // Simulates a pre-existing policy from before the Phase 3 rename — fresh seeds no longer grant
+  // the deprecated flat string directly (see seed.ts's BUILTIN_ADMIN_PERMISSIONS comment).
+  const legacyPolicyId = "policy-legacy-integrations";
+  await deps.repos.policies.save({
+    id: legacyPolicyId,
+    workspaceId: WORKSPACE,
+    name: "legacy-integrations-policy",
+    isBuiltin: false,
+    isFrozen: false,
+  });
+  await deps.repos.policyPermissions.save({
+    id: "grant-legacy-integration-manage",
+    workspaceId: WORKSPACE,
+    policyId: legacyPolicyId,
+    permission: "integration.manage",
+  });
+
+  const first = await migrateDeprecatedPermissionGrants({
+    policyPermissions: deps.repos.policyPermissions,
+    policies: deps.repos.policies,
+    idGen: deps.idGen,
+    workspaceId: WORKSPACE,
+  });
+  assert.ok(first.migratedGrantCount >= 1);
+
+  const grantsAfter = await deps.repos.policyPermissions.listByPolicyId({
+    workspaceId: WORKSPACE,
+    policyId: legacyPolicyId,
+  });
+  const permissionsAfter = grantsAfter.map((g) => g.permission);
+  assert.ok(permissionsAfter.includes("integration.manage"), "the old grant is never removed");
+  assert.ok(permissionsAfter.includes("admin.integrations.manage"), "the new string is granted");
+
+  // Idempotent rerun: nothing left to migrate for this policy/pair.
+  const second = await migrateDeprecatedPermissionGrants({
+    policyPermissions: deps.repos.policyPermissions,
+    policies: deps.repos.policies,
+    idGen: deps.idGen,
+    workspaceId: WORKSPACE,
+  });
+  const grantsAfterSecond = await deps.repos.policyPermissions.listByPolicyId({
+    workspaceId: WORKSPACE,
+    policyId: legacyPolicyId,
+  });
+  assert.equal(
+    grantsAfterSecond.filter((g) => g.permission === "admin.integrations.manage").length,
+    1,
+    "rerunning must not duplicate the grant"
+  );
+  assert.equal(second.migratedGrantCount, 0);
 });

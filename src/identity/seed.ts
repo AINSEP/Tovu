@@ -58,7 +58,11 @@ const BUILTIN_ADMIN_PERMISSIONS: readonly string[] = [
   "admin.menus.delete",
   "admin.menus.delete.force",
   "admin.menus.assign",
-  "integration.manage",
+  // ADR-PIPE-015 Phase 3 migration clause (mirrors the admin.menus.* precedent immediately
+  // above): every freshly-seeded workspace gets admin.integrations.manage directly, so it never
+  // depends on migrateDeprecatedPermissionGrants(). "integration.manage" is deliberately dropped
+  // from THIS seed list only — the string stays registered (deprecated) in permissions.ts.
+  "admin.integrations.manage",
   // SPEC-007 (ADR-028 §7 migration clause): every settings.write holder also
   // gets settings.definitions.manage, so the admin role isn't left
   // fail-closed-locked-out of definition-lifecycle operations it previously

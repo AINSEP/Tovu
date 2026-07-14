@@ -230,7 +230,30 @@ registerPermissionMigration({
 registerPermission({
   id: "integration.manage",
   owner: "integrations",
+  description:
+    "DEPRECATED (ADR-PIPE-015 Phase 3) — superseded by admin.integrations.manage below, " +
+    "mirroring ADR-PIPE-012's navigation.manage -> admin.menus.* precedent. Retained (not " +
+    "deleted) — see admin.integrations.manage's own comment for the same Migration Safety " +
+    "gating this repo's other permission renames have used.",
+});
+/**
+ * ADR-PIPE-015 Phase 3 (T027): the single umbrella permission superseding the flat
+ * `integration.manage` above, renamed to the frozen `admin.<section>.<action>` convention
+ * (`sweep-crosscutting-decisions-20260710.md` §E) — mirrors ADR-PIPE-012's identical
+ * navigation.manage -> admin.menus.* rename. One permission (not split by action) because
+ * `integration.manage` itself was never split and no finer split was directed for this pass.
+ */
+registerPermission({
+  id: "admin.integrations.manage",
+  owner: "integrations",
   description: "Create, update, pause, and delete webhook subscriptions; read delivery logs.",
+});
+registerPermissionMigration({
+  from: "integration.manage",
+  to: ["admin.integrations.manage"],
+  reason:
+    "ADR-PIPE-015 Phase 3: integration.manage renamed to admin.integrations.manage; every " +
+    "policy holding the old flat permission must not be silently locked out by the rename.",
 });
 /**
  * SPEC-008 / ADR-PIPE-008 Decision §8 (T011): a single umbrella permission
