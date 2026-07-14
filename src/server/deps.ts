@@ -20,7 +20,13 @@ import {
   SqliteNewsletterSendRepo,
   SqliteNewsletterSubscriptionRepo,
 } from "../newsletter/repo.sqlite";
-import { seededWorkspace, seedSettingsFromPresentation, SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID } from "./seed";
+import {
+  seededPosts,
+  seededPresentation,
+  seededWorkspace,
+  seedSettingsFromPresentation,
+  SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+} from "./seed";
 import { LocalBufferSink } from "../analytics/repo.memory";
 import {
   ConsoleMailerAdapter,
@@ -95,7 +101,11 @@ export function defaultContentDbPath(): string {
 }
 
 export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): NewsletterRouteDeps {
-  const db = openContentDb(dbPath);
+  const db = openContentDb(dbPath, {
+    workspace: seededWorkspace,
+    posts: seededPosts,
+    presentation: seededPresentation,
+  });
   const clock = { nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
   // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a
