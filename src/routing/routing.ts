@@ -346,6 +346,41 @@ export async function resolve(
   return { matched: false };
 }
 
+/**
+ * Run only the `pre_content` phase for `path` (ADR-PIPE-009 Decision B / C-012).
+ *
+ * The Decision B seam: `resolve()`'s v0 shape bundles `pre_content` and
+ * `post_content` back-to-back with no pause for a caller's own content
+ * lookup in between. This additive, thin wrapper around the already-tested
+ * module-private `runPhase()` lets a real site route run ONLY `pre_content`
+ * before its own content lookup, and (separately) `runPostContentPhase` only
+ * after that lookup has failed — exactly ADR-039 §1's documented pipeline
+ * order (`pre_content -> content-resolve -> post_content`), which the single
+ * `resolve()` export cannot reproduce when a real content lookup must run in
+ * the middle. `resolve()` itself is UNCHANGED by this addition.
+ *
+ * @complexity O(h) in registered `pre_content` handlers.
+ */
+export async function runPreContentPhase(
+  path: string,
+  ctx: RouteResolveContext
+): Promise<RouteResolvePhaseOutcome | null> {
+  return runPhase("pre_content", normalizePath(path), ctx);
+}
+
+/**
+ * Run only the `post_content` phase for `path` (ADR-PIPE-009 Decision B / C-013).
+ * See {@link runPreContentPhase}'s doc for the full rationale.
+ *
+ * @complexity O(h) in registered `post_content` handlers.
+ */
+export async function runPostContentPhase(
+  path: string,
+  ctx: RouteResolveContext
+): Promise<RouteResolvePhaseOutcome | null> {
+  return runPhase("post_content", normalizePath(path), ctx);
+}
+
 // ---------------------------------------------------------------------------
 // SlugChangeCapture slot (ADR-039 §4)
 // ---------------------------------------------------------------------------
