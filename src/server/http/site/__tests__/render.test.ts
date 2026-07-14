@@ -68,11 +68,20 @@ test("an image node with only a src renders without a title attribute", () => {
 });
 
 test("an image node with a javascript:/data:/non-string src renders nothing (no script smuggling)", () => {
-  for (const src of ["javascript:alert(1)", "data:text/html,<script>", 42, null, undefined]) {
+  for (const src of ["javascript:alert(1)", "data:text/html,<script>", "data:image/svg+xml;base64,x", 42, null, undefined]) {
     const html = renderDocNode({
       type: "doc",
       content: [{ type: "image", attrs: { src } as never }],
     });
     assert.equal(html, "");
   }
+});
+
+test("an image node with a raster data: URL src renders (drag-and-drop local file has no serving route to reference instead)", () => {
+  const dataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB";
+  const html = renderDocNode({
+    type: "doc",
+    content: [{ type: "image", attrs: { src: dataUrl, alt: "dropped" } }],
+  });
+  assert.equal(html, `<img src="${dataUrl}" alt="dropped"/>`);
 });

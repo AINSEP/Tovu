@@ -1,8 +1,52 @@
 import { useEffect, useState } from "react";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
+import type { EditorView } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import { api, type AdminPost } from "../lib/api";
+
+/** Reads a browser `File` into a full `data:` URL (mirrors Media.tsx's upload helper, but keeps the prefix). */
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error("failed to read file"));
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Drag-and-drop image support: a dropped local file is inlined as a `data:` URL (no media-library
+ * serving route exists yet to reference instead — see PostEditor's file header note); a dropped
+ * image URL (e.g. dragged from another browser tab) is inserted directly.
+ */
+function handleImageDrop(view: EditorView, event: DragEvent, moved: boolean): boolean {
+  if (moved) return false; // internal content reorder, not an external drop
+  const insertAt = () => view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
+
+  const files = Array.from(event.dataTransfer?.files ?? []).filter((f) => f.type.startsWith("image/"));
+  if (files.length > 0) {
+    event.preventDefault();
+    const pos = insertAt();
+    for (const file of files) {
+      readFileAsDataUrl(file).then((src) => {
+        const node = view.state.schema.nodes.image.create({ src, alt: file.name });
+        view.dispatch(view.state.tr.insert(pos, node));
+      });
+    }
+    return true;
+  }
+
+  const uri = (event.dataTransfer?.getData("text/uri-list") || event.dataTransfer?.getData("text/plain") || "").trim();
+  if (/^https?:\/\//i.test(uri)) {
+    event.preventDefault();
+    const node = view.state.schema.nodes.image.create({ src: uri });
+    view.dispatch(view.state.tr.insert(insertAt(), node));
+    return true;
+  }
+
+  return false;
+}
 
 /** Formatting toolbar wired to the live editor. Active state stays in sync via useEditorState. */
 function Toolbar({ editor }: { editor: Editor }) {
@@ -77,7 +121,13 @@ export function PostEditor(props: { postId: string }) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const editor = useEditor({ extensions: [StarterKit, Image], content: "" });
+  const editor = useEditor({
+    extensions: [StarterKit, Image],
+    content: "",
+    editorProps: {
+      handleDrop: (view, event, _slice, moved) => handleImageDrop(view, event, moved),
+    },
+  });
 
   useEffect(() => {
     setPost(null);
