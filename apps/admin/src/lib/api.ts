@@ -247,6 +247,35 @@ export interface AdminFormSubmission {
   submittedAt: string;
 }
 
+/** Mirrors `src/server/http/admin/redirects.ts`'s `AdminRedirectDto` (SPEC-009). */
+export interface AdminRedirect {
+  id: string;
+  workspaceId: string;
+  matchType: string;
+  fromPattern: string;
+  toTarget: string;
+  statusCode: number;
+  status: string;
+  override: boolean;
+  priority: number;
+  source: string;
+  sourceEntryId: string | null;
+  fromPathAtCapture: string | null;
+  toPathAtCapture: string | null;
+  createdByPrincipal: string;
+  createdByPluginId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+}
+
+export interface AdminRedirectHitStats {
+  redirectId: string;
+  workspaceId: string;
+  hitCount: number;
+  lastHitAt: string | null;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   /** Canonical error `code` from the response body (`FORBIDDEN`, `GRANT_EXCEEDS_ISSUER`,
@@ -515,4 +544,39 @@ export const api = {
     request<{ data: { accepted: true } }>(`/workspaces/${WORKSPACE_ID}/seo/sitemap/regenerate`, {
       method: "POST",
     }),
+  listRedirects: () => request<{ data: AdminRedirect[] }>(`/workspaces/${WORKSPACE_ID}/redirects`),
+  createRedirect: (input: {
+    matchType: string;
+    fromPattern: string;
+    toTarget: string;
+    statusCode: number;
+    override?: boolean;
+    priority?: number;
+  }) =>
+    request<{ data: AdminRedirect }>(`/workspaces/${WORKSPACE_ID}/redirects`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  updateRedirect: (
+    id: string,
+    patch: Partial<{
+      matchType: string;
+      fromPattern: string;
+      toTarget: string;
+      statusCode: number;
+      status: string;
+      override: boolean;
+      priority: number;
+    }>
+  ) =>
+    request<{ data: AdminRedirect }>(`/workspaces/${WORKSPACE_ID}/redirects/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  tombstoneRedirect: (id: string) =>
+    request<{ data: AdminRedirect }>(`/workspaces/${WORKSPACE_ID}/redirects/${id}`, {
+      method: "DELETE",
+    }),
+  getRedirectHits: (id: string) =>
+    request<{ data: AdminRedirectHitStats }>(`/workspaces/${WORKSPACE_ID}/redirects/${id}/hits`),
 };
