@@ -16,6 +16,10 @@ import { MenuEditor } from "./sections/MenuEditor";
 import { Integrations } from "./sections/Integrations";
 import { IntegrationDeliveries } from "./sections/IntegrationDeliveries";
 import { Users } from "./sections/Users";
+import { Settings } from "./sections/Settings";
+import { Seo } from "./sections/Seo";
+import { FormsList } from "./sections/FormsList";
+import { FormEditor } from "./sections/FormEditor";
 
 type Route =
   | { view: "dashboard" }
@@ -25,6 +29,8 @@ type Route =
   | { view: "menu-editor"; menuId: string | null }
   | { view: "integrations" }
   | { view: "integration-deliveries"; subscriptionId: string }
+  | { view: "forms" }
+  | { view: "form-editor"; formId: string }
   | { view: "section"; sectionId: string };
 
 function parseHash(hash: string): Route {
@@ -38,6 +44,8 @@ function parseHash(hash: string): Route {
   if (parts[0] === "integrations" && parts[1])
     return { view: "integration-deliveries", subscriptionId: parts[1] };
   if (parts[0] === "integrations") return { view: "integrations" };
+  if (parts[0] === "forms" && parts[1]) return { view: "form-editor", formId: parts[1] };
+  if (parts[0] === "forms") return { view: "forms" };
   if (parts[0] === "appearance" || (parts[0] === "section" && parts[1] === "appearance"))
     return { view: "section", sectionId: "appearance" };
   if (parts[0] === "section" && parts[1]) return { view: "section", sectionId: parts[1] };
@@ -58,6 +66,9 @@ function activeSectionId(route: Route): string {
     case "integrations":
     case "integration-deliveries":
       return "integrations";
+    case "forms":
+    case "form-editor":
+      return "forms";
     case "section":
       return route.sectionId;
   }
@@ -113,10 +124,18 @@ export function App() {
     case "integration-deliveries":
       content = <IntegrationDeliveries subscriptionId={route.subscriptionId} />;
       break;
+    case "forms":
+      content = <FormsList />;
+      break;
+    case "form-editor":
+      content = <FormEditor formId={route.formId} />;
+      break;
     case "section":
       content =
         route.sectionId === "themes" || route.sectionId === "appearance" ? (
           <Appearance />
+        ) : route.sectionId === "seo" ? (
+          <Seo />
         ) : route.sectionId === "members" ? (
           <Members />
         ) : route.sectionId === "users" ? (
@@ -127,6 +146,8 @@ export function App() {
           <Media />
         ) : route.sectionId === "pages" ? (
           <Pages />
+        ) : route.sectionId === "settings" ? (
+          <Settings />
         ) : (
           <Placeholder sectionId={route.sectionId} />
         );

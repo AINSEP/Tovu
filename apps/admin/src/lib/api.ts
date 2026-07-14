@@ -7,6 +7,58 @@ export interface AdminUser {
   username: string;
 }
 
+/**
+ * SPEC-007 Settings (core-only layered ledger) — client-side types mirroring
+ * `features/settings/types.ts` + `api.spec.md` §5 response contracts.
+ *
+ * Note: only the 5 routes actually shipped in Phase 5 exist server-side
+ * (`register-definitions`, `get-effective`, `set`, `clear`, `reset`) —
+ * `SETTINGS_GET_RAW`/`SETTINGS_LIST_DEFINITIONS` from api.spec.md §1 were
+ * deliberately not built (tasks.md T044). `Settings.tsx` works around the
+ * absence of a raw per-layer read and a definitions listing by composing two
+ * `getSettingsEffective` calls (with/without `principalId`) to distinguish the
+ * user layer from the rest — see that file's header comment for the exact
+ * technique and its known limits.
+ */
+export type SettingScope = "global" | "workspace" | "user";
+
+export interface SettingResolvedValue {
+  key: string;
+  value: unknown;
+  sourceLayer: "user" | "workspace" | "global" | "default";
+  defVersion: number;
+}
+
+export interface SettingValueResponse {
+  key: string;
+  scope: SettingScope;
+  value: unknown;
+  revisionSeq: number;
+}
+
+export interface SettingResetResponse {
+  namespace: string;
+  clearedCount: number;
+  revisionSeqs: number[];
+}
+
+/** Mirrors `src/seo/types.ts`'s `SeoSettings`/`RobotsRule` (SPEC-008). */
+export interface RobotsRule {
+  userAgent: string;
+  allow?: string[];
+  disallow?: string[];
+}
+
+export interface SeoSettings {
+  titleTemplate: string;
+  defaultDescription?: string;
+  defaultOgImage?: string;
+  twitterSite?: string;
+  defaultRobots: { noindex: boolean; nofollow: boolean };
+  sitemapEnabled: boolean;
+  robotsRules: RobotsRule[];
+}
+
 export interface AdminPost {
   id: string;
   workspaceId: string;
@@ -156,6 +208,45 @@ export interface AdminPolicy {
   isFrozen: boolean;
 }
 
+/**
+ * SPEC-010 Forms (Tier-1 sample plugin) — client-side types mirroring `server/http/admin/forms.ts`
+ * + api.spec.md §5. Response envelopes use `{ data: ... }` (Forms' own contract shape), unlike the
+ * `{ menu: ... }`/`{ member: ... }`-style envelopes elsewhere in this file.
+ */
+export interface AdminFormField {
+  id: string;
+  label: string;
+  type: "text" | "email" | "textarea" | "checkbox";
+  required: boolean;
+  maxLength?: number | null;
+}
+
+export interface AdminFormNotify {
+  enabled: boolean;
+  recipients: string[];
+}
+
+export interface AdminFormDefinition {
+  id: string;
+  workspaceId: string;
+  name: string;
+  slug: string;
+  fields: AdminFormField[];
+  notify: AdminFormNotify;
+  status: "active" | "disabled";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminFormSubmission {
+  id: string;
+  formDefinitionId: string;
+  workspaceId: string;
+  data: Record<string, string | boolean>;
+  sourceIp: string;
+  submittedAt: string;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   /** Canonical error `code` from the response body (`FORBIDDEN`, `GRANT_EXCEEDS_ISSUER`,
@@ -192,7 +283,8 @@ export const api = {
       body: JSON.stringify({ username, password }),
     }),
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
-  me: () => request<{ user: AdminUser }>("/auth/me"),
+  me: () =>
+    request<{ user: AdminUser; effectivePermissions?: string[] }>("/auth/me"),
   listPosts: () =>
     request<{ posts: Array<{ post: AdminPost }> }>(`/workspaces/${WORKSPACE_ID}/posts`),
   createPost: (title: string) =>
@@ -350,5 +442,77 @@ export const api = {
     request<{ policy: AdminPolicy }>(`/workspaces/${WORKSPACE_ID}/policies`, {
       method: "POST",
       body: JSON.stringify({ name, description }),
+    }),
+
+  // SPEC-007 Settings (core-only layered ledger) — Phase 6 UI.
+  getSettingsEffective: (namespace: string, opts: { principalId?: string } = {}) => {
+    const params = new URLSearchParams({ namespace });
+    if (opts.principalId) params.set("principalId", opts.principalId);
+    return request<{ data: SettingResolvedValue[] }>(
+      `/workspaces/${WORKSPACE_ID}/settings/effective?${params.toString()}`
+    );
+  },
+  setSetting: (input: {
+    namespace: string;
+    key: string;
+    scope: SettingScope;
+    valueJson: unknown;
+    principalId?: string;
+  }) =>
+    request<SettingValueResponse>(`/workspaces/${WORKSPACE_ID}/settings/value`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+  clearSetting: (input: { namespace: string; key: string; scope: SettingScope; principalId?: string }) =>
+    request<SettingValueResponse>(`/workspaces/${WORKSPACE_ID}/settings/value`, {
+      method: "DELETE",
+      body: JSON.stringify(input),
+    }),
+  resetSettingsNamespace: (input: { namespace: string; scope: SettingScope }) =>
+    request<SettingResetResponse>(`/workspaces/${WORKSPACE_ID}/settings/reset`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  // SPEC-010 Forms (Tier-1 sample plugin) — admin UI.
+  listForms: () => request<{ data: AdminFormDefinition[] }>(`/workspaces/${WORKSPACE_ID}/forms`),
+  getForm: (id: string) => request<{ data: AdminFormDefinition }>(`/workspaces/${WORKSPACE_ID}/forms/${id}`),
+  createForm: (input: { name: string; slug: string; fields: AdminFormField[]; notify?: AdminFormNotify }) =>
+    request<{ data: AdminFormDefinition }>(`/workspaces/${WORKSPACE_ID}/forms`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  updateForm: (
+    id: string,
+    input: { name?: string; fields?: AdminFormField[]; notify?: AdminFormNotify; status?: "active" | "disabled" }
+  ) =>
+    request<{ data: AdminFormDefinition }>(`/workspaces/${WORKSPACE_ID}/forms/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+  listFormSubmissions: (formId: string, opts: { cursor?: string; limit?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.cursor) params.set("cursor", opts.cursor);
+    if (opts.limit) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return request<{ data: AdminFormSubmission[]; nextCursor: string | null }>(
+      `/workspaces/${WORKSPACE_ID}/forms/${formId}/submissions${qs ? `?${qs}` : ""}`
+    );
+  },
+  getFormSubmission: (formId: string, submissionId: string) =>
+    request<{ data: AdminFormSubmission }>(`/workspaces/${WORKSPACE_ID}/forms/${formId}/submissions/${submissionId}`),
+  deleteFormSubmission: (formId: string, submissionId: string) =>
+    request<void>(`/workspaces/${WORKSPACE_ID}/forms/${formId}/submissions/${submissionId}`, {
+      method: "DELETE",
+    }),
+  getSeoSettings: () => request<{ data: SeoSettings }>(`/workspaces/${WORKSPACE_ID}/seo/settings`),
+  setSeoSettings: (patch: Partial<SeoSettings>) =>
+    request<{ data: SeoSettings }>(`/workspaces/${WORKSPACE_ID}/seo/settings`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    }),
+  regenerateSitemap: () =>
+    request<{ data: { accepted: true } }>(`/workspaces/${WORKSPACE_ID}/seo/sitemap/regenerate`, {
+      method: "POST",
     }),
 };

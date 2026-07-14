@@ -3,13 +3,30 @@ import { randomUUID } from "node:crypto";
 
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../core/events";
 import { InMemoryChangeSetRepo } from "../core/commands";
+import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../seo";
+import { registerPageHeadContributor } from "./http/site/page-head";
+import { registerAdminSeoGetEntryRoute } from "./routes/admin/seo/get-entry";
+import { registerAdminSeoGetEntryAnalyzeRoute } from "./routes/admin/seo/get-entry-analyze";
+import { registerAdminSeoGetSettingsRoute } from "./routes/admin/seo/get-settings";
+import { registerAdminSeoPostSitemapRegenerateRoute } from "./routes/admin/seo/post-sitemap-regenerate";
+import { registerAdminSeoPutEntryRoute } from "./routes/admin/seo/put-entry";
+import { registerAdminSeoPutSettingsRoute } from "./routes/admin/seo/put-settings";
+import { registerSeoRobotsRoute } from "./routes/site/robots";
+import { registerSeoSitemapRoute } from "./routes/site/sitemap";
 import { InMemoryPostRepo } from "../features/post";
 import { InMemoryPresentationSettingsRepo } from "../features/presentation";
+import { InMemorySettingsRepo } from "../features/settings/repo.memory";
 import { discoverThemes } from "../features/theme";
 import { createWorkspace, InMemoryWorkspaceRepo, WorkspaceConflictError, WorkspaceValidationError } from "../features/workspace";
 import path from "node:path";
 import { builtInThemesDir } from "./deps";
-import { seededPosts, seededPresentation, seededWorkspace } from "./seed";
+import {
+  seededPosts,
+  seededPresentation,
+  seededWorkspace,
+  seedSettingsFromPresentation,
+  SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+} from "./seed";
 import { LocalBufferSink } from "../analytics/repo.memory";
 import {
   ConsoleMailerAdapter,
@@ -31,6 +48,33 @@ import {
   InMemoryTransformDefinitionRepo,
 } from "../media";
 import { createInMemoryIdentityRouteDeps } from "../identity";
+import {
+  InMemoryNewsletterAudienceSnapshotRepo,
+  InMemoryNewsletterCampaignRepo,
+  InMemoryNewsletterConfirmationTokenRepo,
+  InMemoryNewsletterListRepo,
+  InMemoryNewsletterSendRepo,
+  InMemoryNewsletterSubscriptionRepo,
+} from "../newsletter/repo.memory";
+import { ensureDefaultList } from "../newsletter/lists";
+import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../forms/repo.memory";
+import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile";
+import { registerFormNotifySubscriber } from "../forms/notify-subscriber";
+import { enqueueDelivery } from "../integrations/delivery";
+import { InMemoryDeliveryEnvelopeStore } from "../integrations";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../origin";
+import {
+  InMemoryRedirectRepo,
+  RedirectHitSinkImpl,
+  RedirectPhaseHandlerResolver,
+  redirectMatcher,
+  RedirectSlugChangeCapture,
+  registerRedirectHitOutboxHandler,
+  registerRedirectsPhaseHandlers,
+  type RedirectsWriteDeps,
+} from "../redirects";
+import { registerSlugChangeCapture } from "../routing";
 
 import { applyDevCors } from "./middleware/dev-cors";
 import { registerAdminStatic } from "./middleware/admin-static";
@@ -55,6 +99,11 @@ import { registerAdminMemberListRoute } from "./routes/admin/members/list";
 import { registerAdminMemberGetRoute } from "./routes/admin/members/get-by-id";
 import { registerAdminMemberDisableRoute } from "./routes/admin/members/disable";
 import { registerAdminMemberRequestMagicLinkRoute } from "./routes/admin/members/request-magic-link";
+import type { MembersRouteDeps } from "./routes/admin/members/deps";
+import { registerPublicMemberCompleteSignInRoute } from "./routes/members/complete-sign-in";
+import { registerPublicMemberSignInRequestRoute } from "./routes/members/sign-in";
+import type { MemberPublicRouteDeps } from "./routes/members/deps";
+import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "./middleware/rate-limit";
 import { registerAdminAnalyticsRecentHitsRoute } from "./routes/admin/analytics/recent-hits";
 import { registerAdminMenuListRoute } from "./routes/admin/menus/list";
 import { registerAdminMenuGetRoute } from "./routes/admin/menus/get-by-id";
@@ -81,6 +130,26 @@ import { registerAdminRoleListRoute } from "./routes/admin/users/list-roles";
 import { registerAdminRoleCreateRoute } from "./routes/admin/users/create-role";
 import { registerAdminPolicyListRoute } from "./routes/admin/users/list-policies";
 import { registerAdminPolicyCreateRoute } from "./routes/admin/users/create-policy";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "./routes/admin/settings/register-definitions";
+import { registerAdminSettingsGetEffectiveRoute } from "./routes/admin/settings/get-effective";
+import { registerAdminSettingsSetRoute } from "./routes/admin/settings/set";
+import { registerAdminSettingsClearRoute } from "./routes/admin/settings/clear";
+import { registerAdminSettingsResetRoute } from "./routes/admin/settings/reset";
+import { registerAdminFormsListRoute } from "./routes/admin/forms/list";
+import { registerAdminFormsCreateRoute } from "./routes/admin/forms/create";
+import { registerAdminFormsGetRoute } from "./routes/admin/forms/get-by-id";
+import { registerAdminFormsUpdateRoute } from "./routes/admin/forms/update";
+import { registerAdminFormsListSubmissionsRoute } from "./routes/admin/forms/list-submissions";
+import { registerAdminFormsGetSubmissionRoute } from "./routes/admin/forms/get-submission";
+import { registerAdminFormsDeleteSubmissionRoute } from "./routes/admin/forms/delete-submission";
+import { registerFormsSubmitRoute } from "./routes/site/forms-submit";
+import { registerAdminRedirectListRoute } from "./routes/admin/redirects/list";
+import { registerAdminRedirectGetRoute } from "./routes/admin/redirects/get-by-id";
+import { registerAdminRedirectCreateRoute } from "./routes/admin/redirects/create";
+import { registerAdminRedirectUpdateRoute } from "./routes/admin/redirects/update";
+import { registerAdminRedirectTombstoneRoute } from "./routes/admin/redirects/tombstone";
+import { registerAdminRedirectImportRoute } from "./routes/admin/redirects/import";
+import { registerAdminRedirectHitsRoute } from "./routes/admin/redirects/hits";
 import type { RouteDeps } from "./routes/types";
 
 /**
@@ -102,27 +171,107 @@ import type { RouteDeps } from "./routes/types";
  */
 
 /** In-memory route deps seeded from `./seed`. Default for tests/dev. */
-export function createRouteDeps(): RouteDeps {
+export function createRouteDeps(): NewsletterRouteDeps {
   const workspaceRepo = new InMemoryWorkspaceRepo([seededWorkspace]);
   const postRepo = new InMemoryPostRepo(seededPosts);
   const presentationRepo = new InMemoryPresentationSettingsRepo([seededPresentation]);
+  const settingsRepo = new InMemorySettingsRepo();
   const clock = { nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
   const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen });
+  // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this
+  // composition root stays synchronous; consumers await `settingsReady` before relying on the
+  // migrated value being present.
+  const settingsReady = seedSettingsFromPresentation({
+    presentationRepo,
+    settingsRepo,
+    clock,
+    ids: idGen,
+    principals: identity.principalRepo,
+    systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
+  }).then(() => undefined);
+
+  // SPEC-008 (ADR-PIPE-008 Decision §3, T050) — idempotently registers the 8 `site.seo.*`
+  // definitions at boot, mirroring `settingsReady`'s fire-and-forget shape. Chained AFTER
+  // `settingsReady` resolves (not fired in parallel) — see `deps.ts`'s identical fix for why:
+  // two independent writers opening the settings chokepoint's transaction concurrently on the
+  // SQLite composition root throws; chaining keeps both composition roots' boot sequence identical.
+  const seoReady = settingsReady.then(() =>
+    ensureSeoSettingDefinitions(
+      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+    ).then(() => undefined)
+  );
+
+  // SPEC-011 (Newsletter) — declared here (not inline in the return object) so `newsletterReady`
+  // below can seed the default list against the SAME repo instance the returned deps expose.
+  const newsletterListRepoInMemory = new InMemoryNewsletterListRepo();
+
+  // SPEC-009 (Redirects, ADR-PIPE-009) — FIRST-TIME composition-root wiring of `origin`'s
+  // OriginRegistry and `routing`'s registration functions (Context item 4: neither library had a
+  // real consumer before this feature). Seeds a `dev-capability` verified origin for the single
+  // seeded workspace, mirroring every other dev-mode fixture in this file (e.g. `seededWorkspace`).
+  const originRegistry = new OriginRegistry({
+    repo: new InMemoryOriginSettingRepo([
+      {
+        workspaceId: seededWorkspace.id,
+        origin: createVerifiedOrigin({
+          scheme: "http",
+          host: "localhost",
+          port: 3000,
+          verifiedAt: clock.nowIso(),
+          source: "dev-capability",
+        }),
+      },
+    ]),
+  });
+  const redirectRepo = new InMemoryRedirectRepo();
+  const redirectHitSink = new RedirectHitSinkImpl();
+  const outbox = new InMemoryOutbox();
+  const bus = new InMemoryEventBus();
+  const redirectsWriteDeps: RedirectsWriteDeps = {
+    repo: redirectRepo,
+    db: redirectRepo,
+    transaction: async (fn) => fn(),
+    matcher: redirectMatcher,
+    originRegistry,
+    clock,
+    idGen,
+    outbox,
+  };
+  registerRedirectsPhaseHandlers({
+    resolver: new RedirectPhaseHandlerResolver({
+      repo: redirectRepo,
+      matcher: redirectMatcher,
+      originRegistry,
+      hits: { outbox, clock, idGen },
+    }),
+  });
+  registerSlugChangeCapture(
+    new RedirectSlugChangeCapture({ repo: redirectRepo, db: redirectRepo, clock, idGen })
+  );
+  void registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink });
 
   return {
     workspaceId: seededWorkspace.id,
     workspaceRepo,
     postRepo,
     presentationRepo,
+    settingsRepo,
+    settingsReady,
+    seoReady,
     changeSets: new InMemoryChangeSetRepo(),
     themes: discoverThemes(builtInThemesDir(), "built-in"),
-    outbox: new InMemoryOutbox(),
-    bus: new InMemoryEventBus(),
+    outbox,
+    bus,
     clock,
     idGen,
     analyticsSink: new LocalBufferSink(),
     ...identity,
+    redirectRepo,
+    redirectHitSink,
+    originRegistry,
+    redirectsWriteDeps,
     memberRepo: new InMemoryMemberRepo([]),
     memberTierRepo: new InMemoryMemberTierRepo([]),
     memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo([]),
@@ -154,6 +303,29 @@ export function createRouteDeps(): RouteDeps {
     // disclosed blocker on the real adapter, which `server/deps.ts` wires instead.
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
     imageTransformer: new InMemoryImageTransformer(),
+    // SPEC-011 (Newsletter): in-memory adapters — no `declareDataModule()` boot step needed (that
+    // mechanism is SQLite-only), so `newsletterReady` resolves immediately, unlike `server/deps.ts`'s
+    // real fire-and-forget install. `membersConsentCapability` stays `null` (unbound) — see that
+    // file's identical note.
+    // T030: seed the default "all subscribers" list once, same as `server/deps.ts`'s real boot path.
+    newsletterReady: ensureDefaultList({
+      deps: { listRepo: newsletterListRepoInMemory, clock, ids: idGen },
+      input: { workspaceId: seededWorkspace.id },
+    }).then(() => undefined),
+    newsletterCampaignRepo: new InMemoryNewsletterCampaignRepo(),
+    newsletterListRepo: newsletterListRepoInMemory,
+    newsletterSubscriptionRepo: new InMemoryNewsletterSubscriptionRepo(),
+    newsletterAudienceSnapshotRepo: new InMemoryNewsletterAudienceSnapshotRepo(),
+    newsletterSendRepo: new InMemoryNewsletterSendRepo(),
+    newsletterConfirmationTokenRepo: new InMemoryNewsletterConfirmationTokenRepo(),
+    membersConsentCapability: null,
+    // SPEC-010 (Forms, Tier-1 sample plugin, ADR-PIPE-010): in-memory adapters, matching every
+    // other core-owned-table feature's hermetic test/dev composition. `formsRateLimiter` is one
+    // process-lifetime `FORMS_SUBMIT_PROFILE` counter store (constructed once here, not
+    // per-request) so its fixed-window counts persist across requests within one `createApp()`.
+    formDefinitionRepo: new InMemoryFormDefinitionRepo(),
+    formSubmissionRepo: new InMemoryFormSubmissionRepo(),
+    formsRateLimiter: createRateLimiter(FORMS_SUBMIT_PROFILE, clock),
   };
 }
 
@@ -171,6 +343,23 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
     // Demonstration side effect. Replace with indexers/webhooks/etc.
     console.log("event handled:", event.name, event.payload);
   });
+
+  // SPEC-008 (ADR-PIPE-008 Decision §5, T038) — SEO subscribes to the 3 entry-lifecycle events
+  // `post.ts`'s `updatePost()` now emits, invalidating that workspace's sitemap cache entry on
+  // delivery (idempotent per ADR-009 — a duplicate delivery is a no-op, `invalidateSitemapCache`
+  // is itself idempotent). Real event delivery requires the producing route to drain the outbox
+  // (see `routes/admin/posts/update.ts`'s `processOutbox` call, mirroring the `/workspaces` route
+  // below).
+  const seoEventSubscriptions = createSeoEventSubscriptions();
+  void routeDeps.bus.subscribe("entry.published", (event) => seoEventSubscriptions.onEntryPublished(event as never));
+  void routeDeps.bus.subscribe("entry.updated", (event) => seoEventSubscriptions.onEntryUpdated(event as never));
+  void routeDeps.bus.subscribe("entry.unpublished", (event) => seoEventSubscriptions.onEntryUnpublished(event as never));
+
+  // SPEC-008 (ADR-PIPE-008 Decision §2/§3, T009) — SEO's `page.head` contributor, registered once
+  // at boot into the core-owned `page-head.ts` registry (never imported directly by `render.ts`).
+  registerPageHeadContributor(
+    createSeoPageHeadHook({ postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps })
+  );
 
   registerHealthRoute(app, routeDeps);
 
@@ -192,10 +381,44 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerAdminPresentationGetRoute(app, routeDeps);
   registerAdminPresentationPatchRoute(app, routeDeps);
   registerContentPostGetRoute(app, routeDeps);
-  registerAdminMemberListRoute(app, routeDeps);
-  registerAdminMemberGetRoute(app, routeDeps);
-  registerAdminMemberDisableRoute(app, routeDeps);
-  registerAdminMemberRequestMagicLinkRoute(app, routeDeps);
+
+  // ADR-PIPE-013 Decision §2-3 (FEAT-013 Phase 2) — one shared
+  // MAGIC_LINK_PER_EMAIL limiter instance consulted by BOTH the admin
+  // request-magic-link route and the new public sign-in route (C-015: one
+  // counter per email, not two). Per-boot-scoped, mirroring
+  // `registerAuthRoutes`'s own `loginRateLimiter` construction.
+  const magicLinkPerEmailLimiter = createRateLimiter(MAGIC_LINK_PER_EMAIL, routeDeps.clock);
+  const magicLinkPerIpLimiter = createRateLimiter(MAGIC_LINK_PER_IP, routeDeps.clock);
+  const magicLinkCompleteAttemptLimiter = createRateLimiter(MAGIC_LINK_COMPLETE_ATTEMPT, routeDeps.clock);
+  const membersDeps: MembersRouteDeps = { ...routeDeps, magicLinkPerEmailLimiter };
+
+  registerAdminMemberListRoute(app, membersDeps);
+  registerAdminMemberGetRoute(app, membersDeps);
+  registerAdminMemberDisableRoute(app, membersDeps);
+  registerAdminMemberRequestMagicLinkRoute(app, membersDeps);
+
+  // NEW public (non-admin) member route family (ADR-PIPE-013 Decision §2-3) —
+  // mounted OUTSIDE /api/admin's `requireAdminSession` middleware (this
+  // family is unauthenticated by design), alongside the existing
+  // `registerContentPostGetRoute`-style public mount above. Boot-time repo
+  // adapters remain in-memory (Decision §5) — unchanged by this wiring.
+  const memberPublicDeps: MemberPublicRouteDeps = {
+    workspaceId: routeDeps.workspaceId,
+    memberRepo: routeDeps.memberRepo,
+    memberTierRepo: routeDeps.memberTierRepo,
+    memberSubscriptionRepo: routeDeps.memberSubscriptionRepo,
+    memberSessionRepo: routeDeps.memberSessionRepo,
+    magicLinkRepo: routeDeps.magicLinkRepo,
+    mailer: routeDeps.mailer,
+    clock: routeDeps.clock,
+    idGen: routeDeps.idGen,
+    magicLinkPerEmailLimiter,
+    magicLinkPerIpLimiter,
+    magicLinkCompleteAttemptLimiter,
+  };
+  registerPublicMemberSignInRequestRoute(app, memberPublicDeps);
+  registerPublicMemberCompleteSignInRoute(app, memberPublicDeps);
+
   registerAdminAnalyticsRecentHitsRoute(app, routeDeps);
   registerAdminMenuListRoute(app, routeDeps);
   registerAdminMenuGetRoute(app, routeDeps);
@@ -221,6 +444,88 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerAdminRoleCreateRoute(app, routeDeps);
   registerAdminPolicyListRoute(app, routeDeps);
   registerAdminPolicyCreateRoute(app, routeDeps);
+  // SPEC-007 Phase 5 (T043) — admin settings HTTP surface.
+  registerAdminSettingsRegisterDefinitionsRoute(app, routeDeps);
+  registerAdminSettingsGetEffectiveRoute(app, routeDeps);
+  registerAdminSettingsSetRoute(app, routeDeps);
+  registerAdminSettingsClearRoute(app, routeDeps);
+  registerAdminSettingsResetRoute(app, routeDeps);
+
+  // SPEC-010 (Forms, Tier-1 sample plugin) — 7 admin routes (definitions CRUD + submissions
+  // list/get/delete), gated per api.spec.md §2's `admin.forms.*` profiles.
+  registerAdminFormsListRoute(app, routeDeps);
+  registerAdminFormsCreateRoute(app, routeDeps);
+  registerAdminFormsGetRoute(app, routeDeps);
+  registerAdminFormsUpdateRoute(app, routeDeps);
+  registerAdminFormsListSubmissionsRoute(app, routeDeps);
+  registerAdminFormsGetSubmissionRoute(app, routeDeps);
+  registerAdminFormsDeleteSubmissionRoute(app, routeDeps);
+
+  // SPEC-009 (Redirects) — 7 admin routes (list/get/create/update/tombstone/import/hits), each
+  // gated by `admin.redirects.manage` (api.spec.md §1/§2).
+  registerAdminRedirectListRoute(app, routeDeps);
+  registerAdminRedirectGetRoute(app, routeDeps);
+  registerAdminRedirectCreateRoute(app, routeDeps);
+  registerAdminRedirectUpdateRoute(app, routeDeps);
+  registerAdminRedirectTombstoneRoute(app, routeDeps);
+  registerAdminRedirectImportRoute(app, routeDeps);
+  registerAdminRedirectHitsRoute(app, routeDeps);
+
+  // SPEC-008 (SEO) — 6 admin routes gated by `admin.seo.manage`, plus the 2 public site routes
+  // (sitemap.xml/robots.txt), which must register before `registerSiteRoutes`'s `/:slug` catch-all.
+  registerAdminSeoGetEntryRoute(app, routeDeps);
+  registerAdminSeoPutEntryRoute(app, routeDeps);
+  registerAdminSeoGetEntryAnalyzeRoute(app, routeDeps);
+  registerAdminSeoGetSettingsRoute(app, routeDeps);
+  registerAdminSeoPutSettingsRoute(app, routeDeps);
+  registerAdminSeoPostSitemapRegenerateRoute(app, routeDeps);
+  registerSeoSitemapRoute(app, routeDeps);
+  registerSeoRobotsRoute(app, routeDeps);
+
+  /**
+   * SPEC-010 (Forms) outbox wiring — two independent subscribers to `form.submission.received`
+   * (ADR-PIPE-010 Decision/Wiring Map W-004/W-005):
+   *
+   * 1. `registerFormNotifySubscriber` (`src/forms/notify-subscriber.ts`, C-009) — the one piece of
+   *    Forms-owned business logic riding the outbox: calls `MailerPort.send()` per configured
+   *    recipient when a definition's notify config is enabled.
+   * 2. The webhook-fanout forwarding line immediately below — closes the pre-existing
+   *    `integrations` wiring gap (ADR-036 §4's `enqueueDelivery` was real, tested business logic
+   *    that nothing in this composition root had ever called `bus.subscribe` for). This line
+   *    contains ZERO Forms-owned dispatch logic (REQ-11) — it forwards verbatim to
+   *    `integrations`' own `enqueueDelivery`. `InMemoryDeliveryEnvelopeStore` is constructed here
+   *    (not threaded through `RouteDeps`) because no other consumer of the webhook subsystem
+   *    exists in this composition root yet — see ADR-PIPE-010 Context §2 for the disclosed gap
+   *    this line closes as a side effect of building Forms, and the Consequences/Risks note on
+   *    the Integrations sibling spec potentially closing the same gap independently.
+   */
+  void registerFormNotifySubscriber({
+    bus: routeDeps.bus,
+    mailer: routeDeps.mailer,
+    formDefinitionRepo: routeDeps.formDefinitionRepo,
+    formSubmissionRepo: routeDeps.formSubmissionRepo,
+  });
+  const formsWebhookEnvelopeStore = new InMemoryDeliveryEnvelopeStore();
+  void routeDeps.bus.subscribe("form.submission.received", async (event) => {
+    await enqueueDelivery({
+      deps: {
+        subscriptionRepo: routeDeps.webhookSubscriptionRepo,
+        deliveryRepo: routeDeps.webhookDeliveryRepo,
+        envelopeStore: formsWebhookEnvelopeStore,
+        idGenerator: routeDeps.idGen,
+        clock: routeDeps.clock,
+      },
+      input: {
+        event: {
+          id: event.id,
+          name: event.name as import("../integrations").WebhookTopic,
+          workspaceId: event.workspaceId,
+          occurredAt: event.occurredAt,
+          payload: event.payload as import("../core/ports").JsonObject,
+        },
+      },
+    });
+  });
 
   // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt.
   registerAdminStatic(app, {
@@ -298,6 +603,21 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // Public, unauthenticated media rendition serving (ADR-027 §4 frozen URL contract) — must
   // precede the site `/:slug` catch-all, same reasoning as the store/analytics routes above.
   registerMediaRenditionRoute(app, routeDeps);
+
+  // Public, unauthenticated form submission endpoint (SPEC-010 REQ-05, FORMS_POST_SUBMIT) — must
+  // precede the site `/:slug` catch-all, same reasoning as the routes immediately above.
+  registerFormsSubmitRoute(app, {
+    workspaceId: routeDeps.workspaceId,
+    submitForm: {
+      definitionRepo: routeDeps.formDefinitionRepo,
+      submissionRepo: routeDeps.formSubmissionRepo,
+      outbox: routeDeps.outbox,
+      bus: routeDeps.bus,
+      clock: routeDeps.clock,
+      idGen: routeDeps.idGen,
+      rateLimiter: routeDeps.formsRateLimiter,
+    },
+  });
 
   // Public dummy site — registered last (GET /:slug is a catch-all).
   registerSiteRoutes(app, routeDeps);

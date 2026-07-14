@@ -43,7 +43,21 @@ const BUILTIN_ADMIN_PERMISSIONS: readonly string[] = [
   "member.manage",
   "settings.write",
   "apikey.manage",
-  "navigation.manage",
+  // ADR-PIPE-012 (Menus remediation, D-1/D-2/D-9 migration clause): every freshly-seeded
+  // workspace gets the 6 new admin.menus.* CRUD strings directly, so it never depends on
+  // migrateDeprecatedPermissionGrants() for its own built-in role grants. The now-legacy
+  // "navigation.manage" is deliberately dropped from THIS seed list only — the string itself
+  // stays registered (deprecated) in identity/permissions.ts. NOTE: migrateDeprecatedPermissionGrants()
+  // is built and fully tested (permission-migrations.ts) but NOT YET wired into this function's
+  // boot path below — that wiring is gated on a real `/audit-work` pass over ADR-PIPE-012
+  // (security-adjacent, reused by up to 3 sibling remediations) and is deliberately left
+  // uncalled in this pass. See ADR-PIPE-012 tasks.md T002/T013.
+  "admin.menus.read",
+  "admin.menus.create",
+  "admin.menus.update",
+  "admin.menus.delete",
+  "admin.menus.delete.force",
+  "admin.menus.assign",
   "integration.manage",
   // SPEC-007 (ADR-028 §7 migration clause): every settings.write holder also
   // gets settings.definitions.manage, so the admin role isn't left
@@ -63,6 +77,9 @@ const BUILTIN_ADMIN_PERMISSIONS: readonly string[] = [
   "settings.read.raw",
   "settings.read.revisions",
   "settings.read.definitions",
+  // SPEC-008 (ADR-PIPE-008 Decision §8): every freshly-seeded workspace's built-in admin role
+  // gets the one SEO umbrella permission directly, mirroring the admin.menus.* precedent above.
+  "admin.seo.manage",
   // Owner-only per REQ-09: "user.manage", "role.manage" are deliberately absent.
 ];
 

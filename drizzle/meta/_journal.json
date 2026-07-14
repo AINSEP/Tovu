@@ -22,6 +22,34 @@
       "when": 1783796903066,
       "tag": "0002_skinny_network",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1783978946715,
+      "tag": "0003_steady_peter_quill",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1783979228984,
+      "tag": "0004_known_silver_surfer",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1783979587861,
+      "tag": "0005_little_diamondback",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1783979868971,
+      "tag": "0006_spotty_gabe_jones",
+      "breakpoints": true
     }
   ]
 }

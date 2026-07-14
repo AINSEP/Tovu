@@ -46,6 +46,11 @@ function seededPost(): PostRecord {
   };
 }
 
+/** A no-op stand-in for `updatePost`'s own required `outbox` dep (SPEC-008/ADR-PIPE-008 Decision §5) — this
+ * file's own gateway-level `outbox` fake (constructed per-test below) is a separate concern (the
+ * `change-set.applied` event), so `postUpdateMutation`'s inner `updatePost` call gets its own. */
+const postTransitionOutbox = { enqueue: async () => {} } as never;
+
 /** Mirrors the post-update route's mutation, including the rollback seam. */
 function postUpdateMutation(
   repo: InMemoryPostRepo,
@@ -68,7 +73,7 @@ function postUpdateMutation(
     },
     execute: () =>
       updatePost({
-        deps: { repo, clock: fixedClock },
+        deps: { repo, clock: fixedClock, outbox: postTransitionOutbox },
         input: { workspaceId: WORKSPACE, id: POST_ID, ...next },
       }),
     captureEntityVersion: (r) => r.post.version,

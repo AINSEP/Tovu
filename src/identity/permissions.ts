@@ -12,7 +12,19 @@
  * Programmer handoff, mirrors the REQ-13 N/A reasoning). `listPermissions()`
  * is the core capability a future CLI wires to; it is exercised directly by
  * tests instead.
+ *
+ * ADR-PIPE-012 (Menus remediation, D-1/D-2/D-9): `navigation.manage` below is
+ * renamed/split into the `admin.menus.*` 7-entry catalog. `navigation.manage`
+ * itself stays registered (deprecated, not deleted — see its own doc comment)
+ * until the Point of No Return; `permission-migrations.ts`'s
+ * `migrateDeprecatedPermissionGrants()` is the fan-out mechanism that keeps
+ * any policy holding the old string from being silently narrowed by the
+ * split. NOTE: registration only — wiring the migration call into
+ * `seed.ts`'s live boot path is gated on a real `/audit-work` pass
+ * (ADR-PIPE-012 Constitution Check, security axis) and is deliberately NOT
+ * done in this pass; see `seed.ts`'s own doc comment.
  */
+import { registerPermissionMigration } from "./permission-migrations";
 
 /** One entry in the registered permission catalog. */
 export interface PermissionDescriptor {
@@ -149,12 +161,200 @@ export function registerPermission(descriptor: PermissionDescriptor): void {
 registerPermission({
   id: "navigation.manage",
   owner: "navigation",
-  description: "Create, update, delete, and assign menus and location bindings.",
+  description:
+    "DEPRECATED (ADR-PIPE-012 D-1/D-2/D-9) — superseded by the admin.menus.* catalog below. " +
+    "Retained (not deleted) until the Point of No Return: the identity SQLite adapter shipping " +
+    "plus a real deprecation window with observed zero reliance on this string, gated on " +
+    "authorize()-decision logging existing first to measure that (ADR-PIPE-012 Migration Safety). " +
+    "Do not register a new dependency on this string.",
+});
+/**
+ * ADR-PIPE-012 D-1/D-2/D-9: the `admin.menus.*` 7-entry catalog that replaces
+ * `navigation.manage` above. Split by action (force-purge is now gated
+ * separately from ordinary edits — the D-1 fix) and renamed to the frozen
+ * `admin.<section>.<action>` convention (`sweep-crosscutting-decisions-20260710.md`
+ * §E) that `navigation.manage` predates. Values must stay in lockstep with
+ * `navigation/contracts.ts`'s `NAVIGATION_PERMISSIONS`.
+ */
+registerPermission({
+  id: "admin.menus.read",
+  owner: "navigation",
+  description: "Read menus and their location bindings.",
+});
+registerPermission({
+  id: "admin.menus.create",
+  owner: "navigation",
+  description: "Create a new menu.",
+});
+registerPermission({
+  id: "admin.menus.update",
+  owner: "navigation",
+  description: "Replace a menu's item tree.",
+});
+registerPermission({
+  id: "admin.menus.delete",
+  owner: "navigation",
+  description: "Trash a menu, and attempt an ordinary (non-forced) hard purge.",
+});
+registerPermission({
+  id: "admin.menus.delete.force",
+  owner: "navigation",
+  description:
+    "Force-purge a menu past the dangling-location-binding guard (ADR-PIPE-012 D-1 — split from " +
+    "admin.menus.delete so force-purge is not reachable with only the ordinary delete grant).",
+});
+registerPermission({
+  id: "admin.menus.assign",
+  owner: "navigation",
+  description: "Assign (or reassign) a menu to a theme location.",
+});
+registerPermission({
+  id: "admin.menus.manage",
+  owner: "navigation",
+  description: "Umbrella grant covering every admin.menus.* action (mirrors owner-tier convenience grants).",
+});
+registerPermissionMigration({
+  from: "navigation.manage",
+  to: [
+    "admin.menus.read",
+    "admin.menus.create",
+    "admin.menus.update",
+    "admin.menus.delete",
+    "admin.menus.delete.force",
+    "admin.menus.assign",
+  ],
+  reason:
+    "ADR-PIPE-012 D-1/D-2/D-9: navigation.manage split into per-action admin.menus.* strings; " +
+    "every policy holding the old flat permission must not be silently narrowed by the split.",
 });
 registerPermission({
   id: "integration.manage",
   owner: "integrations",
   description: "Create, update, pause, and delete webhook subscriptions; read delivery logs.",
+});
+/**
+ * SPEC-008 / ADR-PIPE-008 Decision §8 (T011): a single umbrella permission
+ * gating all 6 SEO admin routes (both reads and writes — no self-vs-other
+ * branching to get wrong, matching `theme.set`'s single-permission-per-domain
+ * precedent, api.spec.md §2). Uses the frozen `admin.<section>.<action>`
+ * convention directly (unlike `navigation.manage`/`integration.manage` above,
+ * which predate it) — Coordinator-confirmed 2026-07-13 (state.spec.md §5 item
+ * 2) as the owner-frozen shape new admin sections should register under.
+ */
+registerPermission({
+  id: "admin.seo.manage",
+  owner: "seo",
+  description: "Read and write per-entry SEO overrides, site-level SEO settings, and the sitemap cache.",
+});
+/**
+ * FEAT-014 / ADR-PIPE-014 §1: closes the standing Article VI gap on the analytics
+ * `recent-hits` admin route (previously zero `authorize()` call at all). Flat
+ * `domain.verb` shape, matching `navigation.manage`/`integration.manage` above rather
+ * than the never-implemented `admin.analytics.view` string floated in ADR-035/ADR-INDEX
+ * prose — see ADR-PIPE-014 Decision §1/Rationale for the full disclosure.
+ */
+registerPermission({
+  id: "analytics.read",
+  owner: "analytics",
+  description: "Read recent ingested analytics hits.",
+});
+/**
+ * SPEC-009 / ADR-PIPE-009 REQ-12: gates all 7 admin `redirects` endpoints
+ * (list/get/create/update/tombstone/import/hit-read). Flagged deviation
+ * (per spec-manifest.md, ADR-PIPE-009 File Map): this is the FIRST
+ * `admin.<section>.<action>`-prefixed permission in the catalog — every
+ * other entry above (`navigation.manage`, `integration.manage`,
+ * `analytics.read`, ...) uses the flat `domain.verb` shape and explicitly
+ * rejected the `admin.<section>.<action>` convention floated only in ADR
+ * prose. This one is used exactly as SPEC-009/ADR-PIPE-009 directs, not
+ * silently normalized to match the flat-string precedent — a real,
+ * disclosed inconsistency in the catalog, not an oversight.
+ */
+registerPermission({
+  id: "admin.redirects.manage",
+  owner: "redirects",
+  description: "Create, update, tombstone, import, and read hit stats for redirect rules.",
+});
+/**
+ * SPEC-010 / ADR-PIPE-010 (Forms, Tier-1 sample plugin): the three `admin.forms.*` capability
+ * strings, verbatim per `api.spec.md` §2 and `manifest.ts`'s `FORMS_CAPABILITIES` data. Unlike
+ * `navigation.manage`/`integration.manage` above, Forms deliberately splits into three (not one
+ * flat `forms.manage`) — submission data is visitor-supplied PII, so an admin who manages form
+ * definitions need not automatically see or delete submission content, and vice versa (mirrors the
+ * `webhooks.read` vs `webhooks.redeliver` granularity precedent in ADR-036 §6).
+ */
+registerPermission({
+  id: "admin.forms.manage",
+  owner: "forms",
+  description: "Create, update, and disable/enable form definitions.",
+});
+registerPermission({
+  id: "admin.forms.submissions.read",
+  owner: "forms",
+  description: "List and view form submissions.",
+});
+registerPermission({
+  id: "admin.forms.submissions.delete",
+  owner: "forms",
+  description: "Permanently delete a form submission.",
+});
+/**
+ * SPEC-011 (Newsletter, ADR-PIPE-011 REQ-25 Agent Directive, AC-42). Namespaced `admin.newsletter.*`
+ * shape (unlike `navigation.manage`/`integration.manage`/`analytics.read` above) — matches
+ * api.spec.md §2's per-endpoint auth-profile table exactly (8 strings actually gate a route this
+ * pass) and SPEC-009's `admin.redirects.manage` naming precedent. `admin.newsletter.settings.manage`/
+ * `admin.newsletter.manage` are registered but not yet gate any route — reserved for a future API
+ * surface, same disclosed convention as `settings.read.raw`/`settings.read.revisions` above.
+ */
+registerPermission({
+  id: "admin.newsletter.read",
+  owner: "newsletter",
+  description: "List and read newsletter campaigns, lists, and the send log.",
+});
+registerPermission({
+  id: "admin.newsletter.campaign.compose",
+  owner: "newsletter",
+  description: "Create/edit/cancel a newsletter campaign in draft or scheduled state.",
+});
+registerPermission({
+  id: "admin.newsletter.campaign.schedule",
+  owner: "newsletter",
+  description: "Schedule a draft newsletter campaign to send at a future time.",
+});
+registerPermission({
+  id: "admin.newsletter.campaign.send",
+  owner: "newsletter",
+  description: "Send, pause, or resume a newsletter campaign — real outbound mail.",
+});
+registerPermission({
+  id: "admin.newsletter.campaign.send_test",
+  owner: "newsletter",
+  description: "Send a test copy of a newsletter campaign to a small address list.",
+});
+registerPermission({
+  id: "admin.newsletter.list.manage",
+  owner: "newsletter",
+  description: "Create and archive newsletter subscriber lists.",
+});
+registerPermission({
+  id: "admin.newsletter.subscriber.read",
+  owner: "newsletter",
+  description: "Read newsletter subscriptions and the per-campaign send log.",
+});
+registerPermission({
+  id: "admin.newsletter.subscriber.manage",
+  owner: "newsletter",
+  description: "Add, import, remove newsletter subscriptions, and resend confirmation emails.",
+});
+registerPermission({
+  id: "admin.newsletter.settings.manage",
+  owner: "newsletter",
+  description: "Reserved for a future API surface (no route uses this yet).",
+});
+registerPermission({
+  id: "admin.newsletter.manage",
+  owner: "newsletter",
+  description: "Umbrella newsletter permission. Reserved for a future API surface (no route uses this yet).",
 });
 
 /** Enumerate the full registered catalog (REQ-12 core capability; CLI wiring is N/A, see file header). */
