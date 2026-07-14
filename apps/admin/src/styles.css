@@ -194,10 +194,32 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); box
 .editor-actions { display: flex; gap: 0.6rem; align-items: center; }
 .save-ok { color: var(--ok); font-size: 0.85rem; }
 .save-error { color: var(--danger); font-size: 0.85rem; }
-.editor-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; padding: 0.6rem 0.2rem; width: 100%; border: none; border-bottom: 1px solid transparent; border-radius: 0; background: transparent; color: var(--fg); }
-.editor-title:focus { outline: none; box-shadow: none; border-bottom-color: var(--border-strong); }
+.editor-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; padding: 0.6rem 0.2rem; width: 100%; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--fg); }
+.editor-title::placeholder { color: var(--faint); font-weight: 500; }
+.editor-title:focus { outline: none; box-shadow: none; border-bottom-color: var(--accent-text); }
 .editor-slug { color: var(--muted); font-size: 0.85rem; display: flex; gap: 0.4rem; align-items: center; }
 .editor-slug input { width: 14rem; }
+
+/* Menu tree editor */
+.menu-tree { display: flex; flex-direction: column; gap: 0.6rem; }
+.menu-item-row { position: relative; }
+.menu-item-row + .menu-item-row { margin-top: 0.6rem; }
+.menu-item-fields {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+  padding: 0.65rem 0.75rem; box-shadow: var(--shadow-sm);
+}
+.menu-item-fields input, .menu-item-fields select { font-size: 0.85rem; padding: 0.4rem 0.6rem; }
+.menu-item-fields input[placeholder="Label"] { flex: 1 1 9rem; min-width: 7rem; }
+.menu-item-fields select { flex: 0 0 auto; width: 6.5rem; }
+.menu-item-fields input[placeholder="https://…"],
+.menu-item-fields input[placeholder="route name"],
+.menu-item-fields input[placeholder="entry id"],
+.menu-item-fields input[placeholder="term id"],
+.menu-item-fields input[placeholder="taxonomy"] { flex: 1 1 10rem; min-width: 8rem; }
+.menu-item-fields .tb-btn { flex: 0 0 auto; }
+/* Children get a left guide rule instead of bare indentation, so nesting reads visually. */
+.menu-item-row[style*="margin-left"] { padding-left: 0.9rem; border-left: 2px solid var(--border); margin-top: 0.6rem; }
 .editor-shell { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow-sm); }
 .editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; padding: 8px 10px; background: var(--surface-2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
 .editor-toolbar .grp { display: flex; gap: 2px; padding-right: 8px; margin-right: 0; border-right: 1px solid var(--border); }
