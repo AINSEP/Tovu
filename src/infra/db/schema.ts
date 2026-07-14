@@ -559,3 +559,63 @@ export const newsletterCampaignRevisions = sqliteTable(
   },
   (table) => [index("idx_newsletter_campaign_revisions_campaign").on(table.campaignId, table.seq)]
 );
+
+/** ADR-036 §2 (ADR-PIPE-015 Phase 2, GAP-05). */
+export const webhookSubscriptions = sqliteTable(
+  "webhook_subscriptions",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    ownerPrincipalId: text("owner_principal_id").notNull(),
+    label: text("label").notNull(),
+    targetUrl: text("target_url").notNull(),
+    topicsJson: text("topics_json").notNull(),
+    secretVersion: integer("secret_version").notNull(),
+    previousSecretVersion: integer("previous_secret_version"),
+    status: text("status").notNull(),
+    createdByPrincipalId: text("created_by_principal_id").notNull(),
+    createdByPluginId: text("created_by_plugin_id"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    disabledAt: text("disabled_at"),
+  },
+  (table) => [index("idx_webhook_subscriptions_workspace").on(table.workspaceId)]
+);
+
+/**
+ * ADR-036 §2 + ADR-PIPE-015 Phase 2 (GAP-05 + GAP-12, folded as one fix). `payloadJson` carries
+ * the original event's envelope payload so a delivery worker running in a later process/tick can
+ * rebuild the `WebhookEventEnvelope` without re-reading the core event outbox (GAP-12) — written
+ * in the same statement as the row insert, per ADR-PIPE-015 T023. The unique index on
+ * `(workspace_id, subscription_id, event_id)` is the idempotency guard `claimPending`'s caller
+ * relies on (turns the O(n) pre-check scan `delivery.ts`'s `isAlreadyEnqueued` does into a real,
+ * storage-level guarantee against a duplicate row under concurrent enqueues).
+ */
+export const webhookDeliveries = sqliteTable(
+  "webhook_deliveries",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    subscriptionId: text("subscription_id").notNull(),
+    eventId: text("event_id").notNull(),
+    topic: text("topic").notNull(),
+    payloadJson: text("payload_json"),
+    status: text("status").notNull(),
+    attempts: integer("attempts").notNull(),
+    nextAttemptAt: text("next_attempt_at").notNull(),
+    lastResponseStatus: integer("last_response_status"),
+    lastError: text("last_error"),
+    signedWithVersion: integer("signed_with_version"),
+    createdAt: text("created_at").notNull(),
+    deliveredAt: text("delivered_at"),
+    deadAt: text("dead_at"),
+  },
+  (table) => [
+    uniqueIndex("idx_webhook_deliveries_workspace_sub_event").on(
+      table.workspaceId,
+      table.subscriptionId,
+      table.eventId
+    ),
+    index("idx_webhook_deliveries_status_next_attempt").on(table.status, table.nextAttemptAt),
+  ]
+);

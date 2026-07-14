@@ -1,0 +1,184 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { openContentDb } from "../../infra/sqlite/content-db";
+import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo } from "../repo.memory";
+import { SqliteWebhookDeliveryRepo } from "../repo.sqlite";
+import type { DeliveryEnvelopeStore } from "../repo.memory";
+import type { WebhookDeliveryRepoPort } from "../ports";
+import type { WebhookDeliveryRecord, WebhookEventEnvelope } from "../types";
+
+/**
+ * @file Shared `WebhookDeliveryRepoPort` contract-test suite (ADR-PIPE-015 Phase 2 T021), incl.
+ * the `payload_json` round-trip (GAP-12) and a restart-simulated fresh-repo-instance read —
+ * proving `SqliteWebhookDeliveryRepo` persists across process boundaries, unlike the in-memory
+ * adapter (whose "restart" test is necessarily a same-process no-op, included for parity only).
+ */
+
+function makeDelivery(overrides: Partial<WebhookDeliveryRecord> = {}): WebhookDeliveryRecord {
+  return {
+    id: "delivery-1",
+    workspaceId: "workspace-1",
+    subscriptionId: "sub-1",
+    eventId: "event-1",
+    topic: "post.published",
+    status: "pending",
+    attempts: 0,
+    nextAttemptAt: "2026-07-10T00:00:00.000Z",
+    lastResponseStatus: null,
+    lastError: null,
+    signedWithVersion: null,
+    createdAt: "2026-07-10T00:00:00.000Z",
+    deliveredAt: null,
+    deadAt: null,
+    ...overrides,
+  };
+}
+
+function makeEnvelope(overrides: Partial<WebhookEventEnvelope> = {}): WebhookEventEnvelope {
+  return {
+    deliveryId: "delivery-1",
+    eventId: "event-1",
+    topic: "post.published",
+    workspaceId: "workspace-1",
+    occurredAt: "2026-07-10T00:00:00.000Z",
+    data: { entryId: "post-1", nested: { ok: true, count: 3 } },
+    ...overrides,
+  };
+}
+
+function runContractSuite(
+  adapterName: string,
+  makeRepo: () => WebhookDeliveryRepoPort & DeliveryEnvelopeStore
+) {
+  test(`[${adapterName}] enqueue + findById round-trips`, async () => {
+    const repo = makeRepo();
+    await repo.enqueue(makeDelivery());
+    const found = await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" });
+    assert.deepEqual(found, makeDelivery());
+  });
+
+  test(`[${adapterName}] enqueue is idempotent on (workspace_id, subscription_id, event_id)`, async () => {
+    const repo = makeRepo();
+    await repo.enqueue(makeDelivery());
+    // A second enqueue for the same (workspace, subscription, event) must not throw or duplicate.
+    await repo.enqueue(makeDelivery({ id: "delivery-1" }));
+
+    const rows = await repo.listBySubscription({ workspaceId: "workspace-1", subscriptionId: "sub-1", limit: 10 });
+    assert.equal(rows.length, 1);
+  });
+
+  test(`[${adapterName}] claimPending claims due rows, sets delivering, and increments attempts`, async () => {
+    const repo = makeRepo();
+    await repo.enqueue(makeDelivery());
+    await repo.enqueue(makeDelivery({ id: "delivery-future", nextAttemptAt: "2099-01-01T00:00:00.000Z" }));
+
+    const claimed = await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:00:01.000Z" });
+    assert.deepEqual(
+      claimed.map((r) => r.id),
+      ["delivery-1"]
+    );
+    assert.equal(claimed[0].status, "delivering");
+    assert.equal(claimed[0].attempts, 1);
+  });
+
+  test(`[${adapterName}] markDelivered clears lastError and stamps deliveredAt`, async () => {
+    const repo = makeRepo();
+    await repo.enqueue(makeDelivery({ lastError: "prior failure" }));
+    await repo.markDelivered({
+      workspaceId: "workspace-1",
+      id: "delivery-1",
+      responseStatus: 200,
+      deliveredAtIso: "2026-07-10T00:05:00.000Z",
+    });
+
+    const found = await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" });
+    assert.equal(found?.status, "delivered");
+    assert.equal(found?.lastResponseStatus, 200);
+    assert.equal(found?.deliveredAt, "2026-07-10T00:05:00.000Z");
+    assert.equal(found?.lastError, null);
+  });
+
+  test(`[${adapterName}] markFailed re-enters pending, or dead when nextStatus is dead`, async () => {
+    const repo = makeRepo();
+    await repo.enqueue(makeDelivery());
+
+    await repo.markFailed({
+      workspaceId: "workspace-1",
+      id: "delivery-1",
+      error: "timeout",
+      responseStatus: null,
+      nextStatus: "failed",
+      nextAttemptAt: "2026-07-10T00:10:00.000Z",
+    });
+    let found = await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" });
+    assert.equal(found?.status, "pending");
+    assert.equal(found?.lastError, "timeout");
+
+    await repo.markFailed({
+      workspaceId: "workspace-1",
+      id: "delivery-1",
+      error: "exhausted",
+      responseStatus: 500,
+      nextStatus: "dead",
+      nextAttemptAt: "2026-07-10T00:10:00.000Z",
+      deadAtIso: "2026-07-10T00:11:00.000Z",
+    });
+    found = await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" });
+    assert.equal(found?.status, "dead");
+    assert.equal(found?.deadAt, "2026-07-10T00:11:00.000Z");
+  });
+
+  test(`[${adapterName}] listBySubscription scopes by workspace + subscription and respects limit`, async () => {
+    const repo = makeRepo();
+    await repo.enqueue(makeDelivery({ id: "d-1" }));
+    await repo.enqueue(makeDelivery({ id: "d-2" }));
+    await repo.enqueue(makeDelivery({ id: "d-3", subscriptionId: "sub-2", eventId: "event-2" }));
+
+    const rows = await repo.listBySubscription({ workspaceId: "workspace-1", subscriptionId: "sub-1", limit: 1 });
+    assert.equal(rows.length, 1);
+  });
+
+  test(`[${adapterName}] payload_json round-trip: enqueue -> save -> claim -> findById byte-identical envelope (INV-P4)`, async () => {
+    const repo = makeRepo();
+    await repo.enqueue(makeDelivery());
+    await repo.save({ deliveryId: "delivery-1", envelope: makeEnvelope() });
+
+    await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:00:01.000Z" });
+
+    const envelope = await repo.find({ deliveryId: "delivery-1" });
+    assert.deepEqual(envelope, makeEnvelope());
+  });
+
+  test(`[${adapterName}] find returns null when no envelope was ever saved`, async () => {
+    const repo = makeRepo();
+    await repo.enqueue(makeDelivery());
+    assert.equal(await repo.find({ deliveryId: "delivery-1" }), null);
+  });
+}
+
+runContractSuite("InMemory", () => {
+  const deliveryRepo = new InMemoryWebhookDeliveryRepo();
+  const envelopeStore = new InMemoryDeliveryEnvelopeStore();
+  return Object.assign(deliveryRepo, {
+    save: envelopeStore.save.bind(envelopeStore),
+    find: envelopeStore.find.bind(envelopeStore),
+  });
+});
+
+runContractSuite("SqliteWebhookDeliveryRepo", () => new SqliteWebhookDeliveryRepo(openContentDb(":memory:")));
+
+test("SqliteWebhookDeliveryRepo: a fresh repo instance against the same underlying db reads persisted rows (restart simulation)", async () => {
+  const db = openContentDb(":memory:");
+  const first = new SqliteWebhookDeliveryRepo(db);
+  await first.enqueue(makeDelivery());
+  await first.save({ deliveryId: "delivery-1", envelope: makeEnvelope() });
+
+  // Simulates a process restart: a brand-new repo instance, same db handle (in real use, the
+  // same on-disk content.db file reopened).
+  const rehydrated = new SqliteWebhookDeliveryRepo(db);
+  const found = await rehydrated.findById({ workspaceId: "workspace-1", id: "delivery-1" });
+  assert.deepEqual(found, makeDelivery());
+  const envelope = await rehydrated.find({ deliveryId: "delivery-1" });
+  assert.deepEqual(envelope, makeEnvelope());
+});
