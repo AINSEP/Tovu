@@ -82,7 +82,11 @@ export {
   attachPolicy,
 } from "./grant-service";
 
-export { createInMemoryIdentityRouteDeps, type IdentityRouteDepsSlice } from "./wiring";
+export {
+  createInMemoryIdentityRouteDeps,
+  createSqliteIdentityRouteDeps,
+  type IdentityRouteDepsSlice,
+} from "./wiring";
 
 export { normalizeUsername } from "./username";
 

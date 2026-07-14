@@ -43,7 +43,7 @@ import {
   LocalFsBlobStore,
   SharpImageTransformer,
 } from "../media";
-import { createInMemoryIdentityRouteDeps } from "../identity";
+import { createSqliteIdentityRouteDeps } from "../identity";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../forms/repo.sqlite";
 import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile";
 import { createRateLimiter } from "./middleware/rate-limit";
@@ -98,9 +98,9 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
   const db = openContentDb(dbPath);
   const clock = { nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
-  // No SQLite adapter exists yet for `identity` either — in-memory, same disclosed precedent as
-  // members/navigation/integrations/analytics/media below (see identity/INFO.md).
-  const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen });
+  // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a
+  // login survives a `tsx watch` restart instead of being silently wiped every file save.
+  const identity = createSqliteIdentityRouteDeps(db, { workspaceId: seededWorkspace.id, clock, idGen });
   const presentationRepo = new SqlitePresentationSettingsRepo(db);
   const settingsRepo = new SqliteSettingsRepo(db);
   // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this

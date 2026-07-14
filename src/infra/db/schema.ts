@@ -619,3 +619,120 @@ export const webhookDeliveries = sqliteTable(
     index("idx_webhook_deliveries_status_next_attempt").on(table.status, table.nextAttemptAt),
   ]
 );
+
+// ---------------------------------------------------------------------------
+// Identity / RBAC (ADR-021 / SPEC-006) — the nine identity repo ports' tables.
+// Previously in-memory only (matched the disclosed precedent every other
+// feature's SQLite adapter had until built); this is that adapter's schema.
+// ---------------------------------------------------------------------------
+
+export const principals = sqliteTable("principals", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  kind: text("kind").notNull(), // "user" | "agent" | "api_key" | "system"
+  displayName: text("display_name").notNull(),
+  status: text("status").notNull(), // "active" | "disabled"
+  disabledAt: text("disabled_at"),
+  createdAt: text("created_at").notNull(),
+});
+
+export const identityUsers = sqliteTable(
+  "identity_users",
+  {
+    principalId: text("principal_id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    username: text("username").notNull(), // pre-normalized (NFC + lowercase) by the caller
+    email: text("email"),
+    passwordHash: text("password_hash").notNull(),
+    lastLoginAt: text("last_login_at"),
+  },
+  (table) => [uniqueIndex("idx_identity_users_workspace_username").on(table.workspaceId, table.username)]
+);
+
+export const sessions = sqliteTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    principalId: text("principal_id").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    createdAt: text("created_at").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    revokedAt: text("revoked_at"),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+  },
+  (table) => [uniqueIndex("idx_sessions_workspace_token_hash").on(table.workspaceId, table.tokenHash)]
+);
+
+export const roles = sqliteTable(
+  "roles",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    name: text("name").notNull(),
+    isBuiltin: integer("is_builtin").notNull(),
+  },
+  (table) => [uniqueIndex("idx_roles_workspace_name").on(table.workspaceId, table.name)]
+);
+
+export const policies = sqliteTable(
+  "policies",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    isBuiltin: integer("is_builtin").notNull(),
+    isFrozen: integer("is_frozen").notNull(),
+  },
+  (table) => [uniqueIndex("idx_policies_workspace_name").on(table.workspaceId, table.name)]
+);
+
+export const policyPermissions = sqliteTable(
+  "policy_permissions",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    policyId: text("policy_id").notNull(),
+    permission: text("permission").notNull(),
+    resourceType: text("resource_type"),
+    constraintJson: text("constraint_json"),
+  },
+  (table) => [index("idx_policy_permissions_workspace_policy").on(table.workspaceId, table.policyId)]
+);
+
+export const rolePolicies = sqliteTable(
+  "role_policies",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    roleId: text("role_id").notNull(),
+    policyId: text("policy_id").notNull(),
+  },
+  (table) => [index("idx_role_policies_workspace_role").on(table.workspaceId, table.roleId)]
+);
+
+export const principalRoles = sqliteTable(
+  "principal_roles",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    principalId: text("principal_id").notNull(),
+    roleId: text("role_id").notNull(),
+  },
+  (table) => [index("idx_principal_roles_workspace_principal").on(table.workspaceId, table.principalId)]
+);
+
+export const principalPolicies = sqliteTable(
+  "principal_policies",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    principalId: text("principal_id").notNull(),
+    policyId: text("policy_id").notNull(),
+  },
+  (table) => [
+    index("idx_principal_policies_workspace_principal").on(table.workspaceId, table.principalId),
+  ]
+);
