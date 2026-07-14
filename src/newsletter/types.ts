@@ -50,6 +50,15 @@ export type CampaignStatus =
  * `p_newsletter__sends` ledger — stored here only as a denormalized read cache, updated through
  * the ADR-026 atomic multi-write envelope, never authored by the plugin directly.
  */
+/**
+ * ADR-PIPE-011 Decision §2 supersedes this file's original ADR-034-draft framing above: the
+ * campaign row is a BESPOKE Drizzle table pair (`newsletter_campaigns`/`newsletter_campaign_revisions`,
+ * `src/infra/db/schema.ts`), not an `entries` content-type — no generalized `entries` substrate
+ * exists in this repo (ADR-PIPE-011 Rationale). `CampaignFields`/`NEWSLETTER_CAMPAIGN_TYPE` below are
+ * kept in place (additive-only extension per this task's directive) but are NOT the shape the real
+ * write chokepoint (`campaign-write-service.ts`) persists — `CampaignRecord`/`CampaignRevision`
+ * (state.spec.md §1) are the real row shapes; see those types further down this file.
+ */
 export interface CampaignFields extends JsonObject {
   /** Email subject line. */
   subject: string;
@@ -83,6 +92,42 @@ export interface CampaignCounters extends JsonObject {
   unsubscribed: number;
 }
 
+/**
+ * The REAL campaign row (state.spec.md §1) — the bespoke Drizzle table pair's shape
+ * (ADR-PIPE-011 Decision §2). This is what `campaign-write-service.ts`'s chokepoint persists;
+ * `CampaignFields` above is the superseded ADR-034-draft shape, kept only for compile-compat.
+ */
+export interface CampaignRecord {
+  id: UUID;
+  workspaceId: UUID;
+  status: CampaignStatus;
+  subject: string;
+  preheader: string | null;
+  fromName: string;
+  fromEmail: string;
+  replyTo: string;
+  listId: UUID;
+  scheduledAt: ISODateTime | null;
+  sendStartedAt: ISODateTime | null;
+  audienceSnapshotId: UUID | null;
+  counters: CampaignCounters;
+  /** Optimistic-concurrency version (EC-06: a stale `expectedVersion` write is rejected). */
+  version: number;
+  createdByPrincipal: UUID;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+/** Append-only revision row (INV-01) — one per `saveCampaign`/`cancelCampaign`/`scheduleCampaign` write. */
+export interface CampaignRevision {
+  campaignId: UUID;
+  workspaceId: UUID;
+  seq: number;
+  state: CampaignRecord;
+  actorId: UUID;
+  recordedAt: ISODateTime;
+}
+
 /* ------------------------------------------------------------------------------------------------
  * 2. Audience + delivery — core-mediated own-tables (ADR-023 `dataModule`, `p_newsletter__*`)
  * ------------------------------------------------------------------------------------------------
@@ -99,6 +144,8 @@ export interface NewsletterListRow {
   slug: string;
   /** True for the default "all subscribers" list seeded per workspace. */
   isDefault: boolean;
+  /** REQ-08/09: the default list can never be archived (`NEWSLETTER_DEFAULT_LIST_PROTECTED`). */
+  status: "active" | "archived";
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
 }
@@ -125,10 +172,34 @@ export interface SubscriptionRow {
   status: SubscriptionStatus;
   /** Source of the subscription for audit/consent provenance. */
   source: "import" | "signup_form" | "admin" | "api";
+  /**
+   * Snapshot of the Members consent-revision id in effect when this subscription last entered
+   * `subscribed` (state.spec.md §5, REQ-14) — set ONLY by `confirmation.ts`'s
+   * `consumeConfirmationToken`, never client-supplied. The unsubscribe-token derivation binds to
+   * this value (INV-04): a token minted against a stale revision (e.g. before a re-subscribe under
+   * a new consent grant) must fail closed, never silently unsubscribe the current grant.
+   */
+  consentRevisionIdAtSubscribe: string | null;
   subscribedAt: ISODateTime | null;
   unsubscribedAt: ISODateTime | null;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
+}
+
+/**
+ * Confirmation-token lifecycle row (OQ-03, mirrors `MagicLinkTokenRecord`'s shape) — REQ-11/12/13.
+ * `consumedAt` once set is never cleared (state invariant, mirrors `member_magic_tokens`).
+ */
+export interface ConfirmationTokenRecord {
+  id: UUID;
+  workspaceId: UUID;
+  subscriptionId: UUID;
+  /** SHA-256 of the raw token; the raw token itself is never persisted. */
+  tokenHash: string;
+  purpose: "newsletter_subscription_confirm";
+  createdAt: ISODateTime;
+  expiresAt: ISODateTime;
+  consumedAt: ISODateTime | null;
 }
 
 /**
@@ -188,30 +259,36 @@ export type NewsletterDataModule = DataModuleDecl;
  * 3. Permission catalog — flat `newsletter.*` strings (ADR-021 §3, code-side catalog)
  * ------------------------------------------------------------------------------------------------ */
 
+/**
+ * REQ-25 Agent Directive (ADR-PIPE-011 Migration Safety): renamed from the stale unprefixed
+ * `newsletter.*` strings to `admin.newsletter.*` — confirmed additive, zero existing call sites
+ * referenced the old strings anywhere in `src/` (same pattern SPEC-009 used for
+ * `admin.redirects.manage`; api.spec.md §2's per-endpoint auth profiles use these exact 8 strings).
+ */
 export type NewsletterPermission =
-  | "newsletter.read"
-  | "newsletter.campaign.compose"
-  | "newsletter.campaign.schedule"
-  | "newsletter.campaign.send" // the dangerous one — real outbound mail; separate from compose
-  | "newsletter.campaign.send_test"
-  | "newsletter.list.manage"
-  | "newsletter.subscriber.read"
-  | "newsletter.subscriber.manage" // PII-sensitive; import/add/remove; relates to Members
-  | "newsletter.settings.manage"
-  | "newsletter.manage"; // umbrella
+  | "admin.newsletter.read"
+  | "admin.newsletter.campaign.compose"
+  | "admin.newsletter.campaign.schedule"
+  | "admin.newsletter.campaign.send" // the dangerous one — real outbound mail; separate from compose
+  | "admin.newsletter.campaign.send_test"
+  | "admin.newsletter.list.manage"
+  | "admin.newsletter.subscriber.read"
+  | "admin.newsletter.subscriber.manage" // PII-sensitive; import/add/remove; relates to Members
+  | "admin.newsletter.settings.manage"
+  | "admin.newsletter.manage"; // umbrella — reserved, no route uses it yet (mirrors settings.read.raw precedent)
 
 /** Registered catalog (declaration, not logic) — enumerable via `tovu permissions list` (ADR-021). */
 export const NEWSLETTER_PERMISSIONS: readonly NewsletterPermission[] = [
-  "newsletter.read",
-  "newsletter.campaign.compose",
-  "newsletter.campaign.schedule",
-  "newsletter.campaign.send",
-  "newsletter.campaign.send_test",
-  "newsletter.list.manage",
-  "newsletter.subscriber.read",
-  "newsletter.subscriber.manage",
-  "newsletter.settings.manage",
-  "newsletter.manage",
+  "admin.newsletter.read",
+  "admin.newsletter.campaign.compose",
+  "admin.newsletter.campaign.schedule",
+  "admin.newsletter.campaign.send",
+  "admin.newsletter.campaign.send_test",
+  "admin.newsletter.list.manage",
+  "admin.newsletter.subscriber.read",
+  "admin.newsletter.subscriber.manage",
+  "admin.newsletter.settings.manage",
+  "admin.newsletter.manage",
 ] as const;
 
 /* ------------------------------------------------------------------------------------------------
