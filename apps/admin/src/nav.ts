@@ -100,7 +100,7 @@ export const NAV: NavGroup[] = [
       {
         id: "roles",
         label: "Roles & Permissions",
-        soon: true,
+        href: "#/section/roles",
         icon: '<rect x="2.5" y="4" width="13" height="10" rx="1.5"/><path d="M2.5 8h13M6 12h3"/>',
       },
       {

@@ -16,6 +16,7 @@ import { MenuEditor } from "./sections/MenuEditor";
 import { Integrations } from "./sections/Integrations";
 import { IntegrationDeliveries } from "./sections/IntegrationDeliveries";
 import { Users } from "./sections/Users";
+import { Roles } from "./sections/Roles";
 import { Settings } from "./sections/Settings";
 import { Seo } from "./sections/Seo";
 import { Redirects } from "./sections/Redirects";
@@ -143,6 +144,8 @@ export function App() {
           <Members />
         ) : route.sectionId === "users" ? (
           <Users />
+        ) : route.sectionId === "roles" ? (
+          <Roles />
         ) : route.sectionId === "analytics" ? (
           <Analytics />
         ) : route.sectionId === "media" ? (
