@@ -6,6 +6,7 @@ import {
   type SettingDefinitionRecord,
   type SettingOwnerKind,
   type SettingScopeContext,
+  type SettingValueRecord,
   type SettingValueSchema,
 } from "./types";
 
@@ -110,6 +111,10 @@ export function validateValueAgainstSchema(schema: SettingValueSchema, value: Js
       return typeof value === "boolean";
     case "enum":
       return typeof value === "string" && schema.values.includes(value);
+    case "json":
+      // ADR-PIPE-008 Decision §3: any JSON value is accepted; internal shape/
+      // length validation is the registering feature's own write-path job.
+      return true;
   }
 }
 
@@ -118,6 +123,153 @@ const coercers = new Map<string, (value: JsonValue) => JsonValue>([["identity", 
 
 export function registerCoercer(tag: string, fn: (value: JsonValue) => JsonValue): void {
   coercers.set(tag, fn);
+}
+
+/**
+ * Per-layer effective-read cache + workspace-qualified definition cache
+ * (SPEC-007 REQ-12, AC-19/AC-20; ADR-028 §8 "Cache, definition cache, and
+ * API").
+ *
+ * Shape, straight from ADR-028 §8:
+ * - Layer cache keys `settings:{global | ws:{wsId} | user:{wsId}:{pid}}:{ns}`
+ *   each hold a per-namespace map of `key -> SettingValueRecord|null`;
+ *   `getEffective` merges up to 3 of these in memory. A value write
+ *   invalidates exactly ONE such key — no fan-out to other tenants/layers.
+ * - The definition cache is itself workspace-qualified (`{wsId|"platform"}:
+ *   {ns}:{key}`) — site-owned defs are per-workspace data, so ADR-007
+ *   applies to the def cache too. A definition-lifecycle write bumps a
+ *   per-namespace epoch folded into the definition-cache key (lazy
+ *   invalidation — old-epoch entries are simply never looked up again,
+ *   rather than being enumerated and deleted).
+ *
+ * Deviation from the ADR's prose, recorded here rather than blocking on it:
+ * the store is kept in a `WeakMap<SettingsRepoPort, ...>` rather than one
+ * flat module-global map. In production there is exactly one repo instance
+ * for the process lifetime, so this is behaviorally identical to a single
+ * shared cache; it additionally means two independent repo instances (e.g.
+ * two unit tests, each constructing their own `InMemorySettingsRepo`) never
+ * bleed cache state into each other without needing an explicit reset hook.
+ * No TTL/max-size eviction — invalidation-driven only, matching the task's
+ * "smallest reasonable call" guidance for a single-process in-memory cache
+ * at this scale.
+ */
+interface SettingsCacheStore {
+  /** `settings:{global|ws:<id>|user:<ws>:<pid>}:{namespace}` -> per-key value map. */
+  layer: Map<string, Map<string, SettingValueRecord | null>>;
+  /** `def:{workspaceId|"platform"}:{namespace}:{key}:e{epoch}` -> resolved definition (or null = confirmed absent). */
+  definitions: Map<string, SettingDefinitionRecord | null>;
+  /** namespace -> epoch, bumped by any definition-lifecycle write against that namespace. */
+  epoch: Map<string, number>;
+}
+
+const cacheByRepo = new WeakMap<SettingsRepoPort, SettingsCacheStore>();
+
+function getCacheStore(repo: SettingsRepoPort): SettingsCacheStore {
+  let store = cacheByRepo.get(repo);
+  if (!store) {
+    store = { layer: new Map(), definitions: new Map(), epoch: new Map() };
+    cacheByRepo.set(repo, store);
+  }
+  return store;
+}
+
+function namespaceEpoch(store: SettingsCacheStore, namespace: string): number {
+  return store.epoch.get(namespace) ?? 0;
+}
+
+function workspaceCachePart(workspaceId: string | null | undefined): string {
+  return workspaceId ?? "platform";
+}
+
+function globalLayerCacheKey(namespace: string): string {
+  return `settings:global:${namespace}`;
+}
+
+function workspaceLayerCacheKey(workspaceId: string, namespace: string): string {
+  return `settings:ws:${workspaceId}:${namespace}`;
+}
+
+function userLayerCacheKey(workspaceId: string, principalId: string, namespace: string): string {
+  return `settings:user:${workspaceId}:${principalId}:${namespace}`;
+}
+
+function definitionCacheKey(workspaceId: string | null, namespace: string, key: string, epoch: number): string {
+  return `def:${workspaceCachePart(workspaceId)}:${namespace}:${key}:e${epoch}`;
+}
+
+async function getCachedLayerValue(
+  store: SettingsCacheStore,
+  layerCacheKeyStr: string,
+  key: string,
+  fetch: () => Promise<SettingValueRecord | null>
+): Promise<SettingValueRecord | null> {
+  let bucket = store.layer.get(layerCacheKeyStr);
+  if (!bucket) {
+    bucket = new Map();
+    store.layer.set(layerCacheKeyStr, bucket);
+  }
+  if (bucket.has(key)) return bucket.get(key)!;
+  const fetched = await fetch();
+  bucket.set(key, fetched);
+  return fetched;
+}
+
+/** AC-19 — invalidates exactly the `settings:global:{namespace}` cache entry. No fan-out. */
+export function invalidateGlobalValueCache(repo: SettingsRepoPort, namespace: string): void {
+  getCacheStore(repo).layer.delete(globalLayerCacheKey(namespace));
+}
+
+/** AC-19 — invalidates exactly one workspace's cache entry for `namespace`. No fan-out to other workspaces. */
+export function invalidateWorkspaceValueCache(repo: SettingsRepoPort, workspaceId: string, namespace: string): void {
+  getCacheStore(repo).layer.delete(workspaceLayerCacheKey(workspaceId, namespace));
+}
+
+/** AC-19 — invalidates exactly one (workspace, principal) cache entry for `namespace`. No fan-out to other principals. */
+export function invalidateUserValueCache(
+  repo: SettingsRepoPort,
+  workspaceId: string,
+  principalId: string,
+  namespace: string
+): void {
+  getCacheStore(repo).layer.delete(userLayerCacheKey(workspaceId, principalId, namespace));
+}
+
+/**
+ * Bumps the namespace's definition-cache epoch (ADR-028 §8's lazy
+ * invalidation) — every previously-cached definition-cache entry for this
+ * namespace (across every workspace) becomes unreachable on the next read,
+ * without needing to enumerate tenants. Call after any write that changes a
+ * definition's identity/shape/status in this namespace: register, rename
+ * (both the old and new namespace), retype, deprecate, tombstone.
+ */
+export function invalidateDefinitionNamespaceCache(repo: SettingsRepoPort, namespace: string): void {
+  const store = getCacheStore(repo);
+  store.epoch.set(namespace, namespaceEpoch(store, namespace) + 1);
+}
+
+/**
+ * Purge support: a tenant/principal teardown deletes an unbounded number of
+ * value rows across an unknown set of namespaces, so per-namespace
+ * single-key invalidation (as used by `set`/`clear`) isn't practical here.
+ * Clears every workspace-scope and (if `principalId` given) that principal's
+ * user-scope layer-cache entry; global-scope entries are untouched (purge
+ * never deletes global rows) and other principals' user-scope entries are
+ * untouched when `principalId` is given (no fan-out).
+ */
+export function invalidateWorkspaceSettingsCache(repo: SettingsRepoPort, workspaceId: string, principalId?: string): void {
+  const store = getCacheStore(repo);
+  if (principalId) {
+    const prefix = `settings:user:${workspaceId}:${principalId}:`;
+    for (const k of [...store.layer.keys()]) {
+      if (k.startsWith(prefix)) store.layer.delete(k);
+    }
+    return;
+  }
+  const workspacePrefix = `settings:ws:${workspaceId}:`;
+  const userPrefix = `settings:user:${workspaceId}:`;
+  for (const k of [...store.layer.keys()]) {
+    if (k.startsWith(workspacePrefix) || k.startsWith(userPrefix)) store.layer.delete(k);
+  }
 }
 
 /**
@@ -155,15 +307,28 @@ export async function resolveDefinitionRaw(
 
 /**
  * REQ-03 — the read-path resolver: typed-absent (`null`) for a tombstoned or
- * missing key (EC-10).
+ * missing key (EC-10). Cached (AC-19/AC-20, ADR-028 §8) — keyed by
+ * `(workspaceId, namespace, key, namespace-epoch)`, so it is workspace-
+ * qualified by construction (AC-20) and invalidated wholesale by
+ * `invalidateDefinitionNamespaceCache` on any definition-lifecycle write
+ * (register/rename/retype/deprecate/tombstone). `resolveDefinitionRaw`
+ * itself stays uncached — the write chokepoint (`write-service.ts`) calls it
+ * directly so authorization/validation decisions are always made against
+ * live data, never a cached read.
  */
 export async function resolveDefinition(
   deps: { repo: SettingsRepoPort },
   input: { namespace: string; key: string; workspaceId: string | null }
 ): Promise<SettingDefinitionRecord | null> {
+  const store = getCacheStore(deps.repo);
+  const epoch = namespaceEpoch(store, input.namespace);
+  const cacheKey = definitionCacheKey(input.workspaceId, input.namespace, input.key, epoch);
+  if (store.definitions.has(cacheKey)) return store.definitions.get(cacheKey)!;
+
   const found = await resolveDefinitionRaw(deps, input);
-  if (!found || found.status === "tombstone") return null;
-  return found;
+  const resolved = !found || found.status === "tombstone" ? null : found;
+  store.definitions.set(cacheKey, resolved);
+  return resolved;
 }
 
 export interface ResolvedSetting {
@@ -176,6 +341,12 @@ export interface ResolvedSetting {
  * REQ-03/INV-02 — total for a live key: never throws, never returns
  * undefined. Precedence `user ?? workspace ?? global ?? default`. A
  * `cleared` row is treated as absent at that layer (behavior.spec §1.2).
+ *
+ * Per-layer reads are cached (AC-19, ADR-028 §8): each of the (up to 3) raw
+ * layer reads below goes through `getCachedLayerValue`, keyed by this
+ * namespace's `settings:{global|ws:<id>|user:<ws>:<pid>}` bucket. `set`/
+ * `clear`/`purgeTenantSettings` invalidate exactly the one bucket their write
+ * touches (no fan-out).
  *
  * @complexity O(1) — up to 3 layer reads + 1 definition read.
  * @overallScore 100
@@ -191,6 +362,8 @@ export async function getEffective(
   });
   if (!definition) return null;
 
+  const store = getCacheStore(deps.repo);
+
   const coerce = (value: JsonValue, defVersion: number): JsonValue => {
     if (defVersion === definition.version) return value;
     const coercer = coercers.get(definition.coercionTag ?? "identity") ?? coercers.get("identity")!;
@@ -198,11 +371,14 @@ export async function getEffective(
   };
 
   if (input.scopeContext.workspaceId && input.scopeContext.principalId) {
-    const userValue = await deps.repo.getUserValue({
-      workspaceId: input.scopeContext.workspaceId,
-      principalId: input.scopeContext.principalId,
-      settingId: definition.settingId,
-    });
+    const workspaceId = input.scopeContext.workspaceId;
+    const principalId = input.scopeContext.principalId;
+    const userValue = await getCachedLayerValue(
+      store,
+      userLayerCacheKey(workspaceId, principalId, input.namespace),
+      input.key,
+      () => deps.repo.getUserValue({ workspaceId, principalId, settingId: definition.settingId })
+    );
     if (userValue && userValue.state === "set") {
       return {
         value: coerce(userValue.valueJson, userValue.defVersion),
@@ -213,10 +389,13 @@ export async function getEffective(
   }
 
   if (input.scopeContext.workspaceId) {
-    const workspaceValue = await deps.repo.getWorkspaceValue({
-      workspaceId: input.scopeContext.workspaceId,
-      settingId: definition.settingId,
-    });
+    const workspaceId = input.scopeContext.workspaceId;
+    const workspaceValue = await getCachedLayerValue(
+      store,
+      workspaceLayerCacheKey(workspaceId, input.namespace),
+      input.key,
+      () => deps.repo.getWorkspaceValue({ workspaceId, settingId: definition.settingId })
+    );
     if (workspaceValue && workspaceValue.state === "set") {
       return {
         value: coerce(workspaceValue.valueJson, workspaceValue.defVersion),
@@ -226,7 +405,9 @@ export async function getEffective(
     }
   }
 
-  const globalValue = await deps.repo.getGlobalValue(definition.settingId);
+  const globalValue = await getCachedLayerValue(store, globalLayerCacheKey(input.namespace), input.key, () =>
+    deps.repo.getGlobalValue(definition.settingId)
+  );
   if (globalValue && globalValue.state === "set") {
     return {
       value: coerce(globalValue.valueJson, globalValue.defVersion),

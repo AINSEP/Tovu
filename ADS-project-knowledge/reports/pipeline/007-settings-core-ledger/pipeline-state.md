@@ -4,7 +4,7 @@
 |---|---|
 | feat_id | FEAT-007-settings-core-ledger |
 | spec_id | SPEC-007 |
-| stage | implementation (Phase 0+1 of 8 complete — see tasks.md) |
+| stage | implementation (Phase 0-7 of 8 complete — all acceptance-criteria-bearing work done; only Phase N Polish remains, see tasks.md) |
 | spec_provider | speckit |
 | provider_version_ref | github/spec-kit @ 2c2fea8783f33085652b8c87e839bae84a6eb78d |
 | provider_native_root | specs/ |
@@ -28,7 +28,7 @@
 | governance_adr_promotion | Evaluated, not promoted — ADR-PIPE-007 applies existing governance ADRs (006/007/015/021/022), introduces no new durable cross-cutting rule |
 | research_artifact | N/A — no library/technology/persistence choice open (all reused per ADR-015/021/022) |
 | tasks_path | ADS-project-knowledge/reports/pipeline/007-settings-core-ledger/tasks.md — 55 tasks, 8 phases (0 Setup, 1 Foundational, 2 Def lifecycle, 3 Purge, 4 Presentation retirement, 5 API, 6 UI, 7 Cache, N Polish) |
-| implementation_progress | Phase 0 (T001-T003) + Phase 1 (T004-T021) DONE — 424/424 tests passing, tsc clean. `src/features/settings/{types,ports,errors,settings,write-service,repo.memory,repo.sqlite}.ts` + 8 test files; 5 Drizzle tables + migration `drizzle/0002_skinny_network.sql`; `settings.*` permission catalog in `src/identity/permissions.ts`+`seed.ts`; `npm run test:cov` script added. Phases 2-7 (def lifecycle, purge, presentation retirement, API routes, UI, cache) + Polish NOT started. |
+| implementation_progress | Phase 0-7 DONE — 474/474 tests passing, root + `apps/admin` `tsc --noEmit` both clean (Coordinator-verified full-suite run 2026-07-13). Phase 0+1 (T001-T021): `src/features/settings/{types,ports,errors,settings,write-service,repo.memory,repo.sqlite}.ts`, 5 Drizzle tables + migration, `settings.*` permission catalog. Phase 2 (def lifecycle): rename/retype/deprecate/tombstone in `write-service.ts`. Phase 3 (purge): `purge-service.ts`. Phase 4 (presentation retirement): `migration.ts`, `appliers.ts`/`navigation/ports.ts` re-pointed. Phase 5 (T036-T044, admin API): 5 HTTP routes at `src/server/routes/admin/settings/*.ts`, mounted workspace-scoped (deviation from api.spec.md's literal unscoped path, matching every other admin route in this codebase); caught+fixed a real bug where global-scope writes were denied even for the owner (bad workspace-id fallback in `authorize()` calls). Phase 6 (T045-T047, UI): `apps/admin/src/sections/Settings.tsx` + `lib/api.ts` extensions; 3 disclosed adaptations since `SETTINGS_GET_RAW`/`SETTINGS_LIST_DEFINITIONS` were never built (namespace typed not browsed; per-layer breakdown derived via double `GET_EFFECTIVE` calls, with global-under-workspace honestly rendered "hidden" rather than fabricated; `PrincipalSelector` visibility solved for real via `/auth/me`'s `effectivePermissions`). T047's manual browser verification is still owed by the human — cannot be automated. Phase 7 (T048-T051, cache): per-layer + workspace-qualified definition cache in `settings.ts`, wired into every write path incl. Phase 2 lifecycle ops and purge. Phase N (Polish, T052-T055) NOT started — non-blocking (INFO.md docs, coverage-gap sweep, `test:cov` measurement, traceability.spec.md backfill). |
 
 ## Notes
 

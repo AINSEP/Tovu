@@ -1,21 +1,28 @@
 import type { ClockPort, IdGeneratorPort, JsonValue, UUID } from "../../core/ports";
 import type { PrincipalRepoPort } from "../../identity/ports";
 import {
+  AliasDepthExceededError,
+  DefinitionInvalidError,
   DefinitionNotFoundError,
   DefinitionTombstonedError,
   ForbiddenError,
   PrincipalNotFoundError,
+  RenameRetypeConflictError,
   ScopeNotAllowedError,
   ValueValidationFailedError,
 } from "./errors";
 import type { SettingsRepoPort } from "./ports";
 import {
   type DefinitionInput,
+  invalidateDefinitionNamespaceCache,
+  invalidateGlobalValueCache,
+  invalidateUserValueCache,
+  invalidateWorkspaceValueCache,
   resolveDefinitionRaw,
   validateDefinitionInput,
   validateValueAgainstSchema,
 } from "./settings";
-import { SCOPE_BIT, type SettingScope } from "./types";
+import { SCOPE_BIT, type SettingDefinitionRecord, type SettingScope, type SettingValueSchema } from "./types";
 
 /**
  * @file `SettingsWriteService` — the single write chokepoint (SPEC-007 REQ-04;
@@ -148,9 +155,33 @@ export async function registerDefinitions(
       });
       registered.push(settingId);
     });
+    invalidateDefinitionNamespaceCache(deps.repo, definitionInput.namespace);
   }
 
   return { registered };
+}
+
+/** AC-19 — invalidates exactly the one layer-cache key a `set`/`clear` write touches. No fan-out. */
+function invalidateValueCacheAfterWrite(
+  deps: SettingsWriteServiceDeps,
+  input: { scope: SettingScope; namespace: string; workspaceId?: UUID; principalId?: UUID; callerPrincipalId: UUID }
+): void {
+  if (input.scope === "global") {
+    invalidateGlobalValueCache(deps.repo, input.namespace);
+    return;
+  }
+  if (input.scope === "workspace") {
+    if (input.workspaceId) invalidateWorkspaceValueCache(deps.repo, input.workspaceId, input.namespace);
+    return;
+  }
+  if (input.workspaceId) {
+    invalidateUserValueCache(
+      deps.repo,
+      input.workspaceId,
+      input.principalId ?? input.callerPrincipalId,
+      input.namespace
+    );
+  }
 }
 
 export interface SetValueRequired {
@@ -163,6 +194,22 @@ export interface SetValueRequired {
     workspaceId?: UUID;
     principalId?: UUID;
     callerPrincipalId: UUID;
+    /**
+     * SPEC-007 Phase 5 addition — the ambient workspace to authorize the
+     * caller's grant in. Optional and additive: when omitted, falls back to
+     * the pre-existing `input.workspaceId ?? input.callerPrincipalId`
+     * expression (unchanged behavior for every Phase 1-4 caller). Callers
+     * that DO have a real ambient workspace (every HTTP route — this is
+     * single-workspace v1, so it's always `deps.workspaceId`) should pass it
+     * explicitly: for `scope=global` (no `workspaceId`), falling back to
+     * `callerPrincipalId` as a stand-in "workspace" id is nonsensical against
+     * the real `authorize()` (`identity/authorize.ts` looks the principal up
+     * by `{workspaceId, id}` — a bogus workspaceId means `findById` returns
+     * null and every request is denied `principal_disabled`, including the
+     * wildcard-owner). Discovered via `settings-auth.test.ts`'s real-RBAC
+     * assertions (Phase 5), not a Phase 5 route bug.
+     */
+    authWorkspaceId?: UUID;
   };
 }
 
@@ -223,7 +270,7 @@ export async function set(required: SetValueRequired): Promise<{ value: JsonValu
     targetPrincipalId: input.principalId,
     callerPrincipalId: input.callerPrincipalId,
   });
-  const authWorkspaceId = input.workspaceId ?? input.callerPrincipalId;
+  const authWorkspaceId = input.authWorkspaceId ?? input.workspaceId ?? input.callerPrincipalId;
   const authResult = await deps.authorize({
     principalId: input.callerPrincipalId,
     permission,
@@ -246,7 +293,7 @@ export async function set(required: SetValueRequired): Promise<{ value: JsonValu
 
   await assertTargetPrincipalInWorkspace(deps, input);
 
-  return deps.repo.transaction(async () => {
+  const result = await deps.repo.transaction(async () => {
     const now = deps.clock.nowIso();
     const revisionSeq = await deps.repo.appendRevision({
       entityKind: "value",
@@ -294,6 +341,9 @@ export async function set(required: SetValueRequired): Promise<{ value: JsonValu
 
     return { value: input.value, revisionSeq };
   });
+
+  invalidateValueCacheAfterWrite(deps, input);
+  return result;
 }
 
 export interface ClearValueRequired {
@@ -307,6 +357,8 @@ export interface ClearValueRequired {
     callerPrincipalId: UUID;
     /** Set by `resetNamespace` when looping `clear()` in its own reset-authorized context (ADR-028 §7 R3-01) — bypasses the inner authorize() re-check, still writes a normal revision. */
     skipAuthorize?: boolean;
+    /** SPEC-007 Phase 5 addition — see `SetValueRequired.input.authWorkspaceId`'s doc. Optional/additive. */
+    authWorkspaceId?: UUID;
   };
 }
 
@@ -320,7 +372,7 @@ export async function clear(required: ClearValueRequired): Promise<{ revisionSeq
       targetPrincipalId: input.principalId,
       callerPrincipalId: input.callerPrincipalId,
     });
-    const authWorkspaceId = input.workspaceId ?? input.callerPrincipalId;
+    const authWorkspaceId = input.authWorkspaceId ?? input.workspaceId ?? input.callerPrincipalId;
     const authResult = await deps.authorize({
       principalId: input.callerPrincipalId,
       permission,
@@ -337,7 +389,7 @@ export async function clear(required: ClearValueRequired): Promise<{ revisionSeq
   const definition = await resolveScopedDefinitionOrThrow(deps, input);
   await assertTargetPrincipalInWorkspace(deps, input);
 
-  return deps.repo.transaction(async () => {
+  const result = await deps.repo.transaction(async () => {
     const now = deps.clock.nowIso();
     const revisionSeq = await deps.repo.appendRevision({
       entityKind: "value",
@@ -385,6 +437,9 @@ export async function clear(required: ClearValueRequired): Promise<{ revisionSeq
 
     return { revisionSeq };
   });
+
+  invalidateValueCacheAfterWrite(deps, input);
+  return result;
 }
 
 export interface ResetNamespaceRequired {
@@ -395,6 +450,8 @@ export interface ResetNamespaceRequired {
     workspaceId?: UUID;
     principalId?: UUID;
     callerPrincipalId: UUID;
+    /** SPEC-007 Phase 5 addition — see `SetValueRequired.input.authWorkspaceId`'s doc. Optional/additive. */
+    authWorkspaceId?: UUID;
   };
 }
 
@@ -404,15 +461,20 @@ export interface ResetNamespaceRequired {
  * every setting in the namespace in the reset-authorized internal context
  * (`skipAuthorize: true`) — the outer reset permission is sufficient on its
  * own; each inner clear still emits its own `op='clear'` revision.
+ *
+ * `revisionSeqs` (SPEC-007 Phase 5 addition, api.spec.md §5 `ResetResponse`)
+ * is additive — collects each inner `clear()` call's own `revisionSeq` so the
+ * admin HTTP route can surface the full contract without a second read.
+ * Existing callers that only read `.clearedCount` are unaffected.
  */
 export async function resetNamespace(
   required: ResetNamespaceRequired,
   keysInNamespace: string[]
-): Promise<{ clearedCount: number }> {
+): Promise<{ clearedCount: number; revisionSeqs: number[] }> {
   const { deps, input } = required;
 
   const resetPermission = `settings.reset.${input.scope}`;
-  const authWorkspaceId = input.workspaceId ?? input.callerPrincipalId;
+  const authWorkspaceId = input.authWorkspaceId ?? input.workspaceId ?? input.callerPrincipalId;
   const authResult = await deps.authorize({
     principalId: input.callerPrincipalId,
     permission: resetPermission,
@@ -426,8 +488,9 @@ export async function resetNamespace(
   }
 
   let clearedCount = 0;
+  const revisionSeqs: number[] = [];
   for (const key of keysInNamespace) {
-    await clear({
+    const result = await clear({
       deps,
       input: {
         namespace: input.namespace,
@@ -439,8 +502,385 @@ export async function resetNamespace(
         skipAuthorize: true,
       },
     });
+    revisionSeqs.push(result.revisionSeq);
     clearedCount++;
   }
 
-  return { clearedCount };
+  return { clearedCount, revisionSeqs };
+}
+
+/**
+ * ADR-028 §3/§7 — the single authorization gate shared by every definition-
+ * lifecycle op (rename/retype/deprecate/tombstone), matching
+ * `registerDefinitions`'s own `settings.definitions.manage` check (same
+ * permission also gates `purge`/`coerce` per §7 — high privilege, human-only).
+ */
+async function authorizeDefinitionsManage(
+  deps: SettingsWriteServiceDeps,
+  callerPrincipalId: UUID,
+  authWorkspaceId: UUID
+): Promise<void> {
+  const authResult = await deps.authorize({
+    principalId: callerPrincipalId,
+    permission: "settings.definitions.manage",
+    workspaceId: authWorkspaceId,
+    entityType: "setting-definition",
+  });
+  if (!authResult.allowed) {
+    throw new ForbiddenError(
+      `principal '${callerPrincipalId}' is not authorized for 'settings.definitions.manage' (${authResult.reason})`
+    );
+  }
+}
+
+/** Resolves the canonical active definition at (namespace,key,workspaceId), rejecting anything but `status='active'`. */
+async function resolveActiveDefinitionOrThrow(
+  deps: SettingsWriteServiceDeps,
+  input: { namespace: string; key: string; workspaceId: UUID | null },
+  verb: string
+): Promise<SettingDefinitionRecord> {
+  const current = await deps.repo.findActiveDefinition(input);
+  if (!current) {
+    throw new DefinitionNotFoundError(`setting '${input.namespace}.${input.key}' was not found`);
+  }
+  if (current.status === "tombstone") {
+    throw new DefinitionTombstonedError(`setting '${input.namespace}.${input.key}' has been tombstoned`);
+  }
+  if (current.status === "alias") {
+    throw new DefinitionInvalidError(
+      `cannot ${verb} '${input.namespace}.${input.key}': it is an alias marker, not the canonical active definition`
+    );
+  }
+  return current;
+}
+
+export interface RenameDefinitionRequired {
+  deps: SettingsWriteServiceDeps;
+  input: {
+    namespace: string;
+    key: string;
+    workspaceId: UUID | null;
+    newNamespace: string;
+    newKey: string;
+    callerPrincipalId: UUID;
+    /** The workspace the caller is authorizing in (see `registerDefinitions`' identical field). */
+    authWorkspaceId: UUID;
+  };
+}
+
+/**
+ * ADR-028 §3 rename mechanism (AC-09, EC-06): a same-tx pair —
+ * (1) UPDATE the active definition row's `(namespace,key)` to the new name,
+ * same `setting_id`/`version` (ledgered `op='alias'`); (2) INSERT a fresh v1
+ * alias marker at the OLD name pointing at the new name. Because identity
+ * never moves, value rows (keyed on `setting_id` only) stay attached.
+ *
+ * Sequential rename (A->B then B->C) retargets every prior marker pointing
+ * at the OLD name to the NEW name in the same tx. A rename target that
+ * itself resolves to an existing alias is rejected `ALIAS_DEPTH_EXCEEDED`
+ * (behavior.spec.md §7: "the rename target resolves to an alias").
+ *
+ * Never touches `schema`/`defaultValue`/`scopes` -- a pure rename can never
+ * trigger `RENAME_RETYPE_CONFLICT` by construction; that guard lives in
+ * `retypeDefinition` (ADR-028 §3's "no rename+retype in one op").
+ */
+export async function renameDefinition(
+  required: RenameDefinitionRequired
+): Promise<{ settingId: string; markerSettingId: string }> {
+  const { deps, input } = required;
+  await authorizeDefinitionsManage(deps, input.callerPrincipalId, input.authWorkspaceId);
+
+  const current = await resolveActiveDefinitionOrThrow(deps, input, "rename");
+
+  if (input.namespace === input.newNamespace && input.key === input.newKey) {
+    throw new DefinitionInvalidError("rename requires newNamespace/newKey to differ from the current name");
+  }
+
+  const destination = await deps.repo.findActiveDefinition({
+    namespace: input.newNamespace,
+    key: input.newKey,
+    workspaceId: input.workspaceId,
+  });
+  if (destination) {
+    if (destination.status === "alias") {
+      throw new AliasDepthExceededError(
+        `rename target '${input.newNamespace}.${input.newKey}' resolves to an existing alias marker; a marker's alias_of must point to an active definition (depth <=1)`
+      );
+    }
+    throw new DefinitionInvalidError(
+      `rename target '${input.newNamespace}.${input.newKey}' is already in use`
+    );
+  }
+
+  const result = await deps.repo.transaction(async () => {
+    const now = deps.clock.nowIso();
+
+    // Step 1: move the active row to the new name -- same setting_id, same version.
+    await deps.repo.saveDefinition({ ...current, namespace: input.newNamespace, key: input.newKey, updatedAt: now });
+
+    // Sequential rename: retarget every prior marker pointing at the OLD name to the NEW name.
+    const siblings = await deps.repo.listActiveDefinitions({ workspaceId: input.workspaceId });
+    for (const sibling of siblings) {
+      if (
+        sibling.status === "alias" &&
+        sibling.aliasOfNamespace === input.namespace &&
+        sibling.aliasOfKey === input.key
+      ) {
+        await deps.repo.saveDefinition({
+          ...sibling,
+          aliasOfNamespace: input.newNamespace,
+          aliasOfKey: input.newKey,
+          updatedAt: now,
+        });
+      }
+    }
+
+    // Step 2: insert a fresh v1 alias marker at the OLD name pointing at the NEW name.
+    const markerSettingId = deps.ids.newId();
+    await deps.repo.saveDefinition({
+      settingId: markerSettingId,
+      version: 1,
+      workspaceId: input.workspaceId,
+      namespace: input.namespace,
+      key: input.key,
+      ownerKind: current.ownerKind,
+      ownerId: current.ownerId,
+      schema: current.schema,
+      defaultValue: current.defaultValue,
+      scopes: current.scopes,
+      secret: current.secret,
+      status: "alias",
+      aliasOfNamespace: input.newNamespace,
+      aliasOfKey: input.newKey,
+      coercionTag: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await deps.repo.appendRevision({
+      entityKind: "definition",
+      settingId: current.settingId,
+      scope: null,
+      workspaceId: input.workspaceId,
+      principalId: null,
+      op: "alias",
+      beforeJson: null,
+      afterJson: null,
+      defVersion: current.version,
+      actor: input.callerPrincipalId,
+      originPluginId: null,
+      changeSetId: null,
+      createdAt: now,
+    });
+
+    return { settingId: current.settingId, markerSettingId };
+  });
+
+  // Both the old (alias-marker) namespace and the new (active-row) namespace
+  // need a fresh definition-cache read after a rename.
+  invalidateDefinitionNamespaceCache(deps.repo, input.namespace);
+  invalidateDefinitionNamespaceCache(deps.repo, input.newNamespace);
+  return result;
+}
+
+export interface RetypeDefinitionRequired {
+  deps: SettingsWriteServiceDeps;
+  input: {
+    namespace: string;
+    key: string;
+    workspaceId: UUID | null;
+    schema: SettingValueSchema;
+    defaultValue: JsonValue | null;
+    /** A total coercer id/tag (EC-08 registry in `settings.ts`) for reading values recorded under any prior version. */
+    coercionTag: string;
+    /**
+     * Present only to detect a combined rename+retype request (ADR-028 §3);
+     * retype never actually moves `(namespace,key)` -- if provided and it
+     * differs from the current name while `schema` also differs, the whole
+     * op is rejected `RENAME_RETYPE_CONFLICT` rather than silently doing
+     * only the schema half.
+     */
+    newNamespace?: string;
+    newKey?: string;
+    callerPrincipalId: UUID;
+    authWorkspaceId: UUID;
+  };
+}
+
+/**
+ * ADR-028 §3 retype mechanism (AC-10, EC-05): a same-tx pair --
+ * (1) UPDATE the prior active version's `status` to `deprecated` FIRST (else
+ * the insert in step 2 collides with the one-active-row-per-slot
+ * invariant); (2) INSERT the new `version+1` row as `active`, same
+ * `setting_id`/`namespace`/`key`. Rejected unless every prior version
+ * (2..N) already carries a total coercer -- `coercionTag` is `null` only for
+ * version 1 by construction (`types.ts`), so this walks 2..N and requires
+ * each to be non-null.
+ */
+export async function retypeDefinition(
+  required: RetypeDefinitionRequired
+): Promise<{ settingId: string; version: number }> {
+  const { deps, input } = required;
+  await authorizeDefinitionsManage(deps, input.callerPrincipalId, input.authWorkspaceId);
+
+  const current = await resolveActiveDefinitionOrThrow(deps, input, "retype");
+
+  const namespaceOrKeyChanged =
+    (input.newNamespace !== undefined && input.newNamespace !== current.namespace) ||
+    (input.newKey !== undefined && input.newKey !== current.key);
+  const schemaChanged = JSON.stringify(input.schema) !== JSON.stringify(current.schema);
+  if (namespaceOrKeyChanged && schemaChanged) {
+    throw new RenameRetypeConflictError(
+      `cannot rename and retype '${input.namespace}.${input.key}' in the same operation (ADR-028 §3); submit the rename and the retype as two separate chokepoint calls`
+    );
+  }
+
+  for (let version = 2; version <= current.version; version++) {
+    const priorVersion = await deps.repo.findDefinitionBySettingId({ settingId: current.settingId, version });
+    if (!priorVersion || priorVersion.coercionTag == null) {
+      throw new DefinitionInvalidError(
+        `retype of '${input.namespace}.${input.key}' rejected: version ${version} does not carry a total coercer (ADR-028 §3)`
+      );
+    }
+  }
+
+  const result = await deps.repo.transaction(async () => {
+    const now = deps.clock.nowIso();
+    const newVersion = current.version + 1;
+
+    // Step 1: deprecate the prior active version first.
+    await deps.repo.saveDefinition({ ...current, status: "deprecated", updatedAt: now });
+
+    // Step 2: insert the new version as active -- same setting_id/namespace/key.
+    await deps.repo.saveDefinition({
+      settingId: current.settingId,
+      version: newVersion,
+      workspaceId: current.workspaceId,
+      namespace: current.namespace,
+      key: current.key,
+      ownerKind: current.ownerKind,
+      ownerId: current.ownerId,
+      schema: input.schema,
+      defaultValue: input.defaultValue,
+      scopes: current.scopes,
+      secret: current.secret,
+      status: "active",
+      aliasOfNamespace: null,
+      aliasOfKey: null,
+      coercionTag: input.coercionTag,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await deps.repo.appendRevision({
+      entityKind: "definition",
+      settingId: current.settingId,
+      scope: null,
+      workspaceId: current.workspaceId,
+      principalId: null,
+      op: "retype",
+      beforeJson: null,
+      afterJson: null,
+      defVersion: newVersion,
+      actor: input.callerPrincipalId,
+      originPluginId: null,
+      changeSetId: null,
+      createdAt: now,
+    });
+
+    return { settingId: current.settingId, version: newVersion };
+  });
+
+  invalidateDefinitionNamespaceCache(deps.repo, input.namespace);
+  return result;
+}
+
+export interface DeprecateDefinitionRequired {
+  deps: SettingsWriteServiceDeps;
+  input: {
+    namespace: string;
+    key: string;
+    workspaceId: UUID | null;
+    callerPrincipalId: UUID;
+    authWorkspaceId: UUID;
+  };
+}
+
+/** Flips the active definition's status to `deprecated`, ledgered `op='deprecate'` -- same-tx, chokepoint-gated. */
+export async function deprecateDefinition(
+  required: DeprecateDefinitionRequired
+): Promise<{ settingId: string; version: number }> {
+  const { deps, input } = required;
+  await authorizeDefinitionsManage(deps, input.callerPrincipalId, input.authWorkspaceId);
+
+  const current = await resolveActiveDefinitionOrThrow(deps, input, "deprecate");
+
+  const result = await deps.repo.transaction(async () => {
+    const now = deps.clock.nowIso();
+    await deps.repo.saveDefinition({ ...current, status: "deprecated", updatedAt: now });
+    await deps.repo.appendRevision({
+      entityKind: "definition",
+      settingId: current.settingId,
+      scope: null,
+      workspaceId: current.workspaceId,
+      principalId: null,
+      op: "deprecate",
+      beforeJson: null,
+      afterJson: null,
+      defVersion: current.version,
+      actor: input.callerPrincipalId,
+      originPluginId: null,
+      changeSetId: null,
+      createdAt: now,
+    });
+    return { settingId: current.settingId, version: current.version };
+  });
+
+  invalidateDefinitionNamespaceCache(deps.repo, input.namespace);
+  return result;
+}
+
+export interface TombstoneDefinitionRequired {
+  deps: SettingsWriteServiceDeps;
+  input: {
+    namespace: string;
+    key: string;
+    workspaceId: UUID | null;
+    callerPrincipalId: UUID;
+    authWorkspaceId: UUID;
+  };
+}
+
+/** Flips the active definition's status to `tombstone` (kills a core key), ledgered `op='tombstone'` -- same-tx, chokepoint-gated. */
+export async function tombstoneDefinition(
+  required: TombstoneDefinitionRequired
+): Promise<{ settingId: string; version: number }> {
+  const { deps, input } = required;
+  await authorizeDefinitionsManage(deps, input.callerPrincipalId, input.authWorkspaceId);
+
+  const current = await resolveActiveDefinitionOrThrow(deps, input, "tombstone");
+
+  const result = await deps.repo.transaction(async () => {
+    const now = deps.clock.nowIso();
+    await deps.repo.saveDefinition({ ...current, status: "tombstone", updatedAt: now });
+    await deps.repo.appendRevision({
+      entityKind: "definition",
+      settingId: current.settingId,
+      scope: null,
+      workspaceId: current.workspaceId,
+      principalId: null,
+      op: "tombstone",
+      beforeJson: null,
+      afterJson: null,
+      defVersion: current.version,
+      actor: input.callerPrincipalId,
+      originPluginId: null,
+      changeSetId: null,
+      createdAt: now,
+    });
+    return { settingId: current.settingId, version: current.version };
+  });
+
+  invalidateDefinitionNamespaceCache(deps.repo, input.namespace);
+  return result;
 }
