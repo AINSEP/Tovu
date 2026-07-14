@@ -46,4 +46,9 @@ export class SqlitePresentationSettingsRepo implements PresentationSettingsRepoP
       })
       .run();
   }
+
+  async listAll(): Promise<PresentationSettingsRecord[]> {
+    const rows = this.db.select().from(presentationSettings).all();
+    return rows.map(toRecord);
+  }
 }

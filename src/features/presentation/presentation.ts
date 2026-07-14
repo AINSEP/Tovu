@@ -19,6 +19,13 @@ export interface PresentationSettingsRecord {
 export interface PresentationSettingsRepoPort {
   findByWorkspaceId(workspaceId: UUID): Promise<PresentationSettingsRecord | null>;
   save(record: PresentationSettingsRecord): Promise<void>;
+  /**
+   * SPEC-007 REQ-08 — every row across every workspace, for the one-time
+   * `migrateLegacyPresentationSettings` brownfield migration (small row
+   * count: one row per workspace). Added additively; does not change
+   * `findByWorkspaceId`/`save`'s existing contract.
+   */
+  listAll(): Promise<PresentationSettingsRecord[]>;
 }
 
 export interface GetPresentationSettingsRequired {
