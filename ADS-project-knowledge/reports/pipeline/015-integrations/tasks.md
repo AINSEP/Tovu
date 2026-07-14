@@ -99,12 +99,12 @@ GAP-06 (wiring the real `core/origin` egress oracle at `create.ts`, replacing `p
 
 **Priority (2) per ADR-PIPE-015.** `[P]` with Phase 1 and Phase 3 (disjoint files). Per the ADR's Rationale, GAP-05 (no durable storage) and GAP-12 (no envelope re-hydration path) are the same underlying problem and are fixed together here, not split across passes.
 
-- [ ] T019 [P] [GAP-05] Add `webhookSubscriptions`, `webhookDeliveries` (incl. `payloadJson`) Drizzle tables + a unique index on `(workspace_id, subscription_id, event_id)` per ADR-036 §2 DDL — `src/infra/db/schema.ts`
-- [ ] T020 [P] [GAP-05] Write failing shared `WebhookSubscriptionRepoPort` contract-test suite (to run against both `repo.memory.ts` and, once built, `repo.sqlite.ts`) — `src/integrations/__tests__/repo.subscription.contract.test.ts`
-- [ ] T021 [P] [GAP-05, GAP-12, INV-P4] Write failing shared `WebhookDeliveryRepoPort` contract-test suite incl. a `payload_json` round-trip assertion (enqueue → claim → `findById` byte-identical envelope) and a restart-simulated fresh-repo-instance read — `src/integrations/__tests__/repo.delivery.contract.test.ts`
-- [ ] T022 [GAP-05] Implement `SqliteWebhookSubscriptionRepo` (C-005) — `src/integrations/repo.sqlite.ts` (depends T019, T020)
-- [ ] T023 [GAP-05, GAP-12] Implement `SqliteWebhookDeliveryRepo` (C-006) incl. `payload_json` written in the same statement as the row insert; `claimPending` backed by the new unique index (turns the disclosed O(n) idempotency-scan gap into a real fix) — `src/integrations/repo.sqlite.ts` (depends T019, T021) — same file as T022, **NOT `[P]`** with T022 (serialize authorship within this phase)
-- [ ] T024 Run Phase 2 tests to convergence — contract-test parity between both adapters proven; INV-P4 round-trip proven
+- [x] T019 [P] [GAP-05] Add `webhookSubscriptions`, `webhookDeliveries` (incl. `payloadJson`) Drizzle tables + a unique index on `(workspace_id, subscription_id, event_id)` per ADR-036 §2 DDL — `src/infra/db/schema.ts`
+- [x] T020 [P] [GAP-05] Write failing shared `WebhookSubscriptionRepoPort` contract-test suite (to run against both `repo.memory.ts` and, once built, `repo.sqlite.ts`) — `src/integrations/__tests__/repo.subscription.contract.test.ts`
+- [x] T021 [P] [GAP-05, GAP-12, INV-P4] Write failing shared `WebhookDeliveryRepoPort` contract-test suite incl. a `payload_json` round-trip assertion (enqueue → claim → `findById` byte-identical envelope) and a restart-simulated fresh-repo-instance read — `src/integrations/__tests__/repo.delivery.contract.test.ts`
+- [x] T022 [GAP-05] Implement `SqliteWebhookSubscriptionRepo` (C-005) — `src/integrations/repo.sqlite.ts` (depends T019, T020)
+- [x] T023 [GAP-05, GAP-12] Implement `SqliteWebhookDeliveryRepo` (C-006) incl. `payload_json` written in the same statement as the row insert; `claimPending` backed by the new unique index (turns the disclosed O(n) idempotency-scan gap into a real fix) — `src/integrations/repo.sqlite.ts` (depends T019, T021) — same file as T022, **NOT `[P]`** with T022 (serialize authorship within this phase)
+- [x] T024 Run Phase 2 tests to convergence — contract-test parity between both adapters proven; INV-P4 round-trip proven
 
 **Checkpoint — PHASE 2 PERSISTENCE GATE (the other half of the Phase 4 gate)**: durable storage + envelope durability merged and code-reviewed.
 
