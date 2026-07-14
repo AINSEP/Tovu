@@ -1,10 +1,13 @@
 # ADR-043: Collections — operator-defined content types
 
-- Status: **PROPOSED** — emerged from a 3-round swarm `/debate` (2026-07-14, Primary Opus/Sonnet host +
+- Status: **PROPOSED** — emerged from a 4-round swarm `/debate` (2026-07-14, Primary Sonnet host +
   Fable subagent + Codex gpt-5.5 + Gemini 3.1 Pro via agy). All three external/subagent participants
-  converged closely on the overall shape; the storage-shape sub-question (below) did **not** converge
-  even after 3 rounds — this ADR's storage decision is a Coordinator tie-break over a genuine,
-  persistent 3-way split, not a peer-unanimous result. **Has NOT been through `/audit-work`.**
+  converged closely on the overall shape from Round 1. The storage-shape sub-question (below) did
+  **not** converge through Rounds 1-3 — each of the three participants held a different final position
+  after Round 3 — and was resolved only in **Round 4**, after the Coordinator (which had not run a
+  genuine blind first pass through Round 3 — a disclosed process gap, see Process Note) contributed an
+  explicit optionality/reversibility argument. All three participants revised to unanimous agreement in
+  Round 4 (Fable 0.85, Codex 0.86, agy 0.95). **Has NOT been through `/audit-work`.**
 - Date: 2026-07-14
 - Relates: ADR-022 (content model — this ADR is the first real implementation of its deferred `entries`/
   `content_types` design), ADR-023 (core-mediated plugin data modules — explicitly rejected as the storage
@@ -39,8 +42,9 @@ and, for queryable fields, issues a core-mediated `CREATE INDEX` on a JSON path 
 
 ### 2. Storage shape: a new `entries` table, coexisting with the untouched `posts` table
 
-**This is the one point the debate did not converge on even after three rounds**, and is the
-Coordinator's tie-break call, not a peer-unanimous result:
+**This point took 4 rounds to converge, and did not settle until the Coordinator actually contributed an
+argued position of its own in Round 4** (see Process Note) — the journey there matters as much as the
+final unanimous answer:
 
 - **Round 1**: Fable proposed a new `entries` table, explicitly leaving `posts` untouched, citing
   migration-risk-aversion toward live content. Codex and agy's illustrative sketches leaned toward
@@ -53,16 +57,37 @@ Coordinator's tie-break call, not a peer-unanimous result:
   coexistence but proposed a third option: a thin **identity-anchor** supertype table (`nodes`/`entities`
   holding just `id`/`created_at`/`type`), with both `posts` and a new `entries` table as FK children —
   giving taxonomy one real join target without touching `posts`'s own columns.
-- **Round 3 (final, testing the anchor)**: no further convergence. Fable moved to recommend the anchor
+- **Round 3 (testing the anchor)**: no convergence yet. Fable moved to recommend the anchor
   pattern (0.78 confidence). Codex rejected the anchor (citing a new dual-write-chokepoint coupling risk
   it introduces) and returned to plain coexisting tables (0.78). agy **abandoned its own anchor proposal**
   after weighing its cost (a permanent write-path coordination tax and a join-hop on every read) and
   moved to recommend Fable's Round 2 additive-`posts`-evolution position instead (0.90). Three
-  participants, three different final answers.
+  participants, three different final answers — the signature of a genuinely balanced tradeoff.
+- **Round 4 (final — resolved, unanimous)**: the Coordinator, prompted directly by the project owner to
+  actually contribute an opinion rather than only dispatch and synthesize, offered an explicit
+  optionality/reversibility argument (below) as a disclosed Coordinator position, not a tie-break dressed
+  up after the fact. All three participants revised in response: Fable moved from the anchor pattern to
+  plain coexisting tables (0.85), naming the same asymmetry as decisive ("which option is easiest to
+  walk back if I'm wrong," not just "which best serves taxonomy's needs"). Codex held its Round 3
+  position, now with the optionality framing as additional support (0.86). agy moved from additive
+  `posts` evolution to plain coexisting tables (0.95), citing the same live-data-entanglement risk.
+  **Unanimous, all three, final.**
 
-**Coordinator's tie-break: plain coexisting tables.** A new `entries` table holds Collections content;
-`posts` is not touched in any way (no new columns, no write-path changes, no join dependency). Reasoning:
+**Final decision (Round 4, unanimous): plain coexisting tables.** A new `entries` table holds Collections
+content; `posts` is not touched in any way (no new columns, no write-path changes, no join dependency).
+The Coordinator's Round 4 argument, now adopted by all three participants:
 
+- **Optionality, not just blast-radius or elegance, is the deciding criterion: which choice keeps the
+  most future paths open, and which one forecloses paths the moment it's made?** Plain coexistence
+  changes nothing about `posts` — every other path (unify later, add an anchor later) remains exactly
+  as buildable in six months as today, because both are additive/backfill operations regardless of
+  when they happen. Additive `posts` evolution is the one option that forecloses paths: the moment
+  operator-defined Collections content is created via `posts`, it is physically interleaved with live,
+  real editorial content on a brownfield, self-hosted site (ADR-011) — reversing that later means
+  *untangling already-mixed live production data*, not adding a table. The identity-anchor's specific
+  benefit (a hard-FK taxonomy join) is itself deferrable at zero cost — nothing about waiting to build
+  it later makes it harder to build than building it now — so paying its dual-write/join-tax cost
+  today buys optionality that's available for free later, if it's ever needed at all.
 - Every participant who evaluated the identity-anchor pattern in depth — including agy, its own
   author — ultimately rejected it once the cost was fully reasoned through: it adds a permanent
   dual-write transaction to every post/entry create and a join-hop to every cross-type read, purely to
@@ -190,15 +215,18 @@ admin routes under `/api/admin/v1/content-types` and `/api/admin/v1/entries`, Re
 - Whether/when `posts`/`pages` migrate onto `entries` — deliberately out of this ADR's scope.
 - Exact per-type `queryable` field cap — not benchmarked here.
 - Whether the additive-`posts`-evolution or identity-anchor alternatives should be revisited once
-  Collections has real production usage data — both were credible positions held by a majority of
-  Round-3 participants (2 of 3 final answers were NOT plain coexistence), so this decision should not be
-  read as an overwhelming consensus; it is a reasoned tie-break over a genuine, persistent split.
+  Collections has real production usage data. Both were credible positions each participant held at some
+  point across Rounds 2-3 before Round 4's unanimous convergence — this decision is not fragile, but it
+  is worth re-checking against real usage rather than treated as permanently closed.
 
 ## Process Note
 
 This ADR's Primary/host participant (Claude, this session) did not run a true blind first pass before
-dispatching peers, contrary to the debate protocol's own requirement that Primary form and freeze an
-independent position before peer synthesis — flagged here rather than silently omitted, per this
-project's evidence-over-invention discipline. The final storage-shape tie-break above is the
-Coordinator's own reasoned judgment, formed after watching all three rounds, not a blind prior position
-that happened to agree.
+dispatching peers in Rounds 1-3, contrary to the debate protocol's own requirement that Primary form and
+freeze an independent position before peer synthesis. The project owner noticed this gap directly and
+asked about it mid-session — it was not caught by the Coordinator's own process discipline. In Round 4,
+the Coordinator corrected course and contributed an actual argued position (the optionality/reversibility
+framing above), disclosed openly as a Coordinator contribution rather than a tie-break dressed up after
+the fact. All three participants found it persuasive and converged on it independently. The final
+storage-shape decision is therefore a genuine 4-round unanimous consensus, reached only after the
+Coordinator's own participation gap was corrected — not a tie-break imposed over an unresolved split.

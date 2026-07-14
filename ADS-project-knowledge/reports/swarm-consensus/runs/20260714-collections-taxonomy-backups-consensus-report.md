@@ -1,11 +1,13 @@
 # Swarm Consensus Report — Collections, Categories & Tags, Backups/Recovery Screen
 
 - **Date:** 2026-07-14
-- **Mode:** `/debate` · 3 rounds (R1 blind → R2 informed, narrow fork → R3 final, testing a synthesis)
+- **Mode:** `/debate` · 4 rounds (R1 blind → R2 informed, narrow fork → R3 testing a synthesis →
+  R4 final, resolved by an explicit Coordinator contribution)
 - **Topics:** three independent, previously-unscoped Tovu admin surfaces, dispatched as one combined
   packet to save time.
-- **Outcome:** Categories & Tags and the Backups/Recovery screen converged unanimously. Collections'
-  storage-shape question did **not** converge after 3 rounds — resolved by Coordinator tie-break.
+- **Outcome:** Categories & Tags and the Backups/Recovery screen converged unanimously from Round 1.
+  Collections' storage-shape question took all 4 rounds and did not settle until the Coordinator
+  contributed its own argued position in Round 4 — all three participants then converged on it.
 
 ## The Swarm
 
@@ -38,48 +40,53 @@ it ships independently of and before Collections. See ADR-044.
 primitive; Recovery's information architecture centers on a blocking, itemized "what would be discarded"
 disclosure before any restore confirmation; capability- and state-aware degraded modes. See ADR-045.
 
-## The Decision (NOT converged — Collections storage shape, see ADR-043)
+## The Decision (Collections storage shape — took 4 rounds, now unanimous, see ADR-043)
 
 All three participants independently discovered, via direct file verification (not from the packet's
 prose), that ADR-022's `entries`/`content_types`/`taxonomies` design — though marked "Accepted" — was
 never implemented; the shipped codebase still uses a bespoke `posts` table with a `kind` column. This
 became the headline finding of Round 1 and reframed all three topics.
 
-On *where Collections' new content should live*, positions oscillated across all three rounds without
-settling:
+On *where Collections' new content should live*, positions oscillated for three rounds before resolving:
 
 | Round | Fable | Codex | agy |
 |---|---|---|---|
 | R1 (blind) | new `entries` table, `posts` untouched | sketch implied reuse of `posts` (not a committed position) | sketch implied reuse of `posts` (not a committed position) |
 | R2 (disclosed) | **reversed** → additive `posts` evolution (nullable `fields_json` + registry `type`), citing ADR-022 §1's literal text | **reversed** → new `entries` table, `posts` untouched (0.88) | new `entries` table, `posts` untouched (0.95) — but proposed a 3rd option: identity-anchor (`nodes` supertype) |
-| R3 (final, testing the anchor) | identity-anchor (0.78) | plain coexisting tables (0.78) — rejects the anchor's new write-chokepoint coupling | **abandoned own anchor idea** → additive `posts` evolution (0.90), agreeing with Fable's R2 position |
+| R3 (testing the anchor) | identity-anchor (0.78) | plain coexisting tables (0.78) — rejects the anchor's new write-chokepoint coupling | **abandoned own anchor idea** → additive `posts` evolution (0.90), agreeing with Fable's R2 position |
+| R4 (final, resolved) | **plain coexisting tables (0.85)** | plain coexisting tables (0.86, held) | **plain coexisting tables (0.95)** |
 
-Three participants, three different final positions, each independently reasoned and each defensible.
-This is the signature of a genuinely balanced tradeoff, not insufficient information — a fourth round was
-judged unlikely to converge further.
+Three participants held three different final positions through Round 3 — the signature of a genuinely
+balanced tradeoff, not insufficient information. Round 4 resolved it: the project owner directly
+challenged the Coordinator for never having contributed an actual opinion of its own (see Process
+Disclosure), and the Coordinator's Round 4 contribution — an explicit optionality/reversibility argument
+— persuaded all three participants independently:
 
-**Coordinator tie-break (Primary, post-hoc, not a blind prior position): plain coexisting tables.**
-Reasoning: (1) every participant who fully reasoned through the identity-anchor's cost — including its
-own author, agy — ultimately rejected it once weighed against a permanent dual-write-transaction and
-read-path join tax; (2) the "taxonomy needs a real join target" objection that drove Fable's Round 2
-reversal already has a proven, precedented answer in this codebase (ADR-041's own soft cross-table
-actor-identity reference across the sidecar/`content.db` boundary); (3) this codebase's single most
-repeated architectural value across nearly every accepted ADR is protecting live content from anything
-new and unproven, and plain coexistence preserves the cleanest possible abort path for Collections if it
-doesn't pan out. Full reasoning in ADR-043.
+**Optionality is the deciding criterion, not just blast-radius or elegance.** Plain coexistence changes
+nothing about `posts` — every other path (unify later, add an anchor later) remains exactly as
+buildable in six months as today. Additive `posts` evolution is the one option that *forecloses* paths:
+the moment operator-defined Collections content lands in `posts`, it is physically interleaved with
+live, real editorial content — reversing that later means untangling already-mixed live production data,
+not adding a table. The identity-anchor's benefit (a real taxonomy join target) is itself deferrable at
+zero cost, so paying its dual-write/join-tax cost now buys optionality available for free later, if ever
+needed. Full reasoning in ADR-043.
 
 ## Process Disclosure
 
 Per this project's evidence-over-invention discipline: the Primary/host participant did not run a
-genuine blind first-pass position before dispatching peers in Round 1, contrary to the debate protocol's
-own requirement. This was noticed and disclosed mid-session (the user asked directly), not caught by the
-Coordinator's own process discipline. Recorded here, and in ADR-043's Process Note, rather than silently
-omitted.
+genuine blind first-pass position before dispatching peers in Rounds 1-3, contrary to the debate
+protocol's own requirement. This was noticed and challenged directly by the project owner mid-session,
+not caught by the Coordinator's own process discipline. In Round 4, the Coordinator corrected course and
+contributed the optionality argument above as an actual position, disclosed as a Coordinator
+contribution rather than a tie-break dressed up after the fact — and all three participants found it
+independently persuasive. The final decision is a genuine 4-round unanimous consensus, reached only after
+the Coordinator's own participation gap was corrected, not a tie-break imposed over an unresolved split.
 
 ## Artifacts
 
 - Packets: `.local-artifacts/swarm-consensus/context/CTX-collections-taxonomy-backups-2026-07-14.md`
-  (R1), `CTX-collections-taxonomy-backups-round2-2026-07-14.md` (R2), `-round3-2026-07-14.md` (R3)
+  (R1), `CTX-collections-taxonomy-backups-round2-2026-07-14.md` (R2), `-round3-2026-07-14.md` (R3),
+  `-round4-2026-07-14.md` (R4)
 - Raw peer transcripts: `.local-artifacts/swarm-consensus/runs/20260714-collections-taxonomy-backups/`
 - Resulting ADRs: `ADR-043-collections.md`, `ADR-044-categories-and-tags.md`,
   `ADR-045-backups-recovery-screen.md` — all **PROPOSED**, none through `/audit-work` yet.
