@@ -363,6 +363,15 @@ export class SqliteSettingsRepo implements SettingsRepoPort {
     return rows.map((r) => toValueRecord(r, "user", required.workspaceId, required.principalId));
   }
 
+  async listUserValuesByWorkspace(required: { workspaceId: string }): Promise<SettingValueRecord[]> {
+    const rows = this.db
+      .select()
+      .from(settingValuesUser)
+      .where(eq(settingValuesUser.workspaceId, required.workspaceId))
+      .all();
+    return rows.map((r) => toValueRecord(r, "user", required.workspaceId, r.principalId));
+  }
+
   async deleteWorkspaceValue(required: { workspaceId: string; settingId: string }): Promise<void> {
     this.db
       .delete(settingValuesWorkspace)

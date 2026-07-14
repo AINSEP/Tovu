@@ -166,6 +166,10 @@ export class InMemorySettingsRepo implements SettingsRepoPort {
     );
   }
 
+  async listUserValuesByWorkspace(required: { workspaceId: string }): Promise<SettingValueRecord[]> {
+    return this.userValues.filter((v) => v.workspaceId === required.workspaceId);
+  }
+
   async deleteWorkspaceValue(required: { workspaceId: string; settingId: string }): Promise<void> {
     this.workspaceValues = this.workspaceValues.filter(
       (v) => !(v.workspaceId === required.workspaceId && v.settingId === required.settingId)

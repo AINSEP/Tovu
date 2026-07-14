@@ -34,11 +34,23 @@ export const SCOPE_BIT = { global: 1, workspace: 2, user: 4 } as const;
  * Schema engine is not needed and would be speculative generality). Every
  * variant is exhaustively validatable by `validateValue`.
  */
+/**
+ * `{type:"json"}` (ADR-PIPE-008 Decision §3) is a deliberately narrow, scalar-
+ * ADJACENT exception to the "deliberately small" vocabulary above: it accepts
+ * any JSON value (object/array/scalar) and validates nothing about its
+ * internal shape — that is the registering feature's own write-path
+ * responsibility (e.g. `src/seo/settings.ts` for `site.seo.robots_rules`'s
+ * 50-rule max + per-rule shape), never this ledger's job. Code Review must
+ * confirm this variant is used exactly once in the codebase (ADR-PIPE-008
+ * Enforcement) — it is not a general escape hatch for fields that could be
+ * scalar-decomposed instead.
+ */
 export type SettingValueSchema =
   | { type: "string"; nullable?: boolean }
   | { type: "number"; nullable?: boolean }
   | { type: "boolean"; nullable?: boolean }
-  | { type: "enum"; values: readonly string[]; nullable?: boolean };
+  | { type: "enum"; values: readonly string[]; nullable?: boolean }
+  | { type: "json"; nullable?: boolean };
 
 export interface SettingDefinitionRecord {
   settingId: UUID;

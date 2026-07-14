@@ -42,6 +42,13 @@ export interface SettingsRepoPort {
 
   listWorkspaceValues(required: { workspaceId: UUID }): Promise<SettingValueRecord[]>;
   listUserValues(required: { workspaceId: UUID; principalId: UUID }): Promise<SettingValueRecord[]>;
+  /**
+   * Every `setting_values_user` row for a workspace, across ALL principals
+   * (not just one) — needed by `purge-service.ts`'s full-tenant teardown path
+   * (ADR-028 §5), which must clear the FK-blocking `setting_values_user` rows
+   * for every principal in the workspace, not just one caller-known id.
+   */
+  listUserValuesByWorkspace(required: { workspaceId: UUID }): Promise<SettingValueRecord[]>;
   deleteWorkspaceValue(required: { workspaceId: UUID; settingId: UUID }): Promise<void>;
   deleteUserValue(required: { workspaceId: UUID; principalId: UUID; settingId: UUID }): Promise<void>;
 

@@ -130,6 +130,30 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
     assert.notEqual(await repo.getWorkspaceValue({ workspaceId: "ws-2", settingId: def.settingId }), null);
   });
 
+  test(`[${adapterName}] listUserValuesByWorkspace returns every principal's rows for a workspace, none from another workspace`, async () => {
+    const repo = makeRepo();
+    const base: Omit<SettingValueRecord, "scope" | "workspaceId" | "principalId"> = {
+      settingId: def.settingId,
+      valueJson: "x",
+      state: "set",
+      defVersion: 1,
+      seq: 1,
+      updatedBy: "actor-1",
+      updatedAt: NOW,
+      originPluginId: null,
+    };
+    await repo.saveUserValue({ ...base, scope: "user", workspaceId: "ws-1", principalId: "p-1" });
+    await repo.saveUserValue({ ...base, scope: "user", workspaceId: "ws-1", principalId: "p-2" });
+    await repo.saveUserValue({ ...base, scope: "user", workspaceId: "ws-2", principalId: "p-3" });
+
+    const rows = await repo.listUserValuesByWorkspace({ workspaceId: "ws-1" });
+    assert.equal(rows.length, 2);
+    assert.deepEqual(
+      rows.map((r) => r.principalId).sort(),
+      ["p-1", "p-2"]
+    );
+  });
+
   test(`[${adapterName}] transaction runs the callback and returns its result`, async () => {
     const repo = makeRepo();
     const result = await repo.transaction(async () => {

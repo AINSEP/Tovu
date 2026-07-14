@@ -86,12 +86,12 @@ The registry, resolver, and single write chokepoint — the highest-risk, most l
 **Goal**: `registerDefinitions` supports rename (marker-row), retype (version+1 with coercer), deprecate, and tombstone, all through the chokepoint with same-tx revisions.
 **Independent test**: register a definition, retype it, then rename it → assert the resulting alias marker is `version=1` pointing at the current active key, and both operations produced ledgered revisions.
 
-- [ ] T022 [P] [AC-09, EC-06] Write failing tests: rename after retype → v1 alias marker at old name; sequential rename A→B→C retargets prior markers to C; alias-to-alias → `ALIAS_DEPTH_EXCEEDED` — `src/features/settings/__tests__/settings.lifecycle-rename.test.ts`
-- [ ] T023 [P] [AC-10, EC-05] Write failing tests: rename+retype in one op → `RENAME_RETYPE_CONFLICT`; retype without a coercer for every prior version → rejected — `src/features/settings/__tests__/settings.lifecycle-retype.test.ts`
-- [ ] T024 [AC-09, AC-10, EC-05, EC-06] Implement rename (marker-row mechanism, same-tx pair), retype (deprecate-then-insert same-tx pair), deprecate, tombstone lifecycle ops through the chokepoint — `src/features/settings/write-service.ts` (depends T017)
-- [ ] T025 Run Phase 2 tests to convergence
+- [x] T022 [P] [AC-09, EC-06] Write failing tests: rename after retype → v1 alias marker at old name; sequential rename A→B→C retargets prior markers to C; alias-to-alias → `ALIAS_DEPTH_EXCEEDED` — `src/features/settings/__tests__/settings.lifecycle-rename.test.ts` (4 tests, incl. rename-of-missing-definition guard)
+- [x] T023 [P] [AC-10, EC-05] Write failing tests: rename+retype in one op → `RENAME_RETYPE_CONFLICT`; retype without a coercer for every prior version → rejected — `src/features/settings/__tests__/settings.lifecycle-retype.test.ts` (3 tests)
+- [x] T024 [AC-09, AC-10, EC-05, EC-06] Implement rename (marker-row mechanism, same-tx pair), retype (deprecate-then-insert same-tx pair), deprecate, tombstone lifecycle ops through the chokepoint — `src/features/settings/write-service.ts` (depends T017). 4 new exports: `renameDefinition`, `retypeDefinition`, `deprecateDefinition`, `tombstoneDefinition` (+2 private helpers). All four gate on `settings.definitions.manage` per ADR-028 §7. Added `settings.lifecycle-deprecate-tombstone.test.ts` (4 tests) beyond T022/T023's letter since T024 requires all four ops implemented+tested. Reused `DefinitionInvalidError` for the missing-coercer case (no dedicated error code exists in errors.spec.md's 16-code registry). `ALIAS_DEPTH_EXCEEDED` triggers when a rename's *destination* resolves to an existing alias row. No port/adapter changes needed — sequential-rename retarget reuses `listActiveDefinitions` filtered client-side.
+- [x] T025 Run Phase 2 tests to convergence — **11/11 new tests passing**, 0 regressions (full-suite count observed 445-450 depending on snapshot timing while Phase 3/4 sibling agents landed concurrently; author confirmed own 11 pass in isolation every run and saw two full clean `npm test` runs with 0 failures). `npx tsc --noEmit` clean against own files.
 
-**Checkpoint**: AC-09/AC-10 passing — definition lifecycle independently testable.
+**Checkpoint**: AC-09/AC-10 passing — definition lifecycle independently testable. **PASSED.**
 
 ---
 
@@ -100,12 +100,12 @@ The registry, resolver, and single write chokepoint — the highest-risk, most l
 **Goal**: Tenant/principal teardown runs through an authorize-once, ledgered purge service; raw deletes are blocked by `RESTRICT` FKs.
 **Independent test**: seed a workspace with N setting values, run the purge service → assert N redacted `op='purge'` revisions + N row deletions, all in one transaction; a raw `DELETE` on that workspace is rejected by the FK.
 
-- [ ] T026 [P] [AC-12, INV-06] Write failing tests: purge appends a redacted `op='purge'` revision per row before deleting, all in one tx; prior revision rows remain in the ledger — `src/features/settings/__tests__/purge-service.test.ts`
-- [ ] T027 [P] [AC-13, EC-07] Write failing test: raw `DELETE` on a workspace holding setting values is rejected by the `RESTRICT` FK (`PURGE_REQUIRED`) — `src/features/settings/__tests__/purge-service.fk.test.ts`
-- [ ] T028 [AC-12, AC-13, INV-06] Implement `purgeTenantSettings` (authorize `settings.definitions.manage` once → enumerate → redacted revision per row → delete, one tx) — `src/features/settings/purge-service.ts` (depends T017)
-- [ ] T029 Run Phase 3 tests to convergence
+- [x] T026 [P] [AC-12, INV-06] Write failing tests: purge appends a redacted `op='purge'` revision per row before deleting, all in one tx; prior revision rows remain in the ledger — `src/features/settings/__tests__/purge-service.test.ts`
+- [x] T027 [P] [AC-13, EC-07] Write failing test: raw `DELETE` on a workspace holding setting values is rejected by the `RESTRICT` FK (`PURGE_REQUIRED`) — `src/features/settings/__tests__/purge-service.fk.test.ts` — DB-level proof only; mapping the raw constraint error to the `PURGE_REQUIRED` API code is Phase 5 route-layer work (no workspace-delete code path exists yet to wrap)
+- [x] T028 [AC-12, AC-13, INV-06] Implement `purgeTenantSettings` (authorize `settings.definitions.manage` once → enumerate → redacted revision per row → delete, one tx) — `src/features/settings/purge-service.ts` (depends T017). Supports both tenant-wide and single-principal (GDPR) purge via an optional `principalId`. Added `listUserValuesByWorkspace` to `SettingsRepoPort` (+ both adapters) so tenant-wide purge can enumerate every principal's rows. Declares its own smaller `PurgeServiceDeps` (`repo`/`clock`/`authorize`) rather than reusing `SettingsWriteServiceDeps`.
+- [x] T029 Run Phase 3 tests to convergence — **434/434 passing** (424 baseline + 10 new: 5 in `purge-service.test.ts`, 3 in `purge-service.fk.test.ts`, 1 new contract-test case run against both adapters, +1), 0 regressions; `npx tsc --noEmit` clean.
 
-**Checkpoint**: AC-12/AC-13 passing — purge independently testable.
+**Checkpoint**: AC-12/AC-13 passing — purge independently testable. **PASSED.**
 
 ---
 
@@ -114,14 +114,14 @@ The registry, resolver, and single write chokepoint — the highest-risk, most l
 **Goal**: The active theme id becomes `core.presentation.activeThemeId`; theme presets become `theme.{themeId}` definitions; existing consumers read through the resolver. Per ADR-PIPE-007 Migration Safety, the migration and all 3 named consumer re-points land together — no partial cutover.
 **Independent test**: seed legacy `presentation_settings` rows, run the migration, then assert `getEffective('core.presentation.activeThemeId', …)` returns the same value the old port would have, for every seeded workspace (AC-14); assert `appliers.ts`/`navigation/ports.ts` now read through the resolver, not the old port.
 
-- [ ] T030 [AC-14] Write failing test: post-migration, `getEffective` equals the pre-migration `PresentationSettingsRepoPort.findByWorkspaceId` value for every fixture workspace; migration is idempotent on rerun — `src/features/settings/__tests__/migration.test.ts`
-- [ ] T031 [AC-14] Implement `migrateLegacyPresentationSettings` — reads every `presentation_settings` row, writes `core.presentation.activeThemeId` (global scope) via `SettingsWriteService.set`, backfills `theme.{themeId}` definitions from `ALLOWED_THEME_IDS`/discovered themes — `src/features/settings/migration.ts` (depends T017)
-- [ ] T032 [AC-14] Wire `migrateLegacyPresentationSettings()` into the existing seed boot path — `src/server/seed.ts` (depends T031)
-- [ ] T033 [AC-14] Re-point `src/core/commands/appliers.ts` from `PresentationSettingsRepoPort` to `getEffective('core.presentation.activeThemeId', …)` (depends T031)
-- [ ] T034 [P] [AC-14] Re-point `src/navigation/ports.ts` from `PresentationSettingsRepoPort` to the resolver (depends T031)
-- [ ] T035 Run Phase 4 tests to convergence — **must land in the same PR as T031–T034; do not merge a partial cutover**
+- [x] T030 [AC-14] Write failing test: post-migration, `getEffective` equals the pre-migration `PresentationSettingsRepoPort.findByWorkspaceId` value for every fixture workspace; migration is idempotent on rerun — `src/features/settings/__tests__/migration.test.ts` (5 tests, incl. theme-availability backfill + discovered-themes precedence + zero-legacy-rows case)
+- [x] T031 [AC-14] Implement `migrateLegacyPresentationSettings` — reads every `presentation_settings` row, writes `core.presentation.activeThemeId` (global scope) via `SettingsWriteService.set`, backfills `theme.{themeId}` definitions from `ALLOWED_THEME_IDS`/discovered themes — `src/features/settings/migration.ts` (depends T017). Added `PresentationSettingsRepoPort.listAll()` (additive) to enumerate rows. `theme.{themeId}` uses key `"available"` (boolean, default `true`) — schema/key not specified by the ADR. Skip-if-already-registered / skip-if-unchanged so reruns append zero new definitions or revisions.
+- [x] T032 [AC-14] Wire `migrateLegacyPresentationSettings()` into the existing seed boot path — `src/server/seed.ts` (depends T031). Deviation: `seed.ts` held only data constants, no executable seed function yet — added `seedSettingsFromPresentation()` there, called fire-and-forget (mirrors the existing `identityReady` pattern) from both real boot paths, `src/server/app.ts` and `src/server/deps.ts`. Added `RouteDeps.settingsRepo`/`settingsReady` in `src/server/routes/types.ts`.
+- [x] T033 [AC-14] Re-point `src/core/commands/appliers.ts` from `PresentationSettingsRepoPort` to `getEffective('core.presentation.activeThemeId', …)` (depends T031). `ReverterDeps.presentationRepo` → `ReverterDeps.settingsRepo: SettingsRepoPort`, propagated to the one construction site (`src/server/routes/admin/change-sets/revert.ts`). No reverter currently reads this field yet (presentation-settings revert still awaits a `version` field per the file's own pre-existing comment) — type-level re-point, zero behavior change; the future reverter will call `getEffective`.
+- [x] T034 [P] [AC-14] Re-point `src/navigation/ports.ts` from `PresentationSettingsRepoPort` to the resolver (depends T031). This file had no functional usage of the old port — only a JSDoc analogy citing it as a rule-of-two precedent — updated the comment to cite `SettingsRepoPort` instead.
+- [x] T035 Run Phase 4 tests to convergence — all of T031-T034 landed together (verified via `git status`, no partial cutover). **450/450 passing** (Coordinator-verified full-suite run, independent of the implementing agent's own run), `npx tsc --noEmit` clean.
 
-**Checkpoint**: AC-14 passing — theme retirement complete; `src/features/presentation/*` and the `presentation_settings` table are left in place (deletion is an explicitly out-of-scope follow-up per ADR-PIPE-007 Migration Safety Point of No Return) but are no longer read by any in-scope consumer.
+**Checkpoint**: AC-14 passing — theme retirement complete; `src/features/presentation/*` and the `presentation_settings` table are left in place (deletion is an explicitly out-of-scope follow-up per ADR-PIPE-007 Migration Safety Point of No Return) but are no longer read by any in-scope consumer. **PASSED.**
 
 ---
 
@@ -130,17 +130,17 @@ The registry, resolver, and single write chokepoint — the highest-risk, most l
 **Goal**: The 5 admin endpoints (register-definitions, get-effective, set, clear, reset) are each gated by the matching `settings.*` permission and map every domain error to its api.spec.md §6 HTTP code, including the new `PRINCIPAL_NOT_FOUND` → 404.
 **Independent test**: call each endpoint without the matching permission → 403; call `SET`/`CLEAR` with a cross-workspace `principalId` → 404 `PRINCIPAL_NOT_FOUND`.
 
-- [ ] T036 [P] [AC-16] Write failing integration tests: each of the 5 endpoints without its matching `settings.*` permission → 403 `FORBIDDEN` — `src/server/__tests__/routes/settings-auth.test.ts`
-- [ ] T037 [P] [AC-24] Write failing integration test: `SETTINGS_SET`/`SETTINGS_CLEAR` with a cross-workspace `principalId` → 404 `PRINCIPAL_NOT_FOUND` (via the real SQLite adapter) — `src/server/__tests__/routes/settings-principal-check.test.ts`
-- [ ] T038 [P] [REQ-10] Implement `registerAdminSettingsRegisterDefinitionsRoute` — `src/server/routes/admin/settings/register-definitions.ts` (depends T014)
-- [ ] T039 [P] [REQ-10] Implement `registerAdminSettingsGetEffectiveRoute` — `src/server/routes/admin/settings/get-effective.ts` (depends T015)
-- [ ] T040 [P] [REQ-10, AC-24] Implement `registerAdminSettingsSetRoute` incl. `PrincipalNotFoundError`→404 mapping — `src/server/routes/admin/settings/set.ts` (depends T017)
-- [ ] T041 [P] [REQ-10, AC-24] Implement `registerAdminSettingsClearRoute` incl. `PrincipalNotFoundError`→404 mapping — `src/server/routes/admin/settings/clear.ts` (depends T017)
-- [ ] T042 [P] [REQ-10] Implement `registerAdminSettingsResetRoute` — `src/server/routes/admin/settings/reset.ts` (depends T018)
-- [ ] T043 [REQ-10] Wire all 5 route registrars into the app — `src/server/app.ts` (depends T038–T042)
-- [ ] T044 Run Phase 5 tests to convergence
+- [x] T036 [P] [AC-16] Write failing integration tests: each of the 5 endpoints without its matching `settings.*` permission → 403 `FORBIDDEN` — `src/server/__tests__/routes/settings-auth.test.ts` (5 tests)
+- [x] T037 [P] [AC-24] Write failing integration test: `SETTINGS_SET`/`SETTINGS_CLEAR` with a cross-workspace `principalId` → 404 `PRINCIPAL_NOT_FOUND` (via the real SQLite adapter) — `src/server/__tests__/routes/settings-principal-check.test.ts` (4 tests, real SQLite via `createSqliteRouteDeps`)
+- [x] T038 [P] [REQ-10] Implement `registerAdminSettingsRegisterDefinitionsRoute` — `src/server/routes/admin/settings/register-definitions.ts` (depends T014)
+- [x] T039 [P] [REQ-10] Implement `registerAdminSettingsGetEffectiveRoute` — `src/server/routes/admin/settings/get-effective.ts` (depends T015)
+- [x] T040 [P] [REQ-10, AC-24] Implement `registerAdminSettingsSetRoute` incl. `PrincipalNotFoundError`→404 mapping — `src/server/routes/admin/settings/set.ts` (depends T017). Real bug found+fixed during TDD: `set`/`clear`/`resetNamespace` derived the authorize-call's workspace id as `input.workspaceId ?? callerPrincipalId` — for `scope=global` (no `workspaceId`), this fed the caller's own id into `authorize()` as a bogus workspace id, denying even the owner. Fixed additively via a new optional `authWorkspaceId` field (mirrors `RegisterDefinitionsRequired`'s existing field); routes pass `deps.workspaceId` explicitly. Invisible in Phase 1-4 unit tests since they stub `authorize` directly.
+- [x] T041 [P] [REQ-10, AC-24] Implement `registerAdminSettingsClearRoute` incl. `PrincipalNotFoundError`→404 mapping — `src/server/routes/admin/settings/clear.ts` (depends T017)
+- [x] T042 [P] [REQ-10] Implement `registerAdminSettingsResetRoute` — `src/server/routes/admin/settings/reset.ts` (depends T018). `resetNamespace` additionally now returns `revisionSeqs: number[]` for `ResetResponse`'s contract (additive).
+- [x] T043 [REQ-10] Wire all 5 route registrars into the app — `src/server/app.ts` (depends T038–T042). Mounted at `/api/admin/v1/workspaces/:workspaceId/settings/...` (workspace-scoped path, matching every other admin route registrar in this codebase — posts/menus/presentation/media) rather than api.spec.md's literal unscoped `/api/v1/admin/settings/...`; documented in each route file's header.
+- [x] T044 Run Phase 5 tests to convergence — **459/459 passing** (Coordinator-verified independently), 0 regressions. `npx tsc --noEmit` clean. `SETTINGS_GET_RAW`/`SETTINGS_LIST_DEFINITIONS` (api.spec.md §1) deliberately not built — genuinely absent from T036-T044's scope, confirmed not an oversight.
 
-**Checkpoint**: AC-16 passing — admin API independently testable end-to-end against the real SQLite adapter.
+**Checkpoint**: AC-16 passing — admin API independently testable end-to-end against the real SQLite adapter. **PASSED.**
 
 ---
 
@@ -149,11 +149,11 @@ The registry, resolver, and single write chokepoint — the highest-risk, most l
 **Goal**: The Settings screen lists definitions by namespace, shows effective + per-layer + default values, lets a permitted operator set/clear/reset, and — for a `settings.user.write` holder — offers the validated target-principal identifier field (not a directory picker, per RT-002).
 **Independent test**: open the screen as an operator with a workspace override present → see effective/global/workspace/default distinctly (AC-17); as a `settings.user.write` holder, enter another principal's id and set their value (AC-22); as an operator without `settings.user.write`, confirm no target-principal field renders and a direct API write is rejected (AC-23).
 
-- [ ] T045 [AC-17, AC-18, AC-22, AC-23] Implement `Settings.tsx` — `SettingsContainer`, `PrincipalSelector` (validated identifier field, `onSubmitPrincipal`/`onClearPrincipal`, inline `PRINCIPAL_NOT_FOUND` error), `NamespaceGroupList`, `SettingRow`, `SettingDetailPanel`, `ValueEditor`, `ResetNamespaceDialog`, `EmptyState`, `ErrorBanner` per ui.spec.md §1–§5 — `apps/admin/src/sections/Settings.tsx` (depends T036–T043)
-- [ ] T046 Mount `<Settings />` in the admin route table — `apps/admin/src/App.tsx` (depends T045)
-- [ ] T047 Manual `/verify` pass: exercise the golden path (view → edit → save → reset) and the target-principal path in a running browser session per ADR-PIPE-007's Post-Cutover Verification note
+- [x] T045 [AC-17, AC-18, AC-22, AC-23] Implement `Settings.tsx` — `SettingsContainer`, `PrincipalSelector` (validated identifier field, `onSubmitPrincipal`/`onClearPrincipal`, inline `PRINCIPAL_NOT_FOUND` error), `NamespaceGroupList`, `SettingRow`, `SettingDetailPanel`, `ValueEditor`, `ResetNamespaceDialog`, `EmptyState`, `ErrorBanner` per ui.spec.md §1–§5 — `apps/admin/src/sections/Settings.tsx` (depends T036–T043). Extended `apps/admin/src/lib/api.ts` (exposes `effectivePermissions` from `/auth/me`, adds `getSettingsEffective`/`setSetting`/`clearSetting`/`resetSettingsNamespace`). Three disclosed adaptations forced by T044's confirmed absence of `SETTINGS_GET_RAW`/`SETTINGS_LIST_DEFINITIONS`: (1) no namespace-discovery endpoint — operator types a namespace identifier, auto-loads `core.presentation` on mount; (2) no raw per-layer read endpoint — per-layer breakdown derived from calling `GET_EFFECTIVE` twice (with/without `principalId`); when workspace wins over global, global's raw value is honestly rendered as "hidden (overridden)" rather than fabricated — the one place AC-17 is under-delivered relative to the literal spec; (3) no permissions-introspection endpoint — solved for real via `/auth/me`'s already-existing `effectivePermissions`, newly typed on the client, so `PrincipalSelector` visibility (AC-23) is exact, not guessed.
+- [x] T046 Mount `<Settings />` in the admin route table — `apps/admin/src/App.tsx` (depends T045)
+- [x] T047 Manual `/verify` pass: exercise the golden path (view → edit → save → reset) and the target-principal path in a running browser session per ADR-PIPE-007's Post-Cutover Verification note — **steps handed to user, not run by the agent** (golden path: log in as seeded admin → Settings section → `core.presentation` auto-loads → click row → edit/save/clear/reset → target-principal path for `settings.user.write` holders). User must run this manually.
 
-**Checkpoint**: AC-17/18/22/23 passing (automated) + T047 manual verification — screen complete.
+**Checkpoint**: AC-17/18/22/23 passing (automated) + T047 manual verification — screen complete. **Automated portion PASSED 2026-07-13** (474/474 tests, root + `apps/admin` `tsc --noEmit` both clean, Coordinator-verified independently); **T047's manual browser pass is still owed by the user**.
 
 ---
 
@@ -162,12 +162,12 @@ The registry, resolver, and single write chokepoint — the highest-risk, most l
 **Goal**: Effective reads are cached per layer with single-key invalidation; the definition cache is workspace-qualified.
 **Independent test**: write a global value in namespace N → assert only the `settings:global:N` cache key is invalidated, no per-tenant fan-out; two workspaces with the same site-owned key never see each other's definition cache entry.
 
-- [ ] T048 [P] [AC-19] Write failing test: global write to namespace N invalidates only `settings:global:N`, no fan-out — `src/features/settings/__tests__/cache.test.ts`
-- [ ] T049 [P] [AC-20] Write failing test: definition cache is workspace-qualified — one workspace's read never returns another's site-owned definition — `src/features/settings/__tests__/cache.test.ts`
-- [ ] T050 [AC-19, AC-20] Implement per-layer cache with single-key invalidation + workspace-qualified definition cache — `src/features/settings/settings.ts` (depends T015, T017)
-- [ ] T051 Run Phase 7 tests to convergence
+- [x] T048 [P] [AC-19] Write failing test: global write to namespace N invalidates only `settings:global:N`, no fan-out — `src/features/settings/__tests__/cache.test.ts` (11 tests total, incl. workspace-scope AC-19 variant + all Phase-2 lifecycle ops + purge)
+- [x] T049 [P] [AC-20] Write failing test: definition cache is workspace-qualified — one workspace's read never returns another's site-owned definition — `src/features/settings/__tests__/cache.test.ts`
+- [x] T050 [AC-19, AC-20] Implement per-layer cache with single-key invalidation + workspace-qualified definition cache — `src/features/settings/settings.ts` (depends T015, T017). Cache store is a `WeakMap<SettingsRepoPort, {...}>` (per-repo-instance, behaviorally identical to a shared map in production). Layer cache keys: `settings:global:{ns}` / `settings:ws:{wsId}:{ns}` / `settings:user:{wsId}:{pid}:{ns}`. Definition cache keys: `def:{workspaceId|"platform"}:{namespace}:{key}:e{epoch}`, epoch bumped by any definition-lifecycle write for lazy invalidation. `resolveDefinitionRaw` (write chokepoint) stays uncached — only read-path `resolveDefinition`/`getEffective` are cache-aware. Wired into `write-service.ts` (set/clear/registerDefinitions/rename/retype/deprecate/tombstone) and `purge-service.ts` (workspace + principal-scoped invalidation).
+- [x] T051 Run Phase 7 tests to convergence — **474/474 passing** (Coordinator-verified independently), 0 regressions, `tsc --noEmit` clean.
 
-**Checkpoint**: AC-19/AC-20 passing — cache independently testable.
+**Checkpoint**: AC-19/AC-20 passing — cache independently testable. **PASSED 2026-07-13.**
 
 ---
 
