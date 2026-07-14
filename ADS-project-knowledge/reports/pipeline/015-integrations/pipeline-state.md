@@ -105,3 +105,39 @@
   question), then — if a follow-up implementation pass is wanted — a dedicated `/plan` dispatch
   scoping which of GAP-01–GAP-12 to build next. Per task instruction, this run stops at the
   spec-dod gate; no Software Architect or task-generation dispatch was performed.
+
+## Implementation status (2026-07-14 continuation session)
+
+Phases 0-3 of `tasks.md` implemented and committed directly by the Coordinator (984-baseline
+suite grew to 1033/1033 passing, 0 tsc errors, verified after each phase):
+
+- **Phase 0** (T001-T004): `EventBusPort.subscribeAll` — additive, all-events subscription.
+- **Phase 1** (T005-T018): real `EnvOrFileKeyring` (env var + generated-file fallback outside
+  the portable site folder) + `createKeyringBackedSigner`; the guarded `HttpClientPort`
+  (`src/http/client.ts` + `transport.fetch.ts`, import-boundary canary enforced) — DNS
+  resolution, address classification (private/loopback/link-local/metadata/public, IPv4-mapped
+  IPv6 normalized first), peer pinning, redirect re-verification with auth-header stripping on
+  cross-origin hops, response-size caps; `create.ts` now calls the real
+  `OriginRegistry.isAllowedEgressTarget` (GAP-06), replacing `permitAllHttpsTargets`; an
+  `example.com` dev-capability egress allowlist entry was seeded so existing fixtures don't
+  fail-closed. `webhookSigner` wired with the real signer construction path in both
+  compositions (`EnvOrFileKeyring` in `deps.ts`, `InMemoryKeyring` test double in `app.ts`) —
+  inert either way, no route calls it yet.
+- **Phase 2** (T019-T024): `webhook_subscriptions`/`webhook_deliveries` Drizzle tables + SQLite
+  adapters. `SqliteWebhookDeliveryRepo` implements both `WebhookDeliveryRepoPort` and
+  `DeliveryEnvelopeStore` against the same row (`payload_json` column) — GAP-05/GAP-12 folded
+  as one fix. Unique index on `(workspace_id, subscription_id, event_id)`; `enqueue()` treats a
+  constraint violation as an idempotent no-op. Built but deliberately not flipped live in
+  `deps.ts` — matches every other feature in this sweep.
+- **Phase 3** (T025-T030): `integration.manage` renamed to `admin.integrations.manage`, mirroring
+  ADR-PIPE-012's `navigation.manage` precedent exactly (old string deprecated not deleted; fresh
+  seeds grant the new string directly; migration pair registered for pre-existing grants; all
+  five routes cut over in the same commit).
+
+**Phase 4 (Stage A fan-out + Stage B scheduler activation) deliberately NOT started.** Its own
+hard gate requires Phase 1 and Phase 2 "merged and code-reviewed" — Phase 1/2 are committed but
+have had zero Code Review pass this session (no `/code-review` has run against this branch), and
+ADR-PIPE-015 itself records Red-Team never ran against this ADR and recommends a pass before
+Phase 4 begins. Do not dispatch T031 or later until both a Code Review and (per the ADR's own
+recommendation) a Red-Team pass have actually happened — this is the real, intentional
+point-of-no-return gate, not a soft suggestion.
