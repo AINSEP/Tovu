@@ -17,6 +17,7 @@ test("capabilities reports the console driver shape", () => {
     supportsIdempotencyKey: true,
     supportsWebhookFeedback: false,
     maxBatchSize: 1,
+    supportsAttachments: false,
   });
 });
 

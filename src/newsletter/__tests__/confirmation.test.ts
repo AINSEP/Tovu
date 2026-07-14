@@ -18,7 +18,7 @@ const ids = { newId: () => `tok-${++counter}` };
 
 const sentEmails: { to: string; subject: string }[] = [];
 const mailer = {
-  capabilities: () => ({ driver: "console", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1 }),
+  capabilities: () => ({ driver: "console", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
   send: async (message: { to: { email: string }; subject: string }) => {
     sentEmails.push({ to: message.to.email, subject: message.subject });
     return { ok: true as const, providerMessageId: "m1", acceptedAt: now };

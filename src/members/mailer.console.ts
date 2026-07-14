@@ -47,6 +47,7 @@ export class ConsoleMailerAdapter implements MailerPort {
       supportsIdempotencyKey: true,
       supportsWebhookFeedback: false,
       maxBatchSize: 1,
+      supportsAttachments: false,
     };
   }
 

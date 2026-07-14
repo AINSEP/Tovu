@@ -23,7 +23,7 @@ class RecordingMailer implements MailerPort {
   result: MailerSendResult = { ok: true, providerMessageId: "msg-1", acceptedAt: NOW };
 
   capabilities() {
-    return { driver: "recording", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1 };
+    return { driver: "recording", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false };
   }
   async send(message: OutboundEmail, opts: MailerSendOptions): Promise<MailerSendResult> {
     this.calls.push({ message, opts });

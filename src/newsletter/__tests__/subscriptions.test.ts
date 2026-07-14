@@ -32,7 +32,7 @@ function makeDeps(): SubscriptionsDeps {
     tokenRepo: new InMemoryNewsletterConfirmationTokenRepo(),
     subscriptionRepo: new InMemoryNewsletterSubscriptionRepo(),
     mailer: {
-      capabilities: () => ({ driver: "console", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1 }),
+      capabilities: () => ({ driver: "console", supportsIdempotencyKey: true, supportsWebhookFeedback: false, maxBatchSize: 1, supportsAttachments: false }),
       send: async () => ({ ok: true as const, providerMessageId: "m1", acceptedAt: NOW }),
       sendBatch: async () => [],
     },
