@@ -20,4 +20,8 @@ export class InMemoryPresentationSettingsRepo implements PresentationSettingsRep
 
     this.rows[index] = record;
   }
+
+  async listAll(): Promise<PresentationSettingsRecord[]> {
+    return [...this.rows];
+  }
 }
