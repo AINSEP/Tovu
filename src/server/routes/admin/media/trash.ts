@@ -1,13 +1,13 @@
 import { MediaNotFoundError, trashMedia } from "../../../../media";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import { toAdminMediaResponse } from "../../../http/admin/media";
-import type { RouteRegistrar } from "../../types";
+import type { MediaRouteRegistrar } from "./deps";
 
 /**
  * POST soft-delete (trash) a media asset — first rung of the ADR-027 §5 deletion ladder. Gated by
  * `media.delete` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
  */
-export const registerAdminMediaTrashRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminMediaTrashRoute: MediaRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/media/:mediaId/trash", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

@@ -92,11 +92,6 @@ import { registerAdminEntryCreateRoute } from "./routes/admin/entries/create";
 import { registerAdminEntryUpdateRoute } from "./routes/admin/entries/update";
 import { registerAdminEntryLifecycleRoute } from "./routes/admin/entries/lifecycle";
 import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo } from "../features/taxonomy/repo.memory";
-import { registerAdminTaxonomyListRoute } from "./routes/admin/taxonomy/list";
-import { registerAdminTaxonomyCreateRoute } from "./routes/admin/taxonomy/create-taxonomy";
-import { registerAdminTaxonomyCreateTermRoute } from "./routes/admin/taxonomy/create-term";
-import { registerAdminTaxonomyRenameTermRoute } from "./routes/admin/taxonomy/rename-term";
-import { registerAdminTaxonomyAssignTermsRoute } from "./routes/admin/taxonomy/assign-terms";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
 import { registerAdminRecoveryRestorePointsListRoute } from "./routes/admin/recovery/restore-points";
 import { registerAdminRecoveryDisclosureRoute } from "./routes/admin/recovery/disclosure";
@@ -130,6 +125,9 @@ import { registerContentPostGetRoute } from "./routes/content/posts/get-by-slug"
 import { createCoreModule } from "./modules/core";
 import { createFormsModule } from "./modules/forms";
 import { createIntegrationsModule } from "./modules/integrations";
+import { createIntegrationsAdminModule } from "./modules/integrations-admin";
+import { createMediaModule } from "./modules/media";
+import { createTaxonomyModule } from "./modules/taxonomy";
 import { registerAdminMemberListRoute } from "./routes/admin/members/list";
 import { registerAdminMemberGetRoute } from "./routes/admin/members/get-by-id";
 import { registerAdminMemberDisableRoute } from "./routes/admin/members/disable";
@@ -147,17 +145,6 @@ import { registerAdminMenuCreateRoute } from "./routes/admin/menus/create";
 import { registerAdminMenuUpdateTreeRoute } from "./routes/admin/menus/update-tree";
 import { registerAdminMenuAssignLocationRoute } from "./routes/admin/menus/assign-location";
 import { registerAdminMenuDeleteRoute } from "./routes/admin/menus/delete";
-import { registerAdminIntegrationsListRoute } from "./routes/admin/integrations/list";
-import { registerAdminIntegrationsCreateRoute } from "./routes/admin/integrations/create";
-import { registerAdminIntegrationsPauseRoute } from "./routes/admin/integrations/pause";
-import { registerAdminIntegrationsDeleteRoute } from "./routes/admin/integrations/delete";
-import { registerAdminIntegrationsDeliveriesRoute } from "./routes/admin/integrations/deliveries";
-import { registerAdminMediaListRoute } from "./routes/admin/media/list";
-import { registerAdminMediaUploadRoute } from "./routes/admin/media/upload";
-import { registerAdminMediaUpdateRoute } from "./routes/admin/media/update";
-import { registerAdminMediaTrashRoute } from "./routes/admin/media/trash";
-import { registerAdminMediaDeleteRoute } from "./routes/admin/media/delete";
-import { registerMediaRenditionRoute } from "./routes/site/media-rendition";
 import { registerAdminUserListRoute } from "./routes/admin/users/list";
 import { registerAdminUserCreateRoute } from "./routes/admin/users/create";
 import { registerAdminUserAssignRoleRoute } from "./routes/admin/users/assign-role";
@@ -527,16 +514,15 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerAdminMenuUpdateTreeRoute(app, routeDeps);
   registerAdminMenuAssignLocationRoute(app, routeDeps);
   registerAdminMenuDeleteRoute(app, routeDeps);
-  registerAdminIntegrationsListRoute(app, routeDeps);
-  registerAdminIntegrationsCreateRoute(app, routeDeps);
-  registerAdminIntegrationsPauseRoute(app, routeDeps);
-  registerAdminIntegrationsDeleteRoute(app, routeDeps);
-  registerAdminIntegrationsDeliveriesRoute(app, routeDeps);
-  registerAdminMediaListRoute(app, routeDeps);
-  registerAdminMediaUploadRoute(app, routeDeps);
-  registerAdminMediaUpdateRoute(app, routeDeps);
-  registerAdminMediaTrashRoute(app, routeDeps);
-  registerAdminMediaDeleteRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-034): the `integrations-admin` server module — 5 admin CRUD/read routes
+  // over webhook subscriptions/deliveries (ADR-036). Distinct from `createIntegrationsModule`
+  // below, which owns the Forms-to-webhook fan-out subscriber, not an HTTP surface.
+  createIntegrationsAdminModule(routeDeps).registerRoutes?.(app);
+  // ADR-046 Phase 3 (SPEC-034): the `media` server module — 5 admin routes + the public rendition
+  // route (previously registered much later, see below near the old catch-all-precedence group;
+  // moved up here since its only real constraint, "before `/:slug`", still holds — see
+  // `modules/media.ts`'s file header for the full disclosure).
+  createMediaModule(routeDeps).registerRoutes?.(app);
   registerAdminUserListRoute(app, routeDeps);
   registerAdminUserCreateRoute(app, routeDeps);
   registerAdminUserAssignRoleRoute(app, routeDeps);
@@ -592,11 +578,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerAdminEntryCreateRoute(app, routeDeps);
   registerAdminEntryUpdateRoute(app, routeDeps);
   registerAdminEntryLifecycleRoute(app, routeDeps);
-  registerAdminTaxonomyListRoute(app, routeDeps);
-  registerAdminTaxonomyCreateRoute(app, routeDeps);
-  registerAdminTaxonomyCreateTermRoute(app, routeDeps);
-  registerAdminTaxonomyRenameTermRoute(app, routeDeps);
-  registerAdminTaxonomyAssignTermsRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-034): the `taxonomy` server module — the 5 plain CRUD/list routes.
+  // `registerAdminTaxonomyMergeTermRoutes` (the gated-mutation ceremony) stays inline below,
+  // alongside the unrelated storage/recovery ceremonies it shares a gateway pattern with.
+  createTaxonomyModule(routeDeps).registerRoutes?.(app);
   registerAdminRecoveryRestorePointsListRoute(app, routeDeps);
   registerAdminRecoveryDisclosureRoute(app, routeDeps);
   registerAdminRecoveryDeepLinkRoute(app, routeDeps);
@@ -719,9 +704,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
     rootKeySeed: process.env.ANALYTICS_ROOT_KEY_SEED ?? "dev-only-insecure-seed",
   });
 
-  // Public, unauthenticated media rendition serving (ADR-027 §4 frozen URL contract) — must
-  // precede the site `/:slug` catch-all, same reasoning as the store/analytics routes above.
-  registerMediaRenditionRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-034): the public media rendition route now registers earlier, as part of
+  // `createMediaModule(routeDeps).registerRoutes(app)` above — it's still safely before the site
+  // `/:slug` catch-all below, which is the only ordering constraint that ever applied to it.
 
   // Public, unauthenticated form submission endpoint (SPEC-010 REQ-05, FORMS_POST_SUBMIT) — must
   // precede the site `/:slug` catch-all, same reasoning as the routes immediately above.

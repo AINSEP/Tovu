@@ -4,13 +4,13 @@ import { ForbiddenError } from "../../../../core/commands/command";
 import { noopStampWatermark, toTaxonomyOutbox } from "../../../../features/taxonomy/repo.memory";
 import { createTaxonomy } from "../../../../features/taxonomy/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { TaxonomyRouteDeps } from "./deps";
 
 /**
  * @file design-spec.md §2.3/§2.8 — `POST /api/admin/v1/taxonomy` (creates a taxonomy, AC-01/
  * AC-26). Gated by `admin.taxonomy.manage`.
  */
-export function registerAdminTaxonomyCreateRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminTaxonomyCreateRoute(app: Express, deps: TaxonomyRouteDeps): void {
   app.post("/api/admin/v1/taxonomy", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

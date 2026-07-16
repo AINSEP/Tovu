@@ -1,14 +1,14 @@
 import { MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "../../../../media";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import { toAdminMediaResponse } from "../../../http/admin/media";
-import type { RouteRegistrar } from "../../types";
+import type { MediaRouteRegistrar } from "./deps";
 
 /**
  * PATCH media metadata (title/alt/caption/credit only — `source.sha256` is
  * write-once and this route's input shape has no field for it, matching
  * `updateMediaMetadata`'s contract). Gated by `media.update` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
  */
-export const registerAdminMediaUpdateRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/media/:mediaId", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

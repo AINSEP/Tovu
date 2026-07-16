@@ -1,5 +1,5 @@
 import { ImageTransformUnavailableError, resolveMediaRendition } from "../../../media";
-import type { RouteRegistrar } from "../types";
+import type { MediaRouteRegistrar } from "../admin/media/deps";
 
 /**
  * @file Public, unauthenticated media rendition serving route (ADR-027 §4
@@ -17,7 +17,7 @@ import type { RouteRegistrar } from "../types";
 
 const TRANSFORM_SPEC_PATTERN = /^(.+)\.v(\d+)$/;
 
-export const registerMediaRenditionRoute: RouteRegistrar = (app, deps) => {
+export const registerMediaRenditionRoute: MediaRouteRegistrar = (app, deps) => {
   app.get("/m/:assetId/:transformSpec/:filename", async (req, res) => {
     const assetId = String(req.params.assetId ?? "");
     const transformSpec = String(req.params.transformSpec ?? "");

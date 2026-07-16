@@ -4,7 +4,7 @@ import { ForbiddenError } from "../../../../core/commands/command";
 import { noopStampWatermark, toTaxonomyOutbox } from "../../../../features/taxonomy/repo.memory";
 import { assignTerms } from "../../../../features/taxonomy/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { TaxonomyRouteDeps } from "./deps";
 
 /**
  * @file design-spec.md §1.6/§2.8 — `POST /api/admin/v1/taxonomy/assign-terms` (the `<TermPicker>`
@@ -16,7 +16,7 @@ import type { RouteDeps } from "../../types";
  * a content-repo port this dispatch's scope (read-side + route-wiring only) does not build. This
  * route inherits that same disclosed gap, not a new one.
  */
-export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: TaxonomyRouteDeps): void {
   app.post("/api/admin/v1/taxonomy/assign-terms", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
