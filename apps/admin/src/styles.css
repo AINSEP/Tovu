@@ -336,3 +336,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); box
 .recovery-degraded-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; justify-content: space-between; }
 .recovery-disclosure-panel ul { margin: 0.4rem 0; padding-left: 1.3rem; }
 .recovery-disclosure-panel label { display: flex; align-items: flex-start; gap: 0.5rem; margin-top: 0.6rem; font-size: 0.88rem; }
+
+/* SEO — per-entry overrides + analyze (SPEC-037 REQ-06/07) */
+.seo-entry-section { margin-top: 1.6rem; }
+.seo-entry-panel { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.8rem; }
+.seo-entry-panel label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; color: var(--fg-2); }
+.seo-analyze-panel { margin-top: 0.8rem; }
+.seo-analyze-panel ul { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
