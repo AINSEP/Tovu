@@ -268,11 +268,18 @@ function SettingsSection(props: { canConfigure: boolean }) {
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
+    // AC-10: the GET route itself is `comments.configure`-gated (get-settings.ts), so a
+    // principal without that grant can't even read settings today — skip the doomed fetch and
+    // hide the section entirely rather than surfacing a 403 error banner for a screen this
+    // principal was never going to be able to use.
+    if (!props.canConfigure) return;
     api
       .getCommentsSettings()
       .then((r) => setSettings(r.data))
       .catch((e) => setError(describeApiError(e, "failed to load Comments settings")));
-  }, []);
+  }, [props.canConfigure]);
+
+  if (!props.canConfigure) return null;
 
   async function save(form: FormData) {
     if (!settings) return;
@@ -316,7 +323,7 @@ function SettingsSection(props: { canConfigure: boolean }) {
         }}
       >
         <label>
-          <input type="checkbox" name="enabled" defaultChecked={settings.enabled} disabled={!props.canConfigure} />
+          <input type="checkbox" name="enabled" defaultChecked={settings.enabled} />
           Comments enabled
         </label>
         <label>
@@ -324,7 +331,6 @@ function SettingsSection(props: { canConfigure: boolean }) {
             type="checkbox"
             name="requireModeration"
             defaultChecked={settings.requireModeration}
-            disabled={!props.canConfigure}
           />
           Require moderation (new comments start pending)
         </label>
@@ -336,7 +342,6 @@ function SettingsSection(props: { canConfigure: boolean }) {
             min={0}
             step={1}
             defaultValue={settings.maxDepth}
-            disabled={!props.canConfigure}
           />
         </label>
         <label>
@@ -347,7 +352,6 @@ function SettingsSection(props: { canConfigure: boolean }) {
             min={0}
             step={1}
             defaultValue={settings.closeAfterDays ?? ""}
-            disabled={!props.canConfigure}
           />
         </label>
         <label>
@@ -359,7 +363,6 @@ function SettingsSection(props: { canConfigure: boolean }) {
             max={1}
             step={0.01}
             defaultValue={settings.spamAutoRejectScore}
-            disabled={!props.canConfigure}
           />
         </label>
         <label>
@@ -370,10 +373,9 @@ function SettingsSection(props: { canConfigure: boolean }) {
             min={1}
             step={1}
             defaultValue={settings.maxPerIpPerHour}
-            disabled={!props.canConfigure}
           />
         </label>
-        <button type="submit" disabled={saving || !props.canConfigure}>
+        <button type="submit" disabled={saving}>
           {saving ? "Saving…" : "Save settings"}
         </button>
       </form>
