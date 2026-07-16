@@ -1,26 +1,44 @@
 /**
- * @file SPIKE — core-mediated plugin dataModule seam (ADR-023 §2/§4/§5/§9).
+ * @file The core-mediated plugin dataModule engine (ADR-023 §2/§3/§4/§5/§6/§9).
  *
  * A plugin DECLARES its desired tables as data; CORE alone executes the DDL. A plugin never
  * authors a migration and never holds a raw DB handle. The flow, in order:
- *   1. validate the declaration (namespace `p_{pluginId}__*` §5, column shape) — before any I/O;
+ *   1. validate the declaration (namespace `p_{pluginId}__*` §5, column shape, tier §3/T6) —
+ *      before any I/O;
  *   2. skip tables that already exist (idempotent, state-based reconciliation §2);
- *   3. **snapshot the whole db FIRST** (§4) — the never-brick anchor;
- *   4. run all DDL inside ONE transaction so a failure rolls the live db back to a working state
- *      (§9: recoverable, not zero-loss), leaving the snapshot as the named recovery point.
+ *   3. disk-headroom preflight (§3/T4) — fails closed before any file is touched;
+ *   4. namespace-adoption guard (§5/§6/T5) — fails closed on an unresolved provenance mismatch;
+ *   5. **snapshot the whole db FIRST** (§4) — the never-brick anchor;
+ *   6. acquire the exclusive lock (§4/T2), open a durable phase-journal entry (§2/T3);
+ *   7. run all DDL inside ONE transaction so a failure rolls the live db back to a working state
+ *      (§9: recoverable, not zero-loss) — SQLite's own transaction rollback handles this
+ *      same-process, non-crash case; the snapshot/journal exist for the CRASH case, recovered at
+ *      next boot by `migration-recovery.ts` (see that file and `restore.ts` for why restore only
+ *      ever runs there, never live).
  *
- * Exploratory spike: goes beyond ADR-023 §12's "recognize-and-reject the dataModule key in v1"
- * disposition on purpose, to surface real problems. ADR-023 is PROPOSED, not accepted.
+ * ADR-023 is ACCEPTED (2026-07-11) after a 3-round external audit whose T1-T8 findings are now
+ * ALL reflected in code across this file, `migration-journal.ts`, `disk-headroom.ts`,
+ * `plugin-identity.ts`, `migration-recovery.ts`, and `restore.ts` — see SPEC-032 for the full
+ * record of which finding lives where. This engine exists ahead of §12's "v1 ships seams only"
+ * schedule: §12's own last line permits shipping it early "against a concrete demand plugin," and
+ * Newsletter (`src/newsletter/data-module-manifest.ts`) is exactly that — a real production
+ * consumer already calling this engine before this file's safety mechanics existed.
  *
  * NOTE (§0 access-control caveat): a Tier-3 in-process plugin could bypass this by opening the db
  * file directly. The RECOVERABILITY guarantee here (who snapshots + who runs DDL = core) holds
- * unconditionally; the access-control framing is advisory until ADR-024 §4 isolation ships.
+ * unconditionally for core-mediated DDL; the access-control framing is advisory until ADR-024 §4
+ * Rung 2 (capability sandbox) ships — see ADR-023 §0 for the full, precise wording.
  */
 import type Database from "better-sqlite3";
 
+import { checkDiskHeadroom } from "./disk-headroom";
+import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal } from "./migration-journal";
+import { checkNamespaceAdoption } from "./plugin-identity";
+import type { PluginProvenance } from "./plugin-identity";
 import { snapshotDb } from "./snapshot";
 
 export type ColumnType = "TEXT" | "INTEGER" | "REAL" | "BLOB";
+export type PluginTier = "tier-1" | "tier-2" | "tier-3";
 
 export interface ColumnDecl {
   readonly name: string;
@@ -37,7 +55,11 @@ export interface TableDecl {
 
 export interface DataModuleDecl {
   readonly pluginId: string;
+  /** §3/T6: `dataModule` is scoped to Tier-2/Tier-3 only — a Tier-1 declaration is rejected. */
+  readonly pluginTier: PluginTier;
   readonly tables: readonly TableDecl[];
+  /** §5/§6/T5 — used by the namespace-adoption guard. */
+  readonly provenance: PluginProvenance;
 }
 
 export interface DeclareResult {
@@ -64,9 +86,12 @@ class DeclError extends Error {
 
 const fqName = (pluginId: string, name: string): string => `p_${pluginId}__${name}`;
 
-/** Validate the declaration entirely before any snapshot or DDL (§5 namespace + column shape). */
+/** Validate the declaration entirely before any I/O (§5 namespace + column shape + §3/T6 tier). */
 function validate(decl: DataModuleDecl): void {
   if (!IDENT.test(decl.pluginId)) throw new DeclError("BAD_PLUGIN_ID", `invalid pluginId: ${decl.pluginId}`);
+  if (decl.pluginTier === "tier-1") {
+    throw new DeclError("TIER1_NOT_ALLOWED", "dataModule requires executable code (Tier-2 or Tier-3); Tier-1 plugins cannot request it");
+  }
   if (decl.tables.length === 0) throw new DeclError("EMPTY", "declaration lists no tables");
   for (const table of decl.tables) {
     if (!IDENT.test(table.name)) throw new DeclError("BAD_TABLE_NAME", `invalid table name: ${table.name}`);
@@ -107,6 +132,18 @@ function existingTables(db: Database.Database, names: string[]): Set<string> {
   return new Set(rows.map((r) => r.name));
 }
 
+/** §4/T2 — held snapshot-through-commit-or-rollback. See `restore.ts`'s header for why this is
+ * still acquired even though a live restore never happens in this codebase's actual topology. */
+function acquireExclusiveLock(db: Database.Database): void {
+  db.pragma("locking_mode = EXCLUSIVE");
+  db.pragma("user_version"); // force the lock to take effect now, not on the next access
+}
+
+function releaseExclusiveLock(db: Database.Database): void {
+  db.pragma("locking_mode = NORMAL");
+  db.pragma("user_version"); // force the release to take effect now
+}
+
 /** Declare (reconcile) a plugin's tables. Core snapshots first, then runs the DDL transactionally. */
 export async function declareDataModule(
   db: Database.Database,
@@ -127,11 +164,36 @@ export async function declareDataModule(
     return { ok: true, created: [], snapshotPath: null }; // idempotent no-op — nothing to snapshot
   }
 
+  // §5/§6/T5 — namespace-adoption guard, before any snapshot/lock/DDL.
+  const adoption = checkNamespaceAdoption(db, decl.pluginId, decl.provenance);
+  if (!adoption.allowed) {
+    return { ok: false, created: [], snapshotPath: null, error: { code: "IDENTITY_ADOPTION_REQUIRES_CONSENT", message: adoption.reason } };
+  }
+
+  // §3/T4 — disk-headroom preflight, fail closed before any file is touched.
+  const headroom = checkDiskHeadroom(dbPath);
+  if (!headroom.ok) {
+    return {
+      ok: false,
+      created: [],
+      snapshotPath: null,
+      error: {
+        code: "INSUFFICIENT_DISK_HEADROOM",
+        message: `dataModule declare refused: needs ~${headroom.requiredBytes} bytes free, only ${headroom.freeBytes ?? "unknown"} available`,
+      },
+    };
+  }
+
   // §4 — snapshot the WHOLE db BEFORE any DDL. This is the never-brick anchor.
   const snapshotPath = await snapshotDb(db, dbPath, decl.pluginId);
 
+  ensureMigrationJournal(db);
+  acquireExclusiveLock(db);
+  const journalId = beginJournalEntry(db, decl.pluginId, snapshotPath);
+
   const created: string[] = [];
   try {
+    advanceJournalPhase(db, journalId, "DDL_IN_PROGRESS");
     // One transaction for all DDL: any failure rolls the live db back to a working state (§9).
     db.transaction(() => {
       ensureJournal(db);
@@ -147,9 +209,19 @@ export async function declareDataModule(
         created.push(name);
       }
     })();
+    advanceJournalPhase(db, journalId, "VERIFYING");
+    const stillMissing = toCreate.filter((t) => !existingTables(db, [fqName(decl.pluginId, t.name)]).has(fqName(decl.pluginId, t.name)));
+    if (stillMissing.length > 0) {
+      throw new Error(`post-DDL verification failed: ${stillMissing.map((t) => t.name).join(", ")} not found after CREATE TABLE`);
+    }
+    advanceJournalPhase(db, journalId, "COMMITTED");
   } catch (err) {
-    // better-sqlite3 already rolled the transaction back → live db is unchanged and working.
-    // The snapshot remains as the named recovery point (§9); the plugin is left "uninstalled".
+    // better-sqlite3 already rolled the transaction back → live db is unchanged and working
+    // (this is the same-process, catchable-failure case — no restore needed; restore only ever
+    // runs at next-boot recovery for a CRASH, see migration-recovery.ts). The snapshot remains as
+    // the named recovery point (§9) for operator forensics; the plugin is left "uninstalled".
+    advanceJournalPhase(db, journalId, "ROLLED_BACK");
+    releaseExclusiveLock(db);
     const e = err as Error;
     return {
       ok: false,
@@ -160,5 +232,6 @@ export async function declareDataModule(
     };
   }
 
+  releaseExclusiveLock(db);
   return { ok: true, created, snapshotPath };
 }

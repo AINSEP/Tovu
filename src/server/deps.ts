@@ -9,6 +9,7 @@ import { SqliteSettingsRepo } from "../features/settings/repo.sqlite";
 import { discoverThemes } from "../features/theme";
 import { SqliteWorkspaceRepo } from "../features/workspace";
 import { openContentDb } from "../infra/sqlite/content-db";
+import { recoverIncompleteDataModuleMigrations } from "../features/plugins/migration-recovery";
 import { SqliteChangeSetRepo } from "../infra/sqlite/change-set-repo.sqlite";
 import { SqliteOutboxAdapter } from "../infra/sqlite/outbox-repo.sqlite";
 import { openStorageJournalDb } from "../infra/sqlite/storage-journal-db";
@@ -130,11 +131,17 @@ export function defaultStorageJournalDbPath(contentDbPath: string = defaultConte
 }
 
 export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): NewsletterRouteDeps {
-  const db = openContentDb(dbPath, {
-    workspace: seededWorkspace,
-    posts: seededPosts,
-    presentation: seededPresentation,
-  });
+  const db = openContentDb(
+    dbPath,
+    {
+      workspace: seededWorkspace,
+      posts: seededPosts,
+      presentation: seededPresentation,
+    },
+    // ADR-023 §2 — mandatory, blocking boot-time recovery for any crash-interrupted dataModule
+    // DDL attempt, before the site opens to end users.
+    recoverIncompleteDataModuleMigrations
+  );
   const clock = { nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
   // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a

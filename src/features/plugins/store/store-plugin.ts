@@ -38,6 +38,8 @@ const ORDERS = `p_${STORE_PLUGIN_ID}__orders`;
 
 export const STORE_MANIFEST: DataModuleDecl = {
   pluginId: STORE_PLUGIN_ID,
+  pluginTier: "tier-2",
+  provenance: { sourceUrl: "builtin://store", publisher: "tovu-core" },
   tables: [
     {
       name: "products",

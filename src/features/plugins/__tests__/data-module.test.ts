@@ -1,10 +1,13 @@
 /**
- * @file SPIKE — tests for the core-mediated plugin dataModule seam (ADR-023 §2/§4/§5/§9).
+ * @file Tests for the core-mediated plugin dataModule engine (ADR-023, SPEC-032).
  *
  * This is the never-brick seam: a plugin DECLARES a table (data), CORE snapshots the whole db
  * file FIRST (ADR-023 §4, SQLite online backup), then core runs the DDL inside a transaction so a
- * failure rolls back to a working state. Exploratory spike — goes beyond ADR-023 §12's "seams only"
- * v1 disposition on purpose, to surface problems in code.
+ * failure rolls back to a working state. This engine ships ahead of §12's "seams only" v1
+ * schedule per §12's own "ship the engine v-next against a concrete demand plugin" clause —
+ * Newsletter is that demand. See `migration-journal.test.ts`, `disk-headroom.test.ts`,
+ * `plugin-identity.test.ts`, and `migration-recovery.test.ts` for the T2-T8 mechanics' own
+ * dedicated coverage; this file covers the end-to-end `declareDataModule` orchestration.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -31,6 +34,8 @@ const tableExists = (db: Database.Database, name: string): boolean =>
 
 const productsDecl = {
   pluginId: "hello",
+  pluginTier: "tier-2" as const,
+  provenance: { sourceUrl: "test://hello", publisher: "test" },
   tables: [
     {
       name: "products",
@@ -104,6 +109,8 @@ test("dataModule: a failing DDL rolls back to a working state (never-brick), sna
   // Two tables with the same name in one call: the second CREATE fails → whole tx rolls back.
   const result = await declareDataModule(db, dbPath, {
     pluginId: "hello",
+    pluginTier: "tier-2" as const,
+    provenance: { sourceUrl: "test://hello", publisher: "test" },
     tables: [
       { name: "dup", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
       { name: "dup", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },

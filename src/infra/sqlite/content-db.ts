@@ -51,8 +51,20 @@ export interface ContentDbSeedData {
   presentation: typeof schema.presentationSettings.$inferInsert;
 }
 
+/**
+ * ADR-023 §2 — a caller-injected pre-open recovery hook, run against `filePath` BEFORE this
+ * function opens its own connection (dependency inversion, same pattern `seed` already uses —
+ * ADR-042 item 3's fix for exactly this "infra reaching up" shape: this file stays decoupled from
+ * `features/plugins/*`; the composition root wires the concrete
+ * `recoverIncompleteDataModuleMigrations` implementation). Optional and a no-op when omitted —
+ * correct for `:memory:` connections (nothing to recover) and every hermetic test call site.
+ */
+export type ContentDbRecoveryHook = (filePath: string) => void;
+
 /** Open (or create) the content.db, apply pragmas, migrate, and seed if empty and `seed` is given. */
-export function openContentDb(filePath: string, seed?: ContentDbSeedData): ContentDb {
+export function openContentDb(filePath: string, seed?: ContentDbSeedData, recover?: ContentDbRecoveryHook): ContentDb {
+  if (recover) recover(filePath);
+
   const sqlite = new Database(filePath);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
