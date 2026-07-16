@@ -210,6 +210,21 @@ export interface SetValueRequired {
      * assertions (Phase 5), not a Phase 5 route bug.
      */
     authWorkspaceId?: UUID;
+    /**
+     * Round-1 external audit (2026-07-16, TM-adr046-phase3-comments-audit-001, codex
+     * `codex-r1-B-001`, independently verified against the code): `deriveRequiredPermission`
+     * unconditionally derives `settings.workspace.write` for `scope: "workspace"` — a caller that
+     * already authorized a narrower, domain-specific permission at its own route layer (e.g.
+     * Comments' `comments.configure`, SEO's `admin.seo.manage`) still hits this chokepoint's
+     * generic `settings.workspace.write` check and gets a masked 500 if it lacks that broader
+     * grant, even though its own domain permission is exactly what the feature's admin UI
+     * advertises as sufficient. Optional and additive: omitted, behavior is unchanged (every
+     * pre-existing caller still gets the scope-derived permission). When a domain-settings module
+     * supplies this, the chokepoint authorizes THIS permission instead of the scope-derived one —
+     * still a mandatory `authorize()` call before any write (INV-07 fail-closed discipline is not
+     * relaxed, only which permission string is checked).
+     */
+    requiredPermissionOverride?: string;
   };
 }
 
@@ -265,11 +280,13 @@ async function assertTargetPrincipalInWorkspace(
 export async function set(required: SetValueRequired): Promise<{ value: JsonValue; revisionSeq: number }> {
   const { deps, input } = required;
 
-  const permission = deriveRequiredPermission({
-    scope: input.scope,
-    targetPrincipalId: input.principalId,
-    callerPrincipalId: input.callerPrincipalId,
-  });
+  const permission =
+    input.requiredPermissionOverride ??
+    deriveRequiredPermission({
+      scope: input.scope,
+      targetPrincipalId: input.principalId,
+      callerPrincipalId: input.callerPrincipalId,
+    });
   const authWorkspaceId = input.authWorkspaceId ?? input.workspaceId ?? input.callerPrincipalId;
   const authResult = await deps.authorize({
     principalId: input.callerPrincipalId,
