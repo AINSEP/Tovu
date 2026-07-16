@@ -83,7 +83,19 @@ bar (AI entry point, present on every list too).
 | Users | `/admin/users` | Build | control | `features/identity` (new) | `admin.users.*` | Operators/admins of the workspace. Hand-written (security-critical). |
 | Roles & Permissions | `/admin/roles` | SOON | control | `core/permissions` (new, Strapi-style named actions) | `admin.roles.*` | Editor for the same action registry the whole admin is gated on. |
 | Members | `/admin/members` | SOON | control | `features/membership` | `admin.members.*` | End-users/subscribers of the *site* (distinct from operators). |
-| Comments | `/admin/comments` | SOON | content | `features/comment` | `admin.comments.*` | Moderation queue. |
+| Comments | `/admin/comments` | SOON | content | `features/comment` | `admin.comments.*` | Moderation queue. **Stale as of ADR-031 (2026-07-10, Tier-3 bundled-plugin decision) — see reconciliation note below the table.** |
+
+> **Comments reconciliation (SPEC-035, 2026-07-16):** the row above predates ADR-031's §3.5
+> placement decision and its `features/comment` / `admin.comments.*` backing-feature column is
+> stale. Comments is a **Tier-3 bundled plugin**, not core content — it lives at `src/comments/`
+> (repo, ingress policy, write-service, settings, hooks), not `features/comment`. Its permission
+> catalog is the flat `comments.*` strings registered in `identity/permissions.ts` (`comments.read`,
+> `.moderate`, `.reply`, `.delete`, `.delete.force`, `.submit`, `.configure`), not `admin.comments.*`.
+> See ADR-031 (`ADR-031-comments.md`) for the full placement rationale and OQ-2's original flag.
+> This is a documentation-only correction — the row is left in place (not restructured into the
+> CONTENT/PEOPLE/MARKETING grouping this doc otherwise uses) since Comments' actual admin-surface
+> UI (the origin-isolated moderation panel, ADR-025) is still unbuilt — see ADR-031's v1 backend
+> status note for what's shipped (the HTTP/backend surface) vs. still blocked (the UI).
 
 ### MARKETING
 | Item | Route | Status | Plane | Backing feature | Permission | Notes |
