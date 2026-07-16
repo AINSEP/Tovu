@@ -219,6 +219,36 @@ needs. The round-3 fold's blocking condition ("Comments' two tables have no avai
 in v1... do not treat this ADR as Wave-2-ready until [the ADR-023 engine ships]") is satisfied —
 SPEC-032 (2026-07-16) made that engine real. Full record: `ADS-project-knowledge/specs/033-comments-v1-backend/feature.spec.md`.
 
+**Follow-up status (2026-07-16, later same day, SPEC-035): OQ-3, settings-ledger wiring, OQ-2
+(partial), and the external `SpamCheckPort` adapter are closed.** OQ-3 is RESOLVED: a fixed,
+well-known `COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID` (`"system-comments-ingress"`, `types.ts`) is now
+attributed on every ingress-created comment's `submit` `moderation_log` row, written atomically
+with the comment row itself (`CommentRepoPort.create()` additively widened with an optional
+`submitLog` argument, mirroring `ChangeSetRepoPort.insert()`'s BR-04 co-persistence pattern) —
+investigated whether an actual `identity`-seeded principal ROW should back this id and found this
+codebase's own established, already-shipping pattern for the identical problem
+(`SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID`, `"system-seo"`) is a fixed attribution constant with
+deliberately NO seeded row (`features/settings/migration.ts`'s own doc: "not required to resolve
+to a real identity principal row") — followed that precedent rather than introducing a new
+identity↔comments dependency direction with no other motivation. **`CommentsSettings` is now
+ADR-028-ledger-backed** (`comments/settings.ts`, namespace `site.comments`, 6 definitions), read
+LIVE per-request (not boot-frozen) via a resolver both `ingress.ts` and `entryLookup` share, with
+`GET`/`PUT /api/admin/v1/workspaces/:workspaceId/comments/settings` admin routes
+(`comments.configure`-gated). Disclosed, deliberately unfixed gap: `maxPerIpPerHour`'s live value
+is readable/writable but the actual rate-limiter is still fixed at construction time — reconfiguring
+it live is a separate, larger change to `server/middleware/rate-limit.ts`. **OQ-2 is
+PARTIALLY resolved**: `admin-sitemap.md`'s stale Comments row now carries a reconciliation note
+pointing here; `admin-section-architecture-outline.md` was investigated and found to contain zero
+mentions of "comment" anywhere in its current text — this ADR's own OQ-2 claim about that second
+file does not hold today, recorded rather than silently assumed or fabricated. **The external
+`SpamCheckPort` adapter is built** (`comments/spam.external.ts`, `AkismetSpamCheck`) — a real,
+correctly-structured adapter against Akismet's documented API shape, calling exclusively through
+the guarded `HttpClientPort` (ADR-038) per §5's own instruction, fail-open on any transport error
+or outage. Deliberately NOT wired into a live composition root (no real Akismet credential exists
+in this environment; `comments/index.ts` still hardcodes `HeuristicSpamCheck`) — disclosed-unwired,
+the same status `webhookSigner`/the webhook delivery worker already carry elsewhere in this
+codebase. Full record: `ADS-project-knowledge/specs/035-comments-follow-up/feature.spec.md`.
+
 ---
 
 ## Round-2 sweep-crosscutting fold (2026-07-10)
