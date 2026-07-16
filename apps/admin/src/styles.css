@@ -167,6 +167,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); box
 /* Media (ADR-027 walking skeleton) */
 .status-active { background: var(--ok-bg); color: var(--ok); }
 .status-trashed { background: var(--danger-bg); color: var(--danger); }
+.media-edit-row td { background: var(--surface-2); padding-top: 0.8rem; padding-bottom: 0.8rem; }
+.media-edit-row .collections-field-row { border: none; padding: 0; margin: 0; background: transparent; box-shadow: none; }
+.media-edit-row .collections-field-row label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.78rem; color: var(--fg-2); }
 
 /* Integrations (webhook subscriptions + delivery log) */
 .status-sub-active { background: var(--ok-bg); color: var(--ok); }
