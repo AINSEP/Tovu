@@ -61,9 +61,6 @@ import { ensureDefaultList } from "../newsletter/lists";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../forms/repo.memory";
 import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile";
-import { registerFormNotifySubscriber } from "../forms/notify-subscriber";
-import { enqueueDelivery } from "../integrations/delivery";
-import { InMemoryDeliveryEnvelopeStore } from "../integrations";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../origin";
 import {
   InMemoryRedirectRepo,
@@ -125,7 +122,9 @@ import { registerAdminChangeSetListRoute } from "./routes/admin/change-sets/list
 import { registerAdminChangeSetGetRoute } from "./routes/admin/change-sets/get";
 import { registerAdminChangeSetRevertRoute } from "./routes/admin/change-sets/revert";
 import { registerContentPostGetRoute } from "./routes/content/posts/get-by-slug";
-import { registerHealthRoute, registerHealthzRoute, registerReadyzRoute } from "./routes/ops/health";
+import { createCoreModule } from "./modules/core";
+import { createFormsModule } from "./modules/forms";
+import { createIntegrationsModule } from "./modules/integrations";
 import { registerAdminMemberListRoute } from "./routes/admin/members/list";
 import { registerAdminMemberGetRoute } from "./routes/admin/members/get-by-id";
 import { registerAdminMemberDisableRoute } from "./routes/admin/members/disable";
@@ -436,9 +435,8 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
     createSeoPageHeadHook({ postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps })
   );
 
-  registerHealthRoute(app, routeDeps);
-  registerHealthzRoute(app, routeDeps);
-  registerReadyzRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-031): the `core` server module.
+  createCoreModule().registerRoutes?.(app);
 
   // Session auth: login/logout/me are ungated; everything else under
   // /api/admin requires a session. Real argon2id + principal/session model
@@ -599,49 +597,25 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerSeoRobotsRoute(app, routeDeps);
 
   /**
-   * SPEC-010 (Forms) outbox wiring — two independent subscribers to `form.submission.received`
-   * (ADR-PIPE-010 Decision/Wiring Map W-004/W-005):
-   *
-   * 1. `registerFormNotifySubscriber` (`src/forms/notify-subscriber.ts`, C-009) — the one piece of
-   *    Forms-owned business logic riding the outbox: calls `MailerPort.send()` per configured
-   *    recipient when a definition's notify config is enabled.
-   * 2. The webhook-fanout forwarding line immediately below — closes the pre-existing
-   *    `integrations` wiring gap (ADR-036 §4's `enqueueDelivery` was real, tested business logic
-   *    that nothing in this composition root had ever called `bus.subscribe` for). This line
-   *    contains ZERO Forms-owned dispatch logic (REQ-11) — it forwards verbatim to
-   *    `integrations`' own `enqueueDelivery`. `InMemoryDeliveryEnvelopeStore` is constructed here
-   *    (not threaded through `RouteDeps`) because no other consumer of the webhook subsystem
-   *    exists in this composition root yet — see ADR-PIPE-010 Context §2 for the disclosed gap
-   *    this line closes as a side effect of building Forms, and the Consequences/Risks note on
-   *    the Integrations sibling spec potentially closing the same gap independently.
+   * ADR-046 Phase 3 (SPEC-031) — SPEC-010 (Forms) outbox wiring, now split across two
+   * feature-owned modules instead of two inline blocks: `forms` owns the C-009 notify
+   * subscriber (its own business logic); `integrations` owns the webhook-fanout subscriber to
+   * the SAME `form.submission.received` topic (cross-feature integration owned by the
+   * consumer, per the ADR's explicit Phase 3 rule — see `modules/integrations.ts`'s header).
    */
-  void registerFormNotifySubscriber({
+  createFormsModule({
     bus: routeDeps.bus,
     mailer: routeDeps.mailer,
     formDefinitionRepo: routeDeps.formDefinitionRepo,
     formSubmissionRepo: routeDeps.formSubmissionRepo,
-  });
-  const formsWebhookEnvelopeStore = new InMemoryDeliveryEnvelopeStore();
-  void routeDeps.bus.subscribe("form.submission.received", async (event) => {
-    await enqueueDelivery({
-      deps: {
-        subscriptionRepo: routeDeps.webhookSubscriptionRepo,
-        deliveryRepo: routeDeps.webhookDeliveryRepo,
-        envelopeStore: formsWebhookEnvelopeStore,
-        idGenerator: routeDeps.idGen,
-        clock: routeDeps.clock,
-      },
-      input: {
-        event: {
-          id: event.id,
-          name: event.name as import("../integrations").WebhookTopic,
-          workspaceId: event.workspaceId,
-          occurredAt: event.occurredAt,
-          payload: event.payload as import("../core/ports").JsonObject,
-        },
-      },
-    });
-  });
+  }).start?.();
+  createIntegrationsModule({
+    bus: routeDeps.bus,
+    webhookSubscriptionRepo: routeDeps.webhookSubscriptionRepo,
+    webhookDeliveryRepo: routeDeps.webhookDeliveryRepo,
+    idGen: routeDeps.idGen,
+    clock: routeDeps.clock,
+  }).start?.();
 
   // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt.
   registerAdminStatic(app, {
