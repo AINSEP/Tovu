@@ -342,6 +342,19 @@ The ext-bag (ADR-022) remains the v1 plugin data surface; ADR-003's manual tier-
 is the interim bridge. Ship the engine v-next **against a concrete demand plugin**, not
 speculatively.
 
+**§12 status (2026-07-16, SPEC-032): the v-next engine has shipped, against Newsletter as the
+concrete demand plugin.** `src/features/plugins/data-module.ts` executed DDL as a pre-acceptance
+exploratory spike from before this ADR's own 3-round audit — the audit's T1-T8 findings were
+folded into this document as normative text (§0/§2/§3/§4/§5/§6/§9 above) but were never actually
+implemented in code, even after ACCEPTED status. Newsletter (`src/newsletter/data-module-manifest.ts`)
+had already made that spike load-bearing for 5 real production tables. SPEC-032 closes this gap:
+every one of T1-T8 is now reflected in code (exclusive lock, durable phase journal with mandatory
+boot-time crash recovery, disk-headroom preflight, tier gating, and the two-track namespace-adoption
+guard), verified by dedicated tests plus a real-seam integration test proving boot-time recovery
+runs through the actual `openContentDb()` path `index.ts` invokes. `dataModule` is no longer
+rejected with "data-tier coming later" — it is a real, safety-mechanics-complete engine, exactly as
+this section's own last line anticipated. Full record: `ADS-project-knowledge/specs/032-datamodule-engine-safety-mechanics/feature.spec.md`.
+
 ## Consequences
 
 - **The ceiling in ADR-022 §Open / TODO §6 is resolved** — as a designed, sequenced path,

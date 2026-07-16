@@ -2,13 +2,15 @@
  * @file Newsletter's `DataModuleDecl` for the 5 relational `p_newsletter__*` tables (ADR-PIPE-011
  * Decision §2/§3; state.spec.md §2).
  *
- * ⚠ ADR-PIPE-011's single highest-risk infrastructure dependency: `declareDataModule()`
- * (`src/features/plugins/data-module.ts`) is spike-quality code — its own header calls it an
- * "exploratory spike... to surface real problems," written before ADR-023 was ACCEPTED — now made
- * load-bearing for these five production tables. `__tests__/data-module-manifest.failure-rollback.test.ts`
- * (T010) is the REQUIRED, dedicated integration test proving the snapshot-before-DDL mechanism
- * behaves correctly against THIS real manifest; it gates every task that writes to a
- * `p_newsletter__*` table (lists.ts, confirmation.ts, unsubscribe.ts, subscriptions.ts,
+ * `declareDataModule()` (`src/features/plugins/data-module.ts`) now implements ADR-023's full
+ * accepted T1-T8 safety mechanics (SPEC-032, 2026-07-16) — exclusive-lock-guarded DDL, a durable
+ * crash-recovery phase journal with mandatory boot-time restore, disk-headroom preflight, tier
+ * gating, and the namespace-adoption guard — closing the gap this comment used to warn about
+ * (this file was, until SPEC-032, this engine's only real production consumer running against
+ * pre-acceptance spike code). `__tests__/data-module-manifest.failure-rollback.test.ts` (T010) is
+ * the REQUIRED, dedicated integration test proving the snapshot-before-DDL mechanism behaves
+ * correctly against THIS real manifest; it gates every task that writes to a `p_newsletter__*`
+ * table (lists.ts, confirmation.ts, unsubscribe.ts, subscriptions.ts,
  * send-pipeline.ts's `freezeAudience`/`recordResult`).
  *
  * Scope: first-party bundled invocation only (ADR-034 Round-3 fold, sweep §A.2 sanction) — NOT a
@@ -33,9 +35,19 @@ export const NEWSLETTER_TABLE_NAMES = {
   confirmationTokens: p("confirmation_tokens"),
 } as const;
 
+/**
+ * ADR-023 §5/§6 — stable, unchanging provenance for this first-party bundled module (not an
+ * externally-fetched artifact, so there is no real `sourceUrl`/signature to report; this fixed
+ * value is what `checkNamespaceAdoption` compares against itself on every subsequent boot, which
+ * is exactly what keeps every repeat boot on the `unchanged` track rather than requiring consent).
+ */
+const NEWSLETTER_PROVENANCE = { sourceUrl: "builtin://newsletter", publisher: "tovu-core" } as const;
+
 /** The real, exact 5-table manifest (state.spec.md §2 row shapes → `ColumnDecl`s). */
 export const NEWSLETTER_DATA_MODULE: DataModuleDecl = {
   pluginId: NEWSLETTER_PLUGIN_ID,
+  pluginTier: "tier-2",
+  provenance: NEWSLETTER_PROVENANCE,
   tables: [
     {
       name: "lists",

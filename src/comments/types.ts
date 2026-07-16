@@ -190,6 +190,8 @@ const T = (name: string, notNull = false): { name: string; type: ColumnType; not
 
 export const COMMENTS_DATA_MODULE = {
   pluginId: COMMENTS_PLUGIN_ID,
+  pluginTier: "tier-2",
+  provenance: { sourceUrl: "builtin://comments", publisher: "tovu-core" },
   tables: [
     {
       name: "comments",
