@@ -1,20 +1,37 @@
 import type { Express } from "express";
 
 import { ForbiddenError } from "../../../../core/commands/command";
+import { createPostBackedContentLookup } from "../../../../features/taxonomy/content-lookup";
 import { noopStampWatermark, toTaxonomyOutbox } from "../../../../features/taxonomy/repo.memory";
-import { assignTerms } from "../../../../features/taxonomy/write-service";
+import { TaxonomyNotApplicableError, WorkspaceMismatchError, ContentTypeMismatchError } from "../../../../features/taxonomy/validation-chain";
+import { assignTerms, ContentRecordNotFoundError, TermRecordNotFoundError } from "../../../../features/taxonomy/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps";
+
+function statusFor(err: unknown): { status: number; code: string; message: string } {
+  if (err instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN", message: err.message };
+  if (err instanceof TermRecordNotFoundError) return { status: 404, code: "TERM_NOT_FOUND", message: err.message };
+  if (err instanceof ContentRecordNotFoundError) return { status: 404, code: "CONTENT_NOT_FOUND", message: err.message };
+  if (
+    err instanceof TaxonomyNotApplicableError ||
+    err instanceof WorkspaceMismatchError ||
+    err instanceof ContentTypeMismatchError
+  ) {
+    return { status: 400, code: "VALIDATION_ERROR", message: err.message };
+  }
+  return { status: 500, code: "INTERNAL_ERROR", message: err instanceof Error ? err.message : "internal error" };
+}
 
 /**
  * @file design-spec.md §1.6/§2.8 — `POST /api/admin/v1/taxonomy/assign-terms` (the `<TermPicker>`
  * shared by Collections §1.6 and Categories & Tags §2.2, AC-17/AC-20/INV-05/REQ-13/REQ-14).
  * Gated by `admin.taxonomy.manage`.
  *
- * Known scope gap disclosed by `write-service.ts`'s own file header: `assignTerms` does not run
- * `validation-chain.ts`'s `validateContentJoin` allow-list/workspace/lens chain — that chain needs
- * a content-repo port this dispatch's scope (read-side + route-wiring only) does not build. This
- * route inherits that same disclosed gap, not a new one.
+ * ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 1 fix,
+ * reconciled into this ADR-046 Phase 3 branch post-merge): `assignTerms` now runs
+ * `validation-chain.ts`'s `validateContentJoin` allow-list/workspace/lens chain via
+ * `createPostBackedContentLookup` (the "content repo port" the old disclosed-gap comment said this
+ * needed).
  */
 export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: TaxonomyRouteDeps): void {
   app.post("/api/admin/v1/taxonomy/assign-terms", async (req, res) => {
@@ -37,6 +54,8 @@ export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: Taxono
           revisions: deps.taxonomyRevisionRepo,
           stampWatermark: noopStampWatermark,
           outbox: toTaxonomyOutbox(deps),
+          workspaceId: deps.workspaceId,
+          contentLookup: createPostBackedContentLookup({ postRepo: deps.postRepo, workspaceId: deps.workspaceId }),
         },
         principalId: principal.id,
         contentType: body.contentType,
@@ -46,12 +65,8 @@ export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: Taxono
 
       res.status(204).send();
     } catch (err) {
-      if (err instanceof ForbiddenError) {
-        res.status(403).json({ error: err.message, code: "FORBIDDEN" });
-        return;
-      }
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+      const { status, code, message } = statusFor(err);
+      res.status(status).json({ error: message, code });
     }
   });
 }
