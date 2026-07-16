@@ -187,7 +187,10 @@ function toDeliveryRecord(row: typeof webhookDeliveries.$inferSelect): WebhookDe
 export class SqliteWebhookDeliveryRepo implements WebhookDeliveryRepoPort, DeliveryEnvelopeStore {
   constructor(private readonly db: ContentDb) {}
 
-  async enqueue(record: WebhookDeliveryRecord): Promise<void> {
+  /** ADR-046 fold-in item 5 (GAP-05/GAP-12): when `envelope` is supplied, it's written in this
+   * SAME `INSERT` — never left `NULL` for a later `.update()` to fill in — so a durable claimable
+   * delivery row can never exist with a missing envelope. */
+  async enqueue(record: WebhookDeliveryRecord, envelope?: WebhookEventEnvelope): Promise<void> {
     try {
       this.db
         .insert(webhookDeliveries)
@@ -197,7 +200,7 @@ export class SqliteWebhookDeliveryRepo implements WebhookDeliveryRepoPort, Deliv
           subscriptionId: record.subscriptionId,
           eventId: record.eventId,
           topic: record.topic,
-          payloadJson: null,
+          payloadJson: envelope ? JSON.stringify(envelope) : null,
           status: record.status,
           attempts: record.attempts,
           nextAttemptAt: record.nextAttemptAt,

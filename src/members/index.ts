@@ -68,6 +68,18 @@ export {
   InMemoryMemberTierRepo,
 } from "./repo.memory";
 
+// ADR-046 Phase 1 (2026-07-16): the ADR-006 rule-of-two "second adapter" half — already fully
+// built and contract-tested (`__tests__/repo.contract.test.ts`) but never wired into a real
+// composition root until now (`server/deps.ts`).
+export {
+  SqliteMagicLinkTokenRepo,
+  SqliteMemberConsentRepo,
+  SqliteMemberRepo,
+  SqliteMemberSessionRepo,
+  SqliteMemberSubscriptionRepo,
+  SqliteMemberTierRepo,
+} from "./repo.sqlite";
+
 export { ConsoleMailerAdapter, type ConsoleMailerAdapterDeps } from "./mailer.console";
 
 export {

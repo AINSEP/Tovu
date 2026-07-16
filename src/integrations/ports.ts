@@ -32,6 +32,7 @@ import type {
   SealedSecret,
   WebhookDeliveryRecord,
   WebhookDeliveryStatus,
+  WebhookEventEnvelope,
   WebhookSubscriptionRecord,
   WebhookTopic,
 } from "./types";
@@ -118,7 +119,15 @@ export interface WebhookSubscriptionRepoPort {
  * stays off the core event outbox (ADR-036 §4).
  */
 export interface WebhookDeliveryRepoPort {
-  enqueue(record: WebhookDeliveryRecord): Promise<void>;
+  /**
+   * `envelope`, when present, may be durably co-persisted atomically with `record` (ADR-046
+   * fold-in item 5, GAP-05/GAP-12). Purely additive — existing single-argument callers are
+   * unaffected. A durable adapter that writes it inline makes the subsequent
+   * `DeliveryEnvelopeStore.save()` call (see `delivery.ts`'s `enqueueDelivery`) redundant but
+   * harmless for its own storage; an adapter that ignores this argument relies on that same
+   * `save()` call as its actual write path (true for the in-memory adapter today).
+   */
+  enqueue(record: WebhookDeliveryRecord, envelope?: WebhookEventEnvelope): Promise<void>;
   /** Claim due, retry-eligible rows for a delivery worker pass. */
   claimPending(required: { batchSize: number; nowIso: ISODateTime }): Promise<WebhookDeliveryRecord[]>;
   markDelivered(required: {

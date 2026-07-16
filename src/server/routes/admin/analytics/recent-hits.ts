@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { LocalBufferSink } from "../../../../analytics/repo.memory";
+import type { AnalyticsSinkPort } from "../../../../analytics/ports";
 import type { DeviceClass, HitKind, NormalizedHit } from "../../../../analytics/types";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { RouteDeps } from "../../../routes/types";
@@ -10,7 +10,8 @@ import type { RouteDeps } from "../../../routes/types";
  *
  * Purpose:
  * Registers `GET /api/admin/v1/workspaces/:workspaceId/analytics/recent-hits` — an authenticated,
- * `analytics.read`-gated read straight over the ingest-side `LocalBufferSink`'s in-memory buffer.
+ * `analytics.read`-gated read straight over the ingest-side `AnalyticsSinkPort`'s raw hit buffer
+ * (`SqliteBufferSink` in real composition, `LocalBufferSink` in hermetic composition).
  *
  * IMPORTANT — this is deliberately NOT a dashboard. Only the ingest half of ADR-035 is built
  * (beacon → normalize → `LocalBufferSink`); there is no rollup/aggregation/time-series query layer
@@ -30,7 +31,7 @@ import type { RouteDeps } from "../../../routes/types";
 
 /** Deps this route needs: the workspace scope + authorize seam from `RouteDeps`, plus the ingest sink to read. */
 export type AdminAnalyticsRecentHitsDeps = Pick<RouteDeps, "workspaceId" | "authorize"> & {
-  analyticsSink: LocalBufferSink;
+  analyticsSink: AnalyticsSinkPort;
 };
 
 /** The bounded, honest subset of a `NormalizedHit` this screen shows — raw ingest fields only. */
@@ -58,7 +59,7 @@ function toAdminAnalyticsHitResponse(hit: NormalizedHit): AdminAnalyticsHitRespo
 
 /**
  * Parses the `?limit=` query param into a finite number, or `undefined` when absent/unparsable —
- * `LocalBufferSink.list()` owns the actual clamping/default, this just guards against handing it a
+ * the sink's `list()` owns the actual clamping/default, this just guards against handing it a
  * non-numeric string.
  */
 function parseLimitParam(raw: unknown): number | undefined {

@@ -15,7 +15,9 @@ Round-2 fold) and are NOT implemented in this module yet.
   `AnalyticsPiiRejectedError`).
 - Compose workspace resolution, DNT/GPC/exclusion policy checks, PII rejection, and sink hand-off
   into a single ingest entry point (`ingest.ts#ingestHit`).
-- Provide a minimal in-memory `AnalyticsSinkPort` adapter for tests/dev (`repo.memory.ts#LocalBufferSink`).
+- Provide a minimal in-memory `AnalyticsSinkPort` adapter for tests/dev (`repo.memory.ts#LocalBufferSink`)
+  and a durable SQLite adapter for real composition (`infra/sqlite/analytics-sink.sqlite.ts#SqliteBufferSink`,
+  ADR-046 Phase 1, final capability slice — the raw hit buffer now survives a restart).
 
 ## Rules
 
