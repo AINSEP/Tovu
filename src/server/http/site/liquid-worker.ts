@@ -60,6 +60,16 @@ const liquid = new Liquid({
   jsTruthy: true,
   cache: false,
   fs: NO_ACCESS_FS,
+  // AW-5a C6 hardening follow-up (2026-07-16 audit finding, Fable): LiquidJS's own DoS knobs
+  // (`memoryLimit`/`renderLimit`/`parseLimit`) had no defaults set, so an unbounded numeric range
+  // (e.g. `(1..999999999)`) could allocate a large array *within* the worker's V8 heap
+  // (`resourceLimits.maxOldGenerationSizeMb: 64`) before that ceiling ever triggers — a low-severity
+  // sandbox bypass the process-crash fix's `worker_threads` isolation already contained (a runaway
+  // render only OOM-kills its own disposable worker), but this closes it at the LiquidJS layer too,
+  // as defense-in-depth ahead of ever reaching the V8-level ceiling.
+  memoryLimit: 5_000_000,
+  renderLimit: 5_000,
+  parseLimit: 1_000_000,
 });
 
 liquid.registerTag("render_block", {

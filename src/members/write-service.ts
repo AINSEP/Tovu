@@ -181,6 +181,8 @@ async function requestSignInLink(required: {
     workspaceId: input.workspaceId,
     sourceContext: { module: "members" },
     purpose: "transactional",
+    // SPEC-022 REQ-09: interactive lane — proceeds ungated even without a durable outbox path.
+    lane: "interactive",
   };
 
   // Result intentionally unobserved by the caller-facing response (see doc

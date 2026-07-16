@@ -170,11 +170,20 @@ export class ForbiddenError extends Error {
  * mutation never runs.
  *
  * The feature mutation and its change-set record commit as one unit of work
- * (REQ-01 / BR-04): if `changeSets.insert` fails after `execute` has applied the
+ * (REQ-01): if `changeSets.insert` fails after `execute` has applied the
  * mutation, the gateway rolls the mutation back via `mutation.rollback` and
  * re-throws, so no change set and no outbox event survive (EC-08 / AC-17,
- * INV-01). Outbox enqueue is the only step outside this boundary (BR-04) — an
- * enqueue failure propagates but never rolls back the committed change set.
+ * INV-01).
+ *
+ * BR-04 resolution (ADR-046 Phase 1, 2026-07-16 swarm debate — full record:
+ * `ADS-project-knowledge/reports/swarm-consensus/runs/20260716T-br04-outbox-seam-consensus-report.md`):
+ * the `change-set.applied` event is passed as `changeSets.insert()`'s third argument, not a
+ * separate `deps.outbox.enqueue()` call afterward — a durable adapter co-persists it inside the
+ * same transaction as the change-set record, so it can never land without a durable delivery
+ * record (or vice versa). This still does NOT cover the domain mutation itself
+ * (`mutation.execute()` stays outside any shared transaction, covered only by the compensating
+ * rollback above), and it covers only this producer — see the linked report for the other direct
+ * `OutboxPort.enqueue()` producers this resolution deliberately leaves untouched.
  */
 export async function executeCommand<TResult>(
   required: ExecuteCommandRequired<TResult>,
@@ -231,10 +240,28 @@ export async function executeCommand<TResult>(
   const now = deps.clock.nowIso();
   const changeSetId = deps.idGen.newId();
 
-  // Unit of work: the change-set record must land, or the feature mutation is
-  // rolled back (REQ-01 / BR-04 / EC-08). On the in-memory adapter this is a
-  // compensating restore via `mutation.rollback`; the SQLite adapter (RT-004)
-  // does this as one real transaction and the rollback becomes a no-op.
+  // BR-04: the event rides into insert()'s third argument (see this function's doc comment) so a
+  // durable adapter co-persists it atomically with the record it belongs to. Built unconditionally
+  // (cheap, pure data) but only passed through when an outbox is actually wired.
+  const event: DomainEvent<{ changeSetId: UUID; entityType: string; entityId: UUID }> = {
+    id: deps.idGen.newId(),
+    name: "change-set.applied",
+    occurredAt: now,
+    aggregateId: changeSetId,
+    workspaceId: command.workspaceId,
+    actorId: command.actor.id,
+    changeSetId,
+    payload: {
+      changeSetId,
+      entityType: mutation.entityType,
+      entityId: mutation.entityId,
+    },
+  };
+
+  // Unit of work: the change-set record (and, when an outbox is wired, its delivery event) must
+  // land together, or the feature mutation is rolled back (REQ-01 / EC-08). On the in-memory
+  // adapter this is a compensating restore via `mutation.rollback`; the SQLite adapter does this
+  // as one real transaction and the rollback becomes a no-op for this step.
   try {
     await deps.changeSets.insert(
       {
@@ -259,7 +286,8 @@ export async function executeCommand<TResult>(
           entityVersionAtApply,
           position: 0,
         },
-      ]
+      ],
+      deps.outbox ? event : undefined
     );
   } catch (recordError) {
     // AC-17 / EC-08: the mutation applied but its record did not. Undo the
@@ -268,24 +296,6 @@ export async function executeCommand<TResult>(
     // that the SQLite transaction path is designed to remove.
     await mutation.rollback?.();
     throw recordError;
-  }
-
-  if (deps.outbox) {
-    const event: DomainEvent<{ changeSetId: UUID; entityType: string; entityId: UUID }> = {
-      id: deps.idGen.newId(),
-      name: "change-set.applied",
-      occurredAt: now,
-      aggregateId: changeSetId,
-      workspaceId: command.workspaceId,
-      actorId: command.actor.id,
-      changeSetId,
-      payload: {
-        changeSetId,
-        entityType: mutation.entityType,
-        entityId: mutation.entityId,
-      },
-    };
-    await deps.outbox.enqueue(event);
   }
 
   return { result, changeSetId };

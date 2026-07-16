@@ -1,4 +1,5 @@
 import { toAdminUserResponse } from "../../../http/admin/users";
+import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { RouteRegistrar } from "../../types";
 
 /**
@@ -11,6 +12,11 @@ import type { RouteRegistrar } from "../../types";
  * Non-human principals (`system`, `agent`, `api_key` — including the
  * disabled legacy `user-local` seed row) are filtered out: this screen is
  * "Users" (human operators), not the full principal roster.
+ *
+ * Gated by `user.manage`/`member.manage` (either), matching `createUser`'s own gate
+ * (`grant-service.ts`) — no separate `user.read` permission exists in the catalog. 2026-07-16
+ * authz sweep: this route previously had zero permission check beyond session auth, letting any
+ * authenticated admin session read the full user roster regardless of role.
  */
 export const registerAdminUserListRoute: RouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/users", async (req, res) => {
@@ -20,6 +26,20 @@ export const registerAdminUserListRoute: RouteRegistrar = (app, deps) => {
     }
 
     try {
+      const principal = getAuthedPrincipal(res);
+      const [userManageResult, memberManageResult] = await Promise.all([
+        deps.authorize({ principalId: principal.id, permission: "user.manage", workspaceId: deps.workspaceId }),
+        deps.authorize({ principalId: principal.id, permission: "member.manage", workspaceId: deps.workspaceId }),
+      ]);
+      if (!userManageResult.allowed && !memberManageResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'user.manage' or 'member.manage' (${userManageResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "user.manage", reason: userManageResult.reason },
+        });
+        return;
+      }
+
       const principals = await deps.principalRepo.list({ workspaceId: deps.workspaceId });
       const humanPrincipals = principals.filter((principal) => principal.kind === "user");
 

@@ -18,6 +18,8 @@
 import type { UUID } from "../core/ports";
 import type { MailerCapabilities, MailerSendOptions, MailerSendResult, OutboundEmail } from "./types";
 
+export type { MailerCapabilities, MailerSendOptions, MailerSendResult, OutboundEmail } from "./types";
+
 /**
  * The mail port. `sendBatch` is non-optional (amendment 3): a mandatory core-lib façade loops
  * `send()` when `capabilities().maxBatchSize <= 1`, so consumers never branch on method

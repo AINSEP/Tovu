@@ -15,14 +15,13 @@ import {
  * selected point — never a separate "Backups" route (ADR-045 explicitly rejects that shape).
  * Applies §6's own recommendation: a full inline swap (list ⇄ restore-flow), not a modal-over-list.
  *
- * **Disclosed, load-bearing limitation** (progress-ledger.md "Session 5" + this dispatch's brief):
- * list/disclosure/deep-link/status are real, tested routes. The restore ceremony itself
- * (`planRestore`/`confirmRestore`/`executeRestore`, `recovery-orchestrator.ts`) has **no route** —
- * it needs `core/gated-mutations`'s token-store-backed gateway, composed into zero composition
- * roots in this codebase today. Step 2's disclosure panel is fully real and live; the "Confirm
- * restore" action past it is rendered per the spec's IA (it is not hidden — an operator should be
- * able to see the full ceremony shape) but surfaces an honest "not yet available" state rather
- * than silently 404ing or calling a route that does not exist.
+ * The restore ceremony (`plan`/`confirm`/`execute`, SPEC-019 C-301/C-302/C-303) is wired to the
+ * real `core/gated-mutations`-backed routes (Session 5-6 backend gap closure). `executeRestore`
+ * now physically swaps `content.db` (2026-07-16, `DbOpsPort.restoreFromArtifact` — an atomic
+ * same-filesystem rename, closing the previously-disclosed "ledger-only" gap). Restart-based, by
+ * design, not a live hot-swap: the already-running process keeps its own open file handle to the
+ * pre-restore data until an operator restarts it — `restartRequired: true` on the response is
+ * that signal, surfaced below rather than silently implied.
  */
 
 function describeApiError(e: unknown, fallback: string): string {
@@ -161,20 +160,79 @@ function DisclosurePanel(props: {
   );
 }
 
+type CeremonyStep = "idle" | "planned" | "confirmed" | "done";
+
 function RestoreFlow(props: { point: AdminRestorePoint; onBack: () => void }) {
   const [disclosure, setDisclosure] = useState<AdminDisclosureResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
 
+  const [step, setStep] = useState<CeremonyStep>("idle");
+  const [busy, setBusy] = useState(false);
+  const [ceremonyError, setCeremonyError] = useState<string | null>(null);
+  const [plan, setPlan] = useState<{ planId: string; planHash: string } | null>(null);
+  const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
+  const [result, setResult] = useState<{ restoreRunId: string; state: string; restartRequired?: boolean } | null>(null);
+
   useEffect(() => {
     setDisclosure(null);
     setAcknowledged(false);
     setError(null);
+    setStep("idle");
+    setBusy(false);
+    setCeremonyError(null);
+    setPlan(null);
+    setConfirmationToken(null);
+    setResult(null);
     api
       .computeRecoveryDisclosure(props.point.id)
       .then(setDisclosure)
       .catch((e) => setError(describeApiError(e, "Failed to compute the discarded-write-window disclosure")));
   }, [props.point.id]);
+
+  async function startPlan() {
+    setBusy(true);
+    setCeremonyError(null);
+    try {
+      const r = await api.planRestore(props.point.id);
+      setPlan({ planId: r.planId, planHash: r.planHash });
+      setStep("planned");
+    } catch (e) {
+      setCeremonyError(describeApiError(e, "Failed to plan the restore"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doConfirm() {
+    if (!plan) return;
+    setBusy(true);
+    setCeremonyError(null);
+    try {
+      const r = await api.confirmRestore(plan.planId, plan.planHash, acknowledged);
+      setConfirmationToken(r.confirmationToken);
+      setStep("confirmed");
+    } catch (e) {
+      setCeremonyError(describeApiError(e, "Failed to confirm the restore"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doExecute() {
+    if (!confirmationToken) return;
+    setBusy(true);
+    setCeremonyError(null);
+    try {
+      const r = await api.executeRestore(confirmationToken, props.point.id);
+      setResult({ restoreRunId: r.restoreRunId, state: r.state, restartRequired: r.restartRequired });
+      setStep("done");
+    } catch (e) {
+      setCeremonyError(describeApiError(e, "Failed to execute the restore"));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div>
@@ -204,28 +262,58 @@ function RestoreFlow(props: { point: AdminRestorePoint; onBack: () => void }) {
         <DisclosurePanel point={props.point} disclosure={disclosure} acknowledged={acknowledged} onAcknowledgeChange={setAcknowledged} />
       ) : null}
 
-      <div className="notice">
-        <button
-          type="button"
-          disabled={!acknowledged}
-          aria-describedby="recovery-ack-label"
-          title={!acknowledged ? "Acknowledge the disclosure above to continue." : undefined}
-          onClick={() => {
-            /* Disclosed limitation (see this file's header comment): confirmRestore/executeRestore
-             * have no route yet. This button is present per design-spec.md's IA rather than
-             * hidden, but does not perform a network call — see the message below it. */
-          }}
-        >
-          Continue to confirm
-        </button>
-        {acknowledged ? (
-          <p className="save-error" role="status">
-            Restore confirm/execute is not yet available — the plan/confirm/execute routes for this
-            ceremony have not been wired yet (see this screen's file header). Nothing has been
-            restored.
+      {ceremonyError ? <div className="notice error">{ceremonyError}</div> : null}
+
+      {step === "idle" ? (
+        <div className="notice">
+          <button
+            type="button"
+            disabled={!acknowledged || busy}
+            aria-describedby="recovery-ack-label"
+            title={!acknowledged ? "Acknowledge the disclosure above to continue." : undefined}
+            onClick={startPlan}
+          >
+            {busy ? "Planning…" : "Continue to confirm"}
+          </button>
+        </div>
+      ) : null}
+
+      {step === "planned" && plan ? (
+        <div className="notice">
+          <p>
+            Restore plan ready (plan <code>{plan.planId}</code>). Confirming issues a one-time
+            execution token — nothing is restored yet.
           </p>
-        ) : null}
-      </div>
+          <button type="button" onClick={doConfirm} disabled={busy}>
+            {busy ? "Confirming…" : "Confirm restore"}
+          </button>
+        </div>
+      ) : null}
+
+      {step === "confirmed" && confirmationToken ? (
+        <div className="notice">
+          <p>Confirmed. Executing performs the restore — this cannot be undone.</p>
+          <button type="button" onClick={doExecute} disabled={busy}>
+            {busy ? "Restoring…" : "Execute restore"}
+          </button>
+        </div>
+      ) : null}
+
+      {step === "done" && result ? (
+        <div className="notice">
+          <p role="status">
+            Restore run <code>{result.restoreRunId}</code> finished in state{" "}
+            <span className={`status status-${result.state}`}>{result.state}</span>.
+          </p>
+          {result.restartRequired ? (
+            <p className="save-error" role="alert">
+              The database file was replaced — this server process is still serving the
+              pre-restore data from its open connection. Restart the server now to pick up the
+              restored data.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,11 +1,14 @@
 import { listAdminPages } from "../../../../features/post";
 import { toAdminPostResponse } from "../../../../server/http/admin/posts";
+import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { RouteRegistrar } from "../../../routes/types";
 
 /**
  * GET admin pages — same shape as `posts/list.ts`, filtered to `kind: "page"`
  * (see `features/post/post.ts`'s `PostKind` doc: a page is a post row with
  * `kind: "page"`, same table, same repo, same editor).
+ *
+ * Gated by `content.read` (2026-07-16 authz sweep — see `posts/list.ts`'s identical fix/note).
  */
 export const registerAdminPageListRoute: RouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/pages", async (req, res) => {
@@ -15,6 +18,21 @@ export const registerAdminPageListRoute: RouteRegistrar = (app, deps) => {
     }
 
     try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "content.read",
+        workspaceId: deps.workspaceId,
+      });
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'content.read' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "content.read", reason: authResult.reason },
+        });
+        return;
+      }
+
       const result = await listAdminPages({
         deps: { repo: deps.postRepo },
         input: { workspaceId: deps.workspaceId },

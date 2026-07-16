@@ -901,3 +901,73 @@ export const taxonomyRevisions = sqliteTable(
   },
   (table) => [index("idx_taxonomy_revisions_workspace_taxonomy").on(table.workspaceId, table.taxonomyId, table.seq)]
 );
+
+/**
+ * Change sets (ADR-008, ADR-046 Phase 1) — the durable header row `core/commands/change-set.ts`'s
+ * `ChangeSetRepoPort` persists. `idempotency_key` gets a real unique index (not just an
+ * application-level check) so `findByIdempotencyKey`'s guarantee holds even under concurrent
+ * requests racing the same key.
+ */
+export const changeSets = sqliteTable(
+  "change_sets",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    actorId: text("actor_id"),
+    status: text("status").notNull(),
+    summary: text("summary").notNull(),
+    idempotencyKey: text("idempotency_key"),
+    intentRef: text("intent_ref"),
+    createdAt: text("created_at").notNull(),
+    appliedAt: text("applied_at"),
+    revertedAt: text("reverted_at"),
+  },
+  (table) => [
+    index("idx_change_sets_workspace").on(table.workspaceId, table.createdAt),
+    uniqueIndex("idx_change_sets_idempotency").on(table.workspaceId, table.idempotencyKey),
+  ]
+);
+
+/** One entity mutation inside a change set (ADR-008 §items). `inverse_payload_json` stores
+ * `ChangeSetItemRecord.inversePayload` — the only way a non-revisioned entity type can be
+ * reverted. */
+export const changeSetItems = sqliteTable(
+  "change_set_items",
+  {
+    id: text("id").primaryKey(),
+    changeSetId: text("change_set_id").notNull(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    operation: text("operation").notNull(),
+    beforeRevisionId: text("before_revision_id"),
+    afterRevisionId: text("after_revision_id"),
+    inversePayloadJson: text("inverse_payload_json"),
+    entityVersionAtApply: integer("entity_version_at_apply"),
+    position: integer("position").notNull(),
+  },
+  (table) => [index("idx_change_set_items_change_set").on(table.changeSetId, table.position)]
+);
+
+/**
+ * Outbox events (ADR-009, ADR-046 Phase 1, BR-04 resolution). The full `DomainEvent` envelope is
+ * stored as one JSON blob (`event_json`) rather than normalized columns — the envelope's shape
+ * (`id`/`name`/`occurredAt`/`aggregateId`/`workspaceId`/`actorId`/`changeSetId`/`payload`/
+ * `metadata`) is owned by `core/ports.ts`, not this schema; storing it whole means a new optional
+ * `DomainEvent` field never needs a migration here. `workspace_id` is denormalized into its own
+ * column (duplicating what's inside `event_json`) purely so it can be indexed/filtered without a
+ * JSON extract.
+ */
+export const outboxEvents = sqliteTable(
+  "outbox_events",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    eventJson: text("event_json").notNull(),
+    status: text("status").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: text("next_attempt_at").notNull(),
+    lastError: text("last_error"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [index("idx_outbox_events_claim").on(table.status, table.nextAttemptAt)]
+);

@@ -422,6 +422,44 @@ export interface AdminRecoveryDeepLinkResult {
   restorePoint: { restorePointId: string; capturedAt: string } | null;
 }
 
+/**
+ * Session 5-6 backend gap closure — the 3 gated-mutation ceremonies (`core/gated-mutations`'s
+ * gateway, wired into the real composition for the first time): taxonomy merge-term, storage
+ * migrate-forward, recovery restore. Each mirrors `gateway.ts`'s own `plan`/`confirm`/`execute`
+ * 3-endpoint shape; `GatedPlanResult`/`GatedConfirmResult` are the shared envelope, `TDetails`
+ * varies per ceremony.
+ */
+export interface GatedPlanResult<TDetails = unknown> {
+  planId: string;
+  planHash: string;
+  details: TDetails;
+}
+
+export interface GatedConfirmResult {
+  confirmationToken: string;
+}
+
+export interface MergeTermPlanDetails {
+  fromTermId: string;
+  intoTermId: string;
+  overlapLossDisclosed: boolean;
+  overlappingContentCount: number;
+}
+
+export interface MigrateForwardExecuteResult {
+  migrated: true;
+}
+
+export interface RestoreExecuteResult {
+  restoreRunId: string;
+  state: string;
+  storageTimelineDeepLink?: { v: 1; siteId: string; intent: "view" };
+  /** 2026-07-16: `true` when content.db was physically swapped and the server process needs an
+   * operator-triggered restart to pick it up — the running process keeps serving pre-restore data
+   * from its already-open file handle until then. */
+  restartRequired?: boolean;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   /** Canonical error `code` from the response body (`FORBIDDEN`, `GRANT_EXCEEDS_ISSUER`,
@@ -776,6 +814,23 @@ export const api = {
   assignTerms: (input: { contentType: string; contentId: string; termIds: string[] }) =>
     request<void>("/taxonomy/assign-terms", { method: "POST", body: JSON.stringify(input) }),
 
+  // Categories & Tags — merge-term ceremony (ADR-044, SPEC-018 C-207). 3-step plan/confirm/execute.
+  planMergeTerm: (fromTermId: string, intoTermId: string) =>
+    request<GatedPlanResult<MergeTermPlanDetails>>(`/taxonomy/terms/${fromTermId}/merge/plan`, {
+      method: "POST",
+      body: JSON.stringify({ intoTermId }),
+    }),
+  confirmMergeTerm: (fromTermId: string, planId: string, planHash: string) =>
+    request<GatedConfirmResult>(`/taxonomy/terms/${fromTermId}/merge/confirm`, {
+      method: "POST",
+      body: JSON.stringify({ planId, planHash }),
+    }),
+  executeMergeTerm: (fromTermId: string, intoTermId: string, confirmationToken: string) =>
+    request<{ mergedCount: number }>(`/taxonomy/terms/${fromTermId}/merge/execute`, {
+      method: "POST",
+      body: JSON.stringify({ intoTermId, confirmationToken }),
+    }),
+
   // Storage — Timeline + restore points (ADR-041).
   getStorageTimeline: (opts: {
     kind?: string;
@@ -804,8 +859,23 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
-  // Recovery (ADR-045) — restore-points list (shared with Storage), disclosure, deep-link, status.
-  // The restore ceremony itself (plan/confirm/execute) has no route yet — see Recovery.tsx.
+  // Storage — migrate-forward ceremony (ADR-041 §3, SPEC-017 C-103/C-105). Plan takes no body —
+  // the plan is computed entirely from the site's current migration/capability state server-side.
+  planMigrateForward: () =>
+    request<GatedPlanResult>("/storage/migrate-forward/plan", { method: "POST" }),
+  confirmMigrateForward: (planId: string, planHash: string) =>
+    request<GatedConfirmResult>("/storage/migrate-forward/confirm", {
+      method: "POST",
+      body: JSON.stringify({ planId, planHash }),
+    }),
+  executeMigrateForward: (confirmationToken: string) =>
+    request<MigrateForwardExecuteResult>("/storage/migrate-forward/execute", {
+      method: "POST",
+      body: JSON.stringify({ confirmationToken }),
+    }),
+
+  // Recovery (ADR-045) — restore-points list (shared with Storage), disclosure, deep-link, status,
+  // and the restore ceremony itself (SPEC-019 C-301/C-302/C-303).
   listRecoveryRestorePoints: () => request<{ items: AdminRestorePoint[] }>("/recovery/restore-points"),
   computeRecoveryDisclosure: (restorePointId: string) =>
     request<AdminDisclosureResult>("/recovery/disclosure", {
@@ -818,4 +888,19 @@ export const api = {
       body: JSON.stringify({ envelope }),
     }),
   getRecoveryStatus: () => request<AdminRecoveryStatus>("/recovery/status"),
+  planRestore: (restorePointId: string) =>
+    request<GatedPlanResult>("/recovery/restore/plan", {
+      method: "POST",
+      body: JSON.stringify({ restorePointId }),
+    }),
+  confirmRestore: (planId: string, planHash: string, disclosureAcknowledged: boolean) =>
+    request<GatedConfirmResult>("/recovery/restore/confirm", {
+      method: "POST",
+      body: JSON.stringify({ planId, planHash, disclosureAcknowledged }),
+    }),
+  executeRestore: (confirmationToken: string, restorePointId: string) =>
+    request<RestoreExecuteResult>("/recovery/restore/execute", {
+      method: "POST",
+      body: JSON.stringify({ confirmationToken, restorePointId }),
+    }),
 };

@@ -75,6 +75,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
                     idGen: deps.idGen,
                     restorePointsRepo: deps.restorePointsRepo,
                     storageLedgerRepo: deps.storageLedgerRepo,
+                    dbOps: deps.dbOps,
                   }) as never,
                 })
               ),
@@ -178,6 +179,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
         idGen: deps.idGen,
         restorePointsRepo: deps.restorePointsRepo,
         storageLedgerRepo: deps.storageLedgerRepo,
+        dbOps: deps.dbOps,
       });
 
       const result = await executeRestore({
