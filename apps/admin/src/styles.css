@@ -322,6 +322,13 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); box
 
 .taxonomy-new-term-form { margin-top: 0.7rem; }
 
+/* Redirects — bulk-import affordance (SPEC-037 REQ-04) */
+.redirects-import { margin: 1rem 0; }
+.redirects-import summary { cursor: pointer; font-weight: 600; }
+.redirects-import form { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.7rem; }
+.redirects-import textarea { font-family: var(--font-mono); font-size: 0.82rem; padding: 0.6rem 0.7rem; border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface); color: var(--fg); resize: vertical; }
+.redirects-import-result ul { margin: 0.4rem 0; padding-left: 1.2rem; font-size: 0.85rem; }
+
 .storage-filter-bar { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .storage-filter-bar label { font-size: 0.78rem; color: var(--fg-2); }
 .storage-restore-point-link { background: transparent; border: none; color: var(--accent-text); cursor: pointer; padding: 0; text-decoration: underline; }
