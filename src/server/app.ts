@@ -82,11 +82,13 @@ import { registerAdminContentTypeRegisterRoute } from "./routes/admin/content-ty
 import { registerAdminContentTypeUpdateFieldsRoute } from "./routes/admin/content-types/update-fields";
 import { registerAdminContentTypeLifecycleRoute } from "./routes/admin/content-types/lifecycle";
 import { InMemoryEntryRepo } from "../features/entries/repo.memory";
-import { createCommentsModule } from "../comments";
+import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { InMemoryCommentRepo } from "../comments/repo.memory";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";
 import { registerAdminCommentsModerationQueueRoute } from "./routes/admin/comments/moderation-queue";
 import { registerAdminCommentsModerateRoutes } from "./routes/admin/comments/moderate";
+import { registerAdminCommentsGetSettingsRoute } from "./routes/admin/comments/get-settings";
+import { registerAdminCommentsPutSettingsRoute } from "./routes/admin/comments/put-settings";
 import { registerAdminEntryListRoute } from "./routes/admin/entries/list";
 import { registerAdminEntryCreateRoute } from "./routes/admin/entries/create";
 import { registerAdminEntryUpdateRoute } from "./routes/admin/entries/update";
@@ -226,6 +228,17 @@ export function createRouteDeps(): NewsletterRouteDeps {
     ).then(() => undefined)
   );
 
+  // SPEC-035 (ADR-028 Settings Layered Ledger wiring for Comments) — idempotently registers the 6
+  // `comments.*` definitions at boot, mirroring `seoReady`'s exact fire-and-forget shape. Chained
+  // AFTER `seoReady` resolves (not fired in parallel) for the identical reason `seoReady` itself
+  // chains after `settingsReady` — see that binding's comment immediately above.
+  const commentsSettingsReady = seoReady.then(() =>
+    ensureCommentsSettingDefinitions(
+      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+    ).then(() => undefined)
+  );
+
   // SPEC-011 (Newsletter) — declared here (not inline in the return object) so `newsletterReady`
   // below can seed the default list against the SAME repo instance the returned deps expose.
   const newsletterListRepoInMemory = new InMemoryNewsletterListRepo();
@@ -293,6 +306,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     outbox,
     clock,
     idGen,
+    settingsRepo,
   });
 
   return {
@@ -410,6 +424,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     // In-memory repo needs no dataModule declare — resolves immediately, unlike `deps.ts`'s real
     // fire-and-forget install (mirrors `newsletterReady`'s identical hermetic-vs-real split).
     commentsReady: Promise.resolve(),
+    commentsSettingsReady,
   };
 }
 
@@ -508,6 +523,8 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerAdminModuleStatusRoute(app, routeDeps);
   registerAdminCommentsModerationQueueRoute(app, routeDeps);
   registerAdminCommentsModerateRoutes(app, routeDeps);
+  registerAdminCommentsGetSettingsRoute(app, routeDeps);
+  registerAdminCommentsPutSettingsRoute(app, routeDeps);
   registerAdminMenuListRoute(app, routeDeps);
   registerAdminMenuGetRoute(app, routeDeps);
   registerAdminMenuCreateRoute(app, routeDeps);

@@ -7,6 +7,7 @@ import { createCommentIngressPolicy } from "../ingress";
 import type { EntryLookupResult } from "../ingress";
 import { InMemoryCommentRepo } from "../repo.memory";
 import { HeuristicSpamCheck } from "../spam.heuristic";
+import { COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID } from "../types";
 import type { CommentsSettings, CommentSubmission } from "../types";
 import type { RateLimiter } from "../../server/middleware/rate-limit";
 
@@ -59,7 +60,7 @@ function makePolicy(overrides: {
     hooks: createCommentHookRegistry(),
     clock: { nowIso: () => "2026-07-16T00:00:00.000Z" },
     idGen: { newId: () => `comment-${Math.random().toString(36).slice(2)}` },
-    settings: defaultSettings(overrides.settings),
+    getSettings: async () => defaultSettings(overrides.settings),
     entryLookup: overrides.entryLookup ?? (async () => OPEN_ENTRY),
     rateLimiter: overrides.rateLimiter ?? alwaysAllowRateLimiter(),
     outbox: new InMemoryOutbox(),
@@ -183,6 +184,81 @@ test("the stored bodyText is sanitized (HTML stripped)", async () => {
   const result = await policy.submit(makeSubmission({ bodyRaw: "<script>alert(1)</script>hello <b>world</b>" }));
   assert.equal(result.ok, true);
   if (result.ok) assert.equal(result.comment.bodyText, "alert(1)hello world");
+});
+
+// OQ-3 resolution (ADR-031 round-2 fold, SPEC-035): every ingress-created comment gets a `submit`
+// moderation_log row attributed to the seeded system principal, with `toStatus` matching whatever
+// the ingress auto-classified.
+
+test("a pending submission gets a submit log entry attributed to the system principal, toStatus 'pending'", async () => {
+  const repo = new InMemoryCommentRepo();
+  const policy = makePolicy({ repo });
+  const result = await policy.submit(makeSubmission());
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+
+  const log = await repo.listModerationLog({ workspaceId: WORKSPACE_ID, commentId: result.comment.id });
+  assert.equal(log.length, 1);
+  assert.equal(log[0].action, "submit");
+  assert.equal(log[0].fromStatus, null);
+  assert.equal(log[0].toStatus, "pending");
+  assert.equal(log[0].actorPrincipalId, COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID);
+});
+
+test("an auto-approved submission (requireModeration: false) gets a submit log entry, toStatus 'approved'", async () => {
+  const repo = new InMemoryCommentRepo();
+  const policy = makePolicy({ repo, settings: { requireModeration: false } });
+  const result = await policy.submit(makeSubmission());
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+
+  const log = await repo.listModerationLog({ workspaceId: WORKSPACE_ID, commentId: result.comment.id });
+  assert.equal(log.length, 1);
+  assert.equal(log[0].toStatus, "approved");
+  assert.equal(log[0].actorPrincipalId, COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID);
+});
+
+test("a spam-classified submission gets a submit log entry, toStatus 'spam'", async () => {
+  const repo = new InMemoryCommentRepo();
+  const policy = makePolicy({ repo });
+  const result = await policy.submit(makeSubmission({ bodyRaw: "buy cheap viagra and cialis now, click here now" }));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.autoClassified, "spam");
+
+  const log = await repo.listModerationLog({ workspaceId: WORKSPACE_ID, commentId: result.comment.id });
+  assert.equal(log.length, 1);
+  assert.equal(log[0].toStatus, "spam");
+  assert.equal(log[0].actorPrincipalId, COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID);
+});
+
+// SPEC-035 (ADR-028 Settings Layered Ledger wiring) — `getSettings` is a per-call resolver, not a
+// boot-captured snapshot. Proves a settings change between two submissions is observed on the
+// SECOND submission without reconstructing the policy — i.e. an operator's ledger write takes
+// effect on the next request, not only after a restart.
+test("getSettings is read fresh on every submit() call, not captured once at construction", async () => {
+  const repo = new InMemoryCommentRepo();
+  let requireModeration = true;
+  const policy = createCommentIngressPolicy({
+    repo,
+    spamCheck: new HeuristicSpamCheck(),
+    hooks: createCommentHookRegistry(),
+    clock: { nowIso: () => "2026-07-16T00:00:00.000Z" },
+    idGen: { newId: () => `comment-${Math.random().toString(36).slice(2)}` },
+    getSettings: async () => defaultSettings({ requireModeration }),
+    entryLookup: async () => OPEN_ENTRY,
+    rateLimiter: alwaysAllowRateLimiter(),
+    outbox: new InMemoryOutbox(),
+  });
+
+  const first = await policy.submit(makeSubmission());
+  assert.equal(first.ok, true);
+  if (first.ok) assert.equal(first.autoClassified, "pending");
+
+  requireModeration = false; // mutate the underlying "ledger" between requests
+  const second = await policy.submit(makeSubmission());
+  assert.equal(second.ok, true);
+  if (second.ok) assert.equal(second.autoClassified, "approved", "the SAME policy instance must reflect the settings change");
 });
 
 test("a reply's threadRootId is the ROOT ancestor's id, not the immediate parent's", async () => {

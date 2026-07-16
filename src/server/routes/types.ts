@@ -308,6 +308,14 @@ export interface RouteDeps {
    * existing. `server/app.ts`'s hermetic composition resolves this immediately (no dataModule
    * declare needed against an in-memory repo). */
   commentsReady: Promise<void>;
+  /** SPEC-035 (ADR-028 Settings Layered Ledger wiring) — resolves once the 6 `comments.*` setting
+   * definitions are registered (mirrors `seoReady`'s identical shape/convention). Chained AFTER
+   * `seoReady` in both composition roots — the settings write chokepoint's `BEGIN IMMEDIATE`
+   * transaction cannot tolerate two independent boot-time definition-registration chains racing
+   * on the SAME SQLite connection (the same hazard `seoReady`'s own doc comment documents for
+   * `settingsReady`). The comments admin settings routes (`routes/admin/comments/*-settings.ts`)
+   * await this before reading/writing through the ledger. */
+  commentsSettingsReady: Promise<void>;
 }
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;
