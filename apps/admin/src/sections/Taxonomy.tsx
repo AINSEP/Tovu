@@ -17,6 +17,9 @@ import { ApiError, api, type AdminTaxonomyWithTerms, type AdminTerm } from "../l
  *
  * Also disclosed: the production `Term` type (`features/taxonomy/write-service.ts`) has no `slug`
  * field — design-spec.md §2.3 assumed one; this screen does not render a slug control.
+ *
+ * SPEC-037 REQ-02: `NewTaxonomyForm` wires the previously-unused `api.createTaxonomy` — a plain
+ * name + hierarchical-toggle form above the taxonomy list, reusing `NewTermForm`'s shape.
  */
 
 function describeApiError(e: unknown, fallback: string): string {
@@ -94,6 +97,61 @@ function NewTermForm(props: {
         ) : null}
         <button type="submit" disabled={saving}>
           {saving ? "Saving…" : "Add term"}
+        </button>
+      </span>
+      {error ? (
+        <span className="save-error" role="alert">
+          {error}
+        </span>
+      ) : null}
+    </form>
+  );
+}
+
+/** New-taxonomy form (REQ-02) — name + hierarchical toggle, calling `api.createTaxonomy`. Mirrors
+ * `NewTermForm`'s local-state/submit/error shape. */
+function NewTaxonomyForm(props: { onCreated: () => void }) {
+  const [name, setName] = useState("");
+  const [hierarchical, setHierarchical] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) {
+      setError("Name is required.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await api.createTaxonomy({ name: name.trim(), hierarchical });
+      setName("");
+      setHierarchical(false);
+      props.onCreated();
+    } catch (e) {
+      setError(describeApiError(e, "Failed to create taxonomy"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className="notice taxonomy-new-term-form" onSubmit={submit}>
+      <label htmlFor="new-taxonomy-name">New taxonomy</label>
+      <span className="editor-actions">
+        <input
+          id="new-taxonomy-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Category"
+        />
+        <label>
+          <input type="checkbox" checked={hierarchical} onChange={(e) => setHierarchical(e.target.checked)} />
+          Hierarchical
+        </label>
+        <button type="submit" disabled={saving}>
+          {saving ? "Saving…" : "Create taxonomy"}
         </button>
       </span>
       {error ? (
@@ -314,6 +372,8 @@ export function Taxonomy() {
     <div>
       <h1>Categories &amp; Tags</h1>
       {error ? <div className="notice error">{error}</div> : null}
+
+      <NewTaxonomyForm onCreated={load} />
 
       <div className="settings-body">
         <div className="settings-namespace-list">
