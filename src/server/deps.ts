@@ -13,7 +13,7 @@ import { recoverIncompleteDataModuleMigrations } from "../features/plugins/migra
 import { SqliteChangeSetRepo } from "../infra/sqlite/change-set-repo.sqlite";
 import { SqliteOutboxAdapter } from "../infra/sqlite/outbox-repo.sqlite";
 import { openStorageJournalDb } from "../infra/sqlite/storage-journal-db";
-import { SqliteStorageLedgerRepo } from "../infra/sqlite/storage-journal-repo";
+import { SqliteMigrationRunsRepo, SqliteStorageLedgerRepo } from "../infra/sqlite/storage-journal-repo";
 import { ensureSeoSettingDefinitions } from "../seo";
 import { installNewsletterDataModule } from "../newsletter/data-module-manifest";
 import { ensureDefaultList } from "../newsletter/lists";
@@ -309,6 +309,11 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
   // names `siteId` vs `workspaceId` as SPEC-003 OQ-04, explicitly unresolved by that ADR; this
   // composition root does not resolve it either, it just picks the only value available today.
   const storageLedgerRepo = new SqliteStorageLedgerRepo({ db: storageJournalDb, siteId: seededWorkspace.id });
+  // ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) —
+  // the real `migration_runs` read side `reconcileInterruptedMigrationOnBoot` needs. The actual
+  // boot-time SCAN call lives in `bootstrap.ts` (a proper sequenced boot module), not here —
+  // this composition root only constructs and exposes the port.
+  const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: storageJournalDb, siteId: seededWorkspace.id });
   // Admin-UI backend-gap closure (design-spec.md §0.4/§3.8/§4.8, this dispatch): both classes were
   // already built (a prior session's disclosed-but-unwired infra work — see each class's own file
   // header) but never constructed by any composition root until now. `SqliteRestorePointsRepo`
@@ -441,6 +446,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     restorePointsRepo,
     dbOps,
     siteStatusRepo: new InMemorySiteStatusRepo(),
+    migrationRunsRepo,
     disclosureWatermarkSource: new AlwaysUnavailableWatermarkSource(),
     deepLinkRestorePointLookup: new RestorePointDeepLinkLookup(restorePointsRepo),
     // SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition

@@ -20,6 +20,18 @@ import type { ClockPort } from "./ports";
  * Core primitive. In-process only (module-singleton registry) — a site's operations are already
  * serialized to a single process by `content.db`'s own single-writer model; this primitive adds
  * the cross-domain intent-level guard on top of that.
+ *
+ * ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 3):
+ * the internal verifier's original claim — "never wired into any composition root" — is false,
+ * disproven by direct evidence: `server/routes/admin/storage/migrate-forward.ts` and
+ * `server/routes/admin/recovery/restore.ts` both import `acquireOperationLock`/
+ * `releaseOperationLock` from this file directly and pass them into `executeMigrateForward`/
+ * `executeRestore` (their `execute` endpoints only). The mutual-exclusion guarantee (U-001) is
+ * real and live for both gated ceremonies today. The actual, narrower gap the re-audit surfaced:
+ * this module had no read-only query, so `routes/admin/recovery/status.ts`'s capability bar
+ * could not reflect live lock state and stubbed `operationInFlight: false` unconditionally.
+ * `isOperationInFlight` below closes that display gap without changing the mutual-exclusion
+ * mechanism itself.
  */
 
 export interface OperationLockHandle {
@@ -87,4 +99,18 @@ export async function releaseOperationLock(
   _optional: Record<string, never> = {}
 ): Promise<void> {
   activeLocksBySiteId.delete(required.input.siteId);
+}
+
+/**
+ * Read-only peek at whether `siteId` currently holds a lock — never acquires, never mutates the
+ * registry. For display/status surfaces only (e.g. Recovery's capability bar); gated ceremonies
+ * must keep using `acquireOperationLock`'s atomic check-and-set, never this function, to decide
+ * whether they may proceed (a peek-then-acquire pair would reintroduce the TOCTOU gap U-001-B2
+ * exists to prevent).
+ *
+ * @complexity O(1).
+ * @overallScore 100
+ */
+export function isOperationInFlight(siteId: string): boolean {
+  return activeLocksBySiteId.has(siteId);
 }
