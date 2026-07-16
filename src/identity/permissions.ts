@@ -398,6 +398,8 @@ registerPermission({
  * the remaining Storage/Recovery routes need not touch this file again.
  */
 registerPermission({ id: "storage.read", owner: "storage", description: "Read the Storage Timeline, schema drift status, and restore points." });
+/** ADR-046 Phase 2 (SPEC-030) — gates `GET /api/admin/v1/system/module-status`. */
+registerPermission({ id: "system.read", owner: "server", description: "Read boot/readiness module lifecycle status." });
 registerPermission({ id: "storage.migrate", owner: "storage", description: "Plan, confirm, and execute a forward schema migration." });
 registerPermission({ id: "backup.read", owner: "recovery", description: "Read restore points and this site's restore capability." });
 registerPermission({ id: "backup.create", owner: "recovery", description: "Mint a restore point independent of any migration." });

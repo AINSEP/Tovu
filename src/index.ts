@@ -4,6 +4,10 @@ import { bootstrapStore } from "./features/plugins/store/store-plugin";
 import { CAPABILITY_INVENTORY } from "./server/capability-inventory";
 import { runProductionReadinessGate } from "./server/production-readiness-gate";
 import { resolveRuntimeMode } from "./server/runtime-mode";
+import { runBootLifecycle } from "./server/boot-lifecycle";
+import type { BootModule } from "./server/boot-lifecycle";
+import { setReadinessSnapshot } from "./server/readiness-state";
+import type { NewsletterRouteDeps } from "./server/routes/admin/newsletter/deps";
 
 /**
  * @file Process entrypoint.
@@ -39,9 +43,9 @@ const useMemory = process.env.TOVU_DB === "memory";
  *   `localhost`/`example.com` origin+egress-allowlist unconditionally, with no env-var escape
  *   hatch, so this check cannot yet distinguish a real deploy from a dev one. Flagged as a real
  *   gap for whoever scopes the origin-seed-becomes-configurable follow-up; not fixed here.
- * - `hasAlwaysOnAnalyticsStub`: always true today — `deps.ts` has no way to select a durable
- *   analytics sink yet (Phase 1 territory); this mirrors the "analytics" capability-inventory
- *   entry's own `hasDurableAdapter: false`.
+ * - `hasAlwaysOnAnalyticsStub`: false as of ADR-046 Phase 1's analytics slice (2026-07-16) —
+ *   `deps.ts`'s `createSqliteRouteDeps()` now unconditionally wires the durable `SqliteBufferSink`,
+ *   mirroring the "analytics" capability-inventory entry's `hasDurableAdapter: true`.
  */
 async function runBootGateOrExit(): Promise<void> {
   const mode = resolveRuntimeMode();
@@ -53,7 +57,7 @@ async function runBootGateOrExit(): Promise<void> {
     envSnapshot: {
       hasDevSecretPlaceholder: !process.env.ANALYTICS_ROOT_KEY_SEED,
       hasLocalhostEgressAllowance: false,
-      hasAlwaysOnAnalyticsStub: true,
+      hasAlwaysOnAnalyticsStub: false,
     },
   });
 
@@ -66,18 +70,54 @@ async function runBootGateOrExit(): Promise<void> {
   }
 }
 
+const noop = async (): Promise<void> => {};
+
+/**
+ * ADR-046 Phase 2 (SPEC-030 REQ-06) — the 4 concrete boot modules. `settings`/`seo` are CRITICAL:
+ * their promises already exist with no `.catch()` anywhere in their chain (an unhandled-rejection
+ * risk before this change), so a failure here must abort boot cleanly, not crash the process with
+ * an unhandled rejection or silently continue serving traffic against half-seeded state.
+ * `newsletter`/`store-plugin` are OPTIONAL, matching their pre-existing log-and-continue behavior
+ * (`deps.ts`'s `newsletterReady` chain already self-swallows via `.catch()`; the store plugin was
+ * already wrapped in try/catch here). `store-plugin` is omitted entirely in memory mode — it was
+ * never invoked there before this change either.
+ */
+function buildBootModules(deps: NewsletterRouteDeps): BootModule[] {
+  const modules: BootModule[] = [
+    { name: "settings", owner: "features/settings", criticality: "critical", prepare: () => deps.settingsReady, start: noop, stop: noop },
+    { name: "seo", owner: "seo", criticality: "critical", prepare: () => deps.seoReady, start: noop, stop: noop },
+    { name: "newsletter", owner: "newsletter", criticality: "optional", prepare: () => deps.newsletterReady, start: noop, stop: noop },
+  ];
+  if (!useMemory) {
+    modules.push({
+      name: "store-plugin",
+      owner: "features/plugins/store",
+      criticality: "optional",
+      prepare: async () => {
+        deps.store = await bootstrapStore(defaultContentDbPath());
+      },
+      start: noop,
+      stop: noop,
+    });
+  }
+  return modules;
+}
+
 async function main(): Promise<void> {
   await runBootGateOrExit();
 
   const deps = useMemory ? createRouteDeps() : createSqliteRouteDeps();
 
-  if (!useMemory) {
-    try {
-      deps.store = await bootstrapStore(defaultContentDbPath());
-    } catch (err) {
-      // A plugin failure must never brick the site — boot without the store page.
-      console.error("store plugin activation failed (site still boots):", (err as Error).message);
+  const bootResult = await runBootLifecycle(buildBootModules(deps));
+  setReadinessSnapshot(bootResult);
+  if (!bootResult.ok) {
+    for (const module of bootResult.modules) {
+      if (module.criticality === "critical" && module.lifecycle.status !== "ready") {
+        console.error(`[boot-lifecycle] critical module "${module.name}" (${module.owner}) is ${module.lifecycle.status}: ${module.lifecycle.reasonCode}`);
+      }
     }
+    console.error("Refusing to boot — a critical module failed. See failures above.");
+    process.exit(1);
   }
 
   const app = createApp(deps);
