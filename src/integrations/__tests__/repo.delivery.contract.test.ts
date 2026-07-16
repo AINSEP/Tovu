@@ -168,6 +168,19 @@ runContractSuite("InMemory", () => {
 
 runContractSuite("SqliteWebhookDeliveryRepo", () => new SqliteWebhookDeliveryRepo(openContentDb(":memory:")));
 
+test("ADR-046 fold-in item 5 (GAP-05/GAP-12): SqliteWebhookDeliveryRepo.enqueue()'s optional envelope argument is durably readable BEFORE any separate save() call ever runs", async () => {
+  const db = openContentDb(":memory:");
+  const repo = new SqliteWebhookDeliveryRepo(db);
+
+  // The envelope rides into enqueue() itself — save() is never called in this test at all. If
+  // this were the old two-step design (enqueue() always leaves payload_json NULL, only save()
+  // fills it in), find() would return null here.
+  await repo.enqueue(makeDelivery(), makeEnvelope());
+
+  const envelope = await repo.find({ deliveryId: "delivery-1" });
+  assert.deepEqual(envelope, makeEnvelope(), "the envelope must be durably present immediately after enqueue(), with no separate write required");
+});
+
 test("SqliteWebhookDeliveryRepo: a fresh repo instance against the same underlying db reads persisted rows (restart simulation)", async () => {
   const db = openContentDb(":memory:");
   const first = new SqliteWebhookDeliveryRepo(db);

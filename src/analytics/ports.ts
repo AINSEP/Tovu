@@ -62,6 +62,12 @@ export interface AnalyticsSinkPort {
   capabilities(): AnalyticsSinkCapabilities;
   accept(hit: NormalizedHit): Promise<void>;
   acceptBatch(hits: readonly NormalizedHit[]): Promise<void>;
+  /**
+   * Newest-first recent hits (the admin "recent hits" screen's only read). Synchronous — both
+   * adapters (in-memory array, SQLite `SELECT ... ORDER BY id DESC LIMIT`) can serve this without
+   * awaiting, and the route this feeds was already written against a synchronous call.
+   */
+  list(input?: { limit?: number }): NormalizedHit[];
 }
 
 /**

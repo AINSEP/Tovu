@@ -167,7 +167,13 @@ export async function enqueueDelivery(
       data: event.payload,
     };
 
-    await deps.deliveryRepo.enqueue(record);
+    // ADR-046 fold-in item 5 (GAP-05/GAP-12): `enqueue()` now takes the envelope as an optional
+    // second argument — a durable adapter (SqliteWebhookDeliveryRepo) writes it in the SAME
+    // `INSERT` as the delivery row, closing the gap on its own. The `envelopeStore.save()` call
+    // immediately after is kept, unchanged, for adapters (the in-memory one) that don't durably
+    // co-persist it inline — for those, `save()` remains the actual write; for the SQLite adapter,
+    // it becomes a redundant-but-harmless re-set of the same value, never the sole write path.
+    await deps.deliveryRepo.enqueue(record, envelope);
     await deps.envelopeStore.save({ deliveryId: record.id, envelope });
     enqueued.push(record);
   }

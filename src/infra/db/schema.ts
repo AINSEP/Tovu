@@ -971,3 +971,137 @@ export const outboxEvents = sqliteTable(
   },
   (table) => [index("idx_outbox_events_claim").on(table.status, table.nextAttemptAt)]
 );
+
+/**
+ * Origin settings (ADR-040, ADR-046 Phase 1). One row per workspace: the verified canonical
+ * origin plus its two allowlists (redirect targets, egress targets), each stored as a JSON text
+ * array (small, bounded exact-match host lists — not worth a child table). `OriginSettingRepoPort`
+ * (`origin/ports.ts`) is READ-ONLY by design (no admin route or write flow exists yet to verify a
+ * real production origin) — this table's only writer today is the composition-root dev-capability
+ * seed (`infra/sqlite/origin-repo.sqlite.ts`'s `seedDevCapabilityOrigin`), mirroring exactly what
+ * the in-memory adapter's constructor-seed did, just durable instead of recreated every restart.
+ */
+export const originSettings = sqliteTable("origin_settings", {
+  workspaceId: text("workspace_id").primaryKey(),
+  scheme: text("scheme").notNull(),
+  host: text("host").notNull(),
+  port: integer("port"),
+  basePath: text("base_path"),
+  verifiedAt: text("verified_at").notNull(),
+  source: text("source").notNull(),
+  redirectAllowlistJson: text("redirect_allowlist_json").notNull().default("[]"),
+  egressAllowlistJson: text("egress_allowlist_json").notNull().default("[]"),
+});
+
+/**
+ * Media (ADR-027 §2, ADR-046 Phase 1). The bespoke media row — deliberately not the generic
+ * ADR-022 entries model (media predates it and has its own lifecycle, per `media/types.ts`'s file
+ * header). `source_sha256` is `MediaSource.sha256`, write-once by application-layer contract
+ * (`media-service.ts` enforces the immutability guard — this table has no DB-level constraint for
+ * it, matching every other write-once field in this schema).
+ */
+export const media = sqliteTable("media", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  title: text("title").notNull(),
+  alt: text("alt").notNull(),
+  caption: text("caption").notNull(),
+  credit: text("credit").notNull(),
+  sourceSha256: text("source_sha256").notNull(),
+  status: text("status").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+  version: integer("version").notNull(),
+});
+
+/** `asset_blobs` sidecar (ADR-027 §2) — one row per unique blob (content-addressed by sha256,
+ * deduplicated within a workspace). */
+export const assetBlobs = sqliteTable(
+  "asset_blobs",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    sha256: text("sha256").notNull(),
+    storageKey: text("storage_key").notNull(),
+    createdByPrincipal: text("created_by_principal").notNull(),
+    createdAt: text("created_at").notNull(),
+    status: text("status").notNull(),
+    tombstonedAt: text("tombstoned_at"),
+  },
+  (table) => [uniqueIndex("idx_asset_blobs_workspace_sha256").on(table.workspaceId, table.sha256)]
+);
+
+/** `asset_renditions` sidecar (ADR-027 §4) — the frozen public URL contract's lookup key is
+ * `(assetId, transformName, version)` exactly (`slug`/`ext` are cosmetic, never part of any
+ * lookup — see `AssetRenditionRepoPort.findOne`'s doc). */
+export const assetRenditions = sqliteTable(
+  "asset_renditions",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    assetId: text("asset_id").notNull(),
+    transformName: text("transform_name").notNull(),
+    version: integer("version").notNull(),
+    storageKey: text("storage_key").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("idx_asset_renditions_asset").on(table.workspaceId, table.assetId),
+    uniqueIndex("idx_asset_renditions_lookup").on(table.workspaceId, table.assetId, table.transformName, table.version),
+  ]
+);
+
+/** `transform_registry` sidecar (ADR-027 §4) — append-only: a row, once inserted, is never
+ * updated or removed (`TransformDefinitionRepoPort.insert`'s contract; the unique index below is
+ * what makes a duplicate `(workspaceId, name, version)` insert fail at the storage layer, not just
+ * by application-level convention). */
+export const transformDefinitions = sqliteTable(
+  "transform_registry",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    name: text("name").notNull(),
+    version: integer("version").notNull(),
+    paramsJson: text("params_json").notNull(),
+    owner: text("owner").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [uniqueIndex("idx_transform_registry_lookup").on(table.workspaceId, table.name, table.version)]
+);
+
+/**
+ * `analytics_events` (ADR-046 Phase 1, final slice) — the raw ingest-buffer half of the
+ * `analytics` library's `AnalyticsSinkPort` WRITE seam only. This is NOT the Tier-3
+ * aggregate/time-series store (`AnalyticsRepoPort`'s `analytics_aggregate`/`analytics_session`
+ * tables) — that storage/rollup/dashboard surface remains a separate, later, deliberately
+ * deferred concern (see `analytics/INFO.md`'s "Future direction"). `id` is a surrogate
+ * autoincrement used purely for newest-first ordering in `list()` — `NormalizedHit` itself has
+ * no id field. `utm`/`eventProps` are flattened/JSON-encoded since `NormalizedHit` carries them
+ * as nested objects.
+ */
+export const analyticsEvents = sqliteTable(
+  "analytics_events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    workspaceId: text("workspace_id").notNull(),
+    occurredAt: text("occurred_at").notNull(),
+    kind: text("kind").notNull(),
+    path: text("path").notNull(),
+    referrerHost: text("referrer_host"),
+    utmSource: text("utm_source"),
+    utmMedium: text("utm_medium"),
+    utmCampaign: text("utm_campaign"),
+    utmTerm: text("utm_term"),
+    utmContent: text("utm_content"),
+    country: text("country"),
+    region: text("region"),
+    deviceClass: text("device_class").notNull(),
+    browserFamily: text("browser_family"),
+    osFamily: text("os_family"),
+    visitorHash: text("visitor_hash").notNull(),
+    sessionId: text("session_id").notNull(),
+    eventName: text("event_name"),
+    eventPropsJson: text("event_props_json"),
+  },
+  (table) => [index("idx_analytics_events_workspace_list").on(table.workspaceId, table.id)]
+);

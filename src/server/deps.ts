@@ -31,25 +31,21 @@ import {
   seedSettingsFromPresentation,
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "./seed";
-import { LocalBufferSink } from "../analytics/repo.memory";
+import { SqliteBufferSink } from "../infra/sqlite/analytics-sink.sqlite";
 import {
   ConsoleMailerAdapter,
-  InMemoryMagicLinkTokenRepo,
-  InMemoryMemberRepo,
-  InMemoryMemberSessionRepo,
-  InMemoryMemberSubscriptionRepo,
-  InMemoryMemberTierRepo,
+  SqliteMagicLinkTokenRepo,
+  SqliteMemberRepo,
+  SqliteMemberSessionRepo,
+  SqliteMemberSubscriptionRepo,
+  SqliteMemberTierRepo,
 } from "../members";
 import { rebuildNavLocationBindings } from "../navigation/reconcile";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../navigation/repo.sqlite";
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../integrations";
+import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "../integrations";
 import { EnvOrFileKeyring } from "../integrations/keyring.env";
 import { createKeyringBackedSigner } from "../integrations/signing.keyring";
 import {
-  InMemoryAssetBlobRepo,
-  InMemoryAssetRenditionRepo,
-  InMemoryMediaRepo,
-  InMemoryTransformDefinitionRepo,
   LocalFsBlobStore,
   SharpImageTransformer,
 } from "../media";
@@ -59,7 +55,14 @@ import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile";
 import { createRateLimiter } from "./middleware/rate-limit";
 import type { RouteDeps } from "./routes/types";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../origin";
+import { createVerifiedOrigin, OriginRegistry } from "../origin";
+import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../infra/sqlite/origin-repo.sqlite";
+import {
+  SqliteAssetBlobRepo,
+  SqliteAssetRenditionRepo,
+  SqliteMediaRepo,
+  SqliteTransformDefinitionRepo,
+} from "../infra/sqlite/media-repo.sqlite";
 import {
   RedirectHitSinkImpl,
   RedirectPhaseHandlerResolver,
@@ -206,34 +209,33 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
 
   // SPEC-009 (Redirects, ADR-PIPE-009) — FIRST-TIME composition-root wiring of `origin`'s
   // OriginRegistry and `routing`'s registration functions, mirroring `server/app.ts`'s identical
-  // wiring. `origin` has no SQLite adapter yet (same disclosed "no SQLite adapter yet" precedent as
-  // members/navigation-bindings/analytics/media above — see `origin/repo.memory.ts`'s file header),
-  // so `InMemoryOriginSettingRepo` backs `OriginRegistry` even in this real-server composition;
-  // `redirects` DOES get its real `SqliteRedirectRepo` here (unlike the in-memory-only libraries
-  // above), since T014 built a full rule-of-two adapter for it.
+  // wiring. `redirects` DOES get its real `SqliteRedirectRepo` here (unlike the in-memory-only
+  // libraries above), since T014 built a full rule-of-two adapter for it.
   // ADR-046 Phase 1 (BR-04 resolution, 2026-07-16 swarm debate): durable SQLite outbox. Events
   // survive a restart; `SqliteChangeSetRepo.insert()`'s co-persisted event and this adapter's
   // `claimPending()`/`markDelivered()`/`markFailed()` share the same `outbox_events` table.
   const outbox = new SqliteOutboxAdapter(db);
   const bus = new InMemoryEventBus();
-  const originRegistry = new OriginRegistry({
-    repo: new InMemoryOriginSettingRepo([
-      {
-        workspaceId: seededWorkspace.id,
-        origin: createVerifiedOrigin({
-          scheme: "http",
-          host: "localhost",
-          port: 3000,
-          verifiedAt: clock.nowIso(),
-          source: "dev-capability",
-        }),
-        // ADR-PIPE-015 T016: a dev-capability egress allowlist entry so the real
-        // isAllowedEgressTarget oracle doesn't fail-closed on every fresh dev server — matches the
-        // `example.com` target every integrations fixture/test in this repo already uses.
-        egressAllowlist: ["example.com"],
-      },
-    ]),
+  // ADR-046 Phase 1 (2026-07-16): durable SQLite origin-settings adapter. `seedDevCapabilityOrigin`
+  // is idempotent (find-or-create) — a real future verification flow's write is never clobbered by
+  // a re-run of this seed. Read-only adapter/port by design; see `origin-repo.sqlite.ts`'s file
+  // header for the disclosed "no real production-origin verification flow exists yet" gap this
+  // durability slice does not itself close.
+  seedDevCapabilityOrigin(db, {
+    workspaceId: seededWorkspace.id,
+    origin: createVerifiedOrigin({
+      scheme: "http",
+      host: "localhost",
+      port: 3000,
+      verifiedAt: clock.nowIso(),
+      source: "dev-capability",
+    }),
+    // ADR-PIPE-015 T016: a dev-capability egress allowlist entry so the real
+    // isAllowedEgressTarget oracle doesn't fail-closed on every fresh dev server — matches the
+    // `example.com` target every integrations fixture/test in this repo already uses.
+    egressAllowlist: ["example.com"],
   });
+  const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo(db) });
   const redirectRepo = new SqliteRedirectRepo(db);
   const redirectHitSink = new RedirectHitSinkImpl();
   const redirectsWriteDeps: RedirectsWriteDeps = {
@@ -293,19 +295,22 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     bus,
     clock,
     idGen,
-    // No SQLite adapters exist yet for these newer libraries (members/navigation/integrations/
-    // analytics) — in-memory here too, same as changeSets/outbox/bus above, until each grows one.
-    analyticsSink: new LocalBufferSink(),
+    // ADR-046 Phase 1 (final capability slice): analytics ingest buffer is durable — survives a
+    // restart, closing the `LocalBufferSink.capabilities().durable` misreport the capability
+    // inventory flagged.
+    analyticsSink: new SqliteBufferSink({ db, workspaceId: seededWorkspace.id }),
     ...identity,
     redirectRepo,
     redirectHitSink,
     originRegistry,
     redirectsWriteDeps,
-    memberRepo: new InMemoryMemberRepo([]),
-    memberTierRepo: new InMemoryMemberTierRepo([]),
-    memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo([]),
-    memberSessionRepo: new InMemoryMemberSessionRepo([]),
-    magicLinkRepo: new InMemoryMagicLinkTokenRepo([]),
+    // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters — already fully built and
+    // contract-tested, wired into a real composition root for the first time.
+    memberRepo: new SqliteMemberRepo(db),
+    memberTierRepo: new SqliteMemberTierRepo(db),
+    memberSubscriptionRepo: new SqliteMemberSubscriptionRepo(db),
+    memberSessionRepo: new SqliteMemberSessionRepo(db),
+    magicLinkRepo: new SqliteMagicLinkTokenRepo(db),
     // SPEC-022 REQ-09/REQ-10: every send routes through the purpose-scoped seam. No capability
     // has a durable outbox path yet (Phase 1 territory — see capability-inventory.ts's "outbox"
     // entry), so `durableOutboxReady` is unconditionally false today; in `local` mode (the
@@ -317,29 +322,34 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     }),
     menuRepo,
     navLocationBindingRepo,
-    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
-    webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
+    // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters, wired into a real composition root
+    // for the first time. Delivery-worker activation itself stays gated (REQ-07/SPEC-022's
+    // capabilityRouteGuard unconditionally contains "webhooks" in production mode regardless of
+    // durability) until a Phase-1-follow-on spec supplies the rest of the production gate ADR-046
+    // names for this row (guarded HttpClientPort, egress policy, worker lifecycle).
+    webhookSubscriptionRepo: new SqliteWebhookSubscriptionRepo(db),
+    webhookDeliveryRepo: new SqliteWebhookDeliveryRepo(db),
     // ADR-PIPE-015 Phase 1: the real KeyringPort-backed signer (GAP-02/GAP-03). Inert until
     // Phase 4 registers the fan-out subscriber + delivery worker — no route calls this directly
     // yet, so wiring it now carries no live-traffic risk ahead of that gated activation.
     webhookSigner: createKeyringBackedSigner(new EnvOrFileKeyring()),
-    // `media` (ADR-027 walking skeleton): rows stay in-memory (same disclosed precedent as the
-    // other newer libraries above — no SQLite adapter built for this pass), but bytes use the
-    // real `LocalFsBlobStore` here (unlike `server/app.ts`'s hermetic-test composition) because
-    // durable byte storage is the one piece of Media that's pointless to fake in the actual
-    // running server — the local filesystem adapter is ADR-006's "one being built now" half.
-    mediaRepo: new InMemoryMediaRepo([]),
-    assetBlobRepo: new InMemoryAssetBlobRepo([]),
-    assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
+    // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters for all four route-consumed media
+    // repos — previously in-memory (ADR-027 walking skeleton, rows lost on every restart). Bytes
+    // already used the real `LocalFsBlobStore` (unlike `server/app.ts`'s hermetic-test
+    // composition) since durable byte storage was always the one piece of Media pointless to fake
+    // in the actual running server.
+    mediaRepo: new SqliteMediaRepo(db),
+    assetBlobRepo: new SqliteAssetBlobRepo(db),
+    assetRenditionRepo: new SqliteAssetRenditionRepo(db),
     blobStore: new LocalFsBlobStore({ rootDir: mediaUploadsDir() }),
-    // ADR-027 §4 transform registry + rendition generation (new in this task): registry rows stay
-    // in-memory (no SQLite adapter yet, same precedent as the media repos above), but the real
-    // running server gets `SharpImageTransformer` (unlike `server/app.ts`'s hermetic-test
-    // composition, which uses the deterministic in-memory double). `sharp` is a pinned, installed
-    // dependency (`package.json`) — this stale "not installed" note was flagged by the 2026-07-15
-    // `/audit-work` batch (ADR-046 finding B-01) and corrected here and in ADR-046 itself. See
-    // `src/media/image-transformer.sharp.ts`'s file header for the still-real lazy-require rationale.
-    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
+    // ADR-027 §4 transform registry + rendition generation: registry rows are now durable too
+    // (ADR-046 Phase 1). The real running server gets `SharpImageTransformer` (unlike
+    // `server/app.ts`'s hermetic-test composition, which uses the deterministic in-memory
+    // double). `sharp` is a pinned, installed dependency (`package.json`) — this stale "not
+    // installed" note was flagged by the 2026-07-15 `/audit-work` batch (ADR-046 finding B-01)
+    // and corrected here and in ADR-046 itself. See `src/media/image-transformer.sharp.ts`'s file
+    // header for the still-real lazy-require rationale.
+    transformDefinitionRepo: new SqliteTransformDefinitionRepo(db),
     imageTransformer: new SharpImageTransformer(),
     // SPEC-011 (Newsletter): real SQLite adapters for all 6 repo ports (the campaign pair is
     // Drizzle-backed; the 5 `p_newsletter__*` tables are raw-SQL, `declareDataModule()`-created —

@@ -19,7 +19,7 @@ import type { PresentationSettingsRepoPort } from "../../features/presentation";
 import type { SettingsRepoPort } from "../../features/settings/ports";
 import type { DiscoveredTheme } from "../../features/theme";
 import type { WorkspaceRepoPort } from "../../features/workspace";
-import type { LocalBufferSink } from "../../analytics/repo.memory";
+import type { AnalyticsSinkPort } from "../../analytics/ports";
 import type {
   MagicLinkTokenRepoPort,
   MemberRepoPort,
@@ -96,8 +96,9 @@ export interface RouteDeps {
   bus: EventBusPort;
   clock: { nowIso(): string };
   idGen: { newId(): string };
-  /** In-memory analytics ingest buffer (ADR-035 ingest-only stage; no rollup yet). */
-  analyticsSink: LocalBufferSink;
+  /** Analytics ingest buffer (ADR-035 ingest-only stage; no rollup yet). ADR-046 Phase 1: durable
+   * in real composition (`SqliteBufferSink`), in-memory in hermetic composition (`LocalBufferSink`). */
+  analyticsSink: AnalyticsSinkPort;
   /** `members` library ports (ADR-030) — Members admin screen. */
   memberRepo: MemberRepoPort;
   memberTierRepo: MemberTierRepoPort;

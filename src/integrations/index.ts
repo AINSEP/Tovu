@@ -71,3 +71,8 @@ export {
   InMemoryWebhookSubscriptionRepo,
 } from "./repo.memory";
 export type { DeliveryEnvelopeStore } from "./repo.memory";
+
+// ADR-046 Phase 1 (2026-07-16): the ADR-006 rule-of-two "second adapter" half — already fully
+// built and contract-tested (`__tests__/repo.*.contract.test.ts`) but never wired into a real
+// composition root until now (`server/deps.ts`).
+export { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "./repo.sqlite";
