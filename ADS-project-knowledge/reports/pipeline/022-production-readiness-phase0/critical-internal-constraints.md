@@ -45,6 +45,7 @@
 | U-001-B1 | The lane-resolution function must classify via an explicit allowlist of known-interactive values, never via a denylist of known-notification values or any other "guess permissive by default" shape. An unrecognized value is notification-lane by construction, not by a fallback branch that could be forgotten. | ESCALATE_SECURITY | Prevents a future call site (or a mis-edited existing one) from silently landing in the permissive lane | API result: `MailerPort.send()`'s return/error shape when a notification-lane send is refused (`MAILER_SEND_REFUSED_NO_DURABLE_PATH` is observably present, not swallowed) | feature.spec.md INV-05, EC-04 |
 | U-001-B2 | The discriminating field's value space must be a closed, typed union (not a bare `string`) at the `MailerSendOptions` type level, so a caller cannot pass an arbitrary string that bypasses both the interactive-allowlist and any compile-time review of new values. | ESCALATE_SECURITY | Prevents the exact class of defect found this session — two call sites converging on the same *untyped* string value without either author noticing, because nothing forced the collision to be visible at compile time | Persisted/typed state: `MailerSendOptions`'s TypeScript type definition itself is the enforcement surface — `audit-only: verified by code review / typecheck, not a runtime-observable test` | feature.spec.md REQ-09 |
 | U-001-B3 | In `local`/non-`production` mode, the lane-resolution logic still runs (for observability/logging) but must never cause `MailerPort.send()` to refuse or throw. | — (not security/irreversible — this is a scope-boundary constraint, not a security one; explains why no default marker) | Prevents Phase 0's containment work from being an accidental behavior change to local/dev workflows | API result: a `local`-mode send with a notification-lane value still returns the same success/failure shape it does today | feature.spec.md INV-06, behavior.spec.md §2.2 |
+| U-001-B4 | The interactive lane and the notification lane must resolve to disjoint values — no discriminating-field value may ever satisfy both `resolveLane(...) === "interactive"` and a caller's independent notification-lane check simultaneously. This is U-001-B1's allowlist rule restated as an explicit invariant on the *value space itself* (not just the resolution function's control flow), so a reader auditing `mail/ports.ts`'s `MailerSendOptions.lane` type does not need to trace into `purpose-scoped-mailer.ts` to confirm the two lanes can't collide. | ESCALATE_SECURITY | Makes the disjointness property self-contained at the type/table level, not something a reader has to reconstruct by tracing `resolveLane`'s control flow — closes the exact "not self-contained" gap the 2026-07-16 full-session audit found (agreed but deferred pending this promotion) | Persisted/typed state: `MailerSendOptions.lane`'s closed union (`"interactive" \| "notification"`) has exactly two members, and `resolveLane`'s allowlist checks only the single permissive value — audit-only: verified by code review/typecheck, not a runtime-observable test (mirrors U-001-B2's verification surface) | feature.spec.md INV-05, U-001-B1, U-001-B2 |
 
 #### Required Ordering Constraints
 
@@ -57,7 +58,7 @@
 | Reference | Source | Binding Constraint IDs Supported |
 |---|---|---|
 | INV-002 | implementation-outline.md Critical Invariants | U-001-B1 |
-| INV-05 | feature.spec.md | U-001-B1, U-001-B2 |
+| INV-05 | feature.spec.md | U-001-B1, U-001-B2, U-001-B4 |
 | INV-06 | feature.spec.md | U-001-B3 |
 
 #### Design Context (optional, non-binding)
@@ -66,7 +67,7 @@ The allowlist-not-denylist shape (U-001-B1) and the closed-union typing (U-001-B
 
 ## Deviation And Promotion Protocol
 
-(Unchanged from template — see full text in `framework/templates/critical-internal-constraints-template.md`.) Both U-001-B1 and U-001-B2 carry `ESCALATE_SECURITY`: any Programmer-stage deviation from either requires a recorded `[CIC_DEVIATION_APPROVED]` entry before proceeding, not just a `[CIC_DEVIATION]` note.
+(Unchanged from template — see full text in `framework/templates/critical-internal-constraints-template.md`.) U-001-B1, U-001-B2, and U-001-B4 all carry `ESCALATE_SECURITY`: any Programmer-stage deviation from any of the three requires a recorded `[CIC_DEVIATION_APPROVED]` entry before proceeding, not just a `[CIC_DEVIATION]` note.
 
 ## Downstream Handoff Notes
 

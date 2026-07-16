@@ -70,6 +70,15 @@ export interface MailerSendOptions {
   sourceContext: { module: string; ref?: string };
   timeoutMs?: number;
   purpose?: "transactional" | "bulk" | `feature:${string}`;
+  /**
+   * SPEC-022 REQ-09: discriminates the interactive lane (proceeds ungated) from the
+   * notification lane (gated on durable-outbox readiness in production mode, REQ-10). A closed
+   * union, not a bare `string` (CIC U-001-B2) — replaces `purpose`'s shared `"transactional"`
+   * value, which `members`' and `forms`' sends both used, indistinguishably, before this fix.
+   * An unrecognized/unmapped/absent value resolves to `notification`, never `interactive`
+   * (INV-05/EC-04) — see `mail/purpose-scoped-mailer.ts`'s allowlist-shaped resolution.
+   */
+  lane?: "interactive" | "notification";
 }
 
 /** Result of one send attempt — plain serializable data (no thrown live objects across the ABI). */

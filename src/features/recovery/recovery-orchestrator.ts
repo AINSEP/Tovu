@@ -144,7 +144,7 @@ export async function confirmRestore(
 
 export interface ExecuteRestoreGatewayPort {
   execute(input: { confirmationToken: string; confirmerPrincipalId?: string }): Promise<
-    Result<{ restoreRunId: string; state: string }, RecoveryErrorPayload>
+    Result<{ restoreRunId: string; state: string; restartRequired?: boolean }, RecoveryErrorPayload>
   >;
 }
 
@@ -200,6 +200,11 @@ export interface ExecuteRestoreValue {
   /** Attached only on `state==='RESTORED'` (REQ-16/AC-26) — the deep-link back to the Storage
    * Timeline that closes the incident thread ADR-041 §7 describes. */
   storageTimelineDeepLink?: { v: 1; siteId: string; intent: "view" };
+  /** 2026-07-16: `true` when the physical content.db file was actually swapped (real SQLite
+   * composition) — the running process keeps serving the pre-restore data from its already-open
+   * file handle until an operator restarts it. `false`/absent for the hermetic in-memory
+   * composition, which has no real file to restore into. */
+  restartRequired?: boolean;
 }
 
 /**

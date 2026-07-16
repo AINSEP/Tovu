@@ -61,6 +61,7 @@ export class InMemoryRestorePointsRepo implements CreateRestorePointRepoPort, Re
     costClass?: string;
     kind?: string;
     watermarkAtCapture?: number | null;
+    artifactRef?: string;
   }> = [];
 
   async save(row: {
@@ -72,6 +73,7 @@ export class InMemoryRestorePointsRepo implements CreateRestorePointRepoPort, Re
     costClass?: string;
     kind?: string;
     watermarkAtCapture?: number | null;
+    artifactRef?: string;
   }): Promise<void> {
     this.rows.push(row);
   }
@@ -91,6 +93,9 @@ export class InMemoryRestorePointsRepo implements CreateRestorePointRepoPort, Re
         kind: row.kind ?? "file-snapshot",
         watermarkAtCapture: row.watermarkAtCapture ?? null,
         createdAt: row.createdAt,
+        // In-memory `restoreFromArtifact` is a no-op regardless of this value (no real file to
+        // restore into) — a fabricated in-process reference is enough to satisfy the type.
+        artifactRef: row.artifactRef ?? `memory://restore-point/${row.restorePointId}`,
       }));
   }
 }
@@ -129,5 +134,12 @@ export class InMemoryDbOpsAdapter implements DbOpsPort {
   async captureRestorePoint(required: { scopeId: string }): Promise<{ artifactRef: string; watermarkAtCapture: number }> {
     this.watermark += 1;
     return { artifactRef: `memory://restore-point/${required.scopeId}/${this.watermark}`, watermarkAtCapture: this.watermark };
+  }
+
+  /** No real content.db file exists in this hermetic composition — nothing to swap, no restart
+   * needed. `server/deps.ts`'s real composition uses `SqliteDbOpsAdapter.restoreFromArtifact`
+   * instead, which performs the actual atomic file swap. */
+  async restoreFromArtifact(_required: { artifactRef: string }): Promise<{ restartRequired: boolean }> {
+    return { restartRequired: false };
   }
 }

@@ -8,13 +8,12 @@ import { ApiError, api, type AdminTaxonomyWithTerms, type AdminTerm } from "../l
  * (design-spec.md §0.3/§2.2) — reuses `.settings-body`/`.settings-row`/`.settings-namespace-*`
  * verbatim rather than inventing new list/detail classes.
  *
- * Scope note (disclosed): only list/create-taxonomy/create-term/rename-term/assign-terms are
- * backed by real routes (progress-ledger.md "Session 5"). Reparent, Deprecate, and Merge — all
- * named in design-spec.md §2.3-§2.5 — have no route (`renameTerm`'s own route only accepts
- * `newName`, no `parentId`; no deprecate-term or merge-term route was wired). Rather than render
- * dead buttons for those three, this screen omits them entirely; that specific "render a disclosed
- * not-yet-available state" treatment was directed only for Recovery's restore ceremony (see
- * `Recovery.tsx`), not for every blocked action across every screen.
+ * Scope note (disclosed): list/create-taxonomy/create-term/rename-term/assign-terms/merge-term are
+ * backed by real routes; merge-term (ADR-044, SPEC-018 C-207) is wired to the real
+ * `core/gated-mutations`-backed ceremony (Session 5-6 backend gap closure). Reparent and Deprecate
+ * — named in design-spec.md §2.3/§2.4 — still have no route (`renameTerm`'s own route only accepts
+ * `newName`, no `parentId`; no deprecate-term route was wired). Rather than render dead buttons for
+ * those two, this screen omits them entirely.
  *
  * Also disclosed: the production `Term` type (`features/taxonomy/write-service.ts`) has no `slug`
  * field — design-spec.md §2.3 assumed one; this screen does not render a slug control.
@@ -106,7 +105,123 @@ function NewTermForm(props: {
   );
 }
 
-function TermDetailPanel(props: { taxonomy: AdminTaxonomyWithTerms; term: AdminTerm; onRenamed: () => void }) {
+type MergeStep = "idle" | "planned" | "confirmed";
+
+function MergeTermSection(props: { taxonomy: AdminTaxonomyWithTerms; term: AdminTerm; onMerged: () => void }) {
+  const otherTerms = props.taxonomy.terms.filter((t) => t.id !== props.term.id);
+  const [intoTermId, setIntoTermId] = useState("");
+  const [step, setStep] = useState<MergeStep>("idle");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [plan, setPlan] = useState<{ planId: string; planHash: string; overlappingContentCount: number } | null>(null);
+  const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIntoTermId("");
+    setStep("idle");
+    setError(null);
+    setPlan(null);
+    setConfirmationToken(null);
+  }, [props.term.id]);
+
+  if (otherTerms.length === 0) return null;
+
+  async function startPlan() {
+    if (!intoTermId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api.planMergeTerm(props.term.id, intoTermId);
+      setPlan({ planId: r.planId, planHash: r.planHash, overlappingContentCount: r.details.overlappingContentCount });
+      setStep("planned");
+    } catch (e) {
+      setError(describeApiError(e, "Failed to plan the merge"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doConfirm() {
+    if (!plan) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api.confirmMergeTerm(props.term.id, plan.planId, plan.planHash);
+      setConfirmationToken(r.confirmationToken);
+      setStep("confirmed");
+    } catch (e) {
+      setError(describeApiError(e, "Failed to confirm the merge"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doExecute() {
+    if (!confirmationToken) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.executeMergeTerm(props.term.id, intoTermId, confirmationToken);
+      props.onMerged();
+    } catch (e) {
+      setError(describeApiError(e, "Failed to execute the merge"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="notice taxonomy-merge-section">
+      <h3>Merge into another term</h3>
+      {error ? <span className="save-error">{error}</span> : null}
+
+      {step === "idle" ? (
+        <span className="editor-actions">
+          <select aria-label="Merge into" value={intoTermId} onChange={(e) => setIntoTermId(e.target.value)}>
+            <option value="">Choose a term…</option>
+            {otherTerms.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+          <button type="button" onClick={startPlan} disabled={!intoTermId || busy}>
+            {busy ? "Planning…" : "Plan merge"}
+          </button>
+        </span>
+      ) : null}
+
+      {step === "planned" && plan ? (
+        <div>
+          <p>
+            This will move {plan.overlappingContentCount} overlapping content assignment(s) onto the target
+            term and merge <strong>{props.term.name}</strong> away. Confirming issues a one-time execution
+            token — nothing is merged yet.
+          </p>
+          <button type="button" onClick={doConfirm} disabled={busy}>
+            {busy ? "Confirming…" : "Confirm merge"}
+          </button>
+        </div>
+      ) : null}
+
+      {step === "confirmed" && confirmationToken ? (
+        <div>
+          <p>Confirmed. Executing merges the terms now — this cannot be undone.</p>
+          <button type="button" onClick={doExecute} disabled={busy}>
+            {busy ? "Merging…" : "Execute merge"}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function TermDetailPanel(props: {
+  taxonomy: AdminTaxonomyWithTerms;
+  term: AdminTerm;
+  onRenamed: () => void;
+  onMerged: () => void;
+}) {
   const [newName, setNewName] = useState(props.term.name);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -164,6 +279,7 @@ function TermDetailPanel(props: { taxonomy: AdminTaxonomyWithTerms; term: AdminT
           {error ? <span className="save-error">{error}</span> : null}
         </span>
       </form>
+      <MergeTermSection taxonomy={props.taxonomy} term={props.term} onMerged={props.onMerged} />
     </div>
   );
 }
@@ -243,7 +359,17 @@ export function Taxonomy() {
           })}
         </div>
 
-        {selected ? <TermDetailPanel taxonomy={selected.taxonomy} term={selected.term} onRenamed={load} /> : null}
+        {selected ? (
+          <TermDetailPanel
+            taxonomy={selected.taxonomy}
+            term={selected.term}
+            onRenamed={load}
+            onMerged={() => {
+              setSelectedTermId(null);
+              load();
+            }}
+          />
+        ) : null}
       </div>
     </div>
   );

@@ -2,14 +2,15 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { InMemoryEventBus, InMemoryOutbox } from "../core/events";
-import { InMemoryChangeSetRepo } from "../core/commands";
+import { InMemoryEventBus } from "../core/events";
 import { SqlitePostRepo } from "../features/post";
 import { SqlitePresentationSettingsRepo } from "../features/presentation";
 import { SqliteSettingsRepo } from "../features/settings/repo.sqlite";
 import { discoverThemes } from "../features/theme";
 import { SqliteWorkspaceRepo } from "../features/workspace";
 import { openContentDb } from "../infra/sqlite/content-db";
+import { SqliteChangeSetRepo } from "../infra/sqlite/change-set-repo.sqlite";
+import { SqliteOutboxAdapter } from "../infra/sqlite/outbox-repo.sqlite";
 import { openStorageJournalDb } from "../infra/sqlite/storage-journal-db";
 import { SqliteStorageLedgerRepo } from "../infra/sqlite/storage-journal-repo";
 import { ensureSeoSettingDefinitions } from "../seo";
@@ -79,6 +80,8 @@ import { SqliteEntryRepo } from "../features/entries/repo.sqlite";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "../features/taxonomy/repo.sqlite";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
 import { buildGatewayDeps } from "./gated-mutations-composition";
+import { resolveRuntimeMode } from "./runtime-mode";
+import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer";
 
 /**
  * Root directory `LocalFsBlobStore` writes blob bytes under (ADR-012 `uploads/`
@@ -208,7 +211,10 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
   // so `InMemoryOriginSettingRepo` backs `OriginRegistry` even in this real-server composition;
   // `redirects` DOES get its real `SqliteRedirectRepo` here (unlike the in-memory-only libraries
   // above), since T014 built a full rule-of-two adapter for it.
-  const outbox = new InMemoryOutbox();
+  // ADR-046 Phase 1 (BR-04 resolution, 2026-07-16 swarm debate): durable SQLite outbox. Events
+  // survive a restart; `SqliteChangeSetRepo.insert()`'s co-persisted event and this adapter's
+  // `claimPending()`/`markDelivered()`/`markFailed()` share the same `outbox_events` table.
+  const outbox = new SqliteOutboxAdapter(db);
   const bus = new InMemoryEventBus();
   const originRegistry = new OriginRegistry({
     repo: new InMemoryOriginSettingRepo([
@@ -278,7 +284,10 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     settingsRepo,
     seoReady,
     settingsReady,
-    changeSets: new InMemoryChangeSetRepo(),
+    // ADR-046 Phase 1 slice 1 (SPEC-023, 2026-07-16): change-set mutation history now survives a
+    // restart — the first durable-adapter slice off Phase 1's capability table, per the ADR's own
+    // "pull-based per capability, not a uniform sweep" fold-in guidance.
+    changeSets: new SqliteChangeSetRepo(db),
     themes: discoverThemes(builtInThemesDir(), "built-in"),
     outbox,
     bus,
@@ -297,7 +306,15 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo([]),
     memberSessionRepo: new InMemoryMemberSessionRepo([]),
     magicLinkRepo: new InMemoryMagicLinkTokenRepo([]),
-    mailer: new ConsoleMailerAdapter(),
+    // SPEC-022 REQ-09/REQ-10: every send routes through the purpose-scoped seam. No capability
+    // has a durable outbox path yet (Phase 1 territory — see capability-inventory.ts's "outbox"
+    // entry), so `durableOutboxReady` is unconditionally false today; in `local` mode (the
+    // default) the gate never refuses regardless (INV-06).
+    mailer: wrapMailerWithPurposeGate({
+      inner: new ConsoleMailerAdapter(),
+      mode: resolveRuntimeMode(),
+      durableOutboxReady: () => false,
+    }),
     menuRepo,
     navLocationBindingRepo,
     webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),

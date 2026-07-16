@@ -48,6 +48,14 @@ export interface DbOpsPort {
   getCapabilities(): Promise<{ restorePoint: RestoreCapability }>;
   /** Captures a real restore-point artifact, stamped with the watermark value at capture time. */
   captureRestorePoint(required: { scopeId: string }): Promise<{ artifactRef: string; watermarkAtCapture: number }>;
+  /**
+   * Physically restores the live database from a previously-captured artifact (ADR-045 §3
+   * restore ceremony, closing the "ledger-only" disclosed gap). A real (SQLite) adapter performs
+   * an atomic file swap and reports `restartRequired: true` — the running process keeps its own
+   * open file handle to the now-unlinked old data until it restarts and reopens the path fresh.
+   * A test/dev double with no real file to restore into reports `restartRequired: false`.
+   */
+  restoreFromArtifact(required: { artifactRef: string }): Promise<{ restartRequired: boolean }>;
 }
 
 /**

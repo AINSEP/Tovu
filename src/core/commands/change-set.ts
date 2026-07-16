@@ -1,4 +1,4 @@
-import type { ISODateTime, JsonObject, UUID } from "../ports";
+import type { DomainEvent, ISODateTime, JsonObject, UUID } from "../ports";
 
 /**
  * @file Change-set vocabulary and persistence contract (ADR-008).
@@ -15,6 +15,17 @@ import type { ISODateTime, JsonObject, UUID } from "../ports";
  * Architectural role:
  * This is the storage shape ADR-008 requires to land with the first persistent
  * schema. SQLite/Postgres adapters must satisfy `ChangeSetRepoPort` unchanged.
+ *
+ * BR-04 resolution (ADR-046 Phase 1, 2026-07-16 swarm debate, full record:
+ * `ADS-project-knowledge/reports/swarm-consensus/runs/20260716T-br04-outbox-seam-consensus-report.md`):
+ * `insert()`'s optional third argument lets the caller pass the fully-formed outbox event through
+ * the SAME call, so a durable adapter can co-persist it inside the same transaction as the header
+ * + items — chosen over threading a transaction handle through `OutboxPort`/`mutation.execute()`
+ * because Drizzle's better-sqlite3 `transaction()` is synchronous while both ports are async; an
+ * async handle cannot be awaited inside a sync transaction callback without an unsafe held-open
+ * transaction or a new, zero-consumer abstraction. This does NOT bring the domain write
+ * (`mutation.execute()`) into the transaction — that remains covered by `executeCommand()`'s
+ * existing compensating-rollback path until ADR-046 Phase 3.
  */
 export type ChangeSetStatus = "proposed" | "applied" | "reverted" | "discarded";
 
@@ -73,7 +84,13 @@ export interface ChangeSetWithItems {
 
 /** Persistence contract for change sets. */
 export interface ChangeSetRepoPort {
-  insert(record: ChangeSetRecord, items: ChangeSetItemRecord[]): Promise<void>;
+  /**
+   * `event`, when present, must be durably recorded atomically with `record`/`items` (BR-04 —
+   * see this file's header). A SQLite adapter co-persists it inside the same transaction; the
+   * in-memory adapter forwards it to its injected event bus/outbox. Omit `event` for a change set
+   * that has no associated domain event to deliver.
+   */
+  insert(record: ChangeSetRecord, items: ChangeSetItemRecord[], event?: DomainEvent): Promise<void>;
   findById(required: { workspaceId: UUID; id: UUID }): Promise<ChangeSetWithItems | null>;
   findByIdempotencyKey(required: {
     workspaceId: UUID;

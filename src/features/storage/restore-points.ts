@@ -90,6 +90,13 @@ export interface RestorePointRecord {
   kind: string;
   watermarkAtCapture: number | null;
   createdAt: string;
+  /** 2026-07-16: was captured (`DbOpsPort.captureRestorePoint()`) but silently dropped before
+   * persistence — `list()` never surfaced it, so `features/recovery`'s restore ceremony had no
+   * way to know which file to restore from (see `gated-mutations-composition.ts`'s
+   * `buildRestoreHooks` file history). Required, not optional: every real row has one (the
+   * `restore_points` table's own column is `NOT NULL`); an empty string for a not-yet-migrated
+   * legacy row is a defensive fallback at the read adapter, not a valid new-row state. */
+  artifactRef: string;
 }
 
 export interface RestorePointListPort {
@@ -113,6 +120,7 @@ export interface RestorePointSavePort {
     costClass?: string;
     kind?: string;
     watermarkAtCapture?: number | null;
+    artifactRef?: string;
   }): Promise<void>;
 }
 

@@ -76,6 +76,9 @@ export async function registerFormNotifySubscriber(
                 workspaceId,
                 sourceContext: { module: "forms", ref: formDefinitionId },
                 purpose: "transactional",
+                // SPEC-022 REQ-09/REQ-10: notification lane — gated on durable-outbox
+                // readiness in production mode (unlike members' interactive-lane send).
+                lane: "notification",
               }
             );
             if (!result.ok) {

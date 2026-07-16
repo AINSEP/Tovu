@@ -1,3 +1,4 @@
+import type { DomainEvent, OutboxPort } from "../ports";
 import type {
   ChangeSetItemRecord,
   ChangeSetRecord,
@@ -8,15 +9,21 @@ import type {
 export class InMemoryChangeSetRepo implements ChangeSetRepoPort {
   private rows: ChangeSetRecord[];
   private itemRows: ChangeSetItemRecord[];
+  private readonly outbox?: OutboxPort;
 
-  constructor(initialRows: ChangeSetRecord[] = [], initialItems: ChangeSetItemRecord[] = []) {
+  /** `outbox`, when supplied, is where `insert()`'s optional `event` argument is forwarded
+   * (BR-04 — see `change-set.ts`'s file header). Omit it for a repo instance that never receives
+   * an `event` on `insert()`. */
+  constructor(initialRows: ChangeSetRecord[] = [], initialItems: ChangeSetItemRecord[] = [], outbox?: OutboxPort) {
     this.rows = [...initialRows];
     this.itemRows = [...initialItems];
+    this.outbox = outbox;
   }
 
-  async insert(record: ChangeSetRecord, items: ChangeSetItemRecord[]): Promise<void> {
+  async insert(record: ChangeSetRecord, items: ChangeSetItemRecord[], event?: DomainEvent): Promise<void> {
     this.rows.push(record);
     this.itemRows.push(...items);
+    if (event) await this.outbox?.enqueue(event);
   }
 
   async findById(required: { workspaceId: string; id: string }): Promise<ChangeSetWithItems | null> {

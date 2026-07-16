@@ -3,16 +3,15 @@ import { ApiError, api, type AdminLedgerRow, type AdminRestorePoint } from "../l
 
 /**
  * @file Storage screen (design-spec.md §3, ADR-041) — the `#/section/storage` route: the
- * read-first Timeline plus the restore-points list. Structural reference: `Analytics.tsx`'s
- * "raw ingest, said so explicitly" pattern (design-spec.md §0.3).
+ * read-first Timeline, the restore-points list, and the migrate-forward ceremony. Structural
+ * reference: `Analytics.tsx`'s "raw ingest, said so explicitly" pattern (design-spec.md §0.3).
  *
- * Scope note (disclosed, per design-spec.md §3.8/§5 and progress-ledger.md "Session 5"): only
- * `GET /storage/timeline` and `GET`/`POST /storage/restore-points` are real routes. The
- * migrate-forward plan/confirm/execute ceremony, the drift banner, the `PENDING_MIGRATION` boot
- * banner, and the Tier-3 browser all need routes that do not exist yet (they need
- * `core/gated-mutations`'s gateway, composed into zero composition roots today) — this screen
- * omits them entirely rather than rendering dead affordances, matching this file's own build-order
- * recommendation ("ship the read-only Timeline now, layer in the write flow once routed").
+ * The migrate-forward plan/confirm/execute ceremony (ADR-041 §3, SPEC-017 C-103/C-105) is now
+ * wired to the real `core/gated-mutations`-backed routes (Session 5-6 backend gap closure).
+ *
+ * Still disclosed, still omitted (per design-spec.md §3.8/§5 and progress-ledger.md "Session 5"):
+ * the drift banner, the `PENDING_MIGRATION` boot banner, and the Tier-3 browser have no route yet
+ * — this screen omits them rather than rendering dead affordances.
  */
 
 const KIND_OPTIONS = [
@@ -240,6 +239,120 @@ function RestorePointsSection() {
   );
 }
 
+type CeremonyStep = "idle" | "planned" | "confirmed" | "done";
+
+function MigrateForwardSection() {
+  const [step, setStep] = useState<CeremonyStep>("idle");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [plan, setPlan] = useState<{ planId: string; planHash: string } | null>(null);
+  const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  function reset() {
+    setStep("idle");
+    setError(null);
+    setPlan(null);
+    setConfirmationToken(null);
+    setDone(false);
+  }
+
+  async function startPlan() {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api.planMigrateForward();
+      setPlan({ planId: r.planId, planHash: r.planHash });
+      setStep("planned");
+    } catch (e) {
+      setError(describeApiError(e, "Failed to plan the forward migration"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doConfirm() {
+    if (!plan) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api.confirmMigrateForward(plan.planId, plan.planHash);
+      setConfirmationToken(r.confirmationToken);
+      setStep("confirmed");
+    } catch (e) {
+      setError(describeApiError(e, "Failed to confirm the forward migration"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doExecute() {
+    if (!confirmationToken) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.executeMigrateForward(confirmationToken);
+      setDone(true);
+      setStep("done");
+    } catch (e) {
+      setError(describeApiError(e, "Failed to execute the forward migration"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="editor-header">
+        <h2>Migrate forward</h2>
+        {step !== "idle" ? (
+          <button type="button" onClick={reset} disabled={busy}>
+            Reset
+          </button>
+        ) : null}
+      </div>
+      <p className="muted-cell">
+        Brings this site's schema up to the latest migration, capturing a restore point first when the
+        site's restore-point mechanism allows it.
+      </p>
+      {error ? <div className="notice error">{error}</div> : null}
+
+      {step === "idle" ? (
+        <button type="button" onClick={startPlan} disabled={busy}>
+          {busy ? "Planning…" : "Plan migration"}
+        </button>
+      ) : null}
+
+      {step === "planned" && plan ? (
+        <div className="notice">
+          <p>
+            Plan ready (plan <code>{plan.planId}</code>). Confirming issues a one-time execution
+            token — nothing is migrated yet.
+          </p>
+          <button type="button" onClick={doConfirm} disabled={busy}>
+            {busy ? "Confirming…" : "Confirm migration"}
+          </button>
+        </div>
+      ) : null}
+
+      {step === "confirmed" && confirmationToken ? (
+        <div className="notice">
+          <p>Confirmed. Executing runs the migration now.</p>
+          <button type="button" onClick={doExecute} disabled={busy}>
+            {busy ? "Migrating…" : "Execute migration"}
+          </button>
+        </div>
+      ) : null}
+
+      {step === "done" && done ? (
+        <div className="notice">
+          <p role="status">Migration executed successfully.</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function Storage() {
   return (
     <div>
@@ -247,6 +360,7 @@ export function Storage() {
       <p>A read-first record of every migration, snapshot, index change, and template upgrade on this site.</p>
       <TimelineSection />
       <RestorePointsSection />
+      <MigrateForwardSection />
     </div>
   );
 }

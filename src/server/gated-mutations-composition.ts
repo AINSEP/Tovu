@@ -295,8 +295,11 @@ export interface BuildRestoreHooksInput {
   restorePointId: string;
   clock: ClockPort;
   idGen: IdGeneratorPort;
-  restorePointsRepo: { list(): Promise<Array<{ id: string; createdAt: string }>> };
+  restorePointsRepo: { list(): Promise<Array<{ id: string; createdAt: string; artifactRef: string }>> };
   storageLedgerRepo: LedgerAppendPort;
+  /** SPEC-016 `DbOpsPort` — real (SQLite) composition performs the physical file swap;
+   * hermetic-test composition's in-memory double is a no-op (`restartRequired: false`). */
+  dbOps: { restoreFromArtifact(required: { artifactRef: string }): Promise<{ restartRequired: boolean }> };
 }
 
 export class RestorePointNotFoundError extends Error {
@@ -330,7 +333,7 @@ export class RestorePointNotFoundError extends Error {
  * @complexity O(n) in the number of restore points (`list()` scan — low-volume, ADR-041 §2).
  * @overallScore 100
  */
-export function buildRestoreHooks(input: BuildRestoreHooksInput): GatedMutationHooks<{ restorePointId: string }, { restoreRunId: string; state: string }> {
+export function buildRestoreHooks(input: BuildRestoreHooksInput): GatedMutationHooks<{ restorePointId: string }, { restoreRunId: string; state: string; restartRequired: boolean }> {
   return {
     domain: "backup.restore",
     readPermission: "backup.read",
@@ -347,6 +350,12 @@ export function buildRestoreHooks(input: BuildRestoreHooksInput): GatedMutationH
         throw new RestorePointNotFoundError(`restore point '${input.restorePointId}' was not found`);
       }
 
+      // 2026-07-16: closes the "ledger-only" gap this file previously disclosed — swap the file
+      // FIRST, ledger-record second. If the process dies between the two, the file already
+      // reflects reality (a missing ledger entry is reconcilable later; a ledger entry claiming a
+      // restore that never physically happened would not be).
+      const { restartRequired } = await input.dbOps.restoreFromArtifact({ artifactRef: target.artifactRef });
+
       const restoreRunId = input.idGen.newId();
       const now = input.clock.nowIso();
       await input.storageLedgerRepo.append({
@@ -354,16 +363,13 @@ export function buildRestoreHooks(input: BuildRestoreHooksInput): GatedMutationH
         kind: "restore.executed",
         restorePointId: input.restorePointId,
         outcome: "success",
-        detailJson: JSON.stringify({
-          restoreRunId,
-          note: "ledger-only: physical content.db file replacement is not wired this pass, see this file's own doc comment ([CIC_REQUESTED])",
-        }),
+        detailJson: JSON.stringify({ restoreRunId, restartRequired }),
         actorWorkspaceId: input.workspaceId,
         actorId: input.actorId,
         createdAt: now,
       });
 
-      return { restoreRunId, state: "RESTORED" };
+      return { restoreRunId, state: "RESTORED", restartRequired };
     },
     resolveActorClassIdentity,
   };

@@ -133,10 +133,12 @@ test("AC-17: injected change-set persist failure rolls back the post, no change 
 
 test("happy path: record commits, post updated, exactly one change set + one event", async () => {
   const repo = new InMemoryPostRepo([seededPost()]);
-  const changeSets = new InMemoryChangeSetRepo();
 
   const enqueued: DomainEvent[] = [];
   const outbox = { enqueue: async (e: DomainEvent) => void enqueued.push(e) } as never;
+  // BR-04 (2026-07-16): the event now rides into changeSets.insert()'s third argument instead of
+  // a separate deps.outbox.enqueue() call — the repo needs its own outbox reference to forward it.
+  const changeSets = new InMemoryChangeSetRepo([], [], outbox);
 
   const { result, changeSetId } = await executeCommand({
     deps: { clock: fixedClock, idGen: counterIdGen(), changeSets, outbox },

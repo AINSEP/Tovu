@@ -101,6 +101,8 @@ import { registerAdminRecoveryDisclosureRoute } from "./routes/admin/recovery/di
 import { registerAdminRecoveryDeepLinkRoute } from "./routes/admin/recovery/deep-link";
 import { registerAdminRecoveryStatusRoute } from "./routes/admin/recovery/status";
 import { buildGatewayDeps } from "./gated-mutations-composition";
+import { resolveRuntimeMode } from "./runtime-mode";
+import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer";
 import { registerAdminTaxonomyMergeTermRoutes } from "./routes/admin/taxonomy/merge-term";
 import { registerAdminStorageMigrateForwardRoutes } from "./routes/admin/storage/migrate-forward";
 import { registerAdminRecoveryRestoreRoutes } from "./routes/admin/recovery/restore";
@@ -297,7 +299,9 @@ export function createRouteDeps(): NewsletterRouteDeps {
     settingsRepo,
     settingsReady,
     seoReady,
-    changeSets: new InMemoryChangeSetRepo(),
+    // BR-04 (2026-07-16): the repo forwards insert()'s optional event to this SAME outbox
+    // instance, matching what the old separate executeCommand()-level enqueue() call did.
+    changeSets: new InMemoryChangeSetRepo([], [], outbox),
     themes: discoverThemes(builtInThemesDir(), "built-in"),
     outbox,
     bus,
@@ -314,7 +318,14 @@ export function createRouteDeps(): NewsletterRouteDeps {
     memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo([]),
     memberSessionRepo: new InMemoryMemberSessionRepo([]),
     magicLinkRepo: new InMemoryMagicLinkTokenRepo([]),
-    mailer: new ConsoleMailerAdapter(),
+    // SPEC-022 REQ-09/REQ-10 — see deps.ts's identical wiring for the rationale. This hermetic
+    // composition resolves `local` by default (no test sets TOVU_RUNTIME_MODE), so the gate stays
+    // inert here — existing tests are unaffected (INV-06).
+    mailer: wrapMailerWithPurposeGate({
+      inner: new ConsoleMailerAdapter(),
+      mode: resolveRuntimeMode(),
+      durableOutboxReady: () => false,
+    }),
     menuRepo: new InMemoryMenuRepo(),
     navLocationBindingRepo: new InMemoryNavLocationBindingRepo(),
     webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
