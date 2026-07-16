@@ -1,13 +1,147 @@
 import { useEffect, useState } from "react";
-import { api, type AdminRedirect } from "../lib/api";
+import { ApiError, api, type AdminRedirect, type AdminRedirectImportResponse } from "../lib/api";
 
 /**
  * @file Redirects admin screen (SPEC-009 ui.spec.md) — the `#/section/redirects` route.
  * Single-screen list + inline create form + per-row disable/enable + tombstone, mirroring
- * `FormsList.tsx`/`Seo.tsx`'s fetch/loading/error convention. Import (bulk CSV-style upload)
- * and per-rule hit stats are NOT built in this pass — the backend routes exist and are tested;
- * this is a proportional first UI slice covering the common manual-redirect workflow.
+ * `FormsList.tsx`/`Seo.tsx`'s fetch/loading/error convention.
+ *
+ * SPEC-037 REQ-03/REQ-04: `HitCountCell` wires the previously-unused `api.getRedirectHits` as a
+ * lazy per-row fetch (button-triggered, not fired for every row on mount — avoids an N+1 burst on
+ * a large list), and `ImportRedirectsForm` wires the new `api.importRedirects` bulk-import
+ * affordance, surfacing the route's own `207` per-item created/failed breakdown.
  */
+
+function describeApiError(e: unknown, fallback: string): string {
+  if (e instanceof ApiError) return e.message || fallback;
+  return e instanceof Error ? e.message : fallback;
+}
+
+/** Lazy hit-count cell (REQ-03) — fetches on first click rather than on mount, so a list of many
+ * rows never fires a synchronous burst of `/hits` requests. A rule with zero recorded hits still
+ * renders `0` (not blank), matching `hits.ts`'s own "still 200s with hitCount: 0" contract. */
+function HitCountCell(props: { redirectId: string }) {
+  const [stats, setStats] = useState<{ hitCount: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await api.getRedirectHits(props.redirectId);
+      setStats({ hitCount: r.data.hitCount });
+    } catch (e) {
+      setError(describeApiError(e, "failed"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (error) return <span className="save-error">{error}</span>;
+  if (stats) return <span>{stats.hitCount}</span>;
+  return (
+    <button type="button" onClick={load} disabled={loading}>
+      {loading ? "Loading…" : "Load hits"}
+    </button>
+  );
+}
+
+/** Bulk-import affordance (REQ-04) — paste a JSON array of rule objects, submit through
+ * `api.importRedirects`, and surface the `207` per-item created/failed breakdown directly
+ * (never collapsed into a single pass/fail toast — a partial-batch failure is the route's own
+ * designed behavior, not an edge case). */
+function ImportRedirectsForm(props: { onImported: () => void }) {
+  const [raw, setRaw] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<AdminRedirectImportResponse | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setResult(null);
+
+    let rules: unknown;
+    try {
+      rules = JSON.parse(raw);
+    } catch {
+      setError("Not valid JSON.");
+      return;
+    }
+    if (!Array.isArray(rules)) {
+      setError("Must be a JSON array of rule objects.");
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const r = await api.importRedirects(rules);
+      setResult(r);
+      if (r.created.length > 0) props.onImported();
+    } catch (e) {
+      setError(describeApiError(e, "Import failed"));
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  return (
+    <details className="notice redirects-import">
+      <summary>Bulk import</summary>
+      <form onSubmit={submit}>
+        <label htmlFor="redirects-import-json">
+          Paste a JSON array of <code>{"{matchType, fromPattern, toTarget, statusCode, override?, priority?}"}</code> rule
+          objects (1-500 items)
+        </label>
+        <textarea
+          id="redirects-import-json"
+          rows={6}
+          value={raw}
+          onChange={(e) => setRaw(e.target.value)}
+          placeholder='[{"matchType":"exact","fromPattern":"/old","toTarget":"/new","statusCode":301}]'
+        />
+        <button type="submit" disabled={importing}>
+          {importing ? "Importing…" : "Import"}
+        </button>
+      </form>
+      {error ? (
+        <div className="notice error" role="alert">
+          {error}
+        </div>
+      ) : null}
+      {result ? (
+        <div className="redirects-import-result">
+          <p>
+            {result.created.length} created, {result.failed.length} failed.
+          </p>
+          {result.created.length > 0 ? (
+            <ul>
+              {result.created.map((r) => (
+                <li key={r.id}>
+                  <span className="save-ok">Created</span> {r.fromPattern} → {r.toTarget}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {result.failed.length > 0 ? (
+            <ul>
+              {result.failed.map((f) => (
+                <li key={f.index}>
+                  <span className="save-error">
+                    Item {f.index} ({f.code})
+                  </span>
+                  : {f.message}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+    </details>
+  );
+}
+
 export function Redirects() {
   const [redirects, setRedirects] = useState<AdminRedirect[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +251,8 @@ export function Redirects() {
         </button>
       </form>
 
+      <ImportRedirectsForm onImported={load} />
+
       {redirects.length === 0 ? (
         <div className="notice">No redirect rules yet.</div>
       ) : (
@@ -129,6 +265,7 @@ export function Redirects() {
               <th>Code</th>
               <th>Source</th>
               <th>Status</th>
+              <th>Hits</th>
               <th></th>
             </tr>
           </thead>
@@ -142,6 +279,9 @@ export function Redirects() {
                 <td>{rule.source}</td>
                 <td>
                   <span className={`status status-${rule.status}`}>{rule.status}</span>
+                </td>
+                <td>
+                  <HitCountCell redirectId={rule.id} />
                 </td>
                 <td>
                   <button disabled={saving} onClick={() => toggleStatus(rule)}>

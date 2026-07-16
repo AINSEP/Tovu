@@ -276,6 +276,24 @@ export interface AdminRedirectHitStats {
   lastHitAt: string | null;
 }
 
+/** One rule item accepted by `POST .../redirects/import` — mirrors `CreateRedirectInput`'s public
+ * fields (`workspaceId`/`actorId` are injected server-side from the session, not sent). */
+export interface RedirectImportRule {
+  matchType: string;
+  fromPattern: string;
+  toTarget: string;
+  statusCode: number;
+  override?: boolean;
+  priority?: number;
+}
+
+/** Mirrors `toAdminRedirectImportResponse`'s shape (`server/http/admin/redirects.ts`) — the route
+ * always answers `207 Multi-Status`, so this is a plain success body, not an error path. */
+export interface AdminRedirectImportResponse {
+  created: AdminRedirect[];
+  failed: Array<{ index: number; code: string; message: string }>;
+}
+
 /**
  * Collections (ADR-022/ADR-043) — mirrors `features/content-types/types.ts` +
  * `features/entries/types.ts`. The 18 routes these types back were wired in the
@@ -763,6 +781,14 @@ export const api = {
     }),
   getRedirectHits: (id: string) =>
     request<{ data: AdminRedirectHitStats }>(`/workspaces/${WORKSPACE_ID}/redirects/${id}/hits`),
+  /** POST a bulk-import batch (1-500 rules, `MAX_IMPORT_BATCH_SIZE`). Always answers `207` on the
+   * wire; `fetch`/`request()` treat 2xx (incl. 207) as success, so the per-item `created`/`failed`
+   * breakdown always comes back as the resolved value, never a thrown `ApiError`. */
+  importRedirects: (rules: RedirectImportRule[]) =>
+    request<AdminRedirectImportResponse>(`/workspaces/${WORKSPACE_ID}/redirects/import`, {
+      method: "POST",
+      body: JSON.stringify({ rules }),
+    }),
 
   // Collections (ADR-022/ADR-043) — content-types registry + entries. `/api/admin/v1/*`, not the
   // `/workspaces/{id}/*` shape the rest of this file uses — these routes take workspace from the
