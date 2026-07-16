@@ -16,6 +16,17 @@
  * explicit `PRAGMA locking_mode=EXCLUSIVE` call here. If a future LIVE (mid-process) restore path
  * is ever added, it MUST acquire that lock first — this file does not, and must not be reused for
  * a live restore without adding it.
+ *
+ * SPEC-033 correction (2026-07-16): `data-module.ts`'s LIVE snapshot+DDL path used to acquire this
+ * same lock too, on the theory that it should be "held through the DDL attempt" per the ADR's own
+ * wording. Removed after a live multi-boot smoke test found it caused a real, deterministic
+ * "database is locked" failure against a genuine second connection (the store plugin's own
+ * dedicated `content.db` handle) — see `data-module.ts`'s file header for the full account. The
+ * reasoning above (restore never runs live) already meant the lock's ADR-stated justification
+ * ("Restore is a different, less-safe operation" — the snapshot/DDL steps are explicitly called
+ * out as safe without it) never applied to the live path either; this file was always the correct
+ * scope for where a live exclusive lock would matter, and the fix simply stopped taking it
+ * somewhere it never needed to be taken.
  */
 import { copyFileSync, existsSync, rmSync } from "node:fs";
 

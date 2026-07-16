@@ -68,6 +68,10 @@ export function openContentDb(filePath: string, seed?: ContentDbSeedData, recove
   const sqlite = new Database(filePath);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
+  // SPEC-033 — defense in depth alongside `store-plugin.ts`'s identical fix: this connection can
+  // itself be the "second" connection relative to a separate one (e.g. the store plugin's own
+  // dedicated handle) transiently holding a lock. Retry internally rather than throwing immediately.
+  sqlite.pragma("busy_timeout = 5000");
 
   const db = drizzle(sqlite, { schema }) as ContentDb;
   migrate(db, { migrationsFolder: MIGRATIONS_DIR });

@@ -404,6 +404,17 @@ registerPermission({ id: "storage.migrate", owner: "storage", description: "Plan
 registerPermission({ id: "backup.read", owner: "recovery", description: "Read restore points and this site's restore capability." });
 registerPermission({ id: "backup.create", owner: "recovery", description: "Mint a restore point independent of any migration." });
 registerPermission({ id: "backup.restore", owner: "recovery", description: "Confirm and execute a restore to a prior restore point." });
+/** ADR-031 §6 (SPEC-033) — flat `comments.*` strings, one catalog, mirroring `analytics.read`'s
+ * shape (not the `admin.<section>.<action>` convention). Public/anonymous submission is
+ * ingress-governed (`CommentIngressPolicy`), not `authorize()`-gated — `comments.submit` exists
+ * for a future member-only mode, not the anonymous path this spec's route uses. */
+registerPermission({ id: "comments.read", owner: "comments", description: "Read comments and the moderation queue." });
+registerPermission({ id: "comments.moderate", owner: "comments", description: "Approve, mark spam, or restore a comment." });
+registerPermission({ id: "comments.reply", owner: "comments", description: "Post an operator reply to a comment thread." });
+registerPermission({ id: "comments.delete", owner: "comments", description: "Trash a comment (soft delete, recoverable)." });
+registerPermission({ id: "comments.delete.force", owner: "comments", description: "Purge a comment permanently (hard delete, not recoverable)." });
+registerPermission({ id: "comments.submit", owner: "comments", description: "Reserved for a future member-only submission gate; the anonymous path is ingress-governed, not authorize()-gated." });
+registerPermission({ id: "comments.configure", owner: "comments", description: "Change Comments settings (moderation defaults, spam threshold, depth cap)." });
 /**
  * Admin-UI backend-gap closure session (2026-07-15, progress-ledger.md "Session 5") wired 18 new
  * admin routes over the content-types/entries/taxonomy domains gated by these three strings, but

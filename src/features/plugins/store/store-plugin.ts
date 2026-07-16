@@ -134,9 +134,22 @@ export async function activateStore(db: Database.Database, dbPath: string): Prom
   };
 }
 
-/** Boot helper: open a dedicated connection to the site db and activate the store on it. */
+/**
+ * Boot helper: open a dedicated connection to the site db and activate the store on it.
+ *
+ * `busy_timeout` (SPEC-033 fix): this dedicated connection is a SEPARATE handle to the same
+ * `content.db` file the main composition-root connection also writes to (Newsletter's and
+ * Comments' dataModule declares, settings/SEO seeding, `menuBindingsReady`'s unsequenced write —
+ * none of which this connection waits for). Without a busy timeout, any transient lock held by
+ * one of those writers at the exact moment this connection opens throws `SQLITE_BUSY`
+ * ("database is locked") immediately instead of retrying — caught via a live multi-boot smoke
+ * test after ADR-046 Phase 2's boot-lifecycle reordering pushed this connection's open later in
+ * the boot sequence, making the collision reproduce deterministically. 5s comfortably covers any
+ * of those writers' actual duration.
+ */
 export async function bootstrapStore(dbPath: string): Promise<StoreApi> {
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
+  db.pragma("busy_timeout = 5000");
   return activateStore(db, dbPath);
 }

@@ -203,6 +203,22 @@ structure bar was ADR-027 (media) and ADR-022 (content model). Companion design 
 `src/comments/types.ts` + `src/comments/ports.ts` (compile clean against the real repo types;
 `COMMENTS_DATA_MODULE satisfies DataModuleDecl`). **Owes a peer debate + external audit before ACCEPTED.**
 
+**Note:** this Record section's "owes a peer debate + external audit before ACCEPTED" line is
+inconsistent with this ADR's own header Status line (which already records the round-3
+`TM-admin-sweep-001` audit PASS as of 2026-07-10) — a pre-existing inconsistency in this document,
+not introduced or resolved by the implementation status note below; flagged here rather than
+silently left for a future reader to trip over.
+
+**v1 backend status (2026-07-16, SPEC-033): built and tested.** §10's IN-v1 list is implemented
+except the two pieces explicitly named as blocked-on-missing-infrastructure: the origin-isolated
+widget + moderation panel (§7, no ADR-025 host exists yet) and author-notification email (§8,
+round-3 fold's own verified-recipient requirement has no consent-challenge flow to satisfy it
+against). OQ-1 (dataModule index grammar) is RESOLVED — `TableDecl` now supports declared composite
+indexes; `COMMENTS_DATA_MODULE` declares the moderation-queue and thread-lookup indexes this design
+needs. The round-3 fold's blocking condition ("Comments' two tables have no available creation path
+in v1... do not treat this ADR as Wave-2-ready until [the ADR-023 engine ships]") is satisfied —
+SPEC-032 (2026-07-16) made that engine real. Full record: `ADS-project-knowledge/specs/033-comments-v1-backend/feature.spec.md`.
+
 ---
 
 ## Round-2 sweep-crosscutting fold (2026-07-10)

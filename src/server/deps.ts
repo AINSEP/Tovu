@@ -81,6 +81,9 @@ import { InMemorySiteStatusRepo } from "../features/storage/repo.memory";
 import { NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
 import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite";
 import { SqliteEntryRepo } from "../features/entries/repo.sqlite";
+import { createCommentsModule } from "../comments";
+import { SqliteCommentRepo } from "../comments/repo.sqlite";
+import { installCommentsDataModule } from "../comments/data-module-install";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "../features/taxonomy/repo.sqlite";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
 import { buildGatewayDeps } from "./gated-mutations-composition";
@@ -214,6 +217,23 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
       console.error(`installNewsletterDataModule failed at boot: ${(err as Error).message}`);
     });
 
+  /**
+   * ADR-031/ADR-023 (SPEC-033) — Comments' `declareDataModule()` call, against the SAME shared
+   * `db.$client` connection Newsletter's install just used. Chained AFTER `newsletterReady`
+   * resolves (NOT fired in parallel), for the exact same reason `seoReady` is chained after
+   * `settingsReady` above: two independent fire-and-forget async chains racing SQLite calls
+   * (including SPEC-032's exclusive-lock pragma toggling) against ONE shared connection produced
+   * a real, deterministically-reproduced "database is locked" failure — caught via a live
+   * multi-boot smoke test, not a synthetic case. This is the identical hazard class this file's
+   * own `seoReady` comment already documents; this fixes the same mistake made fresh here.
+   */
+  const commentsReady = newsletterReady
+    .then(() => installCommentsDataModule(db.$client, dbPath))
+    .catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(`installCommentsDataModule failed at boot: ${(err as Error).message}`);
+    });
+
   // SPEC-009 (Redirects, ADR-PIPE-009) — FIRST-TIME composition-root wiring of `origin`'s
   // OriginRegistry and `routing`'s registration functions, mirroring `server/app.ts`'s identical
   // wiring. `redirects` DOES get its real `SqliteRedirectRepo` here (unlike the in-memory-only
@@ -284,6 +304,20 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
   // shares the same sidecar journal db/siteId as `storageLedgerRepo` above.
   const restorePointsRepo = new SqliteRestorePointsRepo({ db: storageJournalDb, siteId: seededWorkspace.id });
   const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
+
+  // ADR-031/ADR-023 (SPEC-033) — hoisted so the Comments module's `entryLookup` reads the SAME
+  // repo the rest of this composition root wires (mirrors `restorePointsRepo`'s identical
+  // hoisting rationale above). The actual `commentsReady` I/O (declareDataModule against the
+  // SAME shared `db.$client` connection) is chained AFTER `newsletterReady` below — this is
+  // pure, synchronous, I/O-free wiring only.
+  const entryRepo = new SqliteEntryRepo(db);
+  const commentsModule = createCommentsModule({
+    commentRepo: new SqliteCommentRepo(db.$client),
+    entryRepo,
+    outbox,
+    clock,
+    idGen,
+  });
 
   return {
     workspaceId: seededWorkspace.id,
@@ -387,7 +421,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     // disclosed explicitly rather than silently left implying it's done.
     contentTypeRepo: new SqliteContentTypeRepo(db),
     contentTypeIndexProvisioner: new NoopContentTypeIndexProvisioner(),
-    entryRepo: new SqliteEntryRepo(db),
+    entryRepo,
     taxonomyRepo: new SqliteTaxonomyRepo({ db, workspaceId: seededWorkspace.id }),
     termRepo: new SqliteTermRepo({ db, workspaceId: seededWorkspace.id }),
     entryTermRepo: new SqliteEntryTermRepo({ db, workspaceId: seededWorkspace.id }),
@@ -403,5 +437,9 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     // process-lifetime `GatewayDeps` (in-process `InMemoryTokenStore` — see
     // `gated-mutations-composition.ts`'s file header for the disclosed TokenStorePort decision).
     gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize: identity.authorize }) },
+    commentRepo: commentsModule.commentRepo,
+    commentIngressPolicy: commentsModule.ingressPolicy,
+    commentWriteService: commentsModule.writeService,
+    commentsReady,
   };
 }

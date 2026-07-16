@@ -43,6 +43,8 @@ import type {
 import type { OriginRegistryPort } from "../../origin";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../redirects";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../forms/ports";
+import type { CommentIngressPolicy, CommentRepoPort } from "../../comments/ports";
+import type { CommentWriteService } from "../../comments/write-service";
 import type { RateLimiter } from "../middleware/rate-limit";
 import type { LedgerReadPort } from "../../features/storage/timeline";
 import type { RestorePointListPort, RestorePointSavePort } from "../../features/storage/restore-points";
@@ -296,6 +298,16 @@ export interface RouteDeps {
       | { ok: true; orderId: string; remainingStock: number; retries: number }
       | { ok: false; reason: "not-found" | "out-of-stock" | "conflict"; retries: number };
   };
+  /** ADR-031/ADR-023 (SPEC-033) — the Comments bundled plugin's composed backend
+   * (`comments/index.ts#createCommentsModule`). */
+  commentRepo: CommentRepoPort;
+  commentIngressPolicy: CommentIngressPolicy;
+  commentWriteService: CommentWriteService;
+  /** Fire-and-forget at boot (mirrors `newsletterReady`) — await (or, for the real server, go
+   * through the ADR-046 Phase 2 boot lifecycle) before relying on the `p_comments__*` tables
+   * existing. `server/app.ts`'s hermetic composition resolves this immediately (no dataModule
+   * declare needed against an in-memory repo). */
+  commentsReady: Promise<void>;
 }
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;
