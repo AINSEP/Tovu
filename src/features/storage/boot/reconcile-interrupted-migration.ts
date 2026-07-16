@@ -15,12 +15,31 @@
  * composition-root wiring concern this module cannot itself enforce; the sibling `defensive`
  * precondition check lives in `evaluate-boot-migration-policy.ts` instead.
  *
+ * ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 — hard
+ * blocker fix): this function is now actually invoked, by `server/bootstrap.ts`'s
+ * `storage-migration-reconciliation` boot module (a CRITICAL ADR-046 Phase 2 boot module, runs
+ * first), before the real server accepts any traffic. It was previously fully built and
+ * unit-tested but never called by any composition root — a real, live gap (not just a "seams
+ * only" v1 disclosure) this fix closes. `evaluate-boot-migration-policy.ts`'s
+ * `evaluateBootMigrationPolicy` (C-107) itself remains NOT wired into any composition root —
+ * that is `SERVE_SITE` cost-gated auto-migration, a separate, larger, still-deferred capability
+ * this fix does not build; only the crash-detection half above is now live.
+ *
  * Architectural role:
  * `features/storage` domain logic. Depends only on the injected ports.
  */
 
 export interface MigrationRunsRepoPort {
   findNonTerminalForSite(siteId: string): Promise<{ id: string; status: string } | null>;
+  /**
+   * Round-5 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, codex `R5-F1-BLOCKED-RECOVERY-
+   * NOT-RESTART-SAFE` / Fable `R5-F2-BLOCK-HAS-NO-EXIT`, both independently confirmed): before this
+   * fix, no production code path ever terminalized a non-terminal `migration_runs` row, so a
+   * successful Recovery restore left `BLOCKED_PENDING_RECOVERY` in place forever — the block had no
+   * exit. Marks the run terminal (`RESTORED`) so the next boot's `findNonTerminalForSite` no longer
+   * re-detects it.
+   */
+  markResolved(params: { id: string }): Promise<void>;
 }
 
 export interface BootLedgerPort {

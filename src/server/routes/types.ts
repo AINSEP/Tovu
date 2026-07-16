@@ -48,7 +48,7 @@ import type { CommentWriteService } from "../../comments/write-service";
 import type { RateLimiter } from "../middleware/rate-limit";
 import type { LedgerReadPort } from "../../features/storage/timeline";
 import type { RestorePointListPort, RestorePointSavePort } from "../../features/storage/restore-points";
-import type { SiteStatusPort } from "../../features/storage/boot/reconcile-interrupted-migration";
+import type { BootLedgerPort, MigrationRunsRepoPort, SiteStatusPort } from "../../features/storage/boot/reconcile-interrupted-migration";
 import type { DbOpsPort } from "../../core/gated-mutations/ports";
 import type { ContentTypeRepoPort, IndexProvisionerPort } from "../../features/content-types/write-service";
 import type { TeardownIndexProvisionerPort } from "../../features/content-types/lifecycle";
@@ -203,8 +203,15 @@ export interface RouteDeps {
   /** Widened this dispatch with `LedgerAppendPort` — both `SqliteStorageLedgerRepo` and
    * `InMemoryStorageLedgerRepo` already implement `.append()`; only the type declaration here was
    * narrower than the concrete instances (see `gated-mutations-composition.ts`'s
-   * `buildMigrateForwardHooks`/`buildRestoreHooks`, which need to append real ledger rows). */
-  storageLedgerRepo: LedgerReadPort & LedgerAppendPort;
+   * `buildMigrateForwardHooks`/`buildRestoreHooks`, which need to append real ledger rows).
+   * Widened again (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) with
+   * `BootLedgerPort` — both concrete adapters already implement `appendInterruptedRow` too; only
+   * this declaration was narrower. */
+  storageLedgerRepo: LedgerReadPort & LedgerAppendPort & BootLedgerPort;
+  /** ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) —
+   * the `migration_runs` read side `reconcileInterruptedMigrationOnBoot` needs; previously
+   * constructed nowhere (real SQLite adapter existed, unused; no in-memory double existed). */
+  migrationRunsRepo: MigrationRunsRepoPort;
   /**
    * Admin-UI backend-gap closure (design-spec.md §0.4/§1.9/§2.8/§3.8/§4.8, this dispatch) — the
    * read-side + route-layer wiring the Web Design pass found missing across `content-types`,

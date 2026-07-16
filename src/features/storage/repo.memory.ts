@@ -1,7 +1,7 @@
 import type { LedgerReadPort, LedgerRow } from "./timeline";
 import type { CreateRestorePointRepoPort } from "../recovery/restore-points";
 import type { RestorePointListPort, RestorePointRecord } from "./restore-points";
-import type { SiteServeStatus, SiteStatusPort } from "./boot/reconcile-interrupted-migration";
+import type { BootLedgerPort, MigrationRunsRepoPort, SiteServeStatus, SiteStatusPort } from "./boot/reconcile-interrupted-migration";
 import type { DbOpsPort } from "../../core/gated-mutations/ports";
 
 /**
@@ -10,7 +10,7 @@ import type { DbOpsPort } from "../../core/gated-mutations/ports";
  * `server/app.ts`'s hermetic test/dev composition, mirroring every other feature's
  * `repo.memory.ts`/`repo.sqlite.ts` split in this codebase.
  */
-export class InMemoryStorageLedgerRepo implements LedgerReadPort {
+export class InMemoryStorageLedgerRepo implements LedgerReadPort, BootLedgerPort {
   private rows: LedgerRow[] = [];
 
   constructor(initial: LedgerRow[] = []) {
@@ -19,6 +19,25 @@ export class InMemoryStorageLedgerRepo implements LedgerReadPort {
 
   async append(row: LedgerRow): Promise<void> {
     this.rows.push(row);
+  }
+
+  /** ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix)
+   * — mirrors `SqliteStorageLedgerRepo.appendInterruptedRow`'s exact row shape.
+   *
+   * Round-5 re-audit (TM-adr041-043-044-045-audit-001, R5-F1 / Fable's
+   * R5-F1-INTERRUPTED-SECOND-BOOT-BRICK, both independently confirmed): idempotent on
+   * `migrationRunId` — a second boot with the same still-unresolved migration must re-detect and
+   * re-block without erroring, not treat the deterministic id as a fresh row. */
+  async appendInterruptedRow(params: { siteId: string; migrationRunId: string }): Promise<void> {
+    const id = `interrupted-${params.migrationRunId}`;
+    if (this.rows.some((row) => row.id === id)) return;
+    await this.append({
+      id,
+      kind: "migration.interrupted",
+      createdAt: new Date().toISOString(),
+      restorePointId: null,
+      outcome: "blocked_pending_recovery",
+    });
   }
 
   async query(filter: {
@@ -115,6 +134,29 @@ export class InMemorySiteStatusRepo implements SiteStatusPort {
 
   async set(_siteId: string, status: SiteServeStatus): Promise<void> {
     this.status = status;
+  }
+}
+
+/** In-memory `MigrationRunsRepoPort` double (Finding 2 fix, TM-adr041-043-044-045-audit-001) —
+ * `server/app.ts`'s hermetic composition never runs a real migration, so `findNonTerminalForSite`
+ * always returns `null` by default; tests that DO need to simulate a crash-interrupted migration
+ * can override via `setNonTerminal`. */
+export class InMemoryMigrationRunsRepo implements MigrationRunsRepoPort {
+  private nonTerminal: { id: string; status: string } | null = null;
+
+  setNonTerminal(value: { id: string; status: string } | null): void {
+    this.nonTerminal = value;
+  }
+
+  async findNonTerminalForSite(_siteId: string): Promise<{ id: string; status: string } | null> {
+    return this.nonTerminal;
+  }
+
+  /** Round-5 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, R5-F1/R5-F2 fix) — mirrors
+   * `SqliteMigrationRunsRepo.markResolved`: clears the tracked non-terminal run once resolved, so a
+   * subsequent boot's `findNonTerminalForSite` no longer re-detects it. */
+  async markResolved(params: { id: string }): Promise<void> {
+    if (this.nonTerminal?.id === params.id) this.nonTerminal = null;
   }
 }
 

@@ -67,8 +67,10 @@ function baseDeps(overrides: Partial<Record<string, unknown>> = {}) {
       },
     },
     terms: {
-      async findById() {
-        return null;
+      async findById(id: string) {
+        // Default: any `term-*` id resolves against `tax-1` — matches the AC-17/AC-20
+        // assignTerms fixtures below, which don't override `terms` themselves.
+        return id.startsWith("term-") ? { id, taxonomyId: "tax-1" } : null;
       },
       async insert(row: unknown) {
         return row;
@@ -80,6 +82,15 @@ function baseDeps(overrides: Partial<Record<string, unknown>> = {}) {
     entryTerms: {
       async upsert() {
         return undefined;
+      },
+    },
+    // Finding 1 fix (TM-adr041-043-044-045-audit-001) — `assignTerms` now validates via
+    // `validateContentJoin`. Default: caller's own workspace, and a resolvable "post"/"post-1"
+    // content row matching what the AC-17/AC-20 fixtures below assign terms to.
+    workspaceId: "ws-1",
+    contentLookup: {
+      async resolve({ contentType, contentId }: { contentType: string; contentId: string }) {
+        return contentType === "post" && contentId === "post-1" ? { workspaceId: "ws-1", kind: "post" } : null;
       },
     },
     revisions: {

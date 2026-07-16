@@ -12,6 +12,7 @@ import { registerAdminRecoveryDisclosureRoute } from "../../routes/admin/recover
 import { registerAdminRecoveryDeepLinkRoute } from "../../routes/admin/recovery/deep-link";
 import { registerAdminRecoveryStatusRoute } from "../../routes/admin/recovery/status";
 import type { RouteDeps } from "../../routes/types";
+import { acquireOperationLock, releaseOperationLock } from "../../../core/operation-lock";
 
 /**
  * @file design-spec.md §4.8 backend-gap closure — route-level tests for Recovery's restore-points
@@ -96,4 +97,29 @@ test("recovery routes: status resolves the real dbOps costClass, and reports the
   const body = (await res.json()) as { costClass: string; banner: { kind: string } | null };
   assert.equal(body.costClass, "cheap");
   assert.equal(body.banner?.kind, "watermark-baseline-unavailable");
+});
+
+test("recovery routes (ADR-041/043/044/045 re-audit, 2026-07-16, TM-adr041-043-044-045-audit-001, Finding 3 fix): status reflects a REAL held operation lock as the 'operation-in-flight' banner, and clears once released", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const acquired = await acquireOperationLock({
+    deps: { clock: deps.clock },
+    input: { siteId: deps.workspaceId, operationKind: "restore" },
+  });
+  assert.equal(acquired.ok, true);
+  if (!acquired.ok) return;
+
+  try {
+    const res = await fetch(`${baseUrl}/api/admin/v1/recovery/status`, { headers: { cookie } });
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { banner: { kind: string } | null };
+    assert.equal(body.banner?.kind, "operation-in-flight", "a live lock must outrank the lower-precedence watermark-baseline-unavailable banner");
+  } finally {
+    await releaseOperationLock({ deps: { clock: deps.clock }, input: { siteId: deps.workspaceId, handle: acquired.value } });
+  }
+
+  const afterRelease = await fetch(`${baseUrl}/api/admin/v1/recovery/status`, { headers: { cookie } });
+  const afterBody = (await afterRelease.json()) as { banner: { kind: string } | null };
+  assert.equal(afterBody.banner?.kind, "watermark-baseline-unavailable", "releasing the lock must clear operationInFlight, falling back to the next banner in precedence");
 });

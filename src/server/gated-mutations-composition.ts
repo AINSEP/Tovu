@@ -8,6 +8,7 @@ import type { PrincipalKind } from "../core/gated-mutations/ports";
 import type { MergeTermPlanDetails } from "../features/taxonomy/merge-term";
 import type { TermRepoPort } from "../features/taxonomy/write-service";
 import type { TaxonomyRevisionRepoPort } from "../features/taxonomy/write-service";
+import type { MigrationRunsRepoPort, SiteStatusPort } from "../features/storage/boot/reconcile-interrupted-migration";
 
 /**
  * @file Composes `core/gated-mutations`'s `plan()`/`confirm()`/`execute()` primitive into this
@@ -300,6 +301,11 @@ export interface BuildRestoreHooksInput {
   /** SPEC-016 `DbOpsPort` — real (SQLite) composition performs the physical file swap;
    * hermetic-test composition's in-memory double is a no-op (`restartRequired: false`). */
   dbOps: { restoreFromArtifact(required: { artifactRef: string }): Promise<{ restartRequired: boolean }> };
+  /** Round-5 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, R5-F2 / Fable
+   * `R5-F2-BLOCK-HAS-NO-EXIT` fix): a successful restore must actually exit
+   * `BLOCKED_PENDING_RECOVERY` — before this fix, nothing did. */
+  migrationRunsRepo: Pick<MigrationRunsRepoPort, "findNonTerminalForSite" | "markResolved">;
+  siteStatus: SiteStatusPort;
 }
 
 export class RestorePointNotFoundError extends Error {
@@ -368,6 +374,34 @@ export function buildRestoreHooks(input: BuildRestoreHooksInput): GatedMutationH
         actorId: input.actorId,
         createdAt: now,
       });
+
+      // Round-5 re-audit (TM-adr041-043-044-045-audit-001, R5-F2 fix): a successful restore is the
+      // ceremony ADR-041 §3's own text names as how an operator "resolves" a crash-interrupted
+      // migration -- so it must actually exit BLOCKED_PENDING_RECOVERY, not just record a ledger
+      // row. Terminalize whatever non-terminal migration_runs row exists for this site (if any --
+      // a restore can also be run for reasons unrelated to a crash-interrupted migration, in which
+      // case there is nothing to resolve) so the next boot's findNonTerminalForSite no longer
+      // re-detects it.
+      //
+      // Round-6 re-audit (TM-adr041-043-044-045-audit-001, codex `R6-F1-RESTART-REQUIRED-RESTORE-
+      // UNBLOCKS-STALE-DB`, verified directly against `db-ops.ts`'s own doc comment): the DURABLE
+      // resolution (markResolved) and the IN-PROCESS unblock (siteStatus.set) are NOT the same
+      // thing and must not be conflated. `SqliteDbOpsAdapter.restoreFromArtifact` always returns
+      // `restartRequired: true` for a real file-backed db -- the running process keeps its open
+      // file descriptor pointed at the now-unlinked OLD inode until it restarts, so clearing the
+      // gate in-process here would let normal traffic resume against stale pre-restore data, with
+      // writes accepted in that window silently lost on the eventual restart. Only clear the
+      // in-process block when the restore genuinely didn't require one (memory-mode dev, or a
+      // future adapter that can restore live) -- when a restart IS required, the durable
+      // terminalization above is what makes the NEXT boot resolve to SERVING; the running process
+      // stays blocked (correctly) until then.
+      const nonTerminal = await input.migrationRunsRepo.findNonTerminalForSite(input.workspaceId);
+      if (nonTerminal) {
+        await input.migrationRunsRepo.markResolved({ id: nonTerminal.id });
+        if (!restartRequired) {
+          await input.siteStatus.set(input.workspaceId, "SERVING");
+        }
+      }
 
       return { restoreRunId, state: "RESTORED", restartRequired };
     },
