@@ -327,6 +327,21 @@ export const CAPABILITY_INVENTORY: readonly CapabilityInventoryEntry[] = [
     sourceHints: ["SqliteBufferSink", "analyticsSink"],
   },
   {
+    name: "comments",
+    ownerModule: "comments",
+    // Tier-3 bundled plugin per ADR-031 §1 ("first-party, bundled, enabled-by-default but
+    // disableable"), authored to the Tier-2 SDK contract — a real, supported v1 backend
+    // (SPEC-033), not an experimental spike.
+    classification: "production",
+    sourceOfTruth: "sqlite (content.db, via the ADR-023 dataModule engine's p_comments__* tables — SqliteCommentRepo, SPEC-033, 2026-07-16)",
+    readinessDependencies: ["the ADR-023 dataModule engine's boot-time crash recovery (SPEC-032)"],
+    startupCriticality: "optional",
+    securityDependencies: ["identity authorize() gate (comments.* permissions)", "CommentIngressPolicy (rate-limit + honeypot + spam-classify) on the public submission route"],
+    restartTestOwner: "comments/__tests__/repo.contract.test.ts",
+    hasDurableAdapter: true,
+    sourceHints: ["SqliteCommentRepo", "commentRepo", "createCommentsModule"],
+  },
+  {
     name: "store",
     ownerModule: "features/plugins/store",
     // SPIKE sample Tier-3 plugin (app.ts: "SPIKE: sample Tier-3 store page") — never intended as

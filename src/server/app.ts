@@ -82,6 +82,11 @@ import { registerAdminContentTypeRegisterRoute } from "./routes/admin/content-ty
 import { registerAdminContentTypeUpdateFieldsRoute } from "./routes/admin/content-types/update-fields";
 import { registerAdminContentTypeLifecycleRoute } from "./routes/admin/content-types/lifecycle";
 import { InMemoryEntryRepo } from "../features/entries/repo.memory";
+import { createCommentsModule } from "../comments";
+import { InMemoryCommentRepo } from "../comments/repo.memory";
+import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";
+import { registerAdminCommentsModerationQueueRoute } from "./routes/admin/comments/moderation-queue";
+import { registerAdminCommentsModerateRoutes } from "./routes/admin/comments/moderate";
 import { registerAdminEntryListRoute } from "./routes/admin/entries/list";
 import { registerAdminEntryCreateRoute } from "./routes/admin/entries/create";
 import { registerAdminEntryUpdateRoute } from "./routes/admin/entries/update";
@@ -291,6 +296,18 @@ export function createRouteDeps(): NewsletterRouteDeps {
   );
   void registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink });
 
+  // ADR-031/ADR-023 (SPEC-033) — hoisted so the Comments module's `entryLookup` reads the SAME
+  // in-memory entries the rest of the hermetic composition writes into (mirrors
+  // `restorePointsRepo`'s identical hoisting rationale above).
+  const entryRepo = new InMemoryEntryRepo();
+  const commentsModule = createCommentsModule({
+    commentRepo: new InMemoryCommentRepo(),
+    entryRepo,
+    outbox,
+    clock,
+    idGen,
+  });
+
   return {
     workspaceId: seededWorkspace.id,
     workspaceRepo,
@@ -385,7 +402,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     // read routes need.
     contentTypeRepo: new InMemoryContentTypeRepo(),
     contentTypeIndexProvisioner: new NoopContentTypeIndexProvisioner(),
-    entryRepo: new InMemoryEntryRepo(),
+    entryRepo,
     taxonomyRepo: new InMemoryTaxonomyRepo(),
     termRepo: new InMemoryTermRepo(),
     entryTermRepo: new InMemoryEntryTermRepo(),
@@ -400,6 +417,12 @@ export function createRouteDeps(): NewsletterRouteDeps {
     // `InMemoryTokenStore` instance — see `gated-mutations-composition.ts`'s file header for the
     // disclosed `TokenStorePort` decision).
     gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize: identity.authorize }) },
+    commentRepo: commentsModule.commentRepo,
+    commentIngressPolicy: commentsModule.ingressPolicy,
+    commentWriteService: commentsModule.writeService,
+    // In-memory repo needs no dataModule declare — resolves immediately, unlike `deps.ts`'s real
+    // fire-and-forget install (mirrors `newsletterReady`'s identical hermetic-vs-real split).
+    commentsReady: Promise.resolve(),
   };
 }
 
@@ -496,6 +519,8 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
 
   registerAdminAnalyticsRecentHitsRoute(app, routeDeps);
   registerAdminModuleStatusRoute(app, routeDeps);
+  registerAdminCommentsModerationQueueRoute(app, routeDeps);
+  registerAdminCommentsModerateRoutes(app, routeDeps);
   registerAdminMenuListRoute(app, routeDeps);
   registerAdminMenuGetRoute(app, routeDeps);
   registerAdminMenuCreateRoute(app, routeDeps);
@@ -666,6 +691,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
 
   // SPIKE: sample Tier-3 store page — must precede the site `/:slug` catch-all.
   registerStoreRoutes(app, routeDeps);
+
+  // Public comment submission (ADR-031 §4) — unauthenticated by design; must precede the site
+  // `/:slug` catch-all, same reasoning as the store/analytics routes above.
+  registerCommentsSubmitRoute(app, { ingressPolicy: routeDeps.commentIngressPolicy, workspaceId: routeDeps.workspaceId });
 
   // Public analytics beacon (ADR-035 §5) — unauthenticated by design; must precede the site
   // `/:slug` catch-all. DEV-ONLY config stub: always-enabled, no exclusions, honors DNT/GPC.

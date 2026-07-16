@@ -71,6 +71,22 @@ export interface CommentRepoPort {
     | { ok: true; record: CommentRecord; log: ModerationLogEntry }
     | { ok: false; reason: "not-found" | "conflict"; currentVersion?: number }
   >;
+
+  /**
+   * ADR-031 §9's trash→purge ladder's hard-delete half (SPEC-033 — additive widening; `purge` was
+   * a valid `ModerationAction` value with no repo method to execute it in the originally-accepted
+   * interfaces). A REAL row delete, unlike `applyModeration`'s status flip — this is the one
+   * irreversible act in the ladder. The `moderation_log` row is appended and RETAINED after the
+   * comment row is gone (chokepoint-validated, not FK-enforced, per ADR-031 §2 — an orphaned log
+   * row is the intended, permanent audit trail of a purge, not a dangling reference to clean up).
+   */
+  purge(required: {
+    workspaceId: UUID;
+    id: UUID;
+    actorPrincipalId: UUID;
+    note: string | null;
+    at: ISODateTime;
+  }): Promise<{ ok: true; log: ModerationLogEntry } | { ok: false; reason: "not-found" }>;
 }
 
 /**

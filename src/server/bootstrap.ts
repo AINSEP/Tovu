@@ -20,14 +20,16 @@ export interface BuildBootModulesOptions {
 /**
  * `settings`/`seo` are CRITICAL: their promises have no `.catch()` anywhere in their chain (an
  * unhandled-rejection risk before ADR-046 Phase 2), so a failure here must abort boot cleanly.
- * `newsletter`/`store-plugin` are OPTIONAL, matching their pre-existing log-and-continue behavior.
- * `store-plugin` is omitted entirely in memory mode — it was never invoked there before either.
+ * `newsletter`/`comments`/`store-plugin` are OPTIONAL, matching their pre-existing log-and-continue
+ * behavior. `store-plugin` is omitted entirely in memory mode — it was never invoked there before
+ * either.
  */
 export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootModulesOptions): BootModule[] {
   const modules: BootModule[] = [
     { name: "settings", owner: "features/settings", criticality: "critical", prepare: () => deps.settingsReady, start: noop, stop: noop },
     { name: "seo", owner: "seo", criticality: "critical", prepare: () => deps.seoReady, start: noop, stop: noop },
     { name: "newsletter", owner: "newsletter", criticality: "optional", prepare: () => deps.newsletterReady, start: noop, stop: noop },
+    { name: "comments", owner: "comments", criticality: "optional", prepare: () => deps.commentsReady, start: noop, stop: noop },
   ];
   if (!options.useMemory) {
     modules.push({

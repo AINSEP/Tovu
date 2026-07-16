@@ -165,3 +165,25 @@ exactly as `index.ts`'s real boot path invokes it.
   this engine's absence as a blocking dependency; that blocker is now closed. Comments itself still
   needs everything beyond `ports.ts`/`types.ts` built (ingress/spam policy, both repo adapters,
   moderation write-service, routes, hooks, and the ADR-025-gated widget).
+
+## Correction Addendum (2026-07-16, discovered during SPEC-033)
+
+This spec's own "Risks" section flagged the store plugin's separate-connection quirk as
+"low-stakes" — that judgment held only because SPEC-032 had exactly one real dataModule consumer
+(Newsletter) at the time. Adding Comments as a SECOND consumer (SPEC-033) exposed a real,
+deterministic bug: T2's live exclusive lock (`acquireExclusiveLock`/`releaseExclusiveLock` in
+`data-module.ts`, held across the snapshot+DDL window) caused the store plugin's own separate
+`content.db` connection to fail boot with "database is locked" on every single trial once two
+dataModule declares ran during the same boot. Root-caused via live A/B testing (disabling the lock
+calls made the failure disappear immediately); the exact interleaving mechanism between multiple
+fire-and-forget dataModule declares sharing one long-lived connection was not further diagnosed,
+since the lock's own ADR-stated justification (protecting the RESTORE step specifically — the ADR
+text explicitly says the snapshot step "needs no change" under concurrent writers) never applied
+to the live path in this codebase's topology anyway (restore only ever runs at boot-time recovery,
+per `restore.ts`'s own already-existing reasoning). **Fix:** removed the live
+`acquireExclusiveLock`/`releaseExclusiveLock` calls from `data-module.ts` entirely (SPEC-033); see
+that file's header and `restore.ts`'s addendum for the full corrected account. Also added
+`PRAGMA busy_timeout = 5000` to both `content-db.ts` and `store-plugin.ts`'s connections as
+defense-in-depth against genuinely transient contention (not the root cause here, but good
+practice regardless once multiple connections to one file are a real scenario). Full test suite
+and a 5-trial live multi-boot smoke test confirmed the fix; see SPEC-033's own record.

@@ -174,11 +174,12 @@ export interface CommentsSettings {
  * alone executes the DDL (snapshot→CREATE, `data-module.ts`). It compiles against the real
  * `DataModuleDecl` seam, which is the point of the exercise.
  *
- * NOTE (stress-test finding, ADR-031 OQ-1): the current seam's `ColumnDecl` expresses only
- * name/type/notNull/primaryKey — it cannot yet declare the composite indexes
- * (`workspace_id,entry_id,status`), the `parentId` self-reference, or the `(workspace_id,id)`
- * FK to `entries` this design needs. Those live in the ADR-031 DDL sketch and are the concrete
- * SDK gap this bundled plugin surfaces.
+ * OQ-1 RESOLVED (SPEC-033): the dataModule seam now supports declared composite indexes
+ * (`TableDecl.indexes`, `data-module.ts`) — the `moderation_queue`/`thread`/`by_comment` indexes
+ * below are the concrete demand that grew the grammar (ADR-023 §12's own "build the engine
+ * against real demand"). `parentId`'s self-reference and the `(workspaceId,id)` FK to `entries`
+ * remain chokepoint-validated, not DB-enforced — ADR-031 §2 itself says this is the intended v1
+ * shape ("chokepoint-validated, not FK-enforced"), not a remaining gap.
  */
 export const COMMENTS_PLUGIN_ID = "comments";
 
@@ -215,6 +216,11 @@ export const COMMENTS_DATA_MODULE = {
         T("updated_at", true),
         { name: "version", type: "INTEGER", notNull: true },
       ],
+      // ADR-031 OQ-1 (resolved, SPEC-033): the moderation queue's own query pattern.
+      indexes: [
+        { name: "moderation_queue", columns: ["workspace_id", "status", "created_at"] },
+        { name: "thread", columns: ["workspace_id", "entry_id", "thread_root_id"] },
+      ],
     },
     {
       name: "moderation_log",
@@ -229,6 +235,7 @@ export const COMMENTS_DATA_MODULE = {
         T("at", true),
         T("note"),
       ],
+      indexes: [{ name: "by_comment", columns: ["workspace_id", "comment_id"] }],
     },
   ],
 } satisfies DataModuleDecl;

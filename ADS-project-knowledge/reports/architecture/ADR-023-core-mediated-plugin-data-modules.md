@@ -355,6 +355,19 @@ runs through the actual `openContentDb()` path `index.ts` invokes. `dataModule` 
 rejected with "data-tier coming later" — it is a real, safety-mechanics-complete engine, exactly as
 this section's own last line anticipated. Full record: `ADS-project-knowledge/specs/032-datamodule-engine-safety-mechanics/feature.spec.md`.
 
+**T2 correction (2026-07-16, SPEC-033, discovered adding the second real consumer).** Comments
+(ADR-031) became the second production dataModule caller the same day, and its addition
+deterministically triggered a "database is locked" boot failure in the store plugin's own,
+genuinely separate `content.db` connection — caused by T2's live exclusive lock
+(`PRAGMA locking_mode=EXCLUSIVE`, held across the snapshot+DDL window). Re-reading §4's own text:
+the stated justification for T2 is protecting the RESTORE step specifically ("the snapshot step
+needs no change" under concurrent writers) — and this engine's restore step only ever runs at
+boot-time recovery (`migration-recovery.ts`/`restore.ts`), before any other connection exists, so
+T2's danger cannot occur on the live path at all in this codebase's actual topology. The live lock
+was removed; §4's text is otherwise unchanged (T2 still describes the correct, necessary
+protection for restore, which `restore.ts`'s own boot-sequencing argument satisfies structurally
+rather than via an explicit pragma). Full record: SPEC-032's Correction Addendum and SPEC-033.
+
 ## Consequences
 
 - **The ceiling in ADR-022 §Open / TODO §6 is resolved** — as a designed, sequenced path,

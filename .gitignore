@@ -27,6 +27,10 @@ blob-report/
 # stray/local artifacts (do not track)
 admin-page.png
 content.db.snapshot-store-*
+content.db.snapshot-newsletter-*
+content.db.snapshot-comments-*
 :memory:.snapshot-newsletter-*
+:memory:.snapshot-comments-*
+:memory:.snapshot-store-*
 .claude/settings.local.json
 ADS-project-knowledge/tmp/
