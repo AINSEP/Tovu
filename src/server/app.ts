@@ -125,7 +125,7 @@ import { registerAdminChangeSetListRoute } from "./routes/admin/change-sets/list
 import { registerAdminChangeSetGetRoute } from "./routes/admin/change-sets/get";
 import { registerAdminChangeSetRevertRoute } from "./routes/admin/change-sets/revert";
 import { registerContentPostGetRoute } from "./routes/content/posts/get-by-slug";
-import { registerHealthRoute } from "./routes/ops/health";
+import { registerHealthRoute, registerHealthzRoute, registerReadyzRoute } from "./routes/ops/health";
 import { registerAdminMemberListRoute } from "./routes/admin/members/list";
 import { registerAdminMemberGetRoute } from "./routes/admin/members/get-by-id";
 import { registerAdminMemberDisableRoute } from "./routes/admin/members/disable";
@@ -136,6 +136,7 @@ import { registerPublicMemberSignInRequestRoute } from "./routes/members/sign-in
 import type { MemberPublicRouteDeps } from "./routes/members/deps";
 import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "./middleware/rate-limit";
 import { registerAdminAnalyticsRecentHitsRoute } from "./routes/admin/analytics/recent-hits";
+import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status";
 import { registerAdminMenuListRoute } from "./routes/admin/menus/list";
 import { registerAdminMenuGetRoute } from "./routes/admin/menus/get-by-id";
 import { registerAdminMenuCreateRoute } from "./routes/admin/menus/create";
@@ -436,6 +437,8 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   );
 
   registerHealthRoute(app, routeDeps);
+  registerHealthzRoute(app, routeDeps);
+  registerReadyzRoute(app, routeDeps);
 
   // Session auth: login/logout/me are ungated; everything else under
   // /api/admin requires a session. Real argon2id + principal/session model
@@ -494,6 +497,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerPublicMemberCompleteSignInRoute(app, memberPublicDeps);
 
   registerAdminAnalyticsRecentHitsRoute(app, routeDeps);
+  registerAdminModuleStatusRoute(app, routeDeps);
   registerAdminMenuListRoute(app, routeDeps);
   registerAdminMenuGetRoute(app, routeDeps);
   registerAdminMenuCreateRoute(app, routeDeps);
