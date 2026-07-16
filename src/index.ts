@@ -1,13 +1,11 @@
 import { createApp, createRouteDeps } from "./server/app";
 import { createSqliteRouteDeps, defaultContentDbPath } from "./server/deps";
-import { bootstrapStore } from "./features/plugins/store/store-plugin";
 import { CAPABILITY_INVENTORY } from "./server/capability-inventory";
 import { runProductionReadinessGate } from "./server/production-readiness-gate";
 import { resolveRuntimeMode } from "./server/runtime-mode";
 import { runBootLifecycle } from "./server/boot-lifecycle";
-import type { BootModule } from "./server/boot-lifecycle";
+import { buildBootModules } from "./server/bootstrap";
 import { setReadinessSnapshot } from "./server/readiness-state";
-import type { NewsletterRouteDeps } from "./server/routes/admin/newsletter/deps";
 
 /**
  * @file Process entrypoint.
@@ -70,45 +68,15 @@ async function runBootGateOrExit(): Promise<void> {
   }
 }
 
-const noop = async (): Promise<void> => {};
-
-/**
- * ADR-046 Phase 2 (SPEC-030 REQ-06) — the 4 concrete boot modules. `settings`/`seo` are CRITICAL:
- * their promises already exist with no `.catch()` anywhere in their chain (an unhandled-rejection
- * risk before this change), so a failure here must abort boot cleanly, not crash the process with
- * an unhandled rejection or silently continue serving traffic against half-seeded state.
- * `newsletter`/`store-plugin` are OPTIONAL, matching their pre-existing log-and-continue behavior
- * (`deps.ts`'s `newsletterReady` chain already self-swallows via `.catch()`; the store plugin was
- * already wrapped in try/catch here). `store-plugin` is omitted entirely in memory mode — it was
- * never invoked there before this change either.
- */
-function buildBootModules(deps: NewsletterRouteDeps): BootModule[] {
-  const modules: BootModule[] = [
-    { name: "settings", owner: "features/settings", criticality: "critical", prepare: () => deps.settingsReady, start: noop, stop: noop },
-    { name: "seo", owner: "seo", criticality: "critical", prepare: () => deps.seoReady, start: noop, stop: noop },
-    { name: "newsletter", owner: "newsletter", criticality: "optional", prepare: () => deps.newsletterReady, start: noop, stop: noop },
-  ];
-  if (!useMemory) {
-    modules.push({
-      name: "store-plugin",
-      owner: "features/plugins/store",
-      criticality: "optional",
-      prepare: async () => {
-        deps.store = await bootstrapStore(defaultContentDbPath());
-      },
-      start: noop,
-      stop: noop,
-    });
-  }
-  return modules;
-}
-
 async function main(): Promise<void> {
   await runBootGateOrExit();
 
   const deps = useMemory ? createRouteDeps() : createSqliteRouteDeps();
 
-  const bootResult = await runBootLifecycle(buildBootModules(deps));
+  // ADR-046 Phase 3 (SPEC-031): the boot-module composition itself now lives in
+  // `server/bootstrap.ts` (unit-testable, unlike this file — see the note above on why
+  // boot-only enforcement stays here while the composable logic does not).
+  const bootResult = await runBootLifecycle(buildBootModules(deps, { useMemory, defaultContentDbPath }));
   setReadinessSnapshot(bootResult);
   if (!bootResult.ok) {
     for (const module of bootResult.modules) {
