@@ -73,7 +73,7 @@ import {
   type RedirectsWriteDeps,
 } from "../redirects";
 import { registerSlugChangeCapture } from "../routing";
-import { InMemoryDbOpsAdapter, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryStorageLedgerRepo } from "../features/storage/repo.memory";
+import { InMemoryDbOpsAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryStorageLedgerRepo } from "../features/storage/repo.memory";
 import { registerAdminStorageTimelineRoute } from "./routes/admin/storage/timeline";
 import { registerAdminStorageRestorePointsCreateRoute, registerAdminStorageRestorePointsListRoute } from "./routes/admin/storage/restore-points";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
@@ -110,6 +110,7 @@ import { registerAdminStorageMigrateForwardRoutes } from "./routes/admin/storage
 import { registerAdminRecoveryRestoreRoutes } from "./routes/admin/recovery/restore";
 
 import { applyDevCors } from "./middleware/dev-cors";
+import { applySiteServingGate } from "./middleware/site-serving-gate";
 import { registerAdminStatic } from "./middleware/admin-static";
 import { registerAuthRoutes, requireAdminSession } from "./middleware/dev-auth";
 import { registerAdminPostListRoute } from "./routes/admin/posts/list";
@@ -395,6 +396,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     // feature's hermetic test/dev composition above. `server/deps.ts`'s real composition opens
     // the sidecar `ops/storage-journal.db` and uses `SqliteStorageLedgerRepo` instead.
     storageLedgerRepo: new InMemoryStorageLedgerRepo(),
+    migrationRunsRepo: new InMemoryMigrationRunsRepo(),
     // Admin-UI backend-gap closure (design-spec.md §0.4, this dispatch): in-memory adapters for
     // content-types/entries/taxonomy (no SQLite adapter exists yet for any of the three — see
     // `routes/types.ts`'s doc comment on this field group for the full disclosure) plus the
@@ -429,6 +431,11 @@ export function createRouteDeps(): NewsletterRouteDeps {
 export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   const app = express();
   applyDevCors(app);
+  // ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, round-2, codex
+  // finding R2-F2-BLOCK-NOT-ENFORCED) — must run before every other route/middleware so a
+  // BLOCKED_PENDING_RECOVERY site refuses normal traffic regardless of which route would have
+  // handled it. See site-serving-gate.ts's own header for the allowlist rationale.
+  applySiteServingGate(app, { siteStatusRepo: routeDeps.siteStatusRepo, workspaceId: routeDeps.workspaceId });
   // Default 100kb body limit is too small for the media upload route, which accepts
   // base64-encoded bytes in the JSON body (no multipart-parsing dependency in this repo yet —
   // see routes/admin/media/upload.ts's file comment for the disclosed simplification). 15mb

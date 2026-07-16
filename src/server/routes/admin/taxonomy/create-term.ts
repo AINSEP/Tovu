@@ -8,6 +8,7 @@ import {
   TaxonomyNotHierarchicalError,
   TermNotFoundError,
 } from "../../../../features/taxonomy/validation-chain";
+import { createPostBackedContentLookup } from "../../../../features/taxonomy/content-lookup";
 import { noopStampWatermark, toTaxonomyOutbox } from "../../../../features/taxonomy/repo.memory";
 import { createTerm } from "../../../../features/taxonomy/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
@@ -52,6 +53,8 @@ export function registerAdminTaxonomyCreateTermRoute(app: Express, deps: RouteDe
           revisions: deps.taxonomyRevisionRepo,
           stampWatermark: noopStampWatermark,
           outbox: toTaxonomyOutbox(deps),
+          workspaceId: deps.workspaceId,
+          contentLookup: createPostBackedContentLookup({ postRepo: deps.postRepo, workspaceId: deps.workspaceId }),
         },
         principalId: principal.id,
         taxonomyId: String(req.params.taxonomyId),

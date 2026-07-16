@@ -130,16 +130,32 @@ export class SqliteStorageLedgerRepo implements LedgerReadPort, BootLedgerPort {
   }
 
   /** SPEC-017 C-106 — converts a non-terminal `migration_runs` row into a `migration.interrupted`
-   * ledger row (ADR-041 §3's boot-time crash reconciliation). */
+   * ledger row (ADR-041 §3's boot-time crash reconciliation).
+   *
+   * Round-5 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, codex `R5-F1-BLOCKED-RECOVERY-
+   * NOT-RESTART-SAFE` / Fable `R5-F1-INTERRUPTED-SECOND-BOOT-BRICK`, both independently confirmed
+   * by direct code inspection and Fable's empirical double-boot reproduction): `storage_ledger.id`
+   * is `text("id").primaryKey()`, and this method's id (`interrupted-${migrationRunId}`) is
+   * deterministic BY DESIGN so a second boot re-detecting the SAME still-unresolved migration
+   * targets the same row. Before this fix, the plain `.insert().run()` this called through
+   * `append()` threw `UNIQUE constraint failed` on that second boot, which — because this is a
+   * CRITICAL boot module — failed the whole boot and `process.exit(1)`'d before `app.listen()`,
+   * making Recovery itself unreachable. `onConflictDoNothing` makes the deterministic id do what
+   * it was always meant to: every boot re-detects and re-blocks idempotently. */
   async appendInterruptedRow(params: { siteId: string; migrationRunId: string }): Promise<void> {
-    await this.append({
-      id: `interrupted-${params.migrationRunId}`,
-      kind: "migration.interrupted",
-      restorePointId: null,
-      outcome: "blocked_pending_recovery",
-      detailJson: JSON.stringify({ migrationRunId: params.migrationRunId }),
-      createdAt: new Date().toISOString(),
-    });
+    this.deps.db
+      .insert(schema.storageLedger)
+      .values({
+        id: `interrupted-${params.migrationRunId}`,
+        siteId: this.deps.siteId,
+        kind: "migration.interrupted",
+        restorePointId: null,
+        outcome: "blocked_pending_recovery",
+        detailJson: JSON.stringify({ migrationRunId: params.migrationRunId }),
+        createdAt: new Date().toISOString(),
+      })
+      .onConflictDoNothing({ target: schema.storageLedger.id })
+      .run();
   }
 }
 
@@ -166,6 +182,19 @@ export class SqliteMigrationRunsRepo implements MigrationRunsRepoPort {
 
     const nonTerminal = rows.find((row) => !SqliteMigrationRunsRepo.TERMINAL_STATUSES.has(row.status));
     return nonTerminal ?? null;
+  }
+
+  /** Round-5 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, R5-F1/R5-F2 fix) — terminalizes
+   * a run as `RESTORED` (a real member of `MIGRATION_RUN_TERMINAL_STATUSES`) so the next boot's
+   * `findNonTerminalForSite` no longer re-detects it. Thin wrapper over `updateState`, kept as its
+   * own port method so callers outside this file (the restore ceremony) don't need `updateState`'s
+   * full row shape. */
+  async markResolved(params: { id: string }): Promise<void> {
+    this.deps.db
+      .update(schema.migrationRuns)
+      .set({ status: "RESTORED", updatedAt: new Date().toISOString() })
+      .where(eq(schema.migrationRuns.id, params.id))
+      .run();
   }
 
   /** Inserts a new `migration_runs` row (state machine's initial `IDLE`/`PLANNED` write). */
