@@ -1,6 +1,7 @@
 import type { Express } from "express";
 
 import { ForbiddenError } from "../../../../core/commands/command";
+import { createPostBackedContentLookup } from "../../../../features/taxonomy/content-lookup";
 import { noopStampWatermark, toTaxonomyOutbox } from "../../../../features/taxonomy/repo.memory";
 import { renameTerm, TermRecordNotFoundError } from "../../../../features/taxonomy/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
@@ -31,6 +32,8 @@ export function registerAdminTaxonomyRenameTermRoute(app: Express, deps: Taxonom
           revisions: deps.taxonomyRevisionRepo,
           stampWatermark: noopStampWatermark,
           outbox: toTaxonomyOutbox(deps),
+          workspaceId: deps.workspaceId,
+          contentLookup: createPostBackedContentLookup({ postRepo: deps.postRepo, workspaceId: deps.workspaceId }),
         },
         principalId: principal.id,
         termId: String(req.params.id),

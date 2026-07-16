@@ -1,4 +1,4 @@
-import type { EntryTermRepoPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TaxonomyRevisionRow, Term, TermRepoPort } from "./write-service";
+import type { ContentLookupPort, EntryTermRepoPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TaxonomyRevisionRow, Term, TermRepoPort } from "./write-service";
 import type { Taxonomy } from "./write-service";
 import type { TaxonomyListPort, TermListPort } from "./list";
 
@@ -107,6 +107,28 @@ export class InMemoryTaxonomyRevisionRepo implements TaxonomyRevisionRepoPort {
   async insert(row: TaxonomyRevisionRow): Promise<unknown> {
     this.rows.push(row);
     return row;
+  }
+}
+
+/**
+ * In-memory `ContentLookupPort` — test-friendly, keyed by `(contentType, contentId)`, no real
+ * `posts` table backing it. Seed content into `rows` directly (or via the constructor) before a
+ * test exercises `assignTerms`'s content-join validation (Finding 1 fix,
+ * TM-adr041-043-044-045-audit-001).
+ */
+export class InMemoryContentLookup implements ContentLookupPort {
+  private readonly rows: Map<string, { workspaceId: string; kind: string }>;
+
+  constructor(seed: Array<{ contentType: string; contentId: string; workspaceId: string; kind: string }> = []) {
+    this.rows = new Map(seed.map((s) => [`${s.contentType}::${s.contentId}`, { workspaceId: s.workspaceId, kind: s.kind }]));
+  }
+
+  set(contentType: string, contentId: string, value: { workspaceId: string; kind: string }): void {
+    this.rows.set(`${contentType}::${contentId}`, value);
+  }
+
+  async resolve(params: { contentType: string; contentId: string }): Promise<{ workspaceId: string; kind: string } | null> {
+    return this.rows.get(`${params.contentType}::${params.contentId}`) ?? null;
   }
 }
 

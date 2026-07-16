@@ -102,8 +102,22 @@ test("taxonomy routes: assigning a parentId to a term in a non-hierarchical ('ta
 });
 
 test("taxonomy routes: assign-terms is idempotent per call and returns 204 (AC-17/AC-20/INV-05)", async (t) => {
-  const { app } = buildTestApp();
+  const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // Finding 1 fix (TM-adr041-043-044-045-audit-001): assign-terms now validates the target
+  // content actually exists via `postRepo` — seed a real post rather than an arbitrary id.
+  await deps.postRepo.save({
+    id: "post-1",
+    workspaceId: deps.workspaceId,
+    title: "Test Post",
+    slug: "test-post-assign-terms",
+    bodyJson: {},
+    status: "published",
+    kind: "post",
+    updatedAt: deps.clock.nowIso(),
+    version: 1,
+  });
 
   const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
     method: "POST",
@@ -124,4 +138,84 @@ test("taxonomy routes: assign-terms is idempotent per call and returns 204 (AC-1
     body: JSON.stringify({ contentType: "post", contentId: "post-1", termIds: [term.term.id] }),
   });
   assert.equal(res.status, 204);
+});
+
+test("taxonomy routes: assign-terms rejects a nonexistent contentId with 404 (Finding 1 fix, TM-adr041-043-044-045-audit-001)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "category", hierarchical: true }),
+  });
+  const tax = (await taxRes.json()) as { taxonomy: { id: string } };
+  const termRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Breakfast" }),
+  });
+  const term = (await termRes.json()) as { term: { id: string } };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/taxonomy/assign-terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ contentType: "post", contentId: "does-not-exist", termIds: [term.term.id] }),
+  });
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "CONTENT_NOT_FOUND");
+});
+
+test("taxonomy routes: assign-terms rejects a nonexistent termId (Finding 1 fix)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  await deps.postRepo.save({
+    id: "post-2",
+    workspaceId: deps.workspaceId,
+    title: "Test Post 2",
+    slug: "test-post-assign-terms-2",
+    bodyJson: {},
+    status: "published",
+    kind: "post",
+    updatedAt: deps.clock.nowIso(),
+    version: 1,
+  });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/taxonomy/assign-terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ contentType: "post", contentId: "post-2", termIds: ["does-not-exist"] }),
+  });
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "TERM_NOT_FOUND");
+});
+
+test("taxonomy routes: assign-terms rejects a content type not on the taxonomy allow-list (Finding 1 fix)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "category", hierarchical: true }),
+  });
+  const tax = (await taxRes.json()) as { taxonomy: { id: string } };
+  const termRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Breakfast" }),
+  });
+  const term = (await termRes.json()) as { term: { id: string } };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/taxonomy/assign-terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ contentType: "product", contentId: "anything", termIds: [term.term.id] }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "VALIDATION_ERROR");
 });

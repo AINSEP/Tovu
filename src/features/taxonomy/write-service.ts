@@ -1,5 +1,5 @@
 import { ForbiddenError } from "../../core/commands/command";
-import { validateHierarchyAssignment } from "./validation-chain";
+import { validateContentJoin, validateHierarchyAssignment } from "./validation-chain";
 
 /**
  * @file SPEC-018 C-201-C-206 — the taxonomy write-service's ordinary (non-gated) mutations
@@ -17,14 +17,21 @@ import { validateHierarchyAssignment } from "./validation-chain";
  * `mergeTerm` (SPEC-018 C-207, ADR-044's one gated mutation) is deliberately NOT here — it lives
  * in the sibling `merge-term.ts`, isolated because it alone touches `core/gated-mutations`.
  *
- * Known scope gap (disclosed, not a silent omission): `assignTerms` does not itself invoke
- * `validation-chain.ts`'s `validateContentJoin` (the allow-list/workspace/lens chain) — that
- * chain requires resolving the target content row's own workspace/kind, which needs a content
- * repo port this slice's certified test suite (`write-service.unit.test.ts`) never supplies or
- * exercises through `assignTerms` itself (`validateContentJoin`'s own branches are certified
- * directly, as a pure function, in `validation-chain.unit.test.ts`). Wiring the full chain into
- * `assignTerms` is deferred to whichever future session builds the real content-repo-backed route
- * layer this domain's `posts`/`entries` soft-reference ultimately resolves against.
+ * ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 1 — hard
+ * blocker fix): `assignTerms` now invokes `validation-chain.ts`'s `validateContentJoin`
+ * (allow-list -> workspace -> lens, fixed order) before writing any `entry_terms` row. The prior
+ * "disclosed gap" comment this replaces undersold the live risk — the missing check meant
+ * `assignTerms` (a live, `admin.taxonomy.manage`-gated route) would silently accept a nonexistent
+ * `termId`, a `contentId` that doesn't exist, or a caller-claimed `contentType` that doesn't match
+ * the target's real kind, with zero server-side verification. `ContentLookupPort` below is the
+ * "content repo port" the old comment said this needed; `TAXONOMY_ALLOWED_CONTENT_TYPES` is
+ * ADR-044's own "hardcoded post/page taxonomy allow-list (permanent, not conditional on
+ * ADR-043)". `resolvedTermWorkspaceId`/`resolvedContentWorkspaceId` both resolve to the SAME
+ * value as `callerWorkspaceId` by construction in this codebase's real adapters (`SqliteTermRepo`/
+ * `SqliteEntryTermRepo` are workspace-BOUND at construction, single-workspace-per-`content.db` —
+ * ADR-046's own "single-node remains target" line), so the workspace-mismatch branch is currently
+ * unreachable via those adapters specifically; it stays load-bearing for any future adapter that
+ * is not workspace-bound, and the check costs nothing to keep.
  *
  * How it relates to the project:
  * Mirrors `src/features/settings/write-service.ts`'s chokepoint shape (authorize -> validate ->
@@ -75,6 +82,26 @@ export interface EntryTermRepoPort {
   upsert(row: { contentType: string; contentId: string; termId: string; addedAt: string }): Promise<unknown>;
 }
 
+/**
+ * Resolves the REAL workspace + kind of a `(contentType, contentId)` pair — the "content repo
+ * port" `validateContentJoin` needs to verify a caller's claimed `contentType` actually matches
+ * the target row, and that the target exists at all. `null` = not found. Implementations for
+ * `contentType` values on {@link TAXONOMY_ALLOWED_CONTENT_TYPES} resolve against `posts`; a
+ * future ADR-043 `entries`-backed content type would extend this port, not replace it.
+ */
+export interface ContentLookupPort {
+  resolve(params: { contentType: string; contentId: string }): Promise<{ workspaceId: string; kind: string } | null>;
+}
+
+/** ADR-044's own "hardcoded post/page taxonomy allow-list (permanent, not conditional on
+ * ADR-043)" — every taxonomy is applicable to `post`/`page` content; no other content type is
+ * eligible for term assignment until a future ADR extends this. */
+export const TAXONOMY_ALLOWED_CONTENT_TYPES: ReadonlySet<string> = new Set(["post", "page"]);
+
+export function isContentTypeOnAllowList(contentType: string): boolean {
+  return TAXONOMY_ALLOWED_CONTENT_TYPES.has(contentType);
+}
+
 export interface TaxonomyRevisionRow {
   taxonomyId: string;
   op: "create" | "rename" | "reparent" | "deprecate";
@@ -106,6 +133,11 @@ export interface WriteServiceDeps {
   /** `core/gated-mutations.stampWatermark`-shaped, injected — same-transaction stamp per mutation. */
   stampWatermark: (tx?: unknown) => void;
   outbox: { enqueue: (event: unknown) => Promise<void> };
+  /** The caller's own workspace — `validateContentJoin`'s `callerWorkspaceId` (Finding 1 fix). */
+  workspaceId: string;
+  /** Resolves a `(contentType, contentId)` pair's real workspace/kind for `assignTerms`'s
+   * content-join validation (Finding 1 fix). */
+  contentLookup: ContentLookupPort;
 }
 
 export class TaxonomyRecordNotFoundError extends Error {
@@ -119,6 +151,14 @@ export class TermRecordNotFoundError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "TermRecordNotFoundError";
+  }
+}
+
+/** Finding 1 fix — the target of an `assignTerms` call does not resolve to any real content row. */
+export class ContentRecordNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ContentRecordNotFoundError";
   }
 }
 
@@ -293,13 +333,47 @@ export interface AssignTermsRequired {
 /** AC-17/AC-20/INV-05/REQ-13/REQ-14 — upserts every `entry_terms` row (idempotent on-conflict per
  * `entry_terms_unique`, EC-09), then stamps the watermark and enqueues the outbox event exactly
  * ONCE per call regardless of `termIds.length` — never once per term. Never produces a
- * `taxonomy_revisions` row (see this file's header for the disclosed narrowing this implements). */
+ * `taxonomy_revisions` row (see this file's header for the disclosed narrowing this implements).
+ *
+ * Finding 1 fix (TM-adr041-043-044-045-audit-001): every `termId` is validated via
+ * `validateContentJoin` (allow-list -> workspace -> lens, `validation-chain.ts`'s fixed order)
+ * BEFORE any `entry_terms` row is written — every termId must resolve to a real term, and the
+ * target content must resolve to a real row whose kind matches the caller-supplied `contentType`.
+ * Validation runs for ALL termIds before ANY write, so a failure partway through never leaves a
+ * partial assignment. Content is resolved once per call (not once per term) since every term in
+ * one call shares the same `(contentType, contentId)` target.
+ */
 export async function assignTerms(
   required: AssignTermsRequired,
   _optional: Record<string, never> = {}
 ): Promise<void> {
   const { deps, principalId, contentType, contentId, termIds } = required;
   await authorizeTaxonomyManage(deps, principalId);
+
+  const isOnAllowList = isContentTypeOnAllowList(contentType);
+  const content = isOnAllowList ? await deps.contentLookup.resolve({ contentType, contentId }) : null;
+  if (isOnAllowList && !content) {
+    throw new ContentRecordNotFoundError(`content '${contentType}:${contentId}' was not found`);
+  }
+
+  for (const termId of termIds) {
+    const term = await deps.terms.findById(termId);
+    if (!term) {
+      throw new TermRecordNotFoundError(`term '${termId}' was not found`);
+    }
+    validateContentJoin({
+      taxonomyId: term.taxonomyId,
+      isOnAllowList,
+      callerWorkspaceId: deps.workspaceId,
+      // `SqliteTermRepo`/`SqliteEntryTermRepo` are workspace-BOUND at construction (single
+      // workspace per content.db) — a term/content row that resolves via those adapters at all
+      // is, by construction, already in the caller's own workspace. See this file's header.
+      resolvedTermWorkspaceId: deps.workspaceId,
+      resolvedContentWorkspaceId: content?.workspaceId ?? deps.workspaceId,
+      suppliedContentType: contentType,
+      resolvedContentKind: content?.kind ?? contentType,
+    });
+  }
 
   const now = deps.clock.nowIso();
   for (const termId of termIds) {
