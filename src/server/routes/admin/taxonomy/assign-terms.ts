@@ -27,11 +27,10 @@ function statusFor(err: unknown): { status: number; code: string; message: strin
  * shared by Collections §1.6 and Categories & Tags §2.2, AC-17/AC-20/INV-05/REQ-13/REQ-14).
  * Gated by `admin.taxonomy.manage`.
  *
- * ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 1 fix,
- * reconciled into this ADR-046 Phase 3 branch post-merge): `assignTerms` now runs
- * `validation-chain.ts`'s `validateContentJoin` allow-list/workspace/lens chain via
- * `createPostBackedContentLookup` (the "content repo port" the old disclosed-gap comment said this
- * needed).
+ * ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 1 fix):
+ * `assignTerms` now runs `validation-chain.ts`'s `validateContentJoin` allow-list/workspace/lens
+ * chain via `createPostBackedContentLookup` (the "content repo port" the old disclosed-gap
+ * comment said this needed).
  */
 export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: TaxonomyRouteDeps): void {
   app.post("/api/admin/v1/taxonomy/assign-terms", async (req, res) => {

@@ -1,5 +1,6 @@
 import type { Express } from "express";
 
+import { isOperationInFlight } from "../../../../core/operation-lock";
 import { resolveDegradedBanner } from "../../../../features/recovery/ui/degraded-banners";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { RouteDeps } from "../../types";
@@ -13,13 +14,19 @@ import type { RouteDeps } from "../../types";
  * honestly-stubbed) sources:
  *  - `costClass`: real, from `deps.dbOps.getCapabilities()` (`infra/sqlite/db-ops.ts`'s
  *    `SqliteDbOpsAdapter` in the running server).
- *  - `pendingMigration`/`migrationInterrupted`: real read of `deps.siteStatusRepo`, but that
- *    status is only ever flipped by `features/storage/boot/*`'s reconciliation functions, which no
- *    composition root invokes at actual server boot yet (a disclosed gap — see this dispatch's
- *    handoff) — so today this always reads `false` until that boot-wiring lands.
- *  - `operationInFlight`: stubbed `false` — `core/operation-lock` is not wired into any
- *    composition root yet (same disclosed gap as the gated migrate-forward/restore-ceremony
- *    routes this dispatch defers).
+ *  - `pendingMigration`/`migrationInterrupted`: real read of `deps.siteStatusRepo`. ADR-041/043/
+ *    044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix):
+ *    `features/storage/boot/*`'s reconciliation functions are now invoked by
+ *    `server/bootstrap.ts`'s `storage-migration-reconciliation` boot module before the site opens
+ *    to traffic, so this now reflects a REAL crash-interrupted-migration determination, not an
+ *    always-`false` stub.
+ *  - `operationInFlight`: real, from `core/operation-lock`'s `isOperationInFlight` read-only peek.
+ *    ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 3):
+ *    the lock itself was already live in both gated ceremonies' `execute` routes before this fix
+ *    (`migrate-forward.ts`/`restore.ts` both call the real `acquireOperationLock`/
+ *    `releaseOperationLock`) — this route's own hardcoded `false` was the only actual gap, a
+ *    display-only stub. `isOperationInFlight` closes it without changing the mutual-exclusion
+ *    mechanism itself.
  *  - `watermarkBaselineAvailable`: `false`, matching `disclosure.ts` route's own honest stub.
  */
 export function registerAdminRecoveryStatusRoute(app: Express, deps: RouteDeps): void {
@@ -47,7 +54,7 @@ export function registerAdminRecoveryStatusRoute(app: Express, deps: RouteDeps):
       const banner = resolveDegradedBanner({
         capabilities: {
           costClass: capabilities.restorePoint.costClass,
-          operationInFlight: false,
+          operationInFlight: isOperationInFlight(deps.workspaceId),
           pendingMigration: siteStatus === "PENDING_MIGRATION",
           migrationInterrupted: siteStatus === "BLOCKED_PENDING_RECOVERY",
           watermarkBaselineAvailable: false,
