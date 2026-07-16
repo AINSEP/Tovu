@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import type { JsonObject, JsonValue } from "../../core/ports";
+import { lintLiquidTemplate } from "./liquid-allowlist";
 
 /**
  * @file Declarative theme package format + discovery (SPEC-004, spike slice).
@@ -134,9 +135,16 @@ export function loadTheme(themeDir: string, id: string, source: "built-in" | "si
         }
       } else if (file.endsWith(".liquid")) {
         // Templated tier (ADR-020): raw LiquidJS source, rendered by the engine
-        // in render.ts. Template-content validation/lint is C6/REQ-06 (deferred).
+        // in render.ts. C6/REQ-06 lint-before-publish: reject any tag/filter
+        // outside the ADR-020 §3 allowlist before the theme can load as valid.
         const templateId = file.slice(0, -".liquid".length);
-        liquidTemplates[templateId] = readFileSync(join(templatesDir, file), "utf8");
+        const source = readFileSync(join(templatesDir, file), "utf8");
+        const violations = lintLiquidTemplate(source);
+        if (violations.length > 0) {
+          errors.push(`templates/${file}: ${violations.join("; ")}`);
+        } else {
+          liquidTemplates[templateId] = source;
+        }
       }
     }
   }

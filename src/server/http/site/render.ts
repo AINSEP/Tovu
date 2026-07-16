@@ -1,9 +1,8 @@
-import { Liquid, Hash, type TagToken, type Context } from "liquidjs";
-
 import type { JsonObject, JsonValue } from "../../../core/ports";
 import type { PostRecord } from "../../../features/post";
 import type { DiscoveredTheme, TemplateNode } from "../../../features/theme";
 import { resolveTemplateId, resolveLiquidTemplateId } from "../../../features/theme";
+import { renderLiquidInSandbox } from "./liquid-sandbox";
 
 /**
  * @file Template-tree renderer for the public site (SPEC-004 spike slice).
@@ -41,7 +40,8 @@ function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function escapeHtml(value: string): string {
+/** Exported for `liquid-worker.ts`, which runs in an isolated worker thread and needs the same escaping used everywhere else in this renderer. */
+export function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -69,29 +69,6 @@ function safeHref(value: JsonValue | undefined): string {
   if (href.startsWith("/") || href.startsWith("#")) return href;
   if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return href;
   return "#";
-}
-
-/**
- * `data:` URLs allowed as an image src, restricted to raster formats only. `image/svg+xml` is
- * deliberately excluded — SVG is an XML document and a needlessly larger attack surface (embedded
- * `<script>`/event handlers) even though `<img>` contexts don't execute them in practice; no reason
- * to depend on that browser guarantee holding forever.
- */
-const ALLOWED_DATA_IMAGE_PREFIX = /^data:image\/(png|jpe?g|gif|webp);base64,/i;
-
-/**
- * Sanitize a content `image` src the same way `safeHref` sanitizes a link href: same-origin
- * relative (`/…`), `http(s)://`, or a raster `data:` URL (dropped-local-file images have no
- * media-library serving route to reference instead — see PostEditor.tsx). `javascript:`/`data:`
- * of any other kind/anything else collapses to empty rather than rendering unsafely.
- */
-function safeImageSrc(value: JsonValue | undefined): string {
-  if (typeof value !== "string") return "";
-  const src = value.trim();
-  if (src.startsWith("/")) return src;
-  if (/^https?:\/\//i.test(src)) return src;
-  if (ALLOWED_DATA_IMAGE_PREFIX.test(src)) return src;
-  return "";
 }
 
 function renderMarks(text: string, marks: JsonValue[] | undefined): string {
@@ -142,16 +119,6 @@ export function renderDocNode(node: JsonValue): string {
       return `<li>${renderNodes(content)}</li>`;
     case "blockquote":
       return `<blockquote>${renderNodes(content)}</blockquote>`;
-    case "image": {
-      const attrs = isObject(node.attrs) ? node.attrs : {};
-      const src = safeImageSrc(attrs.src);
-      if (!src) return "";
-      const alt = typeof attrs.alt === "string" ? attrs.alt : "";
-      const title = typeof attrs.title === "string" ? attrs.title : undefined;
-      return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"${
-        title ? ` title="${escapeHtml(title)}"` : ""
-      }/>`;
-    }
     case "codeBlock":
       return `<pre><code>${renderNodes(content)}</code></pre>`;
     case "horizontalRule":
@@ -352,7 +319,8 @@ function featureGrid(_ctx: SiteRenderContext, props: JsonObject): string {
   return `<section class="feature-grid"><div class="wrap"><header class="feature-grid__head">${eyebrow}${title}</header><div class="features">${cards}</div></div></section>`;
 }
 
-const COMPONENTS: Record<string, Component> = {
+/** Exported for `liquid-worker.ts`: the `render_block` Liquid tag (registered on the isolated worker's own engine) resolves against this same registry, so a Liquid theme and a declarative theme render identical output for the same component id. */
+export const COMPONENTS: Record<string, Component> = {
   "tovu/site-header": siteHeader,
   "tovu/entry-list": entryList,
   "tovu/entry-content": entryContent,
@@ -381,60 +349,15 @@ const COMPONENTS: Record<string, Component> = {
 //     Output autoescaping is ON (outputEscape: "escape"), so a bare
 //     {{ post.title }} is escaped and only explicitly-`raw` values pass HTML.
 //
-// Spike scope (VibeCoder): autoescape + zero filesystem access is the safety
-// baseline. The full Tier-2 guardrails — tag/filter allowlist, render isolation,
-// template lint-before-publish (ADR-020 §Guardrails / C6 / REQ-06) — are
-// deferred to the C6 validation pipeline.
+// C6/ADR-020 §3 Tier-2 guardrails are implemented (LiquidJS pinned ≥10.26.0
+// per package.json; render isolation + fs lockdown in `liquid-worker.ts`,
+// spawned per render by `liquid-sandbox.ts`'s `renderLiquidInSandbox`; the
+// tag/filter allowlist + lint-before-publish in
+// `features/theme/liquid-allowlist.ts`, wired into `loadTheme()` and
+// defensively re-checked in the worker). The Liquid engine construction and
+// `render_block` tag registration now live in `liquid-worker.ts`, not here —
+// this file only forwards to the sandbox.
 // ---------------------------------------------------------------------------
-
-/** Key under which the live render context is passed to the render_block tag. */
-const CTX_KEY = "__siteCtx";
-
-const liquid = new Liquid({
-  outputEscape: "escape",
-  strictVariables: false,
-  strictFilters: false,
-  jsTruthy: true,
-  cache: false,
-});
-
-liquid.registerTag("render_block", {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  parse(this: any, token: TagToken) {
-    this.hash = new Hash(token.args);
-  },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  *render(this: any, ctx: Context): Generator<unknown, string, unknown> {
-    const props = (yield this.hash.render(ctx)) as JsonObject;
-    const id = typeof props.component === "string" ? props.component : "";
-    const { component: _component, ...rest } = props;
-    void _component;
-    const siteCtx = ctx.getSync([CTX_KEY]) as SiteRenderContext | undefined;
-    const component = COMPONENTS[id];
-    if (!component || !siteCtx) return `<!-- unknown component: ${escapeHtml(id)} -->`;
-    return component(siteCtx, rest);
-  },
-});
-
-/**
- * Render a templated-tier theme body via LiquidJS. Sync render (no async
- * filters/tags, no filesystem access) preserves `renderSite`'s signature.
- * Throws propagate to the caller, which falls back to a minimal body.
- */
-function renderLiquidBody(source: string, ctx: SiteRenderContext): string {
-  const data = {
-    site: { title: ctx.siteTitle },
-    theme: { name: ctx.themeName },
-    route: ctx.route,
-    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: p.updatedAt })),
-    // `content` is pre-sanitized HTML; templates emit it with `| raw`.
-    post: ctx.post
-      ? { title: ctx.post.title, slug: ctx.post.slug, date: ctx.post.updatedAt, content: renderDocNode(ctx.post.bodyJson) }
-      : null,
-    [CTX_KEY]: ctx,
-  };
-  return liquid.parseAndRenderSync(source, data);
-}
 
 // ---------------------------------------------------------------------------
 // Slots — raw context injection points a template can drop in directly.
@@ -505,24 +428,14 @@ function fontLink(theme: DiscoveredTheme): string {
   return `<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="stylesheet" href="https://fonts.googleapis.com/css2?${families}&display=swap"/>`;
 }
 
-/**
- * `extraHead` is `page-head.ts`'s `serializeHeadElements()` output (SPEC-008
- * ADR-PIPE-008 T048) — already-escaped markup, inserted verbatim. When it
- * contains its own `<title>` (SEO's fold always emits one, per
- * `page-head-contributor.ts`'s priority-100 title element), this shell's own
- * hardcoded `<title>` is suppressed rather than emitting two competing tags.
- */
-function pageShell(required: { title: string; theme: DiscoveredTheme; body: string; extraHead?: string }): string {
-  const { theme, extraHead } = required;
-  const foldHasTitle = extraHead?.includes("<title>") ?? false;
-  const titleTag = foldHasTitle ? "" : `<title>${escapeHtml(required.title)}</title>`;
+function pageShell(required: { title: string; theme: DiscoveredTheme; body: string }): string {
+  const { theme } = required;
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-${titleTag}
-${extraHead ?? ""}
+<title>${escapeHtml(required.title)}</title>
 ${fontLink(theme)}
 <style>${BASE_STYLE}${tokensToCss(theme.tokens)}${theme.css}</style>
 </head>
@@ -540,16 +453,19 @@ ${fontLink(theme)}
  * Render a page through a declarative theme. Resolves the route to a template
  * and walks its block tree. If the theme lacks the needed template, falls back
  * to a minimal built-in body so a partial theme never 500s (SPEC-004 REQ-10).
+ *
+ * `async` because the "templated" (LiquidJS) tier renders inside an isolated
+ * `worker_threads` worker (ADR-020 §3 render isolation, C6) — the declarative
+ * tier's own `renderBlock` walk stays fully synchronous, so most calls still
+ * resolve on the same tick the returned promise is awaited.
  */
-export function renderSite(required: {
+export async function renderSite(required: {
   theme: DiscoveredTheme;
   route: "home" | "post";
   siteTitle: string;
   posts: PostRecord[];
   post?: PostRecord;
-  /** SPEC-008 T049 — pre-serialized `page.head` fold output, threaded through to `pageShell`. */
-  extraHead?: string;
-}): string {
+}): Promise<string> {
   const { theme, route } = required;
   const ctx: SiteRenderContext = {
     siteTitle: required.siteTitle,
@@ -567,9 +483,11 @@ export function renderSite(required: {
     const liquidId = resolveLiquidTemplateId(route, theme.liquidTemplates);
     const source = liquidId ? theme.liquidTemplates[liquidId] : undefined;
     try {
-      body = source ? renderLiquidBody(source, ctx) : fallbackBody();
+      body = source ? await renderLiquidInSandbox({ source, ctx }) : fallbackBody();
     } catch (err) {
-      // A broken Liquid template must not 500 the site (SPEC-004 REQ-10 spirit).
+      // A broken/hostile Liquid template must not 500 the site (SPEC-004
+      // REQ-10 spirit) — covers a syntax error, a disallowed tag/filter the
+      // worker's defensive re-lint caught, or a sandbox timeout/OOM.
       body = `<!-- theme render error: ${escapeHtml((err as Error).message)} -->${fallbackBody()}`;
     }
   } else {
@@ -582,5 +500,5 @@ export function renderSite(required: {
     ? `${required.post.title} — ${required.siteTitle}`
     : required.siteTitle;
 
-  return pageShell({ title, theme, body, extraHead: required.extraHead });
+  return pageShell({ title, theme, body });
 }

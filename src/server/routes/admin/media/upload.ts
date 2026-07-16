@@ -4,7 +4,7 @@ import { toAdminMediaResponse } from "../../../http/admin/media";
 import type { RouteRegistrar } from "../../types";
 
 /**
- * POST a new media upload.
+ * POST a new media upload. Gated by `media.upload` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
  *
  * Request body is JSON with base64-encoded bytes (`dataBase64`) rather than a
  * multipart/form-data stream — this repo has no multipart-parsing dependency
@@ -42,6 +42,21 @@ export const registerAdminMediaUploadRoute: RouteRegistrar = (app, deps) => {
       // route runs, but Express 4 doesn't catch a synchronous throw from an async handler
       // outside try/catch (the request would otherwise hang instead of 500ing).
       const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "media.upload",
+        workspaceId: deps.workspaceId,
+        entityType: "media",
+      });
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'media.upload' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "media.upload", reason: authResult.reason },
+        });
+        return;
+      }
+
       const { media } = await uploadMedia({
         deps: {
           clock: deps.clock,

@@ -1,0 +1,250 @@
+import { useEffect, useMemo, useState } from "react";
+import { ApiError, api, type AdminTaxonomyWithTerms, type AdminTerm } from "../lib/api";
+
+/**
+ * @file Categories & Tags screen (design-spec.md §2, ADR-044) — the `#/section/taxonomy` route.
+ *
+ * Structural reference: `Settings.tsx`'s two-pane namespace-list + detail-panel layout
+ * (design-spec.md §0.3/§2.2) — reuses `.settings-body`/`.settings-row`/`.settings-namespace-*`
+ * verbatim rather than inventing new list/detail classes.
+ *
+ * Scope note (disclosed): only list/create-taxonomy/create-term/rename-term/assign-terms are
+ * backed by real routes (progress-ledger.md "Session 5"). Reparent, Deprecate, and Merge — all
+ * named in design-spec.md §2.3-§2.5 — have no route (`renameTerm`'s own route only accepts
+ * `newName`, no `parentId`; no deprecate-term or merge-term route was wired). Rather than render
+ * dead buttons for those three, this screen omits them entirely; that specific "render a disclosed
+ * not-yet-available state" treatment was directed only for Recovery's restore ceremony (see
+ * `Recovery.tsx`), not for every blocked action across every screen.
+ *
+ * Also disclosed: the production `Term` type (`features/taxonomy/write-service.ts`) has no `slug`
+ * field — design-spec.md §2.3 assumed one; this screen does not render a slug control.
+ */
+
+function describeApiError(e: unknown, fallback: string): string {
+  if (e instanceof ApiError) return e.message || fallback;
+  return e instanceof Error ? e.message : fallback;
+}
+
+/** Depth of `term` within its taxonomy's `parentId` chain, bounded against cycles by a visited
+ * set (server-side cycle detection should prevent one, but this render helper never trusts that
+ * blindly). */
+function termDepth(term: AdminTerm, byId: Map<string, AdminTerm>): number {
+  let depth = 0;
+  let current: AdminTerm | undefined = term;
+  const visited = new Set<string>();
+  while (current?.parentId && !visited.has(current.id)) {
+    visited.add(current.id);
+    current = byId.get(current.parentId);
+    depth += 1;
+    if (depth > 32) break; // defensive bound, not an expected real depth
+  }
+  return depth;
+}
+
+function NewTermForm(props: {
+  taxonomy: AdminTaxonomyWithTerms;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [parentId, setParentId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) {
+      setError("Name is required.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await api.createTerm(props.taxonomy.taxonomy.id, {
+        name: name.trim(),
+        parentId: props.taxonomy.taxonomy.hierarchical && parentId ? parentId : null,
+      });
+      setName("");
+      setParentId("");
+      props.onCreated();
+    } catch (e) {
+      setError(describeApiError(e, "Failed to create term"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form className="notice taxonomy-new-term-form" onSubmit={submit}>
+      <label htmlFor={`new-term-name-${props.taxonomy.taxonomy.id}`}>New term in {props.taxonomy.taxonomy.name}</label>
+      <span className="editor-actions">
+        <input
+          id={`new-term-name-${props.taxonomy.taxonomy.id}`}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Term name"
+        />
+        {props.taxonomy.taxonomy.hierarchical ? (
+          <select aria-label="Parent term" value={parentId} onChange={(e) => setParentId(e.target.value)}>
+            <option value="">(top level)</option>
+            {props.taxonomy.terms.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        <button type="submit" disabled={saving}>
+          {saving ? "Saving…" : "Add term"}
+        </button>
+      </span>
+      {error ? (
+        <span className="save-error" role="alert">
+          {error}
+        </span>
+      ) : null}
+    </form>
+  );
+}
+
+function TermDetailPanel(props: { taxonomy: AdminTaxonomyWithTerms; term: AdminTerm; onRenamed: () => void }) {
+  const [newName, setNewName] = useState(props.term.name);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setNewName(props.term.name);
+    setMessage(null);
+    setError(null);
+  }, [props.term.id, props.term.name]);
+
+  async function rename(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newName.trim() || newName.trim() === props.term.name) return;
+    setSaving(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await api.renameTerm(props.term.id, newName.trim());
+      setMessage("Renamed.");
+      props.onRenamed();
+    } catch (e) {
+      setError(describeApiError(e, "Failed to rename term"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="settings-detail-panel">
+      <h2>{props.term.name}</h2>
+      <p className="muted-cell">{props.taxonomy.taxonomy.name}</p>
+      <div className="settings-layer-grid">
+        <div className="settings-layer-cell">
+          <span className="settings-layer-label">Status</span>
+          <span className={`status status-${props.term.status}`}>{props.term.status}</span>
+        </div>
+        <div className="settings-layer-cell">
+          <span className="settings-layer-label">Parent</span>
+          <span>{props.term.parentId ? props.taxonomy.terms.find((t) => t.id === props.term.parentId)?.name ?? props.term.parentId : "—"}</span>
+        </div>
+        <div className="settings-layer-cell">
+          <span className="settings-layer-label">Version</span>
+          <span>{props.term.version}</span>
+        </div>
+      </div>
+      <form onSubmit={rename} className="collections-field-row">
+        <label htmlFor="term-rename-input">Rename</label>
+        <input id="term-rename-input" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <span className="editor-actions">
+          <button type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </button>
+          {message ? <span className="save-ok">{message}</span> : null}
+          {error ? <span className="save-error">{error}</span> : null}
+        </span>
+      </form>
+    </div>
+  );
+}
+
+export function Taxonomy() {
+  const [taxonomies, setTaxonomies] = useState<AdminTaxonomyWithTerms[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
+
+  function load() {
+    api
+      .listTaxonomies()
+      .then((r) => setTaxonomies(r.items))
+      .catch((e) => setError(describeApiError(e, "failed to load taxonomies")));
+  }
+
+  useEffect(load, []);
+
+  const selected = useMemo(() => {
+    if (!taxonomies || !selectedTermId) return null;
+    for (const group of taxonomies) {
+      const term = group.terms.find((t) => t.id === selectedTermId);
+      if (term) return { taxonomy: group, term };
+    }
+    return null;
+  }, [taxonomies, selectedTermId]);
+
+  if (error && !taxonomies) return <div className="notice error">{error}</div>;
+  if (!taxonomies) return <div className="notice">Loading taxonomies…</div>;
+
+  return (
+    <div>
+      <h1>Categories &amp; Tags</h1>
+      {error ? <div className="notice error">{error}</div> : null}
+
+      <div className="settings-body">
+        <div className="settings-namespace-list">
+          {taxonomies.map((group) => {
+            const byId = new Map(group.terms.map((t) => [t.id, t]));
+            return (
+              <section key={group.taxonomy.id} className="settings-namespace-group">
+                <h2>{group.taxonomy.name}</h2>
+                {group.terms.length === 0 ? (
+                  <p className="muted-cell">No terms yet.</p>
+                ) : (
+                  <ul role="list" className="settings-row-list">
+                    {group.terms.map((term) => {
+                      const depth = group.taxonomy.hierarchical ? termDepth(term, byId) : 0;
+                      const parentName = term.parentId ? byId.get(term.parentId)?.name : undefined;
+                      return (
+                        <li
+                          key={term.id}
+                          role="listitem"
+                          className={`settings-row${selectedTermId === term.id ? " is-selected" : ""}`}
+                          style={depth > 0 ? { marginLeft: `${depth * 1.1}rem` } : undefined}
+                          aria-label={parentName ? `${term.name}, subcategory of ${parentName}` : undefined}
+                          onClick={() => setSelectedTermId(term.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelectedTermId(term.id);
+                            }
+                          }}
+                          tabIndex={0}
+                          aria-selected={selectedTermId === term.id}
+                        >
+                          <span className="settings-row-key">{term.name}</span>
+                          <span className={`status status-${term.status}`}>{term.status}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                <NewTermForm taxonomy={group} onCreated={load} />
+              </section>
+            );
+          })}
+        </div>
+
+        {selected ? <TermDetailPanel taxonomy={selected.taxonomy} term={selected.term} onRenamed={load} /> : null}
+      </div>
+    </div>
+  );
+}

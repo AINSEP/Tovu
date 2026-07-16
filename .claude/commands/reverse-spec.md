@@ -60,7 +60,7 @@ Dispatch the CodeBase Analyzer to produce a structural map of the target path:
 - Scheduled tasks and cron jobs
 - OS-level subprocess dependencies (media processors, PDF generators, system binaries)
 
-**Output:** Structured inventory in `<ADS_PROJECT_KNOWLEDGE_ROOT>/reports/reverse-spec/<module-or-app>/inventory.md`
+**Output:** Structured inventory in `<ADS_MEMORY_ROOT>/reports/reverse-spec/<module-or-app>/inventory.md`
 
 **Human checkpoint:** Confirm the inventory is correct and scope is bounded before proceeding to extraction.
 
@@ -170,7 +170,7 @@ Each pass should be dispatched as a separate sub-agent call or bounded context. 
 
 For large codebases (above the SKILL.md scope threshold): run per-module in priority order (max 30 requirements per chunk before human review). Produce a coverage map after each module.
 
-**Output:** Raw extracted requirements in `<ADS_PROJECT_KNOWLEDGE_ROOT>/reports/reverse-spec/<module-or-app>/`
+**Output:** Raw extracted requirements in `<ADS_MEMORY_ROOT>/reports/reverse-spec/<module-or-app>/`
 
 **Extraction rules** (summary — see SKILL.md for full detail):
 - Follow the Confidence Hierarchy strictly (two hierarchies: external vs internal)
@@ -184,14 +184,14 @@ For large codebases (above the SKILL.md scope threshold): run per-module in prio
 
 Curate the extraction output into current-state documentation under:
 
-`<ADS_PROJECT_KNOWLEDGE_ROOT>/specs_as_built/`
+`<ADS_MEMORY_ROOT>/specs_as_built/`
 
 This curation is the readable rebuild/migration surface. It is NOT the raw evidence store and NOT the provider-native forward spec.
 
 Produce or update:
 
 ```text
-<ADS_PROJECT_KNOWLEDGE_ROOT>/specs_as_built/
+<ADS_MEMORY_ROOT>/specs_as_built/
   README.md
   system-overview.md
   architecture.md
@@ -226,7 +226,7 @@ Rules:
 - Record approved framework conventions in `global-ubiquitous-language.md` or the owning component `README.md` so target-language rebuilds preserve implicit framework behavior explicitly.
 - If the reverse-spec run corresponds to an active provider-native feature, write or update a thin `as-built-impact.md` bridge in that feature folder. The bridge links to the changelog entry and affected components; it must not duplicate component contracts.
 
-**Output:** Curated current-state specs-as-built package in `<ADS_PROJECT_KNOWLEDGE_ROOT>/specs_as_built/`
+**Output:** Curated current-state specs-as-built package in `<ADS_MEMORY_ROOT>/specs_as_built/`
 
 **Freshness validation:** Run `python3 <AI_DEV_SHOP_ROOT>/harness-engineering/validators/validate_specs_as_built_freshness.py` after curation when Bash/Python are available. Treat fingerprint mismatches on material public behavior as blockers unless explicitly waived.
 

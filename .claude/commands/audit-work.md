@@ -35,8 +35,8 @@ Act as an External Audit Coordinator.
    - determine whether the packet names a bounded enough file set for grounded file-change suggestions; if `suggest_changes=patches` but the scope is too broad or uncertain for safe file-level proposals, downgrade to `suggest_changes=notes` and say so before dispatch
 5. Build an audit packet using `skills/external-audit/references/audit-packet-template.md`.
    - If `reuse_packet=<path>` is set, skip packet construction and use that existing packet as the canonical authoring packet.
-   - Save packets to `<ADS_PROJECT_KNOWLEDGE_ROOT>/.local-artifacts/external-audit/packets/<timestamp>-audit-packet.md` by default.
-   - If the user explicitly asks to retain the packet, save it to `<ADS_PROJECT_KNOWLEDGE_ROOT>/reports/external-audit/packets/` instead.
+   - Save packets to `<ADS_MEMORY_ROOT>/.local-artifacts/external-audit/packets/<timestamp>-audit-packet.md` by default.
+   - If the user explicitly asks to retain the packet, save it to `<ADS_MEMORY_ROOT>/reports/external-audit/packets/` instead.
    - Record the effective `suggest_changes` mode in the packet.
    - **Author the frozen Threat Model & Scope Contract** in the packet (see the template's `Threat Model & Scope Contract` section). Define scope as a positive ALLOWLIST of in-scope blocking failure domains plus allowed actors/capabilities and mandatory invariants — never an open-ended out-of-scope denylist (auditors route around denylists by renaming the excluded class). Assign a `TM-<id>`, freeze it, and record its hash. Author the threat model from the spec/intended-use and deployment context, not to guarantee a pass; the auditor's handshake gate (step 10) will reject an under-specified adversary.
    - **Detect the audit round.** Round 1 = no prior disposition ledger for this `TM-<id>`. Round N = a prior audit exists under the same `TM-<id>`: carry forward the `Prior-Round Disposition Ledger` with each prior finding's disposition (`fixed`/`out-of-scope`/`accepted-risk`/`wontfix`) and set `Audit round: N` so auditors run diff-only compliance, not a fresh full re-audit. If the threat model changed materially since the last round, mint a NEW `TM-<id>` and treat it as round 1 — scores across TM versions are not comparable.
@@ -64,10 +64,10 @@ Act as an External Audit Coordinator.
 9a. Before dispatching any external peer audit, run one internal verification subagent inside the current session. This supplements the external peer audit path; it does not replace external review for high-risk, disputed, release-sensitive, security-sensitive, or architecture-significant work.
 
 9b. Build a curated evidence packet for the internal verifier. Include only:
-   - Active spec: requirements, acceptance criteria, invariants, and explicit non-goals from `<ADS_PROJECT_KNOWLEDGE_ROOT>/specs/`
-   - Active contracts: computational controls, architecture fitness rules, interface contracts, and relevant ADRs from `<ADS_PROJECT_KNOWLEDGE_ROOT>/governance/` and `<ADS_PROJECT_KNOWLEDGE_ROOT>/reports/`
+   - Active spec: requirements, acceptance criteria, invariants, and explicit non-goals from `<ADS_MEMORY_ROOT>/specs/`
+   - Active contracts: computational controls, architecture fitness rules, interface contracts, and relevant ADRs from `<ADS_MEMORY_ROOT>/governance/` and `<ADS_MEMORY_ROOT>/reports/`
    - Output artifacts: current diff, changed files, new or changed test files, generated artifacts, and migration files
-   - Test evidence: TestRunner report, command output summaries, coverage data, mutation quality results from `<ADS_PROJECT_KNOWLEDGE_ROOT>/.local-artifacts/sensors/mutation-quality-<timestamp>.md` (plus the sensor contract at `<AI_DEV_SHOP_ROOT>/harness-engineering/sensors/mutation-quality.md` for gate interpretation), and known skipped or unavailable checks
+   - Test evidence: TestRunner report, command output summaries, coverage data, mutation quality results from `<ADS_MEMORY_ROOT>/.local-artifacts/sensors/mutation-quality-<timestamp>.md` (plus the sensor contract at `<AI_DEV_SHOP_ROOT>/harness-engineering/sensors/mutation-quality.md` for gate interpretation), and known skipped or unavailable checks
    - Review rubric: Code Review dimensions from `<AI_DEV_SHOP_ROOT>/agents/code-review/skills.md`
    - Relevant domain skill: for example `<AI_DEV_SHOP_ROOT>/skills/test-design/SKILL.md` for TDD output or `<AI_DEV_SHOP_ROOT>/skills/coding-foundations/SKILL.md` for Programmer output
    - Any explicit user constraints that affect correctness, risk, compatibility, or delivery scope
@@ -127,7 +127,7 @@ Act as an External Audit Coordinator.
    - If no issues are found and the work is routine risk, proceed to step 10 (external audit dispatch).
    - If no issues are found and the work is high risk, proceed to step 10 — external peer audit is mandatory for high-risk work regardless of internal results.
 
-9l. Record the internal verification result in the audit artifact under `<ADS_PROJECT_KNOWLEDGE_ROOT>/.local-artifacts/external-audit/internal-verification/`. Include the curated packet summary, excluded rationale statement, verifier findings, gate recommendation, mutation-quality interpretation, residual risk, and whether external peer audit is still required.
+9l. Record the internal verification result in the audit artifact under `<ADS_MEMORY_ROOT>/.local-artifacts/external-audit/internal-verification/`. Include the curated packet summary, excluded rationale statement, verifier findings, gate recommendation, mutation-quality interpretation, residual risk, and whether external peer audit is still required.
 
 9m. Model-pinning gate (deferred from step 9): If any planned exact auditor model/version is still not explicitly pinned or locally proven after internal verification completes, stop before external dispatch and print:
    `Planned auditors: <CLI=model-or-unproven list>. Exact model/version is not proven for: <CLI list>. Reply with auditors=... and claude_model=..., gemini_model=..., or codex_model=... using exact model name/version(s) to proceed.`
@@ -137,7 +137,7 @@ Act as an External Audit Coordinator.
    - auditors must not see each other's answers before responding
    - construct every auditor prompt from the canonical packet before dispatching the first auditor; if dispatch must be sequential, do not revise, reframe, or add emphasis to later prompts based on earlier auditor responses
    - run peer calls in parallel when practical; otherwise run sequentially but keep the prompts independent
-   - do not hand `<ADS_PROJECT_KNOWLEDGE_ROOT>/.local-artifacts/` paths directly to the peer when file-based reads are required; use the shared transport fallback rules from `skills/llm-operations/references/peer-llm-dispatch.md`
+   - do not hand `<ADS_MEMORY_ROOT>/.local-artifacts/` paths directly to the peer when file-based reads are required; use the shared transport fallback rules from `skills/llm-operations/references/peer-llm-dispatch.md`
    - before starting `audit_timeout_seconds`, run the Peer Handshake Gate from `skills/llm-operations/references/peer-llm-dispatch.md` and require: `ACK_PACKET_RECEIVED <packet-id or deterministic packet marker> -- I received the packet and will work on it.`
    - run the mandatory Heartbeat Monitor from `skills/llm-operations/references/peer-llm-dispatch.md` while any auditor process is alive
    - run a cheap readability probe first when using file-based transport: ask the peer to read the dispatch packet and echo the first Markdown heading
@@ -160,7 +160,7 @@ Act as an External Audit Coordinator.
    - Prefer structured output modes when available.
    - Parse `stdout` only as each auditor answer.
    - Treat `stderr` as diagnostics.
-   - Save raw stdout/stderr captures to `<ADS_PROJECT_KNOWLEDGE_ROOT>/.local-artifacts/external-audit/offloads/<timestamp>/<auditor>/` by default.
+   - Save raw stdout/stderr captures to `<ADS_MEMORY_ROOT>/.local-artifacts/external-audit/offloads/<timestamp>/<auditor>/` by default.
    - Retry transient failures like `429` and `503` within `audit_timeout_seconds`, with at most 2 retries.
    - only classify `empty_result_transport_failure` after the peer process exits successfully and stdout is still empty
    - use any host-specific live-run timing or fallback bounds from the host reference you loaded
@@ -189,11 +189,12 @@ Act as an External Audit Coordinator.
    - **Escalation ceiling (hard cap):** Total scoring attempts (initial + retries) must not exceed 3 per auditor. On hitting the ceiling: do NOT discard findings or block indefinitely. Record all unresolved blockers in a `## Human Escalation` section with the remaining blocker text, which auditor raised it, the score delta from the floor, and what was already attempted. Mark the audit status as `ESCALATED — requires human decision`. The human decides whether to accept, fix, or revert.
    - All scores are included in the `Auditor Matrix` section of the final report.
 11. If any auditor returned suggested changes, save them as proposal artifacts using `skills/external-audit/references/proposed-fixes-template.md`.
-   - Default save path: `<ADS_PROJECT_KNOWLEDGE_ROOT>/.local-artifacts/external-audit/proposed-fixes/<timestamp>/`
-   - Retained save path only when the user explicitly asks: `<ADS_PROJECT_KNOWLEDGE_ROOT>/reports/external-audit/proposed-fixes/<timestamp>/`
+   - Default save path: `<ADS_MEMORY_ROOT>/.local-artifacts/external-audit/proposed-fixes/<timestamp>/`
+   - Retained save path only when the user explicitly asks: `<ADS_MEMORY_ROOT>/reports/external-audit/proposed-fixes/<timestamp>/`
    - Always save the raw extracted proposal bundle to `proposed-fixes.md`, grouped by auditor.
    - If an auditor returned grounded unified diffs, split them into `patches/<auditor>-<nnnn>-<slug>.diff` files when practical; otherwise keep them inline in `proposed-fixes.md`.
    - Treat these artifacts as suggestions only. Do not apply them automatically — but do not silently drop them either (see the Proposed-Fix Disposition Gate below).
+   - Apply the **Solution Slate Protocol** from `skills/llm-operations/references/peer-llm-dispatch.md` when recording remediation: where a finding has more than one viable fix, present them as a ranked slate (explicit ranking criteria, per-option trade-offs and failure modes, a recommendation + cheapest de-risking step) rather than a single take-it-or-leave-it fix. Each ranked option then enters the Proposed-Fix Disposition Gate individually. This governs the auditor's remediation OUTPUT only; it does not relax the step 9c exclusion of author-side rationale from the auditor's input packet.
 
 11a. **Proposed-Fix Disposition Gate (mandatory PROCESS-COMPLETENESS gate — distinct from the threat-model `blocking_gate`).** This gate enforces that no auditor critique is silently dropped. It is NOT a third blocking condition on the deterministic dual gate (which stays `validated blocker OR below-floor score`): an undispositioned proposed fix makes the audit's reporting STATE `INCOMPLETE`, it is not itself a threat-model blocker and does not flip `blocking_gate`. Enumerate EVERY proposed fix and EVERY per-finding `recommended_fix` from EVERY auditor as a checklist. For each one, the coordinator MUST record exactly one explicit disposition with a one-line rationale:
    - `agree-implement` — the coordinator agrees and sees no issue → it MUST be implemented this session OR converted to `agree-defer` with a stated reason. "Agree but silently skip" is not a permitted state. (Implementing an advisory/`path to 10` suggestion is NOT a prerequisite for reporting the threat-model PASS/FAIL outcome — but it still must be dispositioned and either done or explicitly deferred.)
@@ -223,6 +224,6 @@ Act as an External Audit Coordinator.
    - if any exact model version cannot be proven, do not run the audit; ask for pinned model(s) instead
    - if two or more auditors independently converge on the same finding, do not dismiss it in `Disagree` without making it a `Decision Points For User` item and explaining the evidence required to override it
 13. Before writing the final report, if the user has not already specified retention, ask:
-   `Save external audit report? Reply "save report" to retain it in <ADS_PROJECT_KNOWLEDGE_ROOT>/reports/external-audit/runs/, "local only" to keep it in <ADS_PROJECT_KNOWLEDGE_ROOT>/.local-artifacts/external-audit/runs/, or "inline only" for no file.`
-   Save ad hoc reports to `<ADS_PROJECT_KNOWLEDGE_ROOT>/.local-artifacts/external-audit/runs/<timestamp>-external-audit-report.md` by default. If the user explicitly wants to retain the artifact, save it to `<ADS_PROJECT_KNOWLEDGE_ROOT>/reports/external-audit/runs/<timestamp>-external-audit-report.md` instead.
+   `Save external audit report? Reply "save report" to retain it in <ADS_MEMORY_ROOT>/reports/external-audit/runs/, "local only" to keep it in <ADS_MEMORY_ROOT>/.local-artifacts/external-audit/runs/, or "inline only" for no file.`
+   Save ad hoc reports to `<ADS_MEMORY_ROOT>/.local-artifacts/external-audit/runs/<timestamp>-external-audit-report.md` by default. If the user explicitly wants to retain the artifact, save it to `<ADS_MEMORY_ROOT>/reports/external-audit/runs/<timestamp>-external-audit-report.md` instead.
    - Suggested-change bundles remain in `.local-artifacts` by default even when the report is saved, unless the user explicitly asks to retain the proposed fixes too.

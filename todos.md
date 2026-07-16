@@ -13,6 +13,13 @@
 > **Start with the v1 first slice in `START-HERE.md`** before working down this list —
 > most items below are gated behind that walking skeleton.
 
+**Reference (added 2026-07-14):** competitive positioning vs. WordPress/Strapi/Directus/Payload/Ghost
+(where Tovu is ahead vs. genuinely behind) + an agentic-control-plane/MCP-WebMCP-A2UI-MCP-UI readiness
+gap analysis, written right after ADR-041/043/044/045 (Storage/Collections/Categories&Tags/Backups-Recovery)
+were accepted. Informal, not debated/audited — a reference to revisit before/during the Admin Section Spec
+Sweep's "competitor teardown" step below, and before building the eventual agent tool catalog. See
+`ADS-project-knowledge/reports/strategy/20260714-competitive-positioning-and-agentic-mcp-readiness.md`.
+
 ---
 
 ## ⛔ BLOCKER — Admin Section Spec Sweep (DO FIRST NEXT SESSION)
@@ -122,20 +129,28 @@ scrim + body-scroll-lock. **Acceptance:** 390×844 — hamburger opens a drawer 
 cleanly, no clipped items, all items+CTA reachable, closes on toggle; VRT captures it and stays green.
 
 ### AW-2. Learn visual regression testing (the skill that fixes AW-1 + AW-4)
-Goal: a test that renders the site at set viewports, screenshots key states, and fails on pixel drift
-from an approved baseline. Tool: Playwright's built-in `toHaveScreenshot()` (already using Playwright;
-no paid service to start). Path: (1) read Playwright "Visual comparisons"; (2) `npm i -D
-@playwright/test` + `npx playwright install chromium` + a `playwright.config.ts` with a `webServer` that
-boots `PORT=3999 TOVU_DB=memory node --import tsx src/index.ts`; (3) first spec `e2e/theme-visual.spec.ts`
-→ `/` → `toHaveScreenshot('home-desktop.png')`, baseline + commit; (4) add the states that matter: home
-desktop 1280 + wide 2560 (guards the band fix), home mobile 390 drawer closed→open (`label.nav-burger`
-click — this is AW-1's test; baseline only after the fix), a post page `/welcome`; (5) workflow: `npx
-playwright test`, diffs land in `test-results/`, re-baseline with `--update-snapshots` intentionally;
-(6) tame flakiness (disable animations, `document.fonts.ready`, pin viewport/deviceScaleFactor, small
-`maxDiffPixelRatio`, headless). **Gotcha:** the server caches the theme at boot (no hot-reload of
-`themes/**`) — a VRT must boot a fresh server (the `webServer` block) or it tests a stale theme. Also
-file a task: **add theme hot-reload in dev.** Stretch: cross-platform baseline drift (Mac vs CI Linux) →
-pinned Docker image or hosted service (Chromatic/Percy/`reg-suit`).
+**Status: SETUP DONE (2026-07-15).** `@playwright/test` + chromium installed; `playwright.config.ts`
+boots a fresh `PORT=3999 TOVU_DB=memory node --import tsx src/index.ts` per run (`reuseExistingServer`
+left off, so a stale long-running dev server can never serve these tests — confirmed the fresh-boot
+gotcha below doesn't apply). `e2e/theme-visual.spec.ts` + committed baselines under
+`e2e/theme-visual.spec.ts-snapshots/`: `home-desktop.png` (1280, full page), `home-wide.png` (2560, full
+page — guards the band rhythm), `home-mobile-390.png` (390, full page, **drawer CLOSED only** — AW-1's
+open-drawer clipping bug was deliberately NOT baselined, per this section's own plan; add an
+open-drawer baseline once AW-1 is fixed), `post-welcome.png` (`/welcome`, 1280). Anti-flake: reuses the
+theme's own baked-in `prefers-reduced-motion` CSS via `page.emulateMedia`, bounded `document.fonts.ready`
+wait, pinned viewport/deviceScaleFactor, `maxDiffPixelRatio: 0.02`, headless. `npm run test:visual` runs
+the suite; all 4 pass clean against their own baselines. **New finding while building this (not
+fixed, test-infra only):** the mobile-390 baseline needed `clip` (not a bare `fullPage` shot) because
+the *closed* drawer (`position:fixed; transform:translateX(110%)`) still contributes to
+`document.documentElement.scrollWidth` at mobile widths (confirmed 742px vs 390px clientWidth) — an
+unclipped screenshot bled the off-canvas "Product" dropdown into the "closed drawer" baseline. This is a
+separate, previously-undocumented mobile horizontal-overflow quirk from AW-1's clipping bug; worth a
+look whenever AW-1 is picked up. Also flagging the still-open follow-up this surfaced: **add theme
+hot-reload in dev** (the server caches the theme at boot with no hot-reload of `themes/**` — VRT's fresh
+per-run `webServer` boot sidesteps it, but dev iteration still eats a manual restart per theme edit).
+Next: AW-1 and AW-4 fixes are now safely guardable by this suite but neither was done here (both stay
+their own separate items). Stretch, still open: cross-platform baseline drift (Mac vs CI Linux) → pinned
+Docker image or hosted service (Chromatic/Percy/`reg-suit`).
 
 ### AW-3. Theme trust model + theme bundles — **DECIDED** (pointer)
 **ADR-019 ACCEPTED** (theme bundles / plugin deps) + **ADR-020 ACCEPTED** (theme capability tiers:
@@ -163,9 +178,14 @@ one page you were looking at** (home looked fixed; content pages were never chec
   component registry via `{% render_block %}` + `{{content|raw}}`; autoescape ON + zero fs = the safety
   baseline; loader (`src/features/theme/theme.ts`) reads `tier` + discovers `.liquid`. Demonstrator
   `themes/dispatch/` verified live (home + `/welcome` 200, no unrendered tags, titles escaped, content
-  raw, C7 link-sanitization intact). **STILL OPEN — C6/REQ-06 hardening:** tag/filter allowlist, render
-  isolation, template lint-before-publish (the "install a templated theme from anyone safely" claim
-  depends on this); add unit coverage for the `render_block` seam + a VRT baseline once AW-2 lands.
+  raw, C7 link-sanitization intact). **C6 HARDENING DONE (2026-07-15).** Tag/filter allowlist
+  (`src/features/theme/liquid-allowlist.ts`, AST-walked, enforced at `loadTheme()` publish-time lint and
+  again defensively at render time) + render isolation (`liquid-worker.ts` runs in a `worker_threads`
+  worker spawned per render by `liquid-sandbox.ts`, bounded by a wall-clock timeout and V8
+  `resourceLimits`, with an explicit no-op `fs` adapter closing LiquidJS's default real-filesystem
+  access) + template lint-before-publish, all wired and covered by tests (nested-loop CPU timeout and
+  heap-limit termination both verified to actually fire, not just compile). Still add a VRT baseline for
+  the `render_block` seam once AW-2 lands.
 - **AW-5b. Tier-3 JS-in-theme (Framer Motion) — LATER.** Framework-agnostic (Astro or Next); client-side
   islands under strict CSP, build-time compiled → static HTML + hydrated islands. **Blocked on the
   Tier-3 isolation design (its own future ADR):** separate cookie-less origin + CSP `connect-src 'none'`
@@ -337,57 +357,71 @@ Shopify + Medusa synthesis notes live in `other-repos/TODO.md`.
 
 ## Master Build Inventory (Everything)
 
+**Reconciliation pass (2026-07-15):** cross-referenced every item below against
+`ADR-INDEX.md` (46 ADRs), real code in `src/`/`apps/admin/src/`, and the
+spec-016-020 gated-mutations progress ledger. Of 361 checklist items: **86 DONE**
++ **5 SUPERSEDED** (real ADR + shipped code, or overtaken by a since-made
+decision), **129 STILL OPEN with a scoping ADR/pointer** noted inline, **141
+STILL OPEN, UNSCOPED** (mostly the aspirational §19-25 parity/research/tooling
+lists, which remain largely unbuilt). Biggest surprise: the admin UI (§11) is far more built
+than the checklist assumed (`apps/admin/src/sections/` has 26 real screens —
+Collections, Media, Settings, Roles, Users, Storage, Recovery, Redirects, Seo,
+Menus, Integrations, Analytics, Forms — not the Next.js/Zustand shell originally
+imagined). Conversely, the Agentic UI/AI layer (§12) and all AEO/GEO/AI-surface
+work (§22) are still almost entirely unbuilt — no CopilotKit/AG-UI/MCP code
+exists anywhere in `src/` yet, only a stub FAB.
+
 ### 1) Core Runtime / Kernel
-- [ ] Define final kernel responsibilities (lifecycle, DI, service registry)
-- [ ] Split core ports into module-level files (`events`, `auth`, `storage`, `search`, etc.)
-- [ ] Add core error model (typed errors + error codes)
+- [ ] Define final kernel responsibilities (lifecycle, DI, service registry) — no dedicated kernel/DI module exists; ADR-046 (Proposed, pending debate) partially scopes composition-root/module-status concerns
+- [x] Split core ports into module-level files (`events`, `auth`, `storage`, `search`, etc.) — de facto done: every feature/infra module now owns its own `ports.ts` (`identity/ports.ts`, `media/ports.ts`, `mail/ports.ts`, `http/ports.ts`, `core/gated-mutations/ports.ts`, etc.); `core/ports.ts` retains only the shared kernel primitives (147 lines)
+- [ ] Add core error model (typed errors + error codes) — pervasive per-domain typed error classes exist (`ForbiddenError`, `ValidationError`, etc.) but no centralized core error taxonomy; `src/server/error-mapping/` is a placeholder folder (INFO.md only, no code yet)
 - [ ] Add config system with typed schema + env validation
 - [ ] Add feature flag system (runtime + env + workspace scope)
-- [ ] Add capability/permission policy engine primitives
-- [ ] Add module loader contract (for plugins/themes/providers)
-- [ ] Add architecture boundary enforcement (lint/import rules)
-- [ ] Add core observability hooks (metrics/log/tracing abstractions)
+- [x] Add capability/permission policy engine primitives — ADR-021 (`identity/authorize.ts`, `permissions.ts`, `grant-service.ts`)
+- [ ] Add module loader contract (for plugins/themes/providers) — Tier-1 declarative plugin data-modules are built (ADR-023, `features/plugins/data-module.ts`/`snapshot.ts`); a general load/init/stop lifecycle contract for Tier-2/3 code plugins is scoped by ADR-024 but not built
+- [ ] Add architecture boundary enforcement (lint/import rules) — no eslint/dependency-cruiser config in the repo; see §24's still-open dependency-cruiser/knip evaluation items
+- [ ] Add core observability hooks (metrics/log/tracing abstractions) — no metrics/tracing port exists; ADR-046 (Proposed) touches boot readiness/module-status exposure, not full observability
 
 ### 2) Eventing / Hybrid Sync + Async
-- [ ] Finalize domain event envelope schema + versioning
-- [ ] Define event naming conventions and ownership
-- [ ] Implement persistent outbox adapter (DB-backed)
-- [ ] Implement outbox poller/worker with retries and backoff
-- [ ] Add idempotency support for handlers
-- [ ] Add dead-letter strategy for repeatedly failing events
-- [ ] Add event replay strategy for recovery/backfill
-- [ ] Add event contract tests
+- [x] Finalize domain event envelope schema + versioning — `(workspaceId, aggregateId, actorId, occurredAt, metadata)` envelope in `core/ports.ts`, ADR-007/009
+- [ ] Define event naming conventions and ownership — a consistent `domain.verb` convention is used pervasively in code (`entry.created`, `content_type.tombstoned`, etc.) but it isn't written down as a standalone conventions doc
+- [ ] Implement persistent outbox adapter (DB-backed) — scoped by ADR-046 Phase 1 (pending debate); only an in-memory outbox exists today (`core/events/memory-bus.ts`, `outbox-worker.ts`)
+- [ ] Implement outbox poller/worker with retries and backoff — an in-memory worker exists (`core/events/outbox-worker.ts`); no durable poller with retry/backoff — scoped by ADR-046 Phase 1
+- [ ] Add idempotency support for handlers — idempotency exists for gated mutations (`core/gated-mutations/token.ts`'s idempotency keys, `core/operation-lock.ts`) but not specifically for event-handler/outbox consumption
+- [ ] Add dead-letter strategy for repeatedly failing events — ADR-036 built dead-letter handling for outbound webhook delivery specifically (`integrations/delivery.ts`); the core domain-event outbox has no DLQ yet
+- [ ] Add event replay strategy for recovery/backfill — explicitly deferred by ADR-022 ("Defers the replay engine")
+- [x] Add event contract tests — `core/events/__tests__/`, `core/events/__specs__/`
 
 ### 3) Data Layer / DB / ORM
-- [ ] Choose primary DB strategy for early stage (Postgres first)
-- [ ] Choose ORM/query layer (Drizzle/Kysely/Prisma decision)
-- [ ] Define migration strategy and tooling
-- [ ] Define schema naming conventions and table ownership
-- [ ] Implement workspace/tenant isolation strategy at DB level
-- [ ] Add transactional unit-of-work patterns for commands
-- [ ] Add repository adapter conventions
-- [ ] Add seed/fixtures strategy for local and tests
-- [ ] Add backup/restore and rollback strategy
+- [x] ~~Choose primary DB strategy for early stage (Postgres first)~~ — superseded: went SQLite-behind-ports first (better-sqlite3, ADR-015), Postgres deferred to a later adapter swap (ADR-006 rule-of-two)
+- [x] Choose ORM/query layer (Drizzle/Kysely/Prisma decision) — Drizzle (ADR-015)
+- [x] Define migration strategy and tooling — `drizzle-kit generate`, committed migrations (ADR-015); a second independent migration set exists for the storage-journal sidecar DB (ADR-041)
+- [x] Define schema naming conventions and table ownership — ADR-022/023/026 namespace/identifier grammar (`p_{pluginId}__*`, closed lowercase-alphanumeric-plus-hyphen grammar), `infra/db/schema.ts` ownership per feature
+- [x] Implement workspace/tenant isolation strategy at DB level — ADR-007 (`workspaceId` everywhere) + ADR-021 composite `(workspace_id,id)` FKs
+- [x] Add transactional unit-of-work patterns for commands — `core/commands/command.ts`, `core/gated-mutations/gateway.ts` (same-tx write+revision pattern used pervasively)
+- [x] Add repository adapter conventions — `repo.memory.ts`/`repo.sqlite.ts` pairs (ADR-006 rule-of-two) pervasive; shared `findOneBy` base (ADR-042 item 1, `infra/sqlite/repo-helpers.ts`)
+- [x] Add seed/fixtures strategy for local and tests — `server/seed.ts` (ADR-042 item 3 fixed the `content-db.ts` → `server/seed.ts` dependency direction)
+- [x] Add backup/restore and rollback strategy — ADR-041 (Storage Timeline) + ADR-045 (Recovery), fully built (`features/storage`, `features/recovery`)
 
 ### 4) Auth / Identity / Permissions
-- [ ] Define identity model (user, service account, workspace membership)
-- [ ] Define RBAC model (roles, permissions, scopes)
-- [ ] Define policy evaluation model (resource/action/context)
-- [ ] Add auth middleware contract for server layer
-- [ ] Add session/token strategy
-- [ ] Add audit trail for security-sensitive actions
-- [ ] Add permission test matrix
+- [x] Define identity model (user, service account, workspace membership) — ADR-021 (one `principals` table: user/agent/api_key/system)
+- [x] Define RBAC model (roles, permissions, scopes) — ADR-021, `identity/permissions.ts` catalog
+- [x] Define policy evaluation model (resource/action/context) — ADR-021 `authorize()` is ordinary core code, flat permission strings, no separate PolicyPort
+- [x] Add auth middleware contract for server layer — `server/middleware/dev-auth.ts`, `getAuthedPrincipal`/`deps.authorize()` pattern used across every admin route
+- [x] Add session/token strategy — `identity/auth-service.ts` (`SESSION_TTL_MS`, SHA-256-hashed session tokens, argon2id password hashing)
+- [x] Add audit trail for security-sensitive actions — change-sets (ADR-008), append-only revisions with actor+monotonic seq (ADR-022), the storage/migration/restore ledger (ADR-041)
+- [x] Add permission test matrix — `identity/__tests__/permissions.test.ts`, `permission-migrations.test.ts`
 
 ### 5) Storage / Media
-- [ ] Define media object model and metadata schema
-- [ ] Define upload pipeline contract (validation, transforms, derivatives)
-- [ ] Add signed URL strategy and expiry model
-- [ ] Add media lifecycle policies (retention, deletion, restore)
-- [ ] Add media quality checks (format, size, accessibility metadata)
-- [ ] Add content-media relationship model
+- [x] Define media object model and metadata schema — ADR-027 (seeded `media` entry + `asset_blobs`/`asset_renditions` sidecars)
+- [x] Define upload pipeline contract (validation, transforms, derivatives) — ADR-027, `media/media-service.ts`, `image-transformer.ts`, `rendition-service.ts`
+- [x] Add signed URL strategy and expiry model — ADR-027 frozen immutable URL scheme, mint-only signed URL on a cookie-less origin
+- [x] Add media lifecycle policies (retention, deletion, restore) — ADR-027 GC policy (`media/blob-gc.ts`, grace period, 2-phase journaled delete)
+- [x] Add media quality checks (format, size, accessibility metadata) — ADR-027 `MediaIngressPolicy` (SSRF/pixel-bomb/magic-byte/MIME allowlist) + `alt` field in `media/types.ts`
+- [x] Add content-media relationship model — ADR-027 `entry_refs`, `bodyJson` stores refs not URLs
 
 ### 6) Search / Indexing
-- [ ] Define search document schema and indexing boundaries
+- [ ] Define search document schema and indexing boundaries — not built; note ADR-022's core-provisioned expression indexes (`content-types/index-provisioning.ts`) are DB query-performance indexes, not a search subsystem, and don't satisfy this item
 - [ ] Define indexing triggers from domain events
 - [ ] Implement index upsert/remove handlers
 - [ ] Define hybrid search strategy (keyword + semantic optional)
@@ -395,90 +429,89 @@ Shopify + Medusa synthesis notes live in `other-repos/TODO.md`.
 - [ ] Add search contract tests and latency budgets
 
 ### 7) Feature Modules (Initial Core Features)
-- [ ] Workspace module full CRUD + lifecycle events
-- [ ] User + membership module
-- [ ] Content model module (types, fields, validation)
-- [ ] Content entry module (CRUD, status transitions)
-- [ ] Revision/version module
-- [ ] Publishing workflow module
-- [ ] Taxonomy/relations module
-- [ ] Settings module (workspace/system)
+- [ ] Workspace module full CRUD + lifecycle events — create-only today (`features/workspace/create.ts`); read/update/delete/lifecycle not yet built (matches the still-open "Workspace management beyond create" item in the Accomplish section above)
+- [x] User + membership module — ADR-021 (`identity`, principals) + ADR-030 (`src/members`, audience directory)
+- [x] Content model module (types, fields, validation) — ADR-022/043 (`features/content-types`)
+- [x] Content entry module (CRUD, status transitions) — ADR-022/043 (`features/entries`: create/update/publish/unpublish)
+- [x] Revision/version module — ADR-022 append-only revisions (entries, content-types, taxonomy all revision)
+- [ ] Publishing workflow module — basic publish/unpublish exists (`features/entries`); no draft→review→scheduled multi-stage workflow yet
+- [x] Taxonomy/relations module — ADR-044 (`features/taxonomy`)
+- [x] Settings module (workspace/system) — ADR-028 (`features/settings`)
 
 ### 8) Theme System
-- [ ] Define theme manifest schema
-- [ ] Define template hierarchy and route mapping
-- [ ] Define slots/regions injection model
-- [ ] Define theme settings schema and validation
-- [ ] Add theme versioning and compatibility checks
+- [x] Define theme manifest schema — `theme.json` (`ThemeManifest`, ADR-020 `tier` field), `features/theme/theme.ts` — spike-level implementation per its own docstring, not yet the full SPEC-004 validation pipeline
+- [ ] Define template hierarchy and route mapping — route→template-id resolution exists as a spike (`server/http/site/render.ts`); the full template-hierarchy/fallback design is ADR-017 (Proposed, blocked on theme system)
+- [ ] Define slots/regions injection model — ADR-020 Tier-2 `render_block`/`{{ content|raw }}` seams exist as a SPIKE only (per project memory: "C6 hardening still open")
+- [ ] Add theme versioning and compatibility checks — ADR-019 covers theme-declared plugin dependencies; theme-to-engine versioning/compat checks not built
 - [ ] Add theme lifecycle hooks (install/enable/disable/update)
-- [ ] Add theme safety checks and rollback strategy
+- [ ] Add theme safety checks and rollback strategy — no theme-specific safety/rollback; ADR-041 (DB migration rollback) and ADR-023 (plugin snapshot-before-DDL) are the closest analogs for other domains
 
 ### 9) Plugin System
-- [ ] Define plugin manifest schema and capability declaration
-- [ ] Define plugin lifecycle API (install/load/init/stop/uninstall)
-- [ ] Define plugin dependency graph and conflict rules
-- [ ] Define plugin sandbox/permission enforcement
-- [ ] Define plugin UI extension points
-- [ ] Define plugin server extension points (routes/hooks/events)
-- [ ] Add plugin compatibility/versioning policy
+- [x] Define plugin manifest schema and capability declaration — ADR-024 (capability manifest namespace, frozen now/contents iterate) + ADR-004 (signed manifest artifact format)
+- [ ] Define plugin lifecycle API (install/load/init/stop/uninstall) — Tier-1 dataModule install/uninstall built (ADR-023, `features/plugins/data-module.ts`/`snapshot.ts`); full load/init/stop lifecycle for Tier-2/3 code plugins deferred
+- [ ] Define plugin dependency graph and conflict rules — ADR-019 covers theme→plugin declared dependencies only; general plugin-to-plugin conflict/dependency graph not built
+- [ ] Define plugin sandbox/permission enforcement — capability-gating model decided and Accepted (ADR-024 default-deny manifest); the actual Tier-2 sandbox isolation mechanism ("first rung" per-site Electron `utilityProcess`) is not yet built
+- [ ] Define plugin UI extension points — ADR-025 decided the mechanism (sandboxed cross-origin iframe + `postMessage` RPC) but it isn't built yet; unblocks OQ-07 (admin-surface/extension-panel registry, itself still open)
+- [ ] Define plugin server extension points (routes/hooks/events) — ADR-024 decided the hook-priority model conceptually; no general-purpose hook/route extension-point registry exists beyond feature-specific hooks (e.g. `newsletter/hooks.ts`)
+- [x] Add plugin compatibility/versioning policy — ADR-005/024 (SDK compat surface, semver, deprecation ladder, frozen transport-agnostic ABI)
 - [ ] Add plugin observability and fault isolation
 
 ### 10) HTTP/API Server
-- [ ] Keep current Express baseline stable
-- [ ] Define transport-agnostic route/handler shape
-- [ ] Decide Fastify vs Hono migration path
-- [ ] Add request validation and response schema enforcement
-- [ ] Add error mapping strategy (domain -> HTTP)
-- [ ] Add rate limiting and security headers
-- [ ] Add API versioning strategy
+- [x] Keep current Express baseline stable — still the transport, no migration since ADR-001
+- [ ] Define transport-agnostic route/handler shape — a consistent route-handler pattern is used pervasively in practice (`getAuthedPrincipal` → `deps.authorize()` → domain call → `res.json()`) but no formal transport-agnostic contract layer has been decided
+- [ ] Decide Fastify vs Hono migration path — no decision made; Express remains
+- [ ] Add request validation and response schema enforcement — ad hoc per-route validation exists (typed `ValidationError` classes); no schema-enforcement library adopted (see §24's still-open Zod evaluation)
+- [ ] Add error mapping strategy (domain -> HTTP) — `src/server/error-mapping/` exists only as a placeholder (INFO.md, no code); mapping is currently ad hoc per route
+- [ ] Add rate limiting and security headers — per-feature rate limiting exists (`forms/rate-limit-profile.ts`, ADR-030 magic-link rate limit) and per-surface CSP exists (ADR-025 plugin iframe, ADR-038 egress policy), but no app-wide security-headers/rate-limit middleware
+- [x] Add API versioning strategy — de facto `/api/admin/v1/...` prefix convention in place across all admin routes
 - [ ] Add OpenAPI generation strategy
 
 ### 11) Admin UI (Headless Admin Client)
-- [ ] Define admin API contract and client SDK boundaries
-- [ ] Choose baseline stack (Next.js + React + Zustand)
-- [ ] Build shell layout (navigation, module registry, auth guard)
-- [ ] Build workspace management screens
-- [ ] Build content type builder UI
-- [ ] Build content editor UI (forms, validation, revisions)
-- [ ] Build media manager UI
-- [ ] Build settings and permissions UI
-- [ ] Build extension point rendering in admin
+- [x] Define admin API contract and client SDK boundaries — `apps/admin/src/lib/api.ts`
+- [x] ~~Choose baseline stack (Next.js + React + Zustand)~~ — superseded: actual stack is Vite + React (`apps/admin/`), not Next.js/Zustand, per the lean-rebuild decision
+- [x] Build shell layout (navigation, module registry, auth guard) — `admin-shell/navigation.ts` + `apps/admin/src/sections/`
+- [ ] Build workspace management screens — no `Workspace.tsx` section exists; blocked on the workspace-module gap above (§7 item 1)
+- [x] Build content type builder UI — `apps/admin/src/sections/Collections.tsx`
+- [x] Build content editor UI (forms, validation, revisions) — `PostEditor.tsx`, `CollectionEntryEditor.tsx`
+- [x] Build media manager UI — `apps/admin/src/sections/Media.tsx`
+- [x] Build settings and permissions UI — `Settings.tsx`, `Roles.tsx`, `Users.tsx`
+- [ ] Build extension point rendering in admin — ADR-025 mechanism decided, not built; no plugin panel registry screen
 - [ ] Build admin notification center
 
 ### 12) Agentic UI / AI Layer
-- [ ] Define AI interaction model (assistant panel + task execution)
-- [ ] Define tool registry contracts and tool safety policy
-- [ ] Define structured outputs and tool-call protocol
+- [ ] Define AI interaction model (assistant panel + task execution) — ADR-013 (Accepted) defines the target model; implementation is still a stub FAB, not built (no CopilotKit/AG-UI code exists in `src/` or `apps/admin/src/`)
+- [ ] Define tool registry contracts and tool safety policy — ADR-013 `tools.ts` registry + ADR-014 profiles decided; not implemented
+- [ ] Define structured outputs and tool-call protocol — ADR-013/024 ABI (async + serializable-only, no live objects) sets the constraints; no concrete implementation yet
 - [ ] Define context assembly pipeline (system/site/task/history)
 - [ ] Define memory policy (session, episodic, semantic boundaries)
-- [ ] Define guardrails and human-in-the-loop checkpoints
+- [ ] Define guardrails and human-in-the-loop checkpoints — ADR-016 (propose→review→accept/reject→revert change-sets for agentic document editing) scopes this pattern generally; not implemented as an AI guardrail system yet
 - [ ] Define AI audit trail and explainability logging
-- [ ] Define AG-UI event/state model for streaming interactions
+- [ ] Define AG-UI event/state model for streaming interactions — ADR-013 names AG-UI as the protocol; no implementation yet
 
 ### 13) Protocols and Integrations
-- [ ] Define MCP exposure model for tools/data
+- [ ] Define MCP exposure model for tools/data — no MCP code exists in `src/`; related future planning lives in §22's "Agentic Web / Playground MCP Backlog" (also still open)
 - [ ] Define A2A support boundaries
-- [ ] Define webhook/event subscription model for external systems
+- [x] Define webhook/event subscription model for external systems — ADR-036 Integrations/webhooks (`src/integrations`)
 - [ ] Define import/export contracts for interoperability
 - [ ] Define AI WordPress database ingestion agent: connect read-only to a WordPress MySQL/MariaDB database, extract posts/pages/custom post types, body content, metadata, taxonomies, authors, revisions, attachments, and image assets, map them into Tovu content/media schemas, and run dry-run validation, permalink/redirect mapping, resumable import jobs, audit logs, and rollback/compensation planning before writes.
-- [ ] Define provider adapter lifecycle contracts
+- [x] Define provider adapter lifecycle contracts — ADR-006 rule-of-two adapter pattern implemented pervasively (mail: ADR-037, http: ADR-038, blob-store: ADR-027, db-ops)
 
 ### 14) Testing Strategy
-- [ ] Define test pyramid expectations per module
-- [ ] Add `__tests__` baseline in all modules
-- [ ] Add `__specs__` baseline in all modules
-- [ ] Add contract tests for every core port
-- [ ] Add integration tests for command + outbox flow
-- [ ] Add API route tests
-- [ ] Add regression suite for high-risk flows
+- [ ] Define test pyramid expectations per module — no written doc; consistent unit+integration split exists in practice
+- [x] Add `__tests__` baseline in all modules — 34 `__tests__` directories across the codebase
+- [ ] Add `__specs__` baseline in all modules — only 10 modules have `__specs__/` (post, presentation, workspace, forms, headless, redirects, settings, server); most newer feature modules (content-types, entries, taxonomy, storage, recovery, media, members, navigation, etc.) don't yet
+- [ ] Add contract tests for every core port — 8 rule-of-two ports have `*.contract.test.ts` today (forms, settings, identity, integrations×2, redirects, members, newsletter); content-types/entries/taxonomy still lack a SQLite adapter at all (in-memory only, per the spec-016-020 progress ledger), so no contract test exists for them yet
+- [x] Add integration tests for command + outbox flow — `core/commands/__tests__/command-atomicity.test.ts`, `core/events/__tests__/`
+- [x] Add API route tests — `server/__tests__/routes/*.test.ts`, 18+ admin routes covered as of the 2026-07-15 backend session
+- [ ] Add regression suite for high-risk flows — no dedicated regression-suite label; the full `npm test` run (1400+ tests) effectively serves this role today
 - [ ] Add performance smoke tests
 
 ### 15) DevEx / Tooling / CI
-- [ ] Standardize project scripts (dev/build/typecheck/test/lint)
-- [ ] Add lint + formatter + architecture lint
-- [ ] Add commit/PR conventions
-- [ ] Add CI pipeline with required gates
-- [ ] Add local dev bootstrap docs
+- [ ] Standardize project scripts (dev/build/typecheck/test/lint) — dev/build/typecheck/test/db:generate scripts exist in `package.json`; no lint script
+- [ ] Add lint + formatter + architecture lint — no eslint/prettier config in the repo
+- [ ] Add commit/PR conventions — no CONTRIBUTING.md/commit-convention doc in the repo itself
+- [ ] Add CI pipeline with required gates — no `.github/workflows/` in the repo
+- [x] Add local dev bootstrap docs — `START-HERE.md` + `npm run setup` (note: `START-HERE.md` itself is now stale — it claims "there is no code yet" — but the doc exists and is the intended bootstrap entry point; refreshing it is outside this reconciliation's scope)
 - [ ] Add environment matrix docs (dev/staging/prod)
 - [ ] Add codegen strategy for typed clients if needed
 
@@ -487,146 +520,146 @@ Shopify + Medusa synthesis notes live in `other-repos/TODO.md`.
 - [ ] Add metrics and tracing
 - [ ] Define SLOs and operational dashboards
 - [ ] Define incident response runbooks
-- [ ] Define backup/restore runbooks
-- [ ] Add secrets management policy
+- [x] Define backup/restore runbooks — superseded by a real shipped feature, not just a runbook: ADR-041 (Storage Timeline) + ADR-045 (Recovery screen)
+- [ ] Add secrets management policy — explicitly deferred by ADR-028 itself ("secret gate: reject `secret:true` until secret-store ADR")
 - [ ] Add dependency and supply-chain scanning
 - [ ] Add vulnerability response policy
 
 ### 17) Product Safety (From WordPress Pain Clusters)
-- [ ] Update preflight checks and safe rollout design
-- [ ] Incident analysis and guided remediation design
+- [ ] Update preflight checks and safe rollout design — ADR-041's cost-gated boot migration policy (`evaluateBootMigrationPolicy`) is a preflight-check-shaped mechanism for one domain (DB migrations); no general preflight/safe-rollout framework
+- [ ] Incident analysis and guided remediation design — ADR-045's Recovery screen (itemized discarded-write-window disclosure before restore) is the closest built analog; general incident-analysis tooling isn't built
 - [ ] Conflict isolation and quarantine strategy
 - [ ] Performance attribution and budgets
-- [ ] Authoring safety and template recovery
-- [ ] Migration/portability strategy
+- [ ] Authoring safety and template recovery — ADR-016 (propose→review→accept/reject→revert change-sets) is the closest scoped analog; not built as a UI yet
+- [ ] Migration/portability strategy — ADR-041 covers DB schema migration; content import/export portability (e.g. the WordPress ingestion agent, §13) is still open
 - [ ] Governance/trust and provenance strategy
 
 ### 18) Documentation / Knowledge Retention
-- [ ] Keep `PROJECT_MEMORY.md` updated each session
-- [ ] Keep module `INFO.md` accurate as files evolve
-- [ ] Keep module `__specs__` synced with implementation
-- [ ] Maintain ADR log for major architecture decisions
-- [ ] Maintain glossary of domain terms
-- [ ] Maintain roadmap by milestone (M0, M1, M2...)
+- [x] ~~Keep `PROJECT_MEMORY.md` updated each session~~ — superseded: the actual mechanism is `ADS-project-knowledge/memory/project_memory.md` plus the AI-Dev-Shop continuity-ledger workflow, not a root-level `PROJECT_MEMORY.md`
+- [x] Keep module `INFO.md` accurate as files evolve — 26 `INFO.md` files maintained across modules
+- [ ] Keep module `__specs__` synced with implementation — only 10 of the many feature modules have `__specs__/` (see §14)
+- [x] Maintain ADR log for major architecture decisions — `ADR-INDEX.md`, 46 ADRs, actively maintained
+- [ ] Maintain glossary of domain terms — no standalone glossary doc; terms are defined inline within individual ADRs
+- [ ] Maintain roadmap by milestone (M0, M1, M2...) — `todos.md` itself is the closest thing but there's no formal M0/M1/M2 milestone doc
 
 ### 19) WordPress Parity Gap Checklist (Detailed)
 
 #### Content + publishing
-- [ ] Post/page/custom-type parity (authoring + APIs + permissions)
-- [ ] Draft/review/published/future/private status model parity
+- [x] Post/page/custom-type parity (authoring + APIs + permissions) — `features/post` (post/page) + `features/content-types` (custom types, ADR-043 Collections), full authz via ADR-021
+- [ ] Draft/review/published/future/private status model parity — draft/published exists (`features/entries`, `features/post`); scheduled ("future") and private-visibility states not confirmed built
 - [ ] Scheduled publishing with timezone correctness
-- [ ] Revisions + restore + compare views
+- [ ] Revisions + restore + compare views — append-only revisions exist (ADR-022); restore-to-a-past-revision and compare-views UI not built
 - [ ] Autosave and crash recovery
-- [ ] Slug/permalink management and uniqueness handling
-- [ ] Trash/restore/delete lifecycle
+- [x] Slug/permalink management and uniqueness handling — ADR-039 routing + slug-uniqueness guard in `entries/write-service.ts` + ADR-033 redirects capture on slug change
+- [ ] Trash/restore/delete lifecycle — content-type deprecate/tombstone/cleanup lifecycle is built (ADR-043); a per-entry trash/delete lifecycle is not confirmed
 - [ ] Sticky/featured content behavior
 
 #### Taxonomy + navigation
-- [ ] Categories/tags/custom taxonomies
-- [ ] Term archives and filtering behavior
-- [ ] Menu builder (hierarchical) + assignment to theme locations
-- [ ] Breadcrumb/navigation helper model
+- [x] Categories/tags/custom taxonomies — ADR-044 (`features/taxonomy`)
+- [ ] Term archives and filtering behavior — taxonomy backend/admin is built (ADR-044); public-facing term-archive/filter pages are not confirmed
+- [x] Menu builder (hierarchical) + assignment to theme locations — ADR-029 (`src/navigation`, `MenuEditor.tsx`)
+- [ ] Breadcrumb/navigation helper model — ADR-039 routing (`urlFor`/`isActive`) provides the primitive; no breadcrumb helper built on top yet
 
 #### Editor + design system
-- [ ] Block editor equivalent (or strict alternative) with schema safety
+- [ ] Block editor equivalent (or strict alternative) with schema safety — a TipTap-based rich-text editor exists (`apps/admin/src/sections/PostEditor.tsx`, `CollectionEntryEditor.tsx`); not a block-based, schema-safe editor per ADR-016/017's fuller vision
 - [ ] Reusable blocks/patterns/templates
-- [ ] Full-site editing equivalents (template parts, global styles)
+- [ ] Full-site editing equivalents (template parts, global styles) — ADR-017 (Proposed, blocked on theme system)
 - [ ] Media embed blocks and short content primitives (quote/code/table/etc.)
 - [ ] WYSIWYG parity between editor and rendered output
 
 #### Theme system parity
-- [ ] Template hierarchy and fallback rules
-- [ ] Theme manifest and settings UI
+- [ ] Template hierarchy and fallback rules — same gap as §8 item 2 (ADR-017 Proposed, blocked)
+- [x] Theme manifest and settings UI — `theme.json` manifest (ADR-020) + `apps/admin/src/sections/Appearance.tsx`
 - [ ] Child-theme equivalent strategy
 - [ ] Theme update compatibility checks and rollback
-- [ ] Theme preview and activation flow
+- [ ] Theme preview and activation flow — activation flow exists (`Appearance.tsx`'s `activate()`); a preview-before-activate step wasn't found
 
 #### Plugin ecosystem parity
-- [ ] Plugin install/activate/deactivate/update/uninstall flows
-- [ ] Plugin dependency + compatibility checks
-- [ ] Hook/filter-like extension model
-- [ ] Plugin settings registration and UI mounting
+- [ ] Plugin install/activate/deactivate/update/uninstall flows — Tier-1 install/uninstall is built (ADR-023, `features/plugins/data-module.ts`); activate/deactivate/update flows and UI not confirmed
+- [ ] Plugin dependency + compatibility checks — ADR-019 covers theme→plugin declared deps only; general plugin-to-plugin checks not built
+- [ ] Hook/filter-like extension model — ADR-024 decided the hook-priority model conceptually; no general-purpose registry beyond feature-specific hooks
+- [ ] Plugin settings registration and UI mounting — ADR-025 decided the iframe/`postMessage` mechanism; not built yet
 - [ ] Plugin conflict detection and safe disable/quarantine
 
 #### Admin + operations
-- [ ] Users/roles/capabilities management UI
-- [ ] Comments/moderation system (if in scope)
-- [ ] Settings pages parity (general/reading/writing/permalinks-like)
+- [x] Users/roles/capabilities management UI — `Users.tsx` + `Roles.tsx` (ADR-021)
+- [ ] Comments/moderation system (if in scope) — ADR-031 Accepted, but backend NOT built yet (blocked on ADR-023's dataModule engine per ADR-INDEX); only `comments/ports.ts`/`types.ts` exist today
+- [x] Settings pages parity (general/reading/writing/permalinks-like) — ADR-028 (`features/settings`) + `Settings.tsx`
 - [ ] Update center and update history
-- [ ] Built-in site health diagnostics
+- [ ] Built-in site health diagnostics — ADR-041's drift banner (`features/storage/drift.ts`) is a partial analog, but no route/UI is wired for it yet (deliberately deferred in the 2026-07-15 backend session)
 - [ ] Import/export tooling and migration helpers
 
 #### SEO + discovery
-- [ ] XML sitemap generation + controls
-- [ ] Canonical/meta/schema controls
-- [ ] Robots and indexing controls
-- [ ] Redirect rules + canonicalization strategy
+- [x] XML sitemap generation + controls — ADR-032 (`src/seo/sitemap.ts`)
+- [x] Canonical/meta/schema controls — ADR-032/040, `seo/seo.ts`, `seo/page-head-contributor.ts`
+- [x] Robots and indexing controls — ADR-032 (`buildRobots` in `seo/sitemap.ts`)
+- [x] Redirect rules + canonicalization strategy — ADR-033 (`src/redirects`)
 
 #### Media + files
-- [ ] Media library parity (search/filter/metadata)
-- [ ] Image derivatives and responsive sizes
-- [ ] File replacement/versioning behavior
+- [x] Media library parity (search/filter/metadata) — ADR-027 + `Media.tsx`
+- [x] Image derivatives and responsive sizes — ADR-027 (`media/transform-registry.ts`, `rendition-service.ts`)
+- [x] ~~File replacement/versioning behavior~~ — superseded: ADR-027 deliberately rejects in-place file replace; source-replace mints a new media entry instead (write-once `bodyJson.$.source.sha256`)
 - [ ] Bulk media operations
 
 #### Infrastructure + reliability
 - [ ] Cron/scheduler equivalent
-- [ ] Caching strategy (page/data/object) with invalidation
-- [ ] Backup/restore UX
-- [ ] Safe update/rollback flows
-- [ ] Multisite/tenant strategy (if parity target includes multisite)
+- [ ] Caching strategy (page/data/object) with invalidation — one narrow cache exists (SEO sitemap cache, `seo/sitemap.ts`'s `regenerateSitemapCache`/`invalidateSitemapCache`); no general page/data/object caching strategy
+- [x] Backup/restore UX — ADR-041/045, `Storage.tsx`/`Recovery.tsx`
+- [ ] Safe update/rollback flows — ADR-041's migrate-forward state machine is the closest analog for DB schema changes; app/plugin/theme update rollback isn't built
+- [x] Multisite/tenant strategy (if parity target includes multisite) — ADR-007 (workspace scoping) + ADR-011/012 (deployment topology; Tovu-Runner as the multi-site host)
 
 ### 20) Payload/Directus/Ghost Parity and Strategic Additions
 
 #### Payload-like capabilities
-- [ ] Field-level schema builder parity (rich field types + validation)
-- [ ] Relationship and nested/document modeling parity
-- [ ] Access control at collection/field/doc level
+- [x] Field-level schema builder parity (rich field types + validation) — ADR-022/043 (5-entry field-kind enum, validated on write)
+- [ ] Relationship and nested/document modeling parity — taxonomy relations (ADR-044) + media `entry_refs` (ADR-027) exist; ADR-022's flat-typed-columns + JSON-ext-bag model is deliberately not a Payload-style deep nested/relational document model
+- [ ] Access control at collection/field/doc level — collection/doc-level access control is built (ADR-021 permissions); field-level ACL is not built
 - [ ] Hooks lifecycle parity (`beforeChange`, `afterRead`, etc. equivalent)
-- [ ] Local API equivalent (server-side direct invocation)
-- [ ] Draft/publish + versioning parity
-- [ ] Uploads with focal points/transforms and ACL
+- [x] Local API equivalent (server-side direct invocation) — every feature module exposes direct typed functions (`write-service.ts` etc.) callable server-side without HTTP, matching Payload's Local API pattern (an architectural property of the whole codebase, not a discrete build item)
+- [x] Draft/publish + versioning parity — `features/entries` publish/unpublish + ADR-022 revisions
+- [ ] Uploads with focal points/transforms and ACL — transforms + ACL are built (ADR-027); focal-point cropping is not confirmed
 
 #### Directus-like capabilities
-- [ ] Database-first introspection mode (optional strategy)
-- [ ] Data Studio-like admin configurability
+- [x] ~~Database-first introspection mode (optional strategy)~~ — superseded/rejected: ADR-043 explicitly rejects Directus-style per-collection tables/DB-first introspection for operator-defined content types in favor of a data-driven registry
+- [ ] Data Studio-like admin configurability — a basic registry UI exists (`Collections.tsx`); full Directus-style Data Studio configurability isn't a stated goal or built
 - [ ] Flows/automation builder equivalent
 - [ ] Realtime subscriptions and event streams
-- [ ] Granular permissions matrix (role/policy/filter-based)
+- [x] Granular permissions matrix (role/policy/filter-based) — ADR-021 (roles→policies→permissions, explicitly "Directus-shaped" per the ADR's own text)
 - [ ] Extension types parity (interface/display/layout/module/hook/endpoint/op/panel analogs)
-- [ ] Marketplace/distribution model for extensions (if in scope)
+- [ ] Marketplace/distribution model for extensions (if in scope) — ADR-024 sets the trust-tier forcing function for a future marketplace ("shipping the marketplace is shipping the sandbox") but the marketplace itself isn't built
 
 #### Ghost-like capabilities
 - [ ] Writer-first editing experience quality target
-- [ ] Membership/subscription primitives
-- [ ] Newsletter/email publishing primitives
-- [ ] Publication settings and audience segmentation
-- [ ] SEO + canonical + social cards defaults
+- [x] Membership/subscription primitives — ADR-030 (`src/members`: directory, consent, magic-link) — note subscription tiers/paywall specifically are still open, see the Membership/Paywall plugin items in §22
+- [x] Newsletter/email publishing primitives — ADR-034 (`src/newsletter`), domain layer built; routes/UI intentionally parked per explicit owner request (not a gap — deferred indefinitely by choice)
+- [x] Publication settings and audience segmentation — `newsletter/lists.ts` + ADR-034
+- [ ] SEO + canonical + social cards defaults — canonical/meta is done (ADR-032); social-card (OG/Twitter card) defaults are not confirmed built
 - [ ] Performance-first defaults for publishing surfaces
 
 #### Strategic additions (beyond parity)
-- [ ] AI-native operations assistant (safe tool-calling)
-- [ ] Guided incident remediation
-- [ ] Preflight update risk checks + canary + rollback
+- [ ] AI-native operations assistant (safe tool-calling) — same gap as §12, nothing built yet
+- [ ] Guided incident remediation — ADR-045's Recovery screen is the closest built analog
+- [ ] Preflight update risk checks + canary + rollback — ADR-041's migrate-forward cost-gating is a partial analog, scoped to DB migrations only
 - [ ] Policy-based governance and provenance controls
-- [ ] Contract-first plugin security model
+- [x] Contract-first plugin security model — ADR-023/024/025/026 collectively are this: capability-gated typed writes, a frozen transport-agnostic ABI, and cross-origin iframe isolation for plugin JS
 
 ### 21) Big Missing Items to Explicitly Track
 - [ ] Billing/licensing domain model (if SaaS)
-- [ ] Tenant provisioning lifecycle (create/suspend/delete/archive)
-- [ ] Rate limits and abuse prevention
-- [ ] Legal/compliance requirements (audit, retention, privacy workflows)
+- [ ] Tenant provisioning lifecycle (create/suspend/delete/archive) — create/instantiate is built (ADR-012 site template instantiation); suspend/archive/delete lifecycle is not built
+- [ ] Rate limits and abuse prevention — per-feature rate limits exist (forms, ADR-030 magic-link); no platform-wide abuse-prevention layer
+- [ ] Legal/compliance requirements (audit, retention, privacy workflows) — consent (ADR-030 D1c) and erasure-handler patterns (ADR-031 `principal.erasure.requested`, ADR-035 erasure scope) exist per-domain; no unified compliance/retention framework
 - [ ] Data portability + exit tooling guarantees
-- [ ] Disaster recovery objectives (RPO/RTO targets)
+- [ ] Disaster recovery objectives (RPO/RTO targets) — ADR-041/045 build the restore mechanism itself; no stated RPO/RTO numeric targets
 - [ ] Internationalization/localization strategy
-- [ ] Accessibility baseline and regression checks
-- [ ] Analytics/event taxonomy and data governance
+- [ ] Accessibility baseline and regression checks — an `alt` field exists on media (ADR-027, `media/types.ts`); no broader accessibility baseline or regression testing
+- [x] Analytics/event taxonomy and data governance — ADR-035 (`src/analytics`, PII-death-at-sink ingest design)
 - [ ] Support/admin tooling for operations team
 
 ### 22) AEO / GEO / AI Surfaces (First-Class)
 
 #### AEO (Answer Engine Optimization)
 - [ ] Define AEO content model (Q&A entities, canonical answer blocks, evidence links)
-- [ ] Add structured data generation for answer engines (schema consistency + validation)
+- [ ] Add structured data generation for answer engines (schema consistency + validation) — a JSON-LD serialization primitive already exists (`server/http/site/page-head.ts`'s `serializeJsonLd`, ADR-032 `seo/page-head-contributor.ts`); full per-content-type auto-generation is not confirmed complete
 - [ ] Build answer freshness workflow (staleness checks + auto-review queue)
 - [ ] Add answer quality scoring (accuracy, completeness, citation confidence)
 - [ ] Add AEO analytics surface (answer impressions, citation wins, decay signals)
@@ -688,8 +721,8 @@ Source research: AI engine crawler/indexing patterns (Google AI Overviews, ChatG
 ##### Site-level outputs
 - [ ] Auto-generate `/llms.txt` from site structure and key pages (low-cost future bet)
 - [ ] IndexNow integration — ping Bing instantly on publish/update (only proven instant-discovery signal)
-- [ ] Sitemap.xml with accurate `<lastmod>` dates (freshness signal across all engines)
-- [ ] robots.txt builder — per-bot allow/block config (OAI-SearchBot, GPTBot, PerplexityBot, Googlebot, bingbot, ChatGPT-User)
+- [x] Sitemap.xml with accurate `<lastmod>` dates (freshness signal across all engines) — ADR-032 (`seo/sitemap.ts`)
+- [ ] robots.txt builder — per-bot allow/block config (OAI-SearchBot, GPTBot, PerplexityBot, Googlebot, bingbot, ChatGPT-User) — a generic `RobotsPolicy`/`buildRobots` exists (ADR-032, `src/seo/`); per-bot granularity (OAI-SearchBot/GPTBot/etc.) not confirmed
 
 ##### Engine-specific optimizations
 - [ ] Google AI Overviews: "nugget in the mine" content structure (long-form with extractable direct answers per section)
@@ -705,10 +738,10 @@ Source research: AI engine crawler/indexing patterns (Google AI Overviews, ChatG
 - [ ] Freshness monitoring — alert when pages go stale and become displacement targets
 
 ##### Forms plugin (TanStack Form-based)
-- [ ] Define form schema model compatible with TanStack Form's typed API (agent-manipulable field definitions, validation rules, nested structures)
-- [ ] Form builder capability contracts (agent can create/modify/validate forms via typed commands)
-- [ ] Submission routing, conditional logic, payment integration
-- [ ] Notification/webhook triggers on submission
+- [x] Define form schema model compatible with TanStack Form's typed API (agent-manipulable field definitions, validation rules, nested structures) — `src/forms` (`forms.ts`, `types.ts`, `manifest.ts`)
+- [x] Form builder capability contracts (agent can create/modify/validate forms via typed commands) — `forms/write-service.ts` + `apps/admin/src/sections/FormEditor.tsx`/`FormsList.tsx`
+- [ ] Submission routing, conditional logic, payment integration — submission handling + notification is built (`forms/submit-service.ts`, `notify-subscriber.ts`); conditional logic and payment integration are not confirmed built
+- [x] Notification/webhook triggers on submission — `forms/notify-subscriber.ts` + ADR-036 integrations webhooks
 
 ##### Multilingual plugin
 - [ ] Locale model + fallback chains (per-content-type locale config)
@@ -722,7 +755,7 @@ Source research: AI engine crawler/indexing patterns (Google AI Overviews, ChatG
 - [ ] Content restriction rules (per-page, per-section, per-content-type)
 - [ ] Drip/scheduled content release
 - [ ] Payment gateway integration (Stripe primary)
-- [ ] Member directory, login/registration flows, profile management
+- [x] Member directory, login/registration flows, profile management — ADR-030 (`src/members`)
 
 #### AI Surfaces (User + Employee)
 - [ ] Define end-user AI surface (assistant panel for guided site changes)
@@ -761,7 +794,7 @@ Source prompts:
 #### Governance, data, and compliance
 - [ ] Define data classification policy (PII, sensitive business data, public data)
 - [ ] Define retention and deletion policy per data class
-- [ ] Implement data subject request workflows (export/delete/correction)
+- [ ] Implement data subject request workflows (export/delete/correction) — erasure-handler patterns exist per-domain (ADR-031 `principal.erasure.requested`, ADR-035 erasure scope); no unified data-subject-request workflow/UI
 - [ ] Map controls for SOC2-style audit readiness
 - [ ] Map GDPR/CCPA requirements to concrete product behaviors
 - [ ] Define evidence collection workflow for audits (logs, approvals, controls)
@@ -781,14 +814,14 @@ Source prompts:
 - [ ] Define billing/audit reconciliation workflows
 
 #### API and ecosystem lifecycle
-- [ ] Define API versioning lifecycle and sunset/deprecation policy
+- [x] Define API versioning lifecycle and sunset/deprecation policy — ADR-005 (semver, deprecation ladder)
 - [ ] Define SDK generation and release process
-- [ ] Define backward-compatibility guarantees for core APIs
-- [ ] Define extension API stability policy (what can break and when)
+- [x] Define backward-compatibility guarantees for core APIs — ADR-005 (SDK compatibility promise, API snapshot tests)
+- [x] Define extension API stability policy (what can break and when) — ADR-005/024 (ABI frozen now, capability manifest namespace frozen/contents iterate)
 
 #### Marketplace and supply chain trust
 - [ ] Define plugin/theme submission and review workflow
-- [ ] Define package signing and integrity verification model
+- [x] Define package signing and integrity verification model — ADR-004 (prebuilt ESM + signed manifest)
 - [ ] Define extension trust scoring (security, maintenance, quality)
 - [ ] Define malicious package response workflow (disable/quarantine/notify)
 
@@ -815,19 +848,19 @@ Goal: evaluate/adopt tooling that keeps the codebase modular, maintainable, and 
 Recommended starting five (highest ROI):
 - [ ] Evaluate **dependency-cruiser** — enforce "core never imports adapters" as CI-failing rules (makes the inward-dependency rule real)
 - [ ] Evaluate **knip** — find unused files/exports/deps across the workspace (keeps plugin-heavy platform lean)
-- [ ] Evaluate **Zod** at all boundaries — runtime validation + single source of truth for types (fits SQLite JSON-text ↔ jsonb strategy)
+- [ ] Evaluate **Zod** at all boundaries — runtime validation + single source of truth for types (fits SQLite JSON-text ↔ jsonb strategy) — not adopted; relates to §10's still-open request-validation item
 - [ ] Evaluate **ArchUnitTS / ts-arch** — architecture rules as unit tests (fits spec-first / M3 test-contract framework)
 - [ ] Evaluate **Testcontainers** (+ **Pact**) — contract-test each DB/storage/payment adapter against a real backend
 
 Adopt when splitting `src/` into `packages/`:
-- [ ] Evaluate **Nx** vs **Turborepo** — workspace + module-boundary tags + affected graph + caching
+- [ ] Evaluate **Nx** vs **Turborepo** — workspace + module-boundary tags + affected graph + caching — moot for now, `src/` has not been split into `packages/`
 - [ ] Evaluate **Sheriff** / **good-fences** — lighter encapsulation if not going full Nx
 
 Understanding / codegen / docs:
 - [ ] Evaluate **Madge** — fast circular-dependency detection (cheap complement to Graphify/CBM)
-- [ ] Evaluate **ts-morph** — TS AST manipulation for `migration-generator.ts`, plugin `sdk-builder`, typegen (how Payload does config/typegen)
+- [x] Evaluate **ts-morph** — TS AST manipulation for `migration-generator.ts`, plugin `sdk-builder`, typegen (how Payload does config/typegen) — adopted (`package.json` devDependency), in active use in `scripts/write-path-inventory.ts` for the ADR-042 structural graph-audit tooling
 - [ ] Evaluate **ts-rest / tRPC** — compiler-checked contracts for the headless packet (Next/Vue shells)
-- [ ] Evaluate **Structurizr DSL / C4 model** (+ PlantUML) — diagrams-as-code living architecture docs (pairs with ADR log in item 18)
+- [ ] Evaluate **Structurizr DSL / C4 model** (+ PlantUML) — diagrams-as-code living architecture docs (pairs with ADR log in item 18) — the ADR log itself (`ADR-INDEX.md`) serves the living-decision-record role in prose form; no diagrams-as-code tooling adopted
 - [ ] Evaluate **OpenTelemetry** (later) — runtime coupling/traces once modules talk via events
 
 ### 25) Reference Codebases to Study (added 2026-06-30)
@@ -837,7 +870,7 @@ Goal: study exemplary OSS repos for architecture/design patterns Tovu needs (por
 Ports/adapters + DDD references (TS):
 - [ ] **Sairyss/domain-driven-hexagon** — canonical TS DDD + hexagonal + CQRS reference (closest to Tovu's intended core)
 - [ ] **CodelyTV/typescript-ddd-example** — DDD/CQRS skeleton in TS
-- [ ] **medusajs/medusa** — modular monolith, module container + module links, provider pattern (already partly in specs; graphify it)
+- [x] **medusajs/medusa** — modular monolith, module container + module links, provider pattern (already partly in specs; graphify it) — cloned to `OSS-Repos/medusa` and graphified (465 files in `OSS-Repos/graphify-out/manifest.json`)
 
 Plugin-system gold standards:
 - [ ] **microsoft/vscode** — contribution points, extension host, activation events (the canonical extensible-platform design)

@@ -76,6 +76,34 @@ import {
   type RedirectsWriteDeps,
 } from "../redirects";
 import { registerSlugChangeCapture } from "../routing";
+import { InMemoryDbOpsAdapter, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryStorageLedgerRepo } from "../features/storage/repo.memory";
+import { registerAdminStorageTimelineRoute } from "./routes/admin/storage/timeline";
+import { registerAdminStorageRestorePointsCreateRoute, registerAdminStorageRestorePointsListRoute } from "./routes/admin/storage/restore-points";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
+import { registerAdminContentTypeListRoute } from "./routes/admin/content-types/list";
+import { registerAdminContentTypeRegisterRoute } from "./routes/admin/content-types/register";
+import { registerAdminContentTypeUpdateFieldsRoute } from "./routes/admin/content-types/update-fields";
+import { registerAdminContentTypeLifecycleRoute } from "./routes/admin/content-types/lifecycle";
+import { InMemoryEntryRepo } from "../features/entries/repo.memory";
+import { registerAdminEntryListRoute } from "./routes/admin/entries/list";
+import { registerAdminEntryCreateRoute } from "./routes/admin/entries/create";
+import { registerAdminEntryUpdateRoute } from "./routes/admin/entries/update";
+import { registerAdminEntryLifecycleRoute } from "./routes/admin/entries/lifecycle";
+import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo } from "../features/taxonomy/repo.memory";
+import { registerAdminTaxonomyListRoute } from "./routes/admin/taxonomy/list";
+import { registerAdminTaxonomyCreateRoute } from "./routes/admin/taxonomy/create-taxonomy";
+import { registerAdminTaxonomyCreateTermRoute } from "./routes/admin/taxonomy/create-term";
+import { registerAdminTaxonomyRenameTermRoute } from "./routes/admin/taxonomy/rename-term";
+import { registerAdminTaxonomyAssignTermsRoute } from "./routes/admin/taxonomy/assign-terms";
+import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
+import { registerAdminRecoveryRestorePointsListRoute } from "./routes/admin/recovery/restore-points";
+import { registerAdminRecoveryDisclosureRoute } from "./routes/admin/recovery/disclosure";
+import { registerAdminRecoveryDeepLinkRoute } from "./routes/admin/recovery/deep-link";
+import { registerAdminRecoveryStatusRoute } from "./routes/admin/recovery/status";
+import { buildGatewayDeps } from "./gated-mutations-composition";
+import { registerAdminTaxonomyMergeTermRoutes } from "./routes/admin/taxonomy/merge-term";
+import { registerAdminStorageMigrateForwardRoutes } from "./routes/admin/storage/migrate-forward";
+import { registerAdminRecoveryRestoreRoutes } from "./routes/admin/recovery/restore";
 
 import { applyDevCors } from "./middleware/dev-cors";
 import { registerAdminStatic } from "./middleware/admin-static";
@@ -234,6 +262,10 @@ export function createRouteDeps(): NewsletterRouteDeps {
   const redirectHitSink = new RedirectHitSinkImpl();
   const outbox = new InMemoryOutbox();
   const bus = new InMemoryEventBus();
+  // Admin-UI backend-gap closure (design-spec.md §0.4/§4.8, this dispatch): declared here (not
+  // inline in the return object) so Recovery's `deepLinkRestorePointLookup` below reads the SAME
+  // in-memory rows Storage's restore-points routes write into, not a second, disconnected instance.
+  const restorePointsRepo = new InMemoryRestorePointsRepo();
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
     db: redirectRepo,
@@ -331,6 +363,32 @@ export function createRouteDeps(): NewsletterRouteDeps {
     formDefinitionRepo: new InMemoryFormDefinitionRepo(),
     formSubmissionRepo: new InMemoryFormSubmissionRepo(),
     formsRateLimiter: createRateLimiter(FORMS_SUBMIT_PROFILE, clock),
+    // ADR-041 §1/§2 (Storage Timeline): in-memory ledger, same disclosed precedent as every other
+    // feature's hermetic test/dev composition above. `server/deps.ts`'s real composition opens
+    // the sidecar `ops/storage-journal.db` and uses `SqliteStorageLedgerRepo` instead.
+    storageLedgerRepo: new InMemoryStorageLedgerRepo(),
+    // Admin-UI backend-gap closure (design-spec.md §0.4, this dispatch): in-memory adapters for
+    // content-types/entries/taxonomy (no SQLite adapter exists yet for any of the three — see
+    // `routes/types.ts`'s doc comment on this field group for the full disclosure) plus the
+    // restore-points/dbOps/site-status/recovery seams the Storage/Recovery screens' remaining
+    // read routes need.
+    contentTypeRepo: new InMemoryContentTypeRepo(),
+    contentTypeIndexProvisioner: new NoopContentTypeIndexProvisioner(),
+    entryRepo: new InMemoryEntryRepo(),
+    taxonomyRepo: new InMemoryTaxonomyRepo(),
+    termRepo: new InMemoryTermRepo(),
+    entryTermRepo: new InMemoryEntryTermRepo(),
+    taxonomyRevisionRepo: new InMemoryTaxonomyRevisionRepo(),
+    restorePointsRepo,
+    dbOps: new InMemoryDbOpsAdapter(),
+    siteStatusRepo: new InMemorySiteStatusRepo(),
+    disclosureWatermarkSource: new AlwaysUnavailableWatermarkSource(),
+    deepLinkRestorePointLookup: new RestorePointDeepLinkLookup(restorePointsRepo),
+    // SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — same composition `server/deps.ts`
+    // wires for the real server, mirrored here for the hermetic test/dev composition (its own
+    // `InMemoryTokenStore` instance — see `gated-mutations-composition.ts`'s file header for the
+    // disclosed `TokenStorePort` decision).
+    gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize: identity.authorize }) },
   };
 }
 
@@ -475,6 +533,44 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerAdminRedirectTombstoneRoute(app, routeDeps);
   registerAdminRedirectImportRoute(app, routeDeps);
   registerAdminRedirectHitsRoute(app, routeDeps);
+
+  // ADR-041 §1 (Storage Timeline) — the one Storage/Recovery route wired in the prior pass (see
+  // that route file's own header for history).
+  registerAdminStorageTimelineRoute(app, routeDeps);
+  registerAdminStorageRestorePointsListRoute(app, routeDeps);
+  registerAdminStorageRestorePointsCreateRoute(app, routeDeps);
+
+  // Admin-UI backend-gap closure (design-spec.md §0.4) — the read-side domain functions + admin
+  // routes the Web Design pass found missing across Collections (content-types + entries),
+  // Categories & Tags (taxonomy), and the rest of Storage/Recovery. `mergeTerm`'s plan/confirm/
+  // execute ceremony and the migrate-forward/restore-ceremony routes were deferred at the time
+  // this block was first written; see the gated-mutation route registrations below (this dispatch)
+  // for where they now live.
+  registerAdminContentTypeListRoute(app, routeDeps);
+  registerAdminContentTypeRegisterRoute(app, routeDeps);
+  registerAdminContentTypeUpdateFieldsRoute(app, routeDeps);
+  registerAdminContentTypeLifecycleRoute(app, routeDeps);
+  registerAdminEntryListRoute(app, routeDeps);
+  registerAdminEntryCreateRoute(app, routeDeps);
+  registerAdminEntryUpdateRoute(app, routeDeps);
+  registerAdminEntryLifecycleRoute(app, routeDeps);
+  registerAdminTaxonomyListRoute(app, routeDeps);
+  registerAdminTaxonomyCreateRoute(app, routeDeps);
+  registerAdminTaxonomyCreateTermRoute(app, routeDeps);
+  registerAdminTaxonomyRenameTermRoute(app, routeDeps);
+  registerAdminTaxonomyAssignTermsRoute(app, routeDeps);
+  registerAdminRecoveryRestorePointsListRoute(app, routeDeps);
+  registerAdminRecoveryDisclosureRoute(app, routeDeps);
+  registerAdminRecoveryDeepLinkRoute(app, routeDeps);
+  registerAdminRecoveryStatusRoute(app, routeDeps);
+
+  // SPEC-016 (`core/gated-mutations`'s gateway composed into a real composition root, this
+  // dispatch) — the 3 deferred gated-mutation ceremonies: taxonomy `mergeTerm`, storage
+  // `migrate-forward`, recovery `restore`. Each registers 3 endpoints (`/plan`, `/confirm`,
+  // `/execute`) mirroring `gateway.ts`'s own 3-method shape.
+  registerAdminTaxonomyMergeTermRoutes(app, routeDeps);
+  registerAdminStorageMigrateForwardRoutes(app, routeDeps);
+  registerAdminRecoveryRestoreRoutes(app, routeDeps);
 
   // SPEC-008 (SEO) — 6 admin routes gated by `admin.seo.manage`, plus the 2 public site routes
   // (sitemap.xml/robots.txt), which must register before `registerSiteRoutes`'s `/:slug` catch-all.

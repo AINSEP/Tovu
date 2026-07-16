@@ -27,6 +27,7 @@ export function findOneBy<TTable extends SQLiteTable, TRecord>(
     .select()
     .from(table as SQLiteTable)
     .where(and(...conditions))
+    .limit(1)
     .all() as Array<TTable["$inferSelect"]>;
   return rows[0] ? mapper(rows[0]) : null;
 }

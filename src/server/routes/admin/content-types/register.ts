@@ -1,0 +1,92 @@
+import type { Express } from "express";
+
+import { toContentTypeOutbox } from "../../../../features/content-types/repo.memory";
+import {
+  ForbiddenError,
+  InvalidFieldKindError,
+  InvalidFieldNameGrammarError,
+  InvalidKeyGrammarError,
+  QueryableFieldCapExceededError,
+  ReservedContentTypeKeyError,
+} from "../../../../features/content-types/errors";
+import { registerContentType } from "../../../../features/content-types/write-service";
+import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import type { RouteDeps } from "../../types";
+
+/** Maps a `registerContentType` rejection to an HTTP status/code pair (design-spec.md §1.9). */
+function statusFor(error: Error): { status: number; code: string } {
+  if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
+  if (
+    error instanceof InvalidKeyGrammarError ||
+    error instanceof ReservedContentTypeKeyError ||
+    error instanceof InvalidFieldNameGrammarError ||
+    error instanceof InvalidFieldKindError ||
+    error instanceof QueryableFieldCapExceededError
+  ) {
+    return { status: 400, code: "VALIDATION_ERROR" };
+  }
+  return { status: 500, code: "INTERNAL_ERROR" };
+}
+
+/**
+ * @file design-spec.md §1.3/§1.9 — `POST /api/admin/v1/content-types` (creates a Collection's
+ * content type, ADR-043 §4). Gated by `admin.collections.manage`; the write-service's own
+ * `registerContentType` re-checks the same permission internally (chokepoint discipline) — this
+ * route's own pre-check exists only for a fast, structured 403 before touching the body at all,
+ * mirroring `routes/admin/settings/register-definitions.ts`'s identical pattern.
+ */
+export function registerAdminContentTypeRegisterRoute(app: Express, deps: RouteDeps): void {
+  app.post("/api/admin/v1/content-types", async (req, res) => {
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "admin.collections.manage",
+        workspaceId: deps.workspaceId,
+        entityType: "content-type",
+      });
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'admin.collections.manage' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "admin.collections.manage", reason: authResult.reason },
+        });
+        return;
+      }
+
+      const body = req.body ?? {};
+      if (typeof body.key !== "string" || typeof body.label !== "string" || !Array.isArray(body.fields)) {
+        res.status(400).json({ error: "'key' (string), 'label' (string), and 'fields' (array) are required", code: "VALIDATION_ERROR" });
+        return;
+      }
+
+      const result = await registerContentType({
+        deps: {
+          repo: deps.contentTypeRepo,
+          clock: deps.clock,
+          ids: deps.idGen,
+          authorize: deps.authorize,
+          indexProvisioner: deps.contentTypeIndexProvisioner,
+          outbox: toContentTypeOutbox(deps),
+        },
+        input: {
+          actorId: principal.id,
+          workspaceId: deps.workspaceId,
+          key: body.key,
+          label: body.label,
+          fields: body.fields,
+        },
+      });
+
+      if (!result.ok) {
+        const { status, code } = statusFor(result.error);
+        res.status(status).json({ error: result.error.message, code });
+        return;
+      }
+      res.status(201).json(result.value);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "internal error";
+      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+    }
+  });
+}

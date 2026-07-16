@@ -41,7 +41,15 @@ const BASE_CATALOG: readonly PermissionDescriptor[] = [
   { id: "content.write", owner: "core", description: "Create and edit content entries." },
   { id: "content.publish", owner: "core", description: "Publish/unpublish content entries." },
   { id: "content.delete", owner: "core", description: "Delete content entries." },
-  { id: "media.write", owner: "core", description: "Upload and manage media assets." },
+  {
+    id: "media.write",
+    owner: "core",
+    description:
+      "DEPRECATED (ADR-027 §7, SPEC-021 REQ-40/OQ-02) — superseded by the flat media.* permission " +
+      "set registered below. Retained (not deleted) — see the media.* registration block's own " +
+      "comment for the same Migration Safety gating this repo's other permission renames " +
+      "(navigation.manage, integration.manage) have used. Do not register a new dependency on this string.",
+  },
   { id: "theme.set", owner: "core", description: "Change the active theme/presentation settings." },
   { id: "plugin.read", owner: "core", description: "List installed plugins and their state." },
   { id: "plugin.enable", owner: "core", description: "Enable a plugin." },
@@ -378,6 +386,91 @@ registerPermission({
   id: "admin.newsletter.manage",
   owner: "newsletter",
   description: "Umbrella newsletter permission. Reserved for a future API surface (no route uses this yet).",
+});
+/**
+ * ADR-041 §6 (Storage/Timeline) / ADR-045 (Backups/Recovery) — the house-style flat
+ * `domain.verb` permissions both ADRs' own text names directly (matching
+ * `navigation.manage`/`integration.manage`/`analytics.read`'s shape, not the
+ * `admin.<section>.<action>` convention). Only `storage.read` gates a route this pass
+ * (`routes/admin/storage/timeline.ts`); the rest are registered now — matching this catalog's
+ * existing precedent of registering a domain's full permission vocabulary even before every
+ * verb has a route (e.g. `admin.newsletter.settings.manage` above) — so a future session wiring
+ * the remaining Storage/Recovery routes need not touch this file again.
+ */
+registerPermission({ id: "storage.read", owner: "storage", description: "Read the Storage Timeline, schema drift status, and restore points." });
+registerPermission({ id: "storage.migrate", owner: "storage", description: "Plan, confirm, and execute a forward schema migration." });
+registerPermission({ id: "backup.read", owner: "recovery", description: "Read restore points and this site's restore capability." });
+registerPermission({ id: "backup.create", owner: "recovery", description: "Mint a restore point independent of any migration." });
+registerPermission({ id: "backup.restore", owner: "recovery", description: "Confirm and execute a restore to a prior restore point." });
+/**
+ * Admin-UI backend-gap closure session (2026-07-15, progress-ledger.md "Session 5") wired 18 new
+ * admin routes over the content-types/entries/taxonomy domains gated by these three strings, but
+ * registering them in this catalog was out of that session's own scope-file list — they worked
+ * anyway via the seeded owner's `"*"` wildcard grant (`isKnownPermission()` is not consulted by
+ * `authorize()` on the runtime path). This closes that disclosed catalog-completeness gap; no
+ * route or authorize() behavior changes as a result (`isKnownPermission` has no caller in the
+ * authorize path today, confirmed by the same grep Session 5 already ran).
+ */
+registerPermission({
+  id: "admin.collections.read",
+  owner: "content-types",
+  description: "List Collections content types and their entries.",
+});
+registerPermission({
+  id: "admin.collections.manage",
+  owner: "content-types",
+  description: "Create/edit content types and entries; deprecate/reactivate/tombstone a content type; publish/unpublish an entry.",
+});
+registerPermission({
+  id: "admin.taxonomy.manage",
+  owner: "taxonomy",
+  description: "Read and write taxonomies, terms, and term assignments (ADR-044 registers one permission for this whole domain, no .read/.write split).",
+});
+/**
+ * SPEC-021 (Media/Assets) / ADR-027 §7 — the flat `media.*` permission set the ADR names verbatim,
+ * superseding the single, broader `media.write` above (mirrors `navigation.manage` ->
+ * `admin.menus.*` and `integration.manage` -> `admin.integrations.manage`: deprecate-not-delete the
+ * old flat string, register the new set, fan out via `registerPermissionMigration` below so no
+ * existing `media.write` grant is silently narrowed). Wired into the 5 admin media routes this
+ * pass (`routes/admin/media/{list,upload,update,trash,delete}.ts`); `media.download_original` and
+ * `media.upload_svg` are registered for catalog completeness per the ADR but gate no route yet (no
+ * original-download route exists, and SVG upload is already rejected outright rather than gated —
+ * see the Programmer handoff). `media.manage` is the ADR's umbrella/admin-override grant, also
+ * registered but not checked as an alternate by any route — no existing umbrella-as-alternate
+ * precedent was found in this catalog to extend (unlike `admin.menus.manage`, which is likewise
+ * registered but unused by any route), so one specific permission per route was kept, not invented.
+ */
+registerPermission({ id: "media.read", owner: "media", description: "List and read media assets." });
+registerPermission({ id: "media.upload", owner: "media", description: "Upload a new media asset." });
+registerPermission({ id: "media.update", owner: "media", description: "Edit a media asset's metadata (title/alt/caption/credit)." });
+registerPermission({ id: "media.delete", owner: "media", description: "Trash (soft-delete) a media asset." });
+registerPermission({
+  id: "media.delete.force",
+  owner: "media",
+  description: "Permanently purge a trashed media asset, past the still-referenced guard.",
+});
+registerPermission({
+  id: "media.download_original",
+  owner: "media",
+  description:
+    "Mint a short-TTL signed URL to download a media asset's original bytes (ADR-027 §6). Reserved for a future API surface — no route uses this yet.",
+});
+registerPermission({
+  id: "media.upload_svg",
+  owner: "media",
+  description: "Upload an SVG asset (sanitized at ingest, served origin-isolated per ADR-027 §6).",
+});
+registerPermission({
+  id: "media.manage",
+  owner: "media",
+  description: "Umbrella grant covering every media.* action (mirrors owner-tier convenience grants like admin.menus.manage).",
+});
+registerPermissionMigration({
+  from: "media.write",
+  to: ["media.read", "media.upload", "media.update", "media.delete", "media.delete.force", "media.download_original", "media.upload_svg"],
+  reason:
+    "ADR-027 §7 / SPEC-021 REQ-40/OQ-02: media.write replaced by the flat media.* permission set; " +
+    "every policy holding the old flat permission must not be silently narrowed by the split.",
 });
 
 /** Enumerate the full registered catalog (REQ-12 core capability; CLI wiring is N/A, see file header). */

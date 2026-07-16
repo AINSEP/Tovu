@@ -22,6 +22,12 @@ import { Seo } from "./sections/Seo";
 import { Redirects } from "./sections/Redirects";
 import { FormsList } from "./sections/FormsList";
 import { FormEditor } from "./sections/FormEditor";
+import { Collections } from "./sections/Collections";
+import { CollectionEntries } from "./sections/CollectionEntries";
+import { CollectionEntryEditor } from "./sections/CollectionEntryEditor";
+import { Taxonomy } from "./sections/Taxonomy";
+import { Storage } from "./sections/Storage";
+import { Recovery } from "./sections/Recovery";
 
 type Route =
   | { view: "dashboard" }
@@ -33,6 +39,8 @@ type Route =
   | { view: "integration-deliveries"; subscriptionId: string }
   | { view: "forms" }
   | { view: "form-editor"; formId: string }
+  | { view: "collection-entries"; contentTypeKey: string }
+  | { view: "collection-entry-editor"; contentTypeKey: string; entryId: string | null }
   | { view: "section"; sectionId: string };
 
 function parseHash(hash: string): Route {
@@ -48,6 +56,9 @@ function parseHash(hash: string): Route {
   if (parts[0] === "integrations") return { view: "integrations" };
   if (parts[0] === "forms" && parts[1]) return { view: "form-editor", formId: parts[1] };
   if (parts[0] === "forms") return { view: "forms" };
+  if (parts[0] === "collections" && parts[1] && parts[2])
+    return { view: "collection-entry-editor", contentTypeKey: parts[1], entryId: parts[2] === "new" ? null : parts[2] };
+  if (parts[0] === "collections" && parts[1]) return { view: "collection-entries", contentTypeKey: parts[1] };
   if (parts[0] === "appearance" || (parts[0] === "section" && parts[1] === "appearance"))
     return { view: "section", sectionId: "appearance" };
   if (parts[0] === "section" && parts[1]) return { view: "section", sectionId: parts[1] };
@@ -71,6 +82,9 @@ function activeSectionId(route: Route): string {
     case "forms":
     case "form-editor":
       return "forms";
+    case "collection-entries":
+    case "collection-entry-editor":
+      return "collections";
     case "section":
       return route.sectionId;
   }
@@ -132,6 +146,12 @@ export function App() {
     case "form-editor":
       content = <FormEditor formId={route.formId} />;
       break;
+    case "collection-entries":
+      content = <CollectionEntries contentTypeKey={route.contentTypeKey} />;
+      break;
+    case "collection-entry-editor":
+      content = <CollectionEntryEditor contentTypeKey={route.contentTypeKey} entryId={route.entryId} />;
+      break;
     case "section":
       content =
         route.sectionId === "themes" || route.sectionId === "appearance" ? (
@@ -154,6 +174,14 @@ export function App() {
           <Pages />
         ) : route.sectionId === "settings" ? (
           <Settings />
+        ) : route.sectionId === "collections" ? (
+          <Collections />
+        ) : route.sectionId === "taxonomy" ? (
+          <Taxonomy />
+        ) : route.sectionId === "storage" ? (
+          <Storage />
+        ) : route.sectionId === "recovery" ? (
+          <Recovery />
         ) : (
           <Placeholder sectionId={route.sectionId} />
         );

@@ -1,13 +1,30 @@
 # ADR-043: Collections — operator-defined content types
 
-- Status: **PROPOSED** — emerged from a 4-round swarm `/debate` (2026-07-14, Primary Sonnet host +
+- Status: **Accepted** (2026-07-14, human owner sign-off — Leon Aburime) — emerged from a 4-round swarm `/debate` (2026-07-14, Primary Sonnet host +
   Fable subagent + Codex gpt-5.5 + Gemini 3.1 Pro via agy). All three external/subagent participants
   converged closely on the overall shape from Round 1. The storage-shape sub-question (below) did
   **not** converge through Rounds 1-3 — each of the three participants held a different final position
   after Round 3 — and was resolved only in **Round 4**, after the Coordinator (which had not run a
   genuine blind first pass through Round 3 — a disclosed process gap, see Process Note) contributed an
   explicit optionality/reversibility argument. All three participants revised to unanimous agreement in
-  Round 4 (Fable 0.85, Codex 0.86, agy 0.95). **Has NOT been through `/audit-work`.**
+  Round 4 (Fable 0.85, Codex 0.86, agy 0.95). **Audited six times across two threat models — debate-round
+  numbers above are independent of audit rounds: audit round 1 used `TM-ADR-STORAGE-CONTENT-004`; audit
+  rounds 2–6 used `TM-ADR-CONTENT-ADMIN-005` (internal verification, external re-dispatch, compliance
+  inspection, final internal close-out, and fix-compliance re-check respectively):** round 1 under `TM-ADR-STORAGE-CONTENT-004`
+  (2026-07-14, Coordinator-overridden FAIL, 4 fixes folded — see §6 below); an internal-verification round
+  under `TM-ADR-CONTENT-ADMIN-005` (2026-07-14, cross-ADR hard-blocker root cause + a DDL-grammar gap, both
+  fixed); external peer re-dispatch (2026-07-14, Codex GPT-5.6 Terra + Gemini 3.1 Pro, same TM id) which
+  found one further blocker (the grammar fix covered field names but not field *kind*, also interpolated
+  into cast DDL — fixed this fold, see §4) plus a low-severity vacuous-index finding (fixed, see §5); a
+  compliance-inspector pass (2026-07-14, same external auditors) — unanimous PASS, Codex 9.6, agy 9.8, zero
+  findings on this ADR; and a final internal close-out pass (2026-07-14, Fable, `TM-ADR-CONTENT-ADMIN-005`)
+  — PASS 9.0, two substantive findings (outbox coverage gap on content-type lifecycle transitions, §4; a
+  mis-citation in §5) plus cosmetic provenance cleanup, all fixed this fold; and a round-6 fix-compliance
+  re-check (2026-07-14, same TM id) — external PASS (Codex GPT-5.6 Terra 9.0, agy 9.9; two nits fixed:
+  this audit-count legend, and §5/§6's residual §4a-citation prose — the "citations corrected round 6"
+  markers below), plus internal re-verification (Fable) — PASS, all prior fixes verified against ADR-022's
+  actual text, no new findings. Audit-adversarial review is
+  complete.
 - Date: 2026-07-14
 - Relates: ADR-022 (content model — this ADR is the first real implementation of its deferred `entries`/
   `content_types` design), ADR-023 (core-mediated plugin data modules — explicitly rejected as the storage
@@ -100,9 +117,12 @@ The Coordinator's Round 4 argument, now adopted by all three participants:
   risk introduced here.
 - This codebase's single most repeated architectural value, across nearly every accepted ADR
   (ADR-011, ADR-015, ADR-023, ADR-041), is protecting live, real content from anything new and unproven.
-  Plain coexistence gives Collections the cleanest possible abort path — if the feature doesn't pan out,
-  `DROP TABLE entries` and walk away with zero effect on real site content. Neither the additive-`posts`
-  evolution nor the identity-anchor pattern preserves that property as cleanly.
+  Plain coexistence gives Collections the cleanest possible abort path relative to the other two options — no
+  effect on `posts` either way. **Corrected by round-1 `/audit-work` (2026-07-14 — see §6): the original debate
+  record framed this abort path as "`DROP TABLE entries` and walk away," which is destructive to any operator
+  content already created. The actual abort path this ADR now requires is a non-destructive disable/retain
+  lifecycle — see §6 item 2.** Neither the additive-`posts` evolution nor the identity-anchor pattern preserves
+  the *no-effect-on-`posts`* property as cleanly, which remains the real, correct basis for this decision.
 
 **`post`/`page` are NOT migrated onto `entries` in this pass.** They remain on `posts`, unaffected.
 Migrating them is explicitly deferred to a future pass, once the `entries` engine has proven itself in
@@ -137,15 +157,71 @@ speculatively" doctrine.
   operation, using the carve-out ADR-041 §4 already defined (no restore point needed for index-only
   operations).
 - **ADR-007** workspace scoping on every `content_types`/`entries`/`entry_revisions` row and port method.
+- **ADR-009 outbox discipline (added, round-1 audit fold; corrected round 2).** `write-service.ts`'s entry-transition
+  writes (`entry.created`/`entry.updated`/`entry.published`/`entry.unpublished`) must enqueue an outbox event in
+  the same transaction as the entry/revision write — this is how downstream integrations (SEO overrides, webhooks,
+  search indexing) learn about Collection content at all; without it, Collections entries would be silently
+  invisible to every event-driven consumer in the system. **Corrected by round-2 `/audit-work`: round 1 claimed
+  this "mirrors `src/features/post/post.ts`'s existing pattern exactly," which Codex (gpt-5.5, high) verified false
+  — `post.ts`'s `updatePost` saves the post first, then separately calls `outbox.enqueue` afterward, non-atomically.
+  Event names/payload shape should follow `post.ts`'s convention; the same-transaction requirement itself is new
+  and must NOT be implemented by copying `post.ts`'s current non-atomic sequencing.** **Extended, round-5 audit
+  fold (2026-07-14, TM-ADR-CONTENT-ADMIN-005, Fable F2): this bullet named entry transitions only. §6's
+  disable→tombstone→cleanup lifecycle (item 2) has mass-unpublish semantics at the tombstone step — "entries no
+  longer served publicly" — but nothing enqueued an outbox event for it, so search indexes/webhooks that learned
+  of those entries via `entry.published` would never learn to drop them; the ADR-041 ledger row §4 already
+  requires for index teardown is the Storage Timeline, not the outbox, and doesn't substitute for it. The outbox
+  obligation now also covers `content_types` lifecycle transitions (`content_type.deprecated`,
+  `content_type.tombstoned`), same-transaction, same chokepoint.**
+- **Reserved content-type keys (added, round-1 audit fold).** `content_types` definition-time validation MUST
+  reject `key ∈ {'post', 'page'}` — these are permanently reserved for the legacy `posts` table. Without this, an
+  operator-created Collection named "post" makes ADR-044's `entry_terms.contentType` polymorphic reference
+  ambiguous between a `posts` row and an `entries` row (see §6 item 1 — the single most serious cross-ADR finding
+  from round-1 audit). This is a cheap, additive validation rule at registry-write time, not a schema change.
+- **ADR-041 §5 watermark stamping (added, round-2 `/audit-work` fold, TM-ADR-CONTENT-ADMIN-005).** Every
+  entry/registry mutation through `write-service.ts` increments-and-stamps the authoritative
+  `storage_write_watermark` in the same transaction as the write, exactly like the same-transaction outbox
+  and revision obligations already required above. Collections is a brand-new write chokepoint designed
+  *after* ADR-041's six-pass inventory saga proved retrofitting watermark coverage onto existing code does
+  not converge — it is born watermark-covered rather than joining ADR-041's uncovered-paths backlog.
+  ADR-045's discarded-window disclosure may not count `entries` rows as a covered category until this
+  obligation is actually implemented; see ADR-045 §3's round-2 fold.
+- **Key/field-name grammar (added, round-2 `/audit-work` fold, TM-ADR-CONTENT-ADMIN-005; extended round 3).**
+  Definition-time validation additionally pins a strict grammar for `content_types.key` and every field name
+  (e.g. `^[a-z][a-z0-9_]{0,63}$`): these operator-supplied strings are interpolated into core-issued
+  `CREATE INDEX` identifiers and JSON-path literals (ADR-022 §3's index template), which cannot take bound
+  parameters. Without a pinned grammar, an operator-authored name containing quotes or path metacharacters
+  reaches raw DDL text — the exact "operator-defined content type triggers raw DDL" failure this ADR's
+  first decision exists to forbid, reached via injection rather than by design. ADR-044's `taxonomies.key`
+  should carry the same rule for symmetry, though the stakes are lower there (no DDL interpolation).
+  **Round-3 correction (2026-07-14, external audit — Codex): the round-2 fold constrained key/field* names*
+  but not field* kind*, which ADR-022 §3's template also interpolates directly into
+  `CAST(json_extract(...) AS {type})`. A field `kind` is not free text: it is a closed core enum (e.g.
+  `text|integer|real|boolean|datetime`), never an operator-supplied SQL fragment. The index provisioner maps
+  that enum through a fixed, core-owned lookup table to SQL cast literals — it never interpolates an
+  operator-supplied kind, namespace, collation, or sort expression directly. Any namespace used by the JSON
+  path is core-assigned and grammar-validated the same way before index construction.** **Round-5 correction
+  (2026-07-14, TM-ADR-CONTENT-ADMIN-005 — Fable F7): ADR-022 §3's index-name template
+  (`q_{type}_{ns}_{field}`) has no workspace component, while `content_types` is unique per
+  `(workspaceId, key)` — two workspaces defining the same `key` with a different field `kind` would collide
+  on index name. Index identity must include workspace scoping (e.g. a workspace-derived namespace segment
+  or a workspace-qualified index name), not just the type/ns/field tuple, whenever the underlying registry
+  key isn't itself globally unique.**
 
 ### 5. Concrete sample implementation
+
+**Corrected by round-1 `/audit-work` (2026-07-14 — see §6): the sample below was found to omit `bodyJson` (an
+ADR-022 §2 universal entry column), a standard `createdAt` completeness column, and revision `pluginId`
+attribution (ADR-022 §4a), and to omit a revision ledger for the registry itself, which ADR-022 §4a explicitly
+names alongside entries and `entry_terms`. All are fixed in the sample below — additions marked `// added,
+round-1 audit fold` (citations corrected round 6, see §4's grammar bullet history for the same class of fix).**
 
 ```ts
 // src/infra/db/schema.ts — additive, coexists with the untouched `posts` table
 export const contentTypes = sqliteTable("content_types", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull(),
-  key: text("key").notNull(),                   // "recipe"
+  key: text("key").notNull(),                   // "recipe" — VALIDATED at write time: key NOT IN ('post','page')
   label: text("label").notNull(),
   fieldsSchemaJson: text("fields_schema_json").notNull(), // field defs: name, kind, queryable, required
   status: text("status").notNull(),             // active|deprecated|tombstone
@@ -154,6 +230,22 @@ export const contentTypes = sqliteTable("content_types", {
   version: integer("version").notNull(),
 }, (t) => [uniqueIndex("content_types_workspace_key_unique").on(t.workspaceId, t.key)]);
 
+// added, round-1 audit fold — ADR-022 §4a names "the registry itself" as requiring a same-transaction revision;
+// content_types previously had only an OCC version counter, not an append-only ledger.
+export const contentTypeRevisions = sqliteTable("content_type_revisions", {
+  seq: integer("seq").primaryKey({ autoIncrement: true }),
+  contentTypeId: text("content_type_id").notNull(),
+  workspaceId: text("workspace_id").notNull(),
+  // added, round-3 audit fold (Codex + agy independently) — `seq` is a global autoincrement PK, so a
+  // unique index on (contentTypeId, seq) was vacuous (already implied by seq alone). perContentTypeSeq
+  // gives the composite index a real constraint, matching entryRevisions' perEntrySeq pattern.
+  perContentTypeSeq: integer("per_content_type_seq").notNull(),
+  stateJson: text("state_json").notNull(),
+  actorId: text("actor_id").notNull(),
+  op: text("op").notNull(),                     // register|deprecate|tombstone|field-change
+  recordedAt: text("recorded_at").notNull(),
+}, (t) => [uniqueIndex("idx_content_type_revisions_seq").on(t.contentTypeId, t.perContentTypeSeq)]);
+
 export const entries = sqliteTable("entries", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull(),
@@ -161,8 +253,10 @@ export const entries = sqliteTable("entries", {
   slug: text("slug").notNull(),
   status: text("status").notNull(),
   title: text("title").notNull(),
+  bodyJson: text("body_json"),                  // added, round-1 audit fold — ADR-022 §2 universal entry column (re-cited round 5, was mis-cited to §4a)
   fieldsJson: text("fields_json").notNull(),    // { ext: { site: {...} } }, validated against content_types
   publishedAt: text("published_at"),
+  createdAt: text("created_at").notNull(),       // added, round-1 audit fold — standard completeness column (re-cited round 5: ADR-022 does not actually name `createdAt`; §2's universal entry columns are `publishedAt`/`updatedAt`)
   updatedAt: text("updated_at").notNull(),
   version: integer("version").notNull(),
 }, (t) => [
@@ -177,6 +271,7 @@ export const entryRevisions = sqliteTable("entry_revisions", {
   perEntrySeq: integer("per_entry_seq").notNull(),
   stateJson: text("state_json").notNull(),
   actorId: text("actor_id").notNull(),
+  pluginId: text("plugin_id"),                  // added, round-1 audit fold — ADR-022 §4a origin-plugin attribution; null for core/operator writes
   op: text("op").notNull(),
   recordedAt: text("recorded_at").notNull(),
 }, (t) => [uniqueIndex("idx_entry_revisions_entry_seq").on(t.entryId, t.perEntrySeq)]);
@@ -209,6 +304,36 @@ admin routes under `/api/admin/v1/content-types` and `/api/admin/v1/entries`, Re
 - **Schema drift / dangling fields.** An operator removes a field from a type definition, leaving old
   entries with orphaned JSON keys. Mitigation: validation is strict on write, tolerant on read (unknown
   keys are ignored, not fatal); field removal is a tombstone, never a destructive drop.
+
+## 6. Round 1 audit fold (2026-07-14), amended by round 2
+
+**Round 2 update:** the outbox fix below (item 4) originally cited `post.ts` as already doing same-transaction
+enqueue. Codex (gpt-5.5, high) verified this false against the live code in round 2 — `post.ts` saves then
+enqueues non-atomically. Corrected in item 4's text above to require the same-transaction behavior as a genuinely
+new requirement, not an existing pattern to copy.
+
+Audited under `TM-ADR-STORAGE-CONTENT-004` by three independent auditors (Codex gpt-5.6-terra/high, agy/Gemini 3.1
+Pro High, Fable/Opus in-host). Fable passed this ADR at the auditor level (9.0); the Coordinator overrode that PASS
+to FAIL given the accumulated weight of distinct real defects agy and Codex independently found (below) — see the
+external-audit run for full cross-auditor reasoning.
+
+- **Fixed (this fold):** missing `content_types`/`posts`/`pages` key-collision guard — `content_types.key ∈
+  {'post','page'}` is now rejected at registry-write time (§4).
+- **Fixed (this fold):** schema sample omitted `bodyJson` (ADR-022 §2), a standard `createdAt` completeness
+  column, `pluginId` attribution (ADR-022 §4a), and the ADR-022 §4a-required registry revision ledger — all
+  four now present in the sample (§5; citations corrected round 6).
+- **Fixed (this fold):** the stated abort path (`DROP TABLE entries`) was destructive to any operator content
+  already created. The abort/rollback lifecycle for a Collection is now: **disable** (content type flips to
+  `status='deprecated'`, existing entries remain readable/queryable but new-entry creation is refused) →
+  **tombstone** (flips to `status='tombstone'`, entries no longer served publicly, indexes torn down via `db-ops`
+  with an ADR-041 ledger record) → a separately confirmed, **export-backed destructive cleanup** only after an
+  explicit retention window elapses. Entries and revisions are retained at every step except the final, explicitly
+  confirmed cleanup. This mirrors `features/settings/write-service.ts`'s existing deprecate/tombstone precedent
+  rather than inventing a new lifecycle shape.
+- **Fixed (this fold):** `write-service.ts` now required to enqueue an ADR-009 outbox event in the same
+  transaction as every entry state transition (§4).
+- **Deferred, not fixed this fold:** whether/when `posts`/`pages` migrate onto `entries` remains explicitly out of
+  scope (unchanged from the original decision) — no auditor treated this as a blocker.
 
 ## Open Questions
 

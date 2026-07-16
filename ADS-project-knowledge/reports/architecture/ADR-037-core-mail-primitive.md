@@ -78,10 +78,17 @@ attachments, retries, and the `MailerSendResult` union against what's actually i
     = now`, i.e. no actual delay between retries — that's a pre-existing generic-outbox gap, not
     a mail-specific one.)
 
-No consumer (`newsletter`, `members`, `forms`) changed behavior — every change here is additive
-and optional. This amendment has not been through `/debate` or `/audit-work`, consistent with
-ADR-042's own "not yet audited" status; it should clear a review pass before the first real
-(`Smtp`/`HttpApi`) adapter is built against this shape.
+No consumer (`newsletter`, `members`, `forms`) changed behavior — `OutboundEmail.attachments` is
+additive and optional. **Correction (2026-07-15 `/audit-work` finding A-02, Fable):**
+`MailerCapabilities.supportsAttachments` is a **required** field on the `MailerCapabilities`
+shape, not optional — `ConsoleMailerAdapter` and every test-double implementer were updated in
+the same change. No runtime send-call site changed, and there are no out-of-tree
+`MailerCapabilities` implementers yet (interfaces-only per this ADR), so there was no real
+breaking-change risk to miss — but "every change here is additive and optional" overstated it
+for this one field. This amendment cleared its first `/audit-work` pass as part of the batched
+2026-07-15 run (`TM-ADR042-STRUCTURAL-006`'s domain touched this file only for this wording fix);
+it should still clear a full review pass of its own before the first real (`Smtp`/`HttpApi`)
+adapter is built against this shape.
 
 ## Internal-verification fixes (TM-sweep-foundations-001, 2026-07-10)
 Falsification pass caught an INV-3/D3 **blocker** + a D3 advisory. Folded:

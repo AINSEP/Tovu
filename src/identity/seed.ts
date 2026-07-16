@@ -33,7 +33,6 @@ const BUILTIN_ADMIN_PERMISSIONS: readonly string[] = [
   "content.write",
   "content.publish",
   "content.delete",
-  "media.write",
   "theme.set",
   "plugin.read",
   "plugin.enable",
@@ -43,6 +42,19 @@ const BUILTIN_ADMIN_PERMISSIONS: readonly string[] = [
   "member.manage",
   "settings.write",
   "apikey.manage",
+  // SPEC-021 (ADR-027 §7 migration clause, mirrors the admin.menus.*/admin.integrations.manage
+  // precedent above): every freshly-seeded workspace's admin role gets the concrete media.* working
+  // actions directly, so it never depends on migrateDeprecatedPermissionGrants(). The umbrella
+  // "media.manage" is deliberately not included here (mirrors admin.menus.manage's exclusion
+  // above). "media.write" is deliberately dropped from THIS seed list only — the string stays
+  // registered (deprecated) in identity/permissions.ts.
+  "media.read",
+  "media.upload",
+  "media.update",
+  "media.delete",
+  "media.delete.force",
+  "media.download_original",
+  "media.upload_svg",
   // ADR-PIPE-012 (Menus remediation, D-1/D-2/D-9 migration clause): every freshly-seeded
   // workspace gets the 6 new admin.menus.* CRUD strings directly, so it never depends on
   // migrateDeprecatedPermissionGrants() for its own built-in role grants. The now-legacy
@@ -92,7 +104,19 @@ const BUILTIN_EDITOR_PERMISSIONS: readonly string[] = [
   "content.write",
   "content.publish",
   "content.delete",
-  "media.write",
+  // SPEC-021 (ADR-027 §7 migration clause): editor gets the ordinary media working actions
+  // (read/upload/update/trash) but, unlike admin above, NOT media.delete.force (destructive
+  // hard-purge), media.download_original (mint-only access to sensitive originals), or
+  // media.upload_svg (XSS-risk-gated capability) — mirrors the Forms admin.forms.manage vs
+  // admin.forms.submissions.* PII-split precedent (ADR-PIPE-010 §6) rather than granting editor
+  // everything admin.write's single flat string previously implied. "media.write" is deliberately
+  // dropped from THIS seed list only — the string stays registered (deprecated) in
+  // identity/permissions.ts. Still a subset of admin's media.* set above (AC-12's owner ⊇ admin ⊇
+  // editor subset property).
+  "media.read",
+  "media.upload",
+  "media.update",
+  "media.delete",
   "theme.set",
 ];
 

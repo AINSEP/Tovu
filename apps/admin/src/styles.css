@@ -295,3 +295,34 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); box
 .settings-dialog { background: var(--surface); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; max-width: 26rem; box-shadow: var(--shadow-md); display: flex; flex-direction: column; gap: 0.9rem; }
 .settings-dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
 .settings-dialog p { margin: 0; color: var(--fg-2); font-size: 0.9rem; line-height: 1.5; }
+
+/* Collections / Categories & Tags / Storage / Recovery (design-spec.md) — additive status-pill
+ * and layout classes following the exact naming/token conventions already established above.
+ * Not in this dispatch's literal touch-scope list, but "match the existing design system" is a
+ * hard requirement of the same dispatch — see the Programmer handoff for the disclosed rationale. */
+.status-deprecated, .status-unpublished, .status-unavailable { background: var(--surface-3); color: var(--muted); }
+.status-tombstone { background: var(--danger-bg); color: var(--danger); }
+.status-cheap { background: var(--ok-bg); color: var(--ok); }
+.status-expensive { background: var(--accent-dim); color: var(--accent-text); }
+.status-success { background: var(--ok-bg); color: var(--ok); }
+.status-failure, .status-error { background: var(--danger-bg); color: var(--danger); }
+
+.collections-type-dialog { max-width: 34rem; max-height: 85vh; overflow-y: auto; }
+.collections-field-row { border: 1px solid var(--border); border-radius: var(--r-md); padding: 0.7rem 0.8rem; margin: 0 0 0.7rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.collections-field-row legend { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint); padding: 0 0.3rem; }
+.collections-row-actions { display: flex; gap: 0.4rem; }
+.collections-dynamic-fields { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1rem 1.1rem; margin-top: 1rem; display: flex; flex-direction: column; gap: 0.7rem; }
+.collections-dynamic-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.collections-dynamic-field label { font-size: 0.78rem; color: var(--fg-2); }
+.collections-term-picker { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1rem 1.1rem; margin-top: 1rem; }
+.collections-term-checkbox { display: inline-flex; align-items: center; gap: 0.35rem; margin: 0.2rem 0.8rem 0.2rem 0; font-size: 0.85rem; }
+
+.taxonomy-new-term-form { margin-top: 0.7rem; }
+
+.storage-filter-bar { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.storage-filter-bar label { font-size: 0.78rem; color: var(--fg-2); }
+.storage-restore-point-link { background: transparent; border: none; color: var(--accent-text); cursor: pointer; padding: 0; text-decoration: underline; }
+
+.recovery-degraded-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; justify-content: space-between; }
+.recovery-disclosure-panel ul { margin: 0.4rem 0; padding-left: 1.3rem; }
+.recovery-disclosure-panel label { display: flex; align-items: flex-start; gap: 0.5rem; margin-top: 0.6rem; font-size: 0.88rem; }

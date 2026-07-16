@@ -44,6 +44,21 @@ import type { OriginRegistryPort } from "../../origin";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../redirects";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../forms/ports";
 import type { RateLimiter } from "../middleware/rate-limit";
+import type { LedgerReadPort } from "../../features/storage/timeline";
+import type { RestorePointListPort, RestorePointSavePort } from "../../features/storage/restore-points";
+import type { SiteStatusPort } from "../../features/storage/boot/reconcile-interrupted-migration";
+import type { DbOpsPort } from "../../core/gated-mutations/ports";
+import type { ContentTypeRepoPort, IndexProvisionerPort } from "../../features/content-types/write-service";
+import type { TeardownIndexProvisionerPort } from "../../features/content-types/lifecycle";
+import type { ContentTypeListPort } from "../../features/content-types/list";
+import type { EntryRepoPort } from "../../features/entries/write-service";
+import type { EntryListPort } from "../../features/entries/list";
+import type { EntryTermRepoPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TermRepoPort } from "../../features/taxonomy/write-service";
+import type { TaxonomyListPort, TermListPort } from "../../features/taxonomy/list";
+import type { DisclosureWatermarkSourcePort } from "../../features/recovery/disclosure";
+import type { DeepLinkRestorePointLookupPort } from "../../features/recovery/deep-link";
+import type { GatewayDeps } from "../../core/gated-mutations/gateway";
+import type { LedgerAppendPort, MergeableEntryTermRepoPort } from "../gated-mutations-composition";
 
 export interface RouteDeps {
   workspaceId: UUID;
@@ -174,6 +189,83 @@ export interface RouteDeps {
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
   formsRateLimiter: RateLimiter;
+  /**
+   * ADR-041 §1/§2 — the Storage Timeline's read port, backed by the sidecar
+   * `ops/storage-journal.db` (`infra/sqlite/storage-journal-repo.ts`'s `SqliteStorageLedgerRepo`
+   * in `server/deps.ts`'s real composition; `features/storage/repo.memory.ts`'s
+   * `InMemoryStorageLedgerRepo` in `server/app.ts`'s hermetic composition). Only the read side is
+   * wired into `RouteDeps` this pass — see `routes/admin/storage/timeline.ts`'s file header for
+   * what remains unwired.
+   */
+  /** Widened this dispatch with `LedgerAppendPort` — both `SqliteStorageLedgerRepo` and
+   * `InMemoryStorageLedgerRepo` already implement `.append()`; only the type declaration here was
+   * narrower than the concrete instances (see `gated-mutations-composition.ts`'s
+   * `buildMigrateForwardHooks`/`buildRestoreHooks`, which need to append real ledger rows). */
+  storageLedgerRepo: LedgerReadPort & LedgerAppendPort;
+  /**
+   * Admin-UI backend-gap closure (design-spec.md §0.4/§1.9/§2.8/§3.8/§4.8, this dispatch) — the
+   * read-side + route-layer wiring the Web Design pass found missing across `content-types`,
+   * `entries`, `taxonomy`, and (partially) `storage`/`recovery`. Every field below is backed by an
+   * in-memory adapter in BOTH `server/app.ts` and `server/deps.ts` (no SQLite adapter exists yet
+   * for `content-types`/`entries`/`taxonomy` — the same disclosed "no adapter yet" precedent
+   * `mediaRepo`/`transformDefinitionRepo`/`memberRepo` already establish above), EXCEPT
+   * `restorePointsRepo`/`dbOps`, which get real `infra/sqlite/storage-journal-repo.ts`/`db-ops.ts`
+   * adapters in `server/deps.ts` — see this dispatch's handoff for the full disclosure and the
+   * follow-up SQLite-adapter work item it leaves open.
+   */
+  /** ADR-022/ADR-043 — the `content_types` registry's write chokepoint repo, widened with this
+   * dispatch's new `ContentTypeListPort` (`features/content-types/list.ts`). */
+  contentTypeRepo: ContentTypeRepoPort & ContentTypeListPort;
+  /** No-op this pass (`features/content-types/repo.memory.ts`'s `NoopContentTypeIndexProvisioner`)
+   * — real DDL index provisioning targets `content.db` tables this domain has no SQLite adapter
+   * for yet, same disclosed gap as `contentTypeRepo`. */
+  contentTypeIndexProvisioner: IndexProvisionerPort & TeardownIndexProvisionerPort;
+  /** ADR-022/ADR-043 — the `entries` write chokepoint repo, widened with this dispatch's new
+   * `EntryListPort` (`features/entries/list.ts`). Also satisfies entries' `ContentTypeLookupPort`
+   * structurally when `contentTypeRepo` is passed as its `contentTypeRepo` dep (a `ContentTypeRecord`
+   * is a structural superset of `OwningContentType`). */
+  entryRepo: EntryRepoPort & EntryListPort;
+  /** ADR-044 — the `taxonomies`/`terms`/`entry_terms`/`taxonomy_revisions` write chokepoint repos,
+   * `taxonomyRepo`/`termRepo` widened with this dispatch's new `TaxonomyListPort`/`TermListPort`
+   * (`features/taxonomy/list.ts`). `mergeTerm`'s plan/confirm/execute ceremony is NOT wired this
+   * pass (needs `core/gated-mutations`'s gateway, not composed into any composition root yet). */
+  taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort;
+  termRepo: TermRepoPort & TermListPort;
+  /** Widened this dispatch with `MergeableEntryTermRepoPort` (the `mergeTerm` gated-mutation
+   * ceremony's by-term enumeration need — see `gated-mutations-composition.ts`). */
+  entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort;
+  taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
+  /** ADR-041 §2/§4 — the `restore_points` table's list + save side (`storage/restore-points.ts`'s
+   * new `RestorePointListPort`/`RestorePointSavePort`). Real `SqliteRestorePointsRepo` in
+   * `server/deps.ts` (already built, previously unwired); in-memory in `server/app.ts`. */
+  restorePointsRepo: RestorePointListPort & RestorePointSavePort;
+  /** SPEC-016 C-007 — the dialect-neutral restore-point capability/capture surface. Real
+   * `SqliteDbOpsAdapter` in `server/deps.ts` (already built, previously unwired); a deterministic
+   * in-memory double in `server/app.ts` (`features/storage/repo.memory.ts`'s
+   * `InMemoryDbOpsAdapter`). */
+  dbOps: DbOpsPort;
+  /** ADR-041 §3/§10 — this site's `SERVING`/`PENDING_MIGRATION`/`BLOCKED_PENDING_RECOVERY` status.
+   * In-memory in both compositions, defaulted to `SERVING` — no composition root invokes
+   * `features/storage/boot/*`'s reconciliation functions at actual boot yet (disclosed gap, see
+   * handoff), so this only ever changes if a future caller calls `.set()`. */
+  siteStatusRepo: SiteStatusPort;
+  /** ADR-045 §2 — Recovery's discarded-write-window baseline source. Always reports the baseline
+   * as unavailable (`features/recovery/repo.memory.ts`'s `AlwaysUnavailableWatermarkSource`) — the
+   * safe default per `disclosure.ts`'s own "never fabricate a zero count" rule, not a corner cut;
+   * see that class's doc comment. */
+  disclosureWatermarkSource: DisclosureWatermarkSourcePort;
+  /** ADR-041 §7/ADR-045 §5 — re-resolves a `StorageContextEnvelope`'s carried `restorePointId`
+   * server-side (`features/recovery/repo.memory.ts`'s `RestorePointDeepLinkLookup`, backed by the
+   * same real `restorePointsRepo` list above). */
+  deepLinkRestorePointLookup: DeepLinkRestorePointLookupPort;
+  /**
+   * SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition
+   * root for the first time this dispatch. One process-lifetime `GatewayDeps` (in-process
+   * `InMemoryTokenStore`, see `gated-mutations-composition.ts`'s file header for the disclosed
+   * `TokenStorePort` decision) shared by every gated-mutation route this dispatch wires
+   * (`taxonomy/terms/:id/merge`, `storage/migrate-forward`, `recovery/restore`).
+   */
+  gatedMutations: { gatewayDeps: GatewayDeps };
   /**
    * SPEC-009 / ADR-PIPE-009 — `redirects` + first-time `origin` composition-
    * root wiring. `redirectRepo`/`redirectHitSink` back the admin HTTP surface

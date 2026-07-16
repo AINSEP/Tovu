@@ -8,7 +8,8 @@ export type AdminSectionId =
   | "plugins"
   | "users"
   | "tools"
-  | "settings";
+  | "settings"
+  | "recovery";
 
 export type AdminCurrentKey = AdminSectionId | "post-list" | "post-editor";
 
@@ -161,6 +162,13 @@ export const adminSections: AdminSectionDefinition[] = [
     icon: "S",
     description: "Placeholder for workspace and site-level configuration screens.",
   },
+  {
+    id: "recovery",
+    label: "Recovery",
+    icon: "Rc",
+    description:
+      "Restore points, the discarded-write-window disclosure, and the guided plan-confirm-execute restore ceremony (ADR-045). A distinct screen from Storage, never a tab of it.",
+  },
 ];
 
 export const placeholderAdminSections = new Set<AdminSectionId>([
@@ -171,6 +179,7 @@ export const placeholderAdminSections = new Set<AdminSectionId>([
   "users",
   "tools",
   "settings",
+  "recovery",
 ]);
 
 const dashboardTarget: AdminMenuTarget = { kind: "dashboard" };
@@ -469,6 +478,14 @@ const adminMenuDefinitions: AdminMenuDefinition[] = [
       },
     ],
   },
+  {
+    kind: "link",
+    key: "recovery",
+    label: "Recovery",
+    icon: "Rc",
+    target: sectionTarget("recovery"),
+    currentKey: "recovery",
+  },
 ];
 
 /**
@@ -490,6 +507,7 @@ export function createEmptyAdminCurrentState(): Record<AdminCurrentKey, boolean>
     users: false,
     tools: false,
     settings: false,
+    recovery: false,
     "post-list": false,
     "post-editor": false,
   };

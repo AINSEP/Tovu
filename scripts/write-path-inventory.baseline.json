@@ -1,0 +1,4007 @@
+[
+  {
+    "source": "port",
+    "contractMethod": "AnalyticsSinkPort.accept",
+    "implementingClass": "LocalBufferSink",
+    "caller": "ingestHit",
+    "file": "src/analytics/ingest.ts",
+    "line": 467,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AnalyticsRepoPort.appendEvents",
+    "caller": "(no implementation found in project)",
+    "file": "src/analytics/ports.ts",
+    "line": 113,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AnalyticsRepoPort.applyAggregateDeltas",
+    "caller": "(no implementation found in project)",
+    "file": "src/analytics/ports.ts",
+    "line": 114,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AnalyticsRepoPort.upsertSession",
+    "caller": "(no implementation found in project)",
+    "file": "src/analytics/ports.ts",
+    "line": 115,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AnalyticsRepoPort.queryTimeSeries",
+    "caller": "(no implementation found in project)",
+    "file": "src/analytics/ports.ts",
+    "line": 118,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AnalyticsRepoPort.queryBreakdown",
+    "caller": "(no implementation found in project)",
+    "file": "src/analytics/ports.ts",
+    "line": 119,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AnalyticsRepoPort.realtime",
+    "caller": "(no implementation found in project)",
+    "file": "src/analytics/ports.ts",
+    "line": 120,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AnalyticsRepoPort.rollup",
+    "caller": "(no implementation found in project)",
+    "file": "src/analytics/ports.ts",
+    "line": 127,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AnalyticsRepoPort.pruneExpired",
+    "caller": "(no implementation found in project)",
+    "file": "src/analytics/ports.ts",
+    "line": 129,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AnalyticsSinkPort.capabilities",
+    "implementingClass": "LocalBufferSink",
+    "caller": "(no caller found in project)",
+    "file": "src/analytics/repo.memory.ts",
+    "line": 58,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AnalyticsSinkPort.acceptBatch",
+    "implementingClass": "LocalBufferSink",
+    "caller": "(no caller found in project)",
+    "file": "src/analytics/repo.memory.ts",
+    "line": 66,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "CommentRepoPort.create",
+    "caller": "(no implementation found in project)",
+    "file": "src/comments/ports.ts",
+    "line": 54,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "CommentRepoPort.applyModeration",
+    "caller": "(no implementation found in project)",
+    "file": "src/comments/ports.ts",
+    "line": 61,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SpamCheckPort.check",
+    "caller": "(no implementation found in project)",
+    "file": "src/comments/ports.ts",
+    "line": 82,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SpamCheckPort.report",
+    "caller": "(no implementation found in project)",
+    "file": "src/comments/ports.ts",
+    "line": 85,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "ChangeSetRepoPort.insert",
+    "implementingClass": "InMemoryChangeSetRepo",
+    "caller": "executeCommand",
+    "file": "src/core/commands/command.ts",
+    "line": 239,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.enqueue",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "executeCommand",
+    "file": "src/core/commands/command.ts",
+    "line": 288,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "ChangeSetRepoPort.save",
+    "implementingClass": "InMemoryChangeSetRepo",
+    "caller": "revertChangeSet",
+    "file": "src/core/commands/revert.ts",
+    "line": 131,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.enqueue",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "revertChangeSet",
+    "file": "src/core/commands/revert.ts",
+    "line": 144,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "EventBusPort.publishBatch",
+    "implementingClass": "InMemoryEventBus",
+    "caller": "(no caller found in project)",
+    "file": "src/core/events/memory-bus.ts",
+    "line": 38,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "EventBusPort.publish",
+    "implementingClass": "InMemoryEventBus",
+    "caller": "InMemoryEventBus.publishBatch",
+    "file": "src/core/events/memory-bus.ts",
+    "line": 40,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "EventBusPort.subscribeAll",
+    "implementingClass": "InMemoryEventBus",
+    "caller": "(no caller found in project)",
+    "file": "src/core/events/memory-bus.ts",
+    "line": 63,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.claimPending",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "processOutbox",
+    "file": "src/core/events/outbox-worker.ts",
+    "line": 26,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "port",
+    "contractMethod": "EventBusPort.publish",
+    "implementingClass": "InMemoryEventBus",
+    "caller": "processOutbox",
+    "file": "src/core/events/outbox-worker.ts",
+    "line": 30,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.markDelivered",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "processOutbox",
+    "file": "src/core/events/outbox-worker.ts",
+    "line": 31,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.markFailed",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "processOutbox",
+    "file": "src/core/events/outbox-worker.ts",
+    "line": 34,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "port",
+    "contractMethod": "ClockPort.nowIso",
+    "caller": "(no implementation found in project)",
+    "file": "src/core/ports.ts",
+    "line": 140,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "IdGeneratorPort.newId",
+    "caller": "(no implementation found in project)",
+    "file": "src/core/ports.ts",
+    "line": 146,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PostRepoPort.save",
+    "implementingClass": "InMemoryPostRepo",
+    "caller": "createPost",
+    "file": "src/features/post/post.ts",
+    "line": 139,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PostRepoPort.save",
+    "implementingClass": "SqlitePostRepo",
+    "caller": "createPost",
+    "file": "src/features/post/post.ts",
+    "line": 139,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PostRepoPort.save",
+    "implementingClass": "InMemoryPostRepo",
+    "caller": "updatePost",
+    "file": "src/features/post/post.ts",
+    "line": 188,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PostRepoPort.save",
+    "implementingClass": "SqlitePostRepo",
+    "caller": "updatePost",
+    "file": "src/features/post/post.ts",
+    "line": 188,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.enqueue",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "updatePost",
+    "file": "src/features/post/post.ts",
+    "line": 192,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "table",
+    "contractMethod": "posts via this.db\n      .insert",
+    "caller": "SqlitePostRepo.save",
+    "file": "src/features/post/repo.sqlite.ts",
+    "line": 62,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PresentationSettingsRepoPort.save",
+    "implementingClass": "InMemoryPresentationSettingsRepo",
+    "caller": "setActiveTheme",
+    "file": "src/features/presentation/presentation.ts",
+    "line": 102,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PresentationSettingsRepoPort.save",
+    "implementingClass": "SqlitePresentationSettingsRepo",
+    "caller": "setActiveTheme",
+    "file": "src/features/presentation/presentation.ts",
+    "line": 102,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "presentationSettings via this.db\n      .insert",
+    "caller": "SqlitePresentationSettingsRepo.save",
+    "file": "src/features/presentation/repo.sqlite.ts",
+    "line": 37,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.transaction",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "purgeTenantSettings",
+    "file": "src/features/settings/purge-service.ts",
+    "line": 76,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.transaction",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "purgeTenantSettings",
+    "file": "src/features/settings/purge-service.ts",
+    "line": 76,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/purge-service.ts",
+    "line": 86,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/purge-service.ts",
+    "line": 86,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.deleteUserValue",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/purge-service.ts",
+    "line": 101,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.deleteUserValue",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/purge-service.ts",
+    "line": 101,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/purge-service.ts",
+    "line": 113,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/purge-service.ts",
+    "line": 113,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.deleteWorkspaceValue",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/purge-service.ts",
+    "line": 128,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.deleteWorkspaceValue",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/purge-service.ts",
+    "line": 128,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/purge-service.ts",
+    "line": 136,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/purge-service.ts",
+    "line": 136,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.deleteUserValue",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/purge-service.ts",
+    "line": 151,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.deleteUserValue",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/purge-service.ts",
+    "line": 151,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "table",
+    "contractMethod": "settingDefinitions via this.db\n      .insert",
+    "caller": "SqliteSettingsRepo.saveDefinition",
+    "file": "src/features/settings/repo.sqlite.ts",
+    "line": 166,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "table",
+    "contractMethod": "settingValuesGlobal via this.db\n      .insert",
+    "caller": "SqliteSettingsRepo.saveGlobalValue",
+    "file": "src/features/settings/repo.sqlite.ts",
+    "line": 251,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "table",
+    "contractMethod": "settingValuesWorkspace via this.db\n      .insert",
+    "caller": "SqliteSettingsRepo.saveWorkspaceValue",
+    "file": "src/features/settings/repo.sqlite.ts",
+    "line": 280,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "table",
+    "contractMethod": "settingValuesUser via this.db\n      .insert",
+    "caller": "SqliteSettingsRepo.saveUserValue",
+    "file": "src/features/settings/repo.sqlite.ts",
+    "line": 312,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "table",
+    "contractMethod": "settingValuesWorkspace via this.db\n      .delete",
+    "caller": "SqliteSettingsRepo.deleteWorkspaceValue",
+    "file": "src/features/settings/repo.sqlite.ts",
+    "line": 374,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "table",
+    "contractMethod": "settingValuesUser via this.db\n      .delete",
+    "caller": "SqliteSettingsRepo.deleteUserValue",
+    "file": "src/features/settings/repo.sqlite.ts",
+    "line": 386,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "table",
+    "contractMethod": "settingRevisions via this.db\n      .insert",
+    "caller": "SqliteSettingsRepo.appendRevision",
+    "file": "src/features/settings/repo.sqlite.ts",
+    "line": 399,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.transaction",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "registerDefinitions",
+    "file": "src/features/settings/write-service.ts",
+    "line": 119,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.transaction",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "registerDefinitions",
+    "file": "src/features/settings/write-service.ts",
+    "line": 119,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveDefinition",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "(anonymous)",
+    "file": "src/features/settings/write-service.ts",
+    "line": 122,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveDefinition",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "(anonymous)",
+    "file": "src/features/settings/write-service.ts",
+    "line": 122,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "(anonymous)",
+    "file": "src/features/settings/write-service.ts",
+    "line": 141,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "(anonymous)",
+    "file": "src/features/settings/write-service.ts",
+    "line": 141,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.transaction",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "set",
+    "file": "src/features/settings/write-service.ts",
+    "line": 296,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.transaction",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "set",
+    "file": "src/features/settings/write-service.ts",
+    "line": 296,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 298,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 298,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveGlobalValue",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 327,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveGlobalValue",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 327,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveWorkspaceValue",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 329,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveWorkspaceValue",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 329,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveUserValue",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 335,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveUserValue",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 335,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.transaction",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "clear",
+    "file": "src/features/settings/write-service.ts",
+    "line": 392,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.transaction",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "clear",
+    "file": "src/features/settings/write-service.ts",
+    "line": 392,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 394,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 394,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveGlobalValue",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 423,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveGlobalValue",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 423,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveWorkspaceValue",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 425,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveWorkspaceValue",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 425,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveUserValue",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 431,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveUserValue",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 431,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.transaction",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "renameDefinition",
+    "file": "src/features/settings/write-service.ts",
+    "line": 615,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.transaction",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "renameDefinition",
+    "file": "src/features/settings/write-service.ts",
+    "line": 615,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveDefinition",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 619,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveDefinition",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 619,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveDefinition",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 629,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveDefinition",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 629,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveDefinition",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 640,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveDefinition",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 640,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 660,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 660,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.transaction",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "retypeDefinition",
+    "file": "src/features/settings/write-service.ts",
+    "line": 747,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.transaction",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "retypeDefinition",
+    "file": "src/features/settings/write-service.ts",
+    "line": 747,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveDefinition",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 752,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveDefinition",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 752,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveDefinition",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 755,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveDefinition",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 755,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 775,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 775,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.transaction",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "transitionDefinitionStatus",
+    "file": "src/features/settings/write-service.ts",
+    "line": 835,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.transaction",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "transitionDefinitionStatus",
+    "file": "src/features/settings/write-service.ts",
+    "line": 835,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveDefinition",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 837,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.saveDefinition",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 837,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "InMemorySettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 838,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SettingsRepoPort.appendRevision",
+    "implementingClass": "SqliteSettingsRepo",
+    "caller": "result",
+    "file": "src/features/settings/write-service.ts",
+    "line": 838,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WorkspaceRepoPort.insert",
+    "implementingClass": "InMemoryWorkspaceRepo",
+    "caller": "createWorkspace",
+    "file": "src/features/workspace/create.ts",
+    "line": 91,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WorkspaceRepoPort.insert",
+    "implementingClass": "SqliteWorkspaceRepo",
+    "caller": "createWorkspace",
+    "file": "src/features/workspace/create.ts",
+    "line": 91,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.enqueue",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "createWorkspace",
+    "file": "src/features/workspace/create.ts",
+    "line": 102,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "table",
+    "contractMethod": "workspaces via this.db.insert",
+    "caller": "SqliteWorkspaceRepo.insert",
+    "file": "src/features/workspace/repo.sqlite.ts",
+    "line": 24,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "EventBusPort.subscribe",
+    "implementingClass": "InMemoryEventBus",
+    "caller": "registerFormNotifySubscriber",
+    "file": "src/forms/notify-subscriber.ts",
+    "line": 48,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MailerPort.send",
+    "implementingClass": "ConsoleMailerAdapter",
+    "caller": "(anonymous)",
+    "file": "src/forms/notify-subscriber.ts",
+    "line": 64,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "formDefinitions via this.db.insert",
+    "caller": "SqliteFormDefinitionRepo.create",
+    "file": "src/forms/repo.sqlite.ts",
+    "line": 109,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "table",
+    "contractMethod": "formDefinitions via this.db\n      .update",
+    "caller": "SqliteFormDefinitionRepo.update",
+    "file": "src/forms/repo.sqlite.ts",
+    "line": 121,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "table",
+    "contractMethod": "formSubmissions via this.db\n      .insert",
+    "caller": "SqliteFormSubmissionRepo.create",
+    "file": "src/forms/repo.sqlite.ts",
+    "line": 142,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "table",
+    "contractMethod": "formSubmissions via this.db\n      .delete",
+    "caller": "SqliteFormSubmissionRepo.delete",
+    "file": "src/forms/repo.sqlite.ts",
+    "line": 209,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "FormSubmissionRepoPort.create",
+    "implementingClass": "InMemoryFormSubmissionRepo",
+    "caller": "submitForm",
+    "file": "src/forms/submit-service.ts",
+    "line": 108,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "FormSubmissionRepoPort.create",
+    "implementingClass": "SqliteFormSubmissionRepo",
+    "caller": "submitForm",
+    "file": "src/forms/submit-service.ts",
+    "line": 108,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.enqueue",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "submitForm",
+    "file": "src/forms/submit-service.ts",
+    "line": 111,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "FormDefinitionRepoPort.create",
+    "implementingClass": "InMemoryFormDefinitionRepo",
+    "caller": "{ result }",
+    "file": "src/forms/write-service.ts",
+    "line": 137,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "port",
+    "contractMethod": "FormDefinitionRepoPort.create",
+    "implementingClass": "SqliteFormDefinitionRepo",
+    "caller": "{ result }",
+    "file": "src/forms/write-service.ts",
+    "line": 137,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "port",
+    "contractMethod": "FormDefinitionRepoPort.update",
+    "implementingClass": "InMemoryFormDefinitionRepo",
+    "caller": "{ result }",
+    "file": "src/forms/write-service.ts",
+    "line": 231,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "port",
+    "contractMethod": "FormDefinitionRepoPort.update",
+    "implementingClass": "SqliteFormDefinitionRepo",
+    "caller": "{ result }",
+    "file": "src/forms/write-service.ts",
+    "line": 231,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "port",
+    "contractMethod": "FormDefinitionRepoPort.update",
+    "implementingClass": "InMemoryFormDefinitionRepo",
+    "caller": "{ result }",
+    "file": "src/forms/write-service.ts",
+    "line": 287,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "port",
+    "contractMethod": "FormDefinitionRepoPort.update",
+    "implementingClass": "SqliteFormDefinitionRepo",
+    "caller": "{ result }",
+    "file": "src/forms/write-service.ts",
+    "line": 287,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PasswordHasherPort.verify",
+    "implementingClass": "Argon2PasswordHasher",
+    "caller": "login",
+    "file": "src/identity/auth-service.ts",
+    "line": 81,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SessionRepoPort.save",
+    "implementingClass": "InMemorySessionRepo",
+    "caller": "login",
+    "file": "src/identity/auth-service.ts",
+    "line": 98,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SessionRepoPort.save",
+    "implementingClass": "SqliteSessionRepo",
+    "caller": "login",
+    "file": "src/identity/auth-service.ts",
+    "line": 98,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "UserRepoPort.save",
+    "implementingClass": "InMemoryUserRepo",
+    "caller": "login",
+    "file": "src/identity/auth-service.ts",
+    "line": 99,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "UserRepoPort.save",
+    "implementingClass": "SqliteUserRepo",
+    "caller": "login",
+    "file": "src/identity/auth-service.ts",
+    "line": 99,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SessionRepoPort.revoke",
+    "implementingClass": "InMemorySessionRepo",
+    "caller": "logout",
+    "file": "src/identity/auth-service.ts",
+    "line": 151,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SessionRepoPort.revoke",
+    "implementingClass": "SqliteSessionRepo",
+    "caller": "logout",
+    "file": "src/identity/auth-service.ts",
+    "line": 151,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PasswordHasherPort.hash",
+    "implementingClass": "Argon2PasswordHasher",
+    "caller": "createUser",
+    "file": "src/identity/grant-service.ts",
+    "line": 221,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PrincipalRepoPort.save",
+    "implementingClass": "InMemoryPrincipalRepo",
+    "caller": "createUser",
+    "file": "src/identity/grant-service.ts",
+    "line": 241,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PrincipalRepoPort.save",
+    "implementingClass": "SqlitePrincipalRepo",
+    "caller": "createUser",
+    "file": "src/identity/grant-service.ts",
+    "line": 241,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "UserRepoPort.save",
+    "implementingClass": "InMemoryUserRepo",
+    "caller": "createUser",
+    "file": "src/identity/grant-service.ts",
+    "line": 242,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "UserRepoPort.save",
+    "implementingClass": "SqliteUserRepo",
+    "caller": "createUser",
+    "file": "src/identity/grant-service.ts",
+    "line": 242,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "RoleRepoPort.save",
+    "implementingClass": "InMemoryRoleRepo",
+    "caller": "createRole",
+    "file": "src/identity/grant-service.ts",
+    "line": 284,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "RoleRepoPort.save",
+    "implementingClass": "SqliteRoleRepo",
+    "caller": "createRole",
+    "file": "src/identity/grant-service.ts",
+    "line": 284,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PolicyRepoPort.save",
+    "implementingClass": "InMemoryPolicyRepo",
+    "caller": "createPolicy",
+    "file": "src/identity/grant-service.ts",
+    "line": 322,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PolicyRepoPort.save",
+    "implementingClass": "SqlitePolicyRepo",
+    "caller": "createPolicy",
+    "file": "src/identity/grant-service.ts",
+    "line": 322,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PrincipalRoleRepoPort.save",
+    "implementingClass": "InMemoryPrincipalRoleRepo",
+    "caller": "assignRole",
+    "file": "src/identity/grant-service.ts",
+    "line": 387,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PrincipalRoleRepoPort.save",
+    "implementingClass": "SqlitePrincipalRoleRepo",
+    "caller": "assignRole",
+    "file": "src/identity/grant-service.ts",
+    "line": 387,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PrincipalPolicyRepoPort.save",
+    "implementingClass": "InMemoryPrincipalPolicyRepo",
+    "caller": "attachPolicy",
+    "file": "src/identity/grant-service.ts",
+    "line": 446,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PrincipalPolicyRepoPort.save",
+    "implementingClass": "SqlitePrincipalPolicyRepo",
+    "caller": "attachPolicy",
+    "file": "src/identity/grant-service.ts",
+    "line": 446,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PolicyPermissionRepoPort.save",
+    "implementingClass": "InMemoryPolicyPermissionRepo",
+    "caller": "migrateDeprecatedPermissionGrants",
+    "file": "src/identity/permission-migrations.ts",
+    "line": 121,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PolicyPermissionRepoPort.save",
+    "implementingClass": "SqlitePolicyPermissionRepo",
+    "caller": "migrateDeprecatedPermissionGrants",
+    "file": "src/identity/permission-migrations.ts",
+    "line": 121,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "principals via this.db.insert",
+    "caller": "SqlitePrincipalRepo.save",
+    "file": "src/identity/repo.sqlite.ts",
+    "line": 97,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "identityUsers via this.db\n      .insert",
+    "caller": "SqliteUserRepo.save",
+    "file": "src/identity/repo.sqlite.ts",
+    "line": 155,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "sessions via this.db.insert",
+    "caller": "SqliteSessionRepo.save",
+    "file": "src/identity/repo.sqlite.ts",
+    "line": 212,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "sessions via this.db\n      .update",
+    "caller": "SqliteSessionRepo.revoke",
+    "file": "src/identity/repo.sqlite.ts",
+    "line": 217,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "roles via this.db.insert",
+    "caller": "SqliteRoleRepo.save",
+    "file": "src/identity/repo.sqlite.ts",
+    "line": 260,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "policies via this.db.insert",
+    "caller": "SqlitePolicyRepo.save",
+    "file": "src/identity/repo.sqlite.ts",
+    "line": 314,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "policyPermissions via this.db\n      .insert",
+    "caller": "SqlitePolicyPermissionRepo.save",
+    "file": "src/identity/repo.sqlite.ts",
+    "line": 359,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "rolePolicies via this.db\n      .insert",
+    "caller": "SqliteRolePolicyRepo.save",
+    "file": "src/identity/repo.sqlite.ts",
+    "line": 390,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "principalRoles via this.db\n      .insert",
+    "caller": "SqlitePrincipalRoleRepo.save",
+    "file": "src/identity/repo.sqlite.ts",
+    "line": 429,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "principalPolicies via this.db\n      .insert",
+    "caller": "SqlitePrincipalPolicyRepo.save",
+    "file": "src/identity/repo.sqlite.ts",
+    "line": 468,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "RoleRepoPort.save",
+    "implementingClass": "InMemoryRoleRepo",
+    "caller": "seedBuiltinRoleWithPolicy",
+    "file": "src/identity/seed.ts",
+    "line": 133,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "RoleRepoPort.save",
+    "implementingClass": "SqliteRoleRepo",
+    "caller": "seedBuiltinRoleWithPolicy",
+    "file": "src/identity/seed.ts",
+    "line": 133,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PolicyRepoPort.save",
+    "implementingClass": "InMemoryPolicyRepo",
+    "caller": "seedBuiltinRoleWithPolicy",
+    "file": "src/identity/seed.ts",
+    "line": 134,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PolicyRepoPort.save",
+    "implementingClass": "SqlitePolicyRepo",
+    "caller": "seedBuiltinRoleWithPolicy",
+    "file": "src/identity/seed.ts",
+    "line": 134,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "RolePolicyRepoPort.save",
+    "implementingClass": "InMemoryRolePolicyRepo",
+    "caller": "seedBuiltinRoleWithPolicy",
+    "file": "src/identity/seed.ts",
+    "line": 142,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "RolePolicyRepoPort.save",
+    "implementingClass": "SqliteRolePolicyRepo",
+    "caller": "seedBuiltinRoleWithPolicy",
+    "file": "src/identity/seed.ts",
+    "line": 142,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PolicyPermissionRepoPort.save",
+    "implementingClass": "InMemoryPolicyPermissionRepo",
+    "caller": "seedBuiltinRoleWithPolicy",
+    "file": "src/identity/seed.ts",
+    "line": 145,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PolicyPermissionRepoPort.save",
+    "implementingClass": "SqlitePolicyPermissionRepo",
+    "caller": "seedBuiltinRoleWithPolicy",
+    "file": "src/identity/seed.ts",
+    "line": 145,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PrincipalRepoPort.save",
+    "implementingClass": "InMemoryPrincipalRepo",
+    "caller": "seedIdentity",
+    "file": "src/identity/seed.ts",
+    "line": 192,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PrincipalRepoPort.save",
+    "implementingClass": "SqlitePrincipalRepo",
+    "caller": "seedIdentity",
+    "file": "src/identity/seed.ts",
+    "line": 192,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PrincipalRepoPort.save",
+    "implementingClass": "InMemoryPrincipalRepo",
+    "caller": "seedIdentity",
+    "file": "src/identity/seed.ts",
+    "line": 203,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PrincipalRepoPort.save",
+    "implementingClass": "SqlitePrincipalRepo",
+    "caller": "seedIdentity",
+    "file": "src/identity/seed.ts",
+    "line": 203,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PolicyPermissionRepoPort.save",
+    "implementingClass": "InMemoryPolicyPermissionRepo",
+    "caller": "seedIdentity",
+    "file": "src/identity/seed.ts",
+    "line": 226,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PolicyPermissionRepoPort.save",
+    "implementingClass": "SqlitePolicyPermissionRepo",
+    "caller": "seedIdentity",
+    "file": "src/identity/seed.ts",
+    "line": 226,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PrincipalRepoPort.save",
+    "implementingClass": "InMemoryPrincipalRepo",
+    "caller": "seedIdentity",
+    "file": "src/identity/seed.ts",
+    "line": 258,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PrincipalRepoPort.save",
+    "implementingClass": "SqlitePrincipalRepo",
+    "caller": "seedIdentity",
+    "file": "src/identity/seed.ts",
+    "line": 258,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "UserRepoPort.save",
+    "implementingClass": "InMemoryUserRepo",
+    "caller": "seedIdentity",
+    "file": "src/identity/seed.ts",
+    "line": 266,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "UserRepoPort.save",
+    "implementingClass": "SqliteUserRepo",
+    "caller": "seedIdentity",
+    "file": "src/identity/seed.ts",
+    "line": 266,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PasswordHasherPort.hash",
+    "implementingClass": "Argon2PasswordHasher",
+    "caller": "seedIdentity",
+    "file": "src/identity/seed.ts",
+    "line": 271,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PrincipalRoleRepoPort.save",
+    "implementingClass": "InMemoryPrincipalRoleRepo",
+    "caller": "seedIdentity",
+    "file": "src/identity/seed.ts",
+    "line": 273,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PrincipalRoleRepoPort.save",
+    "implementingClass": "SqlitePrincipalRoleRepo",
+    "caller": "seedIdentity",
+    "file": "src/identity/seed.ts",
+    "line": 273,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "workspaces via tx.insert",
+    "caller": "(anonymous)",
+    "file": "src/infra/sqlite/content-db.ts",
+    "line": 75,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "posts via tx.insert",
+    "caller": "(anonymous)",
+    "file": "src/infra/sqlite/content-db.ts",
+    "line": 77,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "presentationSettings via tx.insert",
+    "caller": "(anonymous)",
+    "file": "src/infra/sqlite/content-db.ts",
+    "line": 81,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookDeliveryRepoPort.enqueue",
+    "implementingClass": "InMemoryWebhookDeliveryRepo",
+    "caller": "enqueueDelivery",
+    "file": "src/integrations/delivery.ts",
+    "line": 170,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookDeliveryRepoPort.enqueue",
+    "implementingClass": "SqliteWebhookDeliveryRepo",
+    "caller": "enqueueDelivery",
+    "file": "src/integrations/delivery.ts",
+    "line": 170,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "DeliveryEnvelopeStore.save",
+    "implementingClass": "InMemoryDeliveryEnvelopeStore",
+    "caller": "enqueueDelivery",
+    "file": "src/integrations/delivery.ts",
+    "line": 171,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "DeliveryEnvelopeStore.save",
+    "implementingClass": "SqliteWebhookDeliveryRepo",
+    "caller": "enqueueDelivery",
+    "file": "src/integrations/delivery.ts",
+    "line": 171,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookDeliveryRepoPort.claimPending",
+    "implementingClass": "InMemoryWebhookDeliveryRepo",
+    "caller": "processDueDeliveries",
+    "file": "src/integrations/delivery.ts",
+    "line": 257,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookDeliveryRepoPort.claimPending",
+    "implementingClass": "SqliteWebhookDeliveryRepo",
+    "caller": "processDueDeliveries",
+    "file": "src/integrations/delivery.ts",
+    "line": 257,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookDeliveryRepoPort.markDelivered",
+    "implementingClass": "InMemoryWebhookDeliveryRepo",
+    "caller": "processDueDeliveries",
+    "file": "src/integrations/delivery.ts",
+    "line": 272,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookDeliveryRepoPort.markDelivered",
+    "implementingClass": "SqliteWebhookDeliveryRepo",
+    "caller": "processDueDeliveries",
+    "file": "src/integrations/delivery.ts",
+    "line": 272,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookDeliveryRepoPort.markFailed",
+    "implementingClass": "InMemoryWebhookDeliveryRepo",
+    "caller": "processDueDeliveries",
+    "file": "src/integrations/delivery.ts",
+    "line": 289,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookDeliveryRepoPort.markFailed",
+    "implementingClass": "SqliteWebhookDeliveryRepo",
+    "caller": "processDueDeliveries",
+    "file": "src/integrations/delivery.ts",
+    "line": 289,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "HttpClientPort.send",
+    "implementingClass": "RecordingHttpClient",
+    "caller": "attemptOneDelivery",
+    "file": "src/integrations/delivery.ts",
+    "line": 360,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "KeyringPort.activeKey",
+    "implementingClass": "EnvOrFileKeyring",
+    "caller": "(no caller found in project)",
+    "file": "src/integrations/keyring.env.ts",
+    "line": 70,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "KeyringPort.activeKey",
+    "implementingClass": "InMemoryKeyring",
+    "caller": "(no caller found in project)",
+    "file": "src/integrations/keyring.memory.ts",
+    "line": 25,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SecretSealerPort.seal",
+    "caller": "(no implementation found in project)",
+    "file": "src/integrations/ports.ts",
+    "line": 94,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SecretSealerPort.open",
+    "caller": "(no implementation found in project)",
+    "file": "src/integrations/ports.ts",
+    "line": 95,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "IntegrationSecretRepoPort.insert",
+    "caller": "(no implementation found in project)",
+    "file": "src/integrations/ports.ts",
+    "line": 150,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "IntegrationSecretRepoPort.delete",
+    "caller": "(no implementation found in project)",
+    "file": "src/integrations/ports.ts",
+    "line": 153,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "table",
+    "contractMethod": "webhookSubscriptions via this.db.insert",
+    "caller": "SqliteWebhookSubscriptionRepo.insert",
+    "file": "src/integrations/repo.sqlite.ts",
+    "line": 115,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "webhookSubscriptions via this.db\n      .insert",
+    "caller": "SqliteWebhookSubscriptionRepo.save",
+    "file": "src/integrations/repo.sqlite.ts",
+    "line": 121,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "webhookDeliveries via this.db\n        .insert",
+    "caller": "SqliteWebhookDeliveryRepo.enqueue",
+    "file": "src/integrations/repo.sqlite.ts",
+    "line": 193,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "webhookDeliveries via this.db\n        .update",
+    "caller": "SqliteWebhookDeliveryRepo.claimPending",
+    "file": "src/integrations/repo.sqlite.ts",
+    "line": 235,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "webhookDeliveries via this.db\n      .update",
+    "caller": "SqliteWebhookDeliveryRepo.markDelivered",
+    "file": "src/integrations/repo.sqlite.ts",
+    "line": 251,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "webhookDeliveries via this.db\n      .update",
+    "caller": "SqliteWebhookDeliveryRepo.markFailed",
+    "file": "src/integrations/repo.sqlite.ts",
+    "line": 283,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "webhookDeliveries via this.db\n      .update",
+    "caller": "SqliteWebhookDeliveryRepo.save",
+    "file": "src/integrations/repo.sqlite.ts",
+    "line": 333,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "KeyringPort.deriveSigningSecret",
+    "implementingClass": "EnvOrFileKeyring",
+    "caller": "(anon class).signForSubscription",
+    "file": "src/integrations/signing.keyring.ts",
+    "line": 29,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "KeyringPort.deriveSigningSecret",
+    "implementingClass": "InMemoryKeyring",
+    "caller": "(anon class).signForSubscription",
+    "file": "src/integrations/signing.keyring.ts",
+    "line": 29,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookSubscriptionRepoPort.insert",
+    "implementingClass": "InMemoryWebhookSubscriptionRepo",
+    "caller": "createSubscription",
+    "file": "src/integrations/subscriptions.ts",
+    "line": 107,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookSubscriptionRepoPort.insert",
+    "implementingClass": "SqliteWebhookSubscriptionRepo",
+    "caller": "createSubscription",
+    "file": "src/integrations/subscriptions.ts",
+    "line": 107,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookSubscriptionRepoPort.save",
+    "implementingClass": "InMemoryWebhookSubscriptionRepo",
+    "caller": "updateSubscription",
+    "file": "src/integrations/subscriptions.ts",
+    "line": 163,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookSubscriptionRepoPort.save",
+    "implementingClass": "SqliteWebhookSubscriptionRepo",
+    "caller": "updateSubscription",
+    "file": "src/integrations/subscriptions.ts",
+    "line": 163,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookSubscriptionRepoPort.save",
+    "implementingClass": "InMemoryWebhookSubscriptionRepo",
+    "caller": "pauseSubscription",
+    "file": "src/integrations/subscriptions.ts",
+    "line": 213,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookSubscriptionRepoPort.save",
+    "implementingClass": "SqliteWebhookSubscriptionRepo",
+    "caller": "pauseSubscription",
+    "file": "src/integrations/subscriptions.ts",
+    "line": 213,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookSubscriptionRepoPort.save",
+    "implementingClass": "InMemoryWebhookSubscriptionRepo",
+    "caller": "deleteSubscription",
+    "file": "src/integrations/subscriptions.ts",
+    "line": 254,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "WebhookSubscriptionRepoPort.save",
+    "implementingClass": "SqliteWebhookSubscriptionRepo",
+    "caller": "deleteSubscription",
+    "file": "src/integrations/subscriptions.ts",
+    "line": 254,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MailSuppressionRepoPort.isSuppressed",
+    "caller": "(no implementation found in project)",
+    "file": "src/mail/ports.ts",
+    "line": 52,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MailSuppressionRepoPort.suppress",
+    "caller": "(no implementation found in project)",
+    "file": "src/mail/ports.ts",
+    "line": 57,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MailSendDedupRepoPort.wasSent",
+    "caller": "(no implementation found in project)",
+    "file": "src/mail/ports.ts",
+    "line": 71,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MailSendDedupRepoPort.markSent",
+    "caller": "(no implementation found in project)",
+    "file": "src/mail/ports.ts",
+    "line": 72,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AssetBlobRepoPort.save",
+    "implementingClass": "InMemoryAssetBlobRepo",
+    "caller": "(anonymous)",
+    "file": "src/media/blob-gc.ts",
+    "line": 195,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "BlobGcJournalRepoPort.save",
+    "implementingClass": "InMemoryBlobGcJournalRepo",
+    "caller": "(anonymous)",
+    "file": "src/media/blob-gc.ts",
+    "line": 250,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AssetBlobRepoPort.remove",
+    "implementingClass": "InMemoryAssetBlobRepo",
+    "caller": "(anonymous)",
+    "file": "src/media/blob-gc.ts",
+    "line": 257,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "BlobStorePort.remove",
+    "implementingClass": "LocalFsBlobStore",
+    "caller": "(anonymous)",
+    "file": "src/media/blob-gc.ts",
+    "line": 317,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "BlobStorePort.remove",
+    "implementingClass": "InMemoryBlobStore",
+    "caller": "(anonymous)",
+    "file": "src/media/blob-gc.ts",
+    "line": 317,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "BlobGcJournalRepoPort.remove",
+    "implementingClass": "InMemoryBlobGcJournalRepo",
+    "caller": "(anonymous)",
+    "file": "src/media/blob-gc.ts",
+    "line": 320,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AssetBlobRepoPort.save",
+    "implementingClass": "InMemoryAssetBlobRepo",
+    "caller": "storageKey",
+    "file": "src/media/media-service.ts",
+    "line": 208,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "BlobStorePort.put",
+    "implementingClass": "LocalFsBlobStore",
+    "caller": "storageKey",
+    "file": "src/media/media-service.ts",
+    "line": 213,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "BlobStorePort.put",
+    "implementingClass": "InMemoryBlobStore",
+    "caller": "storageKey",
+    "file": "src/media/media-service.ts",
+    "line": 213,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AssetBlobRepoPort.save",
+    "implementingClass": "InMemoryAssetBlobRepo",
+    "caller": "storageKey",
+    "file": "src/media/media-service.ts",
+    "line": 218,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MediaRepoPort.save",
+    "implementingClass": "InMemoryMediaRepo",
+    "caller": "uploadMedia",
+    "file": "src/media/media-service.ts",
+    "line": 243,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AssetRenditionRepoPort.save",
+    "implementingClass": "InMemoryAssetRenditionRepo",
+    "caller": "uploadMedia",
+    "file": "src/media/media-service.ts",
+    "line": 245,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MediaRepoPort.save",
+    "implementingClass": "InMemoryMediaRepo",
+    "caller": "updateMediaMetadata",
+    "file": "src/media/media-service.ts",
+    "line": 355,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MediaRepoPort.save",
+    "implementingClass": "InMemoryMediaRepo",
+    "caller": "trashMedia",
+    "file": "src/media/media-service.ts",
+    "line": 395,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AssetRenditionRepoPort.removeByAsset",
+    "implementingClass": "InMemoryAssetRenditionRepo",
+    "caller": "purgeMedia",
+    "file": "src/media/media-service.ts",
+    "line": 470,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MediaRepoPort.remove",
+    "implementingClass": "InMemoryMediaRepo",
+    "caller": "purgeMedia",
+    "file": "src/media/media-service.ts",
+    "line": 471,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "ImageTransformerPort.transform",
+    "implementingClass": "SharpImageTransformer",
+    "caller": "renditionRow",
+    "file": "src/media/rendition-service.ts",
+    "line": 160,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "ImageTransformerPort.transform",
+    "implementingClass": "InMemoryImageTransformer",
+    "caller": "renditionRow",
+    "file": "src/media/rendition-service.ts",
+    "line": 160,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "BlobStorePort.put",
+    "implementingClass": "LocalFsBlobStore",
+    "caller": "renditionRow",
+    "file": "src/media/rendition-service.ts",
+    "line": 165,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "BlobStorePort.put",
+    "implementingClass": "InMemoryBlobStore",
+    "caller": "renditionRow",
+    "file": "src/media/rendition-service.ts",
+    "line": 165,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "AssetRenditionRepoPort.save",
+    "implementingClass": "InMemoryAssetRenditionRepo",
+    "caller": "renditionRow",
+    "file": "src/media/rendition-service.ts",
+    "line": 180,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "TransformDefinitionRepoPort.insert",
+    "implementingClass": "InMemoryTransformDefinitionRepo",
+    "caller": "(anonymous)",
+    "file": "src/media/transform-registry.ts",
+    "line": 80,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.transaction",
+    "implementingClass": "InMemoryMemberConsentRepo",
+    "caller": "requestConsent",
+    "file": "src/members/consent-service.ts",
+    "line": 102,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.transaction",
+    "implementingClass": "SqliteMemberConsentRepo",
+    "caller": "requestConsent",
+    "file": "src/members/consent-service.ts",
+    "line": 102,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.save",
+    "implementingClass": "InMemoryMemberConsentRepo",
+    "caller": "(anonymous)",
+    "file": "src/members/consent-service.ts",
+    "line": 103,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.save",
+    "implementingClass": "SqliteMemberConsentRepo",
+    "caller": "(anonymous)",
+    "file": "src/members/consent-service.ts",
+    "line": 103,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.appendRevision",
+    "implementingClass": "InMemoryMemberConsentRepo",
+    "caller": "(anonymous)",
+    "file": "src/members/consent-service.ts",
+    "line": 104,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.appendRevision",
+    "implementingClass": "SqliteMemberConsentRepo",
+    "caller": "(anonymous)",
+    "file": "src/members/consent-service.ts",
+    "line": 104,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.transaction",
+    "implementingClass": "InMemoryMemberConsentRepo",
+    "caller": "confirmConsent",
+    "file": "src/members/consent-service.ts",
+    "line": 164,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.transaction",
+    "implementingClass": "SqliteMemberConsentRepo",
+    "caller": "confirmConsent",
+    "file": "src/members/consent-service.ts",
+    "line": 164,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.save",
+    "implementingClass": "InMemoryMemberConsentRepo",
+    "caller": "(anonymous)",
+    "file": "src/members/consent-service.ts",
+    "line": 165,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.save",
+    "implementingClass": "SqliteMemberConsentRepo",
+    "caller": "(anonymous)",
+    "file": "src/members/consent-service.ts",
+    "line": 165,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.appendRevision",
+    "implementingClass": "InMemoryMemberConsentRepo",
+    "caller": "(anonymous)",
+    "file": "src/members/consent-service.ts",
+    "line": 166,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.appendRevision",
+    "implementingClass": "SqliteMemberConsentRepo",
+    "caller": "(anonymous)",
+    "file": "src/members/consent-service.ts",
+    "line": 166,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.transaction",
+    "implementingClass": "InMemoryMemberConsentRepo",
+    "caller": "revokeConsent",
+    "file": "src/members/consent-service.ts",
+    "line": 221,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.transaction",
+    "implementingClass": "SqliteMemberConsentRepo",
+    "caller": "revokeConsent",
+    "file": "src/members/consent-service.ts",
+    "line": 221,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.save",
+    "implementingClass": "InMemoryMemberConsentRepo",
+    "caller": "(anonymous)",
+    "file": "src/members/consent-service.ts",
+    "line": 222,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.save",
+    "implementingClass": "SqliteMemberConsentRepo",
+    "caller": "(anonymous)",
+    "file": "src/members/consent-service.ts",
+    "line": 222,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.appendRevision",
+    "implementingClass": "InMemoryMemberConsentRepo",
+    "caller": "(anonymous)",
+    "file": "src/members/consent-service.ts",
+    "line": 223,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberConsentRepoPort.appendRevision",
+    "implementingClass": "SqliteMemberConsentRepo",
+    "caller": "(anonymous)",
+    "file": "src/members/consent-service.ts",
+    "line": 223,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MailerPort.sendBatch",
+    "implementingClass": "ConsoleMailerAdapter",
+    "caller": "(no caller found in project)",
+    "file": "src/members/mailer.console.ts",
+    "line": 67,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MailerPort.send",
+    "implementingClass": "ConsoleMailerAdapter",
+    "caller": "ConsoleMailerAdapter.sendBatch",
+    "file": "src/members/mailer.console.ts",
+    "line": 73,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberTierRepoPort.save",
+    "implementingClass": "InMemoryMemberTierRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/members/repo.memory.ts",
+    "line": 138,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberSessionRepoPort.revoke",
+    "implementingClass": "InMemoryMemberSessionRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/members/repo.memory.ts",
+    "line": 255,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "table",
+    "contractMethod": "members via this.db\n      .insert",
+    "caller": "SqliteMemberRepo.save",
+    "file": "src/members/repo.sqlite.ts",
+    "line": 128,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberTierRepoPort.save",
+    "implementingClass": "SqliteMemberTierRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/members/repo.sqlite.ts",
+    "line": 181,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "table",
+    "contractMethod": "memberTiers via this.db\n      .insert",
+    "caller": "SqliteMemberTierRepo.save",
+    "file": "src/members/repo.sqlite.ts",
+    "line": 200,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "memberSubscriptions via this.db\n      .insert",
+    "caller": "SqliteMemberSubscriptionRepo.save",
+    "file": "src/members/repo.sqlite.ts",
+    "line": 292,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "memberSessions via this.db\n      .insert",
+    "caller": "SqliteMemberSessionRepo.save",
+    "file": "src/members/repo.sqlite.ts",
+    "line": 349,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberSessionRepoPort.revoke",
+    "implementingClass": "SqliteMemberSessionRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/members/repo.sqlite.ts",
+    "line": 355,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "table",
+    "contractMethod": "memberSessions via this.db\n      .update",
+    "caller": "SqliteMemberSessionRepo.revoke",
+    "file": "src/members/repo.sqlite.ts",
+    "line": 357,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "memberSessions via this.db\n      .update",
+    "caller": "SqliteMemberSessionRepo.revokeAllForMember",
+    "file": "src/members/repo.sqlite.ts",
+    "line": 365,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "memberMagicTokens via this.db\n      .insert",
+    "caller": "SqliteMagicLinkTokenRepo.save",
+    "file": "src/members/repo.sqlite.ts",
+    "line": 411,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "memberMagicTokens via this.db\n      .update",
+    "caller": "SqliteMagicLinkTokenRepo.consume",
+    "file": "src/members/repo.sqlite.ts",
+    "line": 432,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "memberConsents via this.db\n      .insert",
+    "caller": "SqliteMemberConsentRepo.save",
+    "file": "src/members/repo.sqlite.ts",
+    "line": 511,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "table",
+    "contractMethod": "memberRevisions via this.db\n      .insert",
+    "caller": "SqliteMemberConsentRepo.appendRevision",
+    "file": "src/members/repo.sqlite.ts",
+    "line": 519,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberRepoPort.save",
+    "implementingClass": "InMemoryMemberRepo",
+    "caller": "requestSignInLink",
+    "file": "src/members/write-service.ts",
+    "line": 124,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberRepoPort.save",
+    "implementingClass": "SqliteMemberRepo",
+    "caller": "requestSignInLink",
+    "file": "src/members/write-service.ts",
+    "line": 124,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MagicLinkTokenRepoPort.save",
+    "implementingClass": "InMemoryMagicLinkTokenRepo",
+    "caller": "requestSignInLink",
+    "file": "src/members/write-service.ts",
+    "line": 130,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MagicLinkTokenRepoPort.save",
+    "implementingClass": "SqliteMagicLinkTokenRepo",
+    "caller": "requestSignInLink",
+    "file": "src/members/write-service.ts",
+    "line": 130,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OriginRegistryPort.canonicalOrigin",
+    "implementingClass": "OriginRegistry",
+    "caller": "requestSignInLink",
+    "file": "src/members/write-service.ts",
+    "line": 153,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MailerPort.send",
+    "implementingClass": "ConsoleMailerAdapter",
+    "caller": "requestSignInLink",
+    "file": "src/members/write-service.ts",
+    "line": 189,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MagicLinkTokenRepoPort.consume",
+    "implementingClass": "InMemoryMagicLinkTokenRepo",
+    "caller": "completeSignIn",
+    "file": "src/members/write-service.ts",
+    "line": 224,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MagicLinkTokenRepoPort.consume",
+    "implementingClass": "SqliteMagicLinkTokenRepo",
+    "caller": "completeSignIn",
+    "file": "src/members/write-service.ts",
+    "line": 224,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberRepoPort.save",
+    "implementingClass": "InMemoryMemberRepo",
+    "caller": "completeSignIn",
+    "file": "src/members/write-service.ts",
+    "line": 250,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberRepoPort.save",
+    "implementingClass": "SqliteMemberRepo",
+    "caller": "completeSignIn",
+    "file": "src/members/write-service.ts",
+    "line": 250,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberSessionRepoPort.save",
+    "implementingClass": "InMemoryMemberSessionRepo",
+    "caller": "completeSignIn",
+    "file": "src/members/write-service.ts",
+    "line": 263,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberSessionRepoPort.save",
+    "implementingClass": "SqliteMemberSessionRepo",
+    "caller": "completeSignIn",
+    "file": "src/members/write-service.ts",
+    "line": 263,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberRepoPort.save",
+    "implementingClass": "InMemoryMemberRepo",
+    "caller": "updateProfile",
+    "file": "src/members/write-service.ts",
+    "line": 301,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberRepoPort.save",
+    "implementingClass": "SqliteMemberRepo",
+    "caller": "updateProfile",
+    "file": "src/members/write-service.ts",
+    "line": 301,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberRepoPort.save",
+    "implementingClass": "InMemoryMemberRepo",
+    "caller": "disableMember",
+    "file": "src/members/write-service.ts",
+    "line": 336,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberRepoPort.save",
+    "implementingClass": "SqliteMemberRepo",
+    "caller": "disableMember",
+    "file": "src/members/write-service.ts",
+    "line": 336,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberSessionRepoPort.revokeAllForMember",
+    "implementingClass": "InMemoryMemberSessionRepo",
+    "caller": "disableMember",
+    "file": "src/members/write-service.ts",
+    "line": 337,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberSessionRepoPort.revokeAllForMember",
+    "implementingClass": "SqliteMemberSessionRepo",
+    "caller": "disableMember",
+    "file": "src/members/write-service.ts",
+    "line": 337,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberSubscriptionRepoPort.save",
+    "implementingClass": "InMemoryMemberSubscriptionRepo",
+    "caller": "compSubscription",
+    "file": "src/members/write-service.ts",
+    "line": 396,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberSubscriptionRepoPort.save",
+    "implementingClass": "SqliteMemberSubscriptionRepo",
+    "caller": "compSubscription",
+    "file": "src/members/write-service.ts",
+    "line": 396,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberSubscriptionRepoPort.save",
+    "implementingClass": "InMemoryMemberSubscriptionRepo",
+    "caller": "setSubscriptionStatus",
+    "file": "src/members/write-service.ts",
+    "line": 438,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MemberSubscriptionRepoPort.save",
+    "implementingClass": "SqliteMemberSubscriptionRepo",
+    "caller": "setSubscriptionStatus",
+    "file": "src/members/write-service.ts",
+    "line": 438,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MenuRepoPort.save",
+    "implementingClass": "InMemoryMenuRepo",
+    "caller": "createMenu",
+    "file": "src/navigation/menu-service.ts",
+    "line": 257,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MenuRepoPort.save",
+    "implementingClass": "SqliteMenuRepo",
+    "caller": "createMenu",
+    "file": "src/navigation/menu-service.ts",
+    "line": 257,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.enqueue",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "createMenu",
+    "file": "src/navigation/menu-service.ts",
+    "line": 259,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MenuRepoPort.save",
+    "implementingClass": "InMemoryMenuRepo",
+    "caller": "updateMenuTree",
+    "file": "src/navigation/menu-service.ts",
+    "line": 362,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MenuRepoPort.save",
+    "implementingClass": "SqliteMenuRepo",
+    "caller": "updateMenuTree",
+    "file": "src/navigation/menu-service.ts",
+    "line": 362,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.enqueue",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "updateMenuTree",
+    "file": "src/navigation/menu-service.ts",
+    "line": 364,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MenuRepoPort.save",
+    "implementingClass": "InMemoryMenuRepo",
+    "caller": "assignLocation",
+    "file": "src/navigation/menu-service.ts",
+    "line": 462,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MenuRepoPort.save",
+    "implementingClass": "SqliteMenuRepo",
+    "caller": "assignLocation",
+    "file": "src/navigation/menu-service.ts",
+    "line": 462,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MenuRepoPort.save",
+    "implementingClass": "InMemoryMenuRepo",
+    "caller": "assignLocation",
+    "file": "src/navigation/menu-service.ts",
+    "line": 475,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MenuRepoPort.save",
+    "implementingClass": "SqliteMenuRepo",
+    "caller": "assignLocation",
+    "file": "src/navigation/menu-service.ts",
+    "line": 475,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NavLocationBindingRepoPort.upsert",
+    "implementingClass": "InMemoryNavLocationBindingRepo",
+    "caller": "assignLocation",
+    "file": "src/navigation/menu-service.ts",
+    "line": 477,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NavLocationBindingRepoPort.upsert",
+    "implementingClass": "SqliteNavLocationBindingRepo",
+    "caller": "assignLocation",
+    "file": "src/navigation/menu-service.ts",
+    "line": 477,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.enqueue",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "assignLocation",
+    "file": "src/navigation/menu-service.ts",
+    "line": 485,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.enqueue",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "assignLocation",
+    "file": "src/navigation/menu-service.ts",
+    "line": 497,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MenuRepoPort.save",
+    "implementingClass": "InMemoryMenuRepo",
+    "caller": "deleteMenu",
+    "file": "src/navigation/menu-service.ts",
+    "line": 571,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MenuRepoPort.save",
+    "implementingClass": "SqliteMenuRepo",
+    "caller": "deleteMenu",
+    "file": "src/navigation/menu-service.ts",
+    "line": 571,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.enqueue",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "deleteMenu",
+    "file": "src/navigation/menu-service.ts",
+    "line": 573,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MenuRepoPort.remove",
+    "implementingClass": "InMemoryMenuRepo",
+    "caller": "deleteMenu",
+    "file": "src/navigation/menu-service.ts",
+    "line": 600,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MenuRepoPort.remove",
+    "implementingClass": "SqliteMenuRepo",
+    "caller": "deleteMenu",
+    "file": "src/navigation/menu-service.ts",
+    "line": 600,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NavLocationBindingRepoPort.removeByMenu",
+    "implementingClass": "InMemoryNavLocationBindingRepo",
+    "caller": "deleteMenu",
+    "file": "src/navigation/menu-service.ts",
+    "line": 601,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NavLocationBindingRepoPort.removeByMenu",
+    "implementingClass": "SqliteNavLocationBindingRepo",
+    "caller": "deleteMenu",
+    "file": "src/navigation/menu-service.ts",
+    "line": 601,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.enqueue",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "deleteMenu",
+    "file": "src/navigation/menu-service.ts",
+    "line": 603,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NavLocationBindingRepoPort.rebuildForWorkspace",
+    "implementingClass": "InMemoryNavLocationBindingRepo",
+    "caller": "rebuildNavLocationBindings",
+    "file": "src/navigation/reconcile.ts",
+    "line": 81,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NavLocationBindingRepoPort.rebuildForWorkspace",
+    "implementingClass": "SqliteNavLocationBindingRepo",
+    "caller": "rebuildNavLocationBindings",
+    "file": "src/navigation/reconcile.ts",
+    "line": 81,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NavLocationBindingRepoPort.remove",
+    "implementingClass": "InMemoryNavLocationBindingRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/navigation/repo.memory.ts",
+    "line": 186,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "table",
+    "contractMethod": "menus via this.db\n      .insert",
+    "caller": "SqliteMenuRepo.save",
+    "file": "src/navigation/repo.sqlite.ts",
+    "line": 95,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "table",
+    "contractMethod": "menus via this.db\n      .delete",
+    "caller": "SqliteMenuRepo.remove",
+    "file": "src/navigation/repo.sqlite.ts",
+    "line": 115,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "table",
+    "contractMethod": "navLocationBindings via this.db\n      .insert",
+    "caller": "SqliteNavLocationBindingRepo.upsert",
+    "file": "src/navigation/repo.sqlite.ts",
+    "line": 175,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NavLocationBindingRepoPort.remove",
+    "implementingClass": "SqliteNavLocationBindingRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/navigation/repo.sqlite.ts",
+    "line": 185,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "table",
+    "contractMethod": "navLocationBindings via this.db\n      .delete",
+    "caller": "SqliteNavLocationBindingRepo.remove",
+    "file": "src/navigation/repo.sqlite.ts",
+    "line": 187,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "navLocationBindings via this.db\n      .delete",
+    "caller": "SqliteNavLocationBindingRepo.removeByMenu",
+    "file": "src/navigation/repo.sqlite.ts",
+    "line": 199,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "table",
+    "contractMethod": "navLocationBindings via this.db.delete",
+    "caller": "SqliteNavLocationBindingRepo.rebuildForWorkspace",
+    "file": "src/navigation/repo.sqlite.ts",
+    "line": 219,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "navLocationBindings via this.db\n      .insert",
+    "caller": "SqliteNavLocationBindingRepo.rebuildForWorkspace",
+    "file": "src/navigation/repo.sqlite.ts",
+    "line": 222,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterListRepoPort.findById",
+    "implementingClass": "SqliteNewsletterListRepo",
+    "caller": "requireEditableListId",
+    "file": "src/newsletter/campaign-write-service.ts",
+    "line": 58,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
+    "implementingClass": "InMemoryNewsletterCampaignRepo",
+    "caller": "writeRevision",
+    "file": "src/newsletter/campaign-write-service.ts",
+    "line": 69,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
+    "implementingClass": "SqliteNewsletterCampaignRepo",
+    "caller": "writeRevision",
+    "file": "src/newsletter/campaign-write-service.ts",
+    "line": 69,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.appendRevision",
+    "implementingClass": "InMemoryNewsletterCampaignRepo",
+    "caller": "writeRevision",
+    "file": "src/newsletter/campaign-write-service.ts",
+    "line": 70,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.appendRevision",
+    "implementingClass": "SqliteNewsletterCampaignRepo",
+    "caller": "writeRevision",
+    "file": "src/newsletter/campaign-write-service.ts",
+    "line": 70,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.transaction",
+    "implementingClass": "InMemoryNewsletterCampaignRepo",
+    "caller": "saveCampaign",
+    "file": "src/newsletter/campaign-write-service.ts",
+    "line": 109,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.transaction",
+    "implementingClass": "SqliteNewsletterCampaignRepo",
+    "caller": "saveCampaign",
+    "file": "src/newsletter/campaign-write-service.ts",
+    "line": 109,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.transaction",
+    "implementingClass": "InMemoryNewsletterCampaignRepo",
+    "caller": "transitionAndWrite",
+    "file": "src/newsletter/campaign-write-service.ts",
+    "line": 175,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.transaction",
+    "implementingClass": "SqliteNewsletterCampaignRepo",
+    "caller": "transitionAndWrite",
+    "file": "src/newsletter/campaign-write-service.ts",
+    "line": 175,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.transaction",
+    "implementingClass": "InMemoryNewsletterCampaignRepo",
+    "caller": "scheduleCampaign",
+    "file": "src/newsletter/campaign-write-service.ts",
+    "line": 205,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.transaction",
+    "implementingClass": "SqliteNewsletterCampaignRepo",
+    "caller": "scheduleCampaign",
+    "file": "src/newsletter/campaign-write-service.ts",
+    "line": 205,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterConfirmationTokenRepoPort.findUnconsumedBySubscription",
+    "implementingClass": "SqliteNewsletterConfirmationTokenRepo",
+    "caller": "issueConfirmationToken",
+    "file": "src/newsletter/confirmation.ts",
+    "line": 57,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterConfirmationTokenRepoPort.save",
+    "implementingClass": "InMemoryNewsletterConfirmationTokenRepo",
+    "caller": "issueConfirmationToken",
+    "file": "src/newsletter/confirmation.ts",
+    "line": 62,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterConfirmationTokenRepoPort.save",
+    "implementingClass": "SqliteNewsletterConfirmationTokenRepo",
+    "caller": "issueConfirmationToken",
+    "file": "src/newsletter/confirmation.ts",
+    "line": 62,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterConfirmationTokenRepoPort.save",
+    "implementingClass": "InMemoryNewsletterConfirmationTokenRepo",
+    "caller": "issueConfirmationToken",
+    "file": "src/newsletter/confirmation.ts",
+    "line": 80,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterConfirmationTokenRepoPort.save",
+    "implementingClass": "SqliteNewsletterConfirmationTokenRepo",
+    "caller": "issueConfirmationToken",
+    "file": "src/newsletter/confirmation.ts",
+    "line": 80,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OriginRegistryPort.canonicalOrigin",
+    "implementingClass": "OriginRegistry",
+    "caller": "issueConfirmationToken",
+    "file": "src/newsletter/confirmation.ts",
+    "line": 82,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MailerPort.send",
+    "implementingClass": "ConsoleMailerAdapter",
+    "caller": "issueConfirmationToken",
+    "file": "src/newsletter/confirmation.ts",
+    "line": 85,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterConfirmationTokenRepoPort.findByTokenHash",
+    "implementingClass": "SqliteNewsletterConfirmationTokenRepo",
+    "caller": "consumeConfirmationToken",
+    "file": "src/newsletter/confirmation.ts",
+    "line": 115,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSubscriptionRepoPort.findById",
+    "implementingClass": "SqliteNewsletterSubscriptionRepo",
+    "caller": "consumeConfirmationToken",
+    "file": "src/newsletter/confirmation.ts",
+    "line": 129,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterConfirmationTokenRepoPort.save",
+    "implementingClass": "InMemoryNewsletterConfirmationTokenRepo",
+    "caller": "consumeConfirmationToken",
+    "file": "src/newsletter/confirmation.ts",
+    "line": 150,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterConfirmationTokenRepoPort.save",
+    "implementingClass": "SqliteNewsletterConfirmationTokenRepo",
+    "caller": "consumeConfirmationToken",
+    "file": "src/newsletter/confirmation.ts",
+    "line": 150,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSubscriptionRepoPort.save",
+    "implementingClass": "InMemoryNewsletterSubscriptionRepo",
+    "caller": "consumeConfirmationToken",
+    "file": "src/newsletter/confirmation.ts",
+    "line": 163,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSubscriptionRepoPort.save",
+    "implementingClass": "SqliteNewsletterSubscriptionRepo",
+    "caller": "consumeConfirmationToken",
+    "file": "src/newsletter/confirmation.ts",
+    "line": 163,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OriginRegistryPort.canonicalOrigin",
+    "implementingClass": "OriginRegistry",
+    "caller": "evaluateLaunchGate",
+    "file": "src/newsletter/launch-gate.ts",
+    "line": 77,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MailerPort.capabilities",
+    "implementingClass": "ConsoleMailerAdapter",
+    "caller": "evaluateLaunchGate",
+    "file": "src/newsletter/launch-gate.ts",
+    "line": 83,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterListRepoPort.findById",
+    "implementingClass": "SqliteNewsletterListRepo",
+    "caller": "saveList",
+    "file": "src/newsletter/lists.ts",
+    "line": 33,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterListRepoPort.save",
+    "implementingClass": "InMemoryNewsletterListRepo",
+    "caller": "saveList",
+    "file": "src/newsletter/lists.ts",
+    "line": 36,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterListRepoPort.save",
+    "implementingClass": "SqliteNewsletterListRepo",
+    "caller": "saveList",
+    "file": "src/newsletter/lists.ts",
+    "line": 36,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterListRepoPort.save",
+    "implementingClass": "InMemoryNewsletterListRepo",
+    "caller": "saveList",
+    "file": "src/newsletter/lists.ts",
+    "line": 50,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterListRepoPort.save",
+    "implementingClass": "SqliteNewsletterListRepo",
+    "caller": "saveList",
+    "file": "src/newsletter/lists.ts",
+    "line": 50,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterListRepoPort.findById",
+    "implementingClass": "SqliteNewsletterListRepo",
+    "caller": "archiveList",
+    "file": "src/newsletter/lists.ts",
+    "line": 60,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterListRepoPort.save",
+    "implementingClass": "InMemoryNewsletterListRepo",
+    "caller": "archiveList",
+    "file": "src/newsletter/lists.ts",
+    "line": 66,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterListRepoPort.save",
+    "implementingClass": "SqliteNewsletterListRepo",
+    "caller": "archiveList",
+    "file": "src/newsletter/lists.ts",
+    "line": 66,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterListRepoPort.findDefault",
+    "implementingClass": "SqliteNewsletterListRepo",
+    "caller": "ensureDefaultList",
+    "file": "src/newsletter/lists.ts",
+    "line": 80,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterListRepoPort.save",
+    "implementingClass": "InMemoryNewsletterListRepo",
+    "caller": "ensureDefaultList",
+    "file": "src/newsletter/lists.ts",
+    "line": 94,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterListRepoPort.save",
+    "implementingClass": "SqliteNewsletterListRepo",
+    "caller": "ensureDefaultList",
+    "file": "src/newsletter/lists.ts",
+    "line": 94,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSubscriptionRepoPort.remove",
+    "implementingClass": "InMemoryNewsletterSubscriptionRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/newsletter/repo.memory.ts",
+    "line": 160,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSendRepoPort.save",
+    "implementingClass": "InMemoryNewsletterSendRepo",
+    "caller": "InMemoryNewsletterSendRepo.saveBatch",
+    "file": "src/newsletter/repo.memory.ts",
+    "line": 255,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSendRepoPort.save",
+    "implementingClass": "SqliteNewsletterSendRepo",
+    "caller": "InMemoryNewsletterSendRepo.saveBatch",
+    "file": "src/newsletter/repo.memory.ts",
+    "line": 255,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "table",
+    "contractMethod": "newsletterCampaigns via this.db\n      .insert",
+    "caller": "SqliteNewsletterCampaignRepo.saveCampaignRow",
+    "file": "src/newsletter/repo.sqlite.ts",
+    "line": 144,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "table",
+    "contractMethod": "newsletterCampaignRevisions via this.db\n      .insert",
+    "caller": "SqliteNewsletterCampaignRepo.appendRevision",
+    "file": "src/newsletter/repo.sqlite.ts",
+    "line": 152,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterListRepoPort.list",
+    "implementingClass": "SqliteNewsletterListRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/newsletter/repo.sqlite.ts",
+    "line": 239,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSubscriptionRepoPort.list",
+    "implementingClass": "SqliteNewsletterSubscriptionRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/newsletter/repo.sqlite.ts",
+    "line": 320,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSubscriptionRepoPort.remove",
+    "implementingClass": "SqliteNewsletterSubscriptionRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/newsletter/repo.sqlite.ts",
+    "line": 374,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterAudienceSnapshotRepoPort.findByCampaignId",
+    "implementingClass": "SqliteNewsletterAudienceSnapshotRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/newsletter/repo.sqlite.ts",
+    "line": 405,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSendRepoPort.findByIdempotencyKey",
+    "implementingClass": "SqliteNewsletterSendRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/newsletter/repo.sqlite.ts",
+    "line": 484,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSendRepoPort.listPendingByAudienceSnapshot",
+    "implementingClass": "SqliteNewsletterSendRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/newsletter/repo.sqlite.ts",
+    "line": 510,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSendRepoPort.save",
+    "implementingClass": "InMemoryNewsletterSendRepo",
+    "caller": "SqliteNewsletterSendRepo.saveBatch",
+    "file": "src/newsletter/repo.sqlite.ts",
+    "line": 565,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSendRepoPort.save",
+    "implementingClass": "SqliteNewsletterSendRepo",
+    "caller": "SqliteNewsletterSendRepo.saveBatch",
+    "file": "src/newsletter/repo.sqlite.ts",
+    "line": 565,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterConfirmationTokenRepoPort.findById",
+    "implementingClass": "SqliteNewsletterConfirmationTokenRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/newsletter/repo.sqlite.ts",
+    "line": 597,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.transaction",
+    "implementingClass": "InMemoryNewsletterCampaignRepo",
+    "caller": "authorizeSend",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 56,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.transaction",
+    "implementingClass": "SqliteNewsletterCampaignRepo",
+    "caller": "authorizeSend",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 56,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
+    "implementingClass": "InMemoryNewsletterCampaignRepo",
+    "caller": "(anonymous)",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 73,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
+    "implementingClass": "SqliteNewsletterCampaignRepo",
+    "caller": "(anonymous)",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 73,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.appendRevision",
+    "implementingClass": "InMemoryNewsletterCampaignRepo",
+    "caller": "(anonymous)",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 76,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.appendRevision",
+    "implementingClass": "SqliteNewsletterCampaignRepo",
+    "caller": "(anonymous)",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 76,
+    "coverageClass": "ledger_only"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterAudienceSnapshotRepoPort.findById",
+    "implementingClass": "SqliteNewsletterAudienceSnapshotRepo",
+    "caller": "freezeAudience",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 97,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSendRepoPort.listByCampaign",
+    "implementingClass": "SqliteNewsletterSendRepo",
+    "caller": "freezeAudience",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 99,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSubscriptionRepoPort.listSubscribed",
+    "implementingClass": "SqliteNewsletterSubscriptionRepo",
+    "caller": "freezeAudience",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 104,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterAudienceSnapshotRepoPort.save",
+    "implementingClass": "InMemoryNewsletterAudienceSnapshotRepo",
+    "caller": "freezeAudience",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 144,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterAudienceSnapshotRepoPort.save",
+    "implementingClass": "SqliteNewsletterAudienceSnapshotRepo",
+    "caller": "freezeAudience",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 144,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSendRepoPort.saveBatch",
+    "implementingClass": "InMemoryNewsletterSendRepo",
+    "caller": "freezeAudience",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 145,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSendRepoPort.saveBatch",
+    "implementingClass": "SqliteNewsletterSendRepo",
+    "caller": "freezeAudience",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 145,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
+    "implementingClass": "InMemoryNewsletterCampaignRepo",
+    "caller": "freezeAudience",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 148,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
+    "implementingClass": "SqliteNewsletterCampaignRepo",
+    "caller": "freezeAudience",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 148,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.enqueue",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "freezeAudience",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 163,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MailerPort.send",
+    "implementingClass": "ConsoleMailerAdapter",
+    "caller": "dispatchRow",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 220,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSendRepoPort.findById",
+    "implementingClass": "SqliteNewsletterSendRepo",
+    "caller": "recordResult",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 238,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSendRepoPort.save",
+    "implementingClass": "InMemoryNewsletterSendRepo",
+    "caller": "recordResult",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 251,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSendRepoPort.save",
+    "implementingClass": "SqliteNewsletterSendRepo",
+    "caller": "recordResult",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 251,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
+    "implementingClass": "InMemoryNewsletterCampaignRepo",
+    "caller": "recordResult",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 258,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
+    "implementingClass": "SqliteNewsletterCampaignRepo",
+    "caller": "recordResult",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 258,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSendRepoPort.countPendingByCampaign",
+    "implementingClass": "SqliteNewsletterSendRepo",
+    "caller": "completeIfDrained",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 273,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
+    "implementingClass": "InMemoryNewsletterCampaignRepo",
+    "caller": "completeIfDrained",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 281,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
+    "implementingClass": "SqliteNewsletterCampaignRepo",
+    "caller": "completeIfDrained",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 281,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.transaction",
+    "implementingClass": "InMemoryNewsletterCampaignRepo",
+    "caller": "transitionAndSave",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 305,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.transaction",
+    "implementingClass": "SqliteNewsletterCampaignRepo",
+    "caller": "transitionAndSave",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 305,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
+    "implementingClass": "InMemoryNewsletterCampaignRepo",
+    "caller": "(anonymous)",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 312,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
+    "implementingClass": "SqliteNewsletterCampaignRepo",
+    "caller": "(anonymous)",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 312,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "MailerPort.send",
+    "implementingClass": "ConsoleMailerAdapter",
+    "caller": "sendTestCampaign",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 336,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSendRepoPort.findById",
+    "implementingClass": "SqliteNewsletterSendRepo",
+    "caller": "handleSendBatchClaimed",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 362,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSubscriptionRepoPort.findBySubscriberAndList",
+    "implementingClass": "SqliteNewsletterSubscriptionRepo",
+    "caller": "handleSendBatchClaimed",
+    "file": "src/newsletter/send-pipeline.ts",
+    "line": 364,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSubscriptionRepoPort.findBySubscriberAndList",
+    "implementingClass": "SqliteNewsletterSubscriptionRepo",
+    "caller": "saveSubscription",
+    "file": "src/newsletter/subscriptions.ts",
+    "line": 37,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSubscriptionRepoPort.save",
+    "implementingClass": "InMemoryNewsletterSubscriptionRepo",
+    "caller": "saveSubscription",
+    "file": "src/newsletter/subscriptions.ts",
+    "line": 56,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSubscriptionRepoPort.save",
+    "implementingClass": "SqliteNewsletterSubscriptionRepo",
+    "caller": "saveSubscription",
+    "file": "src/newsletter/subscriptions.ts",
+    "line": 56,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "KeyringPort.derive",
+    "implementingClass": "EnvOrFileKeyring",
+    "caller": "signature",
+    "file": "src/newsletter/unsubscribe.ts",
+    "line": 53,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "KeyringPort.derive",
+    "implementingClass": "InMemoryKeyring",
+    "caller": "signature",
+    "file": "src/newsletter/unsubscribe.ts",
+    "line": 53,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OriginRegistryPort.canonicalOrigin",
+    "implementingClass": "OriginRegistry",
+    "caller": "buildUnsubscribeLink",
+    "file": "src/newsletter/unsubscribe.ts",
+    "line": 69,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSubscriptionRepoPort.findBySubscriberAndList",
+    "implementingClass": "SqliteNewsletterSubscriptionRepo",
+    "caller": "processUnsubscribe",
+    "file": "src/newsletter/unsubscribe.ts",
+    "line": 103,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSubscriptionRepoPort.save",
+    "implementingClass": "InMemoryNewsletterSubscriptionRepo",
+    "caller": "processUnsubscribe",
+    "file": "src/newsletter/unsubscribe.ts",
+    "line": 134,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "NewsletterSubscriptionRepoPort.save",
+    "implementingClass": "SqliteNewsletterSubscriptionRepo",
+    "caller": "processUnsubscribe",
+    "file": "src/newsletter/unsubscribe.ts",
+    "line": 134,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OriginRegistryPort.canonicalOrigin",
+    "implementingClass": "OriginRegistry",
+    "caller": "OriginRegistry.isAllowedTarget",
+    "file": "src/origin/origin.ts",
+    "line": 198,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "EventBusPort.subscribe",
+    "implementingClass": "InMemoryEventBus",
+    "caller": "registerRedirectHitOutboxHandler",
+    "file": "src/redirects/hit-sink.ts",
+    "line": 72,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "RedirectHitSink.record",
+    "implementingClass": "RedirectHitSinkImpl",
+    "caller": "(anonymous)",
+    "file": "src/redirects/hit-sink.ts",
+    "line": 74,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OriginRegistryPort.canonicalOrigin",
+    "implementingClass": "OriginRegistry",
+    "caller": "toOracleCandidate",
+    "file": "src/redirects/phase-handler.ts",
+    "line": 80,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OriginRegistryPort.isAllowedRedirectTarget",
+    "implementingClass": "OriginRegistry",
+    "caller": "RedirectPhaseHandlerResolver.resolve",
+    "file": "src/redirects/phase-handler.ts",
+    "line": 137,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.enqueue",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "RedirectPhaseHandlerResolver.recordHitFireAndForget",
+    "file": "src/redirects/phase-handler.ts",
+    "line": 166,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OriginRegistryPort.isAllowedRedirectTarget",
+    "implementingClass": "OriginRegistry",
+    "caller": "assertTargetAllowed",
+    "file": "src/redirects/redirects.ts",
+    "line": 123,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OutboxPort.enqueue",
+    "implementingClass": "InMemoryOutbox",
+    "caller": "enqueueMutatedEvent",
+    "file": "src/redirects/redirects.ts",
+    "line": 163,
+    "coverageClass": "sequential_outbox"
+  },
+  {
+    "source": "port",
+    "contractMethod": "RedirectRepoPort.save",
+    "implementingClass": "InMemoryRedirectRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/redirects/repo.memory.ts",
+    "line": 108,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "RedirectRepoPort.tombstone",
+    "implementingClass": "InMemoryRedirectRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/redirects/repo.memory.ts",
+    "line": 113,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "RedirectRepoPort.save",
+    "implementingClass": "SqliteRedirectRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/redirects/repo.sqlite.ts",
+    "line": 197,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "RedirectRepoPort.tombstone",
+    "implementingClass": "SqliteRedirectRepo",
+    "caller": "(no caller found in project)",
+    "file": "src/redirects/repo.sqlite.ts",
+    "line": 202,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "table",
+    "contractMethod": "redirects via this.db\n      .insert",
+    "caller": "SqliteRedirectRepo.insertRedirect",
+    "file": "src/redirects/repo.sqlite.ts",
+    "line": 221,
+    "coverageClass": "none"
+  },
+  {
+    "source": "table",
+    "contractMethod": "redirectRevisions via this.db.insert",
+    "caller": "SqliteRedirectRepo.insertRevision",
+    "file": "src/redirects/repo.sqlite.ts",
+    "line": 229,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SeoQueryPort.renderHead",
+    "caller": "(no implementation found in project)",
+    "file": "src/seo/ports.ts",
+    "line": 48,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SeoQueryPort.buildSitemap",
+    "caller": "(no implementation found in project)",
+    "file": "src/seo/ports.ts",
+    "line": 49,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SeoQueryPort.buildRobots",
+    "caller": "(no implementation found in project)",
+    "file": "src/seo/ports.ts",
+    "line": 50,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "SeoQueryPort.analyzeEntry",
+    "caller": "(no implementation found in project)",
+    "file": "src/seo/ports.ts",
+    "line": 51,
+    "coverageClass": "unknown"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PostRepoPort.save",
+    "implementingClass": "InMemoryPostRepo",
+    "caller": "setEntrySeoOverrides",
+    "file": "src/seo/write-service.ts",
+    "line": 168,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PostRepoPort.save",
+    "implementingClass": "SqlitePostRepo",
+    "caller": "setEntrySeoOverrides",
+    "file": "src/seo/write-service.ts",
+    "line": 168,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "EventBusPort.subscribe",
+    "implementingClass": "InMemoryEventBus",
+    "caller": "createApp",
+    "file": "src/server/app.ts",
+    "line": 347,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "EventBusPort.subscribe",
+    "implementingClass": "InMemoryEventBus",
+    "caller": "createApp",
+    "file": "src/server/app.ts",
+    "line": 359,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "EventBusPort.subscribe",
+    "implementingClass": "InMemoryEventBus",
+    "caller": "createApp",
+    "file": "src/server/app.ts",
+    "line": 360,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "EventBusPort.subscribe",
+    "implementingClass": "InMemoryEventBus",
+    "caller": "createApp",
+    "file": "src/server/app.ts",
+    "line": 361,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "EventBusPort.subscribe",
+    "implementingClass": "InMemoryEventBus",
+    "caller": "createApp",
+    "file": "src/server/app.ts",
+    "line": 514,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "FormSubmissionRepoPort.delete",
+    "implementingClass": "InMemoryFormSubmissionRepo",
+    "caller": "registerAdminFormsDeleteSubmissionRoute",
+    "file": "src/server/routes/admin/forms/delete-submission.ts",
+    "line": 43,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "FormSubmissionRepoPort.delete",
+    "implementingClass": "SqliteFormSubmissionRepo",
+    "caller": "registerAdminFormsDeleteSubmissionRoute",
+    "file": "src/server/routes/admin/forms/delete-submission.ts",
+    "line": 43,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "OriginRegistryPort.isAllowedEgressTarget",
+    "implementingClass": "OriginRegistry",
+    "caller": "{ subscription }",
+    "file": "src/server/routes/admin/integrations/create.ts",
+    "line": 46,
+    "coverageClass": "none"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PostRepoPort.save",
+    "implementingClass": "InMemoryPostRepo",
+    "caller": "{ result }",
+    "file": "src/server/routes/admin/posts/update.ts",
+    "line": 90,
+    "coverageClass": "executeCommand"
+  },
+  {
+    "source": "port",
+    "contractMethod": "PostRepoPort.save",
+    "implementingClass": "SqlitePostRepo",
+    "caller": "{ result }",
+    "file": "src/server/routes/admin/posts/update.ts",
+    "line": 90,
+    "coverageClass": "executeCommand"
+  }
+]

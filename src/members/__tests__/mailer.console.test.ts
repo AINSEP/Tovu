@@ -84,6 +84,64 @@ test("send truncates a long body in the log line", async () => {
   assert.match(loggedLine, /…/);
 });
 
+test("send fails closed with ATTACHMENTS_UNSUPPORTED instead of silently dropping attachments (/debate D6, 2026-07-15)", async () => {
+  const adapter = new ConsoleMailerAdapter();
+  const message: OutboundEmail = {
+    workspaceId: "ws-1",
+    to: { email: "member@example.com" },
+    from: { email: "no-reply@members.local" },
+    subject: "Has an attachment",
+    text: "body",
+    attachments: [{ filename: "invoice.pdf", contentType: "application/pdf", contentBase64: "AAAA" }],
+  };
+
+  const originalLog = console.log;
+  const logCalls: unknown[][] = [];
+  console.log = (...args: unknown[]) => {
+    logCalls.push(args);
+  };
+  let result;
+  try {
+    result = await adapter.send(message, SEND_OPTIONS);
+  } finally {
+    console.log = originalLog;
+  }
+
+  assert.deepEqual(result, {
+    ok: false,
+    retryable: false,
+    errorCode: "ATTACHMENTS_UNSUPPORTED",
+    message: "ConsoleMailerAdapter does not support attachments (capabilities().supportsAttachments is false)",
+  });
+  assert.equal(logCalls.length, 0, "must fail before logging/sending anything, not send without the attachment");
+});
+
+test("send succeeds normally when attachments is present but empty", async () => {
+  const adapter = new ConsoleMailerAdapter({
+    clock: { nowIso: () => "2026-07-10T12:00:00.000Z" },
+    ids: { newId: () => "generated-id-1" },
+  });
+  const message: OutboundEmail = {
+    workspaceId: "ws-1",
+    to: { email: "member@example.com" },
+    from: { email: "no-reply@members.local" },
+    subject: "Empty attachments array",
+    text: "body",
+    attachments: [],
+  };
+
+  const originalLog = console.log;
+  console.log = () => {};
+  let result;
+  try {
+    result = await adapter.send(message, SEND_OPTIONS);
+  } finally {
+    console.log = originalLog;
+  }
+
+  assert.equal(result.ok, true);
+});
+
 test("sendBatch loops send() once per message", async () => {
   const adapter = new ConsoleMailerAdapter({ ids: (() => {
     let n = 0;

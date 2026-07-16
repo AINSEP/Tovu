@@ -736,3 +736,168 @@ export const principalPolicies = sqliteTable(
     index("idx_principal_policies_workspace_principal").on(table.workspaceId, table.principalId),
   ]
 );
+
+/**
+ * SPEC-016 (ADR-041 §3, C-004) — the site-wide gated-mutation write watermark. A single
+ * singleton row (`id=1`), incremented exactly once per `stampWatermarkTx` call inside the
+ * caller's own already-open transaction (same-transaction atomicity, INV-01). Not
+ * workspace-scoped: one counter per `content.db` (one site), matching ADR-041's storage-domain
+ * boundary. `openContentDb` guarantees the singleton row exists (`INSERT OR IGNORE`) right after
+ * migration, so `getCurrentWatermark`/`stampWatermarkTx` never have to special-case "row missing".
+ */
+export const storageWriteWatermark = sqliteTable("storage_write_watermark", {
+  id: integer("id").primaryKey(),
+  value: integer("value").notNull().default(0),
+  lastStampedAt: text("last_stamped_at"),
+});
+
+// ---------------------------------------------------------------------------
+// Collections: content-type registry + entries (SPEC-020, ADR-022/ADR-043).
+// Closes the disclosed "fakes-only, no real SQLite adapter" gap Sessions 3/5
+// of the spec-016-020 workstream left open — see progress-ledger.md. `id` is
+// a stable synthetic key (`${workspaceId}::${key}`) since `ContentTypeRecord`
+// itself has no surrogate id, only the natural (workspaceId, key) pair.
+// ---------------------------------------------------------------------------
+
+export const contentTypes = sqliteTable(
+  "content_types",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    key: text("key").notNull(),
+    label: text("label").notNull(),
+    fieldsJson: text("fields_json").notNull(),
+    status: text("status").notNull(),
+    version: integer("version").notNull(),
+    tombstonedAt: text("tombstoned_at"),
+  },
+  (table) => [
+    uniqueIndex("content_types_workspace_key_unique").on(table.workspaceId, table.key),
+    index("idx_content_types_workspace").on(table.workspaceId),
+  ]
+);
+
+/** Append-only revision ledger for `content_types` (ADR-022 §4a discipline). */
+export const contentTypeRevisions = sqliteTable(
+  "content_type_revisions",
+  {
+    seq: integer("seq").primaryKey({ autoIncrement: true }),
+    contentTypeKey: text("content_type_key").notNull(),
+    workspaceId: text("workspace_id").notNull(),
+    op: text("op").notNull(),
+    stateJson: text("state_json").notNull(),
+    actorId: text("actor_id").notNull(),
+    delegatedByWorkspaceId: text("delegated_by_workspace_id"),
+    delegatedById: text("delegated_by_id"),
+    recordedAt: text("recorded_at").notNull(),
+  },
+  (table) => [index("idx_content_type_revisions_workspace_key").on(table.workspaceId, table.contentTypeKey, table.seq)]
+);
+
+export const entries = sqliteTable(
+  "entries",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    type: text("type").notNull(),
+    slug: text("slug").notNull(),
+    status: text("status").notNull(),
+    title: text("title").notNull(),
+    bodyJson: text("body_json"),
+    fieldsJson: text("fields_json").notNull(),
+    publishedAt: text("published_at"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    uniqueIndex("entries_workspace_type_slug_unique").on(table.workspaceId, table.type, table.slug),
+    index("idx_entries_workspace").on(table.workspaceId, table.type),
+  ]
+);
+
+/** Append-only revision ledger for `entries` (ADR-022 §4a discipline). */
+export const entryRevisions = sqliteTable(
+  "entry_revisions",
+  {
+    seq: integer("seq").primaryKey({ autoIncrement: true }),
+    entryId: text("entry_id").notNull(),
+    workspaceId: text("workspace_id").notNull(),
+    op: text("op").notNull(),
+    stateJson: text("state_json").notNull(),
+    actorId: text("actor_id").notNull(),
+    delegatedByWorkspaceId: text("delegated_by_workspace_id"),
+    delegatedById: text("delegated_by_id"),
+    recordedAt: text("recorded_at").notNull(),
+  },
+  (table) => [index("idx_entry_revisions_workspace_entry").on(table.workspaceId, table.entryId, table.seq)]
+);
+
+// ---------------------------------------------------------------------------
+// Taxonomy: categories & tags (SPEC-018, ADR-044). `workspace_id` is a real
+// scoping column added by the SQLite adapter layer even though the certified
+// `TaxonomyRepoPort`/`TermRepoPort`/`EntryTermRepoPort` interfaces (deliberately,
+// per that package's own write-service.ts header) never thread a workspaceId
+// through their method signatures — the adapter classes are constructed
+// workspace-scoped instead (same "scoped at construction" precedent
+// `infra/sqlite/storage-journal-repo.ts` already established for `siteId`).
+// ---------------------------------------------------------------------------
+
+export const taxonomies = sqliteTable(
+  "taxonomies",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    name: text("name").notNull(),
+    hierarchical: integer("hierarchical").notNull(),
+    status: text("status").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    version: integer("version").notNull(),
+  },
+  (table) => [index("idx_taxonomies_workspace").on(table.workspaceId)]
+);
+
+export const terms = sqliteTable(
+  "terms",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    taxonomyId: text("taxonomy_id").notNull(),
+    parentId: text("parent_id"),
+    name: text("name").notNull(),
+    status: text("status").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    version: integer("version").notNull(),
+  },
+  (table) => [index("idx_terms_workspace_taxonomy").on(table.workspaceId, table.taxonomyId)]
+);
+
+/** `entry_terms_unique` (ADR-044) — the idempotent-upsert dedup key `assignTerms` relies on. */
+export const entryTerms = sqliteTable(
+  "entry_terms",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    workspaceId: text("workspace_id").notNull(),
+    contentType: text("content_type").notNull(),
+    contentId: text("content_id").notNull(),
+    termId: text("term_id").notNull(),
+    addedAt: text("added_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("entry_terms_unique").on(table.workspaceId, table.contentType, table.contentId, table.termId),
+  ]
+);
+
+export const taxonomyRevisions = sqliteTable(
+  "taxonomy_revisions",
+  {
+    seq: integer("seq").primaryKey({ autoIncrement: true }),
+    workspaceId: text("workspace_id").notNull(),
+    taxonomyId: text("taxonomy_id").notNull(),
+    op: text("op").notNull(),
+    previousStateJson: text("previous_state_json"),
+    actorId: text("actor_id").notNull(),
+    recordedAt: text("recorded_at").notNull(),
+  },
+  (table) => [index("idx_taxonomy_revisions_workspace_taxonomy").on(table.workspaceId, table.taxonomyId, table.seq)]
+);

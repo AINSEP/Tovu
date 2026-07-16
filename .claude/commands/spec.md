@@ -17,7 +17,7 @@ Before doing anything else:
 Do not assume the planning surface is always the Speckit strict package.
 
 - If the active provider is `speckit`, use the provider-local strict package flow in `<AI_DEV_SHOP_ROOT>/framework/spec-providers/speckit/compatibility.md`.
-- If the active provider is `openspec` or `bmad`, follow that provider's native planning surface and record `spec_provider`, `spec_entrypoint_path`, and `spec_readiness_artifact` in `pipeline-state.md`.
+- If the active provider is `openspec` or `bmad`, follow that provider's native planning surface and record `spec_provider`, `provider_native_root`, `provider_output_root`, `spec_entrypoint_path`, and `spec_readiness_artifact` in `pipeline-state.md`.
 
 ## Provider-Specific Workflow
 
@@ -39,7 +39,7 @@ When the active provider is `speckit`:
 1. Read `<AI_DEV_SHOP_ROOT>/framework/spec-providers/speckit/compatibility.md`
 2. Follow the Spec Package Flow in that file
 3. Use templates from `<AI_DEV_SHOP_ROOT>/framework/spec-providers/speckit/templates/spec-system/`
-4. Run `python3 <AI_DEV_SHOP_ROOT>/framework/spec-providers/speckit/validators/validate_spec_package.py <spec_path>` when Python is available
+4. Run `python3 <AI_DEV_SHOP_ROOT>/framework/spec-providers/speckit/validators/validate_spec_package.py <spec_folder_dir> --phase spec --update-hash` before handoff. Use the spec package directory, not the `feature.spec.md` file path. If `python3` is unavailable, try `python` or `py`; if the validator runtime is still unavailable, stop unless a human approves a single-line `validator_manual_waiver` in `pipeline-state.md`.
 
 ### OpenSpec
 
@@ -47,7 +47,7 @@ When the active provider is `openspec`:
 1. Read `<AI_DEV_SHOP_ROOT>/framework/spec-providers/openspec/compatibility.md`
 2. Follow the Spec Package Flow in that file
 3. Use templates from `<AI_DEV_SHOP_ROOT>/framework/spec-providers/openspec/templates/`
-4. Run `python3 <AI_DEV_SHOP_ROOT>/framework/spec-providers/openspec/validators/validate_openspec_package.py <change_folder>` when Python is available
+4. Run `python3 <AI_DEV_SHOP_ROOT>/framework/spec-providers/openspec/validators/validate_openspec_package.py <change_folder>` before handoff. If `python3` is unavailable, try `python` or `py`; if the validator runtime is still unavailable, stop unless a human approves a single-line `validator_manual_waiver` in `pipeline-state.md`.
 
 ### BMAD
 
@@ -55,17 +55,17 @@ When the active provider is `bmad`:
 1. Read `<AI_DEV_SHOP_ROOT>/framework/spec-providers/bmad/compatibility.md`
 2. Determine track (standard BMM or quick dev) per that file's flow
 3. Use templates from `<AI_DEV_SHOP_ROOT>/framework/spec-providers/bmad/templates/`
-4. Run `python3 <AI_DEV_SHOP_ROOT>/framework/spec-providers/bmad/validators/validate_bmad_package.py <output_folder>` when Python is available
+4. Run `python3 <AI_DEV_SHOP_ROOT>/framework/spec-providers/bmad/validators/validate_bmad_package.py <output_folder>` before handoff. If `python3` is unavailable, try `python` or `py`; if the validator runtime is still unavailable, stop unless a human approves a single-line `validator_manual_waiver` in `pipeline-state.md`.
 
 ---
 
 ## Common Workflow Steps (all providers)
 
-1. Read `<ADS_PROJECT_KNOWLEDGE_ROOT>/governance/constitution.md`.
-2. Determine the next FEAT number by scanning `<ADS_PROJECT_KNOWLEDGE_ROOT>/reports/pipeline/` for existing feature folders (format: `NNN-feature-name/`). Use the next available three-digit number.
+1. Read `<ADS_MEMORY_ROOT>/governance/constitution.md`.
+2. Determine the next FEAT number by scanning `<ADS_MEMORY_ROOT>/reports/pipeline/` for existing feature folders (format: `NNN-feature-name/`). Use the next available three-digit number.
 3. Derive a short feature name (2-4 words, action-noun format, lowercase-hyphenated) from the description.
-4. Ask the user where to save spec artifacts (if not already specified).
-5. Create `<ADS_PROJECT_KNOWLEDGE_ROOT>/reports/pipeline/<NNN>-<feature-name>/`. Record `spec_provider`, `spec_entrypoint_path`, `spec_readiness_artifact`, and any provider-specific fields in `pipeline-state.md`.
+4. Resolve the spec artifact target. Default to `<ADS_MEMORY_ROOT>/specs/<NNN>-<feature-name>/` unless the user explicitly specified another durable project-owned location.
+5. Create `<ADS_MEMORY_ROOT>/reports/pipeline/<NNN>-<feature-name>/`. Record `spec_provider`, `provider_native_root`, `provider_output_root`, `spec_entrypoint_path`, `spec_readiness_artifact`, `spec_hash`, validator status, and any provider-specific fields in `pipeline-state.md`.
 6. Follow the provider's compatibility contract for artifact creation, clarification, and validation.
 7. Once the provider's readiness gate passes: output the spec package path and readiness for `/plan`.
 
