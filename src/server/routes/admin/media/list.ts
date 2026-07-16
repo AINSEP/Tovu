@@ -1,13 +1,13 @@
 import { listMedia } from "../../../../media";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import { toAdminMediaListResponse } from "../../../http/admin/media";
-import type { RouteRegistrar } from "../../types";
+import type { MediaRouteRegistrar } from "./deps";
 
 /**
  * GET all media in the workspace (all statuses — active + trashed; mirrors `listAdminPosts`).
  * Gated by `media.read` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
  */
-export const registerAdminMediaListRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminMediaListRoute: MediaRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/media", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

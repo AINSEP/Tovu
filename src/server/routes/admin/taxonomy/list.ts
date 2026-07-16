@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { listTaxonomiesWithTerms } from "../../../../features/taxonomy/list";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { TaxonomyRouteDeps } from "./deps";
 
 /**
  * @file design-spec.md §2.2/§2.8 — `GET /api/admin/v1/taxonomy` (Categories & Tags' two-pane
@@ -10,7 +10,7 @@ import type { RouteDeps } from "../../types";
  * for this whole domain (no `.read`/`.write` split), so this list route reuses it rather than
  * inventing an unratified `admin.taxonomy.read` string.
  */
-export function registerAdminTaxonomyListRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminTaxonomyListRoute(app: Express, deps: TaxonomyRouteDeps): void {
   app.get("/api/admin/v1/taxonomy", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

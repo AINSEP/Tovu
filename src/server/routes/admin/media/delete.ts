@@ -1,6 +1,6 @@
 import { MediaNotFoundError, MediaStillReferencedError, purgeMedia } from "../../../../media";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../types";
+import type { MediaRouteRegistrar } from "./deps";
 
 /**
  * DELETE hard-purges a media asset — second rung of the ADR-027 §5 deletion
@@ -11,7 +11,7 @@ import type { RouteRegistrar } from "../../types";
  * narrower permission than the ordinary trash's `media.delete`, since this is an irreversible purge
  * (mirrors `admin.menus.delete` vs `admin.menus.delete.force`'s split).
  */
-export const registerAdminMediaDeleteRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminMediaDeleteRoute: MediaRouteRegistrar = (app, deps) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/media/:mediaId", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

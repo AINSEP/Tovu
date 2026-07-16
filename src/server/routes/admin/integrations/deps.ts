@@ -1,34 +1,37 @@
 import type { Express } from "express";
 
-import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../../../integrations";
 import type { RouteDeps } from "../../types";
 
 /**
- * @file Local `RouteDeps` extension for the integrations admin routes (ADR-036 admin wiring).
+ * @file Narrow `RouteDeps` slice for the integrations ADMIN routes (ADR-036 admin wiring;
+ * ADR-046 Phase 3 / SPEC-034 `modules/integrations-admin.ts`).
  *
- * Purpose:
- * `src/server/routes/types.ts` (the shared `RouteDeps`/`RouteRegistrar` seam) is a shared
- * composition-root file out of scope for this task — see the handoff report for the exact
- * `RouteDeps` fields to add there. Until that lands, the integrations route registrars type
- * against this local superset instead, so they can be implemented and tested now without
- * touching a file other in-flight work also depends on.
- *
- * How it relates to the project:
- * - Mirrors `RouteRegistrar` from `../../types` exactly, just widened by the two repo ports
- *   these routes need (`webhookSubscriptionRepo`, `webhookDeliveryRepo`).
- * - Once `RouteDeps` itself carries those same field names/types (see the handoff report's
- *   `RouteDeps` snippet), the concrete `RouteDeps` object `app.ts` builds already satisfies
- *   `IntegrationsRouteDeps` structurally — no further change needed in this file.
+ * Purpose (updated 2026-07-16, SPEC-034):
+ * This type used to `extend RouteDeps` (a WIDENING, from back when `webhookSubscriptionRepo`/
+ * `webhookDeliveryRepo` hadn't landed on the shared `RouteDeps` yet — see git history for the
+ * original ADR-036 rationale). Both fields have been on `RouteDeps` since ADR-046 Phase 1's
+ * webhooks durability slice, so the `extends RouteDeps` shape was already redundant; this is now
+ * a genuine NARROWING (`Pick`), matching `routes/admin/media/deps.ts`/`routes/admin/taxonomy/
+ * deps.ts`'s identical rationale — stating the exact subset these 5 admin routes (list/create/
+ * pause/delete/deliveries) actually read, for `modules/integrations-admin.ts`'s factory
+ * parameter. Narrowing an already-satisfied type is backward-compatible: nothing that built a
+ * full `RouteDeps` object to satisfy the old `extends` shape needs to change.
  *
  * Architectural role:
- * Composition-root deps seam, scoped to the integrations admin routes only. Not itself a port
- * (ADR-006) — a local type alias over the shared `RouteDeps`, same as `RouteRegistrar` is.
+ * Composition-root deps seam, scoped to the integrations ADMIN routes only — distinct from
+ * `modules/integrations.ts`, which owns the Forms-to-webhook fan-out SUBSCRIBER (a different
+ * concern: internal event-driven delivery enqueue vs. admin CRUD over subscriptions). Not itself
+ * a port (ADR-006) — a local type alias over the shared `RouteDeps`, same as `RouteRegistrar` is.
  */
-export interface IntegrationsRouteDeps extends RouteDeps {
-  /** ADR-036 `webhook_subscriptions` persistence (in-memory in dev/tests). */
-  webhookSubscriptionRepo: WebhookSubscriptionRepoPort;
-  /** ADR-036 `webhook_deliveries` persistence (in-memory in dev/tests). */
-  webhookDeliveryRepo: WebhookDeliveryRepoPort;
-}
+export type IntegrationsRouteDeps = Pick<
+  RouteDeps,
+  | "workspaceId"
+  | "authorize"
+  | "clock"
+  | "idGen"
+  | "webhookSubscriptionRepo"
+  | "webhookDeliveryRepo"
+  | "originRegistry"
+>;
 
 export type IntegrationsRouteRegistrar = (app: Express, deps: IntegrationsRouteDeps) => void;

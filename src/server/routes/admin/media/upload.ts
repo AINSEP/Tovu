@@ -1,7 +1,7 @@
 import { MediaValidationError, uploadMedia } from "../../../../media";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import { toAdminMediaResponse } from "../../../http/admin/media";
-import type { RouteRegistrar } from "../../types";
+import type { MediaRouteRegistrar } from "./deps";
 
 /**
  * POST a new media upload. Gated by `media.upload` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
@@ -14,7 +14,7 @@ import type { RouteRegistrar } from "../../types";
  * base64-inflate them through JSON. `express.json()`'s body-size limit was
  * bumped in `server/app.ts` to accommodate this (see that file's comment).
  */
-export const registerAdminMediaUploadRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/media", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
