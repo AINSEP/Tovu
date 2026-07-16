@@ -1,5 +1,8 @@
 import type { JsonValue } from "../../../../core/ports";
-import { NON_REGISTER_DEFINITION_OPS } from "../../../../features/settings/definitions-dispatch";
+import {
+  NON_REGISTER_DEFINITION_OPS,
+  parseNonRegisterDefinitionOp,
+} from "../../../../features/settings/definitions-dispatch";
 import {
   AliasDepthExceededError,
   DefinitionInvalidError,
@@ -105,11 +108,12 @@ export const registerAdminSettingsRegisterDefinitionsRoute: RouteRegistrar = (ap
           continue;
         }
 
-        const handler = NON_REGISTER_DEFINITION_OPS[op];
-        if (!handler) {
+        const parsedOp = parseNonRegisterDefinitionOp(op);
+        if (!parsedOp) {
           res.status(400).json({ error: `unknown op '${op}'`, code: "VALIDATION_ERROR" });
           return;
         }
+        const handler = NON_REGISTER_DEFINITION_OPS[parsedOp];
 
         await handler(opCtx, {
           namespace,

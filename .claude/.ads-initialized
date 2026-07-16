@@ -1,9 +1,9 @@
 {
   "schema": "ads-init/v1",
-  "initialized_at": "2026-07-11T02:17:28Z",
+  "initialized_at": "2026-07-14T15:14:06Z",
   "toolkit_root": "/Users/la/Desktop/Programming/Tovu/AI-Dev-Shop",
   "host_root": "/Users/la/Desktop/Programming/Tovu",
-  "workspace": "/Users/la/Desktop/Programming/Tovu/ADS-project-knowledge",
+  "workspace": "/Users/la/Desktop/Programming/Tovu/ADS-memory",
   "workspace_created": true,
   "slash_commands": "not installed by init — opt-in via install-slash-commands.sh",
   "note": "Delete (or run ads-initialization.sh --force) to re-initialize."

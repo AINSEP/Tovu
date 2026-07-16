@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019f6872-644b-73c3-b67d-a57f3dc17b6a"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"ACK_PACKET_RECEIVED adr046-r2 -- I received the packet and will work on it."}}
+{"type":"turn.completed","usage":{"input_tokens":12682,"cached_input_tokens":9472,"output_tokens":23,"reasoning_output_tokens":0}}

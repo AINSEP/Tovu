@@ -276,6 +276,152 @@ export interface AdminRedirectHitStats {
   lastHitAt: string | null;
 }
 
+/**
+ * Collections (ADR-022/ADR-043) — mirrors `features/content-types/types.ts` +
+ * `features/entries/types.ts`. The 18 routes these types back were wired in the
+ * "Session 5" backend-gap-closure pass (`progress-ledger.md`); see this file's own
+ * per-method comments for exact response envelope shapes.
+ */
+export const CONTENT_TYPE_FIELD_KINDS = ["text", "integer", "real", "boolean", "datetime"] as const;
+export type ContentTypeFieldKind = (typeof CONTENT_TYPE_FIELD_KINDS)[number];
+
+export interface ContentTypeFieldDef {
+  name: string;
+  kind: ContentTypeFieldKind;
+  required: boolean;
+  queryable: boolean;
+}
+
+export type ContentTypeStatus = "active" | "deprecated" | "tombstone";
+
+export interface AdminContentType {
+  workspaceId: string;
+  key: string;
+  label: string;
+  fields: ContentTypeFieldDef[];
+  status: ContentTypeStatus;
+  version: number;
+  tombstonedAt?: string | null;
+}
+
+export type EntryStatus = "draft" | "published" | "unpublished";
+
+export interface AdminEntry {
+  id: string;
+  workspaceId: string;
+  type: string;
+  slug: string;
+  status: EntryStatus;
+  title: string;
+  bodyJson: unknown | null;
+  fieldsJson: unknown;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+}
+
+/**
+ * Categories & Tags (ADR-044) — mirrors `features/taxonomy/write-service.ts`'s `Taxonomy`/`Term`.
+ */
+export interface AdminTaxonomy {
+  id: string;
+  name: string;
+  hierarchical: boolean;
+  status: string;
+  updatedAt: string;
+  version: number;
+}
+
+export interface AdminTerm {
+  id: string;
+  taxonomyId: string;
+  parentId: string | null;
+  name: string;
+  status: string;
+  updatedAt: string;
+  version: number;
+}
+
+export interface AdminTaxonomyWithTerms {
+  taxonomy: AdminTaxonomy;
+  terms: AdminTerm[];
+}
+
+/** Storage — Timeline (ADR-041 §1). Mirrors `features/storage/timeline.ts`'s `LedgerRow`. */
+export interface AdminLedgerRow {
+  id: string;
+  kind: string;
+  createdAt: string;
+  restorePointId: string | null;
+  outcome: string;
+}
+
+export type RestorePointCostClass = "cheap" | "expensive" | "unavailable";
+
+/** One persisted `restore_points` row (Storage's and Recovery's shared list source). */
+export interface AdminRestorePoint {
+  id: string;
+  trigger: string;
+  costClass: string;
+  kind: string;
+  watermarkAtCapture: number | null;
+  createdAt: string;
+}
+
+export interface AdminRestorePointSummary {
+  id: string;
+  costClass: RestorePointCostClass;
+  kind: string;
+}
+
+/** Recovery (ADR-045) — mirrors `features/recovery/disclosure.ts`'s `DisclosureResult`. */
+export type CategoryCount = number | "unknown";
+
+export interface AdminDisclosureResult {
+  partial: true;
+  watermarkBaselineAvailable: boolean;
+  counts: Record<string, CategoryCount>;
+}
+
+export type DegradedBannerKind =
+  | "migration-interrupted"
+  | "pending-migration"
+  | "operation-in-flight"
+  | "cost-unavailable"
+  | "watermark-baseline-unavailable";
+
+export type DegradedBannerActionKind = "deep-link-to-storage-migration" | "unblock-interrupted-migration" | "none";
+
+export interface AdminDegradedBanner {
+  kind: DegradedBannerKind;
+  accessibleText: string;
+  actionKind: DegradedBannerActionKind;
+}
+
+export interface AdminRecoveryStatus {
+  costClass: RestorePointCostClass;
+  banner: AdminDegradedBanner | null;
+}
+
+/** Carries display continuity only, never authority — `resolveDeepLinkContext` always
+ * re-verifies `restorePointId` server-side (ADR-041 §7/ADR-045 §5, INV-04). */
+export interface StorageContextEnvelope {
+  v: number;
+  correlationId: string;
+  siteId: string;
+  ledgerEventId: string | null;
+  restorePointId: string | null;
+  drift: string;
+  intent: string;
+  issuedAt: string;
+}
+
+export interface AdminRecoveryDeepLinkResult {
+  found: boolean;
+  restorePoint: { restorePointId: string; capturedAt: string } | null;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   /** Canonical error `code` from the response body (`FORBIDDEN`, `GRANT_EXCEEDS_ISSUER`,
@@ -579,4 +725,97 @@ export const api = {
     }),
   getRedirectHits: (id: string) =>
     request<{ data: AdminRedirectHitStats }>(`/workspaces/${WORKSPACE_ID}/redirects/${id}/hits`),
+
+  // Collections (ADR-022/ADR-043) — content-types registry + entries. `/api/admin/v1/*`, not the
+  // `/workspaces/{id}/*` shape the rest of this file uses — these routes take workspace from the
+  // authed principal's session server-side, matching `storage`/`recovery` below.
+  listContentTypes: () => request<{ items: AdminContentType[] }>("/content-types"),
+  createContentType: (input: { key: string; label: string; fields: ContentTypeFieldDef[] }) =>
+    request<{ contentType: AdminContentType }>("/content-types", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  updateContentTypeFields: (key: string, input: { fields: ContentTypeFieldDef[]; expectedVersion: number }) =>
+    request<{ contentType: AdminContentType }>(`/content-types/${key}/fields`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+  contentTypeLifecycle: (key: string, op: "deprecate" | "reactivate" | "tombstone", expectedVersion: number) =>
+    request<{ contentType: AdminContentType }>(`/content-types/${key}/lifecycle`, {
+      method: "POST",
+      body: JSON.stringify({ op, expectedVersion }),
+    }),
+  listEntries: (type?: string) =>
+    request<{ items: AdminEntry[] }>(`/entries${type ? `?type=${encodeURIComponent(type)}` : ""}`),
+  createEntry: (input: { type: string; slug: string; title: string; fieldsJson?: unknown; bodyJson?: unknown }) =>
+    request<{ entry: AdminEntry }>("/entries", { method: "POST", body: JSON.stringify(input) }),
+  updateEntry: (id: string, input: { title?: string; fieldsJson?: unknown; expectedVersion: number }) =>
+    request<{ entry: AdminEntry }>(`/entries/${id}`, { method: "PUT", body: JSON.stringify(input) }),
+  entryLifecycle: (id: string, op: "publish" | "unpublish", expectedVersion: number) =>
+    request<{ entry: AdminEntry }>(`/entries/${id}/lifecycle`, {
+      method: "POST",
+      body: JSON.stringify({ op, expectedVersion }),
+    }),
+
+  // Categories & Tags (ADR-044) — taxonomies + terms.
+  listTaxonomies: () => request<{ items: AdminTaxonomyWithTerms[] }>("/taxonomy"),
+  createTaxonomy: (input: { name: string; hierarchical: boolean }) =>
+    request<{ taxonomy: AdminTaxonomy }>("/taxonomy", { method: "POST", body: JSON.stringify(input) }),
+  createTerm: (taxonomyId: string, input: { name: string; parentId?: string | null }) =>
+    request<{ term: AdminTerm }>(`/taxonomy/${taxonomyId}/terms`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  renameTerm: (termId: string, newName: string) =>
+    request<{ term: AdminTerm }>(`/taxonomy/terms/${termId}`, {
+      method: "PUT",
+      body: JSON.stringify({ newName }),
+    }),
+  /** Additive: upserts one `entry_terms` row per `termIds` entry (never clears an existing,
+   * unselected assignment — there is no remove-assignment route yet). */
+  assignTerms: (input: { contentType: string; contentId: string; termIds: string[] }) =>
+    request<void>("/taxonomy/assign-terms", { method: "POST", body: JSON.stringify(input) }),
+
+  // Storage — Timeline + restore points (ADR-041).
+  getStorageTimeline: (opts: {
+    kind?: string;
+    outcome?: string;
+    fromDate?: string;
+    toDate?: string;
+    cursor?: string;
+    limit?: number;
+  } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.kind) params.set("kind", opts.kind);
+    if (opts.outcome) params.set("outcome", opts.outcome);
+    if (opts.fromDate) params.set("fromDate", opts.fromDate);
+    if (opts.toDate) params.set("toDate", opts.toDate);
+    if (opts.cursor) params.set("cursor", opts.cursor);
+    if (opts.limit) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return request<{ items: AdminLedgerRow[]; nextCursor: string | null }>(
+      `/storage/timeline${qs ? `?${qs}` : ""}`
+    );
+  },
+  listStorageRestorePoints: () => request<{ items: AdminRestorePoint[] }>("/storage/restore-points"),
+  createStorageRestorePoint: (input: { trigger?: string; costAck?: boolean } = {}) =>
+    request<{ restorePoint: AdminRestorePointSummary }>("/storage/restore-points", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  // Recovery (ADR-045) — restore-points list (shared with Storage), disclosure, deep-link, status.
+  // The restore ceremony itself (plan/confirm/execute) has no route yet — see Recovery.tsx.
+  listRecoveryRestorePoints: () => request<{ items: AdminRestorePoint[] }>("/recovery/restore-points"),
+  computeRecoveryDisclosure: (restorePointId: string) =>
+    request<AdminDisclosureResult>("/recovery/disclosure", {
+      method: "POST",
+      body: JSON.stringify({ restorePointId }),
+    }),
+  resolveRecoveryDeepLink: (envelope: StorageContextEnvelope) =>
+    request<AdminRecoveryDeepLinkResult>("/recovery/deep-link", {
+      method: "POST",
+      body: JSON.stringify({ envelope }),
+    }),
+  getRecoveryStatus: () => request<AdminRecoveryStatus>("/recovery/status"),
 };

@@ -1,7 +1,7 @@
 import path from "node:path";
 
 import Database from "better-sqlite3";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
@@ -33,7 +33,13 @@ import * as schema from "../db/schema";
  * Infrastructure. Only adapters and the composition root touch Drizzle/SQLite;
  * domain/slice code stays provider-agnostic.
  */
-export type ContentDb = BetterSQLite3Database<typeof schema>;
+/**
+ * SPEC-016 (`core/gated-mutations`'s `db-ops.ts` adapter, ADR-041 §5): widened with `$client`
+ * (the raw `better-sqlite3` `Database` instance `drizzle()` already returns at runtime) so a
+ * restore-point capture can call the driver's online-backup API directly. Additive only — every
+ * existing caller that only used the Drizzle query surface is unaffected.
+ */
+export type ContentDb = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
 
 /** Generated migrations live at `src/infra/drizzle/` (resolved from this file). */
 const MIGRATIONS_DIR = path.resolve(__dirname, "../drizzle");
@@ -51,10 +57,21 @@ export function openContentDb(filePath: string, seed?: ContentDbSeedData): Conte
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
 
-  const db = drizzle(sqlite, { schema });
+  const db = drizzle(sqlite, { schema }) as ContentDb;
   migrate(db, { migrationsFolder: MIGRATIONS_DIR });
+  ensureWatermarkRow(db);
   if (seed) seedContentDb(db, seed);
   return db;
+}
+
+/**
+ * SPEC-016 (`core/gated-mutations/watermark.ts`) — guarantees the `storage_write_watermark`
+ * singleton row (`id=1`) exists, independent of any demo-seed data. `INSERT OR IGNORE` keeps this
+ * idempotent across restarts on a persisted db, matching `seedContentDb`'s own "never re-seed an
+ * operator-edited db" guard, but for a bootstrap invariant rather than optional demo content.
+ */
+function ensureWatermarkRow(db: ContentDb): void {
+  db.run(sql`INSERT OR IGNORE INTO ${schema.storageWriteWatermark} (id, value, last_stamped_at) VALUES (1, 0, NULL)`);
 }
 
 /**

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 import { InMemoryEventBus, InMemoryOutbox } from "../core/events";
 import { InMemoryChangeSetRepo } from "../core/commands";
@@ -9,6 +10,8 @@ import { SqliteSettingsRepo } from "../features/settings/repo.sqlite";
 import { discoverThemes } from "../features/theme";
 import { SqliteWorkspaceRepo } from "../features/workspace";
 import { openContentDb } from "../infra/sqlite/content-db";
+import { openStorageJournalDb } from "../infra/sqlite/storage-journal-db";
+import { SqliteStorageLedgerRepo } from "../infra/sqlite/storage-journal-repo";
 import { ensureSeoSettingDefinitions } from "../seo";
 import { installNewsletterDataModule } from "../newsletter/data-module-manifest";
 import { ensureDefaultList } from "../newsletter/lists";
@@ -67,6 +70,15 @@ import {
   type RedirectsWriteDeps,
 } from "../redirects";
 import { registerSlugChangeCapture } from "../routing";
+import { SqliteDbOpsAdapter } from "../infra/sqlite/db-ops";
+import { SqliteRestorePointsRepo } from "../infra/sqlite/storage-journal-repo";
+import { InMemorySiteStatusRepo } from "../features/storage/repo.memory";
+import { NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
+import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite";
+import { SqliteEntryRepo } from "../features/entries/repo.sqlite";
+import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "../features/taxonomy/repo.sqlite";
+import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
+import { buildGatewayDeps } from "./gated-mutations-composition";
 
 /**
  * Root directory `LocalFsBlobStore` writes blob bytes under (ADR-012 `uploads/`
@@ -98,6 +110,17 @@ export function builtInThemesDir(): string {
  */
 export function defaultContentDbPath(): string {
   return process.env.TOVU_CONTENT_DB ?? "content.db";
+}
+
+/**
+ * ADR-041 §2 — the sidecar `ops/storage-journal.db` lives as a sibling of `content.db` in the
+ * install-dir tree, never inside it (a physically separate SQLite file so a `content.db` restore
+ * never erases the incident record narrating that very restore). Defaults to `<dirname of
+ * content.db>/ops/storage-journal.db`; overridable independently via `TOVU_STORAGE_JOURNAL_DB`
+ * for deployments that relocate the sidecar journal on its own.
+ */
+export function defaultStorageJournalDbPath(contentDbPath: string = defaultContentDbPath()): string {
+  return process.env.TOVU_STORAGE_JOURNAL_DB ?? join(dirname(contentDbPath), "ops", "storage-journal.db");
 }
 
 export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): NewsletterRouteDeps {
@@ -230,6 +253,23 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
   );
   void registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink });
 
+  // ADR-041 §2 — opens the sidecar ops journal alongside content.db. `mkdirSync` (recursive) is
+  // required first: unlike `openContentDb`'s target (the process cwd, which already exists),
+  // `ops/` is a new subdirectory better-sqlite3 will not create for us.
+  const storageJournalDbPath = defaultStorageJournalDbPath(dbPath);
+  mkdirSync(dirname(storageJournalDbPath), { recursive: true });
+  const storageJournalDb = openStorageJournalDb(storageJournalDbPath);
+  // `siteId` reuses `workspaceId` for v1's single-workspace-per-content.db topology — ADR-041 §7
+  // names `siteId` vs `workspaceId` as SPEC-003 OQ-04, explicitly unresolved by that ADR; this
+  // composition root does not resolve it either, it just picks the only value available today.
+  const storageLedgerRepo = new SqliteStorageLedgerRepo({ db: storageJournalDb, siteId: seededWorkspace.id });
+  // Admin-UI backend-gap closure (design-spec.md §0.4/§3.8/§4.8, this dispatch): both classes were
+  // already built (a prior session's disclosed-but-unwired infra work — see each class's own file
+  // header) but never constructed by any composition root until now. `SqliteRestorePointsRepo`
+  // shares the same sidecar journal db/siteId as `storageLedgerRepo` above.
+  const restorePointsRepo = new SqliteRestorePointsRepo({ db: storageJournalDb, siteId: seededWorkspace.id });
+  const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
+
   return {
     workspaceId: seededWorkspace.id,
     workspaceRepo: new SqliteWorkspaceRepo(db),
@@ -278,11 +318,10 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     // ADR-027 §4 transform registry + rendition generation (new in this task): registry rows stay
     // in-memory (no SQLite adapter yet, same precedent as the media repos above), but the real
     // running server gets `SharpImageTransformer` (unlike `server/app.ts`'s hermetic-test
-    // composition, which uses the deterministic in-memory double) — DISCLOSED BLOCKER: `sharp` is
-    // not an installed dependency in this repo as of this task, so `SharpImageTransformer` will
-    // throw `ImageTransformUnavailableError` the first time a real transform is requested against
-    // this composition, until `npm install sharp` is run. See
-    // `src/media/image-transformer.sharp.ts`'s file header.
+    // composition, which uses the deterministic in-memory double). `sharp` is a pinned, installed
+    // dependency (`package.json`) — this stale "not installed" note was flagged by the 2026-07-15
+    // `/audit-work` batch (ADR-046 finding B-01) and corrected here and in ADR-046 itself. See
+    // `src/media/image-transformer.sharp.ts`'s file header for the still-real lazy-require rationale.
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
     imageTransformer: new SharpImageTransformer(),
     // SPEC-011 (Newsletter): real SQLite adapters for all 6 repo ports (the campaign pair is
@@ -305,5 +344,30 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     formDefinitionRepo: new SqliteFormDefinitionRepo(db),
     formSubmissionRepo: new SqliteFormSubmissionRepo(db),
     formsRateLimiter: createRateLimiter(FORMS_SUBMIT_PROFILE, clock),
+    storageLedgerRepo,
+    // Real SQLite adapters (this dispatch, closing Session 5's disclosed "no SQLite adapter yet
+    // for content-types/entries/taxonomy" gap — see `features/{content-types,entries,taxonomy}/
+    // repo.sqlite.ts` file headers). `contentTypeIndexProvisioner` stays a no-op: building the real
+    // ADR-022 §3 expression-index DDL executor is a separate, larger work item this dispatch's
+    // scope (persistence for the registry/entries/taxonomy rows themselves) does not cover —
+    // disclosed explicitly rather than silently left implying it's done.
+    contentTypeRepo: new SqliteContentTypeRepo(db),
+    contentTypeIndexProvisioner: new NoopContentTypeIndexProvisioner(),
+    entryRepo: new SqliteEntryRepo(db),
+    taxonomyRepo: new SqliteTaxonomyRepo({ db, workspaceId: seededWorkspace.id }),
+    termRepo: new SqliteTermRepo({ db, workspaceId: seededWorkspace.id }),
+    entryTermRepo: new SqliteEntryTermRepo({ db, workspaceId: seededWorkspace.id }),
+    taxonomyRevisionRepo: new SqliteTaxonomyRevisionRepo({ db, workspaceId: seededWorkspace.id }),
+    restorePointsRepo,
+    dbOps,
+    siteStatusRepo: new InMemorySiteStatusRepo(),
+    disclosureWatermarkSource: new AlwaysUnavailableWatermarkSource(),
+    deepLinkRestorePointLookup: new RestorePointDeepLinkLookup(restorePointsRepo),
+    // SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition
+    // root for the first time this dispatch (Session 5's own disclosure: "a token-store-backed
+    // primitive composed into ZERO composition roots in this codebase as of this session"). One
+    // process-lifetime `GatewayDeps` (in-process `InMemoryTokenStore` — see
+    // `gated-mutations-composition.ts`'s file header for the disclosed TokenStorePort decision).
+    gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize: identity.authorize }) },
   };
 }

@@ -43,7 +43,34 @@ function resolveCoercionTag(coercionJson: string | { tag?: string } | undefined)
   return typeof coercionJson === "string" ? coercionJson : (coercionJson?.tag ?? "identity");
 }
 
-export const NON_REGISTER_DEFINITION_OPS: Record<string, DefinitionOpHandler> = {
+/**
+ * The closed set of non-`register` ops (`/debate` D2, 2026-07-15 — unanimous Fable/Codex/agy):
+ * an untrusted `op` string is narrowed to this union at the parse boundary via
+ * {@link parseNonRegisterDefinitionOp} BEFORE any dispatch table lookup, so the lookup key is
+ * provably one of these four literals, not an arbitrary attacker-controlled string. `satisfies
+ * Record<NonRegisterDefinitionOp, DefinitionOpHandler>` below additionally makes the dispatch
+ * table itself compile-time exhaustive: adding a fifth op here without a matching handler is a
+ * type error, not a silent runtime gap.
+ */
+export const NON_REGISTER_DEFINITION_OP_NAMES = ["rename", "retype", "deprecate", "tombstone"] as const;
+export type NonRegisterDefinitionOp = (typeof NON_REGISTER_DEFINITION_OP_NAMES)[number];
+
+/** Narrows an untrusted `op` string to {@link NonRegisterDefinitionOp}, or `null` if it isn't one. */
+export function parseNonRegisterDefinitionOp(op: string): NonRegisterDefinitionOp | null {
+  return (NON_REGISTER_DEFINITION_OP_NAMES as readonly string[]).includes(op)
+    ? (op as NonRegisterDefinitionOp)
+    : null;
+}
+
+/**
+ * Op name -> handler, keyed only by {@link NonRegisterDefinitionOp} (never an arbitrary string —
+ * see {@link parseNonRegisterDefinitionOp}). Still built `Object.create(null)`-based as
+ * defense-in-depth (`/audit-work` finding A-01, 2026-07-15 — unanimous Codex/Fable/agy): even
+ * though the parse boundary should make prototype-chain keys unreachable, the null-prototype
+ * construction means a lookup can never resolve an inherited value even under a future
+ * regression that skips the parse step.
+ */
+const nonRegisterDefinitionOps = {
   rename: async (ctx, item) => {
     await renameDefinition({
       deps: ctx.deps,
@@ -99,4 +126,9 @@ export const NON_REGISTER_DEFINITION_OPS: Record<string, DefinitionOpHandler> = 
       },
     });
   },
-};
+} satisfies Record<NonRegisterDefinitionOp, DefinitionOpHandler>;
+
+export const NON_REGISTER_DEFINITION_OPS: Record<NonRegisterDefinitionOp, DefinitionOpHandler> = Object.assign(
+  Object.create(null) as Record<NonRegisterDefinitionOp, DefinitionOpHandler>,
+  nonRegisterDefinitionOps
+);

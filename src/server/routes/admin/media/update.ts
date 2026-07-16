@@ -1,11 +1,12 @@
 import { MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "../../../../media";
+import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import { toAdminMediaResponse } from "../../../http/admin/media";
 import type { RouteRegistrar } from "../../types";
 
 /**
  * PATCH media metadata (title/alt/caption/credit only — `source.sha256` is
  * write-once and this route's input shape has no field for it, matching
- * `updateMediaMetadata`'s contract).
+ * `updateMediaMetadata`'s contract). Gated by `media.update` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
  */
 export const registerAdminMediaUpdateRoute: RouteRegistrar = (app, deps) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/media/:mediaId", async (req, res) => {
@@ -15,6 +16,23 @@ export const registerAdminMediaUpdateRoute: RouteRegistrar = (app, deps) => {
     }
 
     try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "media.update",
+        workspaceId: deps.workspaceId,
+        entityType: "media",
+        entityId: String(req.params.mediaId ?? ""),
+      });
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'media.update' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "media.update", reason: authResult.reason },
+        });
+        return;
+      }
+
       const { media } = await updateMediaMetadata({
         deps: { clock: deps.clock, mediaRepo: deps.mediaRepo },
         input: {

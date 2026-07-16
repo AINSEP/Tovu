@@ -52,6 +52,15 @@ export class ConsoleMailerAdapter implements MailerPort {
   }
 
   async send(message: OutboundEmail, opts: MailerSendOptions): Promise<MailerSendResult> {
+    if (message.attachments && message.attachments.length > 0) {
+      return {
+        ok: false,
+        retryable: false,
+        errorCode: "ATTACHMENTS_UNSUPPORTED",
+        message: "ConsoleMailerAdapter does not support attachments (capabilities().supportsAttachments is false)",
+      };
+    }
+
     const rawBody = message.text ?? message.html ?? "";
     const truncated =
       rawBody.length > BODY_PREVIEW_LENGTH ? `${rawBody.slice(0, BODY_PREVIEW_LENGTH)}…` : rawBody;

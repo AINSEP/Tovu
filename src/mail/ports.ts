@@ -24,6 +24,13 @@ import type { MailerCapabilities, MailerSendOptions, MailerSendResult, OutboundE
  * presence. `send()` MUST consult {@link MailSuppressionRepoPort} and fail closed
  * (`{ ok: false, errorCode: 'SUPPRESSED' }`) for a suppressed recipient (internal-verification
  * F1) — that check lives in the mail lib, not in each adapter.
+ *
+ * `send()`/`sendBatch()` MUST fail closed with `{ ok: false, retryable: false, errorCode:
+ * 'ATTACHMENTS_UNSUPPORTED' }` if `message.attachments` is present and non-empty while
+ * `capabilities().supportsAttachments` is `false` — never silently drop the attachments and
+ * report success (`/debate` D6, ADR-042 item 4 follow-up, 2026-07-15 — unanimous across all
+ * debate participants regardless of their Q4 disagreement on when to freeze the attachment
+ * shape itself).
  */
 export interface MailerPort {
   capabilities(): MailerCapabilities;

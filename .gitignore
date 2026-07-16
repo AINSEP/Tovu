@@ -10,14 +10,23 @@ content.db
 content.db-wal
 content.db-shm
 uploads/
+# ADR-041 §2 sidecar ops journal (ops/storage-journal.db), a runtime artifact next to content.db.
+ops/
 
 # Vendored dev toolkit — cloned separately, has its own git history (not part of Tovu)
 AI-Dev-Shop/
 
 .playwright-mcp/
 
+# Playwright VRT (AW-2) — local run artifacts only; baseline screenshots under
+# e2e/**/*-snapshots/ ARE committed (checked baselines, not artifacts).
+test-results/
+playwright-report/
+blob-report/
+
 # stray/local artifacts (do not track)
 admin-page.png
 content.db.snapshot-store-*
+:memory:.snapshot-newsletter-*
 .claude/settings.local.json
 ADS-project-knowledge/tmp/

@@ -1,8 +1,12 @@
 import { MediaNotFoundError, trashMedia } from "../../../../media";
+import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import { toAdminMediaResponse } from "../../../http/admin/media";
 import type { RouteRegistrar } from "../../types";
 
-/** POST soft-delete (trash) a media asset — first rung of the ADR-027 §5 deletion ladder. */
+/**
+ * POST soft-delete (trash) a media asset — first rung of the ADR-027 §5 deletion ladder. Gated by
+ * `media.delete` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
+ */
 export const registerAdminMediaTrashRoute: RouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/media/:mediaId/trash", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
@@ -11,6 +15,23 @@ export const registerAdminMediaTrashRoute: RouteRegistrar = (app, deps) => {
     }
 
     try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "media.delete",
+        workspaceId: deps.workspaceId,
+        entityType: "media",
+        entityId: String(req.params.mediaId ?? ""),
+      });
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'media.delete' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "media.delete", reason: authResult.reason },
+        });
+        return;
+      }
+
       const { media } = await trashMedia({
         deps: { clock: deps.clock, mediaRepo: deps.mediaRepo },
         input: { workspaceId: deps.workspaceId, id: String(req.params.mediaId ?? "") },

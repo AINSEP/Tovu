@@ -1,10 +1,11 @@
 # ADR-041: Storage — the Timeline Surface, Migrate-Forward Ceremony, and Sidecar Ops Journal
 
-- Status: **PROPOSED** — direction emerged from a 3-round `/debate` swarm consensus (2026-07-09, Primary Opus 4.8 +
-  Fable subagent + Codex gpt-5.5 + Gemini 3.1 Pro) that unanimously endorsed the architecture but flagged it
-  **not ADR-ready** pending a punch-list; this ADR is the Software Architect's fold-in pass over that punch-list.
-  **This ADR has NOT been through `/audit-work`.** A human owner must review and approve before it is marked
-  Accepted — do not treat PROPOSED status as a formality.
+- Status: **Accepted** (2026-07-14, human owner sign-off — Leon Aburime) — direction emerged from a 3-round
+  `/debate` swarm consensus (2026-07-09, Primary Opus 4.8 + Fable subagent + Codex gpt-5.5 + Gemini 3.1 Pro)
+  that unanimously endorsed the architecture but flagged it **not ADR-ready** pending a punch-list; this ADR
+  is the Software Architect's fold-in pass over that punch-list. Cleared a 3-round `/audit-work` pass
+  (2026-07-14, `TM-ADR-STORAGE-CONTENT-004`, Codex + agy/Gemini + Fable) — unanimous PASS as of round 3 (see
+  item 11).
 - Date: 2026-07-14
 - Author: Claude Sonnet 5 (Software Architect persona) / Leon Aburime — synthesized from swarm debate
   `reports/swarm-consensus/runs/20260709-storage-database-surface-consensus-report.md` and merged design
@@ -68,7 +69,13 @@ forward-only per ADR-015; the only reverse gear is snapshot restore, which lives
   -Fc` logical dump plus a **blue/green schema repoint on restore, never in-place**. PITR is recorded only as an
   `external` marker the adapter cannot itself execute.
 - **The operational record — `storage_ledger`, `migration_runs`, `restore_points`, and the restore-point artifacts
-  themselves — lives in a sidecar ops journal in the install-dir, not inside `content.db`.** Concretely, extending
+  themselves — lives in a sidecar ops journal in the install-dir, not inside `content.db`.** **Added, round-1 audit
+  fold (2026-07-14, see item 11): every `restore_points` row MUST persist `watermarkAtCapture` — the
+  `storage_write_watermark` value at the moment the restore point was taken — alongside the schema version+tag it
+  already captures.** ADR-045 §2/§3's discarded-window disclosure computes its loss count as `current watermark −
+  the selected restore point's watermarkAtCapture`; without this column that computation has no baseline and the
+  disclosure is not computable at all. This was an under-committed dependency ADR-045 assumed but this ADR never
+  stated. Concretely, extending
   ADR-012's install-dir tree with a new `ops/` entry:
 
   ```
@@ -162,14 +169,132 @@ forward-only per ADR-015; the only reverse gear is snapshot restore, which lives
 
 `revisionSeqAtQuiesce` is corrected from a scalar compared against ADR-022 §4b's **per-entry** revision sequence
 (which cannot be compared meaningfully against a single site-wide number) to a genuine global watermark: a
-single-row counter, `storage_write_watermark`, held in the sidecar ops journal (so it survives a `content.db`
-restore) and incremented-and-stamped, in the same transaction as the write, by every core-mediated write path —
-entries (ADR-022 §4a), the change-set gateway (ADR-008, which already covers most admin mutations including
-identity/authz), session create/revoke (ADR-021 §7), and plugin-table typed writes (ADR-023 §7). Quiesce records the
-watermark's value at the moment write-quiesce completes. The discarded-window disclosure shown to the operator
-**before** they confirm a restore now enumerates every row across **entries, change-sets (sessions and
-identity/authz land here), sessions, and plugin tables** stamped past that watermark — not just entry revisions, as
-an earlier draft of this design understated.
+single-row counter, `storage_write_watermark`.
+
+**Corrected by round-1 `/audit-work` (2026-07-14 — see item 11): this paragraph originally claimed the watermark is
+"incremented-and-stamped, in the same transaction as the write" across every write path, including writes that land
+in `content.db` while the watermark counter itself lives in the sidecar ops journal — a physically separate SQLite
+file. That is not achievable: `content.db` runs single-writer WAL (item 4), and SQLite does not provide atomic
+multi-file commit when any attached database is in WAL mode. The corrected mechanism:**
+
+- **The authoritative watermark counter lives in `content.db`** (not the sidecar), incremented in the same
+  transaction as the write it stamps — this is the only way the increment is genuinely atomic with the write it
+  claims to cover. The sidecar ops journal carries a **mirror** of the watermark's value, refreshed immediately
+  after each `content.db` commit. **Corrected by round-2 `/audit-work` (2026-07-14 — see item 11): the boot-time
+  reconciliation mechanism this paragraph originally specified — rebuilding the mirror from `storage_ledger`'s max
+  recorded value — does not work. `storage_ledger` (item 4) records operational/schema events (migrations, DDL,
+  index provisions, restores), not one row per ordinary content write, so its max value is not a proxy for the
+  watermark's true value. The corrected mechanism: on every boot, if `content.db` opens successfully, the sidecar
+  mirror is reconciled directly from `content.db`'s authoritative counter (the only genuine source of truth) — not
+  derived from the ledger. If `content.db` cannot be opened (the exact case this reconciliation exists to handle),
+  the mirror cannot be refreshed at all; the Timeline/Recovery UI must render the discarded-window disclosure as an
+  explicit unknown/lower-bound estimate in that case, never a precise count it cannot actually compute.** This
+  inverts item 2's stated mirror direction for this one counter only; every other sidecar record (the ledger
+  itself, restore points, migration runs) keeps the sidecar-is-authoritative shape unchanged, because those
+  records do not need to be atomic with a `content.db` write the way this counter does.
+- **Write-path coverage: a real, evolving inventory, not an assumption (folded across rounds 3-5, 2026-07-14).**
+  The claim that "the change-set gateway already covers most admin mutations including identity/authz" was
+  independently found false. Rather than leave this as an open placeholder, a substantial inventory was produced
+  against the live codebase and is presented below — but (see the note after the table) five successive review
+  passes each found more that the previous pass missed, so this is deliberately **not** claimed as complete;
+  option (b) is satisfied by honest, evolving disclosure, not by a claim of exhaustiveness this process has
+  proven it cannot make. **This is what lets this ADR honestly move toward Accepted** — Accepted means "this is
+  the committed design," not "every write path is already migrated"; the actual migration work (option (a)) is
+  real, tracked implementation-phase work, sequenced into whichever spec/phase plan builds Storage, not a
+  precondition for the design itself being sound.
+
+  | Write path | Observability today | Disposition |
+  |---|---|---|
+  | `identity/grant-service.ts` — `createUser`/`createRole`/`createPolicy`/`assignRole`/`attachPolicy` | **None** — no change-set, no outbox at all | (b) not yet covered |
+  | `members/write-service.ts` — `disableMember`, `requestSignInLink`, `completeSignIn`, `updateProfile`, `compSubscription`/`setSubscriptionStatus` (latent) | **None** — module has no `OutboxPort` in its deps despite its own doc comment claiming one | (b) not yet covered |
+  | `seo/write-service.ts` — `setEntrySeoOverrides` | **None** | (b) not yet covered |
+  | `media/media-service.ts` — upload/update/trash/purge | **None** | (b) not yet covered |
+  | `integrations/subscriptions.ts` — create/update/pause/delete | **None** | (b) not yet covered |
+  | `features/presentation/presentation.ts` — `setActiveTheme` | **None** | (b) not yet covered |
+  | `forms/delete-submission.ts` | **None** — bare route-to-repo call, no service layer at all | (b) not yet covered |
+  | `features/settings/write-service.ts` (+ `seo/settings.ts`'s `setSeoSettings`, which piggybacks on it) | Own `setting_revisions` ledger, no outbox/change-set | (b) not yet covered |
+  | `newsletter/campaign-write-service.ts` | Own `newsletter_campaign_revisions` ledger, no outbox; **not yet wired to any admin route** (latent) | (b) not yet covered |
+  | `newsletter/send-pipeline.ts` | Writes `campaignRepo.saveCampaignRow` directly across several steps — some paired with `appendRevision`, some not (`freezeAudience`'s campaign update, line 148, has neither); the outbox use in this file (line 163) drives send-batch job dispatch, not write-change notification | (b) not yet covered |
+  | `newsletter/lists.ts`, `newsletter/subscriptions.ts`, `newsletter/confirmation.ts`, `newsletter/unsubscribe.ts` | Direct list/subscription/token writes, no outbox | (b) not yet covered |
+  | `features/settings/purge-service.ts` — `purgeTenantSettings` | Appends `setting_revisions` and deletes value rows in one transaction, no outbox | (b) not yet covered |
+  | `forms/submit-service.ts` | Explicitly documented as bypassing `executeCommand`; persists a submission, then enqueues outbox — same "has outbox, no change-set" shape as menus/redirects | (b) not yet covered, milder gap |
+  | `media/rendition-service.ts` — lazy rendition generation | Writes blob/rendition rows directly, no outbox | (b) not yet covered |
+  | `analytics/ingest.ts` | Writes through its sink directly, no outbox — **memory-backed only, no `repo.sqlite.ts` adapter exists** | (b) not yet covered |
+  | `members/consent-service.ts` | `deps.consents.save(consent)` — the actual source-of-truth write the `newsletter/*` consent-adjacent files above delegate to | (b) not yet covered |
+  | `features/workspace/create.ts` | Bypasses `executeCommand` but **does** call `outbox.enqueue` directly | (b) not yet covered, milder gap |
+  | `integrations/delivery.ts` | Delivery-envelope/status writes (`enqueue`/`markDelivered`/`markFailed`/`envelopeStore.save`) — table's `integrations/subscriptions.ts` row above doesn't cover this separate write path | (b) not yet covered |
+  | `redirects/hit-sink.ts` | Redirect-hit capture writes — **memory-backed only, no sqlite adapter exists (by design, per its own header)** | (b) not yet covered |
+  | `media/blob-gc.ts` | Destructive GC path: tombstones then removes blob/journal rows | (b) not yet covered |
+  | `identity/auth-service.ts` | Session/user writes on login/logout | (b) not yet covered |
+  | `media/transform-registry.ts` | Transform registration writes | (b) not yet covered |
+  | `navigation/menu-service.ts` (menus create/update-tree/assign-location/delete) | Bypasses `executeCommand` but **does** call `outbox.enqueue` directly | (b) not yet covered, milder gap |
+  | `redirects/redirects.ts` (create/update/tombstone/import) | Bypasses `executeCommand` but **does** call `outbox.enqueue` directly | (b) not yet covered, milder gap |
+  | `change-sets/revert.ts` | Standalone `revertChangeSet` call, explicitly documented as bypassing `executeCommand` ("that gateway wraps forward mutations, not reverts") — but **does** enqueue an outbox event when `deps.outbox` is supplied | (b) not yet covered, milder gap |
+  | `posts/create.ts`, `posts/update.ts`, `pages/create.ts`, `forms/write-service.ts` (create/update) | Full `executeCommand` compliance | already covered |
+
+  **This table is illustrative and substantial, not certified-exhaustive.** Six successive review passes (a full
+  3-round external audit, a single-auditor spot-check, a targeted verification pass, and round 5's and round 6's
+  independent passes) each independently found write paths the previous pass missed — empirical confirmation, not
+  just an assertion, that assembling this list by manual code-reading does not converge no matter how many passes
+  run. Round 6 asked two independent auditors *why*, not just to find more rows, and their diagnoses converged:
+
+  - **No finite denominator.** Every prior pass found N more write paths with no way to answer "is that all?" —
+    sampling from named seeds and fanning out to neighbors finds the neighbors, never the complement.
+  - **No single grep signature is a superset.** This repo has at least four independent, non-overlapping "what
+    counts as a write" shapes: Drizzle query-builder verbs (`.insert/.update/.delete`), raw SQL/better-sqlite3
+    (`.run()/.prepare()`), semantic verb wrappers named after the domain action rather than the storage op
+    (`enqueue`, `appendRevision`, `saveCampaignRow`, `consume`, `tombstone`, `accept`, `record`...), and in-memory
+    adapter mutation (`Map.set`, array `.push`) with zero SQL signature at all. A grep tuned to any one of these
+    silently misses the other three.
+  - **Non-uniform naming per feature.** Each feature author picked their own mutating-method vocabulary, so
+    pattern-matching learned from one feature doesn't transfer to the next.
+  - **Adapter-anchoring repeats the exact blind spot it's meant to fix** — anchoring only on `repo.sqlite.ts` (or
+    any single adapter kind) misses memory-only/sink-backed writers (`analytics/ingest.ts`, `redirects/hit-sink.ts`)
+    that matter just as much to the disclosure.
+  - **"Has an outbox call" is not one clean bucket.** `executeCommand` / same-transaction outbox / sequential
+    persist-then-enqueue (the `post.ts`/ADR-043 pattern this repo has already been burned by once) / ledger-only /
+    none are meaningfully different guarantees; classifying by mere presence of *any* outbox call would hide
+    exactly the kind of gap the ADR-043 audit found.
+
+  **The actual pre-acceptance Phase 0 deliverable, synthesized from both auditors' proposals:** a *typed* AST
+  inventory — using the TypeScript compiler's own type checker (e.g. `ts-morph`), never text grep, so it follows
+  types rather than names — anchored on two complementary, cross-validating denominators:
+
+  1. **The closed set of `sqliteTable` exports in `src/infra/db/schema.ts`** (a finite, enumerable ground truth —
+     every durable SQL write lands in one of these). For each table symbol, resolve every reference via the
+     compiler's `getReferences()`, then classify each reference's enclosing call as read vs. write.
+  2. **Every `*Port`/`*Repo`/sink/store interface method** whose name isn't a known reader prefix
+     (`find*/get*/list*/count*/exists*/lookup*`) or whose implementation body contains durable/memory mutation
+     evidence (Drizzle `insert/update/delete`, `onConflictDoUpdate`, `db.transaction`, `Map.set/delete`, array
+     `push/splice`, filesystem `writeFile/rm/unlink`, blob-store `put/remove`) — this catches the table-less and
+     memory-only writers (1) structurally cannot reach (`comments/`'s ports-only writes, `core/events/outbox-
+     worker.ts`, in-memory-only caches).
+
+  For every resolved write call site, emit: contract method, implementing class(es), caller, file/line, and a
+  **coverage class** (`executeCommand` / `same_tx_outbox` / `sequential_outbox` / `ledger_only` / `none` /
+  `unknown`) — not a binary covered/not-covered. **Fail CI** when a new mutating method appears with no coverage
+  class assigned, or when this ADR's hand-written table diverges from the generated inventory — this is what
+  prevents a round 7. **Cheapest de-risking step before trusting the full run:** execute the sweep against a
+  single already-known-messy table first (`memberSubscriptions`, hit three different ways across this audit's
+  passes) and confirm it reproduces the union of every previously-found call site for that one table before
+  building the full 35-table harness — roughly 30 minutes, and it validates the whole approach before investing
+  in it.
+
+  Until that automated inventory exists and runs clean, the Timeline/Recovery UI's discarded-window disclosure
+  must render as **partial, explicitly labeled, with no claim of exhaustiveness** — the table above demonstrates
+  the scope of the gap, it does not close it.
+- **`sessions` and `member_sessions` do not currently carry any column capable of recording this watermark** (no
+  `seq`/`updated_at`/watermark column exists on either table today). Enumerating "Z sessions" in the disclosure (see
+  ADR-045 §3 Step 2) is not implementable against the current schema. This ADR now requires adding a
+  watermark-stamping column to both tables as part of the same write-path-inventory work above, before the
+  disclosure may include a session count; until that column exists, the disclosure omits sessions entirely rather
+  than asserting a number it cannot honestly compute.
+
+Quiesce records the watermark's value at the moment write-quiesce completes. The discarded-window disclosure shown
+to the operator **before** they confirm a restore enumerates every row stamped past that watermark **across
+whichever write paths the inventory table above marks "already covered"** — `posts`/`pages` writes and plugin-table
+typed writes (ADR-023 §7) today; the remaining rows once their migration onto the watermark chokepoint closes. The
+disclosure must be honest about what it does and does not yet cover — see item 11.
 
 ### 6. Agent tools + permissions (D4)
 
@@ -270,15 +395,78 @@ low-risk case).**
   undocumented exception — future readers of ADR-023 will see this ADR's amendment rather than infer it.
 - **`authorize()` now runs twice** across the confirm/execute lifecycle (M2) — a small latency cost, in exchange
   for closing a live-delegator-collapse gap ADR-021 §6 already promises elsewhere.
-- **The discarded-window disclosure is now honest about its true blast radius** (M4) — sessions, identity/authz,
-  and plugin-table writes, not just entry revisions — which may surface as a larger, more alarming disclosure to
-  operators than the narrower version would have. This is treated as a feature (honesty) not a regression.
+- **The discarded-window disclosure's stated blast radius was itself corrected by round-1 audit** (M4, see item
+  11) — the original claim of covering entries, change-sets, sessions, identity/authz, and plugin-table writes
+  overstated what the current codebase's write chokepoint actually covers. The corrected design requires an
+  explicit write-path inventory and labels the disclosure partial until every path closes — honesty about a known
+  gap, not a claim of completeness that doesn't hold yet.
 - **Sensitive columns can never leak through the Tier-3 browser** (M5), at the cost of every core/plugin schema
   needing an explicit `sensitive` flag maintained going forward — a small, permanent schema-authoring discipline.
 - **Postgres blue/green now has a modeled cutover phase** (M6), closing a gap where the state machine silently
   assumed in-place apply for a dialect that was never going to get one.
 - **Quiesce integrity is honestly staged** (residual + M3): "0 discarded" is a chokepoint-visible claim, not an
   absolute one, until ADR-024 §4 Rung 2 ships — and this ADR now cites the correct rung.
+
+## 11. Round 1 audit fold (2026-07-14), amended by rounds 2 through 6
+
+**Round 2 update:** round-1's fix (below) moved the authoritative watermark into `content.db` but its stated
+boot-reconciliation mechanism was itself factually wrong — Codex (gpt-5.5, high) caught this in round 2:
+`storage_ledger` doesn't record ordinary content writes, so reconciling the sidecar mirror from the ledger's max
+value doesn't work. Corrected in item 5's text above: boot reconciliation now pulls directly from `content.db`'s
+authoritative counter when it opens, and the disclosure degrades to an explicit unknown/lower-bound estimate when
+it can't. agy and Fable's round-2 passes did not independently catch this — Codex was the only one of three.
+
+**Round 3 update (post-audit closure, 2026-07-14):** the write-path-inventory requirement below originally read as
+a placeholder ("must be produced") gating this ADR's move to Accepted on work not yet done. A first-pass inventory
+was produced against the live codebase and folded into item 5's table.
+
+**Round 4 update (2026-07-14):** a verification pass (Codex, targeted) found the round-3 inventory itself
+incomplete — several more real write paths (`purge-service.ts`, four more `newsletter/*` files, `forms/submit-
+service.ts`, media rendition writes, analytics ingest) had been missed. This is the **third** consecutive pass to
+find gaps a prior pass missed (round 1's original audit, the round-3 spot-check, and now this verification pass),
+which is itself the signal: manually assembling this list by reading code does not converge. Item 5's table now
+states this plainly — it is illustrative evidence of scope, not a certified-exhaustive inventory — and requires a
+**systematic, automated** inventory (script-driven, cross-referencing every adapter's mutating methods against
+their call sites) as the actual Phase 0 deliverable, rather than treating any hand-assembled table as "done."
+
+**Round 5 update (2026-07-14):** two more independent passes (Codex + Fable) each found yet more missed write
+paths (`consent-service.ts`, `workspace/create.ts`, `integrations/delivery.ts`, `redirects/hit-sink.ts`,
+`blob-gc.ts`, `identity/auth-service.ts`, `media/transform-registry.ts` — the fourth and fifth consecutive passes
+to find gaps) — but both, independently, endorsed the round-4 reframe as correct, treating their own new finds as
+further empirical proof rather than evidence the reframe was wrong. Fable additionally caught that the automation
+scope as originally specified ("`repo.sqlite.ts` adapters") would itself have reproduced the memory-only blind
+spot, since `analytics/ingest.ts` and `redirects/hit-sink.ts` have no SQLite adapter at all — corrected to cover
+all adapter kinds. Codex separately caught leftover round-3 text still claiming "the full inventory was produced,"
+directly contradicting the reframe — removed.
+
+**Round 6 update (2026-07-14):** rather than ask for more rows, both auditors were asked to diagnose *why* every
+pass kept finding more, and to propose an actual fix. Both converged independently on the same root cause (no
+finite denominator to check completeness against, plus at least four non-overlapping "what counts as a write"
+signatures in this codebase that no single grep pattern is a superset of) and complementary fixes (Fable: anchor
+on the closed set of `sqliteTable` exports via the TypeScript compiler's reference resolver; Codex: anchor on
+every mutating port/repo interface method, classified by coverage class, enforced in CI). Item 5's automation
+description above is the synthesis of both proposals, replacing the earlier vague "a script that cross-
+references..." placeholder with an actually-buildable spec.
+
+Audited under `TM-ADR-STORAGE-CONTENT-004` by three independent auditors (Codex gpt-5.6-terra/high, agy/Gemini 3.1
+Pro High, Fable/Opus in-host). All three independently found the same underlying defect class by different routes:
+the watermark/disclosure design claimed more write-path coverage and cross-file transactional guarantees than the
+current codebase and SQLite's own WAL semantics actually support. Fable additionally passed this ADR at the auditor
+level (9.0) while still naming the defect; the Coordinator overrode that PASS to FAIL given the corroborating
+agy/Codex findings and the safety-critical nature of the disclosure this defect feeds (ADR-045 §3 Step 2) — see the
+external-audit run for the full cross-auditor reasoning.
+
+- **Fixed (this fold):** the cross-file same-transaction claim (item 5) — authoritative watermark moved into
+  `content.db`, sidecar carries a reconciled mirror.
+- **Fixed (this fold):** the false "gateway already covers most admin mutations" claim (item 5) — replaced with an
+  explicit pre-acceptance write-path inventory requirement naming the concrete bypasses found.
+- **Fixed (this fold):** the sessions/`member_sessions`-watermark-column gap (item 5) — disclosure now omits
+  sessions until the column exists, rather than asserting an uncomputable count.
+- **Fixed (this fold):** `restore_points` did not commit to persisting a watermark-at-capture baseline (item 2),
+  which ADR-045's discarded-window disclosure assumes exists — now an explicit required column.
+- **Accepted as-is, not a defect:** the `SITE_SCOPE_EXEMPT_TABLES` extension of ADR-007 Decision 2 (item 4) — all
+  three auditors (where they addressed it) agreed this is a disclosed, CI-enforced, deliberate extension, not a
+  silent violation. No change made.
 
 ## Open Questions
 
@@ -305,7 +493,7 @@ low-risk case).**
 ## Process note
 
 This ADR emerged from the 2026-07-09 swarm `/debate` (Primary Opus 4.8, Fable subagent, Codex gpt-5.5, Gemini 3.1
-Pro) plus this fold-in pass over its Decision Ledger. **It has not been through `/audit-work`.** Per the process
-this repo's own consensus report names (`debate → audit → ADR`), an external audit pass is the expected next step
-before this ADR could reasonably move from PROPOSED to Accepted — that step is deliberately not taken here and is
-left to an explicit user request in a later session.
+Pro) plus this fold-in pass over its Decision Ledger. **It has since cleared a 3-round `/audit-work` pass
+(2026-07-14, `TM-ADR-STORAGE-CONTENT-004`) — unanimous PASS from all three auditors as of round 3, see item 11.**
+Per the process this repo's own consensus report names (`debate → audit → ADR`), that step is now complete;
+Accepted status still requires an explicit human-owner sign-off, which this ADR has not yet received.

@@ -65,7 +65,7 @@ export const NAV: NavGroup[] = [
       {
         id: "collections",
         label: "Collections",
-        soon: true,
+        href: "#/section/collections",
         icon: '<rect x="2.5" y="4" width="13" height="10" rx="1.5"/><path d="M2.5 7.5h13M6 4V2.5M12 4V2.5"/>',
       },
       {
@@ -77,7 +77,7 @@ export const NAV: NavGroup[] = [
       {
         id: "taxonomy",
         label: "Categories & Tags",
-        soon: true,
+        href: "#/section/taxonomy",
         icon: '<path d="M9 2l2 3.5 4 .6-3 2.9.7 4L9 11.5 5.6 13l.7-4-3-2.9 4-.6L9 2z"/>',
       },
       {
@@ -133,9 +133,12 @@ export const NAV: NavGroup[] = [
         icon: '<path d="M7 2v3H4v9h10V5h-3V2H7z"/>',
       },
       {
-        id: "database",
-        label: "Database",
-        soon: true,
+        // Renamed from "database" to match `#/section/storage` (App.activeSectionId derives
+        // the highlighted nav id from route.sectionId, so this id must equal the route segment,
+        // not just the label — ADR-041's "Storage, not Database" applies to the id too).
+        id: "storage",
+        label: "Storage",
+        href: "#/section/storage",
         icon: '<ellipse cx="9" cy="4.5" rx="6" ry="2.2"/><path d="M3 4.5v9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2v-9"/><path d="M3 9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"/>',
       },
       {
@@ -145,9 +148,11 @@ export const NAV: NavGroup[] = [
         icon: '<path d="M6 6l-3 3 3 3M12 6l3 3-3 3M10 4l-2 10"/>',
       },
       {
-        id: "backups",
-        label: "Backups",
-        soon: true,
+        // Renamed from "backups" — ADR-045: Recovery supersedes Backups as a concept, there is
+        // no separate Backups screen (see Recovery.tsx's own header comment).
+        id: "recovery",
+        label: "Recovery",
+        href: "#/section/recovery",
         icon: '<path d="M9 2a7 7 0 107 7"/><path d="M9 5v4l2.5 1.5"/>',
       },
       {

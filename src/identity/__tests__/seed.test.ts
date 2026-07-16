@@ -116,7 +116,10 @@ test("REQ-09/AC-12: four built-in roles map 1:1 to built-in policies with the do
     "content.publish",
     "content.read",
     "content.write",
-    "media.write",
+    "media.delete",
+    "media.read",
+    "media.update",
+    "media.upload",
     "theme.set",
   ]);
   // AC-12: owner ⊇ admin ⊇ editor on the content axis.
