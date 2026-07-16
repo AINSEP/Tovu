@@ -50,8 +50,22 @@ export interface CommentRepoPort {
   /** Count for a status (e.g. the pending badge) — derived, not a denormalized column in v1. */
   countByStatus(required: { workspaceId: UUID; entryId?: UUID; status: CommentStatus }): Promise<number>;
 
-  /** Insert a new comment through the typed chokepoint (ADR-023 §7). */
-  create(record: CommentRecord): Promise<void>;
+  /**
+   * Insert a new comment through the typed chokepoint (ADR-023 §7).
+   *
+   * `submitLog`, when present, must be durably recorded ATOMICALLY with `record` — OQ-3's
+   * resolution (SPEC-035): every ingress-created comment gets a `submit` `moderation_log` row,
+   * attributed to the seeded `COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID` (`types.ts`). Mirrors
+   * `ChangeSetRepoPort.insert()`'s optional third-argument co-persistence pattern (ADR-046 BR-04
+   * resolution): a SQLite adapter wraps both inserts in one transaction; the in-memory adapter
+   * pushes both synchronously. Omit `submitLog` for a comment created outside the public ingress
+   * (e.g. test fixtures, a future member-authored write path with its own attribution story).
+   */
+  create(record: CommentRecord, submitLog?: ModerationLogEntry): Promise<void>;
+
+  /** The append-only audit trail for one comment, oldest-first (admin "history" view; also how
+   * OQ-3's ingress-time `submit` row is verified in tests). */
+  listModerationLog(required: { workspaceId: UUID; commentId: UUID }): Promise<ModerationLogEntry[]>;
 
   /**
    * OCC status flip + audit-log append, executed by CORE as ONE atomic unit — the multi-table,

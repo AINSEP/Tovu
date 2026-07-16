@@ -81,7 +81,7 @@ import { InMemorySiteStatusRepo } from "../features/storage/repo.memory";
 import { NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
 import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite";
 import { SqliteEntryRepo } from "../features/entries/repo.sqlite";
-import { createCommentsModule } from "../comments";
+import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { SqliteCommentRepo } from "../comments/repo.sqlite";
 import { installCommentsDataModule } from "../comments/data-module-install";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "../features/taxonomy/repo.sqlite";
@@ -171,6 +171,17 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
   // throws "cannot start a transaction within a transaction" (caught directly, not theoretical).
   const seoReady = settingsReady.then(() =>
     ensureSeoSettingDefinitions(
+      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+    ).then(() => undefined)
+  );
+
+  // SPEC-035 (ADR-028 Settings Layered Ledger wiring for Comments) — idempotently registers the 6
+  // `comments.*` definitions at boot, mirroring `seoReady`'s exact fire-and-forget shape. Chained
+  // AFTER `seoReady` resolves, not fired in parallel — same single-SQLite-connection transaction
+  // hazard `seoReady`'s own comment documents immediately above.
+  const commentsSettingsReady = seoReady.then(() =>
+    ensureCommentsSettingDefinitions(
       { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
       { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
@@ -317,6 +328,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     outbox,
     clock,
     idGen,
+    settingsRepo,
   });
 
   return {
@@ -441,5 +453,6 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     commentIngressPolicy: commentsModule.ingressPolicy,
     commentWriteService: commentsModule.writeService,
     commentsReady,
+    commentsSettingsReady,
   };
 }

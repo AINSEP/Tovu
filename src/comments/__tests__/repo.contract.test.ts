@@ -196,6 +196,39 @@ function runSuite(label: string, makeRepo: () => CommentRepoPort | Promise<Comme
     assert.equal(result.ok, false);
     if (!result.ok) assert.equal(result.reason, "not-found");
   });
+
+  // OQ-3 resolution (SPEC-035): create()'s optional submitLog co-persistence + listModerationLog().
+  test(`[${label}] create() without a submitLog leaves the moderation log empty`, async () => {
+    const repo = await makeRepo();
+    await repo.create(makeComment());
+    const log = await repo.listModerationLog({ workspaceId: WORKSPACE_ID, commentId: "comment-1" });
+    assert.deepEqual(log, []);
+  });
+
+  test(`[${label}] create() with a submitLog persists both atomically; listModerationLog returns it`, async () => {
+    const repo = await makeRepo();
+    await repo.create(makeComment(), {
+      id: "modlog-1",
+      workspaceId: WORKSPACE_ID,
+      commentId: "comment-1",
+      actorPrincipalId: "system-comments-ingress",
+      action: "submit",
+      fromStatus: null,
+      toStatus: "pending",
+      at: "2026-07-16T00:00:00.000Z",
+      note: null,
+    });
+
+    const found = await repo.findById({ workspaceId: WORKSPACE_ID, id: "comment-1" });
+    assert.ok(found, "the comment row must exist");
+
+    const log = await repo.listModerationLog({ workspaceId: WORKSPACE_ID, commentId: "comment-1" });
+    assert.equal(log.length, 1);
+    assert.equal(log[0].action, "submit");
+    assert.equal(log[0].fromStatus, null);
+    assert.equal(log[0].toStatus, "pending");
+    assert.equal(log[0].actorPrincipalId, "system-comments-ingress");
+  });
 }
 
 runSuite("memory", () => new InMemoryCommentRepo());

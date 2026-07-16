@@ -1,27 +1,32 @@
 /**
- * @file Composition factory for the Comments plugin (ADR-031, SPEC-033) — wires the repo, spam
- * check, hooks, ingress policy, and write-service together given the low-level deps a composition
- * root (`server/deps.ts`/`app.ts`) already has. Both composition roots call this instead of each
- * hand-assembling the same 5-piece wiring twice.
+ * @file Composition factory for the Comments plugin (ADR-031, SPEC-033/SPEC-035) — wires the
+ * repo, spam check, hooks, ingress policy, and write-service together given the low-level deps a
+ * composition root (`server/deps.ts`/`app.ts`) already has. Both composition roots call this
+ * instead of each hand-assembling the same 5-piece wiring twice.
  *
  * `entryLookup` adapts `EntryRepoPort.findById` (already on `RouteDeps`) into the narrow shape
  * `ingress.ts` expects, computing `commentsClosed` from `CommentsSettings.closeAfterDays` +
  * the entry's own `publishedAt` — this file owns that math so `ingress.ts` itself stays free of
  * any entries-feature knowledge (ADR-046 Phase 3's "narrow typed dependencies" convention).
  *
- * `DEFAULT_COMMENTS_SETTINGS` is a disclosed v1 simplification: `CommentsSettings` is meant to
- * live in the ADR-028 Settings Layered Ledger under a `comments.*` namespace once that wiring
- * exists (per `types.ts`'s own doc on `CommentsSettings`) — that integration is not built this
- * pass; every workspace gets these fixed defaults instead.
+ * `settingsRepo` (SPEC-035, ADR-028 Settings Layered Ledger wiring): when supplied, this module
+ * reads `CommentsSettings` LIVE from the ledger (`settings.ts#getCommentsSettings`), per call, via
+ * the `getSettings` resolver both `ingress.ts` and this file's own `entryLookup` share — an
+ * operator's settings change takes effect on the next request, not only after a restart.
+ * `DEFAULT_COMMENTS_SETTINGS` remains the fallback when `settingsRepo` is omitted (hermetic tests
+ * that don't want to wire the ledger) AND the per-key default `getCommentsSettings` itself falls
+ * back to before `ensureCommentsSettingDefinitions` has run in a real composition.
  */
 import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "../core/ports";
 import type { EntryRepoPort } from "../features/entries/write-service";
+import type { SettingsRepoPort } from "../features/settings/ports";
 import { createRateLimiter } from "../server/middleware/rate-limit";
 import type { RateLimitProfile } from "../server/middleware/rate-limit";
 import { createCommentHookRegistry } from "./hooks";
 import { createCommentIngressPolicy } from "./ingress";
 import type { EntryLookupResult } from "./ingress";
 import type { CommentIngressPolicy, CommentRepoPort } from "./ports";
+import { getCommentsSettings } from "./settings";
 import { HeuristicSpamCheck } from "./spam.heuristic";
 import type { CommentsSettings } from "./types";
 import { createCommentWriteService } from "./write-service";
@@ -45,7 +50,13 @@ export interface CommentsModuleDeps {
   outbox: OutboxPort;
   clock: ClockPort;
   idGen: IdGeneratorPort;
+  /** Fixed fallback settings, used only when `settingsRepo` is omitted. */
   settings?: CommentsSettings;
+  /** SPEC-035 — when supplied, settings are read LIVE from the ADR-028 ledger instead of the
+   * fixed `settings`/`DEFAULT_COMMENTS_SETTINGS` fallback. The composition root is also
+   * responsible for calling `ensureCommentsSettingDefinitions` at boot (mirrors SEO's
+   * `ensureSeoSettingDefinitions` wiring) — this module does not register definitions itself. */
+  settingsRepo?: SettingsRepoPort;
 }
 
 export interface CommentsModule {
@@ -64,14 +75,30 @@ function computeCommentsClosed(publishedAt: string | null, closeAfterDays: numbe
 }
 
 export function createCommentsModule(deps: CommentsModuleDeps): CommentsModule {
-  const settings = deps.settings ?? DEFAULT_COMMENTS_SETTINGS;
   const hooks = createCommentHookRegistry();
   const spamCheck = new HeuristicSpamCheck();
+  // Disclosed gap (SPEC-035): `maxPerIpPerHour` is readable/writable through the ledger like every
+  // other `CommentsSettings` field, but the actual rate-LIMITER below is still constructed ONCE,
+  // fixed at `COMMENTS_SUBMIT_PROFILE.max` (= the same value as `DEFAULT_COMMENTS_SETTINGS.
+  // maxPerIpPerHour`) — an operator changing it via the admin settings route updates the STORED
+  // value but does not yet reconfigure the live limiter. Making the limiter itself dynamically
+  // reconfigurable per-workspace is a larger change to `server/middleware/rate-limit.ts`'s
+  // fixed-window counter store, out of this slice's scope (mirrors the task's own "don't build a
+  // large amount of new plumbing beyond what already exists for SEO's pattern" guidance).
   const rateLimiter = createRateLimiter(COMMENTS_SUBMIT_PROFILE, deps.clock);
+
+  // SPEC-035 — the live settings resolver: reads the ADR-028 ledger per call when `settingsRepo`
+  // is supplied, else falls back to the fixed `deps.settings ?? DEFAULT_COMMENTS_SETTINGS`
+  // snapshot (hermetic tests / a composition root that hasn't wired the ledger).
+  const getSettings = async (workspaceId: UUID): Promise<CommentsSettings> =>
+    deps.settingsRepo
+      ? getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId })
+      : deps.settings ?? DEFAULT_COMMENTS_SETTINGS;
 
   const entryLookup = async (required: { workspaceId: UUID; entryId: UUID }): Promise<EntryLookupResult | null> => {
     const entry = await deps.entryRepo.findById({ workspaceId: required.workspaceId, id: required.entryId });
     if (!entry) return null;
+    const settings = await getSettings(required.workspaceId);
     return {
       id: entry.id,
       commentsClosed: computeCommentsClosed(entry.publishedAt, settings.closeAfterDays, deps.clock.nowIso()),
@@ -84,7 +111,7 @@ export function createCommentsModule(deps: CommentsModuleDeps): CommentsModule {
     hooks,
     clock: deps.clock,
     idGen: deps.idGen,
-    settings,
+    getSettings,
     entryLookup,
     rateLimiter,
     outbox: deps.outbox,
@@ -103,5 +130,7 @@ export function createCommentsModule(deps: CommentsModuleDeps): CommentsModule {
 
 export type { CommentRepoPort, CommentIngressPolicy, SpamCheckPort } from "./ports";
 export type { CommentRecord, CommentStatus, CommentsSettings, CommentSubmission, ModerationAction, ModerationLogEntry } from "./types";
-export { COMMENTS_DATA_MODULE, COMMENTS_PLUGIN_ID } from "./types";
+export { COMMENTS_DATA_MODULE, COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID, COMMENTS_PLUGIN_ID } from "./types";
 export type { CommentWriteService } from "./write-service";
+export { ensureCommentsSettingDefinitions, getCommentsSettings, setCommentsSettings } from "./settings";
+export { CommentsSettingsValidationError } from "./errors";

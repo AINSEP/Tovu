@@ -59,8 +59,15 @@ export class InMemoryCommentRepo implements CommentRepoPort {
     ).length;
   }
 
-  async create(record: CommentRecord): Promise<void> {
+  async create(record: CommentRecord, submitLog?: ModerationLogEntry): Promise<void> {
     this.comments.push({ ...record });
+    if (submitLog) this.log.push({ ...submitLog });
+  }
+
+  async listModerationLog(required: { workspaceId: string; commentId: string }): Promise<ModerationLogEntry[]> {
+    return this.log
+      .filter((entry) => entry.workspaceId === required.workspaceId && entry.commentId === required.commentId)
+      .sort((a, b) => (a.at === b.at ? a.id.localeCompare(b.id) : a.at.localeCompare(b.at)));
   }
 
   async applyModeration(required: {

@@ -133,33 +133,90 @@ export class SqliteCommentRepo implements CommentRepoPort {
     return row.n;
   }
 
-  async create(record: CommentRecord): Promise<void> {
-    this.db
-      .prepare(
-        `INSERT INTO "${COMMENTS_TABLE}"
-         (id, workspace_id, entry_id, parent_id, thread_root_id, depth, status, author_principal_id, author_name, author_email, author_url, author_ip_hash, body_text, spam_score, spam_provider, created_at, updated_at, version)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        record.id,
-        record.workspaceId,
-        record.entryId,
-        record.parentId,
-        record.threadRootId,
-        record.depth,
-        record.status,
-        record.authorPrincipalId,
-        record.authorName,
-        record.authorEmail,
-        record.authorUrl,
-        record.authorIpHash,
-        record.bodyText,
-        record.spamScore,
-        record.spamProvider,
-        record.createdAt,
-        record.updatedAt,
-        record.version
-      );
+  async create(record: CommentRecord, submitLog?: ModerationLogEntry): Promise<void> {
+    const insertComment = (): void => {
+      this.db
+        .prepare(
+          `INSERT INTO "${COMMENTS_TABLE}"
+           (id, workspace_id, entry_id, parent_id, thread_root_id, depth, status, author_principal_id, author_name, author_email, author_url, author_ip_hash, body_text, spam_score, spam_provider, created_at, updated_at, version)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          record.id,
+          record.workspaceId,
+          record.entryId,
+          record.parentId,
+          record.threadRootId,
+          record.depth,
+          record.status,
+          record.authorPrincipalId,
+          record.authorName,
+          record.authorEmail,
+          record.authorUrl,
+          record.authorIpHash,
+          record.bodyText,
+          record.spamScore,
+          record.spamProvider,
+          record.createdAt,
+          record.updatedAt,
+          record.version
+        );
+    };
+
+    if (!submitLog) {
+      insertComment();
+      return;
+    }
+
+    // OQ-3 resolution (SPEC-035): the comment row and its `submit` moderation_log row land as ONE
+    // atomic transaction — mirrors `applyModeration`/`purge`'s existing both-or-neither pattern
+    // below, and `SqliteChangeSetRepo.insert()`'s optional-event co-persistence (ADR-046 BR-04).
+    this.db.transaction(() => {
+      insertComment();
+      this.db
+        .prepare(
+          `INSERT INTO "${MODERATION_LOG_TABLE}" (id, workspace_id, comment_id, actor_principal_id, action, from_status, to_status, at, note)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          submitLog.id,
+          submitLog.workspaceId,
+          submitLog.commentId,
+          submitLog.actorPrincipalId,
+          submitLog.action,
+          submitLog.fromStatus,
+          submitLog.toStatus,
+          submitLog.at,
+          submitLog.note
+        );
+    })();
+  }
+
+  async listModerationLog(required: { workspaceId: string; commentId: string }): Promise<ModerationLogEntry[]> {
+    const rows = this.db
+      .prepare(`SELECT * FROM "${MODERATION_LOG_TABLE}" WHERE workspace_id = ? AND comment_id = ? ORDER BY at ASC, id ASC`)
+      .all(required.workspaceId, required.commentId) as {
+      id: string;
+      workspace_id: string;
+      comment_id: string;
+      actor_principal_id: string;
+      action: string;
+      from_status: string | null;
+      to_status: string;
+      at: string;
+      note: string | null;
+    }[];
+    return rows.map((row) => ({
+      id: row.id,
+      workspaceId: row.workspace_id,
+      commentId: row.comment_id,
+      actorPrincipalId: row.actor_principal_id,
+      action: row.action as ModerationAction,
+      fromStatus: row.from_status as CommentStatus | null,
+      toStatus: row.to_status as CommentStatus,
+      at: row.at,
+      note: row.note,
+    }));
   }
 
   async applyModeration(required: {

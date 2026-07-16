@@ -183,6 +183,26 @@ export interface CommentsSettings {
  */
 export const COMMENTS_PLUGIN_ID = "comments";
 
+/**
+ * ADR-031 round-2 sweep-crosscutting fold (OQ-3 resolution, SPEC-035): "Pin the anonymous-ingress
+ * `system` actor as a seeded principal ULID." A fixed, well-known id (not per-boot-generated) —
+ * mirrors `identity/seed.ts`'s `LEGACY_USER_LOCAL_PRINCIPAL_ID` shape (a stable, non-interactive
+ * `kind: "system"` principal referenced by id, not resolved dynamically) and `server/seed.ts`'s
+ * `SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID` convention (a composition-root-seeded constant scoped
+ * to one subsystem's boot-time attribution, so it doesn't need to wait on `identity`'s own
+ * first-boot `seedIdentity()` seed — which ALSO mints its own separate, dynamically-generated
+ * `system` principal for unrelated purposes; deliberately not reused here to avoid coupling
+ * `comments/`'s ingress-time attribution to `identity`'s async seed-completion ordering).
+ *
+ * The composition roots (`server/app.ts`/`server/deps.ts`) seed the actual principal row for this
+ * id (chained after `identityReady`, fire-and-forget, logged-and-swallowed on failure — mirrors
+ * `menuBindingsReady`'s established pattern) so a human browsing the Users/Principals admin screen
+ * sees a real "Comments Ingress (system)" row, not a dangling id. `moderation_log.actor_principal_id`
+ * is chokepoint-validated, not FK-enforced (this file's own header), so `ingress.ts#submit()`'s
+ * `submit` log row is valid even in the narrow boot window before that seed completes.
+ */
+export const COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID = "system-comments-ingress";
+
 const T = (name: string, notNull = false): { name: string; type: ColumnType; notNull?: boolean } => ({
   name,
   type: "TEXT",

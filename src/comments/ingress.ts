@@ -15,13 +15,21 @@
  * `authorIpHash`/honeypot are read from `submission.ingressContext` (already computed/salted by
  * the HTTP route layer, per `CommentSubmission`'s own doc: "the raw IP is never stored" — this
  * file never sees it) under the fixed keys `authorIpHash` and `honeypotValue`.
+ *
+ * `getSettings` (SPEC-035, ADR-028 Settings Layered Ledger wiring) is a per-call RESOLVER, not a
+ * boot-captured snapshot — `submit()` reads it fresh at the top of every call, so an operator's
+ * settings change via the admin `PUT .../comments/settings` route (`settings.ts`) takes effect on
+ * the very next submission, not only after a restart. `index.ts` builds this resolver from
+ * `settingsRepo` when the composition root supplies one, falling back to a fixed snapshot
+ * otherwise (hermetic tests that don't wire the ledger).
  */
 import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "../core/ports";
 import type { RateLimiter } from "../server/middleware/rate-limit";
 import type { CommentHookRegistry } from "./hooks";
 import type { CommentIngressPolicy, CommentIngressResult, CommentRepoPort, SpamCheckPort } from "./ports";
 import { countLinks, sanitizeCommentBody } from "./sanitize";
-import type { CommentRecord, CommentStatus, CommentSubmission, CommentsSettings } from "./types";
+import { COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID } from "./types";
+import type { CommentRecord, CommentStatus, CommentSubmission, CommentsSettings, ModerationLogEntry } from "./types";
 
 const MAX_BODY_LENGTH = 10_000;
 const MAX_LINKS = 5;
@@ -38,7 +46,7 @@ export interface CommentIngressDeps {
   hooks: CommentHookRegistry;
   clock: ClockPort;
   idGen: IdGeneratorPort;
-  settings: CommentsSettings;
+  getSettings: (workspaceId: UUID) => Promise<CommentsSettings>;
   entryLookup: (required: { workspaceId: UUID; entryId: UUID }) => Promise<EntryLookupResult | null>;
   rateLimiter: RateLimiter;
   /** ADR-031 §8 — every successful submission emits `comments.submitted` (whatever status
@@ -54,7 +62,8 @@ function readIngressString(value: unknown): string | null {
 export function createCommentIngressPolicy(deps: CommentIngressDeps): CommentIngressPolicy {
   return {
     async submit(submission: CommentSubmission): Promise<CommentIngressResult> {
-      if (!deps.settings.enabled) return { ok: false, reason: "comments-disabled" };
+      const settings = await deps.getSettings(submission.workspaceId);
+      if (!settings.enabled) return { ok: false, reason: "comments-disabled" };
 
       const entry = await deps.entryLookup({ workspaceId: submission.workspaceId, entryId: submission.entryId });
       if (!entry) return { ok: false, reason: "entry-not-found" };
@@ -66,7 +75,7 @@ export function createCommentIngressPolicy(deps: CommentIngressDeps): CommentIng
         const parent = await deps.repo.findById({ workspaceId: submission.workspaceId, id: submission.parentId });
         if (!parent) return { ok: false, reason: "parent-not-found" };
         depth = parent.depth + 1;
-        if (depth > deps.settings.maxDepth) return { ok: false, reason: "max-depth-exceeded" };
+        if (depth > settings.maxDepth) return { ok: false, reason: "max-depth-exceeded" };
         parentThreadRootId = parent.threadRootId;
       }
 
@@ -88,7 +97,7 @@ export function createCommentIngressPolicy(deps: CommentIngressDeps): CommentIng
 
       const verdict = await deps.spamCheck.check(hookResult.submission);
       const status: CommentStatus =
-        verdict.score >= deps.settings.spamAutoRejectScore ? "spam" : deps.settings.requireModeration ? "pending" : "approved";
+        verdict.score >= settings.spamAutoRejectScore ? "spam" : settings.requireModeration ? "pending" : "approved";
 
       const id = deps.idGen.newId();
       const now = deps.clock.nowIso();
@@ -113,7 +122,23 @@ export function createCommentIngressPolicy(deps: CommentIngressDeps): CommentIng
         version: 0,
       };
 
-      await deps.repo.create(record);
+      // OQ-3 resolution (ADR-031 round-2 fold, SPEC-035): every ingress-created comment gets a
+      // `submit` moderation_log row, attributed to the seeded system principal — the ingress has
+      // no real operator principal to attribute this to (the visitor is anonymous by definition),
+      // and the auto-classification (pending/approved/spam) IS itself a moderation decision, just
+      // one core made instead of a human. `fromStatus: null` (nothing existed before this write).
+      const submitLogEntry: ModerationLogEntry = {
+        id: deps.idGen.newId(),
+        workspaceId: record.workspaceId,
+        commentId: record.id,
+        actorPrincipalId: COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID,
+        action: "submit",
+        fromStatus: null,
+        toStatus: record.status,
+        at: now,
+        note: null,
+      };
+      await deps.repo.create(record, submitLogEntry);
 
       // Inline object literal (not a `CommentDomainEvent`-typed intermediate) — matches this
       // codebase's established `outbox.enqueue()` call-site convention (e.g.
