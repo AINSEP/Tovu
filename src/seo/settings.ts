@@ -307,6 +307,16 @@ export async function setSeoSettings(deps: SeoSettingsWriteDeps, input: SetSeoSe
         workspaceId: input.workspaceId,
         authWorkspaceId: input.workspaceId,
         callerPrincipalId: input.callerPrincipalId,
+        // Round-1 external audit of an unrelated feature (2026-07-16,
+        // TM-adr046-phase3-comments-audit-001, codex codex-r1-B-001) found this exact same
+        // chokepoint-permission mismatch on Comments' identically-shaped settings route and
+        // confirmed SEO's route (this one) has the same latent defect: the PUT route already
+        // authorizes "admin.seo.manage" -- that IS the permission the admin UI advertises as
+        // sufficient. Without this override, the chokepoint's default scope-derived
+        // "settings.workspace.write" check ran a SECOND, unrelated authz check that an
+        // admin.seo.manage-only principal would fail, surfacing as a masked 500 rather than
+        // either success or a clear 403.
+        requiredPermissionOverride: "admin.seo.manage",
       },
     });
   }

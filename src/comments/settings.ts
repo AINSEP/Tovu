@@ -249,6 +249,14 @@ export async function setCommentsSettings(
         workspaceId: input.workspaceId,
         authWorkspaceId: input.workspaceId,
         callerPrincipalId: input.callerPrincipalId,
+        // Round-1 external audit (2026-07-16, TM-adr046-phase3-comments-audit-001, codex
+        // codex-r1-B-001, independently verified): the PUT route already authorizes
+        // "comments.configure" before calling this function -- that IS the permission the admin
+        // UI advertises as sufficient to change Comments settings. Without this override, the
+        // chokepoint's default scope-derived "settings.workspace.write" check ran a SECOND,
+        // unrelated authz check that a comments.configure-only principal would fail, surfacing as
+        // a masked 500 rather than either success or a clear 403.
+        requiredPermissionOverride: "comments.configure",
       },
     });
   }

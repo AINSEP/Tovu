@@ -102,6 +102,78 @@ test("PUT .../comments/settings 400s on an invalid patch and writes nothing", as
   assert.equal(getBody.data.spamAutoRejectScore, 0.5, "the invalid patch must not have been written");
 });
 
+let grantCounter = 0;
+
+/** Registers a principal holding ONLY the given permission strings. Mirrors
+ * `forms-auth.test.ts`'s `loginWithPermissions` pattern. */
+async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permissions: readonly string[]): Promise<string> {
+  await deps.identityReady;
+  const suffix = `${++grantCounter}`;
+  const principalId = `grant-principal-comments-settings-${suffix}`;
+  const policyId = `grant-policy-comments-settings-${suffix}`;
+  const username = `grant-comments-settings-${suffix}`;
+
+  await deps.principalRepo.save({
+    id: principalId,
+    workspaceId: deps.workspaceId,
+    kind: "user",
+    displayName: `Grants: ${permissions.join(", ")}`,
+    status: "active",
+    createdAt: deps.clock.nowIso(),
+  });
+  await deps.userRepo.save({
+    principalId,
+    workspaceId: deps.workspaceId,
+    username,
+    passwordHash: await deps.passwordHasher.hash("grant-pw"),
+  });
+  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: `grant-policy-${suffix}`, isBuiltin: false, isFrozen: false });
+  for (const permission of permissions) {
+    await deps.policyPermissionRepo.save({
+      id: `grant-pp-${suffix}-${permission}`,
+      workspaceId: deps.workspaceId,
+      policyId,
+      permission,
+      resourceType: null,
+      constraintJson: null,
+    });
+  }
+  await deps.principalPolicyRepo.save({ id: `grant-link-${suffix}`, workspaceId: deps.workspaceId, principalId, policyId });
+
+  const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username, password: "grant-pw" }),
+  });
+  assert.equal(login.status, 200);
+  return login.headers.get("set-cookie")?.split(";")[0] ?? "";
+}
+
+test("round-1 external audit (codex codex-r1-B-001, verified): a principal holding ONLY comments.configure -- not the broader settings.workspace.write -- can actually GET and PUT settings, not just pass the route's own gate", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl } = await bootAuthenticated(app, t);
+  const leastPrivCookie = await loginWithPermissions(deps, baseUrl, ["comments.configure"]);
+
+  const getRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/comments/settings`, {
+    headers: { cookie: leastPrivCookie },
+  });
+  assert.equal(getRes.status, 200, "GET does not write, so it was never blocked by this defect -- included as a control");
+
+  const putRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/comments/settings`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie: leastPrivCookie },
+    body: JSON.stringify({ requireModeration: false }),
+  });
+  assert.equal(
+    putRes.status,
+    200,
+    "comments.configure is the permission the admin UI advertises as sufficient to change Comments settings -- before the fix, the chokepoint's own generic settings.workspace.write check independently rejected this principal, masked as a 500"
+  );
+  const putBody = (await putRes.json()) as { data: Record<string, unknown> };
+  assert.equal(putBody.data.requireModeration, false);
+});
+
 test("a principal without comments.configure is refused on both GET and PUT", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };
   const app = createApp(deps);
