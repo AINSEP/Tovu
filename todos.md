@@ -22,6 +22,25 @@ Sweep's "competitor teardown" step below, and before building the eventual agent
 
 ---
 
+## ⏰ OVERNIGHT RUN 2026-07-17 02:00 — Users/Roles/Policies + Plugins admin surface (OWES CHECK-IN)
+
+**Scheduled 2026-07-16.** A cloud-triggered agent fires at 2am to build spec + implementation + tests
+(no audit) for two items:
+
+1. **Users/Roles & Policies backend gaps** — the admin routes only cover list+create today; no
+   update/delete routes exist for users, roles, or policies. Well-scoped, existing domain.
+2. **Plugins admin surface** — currently has zero backend (nav entry correctly renders `SOON`). No
+   spec, no prior design decision for what this screen should expose. Higher-risk item — the overnight
+   agent is doing full spec→build→test for this too (owner's explicit call, not spec-only), same
+   discipline as item 1.
+
+**⚠️ OWES: run `/audit-work` on both when back at the machine** (owner does this with agy + codex
+locally, not as part of the unattended run). Do not treat either as done/mergeable until audited —
+same standing discipline as every other accepted ADR/spec in this backlog. Check `git worktree list`
+and `ADS-project-knowledge/specs/` for the new SPEC-NNN(s) the overnight run produces.
+
+---
+
 ## ⛔ BLOCKER — Admin Section Spec Sweep (DO FIRST NEXT SESSION)
 
 **Added 2026-07-07.** These are the admin nav sections currently rendering a generic
