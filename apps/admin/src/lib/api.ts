@@ -59,6 +59,79 @@ export interface SeoSettings {
   robotsRules: RobotsRule[];
 }
 
+/**
+ * Per-entry SEO (SPEC-008, mirrored from `src/seo/types.ts` per SPEC-037 REQ-06/07 — read
+ * directly off `SeoMeta`/`SeoAnalysis`/`SeoIssue`, not guessed).
+ */
+export type SeoOpenGraphType = "website" | "article" | "profile";
+export type SeoTwitterCardKind = "summary" | "summary_large_image";
+
+export interface SeoOpenGraph {
+  title: string;
+  description?: string;
+  type: SeoOpenGraphType;
+  url: string;
+  image?: string;
+  siteName?: string;
+}
+
+export interface SeoTwitterCard {
+  card: SeoTwitterCardKind;
+  title: string;
+  description?: string;
+  image?: string;
+  site?: string;
+}
+
+/** Mirrors `src/seo/types.ts`'s `SeoMeta` — the fully-resolved effective meta for one entry
+ * (author overrides layered over site defaults layered over derived-from-entry). Both
+ * `getSeoEntry` and `putSeoEntry` return this same resolved shape (not the raw override bag). */
+export interface SeoEntryMeta {
+  title: string;
+  description?: string;
+  canonical: string;
+  robots: { noindex: boolean; nofollow: boolean };
+  openGraph: SeoOpenGraph;
+  twitter: SeoTwitterCard;
+  jsonLd: Record<string, unknown>[];
+}
+
+/** Mirrors `src/seo/types.ts`'s `SeoExtFields` — the partial override bag `putSeoEntry` accepts. */
+export interface SeoEntryOverridesPatch {
+  title?: string;
+  description?: string;
+  canonical?: string;
+  noindex?: boolean;
+  nofollow?: boolean;
+  schemaType?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  ogType?: SeoOpenGraphType;
+  twitterCard?: SeoTwitterCardKind;
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImage?: string;
+}
+
+export type SeoIssueSeverity = "error" | "warning" | "info";
+
+/** Mirrors `src/seo/types.ts`'s `SeoIssue`. */
+export interface SeoIssue {
+  code: string;
+  severity: SeoIssueSeverity;
+  message: string;
+  field?: string;
+}
+
+/** Mirrors `src/seo/types.ts`'s `SeoAnalysis` — `analyzeEntry`'s return shape. */
+export interface SeoEntryAnalysis {
+  entryId: string;
+  score: number;
+  issues: SeoIssue[];
+  resolved: SeoEntryMeta;
+}
+
 export interface AdminPost {
   id: string;
   workspaceId: string;
@@ -274,6 +347,24 @@ export interface AdminRedirectHitStats {
   workspaceId: string;
   hitCount: number;
   lastHitAt: string | null;
+}
+
+/** One rule item accepted by `POST .../redirects/import` — mirrors `CreateRedirectInput`'s public
+ * fields (`workspaceId`/`actorId` are injected server-side from the session, not sent). */
+export interface RedirectImportRule {
+  matchType: string;
+  fromPattern: string;
+  toTarget: string;
+  statusCode: number;
+  override?: boolean;
+  priority?: number;
+}
+
+/** Mirrors `toAdminRedirectImportResponse`'s shape (`server/http/admin/redirects.ts`) — the route
+ * always answers `207 Multi-Status`, so this is a plain success body, not an error path. */
+export interface AdminRedirectImportResponse {
+  created: AdminRedirect[];
+  failed: Array<{ index: number; code: string; message: string }>;
 }
 
 /**
@@ -782,6 +873,21 @@ export const api = {
     request<{ data: { accepted: true } }>(`/workspaces/${WORKSPACE_ID}/seo/sitemap/regenerate`, {
       method: "POST",
     }),
+  /** GET an entry's effective/resolved SEO meta (SPEC-037 REQ-06). */
+  getSeoEntry: (entryId: string) =>
+    request<{ data: SeoEntryMeta }>(`/workspaces/${WORKSPACE_ID}/seo/entries/${entryId}`),
+  /** PUT partial SEO overrides for an entry; a `409`-shaped body never occurs here (this route has
+   * no optimistic-concurrency field) — failures are `400` field/canonical-URL validation errors,
+   * surfaced via `ApiError.message` (SPEC-037 REQ-08). Returns the same resolved shape as
+   * `getSeoEntry`, reflecting the merged overrides. */
+  putSeoEntry: (entryId: string, patch: SeoEntryOverridesPatch) =>
+    request<{ data: SeoEntryMeta }>(`/workspaces/${WORKSPACE_ID}/seo/entries/${entryId}`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    }),
+  /** GET an entry's SEO score + issues (SPEC-037 REQ-07, read-only). */
+  getSeoEntryAnalyze: (entryId: string) =>
+    request<{ data: SeoEntryAnalysis }>(`/workspaces/${WORKSPACE_ID}/seo/entries/${entryId}/analyze`),
   listRedirects: () => request<{ data: AdminRedirect[] }>(`/workspaces/${WORKSPACE_ID}/redirects`),
   createRedirect: (input: {
     matchType: string;
@@ -817,6 +923,14 @@ export const api = {
     }),
   getRedirectHits: (id: string) =>
     request<{ data: AdminRedirectHitStats }>(`/workspaces/${WORKSPACE_ID}/redirects/${id}/hits`),
+  /** POST a bulk-import batch (1-500 rules, `MAX_IMPORT_BATCH_SIZE`). Always answers `207` on the
+   * wire; `fetch`/`request()` treat 2xx (incl. 207) as success, so the per-item `created`/`failed`
+   * breakdown always comes back as the resolved value, never a thrown `ApiError`. */
+  importRedirects: (rules: RedirectImportRule[]) =>
+    request<AdminRedirectImportResponse>(`/workspaces/${WORKSPACE_ID}/redirects/import`, {
+      method: "POST",
+      body: JSON.stringify({ rules }),
+    }),
 
   // Collections (ADR-022/ADR-043) — content-types registry + entries. `/api/admin/v1/*`, not the
   // `/workspaces/{id}/*` shape the rest of this file uses — these routes take workspace from the
