@@ -2,13 +2,13 @@ import type { Express } from "express";
 
 import { listEntries } from "../../../../features/entries/list";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { ContentTypesRouteDeps } from "../content-types/deps";
 
 /**
  * @file design-spec.md §1.4/§1.9 — `GET /api/admin/v1/entries?type=` (a Collection's entry list,
  * ADR-022/ADR-043). Gated by `admin.collections.read`.
  */
-export function registerAdminEntryListRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminEntryListRoute(app: Express, deps: ContentTypesRouteDeps): void {
   app.get("/api/admin/v1/entries", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

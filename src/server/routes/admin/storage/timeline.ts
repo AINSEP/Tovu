@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { getTimeline } from "../../../../features/storage/timeline";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { StorageRecoveryRouteDeps } from "../storage-recovery/deps";
 
 /**
  * @file SPEC-017 C-101 / REQ-01 / REQ-04 — `GET /api/admin/v1/storage/timeline` (ADR-041 §1's
@@ -16,7 +16,7 @@ import type { RouteDeps } from "../../types";
  * the Tier-3 browser) stays unwired — that is the admin-UI-adjacent backend work item B in
  * `todos.md` anticipates, not this slice's scope (see the progress ledger's Session 4 entry).
  */
-export function registerAdminStorageTimelineRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminStorageTimelineRoute(app: Express, deps: StorageRecoveryRouteDeps): void {
   app.get("/api/admin/v1/storage/timeline", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

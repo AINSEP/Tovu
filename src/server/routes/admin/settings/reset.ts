@@ -2,7 +2,7 @@ import { ForbiddenError } from "../../../../features/settings/errors";
 import type { SettingScope } from "../../../../features/settings/types";
 import { resetNamespace } from "../../../../features/settings/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { SettingsRouteRegistrar } from "./deps";
 import { toWriteServiceDeps } from "./shared";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
@@ -24,7 +24,7 @@ const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
  * platform partition (`workspaceId=null`); `scope=workspace`/`scope=user` read
  * this workspace's site-owned partition.
  */
-export const registerAdminSettingsResetRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/settings/reset", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

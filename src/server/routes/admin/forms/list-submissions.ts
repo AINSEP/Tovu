@@ -1,13 +1,13 @@
 import { toAdminFormSubmissionListResponse } from "../../../http/admin/forms";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { FormsRouteRegistrar } from "./deps";
 
 const DEFAULT_LIMIT = 50;
 const MIN_LIMIT = 1;
 const MAX_LIMIT = 100;
 
 /** GET submissions for a form definition, newest-first (`FORMS_LIST_SUBMISSIONS`, REQ-13). */
-export const registerAdminFormsListSubmissionsRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

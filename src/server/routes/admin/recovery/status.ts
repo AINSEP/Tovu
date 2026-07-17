@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { isOperationInFlight } from "../../../../core/operation-lock";
 import { resolveDegradedBanner } from "../../../../features/recovery/ui/degraded-banners";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { StorageRecoveryRouteDeps } from "../storage-recovery/deps";
 
 /**
  * @file design-spec.md §4.2/§4.4/§4.8 — `GET /api/admin/v1/recovery/status` (the capability/status
@@ -29,7 +29,7 @@ import type { RouteDeps } from "../../types";
  *    mechanism itself.
  *  - `watermarkBaselineAvailable`: `false`, matching `disclosure.ts` route's own honest stub.
  */
-export function registerAdminRecoveryStatusRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminRecoveryStatusRoute(app: Express, deps: StorageRecoveryRouteDeps): void {
   app.get("/api/admin/v1/recovery/status", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

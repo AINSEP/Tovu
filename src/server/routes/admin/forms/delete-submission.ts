@@ -1,8 +1,8 @@
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { FormsRouteRegistrar } from "./deps";
 
 /** DELETE permanently removes one submission (`FORMS_DELETE_SUBMISSION`, REQ-14). */
-export const registerAdminFormsDeleteSubmissionRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = (app, deps) => {
   app.delete(
     "/api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId",
     async (req, res) => {

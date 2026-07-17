@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { listRestorePoints, createRestorePoint, RestorePointUnavailableError, ValidationError } from "../../../../features/storage/restore-points";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { StorageRecoveryRouteDeps } from "../storage-recovery/deps";
 
 /**
  * @file design-spec.md §3.2/§3.8 — `GET /api/admin/v1/storage/restore-points` (newest-first
@@ -11,7 +11,7 @@ import type { RouteDeps } from "../../types";
  * views both read — `storage.read`'s own description already names "restore points" as part of
  * what it covers, ADR-041 §6). Gated by `storage.read`.
  */
-export function registerAdminStorageRestorePointsListRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminStorageRestorePointsListRoute(app: Express, deps: StorageRecoveryRouteDeps): void {
   app.get("/api/admin/v1/storage/restore-points", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
@@ -50,7 +50,7 @@ export function registerAdminStorageRestorePointsListRoute(app: Express, deps: R
  * closure's result is captured via an outer variable so the route can persist the real
  * `artifactRef`/`watermarkAtCapture` `createRestorePoint`'s return value does not carry.
  */
-export function registerAdminStorageRestorePointsCreateRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminStorageRestorePointsCreateRoute(app: Express, deps: StorageRecoveryRouteDeps): void {
   app.post("/api/admin/v1/storage/restore-points", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

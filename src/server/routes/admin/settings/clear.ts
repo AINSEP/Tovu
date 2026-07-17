@@ -8,7 +8,7 @@ import {
 import type { SettingScope } from "../../../../features/settings/types";
 import { clear, deriveRequiredPermission } from "../../../../features/settings/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { SettingsRouteRegistrar } from "./deps";
 import { toWriteServiceDeps } from "./shared";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
@@ -23,7 +23,7 @@ const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
  * clear, since `write-service.clear()` runs the identical
  * `assertTargetPrincipalInWorkspace` check as `set()`).
  */
-export const registerAdminSettingsClearRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminSettingsClearRoute: SettingsRouteRegistrar = (app, deps) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/settings/value", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

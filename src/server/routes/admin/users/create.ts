@@ -6,8 +6,7 @@ import {
 } from "../../../../identity";
 import { toAdminUserResponse } from "../../../http/admin/users";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../types";
-import { identityServiceDepsFrom } from "./deps";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
 
 /**
  * POST users — `CREATE_USER` (state.spec §3, REQ-01/MF-1). Gated by
@@ -20,7 +19,7 @@ import { identityServiceDepsFrom } from "./deps";
  * natural inverse-capture/revert story — same reasoning as
  * `members/disable.ts` calling identity functions directly.
  */
-export const registerAdminUserCreateRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminUserCreateRoute: UsersRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

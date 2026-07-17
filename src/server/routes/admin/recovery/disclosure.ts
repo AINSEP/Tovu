@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { computeDisclosure } from "../../../../features/recovery/disclosure";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { StorageRecoveryRouteDeps } from "../storage-recovery/deps";
 
 /** ADR-045 §3 Step 2 / `disclosure.ts`'s own file header — the versioned, single, auditable list
  * of write-path categories this disclosure may ever claim to cover. A category is added here only
@@ -20,7 +20,7 @@ const COVERED_CATEGORIES = ["posts_pages", "plugin_table"] as const;
  * behavior right now rather than a corner cut: this route always renders `"unknown"` for every
  * covered category, never a fabricated `0`.
  */
-export function registerAdminRecoveryDisclosureRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminRecoveryDisclosureRoute(app: Express, deps: StorageRecoveryRouteDeps): void {
   app.post("/api/admin/v1/recovery/disclosure", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

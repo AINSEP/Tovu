@@ -12,7 +12,7 @@ import {
 } from "../../../../features/content-types/errors";
 import { updateContentTypeFields } from "../../../../features/content-types/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { ContentTypesRouteDeps } from "./deps";
 
 function statusFor(error: Error): { status: number; code: string } {
   if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
@@ -33,7 +33,7 @@ function statusFor(error: Error): { status: number; code: string } {
  * @file design-spec.md §1.9 — `PUT /api/admin/v1/content-types/:key/fields` (full-replace of a
  * content type's field schema, REQ-26/ADR-043 §4). Gated by `admin.collections.manage`.
  */
-export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: ContentTypesRouteDeps): void {
   app.put("/api/admin/v1/content-types/:key/fields", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

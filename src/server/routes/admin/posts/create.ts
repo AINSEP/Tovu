@@ -2,7 +2,7 @@ import { ForbiddenError, executeCommand } from "../../../../core/commands";
 import { createPost } from "../../../../features/post";
 import { toAdminPostResponse } from "../../../../server/http/admin/posts";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { ContentRouteRegistrar } from "../content/deps";
 
 /**
  * POST a new blank draft post — routed through the command gateway (mirrors
@@ -12,7 +12,7 @@ import type { RouteRegistrar } from "../../../routes/types";
  * for the real authenticated principal (`getAuthedPrincipal`, set by
  * `requireAdminSession`) instead of the hardcoded `"user-local"` actor.
  */
-export const registerAdminPostCreateRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminPostCreateRoute: ContentRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/posts", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

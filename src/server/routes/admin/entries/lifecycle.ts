@@ -4,7 +4,7 @@ import { ContentTypeNotActiveError, EntryNotFoundError, ForbiddenError, VersionC
 import { ENTRY_LIFECYCLE_OPS, parseEntryLifecycleOp } from "../../../../features/entries/lifecycle-dispatch";
 import { toEntryOutbox } from "../../../../features/entries/repo.memory";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { ContentTypesRouteDeps } from "../content-types/deps";
 
 function statusFor(error: Error): { status: number; code: string } {
   if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
@@ -22,7 +22,7 @@ function statusFor(error: Error): { status: number; code: string } {
  * import("../../../../features/entries/lifecycle-dispatch").EntryLifecycleOp} before lookup —
  * mirrors `routes/admin/content-types/lifecycle.ts`'s identical shape.
  */
-export function registerAdminEntryLifecycleRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminEntryLifecycleRoute(app: Express, deps: ContentTypesRouteDeps): void {
   app.post("/api/admin/v1/entries/:id/lifecycle", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

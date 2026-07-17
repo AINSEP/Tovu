@@ -11,7 +11,7 @@ import {
 } from "../../../../features/content-types/errors";
 import { registerContentType } from "../../../../features/content-types/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { ContentTypesRouteDeps } from "./deps";
 
 /** Maps a `registerContentType` rejection to an HTTP status/code pair (design-spec.md §1.9). */
 function statusFor(error: Error): { status: number; code: string } {
@@ -35,7 +35,7 @@ function statusFor(error: Error): { status: number; code: string } {
  * route's own pre-check exists only for a fast, structured 403 before touching the body at all,
  * mirroring `routes/admin/settings/register-definitions.ts`'s identical pattern.
  */
-export function registerAdminContentTypeRegisterRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminContentTypeRegisterRoute(app: Express, deps: ContentTypesRouteDeps): void {
   app.post("/api/admin/v1/content-types", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

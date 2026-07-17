@@ -5,14 +5,6 @@ import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../core/events"
 import { InMemoryChangeSetRepo } from "../core/commands";
 import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../seo";
 import { registerPageHeadContributor } from "./http/site/page-head";
-import { registerAdminSeoGetEntryRoute } from "./routes/admin/seo/get-entry";
-import { registerAdminSeoGetEntryAnalyzeRoute } from "./routes/admin/seo/get-entry-analyze";
-import { registerAdminSeoGetSettingsRoute } from "./routes/admin/seo/get-settings";
-import { registerAdminSeoPostSitemapRegenerateRoute } from "./routes/admin/seo/post-sitemap-regenerate";
-import { registerAdminSeoPutEntryRoute } from "./routes/admin/seo/put-entry";
-import { registerAdminSeoPutSettingsRoute } from "./routes/admin/seo/put-settings";
-import { registerSeoRobotsRoute } from "./routes/site/robots";
-import { registerSeoSitemapRoute } from "./routes/site/sitemap";
 import { InMemoryPostRepo } from "../features/post";
 import { InMemoryPresentationSettingsRepo } from "../features/presentation";
 import { InMemorySettingsRepo } from "../features/settings/repo.memory";
@@ -74,31 +66,13 @@ import {
 } from "../redirects";
 import { registerSlugChangeCapture } from "../routing";
 import { InMemoryDbOpsAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryStorageLedgerRepo } from "../features/storage/repo.memory";
-import { registerAdminStorageTimelineRoute } from "./routes/admin/storage/timeline";
-import { registerAdminStorageRestorePointsCreateRoute, registerAdminStorageRestorePointsListRoute } from "./routes/admin/storage/restore-points";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
-import { registerAdminContentTypeListRoute } from "./routes/admin/content-types/list";
-import { registerAdminContentTypeRegisterRoute } from "./routes/admin/content-types/register";
-import { registerAdminContentTypeUpdateFieldsRoute } from "./routes/admin/content-types/update-fields";
-import { registerAdminContentTypeLifecycleRoute } from "./routes/admin/content-types/lifecycle";
 import { InMemoryEntryRepo } from "../features/entries/repo.memory";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { InMemoryCommentRepo } from "../comments/repo.memory";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";
-import { registerAdminCommentsModerationQueueRoute } from "./routes/admin/comments/moderation-queue";
-import { registerAdminCommentsModerateRoutes } from "./routes/admin/comments/moderate";
-import { registerAdminCommentsGetSettingsRoute } from "./routes/admin/comments/get-settings";
-import { registerAdminCommentsPutSettingsRoute } from "./routes/admin/comments/put-settings";
-import { registerAdminEntryListRoute } from "./routes/admin/entries/list";
-import { registerAdminEntryCreateRoute } from "./routes/admin/entries/create";
-import { registerAdminEntryUpdateRoute } from "./routes/admin/entries/update";
-import { registerAdminEntryLifecycleRoute } from "./routes/admin/entries/lifecycle";
 import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo } from "../features/taxonomy/repo.memory";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
-import { registerAdminRecoveryRestorePointsListRoute } from "./routes/admin/recovery/restore-points";
-import { registerAdminRecoveryDisclosureRoute } from "./routes/admin/recovery/disclosure";
-import { registerAdminRecoveryDeepLinkRoute } from "./routes/admin/recovery/deep-link";
-import { registerAdminRecoveryStatusRoute } from "./routes/admin/recovery/status";
 import { buildGatewayDeps } from "./gated-mutations-composition";
 import { resolveRuntimeMode } from "./runtime-mode";
 import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer";
@@ -109,73 +83,33 @@ import { registerAdminRecoveryRestoreRoutes } from "./routes/admin/recovery/rest
 import { applyDevCors } from "./middleware/dev-cors";
 import { applySiteServingGate } from "./middleware/site-serving-gate";
 import { registerAdminStatic } from "./middleware/admin-static";
-import { registerAuthRoutes, requireAdminSession } from "./middleware/dev-auth";
-import { registerAdminPostListRoute } from "./routes/admin/posts/list";
-import { registerAdminPostCreateRoute } from "./routes/admin/posts/create";
-import { registerAdminPageListRoute } from "./routes/admin/pages/list";
-import { registerAdminPageCreateRoute } from "./routes/admin/pages/create";
 import { registerSiteRoutes } from "./routes/site/pages";
 import { registerStoreRoutes } from "./routes/site/store";
 import { registerAnalyticsIngestRoute } from "./routes/site/analytics-ingest";
-import { registerAdminPresentationGetRoute } from "./routes/admin/presentation/get";
-import { registerAdminPresentationPatchRoute } from "./routes/admin/presentation/patch-active-theme";
-import { registerAdminPostGetRoute } from "./routes/admin/posts/get-by-id";
-import { registerAdminPostUpdateRoute } from "./routes/admin/posts/update";
-import { registerAdminChangeSetListRoute } from "./routes/admin/change-sets/list";
-import { registerAdminChangeSetGetRoute } from "./routes/admin/change-sets/get";
-import { registerAdminChangeSetRevertRoute } from "./routes/admin/change-sets/revert";
 import { registerContentPostGetRoute } from "./routes/content/posts/get-by-slug";
+import { createCommentsModerationModule } from "./modules/comments-moderation";
 import { createCoreModule } from "./modules/core";
 import { createFormsModule } from "./modules/forms";
+import { createMenusModule } from "./modules/menus";
+import { createSettingsModule } from "./modules/settings";
+import { createUsersModule } from "./modules/users";
 import { createIntegrationsModule } from "./modules/integrations";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin";
 import { createMediaModule } from "./modules/media";
 import { createTaxonomyModule } from "./modules/taxonomy";
-import { registerAdminMemberListRoute } from "./routes/admin/members/list";
-import { registerAdminMemberGetRoute } from "./routes/admin/members/get-by-id";
-import { registerAdminMemberDisableRoute } from "./routes/admin/members/disable";
-import { registerAdminMemberRequestMagicLinkRoute } from "./routes/admin/members/request-magic-link";
+import { createContentModule } from "./modules/content";
+import { createMembersModule } from "./modules/members";
 import type { MembersRouteDeps } from "./routes/admin/members/deps";
-import { registerPublicMemberCompleteSignInRoute } from "./routes/members/complete-sign-in";
-import { registerPublicMemberSignInRequestRoute } from "./routes/members/sign-in";
 import type { MemberPublicRouteDeps } from "./routes/members/deps";
 import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "./middleware/rate-limit";
-import { registerAdminAnalyticsRecentHitsRoute } from "./routes/admin/analytics/recent-hits";
+import { createAnalyticsModule } from "./modules/analytics";
 import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status";
-import { registerAdminMenuListRoute } from "./routes/admin/menus/list";
-import { registerAdminMenuGetRoute } from "./routes/admin/menus/get-by-id";
-import { registerAdminMenuCreateRoute } from "./routes/admin/menus/create";
-import { registerAdminMenuUpdateTreeRoute } from "./routes/admin/menus/update-tree";
-import { registerAdminMenuAssignLocationRoute } from "./routes/admin/menus/assign-location";
-import { registerAdminMenuDeleteRoute } from "./routes/admin/menus/delete";
-import { registerAdminUserListRoute } from "./routes/admin/users/list";
-import { registerAdminUserCreateRoute } from "./routes/admin/users/create";
-import { registerAdminUserAssignRoleRoute } from "./routes/admin/users/assign-role";
-import { registerAdminUserAttachPolicyRoute } from "./routes/admin/users/attach-policy";
-import { registerAdminRoleListRoute } from "./routes/admin/users/list-roles";
-import { registerAdminRoleCreateRoute } from "./routes/admin/users/create-role";
-import { registerAdminPolicyListRoute } from "./routes/admin/users/list-policies";
-import { registerAdminPolicyCreateRoute } from "./routes/admin/users/create-policy";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "./routes/admin/settings/register-definitions";
-import { registerAdminSettingsGetEffectiveRoute } from "./routes/admin/settings/get-effective";
-import { registerAdminSettingsSetRoute } from "./routes/admin/settings/set";
-import { registerAdminSettingsClearRoute } from "./routes/admin/settings/clear";
-import { registerAdminSettingsResetRoute } from "./routes/admin/settings/reset";
-import { registerAdminFormsListRoute } from "./routes/admin/forms/list";
-import { registerAdminFormsCreateRoute } from "./routes/admin/forms/create";
-import { registerAdminFormsGetRoute } from "./routes/admin/forms/get-by-id";
-import { registerAdminFormsUpdateRoute } from "./routes/admin/forms/update";
-import { registerAdminFormsListSubmissionsRoute } from "./routes/admin/forms/list-submissions";
-import { registerAdminFormsGetSubmissionRoute } from "./routes/admin/forms/get-submission";
-import { registerAdminFormsDeleteSubmissionRoute } from "./routes/admin/forms/delete-submission";
+import { createFormsAdminModule } from "./modules/forms-admin";
 import { registerFormsSubmitRoute } from "./routes/site/forms-submit";
-import { registerAdminRedirectListRoute } from "./routes/admin/redirects/list";
-import { registerAdminRedirectGetRoute } from "./routes/admin/redirects/get-by-id";
-import { registerAdminRedirectCreateRoute } from "./routes/admin/redirects/create";
-import { registerAdminRedirectUpdateRoute } from "./routes/admin/redirects/update";
-import { registerAdminRedirectTombstoneRoute } from "./routes/admin/redirects/tombstone";
-import { registerAdminRedirectImportRoute } from "./routes/admin/redirects/import";
-import { registerAdminRedirectHitsRoute } from "./routes/admin/redirects/hits";
+import { createRedirectsModule } from "./modules/redirects";
+import { createStorageRecoveryModule } from "./modules/storage-recovery";
+import { createContentTypesModule } from "./modules/content-types";
+import { createSeoModule } from "./modules/seo";
 import type { RouteDeps } from "./routes/types";
 
 /**
@@ -467,26 +401,17 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
     createSeoPageHeadHook({ postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps })
   );
 
-  // ADR-046 Phase 3 (SPEC-031): the `core` server module.
-  createCoreModule().registerRoutes?.(app);
+  // ADR-046 Phase 3 (SPEC-039): the `core` server module — ops routes, then
+  // login/logout/me (ungated), then the `/api/admin` session gate, all
+  // registered together in that order so login is never caught by its own
+  // gate. Real argon2id + principal/session model (ADR-021/SPEC-006) — see
+  // middleware/dev-auth.ts.
+  createCoreModule(routeDeps).registerRoutes?.(app);
 
-  // Session auth: login/logout/me are ungated; everything else under
-  // /api/admin requires a session. Real argon2id + principal/session model
-  // (ADR-021/SPEC-006) — see middleware/dev-auth.ts.
-  registerAuthRoutes(app, routeDeps);
-  app.use("/api/admin", requireAdminSession(routeDeps));
-
-  registerAdminPostListRoute(app, routeDeps);
-  registerAdminPostCreateRoute(app, routeDeps);
-  registerAdminPostGetRoute(app, routeDeps);
-  registerAdminPostUpdateRoute(app, routeDeps);
-  registerAdminPageListRoute(app, routeDeps);
-  registerAdminPageCreateRoute(app, routeDeps);
-  registerAdminChangeSetListRoute(app, routeDeps);
-  registerAdminChangeSetGetRoute(app, routeDeps);
-  registerAdminChangeSetRevertRoute(app, routeDeps);
-  registerAdminPresentationGetRoute(app, routeDeps);
-  registerAdminPresentationPatchRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-038): the `content` server module — 11 posts/pages/change-sets/
+  // presentation admin routes. `registerContentPostGetRoute` (public site content serving) stays
+  // inline immediately below — it was never one of this module's 11 registrations.
+  createContentModule(routeDeps).registerRoutes?.(app);
   registerContentPostGetRoute(app, routeDeps);
 
   // ADR-PIPE-013 Decision §2-3 (FEAT-013 Phase 2) — one shared
@@ -498,11 +423,6 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   const magicLinkPerIpLimiter = createRateLimiter(MAGIC_LINK_PER_IP, routeDeps.clock);
   const magicLinkCompleteAttemptLimiter = createRateLimiter(MAGIC_LINK_COMPLETE_ATTEMPT, routeDeps.clock);
   const membersDeps: MembersRouteDeps = { ...routeDeps, magicLinkPerEmailLimiter };
-
-  registerAdminMemberListRoute(app, membersDeps);
-  registerAdminMemberGetRoute(app, membersDeps);
-  registerAdminMemberDisableRoute(app, membersDeps);
-  registerAdminMemberRequestMagicLinkRoute(app, membersDeps);
 
   // NEW public (non-admin) member route family (ADR-PIPE-013 Decision §2-3) —
   // mounted OUTSIDE /api/admin's `requireAdminSession` middleware (this
@@ -523,21 +443,23 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
     magicLinkPerIpLimiter,
     magicLinkCompleteAttemptLimiter,
   };
-  registerPublicMemberSignInRequestRoute(app, memberPublicDeps);
-  registerPublicMemberCompleteSignInRoute(app, memberPublicDeps);
+  // ADR-046 Phase 3 (SPEC-038): the `members` server module — 4 admin CRUD/list routes + 2 public
+  // sign-in routes, genuinely two deps objects (see `modules/members.ts`'s file header).
+  createMembersModule({ admin: membersDeps, public: memberPublicDeps }).registerRoutes?.(app);
 
-  registerAdminAnalyticsRecentHitsRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-041): the `analytics` server module — the single admin "recent hits"
+  // read route (ADR-035/ADR-PIPE-014).
+  createAnalyticsModule(routeDeps).registerRoutes?.(app);
   registerAdminModuleStatusRoute(app, routeDeps);
-  registerAdminCommentsModerationQueueRoute(app, routeDeps);
-  registerAdminCommentsModerateRoutes(app, routeDeps);
-  registerAdminCommentsGetSettingsRoute(app, routeDeps);
-  registerAdminCommentsPutSettingsRoute(app, routeDeps);
-  registerAdminMenuListRoute(app, routeDeps);
-  registerAdminMenuGetRoute(app, routeDeps);
-  registerAdminMenuCreateRoute(app, routeDeps);
-  registerAdminMenuUpdateTreeRoute(app, routeDeps);
-  registerAdminMenuAssignLocationRoute(app, routeDeps);
-  registerAdminMenuDeleteRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-040): the `comments-moderation` server module — 4 admin
+  // moderation-queue/moderate/settings routes. Distinct from `createCommentsModule` above
+  // (the ADR-031 backend composition) and from `registerCommentsSubmitRoute` below (the public,
+  // unauthenticated submission route, which stays inline near the site catch-all).
+  createCommentsModerationModule(routeDeps).registerRoutes?.(app);
+  // ADR-046 Phase 3 (SPEC-040): the `menus` server module — 6 admin CRUD/location-assignment
+  // routes (ADR-029). `MenuRouteDeps` reused as-is from its existing location in
+  // `http/admin/menus.ts` (see `modules/menus.ts`'s file header for why it lives there).
+  createMenusModule(routeDeps).registerRoutes?.(app);
   // ADR-046 Phase 3 (SPEC-034): the `integrations-admin` server module — 5 admin CRUD/read routes
   // over webhook subscriptions/deliveries (ADR-036). Distinct from `createIntegrationsModule`
   // below, which owns the Forms-to-webhook fan-out subscriber, not an HTTP surface.
@@ -547,69 +469,46 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // moved up here since its only real constraint, "before `/:slug`", still holds — see
   // `modules/media.ts`'s file header for the full disclosure).
   createMediaModule(routeDeps).registerRoutes?.(app);
-  registerAdminUserListRoute(app, routeDeps);
-  registerAdminUserCreateRoute(app, routeDeps);
-  registerAdminUserAssignRoleRoute(app, routeDeps);
-  registerAdminUserAttachPolicyRoute(app, routeDeps);
-  registerAdminRoleListRoute(app, routeDeps);
-  registerAdminRoleCreateRoute(app, routeDeps);
-  registerAdminPolicyListRoute(app, routeDeps);
-  registerAdminPolicyCreateRoute(app, routeDeps);
-  // SPEC-007 Phase 5 (T043) — admin settings HTTP surface.
-  registerAdminSettingsRegisterDefinitionsRoute(app, routeDeps);
-  registerAdminSettingsGetEffectiveRoute(app, routeDeps);
-  registerAdminSettingsSetRoute(app, routeDeps);
-  registerAdminSettingsClearRoute(app, routeDeps);
-  registerAdminSettingsResetRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-040): the `users` server module — 8 admin CRUD/list routes over
+  // users/roles/policies (ADR-021/SPEC-006 identity RBAC).
+  createUsersModule(routeDeps).registerRoutes?.(app);
+  // ADR-046 Phase 3 (SPEC-040): the `settings` server module — 5 admin settings HTTP routes
+  // (SPEC-007 Phase 5, T043).
+  createSettingsModule(routeDeps).registerRoutes?.(app);
 
-  // SPEC-010 (Forms, Tier-1 sample plugin) — 7 admin routes (definitions CRUD + submissions
-  // list/get/delete), gated per api.spec.md §2's `admin.forms.*` profiles.
-  registerAdminFormsListRoute(app, routeDeps);
-  registerAdminFormsCreateRoute(app, routeDeps);
-  registerAdminFormsGetRoute(app, routeDeps);
-  registerAdminFormsUpdateRoute(app, routeDeps);
-  registerAdminFormsListSubmissionsRoute(app, routeDeps);
-  registerAdminFormsGetSubmissionRoute(app, routeDeps);
-  registerAdminFormsDeleteSubmissionRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-041): the `forms-admin` server module — 7 admin routes (definitions
+  // CRUD + submissions list/get/delete), gated per api.spec.md §2's `admin.forms.*` profiles.
+  // Distinct from `createFormsModule` below, which owns the Forms-to-notify-subscriber
+  // subscription, not an HTTP surface.
+  createFormsAdminModule(routeDeps).registerRoutes?.(app);
 
-  // SPEC-009 (Redirects) — 7 admin routes (list/get/create/update/tombstone/import/hits), each
-  // gated by `admin.redirects.manage` (api.spec.md §1/§2).
-  registerAdminRedirectListRoute(app, routeDeps);
-  registerAdminRedirectGetRoute(app, routeDeps);
-  registerAdminRedirectCreateRoute(app, routeDeps);
-  registerAdminRedirectUpdateRoute(app, routeDeps);
-  registerAdminRedirectTombstoneRoute(app, routeDeps);
-  registerAdminRedirectImportRoute(app, routeDeps);
-  registerAdminRedirectHitsRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-041): the `redirects` server module — 7 admin routes (list/get/create/
+  // update/tombstone/import/hits), each gated by `admin.redirects.manage` (api.spec.md §1/§2).
+  createRedirectsModule(routeDeps).registerRoutes?.(app);
 
-  // ADR-041 §1 (Storage Timeline) — the one Storage/Recovery route wired in the prior pass (see
-  // that route file's own header for history).
-  registerAdminStorageTimelineRoute(app, routeDeps);
-  registerAdminStorageRestorePointsListRoute(app, routeDeps);
-  registerAdminStorageRestorePointsCreateRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-042, final slice): the `storage-recovery` server module — all 7
+  // Storage/Recovery plain registrations (Timeline + restore-points list/create, Recovery's own
+  // restore-points list, disclosure, deep-link, status). Consolidates what used to be two
+  // non-contiguous inline blocks (this one, plus a second block after `createTaxonomyModule`
+  // below) into one call site — see `modules/storage-recovery.ts`'s file header for the full
+  // disclosure of why that consolidation is safe (no path overlap with content-types/entries/
+  // taxonomy). `registerAdminStorageMigrateForwardRoutes`/`registerAdminRecoveryRestoreRoutes`
+  // (the 2 gated-mutation ceremonies) stay inline below, unchanged non-goal since SPEC-031.
+  createStorageRecoveryModule(routeDeps).registerRoutes?.(app);
 
-  // Admin-UI backend-gap closure (design-spec.md §0.4) — the read-side domain functions + admin
-  // routes the Web Design pass found missing across Collections (content-types + entries),
-  // Categories & Tags (taxonomy), and the rest of Storage/Recovery. `mergeTerm`'s plan/confirm/
-  // execute ceremony and the migrate-forward/restore-ceremony routes were deferred at the time
-  // this block was first written; see the gated-mutation route registrations below (this dispatch)
-  // for where they now live.
-  registerAdminContentTypeListRoute(app, routeDeps);
-  registerAdminContentTypeRegisterRoute(app, routeDeps);
-  registerAdminContentTypeUpdateFieldsRoute(app, routeDeps);
-  registerAdminContentTypeLifecycleRoute(app, routeDeps);
-  registerAdminEntryListRoute(app, routeDeps);
-  registerAdminEntryCreateRoute(app, routeDeps);
-  registerAdminEntryUpdateRoute(app, routeDeps);
-  registerAdminEntryLifecycleRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-042, final slice): the `content-types` server module (ADR-043
+  // Collections backend) — all 8 registrations (content-types' list/register/update-fields/
+  // lifecycle, entries' list/create/update/lifecycle). Admin-UI backend-gap closure (design-
+  // spec.md §0.4) — the read-side domain functions + admin routes the Web Design pass found
+  // missing across Collections, Categories & Tags (taxonomy), and the rest of Storage/Recovery.
+  // `mergeTerm`'s plan/confirm/execute ceremony and the migrate-forward/restore-ceremony routes
+  // were deferred at the time this block was first written; see the gated-mutation route
+  // registrations below for where they now live.
+  createContentTypesModule(routeDeps).registerRoutes?.(app);
   // ADR-046 Phase 3 (SPEC-034): the `taxonomy` server module — the 5 plain CRUD/list routes.
   // `registerAdminTaxonomyMergeTermRoutes` (the gated-mutation ceremony) stays inline below,
   // alongside the unrelated storage/recovery ceremonies it shares a gateway pattern with.
   createTaxonomyModule(routeDeps).registerRoutes?.(app);
-  registerAdminRecoveryRestorePointsListRoute(app, routeDeps);
-  registerAdminRecoveryDisclosureRoute(app, routeDeps);
-  registerAdminRecoveryDeepLinkRoute(app, routeDeps);
-  registerAdminRecoveryStatusRoute(app, routeDeps);
 
   // SPEC-016 (`core/gated-mutations`'s gateway composed into a real composition root, this
   // dispatch) — the 3 deferred gated-mutation ceremonies: taxonomy `mergeTerm`, storage
@@ -619,16 +518,13 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerAdminStorageMigrateForwardRoutes(app, routeDeps);
   registerAdminRecoveryRestoreRoutes(app, routeDeps);
 
-  // SPEC-008 (SEO) — 6 admin routes gated by `admin.seo.manage`, plus the 2 public site routes
-  // (sitemap.xml/robots.txt), which must register before `registerSiteRoutes`'s `/:slug` catch-all.
-  registerAdminSeoGetEntryRoute(app, routeDeps);
-  registerAdminSeoPutEntryRoute(app, routeDeps);
-  registerAdminSeoGetEntryAnalyzeRoute(app, routeDeps);
-  registerAdminSeoGetSettingsRoute(app, routeDeps);
-  registerAdminSeoPutSettingsRoute(app, routeDeps);
-  registerAdminSeoPostSitemapRegenerateRoute(app, routeDeps);
-  registerSeoSitemapRoute(app, routeDeps);
-  registerSeoRobotsRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-042, final slice): the `seo` server module (SPEC-008 SEO) — 6 admin
+  // routes gated by `admin.seo.manage`, plus the 2 public site routes (sitemap.xml/robots.txt),
+  // which must register before `registerSiteRoutes`'s `/:slug` catch-all below. This call site
+  // sits at the exact same position the 8 inline registrations previously occupied — well before
+  // `registerSiteRoutes` — so that ordering constraint is unchanged. See `modules/seo.ts`'s file
+  // header for the full disclosure and the re-run `route-class-precedence.unit.test.ts` evidence.
+  createSeoModule(routeDeps).registerRoutes?.(app);
 
   /**
    * ADR-046 Phase 3 (SPEC-031) — SPEC-010 (Forms) outbox wiring, now split across two

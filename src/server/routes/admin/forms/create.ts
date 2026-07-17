@@ -2,14 +2,14 @@ import { mapFormsWriteError, toAdminFormDefinitionResponse } from "../../../http
 import { createFormDefinition } from "../../../../forms/write-service";
 import type { FieldDescriptor, NotifyConfig } from "../../../../forms/types";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { FormsRouteRegistrar } from "./deps";
 
 /**
  * POST a new form definition (`FORMS_CREATE_DEFINITION`, REQ-01). Routed through
  * `write-service.ts`'s `createFormDefinition`, which wraps `executeCommand` (authorizes
  * `admin.forms.manage` internally — mirrors `posts/create.ts`, no separate pre-check needed).
  */
-export const registerAdminFormsCreateRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminFormsCreateRoute: FormsRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/forms", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

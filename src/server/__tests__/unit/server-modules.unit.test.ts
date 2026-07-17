@@ -12,18 +12,20 @@ import { ConsoleMailerAdapter } from "../../../members/mailer.console";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../../integrations";
 import { setReadinessSnapshot, getReadinessSnapshot } from "../../readiness-state";
 import { startTestServer } from "../helpers/http-test-server";
+import { createRouteDeps } from "../../app";
 
 /**
- * @file SPEC-031 (ADR-046 Phase 3) — unit coverage for the `ServerModuleHandle` factories,
- * proving the split-out `forms`/`integrations` subscription ownership still fires end-to-end
- * (a fired `form.submission.received` event still produces a webhook delivery row), and that
- * `core`'s routes still register correctly, matching pre-Phase-3 `app.ts` behavior exactly.
+ * @file SPEC-031/SPEC-039 (ADR-046 Phase 3) — unit coverage for the `ServerModuleHandle`
+ * factories, proving the split-out `forms`/`integrations` subscription ownership still fires
+ * end-to-end (a fired `form.submission.received` event still produces a webhook delivery row),
+ * and that `core`'s routes (ops + auth + the `/api/admin` gate, as of SPEC-039) still register
+ * correctly, matching pre-Phase-3 `app.ts` behavior exactly.
  */
 
-test("createCoreModule().registerRoutes wires /health, /healthz, /readyz", async (t) => {
+test("createCoreModule(deps).registerRoutes wires /health, /healthz, /readyz", async (t) => {
   setReadinessSnapshot({ ok: true, modules: [] });
   const app = express();
-  createCoreModule().registerRoutes?.(app);
+  createCoreModule(createRouteDeps()).registerRoutes?.(app);
   const baseUrl = await startTestServer(app, t);
 
   assert.equal((await fetch(`${baseUrl}/health`)).status, 200);
