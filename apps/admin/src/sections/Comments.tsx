@@ -243,8 +243,12 @@ function buildSettingsPatch(form: FormData, current: CommentsSettings): Partial<
   // REQ-10: blank means "never closes" -> null on the wire; the UI never sends the backend's
   // own -1 sentinel, only null or a positive number.
   const closeAfterDaysRaw = String(form.get("closeAfterDays") ?? "").trim();
-  const closeAfterDays = closeAfterDaysRaw === "" ? null : Number(closeAfterDaysRaw);
-  if (closeAfterDays !== current.closeAfterDays) patch.closeAfterDays = closeAfterDays;
+  const closeAfterDaysNum = Number(closeAfterDaysRaw);
+  const closeAfterDays =
+    closeAfterDaysRaw === "" ? null : Number.isFinite(closeAfterDaysNum) ? closeAfterDaysNum : undefined;
+  if (closeAfterDays !== undefined && closeAfterDays !== current.closeAfterDays) {
+    patch.closeAfterDays = closeAfterDays;
+  }
 
   const spamAutoRejectScoreRaw = String(form.get("spamAutoRejectScore") ?? "");
   const spamAutoRejectScore = Number(spamAutoRejectScoreRaw);
@@ -401,7 +405,11 @@ export function Comments() {
     <div>
       <h1>Comments</h1>
       <p>Moderate incoming comments and configure workspace-wide comment behavior.</p>
-      <QueueSection permissions={permissions} />
+      {permissions.includes("comments.read") ? (
+        <QueueSection permissions={permissions} />
+      ) : (
+        <div className="notice">You do not have permission to view the moderation queue.</div>
+      )}
       <SettingsSection canConfigure={permissions.includes("comments.configure")} />
     </div>
   );
