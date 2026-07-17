@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { listRestorePoints } from "../../../../features/storage/restore-points";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { StorageRecoveryRouteDeps } from "../storage-recovery/deps";
 
 /**
  * @file design-spec.md §4.2/§4.8 — `GET /api/admin/v1/recovery/restore-points` (Recovery's own
@@ -12,7 +12,7 @@ import type { RouteDeps } from "../../types";
  * `routes/admin/storage/restore-points.ts` reads — one persisted list, two gated views, per
  * ADR-045 §1 ("Storage and Recovery are sibling faces" of the same underlying record).
  */
-export function registerAdminRecoveryRestorePointsListRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminRecoveryRestorePointsListRoute(app: Express, deps: StorageRecoveryRouteDeps): void {
   app.get("/api/admin/v1/recovery/restore-points", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
