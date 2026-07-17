@@ -109,7 +109,6 @@ import { registerAdminRecoveryRestoreRoutes } from "./routes/admin/recovery/rest
 import { applyDevCors } from "./middleware/dev-cors";
 import { applySiteServingGate } from "./middleware/site-serving-gate";
 import { registerAdminStatic } from "./middleware/admin-static";
-import { registerAuthRoutes, requireAdminSession } from "./middleware/dev-auth";
 import { registerSiteRoutes } from "./routes/site/pages";
 import { registerStoreRoutes } from "./routes/site/store";
 import { registerAnalyticsIngestRoute } from "./routes/site/analytics-ingest";
@@ -452,14 +451,12 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
     createSeoPageHeadHook({ postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps })
   );
 
-  // ADR-046 Phase 3 (SPEC-031): the `core` server module.
-  createCoreModule().registerRoutes?.(app);
-
-  // Session auth: login/logout/me are ungated; everything else under
-  // /api/admin requires a session. Real argon2id + principal/session model
-  // (ADR-021/SPEC-006) — see middleware/dev-auth.ts.
-  registerAuthRoutes(app, routeDeps);
-  app.use("/api/admin", requireAdminSession(routeDeps));
+  // ADR-046 Phase 3 (SPEC-039): the `core` server module — ops routes, then
+  // login/logout/me (ungated), then the `/api/admin` session gate, all
+  // registered together in that order so login is never caught by its own
+  // gate. Real argon2id + principal/session model (ADR-021/SPEC-006) — see
+  // middleware/dev-auth.ts.
+  createCoreModule(routeDeps).registerRoutes?.(app);
 
   // ADR-046 Phase 3 (SPEC-038): the `content` server module — 11 posts/pages/change-sets/
   // presentation admin routes. `registerContentPostGetRoute` (public site content serving) stays
