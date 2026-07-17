@@ -1,6 +1,6 @@
 import { getEffective } from "../../../../features/settings/settings";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { SettingsRouteRegistrar } from "./deps";
 
 /**
  * GET the effective value of every setting registered in a namespace
@@ -21,7 +21,7 @@ import type { RouteRegistrar } from "../../../routes/types";
  * fallback order (`settings.ts`), since `SettingsRepoPort.listActiveDefinitions`
  * only takes one exact `workspaceId` per call.
  */
-export const registerAdminSettingsGetEffectiveRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminSettingsGetEffectiveRoute: SettingsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/settings/effective", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

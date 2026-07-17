@@ -6,8 +6,7 @@ import {
   IdentityValidationError,
 } from "../../../../identity";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../types";
-import { identityServiceDepsFrom } from "./deps";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
 
 /**
  * POST users/:principalId/roles — `ASSIGN_ROLE` (state.spec §3, AC-24/AC-25).
@@ -15,7 +14,7 @@ import { identityServiceDepsFrom } from "./deps";
  * INV-07 grant clamp must pass over every permission carried by the role's
  * policies. See `grant-service.ts`'s `assignRole` for the full contract.
  */
-export const registerAdminUserAssignRoleRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminUserAssignRoleRoute: UsersRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/roles", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

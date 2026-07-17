@@ -10,7 +10,7 @@ import {
 import type { SettingScope } from "../../../../features/settings/types";
 import { deriveRequiredPermission, set } from "../../../../features/settings/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { SettingsRouteRegistrar } from "./deps";
 import { toWriteServiceDeps } from "./shared";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
@@ -32,7 +32,7 @@ const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
  * `principalId` that isn't an active principal in the request's workspace)
  * maps to 404, NOT 500 — this was Red-Team RT-001's flagged gap.
  */
-export const registerAdminSettingsSetRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/settings/value", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

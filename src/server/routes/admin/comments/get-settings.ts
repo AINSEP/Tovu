@@ -1,10 +1,16 @@
+import type { Express } from "express";
+
 import { getCommentsSettings } from "../../../../comments";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { CommentsModerationRouteDeps } from "./deps";
 
 /** GET workspace-level `comments.*` settings (SPEC-035, ADR-028 Settings Layered Ledger wiring
- * for Comments). Mirrors `routes/admin/seo/get-settings.ts`'s exact shape. */
-export const registerAdminCommentsGetSettingsRoute: RouteRegistrar = (app, deps) => {
+ * for Comments). Mirrors `routes/admin/seo/get-settings.ts`'s exact shape.
+ *
+ * Retyped from the generic `RouteRegistrar` to `CommentsModerationRouteDeps` (ADR-046 Phase 3,
+ * SPEC-040) — a genuine narrowing, not a widening; see `deps.ts`'s file header for the confirmed
+ * field set. */
+export const registerAdminCommentsGetSettingsRoute = (app: Express, deps: CommentsModerationRouteDeps): void => {
   app.get("/api/admin/v1/workspaces/:workspaceId/comments/settings", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

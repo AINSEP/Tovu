@@ -1,9 +1,9 @@
 import { toAdminFormDefinitionResponse } from "../../../http/admin/forms";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { FormsRouteRegistrar } from "./deps";
 
 /** GET one form definition by id (`FORMS_GET_DEFINITION`, REQ-04). */
-export const registerAdminFormsGetRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminFormsGetRoute: FormsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/forms/:formId", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

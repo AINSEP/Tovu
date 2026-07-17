@@ -3,7 +3,7 @@ import { FormDefinitionNotFoundError } from "../../../../forms/errors";
 import { setFormDefinitionStatus, updateFormDefinition } from "../../../../forms/write-service";
 import type { FieldDescriptor, FormDefinitionStatus, NotifyConfig } from "../../../../forms/types";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { FormsRouteRegistrar } from "./deps";
 
 const VALID_STATUSES: readonly FormDefinitionStatus[] = ["active", "disabled"];
 
@@ -12,7 +12,7 @@ const VALID_STATUSES: readonly FormDefinitionStatus[] = ["active", "disabled"];
  * REQ-04). `slug` is deliberately ignored if present in the body (behavior.spec.md §1.1 — handled
  * inside `write-service.ts`'s `updateFormDefinition`, which never reads `patch.slug`).
  */
-export const registerAdminFormsUpdateRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = (app, deps) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/forms/:formId", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

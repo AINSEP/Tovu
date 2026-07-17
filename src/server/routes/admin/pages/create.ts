@@ -2,14 +2,14 @@ import { ForbiddenError, executeCommand } from "../../../../core/commands";
 import { createPost } from "../../../../features/post";
 import { toAdminPostResponse } from "../../../../server/http/admin/posts";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { ContentRouteRegistrar } from "../content/deps";
 
 /**
  * POST a new blank draft page — mirrors `posts/create.ts` (same command-gateway
  * wiring, same `post` table) but sets `kind: "page"` so it surfaces on the
  * Pages admin list instead of Posts.
  */
-export const registerAdminPageCreateRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminPageCreateRoute: ContentRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/pages", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

@@ -1,6 +1,6 @@
 import { toAdminPolicyResponse } from "../../../http/admin/users";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../types";
+import type { UsersRouteRegistrar } from "./deps";
 
 /**
  * GET policies — list a workspace's policies (built-in + custom) for the Users admin screen's
@@ -8,7 +8,7 @@ import type { RouteRegistrar } from "../../types";
  * (`createPolicy` is also gated by `role.manage`, not a separate `policy.manage`; 2026-07-16
  * authz sweep: this route previously had zero permission check beyond session auth).
  */
-export const registerAdminPolicyListRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminPolicyListRoute: UsersRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/policies", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

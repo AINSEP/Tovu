@@ -2,14 +2,14 @@ import type { Express } from "express";
 
 import { resolveDeepLinkContext, type StorageContextEnvelope } from "../../../../features/recovery/deep-link";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { StorageRecoveryRouteDeps } from "../storage-recovery/deps";
 
 /**
  * @file design-spec.md §4.5/§4.8 — `POST /api/admin/v1/recovery/deep-link` (re-resolves a
  * `StorageContextEnvelope` server-side on arrival, INV-04, ADR-041 §7 / ADR-045 §5). Gated by
  * `backup.read`.
  */
-export function registerAdminRecoveryDeepLinkRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminRecoveryDeepLinkRoute(app: Express, deps: StorageRecoveryRouteDeps): void {
   app.post("/api/admin/v1/recovery/deep-link", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

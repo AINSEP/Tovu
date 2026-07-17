@@ -4,7 +4,7 @@ import { ContentTypeNotActiveError, EntryFieldValidationError, EntryNotFoundErro
 import { toEntryOutbox } from "../../../../features/entries/repo.memory";
 import { updateEntry } from "../../../../features/entries/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { ContentTypesRouteDeps } from "../content-types/deps";
 
 function statusFor(error: Error): { status: number; code: string } {
   if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
@@ -19,7 +19,7 @@ function statusFor(error: Error): { status: number; code: string } {
  * @file design-spec.md §1.5/§1.9 — `PUT /api/admin/v1/entries/:id` (updates an entry's
  * title/fieldsJson, REQ-28). Gated by `admin.collections.manage`.
  */
-export function registerAdminEntryUpdateRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminEntryUpdateRoute(app: Express, deps: ContentTypesRouteDeps): void {
   app.put("/api/admin/v1/entries/:id", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

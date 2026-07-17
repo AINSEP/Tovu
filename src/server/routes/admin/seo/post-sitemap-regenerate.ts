@@ -1,9 +1,9 @@
 import { regenerateSitemapCache } from "../../../../seo";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { SeoRouteRegistrar } from "./deps";
 
 /** POST force-rebuild the cached sitemap (SPEC-008 api.spec.md `SEO_POST_SITEMAP_REGENERATE`, tasks.md T047). */
-export const registerAdminSeoPostSitemapRegenerateRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminSeoPostSitemapRegenerateRoute: SeoRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/seo/sitemap/regenerate", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
