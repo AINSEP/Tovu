@@ -9,6 +9,7 @@ import { Placeholder } from "./sections/Placeholder";
 import { Posts } from "./sections/Posts";
 import { Pages } from "./sections/Pages";
 import { Members } from "./sections/Members";
+import { Comments } from "./sections/Comments";
 import { Analytics } from "./sections/Analytics";
 import { Media } from "./sections/Media";
 import { Menus } from "./sections/Menus";
@@ -162,6 +163,8 @@ export function App() {
           <Redirects />
         ) : route.sectionId === "members" ? (
           <Members />
+        ) : route.sectionId === "comments" ? (
+          <Comments />
         ) : route.sectionId === "users" ? (
           <Users />
         ) : route.sectionId === "roles" ? (

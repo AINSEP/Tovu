@@ -460,15 +460,68 @@ export interface RestoreExecuteResult {
   restartRequired?: boolean;
 }
 
+/** Mirrors `src/comments/types.ts`'s `CommentStatus` (ADR-031, SPEC-033/035/036). */
+export type CommentStatus = "pending" | "approved" | "spam" | "trash";
+
+/** Mirrors `src/comments/types.ts`'s `CommentRecord` — the moderation-queue row shape as
+ * serialized over the wire (the queue route returns `CommentRecord[]` verbatim, no DTO layer). */
+export interface AdminComment {
+  id: string;
+  workspaceId: string;
+  entryId: string;
+  parentId: string | null;
+  threadRootId: string;
+  depth: number;
+  status: CommentStatus;
+  authorPrincipalId: string | null;
+  authorName: string;
+  authorEmail: string | null;
+  authorUrl: string | null;
+  authorIpHash: string | null;
+  bodyText: string;
+  spamScore: number | null;
+  spamProvider: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** Optimistic-concurrency version — required as `expectedVersion` on every moderation action. */
+  version: number;
+}
+
+/** A keyset-paginated moderation-queue page — mirrors `ModerationQueuePage`. */
+export interface AdminCommentsQueuePage {
+  items: AdminComment[];
+  nextCursor: string | null;
+}
+
+/** Mirrors `src/comments/types.ts`'s `CommentsSettings`. */
+export interface CommentsSettings {
+  enabled: boolean;
+  requireModeration: boolean;
+  maxDepth: number;
+  /** `null` = never closes (the UI never sends the backend's own sentinel value directly). */
+  closeAfterDays: number | null;
+  spamAutoRejectScore: number;
+  maxPerIpPerHour: number;
+}
+
+/** The 4 real per-comment moderation actions the backend exposes (`moderate.ts`'s `ACTIONS`);
+ * `purge` is intentionally separate (no `expectedVersion` guard, its own route/permission). */
+export type CommentModerationAction = "approve" | "spam" | "trash" | "restore";
+
 export class ApiError extends Error {
   readonly status: number;
   /** Canonical error `code` from the response body (`FORBIDDEN`, `GRANT_EXCEEDS_ISSUER`,
    * `VALIDATION_ERROR`, `RESOURCE_CONFLICT`, ...) when the server sent one — SPEC-006 errors.spec.md. */
   readonly code?: string;
-  constructor(message: string, status: number, code?: string) {
+  /** Raw parsed JSON error body, when present — lets a caller read route-specific fields beyond
+   * `code`/`message` (e.g. the comments moderation routes' 409 `currentVersion`, SPEC-036 REQ-07)
+   * without a bespoke `ApiError` subclass per route. */
+  readonly body?: Record<string, unknown>;
+  constructor(message: string, status: number, code?: string, body?: Record<string, unknown>) {
     super(message);
     this.status = status;
     this.code = code;
+    this.body = body;
   }
 }
 
@@ -483,7 +536,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(
       String(body?.error ?? `request failed (${res.status})`),
       res.status,
-      typeof body?.code === "string" ? body.code : undefined
+      typeof body?.code === "string" ? body.code : undefined,
+      body
     );
   }
   return body as T;
@@ -902,5 +956,33 @@ export const api = {
     request<RestoreExecuteResult>("/recovery/restore/execute", {
       method: "POST",
       body: JSON.stringify({ confirmationToken, restorePointId }),
+    }),
+
+  // Comments — moderation queue + settings (ADR-031, SPEC-033/035, SPEC-036 frontend). Mirrors
+  // `getStorageTimeline`'s query-param-building shape for the paginated queue read, and
+  // `getSeoSettings`/`setSeoSettings`'s `{data: ...}` shape for the settings GET/PUT.
+  listCommentsQueue: (opts: { status?: CommentStatus; cursor?: string; limit?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.status) params.set("status", opts.status);
+    if (opts.cursor) params.set("cursor", opts.cursor);
+    if (opts.limit) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return request<AdminCommentsQueuePage>(`/workspaces/${WORKSPACE_ID}/comments/queue${qs ? `?${qs}` : ""}`);
+  },
+  moderateComment: (commentId: string, action: CommentModerationAction, input: { expectedVersion: number; note?: string }) =>
+    request<void>(`/workspaces/${WORKSPACE_ID}/comments/${commentId}/${action}`, {
+      method: "POST",
+      body: JSON.stringify({ expectedVersion: input.expectedVersion, note: input.note }),
+    }),
+  purgeComment: (commentId: string, note?: string) =>
+    request<void>(`/workspaces/${WORKSPACE_ID}/comments/${commentId}/purge`, {
+      method: "POST",
+      body: JSON.stringify({ note }),
+    }),
+  getCommentsSettings: () => request<{ data: CommentsSettings }>(`/workspaces/${WORKSPACE_ID}/comments/settings`),
+  putCommentsSettings: (patch: Partial<CommentsSettings>) =>
+    request<{ data: CommentsSettings }>(`/workspaces/${WORKSPACE_ID}/comments/settings`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
     }),
 };
