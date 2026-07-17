@@ -7,7 +7,7 @@ import type { RouteDeps } from "../../types";
  * module (SPEC-008 SEO).
  *
  * Purpose:
- * Covers the 8 admin SEO registrars (`get-entry.ts`/`put-entry.ts`/`get-entry-analyze.ts`/
+ * Covers the 6 admin SEO registrars (`get-entry.ts`/`put-entry.ts`/`get-entry-analyze.ts`/
  * `get-settings.ts`/`put-settings.ts`/`post-sitemap-regenerate.ts`) PLUS the 2 public registrars
  * that live outside `routes/admin/seo/` (`registerSeoSitemapRoute` in `routes/site/sitemap.ts`,
  * `registerSeoRobotsRoute` in `routes/site/robots.ts`) — mirrors `media.ts`'s precedent of
