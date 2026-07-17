@@ -112,6 +112,7 @@ import { registerContentPostGetRoute } from "./routes/content/posts/get-by-slug"
 import { createCommentsModerationModule } from "./modules/comments-moderation";
 import { createCoreModule } from "./modules/core";
 import { createFormsModule } from "./modules/forms";
+import { createMenusModule } from "./modules/menus";
 import { createIntegrationsModule } from "./modules/integrations";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin";
 import { createMediaModule } from "./modules/media";
@@ -123,12 +124,6 @@ import type { MemberPublicRouteDeps } from "./routes/members/deps";
 import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "./middleware/rate-limit";
 import { registerAdminAnalyticsRecentHitsRoute } from "./routes/admin/analytics/recent-hits";
 import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status";
-import { registerAdminMenuListRoute } from "./routes/admin/menus/list";
-import { registerAdminMenuGetRoute } from "./routes/admin/menus/get-by-id";
-import { registerAdminMenuCreateRoute } from "./routes/admin/menus/create";
-import { registerAdminMenuUpdateTreeRoute } from "./routes/admin/menus/update-tree";
-import { registerAdminMenuAssignLocationRoute } from "./routes/admin/menus/assign-location";
-import { registerAdminMenuDeleteRoute } from "./routes/admin/menus/delete";
 import { registerAdminUserListRoute } from "./routes/admin/users/list";
 import { registerAdminUserCreateRoute } from "./routes/admin/users/create";
 import { registerAdminUserAssignRoleRoute } from "./routes/admin/users/assign-role";
@@ -501,12 +496,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // (the ADR-031 backend composition) and from `registerCommentsSubmitRoute` below (the public,
   // unauthenticated submission route, which stays inline near the site catch-all).
   createCommentsModerationModule(routeDeps).registerRoutes?.(app);
-  registerAdminMenuListRoute(app, routeDeps);
-  registerAdminMenuGetRoute(app, routeDeps);
-  registerAdminMenuCreateRoute(app, routeDeps);
-  registerAdminMenuUpdateTreeRoute(app, routeDeps);
-  registerAdminMenuAssignLocationRoute(app, routeDeps);
-  registerAdminMenuDeleteRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-040): the `menus` server module — 6 admin CRUD/location-assignment
+  // routes (ADR-029). `MenuRouteDeps` reused as-is from its existing location in
+  // `http/admin/menus.ts` (see `modules/menus.ts`'s file header for why it lives there).
+  createMenusModule(routeDeps).registerRoutes?.(app);
   // ADR-046 Phase 3 (SPEC-034): the `integrations-admin` server module — 5 admin CRUD/read routes
   // over webhook subscriptions/deliveries (ADR-036). Distinct from `createIntegrationsModule`
   // below, which owns the Forms-to-webhook fan-out subscriber, not an HTTP surface.
