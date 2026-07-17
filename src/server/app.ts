@@ -113,6 +113,7 @@ import { createCommentsModerationModule } from "./modules/comments-moderation";
 import { createCoreModule } from "./modules/core";
 import { createFormsModule } from "./modules/forms";
 import { createMenusModule } from "./modules/menus";
+import { createSettingsModule } from "./modules/settings";
 import { createUsersModule } from "./modules/users";
 import { createIntegrationsModule } from "./modules/integrations";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin";
@@ -125,11 +126,6 @@ import type { MemberPublicRouteDeps } from "./routes/members/deps";
 import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "./middleware/rate-limit";
 import { registerAdminAnalyticsRecentHitsRoute } from "./routes/admin/analytics/recent-hits";
 import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "./routes/admin/settings/register-definitions";
-import { registerAdminSettingsGetEffectiveRoute } from "./routes/admin/settings/get-effective";
-import { registerAdminSettingsSetRoute } from "./routes/admin/settings/set";
-import { registerAdminSettingsClearRoute } from "./routes/admin/settings/clear";
-import { registerAdminSettingsResetRoute } from "./routes/admin/settings/reset";
 import { registerAdminFormsListRoute } from "./routes/admin/forms/list";
 import { registerAdminFormsCreateRoute } from "./routes/admin/forms/create";
 import { registerAdminFormsGetRoute } from "./routes/admin/forms/get-by-id";
@@ -505,12 +501,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // ADR-046 Phase 3 (SPEC-040): the `users` server module — 8 admin CRUD/list routes over
   // users/roles/policies (ADR-021/SPEC-006 identity RBAC).
   createUsersModule(routeDeps).registerRoutes?.(app);
-  // SPEC-007 Phase 5 (T043) — admin settings HTTP surface.
-  registerAdminSettingsRegisterDefinitionsRoute(app, routeDeps);
-  registerAdminSettingsGetEffectiveRoute(app, routeDeps);
-  registerAdminSettingsSetRoute(app, routeDeps);
-  registerAdminSettingsClearRoute(app, routeDeps);
-  registerAdminSettingsResetRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-040): the `settings` server module — 5 admin settings HTTP routes
+  // (SPEC-007 Phase 5, T043).
+  createSettingsModule(routeDeps).registerRoutes?.(app);
 
   // SPEC-010 (Forms, Tier-1 sample plugin) — 7 admin routes (definitions CRUD + submissions
   // list/get/delete), gated per api.spec.md §2's `admin.forms.*` profiles.
