@@ -85,10 +85,6 @@ import { InMemoryEntryRepo } from "../features/entries/repo.memory";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { InMemoryCommentRepo } from "../comments/repo.memory";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";
-import { registerAdminCommentsModerationQueueRoute } from "./routes/admin/comments/moderation-queue";
-import { registerAdminCommentsModerateRoutes } from "./routes/admin/comments/moderate";
-import { registerAdminCommentsGetSettingsRoute } from "./routes/admin/comments/get-settings";
-import { registerAdminCommentsPutSettingsRoute } from "./routes/admin/comments/put-settings";
 import { registerAdminEntryListRoute } from "./routes/admin/entries/list";
 import { registerAdminEntryCreateRoute } from "./routes/admin/entries/create";
 import { registerAdminEntryUpdateRoute } from "./routes/admin/entries/update";
@@ -113,6 +109,7 @@ import { registerSiteRoutes } from "./routes/site/pages";
 import { registerStoreRoutes } from "./routes/site/store";
 import { registerAnalyticsIngestRoute } from "./routes/site/analytics-ingest";
 import { registerContentPostGetRoute } from "./routes/content/posts/get-by-slug";
+import { createCommentsModerationModule } from "./modules/comments-moderation";
 import { createCoreModule } from "./modules/core";
 import { createFormsModule } from "./modules/forms";
 import { createIntegrationsModule } from "./modules/integrations";
@@ -499,10 +496,11 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
 
   registerAdminAnalyticsRecentHitsRoute(app, routeDeps);
   registerAdminModuleStatusRoute(app, routeDeps);
-  registerAdminCommentsModerationQueueRoute(app, routeDeps);
-  registerAdminCommentsModerateRoutes(app, routeDeps);
-  registerAdminCommentsGetSettingsRoute(app, routeDeps);
-  registerAdminCommentsPutSettingsRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-040): the `comments-moderation` server module — 4 admin
+  // moderation-queue/moderate/settings routes. Distinct from `createCommentsModule` above
+  // (the ADR-031 backend composition) and from `registerCommentsSubmitRoute` below (the public,
+  // unauthenticated submission route, which stays inline near the site catch-all).
+  createCommentsModerationModule(routeDeps).registerRoutes?.(app);
   registerAdminMenuListRoute(app, routeDeps);
   registerAdminMenuGetRoute(app, routeDeps);
   registerAdminMenuCreateRoute(app, routeDeps);
