@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { listContentTypes } from "../../../../features/content-types/list";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { ContentTypesRouteDeps } from "./deps";
 
 /**
  * @file design-spec.md §1.9 — `GET /api/admin/v1/content-types` (Collections' content-type
@@ -11,7 +11,7 @@ import type { RouteDeps } from "../../types";
  * Follows `routes/admin/storage/timeline.ts`'s exact shape: `getAuthedPrincipal` ->
  * `deps.authorize()` -> 403 on denial -> call the domain read function -> `res.json()`.
  */
-export function registerAdminContentTypeListRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminContentTypeListRoute(app: Express, deps: ContentTypesRouteDeps): void {
   app.get("/api/admin/v1/content-types", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

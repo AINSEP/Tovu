@@ -10,7 +10,7 @@ import {
 import { toEntryOutbox } from "../../../../features/entries/repo.memory";
 import { createEntry } from "../../../../features/entries/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { ContentTypesRouteDeps } from "../content-types/deps";
 
 function statusFor(error: Error): { status: number; code: string } {
   if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
@@ -25,7 +25,7 @@ function statusFor(error: Error): { status: number; code: string } {
  * @file design-spec.md §1.5/§1.9 — `POST /api/admin/v1/entries` (creates a Collection entry,
  * REQ-13/14/19). Gated by `admin.collections.manage`.
  */
-export function registerAdminEntryCreateRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminEntryCreateRoute(app: Express, deps: ContentTypesRouteDeps): void {
   app.post("/api/admin/v1/entries", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

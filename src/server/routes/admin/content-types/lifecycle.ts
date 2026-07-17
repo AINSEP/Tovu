@@ -4,7 +4,7 @@ import { ContentTypeLifecycleError, ContentTypeNotFoundError, ForbiddenError, Ve
 import { CONTENT_TYPE_LIFECYCLE_OPS, parseContentTypeLifecycleOp } from "../../../../features/content-types/lifecycle-dispatch";
 import { toContentTypeOutbox } from "../../../../features/content-types/repo.memory";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { ContentTypesRouteDeps } from "./deps";
 
 function statusFor(error: Error): { status: number; code: string } {
   if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };
@@ -25,7 +25,7 @@ function statusFor(error: Error): { status: number; code: string } {
  * unparsed request value (mirrors `routes/admin/settings/register-definitions.ts`'s identical
  * `NON_REGISTER_DEFINITION_OPS` shape).
  */
-export function registerAdminContentTypeLifecycleRoute(app: Express, deps: RouteDeps): void {
+export function registerAdminContentTypeLifecycleRoute(app: Express, deps: ContentTypesRouteDeps): void {
   app.post("/api/admin/v1/content-types/:key/lifecycle", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
