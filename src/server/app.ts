@@ -110,20 +110,9 @@ import { applyDevCors } from "./middleware/dev-cors";
 import { applySiteServingGate } from "./middleware/site-serving-gate";
 import { registerAdminStatic } from "./middleware/admin-static";
 import { registerAuthRoutes, requireAdminSession } from "./middleware/dev-auth";
-import { registerAdminPostListRoute } from "./routes/admin/posts/list";
-import { registerAdminPostCreateRoute } from "./routes/admin/posts/create";
-import { registerAdminPageListRoute } from "./routes/admin/pages/list";
-import { registerAdminPageCreateRoute } from "./routes/admin/pages/create";
 import { registerSiteRoutes } from "./routes/site/pages";
 import { registerStoreRoutes } from "./routes/site/store";
 import { registerAnalyticsIngestRoute } from "./routes/site/analytics-ingest";
-import { registerAdminPresentationGetRoute } from "./routes/admin/presentation/get";
-import { registerAdminPresentationPatchRoute } from "./routes/admin/presentation/patch-active-theme";
-import { registerAdminPostGetRoute } from "./routes/admin/posts/get-by-id";
-import { registerAdminPostUpdateRoute } from "./routes/admin/posts/update";
-import { registerAdminChangeSetListRoute } from "./routes/admin/change-sets/list";
-import { registerAdminChangeSetGetRoute } from "./routes/admin/change-sets/get";
-import { registerAdminChangeSetRevertRoute } from "./routes/admin/change-sets/revert";
 import { registerContentPostGetRoute } from "./routes/content/posts/get-by-slug";
 import { createCoreModule } from "./modules/core";
 import { createFormsModule } from "./modules/forms";
@@ -131,13 +120,9 @@ import { createIntegrationsModule } from "./modules/integrations";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin";
 import { createMediaModule } from "./modules/media";
 import { createTaxonomyModule } from "./modules/taxonomy";
-import { registerAdminMemberListRoute } from "./routes/admin/members/list";
-import { registerAdminMemberGetRoute } from "./routes/admin/members/get-by-id";
-import { registerAdminMemberDisableRoute } from "./routes/admin/members/disable";
-import { registerAdminMemberRequestMagicLinkRoute } from "./routes/admin/members/request-magic-link";
+import { createContentModule } from "./modules/content";
+import { createMembersModule } from "./modules/members";
 import type { MembersRouteDeps } from "./routes/admin/members/deps";
-import { registerPublicMemberCompleteSignInRoute } from "./routes/members/complete-sign-in";
-import { registerPublicMemberSignInRequestRoute } from "./routes/members/sign-in";
 import type { MemberPublicRouteDeps } from "./routes/members/deps";
 import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "./middleware/rate-limit";
 import { registerAdminAnalyticsRecentHitsRoute } from "./routes/admin/analytics/recent-hits";
@@ -476,17 +461,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerAuthRoutes(app, routeDeps);
   app.use("/api/admin", requireAdminSession(routeDeps));
 
-  registerAdminPostListRoute(app, routeDeps);
-  registerAdminPostCreateRoute(app, routeDeps);
-  registerAdminPostGetRoute(app, routeDeps);
-  registerAdminPostUpdateRoute(app, routeDeps);
-  registerAdminPageListRoute(app, routeDeps);
-  registerAdminPageCreateRoute(app, routeDeps);
-  registerAdminChangeSetListRoute(app, routeDeps);
-  registerAdminChangeSetGetRoute(app, routeDeps);
-  registerAdminChangeSetRevertRoute(app, routeDeps);
-  registerAdminPresentationGetRoute(app, routeDeps);
-  registerAdminPresentationPatchRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-038): the `content` server module — 11 posts/pages/change-sets/
+  // presentation admin routes. `registerContentPostGetRoute` (public site content serving) stays
+  // inline immediately below — it was never one of this module's 11 registrations.
+  createContentModule(routeDeps).registerRoutes?.(app);
   registerContentPostGetRoute(app, routeDeps);
 
   // ADR-PIPE-013 Decision §2-3 (FEAT-013 Phase 2) — one shared
@@ -498,11 +476,6 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   const magicLinkPerIpLimiter = createRateLimiter(MAGIC_LINK_PER_IP, routeDeps.clock);
   const magicLinkCompleteAttemptLimiter = createRateLimiter(MAGIC_LINK_COMPLETE_ATTEMPT, routeDeps.clock);
   const membersDeps: MembersRouteDeps = { ...routeDeps, magicLinkPerEmailLimiter };
-
-  registerAdminMemberListRoute(app, membersDeps);
-  registerAdminMemberGetRoute(app, membersDeps);
-  registerAdminMemberDisableRoute(app, membersDeps);
-  registerAdminMemberRequestMagicLinkRoute(app, membersDeps);
 
   // NEW public (non-admin) member route family (ADR-PIPE-013 Decision §2-3) —
   // mounted OUTSIDE /api/admin's `requireAdminSession` middleware (this
@@ -523,8 +496,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
     magicLinkPerIpLimiter,
     magicLinkCompleteAttemptLimiter,
   };
-  registerPublicMemberSignInRequestRoute(app, memberPublicDeps);
-  registerPublicMemberCompleteSignInRoute(app, memberPublicDeps);
+  // ADR-046 Phase 3 (SPEC-038): the `members` server module — 4 admin CRUD/list routes + 2 public
+  // sign-in routes, genuinely two deps objects (see `modules/members.ts`'s file header).
+  createMembersModule({ admin: membersDeps, public: memberPublicDeps }).registerRoutes?.(app);
 
   registerAdminAnalyticsRecentHitsRoute(app, routeDeps);
   registerAdminModuleStatusRoute(app, routeDeps);
