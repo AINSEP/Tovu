@@ -15,7 +15,7 @@ import type { DefinitionInput } from "../../../../features/settings/settings";
 import type { SettingOwnerKind, SettingValueSchema } from "../../../../features/settings/types";
 import { registerDefinitions } from "../../../../features/settings/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { SettingsRouteRegistrar } from "./deps";
 import { toWriteServiceDeps } from "./shared";
 
 /**
@@ -46,7 +46,7 @@ import { toWriteServiceDeps } from "./shared";
  * reasonable bridge between the two shapes, disclosed here rather than
  * silently guessing.
  */
-export const registerAdminSettingsRegisterDefinitionsRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminSettingsRegisterDefinitionsRoute: SettingsRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/settings/definitions", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
