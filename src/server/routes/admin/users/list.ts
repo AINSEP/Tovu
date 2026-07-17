@@ -1,6 +1,6 @@
 import { toAdminUserResponse } from "../../../http/admin/users";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../types";
+import type { UsersRouteRegistrar } from "./deps";
 
 /**
  * GET users — list a workspace's human (`kind='user'`) principals for the
@@ -18,7 +18,7 @@ import type { RouteRegistrar } from "../../types";
  * authz sweep: this route previously had zero permission check beyond session auth, letting any
  * authenticated admin session read the full user roster regardless of role.
  */
-export const registerAdminUserListRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminUserListRoute: UsersRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/users", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

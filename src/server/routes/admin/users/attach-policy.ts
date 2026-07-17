@@ -6,8 +6,7 @@ import {
   IdentityValidationError,
 } from "../../../../identity";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../types";
-import { identityServiceDepsFrom } from "./deps";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
 
 /**
  * POST users/:principalId/policies — `ATTACH_POLICY` (state.spec §3,
@@ -16,7 +15,7 @@ import { identityServiceDepsFrom } from "./deps";
  * policy carries. See `grant-service.ts`'s `attachPolicy` for the full
  * contract.
  */
-export const registerAdminUserAttachPolicyRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminUserAttachPolicyRoute: UsersRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/policies", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

@@ -113,6 +113,7 @@ import { createCommentsModerationModule } from "./modules/comments-moderation";
 import { createCoreModule } from "./modules/core";
 import { createFormsModule } from "./modules/forms";
 import { createMenusModule } from "./modules/menus";
+import { createUsersModule } from "./modules/users";
 import { createIntegrationsModule } from "./modules/integrations";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin";
 import { createMediaModule } from "./modules/media";
@@ -124,14 +125,6 @@ import type { MemberPublicRouteDeps } from "./routes/members/deps";
 import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "./middleware/rate-limit";
 import { registerAdminAnalyticsRecentHitsRoute } from "./routes/admin/analytics/recent-hits";
 import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status";
-import { registerAdminUserListRoute } from "./routes/admin/users/list";
-import { registerAdminUserCreateRoute } from "./routes/admin/users/create";
-import { registerAdminUserAssignRoleRoute } from "./routes/admin/users/assign-role";
-import { registerAdminUserAttachPolicyRoute } from "./routes/admin/users/attach-policy";
-import { registerAdminRoleListRoute } from "./routes/admin/users/list-roles";
-import { registerAdminRoleCreateRoute } from "./routes/admin/users/create-role";
-import { registerAdminPolicyListRoute } from "./routes/admin/users/list-policies";
-import { registerAdminPolicyCreateRoute } from "./routes/admin/users/create-policy";
 import { registerAdminSettingsRegisterDefinitionsRoute } from "./routes/admin/settings/register-definitions";
 import { registerAdminSettingsGetEffectiveRoute } from "./routes/admin/settings/get-effective";
 import { registerAdminSettingsSetRoute } from "./routes/admin/settings/set";
@@ -509,14 +502,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // moved up here since its only real constraint, "before `/:slug`", still holds — see
   // `modules/media.ts`'s file header for the full disclosure).
   createMediaModule(routeDeps).registerRoutes?.(app);
-  registerAdminUserListRoute(app, routeDeps);
-  registerAdminUserCreateRoute(app, routeDeps);
-  registerAdminUserAssignRoleRoute(app, routeDeps);
-  registerAdminUserAttachPolicyRoute(app, routeDeps);
-  registerAdminRoleListRoute(app, routeDeps);
-  registerAdminRoleCreateRoute(app, routeDeps);
-  registerAdminPolicyListRoute(app, routeDeps);
-  registerAdminPolicyCreateRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-040): the `users` server module — 8 admin CRUD/list routes over
+  // users/roles/policies (ADR-021/SPEC-006 identity RBAC).
+  createUsersModule(routeDeps).registerRoutes?.(app);
   // SPEC-007 Phase 5 (T043) — admin settings HTTP surface.
   registerAdminSettingsRegisterDefinitionsRoute(app, routeDeps);
   registerAdminSettingsGetEffectiveRoute(app, routeDeps);
