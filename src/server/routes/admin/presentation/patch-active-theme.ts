@@ -6,7 +6,7 @@ import {
 import { validThemeIds } from "../../../../features/theme";
 import { toAdminPresentationResponse } from "../../../../server/http/admin/presentation";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { ContentRouteRegistrar } from "../content/deps";
 
 /**
  * PATCH the active theme.
@@ -15,7 +15,7 @@ import type { RouteRegistrar } from "../../../routes/types";
  * `members/disable.ts`'s pattern since `setActiveTheme` is a direct feature call, not routed
  * through the SPEC-001 command gateway.
  */
-export const registerAdminPresentationPatchRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, deps) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/presentation", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

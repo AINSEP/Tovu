@@ -9,7 +9,7 @@ import {
 } from "../../../../features/post";
 import { toAdminPostResponse } from "../../../../server/http/admin/posts";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { ContentRouteRegistrar } from "../content/deps";
 
 /**
  * PUT post — routed through the command gateway (SPEC-001 REQ-04).
@@ -23,7 +23,7 @@ import type { RouteRegistrar } from "../../../routes/types";
  * actor, and runs that check before the idempotency lookup (INV-04) — see
  * `executeCommand`.
  */
-export const registerAdminPostUpdateRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/posts/:postId", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

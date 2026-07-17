@@ -8,7 +8,7 @@ import {
 } from "../../../../core/commands";
 import { toChangeSetHeaderResponse } from "../../../../server/http/admin/change-sets";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { ContentRouteRegistrar } from "../content/deps";
 
 /**
  * POST revert an applied change set (SPEC-001 REQ-07/08/10).
@@ -18,7 +18,7 @@ import type { RouteRegistrar } from "../../../routes/types";
  * routed through `executeCommand` (that gateway wraps forward mutations, not reverts), so this
  * uses the same in-route pattern as `members/disable.ts` rather than the gateway pair.
  */
-export const registerAdminChangeSetRevertRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminChangeSetRevertRoute: ContentRouteRegistrar = (app, deps) => {
   const registry = defaultRevertRegistry();
 
   app.post("/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId/revert", async (req, res) => {
