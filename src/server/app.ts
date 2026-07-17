@@ -74,8 +74,6 @@ import {
 } from "../redirects";
 import { registerSlugChangeCapture } from "../routing";
 import { InMemoryDbOpsAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryStorageLedgerRepo } from "../features/storage/repo.memory";
-import { registerAdminStorageTimelineRoute } from "./routes/admin/storage/timeline";
-import { registerAdminStorageRestorePointsCreateRoute, registerAdminStorageRestorePointsListRoute } from "./routes/admin/storage/restore-points";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
 import { registerAdminContentTypeListRoute } from "./routes/admin/content-types/list";
 import { registerAdminContentTypeRegisterRoute } from "./routes/admin/content-types/register";
@@ -91,10 +89,6 @@ import { registerAdminEntryUpdateRoute } from "./routes/admin/entries/update";
 import { registerAdminEntryLifecycleRoute } from "./routes/admin/entries/lifecycle";
 import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo } from "../features/taxonomy/repo.memory";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
-import { registerAdminRecoveryRestorePointsListRoute } from "./routes/admin/recovery/restore-points";
-import { registerAdminRecoveryDisclosureRoute } from "./routes/admin/recovery/disclosure";
-import { registerAdminRecoveryDeepLinkRoute } from "./routes/admin/recovery/deep-link";
-import { registerAdminRecoveryStatusRoute } from "./routes/admin/recovery/status";
 import { buildGatewayDeps } from "./gated-mutations-composition";
 import { resolveRuntimeMode } from "./runtime-mode";
 import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer";
@@ -129,6 +123,7 @@ import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-sta
 import { createFormsAdminModule } from "./modules/forms-admin";
 import { registerFormsSubmitRoute } from "./routes/site/forms-submit";
 import { createRedirectsModule } from "./modules/redirects";
+import { createStorageRecoveryModule } from "./modules/storage-recovery";
 import type { RouteDeps } from "./routes/types";
 
 /**
@@ -505,11 +500,15 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // update/tombstone/import/hits), each gated by `admin.redirects.manage` (api.spec.md §1/§2).
   createRedirectsModule(routeDeps).registerRoutes?.(app);
 
-  // ADR-041 §1 (Storage Timeline) — the one Storage/Recovery route wired in the prior pass (see
-  // that route file's own header for history).
-  registerAdminStorageTimelineRoute(app, routeDeps);
-  registerAdminStorageRestorePointsListRoute(app, routeDeps);
-  registerAdminStorageRestorePointsCreateRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-042, final slice): the `storage-recovery` server module — all 7
+  // Storage/Recovery plain registrations (Timeline + restore-points list/create, Recovery's own
+  // restore-points list, disclosure, deep-link, status). Consolidates what used to be two
+  // non-contiguous inline blocks (this one, plus a second block after `createTaxonomyModule`
+  // below) into one call site — see `modules/storage-recovery.ts`'s file header for the full
+  // disclosure of why that consolidation is safe (no path overlap with content-types/entries/
+  // taxonomy). `registerAdminStorageMigrateForwardRoutes`/`registerAdminRecoveryRestoreRoutes`
+  // (the 2 gated-mutation ceremonies) stay inline below, unchanged non-goal since SPEC-031.
+  createStorageRecoveryModule(routeDeps).registerRoutes?.(app);
 
   // Admin-UI backend-gap closure (design-spec.md §0.4) — the read-side domain functions + admin
   // routes the Web Design pass found missing across Collections (content-types + entries),
@@ -529,10 +528,6 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `registerAdminTaxonomyMergeTermRoutes` (the gated-mutation ceremony) stays inline below,
   // alongside the unrelated storage/recovery ceremonies it shares a gateway pattern with.
   createTaxonomyModule(routeDeps).registerRoutes?.(app);
-  registerAdminRecoveryRestorePointsListRoute(app, routeDeps);
-  registerAdminRecoveryDisclosureRoute(app, routeDeps);
-  registerAdminRecoveryDeepLinkRoute(app, routeDeps);
-  registerAdminRecoveryStatusRoute(app, routeDeps);
 
   // SPEC-016 (`core/gated-mutations`'s gateway composed into a real composition root, this
   // dispatch) — the 3 deferred gated-mutation ceremonies: taxonomy `mergeTerm`, storage
