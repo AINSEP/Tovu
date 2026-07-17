@@ -1,9 +1,9 @@
 import { toAdminFormSubmissionResponse } from "../../../http/admin/forms";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { FormsRouteRegistrar } from "./deps";
 
 /** GET one submission's full field values (`FORMS_GET_SUBMISSION`, REQ-13). */
-export const registerAdminFormsGetSubmissionRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = (app, deps) => {
   app.get(
     "/api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId",
     async (req, res) => {
