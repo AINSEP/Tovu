@@ -1,10 +1,10 @@
 import { getAdminPostById, PostNotFoundError } from "../../../../features/post";
 import { toAdminPostResponse } from "../../../../server/http/admin/posts";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { ContentRouteRegistrar } from "../content/deps";
 
 /** Gated by `content.read` (2026-07-16 authz sweep — see `posts/list.ts`'s identical fix/note). */
-export const registerAdminPostGetRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminPostGetRoute: ContentRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/posts/:postId", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

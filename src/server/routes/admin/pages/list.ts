@@ -1,7 +1,7 @@
 import { listAdminPages } from "../../../../features/post";
 import { toAdminPostResponse } from "../../../../server/http/admin/posts";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { ContentRouteRegistrar } from "../content/deps";
 
 /**
  * GET admin pages — same shape as `posts/list.ts`, filtered to `kind: "page"`
@@ -10,7 +10,7 @@ import type { RouteRegistrar } from "../../../routes/types";
  *
  * Gated by `content.read` (2026-07-16 authz sweep — see `posts/list.ts`'s identical fix/note).
  */
-export const registerAdminPageListRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminPageListRoute: ContentRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/pages", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
