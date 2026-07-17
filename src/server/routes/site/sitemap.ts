@@ -1,5 +1,5 @@
 import { buildSitemap } from "../../../seo";
-import type { RouteRegistrar } from "../types";
+import type { SeoRouteRegistrar } from "../admin/seo/deps";
 
 function escapeXml(value: string): string {
   return value
@@ -14,7 +14,7 @@ function escapeXml(value: string): string {
  * GET /sitemap.xml — public, unauthenticated (SPEC-008 api.spec.md `SEO_GET_SITEMAP`, REQ-08,
  * tasks.md T046). Registered ahead of the `/:slug` catch-all in `pages.ts`'s registration order.
  */
-export const registerSeoSitemapRoute: RouteRegistrar = (app, deps) => {
+export const registerSeoSitemapRoute: SeoRouteRegistrar = (app, deps) => {
   app.get("/sitemap.xml", async (_req, res) => {
     try {
       await deps.seoReady;

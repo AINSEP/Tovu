@@ -1,9 +1,9 @@
 import { analyzeEntry, SeoEntryNotFoundError } from "../../../../seo";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { SeoRouteRegistrar } from "./deps";
 
 /** GET SEO score+issues for an entry (SPEC-008 api.spec.md `SEO_GET_ENTRY_ANALYZE`, tasks.md T047). */
-export const registerAdminSeoGetEntryAnalyzeRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminSeoGetEntryAnalyzeRoute: SeoRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/seo/entries/:entryId/analyze", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
