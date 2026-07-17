@@ -21,6 +21,12 @@ import {
  * server's `VALIDATION_ERROR` (`InvalidKeyGrammarError`/`ReservedContentTypeKeyError`) is the
  * authoritative check, same disclosed pattern `Settings.tsx`'s header comment documents for its
  * own client-side checks.
+ *
+ * SPEC-037 REQ-05: `EditFieldsDialog` wires the previously-unused `api.updateContentTypeFields` —
+ * post-creation field-schema editing, full-replace semantics (the whole `fields` array is sent),
+ * optimistic-concurrency via `expectedVersion`. A `409` (stale version — another edit landed since
+ * this dialog loaded) surfaces a dedicated "refresh and try again" message rather than silently
+ * applying the stale write or falling through to the generic error banner.
  */
 
 const KEY_GRAMMAR = /^[a-z][a-z0-9_]{0,63}$/;
@@ -213,6 +219,154 @@ function NewContentTypeDialog(props: { onCreated: () => void; onCancel: () => vo
 }
 
 // ---------------------------------------------------------------------------
+// Edit fields dialog (REQ-05 — post-creation field-schema editing)
+// ---------------------------------------------------------------------------
+
+/** `409 VERSION_CONFLICT` copy — reuses the same "refresh and try again" shape SPEC-036's
+ * comment-moderation 409 handling established for stale-`expectedVersion` writes, rather than
+ * inventing a new wording for this screen. */
+const STALE_VERSION_MESSAGE =
+  "This content type changed since you loaded it, refresh and try again.";
+
+function EditFieldsDialog(props: { contentType: AdminContentType; onSaved: () => void; onCancel: () => void }) {
+  const [fields, setFields] = useState<DraftField[]>(
+    () => props.contentType.fields.map((f) => ({ ...f, _rowId: nextRowId++ }))
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") props.onCancel();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function updateField(rowId: number, patch: Partial<DraftField>) {
+    setFields((current) => current.map((f) => (f._rowId === rowId ? { ...f, ...patch } : f)));
+  }
+
+  function removeField(rowId: number) {
+    setFields((current) => current.filter((f) => f._rowId !== rowId));
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    if (fields.length === 0) {
+      setError("At least one field is required.");
+      return;
+    }
+    for (const f of fields) {
+      const fieldError = validateFieldName(f.name.trim());
+      if (fieldError) {
+        setError(`Field "${f.name || "(unnamed)"}": ${fieldError}`);
+        return;
+      }
+    }
+
+    setSaving(true);
+    try {
+      await api.updateContentTypeFields(props.contentType.key, {
+        fields: fields.map(({ _rowId: _unused, ...f }) => f),
+        expectedVersion: props.contentType.version,
+      });
+      props.onSaved();
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        setError(STALE_VERSION_MESSAGE);
+      } else {
+        setError(describeApiError(e, "Failed to update fields"));
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="settings-dialog-backdrop" onClick={props.onCancel}>
+      <form
+        className="settings-dialog collections-type-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-fields-title"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={submit}
+      >
+        <h2 id="edit-fields-title">Edit fields — {props.contentType.label}</h2>
+
+        <div>
+          {fields.map((f, index) => (
+            <fieldset key={f._rowId} className="collections-field-row">
+              <legend>Field {index + 1}</legend>
+              <label htmlFor={`ct-edit-field-name-${f._rowId}`}>Name</label>
+              <input
+                id={`ct-edit-field-name-${f._rowId}`}
+                value={f.name}
+                onChange={(e) => updateField(f._rowId, { name: e.target.value })}
+                placeholder="e.g. prep_time"
+              />
+              <label htmlFor={`ct-edit-field-kind-${f._rowId}`}>Kind</label>
+              <select
+                id={`ct-edit-field-kind-${f._rowId}`}
+                value={f.kind}
+                onChange={(e) => updateField(f._rowId, { kind: e.target.value as ContentTypeFieldKind })}
+              >
+                {CONTENT_TYPE_FIELD_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
+                ))}
+              </select>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={f.required}
+                  onChange={(e) => updateField(f._rowId, { required: e.target.checked })}
+                />
+                Required
+              </label>
+              <label title="Adds a database index; keep this list small.">
+                <input
+                  type="checkbox"
+                  checked={f.queryable}
+                  onChange={(e) => updateField(f._rowId, { queryable: e.target.checked })}
+                />
+                Queryable (adds a database index; keep this list small)
+              </label>
+              <button type="button" onClick={() => removeField(f._rowId)}>
+                Remove field
+              </button>
+            </fieldset>
+          ))}
+          <button type="button" onClick={() => setFields((current) => [...current, emptyField()])}>
+            Add field
+          </button>
+        </div>
+
+        {error ? (
+          <span className="save-error" role="alert">
+            {error}
+          </span>
+        ) : null}
+
+        <span className="editor-actions">
+          <button type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Save fields"}
+          </button>
+          <button type="button" onClick={props.onCancel}>
+            Cancel
+          </button>
+        </span>
+      </form>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Lifecycle confirm dialog (Deprecate / Reactivate / Tombstone — design-spec.md §1.3/§1.8)
 // ---------------------------------------------------------------------------
 
@@ -283,6 +437,7 @@ export function Collections() {
   const [error, setError] = useState<string | null>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [pendingLifecycle, setPendingLifecycle] = useState<{ op: "deprecate" | "tombstone"; contentType: AdminContentType } | null>(null);
+  const [editingFieldsFor, setEditingFieldsFor] = useState<AdminContentType | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   function load() {
@@ -351,6 +506,9 @@ export function Collections() {
                   <a href={`#/collections/${ct.key}`}>Manage entries</a>
                 </td>
                 <td className="collections-row-actions">
+                  <button type="button" onClick={() => setEditingFieldsFor(ct)}>
+                    Edit fields
+                  </button>
                   {ct.status === "active" ? (
                     <button type="button" onClick={() => setPendingLifecycle({ op: "deprecate", contentType: ct })}>
                       Deprecate
@@ -392,6 +550,17 @@ export function Collections() {
             setPendingLifecycle(null);
           }}
           onCancel={() => setPendingLifecycle(null)}
+        />
+      ) : null}
+
+      {editingFieldsFor ? (
+        <EditFieldsDialog
+          contentType={editingFieldsFor}
+          onSaved={() => {
+            setEditingFieldsFor(null);
+            load();
+          }}
+          onCancel={() => setEditingFieldsFor(null)}
         />
       ) : null}
     </div>
