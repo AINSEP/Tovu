@@ -521,7 +521,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // ADR-046 Phase 3 (SPEC-042, final slice): the `seo` server module (SPEC-008 SEO) — 6 admin
   // routes gated by `admin.seo.manage`, plus the 2 public site routes (sitemap.xml/robots.txt),
   // which must register before `registerSiteRoutes`'s `/:slug` catch-all below. This call site
-  // sits at the exact same position the 10 inline registrations previously occupied — well before
+  // sits at the exact same position the 8 inline registrations previously occupied — well before
   // `registerSiteRoutes` — so that ordering constraint is unchanged. See `modules/seo.ts`'s file
   // header for the full disclosure and the re-run `route-class-precedence.unit.test.ts` evidence.
   createSeoModule(routeDeps).registerRoutes?.(app);
