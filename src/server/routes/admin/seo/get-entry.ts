@@ -1,12 +1,12 @@
 import { getEntryMeta, SeoEntryNotFoundError } from "../../../../seo";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { SeoRouteRegistrar } from "./deps";
 
 /**
  * GET an entry's effective SEO meta (SPEC-008 api.spec.md `SEO_GET_ENTRY_META`, tasks.md T047).
  * Path deviation: workspace-scoped mount, matching every other admin route in this codebase.
  */
-export const registerAdminSeoGetEntryRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminSeoGetEntryRoute: SeoRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/seo/entries/:entryId", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

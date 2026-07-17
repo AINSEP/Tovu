@@ -7,7 +7,7 @@ import {
 } from "../../../../seo";
 import { invalidateSitemapCache } from "../../../../seo/sitemap";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { SeoRouteRegistrar } from "./deps";
 
 /**
  * PUT (partial) SEO overrides for an entry (SPEC-008 api.spec.md `SEO_PUT_ENTRY_META`, tasks.md T047).
@@ -15,7 +15,7 @@ import type { RouteRegistrar } from "../../../routes/types";
  * does the route-layer authorize-then-403 dance first, matching every sibling admin route's shape,
  * so a caller lacking the permission never reaches the chokepoint at all (fail-closed, INV-07-style).
  */
-export const registerAdminSeoPutEntryRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = (app, deps) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/seo/entries/:entryId", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

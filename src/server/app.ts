@@ -5,14 +5,6 @@ import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../core/events"
 import { InMemoryChangeSetRepo } from "../core/commands";
 import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../seo";
 import { registerPageHeadContributor } from "./http/site/page-head";
-import { registerAdminSeoGetEntryRoute } from "./routes/admin/seo/get-entry";
-import { registerAdminSeoGetEntryAnalyzeRoute } from "./routes/admin/seo/get-entry-analyze";
-import { registerAdminSeoGetSettingsRoute } from "./routes/admin/seo/get-settings";
-import { registerAdminSeoPostSitemapRegenerateRoute } from "./routes/admin/seo/post-sitemap-regenerate";
-import { registerAdminSeoPutEntryRoute } from "./routes/admin/seo/put-entry";
-import { registerAdminSeoPutSettingsRoute } from "./routes/admin/seo/put-settings";
-import { registerSeoRobotsRoute } from "./routes/site/robots";
-import { registerSeoSitemapRoute } from "./routes/site/sitemap";
 import { InMemoryPostRepo } from "../features/post";
 import { InMemoryPresentationSettingsRepo } from "../features/presentation";
 import { InMemorySettingsRepo } from "../features/settings/repo.memory";
@@ -117,6 +109,7 @@ import { registerFormsSubmitRoute } from "./routes/site/forms-submit";
 import { createRedirectsModule } from "./modules/redirects";
 import { createStorageRecoveryModule } from "./modules/storage-recovery";
 import { createContentTypesModule } from "./modules/content-types";
+import { createSeoModule } from "./modules/seo";
 import type { RouteDeps } from "./routes/types";
 
 /**
@@ -525,16 +518,13 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerAdminStorageMigrateForwardRoutes(app, routeDeps);
   registerAdminRecoveryRestoreRoutes(app, routeDeps);
 
-  // SPEC-008 (SEO) — 6 admin routes gated by `admin.seo.manage`, plus the 2 public site routes
-  // (sitemap.xml/robots.txt), which must register before `registerSiteRoutes`'s `/:slug` catch-all.
-  registerAdminSeoGetEntryRoute(app, routeDeps);
-  registerAdminSeoPutEntryRoute(app, routeDeps);
-  registerAdminSeoGetEntryAnalyzeRoute(app, routeDeps);
-  registerAdminSeoGetSettingsRoute(app, routeDeps);
-  registerAdminSeoPutSettingsRoute(app, routeDeps);
-  registerAdminSeoPostSitemapRegenerateRoute(app, routeDeps);
-  registerSeoSitemapRoute(app, routeDeps);
-  registerSeoRobotsRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-042, final slice): the `seo` server module (SPEC-008 SEO) — 6 admin
+  // routes gated by `admin.seo.manage`, plus the 2 public site routes (sitemap.xml/robots.txt),
+  // which must register before `registerSiteRoutes`'s `/:slug` catch-all below. This call site
+  // sits at the exact same position the 10 inline registrations previously occupied — well before
+  // `registerSiteRoutes` — so that ordering constraint is unchanged. See `modules/seo.ts`'s file
+  // header for the full disclosure and the re-run `route-class-precedence.unit.test.ts` evidence.
+  createSeoModule(routeDeps).registerRoutes?.(app);
 
   /**
    * ADR-046 Phase 3 (SPEC-031) — SPEC-010 (Forms) outbox wiring, now split across two

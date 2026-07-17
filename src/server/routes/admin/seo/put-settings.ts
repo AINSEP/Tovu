@@ -1,9 +1,9 @@
 import { setSeoSettings, SeoSettingsValidationError } from "../../../../seo";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import type { SeoRouteRegistrar } from "./deps";
 
 /** PUT (partial) workspace-level `seo.*` settings (SPEC-008 api.spec.md `SEO_PUT_SETTINGS`, tasks.md T047). */
-export const registerAdminSeoPutSettingsRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminSeoPutSettingsRoute: SeoRouteRegistrar = (app, deps) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/seo/settings", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

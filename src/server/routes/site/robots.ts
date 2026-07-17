@@ -1,11 +1,11 @@
 import { buildRobots } from "../../../seo";
-import type { RouteRegistrar } from "../types";
+import type { SeoRouteRegistrar } from "../admin/seo/deps";
 
 /**
  * GET /robots.txt — public, unauthenticated (SPEC-008 api.spec.md `SEO_GET_ROBOTS`, REQ-09,
  * tasks.md T046).
  */
-export const registerSeoRobotsRoute: RouteRegistrar = (app, deps) => {
+export const registerSeoRobotsRoute: SeoRouteRegistrar = (app, deps) => {
   app.get("/robots.txt", async (_req, res) => {
     try {
       await deps.seoReady;
