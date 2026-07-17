@@ -75,18 +75,10 @@ import {
 import { registerSlugChangeCapture } from "../routing";
 import { InMemoryDbOpsAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryStorageLedgerRepo } from "../features/storage/repo.memory";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
-import { registerAdminContentTypeListRoute } from "./routes/admin/content-types/list";
-import { registerAdminContentTypeRegisterRoute } from "./routes/admin/content-types/register";
-import { registerAdminContentTypeUpdateFieldsRoute } from "./routes/admin/content-types/update-fields";
-import { registerAdminContentTypeLifecycleRoute } from "./routes/admin/content-types/lifecycle";
 import { InMemoryEntryRepo } from "../features/entries/repo.memory";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { InMemoryCommentRepo } from "../comments/repo.memory";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";
-import { registerAdminEntryListRoute } from "./routes/admin/entries/list";
-import { registerAdminEntryCreateRoute } from "./routes/admin/entries/create";
-import { registerAdminEntryUpdateRoute } from "./routes/admin/entries/update";
-import { registerAdminEntryLifecycleRoute } from "./routes/admin/entries/lifecycle";
 import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo } from "../features/taxonomy/repo.memory";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
 import { buildGatewayDeps } from "./gated-mutations-composition";
@@ -124,6 +116,7 @@ import { createFormsAdminModule } from "./modules/forms-admin";
 import { registerFormsSubmitRoute } from "./routes/site/forms-submit";
 import { createRedirectsModule } from "./modules/redirects";
 import { createStorageRecoveryModule } from "./modules/storage-recovery";
+import { createContentTypesModule } from "./modules/content-types";
 import type { RouteDeps } from "./routes/types";
 
 /**
@@ -510,20 +503,15 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // (the 2 gated-mutation ceremonies) stay inline below, unchanged non-goal since SPEC-031.
   createStorageRecoveryModule(routeDeps).registerRoutes?.(app);
 
-  // Admin-UI backend-gap closure (design-spec.md §0.4) — the read-side domain functions + admin
-  // routes the Web Design pass found missing across Collections (content-types + entries),
-  // Categories & Tags (taxonomy), and the rest of Storage/Recovery. `mergeTerm`'s plan/confirm/
-  // execute ceremony and the migrate-forward/restore-ceremony routes were deferred at the time
-  // this block was first written; see the gated-mutation route registrations below (this dispatch)
-  // for where they now live.
-  registerAdminContentTypeListRoute(app, routeDeps);
-  registerAdminContentTypeRegisterRoute(app, routeDeps);
-  registerAdminContentTypeUpdateFieldsRoute(app, routeDeps);
-  registerAdminContentTypeLifecycleRoute(app, routeDeps);
-  registerAdminEntryListRoute(app, routeDeps);
-  registerAdminEntryCreateRoute(app, routeDeps);
-  registerAdminEntryUpdateRoute(app, routeDeps);
-  registerAdminEntryLifecycleRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-042, final slice): the `content-types` server module (ADR-043
+  // Collections backend) — all 8 registrations (content-types' list/register/update-fields/
+  // lifecycle, entries' list/create/update/lifecycle). Admin-UI backend-gap closure (design-
+  // spec.md §0.4) — the read-side domain functions + admin routes the Web Design pass found
+  // missing across Collections, Categories & Tags (taxonomy), and the rest of Storage/Recovery.
+  // `mergeTerm`'s plan/confirm/execute ceremony and the migrate-forward/restore-ceremony routes
+  // were deferred at the time this block was first written; see the gated-mutation route
+  // registrations below for where they now live.
+  createContentTypesModule(routeDeps).registerRoutes?.(app);
   // ADR-046 Phase 3 (SPEC-034): the `taxonomy` server module — the 5 plain CRUD/list routes.
   // `registerAdminTaxonomyMergeTermRoutes` (the gated-mutation ceremony) stays inline below,
   // alongside the unrelated storage/recovery ceremonies it shares a gateway pattern with.
