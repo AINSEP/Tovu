@@ -124,23 +124,11 @@ import { createMembersModule } from "./modules/members";
 import type { MembersRouteDeps } from "./routes/admin/members/deps";
 import type { MemberPublicRouteDeps } from "./routes/members/deps";
 import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "./middleware/rate-limit";
-import { registerAdminAnalyticsRecentHitsRoute } from "./routes/admin/analytics/recent-hits";
+import { createAnalyticsModule } from "./modules/analytics";
 import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status";
-import { registerAdminFormsListRoute } from "./routes/admin/forms/list";
-import { registerAdminFormsCreateRoute } from "./routes/admin/forms/create";
-import { registerAdminFormsGetRoute } from "./routes/admin/forms/get-by-id";
-import { registerAdminFormsUpdateRoute } from "./routes/admin/forms/update";
-import { registerAdminFormsListSubmissionsRoute } from "./routes/admin/forms/list-submissions";
-import { registerAdminFormsGetSubmissionRoute } from "./routes/admin/forms/get-submission";
-import { registerAdminFormsDeleteSubmissionRoute } from "./routes/admin/forms/delete-submission";
+import { createFormsAdminModule } from "./modules/forms-admin";
 import { registerFormsSubmitRoute } from "./routes/site/forms-submit";
-import { registerAdminRedirectListRoute } from "./routes/admin/redirects/list";
-import { registerAdminRedirectGetRoute } from "./routes/admin/redirects/get-by-id";
-import { registerAdminRedirectCreateRoute } from "./routes/admin/redirects/create";
-import { registerAdminRedirectUpdateRoute } from "./routes/admin/redirects/update";
-import { registerAdminRedirectTombstoneRoute } from "./routes/admin/redirects/tombstone";
-import { registerAdminRedirectImportRoute } from "./routes/admin/redirects/import";
-import { registerAdminRedirectHitsRoute } from "./routes/admin/redirects/hits";
+import { createRedirectsModule } from "./modules/redirects";
 import type { RouteDeps } from "./routes/types";
 
 /**
@@ -478,7 +466,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // sign-in routes, genuinely two deps objects (see `modules/members.ts`'s file header).
   createMembersModule({ admin: membersDeps, public: memberPublicDeps }).registerRoutes?.(app);
 
-  registerAdminAnalyticsRecentHitsRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-041): the `analytics` server module — the single admin "recent hits"
+  // read route (ADR-035/ADR-PIPE-014).
+  createAnalyticsModule(routeDeps).registerRoutes?.(app);
   registerAdminModuleStatusRoute(app, routeDeps);
   // ADR-046 Phase 3 (SPEC-040): the `comments-moderation` server module — 4 admin
   // moderation-queue/moderate/settings routes. Distinct from `createCommentsModule` above
@@ -505,25 +495,15 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // (SPEC-007 Phase 5, T043).
   createSettingsModule(routeDeps).registerRoutes?.(app);
 
-  // SPEC-010 (Forms, Tier-1 sample plugin) — 7 admin routes (definitions CRUD + submissions
-  // list/get/delete), gated per api.spec.md §2's `admin.forms.*` profiles.
-  registerAdminFormsListRoute(app, routeDeps);
-  registerAdminFormsCreateRoute(app, routeDeps);
-  registerAdminFormsGetRoute(app, routeDeps);
-  registerAdminFormsUpdateRoute(app, routeDeps);
-  registerAdminFormsListSubmissionsRoute(app, routeDeps);
-  registerAdminFormsGetSubmissionRoute(app, routeDeps);
-  registerAdminFormsDeleteSubmissionRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-041): the `forms-admin` server module — 7 admin routes (definitions
+  // CRUD + submissions list/get/delete), gated per api.spec.md §2's `admin.forms.*` profiles.
+  // Distinct from `createFormsModule` below, which owns the Forms-to-notify-subscriber
+  // subscription, not an HTTP surface.
+  createFormsAdminModule(routeDeps).registerRoutes?.(app);
 
-  // SPEC-009 (Redirects) — 7 admin routes (list/get/create/update/tombstone/import/hits), each
-  // gated by `admin.redirects.manage` (api.spec.md §1/§2).
-  registerAdminRedirectListRoute(app, routeDeps);
-  registerAdminRedirectGetRoute(app, routeDeps);
-  registerAdminRedirectCreateRoute(app, routeDeps);
-  registerAdminRedirectUpdateRoute(app, routeDeps);
-  registerAdminRedirectTombstoneRoute(app, routeDeps);
-  registerAdminRedirectImportRoute(app, routeDeps);
-  registerAdminRedirectHitsRoute(app, routeDeps);
+  // ADR-046 Phase 3 (SPEC-041): the `redirects` server module — 7 admin routes (list/get/create/
+  // update/tombstone/import/hits), each gated by `admin.redirects.manage` (api.spec.md §1/§2).
+  createRedirectsModule(routeDeps).registerRoutes?.(app);
 
   // ADR-041 §1 (Storage Timeline) — the one Storage/Recovery route wired in the prior pass (see
   // that route file's own header for history).
