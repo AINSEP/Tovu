@@ -1,11 +1,10 @@
 import { createRole, IdentityForbiddenError, IdentityValidationError } from "../../../../identity";
 import { toAdminRoleResponse } from "../../../http/admin/users";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../types";
-import { identityServiceDepsFrom } from "./deps";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
 
 /** POST roles — `CREATE_ROLE` (state.spec §3). Gated by `role.manage`; always mints `isBuiltin=false`. */
-export const registerAdminRoleCreateRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminRoleCreateRoute: UsersRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/roles", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

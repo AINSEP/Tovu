@@ -1,14 +1,13 @@
 import { createPolicy, IdentityForbiddenError, IdentityValidationError } from "../../../../identity";
 import { toAdminPolicyResponse } from "../../../http/admin/users";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../types";
-import { identityServiceDepsFrom } from "./deps";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
 
 /**
  * POST policies — `CREATE_POLICY` (state.spec §3). Gated by `role.manage`;
  * always mints `isBuiltin=false` and `isFrozen=false`.
  */
-export const registerAdminPolicyCreateRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminPolicyCreateRoute: UsersRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/policies", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

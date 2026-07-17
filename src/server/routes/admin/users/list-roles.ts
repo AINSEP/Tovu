@@ -1,6 +1,6 @@
 import { toAdminRoleResponse } from "../../../http/admin/users";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../types";
+import type { UsersRouteRegistrar } from "./deps";
 
 /**
  * GET roles — list a workspace's roles (built-in + custom) for the Users admin screen's role
@@ -8,7 +8,7 @@ import type { RouteRegistrar } from "../../types";
  * `grant-service.ts`), since no separate `role.read` permission exists in the catalog (2026-07-16
  * authz sweep: this route previously had zero permission check beyond session auth).
  */
-export const registerAdminRoleListRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminRoleListRoute: UsersRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/roles", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
