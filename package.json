@@ -17,6 +17,7 @@
     "test:cov": "rm -rf coverage && mkdir -p coverage && node --import tsx --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test-reporter=spec --test-reporter-destination=stdout \"src/**/*.test.ts\"",
     "check:boundaries": "depcruise --config .dependency-cruiser.cjs src",
     "check:inventory": "tsx scripts/check-capability-inventory.ts",
+    "lint": "biome lint .",
     "admin:install": "npm --prefix apps/admin install",
     "admin:build": "npm --prefix apps/admin run build",
     "admin:dev": "npm --prefix apps/admin run dev",
@@ -31,6 +32,7 @@
     "sharp": "^0.35.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.5",
     "@playwright/test": "^1.61.1",
     "@types/better-sqlite3": "^7.6.12",
     "@types/express": "^5.0.0",
