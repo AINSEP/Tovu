@@ -127,9 +127,14 @@ export const NAV: NavGroup[] = [
         icon: '<circle cx="6.2" cy="7" r="3.4"/><circle cx="11.8" cy="7" r="3.4"/><circle cx="9" cy="11.6" r="3.4"/>',
       },
       {
+        // SPEC-045 (scoping memo, BLOCKED pending an owner decision on Options A/B/C): no plugin
+        // loader/artifact/registry exists in this codebase yet (SPEC-005 is APPROVED but
+        // unimplemented) — `href` removed and `soon: true` restored so this entry doesn't point at
+        // a route with nothing real behind it. See `ADS-project-knowledge/specs/045-plugins-admin/
+        // feature.spec.md` before building anything here.
         id: "plugins",
         label: "Plugins",
-        href: "#/section/plugins",
+        soon: true,
         icon: '<path d="M7 2v3H4v9h10V5h-3V2H7z"/>',
       },
       {
@@ -163,6 +168,15 @@ export const NAV: NavGroup[] = [
         label: "Settings",
         href: "#/section/settings",
         icon: '<circle cx="9" cy="9" r="2.5"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.2 4.2l1.4 1.4M12.4 12.4l1.4 1.4M4.2 13.8l1.4-1.4M12.4 5.6l1.4-1.4"/>',
+      },
+      {
+        // SPEC-044 (Workspace Administration). Placement call (OQ-04 in feature.spec.md, not yet
+        // resolved by the owner): a standalone nav entry near Settings, its closest sibling
+        // concept — could instead become a Settings tab; either satisfies every REQ/AC unchanged.
+        id: "workspace",
+        label: "Workspace",
+        href: "#/section/workspace",
+        icon: '<rect x="2.5" y="2.5" width="13" height="13" rx="2"/><path d="M2.5 7h13"/>',
       },
     ],
   },
