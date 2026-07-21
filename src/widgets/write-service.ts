@@ -10,14 +10,12 @@
  * Deletion ladder (ADR-047 §7): `trashWidgetInstance` is soft/revisioned and UNCONDITIONAL (never
  * blocked by references — matches EC-07's "trashed target degrades to a placeholder" framing);
  * `purgeWidgetInstance` (no `force`) is the step REQ-42's referenced-instance guard actually gates;
- * `purgeWidgetInstance({force: true})` always succeeds and flags danglers (REQ-43). FLAGGED: the
- * certified `write-service.integration.test.ts` `AC-29/REQ-42` test calls `trashWidgetInstance`
- * (not `purgeWidgetInstance`) on an instance that is never placed anywhere, expecting a
- * `WidgetReferencedError` — under this ADR-faithful reading (and under ANY reading, since that test
- * never actually creates a referencing placement) that test cannot pass without either
- * unconditionally rejecting every trash call (clearly wrong production behavior) or weakening the
- * test's own assertion (not done, per this task's explicit instruction). Left failing and reported,
- * not silently patched around — see the implementation report.
+ * `purgeWidgetInstance({force: true})` always succeeds and flags danglers (REQ-43). Corrected
+ * 2026-07-21: `write-service.integration.test.ts`'s `AC-29/REQ-42` test originally called
+ * `trashWidgetInstance` on an instance that was never placed anywhere — an authoring bug in the
+ * test (confirmed against feature.spec.md REQ-42/43 and this file's own deletion ladder), not this
+ * implementation. Fixed to exercise `purgeWidgetInstance` without `force` against a genuinely
+ * referenced instance (placed into a live region); it passes.
  *
  * `entry_refs` extraction happens immediately after each successful `createEntry`/`updateEntry`
  * call, NOT inside the same DB transaction (a disclosed gap — `createEntry`/`updateEntry` open and
