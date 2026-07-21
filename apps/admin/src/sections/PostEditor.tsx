@@ -4,6 +4,7 @@ import type { EditorView } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import { api, type AdminPost } from "../lib/api";
+import { WidgetEmbed, WidgetEmbedInsertControl } from "../lib/widget-embed-extension";
 
 /** Reads a browser `File` into a full `data:` URL (mirrors Media.tsx's upload helper, but keeps the prefix). */
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -109,6 +110,9 @@ function Toolbar({ editor }: { editor: Editor }) {
           Img
         </button>
       </div>
+      <div className="grp">
+        <WidgetEmbedInsertControl editor={editor} />
+      </div>
     </div>
   );
 }
@@ -122,7 +126,7 @@ export function PostEditor(props: { postId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   const editor = useEditor({
-    extensions: [StarterKit, Image],
+    extensions: [StarterKit, Image, WidgetEmbed],
     content: "",
     editorProps: {
       handleDrop: (view, event, _slice, moved) => handleImageDrop(view, event, moved),

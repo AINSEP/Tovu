@@ -75,6 +75,12 @@ export const NAV: NavGroup[] = [
         icon: '<path d="M4 3h10M4 7h10M4 11h6M2 3v.01M2 7v.01M2 11v.01"/>',
       },
       {
+        id: "widgets",
+        label: "Widgets",
+        href: "#/widgets",
+        icon: '<rect x="2" y="2" width="6" height="6" rx="1"/><rect x="10" y="2" width="6" height="6" rx="1"/><rect x="2" y="10" width="6" height="6" rx="1"/><rect x="10" y="10" width="6" height="6" rx="1"/>',
+      },
+      {
         id: "taxonomy",
         label: "Categories & Tags",
         href: "#/section/taxonomy",

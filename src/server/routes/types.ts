@@ -61,6 +61,8 @@ import type { DisclosureWatermarkSourcePort } from "../../features/recovery/disc
 import type { DeepLinkRestorePointLookupPort } from "../../features/recovery/deep-link";
 import type { GatewayDeps } from "../../core/gated-mutations/gateway";
 import type { LedgerAppendPort, MergeableEntryTermRepoPort } from "../gated-mutations-composition";
+import type { WidgetRegionBindingRepoPort } from "../../widgets/ports";
+import type { EntryRefsRepoPort } from "../../core/entry-refs/ports";
 
 export interface RouteDeps {
   workspaceId: UUID;
@@ -323,6 +325,20 @@ export interface RouteDeps {
    * `settingsReady`). The comments admin settings routes (`routes/admin/comments/*-settings.ts`)
    * await this before reading/writing through the ledger. */
   commentsSettingsReady: Promise<void>;
+  /**
+   * SPEC-043/ADR-047 (widgets) — the `widget_region_bindings` derived-projection repo
+   * (`widgets/ports.ts`'s `WidgetRegionBindingRepoPort`, mirroring `NavLocationBindingRepoPort`
+   * exactly). Consumed by both the admin `widgets` routes (region CRUD) and the public site-render
+   * path (`routes/site/pages.ts` → `resolvePageWidgets`, W-004).
+   */
+  widgetBindingRepo: WidgetRegionBindingRepoPort;
+  /**
+   * SPEC-043/ADR-022 §5 (`entry_refs`) — the reference-integrity index's persistence seam
+   * (`core/entry-refs/ports.ts`'s `EntryRefsRepoPort`). Schema-owned by `core`, first populated by
+   * `widgets` (the region-area/write-service chokepoint hooks) — consumed here by the admin
+   * `widgets` routes for the REQ-34 where-used disclosure and the REQ-42 safe-delete check.
+   */
+  entryRefsRepo: EntryRefsRepoPort;
 }
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;

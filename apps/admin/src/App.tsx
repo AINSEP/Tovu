@@ -29,6 +29,10 @@ import { CollectionEntryEditor } from "./sections/CollectionEntryEditor";
 import { Taxonomy } from "./sections/Taxonomy";
 import { Database } from "./sections/Database";
 import { Recovery } from "./sections/Recovery";
+import { WidgetsLibrary } from "./sections/WidgetsLibrary";
+import { WidgetInstanceEditor } from "./sections/WidgetInstanceEditor";
+import { WidgetRegions } from "./sections/WidgetRegions";
+import { WidgetRegionEditor } from "./sections/WidgetRegionEditor";
 
 type Route =
   | { view: "dashboard" }
@@ -36,6 +40,10 @@ type Route =
   | { view: "post-editor"; postId: string }
   | { view: "menus" }
   | { view: "menu-editor"; menuId: string | null }
+  | { view: "widgets" }
+  | { view: "widget-editor"; widgetId: string | null; widgetType: string | null }
+  | { view: "widget-regions" }
+  | { view: "widget-region-editor"; regionKey: string }
   | { view: "integrations" }
   | { view: "integration-deliveries"; subscriptionId: string }
   | { view: "forms" }
@@ -45,13 +53,22 @@ type Route =
   | { view: "section"; sectionId: string };
 
 function parseHash(hash: string): Route {
-  const parts = hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+  const [rawPath, rawQuery] = hash.replace(/^#\/?/, "").split("?");
+  const parts = rawPath.split("/").filter(Boolean);
+  const query = new URLSearchParams(rawQuery ?? "");
   if (parts.length === 0) return { view: "dashboard" };
   if (parts[0] === "posts" && parts[1]) return { view: "post-editor", postId: parts[1] };
   if (parts[0] === "posts") return { view: "posts" };
   if (parts[0] === "menus" && parts[1] === "new") return { view: "menu-editor", menuId: null };
   if (parts[0] === "menus" && parts[1]) return { view: "menu-editor", menuId: parts[1] };
   if (parts[0] === "menus") return { view: "menus" };
+  if (parts[0] === "widgets" && parts[1] === "regions" && parts[2])
+    return { view: "widget-region-editor", regionKey: parts[2] };
+  if (parts[0] === "widgets" && parts[1] === "regions") return { view: "widget-regions" };
+  if (parts[0] === "widgets" && parts[1] === "new")
+    return { view: "widget-editor", widgetId: null, widgetType: query.get("type") };
+  if (parts[0] === "widgets" && parts[1]) return { view: "widget-editor", widgetId: parts[1], widgetType: null };
+  if (parts[0] === "widgets") return { view: "widgets" };
   if (parts[0] === "integrations" && parts[1])
     return { view: "integration-deliveries", subscriptionId: parts[1] };
   if (parts[0] === "integrations") return { view: "integrations" };
@@ -77,6 +94,11 @@ function activeSectionId(route: Route): string {
     case "menus":
     case "menu-editor":
       return "menus";
+    case "widgets":
+    case "widget-editor":
+    case "widget-regions":
+    case "widget-region-editor":
+      return "widgets";
     case "integrations":
     case "integration-deliveries":
       return "integrations";
@@ -134,6 +156,18 @@ export function App() {
       break;
     case "menu-editor":
       content = <MenuEditor menuId={route.menuId} />;
+      break;
+    case "widgets":
+      content = <WidgetsLibrary />;
+      break;
+    case "widget-editor":
+      content = <WidgetInstanceEditor widgetId={route.widgetId} widgetType={route.widgetType} />;
+      break;
+    case "widget-regions":
+      content = <WidgetRegions />;
+      break;
+    case "widget-region-editor":
+      content = <WidgetRegionEditor regionKey={route.regionKey} />;
       break;
     case "integrations":
       content = <Integrations />;

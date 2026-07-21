@@ -3,7 +3,7 @@ import { Liquid, Hash, type TagToken, type Context, type FS } from "liquidjs";
 
 import type { JsonObject } from "../../../core/ports";
 import { lintLiquidTemplate } from "../../../features/theme";
-import { COMPONENTS, escapeHtml, renderDocNode, type SiteRenderContext } from "./render";
+import { COMPONENTS, escapeHtml, renderDocNode, renderWidgetRegion, type SiteRenderContext } from "./render";
 import type { LiquidWorkerInput, LiquidWorkerResult } from "./liquid-sandbox";
 
 /**
@@ -80,12 +80,22 @@ liquid.registerTag("render_block", {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   *render(this: any, ctx: Context): Generator<unknown, string, unknown> {
     const props = (yield this.hash.render(ctx)) as JsonObject;
+    const siteCtx = ctx.getSync([CTX_KEY]) as SiteRenderContext | undefined;
+    if (!siteCtx) return `<!-- render_block: no site context -->`;
+
+    // SPEC-043/ADR-047 §2a W-004: `{% render_block region: "footer" %}` — a theme-declared widget
+    // region, resolved over the SAME seam as `component:` (ADR-047 §2a: "no new Liquid capability
+    // required" — a region is a `render_block` call over a resolved, ordered widget list instead of
+    // a single component). Checked first since `region`/`component` are mutually exclusive tag args.
+    if (typeof props.region === "string") {
+      return renderWidgetRegion(siteCtx, props.region);
+    }
+
     const id = typeof props.component === "string" ? props.component : "";
     const { component: _component, ...rest } = props;
     void _component;
-    const siteCtx = ctx.getSync([CTX_KEY]) as SiteRenderContext | undefined;
     const component = COMPONENTS[id];
-    if (!component || !siteCtx) return `<!-- unknown component: ${escapeHtml(id)} -->`;
+    if (!component) return `<!-- unknown component: ${escapeHtml(id)} -->`;
     return component(siteCtx, rest);
   },
 });
@@ -99,7 +109,7 @@ function buildLiquidData(ctx: SiteRenderContext): Record<string, unknown> {
     posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: p.updatedAt })),
     // `content` is pre-sanitized HTML; templates emit it with `| raw`.
     post: ctx.post
-      ? { title: ctx.post.title, slug: ctx.post.slug, date: ctx.post.updatedAt, content: renderDocNode(ctx.post.bodyJson) }
+      ? { title: ctx.post.title, slug: ctx.post.slug, date: ctx.post.updatedAt, content: renderDocNode(ctx.post.bodyJson, ctx.widgetInlineResolved) }
       : null,
     [CTX_KEY]: ctx,
   };

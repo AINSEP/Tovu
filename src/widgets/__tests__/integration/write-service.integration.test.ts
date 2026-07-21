@@ -252,3 +252,58 @@ test("REQ-43: force-purging a referenced widget instance succeeds and flags the 
   // flagged/queryable as dangling (feature.spec.md EC-06) — requires the entry_refs read API,
   // asserted more fully in extractor.integration.test.ts.
 });
+
+// ---------------------------------------------------------------------------
+// External /audit-work finding (2026-07-21, ADR-047) — purge must retract its OWN outgoing
+// entry_refs (config ref-typed fields, e.g. a menu widget's menuRef); trash must NOT.
+// ---------------------------------------------------------------------------
+
+test("audit fix: force-purging a widget instance with an outgoing ref-typed config field (menuRef) retracts that row from entry_refs — the purged instance's own refs must not survive it", async () => {
+  const deps = makeDeps();
+  const { instance: created } = await createWidgetInstance({
+    deps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      actor: ACTOR,
+      widgetType: "menu",
+      title: "Footer menu widget",
+      config: { menuRef: "some-menu-id" },
+    },
+  });
+
+  const refsBeforePurge = await deps.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: created.id });
+  assert.ok(refsBeforePurge.length > 0, "sanity check: the menuRef must have been extracted on create");
+
+  await purgeWidgetInstance({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: created.id, force: true },
+  });
+
+  const refsAfterPurge = await deps.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: created.id });
+  assert.deepEqual(refsAfterPurge, [], "a force-purged instance's own outgoing refs must be retracted, not left stale");
+});
+
+test("audit fix: trashing (not purging) a widget instance with an outgoing ref-typed config field leaves entry_refs untouched — trash is reversible, its refs must survive a later restore", async () => {
+  const deps = makeDeps();
+  const { instance: created } = await createWidgetInstance({
+    deps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      actor: ACTOR,
+      widgetType: "menu",
+      title: "Footer menu widget",
+      config: { menuRef: "some-menu-id" },
+    },
+  });
+
+  const refsBeforeTrash = await deps.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: created.id });
+  assert.ok(refsBeforeTrash.length > 0);
+
+  await trashWidgetInstance({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: created.id },
+  });
+
+  const refsAfterTrash = await deps.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: created.id });
+  assert.deepEqual(refsAfterTrash, refsBeforeTrash, "trash must not retract refs — it's reversible, unlike purge");
+});

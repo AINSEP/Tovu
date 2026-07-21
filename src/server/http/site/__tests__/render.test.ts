@@ -4,7 +4,9 @@ import test from "node:test";
 
 import type { JsonObject } from "../../../../core/ports";
 import type { PostRecord } from "../../../../features/post";
-import { loadTheme } from "../../../../features/theme";
+import { loadTheme, type DiscoveredTheme } from "../../../../features/theme";
+import type { ResolvePageWidgetsResult } from "../../../../widgets/resolver-service";
+import type { WidgetRenderIR } from "../../../../widgets/types";
 import { renderDocNode, renderSite } from "../render";
 
 function textDoc(...content: JsonObject[]): JsonObject {
@@ -123,4 +125,155 @@ test("renderSite falls back to the minimal built-in body (never 500s) when a tem
   // The fallback body still renders (never a 500/empty response).
   assert.match(html, /site-header/);
   assert.match(html, /site-footer/);
+});
+
+// ---------------------------------------------------------------------------
+// SPEC-043/ADR-047 W-004 — widget region + inline embed rendering
+// ---------------------------------------------------------------------------
+
+function declarativeTheme(home: JsonObject): DiscoveredTheme {
+  return {
+    manifest: { id: "t", name: "T", version: "1.0.0", tier: "declarative", engine: 1, regions: ["footer"] },
+    tokens: {},
+    templates: { home, entry: { type: "doc", content: [] } },
+    liquidTemplates: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  };
+}
+
+function widgetsResult(overrides: Partial<ResolvePageWidgetsResult> = {}): ResolvePageWidgetsResult {
+  return { regions: {}, inlineResolved: new Map(), ...overrides };
+}
+
+test("renderSite (declarative tier): a {type:'region',key:'footer'} template node renders every resolved widget in that region, wrapped in a widget-region container", async () => {
+  const theme = declarativeTheme({
+    type: "doc",
+    content: [{ type: "region", key: "footer" }],
+  });
+  const html = await renderSite({
+    theme,
+    route: "home",
+    siteTitle: "Widgets Demo",
+    posts: [],
+    widgets: widgetsResult({
+      regions: { footer: [{ componentId: "text", props: { body: "Hello from the footer" } }] },
+    }),
+  });
+  assert.match(html, /<div class="widget-region widget-region--footer">/);
+  assert.match(html, /Hello from the footer/);
+});
+
+test("renderSite (declarative tier): a region with no resolved widgets (or no widgets param at all) renders nothing for that region — not an error state", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [{ type: "region", key: "footer" }] });
+
+  const noWidgetsParam = await renderSite({ theme, route: "home", siteTitle: "Widgets Demo", posts: [] });
+  assert.doesNotMatch(noWidgetsParam, /widget-region/);
+
+  const emptyRegion = await renderSite({
+    theme,
+    route: "home",
+    siteTitle: "Widgets Demo",
+    posts: [],
+    widgets: widgetsResult({ regions: { footer: [] } }),
+  });
+  assert.doesNotMatch(emptyRegion, /widget-region/);
+});
+
+test("renderSite (Liquid tier): {% render_block region: \"footer\" %} resolves the same widget list over the same render_block seam, no new Liquid capability needed (ADR-047 §2a)", async () => {
+  const theme = loadTheme(path.join(process.cwd(), "themes", "dispatch"), "dispatch", "built-in");
+  assert.equal(theme.status, "valid");
+  theme.liquidTemplates.home = '<div id="footer-region">{% render_block region: "footer" %}</div>';
+
+  const html = await renderSite({
+    theme,
+    route: "home",
+    siteTitle: "Widgets Demo",
+    posts: [],
+    widgets: widgetsResult({
+      regions: { footer: [{ componentId: "social-links", props: { links: [{ platform: "GitHub", url: "https://github.com/tovu" }] } }] },
+    }),
+  });
+  assert.match(html, /<div id="footer-region">/);
+  assert.match(html, /widget-social-links/);
+  assert.match(html, /GitHub/);
+  assert.match(html, /https:\/\/github\.com\/tovu/);
+});
+
+test("renderDocNode: a widgetEmbed node resolves through inlineResolved to its widget's IR (REQ-21) — the theme never sees a raw widgetEmbed reference", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "widgetEmbed", attrs: { placementId: "p1", widgetEntryId: "w1" } }],
+  };
+  const inlineResolved = new Map<string, WidgetRenderIR>([
+    ["p1", { componentId: "text", props: { body: "Inline widget content" } }],
+  ]);
+  const html = renderDocNode(doc, inlineResolved);
+  assert.match(html, /widget-text/);
+  assert.match(html, /Inline widget content/);
+  assert.doesNotMatch(html, /widgetEmbed/);
+});
+
+test("renderDocNode: a widgetEmbed node with no matching entry in inlineResolved (unresolved/not-yet-wired) degrades to the public-safe placeholder, never a crash or raw attrs dump (REQ-28)", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "widgetEmbed", attrs: { placementId: "missing", widgetEntryId: "w1" } }],
+  };
+  const html = renderDocNode(doc);
+  assert.match(html, /widget-placeholder/);
+  assert.doesNotMatch(html, /w1|missing/);
+});
+
+test("renderSite: every v1 widget componentId renders correctly and escapes untrusted props (text/social-links/recent-entries+entry-summary/menu/contact-form/unknown->placeholder)", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [{ type: "region", key: "footer" }] });
+  const ir: WidgetRenderIR[] = [
+    { componentId: "text", props: { body: "<script>alert(1)</script>" } },
+    { componentId: "social-links", props: { links: [{ platform: "<X>", url: "javascript:alert(1)" }] } },
+    {
+      componentId: "recent-entries",
+      props: {},
+      children: [{ componentId: "entry-summary", props: { id: "e1", title: "<Post>", slug: "post-1" } }],
+    },
+    { componentId: "menu", props: { title: "Main", items: [{ label: "Home", href: "/", available: true }, { label: "Hidden", available: false }] } },
+    { componentId: "contact-form", props: { slug: "contact", fields: [{ id: "email", label: "Email", type: "email", required: true }], successMessage: null } },
+    { componentId: "unknown-future-type", props: { secret: "leak-me" } },
+  ];
+  const html = await renderSite({
+    theme,
+    route: "home",
+    siteTitle: "Widgets Demo",
+    posts: [],
+    widgets: widgetsResult({ regions: { footer: ir } }),
+  });
+
+  // text: escaped, no script execution surface
+  assert.match(html, /widget-text/);
+  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  assert.doesNotMatch(html, /<script>/);
+
+  // social-links: escaped label, javascript: href collapsed to '#' (C7 safeHref discipline)
+  assert.match(html, /widget-social-links/);
+  assert.match(html, /&lt;X&gt;/);
+  assert.doesNotMatch(html, /href="javascript:/);
+
+  // recent-entries -> entry-summary child, escaped title, real slug link
+  assert.match(html, /widget-recent-entries/);
+  assert.match(html, /&lt;Post&gt;/);
+  assert.match(html, /href="\/post-1"/);
+
+  // menu: available item links, unavailable item renders as inert text (mirrors siteNav's own rule)
+  assert.match(html, /widget-menu/);
+  assert.match(html, /<a href="\/">Home<\/a>/);
+  assert.match(html, /widget-menu-item--unavailable">Hidden</);
+
+  // contact-form: posts to Forms' existing public route unmodified (REQ-37/39), field vocabulary rendered
+  assert.match(html, /widget-contact-form/);
+  assert.match(html, /action="\/forms\/contact\/submit"/);
+  assert.match(html, /type="email"/);
+
+  // unknown componentId -> the same public-safe placeholder, no secret leaked
+  assert.match(html, /widget-placeholder/);
+  assert.doesNotMatch(html, /leak-me/);
 });
