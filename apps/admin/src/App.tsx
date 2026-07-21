@@ -29,6 +29,7 @@ import { CollectionEntryEditor } from "./sections/CollectionEntryEditor";
 import { Taxonomy } from "./sections/Taxonomy";
 import { Database } from "./sections/Database";
 import { Recovery } from "./sections/Recovery";
+import { Workspace } from "./sections/Workspace";
 
 type Route =
   | { view: "dashboard" }
@@ -185,6 +186,8 @@ export function App() {
           <Database />
         ) : route.sectionId === "recovery" ? (
           <Recovery />
+        ) : route.sectionId === "workspace" ? (
+          <Workspace />
         ) : (
           <Placeholder sectionId={route.sectionId} />
         );
