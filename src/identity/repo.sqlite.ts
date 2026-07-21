@@ -219,6 +219,18 @@ export class SqliteSessionRepo implements SessionRepoPort {
       .where(and(eq(sessions.workspaceId, required.workspaceId), eq(sessions.id, required.id)))
       .run();
   }
+
+  async listByPrincipalId(required: {
+    workspaceId: string;
+    principalId: string;
+  }): Promise<SessionRecord[]> {
+    return this.db
+      .select()
+      .from(sessions)
+      .where(and(eq(sessions.workspaceId, required.workspaceId), eq(sessions.principalId, required.principalId)))
+      .all()
+      .map(toSessionRecord);
+  }
 }
 
 function toRoleRecord(row: typeof roles.$inferSelect): RoleRecord {
@@ -258,6 +270,10 @@ export class SqliteRoleRepo implements RoleRepoPort {
       isBuiltin: record.isBuiltin ? 1 : 0,
     };
     this.db.insert(roles).values(row).onConflictDoUpdate({ target: roles.id, set: row }).run();
+  }
+
+  async delete(required: { workspaceId: string; id: string }): Promise<void> {
+    this.db.delete(roles).where(and(eq(roles.workspaceId, required.workspaceId), eq(roles.id, required.id))).run();
   }
 }
 
@@ -313,6 +329,13 @@ export class SqlitePolicyRepo implements PolicyRepoPort {
     };
     this.db.insert(policies).values(row).onConflictDoUpdate({ target: policies.id, set: row }).run();
   }
+
+  async delete(required: { workspaceId: string; id: string }): Promise<void> {
+    this.db
+      .delete(policies)
+      .where(and(eq(policies.workspaceId, required.workspaceId), eq(policies.id, required.id)))
+      .run();
+  }
 }
 
 function toPolicyPermissionRecord(row: typeof policyPermissions.$inferSelect): PolicyPermissionRecord {
@@ -361,6 +384,18 @@ export class SqlitePolicyPermissionRepo implements PolicyPermissionRepoPort {
       .onConflictDoUpdate({ target: policyPermissions.id, set: row })
       .run();
   }
+
+  async deleteByPolicyId(required: { workspaceId: string; policyId: string }): Promise<void> {
+    this.db
+      .delete(policyPermissions)
+      .where(
+        and(
+          eq(policyPermissions.workspaceId, required.workspaceId),
+          eq(policyPermissions.policyId, required.policyId)
+        )
+      )
+      .run();
+  }
 }
 
 function toRolePolicyRecord(row: typeof rolePolicies.$inferSelect): RolePolicyRecord {
@@ -375,6 +410,17 @@ export class SqliteRolePolicyRepo implements RolePolicyRepoPort {
       .select()
       .from(rolePolicies)
       .where(and(eq(rolePolicies.workspaceId, required.workspaceId), eq(rolePolicies.roleId, required.roleId)))
+      .all()
+      .map(toRolePolicyRecord);
+  }
+
+  async listByPolicyId(required: { workspaceId: string; policyId: string }): Promise<RolePolicyRecord[]> {
+    return this.db
+      .select()
+      .from(rolePolicies)
+      .where(
+        and(eq(rolePolicies.workspaceId, required.workspaceId), eq(rolePolicies.policyId, required.policyId))
+      )
       .all()
       .map(toRolePolicyRecord);
   }
@@ -418,6 +464,17 @@ export class SqlitePrincipalRoleRepo implements PrincipalRoleRepoPort {
       .map(toPrincipalRoleRecord);
   }
 
+  async listByRoleId(required: { workspaceId: string; roleId: string }): Promise<PrincipalRoleRecord[]> {
+    return this.db
+      .select()
+      .from(principalRoles)
+      .where(
+        and(eq(principalRoles.workspaceId, required.workspaceId), eq(principalRoles.roleId, required.roleId))
+      )
+      .all()
+      .map(toPrincipalRoleRecord);
+  }
+
   async save(record: PrincipalRoleRecord): Promise<void> {
     const row = {
       id: record.id,
@@ -451,6 +508,23 @@ export class SqlitePrincipalPolicyRepo implements PrincipalPolicyRepoPort {
         and(
           eq(principalPolicies.workspaceId, required.workspaceId),
           eq(principalPolicies.principalId, required.principalId)
+        )
+      )
+      .all()
+      .map(toPrincipalPolicyRecord);
+  }
+
+  async listByPolicyId(required: {
+    workspaceId: string;
+    policyId: string;
+  }): Promise<PrincipalPolicyRecord[]> {
+    return this.db
+      .select()
+      .from(principalPolicies)
+      .where(
+        and(
+          eq(principalPolicies.workspaceId, required.workspaceId),
+          eq(principalPolicies.policyId, required.policyId)
         )
       )
       .all()

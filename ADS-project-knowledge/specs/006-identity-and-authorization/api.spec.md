@@ -5,16 +5,22 @@
 
 - Spec ID: `SPEC-006`
 - Feature: `FEAT-006-identity-and-authorization`
-- Version: `0.5.6`
+- Version: `0.6.0`
 - Content Hash: `not-tracked — feature.spec.md is the speckit hash anchor for this package`
-- Last Edited: `2026-07-08T19:41:56Z`
+- Last Edited: `2026-07-21T00:00:00Z`
 
 ## Purpose
 Source of truth for the HTTP surface of SPEC-006, independent of implementation language: the
-authentication endpoints (login / logout / whoami), the API-key management endpoints, and the
-cross-cutting `authorize()` gate the SPEC-001 command gateway applies to every mutation route.
-All endpoints are served on the isolated **admin origin** (ADR-020); the cookie-less theme origin
-never sees these routes.
+authentication endpoints (login / logout / whoami), the API-key management endpoints, the
+users/roles/policies admin management endpoints (§1a, 0.6.0), and the cross-cutting `authorize()`
+gate the SPEC-001 command gateway applies to every mutation route. All endpoints are served on the
+isolated **admin origin** (ADR-020); the cookie-less theme origin never sees these routes.
+
+**0.6.0 note:** §1a documents 8 endpoints that were already implemented and shipped (via the
+"Admin-sweep feature drop" commit, predating this amendment) but were never added to this file —
+this section previously stated flatly that "user/role/policy management is core/CLI in v1" (see the
+old §6 note, now corrected), which stopped being true once those routes landed. §1a brings the
+document current with the real HTTP surface and adds the 9 new endpoints this amendment introduces.
 
 ## 0) Cross-Cutting Gateway Authorization Gate (REQ-05)
 This is not a new endpoint — it is a gate applied to **every existing SPEC-001 mutation route**.
@@ -52,6 +58,39 @@ authorized principal, not an unauthenticated caller. Documented trust boundary: 
 CLI-only surface (not HTTP): `tovu permissions list` enumerates the registered permission catalog
 (REQ-12); catalog introspection for a logged-in caller is available over HTTP via `AUTH_ME`'s
 effective-permission set (REQ-07).
+
+## 1a) Users / Roles / Policies Admin Endpoint Registry (0.6.0)
+
+All paths below are prefixed `/api/admin/v1/workspaces/:workspaceId/…` and require `:workspaceId`
+to equal the caller's own workspace (a mismatch is `404`, not `403` — matches every other admin
+route in this codebase, e.g. `routes/admin/users/list.ts`). Rows marked **Pre-existing** were
+implemented before this amendment and are documented here for the first time (§0's drift-repair
+note); rows marked **New (0.6.0)** are introduced by this amendment.
+
+| Endpoint ID | Method | Path | Purpose | Required Permission | Status |
+|---|---|---|---|---|---|
+| `USER_LIST` | `GET` | `/users` | List human (`kind='user'`) principals | `user.manage` OR `member.manage` | Pre-existing |
+| `USER_CREATE` | `POST` | `/users` | `CREATE_USER` (REQ-01) | `user.manage` OR `member.manage` | Pre-existing |
+| `USER_UPDATE` | `PATCH` | `/users/:principalId` | `UPDATE_USER` (REQ-16) — `email` only | `user.manage` OR `member.manage` | **New (0.6.0)** |
+| `USER_DISABLE` | `POST` | `/users/:principalId/disable` | `DISABLE_PRINCIPAL` (REQ-11) | `user.manage` | **New (0.6.0)** (transition pre-existing, route new) |
+| `USER_ENABLE` | `POST` | `/users/:principalId/enable` | `ENABLE_PRINCIPAL` (REQ-15) | `user.manage` | **New (0.6.0)** |
+| `USER_RESET_PASSWORD` | `POST` | `/users/:principalId/reset-password` | `RESET_USER_PASSWORD` (REQ-17) | `user.manage` | **New (0.6.0)** |
+| `USER_ASSIGN_ROLE` | `POST` | `/users/:principalId/roles` | `ASSIGN_ROLE` (REQ-02) | `role.manage` (+ INV-07 clamp) | Pre-existing |
+| `USER_ATTACH_POLICY` | `POST` | `/users/:principalId/policies` | `ATTACH_POLICY` (REQ-02) | `role.manage` (+ INV-07 clamp) | Pre-existing |
+| `ROLE_LIST` | `GET` | `/roles` | List roles (built-in + custom) | `role.manage` | Pre-existing |
+| `ROLE_CREATE` | `POST` | `/roles` | `CREATE_ROLE` (REQ-02) | `role.manage` | Pre-existing |
+| `ROLE_UPDATE` | `PATCH` | `/roles/:roleId` | `UPDATE_ROLE` (REQ-18) — rename | `role.manage` | **New (0.6.0)** |
+| `ROLE_DELETE` | `DELETE` | `/roles/:roleId` | `DELETE_ROLE` (REQ-19) | `role.manage` | **New (0.6.0)** |
+| `POLICY_LIST` | `GET` | `/policies` | List policies (built-in + custom) | `role.manage` | Pre-existing |
+| `POLICY_CREATE` | `POST` | `/policies` | `CREATE_POLICY` (REQ-02) | `role.manage` | Pre-existing |
+| `POLICY_UPDATE` | `PATCH` | `/policies/:policyId` | `UPDATE_POLICY` (REQ-18) — rename/re-describe | `role.manage` | **New (0.6.0)** |
+| `POLICY_DELETE` | `DELETE` | `/policies/:policyId` | `DELETE_POLICY` (REQ-19) | `role.manage` | **New (0.6.0)** |
+| `POLICY_WRITE_PERMISSION` | `POST` | `/policies/:policyId/permissions` | `WRITE_POLICY_PERMISSION` (INV-07) | `role.manage` (+ INV-07 clamp) | **New (0.6.0)** (transition pre-existing, route new) |
+
+All 17 endpoints use `AUTH_SESSION` (session cookie); none accept API-key auth in v1 — matches the
+pre-existing 8 routes' actual behavior (`getAuthedPrincipal` reads the session-derived
+`res.locals.principal`, no API-key branch). Rate limit profile: `WRITE_STANDARD` for every
+mutating verb (`POST`/`PATCH`/`DELETE`), `READ_STANDARD` for `GET` — same profiles as §3, no new ones.
 
 ## 2) Authentication and Authorization Profiles
 | Profile ID | Auth Required | Credential Type | Required Permission | Permitted Principals | Notes |
@@ -177,6 +216,68 @@ id:
 {}
 ```
 
+### Endpoints: Users / Roles / Policies Admin (0.6.0, §1a)
+
+Request bodies for the 9 new endpoints. The 8 pre-existing endpoints' request/response shapes are
+unchanged from their shipped implementation (`routes/admin/users/*.ts`) and are not re-specified
+here — see `USER_LIST`/`USER_CREATE`/`ROLE_LIST`/`ROLE_CREATE`/`POLICY_LIST`/`POLICY_CREATE`/
+`USER_ASSIGN_ROLE`/`USER_ATTACH_POLICY` in code for their existing contract.
+
+```yaml
+# USER_UPDATE (PATCH /users/:principalId)
+email:
+  type: string | null
+  required: false
+  description: sets, changes, or (if null/absent/empty-string) clears the user's email (EC-17).
+    username and password in the body are ignored (REQ-16) — this endpoint is email-only.
+
+# USER_DISABLE (POST /users/:principalId/disable) — no body
+# USER_ENABLE (POST /users/:principalId/enable) — no body
+
+# USER_RESET_PASSWORD (POST /users/:principalId/reset-password)
+password:
+  type: string
+  minLength: 1
+  required: true
+  description: the new password (argon2id-hashed, INV-05); no old password required (admin override,
+    REQ-17). Revokes every one of the target's active sessions on success.
+
+# ROLE_UPDATE (PATCH /roles/:roleId)
+name:
+  type: string
+  minLength: 1
+  required: true
+  description: new role name; refused 400 VALIDATION_ERROR if the target is is_builtin (REQ-18)
+
+# ROLE_DELETE (DELETE /roles/:roleId) — no body
+# POLICY_DELETE (DELETE /policies/:policyId) — no body
+
+# POLICY_UPDATE (PATCH /policies/:policyId)
+name:
+  type: string
+  minLength: 1
+  required: false
+description:
+  type: string | null
+  required: false
+  description: at least one of name/description must be present; refused if the target is
+    is_builtin or is_frozen (REQ-18)
+
+# POLICY_WRITE_PERMISSION (POST /policies/:policyId/permissions)
+permission:
+  type: string
+  required: true
+  description: must be in the registered catalog (REQ-03) or rejected PERMISSION_UNKNOWN
+resourceType:
+  type: string | null
+  required: false
+constraintJson:
+  type: string | null
+  required: false
+  description: WRITE_POLICY_PERMISSION's existing INV-07 clamp + is_builtin/is_frozen refusal apply
+    unchanged (state.spec §3) — this is the transition's first HTTP route, not a new rule
+```
+
 ## 5) Response Contracts
 ### Success Responses
 | Endpoint ID | HTTP Status | Body Contract | Notes |
@@ -186,6 +287,13 @@ id:
 | `AUTH_ME` | `200` | `WhoAmIResponse` | Principal + effective permission set |
 | `APIKEY_ISSUE` | `201` | `ApiKeyIssueResponse` | Raw key shown **once**; only the hash is persisted |
 | `APIKEY_REVOKE` | `204` | (empty) | Revocation immediate |
+| `USER_UPDATE` | `200` | `{ data: { user: AdminUser } }` | Updated user, same shape as `USER_CREATE`/`USER_LIST` rows (0.6.0) |
+| `USER_DISABLE` / `USER_ENABLE` | `200` | `{ data: { user: AdminUser } }` | Post-transition state (0.6.0) |
+| `USER_RESET_PASSWORD` | `204` | (empty) | No body — the raw new password is never echoed back (INV-05) (0.6.0) |
+| `ROLE_UPDATE` | `200` | `{ data: { role: AdminRole } }` | (0.6.0) |
+| `ROLE_DELETE` / `POLICY_DELETE` | `204` | (empty) | (0.6.0) |
+| `POLICY_UPDATE` | `200` | `{ data: { policy: AdminPolicy } }` | (0.6.0) |
+| `POLICY_WRITE_PERMISSION` | `201` | `{ data: { policyPermission: PolicyPermission } }` | (0.6.0) |
 
 ### Contract Definitions
 ```yaml
@@ -236,20 +344,29 @@ Reference canonical codes in `errors.spec.md`.
 | `APIKEY_REVOKE` | `401` | `UNAUTHENTICATED` |
 | `APIKEY_REVOKE` | `403` | `FORBIDDEN` |
 | `APIKEY_REVOKE` | `404` | `RESOURCE_NOT_FOUND` |
+| `USER_UPDATE` / `USER_DISABLE` / `USER_ENABLE` / `USER_RESET_PASSWORD` | `400` | `VALIDATION_ERROR` |
+| `USER_UPDATE` / `USER_DISABLE` / `USER_ENABLE` / `USER_RESET_PASSWORD` | `403` | `FORBIDDEN` |
+| `USER_DISABLE` | `409` | `OWNER_REQUIRED` (0.6.0 — first HTTP surface for this pre-existing code) |
+| `USER_UPDATE` / `USER_DISABLE` / `USER_ENABLE` / `USER_RESET_PASSWORD` | `404` | `RESOURCE_NOT_FOUND` |
+| `ROLE_UPDATE` / `ROLE_DELETE` / `POLICY_UPDATE` / `POLICY_DELETE` / `POLICY_WRITE_PERMISSION` | `400` | `VALIDATION_ERROR` |
+| `ROLE_UPDATE` / `ROLE_DELETE` / `POLICY_UPDATE` / `POLICY_DELETE` / `POLICY_WRITE_PERMISSION` | `403` | `FORBIDDEN`, `GRANT_EXCEEDS_ISSUER` (the last only on `POLICY_WRITE_PERMISSION`) |
+| `ROLE_DELETE` / `POLICY_DELETE` | `409` | `RESOURCE_CONFLICT` (0.6.0 — still-referenced target, INV-09) |
+| `POLICY_WRITE_PERMISSION` | `400` | `PERMISSION_UNKNOWN` (0.6.0 — first HTTP surface for this pre-existing code) |
+| `ROLE_UPDATE` / `ROLE_DELETE` / `POLICY_UPDATE` / `POLICY_DELETE` / `POLICY_WRITE_PERMISSION` | `404` | `RESOURCE_NOT_FOUND` |
 | gateway mutation routes (§0) | `401` | `UNAUTHENTICATED` |
 | gateway mutation routes (§0) | `403` | `FORBIDDEN` |
 | any rate-limited endpoint (§3) | `429` | `RATE_LIMIT_EXCEEDED` |
 
-**Codes registered but not mapped to these 5 endpoints:** `RESOURCE_CONFLICT` is produced only on
-**user creation** (duplicate `username` per workspace — behavior.spec §5), and `PERMISSION_UNKNOWN`
-only on a **`policy_permissions` write** (catalog validation — REQ-03 / errors.spec §4). Neither of
-those surfaces is one of the five HTTP endpoints above (user/role/policy management is core/CLI in
-v1; admin UI is deferred, OQ-06). `APIKEY_ISSUE` reads **existing** source policies by UUID and
-snapshots their (already catalog-valid) permissions into a frozen copy, so it can emit neither code
-(it does emit `VALIDATION_ERROR` for a non-`api_key`/non-grantless bound principal or a `*`-bearing
-source — AC-23/AC-25/AC-26). `OWNER_REQUIRED` (409) is likewise unmapped to the five endpoints — it is emitted only
-by the CLI/core `DISABLE_PRINCIPAL` guard (REQ-11/INV-08), which has no HTTP route in v1 (admin UI deferred,
-OQ-06). All three remain in errors.spec because they are emitted elsewhere in the feature.
+**0.6.0 — corrects a stale note.** Prior to this amendment, this section stated that
+`RESOURCE_CONFLICT`, `PERMISSION_UNKNOWN`, and `OWNER_REQUIRED` were "not mapped to these 5
+endpoints" because "user/role/policy management is core/CLI in v1; admin UI is deferred, OQ-06" —
+that framing was already false when written (the 8 pre-existing users/roles/policies HTTP endpoints
+predate this amendment) and is now corrected: all three codes are mapped above, `PERMISSION_UNKNOWN`
+and `OWNER_REQUIRED` for the first time. `RESOURCE_CONFLICT` was already reachable via the
+pre-existing `USER_CREATE` (duplicate `username`) and gains the `ROLE_DELETE`/`POLICY_DELETE`
+still-referenced case (0.6.0, INV-09). `APIKEY_ISSUE` still cannot emit `PERMISSION_UNKNOWN`/
+`OWNER_REQUIRED` (unchanged reasoning: it reads existing, already-valid source policies by UUID and
+never touches the disable guard).
 Every endpoint carrying a §3 rate-limit profile can additionally return `429 RATE_LIMIT_EXCEEDED`;
 only `AUTH_LOGIN`'s stricter `LOGIN_STRICT` profile is called out separately above.
 

@@ -10,12 +10,12 @@
 | Field | Value |
 |-------|-------|
 | spec_id | SPEC-006 |
-| version | 0.5.6 |
-| status | APPROVED |
-| content_hash | sha256:d1a88416ad3a5b6c77fe1f8a64a46ce53f1b1a0b8686d3bc71c3efcba6b918a4 |
+| version | 0.6.0 |
+| status | DRAFT |
+| content_hash | sha256:2f74289036a419715d2210352d3de271500e0f8dcd5679207bf4d6ae4d3d65dc |
 | feature_name | FEAT-006-identity-and-authorization |
-| last_edited | 2026-07-09 |
-| revision_note | 0.5.6-APPROVED (2026-07-09) — **DRAFT→APPROVED human checkpoint cleared** by owner Leon Aburime. The coupled approval-gate markers were flipped: Implementation Readiness Gate CONDITIONAL PASS → PASS; DoD B-03 (status) and B-32 (readiness gate) FAIL → PASS; Overall DoD FAIL → PASS. No normative content changed since 0.5.6 (security core still byte-unchanged); the canonical content_hash was recomputed only to absorb the in-body gate-marker flips. 0.5.5 — v0.5.4 ROUND-5 FINAL CONFIRM fix (`/audit-work` round 5, TM-SPEC006-DELTA-01; Gemini 3.1 Pro High FAIL 3.0 + Codex GPT-5.5 xhigh FAIL 7.8 + internal Fable Security FAIL 7.5). Fable's exhaustive writer census confirmed the 4-round **bound-principal api_key-inheritance class is CLOSED/terminal**, but all three converged on ONE new HIGH, **F-054-01** — a *different* wall, bounded below owner-`*`: v0.5.4 froze the grant *rows* at issuance but not the *permissions those rows resolve to*. A shared non-built-in policy attached at issuance could be widened later by `WRITE_POLICY_PERMISSION` (a **legal** edit for an owner / `role.manage` holder, clamped to the *widener*), and `resolveEffectivePermissions` reads policies **live**, so an already-issued api_key key grew post-issuance above what its issuer could clamp-grant (the drift-**up** twin of the already-accepted EC-07/OQ-02 demoted-issuer asymmetry; can never reach owner-`*`, since `*` lives only on the immutable built-in owner policy). Fix (**issuance snapshot**): `ISSUE_API_KEY` no longer attaches a live reference to a caller-supplied shared policy — it **copies** the clamped permissions into a fresh `is_frozen=true`, machine-owned policy and attaches *that*; `WRITE_POLICY_PERMISSION` refuses any `is_frozen` (or `is_builtin`) policy, so a later legal widening of a *source* policy can never reach an already-issued key. This makes "a key's authority is fixed at issuance" true against *permission* drift, not only *row* drift. New **AC-26**; `policies.is_frozen` flag; INV-07 issuance-snapshot clause; state.spec §1/§3/§5 updates. Security core still byte-unchanged. 0.5.4 — v0.5.3 ROUND-4 FINAL CONFIRM fix (`/audit-work` round 4, TM-SPEC006-DELTA-01; Codex GPT-5.5 xhigh FAIL 8.0 + Gemini 3.1 Pro High FAIL 7.5 both blocked on the unclamped `role_policies` writer; internal Fable Security FAIL 7.5 found the deeper **F-053-01**). **F-053-01 (HIGH, two-actor api_key escalation):** the v0.5.3 grant clamp locks every transition that *writes* a grant, but `ISSUE_API_KEY` reads only the issuance-time *attached* policies, not the bound principal's *pre-existing* authority — and v0.5.3 made `api_key`-kind principals endowable to owner-tier via `ASSIGN_ROLE`/`ATTACH_POLICY`. Path: owner legally endows an `api_key` principal K to owner-`*` → admin (holds `apikey.manage`) issues a second key bound to K with a modest policy → the kind check and attached-policy clamp both pass → admin's raw key authenticates as K = owner-`*`. **Class-closing fix (isolates machine authority to one clamped issuance):** (1) `ISSUE_API_KEY`'s bound principal must be **grantless / freshly minted** (no pre-existing `principal_roles`/`principal_policies` rows) — its authority is then exactly the issuance-time attached policies, already INV-07-clamped to the issuer; a non-grantless bound principal → `VALIDATION_ERROR` (AC-25a). (2) `ASSIGN_ROLE`/`ATTACH_POLICY` target **human** (`kind='user'`) principals only — an `api_key`/`system` target → `VALIDATION_ERROR` (AC-25b); machine authority is set solely at issuance, restoring the REQ-02 human/machine split, so an api_key principal's authority is immutable after its single issuance and an admin can never obtain an owner-`*` key. (3) **F-053-02 (LOW):** `role_policies` (custom role→policy binding) is declared **not user-writable in v1** — custom grants flow via `principal_policies`/`ATTACH_POLICY`; no AC needs custom-role composition. INV-07 now enumerates all grant writers + the grantless-issuance rule; **AC-24** reconciled (assigning a role to an api_key principal is now `VALIDATION_ERROR`, not `GRANT_EXCEEDS_ISSUER`); new **AC-25** certifies both `VALIDATION_ERROR` paths. Security core still byte-unchanged. 0.5.3 — v0.5.2 RE-CONFIRM round (`/audit-work` round 3, TM-SPEC006-DELTA-01; Codex GPT-5.5 xhigh FAIL 7.2 + Gemini 3.1 Pro High FAIL 6.0 + internal Fable Security PASS 9.5). The two external auditors flagged the v0.5.2 F2 transitions (`ASSIGN_ROLE`/`ATTACH_POLICY`) as a privilege-escalation path; Fable proved via REQ-09 that `role.manage` is owner-only so the seeded-config exploit is unreachable, but the boundary rested entirely on that fact. Fix (structural, honoring INV-07's own "any future direct grant" language): **INV-07 generalized into a grant-authority clamp** over ALL grant-writing transitions — `ISSUE_API_KEY`, `ASSIGN_ROLE`, `ATTACH_POLICY`, `WRITE_POLICY_PERMISSION` — so no principal may grant authority it does not itself hold unconstrained; assigning/attaching the built-in `owner` role/policy therefore requires holding `*` (owner-only), closing the mint-`api_key`→assign-`owner`→issue-key chain (Codex F-052-01) and the delegated-`role.manage` self-escalation (Gemini/Codex F-052-02). Also: dropped the wrong INV-06 citation on `ATTACH_POLICY` (built-in policy attach is clamp-bounded, not forbidden — aligns with AC-15/Fable F4); added `role.manage` gate to `WRITE_POLICY_PERMISSION` (Fable V-1); documented `role.manage` as owner-equivalent (Fable V-2). New **AC-24** certifies the generalized clamp. Security core still byte-unchanged. 0.5.2 — v0.5.1 CONFIRMING delta re-audit fixes (`/audit-work` round 2, TM-SPEC006-DELTA-01; internal Fable Security verifier 8.5 + Codex GPT-5.5 xhigh 9.6 + Gemini 3.1 Pro High 10; all 3 confirmed MF-1/2/3+SF-1/2/3 resolved and the gate PASS, but the Fable falsification pass caught 2 gaps the externals missed). **F1 (HIGH escalation — api_key twin of MF-1):** `ISSUE_API_KEY` had no enforceable precondition that the bound `principalId` is `kind='api_key'` (only an api §4 field description), so an `apikey.manage` admin could bind a key to the seeded owner principal and authenticate as owner. Fixed: REQ-08 + state.spec §3 `ISSUE_API_KEY` now require the bound principal to be `kind='api_key'` (minted via `CREATE_PRINCIPAL`); non-`api_key` target → `VALIDATION_ERROR`; new **AC-23** (negative, twin of AC-22) + behavior §7 row. **F2 (MEDIUM buildability):** no transition wrote `principal_roles`/human `principal_policies`, so editor/admin/non-seed-owner principals (AC-03/AC-11/AC-21) were unconstructable. Fixed: state.spec §3 adds `ASSIGN_ROLE`/`ATTACH_POLICY` (gated `role.manage`, INV-06-respecting); REQ-02 documents it; AC-21 reworded to be per-workspace and construct the second owner via `ASSIGN_ROLE`. **F3 (LOW):** api §6 unmapped-codes note now includes `OWNER_REQUIRED`. F4/F5 deferred (safe as written / Architect seam). Security core still byte-unchanged. 0.5.1 — v0.5.0 delta re-audit fixes (TM-SPEC006-DELTA-01; Codex GPT-5.5 xhigh + Gemini 3.1 Pro + Fable). **MF-1 (Codex blocker):** RT-003's `CREATE_USER` took a caller-supplied existing `principalId` → an admin (`member.manage`) could bind a password to the seeded owner principal and log in as owner (escalation around authorize()). Fixed: REQ-01 — a `users` row is only ever created together with a NEW `kind='user'` principal in one transaction; a credential is never attached to a pre-existing principal; gated by `user.manage` OR `member.manage` (admin can onboard); new AC-22 (negative). `CREATE_PRINCIPAL` is machine-only (api_key; agent refused). **MF-2 (Fable HIGH):** the seeded owner principal is now un-disable-able in v1 (REQ-11/INV-08/AC-21) — it is REQ-13's CLI resolution target, so disabling it would brick the CLI-only management plane. **MF-3 (3-way converge):** INV-08 count-check + disable now one atomic transaction (no concurrent-disable lockout). **SF:** REQ-13 excludes plugin in-process callers from owner-resolution; REQ-14/api §3 pin the forwarded-for parse rule; new `OWNER_REQUIRED` error names the lockout refusal; stale v0.4.1 binding comments/notes corrected. Security core still byte-unchanged. 0.5.0 — Red-Team revision pass (report `reports/pipeline/006-identity-and-authorization/red-team-findings.md`). Closes RT-001 (BLOCKING) + RT-002..005 (ADVISORY); RT-006 flagged for Architect. **RT-001:** non-HTTP callers (`tovu` CLI / in-process core) had no defined principal, so REQ-05's "authorize every mutation" was unrealizable for the v1 CLI surface → NEW REQ-13 + AC-17 + EC-12: the CLI resolves to the seeded owner principal ("local shell == owner" trust boundary, ADR-021), retiring the Article VI exception for mutations; revisit tracked as OQ-08 (owner's explicit request to come back to this). **RT-002:** rate limiting traced to no REQ/AC → NEW REQ-14 + AC-18 anchoring the three profiles + the LOGIN_STRICT trusted-proxy client-IP rule. **RT-003:** creation transitions unmodeled → state.spec §3 adds CREATE_PRINCIPAL/CREATE_USER/CREATE_ROLE/CREATE_POLICY; NEW AC-19 certifies the duplicate-username RESOURCE_CONFLICT. **RT-004:** session lifetime unpinned + no expired-session test → behavior §4 pins absolute 30-day expiry; NEW EC-13 + AC-20. **RT-005:** disable was an unguarded kill-switch → REQ-11 pins the `user.manage` gate, NEW INV-08 (last-owner lockout guard) + AC-21. The audit-clean security core (authorize matcher / INV-07 clamp / composite FKs / hash-only secrets) is unchanged. 0.4.1 — package-completeness pass (Open Questions + Constitution Compliance + Implementation Readiness Gate). 0.4.0 — round-3 audit fix: INV-07/REQ-08/AC-15/EC-11 require the issuer to hold each delegated permission UNCONSTRAINED (owner's `*` qualifies). 0.3.0 = R2 fixes; 0.2.0 = B1-B3+A1/A2. |
+| last_edited | 2026-07-21 |
+| revision_note | **0.6.0-DRAFT (2026-07-21) — AMENDMENT: completes the users/roles/policies admin CRUD surface** (Coordinator dispatch, "Users/Roles/Policies + Plugins admin surface" slice). v0.5.6's security core (authorize matcher / INV-07 clamp / composite FKs / hash-only secrets) is **byte-unchanged**; this amendment is purely additive scope, so **status reverts to DRAFT pending a fresh human checkpoint + Red-Team pass over the new material only** — see the Implementation Readiness Gate for the itemized reopen. **What's new:** (1) two transitions this spec already fully specified — `DISABLE_PRINCIPAL` (REQ-11) and `WRITE_POLICY_PERMISSION` (INV-07) — were approved in v0.5.x but never got an HTTP route; this amendment gives them one. (2) Five brand-new transitions close the actual CRUD gap: `ENABLE_PRINCIPAL` (symmetric re-activation of a disabled user — no prior spec covered re-enabling), `UPDATE_USER` (edit a user's `email`), `RESET_USER_PASSWORD` (admin-initiated credential reset, distinct from the still-deferred self-service OQ-04 flow), `UPDATE_ROLE`/`UPDATE_POLICY` (rename a non-built-in role; rename/re-describe a non-built-in, non-frozen policy), and `DELETE_ROLE`/`DELETE_POLICY` (hard-delete a non-built-in, non-frozen role/policy **with zero live references** — see the new INV-09 rationale for why this is a deliberate, disclosed divergence from principals' disable-only rule, not an inconsistency). (3) **Disclosed pre-existing drift repaired:** api.spec.md's Endpoint Registry (§1) previously listed only 5 endpoints and stated in §6 that "user/role/policy management is core/CLI in v1 ... admin UI is deferred (OQ-06)" — that has been **false since the "Admin-sweep feature drop" commit** (`c2f9869`, predating this amendment), which added 8 working HTTP endpoints (`list`/`create` for users, roles, policies; `assign-role`; `attach-policy`) and a real `Users.tsx`/`Roles.tsx` admin UI, none of which api.spec.md ever documented. This amendment brings api.spec.md current with reality (documents the 8 pre-existing endpoints) in the same pass as adding the 9 new ones, rather than layering more drift on top. OQ-06 is marked RESOLVED below. Prior history: 0.5.6-APPROVED (2026-07-09) — **DRAFT→APPROVED human checkpoint cleared** by owner Leon Aburime. The coupled approval-gate markers were flipped: Implementation Readiness Gate CONDITIONAL PASS → PASS; DoD B-03 (status) and B-32 (readiness gate) FAIL → PASS; Overall DoD FAIL → PASS. No normative content changed since 0.5.6 (security core still byte-unchanged); the canonical content_hash was recomputed only to absorb the in-body gate-marker flips. 0.5.5 — v0.5.4 ROUND-5 FINAL CONFIRM fix (`/audit-work` round 5, TM-SPEC006-DELTA-01; Gemini 3.1 Pro High FAIL 3.0 + Codex GPT-5.5 xhigh FAIL 7.8 + internal Fable Security FAIL 7.5). Fable's exhaustive writer census confirmed the 4-round **bound-principal api_key-inheritance class is CLOSED/terminal**, but all three converged on ONE new HIGH, **F-054-01** — a *different* wall, bounded below owner-`*`: v0.5.4 froze the grant *rows* at issuance but not the *permissions those rows resolve to*. A shared non-built-in policy attached at issuance could be widened later by `WRITE_POLICY_PERMISSION` (a **legal** edit for an owner / `role.manage` holder, clamped to the *widener*), and `resolveEffectivePermissions` reads policies **live**, so an already-issued api_key key grew post-issuance above what its issuer could clamp-grant (the drift-**up** twin of the already-accepted EC-07/OQ-02 demoted-issuer asymmetry; can never reach owner-`*`, since `*` lives only on the immutable built-in owner policy). Fix (**issuance snapshot**): `ISSUE_API_KEY` no longer attaches a live reference to a caller-supplied shared policy — it **copies** the clamped permissions into a fresh `is_frozen=true`, machine-owned policy and attaches *that*; `WRITE_POLICY_PERMISSION` refuses any `is_frozen` (or `is_builtin`) policy, so a later legal widening of a *source* policy can never reach an already-issued key. This makes "a key's authority is fixed at issuance" true against *permission* drift, not only *row* drift. New **AC-26**; `policies.is_frozen` flag; INV-07 issuance-snapshot clause; state.spec §1/§3/§5 updates. Security core still byte-unchanged. 0.5.4 — v0.5.3 ROUND-4 FINAL CONFIRM fix (`/audit-work` round 4, TM-SPEC006-DELTA-01; Codex GPT-5.5 xhigh FAIL 8.0 + Gemini 3.1 Pro High FAIL 7.5 both blocked on the unclamped `role_policies` writer; internal Fable Security FAIL 7.5 found the deeper **F-053-01**). **F-053-01 (HIGH, two-actor api_key escalation):** the v0.5.3 grant clamp locks every transition that *writes* a grant, but `ISSUE_API_KEY` reads only the issuance-time *attached* policies, not the bound principal's *pre-existing* authority — and v0.5.3 made `api_key`-kind principals endowable to owner-tier via `ASSIGN_ROLE`/`ATTACH_POLICY`. Path: owner legally endows an `api_key` principal K to owner-`*` → admin (holds `apikey.manage`) issues a second key bound to K with a modest policy → the kind check and attached-policy clamp both pass → admin's raw key authenticates as K = owner-`*`. **Class-closing fix (isolates machine authority to one clamped issuance):** (1) `ISSUE_API_KEY`'s bound principal must be **grantless / freshly minted** (no pre-existing `principal_roles`/`principal_policies` rows) — its authority is then exactly the issuance-time attached policies, already INV-07-clamped to the issuer; a non-grantless bound principal → `VALIDATION_ERROR` (AC-25a). (2) `ASSIGN_ROLE`/`ATTACH_POLICY` target **human** (`kind='user'`) principals only — an `api_key`/`system` target → `VALIDATION_ERROR` (AC-25b); machine authority is set solely at issuance, restoring the REQ-02 human/machine split, so an api_key principal's authority is immutable after its single issuance and an admin can never obtain an owner-`*` key. (3) **F-053-02 (LOW):** `role_policies` (custom role→policy binding) is declared **not user-writable in v1** — custom grants flow via `principal_policies`/`ATTACH_POLICY`; no AC needs custom-role composition. INV-07 now enumerates all grant writers + the grantless-issuance rule; **AC-24** reconciled (assigning a role to an api_key principal is now `VALIDATION_ERROR`, not `GRANT_EXCEEDS_ISSUER`); new **AC-25** certifies both `VALIDATION_ERROR` paths. Security core still byte-unchanged. 0.5.3 — v0.5.2 RE-CONFIRM round (`/audit-work` round 3, TM-SPEC006-DELTA-01; Codex GPT-5.5 xhigh FAIL 7.2 + Gemini 3.1 Pro High FAIL 6.0 + internal Fable Security PASS 9.5). The two external auditors flagged the v0.5.2 F2 transitions (`ASSIGN_ROLE`/`ATTACH_POLICY`) as a privilege-escalation path; Fable proved via REQ-09 that `role.manage` is owner-only so the seeded-config exploit is unreachable, but the boundary rested entirely on that fact. Fix (structural, honoring INV-07's own "any future direct grant" language): **INV-07 generalized into a grant-authority clamp** over ALL grant-writing transitions — `ISSUE_API_KEY`, `ASSIGN_ROLE`, `ATTACH_POLICY`, `WRITE_POLICY_PERMISSION` — so no principal may grant authority it does not itself hold unconstrained; assigning/attaching the built-in `owner` role/policy therefore requires holding `*` (owner-only), closing the mint-`api_key`→assign-`owner`→issue-key chain (Codex F-052-01) and the delegated-`role.manage` self-escalation (Gemini/Codex F-052-02). Also: dropped the wrong INV-06 citation on `ATTACH_POLICY` (built-in policy attach is clamp-bounded, not forbidden — aligns with AC-15/Fable F4); added `role.manage` gate to `WRITE_POLICY_PERMISSION` (Fable V-1); documented `role.manage` as owner-equivalent (Fable V-2). New **AC-24** certifies the generalized clamp. Security core still byte-unchanged. 0.5.2 — v0.5.1 CONFIRMING delta re-audit fixes (`/audit-work` round 2, TM-SPEC006-DELTA-01; internal Fable Security verifier 8.5 + Codex GPT-5.5 xhigh 9.6 + Gemini 3.1 Pro High 10; all 3 confirmed MF-1/2/3+SF-1/2/3 resolved and the gate PASS, but the Fable falsification pass caught 2 gaps the externals missed). **F1 (HIGH escalation — api_key twin of MF-1):** `ISSUE_API_KEY` had no enforceable precondition that the bound `principalId` is `kind='api_key'` (only an api §4 field description), so an `apikey.manage` admin could bind a key to the seeded owner principal and authenticate as owner. Fixed: REQ-08 + state.spec §3 `ISSUE_API_KEY` now require the bound principal to be `kind='api_key'` (minted via `CREATE_PRINCIPAL`); non-`api_key` target → `VALIDATION_ERROR`; new **AC-23** (negative, twin of AC-22) + behavior §7 row. **F2 (MEDIUM buildability):** no transition wrote `principal_roles`/human `principal_policies`, so editor/admin/non-seed-owner principals (AC-03/AC-11/AC-21) were unconstructable. Fixed: state.spec §3 adds `ASSIGN_ROLE`/`ATTACH_POLICY` (gated `role.manage`, INV-06-respecting); REQ-02 documents it; AC-21 reworded to be per-workspace and construct the second owner via `ASSIGN_ROLE`. **F3 (LOW):** api §6 unmapped-codes note now includes `OWNER_REQUIRED`. F4/F5 deferred (safe as written / Architect seam). Security core still byte-unchanged. 0.5.1 — v0.5.0 delta re-audit fixes (TM-SPEC006-DELTA-01; Codex GPT-5.5 xhigh + Gemini 3.1 Pro + Fable). **MF-1 (Codex blocker):** RT-003's `CREATE_USER` took a caller-supplied existing `principalId` → an admin (`member.manage`) could bind a password to the seeded owner principal and log in as owner (escalation around authorize()). Fixed: REQ-01 — a `users` row is only ever created together with a NEW `kind='user'` principal in one transaction; a credential is never attached to a pre-existing principal; gated by `user.manage` OR `member.manage` (admin can onboard); new AC-22 (negative). `CREATE_PRINCIPAL` is machine-only (api_key; agent refused). **MF-2 (Fable HIGH):** the seeded owner principal is now un-disable-able in v1 (REQ-11/INV-08/AC-21) — it is REQ-13's CLI resolution target, so disabling it would brick the CLI-only management plane. **MF-3 (3-way converge):** INV-08 count-check + disable now one atomic transaction (no concurrent-disable lockout). **SF:** REQ-13 excludes plugin in-process callers from owner-resolution; REQ-14/api §3 pin the forwarded-for parse rule; new `OWNER_REQUIRED` error names the lockout refusal; stale v0.4.1 binding comments/notes corrected. Security core still byte-unchanged. 0.5.0 — Red-Team revision pass (report `reports/pipeline/006-identity-and-authorization/red-team-findings.md`). Closes RT-001 (BLOCKING) + RT-002..005 (ADVISORY); RT-006 flagged for Architect. **RT-001:** non-HTTP callers (`tovu` CLI / in-process core) had no defined principal, so REQ-05's "authorize every mutation" was unrealizable for the v1 CLI surface → NEW REQ-13 + AC-17 + EC-12: the CLI resolves to the seeded owner principal ("local shell == owner" trust boundary, ADR-021), retiring the Article VI exception for mutations; revisit tracked as OQ-08 (owner's explicit request to come back to this). **RT-002:** rate limiting traced to no REQ/AC → NEW REQ-14 + AC-18 anchoring the three profiles + the LOGIN_STRICT trusted-proxy client-IP rule. **RT-003:** creation transitions unmodeled → state.spec §3 adds CREATE_PRINCIPAL/CREATE_USER/CREATE_ROLE/CREATE_POLICY; NEW AC-19 certifies the duplicate-username RESOURCE_CONFLICT. **RT-004:** session lifetime unpinned + no expired-session test → behavior §4 pins absolute 30-day expiry; NEW EC-13 + AC-20. **RT-005:** disable was an unguarded kill-switch → REQ-11 pins the `user.manage` gate, NEW INV-08 (last-owner lockout guard) + AC-21. The audit-clean security core (authorize matcher / INV-07 clamp / composite FKs / hash-only secrets) is unchanged. 0.4.1 — package-completeness pass (Open Questions + Constitution Compliance + Implementation Readiness Gate). 0.4.0 — round-3 audit fix: INV-07/REQ-08/AC-15/EC-11 require the issuer to hold each delegated permission UNCONSTRAINED (owner's `*` qualifies). 0.3.0 = R2 fixes; 0.2.0 = B1-B3+A1/A2. |
 | owner | Leon Aburime |
 | spec_agent | Coordinator (Primary) |
 | spec_mode | brownfield |
@@ -105,6 +105,15 @@ A cannot be attached to a principal in workspace B; no principal can be hard-del
 - Non-HTTP (CLI / in-process core) callers resolve to the seeded owner principal so every mutation
   is authorized and attributed — REQ-13 (retires the Article VI mutation exception; revisit OQ-08)
 - Rate limiting on the auth + mutation surface (login brute-force guard + write/read limits) — REQ-14
+- **(0.6.0)** HTTP routes for the two transitions this spec already specified but never surfaced —
+  `DISABLE_PRINCIPAL`, `WRITE_POLICY_PERMISSION` — REQ-11/INV-07 (unchanged transitions, new routes)
+- **(0.6.0)** Re-activating a disabled user (`ENABLE_PRINCIPAL`) — REQ-15
+- **(0.6.0)** Editing a user's `email` (`UPDATE_USER`) and admin-initiated password reset
+  (`RESET_USER_PASSWORD`) — REQ-16, REQ-17
+- **(0.6.0)** Renaming a non-built-in role; renaming/re-describing a non-built-in, non-frozen policy
+  (`UPDATE_ROLE`, `UPDATE_POLICY`) — REQ-18
+- **(0.6.0)** Deleting an unused, non-built-in, non-frozen role or policy (`DELETE_ROLE`,
+  `DELETE_POLICY`) — REQ-19
 
 **Out of scope (deferred — see OQs):**
 - Agents / `agents` / `agent_grants` / delegated-grant evaluation — OQ-01 (AI phase; ADR-013/014/016)
@@ -114,8 +123,19 @@ A cannot be attached to a principal in workspace B; no principal can be hard-del
 - Policy-rule *engine*: field/row-level `constraint_json` interpretation (ABAC) — OQ-03 (seam only in v1)
 - Password reset / email flows, MFA, OAuth/OIDC, desktop-host SSO — OQ-04
 - Cross-site identity federation in Tovu-Runner (the shell owns operator auth) — OQ-05 (ADR-011)
-- Admin UI for user/role management (this spec is API + core) — OQ-06
+- ~~Admin UI for user/role management (this spec is API + core)~~ — **OQ-06 RESOLVED (0.6.0):**
+  `Users.tsx`/`Roles.tsx` already exist and this amendment completes their missing backend surface
 - ADR-014 tool-registry `auth`-axis re-expression (lands with the assistant spec) — OQ-07
+- **(0.6.0)** Changing a user's `username` — the login identity, unlike `email`, has audit/session/
+  lookup-normalization implications (behavior.spec §5.1) not worth reopening for a v1 admin edit
+  screen — OQ-09
+- **(0.6.0)** Removing a single permission from a policy (the inverse of `WRITE_POLICY_PERMISSION`)
+  — no transition defined; shrinking a policy's permission set in v1 means `DELETE_POLICY` (only
+  when unused) + recreate — OQ-10
+- **(0.6.0)** Custom role→policy composition (`role_policies` writable for non-built-in roles) —
+  still not user-writable in v1 (F-053-02, unchanged); `UPDATE_ROLE` renames a role, it does not
+  give it policies — a custom role remains attachable-with-zero-conferred-permissions unless/until
+  F-053-02 is revisited (tracked there, not reopened here)
 
 ---
 
@@ -320,6 +340,49 @@ A cannot be attached to a principal in workspace B; no principal can be hard-del
   malformed or absent header falls back to the socket peer address (api.spec §3). Rate limiting
   applies at the **HTTP boundary only**; REQ-13 CLI/core callers are unmetered.
   `WRITE_STANDARD`/`READ_STANDARD` are keyed by `principalId`.
+- REQ-15 **(0.6.0)**: `ENABLE_PRINCIPAL` re-activates a `disabled` `kind='user'` principal — the
+  symmetric counterpart REQ-11 never defined. Gated by `user.manage` (same gate as `DISABLE_PRINCIPAL`
+  — re-activation is exactly as sensitive as deactivation). Target must be `kind='user'`; a
+  `system`/`api_key`/`agent` target is rejected `VALIDATION_ERROR` (mirrors AC-25b's human-only
+  scoping — `ENABLE_PRINCIPAL` is not a way to resurrect the disabled legacy `user-local` stub or
+  reactivate an api_key principal outside `ISSUE_API_KEY`'s own lifecycle). Sets `status='active'`,
+  clears `disabled_at`. No INV-08 owner-count interaction: enabling a principal can only ever hold or
+  increase the active owner-`*` count, never reduce it, so no atomic count-check is needed (unlike
+  `DISABLE_PRINCIPAL`).
+- REQ-16 **(0.6.0)**: `UPDATE_USER` edits an existing user's `email` field (set, change, or clear to
+  `null`). Gated by `user.manage` **or** `member.manage` (mirrors `CREATE_USER`'s admin-onboarding
+  gate — editing a profile field is no more sensitive than creating the account). `username` is
+  **not** editable by this transition (OQ-09) and `password` is **not** editable by this transition
+  (see REQ-17) — `UPDATE_USER` touches `email` only.
+- REQ-17 **(0.6.0)**: `RESET_USER_PASSWORD` sets a **new** password for an existing user without
+  requiring the old one (an admin override, distinct from the deferred self-service "forgot password"
+  flow, OQ-04). Gated by **`user.manage`** (owner-only, the same gate as `DISABLE_PRINCIPAL` — the
+  ability to silently take over any account by resetting its credential is at least as sensitive as
+  disabling it; `member.manage` is deliberately **not** sufficient, unlike `CREATE_USER`/`UPDATE_USER`).
+  The new password is hashed identically to `CREATE_USER` (argon2id, INV-05). On success, **every one
+  of that principal's active `sessions` rows is revoked** (mirrors `DISABLE_PRINCIPAL`'s "immediate
+  effect" discipline, AC-05) — a credential reset that left old sessions alive would not actually
+  contain a compromised account.
+- REQ-18 **(0.6.0)**: `UPDATE_ROLE` renames a non-built-in role (`name`). `UPDATE_POLICY` renames
+  and/or re-describes a non-built-in, **non-`is_frozen`** policy (`name`, `description`). Both gated
+  by `role.manage`. A built-in (`is_builtin=true`) target is refused — this extends INV-06's existing
+  "undeletable, immutable, un-attachable-to" rule to also cover **un-renameable**, closing the same
+  escalation shape INV-06 already guards against (an operator relabeling `viewer` to something that
+  reads as trusted would be a social-engineering variant of the attacks INV-06 already blocks
+  structurally). A `is_frozen` policy target (an `ISSUE_API_KEY` issuance snapshot) is likewise
+  refused — consistent with `WRITE_POLICY_PERMISSION`'s existing frozen-policy refusal (AC-26):
+  an issuance snapshot's identity is as immutable as its permission set.
+- REQ-19 **(0.6.0)**: `DELETE_ROLE` hard-deletes a non-built-in role that carries **zero** live
+  references — no `principal_roles` row may name it. `DELETE_POLICY` hard-deletes a non-built-in,
+  non-`is_frozen` policy that carries **zero** live references — no `role_policies` or
+  `principal_policies` row may name it. Both gated by `role.manage`; both refuse a built-in or (for
+  policies) frozen target with the same reasoning as REQ-18. Neither transition is INV-07-clamped —
+  clamping governs *granting* authority a caller doesn't hold, and deleting an already-unused
+  role/policy grants nothing to anyone. **This is a deliberate, disclosed divergence from REQ-11's
+  disable-only rule for principals** — see the new INV-09 for the reasoning: unlike principals,
+  roles/policies are never referenced by `change_sets` (the audit trail), so a hard delete of an
+  unreferenced row leaves no dangling FK and destroys no audit history; the "in use" guard is what
+  does the safety work here, not a soft-delete flag.
 
 ---
 
@@ -462,6 +525,37 @@ A cannot be attached to a principal in workspace B; no principal can be hard-del
   `VALIDATION_ERROR` and no key is created — an api_key snapshot never carries `*`. This certifies that a
   `kind='api_key'` principal's effective permission set is fixed at its single clamped issuance against
   *permission* drift, not only *row* drift, and never exceeds the selected source scope.
+- AC-27 (REQ-15) [P1] **(0.6.0)**: Given a `disabled` `kind='user'` principal, when a caller holding
+  `user.manage` calls `ENABLE_PRINCIPAL`, then its `status` becomes `active`, `disabled_at` clears,
+  and it can log in again; given a caller **without** `user.manage`, then it is denied 403 `FORBIDDEN`;
+  given a `system`/`api_key` target, then it is rejected 400 `VALIDATION_ERROR` and no row changes.
+- AC-28 (REQ-16) [P1] **(0.6.0)**: Given an existing user, when a caller holding `member.manage` (not
+  `user.manage`) calls `UPDATE_USER` with a new `email`, then the update succeeds (mirrors `CREATE_USER`'s
+  admin-onboarding gate, AC-22); given a request body containing `username` or `password` fields, then
+  those fields are silently ignored (not rejected — `UPDATE_USER`'s contract is `email`-only, not a
+  partial-PATCH-of-anything-sent shape).
+- AC-29 (REQ-17) [P1] **(0.6.0)**: Given an existing user with two active sessions, when a caller holding
+  `user.manage` calls `RESET_USER_PASSWORD`, then the password hash changes, **both** existing sessions
+  are revoked (next request on either → 401), and the new password authenticates a fresh login; given a
+  caller holding only `member.manage`, then it is denied 403 `FORBIDDEN` (stricter gate than `UPDATE_USER`).
+- AC-30 (REQ-18/INV-06) [P1] **(0.6.0)**: Given the built-in `viewer` role, when `UPDATE_ROLE` is called
+  renaming it, then it is refused (INV-06 extended); given a non-built-in role, when renamed, then the
+  new `name` persists and existing `principal_roles`/assignments to it are unaffected (renaming is not
+  re-granting). Given a `is_frozen` policy (an api_key issuance snapshot), when `UPDATE_POLICY` is called
+  on it, then it is refused, matching `WRITE_POLICY_PERMISSION`'s existing frozen-policy refusal (AC-26).
+- AC-31 (REQ-19/INV-09) [P1] **(0.6.0)**: Given a non-built-in role with **no** `principal_roles` row
+  referencing it, when `DELETE_ROLE` is called, then the row is hard-deleted; given a non-built-in role
+  **currently assigned** to at least one principal, when `DELETE_ROLE` is called, then it is refused
+  409 `RESOURCE_CONFLICT` and the role is not deleted. The policy twin holds identically for
+  `DELETE_POLICY` against `role_policies`/`principal_policies` references. Given a built-in role/policy
+  or a `is_frozen` policy, when delete is attempted, then it is refused regardless of reference count
+  (INV-06 / AC-26 precedence — built-in/frozen status is checked before the reference count).
+- AC-32 (REQ-11/INV-07 route parity) [P1] **(0.6.0)**: Given the already-specified `DISABLE_PRINCIPAL`
+  and `WRITE_POLICY_PERMISSION` transitions (REQ-11, INV-07 — approved since v0.5.0/v0.5.3 with no
+  HTTP route until now), when their new HTTP endpoints are called, then every precondition, state
+  change, and failure code already certified by AC-08/AC-21 (`DISABLE_PRINCIPAL`) and AC-10/AC-24/AC-26
+  (`WRITE_POLICY_PERMISSION`) holds identically over HTTP — the route is a thin transport wrapper, not
+  a re-specification (no new business rule is introduced by giving these two transitions a route).
 
 ---
 
@@ -482,9 +576,13 @@ A cannot be attached to a principal in workspace B; no principal can be hard-del
 - INV-05: Passwords are stored only as argon2id hashes; API keys only as hashes; raw secrets are
   never persisted or logged.
 - INV-06: Built-in roles and policies (`is_builtin=true`) are undeletable, **immutable** (permission
-  mappings frozen at seed — no edit path) AND **un-attachable-to** (no new `role_policies` or
-  `policy_permissions` row may reference an `is_builtin` parent), so a built-in cannot be escalated
-  by deletion, edit, or attachment; and always present after seed.
+  mappings frozen at seed — no edit path), **un-attachable-to** (no new `role_policies` or
+  `policy_permissions` row may reference an `is_builtin` parent), **and (0.6.0) un-renameable**
+  (`UPDATE_ROLE`/`UPDATE_POLICY` refuse a built-in target) — so a built-in cannot be escalated
+  by deletion, edit, attachment, or relabeling; and always present after seed. **(0.6.0)** The same
+  refusal extends to any `is_frozen` policy target for `UPDATE_POLICY` and `DELETE_POLICY` (an
+  issuance snapshot, REQ-08) — already true for `WRITE_POLICY_PERMISSION` (AC-26); rename/delete are
+  held to the identical immutability bar as permission edits.
 - INV-07 (grant-authority clamp): **No principal may grant — by API-key issuance (`ISSUE_API_KEY`),
   role assignment (`ASSIGN_ROLE`), direct policy attach (`ATTACH_POLICY`), or widening a policy
   (`WRITE_POLICY_PERMISSION`) — an effective permission it does not itself hold unconstrained at grant
@@ -522,6 +620,17 @@ A cannot be attached to a principal in workspace B; no principal can be hard-del
   atomic transaction**, so concurrent disables cannot both succeed and race the count to zero. Because
   built-ins are immutable and only the owner grant confers `user.manage`/`role.manage` and `*`, losing
   the last active owner would be unrecoverable — so it is structurally prevented.
+- INV-09 **(0.6.0, REQ-19)**: A non-built-in, non-`is_frozen` role or policy may be hard-deleted **iff**
+  zero rows reference it at delete time (`principal_roles` for a role; `role_policies` or
+  `principal_policies` for a policy) — the reference check and the delete are performed as one atomic
+  operation, so a concurrent `ASSIGN_ROLE`/`ATTACH_POLICY` cannot race a `DELETE_ROLE`/`DELETE_POLICY`
+  into leaving a grant row pointing at a deleted parent (mirrors INV-08's concurrent-disable reasoning,
+  applied to reference-counting instead of owner-counting). This invariant is the **reason** REQ-19's
+  hard delete is safe despite REQ-11/INV-02's disable-only rule for principals: principals are
+  referenced by the audit trail (`change_sets.actorId`, which must always resolve — INV-02); roles and
+  policies are never referenced by `change_sets`, so a delete with zero live references leaves no
+  dangling foreign key and destroys no audit history. The two rules protect the same property
+  (referential integrity) by different means because the two entities have different reference shapes.
 
 ---
 
@@ -576,6 +685,25 @@ A cannot be attached to a principal in workspace B; no principal can be hard-del
   Expected: the next request with it returns 401 `UNAUTHENTICATED` (treated as revoked) and never
   reaches `authorize()`. Session lifetime is an **absolute** expiry set at creation (behavior §4);
   sliding renewal is deferred (OQ-04) (RT-004).
+- EC-14 **(0.6.0)**: `ENABLE_PRINCIPAL` is called on the seeded, disabled legacy `user-local` `system`
+  principal (REQ-09's migration-compat row).
+  Expected: rejected `VALIDATION_ERROR` — `ENABLE_PRINCIPAL` targets `kind='user'` only; `user-local`
+  is `kind='system'` and has no credentials to reactivate (it exists solely so old change-sets
+  resolve, EC-09).
+- EC-15 **(0.6.0)**: `DELETE_ROLE` (or `DELETE_POLICY`) is called on a role/policy the caller just
+  removed the last assignment from, in the same logical operation window as a concurrent
+  `ASSIGN_ROLE`/`ATTACH_POLICY` targeting it.
+  Expected: INV-09's atomic reference-check-and-delete means exactly one of the two operations
+  observes a consistent state — either the delete sees the new reference and refuses
+  `RESOURCE_CONFLICT`, or the assign/attach runs after the delete and gets `RESOURCE_NOT_FOUND`; never
+  a grant row left pointing at a deleted parent.
+- EC-16 **(0.6.0)**: `RESET_USER_PASSWORD` is called on a user with **zero** active sessions (already
+  logged out everywhere).
+  Expected: the password still changes; the session-revocation step is a no-op over an empty set
+  (idempotent, same discipline as `LOGOUT` on an already-revoked session).
+- EC-17 **(0.6.0)**: `UPDATE_USER` is called with an empty-string or absent `email`.
+  Expected: `email` is set to `null` (cleared) — an empty string is not stored as a distinct
+  "blank but present" state, avoiding a third ambiguous value alongside `null`/populated.
 
 ---
 
@@ -630,7 +758,7 @@ Any EXCEPTION requires a justification row in the ADR's Complexity Justification
 | IV — Anti-Abstraction Gate | COMPLIES | `authorize()` is ordinary core code, explicitly **not** a port (REQ-04, ADR-006 one-evaluator); the only port, `HasherPort`, is a rule-of-two candidate with real memory+argon2 uses. No speculative abstraction. |
 | V — Integration-First Testing | COMPLIES | Each P1 AC (AC-01..10, AC-13..19, AC-21..26; AC-11/12/20 are P2) maps to an integration-level test row in traceability.spec §1 (currently pending, pre-TDD). |
 | VI — Security-by-Default | COMPLIES | This spec **is** the security feature: it retires the Article VI dev-only `user-local` exception. Fail-closed `authorize()` (INV-03), argon2id (INV-05), hashed revocable credentials, issuance clamp (INV-07); Security Agent review required before merge. |
-| VII — Spec Integrity | COMPLIES | All package files reference spec_id SPEC-006 and version 0.5.6; feature.spec carries the canonical content_hash (VII / DoD G-07). |
+| VII — Spec Integrity | COMPLIES | All package files reference spec_id SPEC-006 and version 0.6.0; feature.spec carries the canonical content_hash (VII / DoD G-07). |
 | VIII — Observability | COMPLIES | errors.spec defines a structured envelope with `correlationId` for all server-side errors; `authorize()` failure reasons are typed (`no_grant`, `resource_scope_mismatch`, `unconstrained_deny`, `principal_disabled`). |
 
 ---
@@ -641,8 +769,14 @@ This checklist must be fully checked before the spec is handed off to the Softwa
 The Spec Agent completes this. The Coordinator verifies before routing.
 
 - [x] spec_id assigned and unique (SPEC-006, verified against `ADS-project-knowledge/reports/pipeline/` and specs/)
-- [x] version set to correct semver (0.5.6)
-- [x] status set to APPROVED (not DRAFT or REVIEW) — **DRAFT→APPROVED human checkpoint cleared 2026-07-09 by owner Leon Aburime. Red-Team is COMPLETE (report in `reports/pipeline/006-identity-and-authorization/red-team-findings.md`); its 1 BLOCKING (RT-001) + 4 ADVISORY (RT-002..005) were applied in 0.5.0; RT-006 is an Architect Complexity-Justification item.**
+- [x] version set to correct semver (0.6.0 — minor: additive CRUD-completion scope, no change to the
+      security core)
+- [ ] status set to APPROVED (not DRAFT or REVIEW) — **REOPENED at 0.6.0.** The pre-existing v0.5.6
+      content (through AC-26/INV-08) keeps its 2026-07-09 APPROVED provenance and is unchanged. The
+      **new** 0.6.0 material (REQ-15..19, AC-27..32, INV-09, EC-14..17, plus the api.spec/state.spec
+      documentation-of-existing-drift) has **not** been through Red-Team or an owner DRAFT→APPROVED
+      checkpoint yet — this amendment is the Spec Agent's output only. Coordinator: route to Red-Team
+      before Software Architect dispatch, same as the original v0.4.1→v0.5.0 pass.
 - [x] content_hash computed using the Speckit canonical hash rule and verified by the provider-local validator
 - [x] feature_name matches the FEAT folder name exactly (FEAT-006-identity-and-authorization)
 - [x] Zero `[NEEDS CLARIFICATION]` markers remain in this file
@@ -667,6 +801,10 @@ The Spec Agent completes this. The Coordinator verifies before routing.
 - [x] spec-dod.md Spec Agent sign-off row completed; Coordinator row reserved for Planning Preflight
 - [x] If `spec_mode` is brownfield, evidence paths are recorded in `spec-manifest.md`
 
-**Gate result:** PASS — every item is checked. The previously-coupled DRAFT→APPROVED human
-checkpoint (status + DoD B-03) was cleared 2026-07-09 by owner Leon Aburime, following the
-completed Red-Team review. The spec is cleared for Software Architect dispatch.
+**Gate result:** CONDITIONAL — the pre-existing v0.5.6 scope remains PASS (unchanged, still
+APPROVED-quality). The **0.6.0 amendment is DRAFT**, pending the same two-step checkpoint v0.5.6
+itself went through: (1) Red-Team pass over REQ-15..19/AC-27..32/INV-09/EC-14..17, (2) owner
+DRAFT→APPROVED sign-off. Not cleared for Software Architect dispatch until both land. This spec
+package is otherwise complete and internally consistent (see spec-dod.md's 0.6.0 section for the
+itemized status) — the only gap is the approval ceremony for the new material, exactly the shape
+the 0.5.x gate was in before 2026-07-09.

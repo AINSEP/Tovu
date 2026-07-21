@@ -5,9 +5,15 @@
 
 - Spec ID: `SPEC-006`
 - Feature: `FEAT-006-identity-and-authorization`
-- Version: `0.5.6`
+- Version: `0.6.0`
 - Content Hash: `not-tracked — feature.spec.md is the speckit hash anchor for this package`
-- Last Edited: `2026-07-08T19:41:56Z`
+- Last Edited: `2026-07-21T00:00:00Z`
+
+**0.6.0 note:** No new error codes were introduced by this amendment — the users/roles/policies
+admin CRUD surface (REQ-15..19) reuses the existing registry below in full. `PERMISSION_UNKNOWN` and
+`OWNER_REQUIRED` gain their **first HTTP surface** (§4 rows updated); `RESOURCE_CONFLICT` gains a new
+emission site (`DELETE_ROLE`/`DELETE_POLICY` refusing a still-referenced target, INV-09) alongside
+its pre-existing duplicate-`username` case.
 
 ## Purpose
 Canonical error registry for the identity & authorization surface (login, session, API-key
@@ -97,20 +103,22 @@ RATE_LIMIT_EXCEEDED:
 
 RESOURCE_CONFLICT:
   details:
-    field: string               # e.g. "username" — unique per workspace (behavior.spec § 5.1)
+    field: string               # e.g. "username" — unique per workspace (behavior.spec § 5.1); or
+                                 #   "roleId"/"policyId" when DELETE_ROLE/DELETE_POLICY refuses a
+                                 #   still-referenced target (0.6.0, INV-09)
 ```
 
 ## 4) Ownership and Source Rules
 | Code | Produced By | Surfaced By | Notes |
 |---|---|---|---|
 | `UNAUTHENTICATED` | session/API-key resolver (REQ-06/REQ-08) | API | Emitted before route logic; disabled principal counts as unauthenticated (EC-02/EC-03) |
-| `FORBIDDEN` | command gateway `authorize()` (REQ-05) | API | Raised before idempotency lookup (INV-04, EC-08); carries `reason` from `authorize()` |
-| `GRANT_EXCEEDS_ISSUER` | grant-authority clamp (REQ-08/REQ-02/INV-07): `ISSUE_API_KEY`, `ASSIGN_ROLE`, `ATTACH_POLICY`, `WRITE_POLICY_PERMISSION` | API + CLI | Owner's `*` always satisfies the clamp; conditional holds cannot be delegated (EC-11); only an owner may assign/attach the built-in `owner` role/policy (AC-24) |
-| `PERMISSION_UNKNOWN` | catalog validator on `policy_permissions` write (REQ-03) | API + CLI | Catalog is code-registered, not a DB enum |
-| `VALIDATION_ERROR` | API request validators + grant/issuance preconditions (REQ-08/REQ-02) | API + UI + CLI | Malformed login / issuance bodies (UI maps `fieldErrors`); also: `ISSUE_API_KEY` bound principal not `kind='api_key'` (AC-23) or not **grantless** (AC-25a); `ASSIGN_ROLE`/`ATTACH_POLICY` target not `kind='user'` (AC-25b); `WRITE_POLICY_PERMISSION` against an `is_builtin` or `is_frozen` (issuance-snapshot) policy is refused (AC-26) — machine authority is set at a single clamped issuance and frozen thereafter (F-053-01/F-054-01) |
-| `RESOURCE_NOT_FOUND` | API (key/principal/session lookups) | API | e.g. revoking a non-existent key id |
-| `RESOURCE_CONFLICT` | API (uniqueness checks) | API + UI | Duplicate `username` within a workspace (behavior.spec § 5) |
-| `OWNER_REQUIRED` | disable guard (REQ-11/INV-08) | API + CLI | Refuses a disable that would remove the last active owner-`*` principal, or any disable of the **seeded owner** (delta-audit MF-2) |
+| `FORBIDDEN` | command gateway `authorize()` (REQ-05) | API | Raised before idempotency lookup (INV-04, EC-08); carries `reason` from `authorize()`; **(0.6.0)** also the caller-permission gate on `ENABLE_PRINCIPAL`/`UPDATE_USER`/`RESET_USER_PASSWORD`/`UPDATE_ROLE`/`UPDATE_POLICY`/`DELETE_ROLE`/`DELETE_POLICY` |
+| `GRANT_EXCEEDS_ISSUER` | grant-authority clamp (REQ-08/REQ-02/INV-07): `ISSUE_API_KEY`, `ASSIGN_ROLE`, `ATTACH_POLICY`, `WRITE_POLICY_PERMISSION` | API + CLI | Owner's `*` always satisfies the clamp; conditional holds cannot be delegated (EC-11); only an owner may assign/attach the built-in `owner` role/policy (AC-24); **(0.6.0)** `WRITE_POLICY_PERMISSION` reaches its first HTTP route via `POLICY_WRITE_PERMISSION` (api.spec §1a) — same rule, new transport |
+| `PERMISSION_UNKNOWN` | catalog validator on `policy_permissions` write (REQ-03) | API + CLI | Catalog is code-registered, not a DB enum; **(0.6.0)** first reachable over HTTP via `POLICY_WRITE_PERMISSION` |
+| `VALIDATION_ERROR` | API request validators + grant/issuance preconditions (REQ-08/REQ-02) | API + UI + CLI | Malformed login / issuance bodies (UI maps `fieldErrors`); also: `ISSUE_API_KEY` bound principal not `kind='api_key'` (AC-23) or not **grantless** (AC-25a); `ASSIGN_ROLE`/`ATTACH_POLICY` target not `kind='user'` (AC-25b); `WRITE_POLICY_PERMISSION` against an `is_builtin` or `is_frozen` (issuance-snapshot) policy is refused (AC-26) — machine authority is set at a single clamped issuance and frozen thereafter (F-053-01/F-054-01); **(0.6.0)** `ENABLE_PRINCIPAL` against a non-`kind='user'` target (AC-27); `UPDATE_ROLE`/`UPDATE_POLICY`/`DELETE_ROLE`/`DELETE_POLICY` against an `is_builtin` (or, for policies, `is_frozen`) target (AC-30/AC-31) |
+| `RESOURCE_NOT_FOUND` | API (key/principal/session lookups) | API | e.g. revoking a non-existent key id; **(0.6.0)** also `UPDATE_USER`/`RESET_USER_PASSWORD`/`ENABLE_PRINCIPAL`/`UPDATE_ROLE`/`DELETE_ROLE`/`UPDATE_POLICY`/`DELETE_POLICY` against a nonexistent id |
+| `RESOURCE_CONFLICT` | API (uniqueness / reference checks) | API + UI | Duplicate `username` within a workspace (behavior.spec § 5); **(0.6.0)** `DELETE_ROLE`/`DELETE_POLICY` refusing a still-referenced target (INV-09, AC-31) |
+| `OWNER_REQUIRED` | disable guard (REQ-11/INV-08) | API + CLI | Refuses a disable that would remove the last active owner-`*` principal, or any disable of the **seeded owner** (delta-audit MF-2); **(0.6.0)** first reachable over HTTP via `USER_DISABLE` (api.spec §1a) |
 | `RATE_LIMIT_EXCEEDED` | rate limiter (all api.spec § 3 profiles; REQ-14) | API | Applies to every rate-limited endpoint; the strictest is `LOGIN_STRICT` brute-force protection on `auth/login` (client-IP resolution per api.spec § 3); see behavior.spec § 4 and api.spec § 3 |
 | `INTERNAL_ERROR` | any SPEC-006 handler | API | Fail-closed: an unexpected error in `authorize()` denies, never allows (INV-03) |
 

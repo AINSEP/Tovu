@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { and, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import { entries, entryRevisions } from "../../infra/db/schema";
 import type { ContentDb } from "../../infra/sqlite/content-db";
@@ -93,14 +93,26 @@ export class SqliteEntryRepo implements EntryRepoPort, EntryListPort {
       .run();
   }
 
-  async listByWorkspace(params: { workspaceId: string; type?: string }): Promise<EntryRecord[]> {
+  async listByWorkspace(params: {
+    workspaceId: string;
+    type?: string;
+    status?: EntryStatus;
+    orderBy?: "updatedAt";
+    orderDirection?: "asc" | "desc";
+    limit?: number;
+  }): Promise<EntryRecord[]> {
     const conditions = [eq(entries.workspaceId, params.workspaceId)];
     if (params.type) conditions.push(eq(entries.type, params.type));
-    const rows = this.db
-      .select()
-      .from(entries)
-      .where(and(...conditions))
-      .all();
+    if (params.status) conditions.push(eq(entries.status, params.status));
+
+    let query = this.db.select().from(entries).where(and(...conditions)).$dynamic();
+    if (params.orderBy === "updatedAt") {
+      query = query.orderBy(params.orderDirection === "asc" ? asc(entries.updatedAt) : desc(entries.updatedAt));
+    }
+    if (typeof params.limit === "number") {
+      query = query.limit(params.limit);
+    }
+    const rows = query.all();
     return rows.map(toRecord);
   }
 
