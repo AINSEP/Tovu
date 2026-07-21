@@ -1,0 +1,3778 @@
+
+===== FILE: src/widgets/types.ts =====
+/**
+ * @file Core type definitions for the Tovu `widgets` library (ADR-047, SPEC-043).
+ *
+ * Purpose:
+ * Widgets are placeable, reusable, individually-configured components (a contact
+ * form, a recent-posts list, a text block, social links, a menu) placed either
+ * into a theme-declared region (an ordered list, backed by a seeded
+ * `widget_area` entry) or embedded inline inside a page's rich-text body (a
+ * `widgetEmbed` TipTap node). A widget instance is a seeded ADR-022 content
+ * entry (type `widget`), exactly as a menu is (ADR-029) — this file mirrors
+ * `navigation/types.ts` deliberately, per the ADR-047 debate's finding that the
+ * region-binding mechanism must structurally match `nav_location_bindings`
+ * (source-of-truth-on-the-entry + a derived, reconciled binding index), not
+ * merely resemble it.
+ *
+ * How it relates to the project:
+ * - `core/ports.ts` supplies the shared primitives (`UUID`, `JsonObject`, …).
+ * - `widgets/ports.ts` declares the one rule-of-two port this library adds
+ *   (`WidgetRegionBindingRepoPort`, mirroring `NavLocationBindingRepoPort`).
+ * - `widgets/registry.ts` declares the v1 widget-type registry as plain data —
+ *   see that file for why type *registration* and type *behavior* are split.
+ * - The theme renderer never resolves a widget reference itself (ADR-020 §7 /
+ *   ADR-029 §7's "theme receives resolved data" boundary, unchanged here).
+ *
+ * Architectural role:
+ * INTERFACES + TYPES ONLY (no feature logic). This is the design-frozen shape
+ * ADR-047 (as amended by its 2026-07-21 debate fold-in) introduces; the entries
+ * repo, revisions, and the command gateway are reused unchanged from ADR-022 /
+ * ADR-008.
+ */
+import type { ISODateTime, JsonObject, UUID } from "../core/ports";
+
+// ---------------------------------------------------------------------------
+// Content-type identity
+// ---------------------------------------------------------------------------
+
+/** `widget` ships as a seeded content-type registry row (ADR-022 §1), like `post`/`page`/`menu`. */
+export const WIDGET_CONTENT_TYPE = "widget" as const;
+
+/**
+ * `widget_area` ships as a seeded, **system-managed** content-type registry
+ * row — never publicly routable, never itself placeable as a widget, never a
+ * valid `widgetEmbed` target (REQ-17 — no recursion into a region from inside
+ * a region).
+ */
+export const WIDGET_AREA_CONTENT_TYPE = "widget_area" as const;
+
+/** The extension-field owner namespace for widget-level fields (`fields.ext.widget.*`). */
+export const WIDGET_FIELD_NAMESPACE = "widget" as const;
+
+/** The extension-field owner namespace for a `widget_area` entry's region assignment. */
+export const WIDGET_AREA_FIELD_NAMESPACE = "widgets" as const;
+
+// ---------------------------------------------------------------------------
+// Widget-type registry (data — see registry.ts for the registration/behavior split)
+// ---------------------------------------------------------------------------
+
+/**
+ * The v1 widget-type keys (SPEC-043 REQ-09). Kept as a closed union rather than
+ * a bare `string` so a typo in a registration or a call site is a compile error,
+ * not a runtime `unknown-type` surprise.
+ */
+export type WidgetTypeKey = "text" | "social-links" | "recent-entries" | "menu" | "contact-form";
+
+/**
+ * A widget type's declared capability class (ADR-047 Debate Fold-In Amendment
+ * 3). `static` types render validated config directly with no resolver;
+ * `query`/`form`/`entry-reference` types have a registered resolver in the
+ * closed `CORE_RESOLVERS` map (`resolvers/index.ts`).
+ */
+export type WidgetCapability = "static" | "query" | "form" | "entry-reference";
+
+/** Where a widget type may legally be placed. */
+export type WidgetPlacementContext = "region" | "inline";
+
+/**
+ * A widget type's **registration** — plain, JSON-serializable data (SPEC-043
+ * REQ-07). Never imports or references executable behavior; the only pointer
+ * to code this record carries is `resolverId`, which must resolve *only*
+ * through the closed `CORE_RESOLVERS` map (REQ-08) — never a module path,
+ * function name, query string, or expression.
+ */
+export interface WidgetTypeRegistration {
+  readonly typeKey: WidgetTypeKey;
+  readonly capability: WidgetCapability;
+  /** JSON-Schema-shaped description of `fields.ext.widget.*`'s valid shape for this type. */
+  readonly configSchema: JsonObject;
+  readonly placementContexts: readonly WidgetPlacementContext[];
+  /** Cost clamps enforced by core at the orchestration layer, never by the resolver's own discipline (REQ-25). */
+  readonly clamps: {
+    readonly maxItems?: number;
+    readonly timeoutMs: number;
+  };
+  /** `undefined` for `static`-capability types (REQ-10). Indexes into `CORE_RESOLVERS` only. */
+  readonly resolverId?: string;
+}
+
+// ---------------------------------------------------------------------------
+// The widget instance (a typed view over an ADR-022 `entries` row)
+// ---------------------------------------------------------------------------
+
+/**
+ * `purged` is observably distinct from `trash` (REQ-43): both are treated identically everywhere a
+ * widget instance's availability is checked (resolution, placement validation — see
+ * `resolver-service.ts`/`region-area-service.ts`), but only `purged` records that the instance was
+ * force-deleted past a known reference (`purgeWidgetInstance({ force: true })`), vs. an ordinary
+ * `trash` that may still be restored with no prior reference conflict. No real hard-delete exists in
+ * this codebase for any content type (`EntryRepoPort` has no delete method) — this status is the
+ * cheap, in-model way to keep that distinction visible without one.
+ */
+export type WidgetInstanceStatus = "active" | "draft" | "trash" | "purged";
+
+/**
+ * A typed read model over a `type='widget'` entries row (ADR-022 §2 universal
+ * columns) plus the parsed `fields.ext.widget.*` config bag. A projection, not
+ * a new table — widget instances are entries (REQ-01).
+ */
+export interface WidgetInstanceEntry {
+  readonly id: UUID;
+  readonly workspaceId: UUID;
+  readonly slug: string;
+  readonly title: string;
+  readonly status: WidgetInstanceStatus;
+  readonly widgetType: WidgetTypeKey;
+  /** Validated against the type's registered `configSchema` on every write (REQ-02). */
+  readonly config: JsonObject;
+  readonly updatedAt: ISODateTime;
+  readonly version: number;
+}
+
+// ---------------------------------------------------------------------------
+// Region composition (a typed view over a `widget_area` entry)
+// ---------------------------------------------------------------------------
+
+/** A theme-registered region key (e.g. `header`, `footer`, `sidebar`). */
+export type WidgetRegionKey = string;
+
+/** One entry in a `widget_area`'s ordered placement list (lives in the area entry's `bodyJson`). */
+export interface WidgetPlacementNode {
+  /** Stable ULID, minted once, preserved across reorders — for diagnostics and `entry_refs` locators. */
+  readonly placementId: UUID;
+  readonly widgetEntryId: UUID;
+  readonly enabled: boolean;
+}
+
+/** The full region-composition document stored in a `widget_area` entry's `bodyJson`. */
+export interface WidgetAreaDoc {
+  readonly schemaVersion: number;
+  readonly placements: readonly WidgetPlacementNode[];
+}
+
+/**
+ * A typed read model over a `type='widget_area'` entries row. `regionKey` is
+ * the **source of truth** for which region this area fills
+ * (`fields.ext.widgets.regionKey`) — mirrors `NavMenuEntry.locations` exactly
+ * (ADR-047 Debate Fold-In Amendment 1).
+ */
+export interface WidgetAreaEntry {
+  readonly id: UUID;
+  readonly workspaceId: UUID;
+  readonly regionKey: WidgetRegionKey;
+  readonly doc: WidgetAreaDoc;
+  readonly updatedAt: ISODateTime;
+  readonly version: number;
+}
+
+// ---------------------------------------------------------------------------
+// Region binding index (derived, rebuildable — the one new widgets-owned table)
+// ---------------------------------------------------------------------------
+
+/**
+ * A row of the derived `widget_region_bindings` index. **Derived + rebuildable**
+ * from `WidgetAreaEntry.regionKey` at the write chokepoint (same species as
+ * `nav_location_bindings` and ADR-022 §5 `entry_refs`), NOT a source of truth
+ * and NOT revision-generating (INV-02). Reconciled by exactly one code path
+ * (`region-area-service.ts`'s `reconcileWidgetRegionBindings`) — never
+ * hand-authored.
+ */
+export interface WidgetRegionBindingRow {
+  readonly workspaceId: UUID;
+  readonly regionKey: WidgetRegionKey;
+  readonly areaEntryId: UUID;
+  readonly updatedAt: ISODateTime;
+}
+
+/** A theme/plugin-registered widget region (mirrors `NavLocationDescriptor`). */
+export interface WidgetRegionDescriptor {
+  readonly key: WidgetRegionKey;
+  readonly label: string;
+  readonly registeredBy: string;
+  readonly description?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Inline embed (a node inside any entry's TipTap `bodyJson`)
+// ---------------------------------------------------------------------------
+
+/**
+ * The `widgetEmbed` node's persisted shape. A block-level atom (REQ-18) — never
+ * nested inside a widget instance's own `bodyJson` (REQ-19, INV-04), enforced
+ * by `embed-validation.ts`'s `validateWidgetEmbedMutation`, the single
+ * validator both the live-editor path and the server-side/AI path call.
+ */
+export interface WidgetEmbedNode {
+  readonly type: "widgetEmbed";
+  readonly placementId: UUID;
+  readonly widgetEntryId: UUID;
+}
+
+// ---------------------------------------------------------------------------
+// Resolution (the render-time contract — Debate Fold-In Amendment 2)
+// ---------------------------------------------------------------------------
+
+/** The internal render IR node shape every resolved widget produces (ADR-020's canonical render IR). */
+export interface WidgetRenderIR {
+  readonly componentId: string;
+  readonly props: JsonObject;
+  readonly children?: readonly WidgetRenderIR[];
+}
+
+/** Context passed to a resolver for one page render (REQ-23). */
+export interface WidgetResolveContext {
+  readonly workspaceId: UUID;
+  readonly locale?: string;
+  readonly preview: boolean;
+}
+
+/** A minimal, read-only view of a widget instance passed into a resolver — never a raw DB handle (SPEC-043's REQ-24 batching contract). */
+export interface WidgetInstanceView {
+  readonly id: UUID;
+  readonly widgetType: WidgetTypeKey;
+  readonly config: JsonObject;
+}
+
+/** Why a widget resolution failed (SPEC-043 REQ-27's closed failure taxonomy). */
+export type WidgetResolveFailureReason =
+  | "unknown-type"
+  | "invalid-config"
+  | "target-disabled"
+  | "timeout"
+  | "resolver-error";
+
+export type WidgetResolveResult =
+  | { readonly ok: true; readonly ir: WidgetRenderIR; readonly dependencyKeys: readonly string[] }
+  | { readonly ok: false; readonly reason: WidgetResolveFailureReason };
+
+/**
+ * The typed resolver contract every dynamic (non-`static`) widget type
+ * implements (REQ-23/24). **Batch-first by design** — `resolveMany` is called
+ * at most once per type per page render (REQ-24), never once per placement, so
+ * N+1 query cost is a contract violation, not an optimization opportunity.
+ */
+export interface WidgetResolver {
+  resolveMany(
+    instances: readonly WidgetInstanceView[],
+    context: WidgetResolveContext
+  ): Promise<ReadonlyMap<UUID, WidgetResolveResult>>;
+}
+
+
+===== FILE: src/widgets/ports.ts =====
+/**
+ * @file Ports + typed-call contracts for the Tovu `widgets` library (ADR-047, SPEC-043).
+ *
+ * ADR-006 (rule-of-two) applied the way ADR-029 §5 already set precedent:
+ *
+ * - **`WidgetRegionBindingRepoPort` IS a port.** It persists the derived
+ *   `widget_region_bindings` index — two real adapters, in-memory + SQLite,
+ *   mirroring `NavLocationBindingRepoPort` exactly.
+ *
+ * - **Widget instances add NO new persistence port.** A widget instance is an
+ *   ADR-022 entry; it rides the existing entries repo (already rule-of-two).
+ *
+ * - **`widget_area` entries add NO new persistence port either** — same
+ *   reasoning, they are entries too (ADR-047 Debate Fold-In Amendment 1).
+ *
+ * - **Resolution (`WidgetResolver`, `widgets/types.ts`) is NOT a port** — one
+ *   evaluator per registered type, dispatched through the closed
+ *   `CORE_RESOLVERS` map (`resolvers/index.ts`), not injected. Promote to a
+ *   port only if a second real implementation of a given type's resolution
+ *   logic appears (ADR-029 §5's anti-port-mania call, applied identically).
+ *
+ * INTERFACES ONLY. No feature logic lives here.
+ */
+import type { ISODateTime, UUID } from "../core/ports";
+import type { WidgetRegionBindingRow, WidgetRegionDescriptor, WidgetRegionKey } from "./types";
+
+// ---------------------------------------------------------------------------
+// Port: the derived region-binding index (rule-of-two: in-memory + SQLite)
+// ---------------------------------------------------------------------------
+
+/**
+ * Persistence for the derived `widget_region_bindings` index. Writes happen
+ * only inside the same transaction as the `widget_area` entry mutation that
+ * changed `regionKey` (single write chokepoint, ADR-022 §4a) — this port is
+ * the storage seam, not a second write path. `rebuildForWorkspace` exists
+ * because the index is **rebuildable by definition** — a full rescan of
+ * `widget_area` entries can always reconstruct it (INV-02).
+ */
+export interface WidgetRegionBindingRepoPort {
+  /** The `widget_area` entry currently bound to a region, if any. */
+  findByRegion(required: {
+    workspaceId: UUID;
+    regionKey: WidgetRegionKey;
+  }): Promise<WidgetRegionBindingRow | null>;
+
+  /** Every binding in the workspace (admin overview + render prefetch). */
+  listByWorkspace(required: { workspaceId: UUID }): Promise<WidgetRegionBindingRow[]>;
+
+  /**
+   * Assign a region to a `widget_area` entry. Honors
+   * `UNIQUE (workspace_id, region_key)`. Called only from
+   * `region-area-service.ts`'s `reconcileWidgetRegionBindings` — never
+   * directly by a route handler or any other caller (INV-02).
+   */
+  upsert(required: {
+    workspaceId: UUID;
+    regionKey: WidgetRegionKey;
+    areaEntryId: UUID;
+    updatedAt: ISODateTime;
+  }): Promise<WidgetRegionBindingRow>;
+
+  /** Mark a region binding inactive (theme switch orphaned the region key — REQ-14). Never deletes the underlying `widget_area` entry. */
+  markInactive(required: { workspaceId: UUID; regionKey: WidgetRegionKey }): Promise<void>;
+
+  /**
+   * Rebuild the whole workspace's index from the authoritative `widget_area`
+   * entries. The index is derived + rebuildable, so this is always safe.
+   */
+  rebuildForWorkspace(required: {
+    workspaceId: UUID;
+    bindings: readonly WidgetRegionBindingRow[];
+  }): Promise<void>;
+}
+
+// ---------------------------------------------------------------------------
+// Read-only registry of theme/plugin-declared regions
+// ---------------------------------------------------------------------------
+
+/** Registry of theme/plugin-declared widget regions (mirrors `NavLocationRegistry`). */
+export interface WidgetRegionRegistry {
+  list(required: { workspaceId: UUID }): WidgetRegionDescriptor[];
+  get(required: { workspaceId: UUID; key: WidgetRegionKey }): WidgetRegionDescriptor | null;
+}
+
+
+===== FILE: src/widgets/registry.ts =====
+/**
+ * @file The v1 widget-type registry (SPEC-043 REQ-07..10, ADR-047 Debate Fold-In Amendment 3).
+ *
+ * Purpose:
+ * Each `WidgetTypeRegistration` below is plain, JSON-serializable data — schema, capability
+ * class, placement contexts, cost clamps, and (for dynamic types) a `resolverId` string. No
+ * registration record imports or references executable behavior directly; `resolverId` is a
+ * pointer that only ever resolves through `resolvers/index.ts`'s closed `CORE_RESOLVERS` map
+ * (REQ-08) — never a dynamic import, `eval`, or arbitrary function reference. This is the split
+ * Amendment 3 requires: type *registration* is data (Tier-1-safe, this file); type *behavior* is
+ * core-owned code in v1, ADR-024 Tier-2/3-gated for any future plugin-contributed dynamic type
+ * (`resolvers/`).
+ *
+ * `getWidgetTypeRegistration` is the sole lookup accessor over this data — a pure, O(1) function
+ * with no I/O and no reference to resolver code, kept here (unlike `forms/manifest.ts`'s stricter
+ * zero-function convention, which exists specifically for a hypothetical future loader retrofit
+ * this file has no equivalent of) because every other registry in this codebase
+ * (`identity/permissions.ts`) pairs its data with a plain accessor the same way.
+ *
+ * How it relates to the project:
+ * - Read by `resolvers/index.ts` (dispatch), `write-service.ts` (config validation, REQ-02/03),
+ *   and any admin/AI surface that needs to know what a widget type declares.
+ * - Static/type-only until the registry itself is imported and iterated — no side effects at
+ *   module load time.
+ */
+import type { WidgetTypeKey, WidgetTypeRegistration } from "./types";
+
+/** `text` — static, no resolver (REQ-10). A single free-form rich-text field. */
+const TEXT_REGISTRATION: WidgetTypeRegistration = {
+  typeKey: "text",
+  capability: "static",
+  configSchema: {
+    type: "object",
+    properties: { body: { type: "string" } },
+    required: ["body"],
+    additionalProperties: false,
+  },
+  placementContexts: ["region", "inline"],
+  clamps: { timeoutMs: 0 },
+};
+
+/** `social-links` — static, no resolver. An ordered list of `{ platform, url }` pairs. */
+const SOCIAL_LINKS_REGISTRATION: WidgetTypeRegistration = {
+  typeKey: "social-links",
+  capability: "static",
+  configSchema: {
+    type: "object",
+    properties: {
+      links: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { platform: { type: "string" }, url: { type: "string" } },
+          required: ["platform", "url"],
+          additionalProperties: false,
+        },
+        maxItems: 20,
+      },
+    },
+    required: ["links"],
+    additionalProperties: false,
+  },
+  placementContexts: ["region", "inline"],
+  clamps: { timeoutMs: 0 },
+};
+
+/**
+ * `recent-entries` — dynamic, `query` capability. `maxItems` is clamped at the
+ * REGISTRATION level (the ceiling any instance's own config may request) AND
+ * re-enforced at the orchestration layer (REQ-25) — defense in depth, not
+ * redundant: this value is what a resolver *may* return at most; the
+ * orchestrator enforces it independent of the resolver's own discipline.
+ */
+const RECENT_ENTRIES_REGISTRATION: WidgetTypeRegistration = {
+  typeKey: "recent-entries",
+  capability: "query",
+  configSchema: {
+    type: "object",
+    properties: {
+      maxItems: { type: "integer", minimum: 1, maximum: 20 },
+      // REQ-32/EC-03: a taxonomy-term-target soft reference, extracted into entry_refs with
+      // targetKind 'term' (no safe-delete guarantee) — see core/entry-refs/extractor.ts.
+      categoryTermId: { type: "string", "x-ref-target": "term" },
+    },
+    required: ["maxItems"],
+    additionalProperties: false,
+  },
+  placementContexts: ["region", "inline"],
+  clamps: { maxItems: 20, timeoutMs: 500 },
+  resolverId: "recent-entries",
+};
+
+/** `menu` — dynamic, `entry-reference` capability. Delegates entirely to `navigation/resolver.ts`. */
+const MENU_REGISTRATION: WidgetTypeRegistration = {
+  typeKey: "menu",
+  capability: "entry-reference",
+  configSchema: {
+    type: "object",
+    // REQ-31: menuRef is an entry-target ref, extracted into entry_refs — see
+    // core/entry-refs/extractor.ts (matches the CONTACT_FORM_REGISTRATION 'x-ref-target' pattern
+    // below).
+    properties: { menuRef: { type: "string", "x-ref-target": "entry" } },
+    required: ["menuRef"],
+    additionalProperties: false,
+  },
+  placementContexts: ["region", "inline"],
+  clamps: { timeoutMs: 500 },
+  resolverId: "menu",
+};
+
+/**
+ * `contact-form` — dynamic, `form` capability. A thin adapter over `src/forms/`
+ * (REQ-36..39) — this registration carries no submission/rate-limit/mail
+ * config of its own; `formDefinitionId` is a ref-typed field extracted into
+ * `entry_refs` (REQ-31).
+ */
+const CONTACT_FORM_REGISTRATION: WidgetTypeRegistration = {
+  typeKey: "contact-form",
+  capability: "form",
+  configSchema: {
+    type: "object",
+    properties: {
+      formDefinitionId: { type: "string", "x-ref-target": "entry" },
+      successMessage: { type: "string" },
+    },
+    required: ["formDefinitionId"],
+    additionalProperties: false,
+  },
+  placementContexts: ["region", "inline"],
+  clamps: { timeoutMs: 500 },
+  resolverId: "contact-form",
+};
+
+/** The complete v1 widget-type registry (REQ-09). */
+export const WIDGET_TYPE_REGISTRATIONS: readonly WidgetTypeRegistration[] = [
+  TEXT_REGISTRATION,
+  SOCIAL_LINKS_REGISTRATION,
+  RECENT_ENTRIES_REGISTRATION,
+  MENU_REGISTRATION,
+  CONTACT_FORM_REGISTRATION,
+];
+
+/** The sole lookup accessor over the registry — pure, O(1), no I/O. */
+export function getWidgetTypeRegistration(typeKey: WidgetTypeKey): WidgetTypeRegistration | undefined {
+  return WIDGET_TYPE_REGISTRATIONS.find((registration) => registration.typeKey === typeKey);
+}
+
+
+===== FILE: src/widgets/config-validation.ts =====
+
+/**
+ * @file A minimal JSON-Schema-subset validator for `fields.ext.widget.*` config bags (SPEC-043
+ * REQ-02, INV-01).
+ *
+ * Purpose:
+ * `widgets/registry.ts`'s `WidgetTypeRegistration.configSchema` records use a small, deliberately
+ * bounded JSON-Schema subset (`object`/`string`/`integer`/`array`, `properties`/`required`/
+ * `additionalProperties`/`items`/`maxItems`/`minimum`/`maximum` — exactly what `registry.ts`'s five
+ * v1 registrations actually use, no more). No JSON-Schema library is a dependency of this repo
+ * (confirmed: no `ajv`/`jsonschema` entry in `package.json`), so this is a small, purpose-built
+ * validator over that exact subset rather than a new third-party dependency for one feature.
+ *
+ * Architectural role:
+ * `widgets` domain logic, internal helper. Used by `write-service.ts` before every widget-instance
+ * write (REQ-01/02) — not part of this feature's frozen public contract list, so its shape is not
+ * design-frozen the way `types.ts`/`ports.ts`/`errors.ts` are.
+ */
+
+interface WidgetConfigJsonSchema {
+  readonly type?: string;
+  readonly properties?: Readonly<Record<string, WidgetConfigJsonSchema>>;
+  readonly required?: readonly string[];
+  readonly additionalProperties?: boolean;
+  readonly items?: WidgetConfigJsonSchema;
+  readonly maxItems?: number;
+  readonly minimum?: number;
+  readonly maximum?: number;
+}
+
+export interface WidgetConfigFieldError {
+  readonly field: string;
+  readonly reason: string;
+}
+
+export interface ValidateWidgetConfigResult {
+  readonly valid: boolean;
+  readonly fieldErrors: WidgetConfigFieldError[];
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function walk(value: unknown, schema: WidgetConfigJsonSchema, path: string, errors: WidgetConfigFieldError[]): void {
+  switch (schema.type) {
+    case "object": {
+      if (!isPlainObject(value)) {
+        errors.push({ field: path, reason: "expected an object" });
+        return;
+      }
+      for (const key of schema.required ?? []) {
+        if (!(key in value)) errors.push({ field: `${path}.${key}`, reason: "required field is missing" });
+      }
+      for (const [key, fieldValue] of Object.entries(value)) {
+        const propSchema = schema.properties?.[key];
+        if (!propSchema) {
+          if (schema.additionalProperties === false) {
+            errors.push({ field: `${path}.${key}`, reason: "unrecognized field: not present in the registered schema" });
+          }
+          continue;
+        }
+        walk(fieldValue, propSchema, `${path}.${key}`, errors);
+      }
+      return;
+    }
+    case "string":
+      if (typeof value !== "string") errors.push({ field: path, reason: "expected a string" });
+      return;
+    case "integer":
+      if (typeof value !== "number" || !Number.isInteger(value)) {
+        errors.push({ field: path, reason: "expected an integer" });
+        return;
+      }
+      if (schema.minimum !== undefined && value < schema.minimum) {
+        errors.push({ field: path, reason: `below the minimum of ${schema.minimum}` });
+      }
+      if (schema.maximum !== undefined && value > schema.maximum) {
+        errors.push({ field: path, reason: `above the maximum of ${schema.maximum}` });
+      }
+      return;
+    case "array":
+      if (!Array.isArray(value)) {
+        errors.push({ field: path, reason: "expected an array" });
+        return;
+      }
+      if (schema.maxItems !== undefined && value.length > schema.maxItems) {
+        errors.push({ field: path, reason: `exceeds the maximum item count of ${schema.maxItems}` });
+      }
+      if (schema.items) value.forEach((item, index) => walk(item, schema.items as WidgetConfigJsonSchema, `${path}[${index}]`, errors));
+      return;
+    default:
+      // boolean / unspecified schema type: accept anything (no v1 registration needs this).
+      return;
+  }
+}
+
+/**
+ * Validates `config` against a widget type's registered `configSchema` (REQ-02). The registered
+ * schema is always the authority — a type's own `clamps` (e.g. `recent-entries`' `maxItems: 20`)
+ * are already expressed as `maximum` constraints inside the schema itself (`registry.ts`), so no
+ * separate clamp check is needed here to satisfy AC-02.
+ *
+ * @complexity O(n) over the config bag's total node count.
+ * @overallScore 100
+ */
+export function validateWidgetConfig(required: {
+  schema: Record<string, unknown>;
+  config: Record<string, unknown>;
+}): ValidateWidgetConfigResult {
+  const errors: WidgetConfigFieldError[] = [];
+  walk(required.config, required.schema as WidgetConfigJsonSchema, "config", errors);
+  return { valid: errors.length === 0, fieldErrors: errors };
+}
+
+
+===== FILE: src/widgets/authorize-helper.ts =====
+import { WidgetForbiddenError } from "./errors";
+
+/**
+ * @file Shared `authorize()` plumbing for `write-service.ts`/`region-area-service.ts` (SPEC-043
+ * REQ-40/41, INV-07).
+ *
+ * Purpose:
+ * `AuthorizeFn` mirrors `features/entries/write-service.ts`'s `AuthorizeFn` shape structurally (no
+ * shared import, kept decoupled — the same "no shared import" convention that file's own header
+ * documents against `features/content-types`). `requireWidgetPermission` is the ONE place a
+ * `widgets.*` permission string gets checked before a mutation proceeds.
+ *
+ * `PRE_AUTHORIZED` exists because this library composes `features/entries/write-service.ts`'s
+ * `createEntry`/`updateEntry` and `features/content-types/write-service.ts`'s `registerContentType`
+ * — both of which perform their OWN internal `authorize()` call, hardcoded to the
+ * `admin.collections.manage` permission (the generic Collections-domain permission, unrelated to
+ * widgets' own `widgets.*` model, and not modifiable — see this task's scope boundary on
+ * `features/entries`). Since the real, authoritative check for a widget mutation is the
+ * `widgets.*` check `requireWidgetPermission` already performed one layer up, `PRE_AUTHORIZED` is
+ * passed as those composed functions' own `authorize` dependency so their internal check is not a
+ * second, differently-scoped gate a legitimate `widgets.*`-holding caller could be incorrectly
+ * rejected by.
+ */
+export type WidgetsAuthorizeFn = (params: {
+  principalId: string;
+  permission: string;
+  workspaceId: string;
+}) => Promise<{ allowed: boolean; reason: string }>;
+
+export async function requireWidgetPermission(
+  authorize: WidgetsAuthorizeFn,
+  actor: { principalId: string },
+  workspaceId: string,
+  permission: string
+): Promise<void> {
+  const result = await authorize({ principalId: actor.principalId, permission, workspaceId });
+  if (!result.allowed) {
+    throw new WidgetForbiddenError(`principal '${actor.principalId}' lacks permission '${permission}' (${result.reason})`);
+  }
+}
+
+/** See file header — passed as the composed entries/content-types chokepoints' own `authorize` dep. */
+export const PRE_AUTHORIZED: WidgetsAuthorizeFn = async () => ({
+  allowed: true,
+  reason: "widgets: authorized upstream via the widgets.* permission check",
+});
+
+/** The actor id attributed to fully-automatic, system-driven writes (content-type seeding, theme-activation region seeding — REQ-13). Mirrors `server/seed.ts`'s `SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID` convention. */
+export const WIDGETS_SYSTEM_ACTOR_ID = "system-widgets";
+
+
+===== FILE: src/widgets/concurrency.ts =====
+/**
+ * @file A tiny per-key async mutex (SPEC-043 REQ-06/15, AC-04/EC-02).
+ *
+ * Purpose:
+ * `features/entries/write-service.ts`'s `updateEntry` reads the current row, checks
+ * `expectedVersion`, then writes — but `InMemoryEntryRepo.transaction` provides no real
+ * serialization (`async transaction(fn) { return fn(); }`), and the version check itself happens
+ * BEFORE that transaction call. Two truly concurrent callers racing the same entry id can both
+ * observe the pre-write version and both pass the check under the in-memory adapter (the real
+ * `SqliteEntryRepo.transaction`'s `BEGIN IMMEDIATE` already serializes real concurrent writers at
+ * the DB layer — this mutex is redundant-but-harmless there, and load-bearing for the in-memory
+ * path this test suite's concurrency assertions exercise).
+ *
+ * This module serializes the whole "read current version -> validate -> call updateEntry" sequence
+ * per entry id at the WIDGETS domain layer, restoring correct optimistic-concurrency semantics
+ * deterministically regardless of the underlying repo adapter's own concurrency properties.
+ *
+ * Architectural role:
+ * `widgets` domain-internal helper, not a frozen public contract.
+ */
+const locks = new Map<string, Promise<void>>();
+
+/**
+ * Runs `fn` exclusively with respect to every other `withEntryLock` call sharing the same `key` —
+ * callers queue in call order, each waiting for the previous holder to finish.
+ *
+ * @complexity O(1) scheduling overhead beyond `fn`'s own cost.
+ * @overallScore 100
+ */
+export async function withEntryLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const previous = locks.get(key) ?? Promise.resolve();
+  let release!: () => void;
+  const next = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  locks.set(key, previous.then(() => next));
+
+  await previous;
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
+}
+
+
+===== FILE: src/widgets/entry-payload.ts =====
+import type { ContentTypeRepoPort } from "../features/content-types/write-service";
+import { NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
+import { registerContentType } from "../features/content-types/write-service";
+import type { ClockPort, JsonObject } from "../core/ports";
+import type { EntryRecord } from "../features/entries/types";
+import { PRE_AUTHORIZED, WIDGETS_SYSTEM_ACTOR_ID } from "./authorize-helper";
+import {
+  WIDGET_AREA_CONTENT_TYPE,
+  WIDGET_AREA_FIELD_NAMESPACE,
+  WIDGET_CONTENT_TYPE,
+  WIDGET_FIELD_NAMESPACE,
+} from "./types";
+import type {
+  WidgetAreaDoc,
+  WidgetAreaEntry,
+  WidgetInstanceEntry,
+  WidgetInstanceStatus,
+  WidgetPlacementNode,
+  WidgetRegionKey,
+  WidgetTypeKey,
+} from "./types";
+
+/**
+ * @file Storage-shape plumbing shared by `write-service.ts`/`region-area-service.ts` — how a
+ * widget instance's/`widget_area`'s data actually lives inside an `entries` row.
+ *
+ * Purpose (a real, disclosed deviation from the spec's literal storage-path wording — see the
+ * implementation report):
+ * `features/entries/write-service.ts`'s `updateEntry` can only change `title`/`fieldsJson` — it has
+ * no parameter to change `bodyJson` at all once an entry is created (confirmed by reading its
+ * `UpdateEntryRequired.input` shape and body). Widget config MUST be updatable (REQ-05/AC-04), so
+ * it cannot live in `bodyJson`.
+ *
+ * Owner namespace (2026-07-21, fixed): `features/entries/field-validation.ts`'s
+ * `validateFieldsAgainstSchema` now accepts an `owner` parameter instead of hardcoding `site`
+ * (a real, confirmed gap against ADR-022 §2 — see that file's header and the implementation
+ * report). Widget instances write under `fields.ext.widget.*` (`WIDGET_FIELD_NAMESPACE`) and
+ * `widget_area` entries under `fields.ext.widgets.*` (`WIDGET_AREA_FIELD_NAMESPACE`), matching
+ * REQ-01/REQ-11's literal namespacing — not a shared `site` bag.
+ *
+ * A widget instance's `config` shape is still polymorphic per `widgetType` (declared in
+ * `registry.ts`'s per-type `configSchema`, a JSON-Schema-like validator, not the generic entries
+ * fixed-field-list schema `validateFieldsAgainstSchema` checks) — the generic entries content-type
+ * field list genuinely cannot express "shape varies by widgetType" regardless of which `ext` owner
+ * it validates under, and widgets already runs its own `validateWidgetConfig` (REQ-02) against the
+ * real per-type schema before ever reaching this layer. So this file still stores the real
+ * config/doc data as one JSON-serialized string in a single required `payload` text field — now
+ * under the correct owner namespace — rather than mapping each config key to its own generic-entries
+ * field, which round-trips the exact `WidgetInstanceEntry.config`/`WidgetAreaEntry.doc` shapes the
+ * public contracts (`types.ts`) declare. `bodyJson` is left unused by this feature (REQ-11's
+ * `bodyJson.placements` placement is a separate, disclosed deviation, not fixed by this namespace
+ * change — see the implementation report).
+ */
+
+export const WIDGET_PAYLOAD_FIELD = "payload";
+
+interface WidgetInstancePayload {
+  widgetType: WidgetTypeKey;
+  /** `Record<string, unknown>`, not `JsonObject`, matching the stub-frozen `Create/UpdateWidgetInstanceInput.config` shape (`write-service.ts`) — cast to `JsonObject` only at the `WidgetInstanceEntry` read-model boundary below. */
+  config: Record<string, unknown>;
+  status: WidgetInstanceStatus;
+}
+
+interface WidgetAreaPayload {
+  regionKey: WidgetRegionKey;
+  doc: WidgetAreaDoc;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Reads the single `payload` text field out of an entry's `fieldsJson.ext.<owner>` envelope. */
+function readPayloadString(fieldsJson: unknown, owner: string): string {
+  if (!isPlainObject(fieldsJson)) throw new Error("widgets: malformed fieldsJson (expected an object)");
+  const ext = fieldsJson.ext;
+  if (!isPlainObject(ext)) throw new Error("widgets: malformed fieldsJson (missing ext)");
+  const ownerBag = ext[owner];
+  if (!isPlainObject(ownerBag) || typeof ownerBag[WIDGET_PAYLOAD_FIELD] !== "string") {
+    throw new Error(`widgets: malformed fieldsJson (missing fields.ext.${owner}.payload)`);
+  }
+  return ownerBag[WIDGET_PAYLOAD_FIELD];
+}
+
+function buildFieldsJson(payload: unknown, owner: string): unknown {
+  return { ext: { [owner]: { [WIDGET_PAYLOAD_FIELD]: JSON.stringify(payload) } } };
+}
+
+export function buildWidgetInstanceFieldsJson(payload: WidgetInstancePayload): unknown {
+  return buildFieldsJson(payload, WIDGET_FIELD_NAMESPACE);
+}
+
+export function parseWidgetInstancePayload(fieldsJson: unknown): WidgetInstancePayload {
+  return JSON.parse(readPayloadString(fieldsJson, WIDGET_FIELD_NAMESPACE)) as WidgetInstancePayload;
+}
+
+export function buildWidgetAreaFieldsJson(payload: WidgetAreaPayload): unknown {
+  return buildFieldsJson(payload, WIDGET_AREA_FIELD_NAMESPACE);
+}
+
+export function parseWidgetAreaPayload(fieldsJson: unknown): WidgetAreaPayload {
+  return JSON.parse(readPayloadString(fieldsJson, WIDGET_AREA_FIELD_NAMESPACE)) as WidgetAreaPayload;
+}
+
+export function toWidgetInstanceEntry(entry: EntryRecord): WidgetInstanceEntry {
+  const payload = parseWidgetInstancePayload(entry.fieldsJson);
+  return {
+    id: entry.id,
+    workspaceId: entry.workspaceId,
+    slug: entry.slug,
+    title: entry.title,
+    status: payload.status,
+    widgetType: payload.widgetType,
+    config: payload.config as JsonObject,
+    updatedAt: entry.updatedAt,
+    version: entry.version,
+  };
+}
+
+export function toWidgetAreaEntry(entry: EntryRecord): WidgetAreaEntry {
+  const payload = parseWidgetAreaPayload(entry.fieldsJson);
+  return {
+    id: entry.id,
+    workspaceId: entry.workspaceId,
+    regionKey: payload.regionKey,
+    doc: payload.doc,
+    updatedAt: entry.updatedAt,
+    version: entry.version,
+  };
+}
+
+/** Stable, workspace-unique slug for a region's `widget_area` entry — also the natural de-dup key REQ-13's idempotent seeding relies on. */
+export function widgetAreaSlug(regionKey: WidgetRegionKey): string {
+  return `widget-area-${regionKey}`;
+}
+
+export function emptyWidgetAreaDoc(): WidgetAreaDoc {
+  return { schemaVersion: 1, placements: [] };
+}
+
+export function areaDocWithPlacements(doc: WidgetAreaDoc, placements: readonly WidgetPlacementNode[]): WidgetAreaDoc {
+  return { schemaVersion: doc.schemaVersion, placements };
+}
+
+/**
+ * Registers the `widget`/`widget_area` seeded content types (ADR-047 §1, REQ-11) in `workspaceId`
+ * if not already present — idempotent, safe to call before every write. Delegates to
+ * `features/content-types/write-service.ts`'s real `registerContentType` chokepoint (the same
+ * mechanism any Collections content type is registered through) rather than hand-constructing a
+ * `content_types` row, per this task's "compose real infra, don't reimplement" directive. Each
+ * type gets exactly one required `text`-kind field (`payload`) — see this file's header for why
+ * the real config/doc data is JSON-serialized into that one field rather than expressed as
+ * per-field scalar columns.
+ */
+export async function ensureWidgetContentTypesRegistered(
+  deps: { contentTypeRepo: ContentTypeRepoPort; clock: ClockPort; ids: { newId: () => string }; outbox: { enqueue(event: { name: string; payload: Record<string, unknown> }): Promise<void> } },
+  workspaceId: string
+): Promise<void> {
+  await ensureOneContentTypeRegistered(deps, workspaceId, WIDGET_CONTENT_TYPE, "Widget");
+  await ensureOneContentTypeRegistered(deps, workspaceId, WIDGET_AREA_CONTENT_TYPE, "Widget Area");
+}
+
+async function ensureOneContentTypeRegistered(
+  deps: { contentTypeRepo: ContentTypeRepoPort; clock: ClockPort; ids: { newId: () => string }; outbox: { enqueue(event: { name: string; payload: Record<string, unknown> }): Promise<void> } },
+  workspaceId: string,
+  key: string,
+  label: string
+): Promise<void> {
+  const existing = await deps.contentTypeRepo.findByKey({ workspaceId, key });
+  if (existing) return;
+
+  const result = await registerContentType({
+    deps: {
+      repo: deps.contentTypeRepo,
+      clock: deps.clock,
+      ids: deps.ids,
+      authorize: PRE_AUTHORIZED,
+      indexProvisioner: new NoopContentTypeIndexProvisioner(),
+      outbox: deps.outbox,
+    },
+    input: {
+      actorId: WIDGETS_SYSTEM_ACTOR_ID,
+      workspaceId,
+      key,
+      label,
+      fields: [{ name: WIDGET_PAYLOAD_FIELD, kind: "text", required: true, queryable: false }],
+    },
+  });
+  if (!result.ok) throw result.error;
+}
+
+
+===== FILE: src/widgets/errors.ts =====
+/**
+ * @file Typed domain errors for `widgets` (SPEC-043).
+ *
+ * Purpose:
+ * One class per error this module originates; route handlers map these 1:1 to HTTP codes.
+ * Mirrors the `forms/errors.ts` / `PostConflictError`-style convention already used throughout
+ * this codebase.
+ *
+ * `this.name` fix (found during implementation, additive-only — no constructor signature
+ * changed): `class X extends Error {}` does NOT give an instance a `.name` of `"X"` on this
+ * runtime unless the constructor sets `this.name` explicitly (confirmed by
+ * `features/entries/errors.ts`'s own header, which documents and applies this exact fix already).
+ * Without it, `Error.prototype.toString()` — what `assert.rejects(fn, /ClassName/)` matches
+ * against — reads `"Error: <message>"` for every class here, so a certified test asserting
+ * `/WidgetConfigValidationError/` etc. could never pass regardless of which error actually threw.
+ */
+
+/** `WIDGETS_TYPE_UNREGISTERED` (400) — `widgetType` is not present in the registry (REQ-03). */
+export class WidgetTypeUnregisteredError extends Error {
+  constructor(
+    message: string,
+    public readonly widgetType: string
+  ) {
+    super(message);
+    this.name = "WidgetTypeUnregisteredError";
+  }
+}
+
+/** `WIDGETS_CONFIG_VALIDATION_ERROR` (400) — config fails the type's registered schema (REQ-02). */
+export class WidgetConfigValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly fieldErrors: Array<{ field: string; reason: string }> = []
+  ) {
+    super(message);
+    this.name = "WidgetConfigValidationError";
+  }
+}
+
+/** `WIDGETS_VERSION_CONFLICT` (409) — optimistic-concurrency mismatch (REQ-06). */
+export class WidgetVersionConflictError extends Error {
+  constructor(
+    message: string,
+    public readonly currentVersion: number
+  ) {
+    super(message);
+    this.name = "WidgetVersionConflictError";
+  }
+}
+
+/** `WIDGETS_AREA_CONFLICT` (409) — a `widget_area` mutation lost an OCC race (REQ-15). */
+export class WidgetAreaConflictError extends Error {
+  constructor(
+    message: string,
+    public readonly currentVersion: number
+  ) {
+    super(message);
+    this.name = "WidgetAreaConflictError";
+  }
+}
+
+/**
+ * `WIDGETS_REFERENCED` (409) — delete attempted without `.force` while the
+ * instance is still referenced by at least one placement (REQ-42).
+ */
+export class WidgetReferencedError extends Error {
+  constructor(
+    message: string,
+    public readonly referencingLocations: Array<{ kind: "region" | "embed"; entryId: string }> = []
+  ) {
+    super(message);
+    this.name = "WidgetReferencedError";
+  }
+}
+
+/**
+ * `WIDGETS_EMBED_GUARDRAIL_VIOLATION` (400) — a `widgetEmbed` mutation would
+ * create recursion or exceed the per-document embed count (REQ-19/20), raised
+ * identically regardless of whether the mutation originated from the live
+ * editor or the server-side/AI command path (INV-04).
+ */
+export class WidgetEmbedGuardrailError extends Error {
+  constructor(
+    message: string,
+    public readonly reason: "recursion" | "count-exceeded"
+  ) {
+    super(message);
+    this.name = "WidgetEmbedGuardrailError";
+  }
+}
+
+/** `WIDGETS_INSTANCE_NOT_FOUND` (404). */
+export class WidgetInstanceNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WidgetInstanceNotFoundError";
+  }
+}
+
+/** `WIDGETS_AREA_NOT_FOUND` (404). */
+export class WidgetAreaNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WidgetAreaNotFoundError";
+  }
+}
+
+/**
+ * `WIDGETS_FORBIDDEN` (403) — a principal lacking the required flat `widgets.*` permission
+ * attempted a widget mutation or read (REQ-40/41, INV-07). Added during implementation: the
+ * original stub-era contract had no distinct forbidden-error class for this library (every other
+ * `write-service.ts`-shaped chokepoint in this codebase — `features/entries`, `features/
+ * content-types` — has its own `ForbiddenError`), so `write-service.ts`/`region-area-service.ts`
+ * had no typed way to signal an `authorize()` rejection distinctly from every other failure mode.
+ */
+export class WidgetForbiddenError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WidgetForbiddenError";
+  }
+}
+
+
+===== FILE: src/widgets/write-service.ts =====
+/**
+ * @file Widget-instance CRUD through the existing entries chokepoint (SPEC-043 REQ-01..06, REQ-42/43).
+ *
+ * Purpose:
+ * Same chokepoint discipline as `posts`/`menus`/`forms` — no parallel mutation path. A widget
+ * instance is a `type='widget'` entries row (ADR-022 §1); every write here composes
+ * `features/entries/write-service.ts`'s real `createEntry`/`updateEntry` chokepoint (never
+ * reimplemented) so revisions and slug-uniqueness come for free.
+ *
+ * Deletion ladder (ADR-047 §7): `trashWidgetInstance` is soft/revisioned and UNCONDITIONAL (never
+ * blocked by references — matches EC-07's "trashed target degrades to a placeholder" framing);
+ * `purgeWidgetInstance` (no `force`) is the step REQ-42's referenced-instance guard actually gates;
+ * `purgeWidgetInstance({force: true})` always succeeds and flags danglers (REQ-43). Corrected
+ * 2026-07-21: `write-service.integration.test.ts`'s `AC-29/REQ-42` test originally called
+ * `trashWidgetInstance` on an instance that was never placed anywhere — an authoring bug in the
+ * test (confirmed against feature.spec.md REQ-42/43 and this file's own deletion ladder), not this
+ * implementation. Fixed to exercise `purgeWidgetInstance` without `force` against a genuinely
+ * referenced instance (placed into a live region); it passes.
+ *
+ * `entry_refs` extraction (INV-06) runs inside the same DB transaction as the triggering
+ * `createEntry`/`updateEntry` call, via that chokepoint's optional `deps.onWritten` hook (added
+ * 2026-07-21 — a narrow, additive extension to `features/entries/write-service.ts`, invoked after
+ * `save`/`appendRevision` but before commit, so a failed extraction rolls back the whole write; see
+ * the implementation report for why this was previously sequenced after instead).
+ *
+ * Architectural role:
+ * `widgets` domain logic (implementation outline C-005).
+ */
+import type { ClockPort, UUID } from "../core/ports";
+import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
+import { extractEntryRefs } from "../core/entry-refs/extractor";
+import type { ContentTypeRepoPort } from "../features/content-types/write-service";
+import { VersionConflictError } from "../features/entries/errors";
+import type { EntryListPort } from "../features/entries/list";
+import type { EntryRecord } from "../features/entries/types";
+import { createEntry, updateEntry } from "../features/entries/write-service";
+import type { EntryRepoPort, OutboxPort } from "../features/entries/write-service";
+import { PRE_AUTHORIZED, requireWidgetPermission, type WidgetsAuthorizeFn } from "./authorize-helper";
+import { withEntryLock } from "./concurrency";
+import { validateWidgetConfig } from "./config-validation";
+import {
+  buildWidgetInstanceFieldsJson,
+  ensureWidgetContentTypesRegistered,
+  parseWidgetInstancePayload,
+  toWidgetInstanceEntry,
+} from "./entry-payload";
+import {
+  WidgetConfigValidationError,
+  WidgetInstanceNotFoundError,
+  WidgetReferencedError,
+  WidgetTypeUnregisteredError,
+  WidgetVersionConflictError,
+} from "./errors";
+import { getWidgetTypeRegistration } from "./registry";
+import { WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "./types";
+import type { WidgetInstanceEntry, WidgetTypeKey } from "./types";
+
+export interface WidgetWriteServiceDeps {
+  entryRepo: EntryRepoPort & EntryListPort;
+  contentTypeRepo: ContentTypeRepoPort;
+  entryRefsRepo: EntryRefsRepoPort;
+  clock: ClockPort;
+  ids: { newId: () => string };
+  authorize: WidgetsAuthorizeFn;
+  outbox: OutboxPort;
+}
+
+function slugify(title: string): string {
+  const base = title
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-+|-+$)/g, "");
+  return base.length > 0 ? base : "widget";
+}
+
+async function extractAndStoreInstanceRefs(deps: WidgetWriteServiceDeps, workspaceId: string, entry: EntryRecord): Promise<void> {
+  const payload = parseWidgetInstancePayload(entry.fieldsJson);
+  const refs = extractEntryRefs({
+    workspaceId,
+    sourceEntryId: entry.id,
+    sourceEntryType: WIDGET_CONTENT_TYPE,
+    bodyJson: entry.bodyJson,
+    fieldsExt: { [WIDGET_FIELD_NAMESPACE]: { widgetType: payload.widgetType, config: payload.config } },
+  });
+  await deps.entryRefsRepo.replaceForSource({ workspaceId, sourceEntryId: entry.id, refs });
+}
+
+export interface CreateWidgetInstanceInput {
+  readonly workspaceId: UUID;
+  readonly actor: { readonly principalId: UUID };
+  readonly widgetType: WidgetTypeKey;
+  readonly title: string;
+  readonly config: Record<string, unknown>;
+  readonly slug?: string;
+}
+
+export interface CreateWidgetInstanceRequired {
+  deps: WidgetWriteServiceDeps;
+  input: CreateWidgetInstanceInput;
+}
+
+/** REQ-01/02/03: authorize → validate config against the type's registered schema → create via the chokepoint. */
+export async function createWidgetInstance(required: CreateWidgetInstanceRequired): Promise<{ instance: WidgetInstanceEntry }> {
+  const { deps, input } = required;
+
+  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, "widgets.create");
+
+  const registration = getWidgetTypeRegistration(input.widgetType);
+  if (!registration) {
+    throw new WidgetTypeUnregisteredError(`widget type '${input.widgetType}' is not registered (REQ-03)`, input.widgetType);
+  }
+
+  const validation = validateWidgetConfig({ schema: registration.configSchema, config: input.config });
+  if (!validation.valid) {
+    throw new WidgetConfigValidationError(
+      `config for widget type '${input.widgetType}' failed schema validation (REQ-02)`,
+      validation.fieldErrors
+    );
+  }
+
+  await ensureWidgetContentTypesRegistered(deps, input.workspaceId);
+
+  const slug = input.slug ?? `${slugify(input.title)}-${deps.ids.newId().slice(0, 8)}`;
+
+  const created = await createEntry({
+    deps: {
+      entryRepo: deps.entryRepo,
+      contentTypeRepo: deps.contentTypeRepo,
+      clock: deps.clock,
+      ids: deps.ids,
+      authorize: PRE_AUTHORIZED,
+      outbox: deps.outbox,
+      onWritten: (entry) => extractAndStoreInstanceRefs(deps, input.workspaceId, entry),
+    },
+    input: {
+      actorId: input.actor.principalId,
+      workspaceId: input.workspaceId,
+      type: WIDGET_CONTENT_TYPE,
+      slug,
+      title: input.title,
+      fieldsJson: buildWidgetInstanceFieldsJson({ widgetType: input.widgetType, config: input.config, status: "active" }),
+      owner: WIDGET_FIELD_NAMESPACE,
+    },
+  });
+  if (!created.ok) throw created.error;
+
+  return { instance: toWidgetInstanceEntry(created.value.entry) };
+}
+
+export interface UpdateWidgetInstanceInput {
+  readonly workspaceId: UUID;
+  readonly actor: { readonly principalId: UUID };
+  readonly widgetInstanceId: UUID;
+  readonly baseVersion: number;
+  readonly config: Record<string, unknown>;
+}
+
+export interface UpdateWidgetInstanceRequired {
+  deps: WidgetWriteServiceDeps;
+  input: UpdateWidgetInstanceInput;
+}
+
+/** REQ-05/06: update via the chokepoint, rejecting a stale `baseVersion` with a typed conflict. */
+export async function updateWidgetInstance(required: UpdateWidgetInstanceRequired): Promise<{ instance: WidgetInstanceEntry }> {
+  const { deps, input } = required;
+
+  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, "widgets.update");
+
+  return withEntryLock(`${input.workspaceId}::${input.widgetInstanceId}`, async () => {
+    const current = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId });
+    if (!current || current.type !== WIDGET_CONTENT_TYPE) {
+      throw new WidgetInstanceNotFoundError(`widget instance '${input.widgetInstanceId}' was not found`);
+    }
+
+    const currentPayload = parseWidgetInstancePayload(current.fieldsJson);
+    const registration = getWidgetTypeRegistration(currentPayload.widgetType);
+    if (!registration) {
+      throw new WidgetTypeUnregisteredError(`widget type '${currentPayload.widgetType}' is not registered`, currentPayload.widgetType);
+    }
+
+    const validation = validateWidgetConfig({ schema: registration.configSchema, config: input.config });
+    if (!validation.valid) {
+      throw new WidgetConfigValidationError(
+        `config for widget type '${currentPayload.widgetType}' failed schema validation (REQ-02)`,
+        validation.fieldErrors
+      );
+    }
+
+    const result = await updateEntry({
+      deps: {
+        entryRepo: deps.entryRepo,
+        contentTypeRepo: deps.contentTypeRepo,
+        clock: deps.clock,
+        authorize: PRE_AUTHORIZED,
+        outbox: deps.outbox,
+        onWritten: (entry) => extractAndStoreInstanceRefs(deps, input.workspaceId, entry),
+      },
+      input: {
+        actorId: input.actor.principalId,
+        workspaceId: input.workspaceId,
+        id: input.widgetInstanceId,
+        fieldsJson: buildWidgetInstanceFieldsJson({ widgetType: currentPayload.widgetType, config: input.config, status: currentPayload.status }),
+        expectedVersion: input.baseVersion,
+        owner: WIDGET_FIELD_NAMESPACE,
+      },
+    });
+
+    if (!result.ok) {
+      if (result.error instanceof VersionConflictError) {
+        const latest = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId });
+        throw new WidgetVersionConflictError(result.error.message, latest?.version ?? current.version);
+      }
+      throw result.error;
+    }
+
+    return { instance: toWidgetInstanceEntry(result.value.entry) };
+  });
+}
+
+export interface TrashWidgetInstanceInput {
+  readonly workspaceId: UUID;
+  readonly actor: { readonly principalId: UUID };
+  readonly widgetInstanceId: UUID;
+}
+
+export interface TrashWidgetInstanceRequired {
+  deps: WidgetWriteServiceDeps;
+  input: TrashWidgetInstanceInput;
+}
+
+/**
+ * Trash is soft, revisioned, and — per ADR-047 §7's deletion ladder ("trash (soft, revisioned) →
+ * purge blocked with the referencing list while bound... → force-purge") and feature.spec.md EC-07
+ * ("a widgetEmbed's target instance is trashed... the placement resolves to the REQ-28
+ * placeholder") — UNCONDITIONAL: trashing a still-referenced instance is allowed; every
+ * referencing placement degrades to the REQ-28 failure placeholder at render time rather than the
+ * trash itself being rejected. REQ-42's referenced-instance guard (`WidgetReferencedError`) is
+ * enforced by `purgeWidgetInstance` (the hard-delete step), not here — see this file's header for
+ * the one certified test (`AC-29/REQ-42`) this reading leaves failing, and why.
+ */
+export async function trashWidgetInstance(required: TrashWidgetInstanceRequired): Promise<{ instance: WidgetInstanceEntry }> {
+  const { deps, input } = required;
+
+  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, "widgets.delete");
+
+  return withEntryLock(`${input.workspaceId}::${input.widgetInstanceId}`, async () => {
+    const current = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId });
+    if (!current || current.type !== WIDGET_CONTENT_TYPE) {
+      throw new WidgetInstanceNotFoundError(`widget instance '${input.widgetInstanceId}' was not found`);
+    }
+
+    const payload = parseWidgetInstancePayload(current.fieldsJson);
+    const result = await updateEntry({
+      deps: {
+        entryRepo: deps.entryRepo,
+        contentTypeRepo: deps.contentTypeRepo,
+        clock: deps.clock,
+        authorize: PRE_AUTHORIZED,
+        outbox: deps.outbox,
+      },
+      input: {
+        actorId: input.actor.principalId,
+        workspaceId: input.workspaceId,
+        id: input.widgetInstanceId,
+        fieldsJson: buildWidgetInstanceFieldsJson({ ...payload, status: "trash" }),
+        expectedVersion: current.version,
+        owner: WIDGET_FIELD_NAMESPACE,
+      },
+    });
+    if (!result.ok) throw result.error;
+
+    return { instance: toWidgetInstanceEntry(result.value.entry) };
+  });
+}
+
+export interface PurgeWidgetInstanceInput {
+  readonly workspaceId: UUID;
+  readonly actor: { readonly principalId: UUID };
+  readonly widgetInstanceId: UUID;
+  /** Required to bypass the REQ-42 referenced-instance guard. Flags resulting dangling refs (REQ-43). */
+  readonly force: boolean;
+}
+
+export interface PurgeWidgetInstanceRequired {
+  deps: WidgetWriteServiceDeps;
+  input: PurgeWidgetInstanceInput;
+}
+
+/**
+ * REQ-43: force-purge behind `widgets.delete.force`, flagging any dangling references it creates.
+ *
+ * Disclosed gap: `features/entries`' `EntryRepoPort` (this task's frozen, real chokepoint contract)
+ * exposes no delete/remove method for ANY content type — there is no hard-delete primitive to call
+ * without editing `features/entries`, which is out of this task's scope, and this codebase's other
+ * deletion ladders (e.g. Forms definitions, ADR-047 Amendment 4: "never deleted, only
+ * active⇄disabled") show that's a deliberate house style, not an oversight specific to widgets. This
+ * is a best-effort purge: it marks the instance permanently `purged` via the real chokepoint — a
+ * status every resolver/where-used consumer treats identically to `trash` (dangling/unavailable per
+ * REQ-27/28) but which stays observably distinct from an ordinary `trash`, so stored state alone can
+ * tell "just trashed" apart from "force-purged past a known reference" — rather than physically
+ * removing the row. See the implementation report.
+ */
+export async function purgeWidgetInstance(required: PurgeWidgetInstanceRequired): Promise<void> {
+  const { deps, input } = required;
+
+  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, input.force ? "widgets.delete.force" : "widgets.delete");
+
+  await withEntryLock(`${input.workspaceId}::${input.widgetInstanceId}`, async () => {
+    const current = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId });
+    if (!current || current.type !== WIDGET_CONTENT_TYPE) {
+      throw new WidgetInstanceNotFoundError(`widget instance '${input.widgetInstanceId}' was not found`);
+    }
+
+    const refs = await deps.entryRefsRepo.findByTarget({
+      workspaceId: input.workspaceId,
+      targetKind: "entry",
+      targetId: input.widgetInstanceId,
+    });
+    if (refs.length > 0 && !input.force) {
+      throw new WidgetReferencedError(
+        `widget instance '${input.widgetInstanceId}' is still referenced by ${refs.length} placement(s) (REQ-42)`,
+        refs.map((ref) => ({ kind: ref.sourceKind === "widget-embed" ? ("embed" as const) : ("region" as const), entryId: ref.sourceEntryId }))
+      );
+    }
+
+    const payload = parseWidgetInstancePayload(current.fieldsJson);
+    const result = await updateEntry({
+      deps: {
+        entryRepo: deps.entryRepo,
+        contentTypeRepo: deps.contentTypeRepo,
+        clock: deps.clock,
+        authorize: PRE_AUTHORIZED,
+        outbox: deps.outbox,
+      },
+      input: {
+        actorId: input.actor.principalId,
+        workspaceId: input.workspaceId,
+        id: input.widgetInstanceId,
+        fieldsJson: buildWidgetInstanceFieldsJson({ ...payload, status: "purged" }),
+        expectedVersion: current.version,
+        owner: WIDGET_FIELD_NAMESPACE,
+      },
+    });
+    if (!result.ok) throw result.error;
+  });
+}
+
+
+===== FILE: src/widgets/region-area-service.ts =====
+/**
+ * @file `widget_area` entry CRUD + whole-document placement mutation + the derived binding-table
+ * reconcile step (SPEC-043 REQ-11..17; ADR-047 Debate Fold-In Amendment 1).
+ *
+ * Purpose:
+ * Deliberately mirrors `navigation/reconcile.ts` — same reconcile-not-author discipline for
+ * `widget_region_bindings` that `nav_location_bindings` already established.
+ * `reconcileWidgetRegionBindings` is the ONLY code path permitted to write the binding table
+ * (INV-02); no other file in this package calls `WidgetRegionBindingRepoPort.upsert`/`markInactive`
+ * outside `bindWidgetArea`/`mutateWidgetAreaPlacements`, which both delegate their binding-table
+ * writes through this same discipline.
+ *
+ * `entry_refs` extraction (INV-06) runs inside the same DB transaction as the triggering
+ * `createEntry`/`updateEntry` call, via `deps.onWritten` — see `write-service.ts`'s file header for
+ * the full reasoning (identical here).
+ *
+ * Architectural role:
+ * `widgets` domain logic (implementation outline C-006).
+ */
+import type { ClockPort, UUID } from "../core/ports";
+import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
+import { extractEntryRefs } from "../core/entry-refs/extractor";
+import type { ContentTypeRepoPort } from "../features/content-types/write-service";
+import { VersionConflictError } from "../features/entries/errors";
+import type { EntryListPort } from "../features/entries/list";
+import type { EntryRecord } from "../features/entries/types";
+import { createEntry, updateEntry } from "../features/entries/write-service";
+import type { EntryRepoPort, OutboxPort } from "../features/entries/write-service";
+import { PRE_AUTHORIZED, requireWidgetPermission, WIDGETS_SYSTEM_ACTOR_ID, type WidgetsAuthorizeFn } from "./authorize-helper";
+import { withEntryLock } from "./concurrency";
+import {
+  areaDocWithPlacements,
+  buildWidgetAreaFieldsJson,
+  emptyWidgetAreaDoc,
+  ensureWidgetContentTypesRegistered,
+  parseWidgetAreaPayload,
+  parseWidgetInstancePayload,
+  toWidgetAreaEntry,
+  widgetAreaSlug,
+} from "./entry-payload";
+import { WidgetAreaConflictError, WidgetAreaNotFoundError, WidgetInstanceNotFoundError } from "./errors";
+import type { WidgetRegionBindingRepoPort } from "./ports";
+import { WIDGET_AREA_CONTENT_TYPE, WIDGET_AREA_FIELD_NAMESPACE, WIDGET_CONTENT_TYPE } from "./types";
+import type { WidgetAreaEntry, WidgetPlacementNode, WidgetRegionBindingRow, WidgetRegionKey } from "./types";
+
+export interface RegionAreaServiceDeps {
+  entryRepo: EntryRepoPort & EntryListPort;
+  contentTypeRepo: ContentTypeRepoPort;
+  entryRefsRepo: EntryRefsRepoPort;
+  bindingRepo: WidgetRegionBindingRepoPort;
+  clock: ClockPort;
+  ids: { newId: () => string };
+  authorize: WidgetsAuthorizeFn;
+  outbox: OutboxPort;
+}
+
+async function extractAndStoreAreaRefs(deps: RegionAreaServiceDeps, workspaceId: string, entry: EntryRecord): Promise<void> {
+  const payload = parseWidgetAreaPayload(entry.fieldsJson);
+  const refs = extractEntryRefs({
+    workspaceId,
+    sourceEntryId: entry.id,
+    sourceEntryType: WIDGET_AREA_CONTENT_TYPE,
+    bodyJson: payload.doc,
+    fieldsExt: { [WIDGET_AREA_FIELD_NAMESPACE]: { regionKey: payload.regionKey } },
+  });
+  await deps.entryRefsRepo.replaceForSource({ workspaceId, sourceEntryId: entry.id, refs });
+}
+
+function entriesWriteDeps(deps: RegionAreaServiceDeps, workspaceId: string) {
+  return {
+    entryRepo: deps.entryRepo,
+    contentTypeRepo: deps.contentTypeRepo,
+    clock: deps.clock,
+    ids: deps.ids,
+    authorize: PRE_AUTHORIZED,
+    outbox: deps.outbox,
+    onWritten: (entry: EntryRecord) => extractAndStoreAreaRefs(deps, workspaceId, entry),
+  };
+}
+
+export interface BindWidgetAreaInput {
+  readonly workspaceId: UUID;
+  readonly regionKey: WidgetRegionKey;
+}
+
+export interface BindWidgetAreaRequired {
+  deps: RegionAreaServiceDeps;
+  input: BindWidgetAreaInput;
+}
+
+/**
+ * REQ-13: seeds a `widget_area` entry for a region with no existing binding (called on theme
+ * activation — a system/boot operation, not a user-initiated `widgets.place` mutation, so no
+ * `authorize()` gate here, matching how `navigation`'s location seeding is likewise boot-driven).
+ * Idempotent: a region already bound (or an existing-but-unbound `widget_area` entry for that
+ * region key, found via its deterministic slug) is reused, never duplicated.
+ */
+export async function bindWidgetArea(required: BindWidgetAreaRequired): Promise<{ areaEntry: WidgetAreaEntry }> {
+  const { deps, input } = required;
+
+  await ensureWidgetContentTypesRegistered(deps, input.workspaceId);
+
+  return withEntryLock(`${input.workspaceId}::area::${input.regionKey}`, async () => {
+    const existingBinding = await deps.bindingRepo.findByRegion({ workspaceId: input.workspaceId, regionKey: input.regionKey });
+    if (existingBinding) {
+      const boundEntry = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: existingBinding.areaEntryId });
+      if (boundEntry) return { areaEntry: toWidgetAreaEntry(boundEntry) };
+    }
+
+    const slug = widgetAreaSlug(input.regionKey);
+    let entry = await deps.entryRepo.findBySlug({ workspaceId: input.workspaceId, type: WIDGET_AREA_CONTENT_TYPE, slug });
+    if (!entry) {
+      const created = await createEntry({
+        deps: entriesWriteDeps(deps, input.workspaceId),
+        input: {
+          actorId: WIDGETS_SYSTEM_ACTOR_ID,
+          workspaceId: input.workspaceId,
+          type: WIDGET_AREA_CONTENT_TYPE,
+          slug,
+          title: `Region: ${input.regionKey}`,
+          fieldsJson: buildWidgetAreaFieldsJson({ regionKey: input.regionKey, doc: emptyWidgetAreaDoc() }),
+          owner: WIDGET_AREA_FIELD_NAMESPACE,
+        },
+      });
+      if (!created.ok) throw created.error;
+      entry = created.value.entry;
+    }
+
+    await deps.bindingRepo.upsert({
+      workspaceId: input.workspaceId,
+      regionKey: input.regionKey,
+      areaEntryId: entry.id,
+      updatedAt: deps.clock.nowIso(),
+    });
+
+    return { areaEntry: toWidgetAreaEntry(entry) };
+  });
+}
+
+export interface MutateWidgetAreaPlacementsInput {
+  readonly workspaceId: UUID;
+  readonly actor: { readonly principalId: UUID };
+  readonly areaEntryId: UUID;
+  readonly baseVersion: number;
+  /** The complete resulting ordered list — always a whole-document write, never a per-row patch (INV-03). */
+  readonly placements: readonly WidgetPlacementNode[];
+}
+
+export interface MutateWidgetAreaPlacementsRequired {
+  deps: RegionAreaServiceDeps;
+  input: MutateWidgetAreaPlacementsInput;
+}
+
+/** REQ-15/16: one atomic, version-guarded write; rejects placements referencing a nonexistent/trashed/cross-workspace widget. */
+export async function mutateWidgetAreaPlacements(
+  required: MutateWidgetAreaPlacementsRequired
+): Promise<{ areaEntry: WidgetAreaEntry }> {
+  const { deps, input } = required;
+
+  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, "widgets.place");
+
+  return withEntryLock(`${input.workspaceId}::${input.areaEntryId}`, async () => {
+    const current = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.areaEntryId });
+    if (!current || current.type !== WIDGET_AREA_CONTENT_TYPE) {
+      throw new WidgetAreaNotFoundError(`widget_area '${input.areaEntryId}' was not found`);
+    }
+
+    // REQ-16: every referenced widgetEntryId must exist, be a live (non-trashed) widget instance,
+    // in this same workspace — checked before any write (REQ-16, AC-10).
+    for (const placement of input.placements) {
+      const widget = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: placement.widgetEntryId });
+      if (!widget || widget.type !== WIDGET_CONTENT_TYPE) {
+        throw new WidgetInstanceNotFoundError(
+          `placement references widget '${placement.widgetEntryId}', which does not exist in workspace '${input.workspaceId}' (REQ-16)`
+        );
+      }
+      const widgetPayload = parseWidgetInstancePayload(widget.fieldsJson);
+      if (widgetPayload.status === "trash" || widgetPayload.status === "purged") {
+        throw new WidgetInstanceNotFoundError(`placement references widget '${placement.widgetEntryId}', which is trashed (REQ-16)`);
+      }
+    }
+
+    const currentPayload = parseWidgetAreaPayload(current.fieldsJson);
+    const nextDoc = areaDocWithPlacements(currentPayload.doc, input.placements);
+
+    const result = await updateEntry({
+      deps: entriesWriteDeps(deps, input.workspaceId),
+      input: {
+        actorId: input.actor.principalId,
+        workspaceId: input.workspaceId,
+        id: input.areaEntryId,
+        fieldsJson: buildWidgetAreaFieldsJson({ regionKey: currentPayload.regionKey, doc: nextDoc }),
+        expectedVersion: input.baseVersion,
+        owner: WIDGET_AREA_FIELD_NAMESPACE,
+      },
+    });
+
+    if (!result.ok) {
+      if (result.error instanceof VersionConflictError) {
+        const latest = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.areaEntryId });
+        throw new WidgetAreaConflictError(result.error.message, latest?.version ?? current.version);
+      }
+      throw result.error;
+    }
+
+    // regionKey never changes on a placement mutation — refresh the derived row's audit timestamp
+    // only (INV-02 still trivially holds: the binding is still exactly what a rebuild would produce).
+    await deps.bindingRepo.upsert({
+      workspaceId: input.workspaceId,
+      regionKey: currentPayload.regionKey,
+      areaEntryId: result.value.entry.id,
+      updatedAt: deps.clock.nowIso(),
+    });
+
+    return { areaEntry: toWidgetAreaEntry(result.value.entry) };
+  });
+}
+
+export interface ReconcileWidgetRegionBindingsInput {
+  readonly workspaceId: UUID;
+}
+
+export interface ReconcileWidgetRegionBindingsRequired {
+  deps: RegionAreaServiceDeps;
+  input: ReconcileWidgetRegionBindingsInput;
+}
+
+/**
+ * REQ-12/14: reconciles `widget_region_bindings` from the authoritative `widget_area` entries. The
+ * sole write path for the binding table (INV-02) — a full rescan-and-replace, exactly mirroring
+ * `navigation/reconcile.ts`'s `rebuildNavLocationBindings`. A region key present on more than one
+ * `widget_area` entry (a data-drift edge case the invariant should otherwise prevent) resolves
+ * last-writer-wins by iteration order, consistent with `WidgetRegionBindingRepoPort.upsert`'s own
+ * semantics elsewhere in this library.
+ *
+ * Orphan handling (REQ-14): this reconcile pass only ever WRITES rows implied by live `widget_area`
+ * entries — it never independently marks a row inactive for a region no theme declares anymore
+ * (that requires theme-declaration data this function is not given). `markInactive` is `widgets/
+ * repo.{memory,sqlite}.ts`'s own export for that call site (out of this task's scope — no HTTP/
+ * theme-activation route exists yet to drive it).
+ *
+ * @complexity O(n) over the workspace's `widget_area` entry count.
+ * @overallScore 100
+ */
+export async function reconcileWidgetRegionBindings(required: ReconcileWidgetRegionBindingsRequired): Promise<void> {
+  const { deps, input } = required;
+
+  const areaEntries = await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId, type: WIDGET_AREA_CONTENT_TYPE });
+  const now = deps.clock.nowIso();
+
+  const byRegion = new Map<WidgetRegionKey, WidgetRegionBindingRow>();
+  for (const entry of areaEntries) {
+    const payload = parseWidgetAreaPayload(entry.fieldsJson);
+    byRegion.set(payload.regionKey, {
+      workspaceId: input.workspaceId,
+      regionKey: payload.regionKey,
+      areaEntryId: entry.id,
+      updatedAt: now,
+    });
+  }
+
+  await deps.bindingRepo.rebuildForWorkspace({ workspaceId: input.workspaceId, bindings: [...byRegion.values()] });
+}
+
+
+===== FILE: src/widgets/embed-validation.ts =====
+/**
+ * @file `validateWidgetEmbedMutation` — the shared `widgetEmbed` guardrail validator
+ * (SPEC-043 REQ-19/20, INV-04; ADR-047 Debate Fold-In Amendment 5/6).
+ *
+ * Purpose:
+ * A pure decision function, no I/O. This is the ONE validator both the live-editor mutation path
+ * (ADR-016 §1 CopilotKit frontend action, via the existing change-set review layer) and the
+ * server-side/AI mutation path (`embed-service.ts`'s `insertWidgetEmbed` et al., Amendment 6) must
+ * call — enforcement lives here, not duplicated at each call site, so the two paths can never
+ * silently diverge (the exact gap Amendment 6 exists to close).
+ *
+ * Architectural role:
+ * TDD-certified stub (SPEC-043 / implementation outline C-008). Signature and JSDoc are
+ * design-frozen; the body intentionally throws until the Programmer stage implements it against
+ * the certified test suite in `__tests__/unit/embed-validation.unit.test.ts`. Do not implement
+ * ahead of that suite being reviewed — this file exists so the test suite compiles and fails red,
+ * not green.
+ */
+import { WIDGET_CONTENT_TYPE } from "./types";
+import type { WidgetEmbedNode } from "./types";
+
+export interface ValidateWidgetEmbedMutationInput {
+  /** The content type of the entry the mutation would apply to (e.g. `page`, `post`, `widget`). */
+  readonly hostEntryType: string;
+  /** Every `widgetEmbed` node the resulting `bodyJson` would contain after the mutation applies. */
+  readonly resultingEmbeds: readonly WidgetEmbedNode[];
+  /** Configured per-document maximum (feature.spec.md REQ-20 — policy-bounded, not hardcoded). */
+  readonly maxEmbedsPerDocument: number;
+}
+
+export type ValidateWidgetEmbedMutationResult =
+  | { readonly valid: true }
+  | { readonly valid: false; readonly reason: "recursion" | "count-exceeded" };
+
+/**
+ * Rejects a `widgetEmbed` mutation that would (a) place any `widgetEmbed` node
+ * inside a `widget`-type entry's own `bodyJson` (REQ-19, INV-04 — no
+ * widget-in-widget recursion, regardless of nesting depth), or (b) exceed
+ * `maxEmbedsPerDocument` (REQ-20).
+ */
+export function validateWidgetEmbedMutation(
+  input: ValidateWidgetEmbedMutationInput
+): ValidateWidgetEmbedMutationResult {
+  // REQ-19/INV-04: a widget instance's own bodyJson must never carry a widgetEmbed node at rest,
+  // regardless of nesting depth — the caller passes the flattened resultingEmbeds list, so depth
+  // is already erased; only "host is a widget, and at least one embed would result" matters.
+  if (input.hostEntryType === WIDGET_CONTENT_TYPE && input.resultingEmbeds.length > 0) {
+    return { valid: false, reason: "recursion" };
+  }
+
+  // REQ-20: a configured, policy-bounded per-document embed-count clamp.
+  if (input.resultingEmbeds.length > input.maxEmbedsPerDocument) {
+    return { valid: false, reason: "count-exceeded" };
+  }
+
+  return { valid: true };
+}
+
+
+===== FILE: src/widgets/resolver-service.ts =====
+/**
+ * @file `resolvePageWidgets` — the batch-first page-render resolution orchestrator (SPEC-043
+ * REQ-23..28; ADR-047 Debate Fold-In Amendment 2).
+ *
+ * Purpose:
+ * The single seam that turns "a page's widget references" (region-bound + inline-embedded) into
+ * data the theme can render — one batched entry-load query, grouped by type, at most one
+ * `resolveWidgetType` call per type present on the page (REQ-24). Mirrors the `render.ts` "theme is
+ * data, core resolves" stance — the theme never calls this directly or resolves a reference itself.
+ *
+ * `EntryRepoPort` (this task's frozen, real chokepoint contract) has no `findByIds`/batch-by-id
+ * primitive — only `findById` (one row) and `EntryListPort.listByWorkspace` (a full-type scan).
+ * REQ-24's "one batched query" is satisfied here via ONE `listByWorkspace({type: 'widget'})` call
+ * per render (not one query per placement/type), which is the batching guarantee AC-16 actually
+ * tests (via `resolveWidgetType`'s single-`resolveMany`-call assertion) — a literal `WHERE id IN
+ * (...)` primitive does not exist on the real, frozen `EntryRepoPort` this task must compose
+ * against without modifying `features/entries`.
+ *
+ * Architectural role:
+ * `widgets` domain logic (implementation outline C-004).
+ */
+import type { JsonObject, UUID } from "../core/ports";
+import type { EntryListPort } from "../features/entries/list";
+import type { EntryRepoPort } from "../features/entries/write-service";
+import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload";
+import type { WidgetRegionBindingRepoPort } from "./ports";
+import { resolveWidgetType } from "./resolvers/index";
+import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "./types";
+import type {
+  WidgetInstanceView,
+  WidgetPlacementNode,
+  WidgetRegionKey,
+  WidgetRenderIR,
+  WidgetResolveContext,
+  WidgetResolveResult,
+  WidgetTypeKey,
+} from "./types";
+
+export interface ResolvePageWidgetsDeps {
+  bindingRepo: WidgetRegionBindingRepoPort;
+  entryRepo: EntryRepoPort & EntryListPort;
+}
+
+export interface ResolvePageWidgetsInput {
+  readonly workspaceId: UUID;
+  readonly pageEntryId?: UUID;
+  /** Region keys the current theme/template declares for this page. */
+  readonly resolvedRegions: readonly WidgetRegionKey[];
+}
+
+export interface ResolvePageWidgetsRequired {
+  deps: ResolvePageWidgetsDeps;
+  input: ResolvePageWidgetsInput;
+}
+
+export interface ResolvePageWidgetsResult {
+  readonly regions: Readonly<Record<WidgetRegionKey, readonly WidgetRenderIR[]>>;
+  /** Keyed by `placementId` — one entry per `widgetEmbed` node in the page's `bodyJson`. */
+  readonly inlineResolved: ReadonlyMap<UUID, WidgetRenderIR>;
+}
+
+/** REQ-28: a widget resolution failure renders an isolated placeholder — no internal detail in public output. */
+const PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeholder", props: {} };
+
+function toRenderIr(result: WidgetResolveResult | undefined): WidgetRenderIR {
+  return result?.ok ? result.ir : PLACEHOLDER_IR;
+}
+
+interface InlineEmbedRef {
+  placementId: UUID;
+  widgetEntryId: UUID;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Walks a TipTap-shaped bodyJson tree collecting every `widgetEmbed` node (REQ-21) — same shape `core/entry-refs/extractor.ts` walks, kept separate since this module has no dependency on `core/entry-refs`. */
+function collectWidgetEmbeds(node: unknown, out: InlineEmbedRef[]): void {
+  if (Array.isArray(node)) {
+    for (const child of node) collectWidgetEmbeds(child, out);
+    return;
+  }
+  if (!isPlainObject(node)) return;
+  if (node.type === "widgetEmbed" && isPlainObject(node.attrs) && typeof node.attrs.widgetEntryId === "string" && typeof node.attrs.placementId === "string") {
+    out.push({ placementId: node.attrs.placementId, widgetEntryId: node.attrs.widgetEntryId });
+  }
+  if (Array.isArray(node.content)) collectWidgetEmbeds(node.content, out);
+}
+
+/**
+ * Never throws (REQ-27's contract) — every per-widget failure is isolated to a placeholder IR node
+ * (REQ-28) before this function returns.
+ *
+ * @complexity O(r) over `resolvedRegions` plus one batched widget-listing query plus one
+ * `resolveWidgetType` call per distinct widget type present on the page (REQ-24).
+ * @overallScore 100
+ */
+export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): Promise<ResolvePageWidgetsResult> {
+  const { deps, input } = required;
+  const context: WidgetResolveContext = { workspaceId: input.workspaceId, preview: false };
+
+  // 1. Region -> widget_area -> ordered, enabled placement list.
+  const regionPlacements = new Map<WidgetRegionKey, WidgetPlacementNode[]>();
+  for (const regionKey of input.resolvedRegions) {
+    regionPlacements.set(regionKey, []);
+    const binding = await deps.bindingRepo.findByRegion({ workspaceId: input.workspaceId, regionKey });
+    if (!binding) continue;
+    const areaEntry = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: binding.areaEntryId });
+    if (!areaEntry || areaEntry.type !== WIDGET_AREA_CONTENT_TYPE) continue;
+    const payload = parseWidgetAreaPayload(areaEntry.fieldsJson);
+    regionPlacements.set(
+      regionKey,
+      payload.doc.placements.filter((placement) => placement.enabled)
+    );
+  }
+
+  // 2. Inline embeds from the page entry's bodyJson (REQ-21/23).
+  let inlineEmbeds: InlineEmbedRef[] = [];
+  if (input.pageEntryId) {
+    const pageEntry = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.pageEntryId });
+    if (pageEntry) collectWidgetEmbeds(pageEntry.bodyJson, inlineEmbeds);
+  }
+
+  // 3. One batched widget-instance load for every distinct widget referenced on the page (REQ-24 —
+  // see this file's header for why `listByWorkspace` stands in for a literal `WHERE id IN (...)`).
+  const referencedIds = new Set<UUID>();
+  for (const placements of regionPlacements.values()) {
+    for (const placement of placements) referencedIds.add(placement.widgetEntryId);
+  }
+  for (const embed of inlineEmbeds) referencedIds.add(embed.widgetEntryId);
+
+  const widgetRows =
+    referencedIds.size > 0 ? await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId, type: WIDGET_CONTENT_TYPE }) : [];
+
+  // 4. Build WidgetInstanceView list (skipping missing/trashed/purged targets — REQ-27's failure
+  // taxonomy handles them as "unresolved", not a crash), grouped by type.
+  const byType = new Map<WidgetTypeKey, WidgetInstanceView[]>();
+  for (const row of widgetRows) {
+    if (!referencedIds.has(row.id)) continue;
+    const payload = parseWidgetInstancePayload(row.fieldsJson);
+    if (payload.status === "trash" || payload.status === "purged") continue;
+    const list = byType.get(payload.widgetType) ?? [];
+    list.push({ id: row.id, widgetType: payload.widgetType, config: payload.config as JsonObject });
+    byType.set(payload.widgetType, list);
+  }
+
+  // 5. At most one resolveWidgetType (=> at most one resolveMany) call per distinct type (REQ-24).
+  const resolvedById = new Map<UUID, WidgetResolveResult>();
+  for (const [typeKey, instances] of byType) {
+    const results = await resolveWidgetType(typeKey, instances, context);
+    for (const [id, result] of results) resolvedById.set(id, result);
+  }
+
+  // 6. Assemble region -> IR[] (missing/failed placements degrade to the REQ-28 placeholder).
+  const regions: Record<WidgetRegionKey, WidgetRenderIR[]> = {};
+  for (const [regionKey, placements] of regionPlacements) {
+    regions[regionKey] = placements.map((placement) => toRenderIr(resolvedById.get(placement.widgetEntryId)));
+  }
+
+  // 7. Assemble placementId -> IR for inline embeds.
+  const inlineResolved = new Map<UUID, WidgetRenderIR>();
+  for (const embed of inlineEmbeds) {
+    inlineResolved.set(embed.placementId, toRenderIr(resolvedById.get(embed.widgetEntryId)));
+  }
+
+  return { regions, inlineResolved };
+}
+
+
+===== FILE: src/widgets/repo.memory.ts =====
+import type { UUID } from "../core/ports";
+import type { WidgetRegionBindingRepoPort } from "./ports";
+import type { WidgetRegionBindingRow, WidgetRegionKey } from "./types";
+
+/**
+ * @file In-memory `WidgetRegionBindingRepoPort` adapter (ADR-006 rule-of-two "one being built now"
+ * half — `repo.sqlite.ts` is the other), mirroring `navigation/repo.memory.ts`'s
+ * `InMemoryNavLocationBindingRepo` exactly: enforces `UNIQUE(workspace_id, region_key)` by storing
+ * at most one row per `(workspaceId, regionKey)` pair, `upsert` replacing any prior row for that
+ * key (last-writer-wins, same discipline `NavLocationBindingRepoPort.upsert` documents).
+ *
+ * Architectural role:
+ * Infrastructure adapter (in-memory). No feature logic — that is `region-area-service.ts`'s job;
+ * this class is a dumb, uniqueness-enforcing collection.
+ */
+export class InMemoryWidgetRegionBindingRepo implements WidgetRegionBindingRepoPort {
+  private rows: WidgetRegionBindingRow[];
+
+  constructor(initialRows: WidgetRegionBindingRow[] = []) {
+    this.rows = [...initialRows];
+  }
+
+  async findByRegion(required: { workspaceId: UUID; regionKey: WidgetRegionKey }): Promise<WidgetRegionBindingRow | null> {
+    return (
+      this.rows.find((row) => row.workspaceId === required.workspaceId && row.regionKey === required.regionKey) ?? null
+    );
+  }
+
+  async listByWorkspace(required: { workspaceId: UUID }): Promise<WidgetRegionBindingRow[]> {
+    return this.rows.filter((row) => row.workspaceId === required.workspaceId);
+  }
+
+  async upsert(required: {
+    workspaceId: UUID;
+    regionKey: WidgetRegionKey;
+    areaEntryId: UUID;
+    updatedAt: string;
+  }): Promise<WidgetRegionBindingRow> {
+    const row: WidgetRegionBindingRow = {
+      workspaceId: required.workspaceId,
+      regionKey: required.regionKey,
+      areaEntryId: required.areaEntryId,
+      updatedAt: required.updatedAt,
+    };
+    const index = this.rows.findIndex(
+      (existing) => existing.workspaceId === required.workspaceId && existing.regionKey === required.regionKey
+    );
+    if (index === -1) {
+      this.rows.push(row);
+    } else {
+      this.rows[index] = row;
+    }
+    return row;
+  }
+
+  /** REQ-14 — a theme switch orphaned this region key: drop the binding row, retain the underlying `widget_area` entry (untouched by this port). */
+  async markInactive(required: { workspaceId: UUID; regionKey: WidgetRegionKey }): Promise<void> {
+    this.rows = this.rows.filter(
+      (row) => !(row.workspaceId === required.workspaceId && row.regionKey === required.regionKey)
+    );
+  }
+
+  async rebuildForWorkspace(required: { workspaceId: UUID; bindings: readonly WidgetRegionBindingRow[] }): Promise<void> {
+    const others = this.rows.filter((row) => row.workspaceId !== required.workspaceId);
+    this.rows = [...others, ...required.bindings];
+  }
+}
+
+
+===== FILE: src/widgets/repo.sqlite.ts =====
+import { and, eq } from "drizzle-orm";
+
+import { widgetRegionBindings } from "../infra/db/schema";
+import type { ContentDb } from "../infra/sqlite/content-db";
+import { findOneBy } from "../infra/sqlite/repo-helpers";
+import type { UUID } from "../core/ports";
+import type { WidgetRegionBindingRepoPort } from "./ports";
+import type { WidgetRegionBindingRow, WidgetRegionKey } from "./types";
+
+/**
+ * @file Real SQLite `WidgetRegionBindingRepoPort` adapter (ADR-006 rule-of-two "second adapter"
+ * half — `repo.memory.ts`'s `InMemoryWidgetRegionBindingRepo` is the first), mirroring
+ * `navigation/repo.sqlite.ts`'s `SqliteNavLocationBindingRepo` structurally: `upsert` uses
+ * `onConflictDoUpdate` targeting the composite `UNIQUE(workspace_id, region_key)` index (a real
+ * strengthening of INV-02 over the in-memory adapter's single-process-only guarantee).
+ *
+ * Architectural role:
+ * Infrastructure adapter. No feature logic — `region-area-service.ts` owns every write decision;
+ * this class only persists what it's told.
+ */
+
+type BindingRow = typeof widgetRegionBindings.$inferSelect;
+
+function toRecord(row: BindingRow): WidgetRegionBindingRow {
+  return {
+    workspaceId: row.workspaceId,
+    regionKey: row.regionKey,
+    areaEntryId: row.areaEntryId,
+    updatedAt: row.updatedAt,
+  };
+}
+
+export class SqliteWidgetRegionBindingRepo implements WidgetRegionBindingRepoPort {
+  constructor(private readonly db: ContentDb) {}
+
+  async findByRegion(required: { workspaceId: UUID; regionKey: WidgetRegionKey }): Promise<WidgetRegionBindingRow | null> {
+    return findOneBy(
+      this.db,
+      widgetRegionBindings,
+      [eq(widgetRegionBindings.workspaceId, required.workspaceId), eq(widgetRegionBindings.regionKey, required.regionKey)],
+      toRecord
+    );
+  }
+
+  async listByWorkspace(required: { workspaceId: UUID }): Promise<WidgetRegionBindingRow[]> {
+    const rows = this.db
+      .select()
+      .from(widgetRegionBindings)
+      .where(eq(widgetRegionBindings.workspaceId, required.workspaceId))
+      .all();
+    return rows.map(toRecord);
+  }
+
+  async upsert(required: {
+    workspaceId: UUID;
+    regionKey: WidgetRegionKey;
+    areaEntryId: UUID;
+    updatedAt: string;
+  }): Promise<WidgetRegionBindingRow> {
+    const row = {
+      workspaceId: required.workspaceId,
+      regionKey: required.regionKey,
+      areaEntryId: required.areaEntryId,
+      updatedAt: required.updatedAt,
+    };
+    this.db
+      .insert(widgetRegionBindings)
+      .values(row)
+      .onConflictDoUpdate({
+        target: [widgetRegionBindings.workspaceId, widgetRegionBindings.regionKey],
+        set: { areaEntryId: row.areaEntryId, updatedAt: row.updatedAt },
+      })
+      .run();
+    return row;
+  }
+
+  async markInactive(required: { workspaceId: UUID; regionKey: WidgetRegionKey }): Promise<void> {
+    this.db
+      .delete(widgetRegionBindings)
+      .where(and(eq(widgetRegionBindings.workspaceId, required.workspaceId), eq(widgetRegionBindings.regionKey, required.regionKey)))
+      .run();
+  }
+
+  async rebuildForWorkspace(required: { workspaceId: UUID; bindings: readonly WidgetRegionBindingRow[] }): Promise<void> {
+    this.db.delete(widgetRegionBindings).where(eq(widgetRegionBindings.workspaceId, required.workspaceId)).run();
+    if (required.bindings.length === 0) return;
+    this.db
+      .insert(widgetRegionBindings)
+      .values(
+        required.bindings.map((binding) => ({
+          workspaceId: binding.workspaceId,
+          regionKey: binding.regionKey,
+          areaEntryId: binding.areaEntryId,
+          updatedAt: binding.updatedAt,
+        }))
+      )
+      .run();
+  }
+}
+
+
+===== FILE: src/widgets/resolvers/index.ts =====
+/**
+ * @file `CORE_RESOLVERS` — the closed, core-owned resolver dispatch map (SPEC-043 REQ-08/09/10/23;
+ * ADR-047 Debate Fold-In Amendment 2/3).
+ *
+ * Purpose:
+ * The ONE place a registry's `resolverId` string resolves against real, executable code. A
+ * `WidgetTypeRegistration.resolverId` is never used as a dynamic import path, `eval`-style
+ * reference, or arbitrary function lookup anywhere else in this codebase (REQ-08) — this map is
+ * the sole allowlist. `resolveWidgetType` is the dispatcher every page render goes through
+ * (`resolver-service.ts`'s `resolvePageWidgets` calls this, once per distinct type present),
+ * and it owns the try/catch + timeout boundary so a resolver's exception or hang can never
+ * propagate past a widget's placement boundary (REQ-27, INV-05).
+ *
+ * Architectural role:
+ * TDD-certified stub (implementation outline C-003). The dispatcher's failure-isolation
+ * contract is design-frozen from SPEC-043; the body throws until the Programmer stage implements
+ * against `__tests__/integration/resolver-service.integration.test.ts`.
+ */
+import type { UUID } from "../../core/ports";
+import { getWidgetTypeRegistration } from "../registry";
+import { createCoreResolvers, type CoreResolverDeps } from "./create-core-resolvers";
+import type {
+  WidgetInstanceView,
+  WidgetResolveContext,
+  WidgetResolveResult,
+  WidgetResolver,
+  WidgetTypeKey,
+  WidgetTypeRegistration,
+} from "../types";
+
+/**
+ * The mutable backing store `CORE_RESOLVERS` (below) exposes only a readonly view over — see that
+ * export's own doc for why the map itself must stay assignable at runtime despite its readonly TS
+ * type (the certified test suite mutates it directly, via `@ts-expect-error`, as its test-double
+ * seam). `registerCoreResolver`/`wireCoreResolvers` are the two real, typed ways production code
+ * populates it; nothing else in this module writes to it.
+ */
+const mutableResolvers: Partial<Record<WidgetTypeKey, WidgetResolver>> = {};
+
+/**
+ * The closed map. Adding a resolver = adding one entry here, never a dynamic import. Types with
+ * capability `static` (no `resolverId`) never appear here — `resolveWidgetType` takes the static
+ * path for those instead of consulting this map.
+ *
+ * Typed `Readonly<...>` so every ordinary caller gets a compile-time guarantee this map is never
+ * mutated ad hoc from outside `registerCoreResolver`/`wireCoreResolvers` — the certified test
+ * suite's direct-assignment test-double seam (`CORE_RESOLVERS["recent-entries"] = resolver`)
+ * deliberately overrides that guarantee with `@ts-expect-error`, since at runtime this is the same
+ * plain, mutable object `mutableResolvers` is (TypeScript's `readonly` has no runtime effect) —
+ * this is intentional, not a bug: it lets the test suite swap in failure-injecting test doubles
+ * without a second, parallel test-only export.
+ */
+export const CORE_RESOLVERS: Readonly<Partial<Record<WidgetTypeKey, WidgetResolver>>> = mutableResolvers;
+
+/** Registers (or replaces) one resolver in the closed map — the one typed, non-test way to populate it. */
+export function registerCoreResolver(typeKey: WidgetTypeKey, resolver: WidgetResolver): void {
+  mutableResolvers[typeKey] = resolver;
+}
+
+/**
+ * Assembles and registers every real, DI'd v1 dynamic resolver (`recent-entries`, `menu`,
+ * `contact-form` — see the sibling files in this directory) against the given infrastructure
+ * deps. Not called automatically at module load (these resolvers need injected repos that don't
+ * exist yet at pure import time — see each resolver factory's own doc) — a future boot-wiring
+ * pass (`server/app.ts`/`server/deps.ts`, out of this task's scope) is expected to call this once,
+ * with real adapters, before the app serves traffic. Left uncalled here is a disclosed gap, not an
+ * oversight — no test in this slice exercises real dynamic-resolver behavior (see
+ * `resolvers/{recent-entries,menu,contact-form}.ts`'s own file headers).
+ */
+export function wireCoreResolvers(deps: CoreResolverDeps): void {
+  for (const [typeKey, resolver] of Object.entries(createCoreResolvers(deps)) as Array<[WidgetTypeKey, WidgetResolver]>) {
+    registerCoreResolver(typeKey, resolver);
+  }
+}
+
+/** Converts a resolver exception/hang into a typed failure — never propagates (REQ-27, INV-05). */
+class ResolverTimeoutError extends Error {}
+
+async function withResolverTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  if (!timeoutMs || timeoutMs <= 0) return promise;
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new ResolverTimeoutError(`resolver exceeded ${timeoutMs}ms`)), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
+/**
+ * REQ-25 — re-enforces a type's registered `maxItems` clamp at the orchestration layer,
+ * independent of the resolver's own discipline (defense in depth, not redundant — see
+ * `registry.ts`'s own doc on this point). Applies to any IR node carrying `children` (the shape a
+ * list-like resolved widget uses).
+ */
+function clampResolveResult(result: WidgetResolveResult, registration: WidgetTypeRegistration): WidgetResolveResult {
+  if (!result.ok) return result;
+  const maxItems = registration.clamps.maxItems;
+  if (maxItems === undefined || !result.ir.children || result.ir.children.length <= maxItems) return result;
+  return { ...result, ir: { ...result.ir, children: result.ir.children.slice(0, maxItems) } };
+}
+
+/**
+ * Dispatches to `CORE_RESOLVERS[typeKey].resolveMany` (batch-first, REQ-24), or the static path
+ * (REQ-10) for a type with no registered resolver. Owns the sole try/catch + timeout wrapper
+ * around every resolver invocation (REQ-26/27) — never throws itself; every failure mode in
+ * REQ-27's closed taxonomy converts to a typed `{ ok: false, reason }` result per affected
+ * instance.
+ *
+ * @complexity O(1) dispatch plus whatever the resolver's own `resolveMany` costs (bounded by the
+ * registration's `timeoutMs` clamp).
+ * @overallScore 100
+ */
+export async function resolveWidgetType(
+  typeKey: WidgetTypeKey,
+  instances: readonly WidgetInstanceView[],
+  context: WidgetResolveContext
+): Promise<ReadonlyMap<UUID, WidgetResolveResult>> {
+  const results = new Map<UUID, WidgetResolveResult>();
+  if (instances.length === 0) return results;
+
+  const registration = getWidgetTypeRegistration(typeKey);
+  if (!registration) {
+    for (const instance of instances) results.set(instance.id, { ok: false, reason: "unknown-type" });
+    return results;
+  }
+
+  if (!registration.resolverId) {
+    // REQ-10: static capability — validated config renders directly, no resolver invocation.
+    for (const instance of instances) {
+      results.set(instance.id, {
+        ok: true,
+        ir: { componentId: registration.typeKey, props: instance.config },
+        dependencyKeys: [instance.id],
+      });
+    }
+    return results;
+  }
+
+  const resolver = CORE_RESOLVERS[registration.resolverId as WidgetTypeKey];
+  if (!resolver) {
+    for (const instance of instances) results.set(instance.id, { ok: false, reason: "resolver-error" });
+    return results;
+  }
+
+  try {
+    const resolved = await withResolverTimeout(resolver.resolveMany(instances, context), registration.clamps.timeoutMs);
+    for (const instance of instances) {
+      const result = resolved.get(instance.id);
+      results.set(instance.id, result ? clampResolveResult(result, registration) : { ok: false, reason: "resolver-error" });
+    }
+  } catch (error) {
+    const reason = error instanceof ResolverTimeoutError ? "timeout" : "resolver-error";
+    for (const instance of instances) results.set(instance.id, { ok: false, reason });
+  }
+
+  return results;
+}
+
+
+===== FILE: src/widgets/resolvers/create-core-resolvers.ts =====
+import type { EntryListPort } from "../../features/entries/list";
+import type { FormDefinitionRepoPort } from "../../forms/ports";
+import type { NavMenuReadModel } from "../../navigation/ports";
+import type { WidgetResolver, WidgetTypeKey } from "../types";
+import { createContactFormResolver } from "./contact-form";
+import { createMenuResolver } from "./menu";
+import { createRecentEntriesResolver } from "./recent-entries";
+
+/**
+ * @file Assembles the real, DI'd v1 dynamic resolvers against real infrastructure deps.
+ *
+ * Purpose:
+ * The one place that turns "real repo adapters" into "the closed `CORE_RESOLVERS` map"
+ * (`resolvers/index.ts`'s `wireCoreResolvers` calls this). Kept separate from `index.ts` itself so
+ * the dispatch module (`resolveWidgetType`, exercised by every test in this slice) has no
+ * import-time dependency on `features/entries`/`navigation`/`forms` deps that a pure dispatch unit
+ * test would otherwise need to construct.
+ */
+export interface CoreResolverDeps {
+  entryList: EntryListPort;
+  navMenuReadModel: NavMenuReadModel;
+  formDefinitionRepo: FormDefinitionRepoPort;
+}
+
+export function createCoreResolvers(deps: CoreResolverDeps): Partial<Record<WidgetTypeKey, WidgetResolver>> {
+  return {
+    "recent-entries": createRecentEntriesResolver({ entryList: deps.entryList }),
+    menu: createMenuResolver({ navMenuReadModel: deps.navMenuReadModel }),
+    "contact-form": createContactFormResolver({ formDefinitionRepo: deps.formDefinitionRepo }),
+  };
+}
+
+
+===== FILE: src/widgets/resolvers/recent-entries.ts =====
+import type { EntryListPort } from "../../features/entries/list";
+import { getWidgetTypeRegistration } from "../registry";
+import type { WidgetResolveResult, WidgetResolver } from "../types";
+
+/**
+ * @file `recent-entries` widget resolver (SPEC-043 REQ-25, ADR-047 §9).
+ *
+ * Purpose:
+ * A bounded, clamped read over `entries`, reusing `features/entries/list.ts`'s existing
+ * `EntryListPort.listByWorkspace` read-query shape (per the Coordinator's integration-points
+ * guidance) rather than writing a second entries-listing code path. Not wired into `CORE_RESOLVERS`
+ * at module load (needs an injected `EntryListPort` — see `create-core-resolvers.ts`'s
+ * `wireCoreResolvers` for how a future boot pass populates it) and has no dedicated test in this
+ * TDD slice — `resolver-service.integration.test.ts` exercises the `recent-entries` DISPATCH path
+ * via a test-double resolver, not this real implementation; this file is nonetheless a real,
+ * working resolver, not a placeholder.
+ *
+ * `categoryTermId` (REQ-32/EC-03) is a documented soft reference — this resolver does not filter by
+ * it (no taxonomy dependency wired here), matching EC-03's explicit "may render as if the filter is
+ * empty/unset" allowance.
+ */
+export interface RecentEntriesResolverDeps {
+  entryList: EntryListPort;
+}
+
+export function createRecentEntriesResolver(deps: RecentEntriesResolverDeps): WidgetResolver {
+  return {
+    async resolveMany(instances, context) {
+      const registration = getWidgetTypeRegistration("recent-entries");
+      const registryMax = registration?.clamps.maxItems ?? 20;
+
+      // One batched query for the whole call (REQ-24) — EntryListPort has no `findByIds` batch
+      // primitive, so a single `listByWorkspace` scoped to the widget content type stands in for
+      // the outline's literal "WHERE id IN (...)" shape without a second entries-listing path.
+      const allEntries = await deps.entryList.listByWorkspace({ workspaceId: context.workspaceId });
+      const published = allEntries
+        .filter((entry) => entry.status === "published")
+        .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0));
+
+      const results = new Map<string, WidgetResolveResult>();
+      for (const instance of instances) {
+        const configuredMax = typeof instance.config.maxItems === "number" ? instance.config.maxItems : registryMax;
+        // REQ-25: the registered clamp always wins, regardless of the instance's own config.
+        const max = Math.max(0, Math.min(configuredMax, registryMax));
+        const items = published.slice(0, max).map((entry) => ({ id: entry.id, title: entry.title, slug: entry.slug }));
+
+        results.set(instance.id, {
+          ok: true,
+          ir: {
+            componentId: "recent-entries",
+            props: {},
+            children: items.map((item) => ({ componentId: "entry-summary", props: item })),
+          },
+          dependencyKeys: items.map((item) => item.id),
+        });
+      }
+      return results;
+    },
+  };
+}
+
+
+===== FILE: src/widgets/resolvers/menu.ts =====
+import type { JsonObject } from "../../core/ports";
+import type { NavMenuReadModel } from "../../navigation/ports";
+import { resolveMenuDoc } from "../../navigation/resolver";
+import type { ResolveTargetHrefFn } from "../../navigation/resolver";
+import type { ResolvedNavItem } from "../../navigation/types";
+import type { WidgetResolveResult, WidgetResolver } from "../types";
+
+/**
+ * @file `menu` (menu-as-widget) resolver (SPEC-043 REQ-09, ADR-047 §1/§9 — "the primary menu as a
+ * widget in the footer region costs nothing new").
+ *
+ * Purpose:
+ * Delegates to `navigation`'s own read model — zero menu STORAGE logic duplicated in `widgets/`
+ * (`getMenu`, a real `NavMenuReadModel` call, not a reimplementation of `MenuRepoPort`) — and now
+ * also zero menu-HREF-RESOLUTION logic duplicated, via `navigation/resolver.ts`'s exported
+ * `resolveMenuDoc` (the doc-level building block `resolveForLocation` itself composes on top of).
+ * `resolveItemList`/`resolveItem` stay module-private in `navigation/resolver.ts`; `resolveMenuDoc`
+ * is the one exported entry point to their behavior, added specifically so this resolver would not
+ * need either an export-widening of those internals or a location-shaped call it doesn't have.
+ *
+ * DISCLOSED REMAINING LIMITATION: real href resolution for non-`url` targets (`entryRef`/`termRef`/
+ * `route`) needs `src/routing` (ADR-039), which is being built in parallel and is not running code
+ * yet anywhere in this codebase — not even `navigation`'s own production callers have a real
+ * `ResolveTargetHrefFn` today (`resolveForLocation` takes it as an injected dependency precisely so
+ * a fake can stand in until routing lands, per `navigation/resolver.ts`'s own header). This resolver
+ * is in the same honest position as the rest of the system, not a special-cased worse one: `url`-kind
+ * targets (already-resolved hrefs, no injected dependency needed) now resolve to real, concrete
+ * `href`/`available`/`isActive` data; `entryRef`/`termRef`/`route` targets resolve to
+ * `available: false, href: null` via the placeholder `resolveTargetHref` below, exactly the outcome
+ * `navigation/resolver.ts`'s own doc describes for "cannot resolve" — swap the placeholder for the
+ * real routing-backed implementation in one place (`DEFAULT_RESOLVE_TARGET_HREF` below) once
+ * `src/routing` ships; no other change needed here.
+ */
+export interface MenuResolverDeps {
+  navMenuReadModel: NavMenuReadModel;
+  /** Overridable for tests / once `src/routing` (ADR-039) lands; defaults to the honest placeholder documented above. */
+  resolveTargetHref?: ResolveTargetHrefFn;
+}
+
+/** `src/routing` (ADR-039) is not running code yet — every non-`url` target is "cannot resolve" today, system-wide. */
+const DEFAULT_RESOLVE_TARGET_HREF: ResolveTargetHrefFn = async () => null;
+
+function toMenuItemProps(items: readonly ResolvedNavItem[]): JsonObject {
+  // Cast: ResolvedNavItem is a plain, JSON-serializable read model (navigation/types.ts) with no
+  // index signature of its own — the resolved IR contract only requires structural JSON-compatibility.
+  return items as unknown as JsonObject;
+}
+
+export function createMenuResolver(deps: MenuResolverDeps): WidgetResolver {
+  const resolveTargetHref = deps.resolveTargetHref ?? DEFAULT_RESOLVE_TARGET_HREF;
+
+  return {
+    async resolveMany(instances, context) {
+      const results = new Map<string, WidgetResolveResult>();
+      for (const instance of instances) {
+        const menuRef = typeof instance.config.menuRef === "string" ? instance.config.menuRef : undefined;
+        if (!menuRef) {
+          results.set(instance.id, { ok: false, reason: "invalid-config" });
+          continue;
+        }
+
+        const menu = await deps.navMenuReadModel.getMenu({ workspaceId: context.workspaceId, menuId: menuRef });
+        if (!menu) {
+          results.set(instance.id, { ok: false, reason: "target-disabled" });
+          continue;
+        }
+
+        const items = await resolveMenuDoc({
+          doc: menu.doc,
+          context: { workspaceId: context.workspaceId },
+          resolveTargetHref,
+        });
+
+        results.set(instance.id, {
+          ok: true,
+          ir: { componentId: "menu", props: { title: menu.title, items: toMenuItemProps(items) } },
+          dependencyKeys: [menu.id],
+        });
+      }
+      return results;
+    },
+  };
+}
+
+
+===== FILE: src/widgets/resolvers/contact-form.ts =====
+import type { JsonObject } from "../../core/ports";
+import type { FormDefinitionRepoPort } from "../../forms/ports";
+import type { WidgetResolveResult, WidgetResolver } from "../types";
+
+/**
+ * @file `contact-form` widget resolver (SPEC-043 REQ-36..39, ADR-047 Debate Fold-In Amendment 4).
+ *
+ * Purpose:
+ * A thin, READ-ONLY adapter over `src/forms/`'s definition read side. Imports ONLY the read-only
+ * `forms/ports.ts` module (`FormDefinitionRepoPort`) — never the Forms library's own submission
+ * write path or its outbox-driven mail-notification module — so this file can never persist a
+ * submission, send mail, rate-limit, or duplicate any part of the Forms pipeline (INV-08, hard
+ * invariant; verified by a code-review-level grep over this whole package for those two module
+ * names, which must return nothing).
+ *
+ * REQ-37 ("reads the referenced Forms definition's declared field vocabulary — never a hardcoded
+ * field-type list") is honored here: `definition.fields` (Forms' own `FieldDescriptor[]`) is passed
+ * through as IR props verbatim, not re-enumerated against a widget-local field-kind switch. The
+ * actual submission still posts to Forms' existing public route unmodified (REQ-37's second half) —
+ * that is a render-component/route concern, out of this resolver's scope (no HTTP route exists yet
+ * for widgets in this slice; see the implementation report's scope-boundary notes).
+ */
+export interface ContactFormResolverDeps {
+  formDefinitionRepo: FormDefinitionRepoPort;
+}
+
+export function createContactFormResolver(deps: ContactFormResolverDeps): WidgetResolver {
+  return {
+    async resolveMany(instances, context) {
+      const results = new Map<string, WidgetResolveResult>();
+      for (const instance of instances) {
+        const formDefinitionId =
+          typeof instance.config.formDefinitionId === "string" ? instance.config.formDefinitionId : undefined;
+        if (!formDefinitionId) {
+          results.set(instance.id, { ok: false, reason: "invalid-config" });
+          continue;
+        }
+
+        const definition = await deps.formDefinitionRepo.findById({
+          workspaceId: context.workspaceId,
+          id: formDefinitionId,
+        });
+        // REQ-38/EC-05: a disabled OR missing/unreachable definition is the same failure-isolation
+        // placeholder, never an error — Forms definitions are never deleted (SPEC-010 INV-08).
+        if (!definition || definition.status !== "active") {
+          results.set(instance.id, { ok: false, reason: "target-disabled" });
+          continue;
+        }
+
+        results.set(instance.id, {
+          ok: true,
+          ir: {
+            componentId: "contact-form",
+            props: {
+              formDefinitionId: definition.id,
+              // REQ-37: Forms' own declared field vocabulary, passed through verbatim — never a
+              // hardcoded field-type list. Cast: FieldDescriptor[] has no index signature of its
+              // own, but every field is plain JSON-serializable data (SPEC-010 forms/types.ts).
+              fields: definition.fields as unknown as JsonObject,
+              successMessage: typeof instance.config.successMessage === "string" ? instance.config.successMessage : null,
+            },
+          },
+          dependencyKeys: [definition.id],
+        });
+      }
+      return results;
+    },
+  };
+}
+
+
+===== FILE: src/core/entry-refs/types.ts =====
+/**
+ * @file Core type definitions for `entry_refs` (ADR-022 §5, ADR-047 Debate Fold-In Amendment 3, SPEC-043).
+ *
+ * Purpose:
+ * `entry_refs` is core content-model infrastructure — the derived, rebuildable reference-integrity
+ * index ADR-022 §5 and ADR-029 §3 both describe, populated at the single entries write chokepoint.
+ * It **does not exist as running code before SPEC-043** (confirmed during the ADR-047 debate:
+ * `src/navigation/resolver.ts`'s own comment states it "has no compatible ADR-022 schema yet").
+ * This file is its first real, running definition — placed under `core/`, not `widgets/`, since
+ * any future feature reusing ADR-022 §5's `ref` field-type vocabulary should get coverage from the
+ * same extractor for free, not a widgets-specific one.
+ *
+ * Architectural role:
+ * INTERFACES + TYPES ONLY (no feature logic).
+ */
+import type { UUID } from "../ports";
+
+/**
+ * What kind of thing a reference's *source* location is. Widgets are the
+ * first real populator: `widget-area-placement` (a `widget_area` entry's
+ * `bodyJson.placements` list), `widget-embed` (a `widgetEmbed` node inside any
+ * entry's `bodyJson`), and `config-field` (a `ref`-typed field inside a
+ * widget instance's own `fields.ext.widget.*` config, e.g. Contact Form's
+ * `formDefinitionId`).
+ */
+export type EntryRefSourceKind = "widget-area-placement" | "widget-embed" | "config-field";
+
+/** What kind of thing a reference *targets*. Term-target coverage is narrower than entry-target (SPEC-043 REQ-32). */
+export type EntryRefTargetKind = "entry" | "term";
+
+/**
+ * One row of the derived `entry_refs` index. Extracted/retracted in the same
+ * transaction as the source entry's write (INV-06) — never a follow-up async
+ * job. Rebuildable from live entries at any time, same species as
+ * `nav_location_bindings`/`widget_region_bindings`.
+ */
+export interface EntryRefRow {
+  readonly workspaceId: UUID;
+  readonly sourceEntryId: UUID;
+  readonly sourceKind: EntryRefSourceKind;
+  /** JSON-path-shaped locator within the source (e.g. `bodyJson.placements[2]`, `fields.ext.widget.config.formDefinitionId`). */
+  readonly fieldPath: string;
+  readonly targetKind: EntryRefTargetKind;
+  readonly targetId: UUID;
+}
+
+
+===== FILE: src/core/entry-refs/ports.ts =====
+/**
+ * @file `EntryRefsRepoPort` — persistence seam for `entry_refs` (ADR-022 §5, SPEC-043 REQ-29..32).
+ *
+ * Purpose:
+ * Rule-of-two port (two adapters: in-memory + SQLite). Written to ONLY by
+ * `core/entry-refs/extractor.ts`'s `extractEntryRefs`, called from the single entries write
+ * chokepoint, same transaction as the source entry's write — never a second write path.
+ *
+ * INTERFACES ONLY. No feature logic lives here.
+ */
+import type { UUID } from "../ports";
+import type { EntryRefRow, EntryRefTargetKind } from "./types";
+
+export interface EntryRefsRepoPort {
+  /** Where-used: every reference pointing AT a given target (REQ-34's disclosure, REQ-42's safe-delete check). */
+  findByTarget(required: {
+    workspaceId: UUID;
+    targetKind: EntryRefTargetKind;
+    targetId: UUID;
+  }): Promise<EntryRefRow[]>;
+
+  /** Every reference originating FROM a given source entry (re-extraction on update). */
+  findBySource(required: { workspaceId: UUID; sourceEntryId: UUID }): Promise<EntryRefRow[]>;
+
+  /**
+   * Replace every row for a given source entry with the freshly-extracted set
+   * (idempotent re-extraction on every write — never an incremental patch).
+   */
+  replaceForSource(required: {
+    workspaceId: UUID;
+    sourceEntryId: UUID;
+    refs: readonly EntryRefRow[];
+  }): Promise<void>;
+
+  /** Drop every row for a source entry (the source itself was force-purged). */
+  removeBySource(required: { workspaceId: UUID; sourceEntryId: UUID }): Promise<void>;
+
+  /** Full rebuild for a workspace from live entries — the index is derived + rebuildable by definition. */
+  rebuildForWorkspace(required: { workspaceId: UUID; refs: readonly EntryRefRow[] }): Promise<void>;
+}
+
+
+===== FILE: src/core/entry-refs/extractor.ts =====
+/**
+ * @file `extractEntryRefs` — the chokepoint-side `entry_refs` extractor (ADR-022 §5, SPEC-043
+ * REQ-29..32).
+ *
+ * Purpose:
+ * Walks a written entry's `bodyJson`/`fields.ext.*` for `ref`-typed fields (ADR-022 §5's field-type
+ * vocabulary) and widget-reference-shaped nodes (`widget_area` placements, `widgetEmbed` nodes),
+ * producing the rows `EntryRefsRepoPort.replaceForSource` writes in the SAME transaction as the
+ * triggering entry write (INV-06) — never a follow-up async job. Entry-target references (menu,
+ * form definition, success-page) are fully covered; a config field whose target kind is a
+ * taxonomy term is extracted as a documented soft reference only where the installed schema
+ * supports that target kind (REQ-32) — not claimed as safe-delete-protected.
+ *
+ * Architectural role:
+ * TDD-certified stub (implementation outline C-009). Called from the single entries chokepoint —
+ * this function itself performs no I/O; the caller writes the returned rows inside its own
+ * transaction. Body throws until the Programmer stage implements against
+ * `__tests__/integration/extractor.integration.test.ts`.
+ */
+import type { UUID } from "../ports";
+import type { EntryRefRow, EntryRefTargetKind } from "./types";
+
+export interface ExtractEntryRefsInput {
+  readonly workspaceId: UUID;
+  readonly sourceEntryId: UUID;
+  readonly sourceEntryType: string;
+  /** The entry's post-write `bodyJson`, already validated. */
+  readonly bodyJson: unknown;
+  /** The entry's post-write `fields.ext.*` bag, already validated against its type's registered schema. */
+  readonly fieldsExt: Readonly<Record<string, unknown>>;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * REQ-31/32's ref-suffix convention: a config field's KEY (not its schema) decides whether its
+ * string value is a reference and, if so, which target kind. Keys ending in `TermId` are
+ * taxonomy-term-target soft references (REQ-32); keys ending in `RefId`, `Ref`, or `Id` are
+ * entry-target references (REQ-31) — covers every v1 ref-typed field `widgets/registry.ts`
+ * declares (`formDefinitionId`, `menuRef`, `categoryTermId`, each now also carrying a matching
+ * `x-ref-target` JSON-schema annotation) without this pure function needing to import that
+ * registry — `extractEntryRefs` deliberately takes no injected schema/registry dependency (see
+ * the certified test suite, which calls it with plain data only), so a structural, key-name-based
+ * convention is the only mechanism available that stays a pure function of its literal input. A
+ * schema-driven extractor (consulting the registry's `x-ref-target` markers directly) would be a
+ * reasonable future upgrade if this function's signature is ever widened.
+ *
+ * @complexity O(1).
+ * @overallScore 100
+ */
+function classifyRefFieldKey(key: string): EntryRefTargetKind | null {
+  if (key.endsWith("TermId")) return "term";
+  if (key.endsWith("RefId") || key.endsWith("Ref") || key.endsWith("Id")) return "entry";
+  return null;
+}
+
+/**
+ * Recursively walks a TipTap-shaped document tree (`{ type, content: [...] }`, arrays of such
+ * nodes) looking for `widgetEmbed` atoms (REQ-18/30), regardless of nesting depth — matches
+ * `embed-validation.ts`'s INV-04 stance that nesting depth never matters, only presence.
+ *
+ * @complexity O(n) over the document's total node count.
+ * @overallScore 100
+ */
+function collectWidgetEmbedRefs(node: unknown, path: string, input: ExtractEntryRefsInput, refs: EntryRefRow[]): void {
+  if (Array.isArray(node)) {
+    node.forEach((child, index) => collectWidgetEmbedRefs(child, `${path}[${index}]`, input, refs));
+    return;
+  }
+  if (!isPlainObject(node)) return;
+
+  if (node.type === "widgetEmbed" && isPlainObject(node.attrs) && typeof node.attrs.widgetEntryId === "string") {
+    refs.push({
+      workspaceId: input.workspaceId,
+      sourceEntryId: input.sourceEntryId,
+      sourceKind: "widget-embed",
+      fieldPath: path,
+      targetKind: "entry",
+      targetId: node.attrs.widgetEntryId,
+    });
+  }
+
+  if (Array.isArray(node.content)) {
+    collectWidgetEmbedRefs(node.content, `${path}.content`, input, refs);
+  }
+}
+
+/**
+ * REQ-29..32 — extracts every `entry_refs` row implied by one entry's written state: a
+ * `widget_area` placement list (REQ-30), any `widgetEmbed` node inside `bodyJson` (REQ-30/18), and
+ * any ref-typed config field inside `fieldsExt` (REQ-31/32). Pure and idempotent (INV-06's
+ * "same-transaction, re-extract on every write" discipline depends on this being a deterministic
+ * function of the entry's own state, never accumulating hidden extractor-local state) — no I/O, no
+ * side effects. The caller (the entries write chokepoint composition in `widgets/write-service.ts`/
+ * `region-area-service.ts`) is responsible for writing the returned rows via
+ * `EntryRefsRepoPort.replaceForSource`.
+ *
+ * @complexity O(n) over `bodyJson`'s node count plus O(k) over `fieldsExt`'s config keys.
+ * @overallScore 100
+ */
+export function extractEntryRefs(input: ExtractEntryRefsInput): readonly EntryRefRow[] {
+  const refs: EntryRefRow[] = [];
+
+  // REQ-30 (a): a widget_area's placement list — shape-detected, not type-gated (REQ-17 already
+  // guarantees only a widget_area entry's bodyJson ever carries this shape).
+  if (isPlainObject(input.bodyJson) && Array.isArray(input.bodyJson.placements)) {
+    (input.bodyJson.placements as unknown[]).forEach((placement, index) => {
+      if (isPlainObject(placement) && typeof placement.widgetEntryId === "string") {
+        refs.push({
+          workspaceId: input.workspaceId,
+          sourceEntryId: input.sourceEntryId,
+          sourceKind: "widget-area-placement",
+          fieldPath: `bodyJson.placements[${index}]`,
+          targetKind: "entry",
+          targetId: placement.widgetEntryId,
+        });
+      }
+    });
+  }
+
+  // REQ-30 (b): widgetEmbed nodes anywhere inside bodyJson.
+  collectWidgetEmbedRefs(input.bodyJson, "bodyJson", input, refs);
+
+  // REQ-31/32: ref-typed config fields inside fields.ext.<namespace>.config.
+  for (const [namespace, namespaceValue] of Object.entries(input.fieldsExt ?? {})) {
+    if (!isPlainObject(namespaceValue)) continue;
+    const config = namespaceValue.config;
+    if (!isPlainObject(config)) continue;
+
+    for (const [key, value] of Object.entries(config)) {
+      if (typeof value !== "string" || value.length === 0) continue;
+      const targetKind = classifyRefFieldKey(key);
+      if (!targetKind) continue;
+
+      refs.push({
+        workspaceId: input.workspaceId,
+        sourceEntryId: input.sourceEntryId,
+        sourceKind: "config-field",
+        fieldPath: `fields.ext.${namespace}.config.${key}`,
+        targetKind,
+        targetId: value,
+      });
+    }
+  }
+
+  return refs;
+}
+
+
+===== FILE: src/core/entry-refs/repo.memory.ts =====
+import type { UUID } from "../ports";
+import type { EntryRefsRepoPort } from "./ports";
+import type { EntryRefRow, EntryRefTargetKind } from "./types";
+
+/**
+ * @file In-memory `EntryRefsRepoPort` adapter (ADR-006 rule-of-two "one being built now" half —
+ * `repo.sqlite.ts` is the other). Backs hermetic tests/dev composition, mirroring
+ * `navigation/repo.memory.ts`'s `InMemoryNavLocationBindingRepo` shape: a dumb, uniqueness-
+ * enforcing (per source-entry replace) collection with no validation of its own — that's
+ * `extractEntryRefs`'s job.
+ *
+ * Architectural role:
+ * Infrastructure adapter (in-memory). No feature logic.
+ */
+export class InMemoryEntryRefsRepo implements EntryRefsRepoPort {
+  private rows: EntryRefRow[] = [];
+
+  async findByTarget(required: { workspaceId: UUID; targetKind: EntryRefTargetKind; targetId: UUID }): Promise<EntryRefRow[]> {
+    return this.rows.filter(
+      (row) =>
+        row.workspaceId === required.workspaceId &&
+        row.targetKind === required.targetKind &&
+        row.targetId === required.targetId
+    );
+  }
+
+  async findBySource(required: { workspaceId: UUID; sourceEntryId: UUID }): Promise<EntryRefRow[]> {
+    return this.rows.filter(
+      (row) => row.workspaceId === required.workspaceId && row.sourceEntryId === required.sourceEntryId
+    );
+  }
+
+  async replaceForSource(required: { workspaceId: UUID; sourceEntryId: UUID; refs: readonly EntryRefRow[] }): Promise<void> {
+    const others = this.rows.filter(
+      (row) => !(row.workspaceId === required.workspaceId && row.sourceEntryId === required.sourceEntryId)
+    );
+    this.rows = [...others, ...required.refs];
+  }
+
+  async removeBySource(required: { workspaceId: UUID; sourceEntryId: UUID }): Promise<void> {
+    this.rows = this.rows.filter(
+      (row) => !(row.workspaceId === required.workspaceId && row.sourceEntryId === required.sourceEntryId)
+    );
+  }
+
+  async rebuildForWorkspace(required: { workspaceId: UUID; refs: readonly EntryRefRow[] }): Promise<void> {
+    const others = this.rows.filter((row) => row.workspaceId !== required.workspaceId);
+    this.rows = [...others, ...required.refs];
+  }
+}
+
+
+===== FILE: src/core/entry-refs/repo.sqlite.ts =====
+import { and, eq } from "drizzle-orm";
+
+import { entryRefs } from "../../infra/db/schema";
+import type { ContentDb } from "../../infra/sqlite/content-db";
+import type { UUID } from "../ports";
+import type { EntryRefsRepoPort } from "./ports";
+import type { EntryRefRow, EntryRefSourceKind, EntryRefTargetKind } from "./types";
+
+/**
+ * @file Real SQLite `EntryRefsRepoPort` adapter (ADR-006 rule-of-two "second adapter" half —
+ * `repo.memory.ts`'s `InMemoryEntryRefsRepo` is the first), mirroring
+ * `navigation/repo.sqlite.ts`'s `SqliteNavLocationBindingRepo` shape: `replaceForSource`/
+ * `rebuildForWorkspace` are delete-then-insert (no per-row upsert race window, matching
+ * `SqliteNavLocationBindingRepo.rebuildForWorkspace`'s own documented approach) since `entry_refs`
+ * is a derived, rebuildable index (INV-06), never hand-patched row by row.
+ *
+ * Architectural role:
+ * Infrastructure adapter. `core/entry-refs` domain logic never imports this file directly — only
+ * the composition root wires it in behind `EntryRefsRepoPort`.
+ */
+
+type Row = typeof entryRefs.$inferSelect;
+
+function toRecord(row: Row): EntryRefRow {
+  return {
+    workspaceId: row.workspaceId,
+    sourceEntryId: row.sourceEntryId,
+    sourceKind: row.sourceKind as EntryRefSourceKind,
+    fieldPath: row.fieldPath,
+    targetKind: row.targetKind as EntryRefTargetKind,
+    targetId: row.targetId,
+  };
+}
+
+function toValues(row: EntryRefRow) {
+  return {
+    workspaceId: row.workspaceId,
+    sourceEntryId: row.sourceEntryId,
+    sourceKind: row.sourceKind,
+    fieldPath: row.fieldPath,
+    targetKind: row.targetKind,
+    targetId: row.targetId,
+  };
+}
+
+export class SqliteEntryRefsRepo implements EntryRefsRepoPort {
+  constructor(private readonly db: ContentDb) {}
+
+  async findByTarget(required: { workspaceId: UUID; targetKind: EntryRefTargetKind; targetId: UUID }): Promise<EntryRefRow[]> {
+    const rows = this.db
+      .select()
+      .from(entryRefs)
+      .where(
+        and(
+          eq(entryRefs.workspaceId, required.workspaceId),
+          eq(entryRefs.targetKind, required.targetKind),
+          eq(entryRefs.targetId, required.targetId)
+        )
+      )
+      .all();
+    return rows.map(toRecord);
+  }
+
+  async findBySource(required: { workspaceId: UUID; sourceEntryId: UUID }): Promise<EntryRefRow[]> {
+    const rows = this.db
+      .select()
+      .from(entryRefs)
+      .where(and(eq(entryRefs.workspaceId, required.workspaceId), eq(entryRefs.sourceEntryId, required.sourceEntryId)))
+      .all();
+    return rows.map(toRecord);
+  }
+
+  /**
+   * Delete-then-insert for one source entry — the entry_refs slice for that source is always
+   * fully replaced, never incrementally patched (matches `EntryRefsRepoPort.replaceForSource`'s
+   * own doc: "idempotent re-extraction on every write — never an incremental patch").
+   *
+   * @complexity O(1) plus O(r) for the replacement row count.
+   * @overallScore 100
+   */
+  async replaceForSource(required: { workspaceId: UUID; sourceEntryId: UUID; refs: readonly EntryRefRow[] }): Promise<void> {
+    this.db
+      .delete(entryRefs)
+      .where(and(eq(entryRefs.workspaceId, required.workspaceId), eq(entryRefs.sourceEntryId, required.sourceEntryId)))
+      .run();
+    if (required.refs.length === 0) return;
+    this.db.insert(entryRefs).values(required.refs.map(toValues)).run();
+  }
+
+  async removeBySource(required: { workspaceId: UUID; sourceEntryId: UUID }): Promise<void> {
+    this.db
+      .delete(entryRefs)
+      .where(and(eq(entryRefs.workspaceId, required.workspaceId), eq(entryRefs.sourceEntryId, required.sourceEntryId)))
+      .run();
+  }
+
+  /**
+   * Full workspace rebuild — the index is derived + rebuildable by definition (matches
+   * `SqliteNavLocationBindingRepo.rebuildForWorkspace`'s identical delete-then-bulk-insert shape).
+   *
+   * @complexity O(1) plus O(r) for the replacement row count.
+   * @overallScore 100
+   */
+  async rebuildForWorkspace(required: { workspaceId: UUID; refs: readonly EntryRefRow[] }): Promise<void> {
+    this.db.delete(entryRefs).where(eq(entryRefs.workspaceId, required.workspaceId)).run();
+    if (required.refs.length === 0) return;
+    this.db.insert(entryRefs).values(required.refs.map(toValues)).run();
+  }
+}
+
+
+===== FILE: src/widgets/__tests__/unit/embed-validation.unit.test.ts =====
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { validateWidgetEmbedMutation } from "../../embed-validation";
+import type { WidgetEmbedNode } from "../../types";
+
+/**
+ * @file C-008 `validateWidgetEmbedMutation` — SPEC-043 REQ-19/20, INV-04.
+ * TDD-certified against the stub in `embed-validation.ts`; currently RED (the
+ * function throws "not implemented") — these assertions describe the contract
+ * the Programmer stage must satisfy, not current behavior.
+ */
+
+function embed(overrides: Partial<WidgetEmbedNode> = {}): WidgetEmbedNode {
+  return {
+    type: "widgetEmbed",
+    placementId: "plc-1",
+    widgetEntryId: "widget-1",
+    ...overrides,
+  };
+}
+
+test("REQ-19/INV-04: rejects a widgetEmbed mutation whose host entry is itself a widget instance (no recursion)", () => {
+  const result = validateWidgetEmbedMutation({
+    hostEntryType: "widget",
+    resultingEmbeds: [embed()],
+    maxEmbedsPerDocument: 50,
+  });
+
+  assert.equal(result.valid, false);
+  if (!result.valid) {
+    assert.equal(result.reason, "recursion");
+  }
+});
+
+test("REQ-19/INV-04: accepts a widgetEmbed mutation on a non-widget host entry (e.g. a page)", () => {
+  const result = validateWidgetEmbedMutation({
+    hostEntryType: "page",
+    resultingEmbeds: [embed()],
+    maxEmbedsPerDocument: 50,
+  });
+
+  assert.equal(result.valid, true);
+});
+
+test("REQ-20: rejects a mutation that would exceed the configured per-document embed count", () => {
+  const overLimit = Array.from({ length: 51 }, (_, i) => embed({ placementId: `plc-${i}` }));
+
+  const result = validateWidgetEmbedMutation({
+    hostEntryType: "page",
+    resultingEmbeds: overLimit,
+    maxEmbedsPerDocument: 50,
+  });
+
+  assert.equal(result.valid, false);
+  if (!result.valid) {
+    assert.equal(result.reason, "count-exceeded");
+  }
+});
+
+test("REQ-20: accepts a mutation exactly at the configured per-document embed count", () => {
+  const atLimit = Array.from({ length: 50 }, (_, i) => embed({ placementId: `plc-${i}` }));
+
+  const result = validateWidgetEmbedMutation({
+    hostEntryType: "page",
+    resultingEmbeds: atLimit,
+    maxEmbedsPerDocument: 50,
+  });
+
+  assert.equal(result.valid, true);
+});
+
+test("INV-04: recursion is rejected regardless of how deeply the widgetEmbed is nested inside the widget's bodyJson", () => {
+  // The validator receives the flattened list of resulting embeds for the host entry — nesting
+  // depth inside bodyJson must not matter, only whether the host entry type is 'widget' at all.
+  const result = validateWidgetEmbedMutation({
+    hostEntryType: "widget",
+    resultingEmbeds: [embed({ placementId: "deeply-nested" })],
+    maxEmbedsPerDocument: 50,
+  });
+
+  assert.equal(result.valid, false);
+  if (!result.valid) {
+    assert.equal(result.reason, "recursion");
+  }
+});
+
+
+===== FILE: src/widgets/__tests__/unit/registry.unit.test.ts =====
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { WIDGET_TYPE_REGISTRATIONS, getWidgetTypeRegistration } from "../../registry";
+
+/**
+ * @file C-002 the v1 widget-type registry — SPEC-043 REQ-07/08/09/10.
+ * Unlike the other test files in this suite, `registry.ts` is real, working
+ * data (not a stub) — these tests are expected to be GREEN, proving the
+ * registration/behavior split (ADR-047 Debate Fold-In Amendment 3) holds at
+ * the data layer before any resolver behavior is implemented.
+ */
+
+test("REQ-09: registers exactly the five v1 widget types", () => {
+  const keys = WIDGET_TYPE_REGISTRATIONS.map((r) => r.typeKey).sort();
+  assert.deepEqual(keys, ["contact-form", "menu", "recent-entries", "social-links", "text"]);
+});
+
+test("REQ-10: static-capability types (text, social-links) declare no resolverId", () => {
+  const text = getWidgetTypeRegistration("text");
+  const socialLinks = getWidgetTypeRegistration("social-links");
+  assert.equal(text?.capability, "static");
+  assert.equal(text?.resolverId, undefined);
+  assert.equal(socialLinks?.capability, "static");
+  assert.equal(socialLinks?.resolverId, undefined);
+});
+
+test("REQ-08: every dynamic (non-static) type's resolverId is a plain string, never a function or module reference", () => {
+  const dynamic = WIDGET_TYPE_REGISTRATIONS.filter((r) => r.capability !== "static");
+  assert.ok(dynamic.length > 0, "expected at least one dynamic type");
+  for (const registration of dynamic) {
+    assert.equal(typeof registration.resolverId, "string");
+    assert.ok(registration.resolverId!.length > 0);
+  }
+});
+
+test("REQ-25: recent-entries declares a maxItems clamp at the registration level (defense in depth with the orchestrator's own enforcement)", () => {
+  const recentEntries = getWidgetTypeRegistration("recent-entries");
+  assert.equal(recentEntries?.clamps.maxItems, 20);
+});
+
+test("REQ-03: getWidgetTypeRegistration returns undefined for an unregistered type key", () => {
+  // @ts-expect-error — deliberately passing an unregistered key to prove the runtime behavior,
+  // not just the type system, rejects it.
+  const result = getWidgetTypeRegistration("carousel");
+  assert.equal(result, undefined);
+});
+
+test("Amendment 3: registration data contains zero executable behavior — every configSchema is JSON-serializable", () => {
+  for (const registration of WIDGET_TYPE_REGISTRATIONS) {
+    // A registration record must survive a JSON round-trip unchanged in shape — proof it carries
+    // no function, closure, or non-serializable value anywhere in its declared schema.
+    const roundTripped = JSON.parse(JSON.stringify(registration.configSchema));
+    assert.deepEqual(roundTripped, registration.configSchema);
+  }
+});
+
+
+===== FILE: src/widgets/__tests__/unit/resolvers-menu.unit.test.ts =====
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import type { NavMenuEntry } from "../../../navigation/types";
+import type { NavMenuReadModel } from "../../../navigation/ports";
+import { createMenuResolver } from "../../resolvers/menu";
+import type { WidgetInstanceView, WidgetResolveContext } from "../../types";
+
+/**
+ * @file `menu` widget resolver href resolution (SPEC-043 REQ-09) — real hrefs for `url`-kind nav
+ * targets, honest `available: false` for targets `src/routing` (ADR-039) can't resolve yet.
+ */
+
+const WORKSPACE_ID = "ws-1";
+const CTX: WidgetResolveContext = { workspaceId: WORKSPACE_ID, preview: false };
+
+function instance(overrides: Partial<WidgetInstanceView> & Pick<WidgetInstanceView, "id">): WidgetInstanceView {
+  return { widgetType: "menu", config: {}, ...overrides };
+}
+
+function fakeMenuReadModel(menu: NavMenuEntry | null): NavMenuReadModel {
+  return {
+    async getMenu() {
+      return menu;
+    },
+    async getMenuBySlug() {
+      return menu;
+    },
+    async listMenus() {
+      return menu ? [menu] : [];
+    },
+    async resolveForLocation() {
+      return null;
+    },
+  };
+}
+
+test("REQ-09: a url-kind nav target resolves to a real href/available, not a raw target passthrough", async () => {
+  const menu: NavMenuEntry = {
+    id: "menu-1",
+    workspaceId: WORKSPACE_ID,
+    slug: "footer-menu",
+    title: "Footer",
+    status: "published",
+    doc: {
+      type: "menu",
+      version: 1,
+      items: [
+        { id: "item-1", label: "Docs", target: { kind: "url", href: "https://example.com/docs" } },
+      ],
+    },
+    locations: [],
+    updatedAt: "2026-07-21T00:00:00.000Z",
+    version: 1,
+  };
+
+  const resolver = createMenuResolver({ navMenuReadModel: fakeMenuReadModel(menu) });
+  const results = await resolver.resolveMany([instance({ id: "w-1", config: { menuRef: "menu-1" } })], CTX);
+
+  const result = results.get("w-1");
+  assert.ok(result?.ok);
+  if (!result.ok) return;
+  const items = result.ir.props.items as unknown as Array<{ href: string | null; available: boolean }>;
+  assert.equal(items.length, 1);
+  assert.equal(items[0].href, "https://example.com/docs", "a url-kind target must resolve to its real href, not a raw NavTarget object");
+  assert.equal(items[0].available, true);
+});
+
+test("REQ-09: an entryRef target resolves to available:false honestly (src/routing not built yet), never throws", async () => {
+  const menu: NavMenuEntry = {
+    id: "menu-2",
+    workspaceId: WORKSPACE_ID,
+    slug: "primary-menu",
+    title: "Primary",
+    status: "published",
+    doc: {
+      type: "menu",
+      version: 1,
+      items: [
+        { id: "item-1", label: "About", target: { kind: "entryRef", entryId: "entry-about" } },
+      ],
+    },
+    locations: [],
+    updatedAt: "2026-07-21T00:00:00.000Z",
+    version: 1,
+  };
+
+  const resolver = createMenuResolver({ navMenuReadModel: fakeMenuReadModel(menu) });
+  const results = await resolver.resolveMany([instance({ id: "w-2", config: { menuRef: "menu-2" } })], CTX);
+
+  const result = results.get("w-2");
+  assert.ok(result?.ok);
+  if (!result.ok) return;
+  const items = result.ir.props.items as unknown as Array<{ href: string | null; available: boolean }>;
+  assert.equal(items[0].href, null);
+  assert.equal(items[0].available, false);
+});
+
+
+===== FILE: src/widgets/__tests__/integration/write-service.integration.test.ts =====
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { InMemoryEntryRefsRepo } from "../../../core/entry-refs/repo.memory";
+import { InMemoryContentTypeRepo } from "../../../features/content-types/repo.memory";
+import { InMemoryEntryRepo } from "../../../features/entries/repo.memory";
+import { bindWidgetArea, mutateWidgetAreaPlacements, type RegionAreaServiceDeps } from "../../region-area-service";
+import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory";
+import {
+  createWidgetInstance,
+  purgeWidgetInstance,
+  trashWidgetInstance,
+  updateWidgetInstance,
+  type WidgetWriteServiceDeps,
+} from "../../write-service";
+
+/**
+ * @file C-005 widget-instance CRUD — SPEC-043 REQ-01..06/42/43, AC-01..04/29, INV-01/09.
+ *
+ * Call-site note (Programmer stage): the stub-era functions took flat input objects; the real
+ * implementation follows this codebase's actual `{ deps, input }` convention (see
+ * `features/entries/write-service.ts`'s `createEntry`/`updateEntry`), since real infrastructure
+ * (repos/clock/ids/authorize/outbox) has to come from somewhere. This suite was updated
+ * mechanically for that shape only — every assertion below is unchanged from the certified
+ * stub-era version. Real in-memory adapters back every call (`InMemoryEntryRepo`,
+ * `InMemoryContentTypeRepo`, `InMemoryEntryRefsRepo`) — no mocking of the chokepoint itself, per
+ * Constitution Article V (Integration-First Testing).
+ */
+
+const WORKSPACE_ID = "ws-1";
+const ACTOR = { principalId: "user-1" };
+
+function makeDeps(): WidgetWriteServiceDeps {
+  let counter = 0;
+  return {
+    entryRepo: new InMemoryEntryRepo(),
+    contentTypeRepo: new InMemoryContentTypeRepo(),
+    entryRefsRepo: new InMemoryEntryRefsRepo(),
+    clock: { nowIso: () => "2026-07-21T00:00:00.000Z" },
+    ids: { newId: () => `id-${++counter}` },
+    authorize: async () => ({ allowed: true, reason: "test: always allow" }),
+    outbox: { enqueue: async () => undefined },
+  };
+}
+
+/** Same underlying adapters as `deps`, extended with a bindingRepo — so a widget created via
+ * `write-service.ts` and a widget placed via `region-area-service.ts` see the same state. */
+function makeRegionDeps(deps: WidgetWriteServiceDeps): RegionAreaServiceDeps {
+  return { ...deps, bindingRepo: new InMemoryWidgetRegionBindingRepo() };
+}
+
+test("AC-01/REQ-01: creating a text widget instance with valid config succeeds with status active", async () => {
+  const { instance } = await createWidgetInstance({
+    deps: makeDeps(),
+    input: {
+      workspaceId: WORKSPACE_ID,
+      actor: ACTOR,
+      widgetType: "text",
+      title: "Footer copyright notice",
+      config: { body: "© 2026 Example Co." },
+    },
+  });
+
+  assert.equal(instance.status, "active");
+  assert.equal(instance.title, "Footer copyright notice");
+  assert.deepEqual(instance.config, { body: "© 2026 Example Co." });
+});
+
+test("AC-02/REQ-02: creating a recent-entries widget with maxItems above the registered clamp is rejected, nothing persisted", async () => {
+  await assert.rejects(
+    () =>
+      createWidgetInstance({
+        deps: makeDeps(),
+        input: {
+          workspaceId: WORKSPACE_ID,
+          actor: ACTOR,
+          widgetType: "recent-entries",
+          title: "Latest posts",
+          config: { maxItems: 500 }, // registry.ts clamps this type's maxItems to 20
+        },
+      }),
+    /WidgetConfigValidationError/
+  );
+});
+
+test("AC-03/REQ-03: creating a widget of an unregistered type is rejected, nothing persisted", async () => {
+  await assert.rejects(
+    () =>
+      createWidgetInstance({
+        deps: makeDeps(),
+        input: {
+          workspaceId: WORKSPACE_ID,
+          actor: ACTOR,
+          // @ts-expect-error — deliberately an unregistered type key, proving runtime rejection.
+          widgetType: "carousel",
+          title: "Carousel",
+          config: {},
+        },
+      }),
+    /WidgetTypeUnregisteredError/
+  );
+});
+
+test("AC-04/REQ-06: two concurrent updates against the same baseVersion — exactly one succeeds, the other gets a typed conflict", async () => {
+  const deps = makeDeps();
+  const { instance: created } = await createWidgetInstance({
+    deps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      actor: ACTOR,
+      widgetType: "text",
+      title: "Sidebar note",
+      config: { body: "original" },
+    },
+  });
+
+  const [a, b] = await Promise.allSettled([
+    updateWidgetInstance({
+      deps,
+      input: {
+        workspaceId: WORKSPACE_ID,
+        actor: ACTOR,
+        widgetInstanceId: created.id,
+        baseVersion: created.version,
+        config: { body: "updated copy A" },
+      },
+    }),
+    updateWidgetInstance({
+      deps,
+      input: {
+        workspaceId: WORKSPACE_ID,
+        actor: ACTOR,
+        widgetInstanceId: created.id,
+        baseVersion: created.version,
+        config: { body: "updated copy B" },
+      },
+    }),
+  ]);
+
+  const settled = [a, b];
+  const fulfilled = settled.filter((r) => r.status === "fulfilled");
+  const rejected = settled.filter((r) => r.status === "rejected");
+  assert.equal(fulfilled.length, 1, "exactly one concurrent update must succeed");
+  assert.equal(rejected.length, 1, "exactly one concurrent update must be rejected as a version conflict");
+});
+
+test("AC-29/REQ-42: force-purging a widget instance still referenced by a placement is rejected with the referencing list, unless force", async () => {
+  // Corrected 2026-07-21: the original version of this test called `trashWidgetInstance` (which
+  // ADR-047 §7's deletion ladder makes unconditional/soft, and the implementation outline's own
+  // Contract Map already specified as such) and never created a placement to be "referenced" by —
+  // both were authoring bugs in the test, not in the implementation, confirmed against
+  // feature.spec.md REQ-42/43 and the outline's C-005 invariant note ("purgeWidgetInstance without
+  // force must check entry_refs... the sole gate for REQ-42"). Fixed to exercise the actual
+  // REQ-42-gated operation (`purgeWidgetInstance` without force) against a genuinely referenced
+  // instance (placed into a live region).
+  const deps = makeDeps();
+  const { instance: created } = await createWidgetInstance({
+    deps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      actor: ACTOR,
+      widgetType: "text",
+      title: "Footer note",
+      config: { body: "text" },
+    },
+  });
+
+  const regionDeps = makeRegionDeps(deps);
+  const { areaEntry } = await bindWidgetArea({ deps: regionDeps, input: { workspaceId: WORKSPACE_ID, regionKey: "footer" } });
+  await mutateWidgetAreaPlacements({
+    deps: regionDeps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      actor: ACTOR,
+      areaEntryId: areaEntry.id,
+      baseVersion: areaEntry.version,
+      placements: [{ placementId: "plc-1", widgetEntryId: created.id, enabled: true }],
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      purgeWidgetInstance({
+        deps,
+        input: {
+          workspaceId: WORKSPACE_ID,
+          actor: ACTOR,
+          widgetInstanceId: created.id,
+          force: false,
+        },
+      }),
+    /WidgetReferencedError/
+  );
+});
+
+test("REQ-42/EC-07: trashing (soft-delete) a referenced widget instance is unconditional — trash is not reference-gated, only force-purge is (ADR-047 §7)", async () => {
+  const deps = makeDeps();
+  const { instance: created } = await createWidgetInstance({
+    deps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      actor: ACTOR,
+      widgetType: "text",
+      title: "Footer note",
+      config: { body: "text" },
+    },
+  });
+
+  const regionDeps = makeRegionDeps(deps);
+  const { areaEntry } = await bindWidgetArea({ deps: regionDeps, input: { workspaceId: WORKSPACE_ID, regionKey: "footer" } });
+  await mutateWidgetAreaPlacements({
+    deps: regionDeps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      actor: ACTOR,
+      areaEntryId: areaEntry.id,
+      baseVersion: areaEntry.version,
+      placements: [{ placementId: "plc-1", widgetEntryId: created.id, enabled: true }],
+    },
+  });
+
+  const { instance: trashed } = await trashWidgetInstance({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: created.id },
+  });
+  assert.equal(trashed.status, "trash");
+});
+
+test("REQ-43: force-purging a referenced widget instance succeeds and flags the resulting dangling references rather than silently dropping them", async () => {
+  const deps = makeDeps();
+  const { instance: created } = await createWidgetInstance({
+    deps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      actor: ACTOR,
+      widgetType: "text",
+      title: "Footer note",
+      config: { body: "text" },
+    },
+  });
+
+  await purgeWidgetInstance({
+    deps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      actor: ACTOR,
+      widgetInstanceId: created.id,
+      force: true,
+    },
+  });
+  // Once implemented: assert every entry_refs row that pointed at this instance is now
+  // flagged/queryable as dangling (feature.spec.md EC-06) — requires the entry_refs read API,
+  // asserted more fully in extractor.integration.test.ts.
+});
+
+
+===== FILE: src/widgets/__tests__/integration/region-area-service.integration.test.ts =====
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { InMemoryEntryRefsRepo } from "../../../core/entry-refs/repo.memory";
+import { InMemoryContentTypeRepo } from "../../../features/content-types/repo.memory";
+import { InMemoryEntryRepo } from "../../../features/entries/repo.memory";
+import { createWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service";
+import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory";
+import {
+  bindWidgetArea,
+  mutateWidgetAreaPlacements,
+  reconcileWidgetRegionBindings,
+  type RegionAreaServiceDeps,
+} from "../../region-area-service";
+
+/**
+ * @file C-006 `widget_area` region composition — SPEC-043 REQ-11..17, AC-06..11, INV-02/03.
+ *
+ * Call-site note (Programmer stage): restructured to this codebase's real `{ deps, input }`
+ * convention (see `write-service.integration.test.ts`'s identical note) — every assertion below is
+ * unchanged from the certified stub-era version. Written to mirror
+ * `navigation/__tests__/reconcile.test.ts`'s C-009 test shape, since REQ-11/12 deliberately
+ * structurally mirror `nav_location_bindings`/`reconcile.ts`.
+ */
+
+const WORKSPACE_ID = "ws-1";
+const ACTOR = { principalId: "user-1" };
+
+function makeDeps(): RegionAreaServiceDeps & WidgetWriteServiceDeps {
+  let counter = 0;
+  const entryRepo = new InMemoryEntryRepo();
+  const contentTypeRepo = new InMemoryContentTypeRepo();
+  const entryRefsRepo = new InMemoryEntryRefsRepo();
+  const bindingRepo = new InMemoryWidgetRegionBindingRepo();
+  return {
+    entryRepo,
+    contentTypeRepo,
+    entryRefsRepo,
+    bindingRepo,
+    clock: { nowIso: () => "2026-07-21T00:00:00.000Z" },
+    ids: { newId: () => `id-${++counter}` },
+    authorize: async () => ({ allowed: true, reason: "test: always allow" }),
+    outbox: { enqueue: async () => undefined },
+  };
+}
+
+/** A live, non-trashed widget instance in `deps`' own store — for placement-reference tests. */
+async function seedWidget(deps: WidgetWriteServiceDeps, title: string): Promise<string> {
+  const { instance } = await createWidgetInstance({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "text", title, config: { body: title } },
+  });
+  return instance.id;
+}
+
+test("AC-06/REQ-11/12: activating a theme with a footer region and no existing binding seeds exactly one widget_area entry and one binding row", async () => {
+  const deps = makeDeps();
+  const { areaEntry } = await bindWidgetArea({ deps, input: { workspaceId: WORKSPACE_ID, regionKey: "footer" } });
+
+  assert.equal(areaEntry.regionKey, "footer");
+  assert.equal(areaEntry.workspaceId, WORKSPACE_ID);
+  assert.deepEqual(areaEntry.doc.placements, []);
+});
+
+test("AC-07/INV-02: widget_region_bindings is always derivable, in full, from live widget_area entries alone", async () => {
+  const deps = makeDeps();
+  await reconcileWidgetRegionBindings({ deps, input: { workspaceId: WORKSPACE_ID } });
+  // Once implemented: mutate an area entry's regionKey directly (bypassing the binding table),
+  // call reconcileWidgetRegionBindings again, and assert the binding table now matches the
+  // entry's regionKey exactly — proving the binding table is genuinely derived, not a second
+  // source of truth that could silently drift (the exact defect class the ADR-047 debate found
+  // in the original draft). A full assertion here requires the binding-read API this test will
+  // gain once WidgetRegionBindingRepoPort has a real adapter to query.
+});
+
+test("AC-09/REQ-15/INV-03: reordering a region's placements is one atomic, versioned write", async () => {
+  const deps = makeDeps();
+  const { areaEntry: seeded } = await bindWidgetArea({ deps, input: { workspaceId: WORKSPACE_ID, regionKey: "footer" } });
+  const widgetSocial = await seedWidget(deps, "Social links");
+  const widgetContact = await seedWidget(deps, "Contact form");
+
+  const { areaEntry: updated } = await mutateWidgetAreaPlacements({
+    deps,
+    input: {
+      workspaceId: WORKSPACE_ID,
+      actor: ACTOR,
+      areaEntryId: seeded.id,
+      baseVersion: seeded.version,
+      placements: [
+        { placementId: "plc-1", widgetEntryId: widgetSocial, enabled: true },
+        { placementId: "plc-2", widgetEntryId: widgetContact, enabled: true },
+      ],
+    },
+  });
+
+  assert.equal(updated.version, seeded.version + 1, "one mutation must advance the version by exactly one, not one per placement");
+  assert.equal(updated.doc.placements.length, 2);
+});
+
+test("AC-10/REQ-16: a placement mutation referencing a widget from a different workspace is rejected, the area entry unchanged", async () => {
+  const deps = makeDeps();
+  const { areaEntry: seeded } = await bindWidgetArea({ deps, input: { workspaceId: WORKSPACE_ID, regionKey: "footer" } });
+
+  await assert.rejects(
+    () =>
+      mutateWidgetAreaPlacements({
+        deps,
+        input: {
+          workspaceId: WORKSPACE_ID,
+          actor: ACTOR,
+          areaEntryId: seeded.id,
+          baseVersion: seeded.version,
+          placements: [{ placementId: "plc-1", widgetEntryId: "widget-from-other-workspace", enabled: true }],
+        },
+      }),
+    /Error/
+  );
+});
+
+test("EC-02/REQ-15: two concurrent reorders of the same region — one wins under OCC, the other must retry against the new version", async () => {
+  const deps = makeDeps();
+  const { areaEntry: seeded } = await bindWidgetArea({ deps, input: { workspaceId: WORKSPACE_ID, regionKey: "sidebar" } });
+  const widgetA = await seedWidget(deps, "Widget A");
+  const widgetB = await seedWidget(deps, "Widget B");
+
+  const [a, b] = await Promise.allSettled([
+    mutateWidgetAreaPlacements({
+      deps,
+      input: {
+        workspaceId: WORKSPACE_ID,
+        actor: ACTOR,
+        areaEntryId: seeded.id,
+        baseVersion: seeded.version,
+        placements: [{ placementId: "plc-a", widgetEntryId: widgetA, enabled: true }],
+      },
+    }),
+    mutateWidgetAreaPlacements({
+      deps,
+      input: {
+        workspaceId: WORKSPACE_ID,
+        actor: ACTOR,
+        areaEntryId: seeded.id,
+        baseVersion: seeded.version,
+        placements: [{ placementId: "plc-b", widgetEntryId: widgetB, enabled: true }],
+      },
+    }),
+  ]);
+
+  const settled = [a, b];
+  assert.equal(settled.filter((r) => r.status === "fulfilled").length, 1, "exactly one concurrent reorder must succeed");
+  assert.equal(settled.filter((r) => r.status === "rejected").length, 1, "exactly one concurrent reorder must be rejected as a conflict — no silent last-writer-wins");
+});
+
+
+===== FILE: src/widgets/__tests__/integration/resolver-service.integration.test.ts =====
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { InMemoryEntryRepo } from "../../../features/entries/repo.memory";
+import { CORE_RESOLVERS, resolveWidgetType } from "../../resolvers/index";
+import { resolvePageWidgets } from "../../resolver-service";
+import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory";
+import type { WidgetInstanceView, WidgetResolveContext, WidgetResolveResult, WidgetResolver } from "../../types";
+
+/**
+ * @file C-003/C-004 the resolution pipeline — SPEC-043 REQ-23..28, AC-16..20, INV-05.
+ * TDD-certified against the stubs in `resolvers/index.ts`/`resolver-service.ts`; currently RED —
+ * these assertions describe the real contract, not current behavior. These are the tests the
+ * ADR-047 debate's convergence on batch-first resolution (answering agy's Round 1 N+1 blind-spot
+ * question) and failure isolation (the Primary's pre-dispatch structural-gap flag, corroborated
+ * by Codex) exist specifically to prove.
+ */
+
+const WORKSPACE_ID = "ws-1";
+const CTX: WidgetResolveContext = { workspaceId: WORKSPACE_ID, preview: false };
+
+function instance(overrides: Partial<WidgetInstanceView> & Pick<WidgetInstanceView, "id" | "widgetType">): WidgetInstanceView {
+  return { config: {}, ...overrides };
+}
+
+/** A resolver test double that counts how many times resolveMany is called, for the batching assertion. */
+function countingResolver(result: WidgetResolveResult): { resolver: WidgetResolver; callCount: () => number } {
+  let calls = 0;
+  return {
+    resolver: {
+      async resolveMany(instances) {
+        calls += 1;
+        return new Map(instances.map((i) => [i.id, result]));
+      },
+    },
+    callCount: () => calls,
+  };
+}
+
+test("AC-16/REQ-24: resolving 5 instances of the same type via resolveWidgetType invokes the registered resolver's resolveMany exactly once, not 5 times", async () => {
+  const { resolver, callCount } = countingResolver({
+    ok: true,
+    ir: { componentId: "recent-entries", props: {} },
+    dependencyKeys: [],
+  });
+  // @ts-expect-error — CORE_RESOLVERS is a frozen closed map in the real implementation; tests
+  // exercise it through resolveWidgetType, not by mutating it directly once implemented. This
+  // stub-era assignment is scaffolding only.
+  CORE_RESOLVERS["recent-entries"] = resolver;
+
+  const instances = Array.from({ length: 5 }, (_, i) => instance({ id: `w-${i}`, widgetType: "recent-entries" }));
+  const results = await resolveWidgetType("recent-entries", instances, CTX);
+
+  assert.equal(callCount(), 1, "resolveMany must be called exactly once for a batch of same-type instances");
+  assert.equal(results.size, 5);
+});
+
+test("AC-17/REQ-25: an instance configured above the type's registered clamp is capped at the registered value in the resolved result", async () => {
+  const results = await resolveWidgetType(
+    "recent-entries",
+    [instance({ id: "w-1", widgetType: "recent-entries", config: { maxItems: 500 } })],
+    CTX
+  );
+
+  const result = results.get("w-1");
+  assert.ok(result);
+  // Once implemented against a real recent-entries resolver: assert the resolved IR's item count
+  // never exceeds registry.ts's registered clamp (20), regardless of the instance's own config.
+});
+
+test("AC-19/INV-05: an uncaught resolver exception is isolated — resolveWidgetType never throws, it returns a typed failure", async () => {
+  const throwingResolver: WidgetResolver = {
+    async resolveMany() {
+      throw new Error("simulated resolver crash");
+    },
+  };
+  // @ts-expect-error — stub-era scaffolding, see note above.
+  CORE_RESOLVERS["recent-entries"] = throwingResolver;
+
+  const results = await resolveWidgetType(
+    "recent-entries",
+    [instance({ id: "w-crash", widgetType: "recent-entries" })],
+    CTX
+  );
+
+  const result = results.get("w-crash");
+  assert.ok(result);
+  assert.equal(result?.ok, false, "a throwing resolver must yield a typed failure, never propagate");
+  if (!result?.ok) {
+    assert.equal(result.reason, "resolver-error");
+  }
+});
+
+test("REQ-27: an unknown widget type resolves to a typed unknown-type failure, never an unhandled exception", async () => {
+  const results = await resolveWidgetType(
+    // @ts-expect-error — deliberately an unregistered type key.
+    "carousel",
+    [instance({ id: "w-1", widgetType: "carousel" })],
+    CTX
+  );
+
+  const result = results.get("w-1");
+  assert.equal(result?.ok, false);
+  if (!result?.ok) {
+    assert.equal(result.reason, "unknown-type");
+  }
+});
+
+test("AC-16/REQ-23: resolvePageWidgets assembles resolved IR for every declared region on a page", async () => {
+  // Call-site note (Programmer stage): `resolvePageWidgets` needs real repo access to do its job
+  // for real (region -> widget_area -> placements, page -> inline embeds), so — unlike
+  // `resolveWidgetType` above, which stays a pure dispatch call with no injected deps — this one
+  // stub-era signature grew a `{ deps, input }` split, mirroring `write-service.ts`'s/
+  // `region-area-service.ts`'s identical restructuring. No area/page data is seeded here (this
+  // test only asserts the per-region key structure), so both repos are fresh, empty adapters.
+  const { regions } = await resolvePageWidgets({
+    deps: { bindingRepo: new InMemoryWidgetRegionBindingRepo(), entryRepo: new InMemoryEntryRepo() },
+    input: {
+      workspaceId: WORKSPACE_ID,
+      pageEntryId: "page-home",
+      resolvedRegions: ["footer", "sidebar"],
+    },
+  });
+
+  assert.ok("footer" in regions);
+  assert.ok("sidebar" in regions);
+});
+
+
+===== FILE: src/core/entry-refs/__tests__/integration/extractor.integration.test.ts =====
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { extractEntryRefs } from "../../extractor";
+
+/**
+ * @file C-009 `extractEntryRefs` — SPEC-043 REQ-29..32, AC-21/22, INV-06.
+ * TDD-certified against the stub in `extractor.ts`; currently RED — `extractEntryRefs` throws
+ * "not implemented" and these assertions describe the real contract. This is the minimal
+ * `entry_refs` slice the ADR-047 debate found does not yet exist as running code anywhere in this
+ * repo (`src/navigation/resolver.ts`'s own comment names the gap) — widgets is the first real
+ * consumer/populator.
+ */
+
+test("AC-21/REQ-30: a widget referenced in one widget_area placement produces exactly one widget-area-placement ref row", () => {
+  const refs = extractEntryRefs({
+    workspaceId: "ws-1",
+    sourceEntryId: "area-footer",
+    sourceEntryType: "widget_area",
+    bodyJson: {
+      schemaVersion: 1,
+      placements: [{ placementId: "plc-1", widgetEntryId: "widget-social", enabled: true }],
+    },
+    fieldsExt: { widgets: { regionKey: "footer" } },
+  });
+
+  assert.equal(refs.length, 1);
+  assert.equal(refs[0]?.sourceKind, "widget-area-placement");
+  assert.equal(refs[0]?.targetId, "widget-social");
+  assert.equal(refs[0]?.targetKind, "entry");
+});
+
+test("AC-21/REQ-30: a widget referenced by an inline widgetEmbed node produces a widget-embed ref row", () => {
+  const refs = extractEntryRefs({
+    workspaceId: "ws-1",
+    sourceEntryId: "page-contact",
+    sourceEntryType: "page",
+    bodyJson: {
+      type: "doc",
+      content: [{ type: "widgetEmbed", attrs: { placementId: "plc-2", widgetEntryId: "widget-contact" } }],
+    },
+    fieldsExt: {},
+  });
+
+  assert.equal(refs.length, 1);
+  assert.equal(refs[0]?.sourceKind, "widget-embed");
+  assert.equal(refs[0]?.targetId, "widget-contact");
+});
+
+test("AC-22/REQ-31: a widget instance's ref-typed config field (formDefinitionId) extracts a config-field ref row", () => {
+  const refs = extractEntryRefs({
+    workspaceId: "ws-1",
+    sourceEntryId: "widget-contact",
+    sourceEntryType: "widget",
+    bodyJson: null,
+    fieldsExt: { widget: { widgetType: "contact-form", config: { formDefinitionId: "form-1" } } },
+  });
+
+  assert.equal(refs.length, 1);
+  assert.equal(refs[0]?.sourceKind, "config-field");
+  assert.equal(refs[0]?.fieldPath, "fields.ext.widget.config.formDefinitionId");
+  assert.equal(refs[0]?.targetKind, "entry");
+  assert.equal(refs[0]?.targetId, "form-1");
+});
+
+test("REQ-32: a taxonomy-term-target config field (recent-entries' categoryTermId) is extracted with targetKind 'term', distinguishable from an entry-target row", () => {
+  const refs = extractEntryRefs({
+    workspaceId: "ws-1",
+    sourceEntryId: "widget-recent",
+    sourceEntryType: "widget",
+    bodyJson: null,
+    fieldsExt: { widget: { widgetType: "recent-entries", config: { maxItems: 5, categoryTermId: "term-1" } } },
+  });
+
+  assert.equal(refs.length, 1);
+  assert.equal(refs[0]?.targetKind, "term", "a taxonomy-term target must never be indistinguishable from an entry-target reference (REQ-32's soft-reference distinction)");
+  assert.equal(refs[0]?.targetId, "term-1");
+});
+
+test("INV-06: extraction is idempotent — re-extracting an unchanged entry produces the identical ref set (pure function of its input)", () => {
+  const input = {
+    workspaceId: "ws-1",
+    sourceEntryId: "area-footer",
+    sourceEntryType: "widget_area",
+    bodyJson: {
+      schemaVersion: 1,
+      placements: [{ placementId: "plc-1", widgetEntryId: "widget-social", enabled: true }],
+    },
+    fieldsExt: { widgets: { regionKey: "footer" } },
+  };
+
+  const first = extractEntryRefs(input);
+  const second = extractEntryRefs(input);
+  assert.deepEqual(first, second);
+});
+
+test("REQ-29: extracting a widget instance with no references produces an empty ref set, not an error", () => {
+  const refs = extractEntryRefs({
+    workspaceId: "ws-1",
+    sourceEntryId: "widget-text",
+    sourceEntryType: "widget",
+    bodyJson: null,
+    fieldsExt: { widget: { widgetType: "text", config: { body: "plain copy, no refs" } } },
+  });
+
+  assert.deepEqual(refs, []);
+});
+

@@ -1,0 +1,341 @@
+```json
+{
+  "threat_model_accepted": true,
+  "rejection_reason": "",
+  "auditor_scope_check": "Audited commit HEAD (f9b1952) against pre-widgets baseline (9179e67) covering src/widgets/*, src/core/entry-refs/*, src/features/entries/{field-validation,write-service}.ts, src/navigation/resolver.ts against ADR-047, SPEC-043, implementation-outline.md, and implementation-report.md.",
+  "ledger_updates": [],
+  "findings": [
+    {
+      "id": "FINDING-WIDGETS-001",
+      "severity": "blocker",
+      "in_scope_domain": "10. Unrecoverable crash on normal, in-scope use",
+      "rationale": {
+        "checked": "src/widgets/ for embed mutation implementation (C-007 in implementation-outline.md, REQ-44, REQ-45, AC-30, AC-11, ADR-047 Debate Fold-In Amendment 6).",
+        "expected": "src/widgets/embed-service.ts should exist, providing insertWidgetEmbed, removeWidgetEmbed, and reorderWidgetEmbeds for server-side document mutation with version OCC, widgets.update permission checks, and chokepoint guardrails via validateWidgetEmbedMutation.",
+        "observed": "src/widgets/embed-service.ts is completely missing from the codebase. WidgetEmbedGuardrailError is defined in errors.ts but never thrown anywhere. AC-30 and AC-11 have zero implementation and zero test coverage.",
+        "why_it_matters": "Debate Fold-In Amendment 6 specifically mandates that agent-native and server-side inline embed mutations must not depend solely on a live browser editor session. Without embed-service.ts, backend services and AI agent tools cannot manipulate inline widget embeds safely.",
+        "recommended_fix": "Create src/widgets/embed-service.ts implementing insertWidgetEmbed, removeWidgetEmbed, and reorderWidgetEmbeds with proper permission gating, version OCC, guardrail validation via validateWidgetEmbedMutation, and onWritten entry_refs extraction. Add automated tests covering AC-30 and AC-11.",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "FINDING-WIDGETS-002",
+      "severity": "blocker",
+      "in_scope_domain": "1. Authorization bypass",
+      "rationale": {
+        "checked": "src/widgets/write-service.ts and public domain accessors for widgets.read enforcement (REQ-04, REQ-41, INV-07).",
+        "expected": "Domain functions for reading widget instances (getWidgetInstance, listWidgetInstances, fetch revisions) gated by requireWidgetPermission(deps, actor, workspaceId, 'widgets.read').",
+        "observed": "No getWidgetInstance or listWidgetInstances accessor exists anywhere in src/widgets/. There is zero enforcement of widgets.read in the domain library. AC-01 tests only inspect the return value of createWidgetInstance, leaving read permission checks entirely un-exercised.",
+        "why_it_matters": "Callers and AI tools fetching widget instances or inspecting revision history are forced to bypass domain-level permission checks or query lower-level entries APIs directly, violating INV-07 ('A widget mutation or read must never bypass its required widgets.* permission check').",
+        "recommended_fix": "Add getWidgetInstance and listWidgetInstances functions to src/widgets/write-service.ts (or a new read-service.ts), requiring 'widgets.read' permission before fetching entries, and add integration tests verifying permission rejection when 'widgets.read' is missing.",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "FINDING-WIDGETS-003",
+      "severity": "blocker",
+      "in_scope_domain": "3. Reference-integrity / safe-delete violation",
+      "rationale": {
+        "checked": "src/widgets/write-service.ts implementation of trashWidgetInstance and purgeWidgetInstance against INV-06 and REQ-29.",
+        "expected": "Every entry write that creates, updates, or changes the status of a widget instance must execute the onWritten hook to update or retract entry_refs rows in the same transaction (INV-06).",
+        "observed": "createWidgetInstance and updateWidgetInstance correctly pass onWritten: async (entry) => { await extractAndStoreInstanceRefs(deps, entry); }. However, trashWidgetInstance and purgeWidgetInstance call updateEntry WITHOUT passing an onWritten callback.",
+        "why_it_matters": "When a widget instance (e.g. a contact-form widget referencing a formDefinitionId) is trashed or purged, its outgoing references in entry_refs are not updated or retracted. The stale entry_refs rows remain attributed to the trashed/purged instance, corrupting where-used queries and causing safe-delete checks (REQ-42) on target entries to report phantom references.",
+        "recommended_fix": "Pass onWritten: async (entry) => { await extractAndStoreInstanceRefs(deps, entry); } to the updateEntry call in both trashWidgetInstance and purgeWidgetInstance in src/widgets/write-service.ts.",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "FINDING-WIDGETS-004",
+      "severity": "high",
+      "in_scope_domain": "7. Registry code-injection surface",
+      "rationale": {
+        "checked": "src/widgets/resolvers/index.ts resolver dispatch logic against REQ-08.",
+        "expected": "CORE_RESOLVERS should map resolverId strings to WidgetResolver implementations, supporting custom or shared resolverId values across widget types.",
+        "observed": "CORE_RESOLVERS is typed Partial<Record<WidgetTypeKey, WidgetResolver>> and indexed via registration.resolverId as WidgetTypeKey. If a widget type is registered with a resolverId that does not equal its typeKey (e.g. resolverId: 'standard-form' for typeKey: 'contact-form'), lookup fails silently and degrades to resolver-error.",
+        "why_it_matters": "Violates REQ-08's design that resolverId is an explicit key in a closed core resolver map. It tightly couples resolverId to typeKey, breaking resolver reuse and silently failing resolution for valid non-matching resolverId entries.",
+        "recommended_fix": "Type CORE_RESOLVERS as Record<string, WidgetResolver> keyed explicitly by resolverId strings ('text', 'social-links', 'recent-entries', 'menu', 'contact-form') and perform lookup using CORE_RESOLVERS[registration.resolverId].",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "FINDING-WIDGETS-005",
+      "severity": "medium",
+      "in_scope_domain": "9. Shared-module regression",
+      "rationale": {
+        "checked": "Test suites in src/widgets/__tests__/ and src/core/entry-refs/__tests__/.",
+        "expected": "Per the implementation outline, contract test suites for EntryRefsRepoPort and WidgetRegionBindingRepoPort should execute against both in-memory and SQLite repository adapters.",
+        "observed": "Automated tests under src/widgets/__tests__/ and src/core/entry-refs/__tests__/ import and test only repo.memory.ts adapters. SqliteEntryRefsRepo and SqliteWidgetRegionBindingRepo are never exercised in automated tests.",
+        "why_it_matters": "Drizzle schema mappings, SQLite foreign key handling, or transaction behaviors could fail silently in production without test detection.",
+        "recommended_fix": "Parameterize contract test suites for EntryRefsRepoPort and WidgetRegionBindingRepoPort to execute against both repo.memory.ts and repo.sqlite.ts using an in-memory SQLite instance.",
+        "confidence": "high"
+      }
+    }
+  ],
+  "out_of_scope_fatal_warnings": [],
+  "score": 6.0,
+  "score_rationale": "Score is 6.0 due to 3 blocking failure domain violations (missing server-side embed service, missing widgets.read permission accessors, stale entry_refs on widget trash/purge) plus 1 high and 1 medium severity defect.",
+  "blocking_gate": "FAIL — 3 validated blockers (missing embed-service, missing widgets.read accessors, stale entry_refs on trash/purge) and score 6.0 is below the 8.5 floor.",
+  "closure": "COVERAGE_COMPLETE — round-1 coverage finished under TM-adr047-widgets-audit-001; see blocking_gate for the pass/fail outcome."
+}
+```
+
+---
+
+## What Looks Solid and Should Stay Unchanged
+
+1. **Shared-Module Extensions (`features/entries/` and `navigation/resolver.ts`)**:
+   - `features/entries/field-validation.ts`: The addition of the optional `owner` parameter defaulting to `"site"` is clean, additive, and 100% non-breaking for existing content types.
+   - `features/entries/write-service.ts`: The optional `onWritten` callback inside `entryRepo.transaction()` properly establishes same-transaction execution under SQLite's `BEGIN IMMEDIATE`/`COMMIT` semantics.
+   - `navigation/resolver.ts`: Exporting `resolveMenuDoc` cleanly opens menu document resolution without mutating or breaking existing location-based callers.
+
+2. **Region-Binding Architecture (`region-area-service.ts` & `WidgetRegionBindingRepoPort`)**:
+   - `widget_area` entries as the sole source of truth with `widget_region_bindings` as a derived, non-revision-generating projection perfectly fulfills ADR-047 Debate Fold-In Amendment 1 and INV-02/INV-03.
+   - Reordering placements via whole-document OCC version checks operates reliably without per-row concurrency bugs.
+
+3. **Batch-First Resolver Orchestration (`resolver-service.ts` & core resolvers)**:
+   - `resolvePageWidgets` cleanly groups widget instances by type, executes at most one `WHERE id IN (...)` batch query per type, enforces cost clamps, and isolates resolver timeouts/exceptions behind failure placeholders (INV-05, REQ-23–28).
+   - `contact-form` resolver (`resolvers/contact-form.ts`) strictly acts as a read adapter over `src/forms/` without duplicating submission or mail delivery pipelines (INV-08).
+
+---
+
+## Detailed Edit Guidance & Code Replacement Proposals
+
+### 1. Fix `trashWidgetInstance` and `purgeWidgetInstance` `onWritten` Missing Callback (`src/widgets/write-service.ts`)
+
+In `src/widgets/write-service.ts`, `trashWidgetInstance` and `purgeWidgetInstance` must pass `onWritten` to update/retract outgoing references in `entry_refs` upon status changes.
+
+```typescript
+// src/widgets/write-service.ts
+
+export async function trashWidgetInstance(
+  deps: WriteServiceDeps,
+  actor: PrincipalActor,
+  input: { workspaceId: UUID; id: UUID; baseVersion?: number }
+): Promise<WidgetInstanceEntry> {
+  await requireWidgetPermission(deps, actor, input.workspaceId, "widgets.delete");
+  const existing = await getWidgetInstanceOrThrow(deps, input.workspaceId, input.id);
+  const updated = await updateEntry(deps.entryRepo, {
+    actor,
+    workspaceId: input.workspaceId,
+    entryId: input.id,
+    expectedVersion: input.baseVersion,
+    status: "trash",
+    owner: WIDGET_FIELD_NAMESPACE,
+    onWritten: async (entry) => {
+      await extractAndStoreInstanceRefs(deps, entry);
+    },
+  });
+  return mapEntryToWidgetInstance(updated);
+}
+
+export async function purgeWidgetInstance(
+  deps: WriteServiceDeps,
+  actor: PrincipalActor,
+  input: { workspaceId: UUID; id: UUID; force?: boolean }
+): Promise<WidgetInstanceEntry> {
+  const perm = input.force ? "widgets.delete.force" : "widgets.delete";
+  await requireWidgetPermission(deps, actor, input.workspaceId, perm);
+  const existing = await getWidgetInstanceOrThrow(deps, input.workspaceId, input.id);
+
+  if (!input.force) {
+    const refs = await deps.entryRefsRepo.findReferencingSources({
+      workspaceId: input.workspaceId,
+      targetId: input.id,
+    });
+    if (refs.length > 0) {
+      throw new WidgetReferencedError(
+        `Cannot purge widget ${input.id}: referenced in ${refs.length} place(s)`,
+        refs.map((r) => ({ sourceEntryId: r.sourceEntryId, fieldPath: r.fieldPath }))
+      );
+    }
+  }
+
+  const updated = await updateEntry(deps.entryRepo, {
+    actor,
+    workspaceId: input.workspaceId,
+    entryId: input.id,
+    status: "purged",
+    owner: WIDGET_FIELD_NAMESPACE,
+    onWritten: async (entry) => {
+      await extractAndStoreInstanceRefs(deps, entry);
+    },
+  });
+  return mapEntryToWidgetInstance(updated);
+}
+```
+
+---
+
+### 2. Implement `widgets.read` Accessors and Permission Gating (`src/widgets/write-service.ts`)
+
+Export `getWidgetInstance` and `listWidgetInstances` with explicit permission checks to fulfill REQ-04, REQ-41, and INV-07.
+
+```typescript
+// src/widgets/write-service.ts (Additions)
+
+export async function getWidgetInstance(
+  deps: WriteServiceDeps,
+  actor: PrincipalActor,
+  input: { workspaceId: UUID; id: UUID }
+): Promise<WidgetInstanceEntry | null> {
+  await requireWidgetPermission(deps, actor, input.workspaceId, "widgets.read");
+  const entry = await deps.entryRepo.findById(input.workspaceId, input.id);
+  if (!entry || entry.type !== WIDGET_CONTENT_TYPE) {
+    return null;
+  }
+  return mapEntryToWidgetInstance(entry);
+}
+
+export async function listWidgetInstances(
+  deps: WriteServiceDeps,
+  actor: PrincipalActor,
+  input: { workspaceId: UUID }
+): Promise<WidgetInstanceEntry[]> {
+  await requireWidgetPermission(deps, actor, input.workspaceId, "widgets.read");
+  const entries = await deps.entryRepo.listByWorkspace(input.workspaceId, WIDGET_CONTENT_TYPE);
+  return entries.map(mapEntryToWidgetInstance);
+}
+```
+
+---
+
+### 3. Key `CORE_RESOLVERS` by `resolverId` String (`src/widgets/resolvers/index.ts`)
+
+Update `CORE_RESOLVERS` to be typed as a `string`-keyed map and perform lookups via `registration.resolverId`.
+
+```typescript
+// src/widgets/resolvers/index.ts
+
+import type { WidgetResolver } from "../types";
+import { textResolver } from "./text";
+import { socialLinksResolver } from "./social-links";
+import { recentEntriesResolver } from "./recent-entries";
+import { menuResolver } from "./menu";
+import { contactFormResolver } from "./contact-form";
+
+export const CORE_RESOLVERS: Readonly<Record<string, WidgetResolver>> = {
+  "text": textResolver,
+  "social-links": socialLinksResolver,
+  "recent-entries": recentEntriesResolver,
+  "menu": menuResolver,
+  "contact-form": contactFormResolver,
+};
+
+export function getCoreResolver(resolverId: string): WidgetResolver | undefined {
+  return CORE_RESOLVERS[resolverId];
+}
+```
+
+---
+
+### 4. Create `src/widgets/embed-service.ts` for Server-Side Embed Mutations (C-007, REQ-44, REQ-45)
+
+Create the missing `embed-service.ts` module to satisfy REQ-44, REQ-45, AC-30, and AC-11.
+
+```typescript
+// src/widgets/embed-service.ts
+
+import type { PrincipalActor, UUID } from "../core/ports";
+import type { EntryRepoPort } from "../features/entries/write-service";
+import { updateEntry } from "../features/entries/write-service";
+import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
+import type { WidgetEmbedNode } from "./types";
+import { requireWidgetPermission } from "./write-service";
+import { validateWidgetEmbedMutation } from "./embed-validation";
+import { extractAndStoreInstanceRefs } from "./write-service";
+import { WidgetEmbedGuardrailError } from "./errors";
+
+export interface EmbedServiceDeps {
+  entryRepo: EntryRepoPort;
+  entryRefsRepo: EntryRefsRepoPort;
+  authorize?: (actor: PrincipalActor, workspaceId: UUID, permission: string) => Promise<boolean>;
+}
+
+export async function insertWidgetEmbed(
+  deps: EmbedServiceDeps,
+  actor: PrincipalActor,
+  input: {
+    workspaceId: UUID;
+    hostEntryId: UUID;
+    widgetEntryId: UUID;
+    placementId: UUID;
+    baseVersion?: number;
+  }
+): Promise<void> {
+  await requireWidgetPermission(deps, actor, input.workspaceId, "widgets.update");
+
+  const hostEntry = await deps.entryRepo.findById(input.workspaceId, input.hostEntryId);
+  if (!hostEntry) {
+    throw new Error(`Host entry ${input.hostEntryId} not found`);
+  }
+
+  const newEmbedNode: WidgetEmbedNode = {
+    type: "widgetEmbed",
+    placementId: input.placementId,
+    widgetEntryId: input.widgetEntryId,
+  };
+
+  const currentBody = (hostEntry.bodyJson as { content?: unknown[] }) || { type: "doc", content: [] };
+  const updatedBody = {
+    ...currentBody,
+    content: [...(currentBody.content || []), newEmbedNode],
+  };
+
+  const validation = validateWidgetEmbedMutation({
+    hostEntryType: hostEntry.type,
+    resultingBodyJson: updatedBody,
+  });
+
+  if (!validation.valid) {
+    throw new WidgetEmbedGuardrailError(validation.reason);
+  }
+
+  await updateEntry(deps.entryRepo, {
+    actor,
+    workspaceId: input.workspaceId,
+    entryId: input.hostEntryId,
+    expectedVersion: input.baseVersion,
+    bodyJson: updatedBody,
+    onWritten: async (entry) => {
+      await extractAndStoreInstanceRefs(deps, entry);
+    },
+  });
+}
+```
+### Audit Summary — ADR-047 Widgets (SPEC-043) External Audit Pass
+
+**Audit Gate Result:** **`FAIL`**
+- **Score:** `6.0 / 10` (Below the `8.5` floor requirement)
+- **Validated Blockers:** 3
+- **High Severity:** 1
+- **Medium Severity:** 1
+
+---
+
+### Key Findings Summary
+
+1. **`FINDING-WIDGETS-001` (Blocker — Domain 10: Unrecoverable Crash / Incomplete API)**
+   - **Issue:** `src/widgets/embed-service.ts` is completely missing from the codebase (C-007: `insertWidgetEmbed`, `removeWidgetEmbed`, `reorderWidgetEmbeds` required by REQ-44, REQ-45, AC-30, AC-11, and ADR-047 Debate Fold-In Amendment 6).
+   - **Impact:** Server-side document mutation for inline widget embeds is unavailable, leaving AI agent tools and backend services unable to insert or adjust inline embeds without a live browser editor session.
+
+2. **`FINDING-WIDGETS-002` (Blocker — Domain 1: Authorization Bypass)**
+   - **Issue:** No `getWidgetInstance` or `listWidgetInstances` accessors exist in `src/widgets/write-service.ts` or anywhere else in `src/widgets/`.
+   - **Impact:** Zero domain-level enforcement of `widgets.read` permission exists. Callers and AI tools fetching widget instances must bypass permission checks or call lower-level entry APIs directly, violating INV-07.
+
+3. **`FINDING-WIDGETS-003` (Blocker — Domain 3: Reference Integrity Violation)**
+   - **Issue:** `trashWidgetInstance` and `purgeWidgetInstance` in `src/widgets/write-service.ts` invoke `updateEntry` without passing an `onWritten` callback.
+   - **Impact:** When a widget instance (e.g. a `contact-form` referencing a `formDefinitionId`) is trashed or purged, `entry_refs` is not updated or retracted, leaving stale rows and corrupting safe-delete (`REQ-42`) checks on target entries.
+
+4. **`FINDING-WIDGETS-004` (High — Domain 7: Registry Code-Injection Surface)**
+   - **Issue:** `CORE_RESOLVERS` in `src/widgets/resolvers/index.ts` is typed as `Partial<Record<WidgetTypeKey, WidgetResolver>>` and indexed via `registration.resolverId as WidgetTypeKey`.
+   - **Impact:** Tight-couples `resolverId` to `WidgetTypeKey`. Any registration where `resolverId !== typeKey` fails resolution silently and degrades to `resolver-error`.
+
+5. **`FINDING-WIDGETS-005` (Medium — Domain 9: Test Coverage Gap)**
+   - **Issue:** Automated tests in `src/widgets/__tests__/` and `src/core/entry-refs/__tests__/` only test `repo.memory.ts` adapters. `SqliteEntryRefsRepo` and `SqliteWidgetRegionBindingRepo` are never executed in automated tests.
+
+---
+
+### What Solid Parts Should Stay Unchanged
+- **Shared-Module Extensions:** The `owner` parameter addition in `field-validation.ts`, `onWritten` callback plumbing in `write-service.ts`, and `resolveMenuDoc` export in `navigation/resolver.ts` are all safe, additive, and non-breaking for existing callers.
+- **Region Binding Architecture:** The `widget_area` entry source of truth and `widget_region_bindings` derived projection cleanly satisfy INV-02/INV-03.
+- **Batch-First Resolver Orchestration:** `resolvePageWidgets` cleanly handles batch querying, cost clamps, and failure isolation per INV-05/REQ-23–28.
