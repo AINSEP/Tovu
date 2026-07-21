@@ -107,6 +107,15 @@ function runSessionRepoSuite(adapterName: string, makeRepo: () => SessionRepoPor
     const found = await repo.findById({ workspaceId: WS, id: "s-1" });
     assert.equal(found?.revokedAt, "2026-01-05T00:00:00.000Z");
   });
+
+  test(`[${adapterName}] SessionRepoPort: listByPrincipalId (SPEC-006 0.6.0)`, async () => {
+    const repo = makeRepo();
+    await repo.save({ id: "s-2", workspaceId: WS, principalId: "p-1", tokenHash: "h2", createdAt: "2026-01-01T00:00:00.000Z", expiresAt: "2099-01-01T00:00:00.000Z" });
+    await repo.save({ id: "s-3", workspaceId: WS, principalId: "p-1", tokenHash: "h3", createdAt: "2026-01-01T00:00:00.000Z", expiresAt: "2099-01-01T00:00:00.000Z" });
+    await repo.save({ id: "s-4", workspaceId: WS, principalId: "p-2", tokenHash: "h4", createdAt: "2026-01-01T00:00:00.000Z", expiresAt: "2099-01-01T00:00:00.000Z" });
+    const rows = await repo.listByPrincipalId({ workspaceId: WS, principalId: "p-1" });
+    assert.deepEqual(rows.map((r) => r.id).sort(), ["s-2", "s-3"]);
+  });
 }
 
 function runRoleRepoSuite(adapterName: string, makeRepo: () => RoleRepoPort) {
@@ -124,6 +133,13 @@ function runRoleRepoSuite(adapterName: string, makeRepo: () => RoleRepoPort) {
     await repo.save({ id: "r-2", workspaceId: WS2, name: "admin", isBuiltin: true });
     assert.deepEqual((await repo.list({ workspaceId: WS })).map((r) => r.id), ["r-1"]);
   });
+
+  test(`[${adapterName}] RoleRepoPort: delete removes the row, scoped by workspace (SPEC-006 0.6.0)`, async () => {
+    const repo = makeRepo();
+    await repo.save({ id: "r-3", workspaceId: WS, name: "custom", isBuiltin: false });
+    await repo.delete({ workspaceId: WS, id: "r-3" });
+    assert.equal(await repo.findById({ workspaceId: WS, id: "r-3" }), null);
+  });
 }
 
 function runPolicyRepoSuite(adapterName: string, makeRepo: () => PolicyRepoPort) {
@@ -136,6 +152,13 @@ function runPolicyRepoSuite(adapterName: string, makeRepo: () => PolicyRepoPort)
     assert.equal(found?.isFrozen, false);
     assert.equal((await repo.findByName({ workspaceId: WS, name: "owner" }))?.id, "pol-1");
   });
+
+  test(`[${adapterName}] PolicyRepoPort: delete removes the row, scoped by workspace (SPEC-006 0.6.0)`, async () => {
+    const repo = makeRepo();
+    await repo.save({ id: "pol-3", workspaceId: WS, name: "custom", isBuiltin: false, isFrozen: false });
+    await repo.delete({ workspaceId: WS, id: "pol-3" });
+    assert.equal(await repo.findById({ workspaceId: WS, id: "pol-3" }), null);
+  });
 }
 
 function runPolicyPermissionRepoSuite(adapterName: string, makeRepo: () => PolicyPermissionRepoPort) {
@@ -147,6 +170,16 @@ function runPolicyPermissionRepoSuite(adapterName: string, makeRepo: () => Polic
     const rows = await repo.listByPolicyId({ workspaceId: WS, policyId: "pol-1" });
     assert.deepEqual(rows.map((r) => r.permission).sort(), ["content.read", "content.write"]);
   });
+
+  test(`[${adapterName}] PolicyPermissionRepoPort: deleteByPolicyId cascades only the target policy's own rows (SPEC-006 0.6.0)`, async () => {
+    const repo = makeRepo();
+    await repo.save({ id: "pp-4", workspaceId: WS, policyId: "pol-a", permission: "content.read" });
+    await repo.save({ id: "pp-5", workspaceId: WS, policyId: "pol-a", permission: "content.write" });
+    await repo.save({ id: "pp-6", workspaceId: WS, policyId: "pol-b", permission: "content.read" });
+    await repo.deleteByPolicyId({ workspaceId: WS, policyId: "pol-a" });
+    assert.deepEqual(await repo.listByPolicyId({ workspaceId: WS, policyId: "pol-a" }), []);
+    assert.equal((await repo.listByPolicyId({ workspaceId: WS, policyId: "pol-b" })).length, 1, "a different policy's rows are untouched");
+  });
 }
 
 function runRolePolicyRepoSuite(adapterName: string, makeRepo: () => RolePolicyRepoPort) {
@@ -154,6 +187,15 @@ function runRolePolicyRepoSuite(adapterName: string, makeRepo: () => RolePolicyR
     const repo = makeRepo();
     await repo.save({ id: "rp-1", workspaceId: WS, roleId: "r-1", policyId: "pol-1" });
     assert.deepEqual((await repo.listByRoleId({ workspaceId: WS, roleId: "r-1" })).map((r) => r.policyId), ["pol-1"]);
+  });
+
+  test(`[${adapterName}] RolePolicyRepoPort: listByPolicyId (SPEC-006 0.6.0)`, async () => {
+    const repo = makeRepo();
+    await repo.save({ id: "rp-2", workspaceId: WS, roleId: "r-a", policyId: "pol-x" });
+    await repo.save({ id: "rp-3", workspaceId: WS, roleId: "r-b", policyId: "pol-x" });
+    await repo.save({ id: "rp-4", workspaceId: WS, roleId: "r-c", policyId: "pol-y" });
+    const rows = await repo.listByPolicyId({ workspaceId: WS, policyId: "pol-x" });
+    assert.deepEqual(rows.map((r) => r.roleId).sort(), ["r-a", "r-b"]);
   });
 }
 
@@ -163,6 +205,15 @@ function runPrincipalRoleRepoSuite(adapterName: string, makeRepo: () => Principa
     await repo.save({ id: "pr-1", workspaceId: WS, principalId: "p-1", roleId: "r-1" });
     assert.deepEqual((await repo.listByPrincipalId({ workspaceId: WS, principalId: "p-1" })).map((r) => r.roleId), ["r-1"]);
   });
+
+  test(`[${adapterName}] PrincipalRoleRepoPort: listByRoleId (SPEC-006 0.6.0)`, async () => {
+    const repo = makeRepo();
+    await repo.save({ id: "pr-2", workspaceId: WS, principalId: "p-a", roleId: "r-x" });
+    await repo.save({ id: "pr-3", workspaceId: WS, principalId: "p-b", roleId: "r-x" });
+    await repo.save({ id: "pr-4", workspaceId: WS, principalId: "p-c", roleId: "r-y" });
+    const rows = await repo.listByRoleId({ workspaceId: WS, roleId: "r-x" });
+    assert.deepEqual(rows.map((r) => r.principalId).sort(), ["p-a", "p-b"]);
+  });
 }
 
 function runPrincipalPolicyRepoSuite(adapterName: string, makeRepo: () => PrincipalPolicyRepoPort) {
@@ -170,6 +221,15 @@ function runPrincipalPolicyRepoSuite(adapterName: string, makeRepo: () => Princi
     const repo = makeRepo();
     await repo.save({ id: "pp-1", workspaceId: WS, principalId: "p-1", policyId: "pol-1" });
     assert.deepEqual((await repo.listByPrincipalId({ workspaceId: WS, principalId: "p-1" })).map((r) => r.policyId), ["pol-1"]);
+  });
+
+  test(`[${adapterName}] PrincipalPolicyRepoPort: listByPolicyId (SPEC-006 0.6.0)`, async () => {
+    const repo = makeRepo();
+    await repo.save({ id: "pp-2", workspaceId: WS, principalId: "p-a", policyId: "pol-x" });
+    await repo.save({ id: "pp-3", workspaceId: WS, principalId: "p-b", policyId: "pol-x" });
+    await repo.save({ id: "pp-4", workspaceId: WS, principalId: "p-c", policyId: "pol-y" });
+    const rows = await repo.listByPolicyId({ workspaceId: WS, policyId: "pol-x" });
+    assert.deepEqual(rows.map((r) => r.principalId).sort(), ["p-a", "p-b"]);
   });
 }
 

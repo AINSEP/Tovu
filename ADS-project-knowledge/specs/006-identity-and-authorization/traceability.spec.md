@@ -11,14 +11,18 @@
 |-------|-------|
 | spec_id | SPEC-006 |
 | feature_name | FEAT-006-identity-and-authorization |
-| version | 0.5.6 |
+| version | 0.6.0 |
 | content_hash | not-tracked — feature.spec.md is the speckit hash anchor for this package |
-| last_edited | 2026-07-08T19:41:56Z |
+| last_edited | 2026-07-21T00:00:00Z |
 | traceability_status | PENDING IMPLEMENTATION |
 
-**Purpose:** Traces every REQ/AC/INV/EC from `feature.spec.md` v0.5.6 to its implementation and
+**Purpose:** Traces every REQ/AC/INV/EC from `feature.spec.md` v0.6.0 to its implementation and
 test. At spec stage (pre-TDD) every implementation/test cell is `pending` and every row status is
-`PENDING`; the TDD and Programmer agents fill these during their stages.
+`PENDING`; the TDD and Programmer agents fill these during their stages. **0.6.0 note:** rows for
+REQ-01..14/AC-01..26/INV-01..08/EC-01..13 were seeded `PENDING` at spec stage and were never
+revisited after those transitions actually shipped (the pre-existing 8 users/roles/policies routes
++ core identity surface) — that backfill is out of scope for this amendment; only the new REQ-15..19/
+AC-27..32/INV-09/EC-14..17 rows below are this amendment's responsibility.
 
 ---
 
@@ -66,6 +70,17 @@ test. At spec stage (pre-TDD) every implementation/test cell is `pending` and ev
 | AC-24 (INV-07/REQ-02) | Grant-authority clamp bounds ASSIGN_ROLE/ATTACH_POLICY/WRITE_POLICY_PERMISSION on **human** targets; a non-owner role.manage holder cannot assign/attach owner or widen beyond its authority → GRANT_EXCEEDS_ISSUER; owner succeeds (v0.5.3) | P1 | pending | pending | pending | pending | PENDING |
 | AC-25 (REQ-08/REQ-02/INV-07) | Machine authority isolated to one clamped issuance: (a) ISSUE_API_KEY to a non-grantless api_key principal → VALIDATION_ERROR; (b) ASSIGN_ROLE/ATTACH_POLICY targeting an api_key/system principal → VALIDATION_ERROR (v0.5.4, F-053-01) | P1 | pending | pending | pending | pending | PENDING |
 | AC-26 (REQ-08/INV-07) | Issuance snapshot immutability: key snapshots source policy P into an is_frozen copy; later WRITE_POLICY_PERMISSION widening P does NOT grow the key (authorize stays denied); WRITE_POLICY_PERMISSION on a frozen policy is refused (v0.5.5, F-054-01) | P1 | pending | pending | pending | pending | PENDING |
+| REQ-15 (0.6.0) | ENABLE_PRINCIPAL: re-activate a disabled kind='user' principal; human-only | — | pending | pending | pending | pending | PENDING |
+| REQ-16 (0.6.0) | UPDATE_USER: edit email only; username/password out of scope | — | pending | pending | pending | pending | PENDING |
+| REQ-17 (0.6.0) | RESET_USER_PASSWORD: admin override, owner-only gate, revokes active sessions | — | pending | pending | pending | pending | PENDING |
+| REQ-18 (0.6.0) | UPDATE_ROLE/UPDATE_POLICY: rename/re-describe non-built-in, non-frozen targets | — | pending | pending | pending | pending | PENDING |
+| REQ-19 (0.6.0) | DELETE_ROLE/DELETE_POLICY: hard-delete non-built-in, non-frozen, zero-reference targets | — | pending | pending | pending | pending | PENDING |
+| AC-27 (REQ-15) (0.6.0) | ENABLE_PRINCIPAL reactivates; non-user target VALIDATION_ERROR; missing gate 403 | P1 | pending | pending | pending | pending | PENDING |
+| AC-28 (REQ-16) (0.6.0) | UPDATE_USER succeeds under member.manage; username/password fields ignored | P1 | pending | pending | pending | pending | PENDING |
+| AC-29 (REQ-17) (0.6.0) | RESET_USER_PASSWORD changes hash + revokes all sessions; member.manage insufficient | P1 | pending | pending | pending | pending | PENDING |
+| AC-30 (REQ-18/INV-06) (0.6.0) | UPDATE_ROLE/UPDATE_POLICY refuse built-in/frozen targets; rename persists otherwise | P1 | pending | pending | pending | pending | PENDING |
+| AC-31 (REQ-19/INV-09) (0.6.0) | DELETE_ROLE/DELETE_POLICY: unused deletes, in-use RESOURCE_CONFLICT, built-in/frozen precedence | P1 | pending | pending | pending | pending | PENDING |
+| AC-32 (REQ-11/INV-07 route parity) (0.6.0) | DISABLE_PRINCIPAL/WRITE_POLICY_PERMISSION HTTP routes preserve existing certified behavior | P1 | pending | pending | pending | pending | PENDING |
 
 ---
 
@@ -81,6 +96,7 @@ test. At spec stage (pre-TDD) every implementation/test cell is `pending` and ev
 | INV-06 | Built-in roles/policies undeletable, immutable, un-attachable-to | pending | pending | PENDING |
 | INV-07 | Grant-authority clamp over all four grant writers; issued credential never exceeds issuer's unconstrained hold; ISSUE_API_KEY binds only a grantless principal + snapshots perms into an is_frozen policy (un-widenable); ASSIGN_ROLE/ATTACH_POLICY human-only | pending | pending | PENDING |
 | INV-08 | At least one active owner-`*` principal always exists; no disable locks out ownership | pending | pending | PENDING |
+| INV-09 (0.6.0) | Non-built-in/non-frozen role/policy hard-delete requires an atomic zero-reference check | pending | pending | PENDING |
 
 ---
 
@@ -101,6 +117,10 @@ test. At spec stage (pre-TDD) every implementation/test cell is `pending` and ev
 | EC-11 | Conditional (scoped) hold cannot be delegated/widened → GRANT_EXCEEDS_ISSUER | pending | pending | PENDING |
 | EC-12 | CLI/core mutation w/ no session/key → resolves owner principal; never unauth/ungated | pending | pending | PENDING |
 | EC-13 | Session past absolute expires_at → 401, treated as revoked, no authorize() | pending | pending | PENDING |
+| EC-14 (0.6.0) | ENABLE_PRINCIPAL on disabled legacy user-local (kind='system') → VALIDATION_ERROR | pending | pending | PENDING |
+| EC-15 (0.6.0) | DELETE_ROLE/DELETE_POLICY races a concurrent ASSIGN_ROLE/ATTACH_POLICY → exactly one wins | pending | pending | PENDING |
+| EC-16 (0.6.0) | RESET_USER_PASSWORD on a user with zero active sessions → idempotent no-op revoke | pending | pending | PENDING |
+| EC-17 (0.6.0) | UPDATE_USER with empty/absent email → stored as null, not empty string | pending | pending | PENDING |
 
 ---
 
@@ -135,6 +155,7 @@ test. At spec stage (pre-TDD) every implementation/test cell is `pending` and ev
 | Username deduplication (unique per workspace) | § 5.1 | pending | pending | PENDING |
 | Tie-break: OR semantics across matching rows | § 6.1 | pending | pending | PENDING |
 | Concurrent sessions independence | § 6.2 | pending | pending | PENDING |
+| Reference-check-and-delete atomicity (0.6.0) | § 6.3 | pending | pending | PENDING |
 
 ---
 
@@ -167,8 +188,10 @@ test. At spec stage (pre-TDD) every implementation/test cell is `pending` and ev
 | ABAC `constraint_json` engine | OQ-03 | v1 is fail-closed seam; field/row rules deferred | feature.spec v0.4.0 Scope |
 | Password reset / MFA / OAuth / SSO | OQ-04 | Out of v1 auth surface | feature.spec v0.4.0 Scope |
 | Tovu-Runner identity federation | OQ-05 (ADR-011) | Shell owns operator auth | feature.spec v0.4.0 Scope |
-| Admin UI for user/role management | OQ-06 | This spec is API + core | feature.spec v0.4.0 Scope |
+| ~~Admin UI for user/role management~~ | ~~OQ-06~~ | **RESOLVED 0.6.0** — Users.tsx/Roles.tsx exist; this amendment completes their backend | feature.spec v0.6.0 |
 | ADR-014 tool-registry auth-axis | OQ-07 | Lands with assistant spec | feature.spec v0.4.0 Scope |
+| Username change | OQ-09 (0.6.0) | Login-identity edit has audit/session/lookup implications not worth reopening for v1 | feature.spec v0.6.0 Scope |
+| Remove a single permission from a policy | OQ-10 (0.6.0) | No inverse of WRITE_POLICY_PERMISSION; v1 path is DELETE_POLICY (unused only) + recreate | feature.spec v0.6.0 Scope |
 
 ---
 
@@ -178,7 +201,7 @@ test. At spec stage (pre-TDD) every implementation/test cell is `pending` and ev
 |-----------|---------------------|
 | — | — |
 
-All REQ-01..14, AC-01..26, INV-01..08, and EC-01..13 from feature.spec.md appear in Sections 1–3.
+All REQ-01..19, AC-01..32, INV-01..09, and EC-01..17 from feature.spec.md appear in Sections 1–3.
 
 ---
 
@@ -207,6 +230,7 @@ This checklist is completed before the feature ships (post-implementation).
 | Role | Name / Agent | Date (ISO-8601) | Notes |
 |------|--------------|-----------------|-------|
 | Spec Agent | Coordinator (Primary) | 2026-07-08 | Matrix seeded from feature.spec v0.4.0; extended for v0.5.0 Red-Team additions (REQ-13/14, AC-17..21, INV-08, EC-12/13); all rows PENDING pre-TDD |
+| Spec Agent | Coordinator (dispatched slice) | 2026-07-21 | Extended for v0.6.0 users/roles/policies CRUD-completion amendment (REQ-15..19, AC-27..32, INV-09, EC-14..17, behavior §6.3); all new rows PENDING pre-TDD; owes Red-Team + owner DRAFT→APPROVED checkpoint before Software Architect dispatch |
 | TDD Agent | | | |
 | Programmer Agent | | | |
 | Code Review Agent | | | |

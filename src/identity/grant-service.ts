@@ -42,8 +42,15 @@ import { normalizeUsername } from "./username";
  * INV-07 clamp are exercised directly by unit tests, no HTTP harness needed.
  */
 
-/** Assemble the `AuthorizeDeps` bag `authorize()`/`resolveEffectivePermissions()` expect from the flat `IdentityRepos` bag. */
-function authorizeDepsFrom(repos: IdentityRepos): AuthorizeDeps {
+/**
+ * Assemble the `AuthorizeDeps` bag `authorize()`/`resolveEffectivePermissions()` expect from the
+ * flat `IdentityRepos` bag. Exported (SPEC-006 0.6.0) so `admin-crud-service.ts`'s new transitions
+ * (`ENABLE_PRINCIPAL`/`UPDATE_USER`/`RESET_USER_PASSWORD`/`UPDATE_ROLE`/`UPDATE_POLICY`/
+ * `DELETE_ROLE`/`DELETE_POLICY`/`WRITE_POLICY_PERMISSION`/`DISABLE_PRINCIPAL`) reuse the identical
+ * gate/clamp logic rather than duplicating it — same file-split reasoning `auth-service.ts` and
+ * `grant-service.ts` already use (one shared helper set, two transition files).
+ */
+export function authorizeDepsFrom(repos: IdentityRepos): AuthorizeDeps {
   return {
     principals: repos.principals,
     principalRoles: repos.principalRoles,
@@ -64,7 +71,7 @@ function authorizeDepsFrom(repos: IdentityRepos): AuthorizeDeps {
  * that function's doc.
  * @overallScore 100
  */
-async function assertCallerHasAnyPermission(required: {
+export async function assertCallerHasAnyPermission(required: {
   deps: AuthServiceDeps;
   workspaceId: UUID;
   callerPrincipalId: UUID;
@@ -119,7 +126,7 @@ function holdsUnconstrained(effectiveRows: readonly PolicyPermissionRecord[], pe
  * rows — a handful, per `identity/INFO.md`'s scale assumptions).
  * @overallScore 100
  */
-async function assertGrantClamp(required: {
+export async function assertGrantClamp(required: {
   deps: AuthServiceDeps;
   workspaceId: UUID;
   callerPrincipalId: UUID;

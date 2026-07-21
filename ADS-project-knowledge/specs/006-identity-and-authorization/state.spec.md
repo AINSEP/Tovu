@@ -5,9 +5,9 @@
 
 - Spec ID: `SPEC-006`
 - Feature: `FEAT-006-identity-and-authorization`
-- Version: `0.5.6`
+- Version: `0.6.0`
 - Content Hash: `not-tracked — feature.spec.md is the speckit hash anchor for this package`
-- Last Edited: `2026-07-08T23:05:00Z`
+- Last Edited: `2026-07-21T00:00:00Z`
 
 ## Purpose
 Defines the **persistent server state** for identity & authorization — the `content.db` tables,
@@ -101,6 +101,13 @@ PolicyPermission:
 | `WRITE_POLICY_PERMISSION` | `policyId`, `permission`, `resourceType?`, `constraintJson?` | **caller holds `role.manage`** (V-1); permission is in the registered catalog; parent policy is **not** `is_builtin` **and not `is_frozen`** (an issuance snapshot is immutable, F-054-01); **INV-07 grant clamp passes** — the added permission is held **unconstrained** by the caller (a policy cannot be widened beyond the caller's own authority) | insert `policy_permissions` row | unknown permission → 400 `PERMISSION_UNKNOWN` (AC-10); built-in **or frozen** parent → refused (INV-06/AC-26); clamp fail → 403 `GRANT_EXCEEDS_ISSUER` (AC-24) |
 | `ATTACH_TO_BUILTIN` (rejected) | any `role_policies`/`policy_permissions` referencing an `is_builtin` parent | — | none | always refused (INV-06, AC-01) |
 | `GATEWAY_STAMP_ACTOR` | mutation change-set | `authorize()` returned allowed | write `change_sets` row with `actorId = callerPrincipalId` (for a `tovu` CLI / core caller with no session/key, `callerPrincipalId` is the seeded `owner` principal — REQ-13, EC-12) | on `authorize()` deny: no change-set, 403 before idempotency (INV-04, EC-08) |
+| `ENABLE_PRINCIPAL` **(0.6.0)** | `principalId` | principal exists, `status='disabled'`, `kind='user'`; caller holds `user.manage` | set `status='active'`, clear `disabledAt` | non-`user` target → 400 `VALIDATION_ERROR`, no change (AC-27, EC-14); missing `user.manage` → 403 (AC-27); no INV-08 interaction (enabling only ever raises the active owner-`*` count) |
+| `UPDATE_USER` **(0.6.0)** | `principalId`, `email?` | user exists; caller holds `user.manage` **or** `member.manage` | set `users.email` (null if absent/empty, EC-17); `username`/`password` in the payload are ignored, not rejected | missing target → 404 `RESOURCE_NOT_FOUND`; missing gate → 403 (AC-28) |
+| `RESET_USER_PASSWORD` **(0.6.0)** | `principalId`, `password` | user exists; caller holds **`user.manage`** (stricter than `UPDATE_USER` — `member.manage` alone is insufficient) | set `users.passwordHash` (argon2id); revoke **every** active `sessions` row for that `principalId` | missing target → 404; missing `user.manage` → 403; blank password → 400 `VALIDATION_ERROR` (AC-29, EC-16) |
+| `UPDATE_ROLE` **(0.6.0)** | `roleId`, `name` | role exists, **not** `is_builtin`; caller holds `role.manage` | set `roles.name` | `is_builtin` target → 400 `VALIDATION_ERROR` (INV-06 extended); missing target → 404 (AC-30) |
+| `UPDATE_POLICY` **(0.6.0)** | `policyId`, `name?`, `description?` | policy exists, **not** `is_builtin`, **not** `is_frozen`; caller holds `role.manage`; at least one of `name`/`description` present | set `policies.name`/`policies.description` | `is_builtin` or `is_frozen` target → 400 `VALIDATION_ERROR` (INV-06 extended / AC-26 parity); missing target → 404 (AC-30) |
+| `DELETE_ROLE` **(0.6.0)** | `roleId` | role exists, **not** `is_builtin`; caller holds `role.manage`; **zero** `principal_roles` rows reference it (checked atomically with the delete, INV-09) | hard-delete the `roles` row | `is_builtin` target → 400 `VALIDATION_ERROR`; still-referenced → 409 `RESOURCE_CONFLICT`, no delete (AC-31, EC-15); missing target → 404 |
+| `DELETE_POLICY` **(0.6.0)** | `policyId` | policy exists, **not** `is_builtin`, **not** `is_frozen`; caller holds `role.manage`; **zero** `role_policies` or `principal_policies` rows reference it (checked atomically with the delete, INV-09) | hard-delete the `policies` row (and any of its own `policy_permissions` rows — cascade within the deleted policy's own namespace only, never a different policy) | `is_builtin`/`is_frozen` target → 400 `VALIDATION_ERROR`; still-referenced → 409 `RESOURCE_CONFLICT`, no delete (AC-31, EC-15); missing target → 404 |
 
 **Grant-writer note (v0.5.4, F-053):** the complete set of transitions that write grant rows is
 `ISSUE_API_KEY` (→ `principal_policies`, sole writer of an api_key principal's grants, against a grantless
@@ -112,10 +119,14 @@ are INV-07-clamped. **`role_policies` has no user-facing writer in v1** (deferre
 `WRITE_POLICY_PERMISSION` can never widen, so the key's effective set is genuinely immutable thereafter —
 a later legal widening of any *source* policy does not reach the key (F-054-01).
 
-**Surface note:** `DISABLE_PRINCIPAL`, `WRITE_POLICY_PERMISSION`, and user/role/policy creation are
-core/CLI operations in v1 (no dedicated HTTP endpoint among api.spec §1's five routes; admin UI is
-deferred, OQ-06). Where they run through the SPEC-001 command gateway they are subject to the same
-`authorize()` gate (api.spec §0).
+**Surface note (revised 0.6.0):** As of 0.6.0 every transition in this table has an HTTP route
+(api.spec §1a) — `DISABLE_PRINCIPAL` and `WRITE_POLICY_PERMISSION` are the two that were approved
+in earlier versions (v0.5.0/v0.5.3) but only gained a route now; user/role/policy creation
+(`CREATE_USER`/`CREATE_ROLE`/`CREATE_POLICY`) and `ASSIGN_ROLE`/`ATTACH_POLICY` already had routes
+before this amendment (the "core/CLI operations in v1" framing this note previously carried was
+stale — see api.spec §0's 0.6.0 note). `SEED_FIRST_BOOT` and `GATEWAY_STAMP_ACTOR` remain non-HTTP
+(boot-time and gateway-internal respectively). Where a transition runs through the SPEC-001 command
+gateway it is subject to the same `authorize()` gate (api.spec §0).
 
 ## 4) Selector Contracts (Pure Derivations)
 | Selector | Input | Output | Null/Empty Behavior |
@@ -140,6 +151,7 @@ side-effect free given the DB snapshot.
 - [ ] Raw passwords, raw API keys, session tokens, and their hashes never appear outside `password_hash` / `key_hash` / `token_hash` columns — INV-05.
 - [ ] A key/session validates only while non-revoked, non-expired, and its principal is `active` — EC-02/EC-03. A session past its absolute `expires_at` fails `isCredentialActive` → 401, never reaching `authorize()` — EC-13.
 - [ ] At least one `active` principal holding the owner `*` grant always exists after seed; no disable may reduce that count to zero (incl. self-disable), the seeded owner principal is never disabled, and the count-check+disable are one atomic transaction — INV-08.
+- [ ] **(0.6.0)** A non-`is_builtin`, non-`is_frozen` role/policy is hard-deleted only when the reference check (`principal_roles` for a role; `role_policies`/`principal_policies` for a policy) and the delete run as one atomic operation with zero references observed — INV-09.
 
 ## 6) Acceptance Checklist
 - [x] All transitions have explicit precondition and before/after behavior.

@@ -62,6 +62,14 @@ export interface IdentityRouteDepsSlice {
   passwordHasher: PasswordHasherPort;
   identityReady: Promise<void>;
   authorize: AuthorizeFn;
+  /**
+   * SPEC-006 0.6.0 (REQ-11/REQ-15) — resolves to the seeded owner's principal id once first-boot
+   * seeding completes. `admin-crud-service.ts`'s `disablePrincipal` awaits this to enforce "the
+   * seeded owner is never disable-able" (a stronger rule than the INV-08 owner-count guard alone) —
+   * mirrors `identityReady`'s exact fire-and-forget shape (kicked off here, awaited by the route
+   * layer, never blocking `createRouteDeps()`'s synchronous return).
+   */
+  ownerPrincipalId: Promise<UUID>;
 }
 
 /**
@@ -76,10 +84,16 @@ function buildIdentityRouteDeps(
 ): IdentityRouteDepsSlice {
   const passwordHasher = new Argon2PasswordHasher();
 
-  const identityReady = seedIdentity({
+  const seedResult = seedIdentity({
     deps: { repos, hasher: passwordHasher, clock: required.clock, idGen: required.idGen },
     input: { workspaceId: required.workspaceId },
-  })
+  });
+
+  // SPEC-006 0.6.0: forked off `seedResult` (not a second seed call) so `disablePrincipal` can
+  // await just the owner id without waiting on the permission-migration fan-out below.
+  const ownerPrincipalId = seedResult.then((result) => result.ownerPrincipalId);
+
+  const identityReady = seedResult
     .then(() =>
       // ADR-PIPE-012 T013/T014: every registered {from, to} permission-migration pair (currently
       // navigation.manage -> admin.menus.* and integration.manage -> admin.integrations.manage)
@@ -125,6 +139,7 @@ function buildIdentityRouteDeps(
     principalPolicyRepo: repos.principalPolicies,
     passwordHasher,
     identityReady,
+    ownerPrincipalId,
     authorize,
   };
 }

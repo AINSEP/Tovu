@@ -96,6 +96,10 @@ const BUILTIN_ADMIN_PERMISSIONS: readonly string[] = [
   // SPEC-008 (ADR-PIPE-008 Decision §8): every freshly-seeded workspace's built-in admin role
   // gets the one SEO umbrella permission directly, mirroring the admin.menus.* precedent above.
   "admin.seo.manage",
+  // SPEC-044 (Workspace Administration, feature.spec.md REQ-06): admin gets workspace.manage
+  // directly at seed — a distinct grant from settings.write, not owner-only (unlike user.manage/
+  // role.manage below).
+  "workspace.manage",
   // Owner-only per REQ-09: "user.manage", "role.manage" are deliberately absent.
 ];
 
