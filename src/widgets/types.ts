@@ -99,7 +99,16 @@ export interface WidgetTypeRegistration {
 // The widget instance (a typed view over an ADR-022 `entries` row)
 // ---------------------------------------------------------------------------
 
-export type WidgetInstanceStatus = "active" | "draft" | "trash";
+/**
+ * `purged` is observably distinct from `trash` (REQ-43): both are treated identically everywhere a
+ * widget instance's availability is checked (resolution, placement validation — see
+ * `resolver-service.ts`/`region-area-service.ts`), but only `purged` records that the instance was
+ * force-deleted past a known reference (`purgeWidgetInstance({ force: true })`), vs. an ordinary
+ * `trash` that may still be restored with no prior reference conflict. No real hard-delete exists in
+ * this codebase for any content type (`EntryRepoPort` has no delete method) — this status is the
+ * cheap, in-model way to keep that distinction visible without one.
+ */
+export type WidgetInstanceStatus = "active" | "draft" | "trash" | "purged";
 
 /**
  * A typed read model over a `type='widget'` entries row (ADR-022 §2 universal

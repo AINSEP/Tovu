@@ -10,9 +10,9 @@
  * outside `bindWidgetArea`/`mutateWidgetAreaPlacements`, which both delegate their binding-table
  * writes through this same discipline.
  *
- * `entry_refs` extraction happens immediately after each successful `createEntry`/`updateEntry`
- * call, NOT inside the same DB transaction — see `write-service.ts`'s file header for the full,
- * disclosed reasoning (identical here).
+ * `entry_refs` extraction (INV-06) runs inside the same DB transaction as the triggering
+ * `createEntry`/`updateEntry` call, via `deps.onWritten` — see `write-service.ts`'s file header for
+ * the full reasoning (identical here).
  *
  * Architectural role:
  * `widgets` domain logic (implementation outline C-006).
@@ -66,7 +66,7 @@ async function extractAndStoreAreaRefs(deps: RegionAreaServiceDeps, workspaceId:
   await deps.entryRefsRepo.replaceForSource({ workspaceId, sourceEntryId: entry.id, refs });
 }
 
-function entriesWriteDeps(deps: RegionAreaServiceDeps) {
+function entriesWriteDeps(deps: RegionAreaServiceDeps, workspaceId: string) {
   return {
     entryRepo: deps.entryRepo,
     contentTypeRepo: deps.contentTypeRepo,
@@ -74,6 +74,7 @@ function entriesWriteDeps(deps: RegionAreaServiceDeps) {
     ids: deps.ids,
     authorize: PRE_AUTHORIZED,
     outbox: deps.outbox,
+    onWritten: (entry: EntryRecord) => extractAndStoreAreaRefs(deps, workspaceId, entry),
   };
 }
 
@@ -110,7 +111,7 @@ export async function bindWidgetArea(required: BindWidgetAreaRequired): Promise<
     let entry = await deps.entryRepo.findBySlug({ workspaceId: input.workspaceId, type: WIDGET_AREA_CONTENT_TYPE, slug });
     if (!entry) {
       const created = await createEntry({
-        deps: entriesWriteDeps(deps),
+        deps: entriesWriteDeps(deps, input.workspaceId),
         input: {
           actorId: WIDGETS_SYSTEM_ACTOR_ID,
           workspaceId: input.workspaceId,
@@ -118,11 +119,11 @@ export async function bindWidgetArea(required: BindWidgetAreaRequired): Promise<
           slug,
           title: `Region: ${input.regionKey}`,
           fieldsJson: buildWidgetAreaFieldsJson({ regionKey: input.regionKey, doc: emptyWidgetAreaDoc() }),
+          owner: WIDGET_AREA_FIELD_NAMESPACE,
         },
       });
       if (!created.ok) throw created.error;
       entry = created.value.entry;
-      await extractAndStoreAreaRefs(deps, input.workspaceId, entry);
     }
 
     await deps.bindingRepo.upsert({
@@ -174,7 +175,7 @@ export async function mutateWidgetAreaPlacements(
         );
       }
       const widgetPayload = parseWidgetInstancePayload(widget.fieldsJson);
-      if (widgetPayload.status === "trash") {
+      if (widgetPayload.status === "trash" || widgetPayload.status === "purged") {
         throw new WidgetInstanceNotFoundError(`placement references widget '${placement.widgetEntryId}', which is trashed (REQ-16)`);
       }
     }
@@ -183,13 +184,14 @@ export async function mutateWidgetAreaPlacements(
     const nextDoc = areaDocWithPlacements(currentPayload.doc, input.placements);
 
     const result = await updateEntry({
-      deps: entriesWriteDeps(deps),
+      deps: entriesWriteDeps(deps, input.workspaceId),
       input: {
         actorId: input.actor.principalId,
         workspaceId: input.workspaceId,
         id: input.areaEntryId,
         fieldsJson: buildWidgetAreaFieldsJson({ regionKey: currentPayload.regionKey, doc: nextDoc }),
         expectedVersion: input.baseVersion,
+        owner: WIDGET_AREA_FIELD_NAMESPACE,
       },
     });
 
@@ -200,8 +202,6 @@ export async function mutateWidgetAreaPlacements(
       }
       throw result.error;
     }
-
-    await extractAndStoreAreaRefs(deps, input.workspaceId, result.value.entry);
 
     // regionKey never changes on a placement mutation — refresh the derived row's audit timestamp
     // only (INV-02 still trivially holds: the binding is still exactly what a rebuild would produce).

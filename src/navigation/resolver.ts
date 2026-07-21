@@ -36,6 +36,7 @@ import type { NavLocationBindingRepoPort, NavResolveContext } from "./ports";
 import type {
   NavItemNode,
   NavLocationKey,
+  NavMenuDoc,
   NavTarget,
   ResolvedNav,
   ResolvedNavItem,
@@ -124,7 +125,7 @@ export async function resolveForLocation(
     currentPath: input.currentPath,
   };
 
-  const items = await resolveItemList(menu.doc.items, context, deps.resolveTargetHref);
+  const items = await resolveMenuDoc({ doc: menu.doc, context, resolveTargetHref: deps.resolveTargetHref });
 
   return {
     menuId: menu.id,
@@ -132,6 +133,28 @@ export async function resolveForLocation(
     title: menu.title,
     items,
   };
+}
+
+export interface ResolveMenuDocRequired {
+  doc: NavMenuDoc;
+  context: NavResolveContext;
+  resolveTargetHref: ResolveTargetHrefFn;
+}
+
+/**
+ * Resolves a menu document's item tree into render-ready `ResolvedNavItem`s, independent of any
+ * location binding — the doc-level building block `resolveForLocation` composes on top of (menu
+ * lookup + location-binding lookup), and the seam a caller with a menu already in hand (e.g. the
+ * `widgets` `menu` widget type, SPEC-043 REQ-09) needs to get real hrefs without duplicating the
+ * href-walking logic `resolveForLocation` already owns (`resolveItemList`/`resolveItem` below stay
+ * module-private; this is the one exported entry point to their behavior).
+ *
+ * @complexity O(n) over the doc's total node count — see `resolveItemList`.
+ * @overallScore 100
+ */
+export async function resolveMenuDoc(required: ResolveMenuDocRequired): Promise<ResolvedNavItem[]> {
+  const { doc, context, resolveTargetHref } = required;
+  return resolveItemList(doc.items, context, resolveTargetHref);
 }
 
 /**

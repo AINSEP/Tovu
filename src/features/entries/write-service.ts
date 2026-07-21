@@ -92,6 +92,13 @@ export interface CreateEntryRequired {
     authorize: AuthorizeFn;
     outbox: OutboxPort;
     watermark?: WatermarkPort;
+    /**
+     * Optional same-transaction side effect (e.g. a feature's `entry_refs` extractor), invoked
+     * inside the write's own `entryRepo.transaction()` block, after `save`/`appendRevision` but
+     * before commit — so a failure here rolls back the whole write, same unit of work, not a
+     * best-effort follow-up call. Purely additive: omit it and behavior is unchanged.
+     */
+    onWritten?: (entry: EntryRecord) => Promise<void>;
   };
   input: ActorIdentityInput & {
     workspaceId: string;
@@ -100,6 +107,8 @@ export interface CreateEntryRequired {
     title: string;
     fieldsJson: unknown;
     bodyJson?: unknown;
+    /** The `ext` sub-key `fieldsJson` is namespaced under (ADR-022 §2). Defaults to `"site"` — see `field-validation.ts`'s `validateFieldsAgainstSchema`. */
+    owner?: string;
   };
 }
 
@@ -107,7 +116,8 @@ export interface CreateEntryRequired {
  * REQ-13/14/19 — creates a new entry. Order: authorize -> owning-type exists AND is owned by this
  * workspace (INV-01) -> owning-type is `active` (REQ-10) -> `fieldsJson` validates against the
  * type's current schema -> `(workspaceId, type, slug)` uniqueness (AC-21) -> same-tx write +
- * revision (+ watermark) -> `entry.created` outbox event (AC-27).
+ * revision + watermark + optional `deps.onWritten` side effect -> `entry.created` outbox event
+ * (AC-27).
  *
  * @complexity O(1) plus one content-type read, one field-validation pass, one slug lookup, and one
  * same-tx write pair.
@@ -129,7 +139,7 @@ export async function createEntry(required: CreateEntryRequired): Promise<Result
     return { ok: false, error: new ContentTypeNotActiveError(`content type '${input.type}' is not active; new entries cannot be created (REQ-10)`) };
   }
 
-  const validation = validateFieldsAgainstSchema({ schema: contentType.fields, fieldsJson: input.fieldsJson });
+  const validation = validateFieldsAgainstSchema({ schema: contentType.fields, fieldsJson: input.fieldsJson, owner: input.owner });
   if (!validation.valid) {
     return { ok: false, error: new EntryFieldValidationError(validation.fieldErrors) };
   }
@@ -167,6 +177,7 @@ export async function createEntry(required: CreateEntryRequired): Promise<Result
       recordedAt: now,
     });
     if (deps.watermark) await deps.watermark.stampWatermark({ workspaceId: input.workspaceId });
+    if (deps.onWritten) await deps.onWritten(entry);
   });
 
   await deps.outbox.enqueue({ name: "entry.created", payload: { workspaceId: input.workspaceId, entryId: entry.id, type: input.type, slug: input.slug } });
@@ -181,6 +192,8 @@ interface ExistingEntryTransitionDeps {
   authorize: AuthorizeFn;
   outbox: OutboxPort;
   watermark?: WatermarkPort;
+  /** Optional same-transaction side effect — see `CreateEntryRequired.deps.onWritten`. Only `updateEntry` invokes it; `publishEntry`/`unpublishEntry` don't change `fieldsJson`/`bodyJson`, so they have nothing to re-extract. */
+  onWritten?: (entry: EntryRecord) => Promise<void>;
 }
 
 /**
@@ -226,6 +239,8 @@ export interface UpdateEntryRequired {
     title?: string;
     fieldsJson?: unknown;
     expectedVersion: number;
+    /** The `ext` sub-key `fieldsJson` is namespaced under (ADR-022 §2). Defaults to `"site"` — see `field-validation.ts`'s `validateFieldsAgainstSchema`. */
+    owner?: string;
   };
 }
 
@@ -247,7 +262,7 @@ export async function updateEntry(required: UpdateEntryRequired): Promise<Result
 
   let fieldsJson = current.fieldsJson;
   if (input.fieldsJson !== undefined) {
-    const validation = validateFieldsAgainstSchema({ schema: contentType?.fields ?? [], fieldsJson: input.fieldsJson });
+    const validation = validateFieldsAgainstSchema({ schema: contentType?.fields ?? [], fieldsJson: input.fieldsJson, owner: input.owner });
     if (!validation.valid) {
       return { ok: false, error: new EntryFieldValidationError(validation.fieldErrors) };
     }
@@ -275,6 +290,7 @@ export async function updateEntry(required: UpdateEntryRequired): Promise<Result
       recordedAt: now,
     });
     if (deps.watermark) await deps.watermark.stampWatermark({ workspaceId: input.workspaceId });
+    if (deps.onWritten) await deps.onWritten(updated);
   });
 
   await deps.outbox.enqueue({ name: "entry.updated", payload: { workspaceId: input.workspaceId, entryId: current.id } });
