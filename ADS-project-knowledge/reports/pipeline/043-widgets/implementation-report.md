@@ -163,7 +163,76 @@ this project's standing rule, not run here.
 3. Gaps #2 and #4 are small, well-scoped, low-risk follow-ups whenever `features/entries/` or
    `navigation/` next gets a maintenance pass; #3 needs no action, just awareness.
 
+## Step 4 — Owner-directed follow-up: all four gaps fixed (2026-07-21, same session)
+
+After the above was committed (`c946bbc`) and pushed, the owner reviewed the four decisions and
+directed all four be fixed now rather than left as logged debt. Done in order of increasing risk,
+typecheck + the relevant suite run after each, full suite run twice at the end to confirm no
+regression and rule out flakiness.
+
+**Gap 4 — menu resolver hrefs (fixed).** Added `resolveMenuDoc` as a new exported entry point in
+`navigation/resolver.ts` (the doc-level building block `resolveForLocation` itself now composes on
+top of, via a refactor — `resolveItemList`/`resolveItem` stay private, existing `navigation` tests
+unaffected, all 53 still pass). Rewired `widgets/resolvers/menu.ts` to call it with an injectable
+`resolveTargetHref` (defaults to an honestly-documented placeholder, since `src/routing`/ADR-039 has
+no real implementation anywhere in this codebase yet — not even `navigation`'s own production callers
+have one today). Net effect: `url`-kind menu targets now resolve to real `href`/`available`/`isActive`
+data instead of a raw, unresolved `NavTarget` object being passed through as IR props (which was
+itself a quiet violation of ADR-020 §6/§7's "theme receives resolved data" boundary, not just an
+aesthetic gap). `entryRef`/`termRef`/`route` targets still resolve to `available: false` — the same
+honest gap every other caller in this system has today, not a widgets-specific worse one. Added
+`src/widgets/__tests__/unit/resolvers-menu.unit.test.ts` (2 new tests, both passing).
+
+**Gap 3 — purge vs. trash distinguishability (fixed).** Added `"purged"` to `WidgetInstanceStatus`
+(`widgets/types.ts`). `purgeWidgetInstance` now writes `status: "purged"` instead of `status: "trash"`;
+every place that previously checked `status === "trash"` for availability (`resolver-service.ts`'s
+resolution skip, `region-area-service.ts`'s placement-target validation) now checks both. No hard-delete
+was added to `EntryRepoPort` — per the report's original finding, that's a system-wide house-style
+question (no content type in this codebase hard-deletes), not something to bolt on for widgets alone.
+
+**Gap 2 — `entry_refs` same-transaction extraction, INV-06 (fixed).** Added an optional
+`onWritten?: (entry) => Promise<void>` hook to `features/entries/write-service.ts`'s
+`CreateEntryRequired`/`ExistingEntryTransitionDeps`, invoked inside the existing
+`entryRepo.transaction()` block after `save`/`appendRevision` (SQLite's adapter does a real
+`BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK`, so a failure here now genuinely rolls back the whole write, not
+a best-effort follow-up call). Purely additive — every other caller of `createEntry`/`updateEntry`
+across the codebase (posts, pages, forms, redirects, SEO, comments, …) omits it and is unaffected;
+confirmed via a full-suite run (1734 pass, same 2 pre-existing unrelated failures, before and after).
+`widgets/write-service.ts` and `widgets/region-area-service.ts` now pass their `entry_refs` extractor
+as this hook instead of calling it as a separate statement after the write returns.
+
+**Gap 1 — `ext.site` envelope hardcoding (fixed, the biggest one).**
+`features/entries/field-validation.ts`'s `validateFieldsAgainstSchema` now takes an optional `owner`
+parameter (default `"site"`) instead of hardcoding the literal `site` key — every existing caller that
+omits it keeps byte-identical behavior (all 6 SPEC-020 certified tests in
+`field-validation.unit.test.ts` pass unchanged, including the exact envelope-violation error-message
+text). `createEntry`/`updateEntry` gained a matching optional `input.owner`, threaded through to
+validation. Widgets now writes under `fields.ext.widget.*` for instances and `fields.ext.widgets.*` for
+`widget_area` entries (`WIDGET_FIELD_NAMESPACE`/`WIDGET_AREA_FIELD_NAMESPACE` — both constants already
+existed in `widgets/types.ts`, previously unused for this purpose), matching REQ-01/REQ-11's literal
+namespacing instead of a shared `site` bag. `selectVisibleEntryFields` was deliberately left untouched
+— it has no production caller anywhere in this codebase today, so widening it now would be
+speculative; extend it the same way once a real caller needs a non-`site` read projection.
+
+**Still not changed, and correctly so:** the config/doc payload is still one JSON-serialized string in
+a single required `payload` field under the new owner namespace, not exploded into individual
+generic-entries fields. That's independent of the namespace bug — a widget instance's `config` shape
+is polymorphic per `widgetType` (declared in `registry.ts`), and the generic entries fixed-field-list
+schema genuinely cannot express "shape varies by widget type" regardless of which `ext` owner it
+validates under; widgets already runs its own `validateWidgetConfig` (REQ-02) against the real
+per-type schema before this layer ever sees the data. Also unchanged: `widget_area`'s `placements`
+still live in `fieldsJson` rather than `bodyJson.placements` as REQ-11 literally describes, because
+`updateEntry` still has no parameter to change `bodyJson` after creation — a separate, larger gap this
+session's scope didn't include and wasn't asked to fix.
+
+**Verification:** typecheck clean throughout; full suite run twice after all four fixes landed —
+**1736 tests, 1734 pass, 2 fail (the same pre-existing, unrelated redirects/SEO failures)**, stable
+across both runs.
+
 ## Commit
 
-New commit on top of `03a8781` containing: the `write-service.ts` header-comment fix and this report.
-Not pushed by default — see the accompanying handoff for status; push on explicit request.
+Two commits on top of `03a8781`:
+1. `c946bbc` — the `write-service.ts` header-comment fix, baseline verification, and this report's
+   original (Steps 1–3) content. Pushed to `origin/main` on explicit request.
+2. A second commit containing all four gap fixes described in Step 4 above, plus this report update.
+   Push status: see conversation / handoff for the latest word — confirm before assuming pushed.

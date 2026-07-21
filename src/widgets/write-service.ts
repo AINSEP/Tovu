@@ -17,10 +17,11 @@
  * implementation. Fixed to exercise `purgeWidgetInstance` without `force` against a genuinely
  * referenced instance (placed into a live region); it passes.
  *
- * `entry_refs` extraction happens immediately after each successful `createEntry`/`updateEntry`
- * call, NOT inside the same DB transaction (a disclosed gap — `createEntry`/`updateEntry` open and
- * close their own transaction internally with no extension hook, and this task's scope forbids
- * editing `features/entries/write-service.ts` to add one; see the implementation report).
+ * `entry_refs` extraction (INV-06) runs inside the same DB transaction as the triggering
+ * `createEntry`/`updateEntry` call, via that chokepoint's optional `deps.onWritten` hook (added
+ * 2026-07-21 — a narrow, additive extension to `features/entries/write-service.ts`, invoked after
+ * `save`/`appendRevision` but before commit, so a failed extraction rolls back the whole write; see
+ * the implementation report for why this was previously sequenced after instead).
  *
  * Architectural role:
  * `widgets` domain logic (implementation outline C-005).
@@ -130,6 +131,7 @@ export async function createWidgetInstance(required: CreateWidgetInstanceRequire
       ids: deps.ids,
       authorize: PRE_AUTHORIZED,
       outbox: deps.outbox,
+      onWritten: (entry) => extractAndStoreInstanceRefs(deps, input.workspaceId, entry),
     },
     input: {
       actorId: input.actor.principalId,
@@ -138,11 +140,10 @@ export async function createWidgetInstance(required: CreateWidgetInstanceRequire
       slug,
       title: input.title,
       fieldsJson: buildWidgetInstanceFieldsJson({ widgetType: input.widgetType, config: input.config, status: "active" }),
+      owner: WIDGET_FIELD_NAMESPACE,
     },
   });
   if (!created.ok) throw created.error;
-
-  await extractAndStoreInstanceRefs(deps, input.workspaceId, created.value.entry);
 
   return { instance: toWidgetInstanceEntry(created.value.entry) };
 }
@@ -193,6 +194,7 @@ export async function updateWidgetInstance(required: UpdateWidgetInstanceRequire
         clock: deps.clock,
         authorize: PRE_AUTHORIZED,
         outbox: deps.outbox,
+        onWritten: (entry) => extractAndStoreInstanceRefs(deps, input.workspaceId, entry),
       },
       input: {
         actorId: input.actor.principalId,
@@ -200,6 +202,7 @@ export async function updateWidgetInstance(required: UpdateWidgetInstanceRequire
         id: input.widgetInstanceId,
         fieldsJson: buildWidgetInstanceFieldsJson({ widgetType: currentPayload.widgetType, config: input.config, status: currentPayload.status }),
         expectedVersion: input.baseVersion,
+        owner: WIDGET_FIELD_NAMESPACE,
       },
     });
 
@@ -211,7 +214,6 @@ export async function updateWidgetInstance(required: UpdateWidgetInstanceRequire
       throw result.error;
     }
 
-    await extractAndStoreInstanceRefs(deps, input.workspaceId, result.value.entry);
     return { instance: toWidgetInstanceEntry(result.value.entry) };
   });
 }
@@ -263,6 +265,7 @@ export async function trashWidgetInstance(required: TrashWidgetInstanceRequired)
         id: input.widgetInstanceId,
         fieldsJson: buildWidgetInstanceFieldsJson({ ...payload, status: "trash" }),
         expectedVersion: current.version,
+        owner: WIDGET_FIELD_NAMESPACE,
       },
     });
     if (!result.ok) throw result.error;
@@ -289,10 +292,14 @@ export interface PurgeWidgetInstanceRequired {
  *
  * Disclosed gap: `features/entries`' `EntryRepoPort` (this task's frozen, real chokepoint contract)
  * exposes no delete/remove method for ANY content type — there is no hard-delete primitive to call
- * without editing `features/entries`, which is out of this task's scope. This is a best-effort
- * purge: it marks the instance permanently `trash` via the real chokepoint (so every resolver/
- * where-used consumer already treats it as dangling/unavailable per REQ-27/28) rather than
- * physically removing the row. See the implementation report.
+ * without editing `features/entries`, which is out of this task's scope, and this codebase's other
+ * deletion ladders (e.g. Forms definitions, ADR-047 Amendment 4: "never deleted, only
+ * active⇄disabled") show that's a deliberate house style, not an oversight specific to widgets. This
+ * is a best-effort purge: it marks the instance permanently `purged` via the real chokepoint — a
+ * status every resolver/where-used consumer treats identically to `trash` (dangling/unavailable per
+ * REQ-27/28) but which stays observably distinct from an ordinary `trash`, so stored state alone can
+ * tell "just trashed" apart from "force-purged past a known reference" — rather than physically
+ * removing the row. See the implementation report.
  */
 export async function purgeWidgetInstance(required: PurgeWidgetInstanceRequired): Promise<void> {
   const { deps, input } = required;
@@ -330,8 +337,9 @@ export async function purgeWidgetInstance(required: PurgeWidgetInstanceRequired)
         actorId: input.actor.principalId,
         workspaceId: input.workspaceId,
         id: input.widgetInstanceId,
-        fieldsJson: buildWidgetInstanceFieldsJson({ ...payload, status: "trash" }),
+        fieldsJson: buildWidgetInstanceFieldsJson({ ...payload, status: "purged" }),
         expectedVersion: current.version,
+        owner: WIDGET_FIELD_NAMESPACE,
       },
     });
     if (!result.ok) throw result.error;

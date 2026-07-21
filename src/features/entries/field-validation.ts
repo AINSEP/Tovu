@@ -9,10 +9,21 @@ import type { ContentTypeFieldDef, ContentTypeFieldKind } from "../content-types
  * The single pure-logic implementation of "does this `fieldsJson` conform to this content type's
  * current schema" — reused identically by `write-service.ts`'s `createEntry`/`updateEntry` and by
  * any future validate-only route (AC-39/AC-40), so there is exactly one place this rule can drift.
- * `fieldsJson` must already be wrapped in the `{ ext: { site: {...} } }` namespaced envelope
+ * `fieldsJson` must already be wrapped in the `{ ext: { <owner>: {...} } }` namespaced envelope
  * (ADR-022 §2) — a flat/unwrapped payload is rejected as a distinct envelope-shape violation
  * BEFORE any per-field check runs (AC-50/EC-15), never conflated with a per-field error for a key
  * that happens to share a field's name.
+ *
+ * Owner namespace (2026-07-21): `validateFieldsAgainstSchema` takes an optional `owner`, defaulting
+ * to `"site"` — every caller that omits it keeps ADR-022 §2's originally-shipped, single-namespace
+ * behavior byte-for-byte (same envelope, same error message, same certified SPEC-020 test suite).
+ * This is the fix for a real, confirmed gap: this module previously hardcoded the literal `site`
+ * namespace with no way for a content type to declare its own, contradicting ADR-022 §2's documented
+ * `fields.ext.{owner}.*` promise (first surfaced by SPEC-043/widgets, which needs `ext.widget`/
+ * `ext.widgets`, not `ext.site`, for data that structurally belongs to a different feature).
+ * `selectVisibleEntryFields` is intentionally left untouched — it has no production caller anywhere
+ * in this codebase today, so widening it now would be speculative; extend it the same way once a
+ * real caller needs a non-`site` read projection.
  *
  * Architectural role:
  * `features/entries` domain logic. Type-only dependency on `features/content-types/types`.
@@ -67,22 +78,24 @@ function conformsToKind(value: unknown, kind: ContentTypeFieldKind): boolean {
 export function validateFieldsAgainstSchema(required: {
   schema: ContentTypeFieldDef[];
   fieldsJson: unknown;
+  /** The `ext` sub-key this content type's fields live under (ADR-022 §2). Defaults to `"site"` — every existing caller keeps identical behavior unless it opts into a different owner namespace. */
+  owner?: string;
 }): ValidateFieldsResult {
-  const { schema, fieldsJson } = required;
+  const { schema, fieldsJson, owner = "site" } = required;
 
   const ext = isPlainObject(fieldsJson) ? fieldsJson.ext : undefined;
-  const site = isPlainObject(ext) ? ext.site : undefined;
-  if (!isPlainObject(fieldsJson) || !isPlainObject(ext) || !isPlainObject(site)) {
+  const ownerBag = isPlainObject(ext) ? ext[owner] : undefined;
+  if (!isPlainObject(fieldsJson) || !isPlainObject(ext) || !isPlainObject(ownerBag)) {
     return {
       valid: false,
-      fieldErrors: [{ field: "__envelope__", reason: "fieldsJson must be wrapped in the { ext: { site: {...} } } envelope shape (ADR-022 §2)" }],
+      fieldErrors: [{ field: "__envelope__", reason: `fieldsJson must be wrapped in the { ext: { ${owner}: {...} } } envelope shape (ADR-022 §2)` }],
     };
   }
 
   const schemaByName = new Map(schema.map((f) => [f.name, f]));
   const fieldErrors: FieldValidationError[] = [];
 
-  for (const [key, value] of Object.entries(site)) {
+  for (const [key, value] of Object.entries(ownerBag)) {
     const def = schemaByName.get(key);
     if (!def) {
       fieldErrors.push({ field: key, reason: "unrecognized field: not present in the current content-type schema" });
@@ -94,7 +107,7 @@ export function validateFieldsAgainstSchema(required: {
   }
 
   for (const def of schema) {
-    if (def.required && !Object.prototype.hasOwnProperty.call(site, def.name)) {
+    if (def.required && !Object.prototype.hasOwnProperty.call(ownerBag, def.name)) {
       fieldErrors.push({ field: def.name, reason: "required field is missing" });
     }
   }

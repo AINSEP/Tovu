@@ -6,7 +6,9 @@ import type { EntryRecord } from "../features/entries/types";
 import { PRE_AUTHORIZED, WIDGETS_SYSTEM_ACTOR_ID } from "./authorize-helper";
 import {
   WIDGET_AREA_CONTENT_TYPE,
+  WIDGET_AREA_FIELD_NAMESPACE,
   WIDGET_CONTENT_TYPE,
+  WIDGET_FIELD_NAMESPACE,
 } from "./types";
 import type {
   WidgetAreaDoc,
@@ -27,22 +29,27 @@ import type {
  * `features/entries/write-service.ts`'s `updateEntry` can only change `title`/`fieldsJson` — it has
  * no parameter to change `bodyJson` at all once an entry is created (confirmed by reading its
  * `UpdateEntryRequired.input` shape and body). Widget config MUST be updatable (REQ-05/AC-04), so
- * it cannot live in `bodyJson`. Separately, `features/entries/field-validation.ts`'s
- * `validateFieldsAgainstSchema` hardcodes the extension-field envelope to exactly
- * `{ ext: { site: {...} } }` — the single literal namespace `site`, not a per-content-type owner
- * namespace — so this repo's real, running generic entries system cannot validate a
- * `fields.ext.widget.*`/`fields.ext.widgets.*` bag the way `widgets/types.ts`'s doc comments
- * describe (that shape was never built for the generic entries system; only `navigation`'s
- * bespoke, pre-generic-entries `menus` table ever carried a real `fields.ext.navigation.*`-shaped
- * bag, and that table is untouched by this feature).
+ * it cannot live in `bodyJson`.
  *
- * Given both constraints, and given this task's scope forbids editing `features/entries/*`, this
- * file stores a widget instance's/`widget_area`'s REAL data as one JSON-serialized string in a
- * single required `payload` text field under the one namespace the real validator supports
- * (`fieldsJson.ext.site.payload`) — trivially schema-valid (a single required `text`-kind field
- * always passes `conformsToKind`), fully mutable via `updateEntry`'s `fieldsJson` parameter, and
- * round-trips the exact `WidgetInstanceEntry.config`/`WidgetAreaEntry.doc` shapes the public
- * contracts (`types.ts`) declare. `bodyJson` is left unused by this feature.
+ * Owner namespace (2026-07-21, fixed): `features/entries/field-validation.ts`'s
+ * `validateFieldsAgainstSchema` now accepts an `owner` parameter instead of hardcoding `site`
+ * (a real, confirmed gap against ADR-022 §2 — see that file's header and the implementation
+ * report). Widget instances write under `fields.ext.widget.*` (`WIDGET_FIELD_NAMESPACE`) and
+ * `widget_area` entries under `fields.ext.widgets.*` (`WIDGET_AREA_FIELD_NAMESPACE`), matching
+ * REQ-01/REQ-11's literal namespacing — not a shared `site` bag.
+ *
+ * A widget instance's `config` shape is still polymorphic per `widgetType` (declared in
+ * `registry.ts`'s per-type `configSchema`, a JSON-Schema-like validator, not the generic entries
+ * fixed-field-list schema `validateFieldsAgainstSchema` checks) — the generic entries content-type
+ * field list genuinely cannot express "shape varies by widgetType" regardless of which `ext` owner
+ * it validates under, and widgets already runs its own `validateWidgetConfig` (REQ-02) against the
+ * real per-type schema before ever reaching this layer. So this file still stores the real
+ * config/doc data as one JSON-serialized string in a single required `payload` text field — now
+ * under the correct owner namespace — rather than mapping each config key to its own generic-entries
+ * field, which round-trips the exact `WidgetInstanceEntry.config`/`WidgetAreaEntry.doc` shapes the
+ * public contracts (`types.ts`) declare. `bodyJson` is left unused by this feature (REQ-11's
+ * `bodyJson.placements` placement is a separate, disclosed deviation, not fixed by this namespace
+ * change — see the implementation report).
  */
 
 export const WIDGET_PAYLOAD_FIELD = "payload";
@@ -63,36 +70,36 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Reads the single `payload` text field out of an entry's `fieldsJson.ext.site` envelope. */
-function readPayloadString(fieldsJson: unknown): string {
+/** Reads the single `payload` text field out of an entry's `fieldsJson.ext.<owner>` envelope. */
+function readPayloadString(fieldsJson: unknown, owner: string): string {
   if (!isPlainObject(fieldsJson)) throw new Error("widgets: malformed fieldsJson (expected an object)");
   const ext = fieldsJson.ext;
   if (!isPlainObject(ext)) throw new Error("widgets: malformed fieldsJson (missing ext)");
-  const site = ext.site;
-  if (!isPlainObject(site) || typeof site[WIDGET_PAYLOAD_FIELD] !== "string") {
-    throw new Error("widgets: malformed fieldsJson (missing fields.ext.site.payload)");
+  const ownerBag = ext[owner];
+  if (!isPlainObject(ownerBag) || typeof ownerBag[WIDGET_PAYLOAD_FIELD] !== "string") {
+    throw new Error(`widgets: malformed fieldsJson (missing fields.ext.${owner}.payload)`);
   }
-  return site[WIDGET_PAYLOAD_FIELD];
+  return ownerBag[WIDGET_PAYLOAD_FIELD];
 }
 
-function buildFieldsJson(payload: unknown): unknown {
-  return { ext: { site: { [WIDGET_PAYLOAD_FIELD]: JSON.stringify(payload) } } };
+function buildFieldsJson(payload: unknown, owner: string): unknown {
+  return { ext: { [owner]: { [WIDGET_PAYLOAD_FIELD]: JSON.stringify(payload) } } };
 }
 
 export function buildWidgetInstanceFieldsJson(payload: WidgetInstancePayload): unknown {
-  return buildFieldsJson(payload);
+  return buildFieldsJson(payload, WIDGET_FIELD_NAMESPACE);
 }
 
 export function parseWidgetInstancePayload(fieldsJson: unknown): WidgetInstancePayload {
-  return JSON.parse(readPayloadString(fieldsJson)) as WidgetInstancePayload;
+  return JSON.parse(readPayloadString(fieldsJson, WIDGET_FIELD_NAMESPACE)) as WidgetInstancePayload;
 }
 
 export function buildWidgetAreaFieldsJson(payload: WidgetAreaPayload): unknown {
-  return buildFieldsJson(payload);
+  return buildFieldsJson(payload, WIDGET_AREA_FIELD_NAMESPACE);
 }
 
 export function parseWidgetAreaPayload(fieldsJson: unknown): WidgetAreaPayload {
-  return JSON.parse(readPayloadString(fieldsJson)) as WidgetAreaPayload;
+  return JSON.parse(readPayloadString(fieldsJson, WIDGET_AREA_FIELD_NAMESPACE)) as WidgetAreaPayload;
 }
 
 export function toWidgetInstanceEntry(entry: EntryRecord): WidgetInstanceEntry {

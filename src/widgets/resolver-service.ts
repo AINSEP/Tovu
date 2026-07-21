@@ -133,13 +133,13 @@ export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): 
   const widgetRows =
     referencedIds.size > 0 ? await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId, type: WIDGET_CONTENT_TYPE }) : [];
 
-  // 4. Build WidgetInstanceView list (skipping missing/trashed targets — REQ-27's failure taxonomy
-  // handles them as "unresolved", not a crash), grouped by type.
+  // 4. Build WidgetInstanceView list (skipping missing/trashed/purged targets — REQ-27's failure
+  // taxonomy handles them as "unresolved", not a crash), grouped by type.
   const byType = new Map<WidgetTypeKey, WidgetInstanceView[]>();
   for (const row of widgetRows) {
     if (!referencedIds.has(row.id)) continue;
     const payload = parseWidgetInstancePayload(row.fieldsJson);
-    if (payload.status === "trash") continue;
+    if (payload.status === "trash" || payload.status === "purged") continue;
     const list = byType.get(payload.widgetType) ?? [];
     list.push({ id: row.id, widgetType: payload.widgetType, config: payload.config as JsonObject });
     byType.set(payload.widgetType, list);
