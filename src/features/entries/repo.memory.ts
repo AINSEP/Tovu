@@ -1,6 +1,6 @@
 import type { EntryRepoPort, EntryRevisionInput, OutboxPort } from "./write-service";
 import type { EntryListPort } from "./list";
-import type { EntryRecord } from "./types";
+import type { EntryRecord, EntryStatus } from "./types";
 
 /**
  * @file In-memory `EntryRepoPort` + `EntryListPort` double (same disclosed rule-of-two-until-a-
@@ -40,11 +40,27 @@ export class InMemoryEntryRepo implements EntryRepoPort, EntryListPort {
     return fn();
   }
 
-  async listByWorkspace(params: { workspaceId: string; type?: string }): Promise<EntryRecord[]> {
-    return [...this.byId.values()]
+  async listByWorkspace(params: {
+    workspaceId: string;
+    type?: string;
+    status?: EntryStatus;
+    orderBy?: "updatedAt";
+    orderDirection?: "asc" | "desc";
+    limit?: number;
+  }): Promise<EntryRecord[]> {
+    let rows = [...this.byId.values()]
       .filter((row) => row.workspaceId === params.workspaceId)
       .filter((row) => !params.type || row.type === params.type)
-      .map((row) => ({ ...row }));
+      .filter((row) => !params.status || row.status === params.status);
+
+    if (params.orderBy === "updatedAt") {
+      const dir = params.orderDirection === "asc" ? 1 : -1;
+      rows = rows.sort((a, b) => (a.updatedAt < b.updatedAt ? -dir : a.updatedAt > b.updatedAt ? dir : 0));
+    }
+    if (typeof params.limit === "number") {
+      rows = rows.slice(0, params.limit);
+    }
+    return rows.map((row) => ({ ...row }));
   }
 }
 

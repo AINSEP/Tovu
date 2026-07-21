@@ -1,0 +1,71 @@
+name: CI
+
+# SPEC-022 REQ-11/REQ-12 named `check:boundaries` and `check:inventory` as scripts written for
+# "whoever stands up CI later to wire in as-is" (see .dependency-cruiser.cjs and
+# scripts/check-capability-inventory.ts) — this workflow is that wiring. Kept intentionally small
+# per this repo's Constitution Simplicity Gate: one job, one OS, one Node version, no matrix.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same branch/PR so pushes don't queue up stale CI runs.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/admin/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Typecheck (root)
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Check architecture boundaries
+        # .dependency-cruiser.cjs rules are deliberately severity:"warn" (see file header) —
+        # this always exits 0 on ordinary violations by design, so no continue-on-error needed.
+        # It only fails the step if the tool itself errors out.
+        run: npm run check:boundaries
+
+      - name: Check capability-inventory staleness
+        # Same report-only posture as check:boundaries (see scripts/check-capability-inventory.ts
+        # header) — always exits 0 on findings, only fails on a genuine script error.
+        run: npm run check:inventory
+
+      - name: Lint
+        # No lint tool existed in this repo before this workflow. Added Biome (single
+        # dependency-light binary, off-the-shelf "recommended" preset — not a bespoke ruleset)
+        # covering src/**/*.ts and apps/admin/src/**/*.{ts,tsx}. A first-time lint pass over this
+        # previously-unlinted codebase surfaces ~130 pre-existing findings (mostly
+        # lint/style/noNonNullAssertion and lint/a11y/useButtonType) that are out of scope to
+        # mass-fix here, especially with other work concurrently in flight across the tree.
+        # Non-blocking for now, same posture as check:boundaries/check:inventory above, until a
+        # follow-up task triages the existing findings and this can flip to blocking.
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Install admin dependencies
+        run: npm ci --prefix apps/admin
+
+      - name: Typecheck (admin)
+        run: npm --prefix apps/admin run typecheck
+
+      - name: Build admin
+        run: npm run admin:build

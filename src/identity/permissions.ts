@@ -542,6 +542,17 @@ registerPermission({
   description: "Force-purge a widget instance past the still-referenced guard, flagging any resulting dangling references.",
 });
 
+/**
+ * SPEC-044 (Workspace Administration) — a distinct grant, not reused from `settings.write`:
+ * workspace identity (rename, eventual multi-tenant delete) is a higher-blast-radius operation than
+ * a settings-ledger value edit, worth auditing independently (feature.spec.md REQ-06).
+ */
+registerPermission({
+  id: "workspace.manage",
+  owner: "workspace",
+  description: "List/view/rename/delete the workspace (SPEC-044).",
+});
+
 /** Enumerate the full registered catalog (REQ-12 core capability; CLI wiring is N/A, see file header). */
 export function listPermissions(): PermissionDescriptor[] {
   return permissionCatalog.list();

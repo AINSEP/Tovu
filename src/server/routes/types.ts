@@ -178,6 +178,9 @@ export interface RouteDeps {
    * correctness never depends on request timing (no race).
    */
   identityReady: Promise<void>;
+  /** SPEC-006 0.6.0 (REQ-11/REQ-15) — resolves to the seeded owner's principal id; see
+   * `identity/wiring.ts`'s `IdentityRouteDepsSlice.ownerPrincipalId` doc for the full rationale. */
+  ownerPrincipalId: Promise<UUID>;
   /**
    * Bound closure over `identity.authorize()` + its repos (ADR-006/ADR-021 §2:
    * `authorize()` itself is ordinary core code, not a port — this field exists

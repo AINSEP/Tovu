@@ -11,9 +11,9 @@
 |-------|-------|
 | spec_id | SPEC-006 |
 | feature_name | FEAT-006-identity-and-authorization |
-| version | 0.5.6 |
+| version | 0.6.0 |
 | content_hash | not-tracked — feature.spec.md is the speckit hash anchor for this package |
-| last_edited | 2026-07-08T19:41:56Z |
+| last_edited | 2026-07-21T00:00:00Z |
 
 **Purpose:** Captures deterministic, rule-based behavior not fully expressed by acceptance criteria
 alone — the `authorize()` matcher precedence, the load-bearing ordering of the gateway pipeline,
@@ -224,6 +224,22 @@ one session shall not revoke the others; disabling the principal shall invalidat
 **Rationale:** Multi-device login is expected; per-session revocation is finer-grained than
 per-principal disable.
 
+### 6.3 Reference-Check-and-Delete Race (0.6.0, INV-09)
+
+**When it applies:** WHEN `DELETE_ROLE`/`DELETE_POLICY` runs concurrently with `ASSIGN_ROLE`/
+`ATTACH_POLICY`/`WRITE_POLICY_PERMISSION` targeting the same role/policy.
+
+**Tie-break rule:** The reference check (zero `principal_roles`/`role_policies`/`principal_policies`
+rows) and the delete shall run as one atomic operation. The system shall not allow a grant-write and
+a delete of its target to both commit — exactly one observes the other's effect.
+
+**Rationale:** Mirrors § 1.3's INV-07 clamp discipline and INV-08's atomic owner-count-check-and-
+disable: a reference count is only a safe delete precondition if nothing can change it between the
+check and the write.
+
+**Invariant:** No `principal_roles`/`role_policies`/`principal_policies` row ever points at a
+deleted `roles`/`policies` id (INV-09).
+
 ---
 
 ## 7. Edge Case Handling
@@ -238,6 +254,9 @@ per-principal disable.
 | Two concurrent disables of the last two owners | THEN the atomic count-check+update shall allow at most one to commit; the second is refused `OWNER_REQUIRED` — INV-08 (MF-3). | Yes |
 | Principal disable by a caller lacking `user.manage` | IF the caller does not hold `user.manage`, THEN a disable shall return 403 `FORBIDDEN` — REQ-11, AC-21. | Yes |
 | `CREATE_USER` naming an existing principalId (bind attempt) | THEN it is not representable — user creation mints a fresh `kind='user'` principal; no credential attaches to a pre-existing principal — REQ-01, AC-22 (MF-1). | Yes |
+| `RESET_USER_PASSWORD` on a user with active sessions (0.6.0) | WHEN the password is reset, THEN every active session for that principal shall be revoked in the same operation — REQ-17, AC-29. | Yes |
+| `DELETE_ROLE`/`DELETE_POLICY` on a still-referenced target (0.6.0) | IF any `principal_roles` (role) or `role_policies`/`principal_policies` (policy) row references the target, THEN the delete shall be refused `RESOURCE_CONFLICT` and no row is removed — REQ-19/INV-09, AC-31. | Yes |
+| `ENABLE_PRINCIPAL` on the disabled legacy `user-local` principal (0.6.0) | IF the target is not `kind='user'`, THEN it shall be refused `VALIDATION_ERROR` — REQ-15, EC-14. | Yes |
 | `ISSUE_API_KEY` naming a `user`/`system`/seeded-`owner` principal as the bound principal | THEN it is rejected 400 `VALIDATION_ERROR`; a key binds only to a fresh `kind='api_key'` principal, so it can never authenticate as a privileged principal — REQ-08, AC-23 (F1). | Yes |
 | `ISSUE_API_KEY` naming a **non-grantless** api_key principal (one already holding a role/policy row, e.g. owner-endowed) | THEN it is rejected 400 `VALIDATION_ERROR`; a key binds only to a grantless principal, so its authority equals exactly the clamped attached policies, never the bound principal's accumulated authority — REQ-08, AC-25a (F-053-01). | Yes |
 | `ASSIGN_ROLE`/`ATTACH_POLICY` targeting an `api_key`/`system` principal | THEN it is rejected 400 `VALIDATION_ERROR`; human-grant transitions target `kind='user'` only, machine authority is set solely at issuance — REQ-02, AC-25b (F-053-01). | Yes |

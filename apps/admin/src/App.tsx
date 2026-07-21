@@ -33,6 +33,7 @@ import { WidgetsLibrary } from "./sections/WidgetsLibrary";
 import { WidgetInstanceEditor } from "./sections/WidgetInstanceEditor";
 import { WidgetRegions } from "./sections/WidgetRegions";
 import { WidgetRegionEditor } from "./sections/WidgetRegionEditor";
+import { Workspace } from "./sections/Workspace";
 
 type Route =
   | { view: "dashboard" }
@@ -219,6 +220,8 @@ export function App() {
           <Database />
         ) : route.sectionId === "recovery" ? (
           <Recovery />
+        ) : route.sectionId === "workspace" ? (
+          <Workspace />
         ) : (
           <Placeholder sectionId={route.sectionId} />
         );

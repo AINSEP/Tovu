@@ -9,7 +9,7 @@ import { InMemoryPostRepo } from "../features/post";
 import { InMemoryPresentationSettingsRepo } from "../features/presentation";
 import { InMemorySettingsRepo } from "../features/settings/repo.memory";
 import { discoverThemes } from "../features/theme";
-import { createWorkspace, InMemoryWorkspaceRepo, WorkspaceConflictError, WorkspaceValidationError } from "../features/workspace";
+import { InMemoryWorkspaceRepo } from "../features/workspace";
 import path from "node:path";
 import { builtInThemesDir } from "./deps";
 import {
@@ -96,6 +96,7 @@ import { createMenusModule } from "./modules/menus";
 import { createWidgetsModule } from "./modules/widgets";
 import { createSettingsModule } from "./modules/settings";
 import { createUsersModule } from "./modules/users";
+import { createWorkspaceModule } from "./modules/workspace";
 import { createIntegrationsModule } from "./modules/integrations";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin";
 import { createMediaModule } from "./modules/media";
@@ -125,8 +126,11 @@ import type { RouteDeps } from "./routes/types";
  * - Default composition uses in-memory adapters seeded from `./seed` — this is
  *   what tests exercise (hermetic, no filesystem). The running server injects
  *   the SQLite composition from `./deps` instead (see `index.ts`).
- * - Calls `createWorkspace` slice for command handling.
  * - Triggers `processOutbox` after successful writes to deliver async events.
+ * - SPEC-044: `CREATE_WORKSPACE`/list/get/update/delete now live in
+ *   `modules/workspace.ts` (`createWorkspaceModule`), not inline here — the original unauthenticated
+ *   `app.post("/workspaces", ...)` route this file used to own was moved to
+ *   `routes/admin/workspace/create.ts` and hardened behind `AUTH_SESSION` + `workspace.manage`.
  *
  * Architectural role:
  * Keeps transport concerns (HTTP, status codes, request parsing) separate from
@@ -487,6 +491,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // ADR-046 Phase 3 (SPEC-040): the `users` server module — 8 admin CRUD/list routes over
   // users/roles/policies (ADR-021/SPEC-006 identity RBAC).
   createUsersModule(routeDeps).registerRoutes?.(app);
+  // SPEC-044: the `workspace` server module — 5 admin routes (list/create/get/update/delete), the
+  // real successor to the original unauthenticated inline `POST /workspaces` route this file used
+  // to own directly (see the file header note).
+  createWorkspaceModule(routeDeps).registerRoutes?.(app);
   // ADR-046 Phase 3 (SPEC-040): the `settings` server module — 5 admin settings HTTP routes
   // (SPEC-007 Phase 5, T043).
   createSettingsModule(routeDeps).registerRoutes?.(app);
@@ -567,47 +575,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
     distDir: process.env.TOVU_ADMIN_DIST ?? path.resolve(__dirname, "../../apps/admin/dist"),
   });
 
-  /**
-   * Create workspace route.
-   *
-   * Hybrid execution model:
-   * - synchronous command path for validation + persistence
-   * - outbox flush to run async side effects reliably
-   */
-  app.post("/workspaces", async (req, res) => {
-    try {
-      const { id } = await createWorkspace(
-        {
-          deps: {
-            idGen: routeDeps.idGen,
-            clock: routeDeps.clock,
-            repo: routeDeps.workspaceRepo,
-            outbox: routeDeps.outbox,
-          },
-          input: {
-            name: String(req.body?.name ?? ""),
-            slug: String(req.body?.slug ?? ""),
-          },
-        }
-      );
-
-      await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
-
-      res.status(201).json({ id });
-    } catch (err) {
-      if (err instanceof WorkspaceValidationError) {
-        res.status(400).json({ error: err.message });
-        return;
-      }
-
-      if (err instanceof WorkspaceConflictError) {
-        res.status(409).json({ error: err.message });
-        return;
-      }
-
-      res.status(500).json({ error: "internal error" });
-    }
-  });
+  // SPEC-044: the `workspace` server module (list/create/get/update/delete) is registered near the
+  // other ADR-046 Phase 3 module calls above (`createUsersModule`); the original inline
+  // unauthenticated `POST /workspaces` route that lived here has been removed (see the file header).
 
   // SPIKE: sample Tier-3 store page — must precede the site `/:slug` catch-all.
   registerStoreRoutes(app, routeDeps);

@@ -53,6 +53,8 @@ export type UsersRouteDeps = Pick<
   | "principalRoleRepo"
   | "principalPolicyRepo"
   | "passwordHasher"
+  /** SPEC-006 0.6.0 — `disable.ts`'s seeded-owner guard (REQ-11). */
+  | "ownerPrincipalId"
 >;
 
 /** Registrar signature for the users/roles/policies route modules (mirrors `RouteRegistrar`). */
