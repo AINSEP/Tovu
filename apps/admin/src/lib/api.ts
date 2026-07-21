@@ -439,7 +439,7 @@ export interface AdminTaxonomyWithTerms {
   terms: AdminTerm[];
 }
 
-/** Storage — Timeline (ADR-041 §1). Mirrors `features/storage/timeline.ts`'s `LedgerRow`. */
+/** Database — Timeline (ADR-041 §1). Mirrors `features/database/timeline.ts`'s `LedgerRow`. */
 export interface AdminLedgerRow {
   id: string;
   kind: string;
@@ -450,7 +450,7 @@ export interface AdminLedgerRow {
 
 export type RestorePointCostClass = "cheap" | "expensive" | "unavailable";
 
-/** One persisted `restore_points` row (Storage's and Recovery's shared list source). */
+/** One persisted `restore_points` row (Database's and Recovery's shared list source). */
 export interface AdminRestorePoint {
   id: string;
   trigger: string;
@@ -482,7 +482,7 @@ export type DegradedBannerKind =
   | "cost-unavailable"
   | "watermark-baseline-unavailable";
 
-export type DegradedBannerActionKind = "deep-link-to-storage-migration" | "unblock-interrupted-migration" | "none";
+export type DegradedBannerActionKind = "deep-link-to-database-migration" | "unblock-interrupted-migration" | "none";
 
 export interface AdminDegradedBanner {
   kind: DegradedBannerKind;
@@ -497,7 +497,7 @@ export interface AdminRecoveryStatus {
 
 /** Carries display continuity only, never authority — `resolveDeepLinkContext` always
  * re-verifies `restorePointId` server-side (ADR-041 §7/ADR-045 §5, INV-04). */
-export interface StorageContextEnvelope {
+export interface DatabaseContextEnvelope {
   v: number;
   correlationId: string;
   siteId: string;
@@ -515,7 +515,7 @@ export interface AdminRecoveryDeepLinkResult {
 
 /**
  * Session 5-6 backend gap closure — the 3 gated-mutation ceremonies (`core/gated-mutations`'s
- * gateway, wired into the real composition for the first time): taxonomy merge-term, storage
+ * gateway, wired into the real composition for the first time): taxonomy merge-term, database
  * migrate-forward, recovery restore. Each mirrors `gateway.ts`'s own `plan`/`confirm`/`execute`
  * 3-endpoint shape; `GatedPlanResult`/`GatedConfirmResult` are the shared envelope, `TDetails`
  * varies per ceremony.
@@ -544,7 +544,7 @@ export interface MigrateForwardExecuteResult {
 export interface RestoreExecuteResult {
   restoreRunId: string;
   state: string;
-  storageTimelineDeepLink?: { v: 1; siteId: string; intent: "view" };
+  databaseTimelineDeepLink?: { v: 1; siteId: string; intent: "view" };
   /** 2026-07-16: `true` when content.db was physically swapped and the server process needs an
    * operator-triggered restart to pick it up — the running process keeps serving pre-restore data
    * from its already-open file handle until then. */
@@ -934,7 +934,7 @@ export const api = {
 
   // Collections (ADR-022/ADR-043) — content-types registry + entries. `/api/admin/v1/*`, not the
   // `/workspaces/{id}/*` shape the rest of this file uses — these routes take workspace from the
-  // authed principal's session server-side, matching `storage`/`recovery` below.
+  // authed principal's session server-side, matching `database`/`recovery` below.
   listContentTypes: () => request<{ items: AdminContentType[] }>("/content-types"),
   createContentType: (input: { key: string; label: string; fields: ContentTypeFieldDef[] }) =>
     request<{ contentType: AdminContentType }>("/content-types", {
@@ -999,8 +999,8 @@ export const api = {
       body: JSON.stringify({ intoTermId, confirmationToken }),
     }),
 
-  // Storage — Timeline + restore points (ADR-041).
-  getStorageTimeline: (opts: {
+  // Database — Timeline + restore points (ADR-041).
+  getDatabaseTimeline: (opts: {
     kind?: string;
     outcome?: string;
     fromDate?: string;
@@ -1017,32 +1017,32 @@ export const api = {
     if (opts.limit) params.set("limit", String(opts.limit));
     const qs = params.toString();
     return request<{ items: AdminLedgerRow[]; nextCursor: string | null }>(
-      `/storage/timeline${qs ? `?${qs}` : ""}`
+      `/database/timeline${qs ? `?${qs}` : ""}`
     );
   },
-  listStorageRestorePoints: () => request<{ items: AdminRestorePoint[] }>("/storage/restore-points"),
-  createStorageRestorePoint: (input: { trigger?: string; costAck?: boolean } = {}) =>
-    request<{ restorePoint: AdminRestorePointSummary }>("/storage/restore-points", {
+  listDatabaseRestorePoints: () => request<{ items: AdminRestorePoint[] }>("/database/restore-points"),
+  createDatabaseRestorePoint: (input: { trigger?: string; costAck?: boolean } = {}) =>
+    request<{ restorePoint: AdminRestorePointSummary }>("/database/restore-points", {
       method: "POST",
       body: JSON.stringify(input),
     }),
 
-  // Storage — migrate-forward ceremony (ADR-041 §3, SPEC-017 C-103/C-105). Plan takes no body —
+  // Database — migrate-forward ceremony (ADR-041 §3, SPEC-017 C-103/C-105). Plan takes no body —
   // the plan is computed entirely from the site's current migration/capability state server-side.
   planMigrateForward: () =>
-    request<GatedPlanResult>("/storage/migrate-forward/plan", { method: "POST" }),
+    request<GatedPlanResult>("/database/migrate-forward/plan", { method: "POST" }),
   confirmMigrateForward: (planId: string, planHash: string) =>
-    request<GatedConfirmResult>("/storage/migrate-forward/confirm", {
+    request<GatedConfirmResult>("/database/migrate-forward/confirm", {
       method: "POST",
       body: JSON.stringify({ planId, planHash }),
     }),
   executeMigrateForward: (confirmationToken: string) =>
-    request<MigrateForwardExecuteResult>("/storage/migrate-forward/execute", {
+    request<MigrateForwardExecuteResult>("/database/migrate-forward/execute", {
       method: "POST",
       body: JSON.stringify({ confirmationToken }),
     }),
 
-  // Recovery (ADR-045) — restore-points list (shared with Storage), disclosure, deep-link, status,
+  // Recovery (ADR-045) — restore-points list (shared with Database), disclosure, deep-link, status,
   // and the restore ceremony itself (SPEC-019 C-301/C-302/C-303).
   listRecoveryRestorePoints: () => request<{ items: AdminRestorePoint[] }>("/recovery/restore-points"),
   computeRecoveryDisclosure: (restorePointId: string) =>
@@ -1050,7 +1050,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ restorePointId }),
     }),
-  resolveRecoveryDeepLink: (envelope: StorageContextEnvelope) =>
+  resolveRecoveryDeepLink: (envelope: DatabaseContextEnvelope) =>
     request<AdminRecoveryDeepLinkResult>("/recovery/deep-link", {
       method: "POST",
       body: JSON.stringify({ envelope }),
@@ -1073,7 +1073,7 @@ export const api = {
     }),
 
   // Comments — moderation queue + settings (ADR-031, SPEC-033/035, SPEC-036 frontend). Mirrors
-  // `getStorageTimeline`'s query-param-building shape for the paginated queue read, and
+  // `getDatabaseTimeline`'s query-param-building shape for the paginated queue read, and
   // `getSeoSettings`/`setSeoSettings`'s `{data: ...}` shape for the settings GET/PUT.
   listCommentsQueue: (opts: { status?: CommentStatus; cursor?: string; limit?: number } = {}) => {
     const params = new URLSearchParams();

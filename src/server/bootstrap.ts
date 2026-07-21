@@ -1,5 +1,5 @@
 import { bootstrapStore } from "../features/plugins/store/store-plugin";
-import { reconcileInterruptedMigrationOnBoot } from "../features/storage/boot/reconcile-interrupted-migration";
+import { reconcileInterruptedMigrationOnBoot } from "../features/database/boot/reconcile-interrupted-migration";
 import type { BootModule } from "./boot-lifecycle";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps";
 
@@ -19,7 +19,7 @@ export interface BuildBootModulesOptions {
 }
 
 /**
- * `storage-migration-reconciliation` (ADR-041/043/044/045 re-audit, 2026-07-16,
+ * `database-migration-reconciliation` (ADR-041/043/044/045 re-audit, 2026-07-16,
  * TM-adr041-043-044-045-audit-001, Finding 2 fix) is CRITICAL and runs FIRST — ADR-041 §3's own
  * "never boot into a half-migrated schema" guarantee only holds if this scan actually runs;
  * before this fix, `reconcile-interrupted-migration.ts`'s fully-built, fully-unit-tested scanner
@@ -38,14 +38,14 @@ export interface BuildBootModulesOptions {
 export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootModulesOptions): BootModule[] {
   const modules: BootModule[] = [
     {
-      name: "storage-migration-reconciliation",
-      owner: "features/storage",
+      name: "database-migration-reconciliation",
+      owner: "features/database",
       criticality: "critical",
       prepare: async () => {
         await reconcileInterruptedMigrationOnBoot({
           siteId: deps.workspaceId,
           migrationRuns: deps.migrationRunsRepo,
-          ledger: deps.storageLedgerRepo,
+          ledger: deps.databaseLedgerRepo,
           siteStatus: deps.siteStatusRepo,
         });
       },

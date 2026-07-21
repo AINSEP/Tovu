@@ -101,12 +101,12 @@ test("recovery restore: plan -> confirm -> execute succeeds end-to-end and recor
     body: JSON.stringify({ confirmationToken, restorePointId }),
   });
   assert.equal(executeRes.status, 200);
-  const executed = (await executeRes.json()) as { restoreRunId: string; state: string; storageTimelineDeepLink?: { intent: string } };
+  const executed = (await executeRes.json()) as { restoreRunId: string; state: string; databaseTimelineDeepLink?: { intent: string } };
   assert.equal(executed.state, "RESTORED");
   assert.ok(executed.restoreRunId);
-  assert.equal(executed.storageTimelineDeepLink?.intent, "view", "a RESTORED completion attaches the Storage Timeline deep link (REQ-16/AC-26)");
+  assert.equal(executed.databaseTimelineDeepLink?.intent, "view", "a RESTORED completion attaches the Database Timeline deep link (REQ-16/AC-26)");
 
-  const ledger = await deps.storageLedgerRepo.query({ limit: 10 });
+  const ledger = await deps.databaseLedgerRepo.query({ limit: 10 });
   assert.equal(ledger.items.length, 1);
   assert.equal(ledger.items[0].kind, "restore.executed");
   assert.equal(ledger.items[0].outcome, "success");
@@ -233,7 +233,7 @@ test("AUD-001 regression: an unauthorized (bare) principal is rejected at /execu
 });
 
 test("AUD-001 regression (ordering proof, ext audit round 2 / Fable): authorize() runs before any lock-acquisition attempt", async (t) => {
-  // Same technique as storage-migrate-forward-routes.test.ts's sibling test: hold the site's
+  // Same technique as database-migrate-forward-routes.test.ts's sibling test: hold the site's
   // operation lock ourselves first, then have a bare (zero-grant) principal hit /execute.
   // Pre-fix, the route reached executeRestore's acquireOperationLock call before ever checking
   // authorization, so it would observe the lock already held and return 409

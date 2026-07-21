@@ -5,7 +5,8 @@
   "description": "Tovu — the website product: CMS runtime (public site + per-site admin + content model).",
   "type": "commonjs",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "TOVU_ADMIN_DEV_PROXY_URL=http://localhost:5173 npm run dev:server & npm run admin:dev & wait",
+    "dev:server": "tsx watch src/index.ts",
     "start": "node dist/src/index.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

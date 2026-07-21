@@ -12,7 +12,7 @@ import { deprecateContentType } from "../../lifecycle";
 /**
  * @file Real SQLite persistence for `features/content-types` (this dispatch, closing the gap
  * every prior spec-016-020 session disclosed: "no real repo.sqlite.ts/repo.memory.ts pair exists
- * yet"). Mirrors `infra/sqlite/__tests__/storage-journal.integration.test.ts`'s pattern: a real
+ * yet"). Mirrors `infra/sqlite/__tests__/database-journal.integration.test.ts`'s pattern: a real
  * temp-file `better-sqlite3` database, not `:memory:` (this repo's established convention for
  * this class of test). Drives the CERTIFIED `registerContentType`/`updateContentTypeFields`/
  * `deprecateContentType` write-service functions against the new SQLite repo — the actual proof

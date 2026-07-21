@@ -8,7 +8,7 @@ import { acquireOperationLock, releaseOperationLock } from "../../operation-lock
  *
  * This is THE highest-priority integration test across the entire 019/020 TDD dispatch
  * (per both packages' CIC Downstream Handoff Notes): it is the one property that cannot be
- * verified by testing either domain (`features/storage`'s migrate-forward, `features/recovery`'s
+ * verified by testing either domain (`features/database`'s migrate-forward, `features/recovery`'s
  * restore) in isolation — REQ-13/INV-03's cross-screen guarantee only exists when both domains
  * are proven to share exactly one lock outcome for the same site.
  *
@@ -19,11 +19,11 @@ import { acquireOperationLock, releaseOperationLock } from "../../operation-lock
  * `features/recovery/__tests__/integration/recovery-orchestrator.execute-restore.integration.test.ts`.
  */
 
-test("U-001-B1/ORD1 (property): N simultaneous acquireOperationLock attempts for the same site, from simulated Storage and Recovery callers, resolve to exactly one winner", async () => {
+test("U-001-B1/ORD1 (property): N simultaneous acquireOperationLock attempts for the same site, from simulated Database and Recovery callers, resolve to exactly one winner", async () => {
   const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
   const siteId = "site-contested";
 
-  // Simulate 6 "simultaneous" callers: 3 as if from Storage's migrate-forward path,
+  // Simulate 6 "simultaneous" callers: 3 as if from Database's migrate-forward path,
   // 3 as if from Recovery's restore path — the primitive must not distinguish caller identity,
   // only siteId, per U-001-B1's "never two domain-local checks that happen to look similar".
   const attempts = [

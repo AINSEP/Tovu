@@ -1,15 +1,15 @@
 import type { Express } from "express";
 
-import { resolveDeepLinkContext, type StorageContextEnvelope } from "../../../../features/recovery/deep-link";
+import { resolveDeepLinkContext, type DatabaseContextEnvelope } from "../../../../features/recovery/deep-link";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { StorageRecoveryRouteDeps } from "../storage-recovery/deps";
+import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps";
 
 /**
  * @file design-spec.md §4.5/§4.8 — `POST /api/admin/v1/recovery/deep-link` (re-resolves a
- * `StorageContextEnvelope` server-side on arrival, INV-04, ADR-041 §7 / ADR-045 §5). Gated by
+ * `DatabaseContextEnvelope` server-side on arrival, INV-04, ADR-041 §7 / ADR-045 §5). Gated by
  * `backup.read`.
  */
-export function registerAdminRecoveryDeepLinkRoute(app: Express, deps: StorageRecoveryRouteDeps): void {
+export function registerAdminRecoveryDeepLinkRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
   app.post("/api/admin/v1/recovery/deep-link", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
@@ -29,7 +29,7 @@ export function registerAdminRecoveryDeepLinkRoute(app: Express, deps: StorageRe
       }
 
       const body = req.body ?? {};
-      const envelope = body.envelope as StorageContextEnvelope | undefined;
+      const envelope = body.envelope as DatabaseContextEnvelope | undefined;
       if (!envelope || typeof envelope !== "object") {
         res.status(400).json({ error: "'envelope' (object) is required", code: "VALIDATION_ERROR" });
         return;

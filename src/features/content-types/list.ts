@@ -6,17 +6,17 @@ import type { ContentTypeRecord } from "./types";
  * list what had been written; this is that read.
  *
  * Purpose:
- * `listContentTypes` mirrors `features/storage/timeline.ts`'s `getTimeline` shape exactly: a thin
+ * `listContentTypes` mirrors `features/database/timeline.ts`'s `getTimeline` shape exactly: a thin
  * pass-through over an injected read port, no authorization/business logic of its own (the caller
  * route checks `admin.collections.read` before calling this, same division of labor
- * `routes/admin/storage/timeline.ts` already established).
+ * `routes/admin/database/timeline.ts` already established).
  *
  * How it relates to the project:
  * `ContentTypeListPort` is deliberately a NEW, narrower port — not an addition to
  * `write-service.ts`'s `ContentTypeRepoPort` — so a caller who only needs read access
  * (`routes/admin/content-types/list.ts`) can be typed against just this port, matching this
  * codebase's port-segregation convention (`LedgerReadPort` vs `BootLedgerPort` on the same
- * underlying table, `infra/sqlite/storage-journal-repo.ts`). The concrete adapter
+ * underlying table, `infra/sqlite/database-journal-repo.ts`). The concrete adapter
  * (`repo.memory.ts`'s `InMemoryContentTypeRepo`) implements both this and `ContentTypeRepoPort`.
  *
  * Architectural role:

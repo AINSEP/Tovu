@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { isOperationInFlight } from "../../../../core/operation-lock";
 import { resolveDegradedBanner } from "../../../../features/recovery/ui/degraded-banners";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { StorageRecoveryRouteDeps } from "../storage-recovery/deps";
+import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps";
 
 /**
  * @file design-spec.md §4.2/§4.4/§4.8 — `GET /api/admin/v1/recovery/status` (the capability/status
@@ -16,8 +16,8 @@ import type { StorageRecoveryRouteDeps } from "../storage-recovery/deps";
  *    `SqliteDbOpsAdapter` in the running server).
  *  - `pendingMigration`/`migrationInterrupted`: real read of `deps.siteStatusRepo`. ADR-041/043/
  *    044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix):
- *    `features/storage/boot/*`'s reconciliation functions are now invoked by
- *    `server/bootstrap.ts`'s `storage-migration-reconciliation` boot module before the site opens
+ *    `features/database/boot/*`'s reconciliation functions are now invoked by
+ *    `server/bootstrap.ts`'s `database-migration-reconciliation` boot module before the site opens
  *    to traffic, so this now reflects a REAL crash-interrupted-migration determination, not an
  *    always-`false` stub.
  *  - `operationInFlight`: real, from `core/operation-lock`'s `isOperationInFlight` read-only peek.
@@ -29,7 +29,7 @@ import type { StorageRecoveryRouteDeps } from "../storage-recovery/deps";
  *    mechanism itself.
  *  - `watermarkBaselineAvailable`: `false`, matching `disclosure.ts` route's own honest stub.
  */
-export function registerAdminRecoveryStatusRoute(app: Express, deps: StorageRecoveryRouteDeps): void {
+export function registerAdminRecoveryStatusRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
   app.get("/api/admin/v1/recovery/status", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

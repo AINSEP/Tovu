@@ -52,12 +52,20 @@ function sendSeaAsset(sea: SeaApi, key: string, res: Response): boolean {
  *
  * Behavior when no build exists (pure dev — Vite serves the shell itself):
  * /admin responds with a pointer to the Vite dev URL instead of 404ing.
+ *
+ * Dev-proxy mode (`TOVU_ADMIN_DEV_PROXY_URL`, e.g. `http://localhost:5173`):
+ * redirects /admin/* to Vite's dev server instead of serving `distDir`, so a
+ * stale build is never shown while iterating and Vite's own HMR/WebSocket
+ * client works unmodified (a redirect lands the browser on Vite's real
+ * origin, rather than proxying bytes through this server). Opt-in only —
+ * unset in production/packaged builds, where this env var must never be set.
  */
 export function registerAdminStatic(app: Express, required: { distDir: string }): void {
   const { distDir } = required;
   const indexHtml = path.join(distDir, "index.html");
 
-  // Single-binary mode: the admin build is embedded as SEA assets.
+  // Single-binary mode: the admin build is embedded as SEA assets. Always
+  // wins over dev-proxy mode — a packaged binary has no "dev" concept.
   const sea = seaApi();
   if (sea) {
     app.get(["/admin", "/admin/"], (_req, res) => {
@@ -67,6 +75,14 @@ export function registerAdminStatic(app: Express, required: { distDir: string })
       const rel = req.path.replace(/^\/admin\//, "");
       if (sendSeaAsset(sea, `admin/${rel}`, res)) return;
       sendSeaAsset(sea, "admin/index.html", res);
+    });
+    return;
+  }
+
+  const devProxyUrl = process.env.TOVU_ADMIN_DEV_PROXY_URL;
+  if (devProxyUrl) {
+    app.get(["/admin", "/admin/*"], (req, res) => {
+      res.redirect(302, `${devProxyUrl}${req.originalUrl}`);
     });
     return;
   }

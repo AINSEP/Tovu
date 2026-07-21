@@ -46,9 +46,9 @@ import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../forms
 import type { CommentIngressPolicy, CommentRepoPort } from "../../comments/ports";
 import type { CommentWriteService } from "../../comments/write-service";
 import type { RateLimiter } from "../middleware/rate-limit";
-import type { LedgerReadPort } from "../../features/storage/timeline";
-import type { RestorePointListPort, RestorePointSavePort } from "../../features/storage/restore-points";
-import type { BootLedgerPort, MigrationRunsRepoPort, SiteStatusPort } from "../../features/storage/boot/reconcile-interrupted-migration";
+import type { LedgerReadPort } from "../../features/database/timeline";
+import type { RestorePointListPort, RestorePointSavePort } from "../../features/database/restore-points";
+import type { BootLedgerPort, MigrationRunsRepoPort, SiteStatusPort } from "../../features/database/boot/reconcile-interrupted-migration";
 import type { DbOpsPort } from "../../core/gated-mutations/ports";
 import type { ContentTypeRepoPort, IndexProvisionerPort } from "../../features/content-types/write-service";
 import type { TeardownIndexProvisionerPort } from "../../features/content-types/lifecycle";
@@ -193,21 +193,21 @@ export interface RouteDeps {
   formSubmissionRepo: FormSubmissionRepoPort;
   formsRateLimiter: RateLimiter;
   /**
-   * ADR-041 §1/§2 — the Storage Timeline's read port, backed by the sidecar
-   * `ops/storage-journal.db` (`infra/sqlite/storage-journal-repo.ts`'s `SqliteStorageLedgerRepo`
-   * in `server/deps.ts`'s real composition; `features/storage/repo.memory.ts`'s
-   * `InMemoryStorageLedgerRepo` in `server/app.ts`'s hermetic composition). Only the read side is
-   * wired into `RouteDeps` this pass — see `routes/admin/storage/timeline.ts`'s file header for
+   * ADR-041 §1/§2 — the Database Timeline's read port, backed by the sidecar
+   * `ops/database-journal.db` (`infra/sqlite/database-journal-repo.ts`'s `SqliteDatabaseLedgerRepo`
+   * in `server/deps.ts`'s real composition; `features/database/repo.memory.ts`'s
+   * `InMemoryDatabaseLedgerRepo` in `server/app.ts`'s hermetic composition). Only the read side is
+   * wired into `RouteDeps` this pass — see `routes/admin/database/timeline.ts`'s file header for
    * what remains unwired.
    */
-  /** Widened this dispatch with `LedgerAppendPort` — both `SqliteStorageLedgerRepo` and
-   * `InMemoryStorageLedgerRepo` already implement `.append()`; only the type declaration here was
+  /** Widened this dispatch with `LedgerAppendPort` — both `SqliteDatabaseLedgerRepo` and
+   * `InMemoryDatabaseLedgerRepo` already implement `.append()`; only the type declaration here was
    * narrower than the concrete instances (see `gated-mutations-composition.ts`'s
    * `buildMigrateForwardHooks`/`buildRestoreHooks`, which need to append real ledger rows).
    * Widened again (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) with
    * `BootLedgerPort` — both concrete adapters already implement `appendInterruptedRow` too; only
    * this declaration was narrower. */
-  storageLedgerRepo: LedgerReadPort & LedgerAppendPort & BootLedgerPort;
+  databaseLedgerRepo: LedgerReadPort & LedgerAppendPort & BootLedgerPort;
   /** ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) —
    * the `migration_runs` read side `reconcileInterruptedMigrationOnBoot` needs; previously
    * constructed nowhere (real SQLite adapter existed, unused; no in-memory double existed). */
@@ -215,11 +215,11 @@ export interface RouteDeps {
   /**
    * Admin-UI backend-gap closure (design-spec.md §0.4/§1.9/§2.8/§3.8/§4.8, this dispatch) — the
    * read-side + route-layer wiring the Web Design pass found missing across `content-types`,
-   * `entries`, `taxonomy`, and (partially) `storage`/`recovery`. Every field below is backed by an
+   * `entries`, `taxonomy`, and (partially) `database`/`recovery`. Every field below is backed by an
    * in-memory adapter in BOTH `server/app.ts` and `server/deps.ts` (no SQLite adapter exists yet
    * for `content-types`/`entries`/`taxonomy` — the same disclosed "no adapter yet" precedent
    * `mediaRepo`/`transformDefinitionRepo`/`memberRepo` already establish above), EXCEPT
-   * `restorePointsRepo`/`dbOps`, which get real `infra/sqlite/storage-journal-repo.ts`/`db-ops.ts`
+   * `restorePointsRepo`/`dbOps`, which get real `infra/sqlite/database-journal-repo.ts`/`db-ops.ts`
    * adapters in `server/deps.ts` — see this dispatch's handoff for the full disclosure and the
    * follow-up SQLite-adapter work item it leaves open.
    */
@@ -245,18 +245,18 @@ export interface RouteDeps {
    * ceremony's by-term enumeration need — see `gated-mutations-composition.ts`). */
   entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort;
   taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
-  /** ADR-041 §2/§4 — the `restore_points` table's list + save side (`storage/restore-points.ts`'s
+  /** ADR-041 §2/§4 — the `restore_points` table's list + save side (`database/restore-points.ts`'s
    * new `RestorePointListPort`/`RestorePointSavePort`). Real `SqliteRestorePointsRepo` in
    * `server/deps.ts` (already built, previously unwired); in-memory in `server/app.ts`. */
   restorePointsRepo: RestorePointListPort & RestorePointSavePort;
   /** SPEC-016 C-007 — the dialect-neutral restore-point capability/capture surface. Real
    * `SqliteDbOpsAdapter` in `server/deps.ts` (already built, previously unwired); a deterministic
-   * in-memory double in `server/app.ts` (`features/storage/repo.memory.ts`'s
+   * in-memory double in `server/app.ts` (`features/database/repo.memory.ts`'s
    * `InMemoryDbOpsAdapter`). */
   dbOps: DbOpsPort;
   /** ADR-041 §3/§10 — this site's `SERVING`/`PENDING_MIGRATION`/`BLOCKED_PENDING_RECOVERY` status.
    * In-memory in both compositions, defaulted to `SERVING` — no composition root invokes
-   * `features/storage/boot/*`'s reconciliation functions at actual boot yet (disclosed gap, see
+   * `features/database/boot/*`'s reconciliation functions at actual boot yet (disclosed gap, see
    * handoff), so this only ever changes if a future caller calls `.set()`. */
   siteStatusRepo: SiteStatusPort;
   /** ADR-045 §2 — Recovery's discarded-write-window baseline source. Always reports the baseline
@@ -264,7 +264,7 @@ export interface RouteDeps {
    * safe default per `disclosure.ts`'s own "never fabricate a zero count" rule, not a corner cut;
    * see that class's doc comment. */
   disclosureWatermarkSource: DisclosureWatermarkSourcePort;
-  /** ADR-041 §7/ADR-045 §5 — re-resolves a `StorageContextEnvelope`'s carried `restorePointId`
+  /** ADR-041 §7/ADR-045 §5 — re-resolves a `DatabaseContextEnvelope`'s carried `restorePointId`
    * server-side (`features/recovery/repo.memory.ts`'s `RestorePointDeepLinkLookup`, backed by the
    * same real `restorePointsRepo` list above). */
   deepLinkRestorePointLookup: DeepLinkRestorePointLookupPort;
@@ -273,7 +273,7 @@ export interface RouteDeps {
    * root for the first time this dispatch. One process-lifetime `GatewayDeps` (in-process
    * `InMemoryTokenStore`, see `gated-mutations-composition.ts`'s file header for the disclosed
    * `TokenStorePort` decision) shared by every gated-mutation route this dispatch wires
-   * (`taxonomy/terms/:id/merge`, `storage/migrate-forward`, `recovery/restore`).
+   * (`taxonomy/terms/:id/merge`, `database/migrate-forward`, `recovery/restore`).
    */
   gatedMutations: { gatewayDeps: GatewayDeps };
   /**

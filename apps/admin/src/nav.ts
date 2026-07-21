@@ -133,12 +133,15 @@ export const NAV: NavGroup[] = [
         icon: '<path d="M7 2v3H4v9h10V5h-3V2H7z"/>',
       },
       {
-        // Renamed from "database" to match `#/section/storage` (App.activeSectionId derives
-        // the highlighted nav id from route.sectionId, so this id must equal the route segment,
-        // not just the label — ADR-041's "Storage, not Database" applies to the id too).
-        id: "storage",
-        label: "Storage",
-        href: "#/section/storage",
+        // Renamed from "storage" to "database" (ADR-041 naming-correction note, 2026-07):
+        // "Storage" read as ambiguous next to the Media/Assets subsystem's own file/blob storage
+        // — this section is the ADR-041 read-first ledger of migrations/snapshots/index
+        // changes/template upgrades, now called Database. `id` must equal the route segment
+        // (App.activeSectionId derives the highlighted nav id from route.sectionId), not just
+        // the label.
+        id: "database",
+        label: "Database",
+        href: "#/section/database",
         icon: '<ellipse cx="9" cy="4.5" rx="6" ry="2.2"/><path d="M3 4.5v9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2v-9"/><path d="M3 9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"/>',
       },
       {

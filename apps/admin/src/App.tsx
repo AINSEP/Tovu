@@ -27,7 +27,7 @@ import { Collections } from "./sections/Collections";
 import { CollectionEntries } from "./sections/CollectionEntries";
 import { CollectionEntryEditor } from "./sections/CollectionEntryEditor";
 import { Taxonomy } from "./sections/Taxonomy";
-import { Storage } from "./sections/Storage";
+import { Database } from "./sections/Database";
 import { Recovery } from "./sections/Recovery";
 
 type Route =
@@ -181,8 +181,8 @@ export function App() {
           <Collections />
         ) : route.sectionId === "taxonomy" ? (
           <Taxonomy />
-        ) : route.sectionId === "storage" ? (
-          <Storage />
+        ) : route.sectionId === "database" ? (
+          <Database />
         ) : route.sectionId === "recovery" ? (
           <Recovery />
         ) : (

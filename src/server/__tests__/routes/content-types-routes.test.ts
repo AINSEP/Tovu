@@ -15,7 +15,7 @@ import type { RouteDeps } from "../../routes/types";
 /**
  * @file design-spec.md §1.9 backend-gap closure — route-level tests for the Collections
  * content-type registry HTTP surface (ADR-022/ADR-043), this dispatch. Mirrors
- * `admin-storage-timeline-route.test.ts`'s real-auth pattern.
+ * `admin-database-timeline-route.test.ts`'s real-auth pattern.
  */
 function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();

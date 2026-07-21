@@ -17,12 +17,12 @@
  *   `planId` resolves to a plan the server's own `planRestore` actually minted," the latter half
  *   delegated entirely to the injected gateway's own plan-provenance verification (INV-02).
  * - `executeRestore` (CIC U-001-ORD1): acquires the shared, cross-domain `core/operation-lock`
- *   BEFORE the gateway's own `execute()` runs — the same primitive `features/storage`'s
+ *   BEFORE the gateway's own `execute()` runs — the same primitive `features/database`'s
  *   `executeMigrateForward` acquires, never an independent Recovery-local check (GOV-ADR-002) —
  *   and always releases it afterward, success or failure. Never itself clears `PENDING_MIGRATION`
  *   (REQ-18/EC-07 — restoring to an older snapshot does not resolve schema drift against the
  *   current runtime, ADR-045 §4). A successful `RESTORED` completion attaches a deep-link back to
- *   the Storage Timeline (REQ-16/AC-26) — the incident thread's closing hop (ADR-041 §7).
+ *   the Database Timeline (REQ-16/AC-26) — the incident thread's closing hop (ADR-041 §7).
  *
  * How it relates to the project:
  * `deps.gateway` stands in for a composition root's binding over the real
@@ -197,9 +197,9 @@ export interface ExecuteRestoreRequired {
 export interface ExecuteRestoreValue {
   restoreRunId: string;
   state: string;
-  /** Attached only on `state==='RESTORED'` (REQ-16/AC-26) — the deep-link back to the Storage
+  /** Attached only on `state==='RESTORED'` (REQ-16/AC-26) — the deep-link back to the Database
    * Timeline that closes the incident thread ADR-041 §7 describes. */
-  storageTimelineDeepLink?: { v: 1; siteId: string; intent: "view" };
+  databaseTimelineDeepLink?: { v: 1; siteId: string; intent: "view" };
   /** 2026-07-16: `true` when the physical content.db file was actually swapped (real SQLite
    * composition) — the running process keeps serving the pre-restore data from its already-open
    * file handle until an operator restarts it. `false`/absent for the hermetic in-memory
@@ -249,7 +249,7 @@ export async function executeRestore(
 
     const value: ExecuteRestoreValue = { ...executeResult.value };
     if (value.state === "RESTORED") {
-      value.storageTimelineDeepLink = { v: 1, siteId: input.siteId, intent: "view" };
+      value.databaseTimelineDeepLink = { v: 1, siteId: input.siteId, intent: "view" };
     }
     return { ok: true, value };
   } finally {

@@ -7,7 +7,7 @@ import { acquireOperationLock, isOperationInFlight, releaseOperationLock } from 
  * @file CIC U-001 (SPEC-019 `critical-internal-constraints.md`) — `core/operation-lock.ts`'s
  * site-wide gated-operation mutual exclusion primitive (C-309; REQ-13, INV-03; GOV-ADR-002).
  *
- * This is the SINGLE, SHARED primitive both `features/storage` (SPEC-017) and
+ * This is the SINGLE, SHARED primitive both `features/database` (SPEC-017) and
  * `features/recovery` (SPEC-019) MUST consult before starting a gated operation. It is
  * designated here (SPEC-019's own package) per the CIC's Cross-Feature Persistence rule —
  * do not duplicate this file's tests in SPEC-017's own test suite.

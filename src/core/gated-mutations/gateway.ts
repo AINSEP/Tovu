@@ -28,7 +28,7 @@ import {
  *   5. atomic token redemption, then the domain mutation (INV-03 exactly-once).
  *
  * How it relates to the project:
- * `hooks.executeMutation()` is where a feature (e.g. `features/storage`'s migrate-forward) opens
+ * `hooks.executeMutation()` is where a feature (e.g. `features/database`'s migrate-forward) opens
  * its own transaction and calls `watermark.ts`'s `stampWatermarkTx` alongside its domain writes.
  *
  * Architectural role:
@@ -37,7 +37,7 @@ import {
  */
 
 export interface GatedMutationHooks<TDetails, TResult> {
-  /** Stable domain identifier, e.g. `"storage.migrate"`. */
+  /** Stable domain identifier, e.g. `"database.migrate"`. */
   domain: string;
   /** Permission `plan()` checks, e.g. `"{domain}.read"`. */
   readPermission: string;

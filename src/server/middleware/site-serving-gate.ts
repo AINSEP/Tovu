@@ -1,11 +1,11 @@
 import type { Express, NextFunction, Request, Response } from "express";
 
-import type { SiteStatusPort } from "../../features/storage/boot/reconcile-interrupted-migration";
+import type { SiteStatusPort } from "../../features/database/boot/reconcile-interrupted-migration";
 
 /**
  * @file ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, round-2
  * external audit, codex finding `R2-F2-BLOCK-NOT-ENFORCED`) — closes the residual half of
- * Finding 2. `bootstrap.ts`'s `storage-migration-reconciliation` module (Finding 2's round-2 fix)
+ * Finding 2. `bootstrap.ts`'s `database-migration-reconciliation` module (Finding 2's round-2 fix)
  * correctly DETECTS a crash-interrupted migration and flips `siteStatusRepo` to
  * `BLOCKED_PENDING_RECOVERY`, but detection alone does not satisfy ADR-041 §3's "blocking normal
  * site open until resolved" — nothing previously consumed that status to actually refuse a

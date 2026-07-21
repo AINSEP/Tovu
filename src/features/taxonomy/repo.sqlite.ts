@@ -25,7 +25,7 @@ import type { TaxonomyListPort, TermListPort } from "./list";
  * own certified `write-service.ts`) never thread a `workspaceId` through their method signatures
  * (see that file's own header: "no `workspaceId` is threaded through this slice's certified
  * write-service tests"). Every adapter class here is therefore constructed workspace-scoped
- * instead — the same "scoped at construction" precedent `infra/sqlite/storage-journal-repo.ts`
+ * instead — the same "scoped at construction" precedent `infra/sqlite/database-journal-repo.ts`
  * already established for `siteId` — rather than widening a certified port signature that isn't
  * mine to change.
  *

@@ -5,7 +5,7 @@ import {
   type AdminDisclosureResult,
   type AdminRecoveryStatus,
   type AdminRestorePoint,
-  type StorageContextEnvelope,
+  type DatabaseContextEnvelope,
 } from "../lib/api";
 
 /**
@@ -42,7 +42,7 @@ function DegradedBannerView(props: { status: AdminRecoveryStatus }) {
   const banner = props.status.banner;
   if (!banner) return null;
 
-  // AC-27/EC-06/INV-07: `pending-migration`'s action always deep-links to Storage's own
+  // AC-27/EC-06/INV-07: `pending-migration`'s action always deep-links to Database's own
   // migration ceremony, never a Recovery restore action — restoring to an older snapshot does not
   // resolve schema drift against the current runtime.
   const assertive = banner.kind === "migration-interrupted" || banner.kind === "pending-migration";
@@ -50,9 +50,9 @@ function DegradedBannerView(props: { status: AdminRecoveryStatus }) {
   return (
     <div className={`notice error recovery-degraded-banner`} role={assertive ? "alert" : undefined} aria-live={assertive ? "assertive" : "polite"}>
       <span>{banner.accessibleText}</span>
-      {banner.actionKind === "deep-link-to-storage-migration" ? (
-        <a href="#/section/storage">
-          <button type="button">Go to Storage</button>
+      {banner.actionKind === "deep-link-to-database-migration" ? (
+        <a href="#/section/database">
+          <button type="button">Go to Database</button>
         </a>
       ) : null}
       {banner.actionKind === "unblock-interrupted-migration" ? (
@@ -337,14 +337,14 @@ export function Recovery() {
   useEffect(load, []);
 
   // Deep-link arrival (design-spec.md §4.5, ADR-041 §7/ADR-045 §5, INV-04): re-resolve any
-  // envelope `Storage.tsx` stashed before navigating here. A stale/forged/pruned envelope
+  // envelope `Database.tsx` stashed before navigating here. A stale/forged/pruned envelope
   // resolves to `found: false` — an expected, non-exceptional case, not an error toast.
   useEffect(() => {
     if (!points) return;
     const raw = sessionStorage.getItem("recovery-deep-link-envelope");
     if (!raw) return;
     sessionStorage.removeItem("recovery-deep-link-envelope");
-    let envelope: StorageContextEnvelope;
+    let envelope: DatabaseContextEnvelope;
     try {
       envelope = JSON.parse(raw);
     } catch {

@@ -12,8 +12,8 @@ import { openContentDb } from "../infra/sqlite/content-db";
 import { recoverIncompleteDataModuleMigrations } from "../features/plugins/migration-recovery";
 import { SqliteChangeSetRepo } from "../infra/sqlite/change-set-repo.sqlite";
 import { SqliteOutboxAdapter } from "../infra/sqlite/outbox-repo.sqlite";
-import { openStorageJournalDb } from "../infra/sqlite/storage-journal-db";
-import { SqliteMigrationRunsRepo, SqliteStorageLedgerRepo } from "../infra/sqlite/storage-journal-repo";
+import { openDatabaseJournalDb } from "../infra/sqlite/database-journal-db";
+import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "../infra/sqlite/database-journal-repo";
 import { ensureSeoSettingDefinitions } from "../seo";
 import { installNewsletterDataModule } from "../newsletter/data-module-manifest";
 import { ensureDefaultList } from "../newsletter/lists";
@@ -76,8 +76,8 @@ import {
 } from "../redirects";
 import { registerSlugChangeCapture } from "../routing";
 import { SqliteDbOpsAdapter } from "../infra/sqlite/db-ops";
-import { SqliteRestorePointsRepo } from "../infra/sqlite/storage-journal-repo";
-import { InMemorySiteStatusRepo } from "../features/storage/repo.memory";
+import { SqliteRestorePointsRepo } from "../infra/sqlite/database-journal-repo";
+import { InMemorySiteStatusRepo } from "../features/database/repo.memory";
 import { NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
 import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite";
 import { SqliteEntryRepo } from "../features/entries/repo.sqlite";
@@ -123,14 +123,14 @@ export function defaultContentDbPath(): string {
 }
 
 /**
- * ADR-041 §2 — the sidecar `ops/storage-journal.db` lives as a sibling of `content.db` in the
+ * ADR-041 §2 — the sidecar `ops/database-journal.db` lives as a sibling of `content.db` in the
  * install-dir tree, never inside it (a physically separate SQLite file so a `content.db` restore
  * never erases the incident record narrating that very restore). Defaults to `<dirname of
- * content.db>/ops/storage-journal.db`; overridable independently via `TOVU_STORAGE_JOURNAL_DB`
+ * content.db>/ops/database-journal.db`; overridable independently via `TOVU_DATABASE_JOURNAL_DB`
  * for deployments that relocate the sidecar journal on its own.
  */
-export function defaultStorageJournalDbPath(contentDbPath: string = defaultContentDbPath()): string {
-  return process.env.TOVU_STORAGE_JOURNAL_DB ?? join(dirname(contentDbPath), "ops", "storage-journal.db");
+export function defaultDatabaseJournalDbPath(contentDbPath: string = defaultContentDbPath()): string {
+  return process.env.TOVU_DATABASE_JOURNAL_DB ?? join(dirname(contentDbPath), "ops", "database-journal.db");
 }
 
 export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): NewsletterRouteDeps {
@@ -302,23 +302,23 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
   // ADR-041 §2 — opens the sidecar ops journal alongside content.db. `mkdirSync` (recursive) is
   // required first: unlike `openContentDb`'s target (the process cwd, which already exists),
   // `ops/` is a new subdirectory better-sqlite3 will not create for us.
-  const storageJournalDbPath = defaultStorageJournalDbPath(dbPath);
-  mkdirSync(dirname(storageJournalDbPath), { recursive: true });
-  const storageJournalDb = openStorageJournalDb(storageJournalDbPath);
+  const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
+  mkdirSync(dirname(databaseJournalDbPath), { recursive: true });
+  const databaseJournalDb = openDatabaseJournalDb(databaseJournalDbPath);
   // `siteId` reuses `workspaceId` for v1's single-workspace-per-content.db topology — ADR-041 §7
   // names `siteId` vs `workspaceId` as SPEC-003 OQ-04, explicitly unresolved by that ADR; this
   // composition root does not resolve it either, it just picks the only value available today.
-  const storageLedgerRepo = new SqliteStorageLedgerRepo({ db: storageJournalDb, siteId: seededWorkspace.id });
+  const databaseLedgerRepo = new SqliteDatabaseLedgerRepo({ db: databaseJournalDb, siteId: seededWorkspace.id });
   // ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) —
   // the real `migration_runs` read side `reconcileInterruptedMigrationOnBoot` needs. The actual
   // boot-time SCAN call lives in `bootstrap.ts` (a proper sequenced boot module), not here —
   // this composition root only constructs and exposes the port.
-  const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: storageJournalDb, siteId: seededWorkspace.id });
+  const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: databaseJournalDb, siteId: seededWorkspace.id });
   // Admin-UI backend-gap closure (design-spec.md §0.4/§3.8/§4.8, this dispatch): both classes were
   // already built (a prior session's disclosed-but-unwired infra work — see each class's own file
   // header) but never constructed by any composition root until now. `SqliteRestorePointsRepo`
-  // shares the same sidecar journal db/siteId as `storageLedgerRepo` above.
-  const restorePointsRepo = new SqliteRestorePointsRepo({ db: storageJournalDb, siteId: seededWorkspace.id });
+  // shares the same sidecar journal db/siteId as `databaseLedgerRepo` above.
+  const restorePointsRepo = new SqliteRestorePointsRepo({ db: databaseJournalDb, siteId: seededWorkspace.id });
   const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
 
   // ADR-031/ADR-023 (SPEC-033) — hoisted so the Comments module's `entryLookup` reads the SAME
@@ -394,7 +394,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters for all four route-consumed media
     // repos — previously in-memory (ADR-027 walking skeleton, rows lost on every restart). Bytes
     // already used the real `LocalFsBlobStore` (unlike `server/app.ts`'s hermetic-test
-    // composition) since durable byte storage was always the one piece of Media pointless to fake
+    // composition) since durable byte database was always the one piece of Media pointless to fake
     // in the actual running server.
     mediaRepo: new SqliteMediaRepo(db),
     assetBlobRepo: new SqliteAssetBlobRepo(db),
@@ -429,7 +429,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     formDefinitionRepo: new SqliteFormDefinitionRepo(db),
     formSubmissionRepo: new SqliteFormSubmissionRepo(db),
     formsRateLimiter: createRateLimiter(FORMS_SUBMIT_PROFILE, clock),
-    storageLedgerRepo,
+    databaseLedgerRepo,
     // Real SQLite adapters (this dispatch, closing Session 5's disclosed "no SQLite adapter yet
     // for content-types/entries/taxonomy" gap — see `features/{content-types,entries,taxonomy}/
     // repo.sqlite.ts` file headers). `contentTypeIndexProvisioner` stays a no-op: building the real

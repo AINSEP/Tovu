@@ -8,7 +8,7 @@ import type { PrincipalKind } from "../core/gated-mutations/ports";
 import type { MergeTermPlanDetails } from "../features/taxonomy/merge-term";
 import type { TermRepoPort } from "../features/taxonomy/write-service";
 import type { TaxonomyRevisionRepoPort } from "../features/taxonomy/write-service";
-import type { MigrationRunsRepoPort, SiteStatusPort } from "../features/storage/boot/reconcile-interrupted-migration";
+import type { MigrationRunsRepoPort, SiteStatusPort } from "../features/database/boot/reconcile-interrupted-migration";
 
 /**
  * @file Composes `core/gated-mutations`'s `plan()`/`confirm()`/`execute()` primitive into this
@@ -20,7 +20,7 @@ import type { MigrationRunsRepoPort, SiteStatusPort } from "../features/storage/
  * Purpose:
  * `createGatedMutationCompositionRoot` builds the one shared `GatewayDeps` (clock/idGen/authorize/
  * tokens) both compositions need, plus three `buildXHooks` factories — one per deferred ceremony
- * (taxonomy `mergeTerm`, storage `migrate-forward`, recovery `restore`) — that each route
+ * (taxonomy `mergeTerm`, database `migrate-forward`, recovery `restore`) — that each route
  * constructs fresh per request (hooks close over request-scoped identifiers like `fromTermId`/
  * `intoTermId` or `restorePointId`, which are only known once a request arrives).
  *
@@ -222,11 +222,11 @@ export interface BuildMigrateForwardHooksInput {
   idGen: IdGeneratorPort;
   dbOps: MigrateForwardDbOpsPort;
   restorePointsRepo: { save(row: { restorePointId: string; idempotencyKey: string; trigger: string; createdAt: string; createdBy: string; costClass?: string; kind?: string; watermarkAtCapture?: number | null }): Promise<void> };
-  storageLedgerRepo: LedgerAppendPort;
+  databaseLedgerRepo: LedgerAppendPort;
 }
 
 /**
- * SPEC-017 C-103/C-105 — the Storage `migrate-forward` ceremony's `GatedMutationHooks`.
+ * SPEC-017 C-103/C-105 — the Database `migrate-forward` ceremony's `GatedMutationHooks`.
  *
  * `computePlan()` reads live `dbOps.getCapabilities()` every call (never cached) — a site whose
  * capability changes between plan and execute (e.g. `cheap` -> `unavailable`) correctly produces a
@@ -251,9 +251,9 @@ export interface BuildMigrateForwardHooksInput {
  */
 export function buildMigrateForwardHooks(input: BuildMigrateForwardHooksInput): GatedMutationHooks<{ costClass: string; siteId: string }, { migrated: true }> {
   return {
-    domain: "storage.migrate",
-    readPermission: "storage.read",
-    mutatePermission: "storage.migrate",
+    domain: "database.migrate",
+    readPermission: "database.read",
+    mutatePermission: "database.migrate",
     scopeId: input.workspaceId,
     computePlan: async () => {
       const capabilities = await input.dbOps.getCapabilities();
@@ -274,7 +274,7 @@ export function buildMigrateForwardHooks(input: BuildMigrateForwardHooksInput): 
         kind: "file-snapshot",
         watermarkAtCapture: captured.watermarkAtCapture,
       });
-      await input.storageLedgerRepo.append({
+      await input.databaseLedgerRepo.append({
         id: input.idGen.newId(),
         kind: "core.migration",
         restorePointId,
@@ -297,7 +297,7 @@ export interface BuildRestoreHooksInput {
   clock: ClockPort;
   idGen: IdGeneratorPort;
   restorePointsRepo: { list(): Promise<Array<{ id: string; createdAt: string; artifactRef: string }>> };
-  storageLedgerRepo: LedgerAppendPort;
+  databaseLedgerRepo: LedgerAppendPort;
   /** SPEC-016 `DbOpsPort` — real (SQLite) composition performs the physical file swap;
    * hermetic-test composition's in-memory double is a no-op (`restartRequired: false`). */
   dbOps: { restoreFromArtifact(required: { artifactRef: string }): Promise<{ restartRequired: boolean }> };
@@ -364,7 +364,7 @@ export function buildRestoreHooks(input: BuildRestoreHooksInput): GatedMutationH
 
       const restoreRunId = input.idGen.newId();
       const now = input.clock.nowIso();
-      await input.storageLedgerRepo.append({
+      await input.databaseLedgerRepo.append({
         id: input.idGen.newId(),
         kind: "restore.executed",
         restorePointId: input.restorePointId,

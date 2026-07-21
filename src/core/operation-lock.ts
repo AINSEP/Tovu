@@ -5,7 +5,7 @@ import type { ClockPort } from "./ports";
  * mutual exclusion (C-309; REQ-13, INV-03; GOV-ADR-002).
  *
  * Purpose:
- * The single, shared primitive both `features/storage` (SPEC-017, migrate-forward) and
+ * The single, shared primitive both `features/database` (SPEC-017, migrate-forward) and
  * `features/recovery` (SPEC-019, restore) MUST consult before starting a gated operation. Two
  * domains racing to mutate the same site's `content.db` must never both be "in flight" — the
  * primitive tracks in-flight state per `siteId` only, never per-domain, so it cannot be defeated
@@ -23,7 +23,7 @@ import type { ClockPort } from "./ports";
  *
  * ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 3):
  * the internal verifier's original claim — "never wired into any composition root" — is false,
- * disproven by direct evidence: `server/routes/admin/storage/migrate-forward.ts` and
+ * disproven by direct evidence: `server/routes/admin/database/migrate-forward.ts` and
  * `server/routes/admin/recovery/restore.ts` both import `acquireOperationLock`/
  * `releaseOperationLock` from this file directly and pass them into `executeMigrateForward`/
  * `executeRestore` (their `execute` endpoints only). The mutual-exclusion guarantee (U-001) is

@@ -497,3 +497,17 @@ Pro) plus this fold-in pass over its Decision Ledger. **It has since cleared a 3
 (2026-07-14, `TM-ADR-STORAGE-CONTENT-004`) — unanimous PASS from all three auditors as of round 3, see item 11.**
 Per the process this repo's own consensus report names (`debate → audit → ADR`), that step is now complete;
 Accepted status still requires an explicit human-owner sign-off, which this ADR has not yet received.
+
+## Naming correction (2026-07-20, owner call)
+
+The surface this ADR names **"Storage"** (nav label, `/admin/storage`, `storage.read`/`storage.migrate`,
+`features/storage`, the `storage-journal.db` sidecar, `storage_write_watermark`) is renamed to
+**"Database"** throughout the shipped product and code (`/admin/database`, `database.read`/
+`database.migrate`, `features/database`, `database-journal.db`, `database_write_watermark`). Reason:
+"Storage" reads as ambiguous next to the Media/Assets subsystem (ADR-027, `/admin/media`), which is
+about file/blob storage, not schema/migration history — "Database" disambiguates the two at a glance.
+This is a **terminology correction, not a redesign** — every mechanism this ADR decides (read-first
+Timeline, one forward-migrate write op, snapshot-anchored restore points, the sidecar journal, the
+watermark) is unchanged; only the name changes. Per this repo's "supersede rather than edit" rule, the
+Decision text above is left as originally written and should be read with "Storage" → "Database"
+substituted throughout. Recovery (ADR-045) is unaffected and keeps its own name.

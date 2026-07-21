@@ -9,7 +9,7 @@ import { resolveDegradedBanner } from "../../ui/degraded-banners";
  * Precedence order (highest to lowest): migration.interrupted > PENDING_MIGRATION >
  * operation-in-flight > costClass:'unavailable' > watermark-baseline-unavailable.
  *
- * Covers: AC-27 (PENDING_MIGRATION banner action deep-links to Storage only), AC-29
+ * Covers: AC-27 (PENDING_MIGRATION banner action deep-links to the Database Timeline only), AC-29
  * (migration.interrupted surfaced with "planned downtime" substring), INV-07 (PENDING_MIGRATION
  * banner action never routes to a Recovery restore-flow action), EC-06 (both interrupted and
  * pending-migration true at once — interrupted wins the primary slot, pending-migration remains
@@ -54,11 +54,11 @@ test("precedence: PENDING_MIGRATION outranks operation-in-flight when migration.
   assert.equal(banner?.kind, "pending-migration");
 });
 
-test("AC-27/INV-07: the pending-migration banner's action always deep-links to Storage's migration ceremony, never a Recovery restore-flow action", () => {
+test("AC-27/INV-07: the pending-migration banner's action always deep-links to the Database Timeline's migration ceremony, never a Recovery restore-flow action", () => {
   const banner = resolveDegradedBanner({ capabilities: capabilities({ pendingMigration: true }) });
 
   assert.ok(banner);
-  assert.equal(banner.actionKind, "deep-link-to-storage-migration");
+  assert.equal(banner.actionKind, "deep-link-to-database-migration");
   assert.notEqual(banner.actionKind, "restore-flow");
 });
 

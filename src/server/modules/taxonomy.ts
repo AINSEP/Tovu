@@ -15,7 +15,7 @@ import type { ServerModuleHandle } from "./types";
  *
  * Deliberately NOT moved: `registerAdminTaxonomyMergeTermRoutes` (ADR-044's one gated-mutation
  * ceremony, `/terms/:id/merge/{plan,confirm,execute}`). It stays inline in `app.ts`, registered
- * alongside the unrelated storage `migrate-forward` and recovery `restore` ceremonies — all three
+ * alongside the unrelated database `migrate-forward` and recovery `restore` ceremonies — all three
  * share the same `core/gated-mutations` gateway construction pattern (SPEC-016), and splitting
  * just the taxonomy third out on its own would entangle this module with that shared gateway
  * composition for no real ownership benefit. See SPEC-034 for the full disclosure.
