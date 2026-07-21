@@ -1,0 +1,150 @@
+^D## Decision-point ledger (Round 2 agenda)
+
+**D1. Region-binding structure & concurrency**
+**Position: CHANGED. Endorse A′ (Region composition as a seeded `widget_area` entry + thin binding table).**
+In Round 1, I proposed "Option D (Regions as Entries)" to eliminate the binding table entirely. Fable's A′ captures the exact same structural benefit (putting the mutable, ordered list into an entry to get revisions, OCC, and `entry_refs` for free) but correctly retains the thin binding table to map a logical `region_key` to a specific area entry. This is superior to my R1 proposal because it allows hot-swapping a region's entire contents (e.g., swapping to a "Holiday Footer" area) without touching the inline TipTap schema or hardcoding slugs. I fully agree with Fable and the Primary that pulling the composition state out of the mapping table and into a proper entry is the correct generalization of ADR-029.
+
+**D2. Widget resolution contract (NEW)**
+**Position: AGREE with Primary/Codex. Core needs an explicit typed resolver interface.**
+Widgets cannot be assumed to be capability-free. The architecture must define a `resolve(instance, renderContext) => RenderIR` contract executed server-side. For caching, the widget instances should hook into the existing fragment-caching layer, invalidated by the `widgets.instance.updated` outbox events already mentioned in ADR-047. Without this boundary, a rogue or slow dynamic widget (e.g., Recent Entries) can degrade page performance.
+
+**D3. Widget-type registry: pure data vs. code-backed (NEW)**
+**Position: AGREE. Split type-registration (data) from type-behavior (code).**
+Fable's critique is sharp. Saying "widget types are data" is a dangerous oversimplification. Registration (schema, allowed contexts, defaults) is pure data (Tier 1). The resolver function (how it fetches data) is executable code (Tier 2/3). This split aligns perfectly with Tovu's ADR-024 tier-gating and ensures that adding a new static widget type remains safe, while adding a new dynamic widget type correctly triggers code-review/plugin-trust requirements.
+
+**D4. `entry_refs` completeness (NEW)**
+**Position: AGREE. Explicitly route widget config refs through ADR-022 §5.**
+If a widget config references another entry (like a Menu widget referencing a Menu entry, or Recent Entries referencing a Taxonomy Term), those references must be extracted into the `entry_refs` index. This is a low-effort, high-leverage fix that ensures safe-delete and "where-used" work perfectly for widget internal dependencies.
+
+**D5. Contact Form v1 scope**
+**Position: CHANGED. Ship in v1 as a thin wrapper over `src/forms/`.**
+Given the new evidence that `submit-service.ts`, `rate-limit-profile.ts`, and `notify-subscriber.ts` (wired to a real `MailerPort`) already exist and function, my Round 1 hesitation is voided. The Contact Form widget does not need to build a submission pipeline; it only needs to act as a UI configuration and placement wrapper around an existing Forms `formDefinitionId`. It should absolutely ship in v1, serving as the canonical example of a side-effecting widget.
+
+**D6. Freeform inline embed guardrails**
+**Position: UNCHANGED, CONVERGED.**
+Use a freeform TipTap `widgetEmbed` block-level atom node. Enforce no recursive widget-in-widget embedding at the schema level, and implement a per-document embed-count clamp to bound render costs.
+
+**D7. Shared-instance vs. duplicate-on-place default**
+**Position: UNCHANGED, CONVERGED.**
+Default to shared-instance reuse at placement time. The critical cognitive choice ("does editing this change it everywhere?") belongs at *edit* time, utilizing the `entry_refs` "where-used" data to prompt the user: "This widget appears in 3 places. [Update Everywhere] / [Edit as New Copy]".
+
+**D8. Render-time failure isolation (NEW)**
+**Position: AGREE.**
+A widget failure (timeout, missing resolver, trashed instance) must be caught by a unified error boundary during the server-side `resolve()` phase. It must yield a degraded RenderIR (e.g., an empty node or an admin-only error placeholder) and never abort the entire page render.
+
+**D9. Region-binding scope: site-wide only in v1**
+**Position: UNCHANGED, CONVERGED.**
+Regions are site-wide in v1. The TipTap inline embed covers per-page overrides cleanly. We leave the schema seam open for per-page region bindings later if needed.
+
+---
+
+## Artifacts for Resolution
+
+### 1. Sample Design (Schema & Resolver Interfaces)
+
+**Schema Sketch (A′ Region Binding & Widget Area)**
+```sql
+-- The thin mapping table (site-wide region to area entry)
+CREATE TABLE widget_region_bindings (
+  workspace_id UUID NOT NULL,
+  region_key VARCHAR(255) NOT NULL, -- e.g., 'global-sidebar'
+  area_entry_id UUID NOT NULL REFERENCES entries(id),
+  PRIMARY KEY (workspace_id, region_key)
+);
+
+-- The seeded area entry (type='widget_area') holds the composition in its bodyJson:
+-- {
+--   "widgets": [
+--     { "ref": "widget-instance-id-1" },
+--     { "ref": "widget-instance-id-2" }
+--   ]
+-- }
+-- This gets versions, optimistic locking, and entry_refs automatically.
+```
+
+**Resolver Interface Sketch (D2/D3)**
+```typescript
+interface WidgetRenderContext {
+  workspaceId: string;
+  pageContext: PageContext;
+  // ... routing params, language, etc.
+}
+
+interface WidgetResolver<TConfig = unknown, TResolved = unknown> {
+  // Pure data registration (Tier 1)
+  type: string;
+  capabilities: ('static' | 'query' | 'form')[];
+  configSchema: ZodSchema<TConfig>;
+
+  // Executable behavior (Tier 2/3 gated)
+  resolve(
+    instanceId: string,
+    config: TConfig,
+    context: WidgetRenderContext
+  ): Promise<RenderIRNode<TResolved>>;
+  
+  // Cache invalidation dependencies (optional)
+  getCacheTags?(instanceId: string, config: TConfig): string[];
+}
+```
+
+### 2. Draft ADR-047 Amendment (Diff-shaped)
+
+```diff
+## Decision
+
+-We will implement widget instances as seeded `entries` (type=`widget_instance`), retaining placement dualism: inline within rich-text, and globally via an ordered `widget_region_bindings` table.
++We will implement widget instances as seeded `entries` (type=`widget_instance`), retaining placement dualism: inline within rich-text, and globally via a seeded `widget_area` entry.
++Global regions map to a `widget_area` entry via a thin `widget_region_bindings(workspace_id, region_key, area_entry_id)` table. The `widget_area` entry's `bodyJson` contains the ordered list of widget references, gaining revision history, optimistic locking, and `entry_refs` coverage for free.
+
+-Widget types are pure data, defining their configuration schema and default token-based styling.
++Widget type definition is split: *Type Registration* (schema, capabilities) is pure data and Tier-1 safe. *Type Behavior* (the `resolve()` function) is executable code and Tier-2/3 gated per ADR-024.
++Any referenced entities within a widget's configuration (e.g., a Menu ID or Form ID) must be extracted into the `entry_refs` index per ADR-022 §5 to ensure safe-delete integrity.
+
++All dynamic widgets must implement a bounded-cost `resolve(instance, renderContext)` contract. Render-time failures (timeout, missing resolver) must yield a safe degraded placeholder and never abort the page render.
+```
+
+### 3. Specs-level Requirements
+
+**Requirement 1: Widget Area Entry & Region Binding**
+- A `widget_area` is a standard entry type. Its `bodyJson` schema must be an object containing a `widgets` array, where each element is an object with a `ref` string pointing to a `widget_instance` entry ID.
+- Reordering or adding widgets to a region constitutes an update to the `widget_area` entry, enforcing standard optimistic concurrency control (OCC) via the entry's version token.
+- The `widget_region_bindings` table must enforce a unique constraint on `(workspace_id, region_key)`.
+
+**Requirement 2: Widget Resolver & Render Boundary**
+- Core must provide a `WidgetRegistry` that maps widget types to their `WidgetResolver` implementations.
+- The server-side rendering pipeline must invoke `resolver.resolve()` for all widgets in a region or document prior to Liquid template execution.
+- Executions of `resolve()` must be wrapped in a `try/catch` with a strict timeout (e.g., 500ms). Any thrown error or timeout must return a standard `WidgetErrorIRNode` which the Liquid renderer safely ignores or renders as an admin-only warning placeholder.
+
+**Requirement 3: Contact Form Wrapper Widget**
+- The Contact Form widget type must define a config schema requiring a valid `formDefinitionId`.
+- Its resolver must verify the `formDefinitionId` exists via the `src/forms/` feature.
+- It delegates all submission logic, rate-limiting (`rate-limit-profile.ts`), and delivery (`submit-service.ts`) to the existing Forms subsystem, acting purely as a presentational facade in the widget rendering layer.
+
+### 4. Implementation Outline
+
+1. **Schema & Models:**
+   - Migrate/create `widget_region_bindings` table.
+   - Register `widget_instance` and `widget_area` in the content-type registry (ADR-022).
+   - Implement `entry_refs` extractors for both `widget_area` (extracting the ordered list of widget refs) and `widget_instance` (extracting refs from within specific config schemas).
+2. **Resolver Registry (Core):**
+   - Create `src/widgets/registry.ts` defining the `WidgetResolver` interface.
+   - Implement Tier-1 static resolvers (Text, Social Links).
+   - Implement Tier-2 dynamic resolvers (Menu reference, Recent Entries, Contact Form).
+3. **Contact Form Wiring:**
+   - Create `src/widgets/resolvers/contact-form.ts` to fetch form definitions from `src/forms/` and output RenderIR.
+4. **Render Pipeline & Fallbacks:**
+   - Update the server-side render prep phase to map over all `widgetEmbed` nodes and `widget_area` refs, executing `resolve()` in parallel with a timeout boundary.
+5. **Editor & Admin UI:**
+   - Implement the TipTap `widgetEmbed` atom node.
+   - Update the region manager UI to mutate the underlying `widget_area` entry rather than raw DB rows.
+
+### 5. Short Overview for Non-Technical Stakeholder
+
+We are building a unified system that lets you create a feature—like a Contact Form or a Social Links block—just once, and place it anywhere on your site, whether inside a specific article or globally in your sidebar. By treating these widgets as first-class, versioned documents in our database, we get a complete history of who changed what and when. If someone accidentally deletes or breaks a widget, the site won't crash; it will safely hide the broken piece while keeping the rest of the page online. Because we are reusing the rock-solid Forms system we already built, you'll have a fully functional Contact Form widget available on day one, seamlessly managed from one central place.
+
+---
+
+**Unlisted option check:** The ledger covers the necessary decomposition. Adopting A′ essentially merges my Round 1 "Regions as Entries" insight with Fable's rigorous architectural mapping, creating the strongest possible hybrid. No further major options are missing.
+
+<<SWARM_END>>

@@ -88,7 +88,7 @@ export interface OutboxPort {
   enqueue(event: { name: string; payload: Record<string, unknown> }): Promise<void>;
 }
 
-/** Optional (SPEC-016 REQ-01/INV-08) — advances `storage_write_watermark` by exactly 1 when supplied. */
+/** Optional (SPEC-016 REQ-01/INV-08) — advances `database_write_watermark` by exactly 1 when supplied. */
 export interface WatermarkPort {
   stampWatermark(input: { workspaceId: string }): Promise<number>;
 }

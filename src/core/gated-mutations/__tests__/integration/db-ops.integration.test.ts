@@ -183,7 +183,7 @@ test("restoreFromArtifact: swaps content.db's real content to match the captured
     db.$client.close();
     const reopened = new Database(filePath, { readonly: true });
     const watermarkAfterReopen = reopened
-      .prepare("SELECT value FROM storage_write_watermark WHERE id = 1")
+      .prepare("SELECT value FROM database_write_watermark WHERE id = 1")
       .get() as { value: number } | undefined;
     reopened.close();
 

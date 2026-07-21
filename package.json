@@ -11,7 +11,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:generate:storage-journal": "drizzle-kit generate --config=drizzle.storage-journal.config.ts",
+    "db:generate:database-journal": "drizzle-kit generate --config=drizzle.database-journal.config.ts",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "test:visual": "playwright test",
     "test:cov": "rm -rf coverage && mkdir -p coverage && node --import tsx --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test-reporter=spec --test-reporter-destination=stdout \"src/**/*.test.ts\"",

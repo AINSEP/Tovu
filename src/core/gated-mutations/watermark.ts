@@ -9,7 +9,7 @@ import type { MirrorStorePort } from "./ports";
  * gated-mutation write watermark and its read-side mirror reconciliation.
  *
  * Purpose:
- * `storage_write_watermark` is a singleton row in `content.db`, advanced by exactly 1 inside the
+ * `database_write_watermark` is a singleton row in `content.db`, advanced by exactly 1 inside the
  * SAME transaction as the gated mutation it stamps (same-transaction atomicity, U-002-B1/INV-01).
  * `reconcileMirror` is the boot-time (and on-demand) sync that overwrites a cheap, possibly-stale
  * read-side mirror from that authoritative value — never the other way around (U-004-B1).
@@ -66,7 +66,7 @@ export type ContentDbTransaction = Parameters<Parameters<ContentDb["transaction"
 /**
  * Real `content.db`-backed variant of `stampWatermark`: wraps the given Drizzle transaction in an
  * `OpenTransactionHandle` whose `increment()` performs the actual `UPDATE ... SET value = value +
- * 1` against `storage_write_watermark`'s singleton row, then reuses `stampWatermark`'s guard/shape
+ * 1` against `database_write_watermark`'s singleton row, then reuses `stampWatermark`'s guard/shape
  * so both entry points share one increment-exactly-once contract.
  *
  * Must be called from inside the caller's own already-open transaction (same `tx`), never on a
@@ -84,17 +84,17 @@ export function stampWatermarkTx(
   const handle: OpenTransactionHandle = {
     isOpen: true,
     increment: () => {
-      tx.update(schema.storageWriteWatermark)
+      tx.update(schema.databaseWriteWatermark)
         .set({
-          value: sql`${schema.storageWriteWatermark.value} + 1`,
+          value: sql`${schema.databaseWriteWatermark.value} + 1`,
           lastStampedAt: new Date().toISOString(),
         })
-        .where(eq(schema.storageWriteWatermark.id, 1))
+        .where(eq(schema.databaseWriteWatermark.id, 1))
         .run();
       const row = tx
-        .select({ value: schema.storageWriteWatermark.value })
-        .from(schema.storageWriteWatermark)
-        .where(eq(schema.storageWriteWatermark.id, 1))
+        .select({ value: schema.databaseWriteWatermark.value })
+        .from(schema.databaseWriteWatermark)
+        .where(eq(schema.databaseWriteWatermark.id, 1))
         .all()[0];
       return row?.value ?? 0;
     },
@@ -110,9 +110,9 @@ export function stampWatermarkTx(
  */
 export function getCurrentWatermark(required: { db: ContentDb }, _optional: Record<string, never> = {}): { value: number } {
   const row = required.db
-    .select({ value: schema.storageWriteWatermark.value })
-    .from(schema.storageWriteWatermark)
-    .where(eq(schema.storageWriteWatermark.id, 1))
+    .select({ value: schema.databaseWriteWatermark.value })
+    .from(schema.databaseWriteWatermark)
+    .where(eq(schema.databaseWriteWatermark.id, 1))
     .all()[0];
   return { value: row?.value ?? 0 };
 }

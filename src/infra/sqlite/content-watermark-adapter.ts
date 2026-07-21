@@ -29,7 +29,7 @@ export class SqliteContentWatermarkAdapter implements ContentDbWatermarkPort {
   constructor(private readonly db: ContentDb) {}
 
   /**
-   * Advances `storage_write_watermark` by exactly 1, reusing SPEC-016's certified
+   * Advances `database_write_watermark` by exactly 1, reusing SPEC-016's certified
    * `stampWatermarkTx` rather than re-implementing the increment SQL.
    *
    * @complexity O(1) — one UPDATE + one SELECT against a single-row table.
