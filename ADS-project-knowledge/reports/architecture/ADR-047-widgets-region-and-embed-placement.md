@@ -1,9 +1,11 @@
 # ADR-047: Widgets — Entry-Native Instances, Dual Placement (Region Binding + Inline Embed), Token-Styled Defaults
 
-- Status: PROPOSED 2026-07-20 (single-agent design draft, Claude Sonnet 5 / Leon Aburime, Coordinator
-  Review Mode — synthesized directly from an owner design conversation, not an autonomous sweep). Owes
-  a swarm `/debate` + external `/audit-work` pass before ACCEPTED, matching this project's standing
-  process (see ADR-029's own precedent — a design-only draft that later cleared debate + a 3-round audit).
+- Status: PROPOSED 2026-07-20, **debate cleared 2026-07-21** (2-round swarm `/debate` — Primary Claude
+  Sonnet 5, agy/Gemini 3.1 Pro High, Codex GPT-5.6-sol, Fable — full 4/4 convergence by Round 2, zero
+  unresolved deltas at the recommendation level; see `reports/swarm-consensus/runs/20260721-widgets-adr047-consensus-report.md`
+  and the Debate Fold-In section below). Owes external `/audit-work` before ACCEPTED, matching this
+  project's standing process (see ADR-029's own precedent — a design-only draft that cleared debate + a
+  3-round audit).
 - Author: Claude Sonnet 5 / Leon Aburime
 - Extends: **ADR-022** (a widget is a seeded content-type entry, exactly as a menu is; reuses `entry_refs`),
   **ADR-002** (component registry, design tokens, slots/regions, canonical render IR),
@@ -269,6 +271,178 @@ its render-time resolver; token-based default styling + the two override levels 
    widget instances rather than one entry, does not inherit that trick automatically. **Needs a design
    pass**, likely a `region_version` counter on the binding set, before Wave-1 build.
 
+## Debate Fold-In (2026-07-21)
+
+*A 2-round swarm `/debate` (Primary Claude Sonnet 5, agy/Gemini 3.1 Pro High, Codex GPT-5.6-sol, Fable)
+stress-tested this ADR. Full trace: `reports/swarm-consensus/runs/20260721-widgets-adr047-consensus-report.md`.
+Round 1 was blind and solution-neutral (Option A vs. two rejected alternatives — B: pure stateless
+blocks/slots, no persistent widget identity; C: Payload-style page-local composition, no theme regions).
+All four participants independently rejected B and C and converged on Option A's shape. Round 2 was
+informed (full cross-participant reasoning disclosed) and reached full 4/4 agreement, with reasoned
+position changes, on every point below. This section amends the Decision above; original §1–9 numbering
+is left intact as the historical pre-debate record — read the amendments as superseding the specific
+clauses they name.*
+
+### Amendment 1 — §2a region binding replaced: composition lives in a seeded entry, not raw binding rows
+
+**Superseded:** §2a's `widget_region_bindings(workspace_id, region_key, widget_instance_id, position,
+bound_at)` design, where the ordered widget list lived directly in the binding table.
+
+**Amended decision:** Region composition is content, and content lives in entries, exactly as a menu's
+item tree does (ADR-029 §2). Each theme-declared region is backed by a seeded `widget_area` entry
+(`type='widget_area'`) whose `bodyJson` holds the ordered placement list (`{ placementId: ULID,
+widgetEntryId: UUID }[]`) and whose `fields.ext.widgets.regionKey` names the region it fills — the
+source of truth, exactly mirroring how a menu's location assignment lives on the menu entry
+(`fields.ext.navigation.locations`, ADR-029 §4). `widget_region_bindings(workspace_id, region_key,
+area_entry_id)`, `UNIQUE(workspace_id, region_key)`, becomes a **derived, rebuildable, non-revision-
+generating projection** — reconciled at the write chokepoint, never directly authored — mirroring
+`nav_location_bindings` exactly (verified against the live `src/navigation/types.ts`/`reconcile.ts`
+during the debate, not just against ADR-029's text). This was independently proposed three different
+ways in Round 1 (agy's "Option D," Fable's "A′," Codex's lighter versioned-aggregate fix) before
+converging fully on this shape in Round 2.
+
+Consequences: region reorder concurrency is the entry's existing `version` optimistic-lock column — no
+new concurrency primitive (resolves original Open #5). Revert/audit/change-set review of a region is the
+existing entry-revision machinery — no new revision subsystem. `widget_area → widget instance` is a
+plain entry-to-entry reference, so it needs no polymorphic source support from `entry_refs` (see
+Amendment 3). Theme-switch orphaned area entries are retained (`status: inactive`), never deleted —
+same discipline as ADR-029's location-binding retention. A `widget_area` entry is system-managed: never
+publicly routable, never itself selectable as a widget, never a valid `widgetEmbed` target (no recursion
+into a region from inside a region).
+
+### Amendment 2 — new §Resolution: an explicit, bounded, batch-first resolver contract (was unstated)
+
+**New section**, filling a gap the original draft did not address at all. Before Liquid rendering, core
+resolves every widget — both region-bound and inline-embedded — through one of two paths:
+
+- **Static path** (Text, Social Links): validated config renders directly, no behavioral code.
+- **Resolver path** (Recent Entries, Menu-as-widget, Contact Form): a typed, core-owned `resolve`
+  function per widget type, invoked server-side, pre-Liquid, **batch-first**
+  (`resolveMany(instances, renderContext)` — one entry-load query per page via `WHERE id IN (...)`,
+  grouped by type, one resolver call per group) to avoid N+1 query cost across a region's full widget
+  set. Each type registration declares hard cost clamps (e.g. Recent Entries: `maxItems ≤ 20`, one
+  bounded query, no unbounded scans) enforced by core, not by the resolver's own discipline, per ADR-024
+  §5's total/bounded-cost rule.
+
+**Failure isolation (resolves original Open item, and the Primary's pre-debate structural-gap flag,
+independently corroborated by a peer in Round 1):** a resolution failure (unknown type, invalid config,
+missing/disabled/trashed target, timeout, resolver exception) yields a typed placeholder result — never
+propagates past the placement boundary, never aborts the surrounding page render. Public output renders
+empty or a safe placeholder with no internal error detail; admin/preview surfaces a correlation id and
+diagnostic. This is a standing invariant, not an aspiration — enforce it the same way this codebase
+already enforces "never `await` mail inline" as a standing code-review gate for Forms (ADR-PIPE-010
+INV-05), not merely an ADR sentence.
+
+Caching: v1 ships **no cross-request fragment cache** — there is nothing to reuse in the live repo,
+and importing an invalidation problem ahead of a proven need is the wrong trade. Each resolver still
+declares its dependency keys (entry ids, type-level keys) in its result, and the already-specified
+outbox events (§8, `widgets.instance.updated` etc.) are the *designated future* invalidation feed — a
+declared seam, not wired in v1. This converts §8's events from an unconnected assertion into an honest,
+scoped commitment.
+
+### Amendment 3 — §1/§3 corrected: registry is data-and-code, not "data, not code"; `entry_refs` scope stated honestly
+
+**Superseded:** §1's "A widget-type registry (data, not code)" framing, and §3's "extend `entry_refs`
+with a `widgetRef` kind" treated as a uniformly free reuse of existing machinery.
+
+**Amended decision (registry):** split explicitly. Widget **type registration** — schema, defaults,
+capability class (`static` | `query` | `form` | `entry-reference`), placement contexts, cost clamps — is
+plain, JSON-serializable data, Tier-1-safe, following the exact discipline `src/forms/manifest.ts`
+already establishes for this codebase ("registration is data, never imported by behavior code"). Widget
+**type behavior** — the resolver function — is executable code: core-owned for every v1 built-in type,
+and an ADR-024 Tier-2/3 capability-gated event the moment a plugin wants to contribute a *new dynamic*
+type. Registration data may name only an allowlisted `resolverId` indexing into a closed core-owned map
+— never a module path, arbitrary function name, query string, or expression. Purely static types (Text,
+Social Links) have no resolver at all and stay Tier-1-safe end to end.
+
+**Amended decision (`entry_refs`):** two distinct extensions, stated with their real cost, not assumed
+free:
+- Both placement mechanisms (region binding via `widget_area`, inline embed) are now plain entry-to-
+  entry references (Amendment 1 made the region case one too), so no polymorphic non-entry source
+  support is needed in `entry_refs` — this part of the original §3 concern is fully resolved by
+  Amendment 1, not worked around.
+- Widget config's own ref-typed fields (a Recent Entries category filter, a Contact Form's
+  `formDefinitionId`, a Menu widget's `menuRef`) must extract into `entry_refs` via ADR-022 §5's `ref`
+  field-type vocabulary. **This is stated as a real, named v1 build dependency, not a free reuse of
+  shipped code** — verified during the debate that `entry_refs` does not yet exist as running code in
+  this repo (no table in `src/infra/db/schema.ts`; `src/navigation/resolver.ts`'s own comment states it
+  "has no compatible ADR-022 schema yet"). A minimal slice — the table plus a chokepoint extractor for
+  `ref`-typed config fields and `widgetEmbed` body nodes — is a named dependency of this ADR's v1, since
+  the where-used UX in Amendment 5 and safe-delete both stand on it. Entry-target refs (menu, form
+  definition, success-page) are cleanly covered by the existing `ref` vocabulary; term/taxonomy-target
+  refs are narrower — covered only if the installed schema supports that target kind, otherwise
+  documented as a soft reference with specified missing-target behavior, not claimed as safe-delete-
+  protected until the extended-reference seam lands.
+
+### Amendment 4 — §9 Contact Form restored to v1 (was deferred)
+
+**Superseded:** §9's "defer Contact Form as a core type until the Forms feature itself ships."
+
+**Amended decision:** Contact Form **ships in v1**. This deferral was premised on Forms not existing yet
+— verified during the debate that this premise is false: `src/forms/` is a real, tested, already-wired
+feature (`submit-service.ts` as the sole public submission path with honeypot spam handling,
+`rate-limit-profile.ts` reusing the existing rate limiter, `notify-subscriber.ts` consuming the
+`form.submission.received` outbox event and calling a real, implemented `MailerPort`, ADR-037). The
+Contact Form widget type is a thin adapter: config holds a ref-typed `formDefinitionId`; its resolver
+loads the definition and emits a field-descriptor IR against the Forms field-type vocabulary (not four
+hardcoded field cases); its render component submits to Forms' existing public route unchanged,
+inheriting validation, honeypot, rate-limiting, notification, and webhook fan-out wholesale. No new
+submission or delivery pipeline is built. A `disabled` form definition (definitions are never deleted,
+only `active ⇄ disabled`) renders as the Amendment 2 failure-isolation placeholder, not an error. CSRF is
+not a new concern — the endpoint is deliberately anonymous/public by design (mirrors `analytics-ingest`),
+defended by honeypot + rate-limit, and the widget introduces no new authenticated surface.
+
+### Amendment 5 — §2b, §9 Open #2/#3 resolved: chokepoint-enforced guardrails; edit-time reuse signal
+
+**Amended decision (embed guardrails, resolves original Open #2):** the freeform `widgetEmbed` TipTap
+node ships as drafted in §2b, with three guardrails made explicit and — critically — **enforced at the
+write chokepoint on the persisted document, not only in the TipTap editor**: (a) block-level atom node,
+never inline; (b) no recursive widget-in-widget embedding — forbidden at the schema-validation level
+inside any widget-owned `bodyJson`, not merely hidden from the editor's UI; (c) a configurable
+per-document embed-count clamp, policy-bounded. Chokepoint enforcement matters specifically because a
+future server-side AI mutation path (Amendment 6) has no live editor to rely on for these guardrails.
+
+**Amended decision (reuse default, resolves original Open #3):** default to **reuse** the existing
+instance at placement time — a bare "always ask" modal on every placement is the wrong friction point,
+since the operator can't yet predict either answer's consequence at that moment. The real, informed
+choice surfaces at **edit** time: editing a widget referenced in N places surfaces "this appears in N
+places — change everywhere / detach and edit just this one," directly powered by the Amendment 3
+`entry_refs` where-used data (making this UX a real, named dependency of that build item, not a nice-
+to-have). For AI tools, no ambient default at all: `widgets.place` (reuse) vs. `widgets.create`+place
+(duplicate) must be explicit, distinct tool calls — never inferred.
+
+### Amendment 6 — new: agent-native mutation must not depend solely on a live editor
+
+**New, resolving a gap Codex's Round 1 answer named and no other participant initially caught:** §5's AI
+place/remove/adjust story as originally drafted routed inline-embed edits exclusively through a
+CopilotKit frontend action bound to a live browser editor instance (ADR-016 §1). That is correct for the
+common case but insufficient for the stated requirement that AI can operate on widgets generally — an
+agent must be able to insert/remove/reorder a `widgetEmbed` node when no editor session is open. Amended:
+a server-side, versioned document-mutation command exists using the same document schema, chokepoint,
+version precondition, and change-set review layer as the live-editor path — two entry points into one
+mutation contract, not two contracts. Coordination between a live editor session and a concurrent
+server-side/AI mutation follows the document's existing version-precondition discipline (reject on
+mismatch), the same pattern already governing region-area concurrency (Amendment 1).
+
+### Framing note (non-binding, carried forward from the debate)
+
+Widgets are reusable *referenced* components, not the universal representation of every local content
+block. Cheap, one-off, non-reusable presentational fragments should stay ordinary inline content, not be
+forced into widget-instance identity merely for architectural uniformity — that would recreate the exact
+"everything is a plugin" over-generalization ADR-024 already rejected for a different surface. This is a
+boundary statement for future page-building work (the deferred structured "blocks array," §9), not a v1
+mechanism change.
+
+## Open — resolved by the debate fold-in above
+
+Original items 1, 2, 3, 5 are resolved by Amendments 1, 5, 5, and 1 respectively (see each amendment's
+"resolves" note). Original item 4 (core v1 widget-type list) is resolved: Text, Social Links, Recent
+Entries, Menu-as-widget, and Contact Form (Amendment 4) constitute the v1 set; each type's capability
+requirements are captured in Amendment 3's registration schema (`capability` field) and Amendment 4's
+Contact Form specifics. No open items remain blocking at the ADR level — remaining detail (exact resolver
+timeout value, whether a post-v1 fragment cache is added, the precise term-target `entry_refs` extension
+shape) is spec-level, not architecture-level, and is deferred to the spec accordingly.
+
 ## Record
 
 - **Type of work:** single-agent design draft (Claude Sonnet 5), synthesized from a direct owner design
@@ -278,9 +452,11 @@ its render-time resolver; token-based default styling + the two override levels 
 - **Grounding:** accepted ADRs 002/006/007/008/009/016/020/021/022/024/027/029 and `tovu-v2-design.md`'s
   Tier-3 table (explicitly revisited, see Context). No accepted ADR is reopened; the one informal
   planning-doc note this ADR partially supersedes is called out directly, not silently overridden.
-- **Verification owed:** unlike ADR-029, this draft's types/ports have **not yet** been written as real
-  repo files or typechecked against the live tree — that is the first task once this ADR clears debate,
-  not before.
-- **Next steps:** per this project's standing process, this ADR owes a swarm `/debate` + external
-  `/audit-work` pass before ACCEPTED. Spec, tasks, implementation outline, and code should not begin
-  before that gate clears (see Open #1–#5 as the debate/audit seed agenda).
+- **Verification owed:** this draft's types/ports have **not yet** been written as real repo files or
+  typechecked against the live tree — that is spec/implementation-outline work, not this ADR's.
+- **Debate:** cleared 2026-07-21, 2 rounds, full 4/4 convergence, zero unresolved deltas at the
+  recommendation level — see Debate Fold-In above and the full consensus report.
+- **Next steps:** per this project's standing process, this ADR owes an external `/audit-work` pass
+  before ACCEPTED. Spec, implementation outline, and TDD test suite are being produced in parallel with
+  the audit per owner direction (2026-07-21) rather than strictly gated behind ACCEPTED — audit findings
+  will fold back into whichever of the ADR/spec/outline/tests they land on.

@@ -13,7 +13,7 @@ import { getCurrentWatermark, reconcileMirror, stampWatermarkTx } from "../../wa
  * @file SPEC-016 C-004 / U-002 / INV-01 / EC-01 / AC-01 / AC-03 — same-transaction watermark
  * atomicity against a real SQLite-backed `content.db`.
  *
- * Assumed schema addition (Programmer's T015): `storage_write_watermark` is a singleton row
+ * Assumed schema addition (Programmer's T015): `database_write_watermark` is a singleton row
  * (`id=1`) in `content.db` with columns `value: integer` (64-bit signed) and
  * `lastStampedAt: text | null`, per `implementation-outline.md`'s Data And Side-Effect Boundaries
  * table and `state.spec.md` §1.
@@ -42,7 +42,7 @@ import { getCurrentWatermark, reconcileMirror, stampWatermarkTx } from "../../wa
  * SPEC-017 sign-off).
  */
 
-test("AC-01 / U-002-B1: stampWatermarkTx inside a real transaction advances storage_write_watermark by exactly 1 atomically with a sibling write", () => {
+test("AC-01 / U-002-B1: stampWatermarkTx inside a real transaction advances database_write_watermark by exactly 1 atomically with a sibling write", () => {
   const db = openContentDb(":memory:");
   const before = getCurrentWatermark({ db });
 
@@ -72,7 +72,7 @@ test("INV-01 (sequential correctness): N transactions each incrementing once lea
   assert.equal(after.value, before.value + N);
 });
 
-test("INV-01: storage_write_watermark's value is never observed to decrease across any sequence of stamps", () => {
+test("INV-01: database_write_watermark's value is never observed to decrease across any sequence of stamps", () => {
   const db = openContentDb(":memory:");
   const observed: number[] = [getCurrentWatermark({ db }).value];
 
@@ -122,7 +122,7 @@ test("EC-01 (SQLite mechanism): a second connection's write transaction is block
   }
 });
 
-test("U-004 / REQ-04: reconcileMirror sets the mirror to content.db's authoritative value on successful open, never derived from storage_ledger", async () => {
+test("U-004 / REQ-04: reconcileMirror sets the mirror to content.db's authoritative value on successful open, never derived from database_ledger", async () => {
   const db = openContentDb(":memory:");
   db.transaction((tx) => {
     stampWatermarkTx({ tx });

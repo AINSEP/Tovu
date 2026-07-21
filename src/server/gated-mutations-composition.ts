@@ -236,7 +236,7 @@ export interface BuildMigrateForwardHooksInput {
  * root can perform without inventing an unreviewed live-schema-swap mechanism: it captures a real
  * restore point (`dbOps.captureRestorePoint` — an online-backup file copy in the real SQLite
  * composition, a deterministic double in the hermetic one) and appends a `core.migration`
- * `storage_ledger` row anchored to it. It deliberately does NOT re-run `drizzle-orm`'s migrator
+ * `database_ledger` row anchored to it. It deliberately does NOT re-run `drizzle-orm`'s migrator
  * directly against `content.db` — every composition root already runs `migrate()` unconditionally
  * at `openContentDb()` boot time (`infra/sqlite/content-db.ts`), so by the time any ceremony could
  * run, the schema is already at head; re-invoking the migrator here would be a no-op in every
@@ -319,7 +319,7 @@ export class RestorePointNotFoundError extends Error {
  * SPEC-019 C-301/C-303 — the Recovery `restore` ceremony's `GatedMutationHooks`.
  *
  * `executeMutation()` is a deliberately, disclosedly SCOPED implementation: it validates the
- * target restore point still exists and records a real `restore.executed` `storage_ledger` row —
+ * target restore point still exists and records a real `restore.executed` `database_ledger` row —
  * the honest, auditable half of a restore. It does NOT physically overwrite the live `content.db`
  * file. This codebase has no mechanism to hot-swap the shared, already-open `content.db`
  * connection every other repo across `server/deps.ts` holds a reference to (doing so would either

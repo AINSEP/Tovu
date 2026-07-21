@@ -398,10 +398,42 @@ registerPermission({
  * verb has a route (e.g. `admin.newsletter.settings.manage` above) — so a future session wiring
  * the remaining Database/Recovery routes need not touch this file again.
  */
+registerPermission({
+  id: "storage.read",
+  owner: "database",
+  description:
+    "DEPRECATED (ADR-041 naming-correction note, 2026-07-20) — superseded by database.read below, " +
+    "mirroring this catalog's integration.manage -> admin.integrations.manage precedent. Retained " +
+    "(not deleted) — see database.read's own comment for the same Migration Safety gating this " +
+    "repo's other permission renames have used.",
+});
 registerPermission({ id: "database.read", owner: "database", description: "Read the Database Timeline, schema drift status, and restore points." });
+registerPermissionMigration({
+  from: "storage.read",
+  to: ["database.read"],
+  reason:
+    "ADR-041 naming-correction note (2026-07-20): storage.read renamed to database.read; every " +
+    "policy holding the old flat permission must not be silently locked out by the rename.",
+});
 /** ADR-046 Phase 2 (SPEC-030) — gates `GET /api/admin/v1/system/module-status`. */
 registerPermission({ id: "system.read", owner: "server", description: "Read boot/readiness module lifecycle status." });
+registerPermission({
+  id: "storage.migrate",
+  owner: "database",
+  description:
+    "DEPRECATED (ADR-041 naming-correction note, 2026-07-20) — superseded by database.migrate below, " +
+    "mirroring this catalog's integration.manage -> admin.integrations.manage precedent. Retained " +
+    "(not deleted) — see database.migrate's own comment for the same Migration Safety gating this " +
+    "repo's other permission renames have used.",
+});
 registerPermission({ id: "database.migrate", owner: "database", description: "Plan, confirm, and execute a forward schema migration." });
+registerPermissionMigration({
+  from: "storage.migrate",
+  to: ["database.migrate"],
+  reason:
+    "ADR-041 naming-correction note (2026-07-20): storage.migrate renamed to database.migrate; every " +
+    "policy holding the old flat permission must not be silently locked out by the rename.",
+});
 registerPermission({ id: "backup.read", owner: "recovery", description: "Read restore points and this site's restore capability." });
 registerPermission({ id: "backup.create", owner: "recovery", description: "Mint a restore point independent of any migration." });
 registerPermission({ id: "backup.restore", owner: "recovery", description: "Confirm and execute a restore to a prior restore point." });
@@ -485,6 +517,29 @@ registerPermissionMigration({
   reason:
     "ADR-027 §7 / SPEC-021 REQ-40/OQ-02: media.write replaced by the flat media.* permission set; " +
     "every policy holding the old flat permission must not be silently narrowed by the split.",
+});
+
+/**
+ * SPEC-043 (Widgets, ADR-047 §5/§8, Debate Fold-In Amendment 5/6) — flat `widgets.*` permissions,
+ * matching `comments.*`'s shape (flat `domain.verb`, not the `admin.<section>.<action>`
+ * convention). `.place` is split from `.update` (mirrors `admin.menus.assign`'s split from
+ * `admin.menus.update`): placing a widget onto the live site is higher-trust than editing an
+ * off-site instance's config. `.delete`/`.delete.force` mirrors `media.delete`/`media.delete.force`
+ * (REQ-42/43's trash -> purge-blocked -> force-purge ladder).
+ */
+registerPermission({ id: "widgets.read", owner: "widgets", description: "Read widget instances, widget_area regions, and their revision history." });
+registerPermission({ id: "widgets.create", owner: "widgets", description: "Create a new widget instance." });
+registerPermission({ id: "widgets.update", owner: "widgets", description: "Update an existing widget instance's config." });
+registerPermission({
+  id: "widgets.place",
+  owner: "widgets",
+  description: "Bind/reorder/disable a widget in a region's widget_area, or insert/remove/reorder a widgetEmbed node.",
+});
+registerPermission({ id: "widgets.delete", owner: "widgets", description: "Trash a widget instance." });
+registerPermission({
+  id: "widgets.delete.force",
+  owner: "widgets",
+  description: "Force-purge a widget instance past the still-referenced guard, flagging any resulting dangling references.",
 });
 
 /** Enumerate the full registered catalog (REQ-12 core capability; CLI wiring is N/A, see file header). */

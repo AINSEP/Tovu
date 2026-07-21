@@ -105,10 +105,10 @@ test("revision/audit trail actually persists: create + create-term + rename each
     );
     assert.ok(rows.every((r) => r.workspace_id === "ws-1" && r.taxonomy_id === taxonomy.id));
 
-    // storage_write_watermark advanced by exactly 3 (one per stampWatermark() call above) — proves
+    // database_write_watermark advanced by exactly 3 (one per stampWatermark() call above) — proves
     // `sqliteStampWatermark` genuinely reused the certified `stampWatermarkTx` increment, not a
     // silent no-op.
-    const watermarkRow = dbAfterRestart.$client.prepare("SELECT value FROM storage_write_watermark WHERE id = 1").get() as { value: number };
+    const watermarkRow = dbAfterRestart.$client.prepare("SELECT value FROM database_write_watermark WHERE id = 1").get() as { value: number };
     assert.equal(watermarkRow.value, 3);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });

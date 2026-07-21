@@ -3,21 +3,21 @@ import { and, desc, eq, gte, lte, or, lt, type SQL } from "drizzle-orm";
 import type { LedgerReadPort, LedgerRow } from "../../features/database/timeline";
 import type { BootLedgerPort, MigrationRunsRepoPort } from "../../features/database/boot/reconcile-interrupted-migration";
 import type { CreateRestorePointRepoPort } from "../../features/recovery/restore-points";
-import * as schema from "./storage-journal-schema";
+import * as schema from "./database-journal-schema";
 import type { DatabaseJournalDb } from "./database-journal-db";
 
 /**
  * @file ADR-041 §2/§4 — real SQLite adapters over the sidecar `ops/database-journal.db`, closing
  * the gap Session 2's `features/database` slice explicitly disclosed: the domain-logic layer
  * (`timeline.ts`, `boot/reconcile-interrupted-migration.ts`, ...) existed fakes-only, with no
- * adapter that actually persists into `storage_ledger`/`migration_runs`/`restore_points`.
+ * adapter that actually persists into `database_ledger`/`migration_runs`/`restore_points`.
  *
  * Purpose:
  * Every class here is a thin, siteId-scoped implementation of an ALREADY-DEFINED port from
  * `features/database`/`features/recovery` — no port shape changes, only real persistence behind
  * them. `SqliteDatabaseLedgerRepo` doubles as `LedgerReadPort` (Timeline's read side) and
  * `BootLedgerPort` (boot reconciliation's append side), since both operate on the same
- * `storage_ledger` table.
+ * `database_ledger` table.
  *
  * How it relates to the project:
  * `server/deps.ts` constructs these against the sidecar db `database-journal-db.ts` opens
@@ -40,13 +40,13 @@ function decodeCursor(cursor: string): { createdAt: string; id: string } | null 
   return { createdAt: cursor.slice(0, separatorIndex), id: cursor.slice(separatorIndex + 2) };
 }
 
-/** `storage_ledger` adapter — implements both the Timeline's read port and the boot
+/** `database_ledger` adapter — implements both the Timeline's read port and the boot
  * reconciliation's append port, siteId-scoped at construction. */
 export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort {
   constructor(private readonly deps: { db: DatabaseJournalDb; siteId: string }) {}
 
   /**
-   * REQ-01/REQ-04 — filtered, cursor-paginated read over `storage_ledger`, newest-first. The
+   * REQ-01/REQ-04 — filtered, cursor-paginated read over `database_ledger`, newest-first. The
    * cursor is an opaque `${createdAt}::${id}` composite (never a raw offset — stable under
    * concurrent inserts).
    *
@@ -64,19 +64,19 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
   }): Promise<{ items: LedgerRow[]; nextCursor: string | null }> {
     const { db, siteId } = this.deps;
 
-    const conditions: SQL[] = [eq(schema.storageLedger.siteId, siteId)];
-    if (filter.kind) conditions.push(eq(schema.storageLedger.kind, filter.kind));
-    if (filter.outcome) conditions.push(eq(schema.storageLedger.outcome, filter.outcome));
-    if (filter.fromDate) conditions.push(gte(schema.storageLedger.createdAt, filter.fromDate));
-    if (filter.toDate) conditions.push(lte(schema.storageLedger.createdAt, filter.toDate));
+    const conditions: SQL[] = [eq(schema.databaseLedger.siteId, siteId)];
+    if (filter.kind) conditions.push(eq(schema.databaseLedger.kind, filter.kind));
+    if (filter.outcome) conditions.push(eq(schema.databaseLedger.outcome, filter.outcome));
+    if (filter.fromDate) conditions.push(gte(schema.databaseLedger.createdAt, filter.fromDate));
+    if (filter.toDate) conditions.push(lte(schema.databaseLedger.createdAt, filter.toDate));
 
     if (filter.cursor) {
       const decoded = decodeCursor(filter.cursor);
       if (decoded) {
         conditions.push(
           or(
-            lt(schema.storageLedger.createdAt, decoded.createdAt),
-            and(eq(schema.storageLedger.createdAt, decoded.createdAt), lt(schema.storageLedger.id, decoded.id))
+            lt(schema.databaseLedger.createdAt, decoded.createdAt),
+            and(eq(schema.databaseLedger.createdAt, decoded.createdAt), lt(schema.databaseLedger.id, decoded.id))
           ) as SQL
         );
       }
@@ -84,9 +84,9 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
 
     const rows = db
       .select()
-      .from(schema.storageLedger)
+      .from(schema.databaseLedger)
       .where(and(...conditions))
-      .orderBy(desc(schema.storageLedger.createdAt), desc(schema.storageLedger.id))
+      .orderBy(desc(schema.databaseLedger.createdAt), desc(schema.databaseLedger.id))
       .limit(filter.limit + 1)
       .all();
 
@@ -103,7 +103,7 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
     return { items, nextCursor };
   }
 
-  /** Appends one `storage_ledger` row (ADR-041 §4). Never mutates or deletes an existing row —
+  /** Appends one `database_ledger` row (ADR-041 §4). Never mutates or deletes an existing row —
    * the ledger is append-only by construction. */
   async append(row: {
     id: string;
@@ -124,7 +124,7 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
     createdAt: string;
   }): Promise<void> {
     this.deps.db
-      .insert(schema.storageLedger)
+      .insert(schema.databaseLedger)
       .values({ siteId: this.deps.siteId, ...row })
       .run();
   }
@@ -134,7 +134,7 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
    *
    * Round-5 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, codex `R5-F1-BLOCKED-RECOVERY-
    * NOT-RESTART-SAFE` / Fable `R5-F1-INTERRUPTED-SECOND-BOOT-BRICK`, both independently confirmed
-   * by direct code inspection and Fable's empirical double-boot reproduction): `storage_ledger.id`
+   * by direct code inspection and Fable's empirical double-boot reproduction): `database_ledger.id`
    * is `text("id").primaryKey()`, and this method's id (`interrupted-${migrationRunId}`) is
    * deterministic BY DESIGN so a second boot re-detecting the SAME still-unresolved migration
    * targets the same row. Before this fix, the plain `.insert().run()` this called through
@@ -144,7 +144,7 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
    * it was always meant to: every boot re-detects and re-blocks idempotently. */
   async appendInterruptedRow(params: { siteId: string; migrationRunId: string }): Promise<void> {
     this.deps.db
-      .insert(schema.storageLedger)
+      .insert(schema.databaseLedger)
       .values({
         id: `interrupted-${params.migrationRunId}`,
         siteId: this.deps.siteId,
@@ -154,7 +154,7 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
         detailJson: JSON.stringify({ migrationRunId: params.migrationRunId }),
         createdAt: new Date().toISOString(),
       })
-      .onConflictDoNothing({ target: schema.storageLedger.id })
+      .onConflictDoNothing({ target: schema.databaseLedger.id })
       .run();
   }
 }

@@ -1,17 +1,17 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /**
- * @file Drizzle schema for the sidecar `ops/storage-journal.db` (ADR-041 §2, code-first per
+ * @file Drizzle schema for the sidecar `ops/database-journal.db` (ADR-041 §2, code-first per
  * ADR-015/ADR-012).
  *
  * Purpose:
- * `storage_ledger`, `migration_runs`, and `restore_points` — the three tables ADR-041 §2/§4
+ * `database_ledger`, `migration_runs`, and `restore_points` — the three tables ADR-041 §2/§4
  * requires to live OUTSIDE `content.db`, in a physically separate SQLite file, so that restoring
  * `content.db` from a snapshot never erases the incident record that snapshot restore is supposed
  * to narrate, and boot recovery can append a `migration.interrupted` row even when `content.db`
  * itself won't open. This is a DIFFERENT physical database from `src/infra/db/schema.ts`
- * (`content.db`'s schema) — generated via its own `drizzle.storage-journal.config.ts` into
- * `src/infra/drizzle-storage-journal/`, never merged into the `content.db` migration stream.
+ * (`content.db`'s schema) — generated via its own `drizzle.database-journal.config.ts` into
+ * `src/infra/drizzle-database-journal/`, never merged into the `content.db` migration stream.
  *
  * Composite actor identity (`actorWorkspaceId`/`actorId`, `delegatedByWorkspaceId`/`delegatedById`)
  * is populated by the core-mediated write path at append time and is a soft, value-join reference
@@ -29,8 +29,8 @@ import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqli
  * `index.provision`/`index.drop` rows (the ADR-023 §4 carve-out, INV-03) — every other kind
  * anchors to a restore point at creation (INV-02).
  */
-export const storageLedger = sqliteTable(
-  "storage_ledger",
+export const databaseLedger = sqliteTable(
+  "database_ledger",
   {
     id: text("id").primaryKey(),
     siteId: text("site_id").notNull(),

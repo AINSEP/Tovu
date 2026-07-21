@@ -17,7 +17,7 @@
  * `features/database` domain logic. Depends only on the injected `LedgerReadPort`.
  */
 
-/** One row of the append-only `storage_ledger` (ADR-041 §4), as rendered to the Timeline UI. */
+/** One row of the append-only `database_ledger` (ADR-041 §4), as rendered to the Timeline UI. */
 export interface LedgerRow {
   id: string;
   kind: string;

@@ -1,0 +1,120 @@
+I’m loading the repository’s mandatory bootstrap instructions first, then I’ll evaluate the ADR against the packet’s fixed constraints and answer in the requested debate format.
+Codex Peer(Consensus): 
+
+## 1. Recommended option
+
+Choose **Option A, but require substantial revisions before acceptance**. Persistent widget identity is necessary to satisfy the defining requirement: one configured instance reused across pages, centrally updated, diagnosable, and safely deletable. Neither B nor C provides that. Entry-native instances also correctly reuse Tovu’s validation, revision, reference, permission, and AI change-set machinery. However, ADR-047 currently overstates how much comes “for free.” Region rendering needs an explicit resolved-region contract; ordered bindings need aggregate versioning; dynamic widget types need a bounded resolver model; inline AI editing cannot depend exclusively on a live browser editor; and token use alone does not establish acceptable default styling. I would mark the ADR **revise, not reject**.
+
+## 2. Other options
+
+### Option B — Stateless blocks in slots
+
+Reject as the primary model. It directly fails the shared-instance requirement: two copies of a contact-form block are independent configurations, with no canonical identity, central update, where-used result, or safe-delete behavior. It is still useful as a complementary mechanism for one-off, non-reusable presentation blocks. Forcing every block to become a widget entry would create unnecessary library clutter, so Tovu should preserve both concepts: inline-value blocks for local composition and referenced widgets for intentional reuse.
+
+For non-experts, B initially looks simpler but becomes dangerous through configuration drift. A recipient address, legal notice, or social URL can silently differ across pages, and the operator has no reliable way to discover all copies.
+
+### Option C — Page-local structured composition
+
+Reject. It removes the natural mechanism for site-wide header, footer, and sidebar composition and makes global consistency depend on template code or manual repetition. That is particularly hostile to Declarative-tier operators. It also fails shared identity unless a referenceable entity is reintroduced, at which point it converges toward A while retaining weaker global placement.
+
+A structured blocks field may eventually be a valuable page-building surface, but it is not a substitute for reusable instances or global regions.
+
+### Current Option A — specific failures to correct
+
+The draft has several material gaps:
+
+- **Theme rendering is not literally capability-free.** Existing slots declare insertion points, but ADR-047 must define how a template requests a resolved region and how the resolved ordered list enters render context. A `render_block` function that renders one IR node does not automatically provide region lookup or iteration. Core must resolve the region and supply something like `regions.footer: IR[]`; Liquid may only render that supplied value.
+
+- **Region order has no aggregate concurrency boundary.** Multiple rows plus `position` and a uniqueness constraint do not provide a version against which an AI or human change-set can be reviewed. Two valid reorders can overwrite one another without a detectable conflict.
+
+- **The revision claim is incomplete.** Widget instances receive entry revisions, but placement rows are not entries. The ADR must say how binding changes are versioned, audited, reverted, and included atomically in mixed instance-plus-placement change-sets.
+
+- **`entry_refs` may not accept a binding row as a source.** If its source model assumes an entry, “region-binding row → widget” is not free. The reference index needs an explicitly supported polymorphic source locator or a separate derived placement-reference projection.
+
+- **Dynamic widgets need a resolver contract.** “Recent Entries” requires querying storage; contact forms require a submission endpoint and operational policy; menu widgets require menu resolution. The theme must remain storage-blind, so core needs bounded, typed resolvers that produce validated IR or resolved view models. Calling the registry “data-only” does not explain where this behavior lives.
+
+- **Menu-as-widget is conceptually inconsistent.** A menu remains `type='menu'`, not a widget instance using `fields.ext.widget.*`. It should be supported through a widget/component adapter whose configuration references a menu entry, not described as though a menu entry is itself a widget entry.
+
+- **Token-only styling is insufficiently precise.** Components still need structural default CSS—spacing, borders, focus states, validation messages, responsive behavior, and accessibility states. That CSS may consume tokens exclusively, but it must have an explicit owner. Core widget components should ship accessible structural CSS; themes own tokens and may replace components.
+
+- **Browser-only inline mutation weakens agent-native operation.** CopilotKit actions are appropriate while the editor is open, but an agent must also be able to place or remove an embed when no live editor exists. A server-side structured-body mutation command should use the same document schema, chokepoint, version precondition, and review layer. When an editor is live, coordination must prevent divergent concurrent edits.
+
+- **Failure behavior is underspecified.** Unknown widget type, missing resolver, invalid configuration, render timeout, circular reference, and trashed instance need deterministic admin diagnostics and safe public fallbacks. A broken widget must never abort the page render.
+
+## 3. Open Questions
+
+### 1. Region-binding scope
+
+Keep bindings **site-wide in v1**. Do not add per-page region overrides yet. Inline embedding covers truly arbitrary placement, but it does not cover every future need—for example, the same sidebar on all articles in one section. Model the placement scope so future variants are possible, but defer the UI and semantics until concrete requirements exist.
+
+Avoid encoding page-specific visibility as an unbounded conditional DSL. A future version should add bounded scopes such as global, content type, explicit entry set, or taxonomy term.
+
+### 2. Inline embed versus structured blocks array
+
+Use an **atomic `widgetEmbed` rich-text node** for v1, with guardrails:
+
+- only reference an existing compatible widget;
+- validate workspace, status, type, and placement capability;
+- expose reuse clearly;
+- render a stable placeholder and diagnostics in the editor;
+- prevent recursive widget embedding unless explicitly designed and depth-bounded.
+
+Do not introduce a universal blocks-array page builder merely to support widgets. If Tovu later needs full-page structured composition, that deserves its own decision. Widgets should then be reference nodes usable in both rich text and block arrays.
+
+### 3. Shared instance versus duplicate default
+
+Do not present an ambiguous modal on every placement. Use intent-based defaults:
+
+- “Place existing widget” reuses the selected instance.
+- “Create widget here” creates a new instance and places it.
+- “Duplicate” is an explicit separate action.
+
+The UI and AI change-set must always state whether the result is shared. Silent duplication defeats central management; silent reuse causes surprising cross-page edits.
+
+### 4. Core v1 widget types
+
+Start smaller than the draft:
+
+- Rich Text
+- Social Links
+- Recent Entries
+- Menu Reference
+
+Include Contact Form only if Tovu already has, or simultaneously specifies, a secure form-submission subsystem covering recipient privacy, validation, CSRF, spam/rate limiting, delivery failures, accessibility, and secret handling. A visual contact-form widget without that operational substrate is not a complete feature.
+
+Each type should declare bounded capabilities such as `static`, `query`, `form`, or `entry-reference`, supported placement contexts, configuration schema, resolver identifier, and render component identifier. Do not allow arbitrary executable resolver names from untrusted registry data.
+
+### 5. Region-binding concurrency
+
+Treat each `(workspace_id, region_key)` as a **versioned aggregate**. Add a region head/set record with a monotonic version; mutate its ordered membership transactionally using optimistic compare-and-swap. A change-set records the base version and conflicts if the region changed.
+
+Integer positions are acceptable if every reorder rewrites the affected list within the transaction. Fractional ranks reduce writes but do not solve semantic conflicts and add normalization complexity. V1 should prefer correctness and simplicity. Placement history and revert should be recorded at the aggregate level, not inferred from current member rows.
+
+## 4. Blind Spots
+
+### (a) Unlisted option
+
+A missing option is **referenceable widget instances plus first-class placement aggregates, without inline placement being tied specifically to TipTap**. Placements would be typed records or nodes with scopes such as region, rich-text anchor, or future structured-layout path. This separates reusable content identity from placement identity and gives every placement its own version, provenance, diagnostics, and change-set behavior.
+
+### (b) Missing question
+
+The packet asks mostly, “Where do widgets live?” It should also ask: **What is the runtime contract and failure budget of a widget?** Static text, a database-backed recent-post list, and a form are operationally different. The architecture needs explicit rules for query cost, caching, timeouts, submission side effects, degraded rendering, recursion, and whether a widget is allowed in each placement context. Without that, a valid configuration can still make a page slow, unsafe, or unavailable.
+
+### (c) Most likely wrong assumption
+
+The riskiest assumption is that all listed examples are one homogeneous abstraction merely because users call them widgets. A text fragment is persisted content; recent entries is a query/view; a menu is a reference to another entity; a contact form is an interactive application endpoint. They can share placement and render-IR contracts, but they should not be assumed to share lifecycle, configuration, resolution, security, or caching behavior. Treating the widget-type registry as enough to unify those differences is likely to produce an overly powerful and unsafe mini-plugin system.
+
+## 5. Unlisted-option check
+
+Yes. The strongest shape is a refined hybrid:
+
+1. **Reusable resources:** entry-native widget instances.
+2. **Local values:** ordinary stateless blocks for content that is not intended to be shared.
+3. **Versioned placements:** explicit placement aggregates for global regions, with inline references represented through the document model and the same placement command semantics.
+4. **Bounded resolvers:** core-controlled typed resolvers convert widget configurations and resolved dependencies into validated render IR.
+5. **Explicit render context:** core supplies already-resolved region IR arrays to themes.
+6. **Two AI paths, one mutation contract:** live-editor actions when available, server-side versioned document operations otherwise.
+
+This is stronger than A as drafted because it preserves its essential identity model while making placement history, concurrency, dynamic behavior, rendering boundaries, and agent operation explicit. ADR-047 should proceed only after those changes are incorporated.
+
+<<SWARM_END>>

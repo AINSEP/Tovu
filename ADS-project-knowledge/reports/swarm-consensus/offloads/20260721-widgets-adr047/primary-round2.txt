@@ -1,0 +1,137 @@
+# Primary (Claude Sonnet 5) — Frozen Round 2 Rebuttal, ADR-047 Widgets Debate
+
+Written after reading all Round 1 responses (my own + agy + Codex + Fable) in full, and
+frozen BEFORE dispatching or reading any Round 2 peer response, per the anti-bias rule.
+
+## D1 — Region-binding structure & concurrency
+
+**Position: CHANGED. Now endorse A′** (region composition as a seeded `widget_area` entry
+whose `bodyJson` is the ordered widget-ref list, plus a thin `widget_region_bindings
+(workspace_id, region_key, area_entry_id)` mapping) over my own Round 1 draft (ordered rows
+directly in the binding table) and over Codex's lighter fix (a version header on the binding
+aggregate, no entry promotion).
+
+**Why:** Fable's point is mechanically correct, not a style preference — ADR-029's actual
+pattern is "content lives in an entry, the binding table is a thin pointer." My Round-1 draft
+approximated that pattern but didn't follow it: it put genuine, mutable, operator/AI-editable
+content (the ordered widget list) directly into what should have been a thin mapping row.
+That's not "generalizing ADR-029," it's a different, weaker shape that happens to look similar.
+A′ isn't new machinery — it's the existing entry substrate (revisions, revert, chokepoint,
+`entry_refs`) applied correctly, which is cheaper than it looks because none of it needs to be
+built from scratch.
+
+**Strongest argument against my new position:** Codex's version — a lighter versioned-aggregate
+fix — is real and cheaper to implement (one counter column vs. a whole seeded entry type).
+Someone could reasonably argue A′ is solving a problem ("region composition needs revision
+history") that wasn't actually asked for.
+
+**What would change my mind back:** evidence that regions routinely hold enough widgets, or
+churn often enough, that entry-body-JSON size/versioning becomes a real cost — I don't currently
+believe this (regions are small, human-curated lists), but I'd want a peer to argue it if they
+believe it.
+
+## D2 — Widget resolution contract (NEW decision point, surfaced in Round 1)
+
+**Position: this needs to be an explicit ADR section, not implied.** Core needs a typed resolver
+interface per widget type — `resolve(instance, renderContext) => RenderIR` — invoked server-side
+during page-render, bounded-cost per ADR-024 (e.g. Recent Entries gets a hard max-count clamp,
+never an unbounded query). For caching: the ADR already names outbox events
+(`widgets.instance.updated` etc.) in §8 but never connects them to anything — Fable is right that
+this is asserted, not wired. Position: reuse whatever fragment-cache invalidation pattern the
+rendering layer already uses elsewhere (I don't have full visibility into this from the packet
+alone — this is a real question for the peers, not something I should assert unilaterally).
+
+**Why this is a change from Round 1:** I didn't treat this as a first-class gap in my frozen
+Round 1 answer — I was focused on defending the placement mechanism. Codex and Fable
+independently converging on "resolution, not placement, is the hard unsolved part" changed my
+weighting of what the ADR is actually missing.
+
+## D3 — Widget-type registry: data vs. code (NEW, Fable's catch)
+
+**Position: agree with the critique, propose a specific fix.** Split explicitly: widget TYPE
+REGISTRATION (schema, defaults, capability requirements) is data, Tier-1-safe, same as ADR-022's
+content-type registry. Widget TYPE BEHAVIOR (the resolver function) is supplied by core for v1's
+built-in types, and is Tier-2/3-gated (ADR-024) the moment a plugin wants to contribute a new
+*dynamic* type. Purely static types (Text, Social Links) genuinely stay Tier-1 all the way down —
+no resolver, just validated config rendered directly. The ADR should stop saying "widget types
+are data, not code" as a blanket claim and instead make this split explicit.
+
+**Why changed:** I hadn't separated "type registration" from "type behavior" in my own thinking
+until Fable's blind-spot answer forced the distinction. This is a real correction, not just
+phrasing.
+
+## D4 — `entry_refs` completeness (NEW, Fable's catch)
+
+**Position: agree, low-cost fix.** ADR-022 §5 already has a generic `ref` field-type mechanism
+for entry-to-entry references extracted into `entry_refs`. ADR-047 just needs to say widget
+configs use that existing mechanism wherever a config field points at another entry/term (Recent
+Entries' category filter, a redirect target, etc.) — this isn't new machinery, just an explicit
+instruction to reuse what already exists. Cheap to fold in, no real cost/benefit debate needed
+here — I'd like Codex or Fable to confirm they see it the same way or flag a reason it's harder
+than it looks.
+
+## D5 — Contact Form v1 scope
+
+**Position: CORRECTED with new evidence, not just re-argued.** Both Codex and Fable assumed
+Contact Form needs a submission pipeline (mail delivery, rate-limiting, CSRF) that doesn't exist
+yet in this codebase. **I checked — that's not accurate as of the current repo state.** There is
+a real, built `src/forms/` feature: `submit-service.ts`, `rate-limit-profile.ts`, and
+`notify-subscriber.ts`, which is already wired to a real `MailerPort` (`src/mail/`, ADR-037,
+accepted and implemented, with existing consumers in `members`/`newsletter`/`forms`) via the
+outbox pattern. This directly contradicts Fable's specific claim ("no MailerPort exists — same
+gap that parked newsletter routes") — that claim is stale against the live repo. Given this,
+**Contact Form can ship in v1** as a thin widget-type wrapper that references an existing Forms
+`formDefinitionId` and renders its fields — it inherits Forms' already-built submission,
+rate-limiting, and mail-delivery path entirely; the widget layer only needs to add placement and
+a render adapter, not a new operational subsystem. This was actually my Round 1 position in
+spirit ("design it as a thin wrapper... trivial follow-on the moment Forms lands") — I now have
+confirmation Forms has, in fact, already landed.
+
+**What would change my mind:** if a peer can show `src/forms/submit-service.ts`'s pipeline is
+incomplete or unsuitable in some way I didn't check (I only confirmed the pieces exist and are
+wired, not that the whole submission flow is production-hardened) — genuinely open to that.
+
+## D6 — Freeform inline embed guardrails
+
+**Position: unchanged, converged.** Freeform `widgetEmbed` node, block-level atom, with Fable's
+three guardrails (no recursive widget-in-widget embedding, per-document embed-count clamp,
+block-level not inline) folded in as explicit ADR requirements rather than left implicit. No real
+disagreement across participants here as far as I can tell — flagging for peers to confirm or
+push back.
+
+## D7 — Shared-instance vs. duplicate default
+
+**Position: unchanged, converged, refined.** Default to reuse at placement time; the real
+decision moves to edit time via Fable's "this appears in N places — change everywhere / just this
+one" signal, which is exactly what the `entry_refs` where-used data already provides for free.
+For AI tools: no ambient default, `widgets.place` vs `widgets.create`+place must be explicit
+calls, never inferred.
+
+## D8 — Render-time failure isolation (my own Round 1 pre-dispatch flag, corroborated by Codex)
+
+**Position: this needs an explicit ADR clause: a widget resolution failure must degrade to an
+empty/error placeholder for that one widget, never abort the surrounding page render.** Combined
+with D2 (the resolution contract), I think this belongs in the same new ADR section rather than
+as a separate bullet — failure handling is part of specifying what `resolve()` returns and how
+core handles it throwing.
+
+## D9 — Region-binding scope (site-wide vs. per-page)
+
+**Position: unchanged, converged.** Site-wide only in v1, inline embed covers the motivating
+per-page case, per-page region override deferred as a named seam — nobody argued against this in
+Round 1.
+
+## What I'm asking peers for in Round 2 (beyond position updates)
+
+Per the owner's explicit request: for your Round 2 recommended resolution of D1–D5 (the genuinely
+disputed points), provide — not just prose positions but concrete artifacts:
+1. A **sample design** (schema sketch: table/entry shapes for your D1 position, resolver
+   interface sketch for D2/D3).
+2. A **draft ADR-047 amendment** (the specific Decision-section language you'd change, not a full
+   rewrite — diff-shaped).
+3. **Specs**-level requirements for the two or three most load-bearing pieces (e.g. the resolver
+   contract, the widget_area entry shape).
+4. An **implementation outline** — what files/modules would need to exist, in what order,
+   reusing this project's existing conventions (ports, repos, gateway wiring) as far as you can
+   infer them from the packet.
+5. A short **overview** paragraph suitable for a non-technical stakeholder.

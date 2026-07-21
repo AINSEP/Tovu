@@ -81,13 +81,13 @@ export function openContentDb(filePath: string, seed?: ContentDbSeedData, recove
 }
 
 /**
- * SPEC-016 (`core/gated-mutations/watermark.ts`) — guarantees the `storage_write_watermark`
+ * SPEC-016 (`core/gated-mutations/watermark.ts`) — guarantees the `database_write_watermark`
  * singleton row (`id=1`) exists, independent of any demo-seed data. `INSERT OR IGNORE` keeps this
  * idempotent across restarts on a persisted db, matching `seedContentDb`'s own "never re-seed an
  * operator-edited db" guard, but for a bootstrap invariant rather than optional demo content.
  */
 function ensureWatermarkRow(db: ContentDb): void {
-  db.run(sql`INSERT OR IGNORE INTO ${schema.storageWriteWatermark} (id, value, last_stamped_at) VALUES (1, 0, NULL)`);
+  db.run(sql`INSERT OR IGNORE INTO ${schema.databaseWriteWatermark} (id, value, last_stamped_at) VALUES (1, 0, NULL)`);
 }
 
 /**

@@ -745,7 +745,7 @@ export const principalPolicies = sqliteTable(
  * boundary. `openContentDb` guarantees the singleton row exists (`INSERT OR IGNORE`) right after
  * migration, so `getCurrentWatermark`/`stampWatermarkTx` never have to special-case "row missing".
  */
-export const storageWriteWatermark = sqliteTable("storage_write_watermark", {
+export const databaseWriteWatermark = sqliteTable("database_write_watermark", {
   id: integer("id").primaryKey(),
   value: integer("value").notNull().default(0),
   lastStampedAt: text("last_stamped_at"),
@@ -1079,6 +1079,53 @@ export const transformDefinitions = sqliteTable(
  * no id field. `utm`/`eventProps` are flattened/JSON-encoded since `NormalizedHit` carries them
  * as nested objects.
  */
+/**
+ * SPEC-043 (Widgets, ADR-047 Debate Fold-In Amendment 3) — the derived, rebuildable `entry_refs`
+ * reference-integrity index (ADR-022 §5). Confirmed absent as running code before this feature
+ * (`src/navigation/resolver.ts`'s own comment names the gap) — this is its first real table.
+ * `id` is a surrogate autoincrement row key since `EntryRefRow` (the domain shape) carries no id of
+ * its own — the whole row set for a given `(workspaceId, sourceEntryId)` is replaced atomically by
+ * `EntryRefsRepoPort.replaceForSource`, never patched row-by-row (mirrors `widget_region_bindings`'s
+ * "derived, rebuildable, single writer" discipline).
+ */
+export const entryRefs = sqliteTable(
+  "entry_refs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    workspaceId: text("workspace_id").notNull(),
+    sourceEntryId: text("source_entry_id").notNull(),
+    sourceKind: text("source_kind").notNull(),
+    fieldPath: text("field_path").notNull(),
+    targetKind: text("target_kind").notNull(),
+    targetId: text("target_id").notNull(),
+  },
+  (table) => [
+    index("idx_entry_refs_source").on(table.workspaceId, table.sourceEntryId),
+    index("idx_entry_refs_target").on(table.workspaceId, table.targetKind, table.targetId),
+  ]
+);
+
+/**
+ * SPEC-043 (Widgets, ADR-047 Debate Fold-In Amendment 1) — the derived, rebuildable
+ * `widget_region_bindings` index, mirroring `nav_location_bindings` exactly:
+ * `UNIQUE(workspace_id, region_key)` is the DB-level enforcement of INV-02 (a region has at most
+ * one bound `widget_area` entry). Reconciled ONLY by `region-area-service.ts`'s
+ * `reconcileWidgetRegionBindings` — never hand-authored.
+ */
+export const widgetRegionBindings = sqliteTable(
+  "widget_region_bindings",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    regionKey: text("region_key").notNull(),
+    areaEntryId: text("area_entry_id").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("widget_region_bindings_workspace_region_unique").on(table.workspaceId, table.regionKey),
+    index("idx_widget_region_bindings_area").on(table.workspaceId, table.areaEntryId),
+  ]
+);
+
 export const analyticsEvents = sqliteTable(
   "analytics_events",
   {

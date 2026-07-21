@@ -40,7 +40,7 @@ function watermarkTracker() {
   };
 }
 
-test("AC-11/INV-08: registerContentType advances storage_write_watermark by exactly 1 per commit", async () => {
+test("AC-11/INV-08: registerContentType advances database_write_watermark by exactly 1 per commit", async () => {
   const watermark = watermarkTracker();
   const repo = { save: async () => undefined, appendRevision: async () => undefined, findByKey: async () => null, transaction: async <T>(fn: () => Promise<T>) => fn() };
   const indexProvisioner = { provisionIndexesForNewContentType: async () => undefined };
@@ -55,7 +55,7 @@ test("AC-11/INV-08: registerContentType advances storage_write_watermark by exac
   assert.equal(watermark.calls.length, 1, "the watermark must be stamped exactly once, in the same call as the row commit");
 });
 
-test("AC-26/INV-08: createEntry advances storage_write_watermark by exactly 1 per commit", async () => {
+test("AC-26/INV-08: createEntry advances database_write_watermark by exactly 1 per commit", async () => {
   const watermark = watermarkTracker();
   const contentTypeRepo = { findByKey: async () => ({ workspaceId: "ws-1", key: "recipe", status: "active" as const, fields: [] }) };
   const entryRepo = { save: async () => undefined, appendRevision: async () => undefined, findBySlug: async () => null, transaction: async <T>(fn: () => Promise<T>) => fn() };

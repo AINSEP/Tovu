@@ -4,14 +4,14 @@ import Database from "better-sqlite3";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-import * as schema from "./storage-journal-schema";
+import * as schema from "./database-journal-schema";
 
 /**
  * @file Sidecar `ops/database-journal.db` bootstrap (ADR-041 §2, mirrors `content-db.ts`'s
  * `openContentDb` pattern).
  *
  * Purpose:
- * Opens the SQLite file that carries `storage_ledger`/`migration_runs`/`restore_points` — a
+ * Opens the SQLite file that carries `database_ledger`/`migration_runs`/`restore_points` — a
  * physically separate file from `content.db`, so that restoring `content.db` from a snapshot
  * never erases the incident record describing that very restore, and boot recovery can append a
  * `migration.interrupted` row even when `content.db` itself won't open (ADR-041 §2).
@@ -29,12 +29,11 @@ import * as schema from "./storage-journal-schema";
 
 export type DatabaseJournalDb = BetterSQLite3Database<typeof schema>;
 
-/** Generated migrations live at `src/infra/drizzle-storage-journal/` (resolved from this file) —
- * that directory is intentionally NOT renamed alongside this file: it holds a committed, shipped
- * migration, and renaming/regenerating it would rewrite migration history rather than perform a
- * pure code rename (same reason `storage-journal-schema.ts` and the `storage_ledger` table/column
- * names stay as-is — see this subsystem's other frozen identifiers). */
-const MIGRATIONS_DIR = path.resolve(__dirname, "../drizzle-storage-journal");
+/** Generated migrations live at `src/infra/drizzle-database-journal/` (resolved from this file).
+ * That directory carries forward the original shipped `0000_pale_weapon_omega.sql` migration (a
+ * plain directory rename, not a content edit) plus a new migration that renames `storage_ledger`
+ * to `database_ledger` — see that directory's own migrations for the full history. */
+const MIGRATIONS_DIR = path.resolve(__dirname, "../drizzle-database-journal");
 
 /** Open (or create) `ops/database-journal.db`, apply pragmas, and migrate to the latest schema. */
 export function openDatabaseJournalDb(filePath: string): DatabaseJournalDb {
