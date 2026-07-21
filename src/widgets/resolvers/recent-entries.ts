@@ -15,6 +15,14 @@ import type { WidgetResolveResult, WidgetResolver } from "../types";
  * via a test-double resolver, not this real implementation; this file is nonetheless a real,
  * working resolver, not a placeholder.
  *
+ * Bounded query (fixed 2026-07-21, audit-confirmed gap): the query passed to `listByWorkspace` is
+ * `status: 'published'`, `orderBy: 'updatedAt' desc`, `limit: registryMax` — pushed down to the
+ * query itself, not a full unbounded workspace scan sorted/sliced in JS after the fact (the
+ * original implementation's bug — REQ-25 requires "one bounded query, no unbounded scans").
+ * `registryMax` (the registered clamp, always ≤ the widest instance-configured `maxItems`) is used
+ * as the query limit itself, so no instance can pull more rows from storage than the clamp allows,
+ * regardless of how many widget instances of this type are being resolved in the same batch call.
+ *
  * `categoryTermId` (REQ-32/EC-03) is a documented soft reference — this resolver does not filter by
  * it (no taxonomy dependency wired here), matching EC-03's explicit "may render as if the filter is
  * empty/unset" allowance.
@@ -32,10 +40,15 @@ export function createRecentEntriesResolver(deps: RecentEntriesResolverDeps): Wi
       // One batched query for the whole call (REQ-24) — EntryListPort has no `findByIds` batch
       // primitive, so a single `listByWorkspace` scoped to the widget content type stands in for
       // the outline's literal "WHERE id IN (...)" shape without a second entries-listing path.
-      const allEntries = await deps.entryList.listByWorkspace({ workspaceId: context.workspaceId });
-      const published = allEntries
-        .filter((entry) => entry.status === "published")
-        .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0));
+      // Bounded at the query itself (REQ-25) — `limit: registryMax` is the widest any instance in
+      // this batch is allowed to request, so no instance's own config can force a larger scan.
+      const published = await deps.entryList.listByWorkspace({
+        workspaceId: context.workspaceId,
+        status: "published",
+        orderBy: "updatedAt",
+        orderDirection: "desc",
+        limit: registryMax,
+      });
 
       const results = new Map<string, WidgetResolveResult>();
       for (const instance of instances) {
