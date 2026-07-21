@@ -18,7 +18,7 @@ import type { RouteDeps } from "../../types";
  *
  * `registerAdminTaxonomyMergeTermRoutes` (the ADR-044 gated-mutation ceremony) is deliberately
  * NOT covered by this type — it also needs `gatedMutations.gatewayDeps`, and stays entangled with
- * the shared `core/gated-mutations` gateway construction the storage/recovery ceremonies use too.
+ * the shared `core/gated-mutations` gateway construction the database/recovery ceremonies use too.
  * See `modules/taxonomy.ts`'s file header for the full disclosure.
  */
 export type TaxonomyRouteDeps = Pick<

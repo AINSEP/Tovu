@@ -167,7 +167,7 @@ export const adminSections: AdminSectionDefinition[] = [
     label: "Recovery",
     icon: "Rc",
     description:
-      "Restore points, the discarded-write-window disclosure, and the guided plan-confirm-execute restore ceremony (ADR-045). A distinct screen from Storage, never a tab of it.",
+      "Restore points, the discarded-write-window disclosure, and the guided plan-confirm-execute restore ceremony (ADR-045). A distinct screen from Database, never a tab of it.",
   },
 ];
 

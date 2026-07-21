@@ -55,7 +55,7 @@ test("REQ-13/AC-22: executeRestore rejects with RESTORE_OPERATION_IN_FLIGHT and 
   const gateway = fakeGateway();
   const siteId = "site-execute-2";
 
-  // Simulate Storage's migrate-forward already holding the lock (cross-domain contention).
+  // Simulate Database's migrate-forward already holding the lock (cross-domain contention).
   const migrationHolder = await acquireOperationLock({ deps: { clock }, input: { siteId, operationKind: "migration" } });
   assert.equal(migrationHolder.ok, true);
 
@@ -69,7 +69,7 @@ test("REQ-13/AC-22: executeRestore rejects with RESTORE_OPERATION_IN_FLIGHT and 
   assert.equal(gateway.executeCalls.length, 0, "the gateway must never be reached once the shared lock rejects the attempt (REQ-13)");
 });
 
-test("AC-26/REQ-16: a successful executeRestore attaches a deep-link back to the Storage Timeline on the response", async () => {
+test("AC-26/REQ-16: a successful executeRestore attaches a deep-link back to the Database Timeline on the response", async () => {
   const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
   const gateway = fakeGateway({ restoreRunId: "run-2", state: "RESTORED" });
   const siteId = "site-execute-3";
@@ -81,8 +81,8 @@ test("AC-26/REQ-16: a successful executeRestore attaches a deep-link back to the
 
   assert.equal(result.ok, true);
   if (result.ok) {
-    const value = result.value as { storageTimelineDeepLink?: unknown };
-    assert.ok(value.storageTimelineDeepLink, "REQ-16 requires a deep-link back to Storage Timeline on RESTORED completion");
+    const value = result.value as { databaseTimelineDeepLink?: unknown };
+    assert.ok(value.databaseTimelineDeepLink, "REQ-16 requires a deep-link back to Database Timeline on RESTORED completion");
   }
 });
 

@@ -20,7 +20,7 @@ import type { MirrorStorePort } from "./ports";
  * - `openContentDb` (infra/sqlite/content-db.ts) guarantees the singleton row exists.
  *
  * Architectural role:
- * Core primitive shared by every gated-mutation domain (storage, recovery, ...); no domain-specific
+ * Core primitive shared by every gated-mutation domain (database, recovery, ...); no domain-specific
  * knowledge here.
  */
 

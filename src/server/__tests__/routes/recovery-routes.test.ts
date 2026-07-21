@@ -6,7 +6,7 @@ import express from "express";
 import { bootAuthenticated } from "../helpers/http-test-server";
 import { createRouteDeps } from "../../app";
 import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminStorageRestorePointsCreateRoute } from "../../routes/admin/storage/restore-points";
+import { registerAdminDatabaseRestorePointsCreateRoute } from "../../routes/admin/database/restore-points";
 import { registerAdminRecoveryRestorePointsListRoute } from "../../routes/admin/recovery/restore-points";
 import { registerAdminRecoveryDisclosureRoute } from "../../routes/admin/recovery/disclosure";
 import { registerAdminRecoveryDeepLinkRoute } from "../../routes/admin/recovery/deep-link";
@@ -26,7 +26,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminStorageRestorePointsCreateRoute(app, deps);
+  registerAdminDatabaseRestorePointsCreateRoute(app, deps);
   registerAdminRecoveryRestorePointsListRoute(app, deps);
   registerAdminRecoveryDisclosureRoute(app, deps);
   registerAdminRecoveryDeepLinkRoute(app, deps);
@@ -34,11 +34,11 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   return { app, deps };
 }
 
-test("recovery routes: a restore point minted via Storage's own route is visible on Recovery's restore-points list (ADR-045 §1, shared ledger)", async (t) => {
+test("recovery routes: a restore point minted via Database's own route is visible on Recovery's restore-points list (ADR-045 §1, shared ledger)", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  const createRes = await fetch(`${baseUrl}/api/admin/v1/storage/restore-points`, {
+  const createRes = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ trigger: "manual" }),

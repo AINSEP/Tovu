@@ -388,19 +388,20 @@ registerPermission({
   description: "Umbrella newsletter permission. Reserved for a future API surface (no route uses this yet).",
 });
 /**
- * ADR-041 §6 (Storage/Timeline) / ADR-045 (Backups/Recovery) — the house-style flat
- * `domain.verb` permissions both ADRs' own text names directly (matching
- * `navigation.manage`/`integration.manage`/`analytics.read`'s shape, not the
- * `admin.<section>.<action>` convention). Only `storage.read` gates a route this pass
- * (`routes/admin/storage/timeline.ts`); the rest are registered now — matching this catalog's
+ * ADR-041 §6 (Database Timeline, renamed from "Storage" per its own naming-correction note —
+ * "Storage" read as ambiguous next to the Media/Assets subsystem's file/blob storage) / ADR-045
+ * (Backups/Recovery) — the house-style flat `domain.verb` permissions both ADRs' own text names
+ * directly (matching `navigation.manage`/`integration.manage`/`analytics.read`'s shape, not the
+ * `admin.<section>.<action>` convention). Only `database.read` gates a route this pass
+ * (`routes/admin/database/timeline.ts`); the rest are registered now — matching this catalog's
  * existing precedent of registering a domain's full permission vocabulary even before every
  * verb has a route (e.g. `admin.newsletter.settings.manage` above) — so a future session wiring
- * the remaining Storage/Recovery routes need not touch this file again.
+ * the remaining Database/Recovery routes need not touch this file again.
  */
-registerPermission({ id: "storage.read", owner: "storage", description: "Read the Storage Timeline, schema drift status, and restore points." });
+registerPermission({ id: "database.read", owner: "database", description: "Read the Database Timeline, schema drift status, and restore points." });
 /** ADR-046 Phase 2 (SPEC-030) — gates `GET /api/admin/v1/system/module-status`. */
 registerPermission({ id: "system.read", owner: "server", description: "Read boot/readiness module lifecycle status." });
-registerPermission({ id: "storage.migrate", owner: "storage", description: "Plan, confirm, and execute a forward schema migration." });
+registerPermission({ id: "database.migrate", owner: "database", description: "Plan, confirm, and execute a forward schema migration." });
 registerPermission({ id: "backup.read", owner: "recovery", description: "Read restore points and this site's restore capability." });
 registerPermission({ id: "backup.create", owner: "recovery", description: "Mint a restore point independent of any migration." });
 registerPermission({ id: "backup.restore", owner: "recovery", description: "Confirm and execute a restore to a prior restore point." });

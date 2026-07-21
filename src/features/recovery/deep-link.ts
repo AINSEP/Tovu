@@ -5,7 +5,7 @@ import type { PrincipalKind } from "./recovery-orchestrator";
  * ADR-041 §7).
  *
  * Purpose:
- * `resolveDeepLinkContext` never trusts a `StorageContextEnvelope`'s carried values — every id is
+ * `resolveDeepLinkContext` never trusts a `DatabaseContextEnvelope`'s carried values — every id is
  * independently re-looked-up server-side on arrival (INV-04). A stale, pruned, or outright forged
  * `restorePointId` (even one that is syntactically plausible, e.g. ULID-shaped) resolves to
  * `{found:false}` rather than proceeding with the envelope's own claimed value — the envelope
@@ -18,7 +18,7 @@ import type { PrincipalKind } from "./recovery-orchestrator";
  * context must route through this function rather than reading `envelope.restorePointId` directly.
  */
 
-export interface StorageContextEnvelope {
+export interface DatabaseContextEnvelope {
   v: number;
   correlationId: string;
   siteId: string;
@@ -35,7 +35,7 @@ export interface DeepLinkRestorePointLookupPort {
 
 export interface ResolveDeepLinkContextRequired {
   deps: { lookup: DeepLinkRestorePointLookupPort };
-  input: { principalId: string; principalKind: PrincipalKind; envelope: StorageContextEnvelope };
+  input: { principalId: string; principalKind: PrincipalKind; envelope: DatabaseContextEnvelope };
 }
 
 export interface RecoveryContextResponse {

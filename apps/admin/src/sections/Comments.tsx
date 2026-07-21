@@ -9,9 +9,9 @@ import { ApiError, api, type AdminComment, type CommentModerationAction, type Co
  * Comments nav entry fell through to the static `Placeholder`.
  *
  * Two sections in one file (`QueueSection` + `SettingsSection`), combined by the exported
- * `Comments()` — mirrors `Storage.tsx`'s established multi-section-single-file shape rather than
+ * `Comments()` — mirrors `Database.tsx`'s established multi-section-single-file shape rather than
  * splitting into `CommentsSettings.tsx` (REQ-08 explicitly leaves that choice to the implementer).
- * `QueueSection`'s status-filter + keyset-cursor "Load more" pattern mirrors `Storage.tsx`'s
+ * `QueueSection`'s status-filter + keyset-cursor "Load more" pattern mirrors `Database.tsx`'s
  * `TimelineSection` (the real cursor-pagination precedent in this admin app — `Redirects.tsx`
  * itself has no pagination today, see REQ-03's implementation note in the handoff).
  *

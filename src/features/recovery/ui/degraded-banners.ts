@@ -9,7 +9,7 @@
  * visible beneath a superseded pending-migration banner" is a rendering-layer composition concern
  * this function does not own.
  *
- * `PENDING_MIGRATION`'s action always deep-links to Storage's own migration ceremony, never a
+ * `PENDING_MIGRATION`'s action always deep-links to the Database Timeline's own migration ceremony, never a
  * Recovery restore-flow action (AC-27/INV-07, ADR-045 §4) — restoring to an older snapshot does
  * not resolve schema drift against the current runtime.
  */
@@ -21,7 +21,7 @@ export type DegradedBannerKind =
   | "cost-unavailable"
   | "watermark-baseline-unavailable";
 
-export type DegradedBannerActionKind = "deep-link-to-storage-migration" | "unblock-interrupted-migration" | "none";
+export type DegradedBannerActionKind = "deep-link-to-database-migration" | "unblock-interrupted-migration" | "none";
 
 export interface DegradedBanner {
   kind: DegradedBannerKind;
@@ -58,7 +58,7 @@ export function resolveDegradedBanner(
     return {
       kind: "migration-interrupted",
       accessibleText:
-        "A migration was interrupted mid-run. This is a real, accepted planned downtime vector, not a bug — resolve it to reopen normal Storage/Recovery navigation.",
+        "A migration was interrupted mid-run. This is a real, accepted planned downtime vector, not a bug — resolve it to reopen normal Database/Recovery navigation.",
       actionKind: "unblock-interrupted-migration",
     };
   }
@@ -67,8 +67,8 @@ export function resolveDegradedBanner(
     return {
       kind: "pending-migration",
       accessibleText:
-        "This site is pending a schema migration before normal public serving can resume. Resolve it from Storage's own migration ceremony.",
-      actionKind: "deep-link-to-storage-migration",
+        "This site is pending a schema migration before normal public serving can resume. Resolve it from the Database Timeline's own migration ceremony.",
+      actionKind: "deep-link-to-database-migration",
     };
   }
 

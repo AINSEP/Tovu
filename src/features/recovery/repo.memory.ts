@@ -1,11 +1,11 @@
 import type { DeepLinkRestorePointLookupPort } from "./deep-link";
 import type { DisclosureWatermarkSourcePort, WatermarkBaseline } from "./disclosure";
-import type { RestorePointListPort } from "../storage/restore-points";
+import type { RestorePointListPort } from "../database/restore-points";
 
 /**
  * @file Admin-UI backend-gap closure (design-spec.md §4.8) — honest, disclosed stand-ins for two
  * Recovery ports this dispatch cannot back with a real implementation yet, plus one adapter that
- * IS real (backed by the same restore-points persistence Storage's own routes use).
+ * IS real (backed by the same restore-points persistence Database's own routes use).
  */
 
 /**
@@ -31,7 +31,7 @@ export class AlwaysUnavailableWatermarkSource implements DisclosureWatermarkSour
 
 /**
  * `DeepLinkRestorePointLookupPort` adapter over the real restore-points list
- * (`storage/restore-points.ts`'s `RestorePointListPort`, the same source Storage's own
+ * (`database/restore-points.ts`'s `RestorePointListPort`, the same source Database's own
  * restore-points route reads). O(n) over the restore-points list per lookup — an accepted
  * complexity tradeoff (see this dispatch's Style Notes) given restore points are an
  * operator-curated, low-volume list, not a high-churn collection; `findById`-shaped storage would

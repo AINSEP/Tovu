@@ -1,18 +1,18 @@
 import type { Express } from "express";
 
-import { listRestorePoints } from "../../../../features/storage/restore-points";
+import { listRestorePoints } from "../../../../features/database/restore-points";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { StorageRecoveryRouteDeps } from "../storage-recovery/deps";
+import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps";
 
 /**
  * @file design-spec.md §4.2/§4.8 — `GET /api/admin/v1/recovery/restore-points` (Recovery's own
  * restore-points list view — the "Backups" list, ADR-045 §3). Gated by `backup.read`.
  *
- * Reuses `storage/restore-points.ts`'s `listRestorePoints` and the same `restorePointsRepo`
- * `routes/admin/storage/restore-points.ts` reads — one persisted list, two gated views, per
- * ADR-045 §1 ("Storage and Recovery are sibling faces" of the same underlying record).
+ * Reuses `database/restore-points.ts`'s `listRestorePoints` and the same `restorePointsRepo`
+ * `routes/admin/database/restore-points.ts` reads — one persisted list, two gated views, per
+ * ADR-045 §1 ("Database and Recovery are sibling faces" of the same underlying record).
  */
-export function registerAdminRecoveryRestorePointsListRoute(app: Express, deps: StorageRecoveryRouteDeps): void {
+export function registerAdminRecoveryRestorePointsListRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
   app.get("/api/admin/v1/recovery/restore-points", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

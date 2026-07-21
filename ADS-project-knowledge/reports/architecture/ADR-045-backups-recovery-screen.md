@@ -202,3 +202,11 @@ cross-auditor reasoning.
 
 Converged across all three participants and all three debate rounds — no Coordinator tie-break was
 needed for this topic, unlike ADR-043.
+
+## Naming correction (2026-07-20, owner call)
+
+Per ADR-041's same-dated naming correction, every reference in this ADR to **"Storage"** (the screen,
+`/admin/storage`, `storage.read`/`storage.migrate`) should be read as **"Database"** (`/admin/database`,
+`database.read`/`database.migrate`) — terminology only, no change to this ADR's decisions (two separate
+screens, Recovery's IA, the disclosure/degraded-mode design). **"Recovery" is unchanged** — it was never
+the ambiguous name; only "Storage" (which read as confusable with Media/Assets file storage) was renamed.

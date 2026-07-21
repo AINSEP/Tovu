@@ -77,9 +77,9 @@ function alwaysDeny(reason = "no_grant"): AuthorizeFn {
 function makeHooks(overrides: Partial<Record<string, unknown>> = {}) {
   let mutationRuns = 0;
   return {
-    domain: "storage.migrate",
-    readPermission: "storage.read",
-    mutatePermission: "storage.migrate",
+    domain: "database.migrate",
+    readPermission: "database.read",
+    mutatePermission: "database.migrate",
     scopeId: "workspace-1",
     async computePlan() {
       return { planHash: "sha256:" + "1".repeat(64), details: { preview: true } };
@@ -118,7 +118,7 @@ test("AC-10: plan() succeeds for a principal holding only {domain}.read and prod
 
   const result = await plan({ deps, principalId: "u-1", principalKind: "user", hooks });
 
-  assert.equal(result.domain, "storage.migrate");
+  assert.equal(result.domain, "database.migrate");
   assert.ok(result.planId);
   assert.ok(result.planHash);
   assert.equal(hooks.mutationRuns, 0, "plan() must never invoke the domain mutation");
