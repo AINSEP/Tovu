@@ -113,3 +113,43 @@ test("EC-13: UPDATE_ENTRY against a tombstoned owning type reports CONTENT_TYPE_
   assert.equal(result.ok, false);
   if (!result.ok) assert.ok(result.error instanceof ContentTypeNotActiveError);
 });
+
+// ---------------------------------------------------------------------------
+// SPEC-043/ADR-047 Debate Fold-In Amendment 6 (REQ-44/45) — additive `bodyJson` support on
+// UPDATE_ENTRY, the real chokepoint `widgets/embed-service.ts`'s server-side document-mutation
+// command composes on top of (no second mutation path).
+// ---------------------------------------------------------------------------
+
+function entryWithBody(bodyJson: unknown) {
+  return { ...entry(), bodyJson };
+}
+
+test("bodyJson supplied on UPDATE_ENTRY replaces the stored bodyJson (previously impossible — only createEntry accepted bodyJson before this)", async () => {
+  const entryRepo = fakeEntryRepo(entryWithBody({ type: "doc", content: [] }));
+  const contentTypeRepo = fakeContentTypeRepo("active");
+  const newBody = { type: "doc", content: [{ type: "paragraph", content: [] }] };
+
+  const result = await updateEntry({
+    deps: { entryRepo, contentTypeRepo, clock, authorize: alwaysAllow, outbox: fakeOutbox() },
+    input: { workspaceId: "ws-1", actorId: "user-1", id: "entry-1", bodyJson: newBody, expectedVersion: 1 },
+  });
+
+  assert.equal(result.ok, true);
+  if (result.ok) assert.deepEqual(result.value.entry.bodyJson, newBody);
+  assert.deepEqual(entryRepo.getStored().bodyJson, newBody);
+});
+
+test("bodyJson omitted on UPDATE_ENTRY leaves the stored bodyJson byte-identical (additive-only — every pre-existing caller that omits it is unaffected)", async () => {
+  const originalBody = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "unchanged" }] }] };
+  const entryRepo = fakeEntryRepo(entryWithBody(originalBody));
+  const contentTypeRepo = fakeContentTypeRepo("active");
+
+  const result = await updateEntry({
+    deps: { entryRepo, contentTypeRepo, clock, authorize: alwaysAllow, outbox: fakeOutbox() },
+    input: { workspaceId: "ws-1", actorId: "user-1", id: "entry-1", title: "New Title", expectedVersion: 1 },
+  });
+
+  assert.equal(result.ok, true);
+  if (result.ok) assert.deepEqual(result.value.entry.bodyJson, originalBody);
+  assert.equal(entryRepo.getStored().title, "New Title", "title still updates normally alongside the unchanged bodyJson");
+});

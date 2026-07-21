@@ -46,6 +46,17 @@ export interface ThemeManifest {
    * fonts live in the manifest, not the stylesheet.
    */
   fonts?: string[];
+  /**
+   * SPEC-043/ADR-047 §2a — the region keys (e.g. `["header","footer"]`) this theme declares for
+   * widget placement, the same way it already declares templates/slots. Additive, optional field:
+   * absent/undefined means "no declared regions" (unchanged behavior for every existing `theme.json`
+   * on disk today — no back-compat migration needed). `resolvePageWidgets`'s `resolvedRegions` input
+   * (`src/widgets/resolver-service.ts`) is sourced directly from this field at render time
+   * (`server/http/site/render.ts::renderSite`) — this fulfills what ADR-047 §2a's own framing already
+   * assumed existed ("themes declare region keys the same way they already declare template
+   * slots/regions") rather than a hardcoded core constant.
+   */
+  regions?: string[];
 }
 
 /** Design tokens: CSS custom-property name → value (emitted into `:root`). */
@@ -106,6 +117,7 @@ export function loadTheme(themeDir: string, id: string, source: "built-in" | "si
       engine: typeof raw.engine === "number" ? raw.engine : 1,
       description: typeof raw.description === "string" ? raw.description : undefined,
       fonts: Array.isArray(raw.fonts) ? raw.fonts.map(String) : undefined,
+      regions: Array.isArray(raw.regions) ? raw.regions.map(String) : undefined,
     };
     if (manifest.id !== id) errors.push(`theme.json id '${manifest.id}' must equal folder name '${id}'`);
   } catch (err) {

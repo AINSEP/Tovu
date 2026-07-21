@@ -68,6 +68,8 @@ import { registerSlugChangeCapture } from "../routing";
 import { InMemoryDbOpsAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "../features/database/repo.memory";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
 import { InMemoryEntryRepo } from "../features/entries/repo.memory";
+import { InMemoryWidgetRegionBindingRepo } from "../widgets/repo.memory";
+import { InMemoryEntryRefsRepo } from "../core/entry-refs/repo.memory";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { InMemoryCommentRepo } from "../comments/repo.memory";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";
@@ -91,6 +93,7 @@ import { createCommentsModerationModule } from "./modules/comments-moderation";
 import { createCoreModule } from "./modules/core";
 import { createFormsModule } from "./modules/forms";
 import { createMenusModule } from "./modules/menus";
+import { createWidgetsModule } from "./modules/widgets";
 import { createSettingsModule } from "./modules/settings";
 import { createUsersModule } from "./modules/users";
 import { createIntegrationsModule } from "./modules/integrations";
@@ -235,6 +238,11 @@ export function createRouteDeps(): NewsletterRouteDeps {
   // in-memory entries the rest of the hermetic composition writes into (mirrors
   // `restorePointsRepo`'s identical hoisting rationale above).
   const entryRepo = new InMemoryEntryRepo();
+  // SPEC-043/ADR-047 (widgets) — hoisted alongside `entryRepo` for the same reason: both the admin
+  // `widgets` routes and the public site-render path (`routes/site/pages.ts` → `resolvePageWidgets`,
+  // W-004) must see the SAME binding/ref-index state, not two independent in-memory instances.
+  const widgetBindingRepo = new InMemoryWidgetRegionBindingRepo();
+  const entryRefsRepo = new InMemoryEntryRefsRepo();
   const commentsModule = createCommentsModule({
     commentRepo: new InMemoryCommentRepo(),
     entryRepo,
@@ -361,6 +369,8 @@ export function createRouteDeps(): NewsletterRouteDeps {
     // fire-and-forget install (mirrors `newsletterReady`'s identical hermetic-vs-real split).
     commentsReady: Promise.resolve(),
     commentsSettingsReady,
+    widgetBindingRepo,
+    entryRefsRepo,
   };
 }
 
@@ -460,6 +470,11 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // routes (ADR-029). `MenuRouteDeps` reused as-is from its existing location in
   // `http/admin/menus.ts` (see `modules/menus.ts`'s file header for why it lives there).
   createMenusModule(routeDeps).registerRoutes?.(app);
+  // SPEC-043 (widgets, ADR-047) — 13 admin routes (instance CRUD, region binding/placement,
+  // server-side embed mutation) + the widgets.place/create/remove/diagnose AI tool surface.
+  // `RouteDeps` already carries every dependency this module needs (`widgetBindingRepo`/
+  // `entryRefsRepo`, added by this same dispatch) — no widened deps type, unlike menus.
+  createWidgetsModule(routeDeps).registerRoutes?.(app);
   // ADR-046 Phase 3 (SPEC-034): the `integrations-admin` server module — 5 admin CRUD/read routes
   // over webhook subscriptions/deliveries (ADR-036). Distinct from `createIntegrationsModule`
   // below, which owns the Forms-to-webhook fan-out subscriber, not an HTTP surface.

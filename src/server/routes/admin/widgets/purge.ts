@@ -1,0 +1,43 @@
+import { purgeWidgetInstance } from "../../../../widgets/write-service";
+import { mapWidgetErrorToResponse } from "../../../http/admin/widgets";
+import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import type { RouteRegistrar } from "../../types";
+
+/**
+ * POST purge a (trashed) widget instance (ADR-047 §7 deletion ladder, step 2) — `?force=true`
+ * requires `widgets.delete.force` (checked inside `purgeWidgetInstance` itself); without `force`,
+ * a still-referenced instance is rejected `409` naming every referencing placement (REQ-42, `ui.spec.md`
+ * §8's `WidgetReferencedError` treatment).
+ */
+export const registerAdminWidgetPurgeRoute: RouteRegistrar = (app, deps) => {
+  app.post("/api/admin/v1/workspaces/:workspaceId/widgets/:id/purge", async (req, res) => {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+      res.status(404).json({ error: "workspace was not found" });
+      return;
+    }
+
+    try {
+      const principal = getAuthedPrincipal(res);
+      await purgeWidgetInstance({
+        deps: {
+          entryRepo: deps.entryRepo,
+          contentTypeRepo: deps.contentTypeRepo,
+          entryRefsRepo: deps.entryRefsRepo,
+          clock: deps.clock,
+          ids: deps.idGen,
+          authorize: deps.authorize,
+          outbox: deps.outbox,
+        },
+        input: {
+          workspaceId: deps.workspaceId,
+          actor: { principalId: principal.id },
+          widgetInstanceId: String(req.params.id),
+          force: req.query.force === "true",
+        },
+      });
+      res.status(200).json({ purged: true });
+    } catch (err) {
+      mapWidgetErrorToResponse(err, res);
+    }
+  });
+};

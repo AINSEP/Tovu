@@ -53,6 +53,12 @@ export function createContactFormResolver(deps: ContactFormResolverDeps): Widget
             componentId: "contact-form",
             props: {
               formDefinitionId: definition.id,
+              // Closes this file's own previously-disclosed deferral ("the actual submission still
+              // posts to Forms' existing public route unmodified... that is a render-component/route
+              // concern, out of this resolver's scope") — the render component built for SPEC-043's
+              // routes/UI slice (`server/http/site/render.ts`'s `renderWidgetContactForm`) needs the
+              // definition's `slug` to build `POST /forms/:slug/submit`'s URL (REQ-37's second half).
+              slug: definition.slug,
               // REQ-37: Forms' own declared field vocabulary, passed through verbatim — never a
               // hardcoded field-type list. Cast: FieldDescriptor[] has no index signature of its
               // own, but every field is plain JSON-serializable data (SPEC-010 forms/types.ts).

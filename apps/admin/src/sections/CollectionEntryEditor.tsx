@@ -9,6 +9,7 @@ import {
   type AdminTaxonomyWithTerms,
   type ContentTypeFieldDef,
 } from "../lib/api";
+import { WidgetEmbed, WidgetEmbedInsertControl } from "../lib/widget-embed-extension";
 
 /**
  * @file Collections' entry editor (design-spec.md §1.5/§1.6) — the
@@ -173,7 +174,7 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const editor = useEditor({ extensions: [StarterKit], content: "" });
+  const editor = useEditor({ extensions: [StarterKit, WidgetEmbed], content: "" });
 
   useEffect(() => {
     setLoadError(null);
@@ -303,6 +304,11 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
       </div>
 
       <div className="editor-shell">
+        <div className="editor-toolbar" role="toolbar" aria-label="Formatting">
+          <div className="grp">
+            <WidgetEmbedInsertControl editor={editor} />
+          </div>
+        </div>
         <div className="editor-body">
           <EditorContent editor={editor as Editor} />
         </div>

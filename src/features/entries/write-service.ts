@@ -238,6 +238,22 @@ export interface UpdateEntryRequired {
     id: string;
     title?: string;
     fieldsJson?: unknown;
+    /**
+     * SPEC-043/ADR-047 Debate Fold-In Amendment 6 (REQ-44/45) — additive-only, optional. Every
+     * pre-existing caller omits this and is byte-for-byte unaffected (verified via a full-suite run
+     * before/after this change — see the widgets implementation report's identical `onWritten`
+     * precedent for the same verification discipline). Closes a real, previously-disclosed gap: no
+     * path existed to change an entry's `bodyJson` after creation (only `createEntry` accepted it),
+     * which blocked REQ-44's "server-side, versioned document-mutation command for widgetEmbed
+     * nodes" — that command IS an `updateEntry` call with a mutated `bodyJson`, through the SAME
+     * chokepoint, `expectedVersion` guard, and revision machinery every other update already uses,
+     * not a second mutation path. No schema validation is applied to `bodyJson` here (none is applied
+     * anywhere else in this codebase either — every existing `bodyJson` writer, e.g.
+     * `CollectionEntryEditor.tsx`'s create call, already writes arbitrary TipTap JSON unchecked);
+     * `widgets/embed-service.ts` is responsible for its own guardrail check
+     * (`validateWidgetEmbedMutation`, REQ-19/20) before ever calling this.
+     */
+    bodyJson?: unknown;
     expectedVersion: number;
     /** The `ext` sub-key `fieldsJson` is namespaced under (ADR-022 §2). Defaults to `"site"` — see `field-validation.ts`'s `validateFieldsAgainstSchema`. */
     owner?: string;
@@ -245,8 +261,8 @@ export interface UpdateEntryRequired {
 }
 
 /**
- * REQ-28 — updates an existing entry's `title`/`fieldsJson` (only the fields supplied are
- * changed). Rejected `ContentTypeNotActiveError` only if the owning type is `tombstone`
+ * REQ-28 — updates an existing entry's `title`/`fieldsJson`/`bodyJson` (only the fields supplied
+ * are changed). Rejected `ContentTypeNotActiveError` only if the owning type is `tombstone`
  * (AC-44/EC-13); a `deprecated` owning type is fine (AC-46).
  *
  * @complexity O(1) plus the shared resolve step and, when `fieldsJson` is supplied, one
@@ -274,6 +290,7 @@ export async function updateEntry(required: UpdateEntryRequired): Promise<Result
     ...current,
     title: input.title ?? current.title,
     fieldsJson,
+    bodyJson: input.bodyJson !== undefined ? input.bodyJson : current.bodyJson,
     updatedAt: now,
     version: current.version + 1,
   };

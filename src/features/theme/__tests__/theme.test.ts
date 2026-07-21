@@ -79,3 +79,45 @@ test("the live themes/dispatch demonstrator theme loads as valid end-to-end", ()
   assert.ok(theme.liquidTemplates.home);
   assert.ok(theme.liquidTemplates.entry);
 });
+
+// ---------------------------------------------------------------------------
+// SPEC-043/ADR-047 §2a — theme-declared `regions` (widgets)
+// ---------------------------------------------------------------------------
+
+const declarativeManifestWithRegions = JSON.stringify({
+  id: "d",
+  name: "D",
+  version: "1.0.0",
+  tier: "declarative",
+  engine: 1,
+  regions: ["header", "footer"],
+});
+
+test("a theme.json declaring regions parses them onto manifest.regions, in order, as strings", () => {
+  const dir = makeThemeDir({
+    "theme.json": declarativeManifestWithRegions,
+    "home.json": JSON.stringify({ type: "doc", content: [] }),
+    "entry.json": JSON.stringify({ type: "doc", content: [] }),
+  });
+  const theme = loadTheme(dir, "d", "site");
+  assert.equal(theme.status, "valid");
+  assert.deepEqual(theme.manifest.regions, ["header", "footer"]);
+});
+
+test("a theme.json with no regions field leaves manifest.regions undefined (back-compat, no migration needed for existing themes)", () => {
+  const dir = makeThemeDir({
+    "theme.json": JSON.stringify({ id: "d2", name: "D2", version: "1.0.0", tier: "declarative", engine: 1 }),
+    "home.json": JSON.stringify({ type: "doc", content: [] }),
+    "entry.json": JSON.stringify({ type: "doc", content: [] }),
+  });
+  const theme = loadTheme(dir, "d2", "site");
+  assert.equal(theme.status, "valid");
+  assert.equal(theme.manifest.regions, undefined);
+});
+
+test("the live themes/dispatch demonstrator theme (no regions declared yet) still loads as valid with manifest.regions undefined", () => {
+  const dispatchDir = path.join(process.cwd(), "themes", "dispatch");
+  const theme = loadTheme(dispatchDir, "dispatch", "built-in");
+  assert.equal(theme.status, "valid");
+  assert.equal(theme.manifest.regions, undefined);
+});

@@ -81,6 +81,8 @@ import { InMemorySiteStatusRepo } from "../features/database/repo.memory";
 import { NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
 import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite";
 import { SqliteEntryRepo } from "../features/entries/repo.sqlite";
+import { SqliteWidgetRegionBindingRepo } from "../widgets/repo.sqlite";
+import { SqliteEntryRefsRepo } from "../core/entry-refs/repo.sqlite";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { SqliteCommentRepo } from "../comments/repo.sqlite";
 import { installCommentsDataModule } from "../comments/data-module-install";
@@ -327,6 +329,11 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
   // SAME shared `db.$client` connection) is chained AFTER `newsletterReady` below — this is
   // pure, synchronous, I/O-free wiring only.
   const entryRepo = new SqliteEntryRepo(db);
+  // SPEC-043/ADR-047 (widgets) — hoisted alongside `entryRepo` for the same reason: both the admin
+  // `widgets` routes and the public site-render path (`routes/site/pages.ts` → `resolvePageWidgets`,
+  // W-004) read/write against the SAME real tables, via the same `db` connection.
+  const widgetBindingRepo = new SqliteWidgetRegionBindingRepo(db);
+  const entryRefsRepo = new SqliteEntryRefsRepo(db);
   const commentsModule = createCommentsModule({
     commentRepo: new SqliteCommentRepo(db.$client),
     entryRepo,
@@ -460,5 +467,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     commentWriteService: commentsModule.writeService,
     commentsReady,
     commentsSettingsReady,
+    widgetBindingRepo,
+    entryRefsRepo,
   };
 }

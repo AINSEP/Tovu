@@ -199,6 +199,60 @@ export interface AdminMenu {
   version: number;
 }
 
+// ---------------------------------------------------------------------------
+// Widgets (SPEC-043, ADR-047) — mirrors AdminMenu's shape, the direct structural sibling
+// ---------------------------------------------------------------------------
+
+export type AdminWidgetType = "text" | "social-links" | "recent-entries" | "menu" | "contact-form";
+
+export interface AdminWidget {
+  id: string;
+  workspaceId: string;
+  slug: string;
+  title: string;
+  status: "active" | "trash" | "purged";
+  widgetType: AdminWidgetType;
+  config: Record<string, unknown>;
+  updatedAt: string;
+  version: number;
+}
+
+export interface AdminWidgetWhereUsedReference {
+  kind: "region" | "embed";
+  sourceEntryId: string;
+  fieldPath: string;
+}
+
+export interface AdminWidgetWhereUsed {
+  count: number;
+  references: AdminWidgetWhereUsedReference[];
+}
+
+export interface AdminWidgetPlacement {
+  placementId: string;
+  widgetEntryId: string;
+  enabled: boolean;
+  widgetTitle: string | null;
+  widgetType: string | null;
+  broken: boolean;
+}
+
+export interface AdminWidgetArea {
+  id: string;
+  workspaceId: string;
+  regionKey: string;
+  updatedAt: string;
+  version: number;
+}
+
+export interface AdminWidgetRegionBinding {
+  workspaceId: string;
+  regionKey: string;
+  areaEntryId: string;
+  updatedAt: string;
+  placementCount: number;
+}
+
 export interface AdminMedia {
   id: string;
   workspaceId: string;
@@ -1098,5 +1152,71 @@ export const api = {
     request<{ data: CommentsSettings }>(`/workspaces/${WORKSPACE_ID}/comments/settings`, {
       method: "PUT",
       body: JSON.stringify(patch),
+    }),
+
+  // -------------------------------------------------------------------------
+  // Widgets (SPEC-043, ADR-047) — mirrors the Menus client functions' exact shape
+  // -------------------------------------------------------------------------
+  listWidgets: (opts: { widgetType?: string; includeInactive?: boolean } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.widgetType) params.set("widgetType", opts.widgetType);
+    if (opts.includeInactive) params.set("includeInactive", "true");
+    const qs = params.toString();
+    return request<{ widgets: AdminWidget[] }>(`/workspaces/${WORKSPACE_ID}/widgets${qs ? `?${qs}` : ""}`);
+  },
+  getWidget: (id: string) =>
+    request<{ widget: AdminWidget; whereUsed: AdminWidgetWhereUsed }>(`/workspaces/${WORKSPACE_ID}/widgets/${id}`),
+  createWidget: (input: { widgetType: AdminWidgetType; title: string; config: Record<string, unknown>; slug?: string }) =>
+    request<{ widget: AdminWidget }>(`/workspaces/${WORKSPACE_ID}/widgets`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  updateWidget: (id: string, input: { baseVersion: number; config: Record<string, unknown> }) =>
+    request<{ widget: AdminWidget }>(`/workspaces/${WORKSPACE_ID}/widgets/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+  trashWidget: (id: string) =>
+    request<{ widget: AdminWidget }>(`/workspaces/${WORKSPACE_ID}/widgets/${id}/trash`, { method: "POST" }),
+  purgeWidget: (id: string, force?: boolean) =>
+    request<{ purged: true }>(`/workspaces/${WORKSPACE_ID}/widgets/${id}/purge${force ? "?force=true" : ""}`, { method: "POST" }),
+
+  listWidgetRegions: () => request<{ regions: AdminWidgetRegionBinding[] }>(`/workspaces/${WORKSPACE_ID}/widgets/regions`),
+  bindWidgetRegion: (regionKey: string) =>
+    request<{ area: AdminWidgetArea }>(`/workspaces/${WORKSPACE_ID}/widgets/regions`, {
+      method: "POST",
+      body: JSON.stringify({ regionKey }),
+    }),
+  getWidgetRegion: (regionKey: string) =>
+    request<{ area: AdminWidgetArea; placements: AdminWidgetPlacement[] }>(`/workspaces/${WORKSPACE_ID}/widgets/regions/${regionKey}`),
+  mutateWidgetRegionPlacements: (
+    regionKey: string,
+    input: { baseVersion: number; placements: Array<{ placementId: string; widgetEntryId: string; enabled: boolean }> }
+  ) =>
+    request<{ area: AdminWidgetArea }>(`/workspaces/${WORKSPACE_ID}/widgets/regions/${regionKey}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+
+  insertWidgetEmbed: (hostEntryId: string, input: { baseVersion: number; widgetEntryId: string }) =>
+    request<{ entry: { id: string; version: number; bodyJson: unknown }; placementId: string }>(
+      `/workspaces/${WORKSPACE_ID}/entries/${hostEntryId}/widget-embeds`,
+      { method: "POST", body: JSON.stringify(input) }
+    ),
+  removeWidgetEmbed: (hostEntryId: string, placementId: string, baseVersion: number) =>
+    request<{ entry: { id: string; version: number; bodyJson: unknown } }>(
+      `/workspaces/${WORKSPACE_ID}/entries/${hostEntryId}/widget-embeds/${placementId}`,
+      { method: "DELETE", body: JSON.stringify({ baseVersion }) }
+    ),
+
+  widgetsToolPlace: (input: { widgetInstanceId: string; target: Record<string, unknown> }) =>
+    request<{ tool: "widgets.place"; result: unknown }>(`/workspaces/${WORKSPACE_ID}/widgets/tools/place`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  widgetsToolCreate: (input: { widgetType: AdminWidgetType; title: string; config: Record<string, unknown>; target: Record<string, unknown> }) =>
+    request<{ tool: "widgets.create"; widget: AdminWidget; result: unknown }>(`/workspaces/${WORKSPACE_ID}/widgets/tools/create`, {
+      method: "POST",
+      body: JSON.stringify(input),
     }),
 };

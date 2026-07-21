@@ -24,6 +24,14 @@ function baseCtx(overrides: Partial<SiteRenderContext> = {}): SiteRenderContext 
     route: "home",
     posts,
     themeName: "test",
+    // SPEC-043/ADR-047 — required fields (not optional on SiteRenderContext); set explicitly here
+    // rather than relying on the `...overrides` spread below to satisfy them, since TS's object-
+    // literal completeness check is unsound for a trailing generic/partial spread (it can't prove
+    // statically that `overrides` won't supply them, so it doesn't flag their absence when it
+    // doesn't) — omitting them here would type-check but leave `ctx.widgetRegions` genuinely
+    // `undefined` at runtime for every caller that doesn't override it.
+    widgetRegions: {},
+    widgetInlineResolved: new Map(),
     ...overrides,
   };
 }

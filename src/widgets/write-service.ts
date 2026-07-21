@@ -332,6 +332,20 @@ export async function purgeWidgetInstance(required: PurgeWidgetInstanceRequired)
         clock: deps.clock,
         authorize: PRE_AUTHORIZED,
         outbox: deps.outbox,
+        // Audit finding (2026-07-21, external /audit-work on ADR-047): a force-purged instance's
+        // own OUTGOING refs (e.g. a Contact Form's `formDefinitionId`, a Menu widget's `menuRef`)
+        // must be retracted, same transaction as the purge write — purge is the permanent step
+        // (REQ-43), so a config field that used to reference something should stop counting as a
+        // live reference once the instance holding it is gone. Deliberately an EMPTY
+        // `replaceForSource` call, not a re-extraction from `config` (the config is unchanged by a
+        // status transition, so re-running the normal extractor would just re-derive the SAME rows
+        // — it's the retraction itself, not a re-derivation, that's the fix here).
+        //
+        // `trashWidgetInstance` deliberately does NOT do this: trash is soft/reversible (EC-07 — a
+        // trashed target's placements degrade to the REQ-28 placeholder and recover automatically
+        // if the instance is restored), so its own outgoing refs must stay intact for that restore
+        // to be meaningful. Only the permanent step retracts.
+        onWritten: (entry) => deps.entryRefsRepo.replaceForSource({ workspaceId: input.workspaceId, sourceEntryId: entry.id, refs: [] }),
       },
       input: {
         actorId: input.actor.principalId,

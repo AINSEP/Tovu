@@ -2,6 +2,8 @@ import type { JsonObject, JsonValue } from "../../../core/ports";
 import type { PostRecord } from "../../../features/post";
 import type { DiscoveredTheme, TemplateNode } from "../../../features/theme";
 import { resolveTemplateId, resolveLiquidTemplateId } from "../../../features/theme";
+import type { ResolvePageWidgetsResult } from "../../../widgets/resolver-service";
+import type { WidgetRenderIR } from "../../../widgets/types";
 import { renderLiquidInSandbox } from "./liquid-sandbox";
 
 /**
@@ -34,6 +36,15 @@ export interface SiteRenderContext {
   post?: PostRecord;
   /** Active theme display name, for the footer badge. */
   themeName: string;
+  /**
+   * SPEC-043/ADR-047 W-004 — `resolvePageWidgets`'s per-region resolved widget IR, keyed by region
+   * key. Empty object when the theme declares no regions or nothing resolved were passed in
+   * (every render that doesn't opt into widgets, including every pre-existing test/caller of
+   * `renderSite`, gets an empty object here — not a breaking change).
+   */
+  widgetRegions: Record<string, readonly WidgetRenderIR[]>;
+  /** SPEC-043/ADR-047 REQ-21 — resolved inline `widgetEmbed` IR, keyed by `placementId`. */
+  widgetInlineResolved: ReadonlyMap<string, WidgetRenderIR>;
 }
 
 function isObject(value: unknown): value is JsonObject {
@@ -87,24 +98,36 @@ function renderMarks(text: string, marks: JsonValue[] | undefined): string {
   return html;
 }
 
-function renderNodes(nodes: JsonValue[] | undefined): string {
-  return (nodes ?? []).map((node) => renderDocNode(node)).join("");
+/** No-widgets default for every `renderDocNode`/`renderNodes` caller that doesn't pass one. */
+const EMPTY_INLINE_RESOLVED: ReadonlyMap<string, WidgetRenderIR> = new Map();
+
+function renderNodes(nodes: JsonValue[] | undefined, inlineResolved: ReadonlyMap<string, WidgetRenderIR>): string {
+  return (nodes ?? []).map((node) => renderDocNode(node, inlineResolved)).join("");
 }
 
-/** Renders a TipTap/ProseMirror-style doc node to HTML. Unknown nodes render children. */
-export function renderDocNode(node: JsonValue): string {
+/**
+ * Renders a TipTap/ProseMirror-style doc node to HTML. Unknown nodes render children.
+ *
+ * `inlineResolved` (SPEC-043/ADR-047 REQ-21) is optional and defaults to empty — every pre-existing
+ * caller (this file's `entryContent`, `liquid-worker.ts`'s `buildLiquidData`, and every direct test
+ * call) keeps working unchanged; a `widgetEmbed` node with no matching entry in the map (embeds are
+ * only resolvable when the caller threads a real `resolvePageWidgets` result through, see
+ * `renderSite`) degrades to the same public-safe placeholder REQ-28 requires, never a crash or a raw
+ * dump of the node's attrs.
+ */
+export function renderDocNode(node: JsonValue, inlineResolved: ReadonlyMap<string, WidgetRenderIR> = EMPTY_INLINE_RESOLVED): string {
   if (!isObject(node)) return "";
   const content = Array.isArray(node.content) ? node.content : undefined;
 
   switch (node.type) {
     case "doc":
-      return renderNodes(content);
+      return renderNodes(content, inlineResolved);
     case "paragraph":
-      return `<p>${renderNodes(content)}</p>`;
+      return `<p>${renderNodes(content, inlineResolved)}</p>`;
     case "heading": {
       const level = isObject(node.attrs) && typeof node.attrs.level === "number" ? node.attrs.level : 2;
       const h = Math.min(Math.max(level, 1), 6);
-      return `<h${h}>${renderNodes(content)}</h${h}>`;
+      return `<h${h}>${renderNodes(content, inlineResolved)}</h${h}>`;
     }
     case "text":
       return renderMarks(
@@ -112,19 +135,30 @@ export function renderDocNode(node: JsonValue): string {
         Array.isArray(node.marks) ? node.marks : undefined
       );
     case "bulletList":
-      return `<ul>${renderNodes(content)}</ul>`;
+      return `<ul>${renderNodes(content, inlineResolved)}</ul>`;
     case "orderedList":
-      return `<ol>${renderNodes(content)}</ol>`;
+      return `<ol>${renderNodes(content, inlineResolved)}</ol>`;
     case "listItem":
-      return `<li>${renderNodes(content)}</li>`;
+      return `<li>${renderNodes(content, inlineResolved)}</li>`;
     case "blockquote":
-      return `<blockquote>${renderNodes(content)}</blockquote>`;
+      return `<blockquote>${renderNodes(content, inlineResolved)}</blockquote>`;
     case "codeBlock":
-      return `<pre><code>${renderNodes(content)}</code></pre>`;
+      return `<pre><code>${renderNodes(content, inlineResolved)}</code></pre>`;
     case "horizontalRule":
       return "<hr/>";
+    case "widgetEmbed": {
+      // REQ-18/REQ-21: a block-level atom node carrying a single widget-instance reference,
+      // resolved server-side (by `resolvePageWidgets`, threaded in via `inlineResolved`) before this
+      // content ever reaches a theme — the theme (declarative tier here, Liquid tier via
+      // `liquid-worker.ts`'s `buildLiquidData` pre-computing `post.content`) never resolves a
+      // `widgetEmbed` reference itself.
+      const attrs = isObject(node.attrs) ? node.attrs : {};
+      const placementId = typeof attrs.placementId === "string" ? attrs.placementId : undefined;
+      const ir = placementId ? inlineResolved.get(placementId) : undefined;
+      return renderWidgetIr(ir ?? WIDGET_PLACEHOLDER_IR);
+    }
     default:
-      return renderNodes(content);
+      return renderNodes(content, inlineResolved);
   }
 }
 
@@ -157,7 +191,7 @@ function entryList(ctx: SiteRenderContext, props: JsonObject): string {
 
 function entryContent(ctx: SiteRenderContext): string {
   if (!ctx.post) return "";
-  return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(shortDate(ctx.post.updatedAt))}</p><div class="prose">${renderDocNode(ctx.post.bodyJson)}</div></article></div>`;
+  return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(shortDate(ctx.post.updatedAt))}</p><div class="prose">${renderDocNode(ctx.post.bodyJson, ctx.widgetInlineResolved)}</div></article></div>`;
 }
 
 function siteFooter(ctx: SiteRenderContext): string {
@@ -336,6 +370,149 @@ export const COMPONENTS: Record<string, Component> = {
 };
 
 // ---------------------------------------------------------------------------
+// Widget IR rendering (SPEC-043/ADR-047 W-004) — renders `resolvePageWidgets`'s
+// output (`WidgetRenderIR { componentId, props, children? }`), NOT theme-authored
+// `TemplateNode` data. Deliberately a separate switch, not folded into `COMPONENTS`:
+// `COMPONENTS`/`Component` resolve theme-authored `{type:"component", id, props}`
+// nodes and have no concept of an IR's `children` array; widget IR is core-produced,
+// closed-vocabulary data (exactly the five v1 `componentId`s the widget-type
+// registry can ever emit, plus the `widget-placeholder` failure IR — see
+// `src/widgets/registry.ts`/`resolver-service.ts`). Both render tiers reach this
+// same function — the declarative tier via `renderBlock`'s new `region` node kind,
+// the Liquid tier via `liquid-worker.ts`'s extended `render_block` tag — so ADR-047
+// §2a's "no new Liquid capability required, both placement paths resolve to
+// something the renderer already knows how to receive" holds for regions the same
+// way it already held for the original four components.
+// ---------------------------------------------------------------------------
+
+/** REQ-28: a widget resolution failure (or, here, an unresolvable IR reaching the renderer some
+ * other way) renders an isolated, public-safe placeholder — no internal error detail. */
+const WIDGET_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeholder", props: {} };
+
+function renderWidgetSocialLinks(props: JsonObject): string {
+  const items = arr(props.links)
+    .map((link) => {
+      const o = obj(link);
+      if (!o) return "";
+      return `<li><a class="widget-social-link" href="${escapeHtml(safeHref(o.url))}">${escapeHtml(str(o.platform))}</a></li>`;
+    })
+    .join("");
+  return `<ul class="widget widget-social-links">${items}</ul>`;
+}
+
+function renderWidgetEntrySummary(props: JsonObject): string {
+  const slug = str(props.slug);
+  const title = str(props.title);
+  return `<li class="widget-entry-summary"><a href="/${escapeHtml(slug)}">${escapeHtml(title)}</a></li>`;
+}
+
+function renderWidgetRecentEntries(children: readonly WidgetRenderIR[] | undefined): string {
+  const items = (children ?? []).map((child) => renderWidgetIr(child)).join("");
+  return `<ul class="widget widget-recent-entries">${items || '<li class="widget-empty">No entries yet.</li>'}</ul>`;
+}
+
+/** Renders a `menu` widget's resolved nav items (`navigation/resolver.ts`'s `ResolvedNavItem[]`,
+ * passed through as plain IR props) — mirrors `siteNav`'s own unavailable-link handling: an
+ * `available:false` item renders as inert text, never a broken/empty href. */
+function renderWidgetMenuItems(items: JsonValue[]): string {
+  return items
+    .map((item) => {
+      const o = obj(item);
+      if (!o) return "";
+      const label = escapeHtml(str(o.label));
+      const available = o.available === true && typeof o.href === "string";
+      const link = available
+        ? `<a href="${escapeHtml(safeHref(o.href))}">${label}</a>`
+        : `<span class="widget-menu-item--unavailable">${label}</span>`;
+      const children = arr(o.children);
+      const sub = children.length ? `<ul>${renderWidgetMenuItems(children)}</ul>` : "";
+      return `<li>${link}${sub}</li>`;
+    })
+    .join("");
+}
+
+function renderWidgetMenu(props: JsonObject): string {
+  const title = str(props.title);
+  const heading = title ? `<h3 class="widget-menu-title">${escapeHtml(title)}</h3>` : "";
+  return `<nav class="widget widget-menu">${heading}<ul>${renderWidgetMenuItems(arr(props.items))}</ul></nav>`;
+}
+
+/** Renders a `contact-form` widget: Forms' own declared field vocabulary (REQ-37 — never a
+ * hardcoded field-type list), posting to Forms' existing public route unmodified (`POST
+ * /forms/:slug/submit`, `routes/site/forms-submit.ts`) — this widget type introduces no new
+ * submission endpoint (REQ-39). */
+function renderWidgetContactForm(props: JsonObject): string {
+  const slug = str(props.slug);
+  if (!slug) return renderWidgetPlaceholder();
+  const fields = arr(props.fields)
+    .map((f) => {
+      const o = obj(f);
+      if (!o) return "";
+      const id = escapeHtml(str(o.id));
+      const label = escapeHtml(str(o.label));
+      const required = o.required === true;
+      const kind = str(o.type, "text");
+      const inputEl =
+        kind === "textarea"
+          ? `<textarea name="${id}" id="widget-contact-${id}"${required ? " required" : ""}></textarea>`
+          : kind === "checkbox"
+            ? `<input type="checkbox" name="${id}" id="widget-contact-${id}"${required ? " required" : ""}/>`
+            : `<input type="${kind === "email" ? "email" : "text"}" name="${id}" id="widget-contact-${id}"${required ? " required" : ""}/>`;
+      return `<div class="widget-form-field"><label for="widget-contact-${id}">${label}${required ? " *" : ""}</label>${inputEl}</div>`;
+    })
+    .join("");
+  return `<form class="widget widget-contact-form" method="post" action="/forms/${escapeHtml(slug)}/submit">${fields}<button type="submit">Send</button></form>`;
+}
+
+/** REQ-28: no internal detail, no stack trace, no configuration secret — the placeholder itself
+ * carries nothing beyond a static, styleable marker. */
+function renderWidgetPlaceholder(): string {
+  return `<div class="widget widget-placeholder" aria-hidden="true"></div>`;
+}
+
+/**
+ * Renders one resolved widget IR node to HTML. Never throws: an unrecognized `componentId` (a
+ * resolver shape this renderer doesn't yet know, or the REQ-27 failure taxonomy reaching here some
+ * other way) degrades to the same public-safe placeholder REQ-28 requires, not a crash or an
+ * unescaped dump of unknown props.
+ */
+function renderWidgetIr(ir: WidgetRenderIR): string {
+  switch (ir.componentId) {
+    case "text":
+      return `<div class="widget widget-text">${escapeHtml(str(ir.props.body)).replaceAll("\n", "<br/>")}</div>`;
+    case "social-links":
+      return renderWidgetSocialLinks(ir.props);
+    case "recent-entries":
+      return renderWidgetRecentEntries(ir.children);
+    case "entry-summary":
+      return renderWidgetEntrySummary(ir.props);
+    case "menu":
+      return renderWidgetMenu(ir.props);
+    case "contact-form":
+      return renderWidgetContactForm(ir.props);
+    case "widget-placeholder":
+    default:
+      return renderWidgetPlaceholder();
+  }
+}
+
+/**
+ * Renders a theme-declared region: the ordered, resolved widget list for `regionKey`, wrapped in
+ * one semantic container. No layout/positioning opinion beyond that container (ADR-047 §4 "widgets
+ * carry zero layout opinion" — that belongs to the region's placement context, i.e. the theme's own
+ * CSS/template arrangement around this block). Renders nothing (not even the wrapper) when the
+ * region has no resolved widgets — an empty/unbound region is not an error state (ADR-047 §7).
+ */
+/** Exported for `liquid-worker.ts`'s `render_block` tag, which resolves `region:` the same way it
+ * resolves `component:` — over the same `COMPONENTS`-registry-adjacent seam, per ADR-047 §2a's "no
+ * new Liquid capability required." */
+export function renderWidgetRegion(ctx: SiteRenderContext, regionKey: string): string {
+  const items = ctx.widgetRegions[regionKey] ?? [];
+  if (items.length === 0) return "";
+  return `<div class="widget-region widget-region--${escapeHtml(regionKey)}">${items.map((ir) => renderWidgetIr(ir)).join("")}</div>`;
+}
+
+// ---------------------------------------------------------------------------
 // Templated tier (LiquidJS) — ADR-020 Tier 2.
 //
 // A "templated" theme ships `.liquid` files instead of JSON block trees. Liquid
@@ -368,7 +545,7 @@ function renderSlot(name: string, ctx: SiteRenderContext): string {
     case "title":
       return `<h1 class="slot-title">${escapeHtml(ctx.route === "post" && ctx.post ? ctx.post.title : ctx.siteTitle)}</h1>`;
     case "content":
-      return ctx.post ? `<div class="prose">${renderDocNode(ctx.post.bodyJson)}</div>` : "";
+      return ctx.post ? `<div class="prose">${renderDocNode(ctx.post.bodyJson, ctx.widgetInlineResolved)}</div>` : "";
     case "entry-list":
       return entryList(ctx, {});
     default:
@@ -394,12 +571,21 @@ function renderBlock(node: TemplateNode, ctx: SiteRenderContext): string {
     return renderSlot(typeof node.name === "string" ? node.name : "", ctx);
   }
 
+  // SPEC-043/ADR-047 W-004: `{"type":"region","key":"footer"}` — a theme-authored reference to a
+  // theme-declared widget region (REQ-13/`ThemeManifest.regions`), resolved server-side ahead of
+  // this walk (`resolvePageWidgets`, threaded in via `ctx.widgetRegions`). Checked before the
+  // generic doc-vocabulary fallthrough so a region node is never mistaken for unknown content-doc
+  // vocabulary (which would try to walk its `content`, not its `key`).
+  if (node.type === "region") {
+    return renderWidgetRegion(ctx, typeof node.key === "string" ? node.key : "");
+  }
+
   if (node.type === "doc") {
     return (Array.isArray(node.content) ? node.content : []).map((child) => renderBlock(child, ctx)).join("");
   }
 
   // Anything else is content-doc vocabulary.
-  return renderDocNode(node);
+  return renderDocNode(node, ctx.widgetInlineResolved);
 }
 
 // ---------------------------------------------------------------------------
@@ -465,6 +651,15 @@ export async function renderSite(required: {
   siteTitle: string;
   posts: PostRecord[];
   post?: PostRecord;
+  /**
+   * SPEC-043/ADR-047 W-004 — pre-resolved widget data for this render (`resolvePageWidgets`'s own
+   * output). `render.ts` stays a pure "resolved data -> HTML" renderer, matching how `posts`/`post`
+   * are already pre-resolved by the caller (`routes/site/pages.ts`) rather than repo-fetched here —
+   * `resolvePageWidgets` itself never throws (REQ-27), so the caller can always pass a real result.
+   * Omitted entirely (every pre-existing caller/test of `renderSite`) behaves as "no regions
+   * declared, no inline embeds resolved" — not a breaking change.
+   */
+  widgets?: ResolvePageWidgetsResult;
 }): Promise<string> {
   const { theme, route } = required;
   const ctx: SiteRenderContext = {
@@ -473,6 +668,8 @@ export async function renderSite(required: {
     posts: required.posts,
     post: required.post,
     themeName: theme.manifest.name,
+    widgetRegions: required.widgets?.regions ?? {},
+    widgetInlineResolved: required.widgets?.inlineResolved ?? EMPTY_INLINE_RESOLVED,
   };
 
   const fallbackBody = (): string =>
