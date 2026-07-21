@@ -143,10 +143,31 @@ export interface PrincipalPolicyRecord {
 export class IdentityValidationError extends Error {}
 /** Raised when a referenced principal/user/role/policy is not found. */
 export class IdentityNotFoundError extends Error {}
-/** Raised on a unique-constraint clash (duplicate `username` in a workspace, AC-19). */
+/**
+ * Raised on a unique-constraint clash (duplicate `username` in a workspace, AC-19). SPEC-006 0.6.0:
+ * also raised by `deleteRole`/`deletePolicy` (`admin-crud-service.ts`) when the target still has
+ * live references (INV-09, AC-31) — the same 409 `RESOURCE_CONFLICT` shape, a `details.field`
+ * distinguishes the two cases at the route layer (errors.spec.md §3).
+ */
 export class IdentityConflictError extends Error {}
 /** Raised by `login()` on bad credentials, a disabled principal, or a blank field (AC-02). */
 export class AuthInvalidCredentialsError extends Error {}
+
+/**
+ * SPEC-006 0.6.0 (REQ-11/INV-08) — raised by `disablePrincipal` when the target is the seeded owner
+ * principal, or when disabling would drop the workspace's active owner-`*` count to zero. Maps to
+ * 409 `OWNER_REQUIRED` (errors.spec.md §2) — a pre-existing registered code that had no HTTP
+ * emission site until this amendment gave `DISABLE_PRINCIPAL` a route.
+ */
+export class OwnerRequiredError extends Error {}
+
+/**
+ * SPEC-006 0.6.0 (REQ-03/INV-07) — raised by `writePolicyPermission` when the permission string is
+ * not in the registered catalog. Maps to 400 `PERMISSION_UNKNOWN` (errors.spec.md §2) — kept
+ * distinct from `IdentityValidationError` (plain `VALIDATION_ERROR`) so the route can emit the
+ * correct typed code without string-matching the message.
+ */
+export class PermissionUnknownError extends Error {}
 
 /**
  * Raised when a grant-writing transition's caller-permission gate fails

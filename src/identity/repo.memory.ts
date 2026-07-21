@@ -152,6 +152,15 @@ export class InMemorySessionRepo implements SessionRepoPort {
     );
     if (row) row.revokedAt = required.revokedAt;
   }
+
+  async listByPrincipalId(required: {
+    workspaceId: string;
+    principalId: string;
+  }): Promise<SessionRecord[]> {
+    return this.rows.filter(
+      (row) => row.workspaceId === required.workspaceId && row.principalId === required.principalId
+    );
+  }
 }
 
 export class InMemoryRoleRepo implements RoleRepoPort {
@@ -187,6 +196,12 @@ export class InMemoryRoleRepo implements RoleRepoPort {
       return;
     }
     this.rows[index] = record;
+  }
+
+  async delete(required: { workspaceId: string; id: string }): Promise<void> {
+    this.rows = this.rows.filter(
+      (row) => !(row.workspaceId === required.workspaceId && row.id === required.id)
+    );
   }
 }
 
@@ -224,6 +239,12 @@ export class InMemoryPolicyRepo implements PolicyRepoPort {
     }
     this.rows[index] = record;
   }
+
+  async delete(required: { workspaceId: string; id: string }): Promise<void> {
+    this.rows = this.rows.filter(
+      (row) => !(row.workspaceId === required.workspaceId && row.id === required.id)
+    );
+  }
 }
 
 export class InMemoryPolicyPermissionRepo implements PolicyPermissionRepoPort {
@@ -252,6 +273,12 @@ export class InMemoryPolicyPermissionRepo implements PolicyPermissionRepoPort {
     }
     this.rows[index] = record;
   }
+
+  async deleteByPolicyId(required: { workspaceId: string; policyId: string }): Promise<void> {
+    this.rows = this.rows.filter(
+      (row) => !(row.workspaceId === required.workspaceId && row.policyId === required.policyId)
+    );
+  }
 }
 
 export class InMemoryRolePolicyRepo implements RolePolicyRepoPort {
@@ -264,6 +291,12 @@ export class InMemoryRolePolicyRepo implements RolePolicyRepoPort {
   async listByRoleId(required: { workspaceId: string; roleId: string }): Promise<RolePolicyRecord[]> {
     return this.rows.filter(
       (row) => row.workspaceId === required.workspaceId && row.roleId === required.roleId
+    );
+  }
+
+  async listByPolicyId(required: { workspaceId: string; policyId: string }): Promise<RolePolicyRecord[]> {
+    return this.rows.filter(
+      (row) => row.workspaceId === required.workspaceId && row.policyId === required.policyId
     );
   }
 
@@ -295,6 +328,12 @@ export class InMemoryPrincipalRoleRepo implements PrincipalRoleRepoPort {
     );
   }
 
+  async listByRoleId(required: { workspaceId: string; roleId: string }): Promise<PrincipalRoleRecord[]> {
+    return this.rows.filter(
+      (row) => row.workspaceId === required.workspaceId && row.roleId === required.roleId
+    );
+  }
+
   async save(record: PrincipalRoleRecord): Promise<void> {
     const index = this.rows.findIndex(
       (row) => row.workspaceId === record.workspaceId && row.id === record.id
@@ -320,6 +359,15 @@ export class InMemoryPrincipalPolicyRepo implements PrincipalPolicyRepoPort {
   }): Promise<PrincipalPolicyRecord[]> {
     return this.rows.filter(
       (row) => row.workspaceId === required.workspaceId && row.principalId === required.principalId
+    );
+  }
+
+  async listByPolicyId(required: {
+    workspaceId: string;
+    policyId: string;
+  }): Promise<PrincipalPolicyRecord[]> {
+    return this.rows.filter(
+      (row) => row.workspaceId === required.workspaceId && row.policyId === required.policyId
     );
   }
 

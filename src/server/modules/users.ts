@@ -6,6 +6,15 @@ import { registerAdminUserAttachPolicyRoute } from "../routes/admin/users/attach
 import { registerAdminPolicyListRoute } from "../routes/admin/users/list-policies";
 import { registerAdminRoleListRoute } from "../routes/admin/users/list-roles";
 import { registerAdminUserListRoute } from "../routes/admin/users/list";
+import { registerAdminUserDisableRoute } from "../routes/admin/users/disable";
+import { registerAdminUserEnableRoute } from "../routes/admin/users/enable";
+import { registerAdminUserUpdateRoute } from "../routes/admin/users/update";
+import { registerAdminUserResetPasswordRoute } from "../routes/admin/users/reset-password";
+import { registerAdminRoleUpdateRoute } from "../routes/admin/users/update-role";
+import { registerAdminRoleDeleteRoute } from "../routes/admin/users/delete-role";
+import { registerAdminPolicyUpdateRoute } from "../routes/admin/users/update-policy";
+import { registerAdminPolicyDeleteRoute } from "../routes/admin/users/delete-policy";
+import { registerAdminPolicyWritePermissionRoute } from "../routes/admin/users/write-policy-permission";
 import type { UsersRouteDeps } from "../routes/admin/users/deps";
 import type { ServerModuleHandle } from "./types";
 
@@ -18,12 +27,14 @@ import type { ServerModuleHandle } from "./types";
  * `identityReposFrom`/`identityServiceDepsFrom` (the pre-existing, unrelated helper functions in
  * the same file) were retyped from `RouteDeps` to this same narrow type rather than left
  * untouched: both already only ever read fields `UsersRouteDeps` includes, so the retype is pure
- * narrowing, needed so the 8 registrars below (now typed `UsersRouteRegistrar` instead of the
+ * narrowing, needed so the registrars below (now typed `UsersRouteRegistrar` instead of the
  * generic `RouteRegistrar`) can still call them.
  *
- * Owns all 8 registrations (4 users: list/create/assign-role/attach-policy; 2 roles:
- * list/create; 2 policies: list/create) — moved here verbatim from `app.ts`'s `createApp()`,
- * same registrar function bodies, no behavior change, same relative order.
+ * Originally owned 8 registrations (4 users: list/create/assign-role/attach-policy; 2 roles:
+ * list/create; 2 policies: list/create), moved here verbatim from `app.ts`'s `createApp()`. SPEC-006
+ * 0.6.0 (the users/roles/policies CRUD-completion amendment) adds 9 more: `disable`/`enable`/
+ * `update`/`reset-password` (users), `update-role`/`delete-role` (roles), `update-policy`/
+ * `delete-policy`/`write-policy-permission` (policies) — 17 registrations total.
  */
 export function createUsersModule(deps: UsersRouteDeps): ServerModuleHandle {
   return {
@@ -31,12 +42,21 @@ export function createUsersModule(deps: UsersRouteDeps): ServerModuleHandle {
     registerRoutes: (app) => {
       registerAdminUserListRoute(app, deps);
       registerAdminUserCreateRoute(app, deps);
+      registerAdminUserUpdateRoute(app, deps);
+      registerAdminUserDisableRoute(app, deps);
+      registerAdminUserEnableRoute(app, deps);
+      registerAdminUserResetPasswordRoute(app, deps);
       registerAdminUserAssignRoleRoute(app, deps);
       registerAdminUserAttachPolicyRoute(app, deps);
       registerAdminRoleListRoute(app, deps);
       registerAdminRoleCreateRoute(app, deps);
+      registerAdminRoleUpdateRoute(app, deps);
+      registerAdminRoleDeleteRoute(app, deps);
       registerAdminPolicyListRoute(app, deps);
       registerAdminPolicyCreateRoute(app, deps);
+      registerAdminPolicyUpdateRoute(app, deps);
+      registerAdminPolicyDeleteRoute(app, deps);
+      registerAdminPolicyWritePermissionRoute(app, deps);
     },
   };
 }

@@ -25,6 +25,8 @@ export {
   AuthInvalidCredentialsError,
   IdentityForbiddenError,
   GrantExceedsIssuerError,
+  OwnerRequiredError,
+  PermissionUnknownError,
 } from "./types";
 
 export type {
@@ -81,6 +83,19 @@ export {
   assignRole,
   attachPolicy,
 } from "./grant-service";
+
+/** SPEC-006 0.6.0 — the users/roles/policies admin CRUD-completion amendment. */
+export {
+  disablePrincipal,
+  enablePrincipal,
+  updateUser,
+  resetUserPassword,
+  updateRole,
+  updatePolicy,
+  deleteRole,
+  deletePolicy,
+  writePolicyPermission,
+} from "./admin-crud-service";
 
 export {
   createInMemoryIdentityRouteDeps,

@@ -281,6 +281,14 @@ export interface AdminPolicy {
   isFrozen: boolean;
 }
 
+/** SPEC-044 (Workspace Administration) — mirrors `server/http/admin/workspace.ts`'s DTO. */
+export interface AdminWorkspace {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+}
+
 /**
  * SPEC-010 Forms (Tier-1 sample plugin) — client-side types mirroring `server/http/admin/forms.ts`
  * + api.spec.md §5. Response envelopes use `{ data: ... }` (Forms' own contract shape), unlike the
@@ -779,6 +787,25 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  // SPEC-006 0.6.0 (users/roles/policies CRUD-completion amendment).
+  updateUser: (principalId: string, input: { email?: string }) =>
+    request<{ user: AdminIdentityUser }>(`/workspaces/${WORKSPACE_ID}/users/${principalId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    }),
+  disableUser: (principalId: string) =>
+    request<{ user: AdminIdentityUser }>(`/workspaces/${WORKSPACE_ID}/users/${principalId}/disable`, {
+      method: "POST",
+    }),
+  enableUser: (principalId: string) =>
+    request<{ user: AdminIdentityUser }>(`/workspaces/${WORKSPACE_ID}/users/${principalId}/enable`, {
+      method: "POST",
+    }),
+  resetUserPassword: (principalId: string, password: string) =>
+    request<void>(`/workspaces/${WORKSPACE_ID}/users/${principalId}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }),
   assignRole: (principalId: string, roleId: string) =>
     request<{ assignment: unknown }>(`/workspaces/${WORKSPACE_ID}/users/${principalId}/roles`, {
       method: "POST",
@@ -795,12 +822,44 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ name }),
     }),
+  // SPEC-006 0.6.0.
+  updateRole: (roleId: string, name: string) =>
+    request<{ role: AdminRole }>(`/workspaces/${WORKSPACE_ID}/roles/${roleId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
+  deleteRole: (roleId: string) =>
+    request<void>(`/workspaces/${WORKSPACE_ID}/roles/${roleId}`, { method: "DELETE" }),
   listPolicies: () => request<{ policies: AdminPolicy[] }>(`/workspaces/${WORKSPACE_ID}/policies`),
   createPolicy: (name: string, description?: string) =>
     request<{ policy: AdminPolicy }>(`/workspaces/${WORKSPACE_ID}/policies`, {
       method: "POST",
       body: JSON.stringify({ name, description }),
     }),
+  // SPEC-006 0.6.0.
+  updatePolicy: (policyId: string, input: { name?: string; description?: string }) =>
+    request<{ policy: AdminPolicy }>(`/workspaces/${WORKSPACE_ID}/policies/${policyId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    }),
+  deletePolicy: (policyId: string) =>
+    request<void>(`/workspaces/${WORKSPACE_ID}/policies/${policyId}`, { method: "DELETE" }),
+  writePolicyPermission: (policyId: string, permission: string, resourceType?: string) =>
+    request<{ policyPermission: unknown }>(`/workspaces/${WORKSPACE_ID}/policies/${policyId}/permissions`, {
+      method: "POST",
+      body: JSON.stringify({ permission, resourceType: resourceType || undefined }),
+    }),
+
+  // SPEC-044 (Workspace Administration). Note the path shape here differs from every call above:
+  // `workspaces` IS the resource (no `/workspaces/${WORKSPACE_ID}/<sub-resource>` nesting) —
+  // `/workspaces` (list/create) and `/workspaces/:id` (get/update/delete), matching api.spec.md.
+  getWorkspace: () => request<{ workspace: AdminWorkspace }>(`/workspaces/${WORKSPACE_ID}`),
+  updateWorkspace: (input: { name?: string; slug?: string }) =>
+    request<{ workspace: AdminWorkspace }>(`/workspaces/${WORKSPACE_ID}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    }),
+  deleteWorkspace: () => request<void>(`/workspaces/${WORKSPACE_ID}`, { method: "DELETE" }),
 
   // SPEC-007 Settings (core-only layered ledger) — Phase 6 UI.
   getSettingsEffective: (namespace: string, opts: { principalId?: string } = {}) => {

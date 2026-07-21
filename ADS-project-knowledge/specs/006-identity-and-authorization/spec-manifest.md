@@ -11,8 +11,8 @@
 |-------|-------|
 | spec_id | SPEC-006 |
 | feature_name | FEAT-006-identity-and-authorization |
-| version | 0.5.6 |
-| last_edited | 2026-07-08T19:41:56Z |
+| version | 0.6.0 |
+| last_edited | 2026-07-21T00:00:00Z |
 | spec_naming | standard |
 | spec_root | ADS-project-knowledge/specs/006-identity-and-authorization |
 | spec_entrypoint | feature.spec.md |
@@ -29,11 +29,11 @@ downstream stage must read.
 | Logical File | Status (`PRESENT|OMITTED`) | Actual Filename | Why Present / Why Omitted |
 |---|---|---|---|
 | `feature.spec.md` | PRESENT | feature.spec.md | Canonical primary requirements spec (REQ/AC/INV/EC), hash anchor |
-| `api.spec.md` | PRESENT | api.spec.md | Real HTTP surface: auth login/logout/me, api-key issue/revoke, and the cross-cutting gateway gate |
-| `state.spec.md` | PRESENT | state.spec.md | Persistent server state: principals/users/sessions/api_keys/RBAC tables, transitions, authorize() projection |
+| `api.spec.md` | PRESENT | api.spec.md | Real HTTP surface: auth login/logout/me, api-key issue/revoke, users/roles/policies admin CRUD (§1a, 0.6.0), and the cross-cutting gateway gate |
+| `state.spec.md` | PRESENT | state.spec.md | Persistent server state: principals/users/sessions/api_keys/RBAC tables, transitions (incl. 0.6.0's ENABLE_PRINCIPAL/UPDATE_USER/RESET_USER_PASSWORD/UPDATE_ROLE/UPDATE_POLICY/DELETE_ROLE/DELETE_POLICY), authorize() projection |
 | `orchestrator.spec.md` | OMITTED | — | No async orchestration/coordinator layer; authorize() is a synchronous ordinary core function (REQ-04, ADR-006), the gateway pipeline is defined in api.spec §0 and behavior.spec §2 |
-| `ui.spec.md` | OMITTED | — | This spec is API + core only; admin UI for user/role management is explicitly deferred (OQ-06) |
-| `errors.spec.md` | PRESENT | errors.spec.md | New error registry: FORBIDDEN, UNAUTHENTICATED, GRANT_EXCEEDS_ISSUER, PERMISSION_UNKNOWN, and standard codes |
+| `ui.spec.md` | OMITTED | — | **(0.6.0 revised reason)** `Users.tsx`/`Roles.tsx` already exist and OQ-06 is resolved, but neither was ever built from a formal `ui.spec.md` — this package continues that established practice: REQ/AC are the behavioral contract, the specific new affordances (disable/enable toggle, email-edit field, delete-role/policy buttons, a permission-picker row for `WRITE_POLICY_PERMISSION`) are Software Architect/Programmer implementation detail, same as the pre-existing grant-management UI was |
+| `errors.spec.md` | PRESENT | errors.spec.md | Error registry: FORBIDDEN, UNAUTHENTICATED, GRANT_EXCEEDS_ISSUER, PERMISSION_UNKNOWN, RESOURCE_CONFLICT, OWNER_REQUIRED, and standard codes — **0.6.0 introduces zero new codes**, only new emission sites for three pre-existing ones |
 | `behavior.spec.md` | PRESENT | behavior.spec.md | Deterministic rules: matcher precedence, load-bearing pipeline ordering, defaults, limits, username dedup |
 | `traceability.spec.md` | PRESENT | traceability.spec.md | Seeds REQ/AC/INV/EC + error + behavior coverage mapping before TDD |
 | `spec-manifest.md` | PRESENT | spec-manifest.md | This package index |
@@ -70,6 +70,22 @@ touchpoints:
 
 ## Validation Notes
 
+- **v0.6.0 (2026-07-21) — CRUD-completion amendment, status reopened to DRAFT.** Coordinator-dispatched
+  slice covering three related gaps; this is the SPEC-006 leg. Adds REQ-15..19 (`ENABLE_PRINCIPAL`,
+  `UPDATE_USER`, `RESET_USER_PASSWORD`, `UPDATE_ROLE`/`UPDATE_POLICY`, `DELETE_ROLE`/`DELETE_POLICY`),
+  AC-27..32, INV-09 (delete-safety rationale: roles/policies aren't audit-referenced by `change_sets`
+  the way principals are, so a zero-reference hard delete is safe where principal hard-delete is not),
+  EC-14..17, behavior §6.3. Also repairs disclosed pre-existing drift: api.spec.md previously claimed
+  "user/role/policy management is core/CLI in v1" and omitted the 8 HTTP endpoints
+  (`list`/`create` for users, roles, policies; `assign-role`; `attach-policy`) that actually shipped
+  before this amendment (commit `c2f9869`) — §1a now documents all 17 endpoints (8 pre-existing + 9
+  new). Zero new error codes; `PERMISSION_UNKNOWN`/`OWNER_REQUIRED` reach their first HTTP surface,
+  `RESOURCE_CONFLICT` gains a new emission site. OQ-06 marked RESOLVED. New OQ-09 (username change,
+  deferred) and OQ-10 (single-permission removal from a policy, deferred). **Security core
+  (authorize() matcher, INV-07 clamp, composite FKs, hash-only secrets, AC-01..26) is byte-unchanged.**
+  Status reverted `APPROVED` → `DRAFT` for the whole document because the new REQ-15..19 scope has not
+  been through Red-Team or an owner checkpoint — same two-step gate the original v0.5.x→APPROVED path
+  used. Validator run pending (see below); spec-dod.md's Section B carries the itemized reopen.
 - Validator last run: 2026-07-08 (post v0.5.6 snapshot-precision editorial pass)
 - v0.5.6: editorial/hardening pass folding the round-6 residuals (all spec-precision, none exceeding the INV-07
   issuer ceiling; escalation class already declared terminal at v0.5.5). **M-1 (Codex+Fable MED):** a source
@@ -121,9 +137,16 @@ touchpoints:
   + Gemini 3.1 Pro + Fable). MF-1 CREATE_USER escalation (fresh-principal-only + gate), MF-2 seeded-owner
   un-disable-able, MF-3 INV-08 atomicity, plus SF plugin-exclusion / forwarded-for parse rule /
   `OWNER_REQUIRED` code / stale-binding-comment fixes. New AC-22, new error code. Security core unchanged.
-- Validator result: PASS (DRAFT→APPROVED human checkpoint cleared 2026-07-09; the coupled approval-gate items are resolved)
+- Validator result (v0.5.6, superseded): PASS (DRAFT→APPROVED human checkpoint cleared 2026-07-09)
+- Validator result (v0.6.0): run at spec-handoff time with `--phase spec --update-hash`; see the
+  freshly-computed `content_hash` in feature.spec.md's Header Metadata. Package-structural checks
+  (all 10 logical files PRESENT/OMITTED with reasons, spec-dod.md fully PASS/NA) are green; the
+  **status/DoD B-03/B-32 gate is expected FAIL** by design — status is `DRAFT` pending the Red-Team +
+  owner checkpoint, not a defect to fix before handoff.
 - Validator manual waiver: N/A
-- Canonical hash verified at: 2026-07-09 (v0.5.6 APPROVED, sha256:d1a88416…; recomputed to absorb the approval-gate marker flips — normative content unchanged)
+- Canonical hash verified at: 2026-07-09 (v0.5.6 APPROVED, sha256:d1a88416…) — **superseded 2026-07-21
+  by the v0.6.0 recompute** (new hash in feature.spec.md; the v0.5.6 security-core bytes it covers
+  are unchanged, only new sections were added below the hash boundary)
 - Notes: All conditional files present or justified-omitted. **v0.5.0 is the Red-Team revision pass**
   (report `reports/pipeline/006-identity-and-authorization/red-team-findings.md`): closes RT-001
   (BLOCKING — CLI/core callers now resolve to the owner principal, REQ-13/AC-17/EC-12/OQ-08) plus
