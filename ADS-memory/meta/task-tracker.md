@@ -8,6 +8,30 @@ the in-harness `TaskList` mirrors it for the current session but does NOT persis
 across sessions (confirmed empty on this session's start despite the prior
 session's #4-#10 list) — treat this file as the source of truth going forward.
 
+## 2026-07-30 update, part 4 (AI-workflow testing pilot — begun)
+
+Started the testing-debt pilot the handoff's Next Steps recommended (2-3 admin
+sections before scaling to all ~20). New durable log:
+`ADS-memory/reports/architecture/ai-workflow-testing-findings.md` — append every
+future AI-driven-workflow bug there, not just to a commit message, so it doesn't
+get lost the way the two pre-2026-07-30 bugs (`f23bbd6`, `e86b51f`) nearly did.
+
+- **Priority #1 finding (user-flagged), unresolved**: asked the live admin
+  assistant "What's the current health status of the database?" — a question with
+  an exact matching tool (`database_get_health`, `none`-risk). It never called that
+  tool; instead it used its native Bash access (the "AI runtime" picker spawns real
+  coding CLIs with Tovu's tools exposed as bonus MCP tools, not the only channel)
+  to run raw, unaudited `sqlite3 content.db` queries directly against the live
+  database. This means the entire risk-classification/authorization/audit-log
+  system the past several sessions built is bypassable by the assistant's own
+  default behavior, not just by a malicious actor — including, in principle, the
+  MCP-UI delete-confirmation gate. **Needs a design decision before a fix**: is
+  Bash access an intentional permanent feature of this surface, or should the
+  admin-facing assistant be restricted to the tool catalog. See the findings log
+  for full detail.
+- In progress: piloting Roles & Permissions and Forms next, plus a fresh
+  `identity_user_create` retest now that the permission-mode fix has landed.
+
 ## 2026-07-30 update, part 3 (handoff continuation — everything committed + pushed)
 
 Picked up from the `20260730T224540Z` handoff. Its own contract said to re-run
