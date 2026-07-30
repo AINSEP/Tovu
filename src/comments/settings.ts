@@ -182,8 +182,11 @@ export interface SetCommentsSettingsInput {
   callerPrincipalId: UUID;
 }
 
-const MAX_DEPTH_CEILING = 20;
-const MAX_PER_IP_PER_HOUR_CEILING = 1000;
+// Exported (not just module-local) so `agent-tools.ts`'s published `inputSchema` bounds import
+// these single sources rather than restating the numbers — the same discipline
+// `forms/agent-tools.ts` applies to `forms.ts`'s field constants.
+export const MAX_DEPTH_CEILING = 20;
+export const MAX_PER_IP_PER_HOUR_CEILING = 1000;
 
 function validateCommentsSettingsPatch(patch: Partial<CommentsSettings>): void {
   if (patch.enabled !== undefined && typeof patch.enabled !== "boolean") {

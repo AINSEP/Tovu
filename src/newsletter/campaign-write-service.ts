@@ -21,9 +21,12 @@ import {
 import type { NewsletterCampaignRepoPort, NewsletterListRepoPort } from "./ports";
 import type { CampaignCounters, CampaignRecord } from "./types";
 
-const SUBJECT_MIN = 1;
-const SUBJECT_MAX = 998;
-const PREHEADER_MAX = 300;
+// Exported (not just module-local) so `agent-tools.ts`'s published `inputSchema` bounds import
+// these single sources rather than restating the numbers — the same discipline
+// `forms/agent-tools.ts` applies to `forms.ts`'s field constants.
+export const SUBJECT_MIN = 1;
+export const SUBJECT_MAX = 998;
+export const PREHEADER_MAX = 300;
 
 export interface CampaignWriteServiceDeps {
   campaignRepo: NewsletterCampaignRepoPort;
