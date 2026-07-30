@@ -1,0 +1,33 @@
+{%- comment -%}
+  Clean Blog — home. Adapted from Start Bootstrap's Clean Blog Jekyll theme:
+  a full-bleed dark masthead, then a centered post feed. No excerpt line —
+  the `posts` list context only carries {title, slug, date} (`content` is
+  only resolved for the single `post` on the entry route, by design, since
+  rendering full HTML for every list item would be wasteful).
+{%- endcomment -%}
+{% render_block component: "tovu/site-header", tagline: "Thoughts, stories and ideas." %}
+
+<header class="masthead">
+  <div class="wrap">
+    <h1 class="masthead__title">Clean Blog</h1>
+    <p class="masthead__sub">A theme by Start Bootstrap, adapted for Tovu</p>
+  </div>
+</header>
+
+<main class="wrap wrap--narrow">
+  {%- if posts.size == 0 -%}
+    <p class="feed__empty">No published posts yet — check back soon.</p>
+  {%- else -%}
+    {%- for post in posts -%}
+      <article class="post-preview">
+        <a href="/{{ post.slug }}">
+          <h2 class="post-preview__title">{{ post.title }}</h2>
+        </a>
+        <p class="post-preview__meta">Posted on <time>{{ post.date | date: "%B %d, %Y" }}</time></p>
+      </article>
+      {%- unless forloop.last -%}<hr class="post-preview__rule">{%- endunless -%}
+    {%- endfor -%}
+  {%- endif -%}
+</main>
+
+{% render_block component: "tovu/site-footer" %}

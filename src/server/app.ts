@@ -8,7 +8,7 @@ import { registerPageHeadContributor } from "./http/site/page-head";
 import { InMemoryPostRepo } from "../features/post";
 import { InMemoryPresentationSettingsRepo } from "../features/presentation";
 import { InMemorySettingsRepo } from "../features/settings/repo.memory";
-import { discoverThemes } from "../features/theme";
+import { discoverAllBuiltInThemes } from "../features/theme";
 import { InMemoryWorkspaceRepo } from "../features/workspace";
 import path from "node:path";
 import { builtInThemesDir } from "./deps";
@@ -78,6 +78,7 @@ import { InMemoryWidgetRegionBindingRepo } from "../widgets/repo.memory";
 import { InMemoryEntryRefsRepo } from "../core/entry-refs/repo.memory";
 import { discoverPlugins as discoverPluginRuntimePlugins } from "../features/plugin-runtime/discovery";
 import { InMemoryPluginActivationRepo } from "../features/plugin-runtime/repo.memory";
+import { WORD_COUNT_BUILT_IN } from "../features/plugin-runtime/built-ins/word-count";
 import { createPluginsModule } from "./modules/plugins";
 import { wireCoreResolvers } from "../widgets/resolvers/index";
 import { createNavMenuReadModel } from "../navigation/read-model";
@@ -98,6 +99,7 @@ import { applySiteServingGate } from "./middleware/site-serving-gate";
 import { registerAdminStatic } from "./middleware/admin-static";
 import { registerSiteRoutes } from "./routes/site/pages";
 import { registerStoreRoutes } from "./routes/site/store";
+import { registerProductRoutes } from "./routes/site/products";
 import { registerAnalyticsIngestRoute } from "./routes/site/analytics-ingest";
 import { registerContentPostGetRoute } from "./routes/content/posts/get-by-slug";
 import { createCommentsModerationModule } from "./modules/comments-moderation";
@@ -301,7 +303,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     // BR-04 (2026-07-16): the repo forwards insert()'s optional event to this SAME outbox
     // instance, matching what the old separate executeCommand()-level enqueue() call did.
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
-    themes: discoverThemes({ dir: builtInThemesDir(), source: "built-in" }),
+    themes: discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" }),
     outbox,
     bus,
     clock,
@@ -415,10 +417,12 @@ export function createRouteDeps(): NewsletterRouteDeps {
     entryRefsRepo,
     // SPEC-005 (ADR-005-ARCH) — in-memory activation repo, same disclosed precedent as every other
     // hermetic test/dev composition above. `builtIns: []` is accurate for this Phase 1 dispatch: the
-    // `word-count` dogfood plugin (Phase 2) and its loader wiring (Phase 3) are later, gated phases
-    // that have not landed yet — this closure legitimately reports zero built-in plugins today.
+    // `word-count` is now discoverable (list/enable/disable testable end-to-end) — its *hook
+    // execution* (loader.ts steps 4-5: invoke setup(), attach to the hook registry) is still a
+    // separate, later, gated phase that has not landed; toggling it here flips a real activation
+    // record but does not make its `content.entry.beforeSave` hook actually run yet.
     pluginActivationRepo: new InMemoryPluginActivationRepo(),
-    discoverPlugins: () => discoverPluginRuntimePlugins({ builtIns: [] }),
+    discoverPlugins: () => discoverPluginRuntimePlugins({ builtIns: [WORD_COUNT_BUILT_IN] }),
   };
 }
 
@@ -675,6 +679,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
 
   // SPIKE: sample Tier-3 store page — must precede the site `/:slug` catch-all.
   registerStoreRoutes(app, routeDeps);
+  // `/products`/`/products/:id` — theme-rendered product grid/detail over the same store data.
+  // Must also precede the site `/:slug` catch-all.
+  registerProductRoutes(app, routeDeps);
 
   // Public comment submission (ADR-031 §4) — unauthenticated by design; must precede the site
   // `/:slug` catch-all, same reasoning as the store/analytics routes above.

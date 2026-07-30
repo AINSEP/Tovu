@@ -1,0 +1,28 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "component",
+      "id": "tovu/nav",
+      "props": {
+        "brand": "GRAYSCALE",
+        "items": [{ "label": "About", "href": "/#about" }, { "label": "Journal", "href": "/#journal" }],
+        "cta": { "label": "Get in touch", "href": "/#contact" }
+      }
+    },
+    { "type": "component", "id": "tovu/entry-content", "props": {} },
+    {
+      "type": "component",
+      "id": "tovu/footer",
+      "props": {
+        "brand": "GRAYSCALE",
+        "blurb": "A free, open-source Bootstrap theme by Start Bootstrap, rebuilt as data for Tovu.",
+        "social": [{ "label": "GitHub", "href": "#" }],
+        "columns": [
+          { "title": "Site", "links": [{ "label": "About", "href": "/#about" }, { "label": "Journal", "href": "/#journal" }] }
+        ],
+        "legal": "Theme © Start Bootstrap, MIT licensed. Adaptation for Tovu."
+      }
+    }
+  ]
+}

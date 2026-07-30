@@ -6,7 +6,7 @@ import { InMemoryEventBus } from "../core/events";
 import { SqlitePostRepo } from "../features/post";
 import { SqlitePresentationSettingsRepo } from "../features/presentation";
 import { SqliteSettingsRepo } from "../features/settings/repo.sqlite";
-import { discoverThemes } from "../features/theme";
+import { discoverAllBuiltInThemes } from "../features/theme";
 import { SqliteWorkspaceRepo } from "../features/workspace";
 import { openContentDb, type ContentDb } from "../infra/sqlite/content-db";
 import { resolveWorkspace } from "../site-dir/resolve-workspace";
@@ -88,6 +88,7 @@ import { SqliteWidgetRegionBindingRepo } from "../widgets/repo.sqlite";
 import { SqliteEntryRefsRepo } from "../core/entry-refs/repo.sqlite";
 import { discoverPlugins as discoverPluginRuntimePlugins } from "../features/plugin-runtime/discovery";
 import { SqlitePluginActivationRepo } from "../features/plugin-runtime/repo.sqlite";
+import { WORD_COUNT_BUILT_IN } from "../features/plugin-runtime/built-ins/word-count";
 import { wireCoreResolvers } from "../widgets/resolvers/index";
 import { createNavMenuReadModel } from "../navigation/read-model";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
@@ -438,7 +439,7 @@ export function createSqliteRouteDeps(
     // restart — the first durable-adapter slice off Phase 1's capability table, per the ADR's own
     // "pull-based per capability, not a uniform sweep" fold-in guidance.
     changeSets: new SqliteChangeSetRepo(db),
-    themes: discoverThemes({ dir: builtInThemesDir(), source: "built-in" }),
+    themes: discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" }),
     outbox,
     bus,
     clock,
@@ -557,10 +558,10 @@ export function createSqliteRouteDeps(
     widgetBindingRepo,
     entryRefsRepo,
     // SPEC-005 (ADR-005-ARCH) — real SQLite activation repo (mirrors `presentationRepo`'s adapter
-    // choice). `builtIns: []` is accurate for this Phase 1 dispatch — see `server/app.ts`'s
-    // identical hermetic-composition note for why (the `word-count` dogfood plugin and its loader
-    // wiring are later, gated phases of this same feature that have not landed yet).
+    // choice). `word-count` is now discoverable (list/enable/disable testable end-to-end) — see
+    // `server/app.ts`'s identical note: its *hook execution* (loader.ts steps 4-5) is still a
+    // separate, later, gated phase that has not landed.
     pluginActivationRepo: new SqlitePluginActivationRepo(db),
-    discoverPlugins: () => discoverPluginRuntimePlugins({ builtIns: [] }),
+    discoverPlugins: () => discoverPluginRuntimePlugins({ builtIns: [WORD_COUNT_BUILT_IN] }),
   };
 }

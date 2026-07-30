@@ -1,0 +1,40 @@
+{%- comment -%}
+  Clean Blog — entry (single post). Adapted from the theme's `_layouts/post.html`:
+  masthead carries the post title/subtitle/meta, body follows in a narrow
+  serif column. The "More posts" list mirrors dispatch's own pattern since
+  there's no real prev/next adjacency data yet.
+{%- endcomment -%}
+{% render_block component: "tovu/site-header", compact: true %}
+
+<header class="masthead masthead--post">
+  <div class="wrap wrap--narrow">
+    <h1 class="masthead__title masthead__title--post">{{ post.title }}</h1>
+    <p class="masthead__meta">Posted on <time>{{ post.date | date: "%B %d, %Y" }}</time></p>
+  </div>
+</header>
+
+<main class="wrap wrap--narrow">
+  {%- if post -%}
+    <article class="post">
+      <div class="post__body">{{ post.content | raw }}</div>
+    </article>
+
+    <hr class="post-preview__rule">
+    {%- assign shown = 0 -%}
+    <section class="more">
+      <h2 class="more__title">More posts</h2>
+      <ul class="more__list">
+        {%- for other in posts -%}
+          {%- if other.slug != post.slug -%}
+            {%- assign shown = shown | plus: 1 -%}
+            {%- if shown <= 3 -%}
+              <li><a href="/{{ other.slug }}">{{ other.title }}</a></li>
+            {%- endif -%}
+          {%- endif -%}
+        {%- endfor -%}
+      </ul>
+    </section>
+  {%- endif -%}
+</main>
+
+{% render_block component: "tovu/site-footer" %}

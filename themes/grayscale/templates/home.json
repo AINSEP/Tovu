@@ -1,0 +1,81 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "component",
+      "id": "tovu/nav",
+      "props": {
+        "brand": "GRAYSCALE",
+        "items": [
+          { "label": "About", "href": "#about" },
+          { "label": "Work", "href": "#work" },
+          { "label": "Journal", "href": "#journal" }
+        ],
+        "cta": { "label": "Get in touch", "href": "#contact" }
+      }
+    },
+    {
+      "type": "component",
+      "id": "tovu/hero",
+      "props": {
+        "title": "GRAYSCALE",
+        "subtitle": "A free, responsive one-page theme by Start Bootstrap — rebuilt here as a Tovu theme to prove design is just data.",
+        "actions": [{ "label": "See how", "href": "#about" }]
+      }
+    },
+    {
+      "type": "component",
+      "id": "tovu/section",
+      "props": {
+        "id": "about",
+        "side": "right",
+        "eyebrow": "ABOUT",
+        "title": "Built with Tovu's core components.",
+        "lead": "Every section on this page — the nav, the masthead, the feature grid, the footer — is one of a small set of reusable building blocks a theme arranges by name.",
+        "body": [
+          "Grayscale is open source and MIT licensed. This adaptation keeps its bold, high-contrast spirit — a dark masthead, teal accents, generous whitespace — but every pixel here comes from theme.json, tokens.json, and a JSON template, not from compiled Sass or Pug.",
+          "Swap the palette, rearrange the sections, or hand this whole file to an AI: \"make the accent warmer, move Journal above Work.\""
+        ],
+        "bullets": ["No executable code ships inside a theme", "Same components as every other Tovu theme", "Rearranged, not recoded"],
+        "media": { "label": "theme.json · tokens · templates", "ratio": "4 / 3" }
+      }
+    },
+    {
+      "type": "component",
+      "id": "tovu/feature-grid",
+      "props": {
+        "eyebrow": "WORK",
+        "title": "A few ways this theme flexes.",
+        "items": [
+          { "tag": "Masthead", "title": "Full-bleed & bold", "body": "A dark, uppercase, letter-spaced hero — Grayscale's signature move, reproduced with tokens instead of a photo asset." },
+          { "tag": "Feature grid", "title": "Auto-fit cards", "body": "The same three-up grid tovu-official uses, restyled here with a teal accent and rounder type." },
+          { "tag": "Journal", "title": "Real posts, real theme", "body": "The entries below are your actual published posts, rendered through this theme's own tokens and CSS." }
+        ]
+      }
+    },
+    { "type": "component", "id": "tovu/entry-list", "props": { "layout": "journal" } },
+    {
+      "type": "component",
+      "id": "tovu/cta",
+      "props": {
+        "eyebrow": "CONTACT",
+        "title": "Make it yours.",
+        "subtitle": "Switch themes from the admin, or drop a new theme folder into your site — this whole page is a starting point you can rewrite.",
+        "actions": [{ "label": "Open the admin", "href": "/admin/" }, { "label": "Read the journal", "href": "#journal" }]
+      }
+    },
+    {
+      "type": "component",
+      "id": "tovu/footer",
+      "props": {
+        "brand": "GRAYSCALE",
+        "blurb": "A free, open-source Bootstrap theme by Start Bootstrap, rebuilt as data for Tovu.",
+        "social": [{ "label": "GitHub", "href": "#" }],
+        "columns": [
+          { "title": "Site", "links": [{ "label": "About", "href": "#about" }, { "label": "Work", "href": "#work" }, { "label": "Journal", "href": "#journal" }] }
+        ],
+        "legal": "Theme © Start Bootstrap, MIT licensed. Adaptation for Tovu."
+      }
+    }
+  ]
+}

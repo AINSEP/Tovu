@@ -1,0 +1,8 @@
+{
+  "id": "minima",
+  "name": "Minima",
+  "version": "1.0.0",
+  "tier": "templated",
+  "engine": 1,
+  "description": "Adapted from Jekyll's official default theme (jekyll/minima, MIT licensed) — a plain, one-size-fits-all theme for writers: an unadorned post list on the home page and a single-column reading view for entries. See LICENSE.txt and NOTICE.md for attribution."
+}

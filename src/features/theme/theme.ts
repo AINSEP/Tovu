@@ -57,6 +57,17 @@ export interface ThemeManifest {
    * slots/regions") rather than a hardcoded core constant.
    */
   regions?: string[];
+  /**
+   * Opt-out of the ADR-020 §3 Liquid tag/filter allowlist (`liquid-allowlist.ts`) for this theme's
+   * `.liquid` templates. Absent/`false` (default) keeps the existing enforced behavior — every
+   * theme on disk today is unaffected, no migration needed. A theme author sets this to `true` when
+   * they want fuller Liquid (e.g. `include`/`render` or a wider filter set) and accepts the theme is
+   * then a first-party/trusted artifact, not something to hand an untrusted third party — the
+   * runtime's independent layers (worker isolation, `NO_ACCESS_FS` filesystem lockdown, memory/
+   * render/parse limits — `liquid-worker.ts`) still apply regardless of this flag; only the
+   * allowlist's own pre-flight lint is skipped.
+   */
+  skipLiquidAllowlist?: boolean;
 }
 
 /** Design tokens: CSS custom-property name → value (emitted into `:root`). */
@@ -122,6 +133,7 @@ export function loadTheme(
       description: typeof raw.description === "string" ? raw.description : undefined,
       fonts: Array.isArray(raw.fonts) ? raw.fonts.map(String) : undefined,
       regions: Array.isArray(raw.regions) ? raw.regions.map(String) : undefined,
+      skipLiquidAllowlist: raw.skipLiquidAllowlist === true,
     };
     if (manifest.id !== id) errors.push(`theme.json id '${manifest.id}' must equal folder name '${id}'`);
   } catch (err) {
@@ -152,10 +164,13 @@ export function loadTheme(
       } else if (file.endsWith(".liquid")) {
         // Templated tier (ADR-020): raw LiquidJS source, rendered by the engine
         // in render.ts. C6/REQ-06 lint-before-publish: reject any tag/filter
-        // outside the ADR-020 §3 allowlist before the theme can load as valid.
+        // outside the ADR-020 §3 allowlist before the theme can load as valid —
+        // unless the theme opted out via `skipLiquidAllowlist` (see ThemeManifest
+        // doc comment: the runtime's other Tier-2 guardrails — worker isolation,
+        // filesystem lockdown, memory/render/parse limits — still apply either way).
         const templateId = file.slice(0, -".liquid".length);
         const source = readFileSync(join(templatesDir, file), "utf8");
-        const violations = lintLiquidTemplate(source);
+        const violations = manifest.skipLiquidAllowlist ? [] : lintLiquidTemplate(source);
         if (violations.length > 0) {
           errors.push(`templates/${file}: ${violations.join("; ")}`);
         } else {
@@ -191,20 +206,52 @@ export function loadTheme(
 /**
  * Discover every theme folder under `dir`. Missing dir ⇒ empty list (a site
  * served without a themes/ dir is legal, SPEC-004 REQ-05).
+ *
+ * `exclude` skips named subdirectories that aren't themes themselves — used by
+ * {@link discoverAllBuiltInThemes} to keep the engine-specific subfolders
+ * (`liquidjs/`, `handlebars/`) from being scanned as (invalid) top-level theme
+ * candidates when it also scans them directly as their own theme roots.
  */
 export function discoverThemes(
-  required: { dir: string; source: "built-in" | "site" },
+  required: { dir: string; source: "built-in" | "site"; exclude?: readonly string[] },
   _optional: Record<string, never> = {}
 ): DiscoveredTheme[] {
-  const { dir, source } = required;
+  const { dir, source, exclude } = required;
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((name) => {
+      if (exclude?.includes(name)) return false;
       const full = join(dir, name);
       return statSync(full).isDirectory();
     })
     .map((name) => loadTheme({ themeDir: join(dir, name), id: name, source }))
     .sort((a, b) => a.manifest.id.localeCompare(b.manifest.id));
+}
+
+/**
+ * Named engine-specific subfolders under a themes root: declarative (JSON block-tree) themes stay
+ * at the top level as Tovu's native format; each other engine gets its own subfolder so `themes/`
+ * doesn't mix formats in one flat listing. `handlebars/` has no themes yet (no Handlebars tier
+ * exists — see `ThemeTier`) but is listed now so the convention is established before that tier
+ * lands; scanning a missing subfolder is a no-op (`discoverThemes`'s own missing-dir ⇒ empty-list
+ * behavior), so this is forward-compatible with zero migration when it does.
+ */
+const ENGINE_SUBFOLDERS = ["liquidjs", "handlebars"] as const;
+
+/**
+ * Discover every built-in theme across the top-level (declarative) folder plus every engine
+ * subfolder in {@link ENGINE_SUBFOLDERS}. The one call site every composition root should use
+ * instead of a raw {@link discoverThemes} call, so the liquidjs/handlebars split is a detail this
+ * function owns rather than something every caller re-derives.
+ */
+export function discoverAllBuiltInThemes(
+  required: { dir: string; source: "built-in" | "site" },
+  _optional: Record<string, never> = {}
+): DiscoveredTheme[] {
+  const { dir, source } = required;
+  const topLevel = discoverThemes({ dir, source, exclude: ENGINE_SUBFOLDERS });
+  const engineThemes = ENGINE_SUBFOLDERS.flatMap((sub) => discoverThemes({ dir: join(dir, sub), source }));
+  return [...topLevel, ...engineThemes].sort((a, b) => a.manifest.id.localeCompare(b.manifest.id));
 }
 
 /** Ids of discovered themes that passed validation. */
@@ -223,17 +270,23 @@ export function findTheme(
 
 /**
  * Resolve a page route to a template id, with the SPEC-004 REQ-03 fallthrough
- * chain trimmed to the spike's two routes:
+ * chain trimmed to the spike's routes:
  *   home → `home`
  *   post → `post` else `entry` (built-ins ship `entry`; `post` is an optional
  *          override a theme may add to specialize posts — AC-07)
+ *   products/product → own-named template only, no fallthrough — a theme
+ *          that doesn't declare one simply has no product pages (renderSite's
+ *          fallbackBody degrades gracefully, same REQ-10 spirit as any other
+ *          undeclared template).
  */
 export function resolveTemplateId(
-  required: { route: "home" | "post"; templates: Record<string, TemplateNode> },
+  required: { route: "home" | "post" | "products" | "product"; templates: Record<string, TemplateNode> },
   _optional: Record<string, never> = {}
 ): string | null {
   const { route, templates } = required;
   if (route === "home") return templates.home ? "home" : null;
+  if (route === "products") return templates.products ? "products" : null;
+  if (route === "product") return templates.product ? "product" : null;
   if (templates.post) return "post";
   if (templates.entry) return "entry";
   return null;
@@ -241,15 +294,17 @@ export function resolveTemplateId(
 
 /**
  * Templated-tier (LiquidJS) analogue of `resolveTemplateId`: same REQ-03
- * fallthrough (`home` → `home`; `post` → `post` else `entry`) over the raw
- * `.liquid` source map.
+ * fallthrough (`home` → `home`; `post` → `post` else `entry`; `products`/
+ * `product` → own-named template only) over the raw `.liquid` source map.
  */
 export function resolveLiquidTemplateId(
-  required: { route: "home" | "post"; liquidTemplates: Record<string, string> },
+  required: { route: "home" | "post" | "products" | "product"; liquidTemplates: Record<string, string> },
   _optional: Record<string, never> = {}
 ): string | null {
   const { route, liquidTemplates } = required;
   if (route === "home") return liquidTemplates.home ? "home" : null;
+  if (route === "products") return liquidTemplates.products ? "products" : null;
+  if (route === "product") return liquidTemplates.product ? "product" : null;
   if (liquidTemplates.post) return "post";
   if (liquidTemplates.entry) return "entry";
   return null;

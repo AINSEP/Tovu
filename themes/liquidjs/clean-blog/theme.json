@@ -1,0 +1,9 @@
+{
+  "id": "clean-blog",
+  "name": "Clean Blog",
+  "version": "1.0.0",
+  "tier": "templated",
+  "engine": 1,
+  "description": "Adapted from Start Bootstrap's Clean Blog Jekyll theme (MIT licensed) — a full-bleed dark masthead on every page, serif body copy, and a centered single-column post feed. See NOTICE.md and LICENSE for attribution.",
+  "fonts": ["Lora:ital,wght@0,400;0,700;1,400", "Open+Sans:wght@400;700"]
+}
