@@ -38,6 +38,7 @@
     "@jini-ai/daemon": "file:../Jini/packages/daemon",
     "@jini-ai/http-kit": "file:../Jini/packages/http-kit",
     "@jini-ai/mcp": "file:../Jini/packages/mcp",
+    "@jini-ai/sqlite": "file:../Jini/packages/sqlite",
     "argon2": "^0.44.0",
     "better-sqlite3": "^11.8.1",
     "commander": "^15.0.0",
