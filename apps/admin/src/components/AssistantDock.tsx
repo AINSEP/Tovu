@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useMemo } from "react";
-import { ChatPane, JiniChatProvider, type ChatPaneAgent } from "@jini-ai/chat-react";
+import { ChatPane, JiniChatProvider, type ChatPaneAgent } from "@jini-ai/ui/chat";
 import type { ChatMessage } from "@jini-ai/chat-core";
 
 import { createTovuAssistantTransport } from "../lib/assistant-transport";

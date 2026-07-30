@@ -15,7 +15,7 @@
  * concatenates them into one growing message, so accumulating twice would double the text.
  */
 import type { AgentEvent } from "@jini-ai/chat-core";
-import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat-react";
+import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/ui/chat";
 
 const RUNS_URL = "/api/runs";
 
