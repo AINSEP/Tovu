@@ -123,7 +123,11 @@ export interface RateLimiter {
  * @complexity O(1) per `check` call.
  * @overallScore 100
  */
-export function createRateLimiter(profile: RateLimitProfile, clock: ClockPort): RateLimiter {
+export function createRateLimiter(
+  required: { profile: RateLimitProfile; clock: ClockPort },
+  _optional: Record<string, never> = {}
+): RateLimiter {
+  const { profile, clock } = required;
   const windows = new Map<string, WindowState>();
   const windowMs = profile.windowSeconds * 1000;
   const effectiveMax = profile.max + profile.burst;

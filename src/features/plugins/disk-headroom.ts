@@ -13,6 +13,8 @@
 import { existsSync, statSync, statfsSync } from "node:fs";
 import path from "node:path";
 
+import { isInMemoryDbPath } from "./snapshot";
+
 export interface HeadroomCheck {
   ok: boolean;
   requiredBytes: number;
@@ -28,6 +30,17 @@ function fileSize(filePath: string): number {
 }
 
 export function checkDiskHeadroom(dbPath: string): HeadroomCheck {
+  // BUG FIX (2026-07-28): an in-memory (or SQLite's other non-file) `dbPath` never gets a snapshot
+  // file written (see `snapshot.ts`'s `isInMemoryDbPath`/`snapshotDb`), so there is no on-disk
+  // headroom requirement to preflight — the check is not just redundant but potentially WRONG
+  // without this guard: `path.dirname(":memory:")` resolves to the process's CURRENT WORKING
+  // DIRECTORY, so a low-disk cwd could fail-close a dataModule declare that will never touch disk
+  // at all. `requiredBytes: 0` mirrors the existing "nonexistent file" case below (real dbPath,
+  // file not yet created) rather than inventing a new shape for callers to handle.
+  if (isInMemoryDbPath(dbPath)) {
+    return { ok: true, requiredBytes: 0, freeBytes: null };
+  }
+
   const dbSize = fileSize(dbPath);
   const walSize = fileSize(`${dbPath}-wal`);
   const requiredBytes = Math.ceil(HEADROOM_MULTIPLIER * (dbSize + walSize));

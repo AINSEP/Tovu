@@ -184,9 +184,9 @@ export function createInMemoryIdentityRouteDeps(required: {
  * @overallScore 100
  */
 export function createSqliteIdentityRouteDeps(
-  db: ContentDb,
-  required: { workspaceId: UUID; clock: ClockPort; idGen: IdGeneratorPort }
+  required: { db: ContentDb; workspaceId: UUID; clock: ClockPort; idGen: IdGeneratorPort }
 ): IdentityRouteDepsSlice {
+  const { db, ...seedRequired } = required;
   const repos: IdentityRepos = {
     principals: new SqlitePrincipalRepo(db),
     users: new SqliteUserRepo(db),
@@ -198,5 +198,5 @@ export function createSqliteIdentityRouteDeps(
     principalRoles: new SqlitePrincipalRoleRepo(db),
     principalPolicies: new SqlitePrincipalPolicyRepo(db),
   };
-  return buildIdentityRouteDeps(repos, required);
+  return buildIdentityRouteDeps(repos, seedRequired);
 }

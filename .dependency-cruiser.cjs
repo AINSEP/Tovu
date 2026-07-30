@@ -31,6 +31,20 @@ module.exports = {
       from: { path: "^src/features", pathNot: "^src/features/.*/repo\\.(sqlite|memory)\\.ts$" },
       to: { path: "^src/infra" },
     },
+    {
+      name: "site-dir-no-server-express-or-cli-imports",
+      severity: "warn",
+      comment: "SPEC-003 (ADR-PIPE-003) — src/site-dir/** is the install-dir domain and must stay CLI/Express-agnostic (INV-06) so a future non-CLI caller (the desktop host, ADR-011) can reuse it directly.",
+      from: { path: "^src/site-dir" },
+      to: { path: "^(src/server|src/cli|node_modules/express)" },
+    },
+    {
+      name: "cli-no-direct-drizzle-imports",
+      severity: "warn",
+      comment: "SPEC-003 (ADR-PIPE-003) — src/cli/** dispatches to site-dir/server only; it never touches Drizzle or infra/db directly.",
+      from: { path: "^src/cli" },
+      to: { path: "^(drizzle-orm|src/infra/db)" },
+    },
   ],
   options: {
     doNotFollow: { path: "node_modules" },

@@ -28,9 +28,11 @@ test("openContentDb's recover hook restores a crash-interrupted dataModule attem
 
   // Simulate a crash mid-DDL against that same file, exactly as migration-recovery.test.ts does.
   const raw = new Database(dbPath);
-  const snapshotPath = await snapshotDb(raw, dbPath, "crashed-plugin");
+  const snapshotPath = await snapshotDb({ db: raw, dbPath, label: "crashed-plugin" });
   ensureMigrationJournal(raw);
-  beginJournalEntry(raw, "crashed-plugin", snapshotPath);
+  // Non-null: `dbPath` here is a real tmpdir file, never `:memory:` — snapshotDb only returns null
+  // for SQLite's in-memory/temp identifiers (see snapshot.ts).
+  beginJournalEntry({ db: raw, pluginId: "crashed-plugin", snapshotPath: snapshotPath! });
   raw.prepare(`CREATE TABLE "p_crashed_plugin__half_created" (id TEXT PRIMARY KEY)`).run();
   raw.close();
 

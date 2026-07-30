@@ -48,19 +48,25 @@ const DAILY_SALT_LENGTH_BYTES = 32;
  * The result is NEVER persisted by this function or its callers — callers must re-derive it per
  * request (or cache it in memory for the current UTC day at most); nothing here writes to disk.
  *
- * @param rootKeySeed - Secret root key material. In v1 this is an opaque string sourced from an
- *   env var placeholder (e.g. `process.env.ANALYTICS_ROOT_KEY_SEED`); the real integration point
- *   is `KeyringPort.activeKey()` once that port grows a generic derive method (see file header TODO).
- * @param workspaceId - Workspace the salt is scoped to (ADR-007 — no cross-workspace salt reuse).
- * @param utcDate - UTC calendar date as `YYYY-MM-DD`. A new date yields an unrelated salt, which is
- *   what makes the visitor hash non-linkable across days (24h rotation, ADR-035 §4).
+ * @param required.rootKeySeed - Secret root key material. In v1 this is an opaque string sourced
+ *   from an env var placeholder (e.g. `process.env.ANALYTICS_ROOT_KEY_SEED`); the real integration
+ *   point is `KeyringPort.activeKey()` once that port grows a generic derive method (see file
+ *   header TODO).
+ * @param required.workspaceId - Workspace the salt is scoped to (ADR-007 — no cross-workspace salt
+ *   reuse).
+ * @param required.utcDate - UTC calendar date as `YYYY-MM-DD`. A new date yields an unrelated salt,
+ *   which is what makes the visitor hash non-linkable across days (24h rotation, ADR-035 §4).
  * @returns A 32-byte buffer. Deterministic for a fixed `(rootKeySeed, workspaceId, utcDate)` triple.
  * @throws {RangeError} if `workspaceId` or `utcDate` is empty (a blank scope key would silently
  *   collapse the per-workspace/per-day separation this function exists to provide).
  * @complexity O(1) — one HKDF-SHA256 extract+expand call over fixed-length inputs.
  * @overallScore 100/100
  */
-export function deriveDailySalt(rootKeySeed: string, workspaceId: string, utcDate: string): Buffer {
+export function deriveDailySalt(
+  required: { rootKeySeed: string; workspaceId: string; utcDate: string },
+  _optional: Record<string, never> = {}
+): Buffer {
+  const { rootKeySeed, workspaceId, utcDate } = required;
   if (!workspaceId) {
     throw new RangeError("deriveDailySalt: workspaceId must not be empty");
   }

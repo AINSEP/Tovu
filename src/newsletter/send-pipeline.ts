@@ -167,7 +167,12 @@ export async function freezeAudience(required: {
 }
 
 /** `claimBatch` — delegates to the EXISTING generic `processOutbox` primitive, unmodified (W-003). */
-export function claimBatch(deps: Pick<SendPipelineDeps, "outbox" | "bus" | "clock">, batchSize = 20): Promise<number> {
+export function claimBatch(
+  required: { deps: Pick<SendPipelineDeps, "outbox" | "bus" | "clock"> },
+  optional: { batchSize?: number } = {}
+): Promise<number> {
+  const { deps } = required;
+  const { batchSize = 20 } = optional;
   return processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock }, { batchSize });
 }
 
@@ -354,7 +359,8 @@ export async function sendTestCampaign(required: {
  * Per-row fixed order: `recipient.filter` -> `beforeSend` -> `send()` -> `recordResult`; one row's
  * failure never aborts sibling rows in the same batch.
  */
-export async function handleSendBatchClaimed(deps: SendPipelineDeps, job: SendBatchJob): Promise<void> {
+export async function handleSendBatchClaimed(required: { deps: SendPipelineDeps; job: SendBatchJob }): Promise<void> {
+  const { deps, job } = required;
   const campaign = await deps.campaignRepo.findById({ workspaceId: job.workspaceId, id: job.campaignId });
   if (!campaign) return;
 

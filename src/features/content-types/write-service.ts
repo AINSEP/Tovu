@@ -13,6 +13,7 @@ import {
 import { resolveFieldIndexTransition, validateIdentifierGrammar } from "./index-provisioning";
 import {
   type ActorIdentityInput,
+  type ActorPrincipalKind,
   type ContentTypeFieldDef,
   type ContentTypeRecord,
   type Result,
@@ -59,6 +60,13 @@ export interface ContentTypeRevisionInput {
   op: "register" | "field-change";
   stateJson: ContentTypeRecord;
   actorId: string;
+  /**
+   * Audit provenance — the actor CLASS behind `actorId` (`'user'` for a human admin request,
+   * `'agent'` for a write made through the assistant's tool surface, `'system'` for an internal
+   * boot-time registration). `null` when the caller did not supply one; see
+   * `ActorIdentityInput.principalKind` for why `actorId` alone cannot answer the audit question.
+   */
+  principalKind: ActorPrincipalKind | null;
   delegatedByWorkspaceId: string | null;
   delegatedById: string | null;
   recordedAt: string;
@@ -188,6 +196,7 @@ export async function registerContentType(
       op: "register",
       stateJson: contentType,
       actorId: input.actorId,
+      principalKind: input.principalKind ?? null,
       delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
       delegatedById: input.delegatedById ?? null,
       recordedAt: now,
@@ -277,6 +286,7 @@ export async function updateContentTypeFields(
       op: "field-change",
       stateJson: updated,
       actorId: input.actorId,
+      principalKind: input.principalKind ?? null,
       delegatedByWorkspaceId: input.delegatedByWorkspaceId ?? null,
       delegatedById: input.delegatedById ?? null,
       recordedAt: now,

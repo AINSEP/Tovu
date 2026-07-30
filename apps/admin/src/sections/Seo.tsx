@@ -135,7 +135,7 @@ function SeoEntryPanel(props: { entryId: string }) {
     setSaveError(null);
     setNotice(null);
     try {
-      const r = await api.putSeoEntry(props.entryId, touched);
+      const r = await api.putSeoEntry({ entryId: props.entryId }, touched);
       setResolved(r.data);
       setTouched({});
       setNotice("Saved.");

@@ -4,11 +4,14 @@ import { registerAdminPostGetRoute } from "../routes/admin/posts/get-by-id";
 import { registerAdminPostUpdateRoute } from "../routes/admin/posts/update";
 import { registerAdminPageListRoute } from "../routes/admin/pages/list";
 import { registerAdminPageCreateRoute } from "../routes/admin/pages/create";
+import { registerAdminPageGetRoute } from "../routes/admin/pages/get-by-id";
+import { registerAdminPageUpdateRoute } from "../routes/admin/pages/update";
 import { registerAdminChangeSetListRoute } from "../routes/admin/change-sets/list";
 import { registerAdminChangeSetGetRoute } from "../routes/admin/change-sets/get";
 import { registerAdminChangeSetRevertRoute } from "../routes/admin/change-sets/revert";
 import { registerAdminPresentationGetRoute } from "../routes/admin/presentation/get";
 import { registerAdminPresentationPatchRoute } from "../routes/admin/presentation/patch-active-theme";
+import { registerAdminThemesListRoute } from "../routes/admin/themes/list";
 import type { ContentRouteDeps } from "../routes/admin/content/deps";
 import type { ServerModuleHandle } from "./types";
 
@@ -26,6 +29,14 @@ import type { ServerModuleHandle } from "./types";
  * posts/:slug`, `routes/content/posts/get-by-slug.ts`) — that route is unauthenticated site-facing
  * content serving, a distinct concern from this module's admin CRUD surface (it was never one of
  * the 11 registrations this module owns), and stays inline in `app.ts` at its existing call site.
+ *
+ * SPEC-002 `PAGE_GET`/`PAGE_UPDATE` (api.spec.md, drift-audit gap): added `registerAdminPageGetRoute`/
+ * `registerAdminPageUpdateRoute` alongside the pre-existing 2 pages registrations (list/create) —
+ * now 4 pages registrations, 13 total.
+ *
+ * SPEC-004 `THEMES_LIST` (api.spec.md, drift-audit gap): added `registerAdminThemesListRoute` — reads
+ * the same `deps.themes`/`deps.presentationRepo` the 2 presentation registrations already use, so it
+ * lives in this module rather than a new one — now 14 registrations total.
  */
 export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle {
   return {
@@ -37,11 +48,14 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       registerAdminPostUpdateRoute(app, deps);
       registerAdminPageListRoute(app, deps);
       registerAdminPageCreateRoute(app, deps);
+      registerAdminPageGetRoute(app, deps);
+      registerAdminPageUpdateRoute(app, deps);
       registerAdminChangeSetListRoute(app, deps);
       registerAdminChangeSetGetRoute(app, deps);
       registerAdminChangeSetRevertRoute(app, deps);
       registerAdminPresentationGetRoute(app, deps);
       registerAdminPresentationPatchRoute(app, deps);
+      registerAdminThemesListRoute(app, deps);
     },
   };
 }

@@ -10,7 +10,7 @@ import type { HttpRequest, HttpResponse, PinnedPeer } from "./types";
  * @file The one production `HttpClientPort` constructor (ADR-038 §2, ADR-PIPE-015 GAP-04).
  *
  * Purpose:
- * `createHttpClient(transport, policy)` is the ONLY way to obtain a `HttpClientPort` — there is
+ * `createHttpClient({ transport, policy })` is the ONLY way to obtain a `HttpClientPort` — there is
  * no unguarded path. Every request goes through: scheme + credentials-in-URL rejection, DNS
  * resolution, address-family-complete private/loopback/link-local/reserved classification
  * (IPv4-mapped-IPv6 normalized first), peer pinning, and — on any redirect — full re-verification
@@ -184,9 +184,9 @@ async function sendWithPolicy(
  * @overallScore 100
  */
 export const createHttpClient: CreateHttpClient = (
-  transport: HttpTransportAdapter,
-  policy: EgressPolicy
+  required: { transport: HttpTransportAdapter; policy: EgressPolicy }
 ): HttpClientPort => {
+  const { transport, policy } = required;
   return {
     async send(request: HttpRequest): Promise<HttpResponse> {
       return sendWithPolicy(transport, policy, request, 0);
@@ -200,5 +200,5 @@ export const createHttpClient: CreateHttpClient = (
  * one file.
  */
 export function createDefaultHttpClient(policy: EgressPolicy): HttpClientPort {
-  return createHttpClient(new FetchHttpTransportAdapter(), policy);
+  return createHttpClient({ transport: new FetchHttpTransportAdapter(), policy });
 }

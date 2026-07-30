@@ -76,7 +76,7 @@ export function Users() {
     setSaving(true);
     setFormError(null);
     try {
-      await api.createUser({ username, password, email: email || undefined });
+      await api.createUser({ username, password }, { email: email || undefined });
       setUsername("");
       setEmail("");
       setPassword("");
@@ -104,7 +104,7 @@ export function Users() {
     setGrantSaving(true);
     setGrantError(null);
     try {
-      await api.assignRole(principalId, pendingRoleId);
+      await api.assignRole({ principalId, roleId: pendingRoleId });
       setPendingRoleId("");
       await reload();
     } catch (e) {
@@ -119,7 +119,7 @@ export function Users() {
     setGrantSaving(true);
     setGrantError(null);
     try {
-      await api.attachPolicy(principalId, pendingPolicyId);
+      await api.attachPolicy({ principalId, policyId: pendingPolicyId });
       setPendingPolicyId("");
       await reload();
     } catch (e) {
@@ -133,7 +133,7 @@ export function Users() {
     setEmailSaving(true);
     setGrantError(null);
     try {
-      await api.updateUser(principalId, { email: editEmail });
+      await api.updateUser({ principalId }, { email: editEmail });
       await reload();
     } catch (e) {
       setGrantError(describeApiError(e, "failed to update email"));
@@ -148,7 +148,7 @@ export function Users() {
     setGrantError(null);
     setPasswordSaved(false);
     try {
-      await api.resetUserPassword(principalId, newPassword);
+      await api.resetUserPassword({ principalId, password: newPassword });
       setNewPassword("");
       setPasswordSaved(true);
     } catch (e) {

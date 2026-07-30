@@ -209,7 +209,11 @@ function RestoreFlow(props: { point: AdminRestorePoint; onBack: () => void }) {
     setBusy(true);
     setCeremonyError(null);
     try {
-      const r = await api.confirmRestore(plan.planId, plan.planHash, acknowledged);
+      const r = await api.confirmRestore({
+        planId: plan.planId,
+        planHash: plan.planHash,
+        disclosureAcknowledged: acknowledged,
+      });
       setConfirmationToken(r.confirmationToken);
       setStep("confirmed");
     } catch (e) {
@@ -224,7 +228,7 @@ function RestoreFlow(props: { point: AdminRestorePoint; onBack: () => void }) {
     setBusy(true);
     setCeremonyError(null);
     try {
-      const r = await api.executeRestore(confirmationToken, props.point.id);
+      const r = await api.executeRestore({ confirmationToken, restorePointId: props.point.id });
       setResult({ restoreRunId: r.restoreRunId, state: r.state, restartRequired: r.restartRequired });
       setStep("done");
     } catch (e) {

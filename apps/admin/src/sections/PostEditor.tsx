@@ -154,12 +154,10 @@ export function PostEditor(props: { postId: string }) {
     setMessage(null);
     setError(null);
     try {
-      const { post: saved } = await api.updatePost(props.postId, {
-        title,
-        slug,
-        status,
-        bodyJson: editor.getJSON() as Record<string, unknown>,
-      });
+      const { post: saved } = await api.updatePost(
+        { id: props.postId },
+        { title, slug, status, bodyJson: editor.getJSON() as Record<string, unknown> }
+      );
       setPost(saved);
       setMessage(`Saved · version ${saved.version}`);
     } catch (e) {

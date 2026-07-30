@@ -50,7 +50,13 @@ import {
   InMemoryNewsletterSubscriptionRepo,
 } from "../newsletter/repo.memory";
 import { ensureDefaultList } from "../newsletter/lists";
+import { createHookRegistry, handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "../newsletter/send-pipeline";
+import type { SendBatchJob } from "../newsletter/ports";
+import { MembersSubscriberDirectory } from "../members";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps";
+import { toSendPipelineDeps } from "./routes/admin/newsletter/deps";
+import { createNewsletterModule } from "./modules/newsletter";
+import type { NewsletterPublicRouteDeps } from "./routes/site/newsletter-deps";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../forms/repo.memory";
 import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../origin";
@@ -70,6 +76,11 @@ import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../fea
 import { InMemoryEntryRepo } from "../features/entries/repo.memory";
 import { InMemoryWidgetRegionBindingRepo } from "../widgets/repo.memory";
 import { InMemoryEntryRefsRepo } from "../core/entry-refs/repo.memory";
+import { discoverPlugins as discoverPluginRuntimePlugins } from "../features/plugin-runtime/discovery";
+import { InMemoryPluginActivationRepo } from "../features/plugin-runtime/repo.memory";
+import { createPluginsModule } from "./modules/plugins";
+import { wireCoreResolvers } from "../widgets/resolvers/index";
+import { createNavMenuReadModel } from "../navigation/read-model";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { InMemoryCommentRepo } from "../comments/repo.memory";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";
@@ -114,6 +125,7 @@ import { createRedirectsModule } from "./modules/redirects";
 import { createDatabaseRecoveryModule } from "./modules/database-recovery";
 import { createContentTypesModule } from "./modules/content-types";
 import { createSeoModule } from "./modules/seo";
+import { createAssistantModule } from "./modules/assistant";
 import type { RouteDeps } from "./routes/types";
 
 /**
@@ -247,6 +259,17 @@ export function createRouteDeps(): NewsletterRouteDeps {
   // W-004) must see the SAME binding/ref-index state, not two independent in-memory instances.
   const widgetBindingRepo = new InMemoryWidgetRegionBindingRepo();
   const entryRefsRepo = new InMemoryEntryRefsRepo();
+  const menuRepo = new InMemoryMenuRepo();
+  const navLocationBindingRepo = new InMemoryNavLocationBindingRepo();
+  const formDefinitionRepo = new InMemoryFormDefinitionRepo();
+  // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — mirrors `server/deps.ts`'s
+  // identical fix: without this, no test exercising the real HTTP path ever ran a dynamic widget
+  // type (`menu`/`recent-entries`/`contact-form`) through its actual resolver, only test doubles.
+  wireCoreResolvers({
+    entryList: entryRepo,
+    navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: navLocationBindingRepo }),
+    formDefinitionRepo,
+  });
   const commentsModule = createCommentsModule({
     commentRepo: new InMemoryCommentRepo(),
     entryRepo,
@@ -255,6 +278,17 @@ export function createRouteDeps(): NewsletterRouteDeps {
     idGen,
     settingsRepo,
   });
+
+  // SPEC-011 (Newsletter) Stage 5 wiring — hoisted so `newsletterSubscriberDirectory` below reads
+  // the SAME member rows the returned `memberRepo` field exposes (mirrors `entryRepo`/
+  // `widgetBindingRepo`'s identical hoisting rationale above), and so `newsletterKeyring` is the
+  // ONE process-lifetime `KeyringPort` instance also used to build `webhookSigner` just below —
+  // one root key, purpose-namespaced (`integrations/ports.ts`'s `KeyringPort.derive()` contract),
+  // not two independent keyrings.
+  const memberRepo = new InMemoryMemberRepo([]);
+  const newsletterKeyring = new InMemoryKeyring();
+  const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });
+  const newsletterHooks = createHookRegistry();
 
   return {
     workspaceId: seededWorkspace.id,
@@ -267,7 +301,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     // BR-04 (2026-07-16): the repo forwards insert()'s optional event to this SAME outbox
     // instance, matching what the old separate executeCommand()-level enqueue() call did.
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
-    themes: discoverThemes(builtInThemesDir(), "built-in"),
+    themes: discoverThemes({ dir: builtInThemesDir(), source: "built-in" }),
     outbox,
     bus,
     clock,
@@ -278,7 +312,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     redirectHitSink,
     originRegistry,
     redirectsWriteDeps,
-    memberRepo: new InMemoryMemberRepo([]),
+    memberRepo,
     memberTierRepo: new InMemoryMemberTierRepo([]),
     memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo([]),
     memberSessionRepo: new InMemoryMemberSessionRepo([]),
@@ -291,15 +325,15 @@ export function createRouteDeps(): NewsletterRouteDeps {
       mode: resolveRuntimeMode(),
       durableOutboxReady: () => false,
     }),
-    menuRepo: new InMemoryMenuRepo(),
-    navLocationBindingRepo: new InMemoryNavLocationBindingRepo(),
+    menuRepo,
+    navLocationBindingRepo,
     webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
     webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
     // ADR-PIPE-015 Phase 1 T017: the real createKeyringBackedSigner code path, backed by an
     // in-memory KeyringPort so this hermetic test/dev composition never touches a real file or
     // env var. The delivery worker is still the first real consumer — activation stays gated
     // (Phase 4) until the real KeyringPort/HttpClientPort/SQLite adapters are wired in deps.ts.
-    webhookSigner: createKeyringBackedSigner(new InMemoryKeyring()),
+    webhookSigner: createKeyringBackedSigner(newsletterKeyring),
     // `media` (ADR-027 walking skeleton): in-memory rows + in-memory blob bytes here so tests
     // stay hermetic (no filesystem writes) — the real running server (`server/deps.ts`) uses
     // `LocalFsBlobStore` for actual byte durability while keeping rows in-memory too (see that
@@ -332,13 +366,17 @@ export function createRouteDeps(): NewsletterRouteDeps {
     newsletterSendRepo: new InMemoryNewsletterSendRepo(),
     newsletterConfirmationTokenRepo: new InMemoryNewsletterConfirmationTokenRepo(),
     membersConsentCapability: null,
+    // Stage 5 (routes) wiring — see the hoisted-vars comment above `commentsModule`/return.
+    newsletterSubscriberDirectory,
+    newsletterKeyring,
+    newsletterHooks,
     // SPEC-010 (Forms, Tier-1 sample plugin, ADR-PIPE-010): in-memory adapters, matching every
     // other core-owned-table feature's hermetic test/dev composition. `formsRateLimiter` is one
     // process-lifetime `FORMS_SUBMIT_PROFILE` counter store (constructed once here, not
     // per-request) so its fixed-window counts persist across requests within one `createApp()`.
-    formDefinitionRepo: new InMemoryFormDefinitionRepo(),
+    formDefinitionRepo,
     formSubmissionRepo: new InMemoryFormSubmissionRepo(),
-    formsRateLimiter: createRateLimiter(FORMS_SUBMIT_PROFILE, clock),
+    formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     // ADR-041 §1/§2 (Database Timeline): in-memory ledger, same disclosed precedent as every other
     // feature's hermetic test/dev composition above. `server/deps.ts`'s real composition opens
     // the sidecar `ops/database-journal.db` and uses `SqliteDatabaseLedgerRepo` instead.
@@ -375,6 +413,12 @@ export function createRouteDeps(): NewsletterRouteDeps {
     commentsSettingsReady,
     widgetBindingRepo,
     entryRefsRepo,
+    // SPEC-005 (ADR-005-ARCH) — in-memory activation repo, same disclosed precedent as every other
+    // hermetic test/dev composition above. `builtIns: []` is accurate for this Phase 1 dispatch: the
+    // `word-count` dogfood plugin (Phase 2) and its loader wiring (Phase 3) are later, gated phases
+    // that have not landed yet — this closure legitimately reports zero built-in plugins today.
+    pluginActivationRepo: new InMemoryPluginActivationRepo(),
+    discoverPlugins: () => discoverPluginRuntimePlugins({ builtIns: [] }),
   };
 }
 
@@ -433,9 +477,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // request-magic-link route and the new public sign-in route (C-015: one
   // counter per email, not two). Per-boot-scoped, mirroring
   // `registerAuthRoutes`'s own `loginRateLimiter` construction.
-  const magicLinkPerEmailLimiter = createRateLimiter(MAGIC_LINK_PER_EMAIL, routeDeps.clock);
-  const magicLinkPerIpLimiter = createRateLimiter(MAGIC_LINK_PER_IP, routeDeps.clock);
-  const magicLinkCompleteAttemptLimiter = createRateLimiter(MAGIC_LINK_COMPLETE_ATTEMPT, routeDeps.clock);
+  const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
+  const magicLinkPerIpLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_IP, clock: routeDeps.clock });
+  const magicLinkCompleteAttemptLimiter = createRateLimiter({ profile: MAGIC_LINK_COMPLETE_ATTEMPT, clock: routeDeps.clock });
   const membersDeps: MembersRouteDeps = { ...routeDeps, magicLinkPerEmailLimiter };
 
   // NEW public (non-admin) member route family (ADR-PIPE-013 Decision §2-3) —
@@ -461,6 +505,42 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // sign-in routes, genuinely two deps objects (see `modules/members.ts`'s file header).
   createMembersModule({ admin: membersDeps, public: memberPublicDeps }).registerRoutes?.(app);
 
+  // SPEC-011 (Newsletter, ADR-PIPE-011) Stage 5 — the `newsletter` server module: 19 admin routes
+  // (inside the `/api/admin` gate mounted by `createCoreModule` above) + 2 public, cookie-less,
+  // token-only routes (`newsletter-confirm.ts`/`newsletter-unsubscribe.ts`), genuinely two deps
+  // objects, same rationale as `members` immediately above (see `modules/newsletter.ts`'s header).
+  // `routeDeps` is cast to `NewsletterRouteDeps` here (not widened) — mirrors every admin
+  // newsletter route file's own `routeDeps as NewsletterRouteDeps` cast (`routes/admin/newsletter/
+  // deps.ts`'s file header); `createRouteDeps()`'s actual return type already IS
+  // `NewsletterRouteDeps`, this parameter's own `RouteDeps` annotation is just narrower.
+  const newsletterAdminDeps = routeDeps as NewsletterRouteDeps;
+  const newsletterPublicDeps: NewsletterPublicRouteDeps = {
+    workspaceId: newsletterAdminDeps.workspaceId,
+    newsletterReady: newsletterAdminDeps.newsletterReady,
+    newsletterConfirmationTokenRepo: newsletterAdminDeps.newsletterConfirmationTokenRepo,
+    newsletterSubscriptionRepo: newsletterAdminDeps.newsletterSubscriptionRepo,
+    newsletterKeyring: newsletterAdminDeps.newsletterKeyring,
+    mailer: newsletterAdminDeps.mailer,
+    membersConsentCapability: newsletterAdminDeps.membersConsentCapability,
+    originRegistry: newsletterAdminDeps.originRegistry,
+    clock: newsletterAdminDeps.clock,
+    idGen: newsletterAdminDeps.idGen,
+  };
+  createNewsletterModule({ admin: newsletterAdminDeps, public: newsletterPublicDeps }).registerRoutes?.(app);
+
+  // T040 (tasks.md Phase 4) — the `newsletter.send.batch.claimed` bus subscriber `send-pipeline.ts`'s
+  // own file header names as the one piece of Stage 4 wiring no composition root had done yet
+  // (found while wiring Stage 5's `send-campaign.ts`, which is the only real caller of `claimBatch`/
+  // `processOutbox` for this campaign). Mirrors the demonstration `bus.subscribe("workspace.created",
+  // ...)` above. In practice this handler is never reached in either composition root today: no real
+  // `MailerPort` adapter exists yet, so `authorizeSend`'s Launch Gate check always rejects before
+  // `freezeAudience` ever enqueues a batch (tasks.md's disclosed, by-design "Real Sending Is
+  // Inherently Blocked Today" flag) — wired now anyway so the pipeline is genuinely complete end to
+  // end the moment a real adapter lands, not silently half-wired.
+  void routeDeps.bus.subscribe<SendBatchJob>(SEND_BATCH_CLAIMED_EVENT, async (event) => {
+    await handleSendBatchClaimed({ deps: toSendPipelineDeps(newsletterAdminDeps), job: event.payload });
+  });
+
   // ADR-046 Phase 3 (SPEC-041): the `analytics` server module — the single admin "recent hits"
   // read route (ADR-035/ADR-PIPE-014).
   createAnalyticsModule(routeDeps).registerRoutes?.(app);
@@ -479,6 +559,8 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `RouteDeps` already carries every dependency this module needs (`widgetBindingRepo`/
   // `entryRefsRepo`, added by this same dispatch) — no widened deps type, unlike menus.
   createWidgetsModule(routeDeps).registerRoutes?.(app);
+  // SPEC-005 (ADR-005-ARCH) — the `plugins` server module: PLUGINS_LIST/PLUGIN_SET_ENABLED (REQ-10).
+  createPluginsModule(routeDeps).registerRoutes?.(app);
   // ADR-046 Phase 3 (SPEC-034): the `integrations-admin` server module — 5 admin CRUD/read routes
   // over webhook subscriptions/deliveries (ADR-036). Distinct from `createIntegrationsModule`
   // below, which owns the Forms-to-webhook fan-out subscriber, not an HTTP surface.
@@ -518,6 +600,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // taxonomy). `registerAdminDatabaseMigrateForwardRoutes`/`registerAdminRecoveryRestoreRoutes`
   // (the 2 gated-mutation ceremonies) stay inline below, unchanged non-goal since SPEC-031.
   createDatabaseRecoveryModule(routeDeps).registerRoutes?.(app);
+
+  // ADR-049: the admin assistant's tool-execution/run surface, composed from the published
+  // `@jini-ai/core` + `@jini-ai/daemon` + `@jini-ai/node-host` kernel — see `src/assistant/`.
+  createAssistantModule(routeDeps).registerRoutes?.(app);
 
   // ADR-046 Phase 3 (SPEC-042, final slice): the `content-types` server module (ADR-043
   // Collections backend) — all 8 registrations (content-types' list/register/update-fields/
@@ -574,6 +660,14 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerAdminStatic(app, {
     distDir: process.env.TOVU_ADMIN_DIST ?? path.resolve(__dirname, "../../apps/admin/dist"),
   });
+
+  // ADR-049 — `@jini-ai/chat-react`'s runtime picker requests agent icons from `/agent-icons/*`
+  // at the site root (hardcoded, no `ChatPaneProps` override exists to relocate it — verified
+  // against `chat-react@0.2.0`'s `AgentRuntimePicker.tsx`), which sits outside the admin SPA's own
+  // `/admin/*`-scoped static serving above. Served from Tovu's own root here (in both dev, via
+  // `apps/admin/vite.config.ts`'s matching proxy entry, and prod) rather than duplicated inside
+  // `apps/admin/dist` (which would only ever resolve under `/admin/`).
+  app.use("/agent-icons", express.static(path.resolve(__dirname, "../../public/agent-icons")));
 
   // SPEC-044: the `workspace` server module (list/create/get/update/delete) is registered near the
   // other ADR-046 Phase 3 module calls above (`createUsersModule`); the original inline

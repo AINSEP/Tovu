@@ -102,9 +102,10 @@ export const DEFAULT_ALLOWED_MIME_TYPES: ReadonlySet<string> = new Set([
  * @overallScore 100
  */
 export function resolveWriteOnceSource(
-  existing: MediaSource | undefined,
-  requestedSha256: string
+  required: { existing: MediaSource | undefined; requestedSha256: string },
+  _optional: Record<string, never> = {}
 ): MediaSource {
+  const { existing, requestedSha256 } = required;
   if (existing && existing.sha256 !== requestedSha256) {
     throw new MediaSourceImmutableError(
       `source.sha256 is write-once: cannot change '${existing.sha256}' to '${requestedSha256}'`
@@ -234,7 +235,7 @@ export async function uploadMedia(
     alt: input.alt?.trim() ?? "",
     caption: input.caption?.trim() ?? "",
     credit: input.credit?.trim() ?? "",
-    source: resolveWriteOnceSource(undefined, sha256),
+    source: resolveWriteOnceSource({ existing: undefined, requestedSha256: sha256 }),
     status: "active",
     createdAt: nowIso,
     updatedAt: nowIso,

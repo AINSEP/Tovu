@@ -5,7 +5,12 @@
  * ONLY writers of `p_newsletter__lists`.
  */
 import type { UUID } from "../core/ports";
-import { NewsletterDefaultListProtectedError, NewsletterListNotFoundError, NewsletterValidationError } from "./errors";
+import {
+  NewsletterConflictError,
+  NewsletterDefaultListProtectedError,
+  NewsletterListNotFoundError,
+  NewsletterValidationError,
+} from "./errors";
 import type { NewsletterListRepoPort } from "./ports";
 import type { NewsletterListRow } from "./types";
 
@@ -15,7 +20,13 @@ export interface ListsDeps {
   ids: { newId(): string };
 }
 
-/** Admin-created lists always land `isDefault: false` (behavior.spec.md §3) — only seed-time list creation may set `isDefault: true`. */
+/**
+ * Admin-created lists always land `isDefault: false` (behavior.spec.md §3) — only seed-time list
+ * creation may set `isDefault: true`. Enforces slug uniqueness per workspace (api.spec.md §6:
+ * `CREATE_LIST` -> `409 NEWSLETTER_CONFLICT`) — this port has no dedicated `findBySlug`, so the
+ * check scans the (small, per-workspace) `list()` result rather than adding a new port method
+ * across both adapters for this one guard.
+ */
 export async function saveList(required: {
   deps: ListsDeps;
   input: { workspaceId: UUID; id?: UUID; name: string; slug: string };
@@ -26,6 +37,14 @@ export async function saveList(required: {
   }
   if (input.slug.trim().length === 0) {
     throw new NewsletterValidationError("slug must not be empty", "slug", "required");
+  }
+
+  const siblingLists = await deps.listRepo.list({ workspaceId: input.workspaceId });
+  const slugCollision = siblingLists.find((l) => l.slug === input.slug && l.id !== input.id);
+  if (slugCollision) {
+    // Lists carry no optimistic-concurrency version (unlike campaigns) — `expectedVersion`/
+    // `actualVersion` are not meaningful here; `0`/`0` are inert placeholders, not a real version pair.
+    throw new NewsletterConflictError(`a list with slug '${input.slug}' already exists`, "list", slugCollision.id, 0, 0);
   }
 
   const now = deps.clock.nowIso();

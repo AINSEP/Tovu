@@ -32,7 +32,7 @@ export function WidgetsLibrary() {
   async function purge(widget: AdminWidget) {
     setError(null);
     try {
-      await api.purgeWidget(widget.id, false);
+      await api.purgeWidget({ id: widget.id }, { force: false });
       load();
     } catch (e) {
       if (e instanceof ApiError && e.code === "WIDGETS_REFERENCED") {
@@ -40,7 +40,7 @@ export function WidgetsLibrary() {
         const summary = locations.map((l) => `${l.kind} (${l.entryId})`).join(", ") || "at least one other place";
         if (window.confirm(`"${widget.title}" is still used in: ${summary}.\n\nPermanently delete anyway? This cannot be undone.`)) {
           try {
-            await api.purgeWidget(widget.id, true);
+            await api.purgeWidget({ id: widget.id }, { force: true });
             load();
           } catch (e2) {
             setError(describeApiError(e2, "force-purge failed"));

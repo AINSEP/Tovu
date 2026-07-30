@@ -127,6 +127,27 @@
       "when": 1784606362332,
       "tag": "0017_magical_rawhide_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1785276468071,
+      "tag": "0018_happy_ogun",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1785352888985,
+      "tag": "0019_small_namor",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1785365773708,
+      "tag": "0020_jazzy_wolverine",
+      "breakpoints": true
     }
   ]
 }

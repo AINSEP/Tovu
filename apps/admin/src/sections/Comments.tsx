@@ -108,7 +108,7 @@ function QueueSection(props: { permissions: string[] }) {
     if (stateFor(comment.id).busy) return;
     patchRowState(comment.id, { busy: true, error: null });
     try {
-      await api.moderateComment(comment.id, action, { expectedVersion: comment.version });
+      await api.moderateComment({ commentId: comment.id, action, expectedVersion: comment.version });
       reloadFirstPage();
     } catch (e) {
       patchRowState(comment.id, { busy: false, error: describeModerationError(e) });
@@ -120,7 +120,7 @@ function QueueSection(props: { permissions: string[] }) {
     if (!window.confirm(`Permanently delete this comment by "${comment.authorName}"? This cannot be undone.`)) return;
     patchRowState(comment.id, { busy: true, error: null });
     try {
-      await api.purgeComment(comment.id);
+      await api.purgeComment({ commentId: comment.id });
       reloadFirstPage();
     } catch (e) {
       patchRowState(comment.id, { busy: false, error: describeApiError(e, "Failed to purge comment.") });
@@ -227,7 +227,8 @@ function QueueSection(props: { permissions: string[] }) {
 /** REQ-08/09/10: builds a partial patch containing only the fields the operator actually changed
  * (the backend's `setCommentsSettings` is a partial-patch contract — REQ-08 asks the client to
  * mirror that instead of always sending the full object, as `Seo.tsx`'s form does). */
-function buildSettingsPatch(form: FormData, current: CommentsSettings): Partial<CommentsSettings> {
+function buildSettingsPatch(required: { form: FormData; current: CommentsSettings }): Partial<CommentsSettings> {
+  const { form, current } = required;
   const patch: Partial<CommentsSettings> = {};
 
   const enabled = form.get("enabled") === "on";
@@ -290,7 +291,7 @@ function SettingsSection(props: { canConfigure: boolean }) {
     setError(null);
     setNotice(null);
 
-    const patch = buildSettingsPatch(form, settings);
+    const patch = buildSettingsPatch({ form, current: settings });
 
     // REQ-09: client-side validate spamAutoRejectScore before the network call — mirrors the
     // backend's own `validateCommentsSettingsPatch` bound (`src/comments/settings.ts`).

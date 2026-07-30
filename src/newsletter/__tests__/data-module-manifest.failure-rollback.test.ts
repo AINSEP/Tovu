@@ -45,7 +45,7 @@ const ALL_NEWSLETTER_TABLE_NAMES = Object.values(NEWSLETTER_TABLE_NAMES);
 test("data-module-manifest: the real 5-table Newsletter manifest is well-formed and installs cleanly (happy path)", async () => {
   const { db, dbPath, dir } = openWithCore();
 
-  const result = await declareDataModule(db, dbPath, NEWSLETTER_DATA_MODULE);
+  const result = await declareDataModule({ db, dbPath, decl: NEWSLETTER_DATA_MODULE });
 
   assert.equal(result.ok, true, `expected the real manifest to install cleanly, got error: ${JSON.stringify(result.error)}`);
   assert.equal(result.created.length, 5, "all 5 p_newsletter__* tables were created");
@@ -86,7 +86,7 @@ test("data-module-manifest: a mid-DDL failure against the REAL 5-table manifest 
     ],
   };
 
-  const result = await declareDataModule(db, dbPath, poisonedManifest);
+  const result = await declareDataModule({ db, dbPath, decl: poisonedManifest });
 
   assert.equal(result.ok, false, "a within-call duplicate table name must fail, not silently succeed");
   assert.equal(result.error?.code, "DDL_FAILED");
@@ -140,10 +140,10 @@ test("data-module-manifest: after a rolled-back attempt, a clean retry of the RE
     provenance: NEWSLETTER_DATA_MODULE.provenance,
     tables: [...NEWSLETTER_DATA_MODULE.tables, { name: "lists", columns: [{ name: "id", type: "TEXT", primaryKey: true }] }],
   };
-  const failed = await declareDataModule(db, dbPath, poisoned);
+  const failed = await declareDataModule({ db, dbPath, decl: poisoned });
   assert.equal(failed.ok, false);
 
-  const retried = await declareDataModule(db, dbPath, NEWSLETTER_DATA_MODULE);
+  const retried = await declareDataModule({ db, dbPath, decl: NEWSLETTER_DATA_MODULE });
   assert.equal(retried.ok, true, "a clean retry after a rolled-back failure must succeed, not stay bricked");
   assert.equal(retried.created.length, 5);
   for (const fq of ALL_NEWSLETTER_TABLE_NAMES) {

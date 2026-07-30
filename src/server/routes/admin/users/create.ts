@@ -43,7 +43,7 @@ export const registerAdminUserCreateRoute: UsersRouteRegistrar = (app, deps) => 
         },
       });
 
-      res.status(201).json({ user: toAdminUserResponse(principal, user, [], []) });
+      res.status(201).json({ user: toAdminUserResponse({ principal, user, roleIds: [], policyIds: [] }) });
     } catch (err) {
       if (err instanceof IdentityForbiddenError) {
         res.status(403).json({

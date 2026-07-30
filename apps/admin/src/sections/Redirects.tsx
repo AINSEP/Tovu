@@ -178,7 +178,7 @@ export function Redirects() {
     setSaving(true);
     setError(null);
     try {
-      await api.updateRedirect(rule.id, { status: rule.status === "active" ? "disabled" : "active" });
+      await api.updateRedirect({ id: rule.id }, { status: rule.status === "active" ? "disabled" : "active" });
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to update redirect");

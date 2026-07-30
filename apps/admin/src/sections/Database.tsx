@@ -276,7 +276,7 @@ function MigrateForwardSection() {
     setBusy(true);
     setError(null);
     try {
-      const r = await api.confirmMigrateForward(plan.planId, plan.planHash);
+      const r = await api.confirmMigrateForward({ planId: plan.planId, planHash: plan.planHash });
       setConfirmationToken(r.confirmationToken);
       setStep("confirmed");
     } catch (e) {

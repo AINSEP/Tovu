@@ -28,7 +28,11 @@ type MediaMetadataPatch = { title?: string; alt?: string; caption?: string; cred
 /** Builds a partial patch containing only the fields whose draft value differs from `item`'s
  * current value — the backend's own contract is optional-field/partial-patch, so this never
  * sends an unchanged field (AC-01's "field left unchanged is not overwritten" proof). */
-function diffMediaMetadata(item: AdminMedia, draft: Required<MediaMetadataPatch>): MediaMetadataPatch {
+function diffMediaMetadata(required: {
+  item: AdminMedia;
+  draft: Required<MediaMetadataPatch>;
+}): MediaMetadataPatch {
+  const { item, draft } = required;
   const patch: MediaMetadataPatch = {};
   if (draft.title !== item.title) patch.title = draft.title;
   if (draft.alt !== item.alt) patch.alt = draft.alt;
@@ -51,7 +55,7 @@ function EditMediaRow(props: { item: AdminMedia; onSaved: () => void; onCancel: 
   const [error, setError] = useState<string | null>(null);
 
   async function save() {
-    const patch = diffMediaMetadata(item, draft);
+    const patch = diffMediaMetadata({ item, draft });
     if (Object.keys(patch).length === 0) {
       props.onCancel();
       return;
@@ -59,7 +63,7 @@ function EditMediaRow(props: { item: AdminMedia; onSaved: () => void; onCancel: 
     setSaving(true);
     setError(null);
     try {
-      await api.updateMedia(item.id, patch);
+      await api.updateMedia({ id: item.id }, patch);
       props.onSaved();
     } catch (e) {
       setError(describeApiError(e, "failed to save media metadata"));
@@ -161,12 +165,10 @@ export function Media() {
     setError(null);
     try {
       const dataBase64 = await readFileAsBase64(file);
-      await api.uploadMedia({
-        filename: file.name,
-        contentType: file.type,
-        dataBase64,
-        alt: altDraft.trim() || undefined,
-      });
+      await api.uploadMedia(
+        { filename: file.name, contentType: file.type, dataBase64 },
+        { alt: altDraft.trim() || undefined }
+      );
       setAltDraft("");
       if (fileInputRef.current) fileInputRef.current.value = "";
       load();

@@ -16,6 +16,7 @@ import { toContentPostResponse } from "../content/posts";
 const seedPost: PostRecord = {
   id: "post-1",
   workspaceId: "workspace-1",
+  kind: "post",
   title: "Hello World",
   slug: "hello-world",
   bodyJson: { type: "doc", content: [] },
@@ -32,19 +33,20 @@ const seedPresentation: PresentationSettingsRecord = {
 
 test("admin and content serializers stay aligned with shared headless contracts", () => {
   const adminPostPayload: AdminPostEnvelope = toAdminPostResponse(seedPost);
-  const adminPresentationPayload: AdminPresentation = toAdminPresentationResponse(
-    seedPresentation,
-    ["paper", "atlas", "glassmorphic"]
-  );
-  const contentPayload: ContentPostPayload = toContentPostResponse(
-    seedPost,
-    seedPresentation.activeThemeId
-  );
+  const adminPresentationPayload: AdminPresentation = toAdminPresentationResponse({
+    settings: seedPresentation,
+    availableThemeIds: ["paper", "atlas", "glassmorphic"],
+  });
+  const contentPayload: ContentPostPayload = toContentPostResponse({
+    post: seedPost,
+    activeThemeId: seedPresentation.activeThemeId,
+  });
 
   assert.deepEqual(adminPostPayload, {
     post: {
       id: "post-1",
       workspaceId: "workspace-1",
+      kind: "post",
       title: "Hello World",
       slug: "hello-world",
       bodyJson: { type: "doc", content: [] },
@@ -66,6 +68,7 @@ test("admin and content serializers stay aligned with shared headless contracts"
   assert.deepEqual(contentPayload, {
     post: {
       id: "post-1",
+      kind: "post",
       title: "Hello World",
       slug: "hello-world",
       bodyJson: { type: "doc", content: [] },

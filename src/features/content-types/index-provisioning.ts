@@ -33,8 +33,17 @@ import { CONTENT_TYPE_FIELD_KINDS, type ContentTypeFieldKind, isContentTypeField
  * hashing) and this package's own `errors.ts`/`types.ts`.
  */
 
+/**
+ * U-001-B2 — the closed identifier grammar every `content_types.key` and field name must satisfy,
+ * as a pattern string so the agent-facing JSON Schemas in `agent-tools.ts` can publish the very
+ * same grammar instead of restating it. GOV-ADR-003 makes this grammar load-bearing for DDL
+ * safety, so it must have exactly one definition; {@link IDENTIFIER_GRAMMAR} is compiled from this
+ * string rather than written twice.
+ */
+export const IDENTIFIER_GRAMMAR_PATTERN = "^[a-z][a-z0-9_]{0,63}$";
+
 /** U-001-B2 — the closed identifier grammar every `content_types.key` and field name must satisfy. */
-const IDENTIFIER_GRAMMAR = /^[a-z][a-z0-9_]{0,63}$/;
+const IDENTIFIER_GRAMMAR = new RegExp(IDENTIFIER_GRAMMAR_PATTERN);
 
 /**
  * Structural grammar gate for a `content_types.key` or field name (U-001-B2).

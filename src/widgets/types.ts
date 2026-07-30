@@ -107,8 +107,16 @@ export interface WidgetTypeRegistration {
  * `trash` that may still be restored with no prior reference conflict. No real hard-delete exists in
  * this codebase for any content type (`EntryRepoPort` has no delete method) — this status is the
  * cheap, in-model way to keep that distinction visible without one.
+ *
+ * No `draft` member (Fable adversarial-review fix, 2026-07-21, Finding F) — `write-service.ts`
+ * creates every widget instance directly as `active`; nothing anywhere in this codebase ever writes
+ * `draft`. A prior version of this union carried it anyway, which was a live landmine: the
+ * resolver/placement-validation skip lists above only ever checked for `trash`/`purged`, so a
+ * `draft` status — had anything ever produced one — would have rendered publicly instead of being
+ * held back. Removed rather than defensively added to the skip lists, since there is no real
+ * "draft" concept for widget instances to guard.
  */
-export type WidgetInstanceStatus = "active" | "draft" | "trash" | "purged";
+export type WidgetInstanceStatus = "active" | "trash" | "purged";
 
 /**
  * A typed read model over a `type='widget'` entries row (ADR-022 §2 universal

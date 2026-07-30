@@ -104,7 +104,12 @@ export interface CreateWidgetInstanceRequired {
 export async function createWidgetInstance(required: CreateWidgetInstanceRequired): Promise<{ instance: WidgetInstanceEntry }> {
   const { deps, input } = required;
 
-  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, "widgets.create");
+  await requireWidgetPermission({
+    authorize: deps.authorize,
+    actor: input.actor,
+    workspaceId: input.workspaceId,
+    permission: "widgets.create",
+  });
 
   const registration = getWidgetTypeRegistration(input.widgetType);
   if (!registration) {
@@ -119,7 +124,7 @@ export async function createWidgetInstance(required: CreateWidgetInstanceRequire
     );
   }
 
-  await ensureWidgetContentTypesRegistered(deps, input.workspaceId);
+  await ensureWidgetContentTypesRegistered({ deps, workspaceId: input.workspaceId });
 
   const slug = input.slug ?? `${slugify(input.title)}-${deps.ids.newId().slice(0, 8)}`;
 
@@ -165,7 +170,12 @@ export interface UpdateWidgetInstanceRequired {
 export async function updateWidgetInstance(required: UpdateWidgetInstanceRequired): Promise<{ instance: WidgetInstanceEntry }> {
   const { deps, input } = required;
 
-  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, "widgets.update");
+  await requireWidgetPermission({
+    authorize: deps.authorize,
+    actor: input.actor,
+    workspaceId: input.workspaceId,
+    permission: "widgets.update",
+  });
 
   return withEntryLock(`${input.workspaceId}::${input.widgetInstanceId}`, async () => {
     const current = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId });
@@ -242,7 +252,12 @@ export interface TrashWidgetInstanceRequired {
 export async function trashWidgetInstance(required: TrashWidgetInstanceRequired): Promise<{ instance: WidgetInstanceEntry }> {
   const { deps, input } = required;
 
-  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, "widgets.delete");
+  await requireWidgetPermission({
+    authorize: deps.authorize,
+    actor: input.actor,
+    workspaceId: input.workspaceId,
+    permission: "widgets.delete",
+  });
 
   return withEntryLock(`${input.workspaceId}::${input.widgetInstanceId}`, async () => {
     const current = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId });
@@ -304,7 +319,12 @@ export interface PurgeWidgetInstanceRequired {
 export async function purgeWidgetInstance(required: PurgeWidgetInstanceRequired): Promise<void> {
   const { deps, input } = required;
 
-  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, input.force ? "widgets.delete.force" : "widgets.delete");
+  await requireWidgetPermission({
+    authorize: deps.authorize,
+    actor: input.actor,
+    workspaceId: input.workspaceId,
+    permission: input.force ? "widgets.delete.force" : "widgets.delete",
+  });
 
   await withEntryLock(`${input.workspaceId}::${input.widgetInstanceId}`, async () => {
     const current = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId });

@@ -13,8 +13,15 @@ export const registerAdminWidgetEmbedReorderRoute: RouteRegistrar = (app, deps) 
     }
 
     const body = req.body ?? {};
-    if (typeof body.baseVersion !== "number" || !Array.isArray(body.orderedWidgetEntryIds)) {
-      res.status(400).json({ error: "baseVersion and orderedWidgetEntryIds[] are required", code: "VALIDATION_ERROR" });
+    // Round-2 external-audit fix (2026-07-21, codex): reject a malformed element shape (400) before
+    // it ever reaches the domain layer's existence/liveness check (404) — mirrors
+    // region-mutate-placements.ts's own shape-then-existence split.
+    if (
+      typeof body.baseVersion !== "number" ||
+      !Array.isArray(body.orderedWidgetEntryIds) ||
+      !body.orderedWidgetEntryIds.every((id: unknown) => typeof id === "string" && id.length > 0)
+    ) {
+      res.status(400).json({ error: "baseVersion and non-empty string orderedWidgetEntryIds[] are required", code: "VALIDATION_ERROR" });
       return;
     }
 

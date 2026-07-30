@@ -186,17 +186,18 @@ function truncateIp(ip: string): string {
  * is the bucketed IP prefix plus the coarse browser-family/device-class pair (never the raw
  * IP/UA string) — see ADR-035 §4 / OQ-2.
  *
- * @param input - `{ ip, userAgent, siteHost }`, consumed transiently only within this call.
- * @param dailySalt - The current day's derived salt (never persisted; see `salt.ts`).
+ * @param required.input - `{ ip, userAgent, siteHost }`, consumed transiently only within this call.
+ * @param required.dailySalt - The current day's derived salt (never persisted; see `salt.ts`).
  * @returns `{ visitorHash, deviceClass, browserFamily, osFamily }` — deliberately has no `ip` or
  *   `userAgent` field, by type, so raw request identifiers cannot leak downstream by accident.
  * @complexity O(1).
  * @overallScore 100/100
  */
 export function normalizeIngestContext(
-  input: CoarseIngestInput,
-  dailySalt: Buffer
+  required: { input: CoarseIngestInput; dailySalt: Buffer },
+  _optional: Record<string, never> = {}
 ): NormalizedIngestContext {
+  const { input, dailySalt } = required;
   const { ip, userAgent, siteHost } = input;
 
   const truncatedIp = truncateIp(ip);
@@ -435,11 +436,11 @@ export async function ingestHit(required: IngestHitRequired): Promise<IngestHitR
   }
 
   const utcDate = toUtcDate(context.receivedAt);
-  const dailySalt = deriveDailySalt(deps.rootKeySeed, workspaceId, utcDate);
-  const normalized = normalizeIngestContext(
-    { ip: context.ip, userAgent: context.userAgent, siteHost: beacon.host },
-    dailySalt
-  );
+  const dailySalt = deriveDailySalt({ rootKeySeed: deps.rootKeySeed, workspaceId, utcDate });
+  const normalized = normalizeIngestContext({
+    input: { ip: context.ip, userAgent: context.userAgent, siteHost: beacon.host },
+    dailySalt,
+  });
 
   const hit: NormalizedHit = {
     workspaceId,

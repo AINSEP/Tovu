@@ -1,7 +1,7 @@
 import type { ClockPort } from "../../core/ports";
 import { ContentTypeLifecycleError, ContentTypeNotFoundError, ForbiddenError, VersionConflictError } from "./errors";
 import type { AuthorizeFn, ContentTypeRepoPort, OutboxPort } from "./write-service";
-import type { ContentTypeRecord, Result } from "./types";
+import type { ActorPrincipalKind, ContentTypeRecord, Result } from "./types";
 
 /**
  * @file REQ-09..12 (SPEC-020) — the content-type lifecycle state machine `active ⇄ deprecated ->
@@ -32,6 +32,8 @@ export interface LifecycleTransitionInput {
   actorId: string;
   key: string;
   expectedVersion: number;
+  /** Audit provenance stamped onto this transition's revision row — see `types.ts`'s `ActorIdentityInput.principalKind`. */
+  principalKind?: ActorPrincipalKind;
 }
 
 async function resolveActiveOrDeprecated(
@@ -91,6 +93,7 @@ export async function deprecateContentType(
       op: "field-change",
       stateJson: updated,
       actorId: input.actorId,
+      principalKind: input.principalKind ?? null,
       delegatedByWorkspaceId: null,
       delegatedById: null,
       recordedAt: now,
@@ -146,6 +149,7 @@ export async function reactivateContentType(
       op: "field-change",
       stateJson: updated,
       actorId: input.actorId,
+      principalKind: input.principalKind ?? null,
       delegatedByWorkspaceId: null,
       delegatedById: null,
       recordedAt: now,
@@ -215,6 +219,7 @@ export async function tombstoneContentType(
       op: "field-change",
       stateJson: updated,
       actorId: input.actorId,
+      principalKind: input.principalKind ?? null,
       delegatedByWorkspaceId: null,
       delegatedById: null,
       recordedAt: now,

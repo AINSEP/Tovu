@@ -661,6 +661,21 @@ export interface CommentsSettings {
  * `purge` is intentionally separate (no `expectedVersion` guard, its own route/permission). */
 export type CommentModerationAction = "approve" | "spam" | "trash" | "restore";
 
+/** Mirrors `src/server/http/admin/plugins.ts`'s `AdminPluginEnvelope` (SPEC-005 REQ-10, api.spec.md
+ * §5) — the `PLUGINS_LIST`/`PLUGIN_SET_ENABLED` per-plugin wire shape. */
+export interface AdminPlugin {
+  id: string;
+  name: string;
+  version: string;
+  source: "built-in" | "site";
+  /** (1.1.2, REQ-10/REQ-18) Additive — mirrors `AdminPluginEnvelope.tier`; consumed by `Plugins.tsx`'s
+   * per-row trust-tier badge (AC-26). */
+  tier: "tier-1" | "tier-2" | "tier-3";
+  status: "valid" | "invalid" | "incompatible";
+  enabled: boolean;
+  errors: Array<{ code: string; file: string | null; message: string }>;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   /** Canonical error `code` from the response body (`FORBIDDEN`, `GRANT_EXCEEDS_ISSUER`,
@@ -697,7 +712,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  login: (username: string, password: string) =>
+  login: ({ username, password }: { username: string; password: string }, _options: Record<string, never> = {}) =>
     request<{ user: AdminUser }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
@@ -714,10 +729,13 @@ export const api = {
     }),
   getPost: (id: string) =>
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${id}`),
-  updatePost: (id: string, input: Pick<AdminPost, "title" | "slug" | "bodyJson" | "status">) =>
+  updatePost: (
+    { id }: { id: string },
+    options: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status">> = {}
+  ) =>
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${id}`, {
       method: "PUT",
-      body: JSON.stringify(input),
+      body: JSON.stringify(options),
     }),
   listPages: () =>
     request<{ posts: Array<{ post: AdminPost }> }>(`/workspaces/${WORKSPACE_ID}/pages`),
@@ -743,33 +761,39 @@ export const api = {
     request<{ member: AdminMember }>(`/workspaces/${WORKSPACE_ID}/members/${id}/disable`, {
       method: "POST",
     }),
-  requestMemberMagicLink: (email: string, redirectPath?: string) =>
+  requestMemberMagicLink: ({ email }: { email: string }, options: { redirectPath?: string } = {}) =>
     request<{ delivered: true }>(`/workspaces/${WORKSPACE_ID}/members/request-magic-link`, {
       method: "POST",
-      body: JSON.stringify({ email, redirectPath }),
+      body: JSON.stringify({ email, redirectPath: options.redirectPath }),
     }),
-  listRecentAnalyticsHits: (limit?: number) =>
+  listRecentAnalyticsHits: (options: { limit?: number } = {}) =>
     request<{ hits: AdminAnalyticsHit[] }>(
-      `/workspaces/${WORKSPACE_ID}/analytics/recent-hits${limit ? `?limit=${limit}` : ""}`
+      `/workspaces/${WORKSPACE_ID}/analytics/recent-hits${options.limit ? `?limit=${options.limit}` : ""}`
     ),
   listMenus: () =>
     request<{ menus: AdminMenu[] }>(`/workspaces/${WORKSPACE_ID}/menus`),
   getMenu: (id: string) =>
     request<{ menu: AdminMenu }>(`/workspaces/${WORKSPACE_ID}/menus/${id}`),
-  createMenu: (input: { title: string; slug: string; items?: AdminMenuItem[] }) =>
+  createMenu: (
+    { title, slug }: { title: string; slug: string },
+    options: { items?: AdminMenuItem[] } = {}
+  ) =>
     request<{ menu: AdminMenu }>(`/workspaces/${WORKSPACE_ID}/menus`, {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ title, slug, items: options.items }),
     }),
   updateMenuTree: (
-    id: string,
-    input: { expectedVersion: number; title?: string; slug?: string; items: AdminMenuItem[] }
+    { id, expectedVersion, items }: { id: string; expectedVersion: number; items: AdminMenuItem[] },
+    options: { title?: string; slug?: string } = {}
   ) =>
     request<{ menu: AdminMenu }>(`/workspaces/${WORKSPACE_ID}/menus/${id}`, {
       method: "PUT",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ expectedVersion, items, title: options.title, slug: options.slug }),
     }),
-  assignMenuLocation: (id: string, locationKey: string) =>
+  assignMenuLocation: (
+    { id, locationKey }: { id: string; locationKey: string },
+    _options: Record<string, never> = {}
+  ) =>
     request<{
       menu: AdminMenu;
       binding: { locationKey: string; menuId: string; boundAt: string };
@@ -778,9 +802,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ locationKey }),
     }),
-  deleteMenu: (id: string, force?: boolean) =>
+  deleteMenu: ({ id }: { id: string }, options: { force?: boolean } = {}) =>
     request<{ menu: AdminMenu | null; purged: boolean }>(
-      `/workspaces/${WORKSPACE_ID}/menus/${id}${force ? "?force=true" : ""}`,
+      `/workspaces/${WORKSPACE_ID}/menus/${id}${options.force ? "?force=true" : ""}`,
       { method: "DELETE" }
     ),
   listIntegrationSubscriptions: () =>
@@ -792,7 +816,10 @@ export const api = {
       `/workspaces/${WORKSPACE_ID}/integrations/subscriptions`,
       { method: "POST", body: JSON.stringify(input) }
     ),
-  pauseIntegrationSubscription: (id: string, paused: boolean) =>
+  pauseIntegrationSubscription: (
+    { id, paused }: { id: string; paused: boolean },
+    _options: Record<string, never> = {}
+  ) =>
     request<{ subscription: AdminWebhookSubscription }>(
       `/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${id}/pause`,
       { method: "POST", body: JSON.stringify({ paused }) }
@@ -807,25 +834,21 @@ export const api = {
       `/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${subscriptionId}/deliveries`
     ),
   listMedia: () => request<{ media: AdminMedia[] }>(`/workspaces/${WORKSPACE_ID}/media`),
-  uploadMedia: (input: {
-    filename: string;
-    contentType: string;
-    dataBase64: string;
-    alt?: string;
-    caption?: string;
-    credit?: string;
-  }) =>
+  uploadMedia: (
+    input: { filename: string; contentType: string; dataBase64: string },
+    options: { alt?: string; caption?: string; credit?: string } = {}
+  ) =>
     request<{ media: AdminMedia }>(`/workspaces/${WORKSPACE_ID}/media`, {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, ...options }),
     }),
   updateMedia: (
-    id: string,
-    input: { title?: string; alt?: string; caption?: string; credit?: string }
+    { id }: { id: string },
+    options: { title?: string; alt?: string; caption?: string; credit?: string } = {}
   ) =>
     request<{ media: AdminMedia }>(`/workspaces/${WORKSPACE_ID}/media/${id}`, {
       method: "PATCH",
-      body: JSON.stringify(input),
+      body: JSON.stringify(options),
     }),
   trashMedia: (id: string) =>
     request<{ media: AdminMedia }>(`/workspaces/${WORKSPACE_ID}/media/${id}/trash`, {
@@ -836,16 +859,19 @@ export const api = {
       method: "DELETE",
     }),
   listUsers: () => request<{ users: AdminIdentityUser[] }>(`/workspaces/${WORKSPACE_ID}/users`),
-  createUser: (input: { username: string; password: string; email?: string }) =>
+  createUser: (
+    input: { username: string; password: string },
+    options: { email?: string } = {}
+  ) =>
     request<{ user: AdminIdentityUser }>(`/workspaces/${WORKSPACE_ID}/users`, {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, ...options }),
     }),
   // SPEC-006 0.6.0 (users/roles/policies CRUD-completion amendment).
-  updateUser: (principalId: string, input: { email?: string }) =>
+  updateUser: ({ principalId }: { principalId: string }, options: { email?: string } = {}) =>
     request<{ user: AdminIdentityUser }>(`/workspaces/${WORKSPACE_ID}/users/${principalId}`, {
       method: "PATCH",
-      body: JSON.stringify(input),
+      body: JSON.stringify(options),
     }),
   disableUser: (principalId: string) =>
     request<{ user: AdminIdentityUser }>(`/workspaces/${WORKSPACE_ID}/users/${principalId}/disable`, {
@@ -855,17 +881,26 @@ export const api = {
     request<{ user: AdminIdentityUser }>(`/workspaces/${WORKSPACE_ID}/users/${principalId}/enable`, {
       method: "POST",
     }),
-  resetUserPassword: (principalId: string, password: string) =>
+  resetUserPassword: (
+    { principalId, password }: { principalId: string; password: string },
+    _options: Record<string, never> = {}
+  ) =>
     request<void>(`/workspaces/${WORKSPACE_ID}/users/${principalId}/reset-password`, {
       method: "POST",
       body: JSON.stringify({ password }),
     }),
-  assignRole: (principalId: string, roleId: string) =>
+  assignRole: (
+    { principalId, roleId }: { principalId: string; roleId: string },
+    _options: Record<string, never> = {}
+  ) =>
     request<{ assignment: unknown }>(`/workspaces/${WORKSPACE_ID}/users/${principalId}/roles`, {
       method: "POST",
       body: JSON.stringify({ roleId }),
     }),
-  attachPolicy: (principalId: string, policyId: string) =>
+  attachPolicy: (
+    { principalId, policyId }: { principalId: string; policyId: string },
+    _options: Record<string, never> = {}
+  ) =>
     request<{ attachment: unknown }>(`/workspaces/${WORKSPACE_ID}/users/${principalId}/policies`, {
       method: "POST",
       body: JSON.stringify({ policyId }),
@@ -877,7 +912,10 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
   // SPEC-006 0.6.0.
-  updateRole: (roleId: string, name: string) =>
+  updateRole: (
+    { roleId, name }: { roleId: string; name: string },
+    _options: Record<string, never> = {}
+  ) =>
     request<{ role: AdminRole }>(`/workspaces/${WORKSPACE_ID}/roles/${roleId}`, {
       method: "PATCH",
       body: JSON.stringify({ name }),
@@ -885,59 +923,65 @@ export const api = {
   deleteRole: (roleId: string) =>
     request<void>(`/workspaces/${WORKSPACE_ID}/roles/${roleId}`, { method: "DELETE" }),
   listPolicies: () => request<{ policies: AdminPolicy[] }>(`/workspaces/${WORKSPACE_ID}/policies`),
-  createPolicy: (name: string, description?: string) =>
+  createPolicy: ({ name }: { name: string }, options: { description?: string } = {}) =>
     request<{ policy: AdminPolicy }>(`/workspaces/${WORKSPACE_ID}/policies`, {
       method: "POST",
-      body: JSON.stringify({ name, description }),
+      body: JSON.stringify({ name, description: options.description }),
     }),
   // SPEC-006 0.6.0.
-  updatePolicy: (policyId: string, input: { name?: string; description?: string }) =>
+  updatePolicy: (
+    { policyId }: { policyId: string },
+    options: { name?: string; description?: string } = {}
+  ) =>
     request<{ policy: AdminPolicy }>(`/workspaces/${WORKSPACE_ID}/policies/${policyId}`, {
       method: "PATCH",
-      body: JSON.stringify(input),
+      body: JSON.stringify(options),
     }),
   deletePolicy: (policyId: string) =>
     request<void>(`/workspaces/${WORKSPACE_ID}/policies/${policyId}`, { method: "DELETE" }),
-  writePolicyPermission: (policyId: string, permission: string, resourceType?: string) =>
+  writePolicyPermission: (
+    { policyId, permission }: { policyId: string; permission: string },
+    options: { resourceType?: string } = {}
+  ) =>
     request<{ policyPermission: unknown }>(`/workspaces/${WORKSPACE_ID}/policies/${policyId}/permissions`, {
       method: "POST",
-      body: JSON.stringify({ permission, resourceType: resourceType || undefined }),
+      body: JSON.stringify({ permission, resourceType: options.resourceType || undefined }),
     }),
 
   // SPEC-044 (Workspace Administration). Note the path shape here differs from every call above:
   // `workspaces` IS the resource (no `/workspaces/${WORKSPACE_ID}/<sub-resource>` nesting) —
   // `/workspaces` (list/create) and `/workspaces/:id` (get/update/delete), matching api.spec.md.
   getWorkspace: () => request<{ workspace: AdminWorkspace }>(`/workspaces/${WORKSPACE_ID}`),
-  updateWorkspace: (input: { name?: string; slug?: string }) =>
+  updateWorkspace: (options: { name?: string; slug?: string } = {}) =>
     request<{ workspace: AdminWorkspace }>(`/workspaces/${WORKSPACE_ID}`, {
       method: "PATCH",
-      body: JSON.stringify(input),
+      body: JSON.stringify(options),
     }),
   deleteWorkspace: () => request<void>(`/workspaces/${WORKSPACE_ID}`, { method: "DELETE" }),
 
   // SPEC-007 Settings (core-only layered ledger) — Phase 6 UI.
-  getSettingsEffective: (namespace: string, opts: { principalId?: string } = {}) => {
+  getSettingsEffective: ({ namespace }: { namespace: string }, options: { principalId?: string } = {}) => {
     const params = new URLSearchParams({ namespace });
-    if (opts.principalId) params.set("principalId", opts.principalId);
+    if (options.principalId) params.set("principalId", options.principalId);
     return request<{ data: SettingResolvedValue[] }>(
       `/workspaces/${WORKSPACE_ID}/settings/effective?${params.toString()}`
     );
   },
-  setSetting: (input: {
-    namespace: string;
-    key: string;
-    scope: SettingScope;
-    valueJson: unknown;
-    principalId?: string;
-  }) =>
+  setSetting: (
+    input: { namespace: string; key: string; scope: SettingScope; valueJson: unknown },
+    options: { principalId?: string } = {}
+  ) =>
     request<SettingValueResponse>(`/workspaces/${WORKSPACE_ID}/settings/value`, {
       method: "PUT",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, ...options }),
     }),
-  clearSetting: (input: { namespace: string; key: string; scope: SettingScope; principalId?: string }) =>
+  clearSetting: (
+    input: { namespace: string; key: string; scope: SettingScope },
+    options: { principalId?: string } = {}
+  ) =>
     request<SettingValueResponse>(`/workspaces/${WORKSPACE_ID}/settings/value`, {
       method: "DELETE",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, ...options }),
     }),
   resetSettingsNamespace: (input: { namespace: string; scope: SettingScope }) =>
     request<SettingResetResponse>(`/workspaces/${WORKSPACE_ID}/settings/reset`, {
@@ -948,39 +992,48 @@ export const api = {
   // SPEC-010 Forms (Tier-1 sample plugin) — admin UI.
   listForms: () => request<{ data: AdminFormDefinition[] }>(`/workspaces/${WORKSPACE_ID}/forms`),
   getForm: (id: string) => request<{ data: AdminFormDefinition }>(`/workspaces/${WORKSPACE_ID}/forms/${id}`),
-  createForm: (input: { name: string; slug: string; fields: AdminFormField[]; notify?: AdminFormNotify }) =>
+  createForm: (
+    input: { name: string; slug: string; fields: AdminFormField[] },
+    options: { notify?: AdminFormNotify } = {}
+  ) =>
     request<{ data: AdminFormDefinition }>(`/workspaces/${WORKSPACE_ID}/forms`, {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, ...options }),
     }),
   updateForm: (
-    id: string,
-    input: { name?: string; fields?: AdminFormField[]; notify?: AdminFormNotify; status?: "active" | "disabled" }
+    { id }: { id: string },
+    options: { name?: string; fields?: AdminFormField[]; notify?: AdminFormNotify; status?: "active" | "disabled" } = {}
   ) =>
     request<{ data: AdminFormDefinition }>(`/workspaces/${WORKSPACE_ID}/forms/${id}`, {
       method: "PUT",
-      body: JSON.stringify(input),
+      body: JSON.stringify(options),
     }),
-  listFormSubmissions: (formId: string, opts: { cursor?: string; limit?: number } = {}) => {
+  listFormSubmissions: ({ formId }: { formId: string }, options: { cursor?: string; limit?: number } = {}) => {
     const params = new URLSearchParams();
-    if (opts.cursor) params.set("cursor", opts.cursor);
-    if (opts.limit) params.set("limit", String(opts.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    if (options.limit) params.set("limit", String(options.limit));
     const qs = params.toString();
     return request<{ data: AdminFormSubmission[]; nextCursor: string | null }>(
       `/workspaces/${WORKSPACE_ID}/forms/${formId}/submissions${qs ? `?${qs}` : ""}`
     );
   },
-  getFormSubmission: (formId: string, submissionId: string) =>
+  getFormSubmission: (
+    { formId, submissionId }: { formId: string; submissionId: string },
+    _options: Record<string, never> = {}
+  ) =>
     request<{ data: AdminFormSubmission }>(`/workspaces/${WORKSPACE_ID}/forms/${formId}/submissions/${submissionId}`),
-  deleteFormSubmission: (formId: string, submissionId: string) =>
+  deleteFormSubmission: (
+    { formId, submissionId }: { formId: string; submissionId: string },
+    _options: Record<string, never> = {}
+  ) =>
     request<void>(`/workspaces/${WORKSPACE_ID}/forms/${formId}/submissions/${submissionId}`, {
       method: "DELETE",
     }),
   getSeoSettings: () => request<{ data: SeoSettings }>(`/workspaces/${WORKSPACE_ID}/seo/settings`),
-  setSeoSettings: (patch: Partial<SeoSettings>) =>
+  setSeoSettings: (options: Partial<SeoSettings> = {}) =>
     request<{ data: SeoSettings }>(`/workspaces/${WORKSPACE_ID}/seo/settings`, {
       method: "PUT",
-      body: JSON.stringify(patch),
+      body: JSON.stringify(options),
     }),
   regenerateSitemap: () =>
     request<{ data: { accepted: true } }>(`/workspaces/${WORKSPACE_ID}/seo/sitemap/regenerate`, {
@@ -993,30 +1046,26 @@ export const api = {
    * no optimistic-concurrency field) — failures are `400` field/canonical-URL validation errors,
    * surfaced via `ApiError.message` (SPEC-037 REQ-08). Returns the same resolved shape as
    * `getSeoEntry`, reflecting the merged overrides. */
-  putSeoEntry: (entryId: string, patch: SeoEntryOverridesPatch) =>
+  putSeoEntry: ({ entryId }: { entryId: string }, options: SeoEntryOverridesPatch = {}) =>
     request<{ data: SeoEntryMeta }>(`/workspaces/${WORKSPACE_ID}/seo/entries/${entryId}`, {
       method: "PUT",
-      body: JSON.stringify(patch),
+      body: JSON.stringify(options),
     }),
   /** GET an entry's SEO score + issues (SPEC-037 REQ-07, read-only). */
   getSeoEntryAnalyze: (entryId: string) =>
     request<{ data: SeoEntryAnalysis }>(`/workspaces/${WORKSPACE_ID}/seo/entries/${entryId}/analyze`),
   listRedirects: () => request<{ data: AdminRedirect[] }>(`/workspaces/${WORKSPACE_ID}/redirects`),
-  createRedirect: (input: {
-    matchType: string;
-    fromPattern: string;
-    toTarget: string;
-    statusCode: number;
-    override?: boolean;
-    priority?: number;
-  }) =>
+  createRedirect: (
+    input: { matchType: string; fromPattern: string; toTarget: string; statusCode: number },
+    options: { override?: boolean; priority?: number } = {}
+  ) =>
     request<{ data: AdminRedirect }>(`/workspaces/${WORKSPACE_ID}/redirects`, {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, ...options }),
     }),
   updateRedirect: (
-    id: string,
-    patch: Partial<{
+    { id }: { id: string },
+    options: Partial<{
       matchType: string;
       fromPattern: string;
       toTarget: string;
@@ -1024,11 +1073,11 @@ export const api = {
       status: string;
       override: boolean;
       priority: number;
-    }>
+    }> = {}
   ) =>
     request<{ data: AdminRedirect }>(`/workspaces/${WORKSPACE_ID}/redirects/${id}`, {
       method: "PATCH",
-      body: JSON.stringify(patch),
+      body: JSON.stringify(options),
     }),
   tombstoneRedirect: (id: string) =>
     request<{ data: AdminRedirect }>(`/workspaces/${WORKSPACE_ID}/redirects/${id}`, {
@@ -1054,23 +1103,45 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  updateContentTypeFields: (key: string, input: { fields: ContentTypeFieldDef[]; expectedVersion: number }) =>
+  updateContentTypeFields: (
+    { key, fields, expectedVersion }: { key: string; fields: ContentTypeFieldDef[]; expectedVersion: number },
+    _options: Record<string, never> = {}
+  ) =>
     request<{ contentType: AdminContentType }>(`/content-types/${key}/fields`, {
       method: "PUT",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ fields, expectedVersion }),
     }),
-  contentTypeLifecycle: (key: string, op: "deprecate" | "reactivate" | "tombstone", expectedVersion: number) =>
+  contentTypeLifecycle: (
+    {
+      key,
+      op,
+      expectedVersion,
+    }: { key: string; op: "deprecate" | "reactivate" | "tombstone"; expectedVersion: number },
+    _options: Record<string, never> = {}
+  ) =>
     request<{ contentType: AdminContentType }>(`/content-types/${key}/lifecycle`, {
       method: "POST",
       body: JSON.stringify({ op, expectedVersion }),
     }),
-  listEntries: (type?: string) =>
-    request<{ items: AdminEntry[] }>(`/entries${type ? `?type=${encodeURIComponent(type)}` : ""}`),
-  createEntry: (input: { type: string; slug: string; title: string; fieldsJson?: unknown; bodyJson?: unknown }) =>
-    request<{ entry: AdminEntry }>("/entries", { method: "POST", body: JSON.stringify(input) }),
-  updateEntry: (id: string, input: { title?: string; fieldsJson?: unknown; expectedVersion: number }) =>
-    request<{ entry: AdminEntry }>(`/entries/${id}`, { method: "PUT", body: JSON.stringify(input) }),
-  entryLifecycle: (id: string, op: "publish" | "unpublish", expectedVersion: number) =>
+  listEntries: (options: { type?: string } = {}) =>
+    request<{ items: AdminEntry[] }>(`/entries${options.type ? `?type=${encodeURIComponent(options.type)}` : ""}`),
+  createEntry: (
+    input: { type: string; slug: string; title: string },
+    options: { fieldsJson?: unknown; bodyJson?: unknown } = {}
+  ) =>
+    request<{ entry: AdminEntry }>("/entries", { method: "POST", body: JSON.stringify({ ...input, ...options }) }),
+  updateEntry: (
+    { id, expectedVersion }: { id: string; expectedVersion: number },
+    options: { title?: string; fieldsJson?: unknown } = {}
+  ) =>
+    request<{ entry: AdminEntry }>(`/entries/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ expectedVersion, ...options }),
+    }),
+  entryLifecycle: (
+    { id, op, expectedVersion }: { id: string; op: "publish" | "unpublish"; expectedVersion: number },
+    _options: Record<string, never> = {}
+  ) =>
     request<{ entry: AdminEntry }>(`/entries/${id}/lifecycle`, {
       method: "POST",
       body: JSON.stringify({ op, expectedVersion }),
@@ -1080,12 +1151,18 @@ export const api = {
   listTaxonomies: () => request<{ items: AdminTaxonomyWithTerms[] }>("/taxonomy"),
   createTaxonomy: (input: { name: string; hierarchical: boolean }) =>
     request<{ taxonomy: AdminTaxonomy }>("/taxonomy", { method: "POST", body: JSON.stringify(input) }),
-  createTerm: (taxonomyId: string, input: { name: string; parentId?: string | null }) =>
+  createTerm: (
+    { taxonomyId, name }: { taxonomyId: string; name: string },
+    options: { parentId?: string | null } = {}
+  ) =>
     request<{ term: AdminTerm }>(`/taxonomy/${taxonomyId}/terms`, {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ name, parentId: options.parentId }),
     }),
-  renameTerm: (termId: string, newName: string) =>
+  renameTerm: (
+    { termId, newName }: { termId: string; newName: string },
+    _options: Record<string, never> = {}
+  ) =>
     request<{ term: AdminTerm }>(`/taxonomy/terms/${termId}`, {
       method: "PUT",
       body: JSON.stringify({ newName }),
@@ -1096,24 +1173,37 @@ export const api = {
     request<void>("/taxonomy/assign-terms", { method: "POST", body: JSON.stringify(input) }),
 
   // Categories & Tags — merge-term ceremony (ADR-044, SPEC-018 C-207). 3-step plan/confirm/execute.
-  planMergeTerm: (fromTermId: string, intoTermId: string) =>
+  planMergeTerm: (
+    { fromTermId, intoTermId }: { fromTermId: string; intoTermId: string },
+    _options: Record<string, never> = {}
+  ) =>
     request<GatedPlanResult<MergeTermPlanDetails>>(`/taxonomy/terms/${fromTermId}/merge/plan`, {
       method: "POST",
       body: JSON.stringify({ intoTermId }),
     }),
-  confirmMergeTerm: (fromTermId: string, planId: string, planHash: string) =>
+  confirmMergeTerm: (
+    { fromTermId, planId, planHash }: { fromTermId: string; planId: string; planHash: string },
+    _options: Record<string, never> = {}
+  ) =>
     request<GatedConfirmResult>(`/taxonomy/terms/${fromTermId}/merge/confirm`, {
       method: "POST",
       body: JSON.stringify({ planId, planHash }),
     }),
-  executeMergeTerm: (fromTermId: string, intoTermId: string, confirmationToken: string) =>
+  executeMergeTerm: (
+    {
+      fromTermId,
+      intoTermId,
+      confirmationToken,
+    }: { fromTermId: string; intoTermId: string; confirmationToken: string },
+    _options: Record<string, never> = {}
+  ) =>
     request<{ mergedCount: number }>(`/taxonomy/terms/${fromTermId}/merge/execute`, {
       method: "POST",
       body: JSON.stringify({ intoTermId, confirmationToken }),
     }),
 
   // Database — Timeline + restore points (ADR-041).
-  getDatabaseTimeline: (opts: {
+  getDatabaseTimeline: (options: {
     kind?: string;
     outcome?: string;
     fromDate?: string;
@@ -1122,29 +1212,32 @@ export const api = {
     limit?: number;
   } = {}) => {
     const params = new URLSearchParams();
-    if (opts.kind) params.set("kind", opts.kind);
-    if (opts.outcome) params.set("outcome", opts.outcome);
-    if (opts.fromDate) params.set("fromDate", opts.fromDate);
-    if (opts.toDate) params.set("toDate", opts.toDate);
-    if (opts.cursor) params.set("cursor", opts.cursor);
-    if (opts.limit) params.set("limit", String(opts.limit));
+    if (options.kind) params.set("kind", options.kind);
+    if (options.outcome) params.set("outcome", options.outcome);
+    if (options.fromDate) params.set("fromDate", options.fromDate);
+    if (options.toDate) params.set("toDate", options.toDate);
+    if (options.cursor) params.set("cursor", options.cursor);
+    if (options.limit) params.set("limit", String(options.limit));
     const qs = params.toString();
     return request<{ items: AdminLedgerRow[]; nextCursor: string | null }>(
       `/database/timeline${qs ? `?${qs}` : ""}`
     );
   },
   listDatabaseRestorePoints: () => request<{ items: AdminRestorePoint[] }>("/database/restore-points"),
-  createDatabaseRestorePoint: (input: { trigger?: string; costAck?: boolean } = {}) =>
+  createDatabaseRestorePoint: (options: { trigger?: string; costAck?: boolean } = {}) =>
     request<{ restorePoint: AdminRestorePointSummary }>("/database/restore-points", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify(options),
     }),
 
   // Database — migrate-forward ceremony (ADR-041 §3, SPEC-017 C-103/C-105). Plan takes no body —
   // the plan is computed entirely from the site's current migration/capability state server-side.
   planMigrateForward: () =>
     request<GatedPlanResult>("/database/migrate-forward/plan", { method: "POST" }),
-  confirmMigrateForward: (planId: string, planHash: string) =>
+  confirmMigrateForward: (
+    { planId, planHash }: { planId: string; planHash: string },
+    _options: Record<string, never> = {}
+  ) =>
     request<GatedConfirmResult>("/database/migrate-forward/confirm", {
       method: "POST",
       body: JSON.stringify({ planId, planHash }),
@@ -1174,12 +1267,22 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ restorePointId }),
     }),
-  confirmRestore: (planId: string, planHash: string, disclosureAcknowledged: boolean) =>
+  confirmRestore: (
+    {
+      planId,
+      planHash,
+      disclosureAcknowledged,
+    }: { planId: string; planHash: string; disclosureAcknowledged: boolean },
+    _options: Record<string, never> = {}
+  ) =>
     request<GatedConfirmResult>("/recovery/restore/confirm", {
       method: "POST",
       body: JSON.stringify({ planId, planHash, disclosureAcknowledged }),
     }),
-  executeRestore: (confirmationToken: string, restorePointId: string) =>
+  executeRestore: (
+    { confirmationToken, restorePointId }: { confirmationToken: string; restorePointId: string },
+    _options: Record<string, never> = {}
+  ) =>
     request<RestoreExecuteResult>("/recovery/restore/execute", {
       method: "POST",
       body: JSON.stringify({ confirmationToken, restorePointId }),
@@ -1188,57 +1291,66 @@ export const api = {
   // Comments — moderation queue + settings (ADR-031, SPEC-033/035, SPEC-036 frontend). Mirrors
   // `getDatabaseTimeline`'s query-param-building shape for the paginated queue read, and
   // `getSeoSettings`/`setSeoSettings`'s `{data: ...}` shape for the settings GET/PUT.
-  listCommentsQueue: (opts: { status?: CommentStatus; cursor?: string; limit?: number } = {}) => {
+  listCommentsQueue: (options: { status?: CommentStatus; cursor?: string; limit?: number } = {}) => {
     const params = new URLSearchParams();
-    if (opts.status) params.set("status", opts.status);
-    if (opts.cursor) params.set("cursor", opts.cursor);
-    if (opts.limit) params.set("limit", String(opts.limit));
+    if (options.status) params.set("status", options.status);
+    if (options.cursor) params.set("cursor", options.cursor);
+    if (options.limit) params.set("limit", String(options.limit));
     const qs = params.toString();
     return request<AdminCommentsQueuePage>(`/workspaces/${WORKSPACE_ID}/comments/queue${qs ? `?${qs}` : ""}`);
   },
-  moderateComment: (commentId: string, action: CommentModerationAction, input: { expectedVersion: number; note?: string }) =>
+  moderateComment: (
+    { commentId, action, expectedVersion }: { commentId: string; action: CommentModerationAction; expectedVersion: number },
+    options: { note?: string } = {}
+  ) =>
     request<void>(`/workspaces/${WORKSPACE_ID}/comments/${commentId}/${action}`, {
       method: "POST",
-      body: JSON.stringify({ expectedVersion: input.expectedVersion, note: input.note }),
+      body: JSON.stringify({ expectedVersion, note: options.note }),
     }),
-  purgeComment: (commentId: string, note?: string) =>
+  purgeComment: ({ commentId }: { commentId: string }, options: { note?: string } = {}) =>
     request<void>(`/workspaces/${WORKSPACE_ID}/comments/${commentId}/purge`, {
       method: "POST",
-      body: JSON.stringify({ note }),
+      body: JSON.stringify({ note: options.note }),
     }),
   getCommentsSettings: () => request<{ data: CommentsSettings }>(`/workspaces/${WORKSPACE_ID}/comments/settings`),
-  putCommentsSettings: (patch: Partial<CommentsSettings>) =>
+  putCommentsSettings: (options: Partial<CommentsSettings> = {}) =>
     request<{ data: CommentsSettings }>(`/workspaces/${WORKSPACE_ID}/comments/settings`, {
       method: "PUT",
-      body: JSON.stringify(patch),
+      body: JSON.stringify(options),
     }),
 
   // -------------------------------------------------------------------------
   // Widgets (SPEC-043, ADR-047) — mirrors the Menus client functions' exact shape
   // -------------------------------------------------------------------------
-  listWidgets: (opts: { widgetType?: string; includeInactive?: boolean } = {}) => {
+  listWidgets: (options: { widgetType?: string; includeInactive?: boolean } = {}) => {
     const params = new URLSearchParams();
-    if (opts.widgetType) params.set("widgetType", opts.widgetType);
-    if (opts.includeInactive) params.set("includeInactive", "true");
+    if (options.widgetType) params.set("widgetType", options.widgetType);
+    if (options.includeInactive) params.set("includeInactive", "true");
     const qs = params.toString();
     return request<{ widgets: AdminWidget[] }>(`/workspaces/${WORKSPACE_ID}/widgets${qs ? `?${qs}` : ""}`);
   },
   getWidget: (id: string) =>
     request<{ widget: AdminWidget; whereUsed: AdminWidgetWhereUsed }>(`/workspaces/${WORKSPACE_ID}/widgets/${id}`),
-  createWidget: (input: { widgetType: AdminWidgetType; title: string; config: Record<string, unknown>; slug?: string }) =>
+  createWidget: (
+    input: { widgetType: AdminWidgetType; title: string; config: Record<string, unknown> },
+    options: { slug?: string } = {}
+  ) =>
     request<{ widget: AdminWidget }>(`/workspaces/${WORKSPACE_ID}/widgets`, {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, ...options }),
     }),
-  updateWidget: (id: string, input: { baseVersion: number; config: Record<string, unknown> }) =>
+  updateWidget: (
+    { id, baseVersion, config }: { id: string; baseVersion: number; config: Record<string, unknown> },
+    _options: Record<string, never> = {}
+  ) =>
     request<{ widget: AdminWidget }>(`/workspaces/${WORKSPACE_ID}/widgets/${id}`, {
       method: "PUT",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ baseVersion, config }),
     }),
   trashWidget: (id: string) =>
     request<{ widget: AdminWidget }>(`/workspaces/${WORKSPACE_ID}/widgets/${id}/trash`, { method: "POST" }),
-  purgeWidget: (id: string, force?: boolean) =>
-    request<{ purged: true }>(`/workspaces/${WORKSPACE_ID}/widgets/${id}/purge${force ? "?force=true" : ""}`, { method: "POST" }),
+  purgeWidget: ({ id }: { id: string }, options: { force?: boolean } = {}) =>
+    request<{ purged: true }>(`/workspaces/${WORKSPACE_ID}/widgets/${id}/purge${options.force ? "?force=true" : ""}`, { method: "POST" }),
 
   listWidgetRegions: () => request<{ regions: AdminWidgetRegionBinding[] }>(`/workspaces/${WORKSPACE_ID}/widgets/regions`),
   bindWidgetRegion: (regionKey: string) =>
@@ -1249,20 +1361,34 @@ export const api = {
   getWidgetRegion: (regionKey: string) =>
     request<{ area: AdminWidgetArea; placements: AdminWidgetPlacement[] }>(`/workspaces/${WORKSPACE_ID}/widgets/regions/${regionKey}`),
   mutateWidgetRegionPlacements: (
-    regionKey: string,
-    input: { baseVersion: number; placements: Array<{ placementId: string; widgetEntryId: string; enabled: boolean }> }
+    {
+      regionKey,
+      baseVersion,
+      placements,
+    }: {
+      regionKey: string;
+      baseVersion: number;
+      placements: Array<{ placementId: string; widgetEntryId: string; enabled: boolean }>;
+    },
+    _options: Record<string, never> = {}
   ) =>
     request<{ area: AdminWidgetArea }>(`/workspaces/${WORKSPACE_ID}/widgets/regions/${regionKey}`, {
       method: "PUT",
-      body: JSON.stringify(input),
+      body: JSON.stringify({ baseVersion, placements }),
     }),
 
-  insertWidgetEmbed: (hostEntryId: string, input: { baseVersion: number; widgetEntryId: string }) =>
+  insertWidgetEmbed: (
+    { hostEntryId, baseVersion, widgetEntryId }: { hostEntryId: string; baseVersion: number; widgetEntryId: string },
+    _options: Record<string, never> = {}
+  ) =>
     request<{ entry: { id: string; version: number; bodyJson: unknown }; placementId: string }>(
       `/workspaces/${WORKSPACE_ID}/entries/${hostEntryId}/widget-embeds`,
-      { method: "POST", body: JSON.stringify(input) }
+      { method: "POST", body: JSON.stringify({ baseVersion, widgetEntryId }) }
     ),
-  removeWidgetEmbed: (hostEntryId: string, placementId: string, baseVersion: number) =>
+  removeWidgetEmbed: (
+    { hostEntryId, placementId, baseVersion }: { hostEntryId: string; placementId: string; baseVersion: number },
+    _options: Record<string, never> = {}
+  ) =>
     request<{ entry: { id: string; version: number; bodyJson: unknown } }>(
       `/workspaces/${WORKSPACE_ID}/entries/${hostEntryId}/widget-embeds/${placementId}`,
       { method: "DELETE", body: JSON.stringify({ baseVersion }) }
@@ -1278,4 +1404,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+
+  // SPEC-005 REQ-12..17 (1.1.0 UI amendment) — consumes REQ-10's PLUGINS_LIST/PLUGIN_SET_ENABLED
+  // HTTP contract as a black box (ui.spec.md §3.1/§4.2).
+  listPlugins: () => request<{ plugins: AdminPlugin[] }>(`/workspaces/${WORKSPACE_ID}/plugins`),
+  setPluginEnabled: (pluginId: string, { enabled }: { enabled: boolean }) =>
+    request<{ plugin: { id: string; version: string; enabled: boolean; updatedAt: string }; changeSetId: string }>(
+      `/workspaces/${WORKSPACE_ID}/plugins/${pluginId}`,
+      { method: "PATCH", body: JSON.stringify({ enabled }) }
+    ),
 };

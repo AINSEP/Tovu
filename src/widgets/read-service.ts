@@ -53,7 +53,12 @@ export interface GetWidgetInstanceRequired {
  * trashed instance so it can be restored/inspected). */
 export async function getWidgetInstance(required: GetWidgetInstanceRequired): Promise<{ instance: WidgetInstanceEntry; revisions: [] }> {
   const { deps, input } = required;
-  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, "widgets.read");
+  await requireWidgetPermission({
+    authorize: deps.authorize,
+    actor: input.actor,
+    workspaceId: input.workspaceId,
+    permission: "widgets.read",
+  });
 
   const entry = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.widgetInstanceId });
   if (!entry || entry.type !== WIDGET_CONTENT_TYPE) {
@@ -81,15 +86,28 @@ export interface ListWidgetInstancesRequired {
 
 export async function listWidgetInstances(required: ListWidgetInstancesRequired): Promise<{ instances: WidgetInstanceEntry[] }> {
   const { deps, input } = required;
-  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, "widgets.read");
+  await requireWidgetPermission({
+    authorize: deps.authorize,
+    actor: input.actor,
+    workspaceId: input.workspaceId,
+    permission: "widgets.read",
+  });
 
   const rows = await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId, type: WIDGET_CONTENT_TYPE });
-  const instances = rows
-    .map(toWidgetInstanceEntry)
-    .filter((instance) => {
-      if (input.widgetType && instance.widgetType !== input.widgetType) return false;
-      if (!input.includeInactive && instance.status !== "active") return false;
-      return true;
-    });
+  const instances: WidgetInstanceEntry[] = [];
+  for (const row of rows) {
+    let instance: WidgetInstanceEntry;
+    try {
+      instance = toWidgetInstanceEntry(row);
+    } catch {
+      // A malformed widget-instance row (e.g. wiped by an unrelated generic-entry update that
+      // bypassed this feature's own write path) is skipped, not a 500 for the whole admin library
+      // screen (Fable adversarial-review fix, 2026-07-21, Finding B).
+      continue;
+    }
+    if (input.widgetType && instance.widgetType !== input.widgetType) continue;
+    if (!input.includeInactive && instance.status !== "active") continue;
+    instances.push(instance);
+  }
   return { instances };
 }

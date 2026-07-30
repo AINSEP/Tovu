@@ -9,6 +9,8 @@ import { createRouteDeps } from "../../app";
 import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
 import { registerAdminSettingsClearRoute } from "../../routes/admin/settings/clear";
 import { registerAdminSettingsGetEffectiveRoute } from "../../routes/admin/settings/get-effective";
+import { registerAdminSettingsGetRawRoute } from "../../routes/admin/settings/get-raw";
+import { registerAdminSettingsListDefinitionsRoute } from "../../routes/admin/settings/list-definitions";
 import { registerAdminSettingsRegisterDefinitionsRoute } from "../../routes/admin/settings/register-definitions";
 import { registerAdminSettingsResetRoute } from "../../routes/admin/settings/reset";
 import { registerAdminSettingsSetRoute } from "../../routes/admin/settings/set";
@@ -34,6 +36,8 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
 
   registerAdminSettingsRegisterDefinitionsRoute(app, deps);
   registerAdminSettingsGetEffectiveRoute(app, deps);
+  registerAdminSettingsGetRawRoute(app, deps);
+  registerAdminSettingsListDefinitionsRoute(app, deps);
   registerAdminSettingsSetRoute(app, deps);
   registerAdminSettingsClearRoute(app, deps);
   registerAdminSettingsResetRoute(app, deps);
@@ -217,4 +221,152 @@ test("SETTINGS_RESET: denied 403 FORBIDDEN without settings.reset.<scope>; owner
   const allowedBody = (await allowed.json()) as { clearedCount: number; revisionSeqs: number[] };
   assert.ok(allowedBody.clearedCount >= 0);
   assert.ok(Array.isArray(allowedBody.revisionSeqs));
+});
+
+test("SETTINGS_GET_RAW: denied 403 FORBIDDEN without settings.read.raw; owner sees per-layer values + default", async (t) => {
+  const { app, deps } = buildTestApp();
+  await deps.settingsReady;
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+  const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
+
+  const registerResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/definitions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({
+      definitions: [
+        {
+          ownerKind: "site",
+          namespace: "site.demo",
+          key: "greeting",
+          schemaJson: { type: "string" },
+          defaultJson: "hello",
+          scopes: 6, // workspace|user — a site-owned def may not declare the global bit (INV-05)
+        },
+      ],
+    }),
+  });
+  assert.equal(registerResponse.status, 200);
+
+  const denied = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/raw?namespace=site.demo&key=greeting`,
+    { headers: { cookie: bareCookie } }
+  );
+  assert.equal(denied.status, 403);
+  const deniedBody = (await denied.json()) as { code: string; details: { permission: string } };
+  assert.equal(deniedBody.code, "FORBIDDEN");
+  assert.equal(deniedBody.details.permission, "settings.read.raw");
+
+  const beforeWrite = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/raw?namespace=site.demo&key=greeting`,
+    { headers: { cookie: ownerCookie } }
+  );
+  assert.equal(beforeWrite.status, 200);
+  const beforeBody = (await beforeWrite.json()) as {
+    key: string;
+    global: unknown;
+    workspace: unknown;
+    user: unknown;
+    default: unknown;
+  };
+  assert.equal(beforeBody.key, "site.demo.greeting");
+  assert.equal(beforeBody.global, null);
+  assert.equal(beforeBody.workspace, null);
+  assert.equal(beforeBody.user, null);
+  assert.equal(beforeBody.default, "hello");
+
+  const setResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({
+      namespace: "site.demo",
+      key: "greeting",
+      scope: "workspace",
+      workspaceId: deps.workspaceId,
+      valueJson: "hi-workspace",
+    }),
+  });
+  assert.equal(setResponse.status, 200);
+
+  const afterWrite = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/raw?namespace=site.demo&key=greeting`,
+    { headers: { cookie: ownerCookie } }
+  );
+  assert.equal(afterWrite.status, 200);
+  const afterBody = (await afterWrite.json()) as { global: unknown; workspace: unknown; default: unknown };
+  assert.equal(afterBody.workspace, "hi-workspace");
+  assert.equal(afterBody.global, null);
+  assert.equal(afterBody.default, "hello");
+});
+
+test("SETTINGS_GET_RAW: 400 VALIDATION_ERROR when namespace/key are missing; 404 DEFINITION_NOT_FOUND for an unknown key", async (t) => {
+  const { app, deps } = buildTestApp();
+  await deps.settingsReady;
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+
+  const missingParams = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/raw`, {
+    headers: { cookie: ownerCookie },
+  });
+  assert.equal(missingParams.status, 400);
+  assert.equal(((await missingParams.json()) as { code: string }).code, "VALIDATION_ERROR");
+
+  const unknownKey = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/raw?namespace=site.demo&key=does-not-exist`,
+    { headers: { cookie: ownerCookie } }
+  );
+  assert.equal(unknownKey.status, 404);
+  assert.equal(((await unknownKey.json()) as { code: string }).code, "DEFINITION_NOT_FOUND");
+});
+
+test("SETTINGS_LIST_DEFINITIONS: denied 403 FORBIDDEN without settings.read.definitions; owner sees platform + site definitions", async (t) => {
+  const { app, deps } = buildTestApp();
+  await deps.settingsReady;
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+  const bareCookie = await loginAsBarePrincipal(deps, baseUrl);
+
+  const registerResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/definitions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({
+      definitions: [
+        {
+          ownerKind: "site",
+          namespace: "site.demo",
+          key: "greeting",
+          schemaJson: { type: "string" },
+          defaultJson: "hello",
+          scopes: 6,
+        },
+      ],
+    }),
+  });
+  assert.equal(registerResponse.status, 200);
+
+  const denied = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/definitions`, {
+    headers: { cookie: bareCookie },
+  });
+  assert.equal(denied.status, 403);
+  const deniedBody = (await denied.json()) as { code: string; details: { permission: string } };
+  assert.equal(deniedBody.code, "FORBIDDEN");
+  assert.equal(deniedBody.details.permission, "settings.read.definitions");
+
+  const allowed = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/definitions`, {
+    headers: { cookie: ownerCookie },
+  });
+  assert.equal(allowed.status, 200);
+  const allowedBody = (await allowed.json()) as {
+    data: Array<{ namespace: string; key: string; ownerKind: string; scopes: number; status: string; version: number }>;
+  };
+  assert.ok(Array.isArray(allowedBody.data));
+
+  const siteDef = allowedBody.data.find((d) => d.namespace === "site.demo" && d.key === "greeting");
+  assert.ok(siteDef, "the newly registered site.demo.greeting definition is listed");
+  assert.equal(siteDef?.ownerKind, "site");
+  assert.equal(siteDef?.scopes, 6);
+  assert.equal(siteDef?.status, "active");
+  assert.equal(siteDef?.version, 1);
+
+  // The platform partition merges in too — the pre-existing core.presentation migration definition.
+  const coreDef = allowedBody.data.find((d) => d.namespace === "core.presentation" && d.key === "activeThemeId");
+  assert.ok(coreDef, "the platform core.presentation.activeThemeId definition is listed alongside site defs");
+  assert.equal(coreDef?.ownerKind, "core");
 });

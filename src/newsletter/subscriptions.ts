@@ -8,14 +8,21 @@
  */
 import type { UUID } from "../core/ports";
 import { issueConfirmationToken, type ConfirmationDeps } from "./confirmation";
-import { NewsletterSubscriberNotFoundError, NewsletterValidationError } from "./errors";
-import type { NewsletterSubscriptionRepoPort, SubscriberDirectoryPort } from "./ports";
+import {
+  NewsletterListNotFoundError,
+  NewsletterSubscriberNotFoundError,
+  NewsletterSubscriptionNotFoundError,
+  NewsletterValidationError,
+} from "./errors";
+import type { MembersConsentCapability, NewsletterListRepoPort, NewsletterSubscriptionRepoPort, SubscriberDirectoryPort } from "./ports";
 import type { SubscriptionRow } from "./types";
 
 const IMPORT_BATCH_MAX = 500;
 
 export interface SubscriptionsDeps {
   subscriptionRepo: NewsletterSubscriptionRepoPort;
+  /** api.spec.md §6: `CREATE_SUBSCRIPTION`/`IMPORT_SUBSCRIPTIONS` -> `404 NEWSLETTER_LIST_NOT_FOUND` for an unknown `listId`. */
+  listRepo: NewsletterListRepoPort;
   subscriberDirectory: SubscriberDirectoryPort;
   confirmationDeps: ConfirmationDeps;
   clock: { nowIso(): string };
@@ -28,6 +35,11 @@ export async function saveSubscription(required: {
   input: { workspaceId: UUID; listId: UUID; subscriberId: UUID; source: SubscriptionRow["source"] };
 }): Promise<{ subscription: SubscriptionRow }> {
   const { deps, input } = required;
+
+  const list = await deps.listRepo.findById({ workspaceId: input.workspaceId, id: input.listId });
+  if (!list) {
+    throw new NewsletterListNotFoundError(`list ${input.listId} was not found`);
+  }
 
   const contact = await deps.subscriberDirectory.getContact({ workspaceId: input.workspaceId, subscriberId: input.subscriberId });
   if (!contact) {
@@ -63,6 +75,46 @@ export async function saveSubscription(required: {
   return { subscription };
 }
 
+export interface UnsubscribeSubscriptionDeps {
+  subscriptionRepo: NewsletterSubscriptionRepoPort;
+  /** `null` = unbound — see `launch-gate.ts`'s file header on why this must never be stubbed to succeed. */
+  consentCapability: MembersConsentCapability | null;
+  clock: { nowIso(): string };
+}
+
+/**
+ * C-013 (admin-triggered removal half) — `REMOVE_SUBSCRIPTION` (api.spec.md §1/§5): flips a
+ * subscription to `unsubscribed` directly, by primary key, no signed token involved (unlike
+ * `unsubscribe.ts`'s `processUnsubscribe`, which verifies a `KeyringPort`-derived token and is the
+ * self-service, no-login public path). Same terminal shape and the same conditional
+ * `MembersConsentCapability.revoke()` side effect `processUnsubscribe` performs — an admin removing
+ * a subscription must revoke real consent state exactly as a self-service unsubscribe would, once a
+ * real binding exists. Idempotent: removing an already-`unsubscribed` subscription is a no-op
+ * success, not an error (mirrors `processUnsubscribe`'s EC-03 carve-out).
+ */
+export async function unsubscribeSubscription(required: {
+  deps: UnsubscribeSubscriptionDeps;
+  input: { workspaceId: UUID; id: UUID };
+}): Promise<{ subscription: SubscriptionRow }> {
+  const { deps, input } = required;
+  const existing = await deps.subscriptionRepo.findById({ workspaceId: input.workspaceId, id: input.id });
+  if (!existing) {
+    throw new NewsletterSubscriptionNotFoundError(`subscription ${input.id} was not found`);
+  }
+  if (existing.status === "unsubscribed") {
+    return { subscription: existing };
+  }
+
+  if (deps.consentCapability) {
+    await deps.consentCapability.revoke({ workspaceId: input.workspaceId, subscriberId: existing.subscriberId });
+  }
+
+  const now = deps.clock.nowIso();
+  const updated: SubscriptionRow = { ...existing, status: "unsubscribed", unsubscribedAt: now, updatedAt: now };
+  await deps.subscriptionRepo.save(updated);
+  return { subscription: updated };
+}
+
 export interface ImportRowResult {
   index: number;
   subscription?: SubscriptionRow;
@@ -84,6 +136,14 @@ export async function importSubscriptions(required: {
       "subscribers",
       "length"
     );
+  }
+  // Checked ONCE for the whole batch (the same `listId` applies to every row) rather than letting
+  // every row independently fail — an unknown list is a malformed-request condition, not a
+  // per-row outcome (api.spec.md §6 IMPORT_SUBSCRIPTIONS' 400 is scoped to "malformed batch shape
+  // only"; a missing list is closer to that than to a per-row 207 failure entry).
+  const list = await deps.listRepo.findById({ workspaceId: input.workspaceId, id: input.listId });
+  if (!list) {
+    throw new NewsletterListNotFoundError(`list ${input.listId} was not found`);
   }
 
   const created: SubscriptionRow[] = [];

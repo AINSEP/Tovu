@@ -13,7 +13,24 @@
  * the construction site — once `RouteDeps` is amended upstream to declare these fields directly,
  * that widened annotation becomes provably redundant and can be deleted with no behavior change.
  */
-import type { MembersConsentCapability, NewsletterCampaignRepoPort, NewsletterListRepoPort, NewsletterSubscriptionRepoPort, NewsletterAudienceSnapshotRepoPort, NewsletterSendRepoPort, NewsletterConfirmationTokenRepoPort } from "../../../../newsletter/ports";
+import type {
+  MembersConsentCapability,
+  NewsletterCampaignRepoPort,
+  NewsletterListRepoPort,
+  NewsletterSubscriptionRepoPort,
+  NewsletterAudienceSnapshotRepoPort,
+  NewsletterSendRepoPort,
+  NewsletterConfirmationTokenRepoPort,
+  SubscriberDirectoryPort,
+} from "../../../../newsletter/ports";
+import type { CampaignWriteServiceDeps } from "../../../../newsletter/campaign-write-service";
+import type { ConfirmationDeps } from "../../../../newsletter/confirmation";
+import type { HookRegistry } from "../../../../newsletter/hooks";
+import type { ListsDeps } from "../../../../newsletter/lists";
+import type { SendPipelineDeps } from "../../../../newsletter/send-pipeline";
+import type { SubscriptionsDeps, UnsubscribeSubscriptionDeps } from "../../../../newsletter/subscriptions";
+import type { UnsubscribeDeps } from "../../../../newsletter/unsubscribe";
+import type { KeyringPort } from "../../../../integrations/ports";
 import type { RouteDeps } from "../../types";
 
 export interface NewsletterRouteDeps extends RouteDeps {
@@ -32,4 +49,111 @@ export interface NewsletterRouteDeps extends RouteDeps {
    * returns success by default must never be substituted here.
    */
   membersConsentCapability: MembersConsentCapability | null;
+  /**
+   * Stage 5 (routes) wiring — the three remaining seams the domain layer (Stages 1-4) declared
+   * but no composition root had constructed yet:
+   *  - `newsletterSubscriberDirectory`: Members' real `SubscriberDirectoryPort` implementation
+   *    (`members/subscriber-directory.ts`'s `MembersSubscriberDirectory`), NOT a local stand-in.
+   *  - `newsletterKeyring`: the real `KeyringPort` (`integrations/ports.ts`) `unsubscribe.ts` needs
+   *    for `derive()` — reuses the SAME process-lifetime keyring instance `webhookSigner` is built
+   *    from in `server/app.ts`/`server/deps.ts` (one root key, purpose-namespaced, per that port's
+   *    own contract), not a second independent instance.
+   *  - `newsletterHooks`: one process-lifetime `HookRegistry` (`hooks.ts`'s `createHookRegistry()`)
+   *    shared by every `SendPipelineDeps` composition (route-triggered and the `newsletter.send.
+   *    batch.claimed` bus subscriber alike) — matches `hooks.ts`'s own "avoid a hidden singleton,
+   *    but still one registry per running process" framing.
+   */
+  newsletterSubscriberDirectory: SubscriberDirectoryPort;
+  newsletterKeyring: KeyringPort;
+  newsletterHooks: HookRegistry;
+}
+
+/** Assemble `campaign-write-service.ts`'s deps bundle from `NewsletterRouteDeps` — mirrors `members/deps.ts`'s `toMembersWriteServiceDeps`. */
+export function toCampaignWriteServiceDeps(deps: NewsletterRouteDeps): CampaignWriteServiceDeps {
+  return {
+    campaignRepo: deps.newsletterCampaignRepo,
+    listRepo: deps.newsletterListRepo,
+    clock: deps.clock,
+    ids: deps.idGen,
+  };
+}
+
+/** Assemble `lists.ts`'s deps bundle. */
+export function toListsDeps(deps: NewsletterRouteDeps): ListsDeps {
+  return { listRepo: deps.newsletterListRepo, clock: deps.clock, ids: deps.idGen };
+}
+
+/** Assemble `confirmation.ts`'s deps bundle. */
+export function toConfirmationDeps(deps: NewsletterRouteDeps): ConfirmationDeps {
+  return {
+    tokenRepo: deps.newsletterConfirmationTokenRepo,
+    subscriptionRepo: deps.newsletterSubscriptionRepo,
+    mailer: deps.mailer,
+    consentCapability: deps.membersConsentCapability,
+    originRegistry: deps.originRegistry,
+    clock: deps.clock,
+    ids: deps.idGen,
+  };
+}
+
+/** Assemble `subscriptions.ts`'s deps bundle (nests `toConfirmationDeps` — `saveSubscription` triggers `issueConfirmationToken`). */
+export function toSubscriptionsDeps(deps: NewsletterRouteDeps): SubscriptionsDeps {
+  return {
+    subscriptionRepo: deps.newsletterSubscriptionRepo,
+    listRepo: deps.newsletterListRepo,
+    subscriberDirectory: deps.newsletterSubscriberDirectory,
+    confirmationDeps: toConfirmationDeps(deps),
+    clock: deps.clock,
+    ids: deps.idGen,
+  };
+}
+
+/** Assemble `subscriptions.ts`'s `unsubscribeSubscription` deps bundle (REMOVE_SUBSCRIPTION). */
+export function toUnsubscribeSubscriptionDeps(deps: NewsletterRouteDeps): UnsubscribeSubscriptionDeps {
+  return {
+    subscriptionRepo: deps.newsletterSubscriptionRepo,
+    consentCapability: deps.membersConsentCapability,
+    clock: deps.clock,
+  };
+}
+
+/** Assemble `unsubscribe.ts`'s deps bundle. */
+export function toUnsubscribeDeps(deps: NewsletterRouteDeps): UnsubscribeDeps {
+  return {
+    subscriptionRepo: deps.newsletterSubscriptionRepo,
+    keyring: deps.newsletterKeyring,
+    originRegistry: deps.originRegistry,
+    consentCapability: deps.membersConsentCapability,
+    clock: deps.clock,
+  };
+}
+
+/**
+ * Assemble `send-pipeline.ts`'s deps bundle. `launchGateDeps.isSendingEnabled` always resolves
+ * `false`: no admin route in api.spec.md's 19+2 manages a `newsletter.launch_gate.sending_enabled`
+ * settings toggle (out of scope this pass, same as the deferred admin UI), and `false` is
+ * behavior.spec.md §3's own documented default — never a corner cut, since precondition (d)
+ * (mailer adapter driver) is separately, permanently unmet in both composition roots anyway (no
+ * real `MailerPort` adapter exists yet, ADR-PIPE-011's disclosed, by-design gap).
+ */
+export function toSendPipelineDeps(deps: NewsletterRouteDeps): SendPipelineDeps {
+  return {
+    campaignRepo: deps.newsletterCampaignRepo,
+    subscriptionRepo: deps.newsletterSubscriptionRepo,
+    audienceSnapshotRepo: deps.newsletterAudienceSnapshotRepo,
+    sendRepo: deps.newsletterSendRepo,
+    subscriberDirectory: deps.newsletterSubscriberDirectory,
+    hooks: deps.newsletterHooks,
+    mailer: deps.mailer,
+    launchGateDeps: {
+      isSendingEnabled: async () => false,
+      consentCapability: deps.membersConsentCapability,
+      originRegistry: deps.originRegistry,
+      mailer: deps.mailer,
+    },
+    outbox: deps.outbox,
+    bus: deps.bus,
+    clock: deps.clock,
+    ids: deps.idGen,
+  };
 }

@@ -64,12 +64,12 @@ export const registerAdminUserListRoute: UsersRouteRegistrar = (app, deps) => {
             deps.principalPolicyRepo.listByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id }),
           ]);
 
-          return toAdminUserResponse(
+          return toAdminUserResponse({
             principal,
-            userRow,
-            roleLinks.map((link) => link.roleId),
-            policyLinks.map((link) => link.policyId)
-          );
+            user: userRow,
+            roleIds: roleLinks.map((link) => link.roleId),
+            policyIds: policyLinks.map((link) => link.policyId),
+          });
         })
       );
 

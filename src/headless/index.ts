@@ -4,5 +4,6 @@ export type {
   AdminPresentation,
   ContentPost,
   ContentPostPayload,
+  HeadlessEntryKind,
   HeadlessThemeId,
 } from "./contracts";

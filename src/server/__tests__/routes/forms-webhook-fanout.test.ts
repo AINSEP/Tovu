@@ -48,7 +48,7 @@ function makeHarness() {
   const clock = { nowIso: () => NOW };
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
-  const rateLimiter = createRateLimiter(FORMS_SUBMIT_PROFILE, clock);
+  const rateLimiter = createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock });
 
   const webhookSubscriptionRepo = new InMemoryWebhookSubscriptionRepo();
   const webhookDeliveryRepo = new InMemoryWebhookDeliveryRepo();

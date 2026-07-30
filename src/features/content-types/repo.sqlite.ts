@@ -85,6 +85,7 @@ export class SqliteContentTypeRepo implements ContentTypeRepoPort, ContentTypeLi
         op: revision.op,
         stateJson: JSON.stringify(revision.stateJson),
         actorId: revision.actorId,
+        principalKind: revision.principalKind,
         delegatedByWorkspaceId: revision.delegatedByWorkspaceId,
         delegatedById: revision.delegatedById,
         recordedAt: revision.recordedAt,

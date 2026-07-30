@@ -132,8 +132,12 @@ export const NEWSLETTER_DATA_MODULE: DataModuleDecl = {
  * @throws if `declareDataModule()` reports `ok: false` — boot must NOT silently continue with a
  * half-installed Newsletter; the caller (composition root) surfaces this as a startup failure.
  */
-export async function installNewsletterDataModule(db: Database.Database, dbPath: string): Promise<void> {
-  const result = await declareDataModule(db, dbPath, NEWSLETTER_DATA_MODULE);
+export async function installNewsletterDataModule(
+  required: { db: Database.Database; dbPath: string },
+  _optional: Record<string, never> = {}
+): Promise<void> {
+  const { db, dbPath } = required;
+  const result = await declareDataModule({ db, dbPath, decl: NEWSLETTER_DATA_MODULE });
   if (!result.ok) {
     throw new Error(
       `newsletter dataModule declaration failed: ${result.error?.code} — ${result.error?.message}`

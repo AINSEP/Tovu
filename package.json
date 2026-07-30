@@ -4,17 +4,26 @@
   "private": true,
   "description": "Tovu — the website product: CMS runtime (public site + per-site admin + content model).",
   "type": "commonjs",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "bin": {
+    "tovu": "dist/src/cli/main.js"
+  },
   "scripts": {
     "dev": "TOVU_ADMIN_DEV_PROXY_URL=http://localhost:5173 npm run dev:server & npm run admin:dev & wait",
     "dev:server": "tsx watch src/index.ts",
     "start": "node dist/src/index.js",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && mkdir -p dist/templates && cp -R templates/. dist/templates/ && mkdir -p dist/themes && cp -R themes/. dist/themes/ && mkdir -p dist/src/infra/drizzle && cp -R src/infra/drizzle/. dist/src/infra/drizzle/ && mkdir -p dist/src/infra/drizzle-database-journal && cp -R src/infra/drizzle-database-journal/. dist/src/infra/drizzle-database-journal/ && mkdir -p dist/public && cp -R public/. dist/public/",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:generate:database-journal": "drizzle-kit generate --config=drizzle.database-journal.config.ts",
-    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "test": "node --import tsx --test \"src/**/*.test.ts\" \"packages/*/src/**/*.test.ts\"",
     "test:visual": "playwright test",
-    "test:cov": "rm -rf coverage && mkdir -p coverage && node --import tsx --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test-reporter=spec --test-reporter-destination=stdout \"src/**/*.test.ts\"",
+    "test:cov": "rm -rf coverage && mkdir -p coverage && node --import tsx --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test-reporter=spec --test-reporter-destination=stdout \"src/**/*.test.ts\" \"packages/*/src/**/*.test.ts\"",
     "check:boundaries": "depcruise --config .dependency-cruiser.cjs src",
     "check:inventory": "tsx scripts/check-capability-inventory.ts",
     "lint": "biome lint .",
@@ -24,11 +33,18 @@
     "setup": "npm install && npm run admin:install && npm run admin:build"
   },
   "dependencies": {
+    "@jini-ai/agent-runtime": "file:../Jini/packages/agent-runtime",
+    "@jini-ai/core": "file:../Jini/packages/core",
+    "@jini-ai/daemon": "file:../Jini/packages/daemon",
+    "@jini-ai/http-kit": "file:../Jini/packages/http-kit",
+    "@jini-ai/mcp": "file:../Jini/packages/mcp",
     "argon2": "^0.44.0",
     "better-sqlite3": "^11.8.1",
+    "commander": "^15.0.0",
     "drizzle-orm": "^0.44.7",
     "express": "^4.21.2",
     "liquidjs": "^10.27.1",
+    "semver": "^7.6.2",
     "sharp": "^0.35.3"
   },
   "devDependencies": {
@@ -37,6 +53,7 @@
     "@types/better-sqlite3": "^7.6.12",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.10",
+    "@types/semver": "^7.5.8",
     "dependency-cruiser": "^18.1.0",
     "drizzle-kit": "^0.30.6",
     "ts-morph": "^28.0.0",

@@ -98,7 +98,7 @@ export interface BindWidgetAreaRequired {
 export async function bindWidgetArea(required: BindWidgetAreaRequired): Promise<{ areaEntry: WidgetAreaEntry }> {
   const { deps, input } = required;
 
-  await ensureWidgetContentTypesRegistered(deps, input.workspaceId);
+  await ensureWidgetContentTypesRegistered({ deps, workspaceId: input.workspaceId });
 
   return withEntryLock(`${input.workspaceId}::area::${input.regionKey}`, async () => {
     const existingBinding = await deps.bindingRepo.findByRegion({ workspaceId: input.workspaceId, regionKey: input.regionKey });
@@ -157,7 +157,12 @@ export async function mutateWidgetAreaPlacements(
 ): Promise<{ areaEntry: WidgetAreaEntry }> {
   const { deps, input } = required;
 
-  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, "widgets.place");
+  await requireWidgetPermission({
+    authorize: deps.authorize,
+    actor: input.actor,
+    workspaceId: input.workspaceId,
+    permission: "widgets.place",
+  });
 
   return withEntryLock(`${input.workspaceId}::${input.areaEntryId}`, async () => {
     const current = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.areaEntryId });
@@ -181,7 +186,7 @@ export async function mutateWidgetAreaPlacements(
     }
 
     const currentPayload = parseWidgetAreaPayload(current.fieldsJson);
-    const nextDoc = areaDocWithPlacements(currentPayload.doc, input.placements);
+    const nextDoc = areaDocWithPlacements({ doc: currentPayload.doc, placements: input.placements });
 
     const result = await updateEntry({
       deps: entriesWriteDeps(deps, input.workspaceId),

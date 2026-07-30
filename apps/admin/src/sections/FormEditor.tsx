@@ -139,7 +139,7 @@ function FormSubmissionDetail(props: {
 
   useEffect(() => {
     api
-      .getFormSubmission(props.formId, props.submissionId)
+      .getFormSubmission({ formId: props.formId, submissionId: props.submissionId })
       .then((r) => setSubmission(r.data))
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load submission"));
   }, [props.formId, props.submissionId]);
@@ -152,7 +152,7 @@ function FormSubmissionDetail(props: {
     setDeleting(true);
     setError(null);
     try {
-      await api.deleteFormSubmission(props.formId, props.submissionId);
+      await api.deleteFormSubmission({ formId: props.formId, submissionId: props.submissionId });
       props.onDeleted();
     } catch (e) {
       setError(e instanceof Error ? e.message : "delete failed");
@@ -202,7 +202,7 @@ function FormSubmissions(props: { formId: string }) {
 
   function load(cursor?: string) {
     api
-      .listFormSubmissions(props.formId, cursor ? { cursor } : {})
+      .listFormSubmissions({ formId: props.formId }, cursor ? { cursor } : {})
       .then((r) => {
         setSubmissions((prev) => (cursor ? [...(prev ?? []), ...r.data] : r.data));
         setNextCursor(r.nextCursor);
@@ -303,10 +303,10 @@ export function FormEditor(props: { formId: string }) {
     const notifyPayload = { ...notify, recipients };
     try {
       if (isNew) {
-        const created = await api.createForm({ name, slug, fields, notify: notifyPayload });
+        const created = await api.createForm({ name, slug, fields }, { notify: notifyPayload });
         window.location.hash = `#/forms/${created.data.id}`;
       } else {
-        await api.updateForm(props.formId, { name, fields, notify: notifyPayload });
+        await api.updateForm({ id: props.formId }, { name, fields, notify: notifyPayload });
         load();
       }
     } catch (e) {
@@ -321,7 +321,7 @@ export function FormEditor(props: { formId: string }) {
     setSaving(true);
     setError(null);
     try {
-      await api.updateForm(form.id, { status: form.status === "active" ? "disabled" : "active" });
+      await api.updateForm({ id: form.id }, { status: form.status === "active" ? "disabled" : "active" });
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "status update failed");

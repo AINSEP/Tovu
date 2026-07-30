@@ -220,3 +220,72 @@ test("ADR-PIPE-015 Phase 3 T025: a policy holding the deprecated integration.man
   );
   assert.equal(second.migratedGrantCount, 0);
 });
+
+test("internal audit F2: a policy holding settings.user.write also gains settings.user.read after migration, keeping the write grant, idempotently", async () => {
+  const deps = buildDeps();
+  await seedIdentity({ deps, input: { workspaceId: WORKSPACE } });
+
+  // Simulates an ALREADY-seeded installation: seedIdentity early-returns for these, so the
+  // BUILTIN_ADMIN_PERMISSIONS addition cannot reach them — the fan-out is the only path.
+  const preExistingPolicyId = "policy-pre-existing-settings-user-write";
+  await deps.repos.policies.save({
+    id: preExistingPolicyId,
+    workspaceId: WORKSPACE,
+    name: "pre-existing-settings-policy",
+    isBuiltin: false,
+    isFrozen: false,
+  });
+  await deps.repos.policyPermissions.save({
+    id: "grant-pre-existing-settings-user-write",
+    workspaceId: WORKSPACE,
+    policyId: preExistingPolicyId,
+    permission: "settings.user.write",
+  });
+
+  const first = await migrateDeprecatedPermissionGrants({
+    policyPermissions: deps.repos.policyPermissions,
+    policies: deps.repos.policies,
+    idGen: deps.idGen,
+    workspaceId: WORKSPACE,
+  });
+  assert.ok(first.migratedGrantCount >= 1);
+
+  const permissionsAfter = (
+    await deps.repos.policyPermissions.listByPolicyId({ workspaceId: WORKSPACE, policyId: preExistingPolicyId })
+  ).map((g) => g.permission);
+  assert.ok(
+    permissionsAfter.includes("settings.user.write"),
+    "settings.user.write stays live — unlike this mechanism's other pairs, it is NOT deprecated"
+  );
+  assert.ok(permissionsAfter.includes("settings.user.read"), "the new read grant is backfilled");
+
+  const second = await migrateDeprecatedPermissionGrants({
+    policyPermissions: deps.repos.policyPermissions,
+    policies: deps.repos.policies,
+    idGen: deps.idGen,
+    workspaceId: WORKSPACE,
+  });
+  assert.equal(
+    (await deps.repos.policyPermissions.listByPolicyId({ workspaceId: WORKSPACE, policyId: preExistingPolicyId }))
+      .filter((g) => g.permission === "settings.user.read").length,
+    1,
+    "rerunning must not duplicate the grant"
+  );
+  assert.equal(second.migratedGrantCount, 0);
+});
+
+test("internal audit F2: a freshly-seeded built-in admin role holds settings.user.read directly, without depending on the fan-out", async () => {
+  const deps = buildDeps();
+  await seedIdentity({ deps, input: { workspaceId: WORKSPACE } });
+
+  const roles = await deps.repos.roles.list({ workspaceId: WORKSPACE });
+  const adminRole = roles.find((r) => r.name === "admin");
+  assert.ok(adminRole, "admin role exists");
+  const links = await deps.repos.rolePolicies.listByRoleId({ workspaceId: WORKSPACE, roleId: adminRole!.id });
+  const adminPermissions = (
+    await deps.repos.policyPermissions.listByPolicyId({ workspaceId: WORKSPACE, policyId: links[0].policyId })
+  ).map((p) => p.permission);
+
+  assert.ok(adminPermissions.includes("settings.user.read"));
+  assert.ok(adminPermissions.includes("settings.user.write"));
+});

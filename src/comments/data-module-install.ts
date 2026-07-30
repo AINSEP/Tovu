@@ -10,8 +10,12 @@ import type Database from "better-sqlite3";
 import { declareDataModule } from "../features/plugins/data-module";
 import { COMMENTS_DATA_MODULE } from "./types";
 
-export async function installCommentsDataModule(db: Database.Database, dbPath: string): Promise<void> {
-  const result = await declareDataModule(db, dbPath, COMMENTS_DATA_MODULE);
+export async function installCommentsDataModule(
+  required: { db: Database.Database; dbPath: string },
+  _optional: Record<string, never> = {}
+): Promise<void> {
+  const { db, dbPath } = required;
+  const result = await declareDataModule({ db, dbPath, decl: COMMENTS_DATA_MODULE });
   if (!result.ok) {
     throw new Error(`comments dataModule declaration failed: ${result.error?.code} — ${result.error?.message}`);
   }

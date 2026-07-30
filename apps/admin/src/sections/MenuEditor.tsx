@@ -20,7 +20,8 @@ function newItem(): AdminMenuItem {
   return { id: newItemId(), label: "", target: { kind: "url", href: "" } };
 }
 
-function targetForKind(kind: AdminMenuTargetKind, prev: AdminMenuTarget): AdminMenuTarget {
+function targetForKind(required: { kind: AdminMenuTargetKind; prev: AdminMenuTarget }): AdminMenuTarget {
+  const { kind, prev } = required;
   switch (kind) {
     case "url":
       return { kind, href: prev.href ?? "" };
@@ -125,7 +126,7 @@ function ItemRow(props: {
           onChange={(e) =>
             onChange(path, (it) => ({
               ...it,
-              target: targetForKind(e.target.value as AdminMenuTargetKind, it.target),
+              target: targetForKind({ kind: e.target.value as AdminMenuTargetKind, prev: it.target }),
             }))
           }
         >
@@ -262,17 +263,15 @@ export function MenuEditor(props: { menuId: string | null }) {
     setError(null);
     try {
       if (isNew) {
-        const { menu: created } = await api.createMenu({ title, slug, items });
+        const { menu: created } = await api.createMenu({ title, slug }, { items });
         window.location.hash = `#/menus/${created.id}`;
         return;
       }
       if (!menu) return;
-      const { menu: saved } = await api.updateMenuTree(menu.id, {
-        expectedVersion: menu.version,
-        title,
-        slug,
-        items,
-      });
+      const { menu: saved } = await api.updateMenuTree(
+        { id: menu.id, expectedVersion: menu.version, items },
+        { title, slug }
+      );
       setMenu(saved);
       setItems(saved.items);
       setMessage(`Saved · version ${saved.version}`);

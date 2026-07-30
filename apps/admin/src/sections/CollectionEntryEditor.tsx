@@ -184,7 +184,7 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
 
     Promise.all([
       api.listContentTypes(),
-      props.entryId ? api.listEntries(props.contentTypeKey) : Promise.resolve({ items: [] as AdminEntry[] }),
+      props.entryId ? api.listEntries({ type: props.contentTypeKey }) : Promise.resolve({ items: [] as AdminEntry[] }),
       api.listTaxonomies().catch(() => ({ items: [] as AdminTaxonomyWithTerms[] })),
     ])
       .then(([typesResult, entriesResult, taxonomyResult]) => {
@@ -226,21 +226,17 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
     try {
       const fieldsJson = { ext: { site: extFields } };
       if (entry) {
-        const { entry: saved } = await api.updateEntry(entry.id, {
-          title,
-          fieldsJson,
-          expectedVersion: entry.version,
-        });
+        const { entry: saved } = await api.updateEntry(
+          { id: entry.id, expectedVersion: entry.version },
+          { title, fieldsJson }
+        );
         setEntry(saved);
         setMessage(`Saved · version ${saved.version}`);
       } else {
-        const { entry: created } = await api.createEntry({
-          type: props.contentTypeKey,
-          slug: slug.trim(),
-          title,
-          fieldsJson,
-          bodyJson: editor.getJSON(),
-        });
+        const { entry: created } = await api.createEntry(
+          { type: props.contentTypeKey, slug: slug.trim(), title },
+          { fieldsJson, bodyJson: editor.getJSON() }
+        );
         setEntry(created);
         setMessage(`Created · version ${created.version}`);
         window.location.hash = `#/collections/${props.contentTypeKey}/${created.id}`;
@@ -256,7 +252,7 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
     if (!entry) return;
     setError(null);
     try {
-      const { entry: saved } = await api.entryLifecycle(entry.id, op, entry.version);
+      const { entry: saved } = await api.entryLifecycle({ id: entry.id, op, expectedVersion: entry.version });
       setEntry(saved);
       setMessage(`Entry ${op}ed · version ${saved.version}`);
     } catch (e) {

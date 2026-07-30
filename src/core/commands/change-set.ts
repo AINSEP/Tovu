@@ -17,7 +17,7 @@ import type { DomainEvent, ISODateTime, JsonObject, UUID } from "../ports";
  * schema. SQLite/Postgres adapters must satisfy `ChangeSetRepoPort` unchanged.
  *
  * BR-04 resolution (ADR-046 Phase 1, 2026-07-16 swarm debate, full record:
- * `ADS-project-knowledge/reports/swarm-consensus/runs/20260716T-br04-outbox-seam-consensus-report.md`):
+ * `ADS-memory/reports/swarm-consensus/runs/20260716T-br04-outbox-seam-consensus-report.md`):
  * `insert()`'s optional third argument lets the caller pass the fully-formed outbox event through
  * the SAME call, so a durable adapter can co-persist it inside the same transaction as the header
  * + items — chosen over threading a transaction handle through `OutboxPort`/`mutation.execute()`

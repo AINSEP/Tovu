@@ -4,12 +4,15 @@ import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "../../../../
 import { insertWidgetEmbed, removeWidgetEmbed } from "../../../../widgets/embed-service";
 import { mutateWidgetAreaPlacements } from "../../../../widgets/region-area-service";
 import { createWidgetInstance } from "../../../../widgets/write-service";
+import { WidgetAreaNotFoundError } from "../../../../widgets/errors";
+import { WIDGET_CONTENT_TYPE } from "../../../../widgets/types";
 import type { WidgetPlacementNode } from "../../../../widgets/types";
 import {
   mapWidgetErrorToResponse,
   requireWidgetsPermissionOrRespond,
   toAdminWidgetResponse,
   toWhereUsedResponse,
+  widgetErrorToResponse,
 } from "../../../http/admin/widgets";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { RouteDeps, RouteRegistrar } from "../../types";
@@ -51,9 +54,12 @@ function widgetsDeps(deps: RouteDeps) {
  * whole list back, per REQ-15's whole-document discipline — never a partial patch. */
 async function placeIntoRegion(deps: RouteDeps, workspaceId: string, actor: { principalId: string }, regionKey: string, baseVersion: number, widgetEntryId: string) {
   const binding = await deps.widgetBindingRepo.findByRegion({ workspaceId, regionKey });
-  if (!binding) throw new Error(`region '${regionKey}' is not bound`);
+  // Round-2 external-audit fix (2026-07-21, agy + Opus 4.8, independently converged): a bare Error
+  // isn't recognized by widgetErrorToResponse, so an unbound region 500'd instead of the same 404
+  // WIDGETS_AREA_NOT_FOUND region-mutate-placements.ts already returns for this exact condition.
+  if (!binding) throw new WidgetAreaNotFoundError(`region '${regionKey}' is not bound`);
   const areaEntry = await deps.entryRepo.findById({ workspaceId, id: binding.areaEntryId });
-  if (!areaEntry) throw new Error(`region area entry was not found`);
+  if (!areaEntry) throw new WidgetAreaNotFoundError(`region area entry for '${regionKey}' was not found`);
   const currentPlacements = parseWidgetAreaPayload(areaEntry.fieldsJson).doc.placements;
   const nextPlacements: WidgetPlacementNode[] = [...currentPlacements, { placementId: deps.idGen.newId(), widgetEntryId, enabled: true }];
 
@@ -145,8 +151,20 @@ const registerCreateTool: RouteRegistrar = (app, deps) => {
           config: typeof body.config === "object" && body.config !== null ? body.config : {},
         },
       });
-      const placeResult = await placeTarget(deps, deps.workspaceId, actor, target, instance.id);
-      res.status(201).json({ tool: "widgets.create", widget: toAdminWidgetResponse(instance).widget, result: placeResult });
+
+      try {
+        const placeResult = await placeTarget(deps, deps.workspaceId, actor, target, instance.id);
+        res.status(201).json({ tool: "widgets.create", widget: toAdminWidgetResponse(instance).widget, result: placeResult });
+      } catch (placeErr) {
+        // Finding D (Fable adversarial-review fix, 2026-07-21): placement failing AFTER the
+        // instance was already created must not silently drop the created id — the instance is
+        // real and persisted regardless of whether placement succeeded. Without this, a caller
+        // (especially a retrying AI agent) sees only an error, has no way to know the instance
+        // already exists, and mints a duplicate via a second `widgets.create` call instead of
+        // retrying placement with `widgets.place`.
+        const { status, body: errorBody } = widgetErrorToResponse(placeErr);
+        res.status(status).json({ tool: "widgets.create", widget: toAdminWidgetResponse(instance).widget, placementFailed: true, ...errorBody });
+      }
     } catch (err) {
       mapWidgetErrorToResponse(err, res);
     }
@@ -182,9 +200,9 @@ const registerRemoveTool: RouteRegistrar = (app, deps) => {
       }
 
       const binding = await deps.widgetBindingRepo.findByRegion({ workspaceId: deps.workspaceId, regionKey: target.regionKey });
-      if (!binding) throw new Error(`region '${target.regionKey}' is not bound`);
+      if (!binding) throw new WidgetAreaNotFoundError(`region '${target.regionKey}' is not bound`);
       const areaEntry = await deps.entryRepo.findById({ workspaceId: deps.workspaceId, id: binding.areaEntryId });
-      if (!areaEntry) throw new Error(`region area entry was not found`);
+      if (!areaEntry) throw new WidgetAreaNotFoundError(`region area entry for '${target.regionKey}' was not found`);
       const nextPlacements = parseWidgetAreaPayload(areaEntry.fieldsJson).doc.placements.filter((p) => p.placementId !== body.placementId);
       const result = await mutateWidgetAreaPlacements({
         deps: { ...widgetsDeps(deps), bindingRepo: deps.widgetBindingRepo },
@@ -212,11 +230,24 @@ const registerDiagnoseTool: RouteRegistrar = (app, deps) => {
 
       const widgetInstanceId = String(req.params.widgetInstanceId);
       const entry = await deps.entryRepo.findById({ workspaceId: deps.workspaceId, id: widgetInstanceId });
+      // Fable adversarial-review fix (2026-07-21, Finding B): diagnosing a real entry id that is
+      // NOT a widget instance (wrong content type, or a widget row with a malformed payload) used
+      // to 500 via an uncaught `parseWidgetInstancePayload` throw — `getWidgetInstance` already
+      // guards the same case with an `entry.type` check; this mirrors it instead of parsing blind.
+      const isWidget = Boolean(entry) && entry?.type === WIDGET_CONTENT_TYPE;
+      let status: string | null = null;
+      if (isWidget && entry) {
+        try {
+          status = parseWidgetInstancePayload(entry.fieldsJson).status;
+        } catch {
+          status = null;
+        }
+      }
       const refs = await deps.entryRefsRepo.findByTarget({ workspaceId: deps.workspaceId, targetKind: "entry", targetId: widgetInstanceId });
       res.status(200).json({
         tool: "widgets.diagnose",
-        exists: Boolean(entry),
-        status: entry ? parseWidgetInstancePayload(entry.fieldsJson).status : null,
+        exists: isWidget,
+        status,
         whereUsed: toWhereUsedResponse(refs),
       });
     } catch (err) {

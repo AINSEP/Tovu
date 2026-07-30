@@ -135,3 +135,47 @@ test("revision/audit trail actually persists: create + update + publish each app
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
+
+test("Fable adversarial-review fix (2026-07-21, Finding C/P10a): a throwing onWritten hook rolls back the ENTIRE transaction, not just itself — SqliteEntryRepo's real BEGIN IMMEDIATE/COMMIT/ROLLBACK, not the in-memory adapter's no-op transaction() passthrough", async () => {
+  const { db, tmpDir } = openTempContentDb();
+  try {
+    const repo = new SqliteEntryRepo(db);
+    const clock = { nowIso: () => "2026-07-21T00:00:00.000Z" };
+    const baseDeps = {
+      entryRepo: repo,
+      contentTypeRepo: fixedContentTypeLookup("ws-1", "recipe"),
+      clock,
+      authorize: alwaysAllow(),
+      outbox: { enqueue: async () => {} },
+    };
+
+    const created = await createEntry({
+      deps: { ...baseDeps, ids: { newId: () => "entry-1" } },
+      input: { actorId: "user-1", workspaceId: "ws-1", type: "recipe", slug: "banana-bread", title: "Banana Bread", fieldsJson: { ext: { site: {} } } },
+    });
+    assert.equal(created.ok, true);
+    const entryId = created.ok ? created.value.entry.id : "";
+
+    await assert.rejects(
+      updateEntry({
+        deps: {
+          ...baseDeps,
+          onWritten: async () => {
+            throw new Error("simulated onWritten failure — mirrors widgets' entry_refs extraction hook throwing mid-transaction");
+          },
+        },
+        input: { actorId: "user-1", workspaceId: "ws-1", id: entryId, title: "Should Never Persist", expectedVersion: 1 },
+      }),
+      /simulated onWritten failure/
+    );
+
+    const after = await repo.findById({ workspaceId: "ws-1", id: entryId });
+    assert.equal(after?.title, "Banana Bread", "the title change must be rolled back along with the failed onWritten hook — same transaction, not swallowed");
+    assert.equal(after?.version, 1, "version must not have advanced — proves save() itself was rolled back, not just skipped going forward");
+
+    const revisionRows = db.$client.prepare("SELECT op FROM entry_revisions WHERE entry_id = ?").all(entryId) as Array<{ op: string }>;
+    assert.deepEqual(revisionRows.map((r) => r.op), ["create"], "the update's revision row must also be rolled back, not left as a dangling audit entry for a write that never took effect");
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});

@@ -30,7 +30,11 @@
  */
 import { copyFileSync, existsSync, rmSync } from "node:fs";
 
-export function restoreFromSnapshot(dbPath: string, snapshotPath: string): void {
+export function restoreFromSnapshot(
+  required: { dbPath: string; snapshotPath: string },
+  _optional: Record<string, never> = {}
+): void {
+  const { dbPath, snapshotPath } = required;
   copyFileSync(snapshotPath, dbPath);
   const walPath = `${dbPath}-wal`;
   const shmPath = `${dbPath}-shm`;

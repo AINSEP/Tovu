@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "../core/events";
 import { SqlitePostRepo } from "../features/post";
@@ -8,7 +8,8 @@ import { SqlitePresentationSettingsRepo } from "../features/presentation";
 import { SqliteSettingsRepo } from "../features/settings/repo.sqlite";
 import { discoverThemes } from "../features/theme";
 import { SqliteWorkspaceRepo } from "../features/workspace";
-import { openContentDb } from "../infra/sqlite/content-db";
+import { openContentDb, type ContentDb } from "../infra/sqlite/content-db";
+import { resolveWorkspace } from "../site-dir/resolve-workspace";
 import { recoverIncompleteDataModuleMigrations } from "../features/plugins/migration-recovery";
 import { SqliteChangeSetRepo } from "../infra/sqlite/change-set-repo.sqlite";
 import { SqliteOutboxAdapter } from "../infra/sqlite/outbox-repo.sqlite";
@@ -17,6 +18,7 @@ import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "../infra/sqli
 import { ensureSeoSettingDefinitions } from "../seo";
 import { installNewsletterDataModule } from "../newsletter/data-module-manifest";
 import { ensureDefaultList } from "../newsletter/lists";
+import { createHookRegistry } from "../newsletter/hooks";
 import {
   SqliteNewsletterAudienceSnapshotRepo,
   SqliteNewsletterCampaignRepo,
@@ -25,6 +27,7 @@ import {
   SqliteNewsletterSendRepo,
   SqliteNewsletterSubscriptionRepo,
 } from "../newsletter/repo.sqlite";
+import { MembersSubscriberDirectory } from "../members";
 import {
   seededPosts,
   seededPresentation,
@@ -83,6 +86,10 @@ import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite";
 import { SqliteEntryRepo } from "../features/entries/repo.sqlite";
 import { SqliteWidgetRegionBindingRepo } from "../widgets/repo.sqlite";
 import { SqliteEntryRefsRepo } from "../core/entry-refs/repo.sqlite";
+import { discoverPlugins as discoverPluginRuntimePlugins } from "../features/plugin-runtime/discovery";
+import { SqlitePluginActivationRepo } from "../features/plugin-runtime/repo.sqlite";
+import { wireCoreResolvers } from "../widgets/resolvers/index";
+import { createNavMenuReadModel } from "../navigation/read-model";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { SqliteCommentRepo } from "../comments/repo.sqlite";
 import { installCommentsDataModule } from "../comments/data-module-install";
@@ -100,9 +107,14 @@ export function mediaUploadsDir(): string {
   return process.env.TOVU_MEDIA_UPLOADS_DIR ?? join(process.cwd(), "uploads");
 }
 
-/** Built-in themes ship in the repo-root `themes/` dir (SPEC-004 spike). */
+/**
+ * Built-in themes ship in the repo-root `themes/` dir (SPEC-004 spike), copied to `dist/themes/`
+ * at build time (mirrors `templates/` -> `dist/templates/`) and resolved package-relative to this
+ * file — never `process.cwd()` (CR-R04 fix: `tovu serve` used to read `process.cwd()/themes`,
+ * which is wrong whenever the CLI is invoked from outside the repo checkout).
+ */
 export function builtInThemesDir(): string {
-  return process.env.TOVU_THEMES_DIR ?? join(process.cwd(), "themes");
+  return process.env.TOVU_THEMES_DIR ?? resolve(__dirname, "../../themes");
 }
 
 /**
@@ -135,23 +147,68 @@ export function defaultDatabaseJournalDbPath(contentDbPath: string = defaultCont
   return process.env.TOVU_DATABASE_JOURNAL_DB ?? join(dirname(contentDbPath), "ops", "database-journal.db");
 }
 
-export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): NewsletterRouteDeps {
-  const db = openContentDb(
-    dbPath,
-    {
-      workspace: seededWorkspace,
-      posts: seededPosts,
-      presentation: seededPresentation,
-    },
-    // ADR-023 §2 — mandatory, blocking boot-time recovery for any crash-interrupted dataModule
-    // DDL attempt, before the site opens to end users.
-    recoverIncompleteDataModuleMigrations
-  );
+/**
+ * SPEC-003 (ADR-PIPE-003 C-010) — an already-opened db + a resolved workspace id, supplied by
+ * the install-dir boot path (`site-dir/boot-site-dir.ts`) instead of this function opening its
+ * own db. `db`/`workspaceId` are required together or omitted together (validated below) — there
+ * is no legal state where only one is supplied. `uploadsDir` is independent of that pair.
+ */
+export interface CreateSqliteRouteDepsOverrides {
+  db: ContentDb;
+  workspaceId: string;
+  /**
+   * Install-dir-relative uploads path — `cli/commands/serve.ts` supplies `<dir>/uploads` (CR-R01
+   * fix: uploads used to always default to `mediaUploadsDir()`, which is `process.cwd()`-relative
+   * and therefore wrong whenever `tovu serve <dir>` is invoked from outside that dir). Omitted, it
+   * falls back to `mediaUploadsDir()` — the legacy same-directory dev boot's existing behavior.
+   */
+  uploadsDir: string;
+}
+
+export function createSqliteRouteDeps(
+  dbPath: string = defaultContentDbPath(),
+  overrides?: Partial<CreateSqliteRouteDepsOverrides>
+): NewsletterRouteDeps {
+  // CIC U-001 / Contract Map C-010: `overrides.db` and `overrides.workspaceId` must be supplied
+  // together or not at all — a single-field partial override is not a legal call shape.
+  const hasOverrideDb = overrides?.db !== undefined;
+  const hasOverrideWorkspaceId = overrides?.workspaceId !== undefined;
+  if (hasOverrideDb !== hasOverrideWorkspaceId) {
+    throw new Error(
+      "createSqliteRouteDeps: overrides.db and overrides.workspaceId must be supplied together or not at all"
+    );
+  }
+
+  // When `overrides.db` is supplied (the install-dir `serve` path), reuse that SAME handle rather
+  // than opening/migrating a second db — `bootSiteDir` has already validated, migrated, and
+  // stamped this db before calling here (BR-05/BR-06).
+  const db =
+    overrides?.db ??
+    openContentDb(
+      dbPath,
+      {
+        workspace: seededWorkspace,
+        posts: seededPosts,
+        presentation: seededPresentation,
+      },
+      // ADR-023 §2 — mandatory, blocking boot-time recovery for any crash-interrupted dataModule
+      // DDL attempt, before the site opens to end users.
+      recoverIncompleteDataModuleMigrations
+    );
+  // CIC U-001 (Workspace-id single-source-of-truth): ONE resolved variable, reused by every
+  // internal construction below that used to read the old seeded-workspace literal directly —
+  // this is the sole `resolveWorkspace` call site in this function (U-001-B1's grep-checkable
+  // invariant: zero remaining literal references outside this line). The legacy default path (no
+  // overrides) resolves it dynamically too (rather than keeping the literal for that branch
+  // only), so both paths share one mechanism instead of two that could drift (REQ-06/REQ-10;
+  // every existing seeded fixture has exactly one workspace row, so this is behavior-identical to
+  // the old literal for every current caller — see CIC's Design Context).
+  const workspaceId = overrides?.workspaceId ?? resolveWorkspace({ db }).id;
   const clock = { nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
   // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a
   // login survives a `tsx watch` restart instead of being silently wiped every file save.
-  const identity = createSqliteIdentityRouteDeps(db, { workspaceId: seededWorkspace.id, clock, idGen });
+  const identity = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen });
   const presentationRepo = new SqlitePresentationSettingsRepo(db);
   const settingsRepo = new SqliteSettingsRepo(db);
   // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this
@@ -174,7 +231,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
   const seoReady = settingsReady.then(() =>
     ensureSeoSettingDefinitions(
       { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
-      { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+      { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
 
@@ -185,7 +242,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
   const commentsSettingsReady = seoReady.then(() =>
     ensureCommentsSettingDefinitions(
       { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
-      { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+      { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
 
@@ -201,7 +258,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     menuRepo,
     bindingRepo: navLocationBindingRepo,
     clock,
-    workspaceId: seededWorkspace.id,
+    workspaceId: workspaceId,
   })
     .then(() => undefined)
     .catch((err) => {
@@ -222,8 +279,8 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
   // T030: seed the workspace's default "all subscribers" list right after the tables exist —
   // idempotent (`ensureDefaultList` is itself a find-or-create), matching `declareDataModule()`'s own
   // skip-if-exists convention.
-  const newsletterReady = installNewsletterDataModule(newsletterClient, dbPath)
-    .then(() => ensureDefaultList({ deps: { listRepo: newsletterListRepo, clock, ids: idGen }, input: { workspaceId: seededWorkspace.id } }))
+  const newsletterReady = installNewsletterDataModule({ db: newsletterClient, dbPath })
+    .then(() => ensureDefaultList({ deps: { listRepo: newsletterListRepo, clock, ids: idGen }, input: { workspaceId: workspaceId } }))
     .then(() => undefined)
     .catch((err) => {
       // eslint-disable-next-line no-console
@@ -241,7 +298,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
    * own `seoReady` comment already documents; this fixes the same mistake made fresh here.
    */
   const commentsReady = newsletterReady
-    .then(() => installCommentsDataModule(db.$client, dbPath))
+    .then(() => installCommentsDataModule({ db: db.$client, dbPath }))
     .catch((err) => {
       // eslint-disable-next-line no-console
       console.error(`installCommentsDataModule failed at boot: ${(err as Error).message}`);
@@ -261,19 +318,22 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
   // a re-run of this seed. Read-only adapter/port by design; see `origin-repo.sqlite.ts`'s file
   // header for the disclosed "no real production-origin verification flow exists yet" gap this
   // durability slice does not itself close.
-  seedDevCapabilityOrigin(db, {
-    workspaceId: seededWorkspace.id,
-    origin: createVerifiedOrigin({
-      scheme: "http",
-      host: "localhost",
-      port: 3000,
-      verifiedAt: clock.nowIso(),
-      source: "dev-capability",
-    }),
-    // ADR-PIPE-015 T016: a dev-capability egress allowlist entry so the real
-    // isAllowedEgressTarget oracle doesn't fail-closed on every fresh dev server — matches the
-    // `example.com` target every integrations fixture/test in this repo already uses.
-    egressAllowlist: ["example.com"],
+  seedDevCapabilityOrigin({
+    db,
+    seed: {
+      workspaceId: workspaceId,
+      origin: createVerifiedOrigin({
+        scheme: "http",
+        host: "localhost",
+        port: 3000,
+        verifiedAt: clock.nowIso(),
+        source: "dev-capability",
+      }),
+      // ADR-PIPE-015 T016: a dev-capability egress allowlist entry so the real
+      // isAllowedEgressTarget oracle doesn't fail-closed on every fresh dev server — matches the
+      // `example.com` target every integrations fixture/test in this repo already uses.
+      egressAllowlist: ["example.com"],
+    },
   });
   const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo(db) });
   const redirectRepo = new SqliteRedirectRepo(db);
@@ -310,17 +370,17 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
   // `siteId` reuses `workspaceId` for v1's single-workspace-per-content.db topology — ADR-041 §7
   // names `siteId` vs `workspaceId` as SPEC-003 OQ-04, explicitly unresolved by that ADR; this
   // composition root does not resolve it either, it just picks the only value available today.
-  const databaseLedgerRepo = new SqliteDatabaseLedgerRepo({ db: databaseJournalDb, siteId: seededWorkspace.id });
+  const databaseLedgerRepo = new SqliteDatabaseLedgerRepo({ db: databaseJournalDb, siteId: workspaceId });
   // ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) —
   // the real `migration_runs` read side `reconcileInterruptedMigrationOnBoot` needs. The actual
   // boot-time SCAN call lives in `bootstrap.ts` (a proper sequenced boot module), not here —
   // this composition root only constructs and exposes the port.
-  const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: databaseJournalDb, siteId: seededWorkspace.id });
+  const migrationRunsRepo = new SqliteMigrationRunsRepo({ db: databaseJournalDb, siteId: workspaceId });
   // Admin-UI backend-gap closure (design-spec.md §0.4/§3.8/§4.8, this dispatch): both classes were
   // already built (a prior session's disclosed-but-unwired infra work — see each class's own file
   // header) but never constructed by any composition root until now. `SqliteRestorePointsRepo`
   // shares the same sidecar journal db/siteId as `databaseLedgerRepo` above.
-  const restorePointsRepo = new SqliteRestorePointsRepo({ db: databaseJournalDb, siteId: seededWorkspace.id });
+  const restorePointsRepo = new SqliteRestorePointsRepo({ db: databaseJournalDb, siteId: workspaceId });
   const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
 
   // ADR-031/ADR-023 (SPEC-033) — hoisted so the Comments module's `entryLookup` reads the SAME
@@ -334,6 +394,19 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
   // W-004) read/write against the SAME real tables, via the same `db` connection.
   const widgetBindingRepo = new SqliteWidgetRegionBindingRepo(db);
   const entryRefsRepo = new SqliteEntryRefsRepo(db);
+  const formDefinitionRepo = new SqliteFormDefinitionRepo(db);
+  // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — the boot-wiring pass
+  // `resolvers/index.ts`'s `wireCoreResolvers` file header always said was needed before the app
+  // served traffic, but no composition root ever called it. Without this, `menu`/`recent-entries`/
+  // `contact-form` widgets silently rendered as empty placeholders on every real page — only the
+  // two static widget types (`text`/`social-links`) ever worked. Real deps only; `menu`'s
+  // `NavMenuReadModel` is the one dependency with no prior real adapter anywhere in the codebase
+  // (see `navigation/read-model.ts`'s file header).
+  wireCoreResolvers({
+    entryList: entryRepo,
+    navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: navLocationBindingRepo }),
+    formDefinitionRepo,
+  });
   const commentsModule = createCommentsModule({
     commentRepo: new SqliteCommentRepo(db.$client),
     entryRepo,
@@ -343,8 +416,18 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     settingsRepo,
   });
 
+  // SPEC-011 (Newsletter) Stage 5 wiring — hoisted for the same reason `server/app.ts`'s identical
+  // hoisting comment explains: `newsletterSubscriberDirectory` must read the SAME member rows the
+  // returned `memberRepo` field exposes, and `newsletterKeyring` is the ONE process-lifetime
+  // `KeyringPort` instance also used to build `webhookSigner` below (one root key,
+  // purpose-namespaced — `integrations/ports.ts`'s `KeyringPort.derive()` contract — not two).
+  const memberRepo = new SqliteMemberRepo(db);
+  const newsletterKeyring = new EnvOrFileKeyring();
+  const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });
+  const newsletterHooks = createHookRegistry();
+
   return {
-    workspaceId: seededWorkspace.id,
+    workspaceId: workspaceId,
     workspaceRepo: new SqliteWorkspaceRepo(db),
     postRepo: new SqlitePostRepo(db),
     presentationRepo,
@@ -355,7 +438,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     // restart — the first durable-adapter slice off Phase 1's capability table, per the ADR's own
     // "pull-based per capability, not a uniform sweep" fold-in guidance.
     changeSets: new SqliteChangeSetRepo(db),
-    themes: discoverThemes(builtInThemesDir(), "built-in"),
+    themes: discoverThemes({ dir: builtInThemesDir(), source: "built-in" }),
     outbox,
     bus,
     clock,
@@ -363,7 +446,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     // ADR-046 Phase 1 (final capability slice): analytics ingest buffer is durable — survives a
     // restart, closing the `LocalBufferSink.capabilities().durable` misreport the capability
     // inventory flagged.
-    analyticsSink: new SqliteBufferSink({ db, workspaceId: seededWorkspace.id }),
+    analyticsSink: new SqliteBufferSink({ db, workspaceId: workspaceId }),
     ...identity,
     redirectRepo,
     redirectHitSink,
@@ -371,7 +454,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     redirectsWriteDeps,
     // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters — already fully built and
     // contract-tested, wired into a real composition root for the first time.
-    memberRepo: new SqliteMemberRepo(db),
+    memberRepo,
     memberTierRepo: new SqliteMemberTierRepo(db),
     memberSubscriptionRepo: new SqliteMemberSubscriptionRepo(db),
     memberSessionRepo: new SqliteMemberSessionRepo(db),
@@ -397,7 +480,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     // ADR-PIPE-015 Phase 1: the real KeyringPort-backed signer (GAP-02/GAP-03). Inert until
     // Phase 4 registers the fan-out subscriber + delivery worker — no route calls this directly
     // yet, so wiring it now carries no live-traffic risk ahead of that gated activation.
-    webhookSigner: createKeyringBackedSigner(new EnvOrFileKeyring()),
+    webhookSigner: createKeyringBackedSigner(newsletterKeyring),
     // ADR-046 Phase 1 (2026-07-16): durable SQLite adapters for all four route-consumed media
     // repos — previously in-memory (ADR-027 walking skeleton, rows lost on every restart). Bytes
     // already used the real `LocalFsBlobStore` (unlike `server/app.ts`'s hermetic-test
@@ -406,7 +489,7 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     mediaRepo: new SqliteMediaRepo(db),
     assetBlobRepo: new SqliteAssetBlobRepo(db),
     assetRenditionRepo: new SqliteAssetRenditionRepo(db),
-    blobStore: new LocalFsBlobStore({ rootDir: mediaUploadsDir() }),
+    blobStore: new LocalFsBlobStore({ rootDir: overrides?.uploadsDir ?? mediaUploadsDir() }),
     // ADR-027 §4 transform registry + rendition generation: registry rows are now durable too
     // (ADR-046 Phase 1). The real running server gets `SharpImageTransformer` (unlike
     // `server/app.ts`'s hermetic-test composition, which uses the deterministic in-memory
@@ -429,13 +512,17 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     newsletterSendRepo: new SqliteNewsletterSendRepo(db),
     newsletterConfirmationTokenRepo: new SqliteNewsletterConfirmationTokenRepo(db),
     membersConsentCapability: null,
+    // Stage 5 (routes) wiring — see the hoisted-vars comment above `commentsModule`/return.
+    newsletterSubscriberDirectory,
+    newsletterKeyring,
+    newsletterHooks,
     // SPEC-010 (Forms, Tier-1 sample plugin, ADR-PIPE-010): the real SQLite rule-of-two adapters
     // (unlike the several "no SQLite adapter yet" libraries noted above — Forms' C-012 ports both
     // ship one). `formsRateLimiter` is one process-lifetime counter store, matching
     // `server/app.ts`'s hermetic-test composition's identical construction.
-    formDefinitionRepo: new SqliteFormDefinitionRepo(db),
+    formDefinitionRepo,
     formSubmissionRepo: new SqliteFormSubmissionRepo(db),
-    formsRateLimiter: createRateLimiter(FORMS_SUBMIT_PROFILE, clock),
+    formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     databaseLedgerRepo,
     // Real SQLite adapters (this dispatch, closing Session 5's disclosed "no SQLite adapter yet
     // for content-types/entries/taxonomy" gap — see `features/{content-types,entries,taxonomy}/
@@ -446,10 +533,10 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     contentTypeRepo: new SqliteContentTypeRepo(db),
     contentTypeIndexProvisioner: new NoopContentTypeIndexProvisioner(),
     entryRepo,
-    taxonomyRepo: new SqliteTaxonomyRepo({ db, workspaceId: seededWorkspace.id }),
-    termRepo: new SqliteTermRepo({ db, workspaceId: seededWorkspace.id }),
-    entryTermRepo: new SqliteEntryTermRepo({ db, workspaceId: seededWorkspace.id }),
-    taxonomyRevisionRepo: new SqliteTaxonomyRevisionRepo({ db, workspaceId: seededWorkspace.id }),
+    taxonomyRepo: new SqliteTaxonomyRepo({ db, workspaceId: workspaceId }),
+    termRepo: new SqliteTermRepo({ db, workspaceId: workspaceId }),
+    entryTermRepo: new SqliteEntryTermRepo({ db, workspaceId: workspaceId }),
+    taxonomyRevisionRepo: new SqliteTaxonomyRevisionRepo({ db, workspaceId: workspaceId }),
     restorePointsRepo,
     dbOps,
     siteStatusRepo: new InMemorySiteStatusRepo(),
@@ -469,5 +556,11 @@ export function createSqliteRouteDeps(dbPath: string = defaultContentDbPath()): 
     commentsSettingsReady,
     widgetBindingRepo,
     entryRefsRepo,
+    // SPEC-005 (ADR-005-ARCH) — real SQLite activation repo (mirrors `presentationRepo`'s adapter
+    // choice). `builtIns: []` is accurate for this Phase 1 dispatch — see `server/app.ts`'s
+    // identical hermetic-composition note for why (the `word-count` dogfood plugin and its loader
+    // wiring are later, gated phases of this same feature that have not landed yet).
+    pluginActivationRepo: new SqlitePluginActivationRepo(db),
+    discoverPlugins: () => discoverPluginRuntimePlugins({ builtIns: [] }),
   };
 }

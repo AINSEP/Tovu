@@ -29,6 +29,19 @@ test("required bytes scale with the actual db + WAL file sizes (1.5x multiplier)
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+/**
+ * BUG FIX regression coverage (2026-07-28): before this fix, `checkDiskHeadroom(":memory:")`
+ * derived its answer from `path.dirname(":memory:")`, i.e. the process's current working
+ * directory — a low-disk cwd could fail-close a dataModule declare against an in-memory db that
+ * will never touch disk at all. The guard makes this a deterministic no-op instead.
+ */
+test("an in-memory dbPath is a no-op: ok, zero required bytes, no real measurement attempted", () => {
+  const result = checkDiskHeadroom(":memory:");
+  assert.equal(result.ok, true);
+  assert.equal(result.requiredBytes, 0);
+  assert.equal(result.freeBytes, null);
+});
+
 test("insufficient free space fails closed (ok: false) rather than throwing", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-headroom-"));
   const dbPath = path.join(dir, "content.db");

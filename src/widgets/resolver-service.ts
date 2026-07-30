@@ -108,11 +108,18 @@ export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): 
     if (!binding) continue;
     const areaEntry = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: binding.areaEntryId });
     if (!areaEntry || areaEntry.type !== WIDGET_AREA_CONTENT_TYPE) continue;
-    const payload = parseWidgetAreaPayload(areaEntry.fieldsJson);
-    regionPlacements.set(
-      regionKey,
-      payload.doc.placements.filter((placement) => placement.enabled)
-    );
+    try {
+      const payload = parseWidgetAreaPayload(areaEntry.fieldsJson);
+      regionPlacements.set(
+        regionKey,
+        payload.doc.placements.filter((placement) => placement.enabled)
+      );
+    } catch {
+      // REQ-27: a malformed widget_area payload (e.g. wiped by an unrelated generic-entry update
+      // that bypassed this feature's own write path) degrades this one region to "no widgets" —
+      // this function must never throw, matching the doc comment above it that this call site was
+      // violating (Fable adversarial-review fix, 2026-07-21, Finding B).
+    }
   }
 
   // 2. Inline embeds from the page entry's bodyJson (REQ-21/23).
@@ -138,7 +145,16 @@ export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): 
   const byType = new Map<WidgetTypeKey, WidgetInstanceView[]>();
   for (const row of widgetRows) {
     if (!referencedIds.has(row.id)) continue;
-    const payload = parseWidgetInstancePayload(row.fieldsJson);
+    let payload: ReturnType<typeof parseWidgetInstancePayload>;
+    try {
+      payload = parseWidgetInstancePayload(row.fieldsJson);
+    } catch {
+      // REQ-27: a malformed widget-instance payload is skipped, not thrown — the placement that
+      // referenced it simply has no resolved result, so step 6 below degrades it to the REQ-28
+      // placeholder like any other unresolved reference (Fable adversarial-review fix, 2026-07-21,
+      // Finding B).
+      continue;
+    }
     if (payload.status === "trash" || payload.status === "purged") continue;
     const list = byType.get(payload.widgetType) ?? [];
     list.push({ id: row.id, widgetType: payload.widgetType, config: payload.config as JsonObject });
@@ -148,7 +164,7 @@ export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): 
   // 5. At most one resolveWidgetType (=> at most one resolveMany) call per distinct type (REQ-24).
   const resolvedById = new Map<UUID, WidgetResolveResult>();
   for (const [typeKey, instances] of byType) {
-    const results = await resolveWidgetType(typeKey, instances, context);
+    const results = await resolveWidgetType({ typeKey, instances, context });
     for (const [id, result] of results) resolvedById.set(id, result);
   }
 

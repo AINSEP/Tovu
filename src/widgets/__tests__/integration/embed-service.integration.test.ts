@@ -14,8 +14,10 @@ import {
   WidgetEmbedReorderCountMismatchError,
   type EmbedServiceDeps,
 } from "../../embed-service";
-import { WidgetEmbedGuardrailError, WidgetVersionConflictError } from "../../errors";
-import { createWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service";
+import { WidgetEmbedGuardrailError, WidgetInstanceNotFoundError, WidgetVersionConflictError } from "../../errors";
+import { createWidgetInstance, trashWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service";
+import { buildWidgetAreaFieldsJson, ensureWidgetContentTypesRegistered, emptyWidgetAreaDoc } from "../../entry-payload";
+import { WIDGET_AREA_CONTENT_TYPE, WIDGET_AREA_FIELD_NAMESPACE } from "../../types";
 
 /**
  * @file C-007 `embed-service.ts` — SPEC-043 REQ-44/45, ADR-047 Debate Fold-In Amendment 6.
@@ -112,6 +114,71 @@ test("REQ-44: insertWidgetEmbed adds one new widgetEmbed node to the host's body
 
   const refs = await repos.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: host.id });
   assert.ok(refs.some((r) => r.targetId === widgetId), "the new embed must be extracted into entry_refs in the same write");
+});
+
+test("Fable adversarial-review fix (2026-07-21, Finding E/REQ-16): inserting a widgetEmbed pointing at a nonexistent widget id is rejected before any write, matching region placement's identical check", async () => {
+  const repos = makeSharedRepos();
+  const host = await makeHostEntry(repos);
+
+  await assert.rejects(
+    () =>
+      insertWidgetEmbed({
+        deps: makeDeps(repos),
+        input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: host.version, widgetEntryId: "does-not-exist" },
+      }),
+    (err: unknown) => err instanceof WidgetInstanceNotFoundError
+  );
+
+  const after = await repos.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: host.id });
+  assert.equal(after?.version, host.version, "nothing must have been written — the host entry's version is unchanged");
+});
+
+test("Fable adversarial-review fix (2026-07-21, Finding E/REQ-16): inserting a widgetEmbed pointing at a TRASHED widget is rejected, not silently inserted as a dead embed", async () => {
+  const repos = makeSharedRepos();
+  const host = await makeHostEntry(repos);
+  const widgetId = await makeWidgetInstance(repos);
+  await trashWidgetInstance({ deps: widgetWriteDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: widgetId } });
+
+  await assert.rejects(
+    () =>
+      insertWidgetEmbed({
+        deps: makeDeps(repos),
+        input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: host.version, widgetEntryId: widgetId },
+      }),
+    (err: unknown) => err instanceof WidgetInstanceNotFoundError
+  );
+});
+
+test("Fable adversarial-review fix (2026-07-21, Finding E/REQ-17): a widget_area entry can never itself be an embed target", async () => {
+  const repos = makeSharedRepos();
+  const host = await makeHostEntry(repos);
+
+  await ensureWidgetContentTypesRegistered({
+    deps: { contentTypeRepo: repos.contentTypeRepo, clock: { nowIso: () => "2026-07-21T00:00:00.000Z" }, ids: { newId: () => `ct-${++idCounter}` }, outbox: { enqueue: async () => undefined } },
+    workspaceId: WORKSPACE_ID,
+  });
+  const areaCreated = await createEntry({
+    deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowIso: () => "2026-07-21T00:00:00.000Z" }, ids: { newId: () => `area-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
+    input: {
+      actorId: ACTOR.principalId,
+      workspaceId: WORKSPACE_ID,
+      type: WIDGET_AREA_CONTENT_TYPE,
+      slug: `widget-area-footer-${idCounter}`,
+      title: "Footer area",
+      fieldsJson: buildWidgetAreaFieldsJson({ regionKey: "footer", doc: emptyWidgetAreaDoc() }),
+      owner: WIDGET_AREA_FIELD_NAMESPACE,
+    },
+  });
+  if (!areaCreated.ok) throw areaCreated.error;
+
+  await assert.rejects(
+    () =>
+      insertWidgetEmbed({
+        deps: makeDeps(repos),
+        input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: host.version, widgetEntryId: areaCreated.value.entry.id },
+      }),
+    (err: unknown) => err instanceof WidgetInstanceNotFoundError
+  );
 });
 
 test("REQ-19/INV-04: inserting a widgetEmbed whose HOST is itself a widget instance is rejected — no widget-in-widget recursion, same guardrail the live editor path must also call", async () => {
@@ -240,6 +307,80 @@ test("reorderWidgetEmbeds rejects a count mismatch before writing anything", asy
       assert.ok(err instanceof WidgetEmbedReorderCountMismatchError);
       return true;
     }
+  );
+});
+
+test("Round-2 external-audit fix (2026-07-21, codex blocker WIDGETS-R2-001): reorderWidgetEmbeds rejects a nonexistent replacement target before changing bodyJson or entry_refs", async () => {
+  const repos = makeSharedRepos();
+  const host = await makeHostEntry(repos);
+  const w1 = await makeWidgetInstance(repos);
+  const inserted = await insertWidgetEmbed({ deps: makeDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: host.version, widgetEntryId: w1 } });
+
+  await assert.rejects(
+    () =>
+      reorderWidgetEmbeds({
+        deps: makeDeps(repos),
+        input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: inserted.entry.version, orderedWidgetEntryIds: ["does-not-exist"] },
+      }),
+    (err: unknown) => err instanceof WidgetInstanceNotFoundError
+  );
+
+  const reread = await repos.entryRepo.findById({ workspaceId: WORKSPACE_ID, id: host.id });
+  assert.equal(reread?.version, inserted.entry.version, "nothing must have been written");
+  assert.deepEqual(reread?.bodyJson, inserted.entry.bodyJson);
+  const refs = await repos.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: host.id });
+  assert.deepEqual(refs.map((r) => r.targetId), [w1], "entry_refs must still point only at the original target, never a dangling row for the rejected 'does-not-exist' id");
+});
+
+test("Round-2 external-audit fix (2026-07-21, codex blocker WIDGETS-R2-001): reorderWidgetEmbeds rejects a TRASHED replacement target", async () => {
+  const repos = makeSharedRepos();
+  const host = await makeHostEntry(repos);
+  const w1 = await makeWidgetInstance(repos);
+  const w2 = await makeWidgetInstance(repos);
+  const inserted = await insertWidgetEmbed({ deps: makeDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: host.version, widgetEntryId: w1 } });
+  await trashWidgetInstance({ deps: widgetWriteDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: w2 } });
+
+  await assert.rejects(
+    () =>
+      reorderWidgetEmbeds({
+        deps: makeDeps(repos),
+        input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: inserted.entry.version, orderedWidgetEntryIds: [w2] },
+      }),
+    (err: unknown) => err instanceof WidgetInstanceNotFoundError
+  );
+});
+
+test("Round-2 external-audit fix (2026-07-21, codex blocker WIDGETS-R2-001): reorderWidgetEmbeds rejects a widget_area as a replacement target", async () => {
+  const repos = makeSharedRepos();
+  const host = await makeHostEntry(repos);
+  const w1 = await makeWidgetInstance(repos);
+  const inserted = await insertWidgetEmbed({ deps: makeDeps(repos), input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: host.version, widgetEntryId: w1 } });
+
+  await ensureWidgetContentTypesRegistered({
+    deps: { contentTypeRepo: repos.contentTypeRepo, clock: { nowIso: () => "2026-07-21T00:00:00.000Z" }, ids: { newId: () => `ct-${++idCounter}` }, outbox: { enqueue: async () => undefined } },
+    workspaceId: WORKSPACE_ID,
+  });
+  const areaCreated = await createEntry({
+    deps: { entryRepo: repos.entryRepo, contentTypeRepo: repos.contentTypeRepo, clock: { nowIso: () => "2026-07-21T00:00:00.000Z" }, ids: { newId: () => `area-${++idCounter}` }, authorize: PRE_AUTHORIZED, outbox: { enqueue: async () => undefined } },
+    input: {
+      actorId: ACTOR.principalId,
+      workspaceId: WORKSPACE_ID,
+      type: WIDGET_AREA_CONTENT_TYPE,
+      slug: `widget-area-reorder-${idCounter}`,
+      title: "Footer area",
+      fieldsJson: buildWidgetAreaFieldsJson({ regionKey: "footer", doc: emptyWidgetAreaDoc() }),
+      owner: WIDGET_AREA_FIELD_NAMESPACE,
+    },
+  });
+  if (!areaCreated.ok) throw areaCreated.error;
+
+  await assert.rejects(
+    () =>
+      reorderWidgetEmbeds({
+        deps: makeDeps(repos),
+        input: { workspaceId: WORKSPACE_ID, actor: ACTOR, hostEntryId: host.id, baseVersion: inserted.entry.version, orderedWidgetEntryIds: [areaCreated.value.entry.id] },
+      }),
+    (err: unknown) => err instanceof WidgetInstanceNotFoundError
   );
 });
 

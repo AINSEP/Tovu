@@ -86,6 +86,13 @@ const BUILTIN_ADMIN_PERMISSIONS: readonly string[] = [
   "settings.workspace.write",
   "settings.user.self.write",
   "settings.user.write",
+  // Internal audit F2 remediation (2026-07-29): granted directly here so a freshly-seeded
+  // workspace never depends on the `settings.user.write` -> `settings.user.read` fan-out in
+  // permissions.ts (same "don't depend on migrateDeprecatedPermissionGrants for our own built-in
+  // role grants" discipline as the admin.menus.*/admin.integrations.manage clauses above). The
+  // fan-out exists for ALREADY-seeded installations, which this list cannot reach because
+  // seedIdentity early-returns once an owner user exists.
+  "settings.user.read",
   "settings.reset.global",
   "settings.reset.workspace",
   "settings.reset.user",

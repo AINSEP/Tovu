@@ -35,7 +35,7 @@ test("a clean templated theme (only allowed tags/filters) loads as valid", () =>
     "home.liquid": "{% for p in posts %}{{ p.title | upcase }}{% endfor %}",
     "entry.liquid": "{{ post.title }}",
   });
-  const theme = loadTheme(dir, "t", "site");
+  const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
   assert.equal(theme.status, "valid");
   assert.deepEqual(theme.errors, []);
   assert.ok(theme.liquidTemplates.home);
@@ -48,7 +48,7 @@ test("a disallowed tag in home.liquid fails the theme as invalid, naming the fil
     "home.liquid": '{% include "leak" %}',
     "entry.liquid": "{{ post.title }}",
   });
-  const theme = loadTheme(dir, "t", "site");
+  const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
   assert.equal(theme.status, "invalid");
   const homeError = theme.errors.find((e) => e.startsWith("templates/home.liquid:"));
   assert.ok(homeError, `expected a templates/home.liquid error, got: ${JSON.stringify(theme.errors)}`);
@@ -63,7 +63,7 @@ test("a disallowed filter in entry.liquid fails the theme as invalid, naming the
     "home.liquid": "{{ site.title }}",
     "entry.liquid": "{{ post.title | sha256 }}",
   });
-  const theme = loadTheme(dir, "t", "site");
+  const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
   assert.equal(theme.status, "invalid");
   const entryError = theme.errors.find((e) => e.startsWith("templates/entry.liquid:"));
   assert.ok(entryError, `expected a templates/entry.liquid error, got: ${JSON.stringify(theme.errors)}`);
@@ -72,7 +72,7 @@ test("a disallowed filter in entry.liquid fails the theme as invalid, naming the
 
 test("the live themes/dispatch demonstrator theme loads as valid end-to-end", () => {
   const dispatchDir = path.join(process.cwd(), "themes", "dispatch");
-  const theme = loadTheme(dispatchDir, "dispatch", "built-in");
+  const theme = loadTheme({ themeDir: dispatchDir, id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   assert.deepEqual(theme.errors, []);
   assert.equal(theme.manifest.tier, "templated");
@@ -99,7 +99,7 @@ test("a theme.json declaring regions parses them onto manifest.regions, in order
     "home.json": JSON.stringify({ type: "doc", content: [] }),
     "entry.json": JSON.stringify({ type: "doc", content: [] }),
   });
-  const theme = loadTheme(dir, "d", "site");
+  const theme = loadTheme({ themeDir: dir, id: "d", source: "site" });
   assert.equal(theme.status, "valid");
   assert.deepEqual(theme.manifest.regions, ["header", "footer"]);
 });
@@ -110,14 +110,14 @@ test("a theme.json with no regions field leaves manifest.regions undefined (back
     "home.json": JSON.stringify({ type: "doc", content: [] }),
     "entry.json": JSON.stringify({ type: "doc", content: [] }),
   });
-  const theme = loadTheme(dir, "d2", "site");
+  const theme = loadTheme({ themeDir: dir, id: "d2", source: "site" });
   assert.equal(theme.status, "valid");
   assert.equal(theme.manifest.regions, undefined);
 });
 
 test("the live themes/dispatch demonstrator theme (no regions declared yet) still loads as valid with manifest.regions undefined", () => {
   const dispatchDir = path.join(process.cwd(), "themes", "dispatch");
-  const theme = loadTheme(dispatchDir, "dispatch", "built-in");
+  const theme = loadTheme({ themeDir: dispatchDir, id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   assert.equal(theme.manifest.regions, undefined);
 });

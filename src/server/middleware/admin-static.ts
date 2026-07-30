@@ -82,7 +82,13 @@ export function registerAdminStatic(app: Express, required: { distDir: string })
   const devProxyUrl = process.env.TOVU_ADMIN_DEV_PROXY_URL;
   if (devProxyUrl) {
     app.get(["/admin", "/admin/*"], (req, res) => {
-      res.redirect(302, `${devProxyUrl}${req.originalUrl}`);
+      // Vite's own `base: "/admin/"` config only falls through to `index.html` when the request
+      // matches that base exactly, trailing slash included — a bare `/admin` passthrough 404s at
+      // Vite itself even though this redirect succeeded. Only `req.path === "/admin"` needs the
+      // slash added; `/admin/*` subpaths (and their query string, in `req.originalUrl`) pass through
+      // unchanged.
+      const target = req.path === "/admin" ? "/admin/" : req.originalUrl;
+      res.redirect(302, `${devProxyUrl}${target}`);
     });
     return;
   }

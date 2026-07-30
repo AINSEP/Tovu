@@ -214,7 +214,7 @@ export async function execute<TResult>(
   if (!record) {
     throw new TokenExpiredError(`confirmation token was not found`);
   }
-  if (!isRedeemable(record, deps.clock.nowIso())) {
+  if (!isRedeemable({ record, now: deps.clock.nowIso() })) {
     if (record.status === "redeemed") {
       throw new TokenAlreadyRedeemedError(`confirmation token has already been redeemed`);
     }

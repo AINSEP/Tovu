@@ -5,14 +5,14 @@ import { toHeadlessContentPost } from "../shared/post";
 /**
  * Serializes a published post into the public content payload contract.
  */
-export function toContentPostResponse(
-  post: PostRecord,
-  activeThemeId: string
-): ContentPostPayload {
+export function toContentPostResponse(required: {
+  post: PostRecord;
+  activeThemeId: string;
+}): ContentPostPayload {
   return {
-    post: toHeadlessContentPost(post),
+    post: toHeadlessContentPost(required.post),
     presentation: {
-      activeThemeId,
+      activeThemeId: required.activeThemeId,
     },
   };
 }

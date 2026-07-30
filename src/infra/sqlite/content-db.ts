@@ -76,7 +76,7 @@ export function openContentDb(filePath: string, seed?: ContentDbSeedData, recove
   const db = drizzle(sqlite, { schema }) as ContentDb;
   migrate(db, { migrationsFolder: MIGRATIONS_DIR });
   ensureWatermarkRow(db);
-  if (seed) seedContentDb(db, seed);
+  if (seed) seedContentDb({ db, seed });
   return db;
 }
 
@@ -96,7 +96,11 @@ function ensureWatermarkRow(db: ContentDb): void {
  * Guarded by workspace slug so a persisted db (with the operator's own edits) is
  * never re-seeded or overwritten on restart.
  */
-export function seedContentDb(db: ContentDb, seed: ContentDbSeedData): void {
+export function seedContentDb(
+  required: { db: ContentDb; seed: ContentDbSeedData },
+  _optional: Record<string, never> = {}
+): void {
+  const { db, seed } = required;
   const existing = db
     .select({ id: schema.workspaces.id })
     .from(schema.workspaces)

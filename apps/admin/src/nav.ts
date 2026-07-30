@@ -133,14 +133,12 @@ export const NAV: NavGroup[] = [
         icon: '<circle cx="6.2" cy="7" r="3.4"/><circle cx="11.8" cy="7" r="3.4"/><circle cx="9" cy="11.6" r="3.4"/>',
       },
       {
-        // SPEC-045 (scoping memo, BLOCKED pending an owner decision on Options A/B/C): no plugin
-        // loader/artifact/registry exists in this codebase yet (SPEC-005 is APPROVED but
-        // unimplemented) — `href` removed and `soon: true` restored so this entry doesn't point at
-        // a route with nothing real behind it. See `ADS-project-knowledge/specs/045-plugins-admin/
-        // feature.spec.md` before building anything here.
+        // SPEC-005 REQ-17/AC-25: the plugin system now ships (SPEC-045's Option A — finish
+        // SPEC-005, then add this thin admin UI), so this entry links to the real `Plugins` screen
+        // instead of being marked `soon`.
         id: "plugins",
         label: "Plugins",
-        soon: true,
+        href: "#/section/plugins",
         icon: '<path d="M7 2v3H4v9h10V5h-3V2H7z"/>',
       },
       {

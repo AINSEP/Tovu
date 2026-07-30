@@ -28,11 +28,15 @@ export type WidgetsAuthorizeFn = (params: {
 }) => Promise<{ allowed: boolean; reason: string }>;
 
 export async function requireWidgetPermission(
-  authorize: WidgetsAuthorizeFn,
-  actor: { principalId: string },
-  workspaceId: string,
-  permission: string
+  required: {
+    authorize: WidgetsAuthorizeFn;
+    actor: { principalId: string };
+    workspaceId: string;
+    permission: string;
+  },
+  _optional: Record<string, never> = {}
 ): Promise<void> {
+  const { authorize, actor, workspaceId, permission } = required;
   const result = await authorize({ principalId: actor.principalId, permission, workspaceId });
   if (!result.allowed) {
     throw new WidgetForbiddenError(`principal '${actor.principalId}' lacks permission '${permission}' (${result.reason})`);

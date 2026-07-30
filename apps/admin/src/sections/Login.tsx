@@ -12,7 +12,7 @@ export function Login(props: { onLogin: (user: AdminUser) => void }) {
     setBusy(true);
     setError(null);
     try {
-      const { user } = await api.login(username, password);
+      const { user } = await api.login({ username, password });
       props.onLogin(user);
     } catch (err) {
       setError(err instanceof Error ? err.message : "login failed");

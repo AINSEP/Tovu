@@ -29,11 +29,12 @@ export interface FormWriteServiceDeps {
   authorize: AuthorizeFn;
 }
 
-const MAX_NOTIFY_RECIPIENTS = 10;
+// See `agent-tools.ts` — exported so the published tool schemas cannot drift from these bounds.
+export const MAX_NOTIFY_RECIPIENTS = 10;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
+export const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const MIN_NAME_LENGTH = 1;
-const MAX_NAME_LENGTH = 200;
+export const MAX_NAME_LENGTH = 200;
 
 function defaultNotify(): NotifyConfig {
   return { enabled: false, recipients: [] };

@@ -137,21 +137,21 @@ export function toAdminMenuBindingDto(binding: NavLocationBindingRow): AdminMenu
   };
 }
 
-export function toAdminAssignLocationResponse(
-  menu: NavMenuEntry,
-  binding: NavLocationBindingRow,
-  displacedMenu: NavMenuEntry | null
-): AdminAssignLocationEnvelope {
+export function toAdminAssignLocationResponse(required: {
+  menu: NavMenuEntry;
+  binding: NavLocationBindingRow;
+  displacedMenu: NavMenuEntry | null;
+}): AdminAssignLocationEnvelope {
   return {
-    menu: toAdminMenuDto(menu),
-    binding: toAdminMenuBindingDto(binding),
-    displacedMenu: displacedMenu ? toAdminMenuDto(displacedMenu) : null,
+    menu: toAdminMenuDto(required.menu),
+    binding: toAdminMenuBindingDto(required.binding),
+    displacedMenu: required.displacedMenu ? toAdminMenuDto(required.displacedMenu) : null,
   };
 }
 
-export function toAdminDeleteMenuResponse(
-  menu: NavMenuEntry | null,
-  purged: boolean
-): AdminDeleteMenuEnvelope {
-  return { menu: menu ? toAdminMenuDto(menu) : null, purged };
+export function toAdminDeleteMenuResponse(required: {
+  menu: NavMenuEntry | null;
+  purged: boolean;
+}): AdminDeleteMenuEnvelope {
+  return { menu: required.menu ? toAdminMenuDto(required.menu) : null, purged: required.purged };
 }

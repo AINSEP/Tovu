@@ -63,6 +63,8 @@ import type { GatewayDeps } from "../../core/gated-mutations/gateway";
 import type { LedgerAppendPort, MergeableEntryTermRepoPort } from "../gated-mutations-composition";
 import type { WidgetRegionBindingRepoPort } from "../../widgets/ports";
 import type { EntryRefsRepoPort } from "../../core/entry-refs/ports";
+import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation";
+import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery";
 
 export interface RouteDeps {
   workspaceId: UUID;
@@ -191,8 +193,8 @@ export interface RouteDeps {
   /**
    * `forms` library ports (SPEC-010, ADR-PIPE-010 — mirrors the existing
    * `webhookSubscriptionRepo`/`webhookDeliveryRepo` field-addition precedent). `formsRateLimiter`
-   * is a single, process-lifetime `createRateLimiter(FORMS_SUBMIT_PROFILE, clock)` instance (not
-   * constructed per-request) so its fixed-window counters persist across requests.
+   * is a single, process-lifetime `createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock })`
+   * instance (not constructed per-request) so its fixed-window counters persist across requests.
    */
   formDefinitionRepo: FormDefinitionRepoPort;
   formSubmissionRepo: FormSubmissionRepoPort;
@@ -342,6 +344,20 @@ export interface RouteDeps {
    * `widgets` routes for the REQ-34 where-used disclosure and the REQ-42 safe-delete check.
    */
   entryRefsRepo: EntryRefsRepoPort;
+  /**
+   * SPEC-005 (ADR-005-ARCH) — the `plugin_activations` persistence port (mirrors
+   * `PresentationSettingsRepoPort` exactly, rule-of-two). Consumed by the `plugins` admin routes
+   * (`PLUGINS_LIST`/`PLUGIN_SET_ENABLED`, REQ-10).
+   */
+  pluginActivationRepo: PluginActivationRepoPort;
+  /**
+   * SPEC-005 (ADR-005-ARCH) — pre-bound `discoverPlugins()` closure (install dir / built-in
+   * registry already captured by the composition root). Phase 1 of this feature ships zero
+   * built-in plugins (the `word-count` dogfood plugin is a later, gated phase per this feature's
+   * own tasks.md), so this closure legitimately reports an empty built-in set today; the route
+   * surface itself does not know or care how many plugins exist.
+   */
+  discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
 }
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;

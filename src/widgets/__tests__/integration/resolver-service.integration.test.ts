@@ -5,6 +5,7 @@ import { InMemoryEntryRepo } from "../../../features/entries/repo.memory";
 import { CORE_RESOLVERS, resolveWidgetType } from "../../resolvers/index";
 import { resolvePageWidgets } from "../../resolver-service";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory";
+import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "../../types";
 import type { WidgetInstanceView, WidgetResolveContext, WidgetResolveResult, WidgetResolver } from "../../types";
 
 /**
@@ -49,23 +50,45 @@ test("AC-16/REQ-24: resolving 5 instances of the same type via resolveWidgetType
   CORE_RESOLVERS["recent-entries"] = resolver;
 
   const instances = Array.from({ length: 5 }, (_, i) => instance({ id: `w-${i}`, widgetType: "recent-entries" }));
-  const results = await resolveWidgetType("recent-entries", instances, CTX);
+  const results = await resolveWidgetType({ typeKey: "recent-entries", instances, context: CTX });
 
   assert.equal(callCount(), 1, "resolveMany must be called exactly once for a batch of same-type instances");
   assert.equal(results.size, 5);
 });
 
-test("AC-17/REQ-25: an instance configured above the type's registered clamp is capped at the registered value in the resolved result", async () => {
-  const results = await resolveWidgetType(
-    "recent-entries",
-    [instance({ id: "w-1", widgetType: "recent-entries", config: { maxItems: 500 } })],
-    CTX
-  );
+test("AC-17/REQ-25: an instance configured above the type's registered clamp is capped at the registered value in the resolved result — defense-in-depth at the orchestration layer, independent of the resolver's own discipline (Round-2 external-audit fix, 2026-07-21, Opus 4.8 finding WIDGETS-R2-L1: this assertion was previously a no-op stub)", async () => {
+  // A rogue resolver that deliberately ignores REQ-25's clamp itself — proves clampResolveResult
+  // (resolvers/index.ts) enforces the registered maxItems (20) regardless, not just the resolver's
+  // own well-behaved implementation (recent-entries.ts already clamps correctly; this test would not
+  // catch a regression there being masked by the orchestration layer, which is exactly the gap).
+  const rogueResolver: WidgetResolver = {
+    async resolveMany(instances) {
+      return new Map(
+        instances.map((i) => [
+          i.id,
+          {
+            ok: true as const,
+            ir: { componentId: "recent-entries", props: {}, children: Array.from({ length: 30 }, (_, n) => ({ componentId: "entry-summary", props: { title: `E${n}` } })) },
+            dependencyKeys: [],
+          },
+        ])
+      );
+    },
+  };
+  // @ts-expect-error — see the identical scaffolding note on the AC-16 test above.
+  CORE_RESOLVERS["recent-entries"] = rogueResolver;
+
+  const results = await resolveWidgetType({
+    typeKey: "recent-entries",
+    instances: [instance({ id: "w-1", widgetType: "recent-entries", config: { maxItems: 500 } })],
+    context: CTX,
+  });
 
   const result = results.get("w-1");
-  assert.ok(result);
-  // Once implemented against a real recent-entries resolver: assert the resolved IR's item count
-  // never exceeds registry.ts's registered clamp (20), regardless of the instance's own config.
+  assert.ok(result?.ok);
+  if (result.ok) {
+    assert.equal(result.ir.children?.length, 20, "clampResolveResult must cap at the registered clamp (20) even when the resolver itself returns 30 and the instance config asks for 500");
+  }
 });
 
 test("AC-19/INV-05: an uncaught resolver exception is isolated — resolveWidgetType never throws, it returns a typed failure", async () => {
@@ -77,11 +100,11 @@ test("AC-19/INV-05: an uncaught resolver exception is isolated — resolveWidget
   // @ts-expect-error — stub-era scaffolding, see note above.
   CORE_RESOLVERS["recent-entries"] = throwingResolver;
 
-  const results = await resolveWidgetType(
-    "recent-entries",
-    [instance({ id: "w-crash", widgetType: "recent-entries" })],
-    CTX
-  );
+  const results = await resolveWidgetType({
+    typeKey: "recent-entries",
+    instances: [instance({ id: "w-crash", widgetType: "recent-entries" })],
+    context: CTX,
+  });
 
   const result = results.get("w-crash");
   assert.ok(result);
@@ -92,12 +115,12 @@ test("AC-19/INV-05: an uncaught resolver exception is isolated — resolveWidget
 });
 
 test("REQ-27: an unknown widget type resolves to a typed unknown-type failure, never an unhandled exception", async () => {
-  const results = await resolveWidgetType(
+  const results = await resolveWidgetType({
     // @ts-expect-error — deliberately an unregistered type key.
-    "carousel",
-    [instance({ id: "w-1", widgetType: "carousel" })],
-    CTX
-  );
+    typeKey: "carousel",
+    instances: [instance({ id: "w-1", widgetType: "carousel" })],
+    context: CTX,
+  });
 
   const result = results.get("w-1");
   assert.equal(result?.ok, false);
@@ -124,4 +147,77 @@ test("AC-16/REQ-23: resolvePageWidgets assembles resolved IR for every declared 
 
   assert.ok("footer" in regions);
   assert.ok("sidebar" in regions);
+});
+
+test("Fable adversarial-review fix (2026-07-21, Finding B): a malformed widget_area payload degrades that region to empty, resolvePageWidgets never throws (REQ-27)", async () => {
+  const bindingRepo = new InMemoryWidgetRegionBindingRepo();
+  const entryRepo = new InMemoryEntryRepo();
+
+  await bindingRepo.upsert({ workspaceId: WORKSPACE_ID, regionKey: "footer", areaEntryId: "area-1", updatedAt: "2026-07-21T00:00:00.000Z" });
+  await entryRepo.save({
+    id: "area-1",
+    workspaceId: WORKSPACE_ID,
+    type: WIDGET_AREA_CONTENT_TYPE,
+    slug: "widget-area-footer",
+    status: "published",
+    title: "Footer area",
+    bodyJson: null,
+    // Deliberately NOT the real `ext.widgets.payload` envelope — simulates a row wiped by an
+    // unrelated write path, exactly the reachable case Fable's review flagged.
+    fieldsJson: { ext: { site: {} } },
+    publishedAt: "2026-07-21T00:00:00.000Z",
+    createdAt: "2026-07-21T00:00:00.000Z",
+    updatedAt: "2026-07-21T00:00:00.000Z",
+    version: 1,
+  });
+
+  const { regions } = await resolvePageWidgets({
+    deps: { bindingRepo, entryRepo },
+    input: { workspaceId: WORKSPACE_ID, resolvedRegions: ["footer"] },
+  });
+
+  assert.deepEqual(regions.footer, []);
+});
+
+test("Fable adversarial-review fix (2026-07-21, Finding B): a malformed widget-instance row referenced by a real placement degrades to the placeholder IR, resolvePageWidgets never throws (REQ-27/28)", async () => {
+  const bindingRepo = new InMemoryWidgetRegionBindingRepo();
+  const entryRepo = new InMemoryEntryRepo();
+
+  await bindingRepo.upsert({ workspaceId: WORKSPACE_ID, regionKey: "footer", areaEntryId: "area-1", updatedAt: "2026-07-21T00:00:00.000Z" });
+  await entryRepo.save({
+    id: "area-1",
+    workspaceId: WORKSPACE_ID,
+    type: WIDGET_AREA_CONTENT_TYPE,
+    slug: "widget-area-footer",
+    status: "published",
+    title: "Footer area",
+    bodyJson: null,
+    fieldsJson: { ext: { widgets: { payload: JSON.stringify({ regionKey: "footer", doc: { schemaVersion: 1, placements: [{ placementId: "p1", widgetEntryId: "corrupted-widget", enabled: true }] } }) } } },
+    publishedAt: "2026-07-21T00:00:00.000Z",
+    createdAt: "2026-07-21T00:00:00.000Z",
+    updatedAt: "2026-07-21T00:00:00.000Z",
+    version: 1,
+  });
+  await entryRepo.save({
+    id: "corrupted-widget",
+    workspaceId: WORKSPACE_ID,
+    type: WIDGET_CONTENT_TYPE,
+    slug: "corrupted-widget",
+    status: "published",
+    title: "Corrupted widget",
+    bodyJson: null,
+    // Malformed on purpose: not the real `ext.widget.payload` envelope.
+    fieldsJson: { ext: { site: {} } },
+    publishedAt: "2026-07-21T00:00:00.000Z",
+    createdAt: "2026-07-21T00:00:00.000Z",
+    updatedAt: "2026-07-21T00:00:00.000Z",
+    version: 1,
+  });
+
+  const { regions } = await resolvePageWidgets({
+    deps: { bindingRepo, entryRepo },
+    input: { workspaceId: WORKSPACE_ID, resolvedRegions: ["footer"] },
+  });
+
+  assert.deepEqual(regions.footer, [{ componentId: "widget-placeholder", props: {} }]);
 });

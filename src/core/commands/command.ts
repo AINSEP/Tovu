@@ -176,7 +176,7 @@ export class ForbiddenError extends Error {
  * INV-01).
  *
  * BR-04 resolution (ADR-046 Phase 1, 2026-07-16 swarm debate — full record:
- * `ADS-project-knowledge/reports/swarm-consensus/runs/20260716T-br04-outbox-seam-consensus-report.md`):
+ * `ADS-memory/reports/swarm-consensus/runs/20260716T-br04-outbox-seam-consensus-report.md`):
  * the `change-set.applied` event is passed as `changeSets.insert()`'s third argument, not a
  * separate `deps.outbox.enqueue()` call afterward — a durable adapter co-persists it inside the
  * same transaction as the change-set record, so it can never land without a durable delivery

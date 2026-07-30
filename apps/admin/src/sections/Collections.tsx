@@ -270,7 +270,8 @@ function EditFieldsDialog(props: { contentType: AdminContentType; onSaved: () =>
 
     setSaving(true);
     try {
-      await api.updateContentTypeFields(props.contentType.key, {
+      await api.updateContentTypeFields({
+        key: props.contentType.key,
         fields: fields.map(({ _rowId: _unused, ...f }) => f),
         expectedVersion: props.contentType.version,
       });
@@ -452,7 +453,7 @@ export function Collections() {
   async function runLifecycle(contentType: AdminContentType, op: "deprecate" | "reactivate" | "tombstone") {
     setActionError(null);
     try {
-      await api.contentTypeLifecycle(contentType.key, op, contentType.version);
+      await api.contentTypeLifecycle({ key: contentType.key, op, expectedVersion: contentType.version });
       load();
     } catch (e) {
       setActionError(describeApiError(e, `Failed to ${op} "${contentType.label}"`));

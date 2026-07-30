@@ -69,7 +69,7 @@ runContractSuite(
   "sqlite",
   () => {
     const db = openContentDb(":memory:");
-    seedDevCapabilityOrigin(db, { workspaceId: WORKSPACE_ID, origin: seedOrigin(), redirectAllowlist: ["Allowed.example"], egressAllowlist: ["api.example.com"] });
+    seedDevCapabilityOrigin({ db, seed: { workspaceId: WORKSPACE_ID, origin: seedOrigin(), redirectAllowlist: ["Allowed.example"], egressAllowlist: ["api.example.com"] } });
     return new SqliteOriginSettingRepo(db);
   },
   () => new SqliteOriginSettingRepo(openContentDb(":memory:"))
@@ -77,14 +77,14 @@ runContractSuite(
 
 test("[sqlite] seedDevCapabilityOrigin is idempotent — a second call never overwrites an existing row", async () => {
   const db = openContentDb(":memory:");
-  seedDevCapabilityOrigin(db, { workspaceId: WORKSPACE_ID, origin: seedOrigin() });
+  seedDevCapabilityOrigin({ db, seed: { workspaceId: WORKSPACE_ID, origin: seedOrigin() } });
 
   // A different candidate origin — must NOT clobber the first seed (protects a future real
   // verification flow's write from being silently overwritten by a re-run of this boot seed).
-  seedDevCapabilityOrigin(db, {
+  seedDevCapabilityOrigin({ db, seed: {
     workspaceId: WORKSPACE_ID,
     origin: createVerifiedOrigin({ scheme: "http", host: "some-other-host", verifiedAt: "2099-01-01T00:00:00.000Z", source: "dev-capability" }),
-  });
+  } });
 
   const repo = new SqliteOriginSettingRepo(db);
   const found = await repo.findByWorkspaceId(WORKSPACE_ID);
@@ -96,7 +96,7 @@ test("ADR-046 Phase 1: SqliteOriginSettingRepo persists across a simulated proce
   const dbPath = join(dir, "content.db");
   try {
     const db1 = openContentDb(dbPath);
-    seedDevCapabilityOrigin(db1, { workspaceId: WORKSPACE_ID, origin: seedOrigin(), egressAllowlist: ["api.example.com"] });
+    seedDevCapabilityOrigin({ db: db1, seed: { workspaceId: WORKSPACE_ID, origin: seedOrigin(), egressAllowlist: ["api.example.com"] } });
 
     // "Restart": a brand-new content.db handle + a brand-new repo instance against the SAME
     // on-disk file — the in-memory adapter this replaces would have re-seeded from scratch

@@ -40,6 +40,14 @@ export const posts = sqliteTable(
      * derivation rules with zero special-casing).
      */
     seoExtJson: text("seo_ext_json"),
+    /**
+     * SPEC-005 (ADR-005-ARCH) — the plugin extension-field bag (`{ [pluginId]: { ...fields } }`),
+     * written ONLY by the `content.entry.beforeSave` hook-merge step immediately before the one
+     * `repo.save()` call in `createPost`/`updatePost` (BR-06, same transaction as every other
+     * `PostRecord` field). Additive, `NOT NULL DEFAULT '{}'`: every pre-existing row is correctly
+     * served as "no plugin has written anything" with zero backfill (Migration Safety).
+     */
+    ext: text("ext").notNull().default("{}"),
   },
   (table) => [
     uniqueIndex("posts_workspace_slug_unique").on(table.workspaceId, table.slug),
@@ -52,6 +60,24 @@ export const presentationSettings = sqliteTable("presentation_settings", {
   activeThemeId: text("active_theme_id").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+/**
+ * SPEC-005 (ADR-005-ARCH) — the "active pointer" (ADR-004) recording which installed version of a
+ * plugin is enabled per workspace. Mirrors `presentation_settings`'s shape: runtime-mutable state
+ * lives in `content.db` behind the gateway, never in the install dir or `config.json`. One row per
+ * `(workspace_id, plugin_id)`; `PluginActivationRepoPort.save()` upserts on that pair.
+ */
+export const pluginActivations = sqliteTable(
+  "plugin_activations",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    pluginId: text("plugin_id").notNull(),
+    version: text("version").notNull(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [uniqueIndex("pk_plugin_activations").on(table.workspaceId, table.pluginId)]
+);
 
 /**
  * Settings (SPEC-007, core-only subset of ADR-028 §2). Schemas-as-data
@@ -787,6 +813,15 @@ export const contentTypeRevisions = sqliteTable(
     op: text("op").notNull(),
     stateJson: text("state_json").notNull(),
     actorId: text("actor_id").notNull(),
+    /**
+     * Audit provenance: the actor CLASS behind `actor_id` — `'user'` (a human admin HTTP request),
+     * `'agent'` (a write made through the assistant's tool surface), `'api_key'`, or `'system'`.
+     * `actor_id` alone cannot answer "human or assistant?": the assistant runs under the very same
+     * human principal id, stamped into the run's `contextRef` by `server/modules/assistant.ts`.
+     * Nullable and un-backfilled on purpose — rows written before this column existed honestly
+     * read as "not recorded" rather than being assigned a fabricated default (Migration Safety).
+     */
+    principalKind: text("principal_kind"),
     delegatedByWorkspaceId: text("delegated_by_workspace_id"),
     delegatedById: text("delegated_by_id"),
     recordedAt: text("recorded_at").notNull(),
@@ -1123,6 +1158,42 @@ export const widgetRegionBindings = sqliteTable(
   (table) => [
     uniqueIndex("widget_region_bindings_workspace_region_unique").on(table.workspaceId, table.regionKey),
     index("idx_widget_region_bindings_area").on(table.workspaceId, table.areaEntryId),
+  ]
+);
+
+/**
+ * Durable per-phase history of every agent tool-execution ATTEMPT, including the ones that never
+ * reach a handler.
+ *
+ * Distinct from `content_type_revisions` and deliberately not a replacement for it: a revision is
+ * the authoritative record of a successful mutation and stays that way. This table records the
+ * surrounding execution history — requested / denied / completed / failed — which `@jini-ai/daemon`'s
+ * `ToolExecutor` keeps only in an in-process `Map`, and which it does not record at all for an
+ * unknown tool or a throwing authorization (it mints its `executionId` and its first audit row only
+ * *after* authorization resolves). A denied or misrouted call therefore left no trace of any kind
+ * before this table existed.
+ *
+ * `executionId` is nullable precisely for that case: it holds Jini's id when there is one, and NULL
+ * when the attempt failed before Jini minted one. `attemptId` is Tovu's own correlation id and is
+ * always present, so every row belongs to an identifiable attempt either way.
+ */
+export const agentToolAttempts = sqliteTable(
+  "agent_tool_attempts",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    attemptId: text("attempt_id").notNull(),
+    executionId: text("execution_id"),
+    workspaceId: text("workspace_id").notNull(),
+    runId: text("run_id").notNull(),
+    toolId: text("tool_id").notNull(),
+    principalId: text("principal_id").notNull(),
+    phase: text("phase").notNull(),
+    at: text("at").notNull(),
+    detail: text("detail"),
+  },
+  (table) => [
+    index("idx_agent_tool_attempts_workspace_list").on(table.workspaceId, table.id),
+    index("idx_agent_tool_attempts_attempt").on(table.workspaceId, table.attemptId),
   ]
 );
 

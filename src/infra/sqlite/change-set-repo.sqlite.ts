@@ -23,7 +23,7 @@ import type {
  *
  * Transaction-participation scope (disclosed, deliberate): `insert()` writes the change-set header,
  * its items, AND (BR-04 resolution, 2026-07-16 swarm debate — full record:
- * `ADS-project-knowledge/reports/swarm-consensus/runs/20260716T-br04-outbox-seam-consensus-report.md`)
+ * `ADS-memory/reports/swarm-consensus/runs/20260716T-br04-outbox-seam-consensus-report.md`)
  * its optional outbox event, as ONE atomic SQLite transaction — none of the three rows can ever
  * partially land. This does NOT extend to wrapping the *domain* mutation's own write in the same
  * transaction as this repo's insert — `core/commands/command.ts`'s `executeCommand()` keeps its

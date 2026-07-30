@@ -24,7 +24,7 @@ function tempDb(): { db: Database.Database; dbPath: string; dir: string } {
 
 test("store: activation declares p_store__products (via the never-brick seam) and seeds it", async () => {
   const { db, dbPath, dir } = tempDb();
-  const store = await activateStore(db, dbPath);
+  const store = await activateStore({ db, dbPath });
 
   const tableExists = !!db
     .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='p_store__products'`)
@@ -51,8 +51,8 @@ test("store: activation declares p_store__products (via the never-brick seam) an
 
 test("store: activation is idempotent — a second boot does not double-seed", async () => {
   const { db, dbPath, dir } = tempDb();
-  await activateStore(db, dbPath);
-  const store2 = await activateStore(db, dbPath); // simulate a restart
+  await activateStore({ db, dbPath });
+  const store2 = await activateStore({ db, dbPath }); // simulate a restart
   assert.equal(store2.listProducts().length, SEED_PRODUCTS.length, "still one set of products");
 
   db.close();
@@ -61,7 +61,7 @@ test("store: activation is idempotent — a second boot does not double-seed", a
 
 test("store: checkout decrements stock (OCC) and records an order", async () => {
   const { db, dbPath, dir } = tempDb();
-  const store = await activateStore(db, dbPath);
+  const store = await activateStore({ db, dbPath });
 
   const before = store.listProducts().find((p) => p.id === "prod-candle")!;
   const result = store.checkout("prod-candle", 2);
@@ -86,7 +86,7 @@ test("store: checkout decrements stock (OCC) and records an order", async () => 
 
 test("store: checkout refuses out-of-stock and unknown products (no order, no decrement)", async () => {
   const { db, dbPath, dir } = tempDb();
-  const store = await activateStore(db, dbPath);
+  const store = await activateStore({ db, dbPath });
 
   const tooMany = store.checkout("prod-candle", 999);
   assert.deepEqual(tooMany, { ok: false, reason: "out-of-stock", retries: 0 });

@@ -67,6 +67,7 @@ export function registerAdminContentTypeLifecycleRoute(app: Express, deps: Conte
         {
           workspaceId: deps.workspaceId,
           actorId: principal.id,
+          principalKind: principal.kind,
           key: String(req.params.key),
           expectedVersion: body.expectedVersion,
         }

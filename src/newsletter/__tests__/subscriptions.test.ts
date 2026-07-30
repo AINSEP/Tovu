@@ -4,10 +4,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { importSubscriptions, saveSubscription, type SubscriptionsDeps } from "../subscriptions";
-import { NewsletterSubscriberNotFoundError, NewsletterValidationError } from "../errors";
-import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory";
-import type { SubscriberContact, SubscriberDirectoryPort } from "../ports";
+import { importSubscriptions, saveSubscription, unsubscribeSubscription, type SubscriptionsDeps, type UnsubscribeSubscriptionDeps } from "../subscriptions";
+import {
+  NewsletterListNotFoundError,
+  NewsletterSubscriberNotFoundError,
+  NewsletterSubscriptionNotFoundError,
+  NewsletterValidationError,
+} from "../errors";
+import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory";
+import type { MembersConsentCapability, SubscriberContact, SubscriberDirectoryPort } from "../ports";
 import type { ConfirmationDeps } from "../confirmation";
 
 const WS = "ws-1";
@@ -47,7 +52,10 @@ function makeDeps(): SubscriptionsDeps {
   };
   const subscriptionRepo = new InMemoryNewsletterSubscriptionRepo();
   confirmationDeps.subscriptionRepo = subscriptionRepo;
-  return { subscriptionRepo, subscriberDirectory, confirmationDeps, clock, ids };
+  const listRepo = new InMemoryNewsletterListRepo([
+    { id: "list-1", workspaceId: WS, name: "Fixture list", slug: "fixture-list", isDefault: false, status: "active", createdAt: NOW, updatedAt: NOW },
+  ]);
+  return { subscriptionRepo, listRepo, subscriberDirectory, confirmationDeps, clock, ids };
 }
 
 test("saveSubscription: resolves subscriberId via SubscriberDirectoryPort, creates a 'pending' subscription (AC-12)", async () => {
@@ -62,6 +70,25 @@ test("saveSubscription: unknown subscriberId rejected with NEWSLETTER_SUBSCRIBER
   await assert.rejects(
     saveSubscription({ deps, input: { workspaceId: WS, listId: "list-1", subscriberId: "unknown", source: "admin" } }),
     NewsletterSubscriberNotFoundError
+  );
+});
+
+test("saveSubscription: unknown listId rejected with NEWSLETTER_LIST_NOT_FOUND (api.spec.md CREATE_SUBSCRIPTION 404)", async () => {
+  const deps = makeDeps();
+  await assert.rejects(
+    saveSubscription({ deps, input: { workspaceId: WS, listId: "does-not-exist", subscriberId: "subscriber-1", source: "admin" } }),
+    NewsletterListNotFoundError
+  );
+});
+
+test("importSubscriptions: an unknown listId rejects the WHOLE batch up front (404), not a per-row 207 failure", async () => {
+  const deps = makeDeps();
+  await assert.rejects(
+    importSubscriptions({
+      deps,
+      input: { workspaceId: WS, listId: "does-not-exist", subscribers: [{ subscriberId: "subscriber-1", source: "import" }] },
+    }),
+    NewsletterListNotFoundError
   );
 });
 
@@ -107,4 +134,85 @@ test("importSubscriptions: batch of 500 accepted, 501 rejected before any row is
 test("importSubscriptions: an empty batch is rejected", async () => {
   const deps = makeDeps();
   await assert.rejects(importSubscriptions({ deps, input: { workspaceId: WS, listId: "list-1", subscribers: [] } }), NewsletterValidationError);
+});
+
+function makeUnsubscribeDeps(consentCapability: MembersConsentCapability | null = null): { deps: UnsubscribeSubscriptionDeps; subscriptionRepo: InMemoryNewsletterSubscriptionRepo } {
+  const subscriptionRepo = new InMemoryNewsletterSubscriptionRepo();
+  return { deps: { subscriptionRepo, consentCapability, clock }, subscriptionRepo };
+}
+
+test("unsubscribeSubscription (REMOVE_SUBSCRIPTION): flips a subscribed row to 'unsubscribed', stamping unsubscribedAt", async () => {
+  const { deps, subscriptionRepo } = makeUnsubscribeDeps();
+  await subscriptionRepo.save({
+    id: "sub-1",
+    workspaceId: WS,
+    listId: "list-1",
+    subscriberId: "subscriber-1",
+    status: "subscribed",
+    source: "admin",
+    consentRevisionIdAtSubscribe: "rev-1",
+    subscribedAt: NOW,
+    unsubscribedAt: null,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+
+  const { subscription } = await unsubscribeSubscription({ deps, input: { workspaceId: WS, id: "sub-1" } });
+  assert.equal(subscription.status, "unsubscribed");
+  assert.equal(subscription.unsubscribedAt, NOW);
+});
+
+test("unsubscribeSubscription: an unknown subscription id is rejected with NEWSLETTER_SUBSCRIPTION_NOT_FOUND", async () => {
+  const { deps } = makeUnsubscribeDeps();
+  await assert.rejects(unsubscribeSubscription({ deps, input: { workspaceId: WS, id: "does-not-exist" } }), NewsletterSubscriptionNotFoundError);
+});
+
+test("unsubscribeSubscription: idempotent on a repeat call against an already-unsubscribed row (no error, no double-stamp)", async () => {
+  const { deps, subscriptionRepo } = makeUnsubscribeDeps();
+  await subscriptionRepo.save({
+    id: "sub-1",
+    workspaceId: WS,
+    listId: "list-1",
+    subscriberId: "subscriber-1",
+    status: "unsubscribed",
+    source: "admin",
+    consentRevisionIdAtSubscribe: "rev-1",
+    subscribedAt: NOW,
+    unsubscribedAt: "2026-07-14T00:00:00.000Z",
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+
+  const { subscription } = await unsubscribeSubscription({ deps, input: { workspaceId: WS, id: "sub-1" } });
+  assert.equal(subscription.status, "unsubscribed");
+  assert.equal(subscription.unsubscribedAt, "2026-07-14T00:00:00.000Z", "an already-unsubscribed row's timestamp is left untouched, not re-stamped");
+});
+
+test("unsubscribeSubscription: calls MembersConsentCapability.revoke() when a real binding is present", async () => {
+  let revokedFor: string | null = null;
+  const consentCapability: MembersConsentCapability = {
+    request: async () => ({ requested: true as const }),
+    confirm: async () => ({ status: "granted" as const, consentRevisionId: "rev-2" }),
+    revoke: async ({ subscriberId }) => {
+      revokedFor = subscriberId;
+      return { status: "revoked" as const };
+    },
+  };
+  const { deps, subscriptionRepo } = makeUnsubscribeDeps(consentCapability);
+  await subscriptionRepo.save({
+    id: "sub-1",
+    workspaceId: WS,
+    listId: "list-1",
+    subscriberId: "subscriber-1",
+    status: "subscribed",
+    source: "admin",
+    consentRevisionIdAtSubscribe: "rev-1",
+    subscribedAt: NOW,
+    unsubscribedAt: null,
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+
+  await unsubscribeSubscription({ deps, input: { workspaceId: WS, id: "sub-1" } });
+  assert.equal(revokedFor, "subscriber-1");
 });

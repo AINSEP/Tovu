@@ -41,9 +41,11 @@ test("an incomplete journal entry (simulated crash mid-DDL) is restored from its
 
   // Simulate exactly what declareDataModule does up through DDL_IN_PROGRESS, then "crash" —
   // no COMMITTED/ROLLED_BACK ever gets written.
-  const snapshotPath = await snapshotDb(db, dbPath, "crashed-plugin");
+  const snapshotPath = await snapshotDb({ db, dbPath, label: "crashed-plugin" });
   ensureMigrationJournal(db);
-  beginJournalEntry(db, "crashed-plugin", snapshotPath);
+  // Non-null: `dbPath` here is a real tmpdir file, never `:memory:` — snapshotDb only returns null
+  // for SQLite's in-memory/temp identifiers (see snapshot.ts).
+  beginJournalEntry({ db, pluginId: "crashed-plugin", snapshotPath: snapshotPath! });
   // Now actually diverge the live db from the snapshot, exactly as a mid-DDL crash would leave it.
   db.prepare(`CREATE TABLE "p_crashed_plugin__half_created" (id TEXT PRIMARY KEY)`).run();
   db.close();
@@ -74,9 +76,9 @@ test("recovery clears the WAL/SHM sidecars left by the crashed attempt (T8)", as
   const { dir, dbPath } = makeDbWithCoreContent();
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
-  const snapshotPath = await snapshotDb(db, dbPath, "crashed-plugin");
+  const snapshotPath = await snapshotDb({ db, dbPath, label: "crashed-plugin" });
   ensureMigrationJournal(db);
-  beginJournalEntry(db, "crashed-plugin", snapshotPath);
+  beginJournalEntry({ db, pluginId: "crashed-plugin", snapshotPath: snapshotPath! }); // real tmpdir file — never null, see above
   db.prepare(`CREATE TABLE "p_crashed_plugin__x" (id TEXT PRIMARY KEY)`).run();
   // Check WAL existence WHILE the connection is still open — a clean close() triggers its own
   // checkpoint, which is not representative of the crash this test simulates (an abrupt process
@@ -97,12 +99,12 @@ test("a COMMITTED entry is left alone — recovery is a no-op for a successful p
   const { dir, dbPath } = makeDbWithCoreContent();
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
-  const snapshotPath = await snapshotDb(db, dbPath, "done-plugin");
+  const snapshotPath = await snapshotDb({ db, dbPath, label: "done-plugin" });
   ensureMigrationJournal(db);
-  const id = beginJournalEntry(db, "done-plugin", snapshotPath);
+  const id = beginJournalEntry({ db, pluginId: "done-plugin", snapshotPath: snapshotPath! }); // real tmpdir file — never null
   db.prepare(`CREATE TABLE "p_done_plugin__real" (id TEXT PRIMARY KEY)`).run();
   const { advanceJournalPhase } = await import("../migration-journal");
-  advanceJournalPhase(db, id, "COMMITTED");
+  advanceJournalPhase({ db, id, phase: "COMMITTED" });
   db.close();
 
   const result = recoverIncompleteDataModuleMigrations(dbPath);

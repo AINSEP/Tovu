@@ -42,7 +42,11 @@ function checkpoint(db: Database.Database): void {
 }
 
 /** Opens a new journal entry at `PREPARED_SNAPSHOT` and returns its id. Checkpointed before returning. */
-export function beginJournalEntry(db: Database.Database, pluginId: string, snapshotPath: string): number {
+export function beginJournalEntry(
+  required: { db: Database.Database; pluginId: string; snapshotPath: string },
+  _optional: Record<string, never> = {}
+): number {
+  const { db, pluginId, snapshotPath } = required;
   const now = Date.now();
   const result = db
     .prepare(`INSERT INTO _plugin_migration_journal (plugin_id, phase, snapshot_path, started_at, updated_at) VALUES (?, 'PREPARED_SNAPSHOT', ?, ?, ?)`)
@@ -52,7 +56,11 @@ export function beginJournalEntry(db: Database.Database, pluginId: string, snaps
 }
 
 /** Advances a journal entry to `phase`, checkpointed before returning (durable before the next step runs). */
-export function advanceJournalPhase(db: Database.Database, id: number, phase: JournalPhase): void {
+export function advanceJournalPhase(
+  required: { db: Database.Database; id: number; phase: JournalPhase },
+  _optional: Record<string, never> = {}
+): void {
+  const { db, id, phase } = required;
   db.prepare(`UPDATE _plugin_migration_journal SET phase = ?, updated_at = ? WHERE id = ?`).run(phase, Date.now(), id);
   checkpoint(db);
 }

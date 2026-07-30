@@ -50,7 +50,11 @@ export function ensurePluginIdentityTable(db: Database.Database): void {
   ).run();
 }
 
-export function getPluginIdentity(db: Database.Database, pluginId: string): PluginIdentityRecord | null {
+export function getPluginIdentity(
+  required: { db: Database.Database; pluginId: string },
+  _optional: Record<string, never> = {}
+): PluginIdentityRecord | null {
+  const { db, pluginId } = required;
   const row = db.prepare(`SELECT plugin_id, source_url, publisher, signature, minted_at FROM _plugin_identity WHERE plugin_id = ?`).get(pluginId) as
     | { plugin_id: string; source_url: string; publisher: string; signature: string | null; minted_at: number }
     | undefined;
@@ -82,9 +86,13 @@ function provenanceEqual(a: PluginProvenance, b: PluginProvenance): boolean {
  * applies the two-track rule. Does NOT mutate the identity record on anything but first mint —
  * a provenance mismatch never silently overwrites the record on record (permanent retirement).
  */
-export function checkNamespaceAdoption(db: Database.Database, pluginId: string, provenance: PluginProvenance): NamespaceAdoptionDecision {
+export function checkNamespaceAdoption(
+  required: { db: Database.Database; pluginId: string; provenance: PluginProvenance },
+  _optional: Record<string, never> = {}
+): NamespaceAdoptionDecision {
+  const { db, pluginId, provenance } = required;
   ensurePluginIdentityTable(db);
-  const existing = getPluginIdentity(db, pluginId);
+  const existing = getPluginIdentity({ db, pluginId });
   if (!existing) {
     mintPluginIdentity(db, pluginId, provenance);
     return { allowed: true, track: "first-mint" };

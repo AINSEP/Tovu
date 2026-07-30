@@ -138,8 +138,11 @@ export function emptyWidgetAreaDoc(): WidgetAreaDoc {
   return { schemaVersion: 1, placements: [] };
 }
 
-export function areaDocWithPlacements(doc: WidgetAreaDoc, placements: readonly WidgetPlacementNode[]): WidgetAreaDoc {
-  return { schemaVersion: doc.schemaVersion, placements };
+export function areaDocWithPlacements(required: {
+  doc: WidgetAreaDoc;
+  placements: readonly WidgetPlacementNode[];
+}): WidgetAreaDoc {
+  return { schemaVersion: required.doc.schemaVersion, placements: required.placements };
 }
 
 /**
@@ -153,9 +156,18 @@ export function areaDocWithPlacements(doc: WidgetAreaDoc, placements: readonly W
  * per-field scalar columns.
  */
 export async function ensureWidgetContentTypesRegistered(
-  deps: { contentTypeRepo: ContentTypeRepoPort; clock: ClockPort; ids: { newId: () => string }; outbox: { enqueue(event: { name: string; payload: Record<string, unknown> }): Promise<void> } },
-  workspaceId: string
+  required: {
+    deps: {
+      contentTypeRepo: ContentTypeRepoPort;
+      clock: ClockPort;
+      ids: { newId: () => string };
+      outbox: { enqueue(event: { name: string; payload: Record<string, unknown> }): Promise<void> };
+    };
+    workspaceId: string;
+  },
+  _optional: Record<string, never> = {}
 ): Promise<void> {
+  const { deps, workspaceId } = required;
   await ensureOneContentTypeRegistered(deps, workspaceId, WIDGET_CONTENT_TYPE, "Widget");
   await ensureOneContentTypeRegistered(deps, workspaceId, WIDGET_AREA_CONTENT_TYPE, "Widget Area");
 }
@@ -180,6 +192,10 @@ async function ensureOneContentTypeRegistered(
     },
     input: {
       actorId: WIDGETS_SYSTEM_ACTOR_ID,
+      // Not a human and not the assistant — this is the widgets subsystem seeding its own two
+      // content types at boot (REQ-13). Recording it as such keeps the audit trail able to say
+      // "nobody did this, the system did".
+      principalKind: "system",
       workspaceId,
       key,
       label,
