@@ -1,5 +1,6 @@
 /**
- * @file Ambient declarations for `@jini-ai/core`, `@jini-ai/daemon`, and `@jini-ai/http`.
+ * @file Ambient declarations for `@jini-ai/core`, `@jini-ai/daemon`, `@jini-ai/http`, and
+ * `@jini-ai/sqlite`.
  *
  * WHY THIS EXISTS: same reason as the former `src/agent-chat/jini-agent-runtime.d.ts` (ADR-049
  * carries the pattern forward, this file replaces it). Tovu's root tsconfig uses
@@ -435,4 +436,26 @@ declare module "@jini-ai/http-kit" {
   export function registerToolCatalogRoutes(app: Express, deps: ToolCatalogHttpDeps, adapter: AdapterContext): void;
 
   export function guardSameOrigin(req: Request, origin: OriginContext): unknown;
+}
+
+declare module "@jini-ai/sqlite" {
+  import type Database from "better-sqlite3";
+
+  // --- db/tool-catalog/tool-catalog.ts ---
+  export interface ToolCatalogEntry {
+    readonly id: string;
+    readonly description: string;
+    readonly inputSchema?: unknown;
+    readonly source: string;
+  }
+  export interface ToolCatalogSearchHit {
+    readonly id: string;
+    readonly description: string;
+    readonly source: string;
+    readonly score: number;
+  }
+  export function ensureToolCatalogTables(db: Database.Database): void;
+  export function reseedToolCatalog(db: Database.Database, entries: readonly ToolCatalogEntry[], now?: number): void;
+  export function getToolCatalogEntry(db: Database.Database, id: string): ToolCatalogEntry | null;
+  export function searchToolCatalog(db: Database.Database, query: string, limit?: number): readonly ToolCatalogSearchHit[];
 }
