@@ -10,12 +10,12 @@
  * assistant rather than any one domain — which domains are wired at all, and the two cross-domain
  * invariants that only a file seeing all of them can check.
  *
- * Wired domains and their catalogs (19 domains, 126 catalog entries, 108 wired tools):
+ * Wired domains and their catalogs (20 domains, 130 catalog entries, 112 wired tools):
  *   content-types (5 of 7)   forms (3)         identity (10)      comments (7)
  *   members (4)              newsletter (14)   media (4)          widgets (12)
  *   menus (5)                database (4 of 9) recovery (5 of 7)  plugins (2)
  *   workspace (2 of 4)       settings (3 of 7) entries (5 of 5)   taxonomy (6 of 7)
- *   seo (6)                  redirects (6 of 7) integrations (5)
+ *   seo (6)                  redirects (6 of 7) integrations (5)  post (4 of 4)
  * Each domain's own file records which of its entries are deliberately unwired and why; the kit's
  * `buildDomainRegistrations` fails the build on any catalog entry that is neither.
  *
@@ -29,6 +29,7 @@ import { buildContentTypesRegistrations, contentTypesDerivedRisk } from "../feat
 import { buildDatabaseRegistrations, databaseDerivedRisk } from "../features/database/tool-registrations";
 import { buildEntriesRegistrations, entriesDerivedRisk } from "../features/entries/tool-registrations";
 import { buildPluginsRegistrations, pluginsDerivedRisk } from "../features/plugin-runtime/tool-registrations";
+import { buildPostRegistrations, postDerivedRisk } from "../features/post/tool-registrations";
 import { buildRecoveryRegistrations, recoveryDerivedRisk } from "../features/recovery/tool-registrations";
 import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/settings/tool-registrations";
 import { buildTaxonomyRegistrations, taxonomyDerivedRisk } from "../features/taxonomy/tool-registrations";
@@ -81,6 +82,7 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   { domain: "workspace", build: buildWorkspaceRegistrations, risk: workspaceDerivedRisk },
   { domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk },
   { domain: "entries", build: buildEntriesRegistrations, risk: entriesDerivedRisk },
+  { domain: "post", build: buildPostRegistrations, risk: postDerivedRisk },
   { domain: "taxonomy", build: buildTaxonomyRegistrations, risk: taxonomyDerivedRisk },
   { domain: "seo", build: buildSeoRegistrations, risk: seoDerivedRisk },
   { domain: "redirects", build: buildRedirectsRegistrations, risk: redirectsDerivedRisk },
