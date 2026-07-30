@@ -17,11 +17,14 @@ import type { SeoExtFields } from "./types";
  * wires the real function in.
  */
 
-const STRING_FIELD_MAX_LENGTH = 500;
-const URL_FIELD_MAX_LENGTH = 2048;
+// Exported (unchanged values) so `agent-tools.ts`'s published JSON Schema can reuse the exact
+// same bounds/vocabulary this chokepoint validates against, rather than restating them — the same
+// discipline `newsletter/agent-tools.ts` uses for `campaign-write-service.ts`'s `SUBJECT_MAX`/etc.
+export const STRING_FIELD_MAX_LENGTH = 500;
+export const URL_FIELD_MAX_LENGTH = 2048;
 
 /** Fields whose value is a plain string, length-bounded at 500 chars (behavior.spec.md §4). */
-const STRING_FIELDS: ReadonlyArray<keyof SeoExtFields> = [
+export const STRING_FIELDS: ReadonlyArray<keyof SeoExtFields> = [
   "title",
   "description",
   "schemaType",
@@ -32,15 +35,15 @@ const STRING_FIELDS: ReadonlyArray<keyof SeoExtFields> = [
 ];
 
 /** Fields whose value is a URL/media-ref, length-bounded at 2048 chars (behavior.spec.md §4). */
-const URL_FIELDS: ReadonlyArray<keyof SeoExtFields> = ["canonical", "ogImage", "twitterImage"];
+export const URL_FIELDS: ReadonlyArray<keyof SeoExtFields> = ["canonical", "ogImage", "twitterImage"];
 
-const BOOLEAN_FIELDS: ReadonlyArray<keyof SeoExtFields> = ["noindex", "nofollow"];
+export const BOOLEAN_FIELDS: ReadonlyArray<keyof SeoExtFields> = ["noindex", "nofollow"];
 
-const OG_TYPE_VALUES = ["website", "article", "profile"] as const;
-const TWITTER_CARD_VALUES = ["summary", "summary_large_image"] as const;
+export const OG_TYPE_VALUES = ["website", "article", "profile"] as const;
+export const TWITTER_CARD_VALUES = ["summary", "summary_large_image"] as const;
 
 /** Every registered `SeoExtFields` key — an unregistered patch key is rejected outright (INV-01). */
-const REGISTERED_KEYS: ReadonlySet<string> = new Set([
+export const REGISTERED_KEYS: ReadonlySet<string> = new Set([
   ...STRING_FIELDS,
   ...URL_FIELDS,
   ...BOOLEAN_FIELDS,
