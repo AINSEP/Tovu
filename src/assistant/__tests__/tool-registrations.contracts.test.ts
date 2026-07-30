@@ -3,9 +3,18 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
+import { commentsAgentToolCatalog } from "../../comments/agent-tools";
 import { contentTypesAgentToolCatalog, type AgentToolDefinition } from "../../features/content-types/agent-tools";
+import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools";
+import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools";
+import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools";
 import { formsAgentToolCatalog } from "../../forms/agent-tools";
 import { identityAgentToolCatalog } from "../../identity/agent-tools";
+import { mediaAgentToolCatalog } from "../../media/agent-tools";
+import { membersAgentToolCatalog } from "../../members/agent-tools";
+import { menusAgentToolCatalog } from "../../navigation/agent-tools";
+import { newsletterAgentToolCatalog } from "../../newsletter/agent-tools";
+import { widgetsAgentToolCatalog } from "../../widgets/agent-tools";
 import type { ContentTypeRecord } from "../../features/content-types/types";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
@@ -65,8 +74,27 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
 }
 
 /** Every catalog whose entries `buildAssistantToolRegistrations` wires. A newly wired domain must
- * be added here — an id missing from all of them fails rather than being skipped. */
-const WIRED_CATALOGS: AgentToolDefinition[] = [...contentTypesAgentToolCatalog, ...formsAgentToolCatalog, ...identityAgentToolCatalog];
+ * be added here — an id missing from all of them fails rather than being skipped. All 12 wired
+ * domains are listed; the generic contract/risk assertions below iterate EVERY wired registration,
+ * not just content-types', so each domain's catalog has to be resolvable from here even when that
+ * domain also has its own dedicated test file. The `as unknown as` casts cover the three catalogs
+ * whose own `AgentToolDefinition` is a structural sibling rather than the content-types one this
+ * array is typed as (identity requires `inputSchema`, database/recovery/plugins declare their own
+ * copies) — the shared structural supertype lives in `assistant/tool-registration-kit.ts`. */
+const WIRED_CATALOGS: AgentToolDefinition[] = [
+  ...contentTypesAgentToolCatalog,
+  ...formsAgentToolCatalog,
+  ...identityAgentToolCatalog,
+  ...commentsAgentToolCatalog,
+  ...membersAgentToolCatalog,
+  ...newsletterAgentToolCatalog,
+  ...mediaAgentToolCatalog,
+  ...widgetsAgentToolCatalog,
+  ...menusAgentToolCatalog,
+  ...(getDatabaseAgentToolCatalog() as unknown as AgentToolDefinition[]),
+  ...(recoveryAgentToolCatalog as unknown as AgentToolDefinition[]),
+  ...(pluginAgentToolCatalog as unknown as AgentToolDefinition[]),
+];
 
 function catalogEntry(toolId: string): AgentToolDefinition {
   const entry = WIRED_CATALOGS.find((tool) => tool.name === toolId);
