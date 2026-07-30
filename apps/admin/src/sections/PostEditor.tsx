@@ -5,6 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import { api, type AdminPost } from "../lib/api";
 import { WidgetEmbed, WidgetEmbedInsertControl } from "../lib/widget-embed-extension";
+import { siteUrl } from "../lib/site-url";
 
 /** Reads a browser `File` into a full `data:` URL (mirrors Media.tsx's upload helper, but keeps the prefix). */
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -186,7 +187,7 @@ export function PostEditor(props: { postId: string }) {
       <div className="editor-slug">
         /{" "}
         <input value={slug} onChange={(e) => setSlug(e.target.value)} />
-        <a href={`/${post.slug}`} target="_blank" rel="noreferrer">
+        <a href={siteUrl(`/${post.slug}`)} target="_blank" rel="noreferrer">
           view ↗
         </a>
       </div>

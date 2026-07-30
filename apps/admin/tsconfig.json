@@ -9,6 +9,7 @@
     "skipLibCheck": true,
     "noEmit": true,
     "isolatedModules": true,
+    "types": ["vite/client"],
     "paths": {
       "@tovu/admin-shell": ["../../src/admin-shell/index.ts"],
       "@tovu/headless": ["../../src/headless/index.ts"]

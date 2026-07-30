@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type AdminPost } from "../lib/api";
+import { siteUrl } from "../lib/site-url";
 
 /**
  * Pages admin screen — same shape as `Posts.tsx`, backed by the pages-filtered
@@ -59,7 +60,7 @@ export function Pages() {
                 <a href={`#/posts/${page.id}`}>{page.title}</a>
               </td>
               <td>
-                <a href={`/${page.slug}`} target="_blank" rel="noreferrer">
+                <a href={siteUrl(`/${page.slug}`)} target="_blank" rel="noreferrer">
                   /{page.slug}
                 </a>
               </td>

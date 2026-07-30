@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { siteUrl } from "../lib/site-url";
 
 export function Dashboard() {
   const [postCount, setPostCount] = useState<number | null>(null);
@@ -35,7 +36,7 @@ export function Dashboard() {
         <div className="dash-card">
           <h3>Site</h3>
           <p>
-            Your public site is live. <a href="/" target="_blank" rel="noreferrer">Open site ↗</a>
+            Your public site is live. <a href={siteUrl("/")} target="_blank" rel="noreferrer">Open site ↗</a>
           </p>
         </div>
       </div>

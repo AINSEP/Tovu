@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type AdminPost } from "../lib/api";
+import { siteUrl } from "../lib/site-url";
 
 export function Posts() {
   const [posts, setPosts] = useState<AdminPost[] | null>(null);
@@ -53,7 +54,7 @@ export function Posts() {
                 <a href={`#/posts/${post.id}`}>{post.title}</a>
               </td>
               <td>
-                <a href={`/${post.slug}`} target="_blank" rel="noreferrer">
+                <a href={siteUrl(`/${post.slug}`)} target="_blank" rel="noreferrer">
                   /{post.slug}
                 </a>
               </td>
