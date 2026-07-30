@@ -15,7 +15,7 @@ Any code path that generates SQL DDL from operator-supplied metadata MUST handle
 
 A fixed lookup table cannot express mechanism 2 by construction (field names are an unbounded set) — do not attempt to force free-text identifiers through the lookup-table mechanism; use the grammar-gate mechanism for them instead.
 
-Identity encoding for anything built by joining two or more grammar-gated identifiers (e.g. an index name derived from a content-type key plus a field name) MUST use a delimiter character outside the grammar's own alphabet (e.g. `/`, never `_`) — otherwise two distinct `(key, name)` pairs can encode to the same joined string, which is a namespace-injectivity defect independent of DDL-injection (same defect class as `ADS-project-knowledge/reports/architecture/ADR-026-*.md`'s atomic-write namespace-injectivity finding).
+Identity encoding for anything built by joining two or more grammar-gated identifiers (e.g. an index name derived from a content-type key plus a field name) MUST use a delimiter character outside the grammar's own alphabet (e.g. `/`, never `_`) — otherwise two distinct `(key, name)` pairs can encode to the same joined string, which is a namespace-injectivity defect independent of DDL-injection (same defect class as `ADS-memory/reports/architecture/ADR-026-*.md`'s atomic-write namespace-injectivity finding).
 
 ## Why
 

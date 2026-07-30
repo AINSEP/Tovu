@@ -1,0 +1,131 @@
+{
+  "auditor_scope_check": [
+    "I audited the Tovu v1 speckit specification suite for SPEC-001 through SPEC-005 as design/specification artifacts, not implementation code.",
+    "Scope used: cross-spec coherence, testability, failure modes, traceability integrity, and structural gaps under frozen threat model TM-SPEC-001.",
+    "Files read directly from disk: all 42 requested files under ADS-project-knowledge/specs/001-admin-command-gateway through 005-plugin-system, including feature, behavior, api, state, errors, traceability, spec-dod, spec-manifest, and ui where present.",
+    "Mismatch/uncertainty: the packet says output should begin with a scope check but also requires exactly one JSON object matching a schema that lacks that field; I included the scope check as the first JSON field to satisfy both as closely as possible."
+  ],
+  "auditor": "codex",
+  "resolved_model": "gpt-5-codex",
+  "packet_id": "TOVU-SPEC-AUDIT-20260707T043122Z",
+  "threat_model_accepted": true,
+  "rejection_reason": "",
+  "score": 7.8,
+  "score_rationale": "The suite is broadly coherent and unusually test-oriented, but several blocking gaps remain around undo semantics for plugin ext writes, schema-stamp consistency, error namespace uniqueness, and atomic mutation/change-set persistence.",
+  "blocking_gate": "FAIL",
+  "findings": [
+    {
+      "id": "F1",
+      "title": "Plugin ext writes are not reconciled with command-gateway inverse/revert semantics",
+      "domain": "D4",
+      "blocking": true,
+      "spec": "005-plugin-system / 001-admin-command-gateway / 002-content-entry-authoring",
+      "files": [
+        "ADS-project-knowledge/specs/005-plugin-system/feature.spec.md",
+        "ADS-project-knowledge/specs/005-plugin-system/state.spec.md",
+        "ADS-project-knowledge/specs/005-plugin-system/behavior.spec.md",
+        "ADS-project-knowledge/specs/001-admin-command-gateway/feature.spec.md",
+        "ADS-project-knowledge/specs/002-content-entry-authoring/state.spec.md"
+      ],
+      "checked": "Checked SPEC-005 REQ-05/REQ-06/AC-01/BR-04/BR-06, SPEC-001 AC-02/AC-10, and SPEC-002 update/change-set expectations.",
+      "expected": "Any content save that persists plugin ext data should state whether ext is part of the inversePayload and what revert restores, or explicitly mark those saves non-revertible.",
+      "observed": "SPEC-005 says beforeSave filters write posts.ext inside the same entry save and AC-01 requires a change set for that save, but no requirement or AC says the change-set inverse captures/restores ext. SPEC-001's post inverse AC only names title, slug, bodyJson, and status.",
+      "why_it_matters": "An implementer can build a system where a save records ext.word-count.count, but reverting the save restores core content while leaving plugin-derived ext from the reverted state. That breaks the audit/undo promise and can corrupt plugin-visible content state.",
+      "recommended_fix": "Extend the content-entry inverse payload contract after SPEC-005 to include pre-edit ext, add an AC for reverting a save that changed ext, and specify behavior when the responsible plugin is disabled, removed, invalid, or its field declaration has changed at revert time.",
+      "confidence": "high"
+    },
+    {
+      "id": "F2",
+      "title": "Install-dir schema stamp rules contradict each other on schemaTag writes",
+      "domain": "D1",
+      "blocking": true,
+      "spec": "003-site-install-dir",
+      "files": [
+        "ADS-project-knowledge/specs/003-site-install-dir/feature.spec.md",
+        "ADS-project-knowledge/specs/003-site-install-dir/state.spec.md",
+        "ADS-project-knowledge/specs/003-site-install-dir/behavior.spec.md",
+        "ADS-project-knowledge/specs/003-site-install-dir/traceability.spec.md"
+      ],
+      "checked": "Checked REQ-05, AC-07, INV-04, state action catalog, behavior BR-05/BR-06, and traceability invariant rows.",
+      "expected": "The spec should consistently state which .site-meta.json fields serve may update after forward migration.",
+      "observed": "REQ-05 says both schemaVersion and schemaTag are set to the runtime's values before listening. INV-04 and traceability say serve writes only content.db plus the schemaVersion field of .site-meta.json. BR-05/BR-06 also emphasize only a schemaVersion bump while describing the target as bundled-migration identity.",
+      "why_it_matters": "Implementers can satisfy one section by updating only schemaVersion while leaving a stale schemaTag. That defeats the divergent-lineage guard the same spec treats as load-bearing.",
+      "recommended_fix": "Change the writable-file invariant and behavior/traceability text to say serve may update schemaVersion and schemaTag atomically after migrate() completes, or revise REQ-05 if schemaTag is not meant to be mutated.",
+      "confidence": "high"
+    },
+    {
+      "id": "F3",
+      "title": "Suite-wide validation error codes are defined multiple times without an explicit namespace",
+      "domain": "D3",
+      "blocking": true,
+      "spec": "004-declarative-theme-system / 005-plugin-system",
+      "files": [
+        "ADS-project-knowledge/specs/004-declarative-theme-system/errors.spec.md",
+        "ADS-project-knowledge/specs/005-plugin-system/errors.spec.md",
+        "ADS-project-knowledge/specs/004-declarative-theme-system/traceability.spec.md",
+        "ADS-project-knowledge/specs/005-plugin-system/traceability.spec.md"
+      ],
+      "checked": "Checked both errors registries and traceability rows for validation vocabulary codes.",
+      "expected": "Every referenced error/validation code should resolve to exactly one definition, or the specs should formally namespace detail codes by envelope.",
+      "observed": "Codes such as MANIFEST_MISSING, MANIFEST_MALFORMED, ID_FOLDER_MISMATCH, ID_DUPLICATE, SHADOWS_BUILT_IN, ENGINE_UNSUPPORTED, PACKAGE_TOO_LARGE, and FILE_NOT_ALLOWED are independently defined for themes and plugins with different triggers and owners.",
+      "why_it_matters": "The packet's invariant requires every referenced error code to resolve exactly once. As written, suite-level tooling, generated enums, traceability checks, and support docs can map the same code to two different meanings.",
+      "recommended_fix": "Either prefix/detail-namespace these codes, for example THEME_MANIFEST_MISSING and PLUGIN_MANIFEST_MISSING, or explicitly define validation detail codes as scoped by parent code/path, e.g. THEME_INVALID.details.errors[].code versus PLUGIN_INVALID.details.errors[].code, and update traceability to check scoped IDs.",
+      "confidence": "high"
+    },
+    {
+      "id": "F4",
+      "title": "Gateway mutation atomicity is asserted but the failure mode for change-set persistence failure is unspecified",
+      "domain": "D4",
+      "blocking": true,
+      "spec": "001-admin-command-gateway",
+      "files": [
+        "ADS-project-knowledge/specs/001-admin-command-gateway/feature.spec.md",
+        "ADS-project-knowledge/specs/001-admin-command-gateway/state.spec.md",
+        "ADS-project-knowledge/specs/001-admin-command-gateway/behavior.spec.md"
+      ],
+      "checked": "Checked REQ-01, REQ-11, INV-01, state action catalog, and BR-04.",
+      "expected": "The command gateway should specify the transactional boundary or recovery behavior if the wrapped mutation succeeds but change-set header/item persistence fails.",
+      "observed": "The spec requires mutation then change-set record and asserts no mutation without a record, but failure handling only covers duplicate keys and wrapped feature errors. BR-04 says header/item persist in one logical step and event enqueue failure is best-effort, but does not state rollback/recovery for record persistence failure after entity mutation.",
+      "why_it_matters": "A SQL adapter or memory adapter error at the wrong point can produce exactly the unrecoverable state the gateway exists to prevent: entity mutated, no audit row, no inverse, and no deterministic recovery instruction.",
+      "recommended_fix": "State that the entity mutation, change-set header, and change-set item commit in one transaction/unit-of-work; add an edge case and AC with injected change-set persistence failure proving no entity mutation remains, or define a compensating recovery record protocol.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F5",
+      "title": "Plugin hook failure uses HTTP 500 for deterministic extension validation failures",
+      "domain": "advisory",
+      "blocking": false,
+      "spec": "005-plugin-system",
+      "files": [
+        "ADS-project-knowledge/specs/005-plugin-system/errors.spec.md",
+        "ADS-project-knowledge/specs/005-plugin-system/api.spec.md",
+        "ADS-project-knowledge/specs/005-plugin-system/behavior.spec.md"
+      ],
+      "checked": "Checked PLUGIN_HOOK_FAILED status mapping, BR-07, AC-05, and AC-06.",
+      "expected": "Runtime throws can reasonably be 500, but deterministic plugin contract violations could be distinguished for operator actionability.",
+      "observed": "CAPABILITY_DENIED, invalid ext writes, and thrown plugin code all collapse to PLUGIN_HOOK_FAILED 500 on ENTRY_CREATE/ENTRY_UPDATE.",
+      "why_it_matters": "This is not unbuildable, but it weakens operability: a bad field path/type or denied capability is actionable plugin invalidity, not an infrastructure/server failure.",
+      "recommended_fix": "Consider separating PLUGIN_CONTRACT_VIOLATION or PLUGIN_WRITE_INVALID from unexpected hook exceptions, while preserving fail-closed and no partial write semantics.",
+      "confidence": "medium"
+    }
+  ],
+  "structural_gaps_owner_missed": [
+    "A suite-level transaction/unit-of-work model is missing: gateway, content writes, plugin ext writes, outbox enqueue, and Drizzle migrations all rely on atomicity assumptions but no shared transactional contract is named.",
+    "A cross-spec namespace policy is missing for endpoint IDs, behavior IDs, validation detail codes, and public enum generation.",
+    "Concurrency semantics are mostly single-process/event-loop oriented; the specs do not yet establish how SQLite unique conflicts, multi-process serves, or future desktop-host concurrency are handled across content, idempotency keys, slug derivation, and plugin activation.",
+    "Upgrade/compatibility governance is split between Drizzle journals, .site-meta.json schema stamps, theme engine, plugin engine, sdkRange, and package hashes, but there is no single matrix defining which compatibility break blocks boot, blocks activation, or only warns.",
+    "Operational recovery is under-specified beyond individual edge cases: backup/restore, safe mode, disabling bad extensions at boot, and structured logs/diagnostics that let an operator recover a broken local site."
+  ],
+  "out_of_scope_fatal_warnings": [
+    "Auth/authorization remains explicitly deferred under the local-dev exception. That is acceptable under this packet's blocking scope but would be fatal before any non-local deployment surface.",
+    "SPEC-005 explicitly defers real plugin sandboxing while executing in-process ESM. The spec is honest about this, so it is not blocking under TM-SPEC-001, but it is a major security boundary to resolve before third-party plugin distribution."
+  ],
+  "path_to_10": [
+    "Resolve F1 by defining and testing ext-inclusive inverse/revert semantics for plugin-modified content saves.",
+    "Resolve F2 by making schemaVersion/schemaTag mutation rules consistent across SPEC-003 feature, behavior, state, and traceability files.",
+    "Resolve F3 by introducing a formal suite-wide ID namespace policy or scoped validation-code model.",
+    "Resolve F4 by specifying gateway transaction boundaries and adding injected-failure ACs for change-set persistence failure.",
+    "Add a compatibility matrix covering Drizzle schemaVersion/schemaTag, theme engine, plugin engine, sdkRange, and package content hashes.",
+    "Add a short suite-wide glossary for shared terms: entry, post, page, plugin artifact, theme package, active pointer, validation code, and change-set item."
+  ]
+}

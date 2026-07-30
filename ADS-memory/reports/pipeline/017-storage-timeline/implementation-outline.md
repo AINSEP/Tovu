@@ -28,7 +28,7 @@
 | `infra/sqlite/storage-journal-db` | This ADR | Sidecar DB bootstrap (`ops/storage-journal.db`) | Drizzle handle export | none | Mirrors `content-db.ts`'s existing pattern |
 | `infra/sqlite/db-ops` | This ADR | SQLite `DbOpsPort` implementation | implements C-007 (SPEC-016) | `storage-journal-db` | Postgres adapter deferred |
 | `core/gated-mutations` (existing, unchanged) | ADR-PIPE-016 | Generic gateway/watermark/actor-identity | C-001–C-008 | — | Imported, never modified |
-| `ADS-project-knowledge/specs/003-site-install-dir` (pre-existing, external) | Legacy v1 spec suite | `SERVE_SITE`/status-lifecycle definitions | — | — | Requires a follow-up amendment (REQ-28–REQ-30), tracked as a task, not performed here |
+| `ADS-memory/specs/003-site-install-dir` (pre-existing, external) | Legacy v1 spec suite | `SERVE_SITE`/status-lifecycle definitions | — | — | Requires a follow-up amendment (REQ-28–REQ-30), tracked as a task, not performed here |
 
 ## File Map
 
@@ -105,7 +105,7 @@
 
 | Source Behavior / Contract | Target Module / Contract | Preserve / Change | Characterization Evidence | Migration Safety Note |
 |---|---|---|---|---|
-| `ADS-project-knowledge/specs/003-site-install-dir`'s `SERVE_SITE` row (spec only — no running code) | This domain's REQ-28-REQ-30 cost-gated boot policy | Change — the spec-level behavior description is superseded by the cost-gated version; no running code exists to preserve compatibility with | Confirmed via direct grep: no `SERVE_SITE`/`serveSite` implementation exists in `src/` | The mechanical edit to that pre-existing spec file is a tracked follow-up task, not performed by this outline or its ADR |
+| `ADS-memory/specs/003-site-install-dir`'s `SERVE_SITE` row (spec only — no running code) | This domain's REQ-28-REQ-30 cost-gated boot policy | Change — the spec-level behavior description is superseded by the cost-gated version; no running code exists to preserve compatibility with | Confirmed via direct grep: no `SERVE_SITE`/`serveSite` implementation exists in `src/` | The mechanical edit to that pre-existing spec file is a tracked follow-up task, not performed by this outline or its ADR |
 | `src/infra/sqlite/content-db.ts` (existing bootstrap pattern) | `src/infra/sqlite/storage-journal-db.ts` (new, mirrors the pattern) | Preserve the pattern, apply to a new file | Direct read of `content-db.ts` | Zero blast radius on `content.db`'s own bootstrap |
 
 ## Test Expectations

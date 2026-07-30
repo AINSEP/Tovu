@@ -252,12 +252,12 @@
 
 ## Source ADRs
 
-- `ADS-project-knowledge/reports/architecture/ADR-041-storage-timeline.md` (Accepted 2026-07-14)
-- `ADS-project-knowledge/reports/architecture/ADR-043-collections.md` (Accepted 2026-07-14)
-- `ADS-project-knowledge/reports/architecture/ADR-044-categories-and-tags.md` (Accepted 2026-07-14)
-- `ADS-project-knowledge/reports/architecture/ADR-045-backups-recovery-screen.md` (Accepted 2026-07-14)
-- `ADS-project-knowledge/reports/architecture/ADR-021-identity-and-authorization.md` (Accepted 2026-07-07, cited by reference)
-- `ADS-project-knowledge/reports/architecture/ADR-022-content-model-entries-registry-expression-indexes.md` (cited by reference)
+- `ADS-memory/reports/architecture/ADR-041-storage-timeline.md` (Accepted 2026-07-14)
+- `ADS-memory/reports/architecture/ADR-043-collections.md` (Accepted 2026-07-14)
+- `ADS-memory/reports/architecture/ADR-044-categories-and-tags.md` (Accepted 2026-07-14)
+- `ADS-memory/reports/architecture/ADR-045-backups-recovery-screen.md` (Accepted 2026-07-14)
+- `ADS-memory/reports/architecture/ADR-021-identity-and-authorization.md` (Accepted 2026-07-07, cited by reference)
+- `ADS-memory/reports/architecture/ADR-022-content-model-entries-registry-expression-indexes.md` (cited by reference)
 
 ## Reserved / Not Yet Dispatched
 

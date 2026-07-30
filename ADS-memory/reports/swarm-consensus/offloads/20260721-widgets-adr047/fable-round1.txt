@@ -1,0 +1,35 @@
+# Fable — Round 1 Answer (widgets-adr047-r1)
+
+## 1. Recommendation: Option A's shape is correct, but ADR-047 as written should not pass to audit — adopt it with one structural amendment (call it A′) and four must-fixes
+
+Entry-native widget instances with dual placement is the right skeleton: it is the only option on the table that actually satisfies the owner's worked example (one configured Contact Form, referenced from two pages, edited once), and it is the only one whose "diagnose" story is real, because diagnosis requires identity — you cannot ask "where is this used?" or "is this reference dangling?" about a thing that has no id. But ADR-047 makes one structural mistake in how it generalizes ADR-029, and it is silent on the two hardest parts of any widget system (the resolution contract and the first side-effecting widget type). The amendment: region composition should itself be an entry, with the binding table staying thin — ADR-047 §2a claims to be a "direct generalization" of ADR-029's location-binding, but it is not. ADR-029's split is content in an entry's bodyJson (the menu tree) + a thin mapping table (location key → menu id). ADR-047 instead moves the content — the ordered widget list, which is genuine, mutable, operator-authored composition state — into the binding table. That inflates a mapping table into a content-bearing table that escapes revisions, revert, the chokepoint's revision-in-same-transaction guarantee, and entry_refs. "AI rearranged my footer — revert" is a core requirement given the AI-editability mandate, and under ADR-047 as drafted, region composition is the one piece of user-authored state in the whole system with no revision history. A′ fixes this: a seeded widget_area entry per region whose bodyJson is the ordered list of widget-instance refs, plus widget_region_bindings(workspace_id, region_key, area_entry_id) UNIQUE per region key — exactly parallel to menus. Regions then inherit revisions, revert, change-set review, optimistic-lock concurrency, and entry→entry entry_refs for free, and three of the five Open Questions dissolve or simplify.
+
+The four must-fixes regardless of A′: (i) the entry_refs source-type mismatch, (ii) the missing widget resolution/data-requirements contract, (iii) Contact Form's unbuilt submission subsystem, (iv) publish/status semantics for embedded widgets and a server-side embed-mutation path for AI.
+
+## 2. Rejecting the other options
+
+Option B (stateless blocks in slots) — reject; it fails the motivating requirement by construction, not by degree. "Configure the contact form twice, independently" is not a weaker version of "edit once, both update" — it is the absence of it, and it degrades over time: the two copies drift and nobody can detect the drift because there is no identity to compare against. B also guts the AI mandate: "diagnose" over anonymous inline config blobs means scanning every template and page body for structurally-similar JSON — no where-used, no dangling-ref state, no safe-delete.
+
+Option C (page-local composition only, no global regions) — reject; wrong model for this audience and theme system. For a non-expert operator, C's failure mode is the classic one: edit the footer block on the About page, and the other forty pages silently keep the old footer. It also fights the accepted architecture (ADR-002 slots/regions already exist) to import Payload's model, designed for developer-assembled headless sites.
+
+Option A as literally drafted — do not wave through. §3 contains a self-inconsistency: entry_refs is defined as an entry-to-entry index, but ADR-047 registers a widgetRef from a region-binding row → widget instance. A binding row is not an entry. A′ dissolves this for regions. A second, subtler ref gap survives either way: widget configs are themselves ref sources (recent-entries filtered by category, contact form's success page, menu-widget's menuRef) — unless the widget-type config schema has ref-typed fields the entry_refs extractor understands, deleting the referenced target silently breaks the widget with no safe-delete warning. ADR-047 never mentions this.
+
+## 3. Positions on the five Open Questions
+
+Q1 — site-wide only in v1; inline embed is the per-page answer; adopt A′ so per-page override later needs no schema change.
+Q2 — freeform embed with three guardrails: block-level atom node, no recursive widget-in-widget embedding (bounded per ADR-024), per-document embed-count clamp.
+Q3 — default to reuse at placement; move the real decision to edit time ("this appears in N places — change everywhere / just this one").
+Q4 — Text/Recent Entries/Social Links/Menu-as-widget yes; Contact Form needs its submission pipeline specced (no MailerPort exists today — same gap that parked newsletter routes) or descope to v1.1.
+Q5 — dissolved under A′ (entry version is the conflict rule); if A′ rejected, need a region-level version header, never per-row positional patching.
+
+## 4. Blind Spots
+
+(a) A′ itself wasn't listed as a distinct option, and neither was the Gutenberg-style "any saved block subtree is a referenceable entry" unification (wrong for v1, worth naming as the long-term convergence path).
+(b) The real missing question is "what is a widget's resolution contract?" — placement is the part ADR-029 already solved; the fetch/data-requirements/cost-bound/cache-invalidation side is unspecified and is where every widget system in history has rotted.
+(c) The riskiest wrong assumption: "widget types are data, not code." Only Text and Social Links are actually data-only; Recent Entries/Contact Form/Menu-widget all need a code-side resolver, which pulls "plugin-contributed widget types" into ADR-024 Code-tier/plugin-trust territory, not a data registry.
+
+## 5. Unlisted-option check
+
+Yes — A′ is genuinely stronger: restores never-brick revision coverage to region composition, resolves the entry_refs inconsistency without polymorphism, collapses concurrency into the existing optimistic-lock rule, keeps per-page overrides expressible without schema change, and is the actually-faithful ADR-029 generalization the draft claims to be.
+
+Verdict: proceed with Option A amended to A′, contingent on the four must-fixes. Without those, ADR-047 will fail external audit on internal-consistency grounds alone.

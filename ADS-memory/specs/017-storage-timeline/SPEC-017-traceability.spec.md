@@ -205,7 +205,7 @@ intentionally `PENDING`. Rows also note which SPEC-016 id they instantiate, wher
 
 | REQ/AC ID | Deferred To | Reason | Approved By |
 |-----------|-------------|--------|-------------|
-| REQ-28 – REQ-30 (concrete file edit) | Follow-up against `ADS-project-knowledge/specs/003-site-install-dir/` | The behavior these requirements specify is in-scope for this spec, but the mechanical edit of that pre-existing file's `SERVE_SITE` row/status lifecycle is a separate follow-up action, not this spec's own implementation surface (see feature.spec.md Out of scope) | Spec Agent (this dispatch), pending Coordinator confirmation |
+| REQ-28 – REQ-30 (concrete file edit) | Follow-up against `ADS-memory/specs/003-site-install-dir/` | The behavior these requirements specify is in-scope for this spec, but the mechanical edit of that pre-existing file's `SERVE_SITE` row/status lifecycle is a separate follow-up action, not this spec's own implementation surface (see feature.spec.md Out of scope) | Spec Agent (this dispatch), pending Coordinator confirmation |
 | Tier-3 browser (REQ-25/REQ-26) shipping phase | Software Architect scheduling decision | OQ-05 leaves whether Tier-3 ships alongside the Timeline/migrate ceremony, or later, unresolved | Not yet approved — open |
 
 ---

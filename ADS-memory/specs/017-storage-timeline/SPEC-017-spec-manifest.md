@@ -24,7 +24,7 @@ identity, `db-ops` capability shape) for `domain="storage.migrate"`, per ADR-041
 
 **Numbering note (see feature.spec.md's own disambiguation section for the full explanation):**
 ADR-041 §10 amends a spec it calls "SPEC-003" — this refers to the pre-existing
-`ADS-project-knowledge/specs/003-site-install-dir/` package. The new dependent Collections spec,
+`ADS-memory/specs/003-site-install-dir/` package. The new dependent Collections spec,
 which would otherwise have collided with that label, was renumbered to SPEC-020 under
 `ADS-memory/specs/020-collections/` (Coordinator decision, 2026-07-14) to avoid the ambiguity
 rather than touch the pre-existing, already-Accepted ADRs and historical audit records that cite
@@ -68,13 +68,13 @@ against the live `src/infra/db/schema.ts` and its surrounding write paths.
 
 | Evidence / Touchpoint | Type | Why It Matters |
 |---|---|---|
-| `ADS-project-knowledge/reports/architecture/ADR-041-storage-timeline.md` | source touchpoint | Origin of the Timeline, the migrate-forward ceremony, the dialect-conditional state machine, the sidecar ops journal, the ledger schema, the agent-tool catalog, the deep-link envelope, the Tier-3 browser, the quiesce residual, and the `SERVE_SITE`/`PENDING_MIGRATION` amendment this spec instantiates |
+| `ADS-memory/reports/architecture/ADR-041-storage-timeline.md` | source touchpoint | Origin of the Timeline, the migrate-forward ceremony, the dialect-conditional state machine, the sidecar ops journal, the ledger schema, the agent-tool catalog, the deep-link envelope, the Tier-3 browser, the quiesce residual, and the `SERVE_SITE`/`PENDING_MIGRATION` amendment this spec instantiates |
 | `ADS-memory/specs/016-content-admin-core-contract/` (all files) | source touchpoint | The shared watermark/gateway/actor-identity/`db-ops` contract this spec cites by REQ/AC id throughout `## Integration Contracts` — never restated |
-| `ADS-project-knowledge/reports/architecture/ADR-023-core-mediated-plugin-data-modules.md` §3, §4, §8 | source touchpoint | Disk-headroom preflight this spec's snapshot step depends on; the snapshot-before-DDL rule this spec's ADR-041-amended carve-out (REQ-18/REQ-19) modifies; the sandboxed-read floor the Tier-3 browser (REQ-25/REQ-26) builds on top of |
-| `ADS-project-knowledge/reports/architecture/ADR-024-plugin-execution-and-trust-model.md` §4 | source touchpoint | The Rung 1/Rung 2 isolation distinction behind the `quiesceIntegrity: 'chokepoint-only'` residual disclosure (REQ-27) |
-| `ADS-project-knowledge/reports/architecture/ADR-015-...` (Drizzle/migrations) | source touchpoint | The `__drizzle_migrations` journal and tag-identity comparison (RT-005) the drift check (REQ-03) depends on |
-| `ADS-project-knowledge/reports/architecture/ADR-021-identity-and-authorization.md` §9 | source touchpoint | The seeded `kind='system'` principal the boot auto-migrate path (REQ-28) attributes ledger rows to |
-| `ADS-project-knowledge/specs/003-site-install-dir/state.spec.md` §3 (`SERVE_SITE` row), §4 (status lifecycle) | source touchpoint | The pre-existing unconditional auto-migrate behavior REQ-28–REQ-30 require amending — see this manifest's Numbering note and `feature.spec.md`'s Numbering Disambiguation section for why this is cited by path, not by the label "SPEC-003" |
+| `ADS-memory/reports/architecture/ADR-023-core-mediated-plugin-data-modules.md` §3, §4, §8 | source touchpoint | Disk-headroom preflight this spec's snapshot step depends on; the snapshot-before-DDL rule this spec's ADR-041-amended carve-out (REQ-18/REQ-19) modifies; the sandboxed-read floor the Tier-3 browser (REQ-25/REQ-26) builds on top of |
+| `ADS-memory/reports/architecture/ADR-024-plugin-execution-and-trust-model.md` §4 | source touchpoint | The Rung 1/Rung 2 isolation distinction behind the `quiesceIntegrity: 'chokepoint-only'` residual disclosure (REQ-27) |
+| `ADS-memory/reports/architecture/ADR-015-...` (Drizzle/migrations) | source touchpoint | The `__drizzle_migrations` journal and tag-identity comparison (RT-005) the drift check (REQ-03) depends on |
+| `ADS-memory/reports/architecture/ADR-021-identity-and-authorization.md` §9 | source touchpoint | The seeded `kind='system'` principal the boot auto-migrate path (REQ-28) attributes ledger rows to |
+| `ADS-memory/specs/003-site-install-dir/state.spec.md` §3 (`SERVE_SITE` row), §4 (status lifecycle) | source touchpoint | The pre-existing unconditional auto-migrate behavior REQ-28–REQ-30 require amending — see this manifest's Numbering note and `feature.spec.md`'s Numbering Disambiguation section for why this is cited by path, not by the label "SPEC-003" |
 | `src/infra/db/schema.ts` | source touchpoint (verified present, spot-checked) | Confirms no `storage_ledger`/`migration_runs`/`restore_points` tables exist yet in the live schema, and that the sensitive-column tables ADR-041 §8 names (`users`/`api_keys`/`sessions`) do not yet exist under those exact names in this codebase (the closest existing tables are `principals`, `identityUsers`, `sessions`) — this spec follows ADR-041's own naming and defers the concrete schema mapping to Software Architect, per this project's Brownfield Rule 3 (cite, don't restate or invent the mapping) |
 | No `ANALYSIS-*` / `MIGRATION-*` / `TESTABILITY-*` reports exist in `ADS-memory/reports/codebase-analysis/` | codebase-analysis | Directory confirmed absent before this run (same finding as SPEC-016's own manifest) — this spec proceeds directly from the Accepted ADR's own direct-codebase verification instead |
 
@@ -118,7 +118,7 @@ Revised in response to `ADS-memory/reports/pipeline/017-storage-timeline/red-tea
 - RT-004 (ADVISORY, cross-spec): informational only — SPEC-016's own OQ-02 still uses the bare
   label "SPEC-003" with no disambiguation note of its own. Not fixed here per this dispatch's
   guardrail against editing SPEC-016; flagged to Coordinator in `pipeline-state.md`.
-- RT-005 (ADVISORY): `feature.spec.md` Dependencies table's `ADS-project-knowledge/specs/003-site-install-dir/`
+- RT-005 (ADVISORY): `feature.spec.md` Dependencies table's `ADS-memory/specs/003-site-install-dir/`
   row now carries an explicit Owner and Resolve-by for the REQ-28–REQ-30 follow-up.
 - RT-006 (ADVISORY): `behavior.spec.md` §1.2 softened the "Postgres is never `'cheap'`" aside to
   match its own "deferred to OQ-03" framing, and updated the citation to include SPEC-016's new

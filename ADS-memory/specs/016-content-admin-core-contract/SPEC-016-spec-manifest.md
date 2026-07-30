@@ -64,12 +64,12 @@ each written directly against the live `src/infra/db/schema.ts` and its surround
 
 | Evidence / Touchpoint | Type | Why It Matters |
 |---|---|---|
-| `ADS-project-knowledge/reports/architecture/ADR-041-storage-timeline.md` | source touchpoint | Origin of the watermark contract, the `plan→confirm→execute` gateway, the composite actor-identity/soft-reference pattern, and the `db-ops` port shape |
-| `ADS-project-knowledge/reports/architecture/ADR-043-collections.md` §4 | source touchpoint | Independently commits Collections to the same-transaction watermark-stamping obligation this contract defines (REQ-02) |
-| `ADS-project-knowledge/reports/architecture/ADR-044-categories-and-tags.md` §4, Wiring section | source touchpoint | Independently commits Taxonomy to the same watermark-stamping obligation and reuses ADR-041's soft cross-boundary reference pattern for `entry_terms` |
-| `ADS-project-knowledge/reports/architecture/ADR-045-backups-recovery-screen.md` §2/§3 | source touchpoint | Consumes this contract's disclosure-computation rule and `db-ops` restore-point shape for the Recovery screen's Step 2 |
-| `ADS-project-knowledge/reports/architecture/ADR-021-identity-and-authorization.md` §§2, 4, 6, 9 | source touchpoint | Origin of `authorize()`, the composite `(workspace_id, id)` FK convention, agent delegation semantics, and permission-string house style this contract cites by reference, not restatement |
-| `ADS-project-knowledge/reports/architecture/ADR-022-content-model-entries-registry-expression-indexes.md` | source touchpoint | Origin of the append-only-revision/write-chokepoint discipline each dependent domain's own write-service follows; cited by reference only, per this project's Brownfield Rule 3 |
+| `ADS-memory/reports/architecture/ADR-041-storage-timeline.md` | source touchpoint | Origin of the watermark contract, the `plan→confirm→execute` gateway, the composite actor-identity/soft-reference pattern, and the `db-ops` port shape |
+| `ADS-memory/reports/architecture/ADR-043-collections.md` §4 | source touchpoint | Independently commits Collections to the same-transaction watermark-stamping obligation this contract defines (REQ-02) |
+| `ADS-memory/reports/architecture/ADR-044-categories-and-tags.md` §4, Wiring section | source touchpoint | Independently commits Taxonomy to the same watermark-stamping obligation and reuses ADR-041's soft cross-boundary reference pattern for `entry_terms` |
+| `ADS-memory/reports/architecture/ADR-045-backups-recovery-screen.md` §2/§3 | source touchpoint | Consumes this contract's disclosure-computation rule and `db-ops` restore-point shape for the Recovery screen's Step 2 |
+| `ADS-memory/reports/architecture/ADR-021-identity-and-authorization.md` §§2, 4, 6, 9 | source touchpoint | Origin of `authorize()`, the composite `(workspace_id, id)` FK convention, agent delegation semantics, and permission-string house style this contract cites by reference, not restatement |
+| `ADS-memory/reports/architecture/ADR-022-content-model-entries-registry-expression-indexes.md` | source touchpoint | Origin of the append-only-revision/write-chokepoint discipline each dependent domain's own write-service follows; cited by reference only, per this project's Brownfield Rule 3 |
 | No `ANALYSIS-*` / `MIGRATION-*` / `TESTABILITY-*` reports exist in `ADS-memory/reports/codebase-analysis/` | codebase-analysis | Directory was confirmed absent before this run; no CodeBase Analyzer output exists yet for the storage/gateway/auth surface — this spec proceeds directly from the Accepted ADRs' own direct-codebase verification instead |
 
 ---

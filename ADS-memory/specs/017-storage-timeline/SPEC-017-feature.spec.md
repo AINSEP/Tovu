@@ -22,7 +22,7 @@
 ## Numbering Disambiguation (read first)
 
 ADR-041 §10 requires an amendment to a spec it calls "SPEC-003." That reference is to the
-**pre-existing** `ADS-project-knowledge/specs/003-site-install-dir/` package from Tovu's earlier v1
+**pre-existing** `ADS-memory/specs/003-site-install-dir/` package from Tovu's earlier v1
 spec suite (validated 2026-07-07, before this ADS-memory numbering existed) — **not** the new
 dependent Collections spec, which was renumbered to **SPEC-020** under
 `ADS-memory/specs/020-collections/` (Coordinator decision, 2026-07-14) specifically to resolve this
@@ -48,7 +48,7 @@ per ADR-041.
 **Current state:** Tovu's admin has no "Database"/"Storage" surface at all. An operator cannot see
 what happened to their schema, confirm a forward migration, or know a migration is pending. Boot
 already forward-migrates unconditionally on `SERVE_SITE` (per
-`ADS-project-knowledge/specs/003-site-install-dir/state.spec.md` §3's `SERVE_SITE` row) with no
+`ADS-memory/specs/003-site-install-dir/state.spec.md` §3's `SERVE_SITE` row) with no
 plan/confirm/snapshot ceremony, silently bypassing any future safety ceremony simply by restarting.
 
 **Desired state:** An operator can see a Timeline narrating every schema-affecting event with a
@@ -145,7 +145,7 @@ the site or silently skip the snapshot.
   `identity/grant-service.ts`, `members/write-service.ts`, `media/media-service.ts`, and the rest
   of ADR-041 §5's table) onto the watermark chokepoint — tracked as ADR-041 item 5's own Phase 0
   deliverable, not this spec's implementation surface.
-- Editing `ADS-project-knowledge/specs/003-site-install-dir/state.spec.md`'s `SERVE_SITE` row and
+- Editing `ADS-memory/specs/003-site-install-dir/state.spec.md`'s `SERVE_SITE` row and
   status lifecycle directly. REQ-28–REQ-30 state the required behavior this domain now owns, but
   the mechanical edit of that pre-existing file is a follow-up action against that file's own
   package, not performed by this dispatch — matching ADR-041 §10's own "recorded here, not
@@ -547,7 +547,7 @@ marked Resolved directly, not just here.
 | ADR-012 (install-dir layout, the `ops/` sidecar tree) | The on-disk location `storage_ledger`/`migration_runs`/`restore_points` and their artifacts live in | If the install-dir layout changes without updating this spec's assumed path, boot reconciliation (REQ-15) cannot find the sidecar journal | None — blocks boot reconciliation until the path is corrected |
 | ADR-015 (Drizzle behind ports; forward-only migrations; drift-by-tag RT-005) | The `__drizzle_migrations` journal and the tag-identity comparison the drift check (REQ-03) performs | If tag identity is unavailable (e.g. an older bundled migration set with no tag), the drift check cannot distinguish divergent lineages from equal ones | None — this spec assumes ADR-015's tag mechanism is present |
 | ADR-021 §9 (seeded `kind='system'` principal) | The actor identity `SERVE_SITE`'s no-token boot-migration path (REQ-28) attributes its ledger rows to | If no seeded system principal exists, boot auto-migration cannot stamp a valid composite actor identity | None — boot auto-migration would need to be disabled until the seed exists |
-| `ADS-project-knowledge/specs/003-site-install-dir/` (pre-existing, see Numbering Disambiguation) | The current unconditional `SERVE_SITE` behavior and `.site-meta.json` status-lifecycle definitions this spec's REQ-28–REQ-30 require amending | If that package's `SERVE_SITE` row and status lifecycle are never actually amended to match REQ-28–REQ-30, the cost-gated boot behavior this spec specifies is not implemented anywhere | None — REQ-28–REQ-30 remain unimplemented until that file is amended, tracked as a follow-up, not a blocker to this spec's own approval. **Owner:** Software Architect for SPEC-017 (must sequence the amendment as an explicit task against the pre-existing package). **Resolve by:** before Programmer work begins on REQ-28–REQ-30 — this gates only those three requirements' implementation, not this spec's own approval or the rest of this domain's rollout. |
+| `ADS-memory/specs/003-site-install-dir/` (pre-existing, see Numbering Disambiguation) | The current unconditional `SERVE_SITE` behavior and `.site-meta.json` status-lifecycle definitions this spec's REQ-28–REQ-30 require amending | If that package's `SERVE_SITE` row and status lifecycle are never actually amended to match REQ-28–REQ-30, the cost-gated boot behavior this spec specifies is not implemented anywhere | None — REQ-28–REQ-30 remain unimplemented until that file is amended, tracked as a follow-up, not a blocker to this spec's own approval. **Owner:** Software Architect for SPEC-017 (must sequence the amendment as an explicit task against the pre-existing package). **Resolve by:** before Programmer work begins on REQ-28–REQ-30 — this gates only those three requirements' implementation, not this spec's own approval or the rest of this domain's rollout. |
 | SPEC-019 (Backups/Recovery, dispatched in parallel, not yet written) | The `recovery_restore_to` tool and restore-confirmation UI that REQ-14/REQ-23's hand-off routes to | If SPEC-019 is not yet approved when this spec's implementation begins, the hand-off (REQ-14/REQ-23) has no receiving surface to route to | Implementation of REQ-14/REQ-23's routing may need to be sequenced after SPEC-019, a Software Architect scheduling concern, not a spec-content gap |
 
 ---
@@ -560,7 +560,7 @@ marked Resolved directly, not just here.
 - OQ-02 (carried forward from SPEC-016 OQ-02): `siteId` vs `workspaceId` scoping. This spec uses
   `siteId` throughout for the sidecar journal's scoping (REQ-16, REQ-17), consistent with ADR-041
   §7's stated assumption for v1's single-workspace-per-`content.db` topology. — Owner: whoever
-  resolves the original `ADS-project-knowledge/specs/003-site-install-dir` lineage's OQ-04 —
+  resolves the original `ADS-memory/specs/003-site-install-dir` lineage's OQ-04 —
   Resolve by: before the desktop multi-site host ships.
 - OQ-03 (carried forward from SPEC-016 OQ-03): the concrete Postgres `CUTOVER` repoint mechanism
   (a stable DSN alias, a database rename, or a connection-pool re-target) is unspecified at this
@@ -635,7 +635,7 @@ Always:
   — do not introduce a second implementation of any of these mechanisms.
 - Use `siteId` as the `scopeId` value bound into every migrate-forward confirmation token
   (REQ-07), matching ADR-041 §7's stated v1 assumption.
-- Cite `ADS-project-knowledge/specs/003-site-install-dir/` by its full path whenever discussing
+- Cite `ADS-memory/specs/003-site-install-dir/` by its full path whenever discussing
   the `SERVE_SITE`/`PENDING_MIGRATION` amendment (REQ-28 – REQ-30). The bare label "SPEC-003" now
   unambiguously refers to that pre-existing package — the new dependent Collections spec was
   renumbered to SPEC-020 to resolve the collision.

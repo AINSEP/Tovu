@@ -160,10 +160,10 @@ files, closing the exact gap RT-016 identified.
 
 ## Source ADRs
 
-- `ADS-project-knowledge/reports/architecture/ADR-044-categories-and-tags.md` (Accepted 2026-07-14) — primary source
-- `ADS-project-knowledge/reports/architecture/ADR-043-collections.md` §4 (Accepted 2026-07-14, cited for the `content_types` reserved-key dependency)
-- `ADS-project-knowledge/reports/architecture/ADR-021-identity-and-authorization.md` (cited by reference)
-- `ADS-project-knowledge/reports/architecture/ADR-022-content-model-entries-registry-expression-indexes.md` §4a (cited by reference — the revisioning rule this spec narrows for `entry_terms`)
+- `ADS-memory/reports/architecture/ADR-044-categories-and-tags.md` (Accepted 2026-07-14) — primary source
+- `ADS-memory/reports/architecture/ADR-043-collections.md` §4 (Accepted 2026-07-14, cited for the `content_types` reserved-key dependency)
+- `ADS-memory/reports/architecture/ADR-021-identity-and-authorization.md` (cited by reference)
+- `ADS-memory/reports/architecture/ADR-022-content-model-entries-registry-expression-indexes.md` §4a (cited by reference — the revisioning rule this spec narrows for `entry_terms`)
 
 ## Reserved / Not Yet Dispatched
 
