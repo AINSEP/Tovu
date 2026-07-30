@@ -12,10 +12,13 @@ import { getSettingsAgentToolCatalog } from "../../features/settings/agent-tools
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace/agent-tools";
 import { formsAgentToolCatalog } from "../../forms/agent-tools";
 import { identityAgentToolCatalog } from "../../identity/agent-tools";
+import { getIntegrationsAgentToolCatalog } from "../../integrations/agent-tools";
 import { mediaAgentToolCatalog } from "../../media/agent-tools";
 import { membersAgentToolCatalog } from "../../members/agent-tools";
 import { menusAgentToolCatalog } from "../../navigation/agent-tools";
 import { newsletterAgentToolCatalog } from "../../newsletter/agent-tools";
+import { getRedirectsAgentToolCatalog } from "../../redirects/agent-tools";
+import { getSeoAgentToolCatalog } from "../../seo/agent-tools";
 import { widgetsAgentToolCatalog } from "../../widgets/agent-tools";
 import type { ContentTypeRecord } from "../../features/content-types/types";
 import type { RouteDeps } from "../../server/routes/types";
@@ -76,14 +79,14 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
 }
 
 /** Every catalog whose entries `buildAssistantToolRegistrations` wires. A newly wired domain must
- * be added here — an id missing from all of them fails rather than being skipped. All 14 wired
+ * be added here — an id missing from all of them fails rather than being skipped. All 17 wired
  * domains are listed; the generic contract/risk assertions below iterate EVERY wired registration,
  * not just content-types', so each domain's catalog has to be resolvable from here even when that
- * domain also has its own dedicated test file. The `as unknown as` casts cover the five catalogs
+ * domain also has its own dedicated test file. The `as unknown as` casts cover the eight catalogs
  * whose own `AgentToolDefinition` is a structural sibling rather than the content-types one this
- * array is typed as (identity requires `inputSchema`, database/recovery/plugins/workspace/settings
- * declare their own copies) — the shared structural supertype lives in
- * `assistant/tool-registration-kit.ts`. */
+ * array is typed as (identity requires `inputSchema`, database/recovery/plugins/workspace/settings/
+ * seo/redirects/integrations each declare their own copy) — the shared structural supertype lives
+ * in `assistant/tool-registration-kit.ts`. */
 const WIRED_CATALOGS: AgentToolDefinition[] = [
   ...contentTypesAgentToolCatalog,
   ...formsAgentToolCatalog,
@@ -99,6 +102,9 @@ const WIRED_CATALOGS: AgentToolDefinition[] = [
   ...(pluginAgentToolCatalog as unknown as AgentToolDefinition[]),
   ...(getWorkspaceAgentToolCatalog() as unknown as AgentToolDefinition[]),
   ...(getSettingsAgentToolCatalog() as unknown as AgentToolDefinition[]),
+  ...(getSeoAgentToolCatalog() as unknown as AgentToolDefinition[]),
+  ...(getRedirectsAgentToolCatalog() as unknown as AgentToolDefinition[]),
+  ...(getIntegrationsAgentToolCatalog() as unknown as AgentToolDefinition[]),
 ];
 
 function catalogEntry(toolId: string): AgentToolDefinition {

@@ -10,11 +10,12 @@
  * assistant rather than any one domain — which domains are wired at all, and the two cross-domain
  * invariants that only a file seeing all of them can check.
  *
- * Wired domains and their catalogs (14 domains, 95 catalog entries, 80 wired tools):
+ * Wired domains and their catalogs (17 domains, 113 catalog entries, 97 wired tools):
  *   content-types (5 of 7)   forms (3)         identity (10)      comments (7)
  *   members (4)              newsletter (14)   media (4)          widgets (12)
  *   menus (5)                database (4 of 9) recovery (5 of 7)  plugins (2)
- *   workspace (2 of 4)       settings (3 of 7)
+ *   workspace (2 of 4)       settings (3 of 7) seo (6)             redirects (6 of 7)
+ *   integrations (5)
  * Each domain's own file records which of its entries are deliberately unwired and why; the kit's
  * `buildDomainRegistrations` fails the build on any catalog entry that is neither.
  *
@@ -32,10 +33,13 @@ import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/set
 import { buildWorkspaceRegistrations, workspaceDerivedRisk } from "../features/workspace/tool-registrations";
 import { buildFormsRegistrations, formsDerivedRisk } from "../forms/tool-registrations";
 import { buildIdentityRegistrations, identityDerivedRisk } from "../identity/tool-registrations";
+import { buildIntegrationsRegistrations, integrationsDerivedRisk } from "../integrations/tool-registrations";
 import { buildMediaRegistrations, mediaDerivedRisk } from "../media/tool-registrations";
 import { buildMembersRegistrations, membersDerivedRisk } from "../members/tool-registrations";
 import { buildMenusRegistrations, menusDerivedRisk } from "../navigation/tool-registrations";
 import { buildNewsletterRegistrations, newsletterDerivedRisk } from "../newsletter/tool-registrations";
+import { buildRedirectsRegistrations, redirectsDerivedRisk } from "../redirects/tool-registrations";
+import { buildSeoRegistrations, seoDerivedRisk } from "../seo/tool-registrations";
 import { buildWidgetsRegistrations, widgetsDerivedRisk } from "../widgets/tool-registrations";
 import {
   assertToolIsWirable,
@@ -74,6 +78,9 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   { domain: "plugins", build: buildPluginsRegistrations, risk: pluginsDerivedRisk },
   { domain: "workspace", build: buildWorkspaceRegistrations, risk: workspaceDerivedRisk },
   { domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk },
+  { domain: "seo", build: buildSeoRegistrations, risk: seoDerivedRisk },
+  { domain: "redirects", build: buildRedirectsRegistrations, risk: redirectsDerivedRisk },
+  { domain: "integrations", build: buildIntegrationsRegistrations, risk: integrationsDerivedRisk },
 ];
 
 /**

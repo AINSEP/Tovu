@@ -37,13 +37,16 @@ import type {
   UpdateRedirectInput,
 } from "./types";
 
-const MIN_TARGET_LENGTH = 1;
-const MAX_TARGET_LENGTH = 2048;
-const MIN_PRIORITY = 0;
-const MAX_PRIORITY = 1000;
+// Exported (unchanged values) so `agent-tools.ts`'s published JSON Schema can reuse the exact
+// bounds this chokepoint validates against, rather than restating them — same discipline as
+// `seo/write-service.ts`'s identical export note.
+export const MIN_TARGET_LENGTH = 1;
+export const MAX_TARGET_LENGTH = 2048;
+export const MIN_PRIORITY = 0;
+export const MAX_PRIORITY = 1000;
 const DEFAULT_PRIORITY = 0;
-const VALID_STATUS_CODES: readonly RedirectStatusCode[] = [301, 302, 307, 308];
-const MAX_IMPORT_BATCH_SIZE = 500;
+export const VALID_STATUS_CODES: readonly RedirectStatusCode[] = [301, 302, 307, 308];
+export const MAX_IMPORT_BATCH_SIZE = 500;
 
 function isAbsoluteOrProtocolRelative(target: string): boolean {
   return target.startsWith("//") || /^[a-z][a-z0-9+.-]*:/i.test(target);
