@@ -70,6 +70,7 @@ import { createRouteDeps } from "../server/app";
 import { createSqliteRouteDeps, defaultContentDbPath } from "../server/deps";
 import { listAssistantAgents } from "./agents";
 import { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-auth";
+import { attachFederatedMcpTools } from "./mcp-federation/bootstrap";
 import { resolveMcpJsonInjection } from "./mcp-injection";
 import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership } from "./run-ownership";
 import { buildToolCatalogQuery } from "./tool-catalog-query";
@@ -207,11 +208,38 @@ app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners 
 registerRunRoutes(app, { lifecycle, onStarted }, adapter);
 registerAgentRoutes(app, { listAgents: listAssistantAgents }, adapter);
 registerDelegatedToolRoutes(app, { lifecycle, toolExecutor, resolvePrincipal }, adapter);
-// Backs `@jini-ai/mcp`'s `search_tools`/`describe_tool` — was never mounted before 2026-07-30,
-// so both 404'd for every spawned CLI despite the registry itself being fully populated. See
-// `tool-catalog-query.ts`.
-registerToolCatalogRoutes(app, { catalog: buildToolCatalogQuery(registry) }, adapter);
 
-app.listen(port, "127.0.0.1", () => {
-  console.log(`[agent-daemon] listening on ${daemonUrl}`);
-});
+/**
+ * OUTBOUND MCP federation — the reverse direction from `mcp-injection.ts`. Tovu connects OUT to a
+ * site owner's configured external MCP server (Supabase's official one is the built-in preset) and
+ * registers whatever clears `mcp-federation/trust.ts`'s separate, more restricted trust tier.
+ *
+ * Off unless configured: with no `TOVU_SUPABASE_MCP_ENABLED`, `attachFederatedMcpTools` resolves
+ * zero connections and this boot is byte-for-byte the one that ran before the capability existed.
+ * It never rejects — a third party's server must not be able to stop Tovu's daemon booting — so
+ * there is no failure branch to handle here; see `mcp-federation/bootstrap.ts` for the fail-open
+ * rationale and why it is the opposite of `daemon-auth.ts`'s fail-closed posture.
+ *
+ * Ordering is load-bearing, which is why the last two registrars moved inside this async start:
+ * `buildToolCatalogQuery` snapshots `registry.list()` into a one-shot FTS index, so a federated tool
+ * registered after it would be executable but invisible to `search_tools`/`describe_tool` — exactly
+ * the half-wired state `tool-catalog-query.ts`'s own header records finding on 2026-07-30. Route
+ * order is otherwise unchanged: the catalog routes were already registered last.
+ */
+async function start(): Promise<void> {
+  await attachFederatedMcpTools({
+    registry,
+    deps: { authorize: routeDeps.authorize, workspaceId: routeDeps.workspaceId },
+  });
+
+  // Backs `@jini-ai/mcp`'s `search_tools`/`describe_tool` — was never mounted before 2026-07-30,
+  // so both 404'd for every spawned CLI despite the registry itself being fully populated. See
+  // `tool-catalog-query.ts`.
+  registerToolCatalogRoutes(app, { catalog: buildToolCatalogQuery(registry) }, adapter);
+
+  app.listen(port, "127.0.0.1", () => {
+    console.log(`[agent-daemon] listening on ${daemonUrl}`);
+  });
+}
+
+void start();

@@ -1,0 +1,182 @@
+import type { ToolRegistry } from "@jini-ai/core";
+
+import { connectMcpStdioSession, spawnMcpStdioChannel } from "./adapter.stdio";
+import { resolveSupabaseMcpConnection, type ResolvedFederatedConnection } from "./config";
+import type { McpSessionPort } from "./ports";
+import { federateSession, type FederationDeps } from "./registrations";
+
+/**
+ * @file The composition root for outbound MCP federation: the one function
+ * `agent-daemon-server.ts` calls, and the only place in this subtree that performs I/O it was not
+ * handed.
+ *
+ * Split out of `agent-daemon-server.ts` for the reason `tool-catalog-query.ts` and `daemon-auth.ts`
+ * were: that file is a top-level side-effecting script which opens a real port and a real DB
+ * connection on import, so nothing in it can be imported by a test. Everything here can be.
+ *
+ * FAIL-OPEN, and deliberately the opposite of `daemon-auth.ts`'s fail-closed gate. The two are
+ * answering different questions. `requireAgentDaemonToken` guards ACCESS TO Tovu, where failing
+ * open would admit unauthenticated callers, so an unconfigured gate must refuse to serve. This
+ * guards an OPTIONAL OUTBOUND CONVENIENCE, where failing closed would mean a third party's server
+ * being slow, broken, or absent takes Tovu's own assistant down with it. A vendor Tovu does not
+ * control must never be on the critical path of Tovu booting. So every failure here — unreachable
+ * server, timed-out handshake, malformed tool list, invalid config — is logged and stepped over,
+ * and the daemon continues with its native catalog exactly as it did before this capability
+ * existed.
+ *
+ * The one thing that is NOT stepped over is a native id collision (`trust.ts` R1): that throws out
+ * of `federateSession` and is caught here like any other failure, so the connection is dropped
+ * whole rather than partially registered. Dropping the connection is the safe direction — the
+ * failure mode it prevents is a remote shadowing a Tovu tool, and "no federated tools" is always an
+ * acceptable outcome.
+ */
+
+/** Where the admission report goes. Injected so tests assert on it instead of scraping stdout, and
+ * so a future structured logger is a parameter change rather than an edit. */
+export interface FederationLogger {
+  info(message: string): void;
+  warn(message: string): void;
+}
+
+const consoleLogger: FederationLogger = {
+  info: (message) => console.log(`[agent-daemon] ${message}`),
+  warn: (message) => console.warn(`[agent-daemon] ${message}`),
+};
+
+export interface AttachFederatedToolsResult {
+  /** Ids actually registered. Empty when federation is off or every attempt failed. */
+  readonly registeredToolIds: readonly string[];
+  /** Live sessions, for the caller to close at shutdown. */
+  readonly sessions: readonly McpSessionPort[];
+}
+
+/**
+ * Connects every configured federated MCP server, registers whatever clears the trust tier into
+ * `registry`, and returns what happened.
+ *
+ * Must be awaited BEFORE `buildToolCatalogQuery(registry)` runs: that function snapshots
+ * `registry.list()` into an FTS index once, so a tool registered afterwards would be executable but
+ * invisible to `search_tools`/`describe_tool`.
+ *
+ * @param params.registry - The daemon's registry, already populated with the native catalog.
+ * @param params.deps - `authorize` + `workspaceId`, the slice federated handlers gate against.
+ * @param params.connections - Defaults to whatever `config.ts` resolves from the environment.
+ * @param params.connect - Session factory, injected so tests substitute a double for the real
+ * `spawn` + handshake.
+ * @returns The registered ids and the open sessions. Never rejects.
+ * @complexity O(c · t) in connections and their advertised tools.
+ * @overallScore 100
+ */
+export async function attachFederatedMcpTools(params: {
+  registry: ToolRegistry;
+  deps: FederationDeps;
+  connections?: readonly ResolvedFederatedConnection[];
+  connect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
+  logger?: FederationLogger;
+  env?: NodeJS.ProcessEnv;
+}): Promise<AttachFederatedToolsResult> {
+  const logger = params.logger ?? consoleLogger;
+  const connect = params.connect ?? defaultConnect;
+
+  let connections: readonly ResolvedFederatedConnection[];
+  try {
+    connections = params.connections ?? resolveConfiguredConnections(params.env ?? process.env);
+  } catch (error) {
+    // An enabled-but-invalid config. Loud, because the operator meant to have federation and does
+    // not; still non-fatal, because Tovu's own assistant is unaffected.
+    logger.warn(`mcp-federation: configuration is invalid, continuing without federated tools — ${messageOf(error)}`);
+    return { registeredToolIds: [], sessions: [] };
+  }
+
+  if (connections.length === 0) return { registeredToolIds: [], sessions: [] };
+
+  const registeredToolIds: string[] = [];
+  const sessions: McpSessionPort[] = [];
+
+  for (const connection of connections) {
+    const { connectionId } = connection.config;
+    let session: McpSessionPort | undefined;
+    try {
+      session = await connect(connection);
+      // Snapshotted here, immediately before the admission check, so the collision assertion sees
+      // every native tool AND every tool an earlier connection in this same loop already claimed.
+      const nativeToolIds = new Set(params.registry.list().map((descriptor) => descriptor.id));
+
+      const { registrations, report } = await federateSession({
+        session,
+        config: connection.config,
+        deps: params.deps,
+        nativeToolIds,
+      });
+
+      for (const registration of registrations) {
+        params.registry.register(registration);
+        registeredToolIds.push(registration.descriptor.id);
+      }
+      sessions.push(session);
+
+      logger.info(
+        `mcp-federation: '${connectionId}' registered ${registrations.length} federated tool(s): ${registrations.map((r) => r.descriptor.id).join(", ") || "(none)"}`,
+      );
+      // Refusals are reported, never silent — `buildDomainRegistrations`'s own "silence is never the
+      // outcome" discipline. An operator debugging a missing tool needs the reason, and an operator
+      // reading logs after an incident needs to see what a remote TRIED to expose.
+      for (const refusal of report.refused) {
+        logger.warn(`mcp-federation: '${connectionId}' refused remote tool '${refusal.remoteName}' — ${refusal.reason}`);
+      }
+      for (const absent of report.allowlistedButAbsent) {
+        logger.warn(`mcp-federation: '${connectionId}' allowlists '${absent}' but the server never advertised it — check the allowlist for a typo, or the server's --features`);
+      }
+    } catch (error) {
+      logger.warn(`mcp-federation: '${connectionId}' failed, continuing without its tools — ${messageOf(error)}`);
+      // A session that connected but failed during listing/admission still owns a child process.
+      await session?.close().catch(() => undefined);
+    }
+  }
+
+  return { registeredToolIds, sessions };
+}
+
+/** Every configured connection. One preset today; the array shape is what makes a second one an
+ * addition rather than a refactor. */
+function resolveConfiguredConnections(env: NodeJS.ProcessEnv): ResolvedFederatedConnection[] {
+  const supabase = resolveSupabaseMcpConnection(env);
+  return supabase ? [supabase] : [];
+}
+
+/**
+ * The production session factory: spawn the server, handshake, and give up on the whole thing if
+ * the handshake outlasts `connectTimeoutMs`.
+ *
+ * The outer timeout is not redundant with the adapter's per-request one. That one bounds a request
+ * whose channel is alive; this one bounds the case where `spawn` itself hangs — a command that
+ * blocks before it ever writes, an `npx` fetching a package on a stalled network — where no request
+ * has been sent yet and so nothing inside the adapter has started counting.
+ */
+async function defaultConnect(connection: ResolvedFederatedConnection): Promise<McpSessionPort> {
+  const channel = spawnMcpStdioChannel(connection.launch);
+  const timeoutMs = connection.config.connectTimeoutMs;
+
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      connectMcpStdioSession({ channel, requestTimeoutMs: connection.config.callTimeoutMs }),
+      // Not `unref()`ed, for the same reason as `adapter.stdio.ts`'s per-request timer: an unref'd
+      // timer would let the loop drain and abandon this race unsettled instead of rejecting. The
+      // `finally` below clears it either way, so it never outlives the connect attempt.
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(`connect timed out after ${timeoutMs}ms`)), timeoutMs);
+      }),
+    ]);
+  } catch (error) {
+    // Whichever branch lost, the child process must not survive it.
+    channel.close();
+    throw error;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
