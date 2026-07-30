@@ -147,9 +147,68 @@ export const postUpdateReverter: EntityReverter = {
   },
 };
 
+/**
+ * Restores a trashed post/page by clearing its soft-delete marker — the concrete reason
+ * `deletePost` is a marker write rather than a `DELETE FROM` (see `features/post/post.ts`'s
+ * `PostRecord.deletedAt`). A hard delete would leave this reverter with nothing to restore.
+ *
+ * The inverse payload is `{ deletedAt: null }` and nothing more, deliberately: a soft-deleted row
+ * still carries every field it had, so there is no pre-image to re-apply — only a marker to clear.
+ * Capturing a redundant copy of title/slug/bodyJson/status would create a second source of truth
+ * that could disagree with the row itself.
+ *
+ * Writes through `deps.postRepo.save()` directly, never through `updatePost`, for the identical
+ * SPEC-005 BR-08 reason spelled out on {@link postUpdateReverter}: an undo re-applies stored state
+ * and must not fire `content.entry.beforeSave`. `updatePost` would also refuse outright — it treats
+ * a trashed row as not-found.
+ *
+ * @complexity O(1) — one lookup plus one write.
+ * @overallScore 100
+ */
+export const postDeleteReverter: EntityReverter = {
+  async currentVersion({ workspaceId, entityId, deps }) {
+    // `findById` is trash-BLIND at the port layer (post.ts's PostRepoPort doc), which is exactly
+    // what lets this read the version of the very row the revert guard needs to check.
+    const post = await deps.postRepo.findById({ workspaceId, id: entityId });
+    return post ? post.version : null;
+  },
+  async applyInverse({ workspaceId, item, deps }) {
+    const existing = await deps.postRepo.findById({ workspaceId, id: item.entityId });
+    if (!existing) {
+      throw new Error(`post '${item.entityId}' was not found`);
+    }
+
+    const restored: PostRecord = {
+      ...existing,
+      deletedAt: null,
+      // Bump and refresh, never restore the old number — INV-04, same as postUpdateReverter.
+      updatedAt: deps.clock.nowIso(),
+      version: existing.version + 1,
+    };
+
+    await deps.postRepo.save(restored);
+
+    // Symmetric to `deletePost`'s own emission: trashing a published entry emitted
+    // `entry.unpublished`, so restoring one must emit `entry.published` or SEO's sitemap cache
+    // stays stale. A restored draft emits nothing, exactly as trashing one did.
+    const transitionEventName = classifyStatusTransition("draft", restored.status);
+    if (transitionEventName) {
+      await deps.outbox.enqueue({
+        id: `${restored.id}-${transitionEventName}-${restored.version}`,
+        name: transitionEventName,
+        occurredAt: restored.updatedAt,
+        aggregateId: restored.id,
+        workspaceId: restored.workspaceId,
+        payload: { entryId: restored.id, contentType: restored.kind },
+      });
+    }
+  },
+};
+
 /** Registry pre-loaded with the v1 reverters. */
 export function defaultRevertRegistry(): RevertRegistry {
   const registry = createRevertRegistry();
   registry.register("post", "update", postUpdateReverter);
+  registry.register("post", "delete", postDeleteReverter);
   return registry;
 }

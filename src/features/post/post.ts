@@ -42,6 +42,27 @@ export interface PostRecord {
    * plugin is later disabled or uninstalled is retained inert here, never deleted (INV-03).
    */
   ext?: JsonObject;
+  /**
+   * Soft-delete (trash) marker — the ISO timestamp at which this row was moved to trash, or
+   * `null`/absent while it is live. Written ONLY through `PostRepoPort.softDelete` (below), which
+   * `deletePost` is the sole caller of.
+   *
+   * Soft, not hard, and that is a decision about this codebase rather than a preference: nothing in
+   * Tovu deletes a content row outright today, and the surrounding machinery is built to make
+   * writes recoverable (the command gateway's change-set inverse, `core/commands/appliers.ts`'s
+   * reverters, the restore-point/timeline concept). A trashed row keeps every field it had, so
+   * `postDeleteReverter` (`appliers.ts`) restores it by clearing this one marker — a hard
+   * `DELETE FROM` would have no pre-image to restore from and would break that guarantee.
+   *
+   * A trashed row STILL HOLDS ITS SLUG, deliberately. `posts_workspace_slug_unique` is a real
+   * database constraint, so if trashing freed the slug for reuse, `createPost` would pass its own
+   * uniqueness check and then die on a SQLite constraint violation instead of a clean
+   * `PostConflictError`. Keeping the slug reserved also keeps a restore lossless. The repo port
+   * therefore stays trash-BLIND (`findById`/`findBySlug`/`list` all still return trashed rows, so
+   * uniqueness checks and reverters can see them); every trash-AWARE read filter lives in this
+   * file's own domain functions, exactly the way `kind` filtering already does.
+   */
+  deletedAt?: string | null;
 }
 
 /**
@@ -73,6 +94,32 @@ export interface PostRepoPort {
   findBySlug(required: { workspaceId: UUID; slug: string }): Promise<PostRecord | null>;
   list(required: { workspaceId: UUID }): Promise<PostRecord[]>;
   save(record: PostRecord): Promise<void>;
+  /**
+   * Stamps the trash marker onto one existing row (see {@link PostRecord.deletedAt}).
+   *
+   * A narrow method rather than "just call `save()` with `deletedAt` set", for the same reason
+   * `seoExtJson` has a documented single writer: trashing is the one write that makes a row vanish
+   * from every admin and public read, so it gets one auditable code path both adapters implement
+   * identically instead of being reachable from any caller holding a whole record. `save()` still
+   * persists whatever `deletedAt` a record carries (a reverter clearing the marker writes through
+   * `save()`), but `deletePost` is the only thing that SETS one, and it does so through here.
+   *
+   * `updatedAt`/`version` travel with the marker because a trash is a state change like any other:
+   * the version must advance so the command gateway's revert guard (`appliers.ts`'s
+   * `currentVersion`) can tell a restored row from the trashed one it replaced.
+   */
+  softDelete(required: {
+    workspaceId: UUID;
+    id: UUID;
+    deletedAt: string;
+    updatedAt: string;
+    version: number;
+  }): Promise<void>;
+}
+
+/** True when a row is in the trash — the single predicate every trash-aware read below applies. */
+export function isTrashed(post: Pick<PostRecord, "deletedAt">): boolean {
+  return post.deletedAt !== undefined && post.deletedAt !== null;
 }
 
 export interface CreatePostInput {
@@ -146,6 +193,93 @@ export interface UpdatePostRequired {
 }
 
 export interface UpdatePostOptional {}
+
+export interface DeletePostInput {
+  workspaceId: UUID;
+  id: UUID;
+}
+
+export interface DeletePostDeps {
+  clock: ClockPort;
+  repo: PostRepoPort;
+  /**
+   * Required for the same reason `updatePost`'s is (SPEC-008 ADR-PIPE-008 Decision §5): trashing a
+   * PUBLISHED entry removes it from the public site, which is precisely the signal
+   * `src/seo/sitemap.ts`'s cache invalidation subscribes to. See `deletePost`'s own doc for why
+   * this reuses `classifyStatusTransition` rather than inventing an `entry.deleted` name.
+   */
+  outbox: OutboxPort;
+}
+
+export interface DeletePostRequired {
+  deps: DeletePostDeps;
+  input: DeletePostInput;
+}
+
+export interface DeletePostOptional {}
+
+/**
+ * Moves one post/page to the trash (soft delete) and returns the trashed record.
+ *
+ * Reversible by construction — see {@link PostRecord.deletedAt} for why this is a marker rather
+ * than a `DELETE FROM`, and `core/commands/appliers.ts`'s `postDeleteReverter` for the restore that
+ * marker makes possible.
+ *
+ * KIND-BLIND, deliberately, exactly like `updatePost`: `PostKind`'s own doc records that a page and
+ * a post share one update contract, and `pages/update.ts` puts its kind guard in the ROUTE's
+ * `captureInverse` rather than in the domain function. `pages/delete.ts` and the
+ * `content_post_delete` tool mirror that placement rather than pushing a `kind` param down here,
+ * so the guard stays where every other kind guard in this domain already lives.
+ *
+ * Trashing an already-trashed row is a `PostNotFoundError`, not a no-op: a trashed row is invisible
+ * to every read in this file, so "delete something you cannot see" is a not-found, which also keeps
+ * the second call from bumping the version and re-emitting the event.
+ *
+ * EVENT: emits `entry.unpublished` when a PUBLISHED row is trashed, and nothing when a draft is —
+ * computed by handing `classifyStatusTransition` the transition a trash actually is (whatever the
+ * row was, to no-longer-public). No new event name is invented: `entry.unpublished` is what SEO's
+ * sitemap-cache invalidation already subscribes to (`server/app.ts`), and "this entry left the
+ * public site" is exactly what happened.
+ *
+ * @complexity O(1) — one lookup plus one marker write.
+ * @overallScore 100
+ */
+export async function deletePost(
+  required: DeletePostRequired,
+  _optional: DeletePostOptional = {}
+): Promise<{ post: PostRecord }> {
+  const { deps, input } = required;
+  const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
+  if (!existing || isTrashed(existing)) {
+    throw new PostNotFoundError(`post '${input.id}' was not found`);
+  }
+
+  const now = deps.clock.nowIso();
+  const version = existing.version + 1;
+  await deps.repo.softDelete({
+    workspaceId: input.workspaceId,
+    id: input.id,
+    deletedAt: now,
+    updatedAt: now,
+    version,
+  });
+
+  const post: PostRecord = { ...existing, deletedAt: now, updatedAt: now, version };
+
+  const transitionEventName = classifyStatusTransition(existing.status, "draft");
+  if (transitionEventName) {
+    await deps.outbox.enqueue({
+      id: `${post.id}-${transitionEventName}-${post.version}`,
+      name: transitionEventName,
+      occurredAt: post.updatedAt,
+      aggregateId: post.id,
+      workspaceId: post.workspaceId,
+      payload: { entryId: post.id, contentType: post.kind },
+    });
+  }
+
+  return { post };
+}
 
 export interface GetPostByIdRequired {
   deps: { repo: PostRepoPort };
@@ -387,7 +521,10 @@ export async function updatePost(
 ): Promise<{ post: PostRecord }> {
   const { deps, input } = required;
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
-  if (!existing) throw new PostNotFoundError(`post '${input.id}' was not found`);
+  // A trashed row is not-found for editing purposes — indistinguishable from a missing id, the same
+  // way `pages/update.ts` treats a kind mismatch. Restore it (revert the delete change set) before
+  // editing it; there is no edit-through-the-trash path.
+  if (!existing || isTrashed(existing)) throw new PostNotFoundError(`post '${input.id}' was not found`);
 
   const title = input.title.trim();
   const slug = input.slug.trim().toLowerCase();
@@ -498,7 +635,7 @@ export async function listAdminPosts(
   _optional: GetPostOptional = {}
 ): Promise<{ posts: PostRecord[] }> {
   const posts = await required.deps.repo.list({ workspaceId: required.input.workspaceId });
-  return { posts: posts.filter((post) => post.kind === "post") };
+  return { posts: posts.filter((post) => post.kind === "post" && !isTrashed(post)) };
 }
 
 /** List published posts for the public site. */
@@ -507,7 +644,7 @@ export async function listPublishedPosts(
   _optional: GetPostOptional = {}
 ): Promise<{ posts: PostRecord[] }> {
   const posts = await required.deps.repo.list({ workspaceId: required.input.workspaceId });
-  return { posts: posts.filter((post) => post.status === "published") };
+  return { posts: posts.filter((post) => post.status === "published" && !isTrashed(post)) };
 }
 
 /** List all pages (`kind: "page"`) in a workspace for admin views (drafts included). */
@@ -516,7 +653,7 @@ export async function listAdminPages(
   _optional: GetPostOptional = {}
 ): Promise<{ posts: PostRecord[] }> {
   const posts = await required.deps.repo.list({ workspaceId: required.input.workspaceId });
-  return { posts: posts.filter((post) => post.kind === "page") };
+  return { posts: posts.filter((post) => post.kind === "page" && !isTrashed(post)) };
 }
 
 export async function getAdminPostById(
@@ -525,7 +662,9 @@ export async function getAdminPostById(
 ): Promise<{ post: PostRecord }> {
   const { workspaceId, id } = required.input;
   const post = await required.deps.repo.findById({ workspaceId, id });
-  if (!post) throw new PostNotFoundError(`post '${id}' was not found`);
+  // A trashed row 404s identically to a missing one — no existence leak, matching the
+  // kind-mismatch rule `pages/get-by-id.ts` already applies.
+  if (!post || isTrashed(post)) throw new PostNotFoundError(`post '${id}' was not found`);
   return { post };
 }
 
@@ -536,7 +675,7 @@ export async function getPublishedPostBySlug(
   const { workspaceId } = required.input;
   const slug = required.input.slug.trim().toLowerCase();
   const post = await required.deps.repo.findBySlug({ workspaceId, slug });
-  if (!post || post.status !== "published") {
+  if (!post || isTrashed(post) || post.status !== "published") {
     throw new PostNotFoundError(`post '${slug}' was not found`);
   }
   return { post };

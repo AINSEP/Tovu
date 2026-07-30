@@ -101,20 +101,39 @@ const RICH_DOC = {
 // 1. Catalog completeness
 // ---------------------------------------------------------------------------
 
-test("exactly the 4 Posts/Pages operations are wired — the entire catalog, no delete tool", () => {
+test("exactly the 5 Posts/Pages operations are wired — the entire catalog", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual(
     [...postRegistrations(deps).keys()].sort(),
-    ["content_post_create", "content_post_get", "content_post_list", "content_post_update"],
+    ["content_post_create", "content_post_delete", "content_post_get", "content_post_list", "content_post_update"],
   );
-  assert.equal(postAgentToolCatalog.length, 4, "sanity: no catalog entry is silently excluded");
+  assert.equal(postAgentToolCatalog.length, 5, "sanity: no catalog entry is silently excluded");
 });
 
-test("no delete/purge/publish/unpublish tool exists — post.ts has no delete function and no separate lifecycle function", () => {
+/**
+ * This test previously read "no delete/purge/publish/unpublish tool exists" and asserted that no
+ * wired id matched `/delete|purge|publish|unpublish/`. The delete half of that claim was retired
+ * on purpose: `post.ts` now exports `deletePost`, `PostRepoPort` carries `softDelete`, and
+ * `server/routes/admin/posts/delete.ts`/`.../pages/delete.ts` are the human routes
+ * `content_post_delete` mirrors — so a delete tool no longer names an operation the domain cannot
+ * perform, which was the rule the old assertion enforced.
+ *
+ * The publish/unpublish half is UNCHANGED and still enforced below, because that reason still
+ * holds: `post.ts` has exactly one write path for status changes (`updatePost`'s `status` field),
+ * so a `content_post_publish` tool would still be inventing a function the domain does not have.
+ */
+test("no purge/publish/unpublish tool exists — post.ts still has no hard-delete and no separate lifecycle function", () => {
   const { deps } = fakeRouteDeps();
   for (const id of postRegistrations(deps).keys()) {
-    assert.equal(/delete|purge|publish|unpublish/i.test(id), false, `'${id}' must not imply an operation post.ts cannot perform`);
+    assert.equal(/purge|publish|unpublish/i.test(id), false, `'${id}' must not imply an operation post.ts cannot perform`);
   }
+});
+
+test("the delete tool is a SOFT delete and says so — its description must not promise permanence", () => {
+  const entry = catalogEntry("content_post_delete");
+  assert.match(entry.description, /SOFT delete/);
+  assert.match(entry.description, /restored by reverting/i);
+  assert.match(entry.description, /TWO-STEP AND HUMAN-GATED/);
 });
 
 // ---------------------------------------------------------------------------
@@ -150,7 +169,7 @@ test("content_post_create's and content_post_update's published bodyJson schema 
 // 3. Risk metadata is cross-checked, not trusted
 // ---------------------------------------------------------------------------
 
-test("the independent risk classification agrees with the catalog for all 4 wired Posts/Pages tools", () => {
+test("the independent risk classification agrees with the catalog for all 5 wired Posts/Pages tools", () => {
   const { deps } = fakeRouteDeps();
   for (const id of postRegistrations(deps).keys()) {
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
@@ -161,6 +180,50 @@ test("a catalog entry cannot downgrade its own risk — declaring content_post_c
   assert.throws(
     () => assertRiskMetadataIsWirable("content_post_create", { ...catalogEntry("content_post_create"), sideEffects: "none" }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
+  );
+});
+
+test("content_post_delete is classified as genuinely destructive, distinctly from an edit", () => {
+  assert.equal(catalogEntry("content_post_delete").sideEffects, "deletes-durable-state");
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable("content_post_delete", catalogEntry("content_post_delete")));
+});
+
+test("content_post_delete cannot soften itself to a mere mutation — the independent check refuses it", () => {
+  assert.throws(
+    () => assertRiskMetadataIsWirable("content_post_delete", { ...catalogEntry("content_post_delete"), sideEffects: "mutates-durable-state" }),
+    /declares sideEffects 'mutates-durable-state' but this layer derives 'deletes-durable-state'/,
+    "folding a delete into the same bucket as an edit is exactly what the separate union member exists to catch",
+  );
+});
+
+test("content_post_delete cannot downgrade itself to 'none' either", () => {
+  assert.throws(
+    () => assertRiskMetadataIsWirable("content_post_delete", { ...catalogEntry("content_post_delete"), sideEffects: "none" }),
+    /declares sideEffects 'none' but this layer derives 'deletes-durable-state'/,
+  );
+});
+
+test("no OTHER Posts/Pages tool may claim the destructive classification", () => {
+  const { deps } = fakeRouteDeps();
+  for (const id of postRegistrations(deps).keys()) {
+    if (id === "content_post_delete") continue;
+    assert.notEqual(catalogEntry(id).sideEffects, "deletes-durable-state", `${id} is not a delete`);
+  }
+});
+
+test("content_post_delete does NOT use requiresConfirmation — its gate is a real MCP-UI resource, not the unwired boolean", () => {
+  const { deps } = fakeRouteDeps();
+  const registration = postRegistrations(deps).get("content_post_delete");
+  assert.ok(registration);
+  assert.equal(
+    registration.descriptor.requiresConfirmation,
+    undefined,
+    "setting it would park the execution forever with no ExecutionDelegate wired (see ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT)",
+  );
+  assert.equal(
+    catalogEntry("content_post_delete").actorClassRule,
+    undefined,
+    "declaring confirmer-must-equal-own-delegatedBy would correctly fail the build for a transport this tool does not use",
   );
 });
 

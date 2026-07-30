@@ -48,6 +48,16 @@ export const posts = sqliteTable(
      * served as "no plugin has written anything" with zero backfill (Migration Safety).
      */
     ext: text("ext").notNull().default("{}"),
+    /**
+     * Soft-delete (trash) marker — see `features/post/post.ts`'s `PostRecord.deletedAt` for the
+     * full rationale. Nullable, additive, no backfill: every pre-existing row reads back as `null`
+     * ("live") with zero migration work, mirroring `seo_ext_json`'s identical precedent.
+     *
+     * NOT part of `posts_workspace_slug_unique` below, deliberately: a trashed row keeps holding
+     * its slug, which is what makes `createPost`'s uniqueness check agree with this index instead
+     * of passing and then dying on a constraint violation.
+     */
+    deletedAt: text("deleted_at"),
   },
   (table) => [
     uniqueIndex("posts_workspace_slug_unique").on(table.workspaceId, table.slug),
