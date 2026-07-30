@@ -33,8 +33,26 @@ import { ForbiddenError, type AuthorizeFn } from "../core/commands";
 // that package.
 export type { ToolHandler, ToolRegistration };
 
-/** Mirrors the `AgentToolSideEffect` union every domain's `agent-tools.ts` declares for itself. */
-export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
+/**
+ * Mirrors the `AgentToolSideEffect` union every domain's `agent-tools.ts` declares for itself.
+ *
+ * `deletes-durable-state` is a distinct member rather than a flavor of `mutates-durable-state`, and
+ * the distinction is load-bearing rather than cosmetic. Every gate in this file compares the two
+ * classifications for EQUALITY, so the strength of the check is exactly the resolution of the
+ * vocabulary: folding a delete into `mutates-durable-state` would let a tool that removes content
+ * from every read path carry the same declared risk as one that edits a title, and
+ * {@link assertToolIsWirable} would have nothing to object to. A separate member means a delete tool
+ * whose declaration drifts toward the milder classification fails the build.
+ *
+ * Widening this union is safe for the twelve domains that declare their own narrower copy: a
+ * narrower union stays assignable to this one, and nothing in the codebase switches exhaustively on
+ * the type (verified by grep before adding the member).
+ */
+export type AgentToolSideEffect =
+  | "none"
+  | "mutates-durable-state"
+  | "deletes-durable-state"
+  | "mints-token";
 
 /** Mirrors the `AgentToolActorClassRule` union every domain's `agent-tools.ts` declares for itself. */
 export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";

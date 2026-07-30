@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import type { JsonObject } from "../../core/ports";
 import { posts } from "../../infra/db/schema";
@@ -39,6 +39,7 @@ function toRecord(row: PostRow): PostRecord {
     updatedAt: row.updatedAt,
     version: row.version,
     seoExtJson: row.seoExtJson ?? null,
+    deletedAt: row.deletedAt ?? null,
     ...(ext !== undefined ? { ext } : {}),
   };
 }
@@ -74,6 +75,10 @@ export class SqlitePostRepo implements PostRepoPort {
       ...record,
       bodyJson: JSON.stringify(record.bodyJson),
       seoExtJson: record.seoExtJson ?? null,
+      // Persisted from the record like any other field, so `postDeleteReverter`'s restore — which
+      // writes a record with `deletedAt: null` through `save()` — actually clears the marker.
+      // SETTING a marker still goes through `softDelete` alone (see `PostRepoPort`'s own doc).
+      deletedAt: record.deletedAt ?? null,
       ext: JSON.stringify(record.ext ?? {}),
     };
     this.db
@@ -91,9 +96,29 @@ export class SqlitePostRepo implements PostRepoPort {
           updatedAt: row.updatedAt,
           version: row.version,
           seoExtJson: row.seoExtJson,
+          deletedAt: row.deletedAt,
           ext: row.ext,
         },
       })
+      .run();
+  }
+
+  /**
+   * Stamps the trash marker (see `post.ts`'s `PostRecord.deletedAt`) — an UPDATE of three columns,
+   * never a `DELETE FROM`. The row survives so `postDeleteReverter` has a pre-image to restore and
+   * so `posts_workspace_slug_unique` keeps reserving the trashed row's slug.
+   */
+  async softDelete(required: {
+    workspaceId: string;
+    id: string;
+    deletedAt: string;
+    updatedAt: string;
+    version: number;
+  }): Promise<void> {
+    this.db
+      .update(posts)
+      .set({ deletedAt: required.deletedAt, updatedAt: required.updatedAt, version: required.version })
+      .where(and(eq(posts.workspaceId, required.workspaceId), eq(posts.id, required.id)))
       .run();
   }
 }

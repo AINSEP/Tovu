@@ -31,14 +31,19 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "../../assistant/tool-registration-kit";
+import { createPendingConfirmationStore, type PendingConfirmationStore } from "../../assistant/pending-confirmations";
+import { buildUIToolResult } from "../../assistant/mcp-ui";
 import { executeCommand } from "../../core/commands";
 import { processOutbox } from "../../core/events";
 import type { JsonObject } from "../../core/ports";
 import type { RouteDeps } from "../../server/routes/types";
 import { postAgentToolCatalog, type AgentToolDefinition as PostAgentToolDefinition } from "./agent-tools";
+import { buildDeleteConfirmationResource, CONTENT_POST_DELETE_TOOL_ID } from "./delete-confirmation-ui";
 import {
   createPost,
+  deletePost,
   getAdminPostById,
+  isTrashed,
   listAdminPages,
   listAdminPosts,
   updatePost,
@@ -66,6 +71,16 @@ export const postDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSid
   // -> executeCommand -> updatePost (post.ts): postRepo.save() + change-set record, plus an
   //    outbox-drained entry.published/entry.updated/entry.unpublished event on a status transition.
   ["content_post_update", "mutates-durable-state"],
+  // -> executeCommand -> deletePost (post.ts): postRepo.softDelete() + change-set record, plus an
+  //    outbox-drained entry.unpublished event when the trashed row was published. Classified
+  //    `deletes-durable-state` and NOT `mutates-durable-state`: what the handler calls makes the
+  //    row vanish from listAdminPosts/listAdminPages/getAdminPostById/listPublishedPosts/
+  //    getPublishedPostBySlug and from the public site — a different kind of consequence from an
+  //    edit, and the whole reason this file's classification is derived from the call graph rather
+  //    than read off the catalog. Note this entry describes the SECOND (redeemed) call; the first
+  //    call mints a confirmation token and writes nothing, so the classification here is the
+  //    strictly worse of the two branches, which is the conservative direction.
+  ["content_post_delete", "deletes-durable-state"],
 ]);
 
 /**
@@ -148,7 +163,23 @@ function toPostToolView(post: PostRecord): PostToolView {
   };
 }
 
-export function buildPostRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+/**
+ * Builds this domain's registrations.
+ *
+ * @param routeDeps - The same bag the admin routes are built from.
+ * @param options.confirmations - The pending-confirmation store backing `content_post_delete`'s
+ * MCP-UI gate. Defaults to a fresh in-process store, which is the right lifetime in production:
+ * `buildAssistantToolRegistrations` runs ONCE at daemon boot (`agent-daemon-server.ts`), so the
+ * closure below spans every tool call the daemon serves and a token minted by call 1 is redeemable
+ * by call 2. Injectable so a test can drive the clock and the token source instead of waiting out a
+ * real TTL or guessing 256 bits of entropy.
+ */
+export function buildPostRegistrations(
+  routeDeps: RouteDeps,
+  options: { confirmations?: PendingConfirmationStore } = {}
+): ToolRegistration[] {
+  const confirmations = options.confirmations ?? createPendingConfirmationStore();
+
   const handlers: Record<string, ToolHandler> = {
     content_post_list: async (ctx) => {
       const input = requireInputRecord(ctx.input);
@@ -275,10 +306,152 @@ export function buildPostRegistrations(routeDeps: RouteDeps): ToolRegistration[]
         return { post: toPostToolView(result.post) };
       });
     },
+
+    /**
+     * The MCP-UI-gated delete. See `delete-confirmation-ui.ts` for the protocol end to end and
+     * `assistant/pending-confirmations.ts` for why a token, not
+     * `descriptor.requiresConfirmation`, is the mechanism.
+     *
+     * Two branches, chosen by whether the call carries a `confirmationToken`:
+     *  - WITHOUT one (what the agent can do): resolve and describe the row, mint a token, return an
+     *    MCP-UI resource. Writes nothing.
+     *  - WITH one (what only the rendered dialog can do): redeem, then delete through the command
+     *    gateway.
+     */
+    content_post_delete: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      const id = requireString(input, "id");
+      const kind = requirePostKind(input);
+      const suppliedToken = optionalString(input, "confirmationToken");
+
+      // The read that both branches need, gated exactly like content_post_get. Performed before
+      // minting so a caller with no read access learns nothing, and before redeeming so a delete
+      // never runs against a row the principal cannot see.
+      await requireToolPermission(routeDeps, {
+        principalId: ctx.principal.id,
+        permission: "content.read",
+        entityType: "post",
+        entityId: id,
+      });
+
+      const existing = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
+      // Kind guard placed here rather than in `deletePost`, mirroring `pages/delete.ts`/
+      // `pages/update.ts` — and carrying the same disclosed asymmetry the rest of this catalog has:
+      // kind:'page' rejects an actual 'post' row, kind:'post' is not guarded the other way.
+      // A trashed row is not-found too (post.ts's own rule), so a second delete cannot "succeed".
+      if (!existing || isTrashed(existing) || (kind === "page" && existing.kind !== "page")) {
+        throw new PostNotFoundError(`${kind} '${id}' was not found`);
+      }
+
+      // ---- Step 1: no token supplied — render the confirmation UI and STOP. ----
+      if (suppliedToken === undefined) {
+        const { token } = confirmations.mint({
+          toolId: CONTENT_POST_DELETE_TOOL_ID,
+          workspaceId: routeDeps.workspaceId,
+          principalId: ctx.principal.id,
+          entityType: "post",
+          entityId: existing.id,
+          entityVersion: existing.version,
+          summary: `Delete ${existing.kind} '${existing.title}' (${existing.slug})`,
+        });
+
+        const ui = buildDeleteConfirmationResource({
+          subject: {
+            id: existing.id,
+            kind: existing.kind,
+            title: existing.title,
+            slug: existing.slug,
+            status: existing.status,
+            version: existing.version,
+          },
+          confirmationToken: token,
+        });
+
+        // `token` appears in `ui` and NOWHERE in `modelText`. That split is the security boundary —
+        // the host renders the UI for the human and does not feed its HTML to the model, so this is
+        // what stops the agent from completing step 2 by itself. Do not add the token, or any
+        // derivative of it, to this string, to `_meta`, or to an error message.
+        return buildUIToolResult({
+          modelText:
+            `A confirmation dialog has been shown to the user asking whether to delete the ${existing.kind} ` +
+            `'${existing.title}' (${existing.slug}). NOTHING HAS BEEN DELETED. The deletion will happen only if the ` +
+            `user approves in that dialog, which sends the confirmation itself. You cannot complete this yourself and ` +
+            `must not try: re-calling this tool will only raise a second dialog. Tell the user the dialog is open and wait.`,
+          ui,
+        });
+      }
+
+      // ---- Step 2: a token was supplied — it can only have come from the rendered dialog. ----
+      const decision = optionalString(input, "decision") ?? "confirm";
+      const redeemed = confirmations.redeem({
+        token: suppliedToken,
+        toolId: CONTENT_POST_DELETE_TOOL_ID,
+        workspaceId: routeDeps.workspaceId,
+        principalId: ctx.principal.id,
+        entityType: "post",
+        entityId: existing.id,
+        entityVersion: existing.version,
+      });
+
+      if (!redeemed.ok) {
+        // Fail closed, and say why in terms that do not help a caller probe: the remedy for every
+        // rejection reason is identical (raise a fresh dialog), so the message is identical too.
+        throw new Error(
+          `content_post_delete: the confirmation could not be redeemed (${redeemed.reason}). ` +
+            `Nothing was deleted. Call content_post_delete with only { id, kind } to raise a fresh confirmation dialog.`
+        );
+      }
+
+      if (decision !== "confirm") {
+        // The token has already been burned by `redeem` above, so a cancel genuinely closes the
+        // window rather than leaving a live token behind for a later call to pick up.
+        return { deleted: false, cancelled: true, post: toPostToolView(existing) };
+      }
+
+      let priorPost: PostRecord | null = null;
+
+      const { result } = await executeCommand<{ post: PostRecord }>({
+        deps: postCommandDeps(routeDeps),
+        command: {
+          workspaceId: routeDeps.workspaceId,
+          actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
+          // The human-approved summary, recorded verbatim, so the audit trail says what was
+          // actually consented to rather than what the agent asked for.
+          summary: `Agent delete (human-confirmed): ${redeemed.confirmation.summary}`,
+          permission: "content.write",
+        },
+        mutation: {
+          entityType: "post",
+          entityId: id,
+          operation: "delete",
+          captureInverse: async () => {
+            priorPost = existing;
+            // The whole inverse of a soft delete is "clear the marker" — see
+            // `core/commands/appliers.ts`'s `postDeleteReverter`.
+            return { deletedAt: null };
+          },
+          execute: () =>
+            deletePost({
+              deps: { repo: routeDeps.postRepo, clock: routeDeps.clock, outbox: routeDeps.outbox },
+              input: { workspaceId: routeDeps.workspaceId, id },
+            }),
+          captureEntityVersion: (r) => r.post.version,
+          rollback: async () => {
+            if (priorPost) await routeDeps.postRepo.save(priorPost);
+          },
+        },
+      });
+
+      // Drains deletePost's entry.unpublished event (published rows only) to SEO's sitemap-cache
+      // invalidation subscriber — the same inline drain content_post_update and the routes perform.
+      await processOutbox({ outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock });
+
+      return { deleted: true, cancelled: false, post: toPostToolView(result.post) };
+    },
   };
 
   // No `unwiredToolIds`: Posts/Pages wires its ENTIRE catalog, same tripwire discipline as
-  // Forms/Entries/Widgets — a 5th catalog entry added without a handler fails the build.
+  // Forms/Entries/Widgets — a 6th catalog entry added without a handler fails the build.
   return buildDomainRegistrations({
     domain: "post",
     catalogModule: "features/post/agent-tools.ts",

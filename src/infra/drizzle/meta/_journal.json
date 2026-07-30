@@ -148,6 +148,13 @@
       "when": 1785365773708,
       "tag": "0020_jazzy_wolverine",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1785440471348,
+      "tag": "0021_fast_hellfire_club",
+      "breakpoints": true
     }
   ]
 }

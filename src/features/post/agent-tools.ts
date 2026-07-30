@@ -29,12 +29,15 @@ import { MAX_SLUG_LENGTH, MAX_TITLE_LENGTH, SLUG_FORMAT_PATTERN } from "./post";
  * `collections_*` (already `collections_entry_*` for Entries and `collections_content_type_*` for
  * Content Types — a genuinely different domain each).
  *
+ * HISTORY — this file previously recorded "There is NO delete tool", on the accurate observation
+ * that `PostRepoPort` exposed exactly four methods (`findById`/`findBySlug`/`list`/`save`) with no
+ * delete method anywhere in the domain to wrap. That is no longer true and the absence is no longer
+ * deliberate: `post.ts` now exports `deletePost`, `PostRepoPort` now carries `softDelete`, both
+ * adapters implement it, and `server/routes/admin/posts/delete.ts` + `.../pages/delete.ts` are the
+ * human-facing routes `content_post_delete` mirrors. The note is kept rather than erased because a
+ * reader who remembers the old claim needs to see that it was retired on purpose.
+ *
  * Deliberate absences (the point of a catalog, not an oversight):
- * - There is NO delete tool. `PostRepoPort` (`post.ts`) exposes exactly four methods —
- *   `findById`/`findBySlug`/`list`/`save` — and no delete method exists anywhere in this domain to
- *   wrap. Confirmed by reading the whole file: there is nothing to exclude here, unlike Widgets'
- *   `purgeWidgetInstance` or Recovery's restore ceremony, because there is no lever at all, not a
- *   lever this catalog chose to withhold.
  * - There is NO separate publish/unpublish tool. Unlike `features/entries/write-service.ts`
  *   (`publishEntry`/`unpublishEntry` as their own functions), `post.ts` has exactly one write path
  *   for status changes: `updatePost`'s `status` field, validated by `classifyStatusTransition`.
@@ -91,7 +94,16 @@ import { MAX_SLUG_LENGTH, MAX_TITLE_LENGTH, SLUG_FORMAT_PATTERN } from "./post";
  * drift from what the domain function actually validates.
  */
 
-export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
+/**
+ * This domain's copy of the shared union (see `assistant/tool-registration-kit.ts`'s own
+ * `AgentToolSideEffect` for why `deletes-durable-state` is a distinct member and not a flavor of
+ * `mutates-durable-state`).
+ */
+export type AgentToolSideEffect =
+  | "none"
+  | "mutates-durable-state"
+  | "deletes-durable-state"
+  | "mints-token";
 
 export interface AgentToolDefinition {
   name: string;
@@ -282,13 +294,14 @@ const TIPTAP_DOC_SCHEMA = {
 
 /**
  * The Posts + Pages domain's fixed agent-tool catalog: 2 reads (`content_post_list`/
- * `content_post_get`) plus the 2 writes `post.ts` actually exposes (`content_post_create`/
- * `content_post_update`) — see this file's header for the 3 deliberate absences (no delete, no
- * separate publish/unpublish, no partial update) and the disclosed `kind`-guard asymmetry.
+ * `content_post_get`) plus the 3 writes `post.ts` actually exposes (`content_post_create`/
+ * `content_post_update`/`content_post_delete`) — see this file's header for the 2 remaining
+ * deliberate absences (no separate publish/unpublish, no partial update), the retired
+ * no-delete-tool note, and the disclosed `kind`-guard asymmetry.
  *
- * Ordered read-first, matching `widgets/agent-tools.ts`'s/`identity/agent-tools.ts`'s convention: a
- * model needs a `postId` before it can update one, and `content_post_list` (or
- * `content_post_create`'s own result) is how it learns one.
+ * Ordered read-first and destructive-last, matching `widgets/agent-tools.ts`'s/
+ * `identity/agent-tools.ts`'s convention: a model needs a `postId` before it can update or delete
+ * one, and `content_post_list` (or `content_post_create`'s own result) is how it learns one.
  */
 export const postAgentToolCatalog: AgentToolDefinition[] = [
   {
@@ -376,6 +389,58 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         },
         bodyJson: { ...TIPTAP_DOC_SCHEMA, description: `Required — the COMPLETE replacement body. ${TIPTAP_DOC_SCHEMA.description}` },
         status: { type: "string", enum: ["draft", "published"], description: "Required. Setting this to 'published' from 'draft' is how a post/page is published; back to 'draft' is how it is unpublished." },
+      },
+    },
+  },
+  {
+    name: "content_post_delete",
+    description:
+      "Moves a post or page to the trash. TWO-STEP AND HUMAN-GATED — calling this tool does NOT delete anything by itself. " +
+      "Call it with just { id, kind }: it returns an interactive MCP-UI confirmation dialog that is rendered to the human, " +
+      "and returns WITHOUT deleting. The delete happens only if the human clicks Delete in that dialog, which causes the host " +
+      "to issue the second call for you. You cannot perform the second step yourself — it requires a secret that exists only " +
+      "inside the rendered dialog and is never shown to you — so do not attempt to guess, reconstruct, or retry it, and do not " +
+      "re-call the first step hoping for a different outcome. After the first call, simply tell the user a confirmation dialog " +
+      "is open and wait. " +
+      "The delete is a SOFT delete: the row is marked as trashed (it disappears from every posts/pages list, from get-by-id, " +
+      "and from the public site) but is retained and can be restored by reverting the resulting change set. Rejected if the " +
+      "row does not exist, is already trashed, or if kind:'page' is given for an actual kind:'post' row (the same disclosed " +
+      "asymmetry content_post_get and content_post_update carry — not rejected the other way around).",
+    // Genuinely destructive, and classified as its own thing rather than folded into the same
+    // bucket as an edit — `tool-registrations.ts`'s independent `postDerivedRisk` derives the
+    // identical value from what the handler actually calls, and the two are compared for equality
+    // at build time (`assertToolIsWirable`), so this declaration cannot quietly soften itself.
+    sideEffects: "deletes-durable-state",
+    // `content.write`, not a new `content.delete`: deleting content is writing content, this
+    // codebase grants no `content.delete` anywhere, and inventing a permission no policy grants
+    // would make the tool unusable rather than safer. Matches `posts/delete.ts`/`pages/delete.ts`.
+    authorization: { permission: "content.write" },
+    // NOTE the absence of `actorClassRule: "confirmer-must-equal-own-delegatedBy"`. That rule is on
+    // the kit's `ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT` deny-list precisely because it
+    // depends on `descriptor.requiresConfirmation`, which would park the execution forever with no
+    // `ExecutionDelegate` wired. This tool needs no such transport: its confirmation is an MCP-UI
+    // resource returned FROM the call, so the call returns normally and a second call completes the
+    // work. Declaring the rule would (correctly) fail the build for a mechanism this tool does not
+    // use — see `assistant/pending-confirmations.ts`'s header.
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["id", "kind"],
+      properties: {
+        id: POST_ID_SCHEMA,
+        kind: POST_KIND_SCHEMA,
+        confirmationToken: {
+          type: "string",
+          description:
+            "DO NOT SET THIS. Supplied automatically by the confirmation dialog when a human approves the deletion. " +
+            "It is a single-use secret that is never included in anything you can read; a call you construct with this " +
+            "field will be rejected.",
+        },
+        decision: {
+          type: "string",
+          enum: ["confirm", "cancel"],
+          description: "DO NOT SET THIS. Supplied automatically by the confirmation dialog alongside confirmationToken.",
+        },
       },
     },
   },

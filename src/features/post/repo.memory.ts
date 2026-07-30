@@ -42,4 +42,31 @@ export class InMemoryPostRepo implements PostRepoPort {
 
     this.rows[index] = record;
   }
+
+  /**
+   * Stamps the trash marker (see `post.ts`'s `PostRecord.deletedAt`). The row is KEPT — that is the
+   * whole point of a soft delete — so this is a field update on the existing record, never a splice
+   * out of `rows`. A row this adapter dropped could not be restored by `postDeleteReverter`, and
+   * `findBySlug` would stop reserving its slug, which `repo.sqlite.ts`'s real unique index would
+   * then reject at insert time. Both adapters must behave identically here.
+   */
+  async softDelete(required: {
+    workspaceId: string;
+    id: string;
+    deletedAt: string;
+    updatedAt: string;
+    version: number;
+  }): Promise<void> {
+    const index = this.rows.findIndex(
+      (row) => row.workspaceId === required.workspaceId && row.id === required.id
+    );
+    if (index === -1) return;
+
+    this.rows[index] = {
+      ...this.rows[index],
+      deletedAt: required.deletedAt,
+      updatedAt: required.updatedAt,
+      version: required.version,
+    };
+  }
 }
