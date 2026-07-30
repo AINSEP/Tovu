@@ -1,8 +1,9 @@
 import type { ToolRegistry } from "@jini-ai/core";
 
 import { connectMcpStdioSession, spawnMcpStdioChannel } from "./adapter.stdio";
-import { resolveSupabaseMcpConnection, type ResolvedFederatedConnection } from "./config";
+import type { ResolvedFederatedConnection } from "./config";
 import type { McpSessionPort } from "./ports";
+import { listFederatedMcpPresets } from "./presets";
 import { federateSession, type FederationDeps } from "./registrations";
 
 /**
@@ -29,6 +30,12 @@ import { federateSession, type FederationDeps } from "./registrations";
  * whole rather than partially registered. Dropping the connection is the safe direction — the
  * failure mode it prevents is a remote shadowing a Tovu tool, and "no federated tools" is always an
  * acceptable outcome.
+ *
+ * VENDOR-BLIND. Nothing in this file names a vendor: which servers exist is whatever registered
+ * itself with `presets.ts`, populated by first-party plugin modules such as
+ * `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts`. Before 2026-07-30 this file imported
+ * Supabase's resolver directly, which meant adding a second vendor was an edit to core federation.
+ * See `presets.ts` for the seam's rationale.
  */
 
 /** Where the admission report goes. Injected so tests assert on it instead of scraping stdout, and
@@ -60,7 +67,8 @@ export interface AttachFederatedToolsResult {
  *
  * @param params.registry - The daemon's registry, already populated with the native catalog.
  * @param params.deps - `authorize` + `workspaceId`, the slice federated handlers gate against.
- * @param params.connections - Defaults to whatever `config.ts` resolves from the environment.
+ * @param params.connections - Defaults to whatever the presets registered with `presets.ts` resolve
+ * from the environment.
  * @param params.connect - Session factory, injected so tests substitute a double for the real
  * `spawn` + handshake.
  * @returns The registered ids and the open sessions. Never rejects.
@@ -78,15 +86,7 @@ export async function attachFederatedMcpTools(params: {
   const logger = params.logger ?? consoleLogger;
   const connect = params.connect ?? defaultConnect;
 
-  let connections: readonly ResolvedFederatedConnection[];
-  try {
-    connections = params.connections ?? resolveConfiguredConnections(params.env ?? process.env);
-  } catch (error) {
-    // An enabled-but-invalid config. Loud, because the operator meant to have federation and does
-    // not; still non-fatal, because Tovu's own assistant is unaffected.
-    logger.warn(`mcp-federation: configuration is invalid, continuing without federated tools — ${messageOf(error)}`);
-    return { registeredToolIds: [], sessions: [] };
-  }
+  const connections = params.connections ?? resolveRegisteredPresets(params.env ?? process.env, logger);
 
   if (connections.length === 0) return { registeredToolIds: [], sessions: [] };
 
@@ -137,11 +137,32 @@ export async function attachFederatedMcpTools(params: {
   return { registeredToolIds, sessions };
 }
 
-/** Every configured connection. One preset today; the array shape is what makes a second one an
- * addition rather than a refactor. */
-function resolveConfiguredConnections(env: NodeJS.ProcessEnv): ResolvedFederatedConnection[] {
-  const supabase = resolveSupabaseMcpConnection(env);
-  return supabase ? [supabase] : [];
+/**
+ * Asks every registered preset for a connection, in registration order.
+ *
+ * Errors are isolated PER PRESET rather than abandoning the whole resolution pass: an enabled-but-
+ * invalid Supabase config must not also disable a correctly-configured second vendor that happens to
+ * be registered after it. Each failure is loud — the operator meant to have that connection and does
+ * not — and still non-fatal, because Tovu's own assistant is unaffected either way.
+ *
+ * A preset that declines (`null`) is silent: "not configured" is the expected default state, and
+ * logging it every boot would train operators to ignore this channel.
+ */
+function resolveRegisteredPresets(env: NodeJS.ProcessEnv, logger: FederationLogger): ResolvedFederatedConnection[] {
+  const connections: ResolvedFederatedConnection[] = [];
+
+  for (const preset of listFederatedMcpPresets()) {
+    try {
+      const connection = preset.resolve(env);
+      if (connection) connections.push(connection);
+    } catch (error) {
+      logger.warn(
+        `mcp-federation: preset '${preset.presetId}' configuration is invalid, continuing without federated tools — ${messageOf(error)}`,
+      );
+    }
+  }
+
+  return connections;
 }
 
 /**

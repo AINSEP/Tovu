@@ -3,8 +3,14 @@
 How a Tovu site owner connects their in-app AI assistant to an external MCP server, what Tovu will
 and will not let that server do, and why.
 
-Implementation: `src/assistant/mcp-federation/`. Every rule below is enforced in code and covered by
-`src/assistant/__tests__/mcp-federation.*.test.ts`.
+Implementation, in two parts (see §1.1 for why):
+
+| | Module | Tests |
+|---|---|---|
+| The **mechanism** (core) | `src/assistant/mcp-federation/` | `src/assistant/__tests__/mcp-federation.*.test.ts` |
+| The **Supabase preset** (a default-included first-party plugin) | `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts` | `src/features/plugins/supabase-mcp/__tests__/supabase-mcp-plugin.test.ts` |
+
+Every rule below is enforced in code and covered by one of those two suites.
 
 ---
 
@@ -23,6 +29,43 @@ out". This one's is "what do we accept back", and that is the harder of the two.
 
 **Federation is off by default.** With no configuration, the daemon boots exactly as it did before
 this capability existed.
+
+### 1.1 The core/plugin split
+
+The federation **mechanism** is core, and names no vendor: the stdio adapter, the trust tier, the
+ports, the registration wiring and the fail-open bootstrap would all be byte-identical if Supabase
+did not exist.
+
+A specific vendor's **preset** — which npm package to launch, which flags, which credential, and the
+Tovu-authored allowlist for that server's particular tool surface — is a different kind of thing, and
+lives outside core as a **Tier-2 first-party plugin module** (ADR-024), alongside
+`src/features/plugins/store/store-plugin.ts` and
+`src/features/plugins/deploy/deploy-plugin.ts`.
+
+Until 2026-07-30 the Supabase preset sat inside `mcp-federation/config.ts` and `bootstrap.ts` called
+its resolver by name. That was wrong in both directions: it made core federation import a specific
+vendor, and it made a reader of `src/assistant/` reasonably conclude that Supabase is *required*
+infrastructure for Tovu's assistant. It never was — it is one optional integration that happens to
+ship switched-on-if-configured.
+
+**"Default-included" means what it means for `store-plugin.ts`:** the module is imported and
+registered by a composition root during the ordinary boot sequence — `agent-daemon-server.ts` calls
+`registerSupabaseMcpPreset()` — with no separate install or enable step. This is **not** the SPEC-005
+plugin runtime, which exists to load sandboxed third-party code at runtime. A preset is ordinary
+reviewed code in this repository; the seam buys module-boundary honesty, not isolation.
+
+**Registration is not activation.** With no `TOVU_SUPABASE_MCP_ENABLED`, the registered resolver
+returns `null` every boot and nothing is spawned.
+
+What core keeps, because a *second* preset would otherwise duplicate it, is
+`mcp-federation/config.ts`'s generic scaffolding: the `ResolvedFederatedConnection` shape,
+`FEDERATED_CONNECTION_DEFAULTS` (the shared timeout/size ceilings), and the three env-parsing helpers
+`isFederationEnabled` / `parseAllowedToolNames` / `positiveIntOrDefault`. Their semantics — in
+particular that unset and empty-string are *different* answers for an allowlist — are the
+load-bearing part, and having one implementation is what makes two presets behave the same way about
+the same kind of setting.
+
+See §7 for how a second vendor preset is added.
 
 ---
 
@@ -81,6 +124,9 @@ deliberately wrapped would be making a worse call than the vendor did.
 ---
 
 ## 3. Configuring a Supabase connection
+
+Resolved by `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts`'s
+`resolveSupabaseMcpConnection(env)` — every variable below is read there and nowhere else.
 
 ### Getting the credential
 
@@ -231,6 +277,11 @@ self-promote, and cannot enlarge itself after the fact.**
 
 ## 5. Tovu's default allowlist for Supabase
 
+`SUPABASE_DEFAULT_ALLOWED_TOOLS`, in the preset module — a **vendor judgement**, which is exactly why
+it lives with the vendor's preset and not in core (§1.1). Core supplies no default allowlist at all:
+`FederatedMcpConnectionConfig.allowedToolNames` has no safe generic value, and an empty allowlist
+correctly yields zero federated tools.
+
 Authored from the inspected tool surface — not copied from anything the server says about itself.
 That authorship is the point, and is the direct analogue of `DerivedRiskByToolId`.
 
@@ -289,9 +340,64 @@ Same disposition, and the same reason, as `database_get_restore_guidance`'s stan
 
 ## 7. Adding a different MCP server
 
-`FederatedMcpConnectionConfig` and `McpStdioLaunchSpec` are generic; the Supabase preset in
-`config.ts` is one resolver, and `resolveConfiguredConnections` returns an array precisely so a
-second one is an addition rather than a refactor. A new connection needs: a `[a-z0-9-]`
-`connectionId`, a launch spec, and — the part that takes real work — **a Tovu-authored allowlist
-derived from reading that server's actual tool surface.** Do not skip that last step by copying the
-vendor's own defaults; the allowlist is the control that does the work.
+A second vendor is **a new file plus one line in a composition root** — no edit to any file under
+`src/assistant/mcp-federation/`. That is the property the preset registry exists to buy.
+
+### The seam
+
+`mcp-federation/presets.ts` is a small core-owned, plugin-populated registry — the same shape
+`page-head.ts` (`registerPageHeadContributor`/`foldPageHead`) and `routing.ts`
+(`registerResolvePhase`) already use, and exempt from ADR-006/ADR-009 §3's rule-of-two as a
+hook/registry rather than a port:
+
+```ts
+type FederatedMcpPresetResolver = (env: NodeJS.ProcessEnv) => ResolvedFederatedConnection | null;
+
+interface FederatedMcpPreset {
+  readonly presetId: string;            // identity of the preset MODULE
+  readonly resolve: FederatedMcpPresetResolver;
+}
+
+registerFederatedMcpPreset(preset: FederatedMcpPreset): void;
+listFederatedMcpPresets(): readonly FederatedMcpPreset[];
+resetFederatedMcpPresetsForTests(): void;
+```
+
+`bootstrap.ts` asks every registered preset for a connection, in registration order, and knows
+nothing else about any of them.
+
+A resolver's three outcomes are all load-bearing:
+
+| Return | Meaning | What `bootstrap.ts` does |
+|---|---|---|
+| `null` | The operator has not configured this one — the expected default | Nothing, **silently**; logging it every boot would train operators to ignore this channel |
+| a connection | Configured and valid | Connect, admit, register |
+| **throws** | The operator asked for this connection and got the settings wrong | Warn loudly, skip **that preset only**, continue with the others |
+
+That last row is why resolution errors are isolated per preset: one vendor's typo must not disable a
+second vendor's correctly-configured connection. Re-registering the same `presetId` **replaces** the
+earlier entry, so a module imported from two places cannot resolve to two connections sharing a
+`connectionId` and then have R1's collision assertion drop the second for shadowing itself.
+
+### Writing the preset
+
+1. New module under `src/features/plugins/<vendor>-mcp/`, mirroring
+   `supabase-mcp/supabase-mcp-plugin.ts`: a file header disclosing scope and tier, a
+   `resolve*Connection(env)` that reads only its own `TOVU_<VENDOR>_MCP_*` variables, and a
+   `register*Preset()` that calls `registerFederatedMcpPreset`. Reuse core's generic env helpers
+   (§1.1) rather than reimplementing them.
+2. Give it a `[a-z0-9-]` `connectionId` (it becomes part of every tool id the model sees — pick
+   once) and a launch spec. **Secrets go in `launch.env`, never in `launch.args`** — argv is
+   world-readable via `/proc/<pid>/cmdline` and `ps`.
+3. Author **a Tovu allowlist derived from reading that server's actual tool surface.** This is the
+   part that takes real work, and the part not to skip by copying the vendor's own defaults — R2 is
+   the control that does the work (§4).
+4. Call `register*Preset()` from `agent-daemon-server.ts`'s `start()`, next to
+   `registerSupabaseMcpPreset()`, if it should be default-included.
+5. Test it in its own `__tests__/` directory beside the module. Vendor judgements belong there, not
+   in the core suite — assert them against core's real `admitRemoteTools` so the allowlist's claims
+   are checked rather than restated.
+
+No `declareDataModule()` is needed for a preset that is pure configuration resolution, as Supabase's
+is. Declaring a table speculatively would create a real migration in every site's database to store
+nothing.
