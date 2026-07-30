@@ -1,5 +1,6 @@
 export {
   discoverThemes,
+  discoverAllBuiltInThemes,
   loadTheme,
   findTheme,
   validThemeIds,

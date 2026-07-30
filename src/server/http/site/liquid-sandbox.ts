@@ -31,6 +31,10 @@ import type { SiteRenderContext } from "./render";
 export interface LiquidWorkerInput {
   source: string;
   ctx: SiteRenderContext;
+  /** Mirrors `ThemeManifest.skipLiquidAllowlist` — `loadTheme()` already made this decision at
+   * discovery time; the worker's defensive re-lint (in case the file changed on disk since) honors
+   * the same choice rather than re-deciding it. */
+  skipLiquidAllowlist?: boolean;
 }
 
 /** The worker's reply, via `postMessage`. */

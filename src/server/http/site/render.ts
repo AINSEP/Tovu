@@ -26,14 +26,32 @@ import { renderLiquidInSandbox } from "./liquid-sandbox";
  * replace this implementation without touching themes.
  */
 
+/**
+ * A product line from the sample Tier-3 `store` plugin (`p_store__products`), shaped structurally
+ * rather than imported from `features/plugins/store` — same decoupling convention `RouteDeps.store`
+ * already uses, so the core render engine never depends on a specific plugin's module.
+ */
+export interface SiteProduct {
+  id: string;
+  title: string;
+  price: number; // cents
+  stock: number;
+}
+
 /** Everything a template + its components need to render one page. */
 export interface SiteRenderContext {
   siteTitle: string;
-  route: "home" | "post";
+  route: "home" | "post" | "products" | "product";
   /** Published posts (home index; also the entry-list source). */
   posts: PostRecord[];
   /** The single post being viewed (post route). */
   post?: PostRecord;
+  /** Products from the sample store plugin (products route). Empty when the store isn't wired
+   * (memory mode) or the theme's route doesn't need them — never undefined, same "omitted ⇒ safe
+   * default" convention as `widgetRegions` below. */
+  products: SiteProduct[];
+  /** The single product being viewed (product route). */
+  product?: SiteProduct;
   /** Active theme display name, for the footer badge. */
   themeName: string;
   /**
@@ -661,10 +679,15 @@ ${fontLink(theme)}
  */
 export async function renderSite(required: {
   theme: DiscoveredTheme;
-  route: "home" | "post";
+  route: "home" | "post" | "products" | "product";
   siteTitle: string;
   posts: PostRecord[];
   post?: PostRecord;
+  /** Sample store-plugin products (products/product routes). Omitted entirely (every pre-existing
+   * caller of `renderSite`) behaves as "no products" — not a breaking change, same convention as
+   * `widgets` below. */
+  products?: SiteProduct[];
+  product?: SiteProduct;
   /**
    * SPEC-043/ADR-047 W-004 — pre-resolved widget data for this render (`resolvePageWidgets`'s own
    * output). `render.ts` stays a pure "resolved data -> HTML" renderer, matching how `posts`/`post`
@@ -683,20 +706,28 @@ export async function renderSite(required: {
     route,
     posts: required.posts,
     post: required.post,
+    products: required.products ?? [],
+    product: required.product,
     themeName: theme.manifest.name,
     widgetRegions: required.widgets?.regions ?? {},
     widgetInlineResolved: required.widgets?.inlineResolved ?? EMPTY_INLINE_RESOLVED,
   };
 
+  // `products`/`product` have no dedicated fallback component (no theme built so far lacks them,
+  // and every OTHER theme simply never routes here) — degrade to the same entry-list/entry-content
+  // shape post/home already fall back to, so an unsupported theme still renders *something* instead
+  // of relying on a component that doesn't exist (REQ-10 spirit: never a raw crash).
   const fallbackBody = (): string =>
-    `${siteHeader(ctx, {})}${route === "post" ? entryContent(ctx) : entryList(ctx, {})}${siteFooter(ctx)}`;
+    `${siteHeader(ctx, {})}${route === "post" || route === "product" ? entryContent(ctx) : entryList(ctx, {})}${siteFooter(ctx)}`;
 
   let body: string;
   if (theme.manifest.tier === "templated") {
     const liquidId = resolveLiquidTemplateId({ route, liquidTemplates: theme.liquidTemplates });
     const source = liquidId ? theme.liquidTemplates[liquidId] : undefined;
     try {
-      body = source ? await renderLiquidInSandbox({ source, ctx }) : fallbackBody();
+      body = source
+        ? await renderLiquidInSandbox({ source, ctx, skipLiquidAllowlist: theme.manifest.skipLiquidAllowlist })
+        : fallbackBody();
     } catch (err) {
       // A broken/hostile Liquid template must not 500 the site (SPEC-004
       // REQ-10 spirit) — covers a syntax error, a disallowed tag/filter the

@@ -1,0 +1,27 @@
+{%- comment -%}
+  Minima — home. Adapted from jekyll/minima's `_layouts/home.html`: a plain
+  post-list, no excerpts shown by default (mirrors minima's own
+  `show_excerpts: false` default).
+{%- endcomment -%}
+{% render_block component: "tovu/site-header", tagline: "A one-size-fits-all theme for writers." %}
+
+<main class="page-content">
+  <div class="wrapper">
+    {%- if posts.size == 0 -%}
+      <p class="post-list-empty">No published posts yet — check back soon.</p>
+    {%- else -%}
+      <ul class="post-list">
+        {%- for post in posts -%}
+          <li>
+            <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }}</span>
+            <h3>
+              <a class="post-link" href="/{{ post.slug }}">{{ post.title }}</a>
+            </h3>
+          </li>
+        {%- endfor -%}
+      </ul>
+    {%- endif -%}
+  </div>
+</main>
+
+{% render_block component: "tovu/site-footer" %}

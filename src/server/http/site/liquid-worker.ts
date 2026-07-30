@@ -100,6 +100,12 @@ liquid.registerTag("render_block", {
   },
 });
 
+/** `2800` (cents) → `"$28.00"`. No `money` filter in the ADR-020 §3 allowlist (Shopify-specific,
+ * not a core LiquidJS filter), so this is precomputed server-side instead. */
+function formatCents(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
 /** Shapes the plain Liquid render context from a `SiteRenderContext`, matching the pre-worker `renderLiquidBody`'s data contract exactly. */
 function buildLiquidData(ctx: SiteRenderContext): Record<string, unknown> {
   return {
@@ -110,6 +116,12 @@ function buildLiquidData(ctx: SiteRenderContext): Record<string, unknown> {
     // `content` is pre-sanitized HTML; templates emit it with `| raw`.
     post: ctx.post
       ? { title: ctx.post.title, slug: ctx.post.slug, date: ctx.post.updatedAt, content: renderDocNode(ctx.post.bodyJson, ctx.widgetInlineResolved) }
+      : null,
+    // `price` stays in cents — themes format it themselves (no `money` filter in the allowlist);
+    // `priceFormatted` is precomputed here so a theme can just `{{ product.priceFormatted }}`.
+    products: ctx.products.map((p) => ({ id: p.id, title: p.title, price: p.price, priceFormatted: formatCents(p.price), stock: p.stock })),
+    product: ctx.product
+      ? { id: ctx.product.id, title: ctx.product.title, price: ctx.product.price, priceFormatted: formatCents(ctx.product.price), stock: ctx.product.stock }
       : null,
     [CTX_KEY]: ctx,
   };
@@ -133,12 +145,12 @@ function main(): void {
     reply({ ok: false, error: "liquid-worker received malformed workerData" });
     return;
   }
-  const { source, ctx } = workerData;
+  const { source, ctx, skipLiquidAllowlist } = workerData;
 
   // Defensive re-check (belt-and-suspenders): `loadTheme()` already linted
-  // this source at discovery time; re-lint here in case the file changed on
-  // disk since.
-  const violations = lintLiquidTemplate(source);
+  // this source at discovery time (unless the theme opted out); re-lint here
+  // in case the file changed on disk since, honoring the same opt-out.
+  const violations = skipLiquidAllowlist ? [] : lintLiquidTemplate(source);
   if (violations.length > 0) {
     reply({ ok: false, error: `disallowed Liquid usage: ${violations.join("; ")}` });
     return;

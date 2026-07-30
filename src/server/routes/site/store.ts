@@ -53,8 +53,13 @@ export function registerStoreRoutes(app: Express, deps: RouteDeps): void {
 
   app.get("/store/buy", (req, res) => {
     const store = deps.store;
+    // Optional caller-chosen return path (e.g. the `/products` theme route), same allowlist
+    // `safeHref` in render.ts uses for content links: only in-page-relative paths, never an
+    // absolute/protocol-relative URL an attacker could smuggle into an open redirect.
+    const returnToRaw = String(req.query.returnTo ?? "/store");
+    const returnTo = returnToRaw.startsWith("/") && !returnToRaw.startsWith("//") ? returnToRaw : "/store";
     if (!store) {
-      res.redirect("/store");
+      res.redirect(returnTo);
       return;
     }
     const productId = String(req.query.productId ?? "");
@@ -62,6 +67,6 @@ export function registerStoreRoutes(app: Express, deps: RouteDeps): void {
     const msg = result.ok
       ? `Purchased — order ${result.orderId}, ${result.remainingStock} left.`
       : `Could not buy: ${result.reason}.`;
-    res.redirect(`/store?msg=${encodeURIComponent(msg)}`);
+    res.redirect(`${returnTo}?msg=${encodeURIComponent(msg)}`);
   });
 }

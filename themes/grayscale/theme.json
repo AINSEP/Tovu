@@ -1,0 +1,9 @@
+{
+  "id": "grayscale",
+  "name": "Grayscale",
+  "version": "1.0.0",
+  "tier": "declarative",
+  "engine": 1,
+  "description": "Adapted from Start Bootstrap's Grayscale theme (MIT licensed) — a bold, full-bleed dark masthead and a stacked one-page layout, built from Tovu's core components (no original Bootstrap/Pug/Sass source included). See NOTICE.md and LICENSE for attribution.",
+  "fonts": ["Varela+Round", "Nunito:wght@400;700;800"]
+}
