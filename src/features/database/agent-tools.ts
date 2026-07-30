@@ -10,6 +10,20 @@
  * catalog — an agent asking to "roll back" only ever reaches a guidance/deep-link tool, never a
  * lever (ADR-041 §6, "Restore is a Recovery tool, not a Database tool").
  *
+ * Widened this dispatch (`assistant/tool-registrations.ts`'s wiring pass) with `description` and
+ * `inputSchema` — this file previously declared id/sideEffects/authorization only, one layer short
+ * of what `tool-registrations.ts` requires to actually publish a tool to the model (mirrors
+ * `forms/agent-tools.ts`'s `AgentToolDefinition` shape; `inputSchema` stays OPTIONAL, as in
+ * `features/content-types/agent-tools.ts`, because 5 of these 9 entries are declared but
+ * deliberately never wired — see `tool-registrations.ts`'s `UNWIRED_DATABASE_TOOL_IDS` for exactly
+ * which and why: `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
+ * have no backing adapter composed into `RouteDeps` yet (not this pass's scope to invent one),
+ * `database_get_restore_guidance` has no envelope-minting function to compose (only the RECEIVING
+ * side, `recovery/deep-link.ts`'s `resolveDeepLinkContext`, exists — inventing a fresh
+ * drift-computation adapter here would be new backend work, not wiring), and
+ * `database_execute_migrate_forward` is the token-gated destructive tool this file's own header
+ * already excludes.
+ *
  * How it relates to the project:
  * The server-side tool filter (ADR-014) consumes this catalog to decide which tool names an agent
  * session may even see; `authorize()` (ADR-021 §2) and the confirmation-token gateway
@@ -26,13 +40,62 @@ export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "
 
 export interface AgentToolDefinition {
   name: string;
+  description: string;
   sideEffects: AgentToolSideEffect;
   authorization: { permission: string };
   actorClassRule?: AgentToolActorClassRule;
+  /**
+   * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
+   * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Optional,
+   * matching `features/content-types/agent-tools.ts`'s convention — the entries this dispatch
+   * leaves unwired (see file header) carry no schema at all, since one is never published for a
+   * tool the model never sees.
+   */
+  inputSchema?: Readonly<Record<string, unknown>>;
 }
 
+/** No arguments — shared by every parameterless read tool in this catalog. */
+const NO_INPUT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: [],
+  properties: {},
+} as const;
+
+/** `database_query_timeline`'s filter — mirrors `features/database/timeline.ts`'s `getTimeline` filter shape and `routes/admin/database/timeline.ts`'s query-string parsing 1:1. */
+const TIMELINE_QUERY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: [],
+  properties: {
+    kind: { type: "string", description: "Filter by ledger row kind (e.g. 'core.migration', 'restore.executed'). Omit for all kinds." },
+    outcome: { type: "string", description: "Filter by outcome (e.g. 'success', 'failure'). Omit for all outcomes." },
+    fromDate: { type: "string", description: "ISO-8601 inclusive lower bound on createdAt. Omit for no lower bound." },
+    toDate: { type: "string", description: "ISO-8601 inclusive upper bound on createdAt. Omit for no upper bound." },
+    cursor: { type: "string", description: "Opaque pagination cursor from a previous call's own nextCursor. Omit to start from the newest row." },
+    limit: { type: "integer", minimum: 1, maximum: 200, description: "Max rows to return. Server-capped at 200 regardless of what is requested; defaults to 50 when omitted." },
+  },
+} as const;
+
+/** `backup_create_restore_point`'s input. `trigger` is deliberately NOT a model-settable field —
+ * every agent-initiated restore point is stamped `trigger:'manual'` server-side regardless of what
+ * is asked for, so the ledger's provenance trail cannot be mislabeled (e.g. as `'pre-migration-auto'`,
+ * a value that is only ever true when the SYSTEM itself takes the snapshot). */
+const CREATE_RESTORE_POINT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: [],
+  properties: {
+    costAck: {
+      type: "boolean",
+      description:
+        "Explicit cost acknowledgment. Required (must be true) only when this site's restore-point cost class is 'expensive'; ignored when 'cheap'. The call is refused with no override at all when cost class is 'unavailable' (ADR-041 §2 — no attestation override).",
+    },
+  },
+} as const;
+
 /**
- * Returns the Database domain's agent-tool catalog (ADR-041 §6, D4).
+ * The Database domain's fixed agent-tool catalog (ADR-041 §6, D4).
  *
  * @complexity O(1) — a fixed, statically-defined list.
  * @overallScore 100
@@ -42,33 +105,98 @@ export function getDatabaseAgentToolCatalog(
   _optional: Record<string, never> = {}
 ): AgentToolDefinition[] {
   return [
-    { name: "database_get_health", sideEffects: "none", authorization: { permission: "database.read" } },
-    { name: "database_get_schema_state", sideEffects: "none", authorization: { permission: "database.read" } },
-    { name: "database_list_pending_migrations", sideEffects: "none", authorization: { permission: "database.read" } },
-    { name: "database_query_timeline", sideEffects: "none", authorization: { permission: "database.read" } },
-    { name: "database_list_restore_points", sideEffects: "none", authorization: { permission: "database.read" } },
     {
-      // database_plan_migrate_forward is a read (ADR-041 §6): it recomputes and returns a plan,
-      // never mutates durable state.
-      name: "database_plan_migrate_forward",
+      // NOT WIRED (tool-registrations.ts): no backend function/adapter computes an overall health
+      // summary yet — inventing one would be new backend work, not a wiring pass.
+      name: "database_get_health",
+      description: "Reports a summary of this site's database health (connectivity, disk headroom, pending-migration/interrupted-migration state).",
       sideEffects: "none",
       authorization: { permission: "database.read" },
     },
     {
+      // NOT WIRED (tool-registrations.ts): `drift.ts`'s `getDriftStatus` is a pure classifier that
+      // needs two `SchemaSnapshot`s from adapters not yet composed into `RouteDeps` — same "no
+      // backend yet" gap as `database_get_health`.
+      name: "database_get_schema_state",
+      description: "Reports this site's schema drift status (in-sync/ahead/diverged/behind) between its persisted schema snapshot and the runtime's current schema.",
+      sideEffects: "none",
+      authorization: { permission: "database.read" },
+    },
+    {
+      // NOT WIRED (tool-registrations.ts): no `migration_runs`/pending-migration listing function
+      // exists yet — `boot/reconcile-interrupted-migration.ts` reads a single site's status, not a
+      // list of pending migrations.
+      name: "database_list_pending_migrations",
+      description: "Lists migrations pending against this site that have not yet been applied.",
+      sideEffects: "none",
+      authorization: { permission: "database.read" },
+    },
+    {
+      name: "database_query_timeline",
+      description:
+        "Returns a filtered, cursor-paginated page of the append-only database ledger (migrations, snapshots, restores, interrupted migrations), newest first.",
+      sideEffects: "none",
+      authorization: { permission: "database.read" },
+      inputSchema: TIMELINE_QUERY_SCHEMA,
+    },
+    {
+      name: "database_list_restore_points",
+      description: "Lists every restore point recorded for this site, newest first, with its trigger, cost class, and capture time.",
+      sideEffects: "none",
+      authorization: { permission: "database.read" },
+      inputSchema: NO_INPUT_SCHEMA,
+    },
+    {
+      // database_plan_migrate_forward is a read (ADR-041 §6): it recomputes and returns a plan,
+      // never mutates durable state. Verified directly against `core/gated-mutations/gateway.ts`'s
+      // `plan()`, which persists nothing — it authorizes, calls `hooks.computePlan()`, and returns
+      // the result. Safe to wire despite migrate-forward's overall high-risk classification: the
+      // step that actually redeems a plan into a mutation (`confirm()`) can never be reached by an
+      // agent principal at all (the gateway's own actor-class rule reserves `confirm()` for a
+      // human/api_key caller — AC-12), and no tool in this catalog exposes `confirm()`.
+      name: "database_plan_migrate_forward",
+      description: "Previews what forward-migrating this site's schema would do — cost class and a plan hash — without applying anything.",
+      sideEffects: "none",
+      authorization: { permission: "database.read" },
+      inputSchema: NO_INPUT_SCHEMA,
+    },
+    {
+      // EXCLUDED BY DESIGN, never wired (tool-registrations.ts's ACTOR_CLASS_RULES_REQUIRING_
+      // CONFIRMATION_TRANSPORT refuses to build any tool carrying this actorClassRule at all, so
+      // this is enforced structurally, not just by omission from a handlers map): running a
+      // migration forward can rewrite schema and data across every domain in this system at once,
+      // and Tovu has no confirmation-token transport an agent can safely be exposed to yet. Left
+      // human-UI-only, mirroring `identity/agent-tools.ts`'s exclusion of `resetUserPassword` and
+      // `features/recovery/agent-tools.ts`'s exclusion of `backup_execute_restore`.
       name: "database_execute_migrate_forward",
+      description: "Executes a previously confirmed forward migration using a human-minted confirmation token. NEVER agent-callable.",
       sideEffects: "mutates-durable-state",
       authorization: { permission: "database.migrate" },
       actorClassRule: "confirmer-must-equal-own-delegatedBy",
     },
     {
+      // Canonical wiring lives in `buildDatabaseRegistrations` (tool-registrations.ts) — ADR-041 §6
+      // names this as "the named tool for the `backup.create` permission" on the Storage/Database
+      // domain. `features/recovery/agent-tools.ts` also declares an entry of this same name (a
+      // pre-existing cross-domain id collision this dispatch found, not introduced by it); that
+      // entry is deliberately left unwired in Recovery's own build function — see its file header.
       name: "backup_create_restore_point",
+      description: "Mints a new restore point for this site independent of any migration, subject to the site's cost-acknowledgment rule.",
       sideEffects: "mutates-durable-state",
       authorization: { permission: "backup.create" },
+      inputSchema: CREATE_RESTORE_POINT_SCHEMA,
     },
     {
-      // The rollback hand-off: an agent never gets a restore lever from this domain, only a
-      // deep-link routing envelope pointing at the Recovery surface (ADR-041 §6).
+      // NOT WIRED (tool-registrations.ts): the rollback hand-off — an agent never gets a restore
+      // lever from this domain, only a deep-link routing envelope pointing at the Recovery surface
+      // (ADR-041 §6). No envelope-MINTING function exists in this codebase yet (only the receiving
+      // side, `recovery/deep-link.ts`'s `resolveDeepLinkContext`, does) and minting one honestly
+      // needs a real schema-drift computation this dispatch has no adapter for — see
+      // `database_get_schema_state`'s own note. Fabricating a placeholder `drift` value would
+      // violate this codebase's own "never fabricate" discipline (`disclosure.ts`'s identical rule).
       name: "database_get_restore_guidance",
+      description:
+        "Returns a deep-link routing envelope pointing at the Recovery surface for restoring this site to an earlier snapshot. Never itself a restore lever.",
       sideEffects: "none",
       authorization: { permission: "database.read" },
     },
