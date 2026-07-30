@@ -80,6 +80,7 @@ import {
 import { registerSlugChangeCapture } from "../routing";
 import { SqliteDbOpsAdapter } from "../infra/sqlite/db-ops";
 import { SqliteRestorePointsRepo } from "../infra/sqlite/database-journal-repo";
+import { SqliteDatabaseIntrospectionAdapter } from "../features/database/adapter.sqlite";
 import { InMemorySiteStatusRepo } from "../features/database/repo.memory";
 import { NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
 import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite";
@@ -383,6 +384,9 @@ export function createSqliteRouteDeps(
   // shares the same sidecar journal db/siteId as `databaseLedgerRepo` above.
   const restorePointsRepo = new SqliteRestorePointsRepo({ db: databaseJournalDb, siteId: workspaceId });
   const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
+  // ADR-041 §3 (this dispatch) — reuses the SAME already-open `db`/`dbPath` pair `dbOps` above
+  // just used, rather than opening a second connection to the same `content.db` file.
+  const databaseIntrospection = new SqliteDatabaseIntrospectionAdapter({ db, dbPath });
 
   // ADR-031/ADR-023 (SPEC-033) — hoisted so the Comments module's `entryLookup` reads the SAME
   // repo the rest of this composition root wires (mirrors `restorePointsRepo`'s identical
@@ -540,6 +544,7 @@ export function createSqliteRouteDeps(
     taxonomyRevisionRepo: new SqliteTaxonomyRevisionRepo({ db, workspaceId: workspaceId }),
     restorePointsRepo,
     dbOps,
+    databaseIntrospection,
     siteStatusRepo: new InMemorySiteStatusRepo(),
     migrationRunsRepo,
     disclosureWatermarkSource: new AlwaysUnavailableWatermarkSource(),

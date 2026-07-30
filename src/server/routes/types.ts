@@ -48,6 +48,7 @@ import type { CommentWriteService } from "../../comments/write-service";
 import type { RateLimiter } from "../middleware/rate-limit";
 import type { LedgerReadPort } from "../../features/database/timeline";
 import type { RestorePointListPort, RestorePointSavePort } from "../../features/database/restore-points";
+import type { DatabaseIntrospectionPort } from "../../features/database/adapter.sqlite";
 import type { BootLedgerPort, MigrationRunsRepoPort, SiteStatusPort } from "../../features/database/boot/reconcile-interrupted-migration";
 import type { DbOpsPort } from "../../core/gated-mutations/ports";
 import type { ContentTypeRepoPort, IndexProvisionerPort } from "../../features/content-types/write-service";
@@ -261,6 +262,13 @@ export interface RouteDeps {
    * in-memory double in `server/app.ts` (`features/database/repo.memory.ts`'s
    * `InMemoryDbOpsAdapter`). */
   dbOps: DbOpsPort;
+  /** ADR-041 §3 — the `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
+   * agent tools' backing read port (`features/database/adapter.sqlite.ts`, closing the gap that
+   * file's own catalog header previously disclosed as "no backing adapter composed into RouteDeps
+   * yet"). Real `SqliteDatabaseIntrospectionAdapter` in `server/deps.ts` (reuses the same open
+   * `ContentDb` handle `restorePointsRepo`/`dbOps` already share); `InMemoryDatabaseIntrospectionAdapter`
+   * in `server/app.ts`'s hermetic composition. */
+  databaseIntrospection: DatabaseIntrospectionPort;
   /** ADR-041 §3/§10 — this site's `SERVING`/`PENDING_MIGRATION`/`BLOCKED_PENDING_RECOVERY` status.
    * In-memory in both compositions, defaulted to `SERVING` — no composition root invokes
    * `features/database/boot/*`'s reconciliation functions at actual boot yet (disclosed gap, see
