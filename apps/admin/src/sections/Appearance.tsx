@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type PresentationSettings } from "../lib/api";
+import { siteUrl } from "../lib/site-url";
 
 const THEME_BLURBS: Record<string, string> = {
   "tovu-official": "The official explainer — a landing page that documents Tovu itself.",
@@ -43,7 +44,7 @@ export function Appearance() {
     <div>
       <h1>Themes</h1>
       <p>
-        The active theme drives the public site. <a href="/" target="_blank" rel="noreferrer">View site ↗</a>
+        The active theme drives the public site. <a href={siteUrl("/")} target="_blank" rel="noreferrer">View site ↗</a>
       </p>
       {error ? <div className="notice error">{error}</div> : null}
       <div className="theme-grid">
