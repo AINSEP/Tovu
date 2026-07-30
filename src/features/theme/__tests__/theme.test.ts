@@ -81,6 +81,109 @@ test("the live themes/dispatch demonstrator theme loads as valid end-to-end", ()
 });
 
 // ---------------------------------------------------------------------------
+// ADR-020 §3 (C6), Handlebars tier — the same lint-before-publish wiring, for
+// `.hbs`/`.handlebars` files against `handlebars-allowlist.ts`.
+// ---------------------------------------------------------------------------
+
+const handlebarsManifest = JSON.stringify({ id: "h", name: "H", version: "1.0.0", tier: "handlebars", engine: 1 });
+
+test("a clean handlebars theme (only allowed helpers/expressions) loads as valid", () => {
+  const dir = makeThemeDir({
+    "theme.json": handlebarsManifest,
+    "home.hbs": "{{#each posts}}{{title}}{{/each}}",
+    "entry.hbs": "{{post.title}}{{{post.content}}}",
+  });
+  const theme = loadTheme({ themeDir: dir, id: "h", source: "site" });
+  assert.equal(theme.status, "valid", `expected valid, got: ${JSON.stringify(theme.errors)}`);
+  assert.deepEqual(theme.errors, []);
+  assert.ok(theme.handlebarsTemplates.home);
+  assert.ok(theme.handlebarsTemplates.entry);
+});
+
+test("the .handlebars extension is accepted alongside .hbs and maps to the same template ids", () => {
+  const dir = makeThemeDir({
+    "theme.json": handlebarsManifest,
+    "home.handlebars": "{{site.title}}",
+    "entry.handlebars": "{{post.title}}",
+  });
+  const theme = loadTheme({ themeDir: dir, id: "h", source: "site" });
+  assert.equal(theme.status, "valid", `expected valid, got: ${JSON.stringify(theme.errors)}`);
+  assert.ok(theme.handlebarsTemplates.home);
+  assert.ok(theme.handlebarsTemplates.entry);
+});
+
+test("a disallowed partial in home.hbs fails the theme as invalid, naming the file and the partial", () => {
+  const dir = makeThemeDir({
+    "theme.json": handlebarsManifest,
+    "home.hbs": "{{> leak}}",
+    "entry.hbs": "{{post.title}}",
+  });
+  const theme = loadTheme({ themeDir: dir, id: "h", source: "site" });
+  assert.equal(theme.status, "invalid");
+  const homeError = theme.errors.find((e) => e.startsWith("templates/home.hbs:"));
+  assert.ok(homeError, `expected a templates/home.hbs error, got: ${JSON.stringify(theme.errors)}`);
+  assert.match(homeError!, /disallowed partial "leak"/);
+  // Rejected content never enters the trusted map (fail closed).
+  assert.equal(theme.handlebarsTemplates.home, undefined);
+});
+
+test("a disallowed raw {{{triple-stash}}} in entry.hbs fails the theme as invalid, naming the file and the expression", () => {
+  const dir = makeThemeDir({
+    "theme.json": handlebarsManifest,
+    "home.hbs": "{{site.title}}",
+    "entry.hbs": "{{{post.title}}}",
+  });
+  const theme = loadTheme({ themeDir: dir, id: "h", source: "site" });
+  assert.equal(theme.status, "invalid");
+  const entryError = theme.errors.find((e) => e.startsWith("templates/entry.hbs:"));
+  assert.ok(entryError, `expected a templates/entry.hbs error, got: ${JSON.stringify(theme.errors)}`);
+  assert.match(entryError!, /disallowed raw output/);
+});
+
+test("a handlebars theme missing home/entry reports the .hbs extension in its required-template errors", () => {
+  const dir = makeThemeDir({ "theme.json": handlebarsManifest });
+  const theme = loadTheme({ themeDir: dir, id: "h", source: "site" });
+  assert.equal(theme.status, "invalid");
+  assert.ok(theme.errors.includes("templates/home.hbs is required"));
+  assert.ok(theme.errors.includes("templates/entry.hbs is required"));
+});
+
+test("skipLiquidAllowlist does NOT relax the Handlebars lint — the handlebars tier has no opt-out", () => {
+  const dir = makeThemeDir({
+    "theme.json": JSON.stringify({ id: "h", name: "H", version: "1.0.0", tier: "handlebars", engine: 1, skipLiquidAllowlist: true }),
+    "home.hbs": "{{> leak}}",
+    "entry.hbs": "{{post.title}}",
+  });
+  const theme = loadTheme({ themeDir: dir, id: "h", source: "site" });
+  assert.equal(theme.status, "invalid");
+  assert.ok(theme.errors.some((e) => /disallowed partial "leak"/.test(e)));
+});
+
+test("one bad .hbs file never breaks discovery of the rest of the theme (REQ-10 fault isolation)", () => {
+  const dir = makeThemeDir({
+    "theme.json": handlebarsManifest,
+    "home.hbs": "{{site.title}}",
+    "entry.hbs": "{{post.title}}",
+    "products.hbs": "{{> leak}}",
+  });
+  const theme = loadTheme({ themeDir: dir, id: "h", source: "site" });
+  assert.equal(theme.status, "invalid");
+  // The clean templates still loaded; only the offending one was withheld.
+  assert.ok(theme.handlebarsTemplates.home);
+  assert.ok(theme.handlebarsTemplates.entry);
+  assert.equal(theme.handlebarsTemplates.products, undefined);
+});
+
+test("loadTheme records the folder it loaded from, so a theme id never has to be re-resolved to a path", () => {
+  const dir = makeThemeDir({
+    "theme.json": handlebarsManifest,
+    "home.hbs": "{{site.title}}",
+    "entry.hbs": "{{post.title}}",
+  });
+  assert.equal(loadTheme({ themeDir: dir, id: "h", source: "site" }).dir, dir);
+});
+
+// ---------------------------------------------------------------------------
 // SPEC-043/ADR-047 §2a — theme-declared `regions` (widgets)
 // ---------------------------------------------------------------------------
 

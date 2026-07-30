@@ -99,6 +99,17 @@ export interface RouteDeps {
   changeSets: ChangeSetRepoPort;
   /** Themes discovered at boot (built-in + site themes/ dir), SPEC-004 spike. */
   themes: DiscoveredTheme[];
+  /**
+   * The themes root those themes were discovered under (`server/deps.ts`'s `builtInThemesDir()`).
+   *
+   * Threaded through as a dependency rather than re-derived where it is needed, because it is the
+   * outer half of the `themes` agent-tool domain's containment check: `DiscoveredTheme.dir` says
+   * where one theme lives, and this says which folders are allowed to contain a theme at all
+   * (`features/theme/theme-files.ts`'s `isRecognizedThemeRoot`). Re-deriving it inside a feature
+   * module would both invert the dependency and let a test/composition root that overrides
+   * `TOVU_THEMES_DIR` disagree with the check enforcing it.
+   */
+  themesDir: string;
   outbox: OutboxPort;
   bus: EventBusPort;
   clock: { nowIso(): string };

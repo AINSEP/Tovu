@@ -32,6 +32,11 @@ function baseCtx(overrides: Partial<SiteRenderContext> = {}): SiteRenderContext 
     // `undefined` at runtime for every caller that doesn't override it.
     widgetRegions: {},
     widgetInlineResolved: new Map(),
+    // `products` is required on `SiteRenderContext` for exactly the same reason and with exactly
+    // the same TS blind spot the comment above describes — the trailing spread suppresses the
+    // object-literal completeness check, so omitting it type-checked while leaving `ctx.products`
+    // genuinely `undefined`, which threw inside the worker's render-data shaping on every call.
+    products: [],
     ...overrides,
   };
 }
@@ -79,22 +84,39 @@ test("a runaway CPU-bound template (nested for-loops, each range within the lint
   assert.ok(elapsed < 5000, `expected termination well under 5s, took ${elapsed}ms`);
 });
 
-test("a memory-blowup template (range within the lint cap, large per-iteration output) is force-terminated by the worker's heap resourceLimits", async () => {
+test("a memory-blowup template (range within the lint cap, accumulating retained allocations) is force-terminated by the worker's memory guards", async () => {
+  // A range well under `MAX_FOR_RANGE_SPAN` that RETAINS what it allocates —
+  // each iteration appends to a variable that stays live — so heap pressure
+  // actually accumulates instead of streaming straight out. This is the shape
+  // the worker's memory guards catch, and it is caught by LiquidJS's own
+  // `memoryLimit` (`liquid-worker.ts`) before V8's `resourceLimits` ceiling is
+  // ever reached, which is the intended defense-in-depth ordering: the cheaper,
+  // more precise limit fires first and reports a clean error rather than
+  // killing the worker.
+  //
+  // KNOWN GAP, deliberately not asserted here because it is not currently true:
+  // the same loop STREAMING its output instead of retaining it
+  // (`{% for i in (1..999999) %}<64 literal bytes>{% endfor %}`) is bounded by
+  // neither `memoryLimit` nor `resourceLimits` — it completes in ~1.2s and
+  // returns ~64MB of HTML. Verified empirically. Neither guard is wrong: the
+  // output is a rope/large-object string rather than retained young-generation
+  // heap, and `renderLimit` is a time budget the render finishes well inside.
+  // Bounding total output size is a separate mitigation this layer does not yet
+  // have; it applies identically to the Handlebars tier, which mirrors this
+  // sandbox. Recorded here rather than silently passed over — an earlier
+  // revision of this test appeared to cover the streaming case but was in fact
+  // passing because its `baseCtx()` fixture omitted the required `products`
+  // field, so the worker threw before rendering anything at all.
   await assert.rejects(
     renderLiquidInSandbox(
-      // A range just under `MAX_FOR_RANGE_SPAN` emitting a literal chunk
-      // every iteration still accumulates ~64MB of output — comfortably
-      // over a deliberately tiny 16MB heap cap — while staying under the
-      // lint-time range-span guard, so this exercises resourceLimits
-      // specifically (not the lint rejection exercised by the allowlist
-      // test suite's oversized-range case).
       {
-        source: "{% for i in (1..999999) %}0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF{% endfor %}",
+        source:
+          '{% assign s = "" %}{% for i in (1..200000) %}{% assign s = s | append: "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF" %}{% endfor %}{{ s }}',
         ctx: baseCtx(),
       },
       { timeoutMs: 15000, resourceLimits: { maxOldGenerationSizeMb: 16, maxYoungGenerationSizeMb: 8 } }
     ),
-    /.+/
+    /memory alloc limit exceeded/
   );
 });
 

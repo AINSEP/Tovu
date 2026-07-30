@@ -51,6 +51,15 @@ const BASE_CATALOG: readonly PermissionDescriptor[] = [
       "(navigation.manage, integration.manage) have used. Do not register a new dependency on this string.",
   },
   { id: "theme.set", owner: "core", description: "Change the active theme/presentation settings." },
+  {
+    id: "theme.edit",
+    owner: "core",
+    description:
+      "Create and edit the source files inside a theme package (templates, tokens, styles, manifest). " +
+      "Distinct from theme.set, which only chooses among already-validated themes: editing a theme's " +
+      "files can take that theme to status:'invalid', degrading its pages to the built-in fallback " +
+      "body until corrected. Granted to admin (and owner via '*'), not to editor.",
+  },
   { id: "plugin.read", owner: "core", description: "List installed plugins and their state." },
   { id: "plugin.enable", owner: "core", description: "Enable a plugin." },
   { id: "plugin.disable", owner: "core", description: "Disable a plugin." },

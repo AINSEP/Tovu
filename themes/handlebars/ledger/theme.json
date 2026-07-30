@@ -1,0 +1,9 @@
+{
+  "id": "ledger",
+  "name": "Ledger",
+  "version": "1.0.0",
+  "tier": "handlebars",
+  "engine": 1,
+  "description": "A Handlebars (Tier-2 / handlebars) demonstrator: an index-card front page whose entry list is authored with Handlebars block helpers ({{#each}}, {{#if}}, {{#unless}}) and whose header/footer come from Tovu's shared component registry via the {{render_block}} seam. Proves the Handlebars tier end-to-end — escaped output everywhere except the one sanctioned {{{post.content}}} raw seam, no partials, no decorators, no custom helpers. Executes no theme JavaScript.",
+  "fonts": ["IBM+Plex+Sans:wght@400;500;600", "IBM+Plex+Serif:wght@400;600"]
+}

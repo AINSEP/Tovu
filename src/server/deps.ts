@@ -444,6 +444,7 @@ export function createSqliteRouteDeps(
     // "pull-based per capability, not a uniform sweep" fold-in guidance.
     changeSets: new SqliteChangeSetRepo(db),
     themes: discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" }),
+    themesDir: builtInThemesDir(),
     outbox,
     bus,
     clock,

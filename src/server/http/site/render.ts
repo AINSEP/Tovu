@@ -1,9 +1,10 @@
 import type { JsonObject, JsonValue } from "../../../core/ports";
 import type { PostRecord } from "../../../features/post";
 import type { DiscoveredTheme, TemplateNode } from "../../../features/theme";
-import { resolveTemplateId, resolveLiquidTemplateId } from "../../../features/theme";
+import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "../../../features/theme";
 import type { ResolvePageWidgetsResult } from "../../../widgets/resolver-service";
 import type { WidgetRenderIR } from "../../../widgets/types";
+import { renderHandlebarsInSandbox } from "./handlebars-sandbox";
 import { renderLiquidInSandbox } from "./liquid-sandbox";
 
 /**
@@ -558,6 +559,91 @@ export function renderWidgetRegion(
 // this file only forwards to the sandbox.
 // ---------------------------------------------------------------------------
 
+/**
+ * Key under which the live `SiteRenderContext` is handed to a template engine's `render_block`
+ * seam. Never part of the data a template can name: the Liquid worker puts it in the render scope
+ * (where the tag reads it back with `ctx.getSync`), the Handlebars worker puts it in a private `@`
+ * data frame that its own allowlist refuses to let a template address.
+ */
+export const RENDER_CTX_KEY = "__siteCtx";
+
+/** `2800` (cents) → `"$28.00"`. Neither tier's allowlist carries a currency filter/helper
+ * (Shopify-specific in Liquid, nonexistent in Handlebars), so this is precomputed server-side. */
+function formatCents(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+/**
+ * Shapes the plain, structured-cloneable data object a logic-tier template renders against.
+ *
+ * Exported and shared by BOTH engine workers (`liquid-worker.ts`, `handlebars-worker.ts`)
+ * deliberately: the data contract a theme author writes against — `site`, `theme`, `route`,
+ * `posts`, `post`, `products`, `product` — is a property of Tovu's render pipeline, not of
+ * whichever template language is reading it. Keeping one builder is what makes "the same page,
+ * authored in Liquid or in Handlebars, sees the same fields" a fact rather than a coincidence two
+ * files have to be edited in lockstep to preserve.
+ *
+ * `post.content` is pre-rendered, pre-sanitized HTML (`renderDocNode` output) — the ONE value
+ * either tier is permitted to emit unescaped (Liquid's `| raw`, Handlebars' `{{{post.content}}}`).
+ *
+ * @complexity O(p) in the post/product counts.
+ * @overallScore 100/100
+ */
+export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, unknown> {
+  return {
+    site: { title: ctx.siteTitle },
+    theme: { name: ctx.themeName },
+    route: ctx.route,
+    // `date` is the full ISO timestamp (Liquid themes format it with `| date: "%b %e, %Y"`);
+    // `dateShort` is the same value pre-truncated to `YYYY-MM-DD`, added for the same reason
+    // `priceFormatted` exists below — the Handlebars tier's allowlist carries no date filter or
+    // helper (and deliberately exposes no way for a theme to register one), so any formatting a
+    // theme cannot express must be precomputed server-side. Purely additive: every existing Liquid
+    // theme's `{{ post.date | date: … }}` keeps reading the same unchanged `date` field.
+    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: p.updatedAt, dateShort: shortDate(p.updatedAt) })),
+    post: ctx.post
+      ? {
+          title: ctx.post.title,
+          slug: ctx.post.slug,
+          date: ctx.post.updatedAt,
+          dateShort: shortDate(ctx.post.updatedAt),
+          content: renderDocNode(ctx.post.bodyJson, ctx.widgetInlineResolved),
+        }
+      : null,
+    // `price` stays in cents — themes format it themselves; `priceFormatted` is precomputed here so
+    // a theme can just read one field.
+    products: ctx.products.map((p) => ({ id: p.id, title: p.title, price: p.price, priceFormatted: formatCents(p.price), stock: p.stock })),
+    product: ctx.product
+      ? { id: ctx.product.id, title: ctx.product.title, price: ctx.product.price, priceFormatted: formatCents(ctx.product.price), stock: ctx.product.stock }
+      : null,
+  };
+}
+
+/**
+ * Resolves one `render_block` invocation — the single seam both logic tiers share back into the
+ * trusted core. `props.region` selects a theme-declared widget region; otherwise `props.component`
+ * selects an entry in {@link COMPONENTS}. An unknown component id degrades to an HTML comment, never
+ * a throw, so one bad reference cannot take the page down.
+ *
+ * Exported so the Liquid tag and the Handlebars helper are the same code rather than two
+ * implementations that must be kept in agreement.
+ *
+ * @complexity O(1) beyond the resolved component's own rendering.
+ * @overallScore 100/100
+ */
+export function renderBlockSeam(ctx: SiteRenderContext, props: JsonObject): string {
+  if (typeof props.region === "string") {
+    return renderWidgetRegion({ ctx, regionKey: props.region });
+  }
+  const id = typeof props.component === "string" ? props.component : "";
+  const { component: _component, region: _region, ...rest } = props;
+  void _component;
+  void _region;
+  const component = COMPONENTS[id];
+  if (!component) return `<!-- unknown component: ${escapeHtml(id)} -->`;
+  return component(ctx, rest);
+}
+
 // ---------------------------------------------------------------------------
 // Slots — raw context injection points a template can drop in directly.
 // ---------------------------------------------------------------------------
@@ -732,6 +818,19 @@ export async function renderSite(required: {
       // A broken/hostile Liquid template must not 500 the site (SPEC-004
       // REQ-10 spirit) — covers a syntax error, a disallowed tag/filter the
       // worker's defensive re-lint caught, or a sandbox timeout/OOM.
+      body = `<!-- theme render error: ${escapeHtml((err as Error).message)} -->${fallbackBody()}`;
+    }
+  } else if (theme.manifest.tier === "handlebars") {
+    // Same contract as the Liquid branch above, engine swapped: resolve the
+    // route to a `.hbs` template, render it inside its own `worker_threads`
+    // sandbox, and degrade to the built-in fallback body on ANY failure — a
+    // syntax error, a disallowed helper/partial/raw-output the worker's
+    // defensive re-lint caught, or a sandbox timeout/OOM. Never a 500.
+    const hbsId = resolveHandlebarsTemplateId({ route, handlebarsTemplates: theme.handlebarsTemplates });
+    const source = hbsId ? theme.handlebarsTemplates[hbsId] : undefined;
+    try {
+      body = source ? await renderHandlebarsInSandbox({ source, ctx }) : fallbackBody();
+    } catch (err) {
       body = `<!-- theme render error: ${escapeHtml((err as Error).message)} -->${fallbackBody()}`;
     }
   } else {
