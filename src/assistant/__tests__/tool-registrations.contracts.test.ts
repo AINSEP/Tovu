@@ -6,9 +6,11 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { commentsAgentToolCatalog } from "../../comments/agent-tools";
 import { contentTypesAgentToolCatalog, type AgentToolDefinition } from "../../features/content-types/agent-tools";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools";
+import { entriesAgentToolCatalog } from "../../features/entries/agent-tools";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools";
 import { getSettingsAgentToolCatalog } from "../../features/settings/agent-tools";
+import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools";
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace/agent-tools";
 import { formsAgentToolCatalog } from "../../forms/agent-tools";
 import { identityAgentToolCatalog } from "../../identity/agent-tools";
@@ -76,14 +78,15 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
 }
 
 /** Every catalog whose entries `buildAssistantToolRegistrations` wires. A newly wired domain must
- * be added here — an id missing from all of them fails rather than being skipped. All 14 wired
+ * be added here — an id missing from all of them fails rather than being skipped. All 16 wired
  * domains are listed; the generic contract/risk assertions below iterate EVERY wired registration,
  * not just content-types', so each domain's catalog has to be resolvable from here even when that
- * domain also has its own dedicated test file. The `as unknown as` casts cover the five catalogs
+ * domain also has its own dedicated test file. The `as unknown as` casts cover the seven catalogs
  * whose own `AgentToolDefinition` is a structural sibling rather than the content-types one this
- * array is typed as (identity requires `inputSchema`, database/recovery/plugins/workspace/settings
- * declare their own copies) — the shared structural supertype lives in
- * `assistant/tool-registration-kit.ts`. */
+ * array is typed as (identity requires `inputSchema`, database/recovery/plugins/workspace/settings/
+ * taxonomy declare their own copies — taxonomy's additionally carries `actorClassRule`, entries'
+ * does not need the cast at all since its `AgentToolDefinition` shape matches content-types'
+ * exactly) — the shared structural supertype lives in `assistant/tool-registration-kit.ts`. */
 const WIRED_CATALOGS: AgentToolDefinition[] = [
   ...contentTypesAgentToolCatalog,
   ...formsAgentToolCatalog,
@@ -99,6 +102,8 @@ const WIRED_CATALOGS: AgentToolDefinition[] = [
   ...(pluginAgentToolCatalog as unknown as AgentToolDefinition[]),
   ...(getWorkspaceAgentToolCatalog() as unknown as AgentToolDefinition[]),
   ...(getSettingsAgentToolCatalog() as unknown as AgentToolDefinition[]),
+  ...(entriesAgentToolCatalog as unknown as AgentToolDefinition[]),
+  ...(taxonomyAgentToolCatalog as unknown as AgentToolDefinition[]),
 ];
 
 function catalogEntry(toolId: string): AgentToolDefinition {

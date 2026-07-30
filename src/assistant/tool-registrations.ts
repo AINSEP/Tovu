@@ -10,11 +10,11 @@
  * assistant rather than any one domain — which domains are wired at all, and the two cross-domain
  * invariants that only a file seeing all of them can check.
  *
- * Wired domains and their catalogs (14 domains, 95 catalog entries, 80 wired tools):
+ * Wired domains and their catalogs (16 domains, 108 catalog entries, 91 wired tools):
  *   content-types (5 of 7)   forms (3)         identity (10)      comments (7)
  *   members (4)              newsletter (14)   media (4)          widgets (12)
  *   menus (5)                database (4 of 9) recovery (5 of 7)  plugins (2)
- *   workspace (2 of 4)       settings (3 of 7)
+ *   workspace (2 of 4)       settings (3 of 7) entries (5 of 5)   taxonomy (6 of 7)
  * Each domain's own file records which of its entries are deliberately unwired and why; the kit's
  * `buildDomainRegistrations` fails the build on any catalog entry that is neither.
  *
@@ -26,9 +26,11 @@ import type { RouteDeps } from "../server/routes/types";
 import { buildCommentsRegistrations, commentsDerivedRisk } from "../comments/tool-registrations";
 import { buildContentTypesRegistrations, contentTypesDerivedRisk } from "../features/content-types/tool-registrations";
 import { buildDatabaseRegistrations, databaseDerivedRisk } from "../features/database/tool-registrations";
+import { buildEntriesRegistrations, entriesDerivedRisk } from "../features/entries/tool-registrations";
 import { buildPluginsRegistrations, pluginsDerivedRisk } from "../features/plugin-runtime/tool-registrations";
 import { buildRecoveryRegistrations, recoveryDerivedRisk } from "../features/recovery/tool-registrations";
 import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/settings/tool-registrations";
+import { buildTaxonomyRegistrations, taxonomyDerivedRisk } from "../features/taxonomy/tool-registrations";
 import { buildWorkspaceRegistrations, workspaceDerivedRisk } from "../features/workspace/tool-registrations";
 import { buildFormsRegistrations, formsDerivedRisk } from "../forms/tool-registrations";
 import { buildIdentityRegistrations, identityDerivedRisk } from "../identity/tool-registrations";
@@ -74,6 +76,8 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   { domain: "plugins", build: buildPluginsRegistrations, risk: pluginsDerivedRisk },
   { domain: "workspace", build: buildWorkspaceRegistrations, risk: workspaceDerivedRisk },
   { domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk },
+  { domain: "entries", build: buildEntriesRegistrations, risk: entriesDerivedRisk },
+  { domain: "taxonomy", build: buildTaxonomyRegistrations, risk: taxonomyDerivedRisk },
 ];
 
 /**
