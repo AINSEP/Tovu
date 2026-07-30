@@ -187,7 +187,7 @@ core/operation-lock.ts      # EXISTING (ADR-PIPE-019, GOV-ADR-002) — `migrate-
                              #   audit-work internal verification pass, 2026-07-15).
 ```
 
-`ADS-project-knowledge/specs/003-site-install-dir/state.spec.md`'s `SERVE_SITE` row requires the REQ-28–REQ-30 amendment recorded by this spec — the mechanical edit to that pre-existing file is a follow-up task, not performed by this ADR (matching ADR-041 §10's own stance).
+`ADS-memory/specs/003-site-install-dir/state.spec.md`'s `SERVE_SITE` row requires the REQ-28–REQ-30 amendment recorded by this spec — the mechanical edit to that pre-existing file is a follow-up task, not performed by this ADR (matching ADR-041 §10's own stance).
 
 ## API / Event Contract Summary
 
@@ -217,7 +217,7 @@ core/operation-lock.ts      # EXISTING (ADR-PIPE-019, GOV-ADR-002) — `migrate-
 
 ## Brownfield Grounding (direct codebase verification, this ADR)
 
-- Confirmed via direct grep: no `.site-meta.json`, `schemaTag`/`schemaVersion` handling, `__drizzle_migrations` reads, `ops/storage-journal.db`/`restore-points/` references, or `SERVE_SITE`/`serveSite` implementation exist anywhere in `src/` today. This domain is genuinely new capability, not a migration of running behavior — the "existing `SERVE_SITE`" the spec references is a pre-existing **spec document** (`ADS-project-knowledge/specs/003-site-install-dir/`), not running code.
+- Confirmed via direct grep: no `.site-meta.json`, `schemaTag`/`schemaVersion` handling, `__drizzle_migrations` reads, `ops/storage-journal.db`/`restore-points/` references, or `SERVE_SITE`/`serveSite` implementation exist anywhere in `src/` today. This domain is genuinely new capability, not a migration of running behavior — the "existing `SERVE_SITE`" the spec references is a pre-existing **spec document** (`ADS-memory/specs/003-site-install-dir/`), not running code.
 - `src/infra/sqlite/content-db.ts` confirmed as the existing pattern this ADR's new `storage-journal-db.ts` mirrors (Drizzle + better-sqlite3, its own migrations directory, pragmas applied at open).
 
 ## Implementation Outline: PRODUCED

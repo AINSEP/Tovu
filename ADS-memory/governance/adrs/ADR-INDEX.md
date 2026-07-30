@@ -7,6 +7,7 @@ Machine-scannable registry of active cross-cutting rules. Implementation agents 
 | GOV-ADR-001 | Gated-Mutation Gateway and Watermark Chokepoint Are Shared, Not Reimplemented | MANDATORY | `src/features/**; src/core/gated-mutations/**` | ACCEPTED | `GOV-ADR-001-gated-mutation-gateway-and-watermark-chokepoint.md` |
 | GOV-ADR-002 | Site-Wide Gated Operations Share One In-Flight Lock | MANDATORY | `src/features/storage/**; src/features/recovery/**; src/core/operation-lock.ts` | ACCEPTED | `GOV-ADR-002-shared-operation-in-flight-lock.md` |
 | GOV-ADR-003 | DDL Generation Never Interpolates Operator-Supplied Input | MANDATORY | `src/features/content-types/**; src/infra/**` | ACCEPTED | `GOV-ADR-003-ddl-generation-never-interpolates-operator-input.md` |
+| GOV-ADR-004 | Credential-hashing primitive is chosen by threat model (argon2id for low-entropy human secrets, SHA-256 for high-entropy machine-generated secrets), not by copying the nearest existing pattern | DEFAULT | `src/identity/**; src/**/*api-key*/**; src/**/*token*.ts; src/**/*credential*.ts` | PROPOSED | `GOV-ADR-004-credential-hashing-primitive-by-threat-model.md` |
 
 <!-- Add new entries above this line. Keep sorted by ID. -->
 

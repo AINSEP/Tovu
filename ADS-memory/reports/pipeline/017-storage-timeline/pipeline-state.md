@@ -61,21 +61,21 @@
 
 ## Source ADRs
 
-- `ADS-project-knowledge/reports/architecture/ADR-041-storage-timeline.md` (Accepted 2026-07-14) — primary source
-- `ADS-project-knowledge/reports/architecture/ADR-023-core-mediated-plugin-data-modules.md` §3, §4, §8 (cited by reference)
-- `ADS-project-knowledge/reports/architecture/ADR-024-plugin-execution-and-trust-model.md` §4 (cited by reference)
-- `ADS-project-knowledge/reports/architecture/ADR-021-identity-and-authorization.md` §9 (cited by reference)
-- `ADS-project-knowledge/reports/architecture/ADR-022-content-model-entries-registry-expression-indexes.md` §3, §4a (cited by reference)
-- `ADS-project-knowledge/reports/architecture/ADR-015-...` (Drizzle/migrations, RT-005) (cited by reference)
-- `ADS-project-knowledge/reports/architecture/ADR-012-...` (install-dir layout) (cited by reference)
-- `ADS-project-knowledge/specs/003-site-install-dir/` (pre-existing v1 spec suite — the `SERVE_SITE`
+- `ADS-memory/reports/architecture/ADR-041-storage-timeline.md` (Accepted 2026-07-14) — primary source
+- `ADS-memory/reports/architecture/ADR-023-core-mediated-plugin-data-modules.md` §3, §4, §8 (cited by reference)
+- `ADS-memory/reports/architecture/ADR-024-plugin-execution-and-trust-model.md` §4 (cited by reference)
+- `ADS-memory/reports/architecture/ADR-021-identity-and-authorization.md` §9 (cited by reference)
+- `ADS-memory/reports/architecture/ADR-022-content-model-entries-registry-expression-indexes.md` §3, §4a (cited by reference)
+- `ADS-memory/reports/architecture/ADR-015-...` (Drizzle/migrations, RT-005) (cited by reference)
+- `ADS-memory/reports/architecture/ADR-012-...` (install-dir layout) (cited by reference)
+- `ADS-memory/specs/003-site-install-dir/` (pre-existing v1 spec suite — the `SERVE_SITE`
   amendment target; NOT the new dependent Collections spec, which was renumbered to SPEC-020 — see
   feature.spec.md's Numbering Disambiguation section)
 
 ## Numbering Disambiguation (repeated here for pipeline-state visibility)
 
 ADR-041 §10 amends a spec it calls "SPEC-003." That is the pre-existing
-`ADS-project-knowledge/specs/003-site-install-dir/` package. The new dependent Collections spec,
+`ADS-memory/specs/003-site-install-dir/` package. The new dependent Collections spec,
 which would otherwise have collided with that label, was renumbered to SPEC-020 under
 `ADS-memory/specs/020-collections/` (Coordinator decision, 2026-07-14). This package cites the
 older one only by full path throughout, never by the bare label "SPEC-003," since that label now
@@ -172,7 +172,7 @@ and to re-sync against SPEC-016 v1.1.0. Fixes, by finding id:
   disambiguation note (or pointer to SPEC-017's Numbering Disambiguation section) should be added
   to SPEC-016's OQ-02 by whichever pass next touches SPEC-016.
 - **RT-005 (ADVISORY, fixed):** `feature.spec.md` Dependencies table's
-  `ADS-project-knowledge/specs/003-site-install-dir/` row now carries an explicit Owner (Software
+  `ADS-memory/specs/003-site-install-dir/` row now carries an explicit Owner (Software
   Architect for SPEC-017) and Resolve-by (before Programmer work begins on REQ-28–REQ-30) for the
   follow-up file-edit action, matching the rigor already applied to every Open Question.
 - **RT-006 (ADVISORY, fixed):** `behavior.spec.md` §1.2's "Postgres is never `'cheap'`" aside was

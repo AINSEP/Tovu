@@ -15,7 +15,7 @@
 do appear in `SPEC-020-spec-dod.md` (B-01) and `SPEC-020-feature.spec.md` (Implementation Readiness Gate) are legitimate audit trail —
 they record that `ADS-memory/specs/003-*` and `ADS-memory/reports/pipeline/003-*` were checked and found absent before SPEC-020 was
 assigned its number, not leftover rename artifacts. Separately verified that the repo's real, pre-existing `SPEC-003`
-(`ADS-project-knowledge/specs/003-site-install-dir/`) is unrelated to Collections and is correctly left alone — no cross-contamination
+(`ADS-memory/specs/003-site-install-dir/`) is unrelated to Collections and is correctly left alone — no cross-contamination
 in either direction. `ADR-043-collections.md` (Collections' own ADR) contains zero "SPEC-003" references. No other spec package in
 `ADS-memory/specs/` misattributes SPEC-020 content to SPEC-003 or vice versa.
 

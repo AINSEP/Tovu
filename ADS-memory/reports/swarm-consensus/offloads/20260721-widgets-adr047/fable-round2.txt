@@ -1,0 +1,47 @@
+# Fable — Round 2 Answer (widgets-adr047-r2)
+
+## Preamble: what I verified against the live repo before answering
+
+Concession (D5): retracted Round 1 claim "no MailerPort exists" — confirmed src/mail/ (ADR-037) and src/forms/ (submit-service.ts, rate-limit-profile.ts, notify-subscriber.ts) are real, wired, tested. Claim was stale (from before SPEC-010/ADR-PIPE-010 landed).
+
+New fact 1: entry_refs does NOT exist as running code — no table in schema.ts, and src/navigation/resolver.ts:21 says explicitly it "has no compatible ADR-022 schema yet." entries/entry_revisions/change_sets/outbox_events DO exist. This changes what "cheap fix" means for D4/D7.
+
+New fact 2: running ADR-029 navigation code (src/navigation/types.ts:169-199, reconcile.ts) is even thinner than Fable's Round 1 A′: source of truth lives on the menu entry (fields.ext.navigation.locations), nav_location_bindings is a derived, rebuildable, non-revision-generating projection. This refines A′ into "A″."
+
+## D1 — endorsed A″ (region composition as seeded widget_area entry with regionKey as source of truth on the entry itself; widget_region_bindings is a derived/reconciled projection, not authored). More faithful to the actual running nav_location_bindings pattern than Round 1's A′.
+
+## D2 — resolver contract grounded in 3 existing precedents (navigation/resolver.ts, media/transform-registry.ts, outbox_events). Batch-first `resolveMany` signature answers agy's N+1 concern structurally. No fragment cache in v1 (nothing to reuse); resolvers declare dependencyKeys as a seam for later.
+
+## D3 — confirmed registration-is-data/behavior-is-code split; grounded in forms/manifest.ts as the exact existing template for "registration never imported by behavior code."
+
+## D4 — mechanism confirmed, cost corrected: entry_refs isn't built yet, so a minimal slice (table + chokepoint extractor for ref fields + widgetEmbed nodes) is a named v1 dependency, not a free add-on. D7's edit-time signal depends on it.
+
+## D5 — CHANGED to ship in v1, with 3 non-descoping caveats: disabled form definitions render as D8 placeholder (never deleted, only active⇄disabled); render adapter must target the field-type vocabulary, not hardcode 4 cases; CSRF is a non-issue (endpoint is deliberately anonymous/public, defended by honeypot+rate-limit, no new authenticated surface).
+
+## D6 — confirmed, with addition: guardrails enforced at the write chokepoint on the persisted document, not just the TipTap editor (else first server-side AI mutation bypasses everything). Forbid widgetEmbed inside widget-owned bodyJson at the schema level.
+
+## D7 — confirmed; flagged as load-bearing on D4 (edit-time "N places" signal needs entry_refs to be real).
+
+## D8 — confirmed; suggested treating "widget resolution failure never propagates" as a standing code-review gate (Forms' INV-05 "never await mail inline" precedent), not just an ADR sentence.
+
+## D9 — confirmed; under A″ future per-page/section scope is expressible via additional area entries with a scope column on the derived index, no schema redesign needed.
+
+## Artifacts
+
+Schema: `entries(type='widget')` for instances; `entries(type='widget_area')` per region (bodyJson.placements = ordered [{placementId, widgetEntryId}], fields.ext.widgets.regionKey = source of truth); `widget_region_bindings(workspace_id, region_key, area_entry_id)` UNIQUE, derived+reconciled, mirrors navLocationBindings exactly.
+
+Resolver: `WidgetTypeRegistration` (plain data, forms/manifest.ts style) + `WidgetResolver.resolveMany(instances, ctx)` batch-first, closed `CORE_RESOLVERS` map (resolverId indexes into it, never arbitrary code), `WidgetResolveResult` = ok+ir+dependencyKeys or ok:false+reason (unknown-type/invalid-config/target-disabled/timeout/resolver-error).
+
+Draft ADR-047 diff: replaces §2a's ordered-rows-in-binding-table language with the widget_area-entry + derived-index language; adds explicit entry_refs-not-yet-built note as a named v1 dependency; adds a new §Resolution-contract-and-failure-isolation section; changes Contact Form from "deferred" to "ships in v1 as thin Forms wrapper."
+
+Specs: R-A (widget_area entry + reconcile invariants — one per (workspace,regionKey), seed-on-theme-activation, orphaned areas retained not deleted, whole-document OCC mutation), R-B (resolver contract — resolveMany only, per-type timeout/clamps enforced by core, D8 failure isolation, read-only resolvers), R-C (minimal entry_refs slice — table + chokepoint extractor for ref fields and widgetEmbed nodes, explicitly no polymorphic sources needed since A″ makes every source an entry).
+
+Implementation outline: new src/widgets/ module mirroring src/navigation/ + src/forms/ layout — schema/migration, types/contracts, registry (data), ports+repo adapters, write-service+reconcile (routed through executeCommand, chokepoint-side validation), resolvers/ (one file per dynamic type — recent-entries.ts, menu.ts delegating to navigation/resolver.ts, contact-form.ts), resolver-service.ts (batch pipeline), server route wiring + render-context injection, then editor/AI surface (TipTap atom node + server-side embed-mutation command) last. Contact Form lands as one resolver file + one render component, nothing else depends on it.
+
+Overview: reusable building blocks (contact form, recent posts, menu, text, social links) set up once and placed anywhere — theme regions or dropped into any page. Editing updates everywhere it's used; the site can say "this appears in 4 places" before you change/delete it; every rearrangement is undoable. A broken widget renders empty, the rest of the page still loads. Contact form works day one via the existing form/email system.
+
+## Unlisted-option / framing check
+
+No tenth option. Remaining gap: an explicit substrate-sequencing section in the ADR — entries/revisions/OCC (built), command gateway (built, "called directly for now"), entry_refs (not built) — so the spec-writer sequences honestly instead of discovering the gap mid-implementation (the same class of stale-assumption error this round corrected in Fable itself, and which stale forms/INFO.md shows will otherwise recur).
+
+Final verdict: Option A amended to A″, resolution contract + failure isolation as a first-class ADR section, registration/behavior split, minimal entry_refs slice as a named v1 dependency, Contact Form restored to v1. With those folded, ADR-047 is audit-ready.
