@@ -47,7 +47,14 @@ const MIGRATIONS_DIR = path.resolve(__dirname, "../drizzle");
 /** First-run demo content a caller may supply to `openContentDb`/`seedContentDb`. */
 export interface ContentDbSeedData {
   workspace: typeof schema.workspaces.$inferInsert;
-  posts: Array<Omit<typeof schema.posts.$inferInsert, "bodyJson"> & { bodyJson: unknown }>;
+  /**
+   * `bodyJson` and (SPEC-005) `ext` are both JSON-text columns whose seed callers hand us the
+   * parsed object — the same shape `PostRecord` carries — so both are widened here and serialized
+   * on insert below. `ext` is optional: a seed entry without one gets the column's `'{}'` default.
+   */
+  posts: Array<
+    Omit<typeof schema.posts.$inferInsert, "bodyJson" | "ext"> & { bodyJson: unknown; ext?: unknown }
+  >;
   presentation: typeof schema.presentationSettings.$inferInsert;
 }
 
@@ -112,7 +119,11 @@ export function seedContentDb(
     tx.insert(schema.workspaces).values(seed.workspace).run();
     for (const post of seed.posts) {
       tx.insert(schema.posts)
-        .values({ ...post, bodyJson: JSON.stringify(post.bodyJson) })
+        .values({
+          ...post,
+          bodyJson: JSON.stringify(post.bodyJson),
+          ext: JSON.stringify(post.ext ?? {}),
+        })
         .run();
     }
     tx.insert(schema.presentationSettings).values(seed.presentation).run();

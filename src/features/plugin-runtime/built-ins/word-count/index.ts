@@ -14,10 +14,8 @@
  * single spaces, trim, split on `/\s+/`, count non-empty tokens.
  *
  * Architectural role:
- * TDD-certified stub (implementation outline, built-ins/word-count). `countWords`'s body
- * intentionally throws until the Programmer stage implements it against
- * `__tests__/unit/word-count.unit.test.ts`. Do not implement ahead of that suite being reviewed —
- * this file exists so the test suite compiles and fails red, not green.
+ * Implemented (tasks.md T019) against the certified suite in
+ * `__tests__/unit/word-count.unit.test.ts`, which pins the tokenization algorithm exactly.
  */
 import type { BuiltInPluginSource } from "../../discovery";
 import type { PluginManifest } from "../../manifest";
@@ -47,9 +45,33 @@ export const WORD_COUNT_BUILT_IN: BuiltInPluginSource = { manifest: WORD_COUNT_M
  * @returns The non-empty whitespace-delimited token count of every text node's concatenated value.
  * @complexity O(n) over the document's total node count.
  */
-export function countWords(_bodyJson: unknown): number {
-  throw new Error(
-    "countWords: not implemented — TDD-certified stub (SPEC-005 REQ-09, RT-005). " +
-      "See src/features/plugin-runtime/built-ins/word-count/__tests__/unit/word-count.unit.test.ts for the certified contract."
-  );
+export function countWords(bodyJson: unknown): number {
+  const texts: string[] = [];
+
+  // Depth-first walk. Every node's own `text` is collected before its `content` children are
+  // visited, so the collected order is document order. Non-object nodes, nodes without `text`,
+  // and nodes without `content` are all simply skipped — never an error (RT-005: an image node
+  // contributes nothing rather than throwing).
+  const visit = (node: unknown): void => {
+    if (typeof node !== "object" || node === null) return;
+
+    if (Array.isArray(node)) {
+      for (const child of node) visit(child);
+      return;
+    }
+
+    const { text, content } = node as { text?: unknown; content?: unknown };
+    if (typeof text === "string") texts.push(text);
+    if (Array.isArray(content)) {
+      for (const child of content) visit(child);
+    }
+  };
+
+  visit(bodyJson);
+
+  // RT-005's literal wording: join EVERY collected text-node value with single spaces (not only
+  // the ones separated by a block boundary), trim, split on `/\s+/`, count non-empty tokens.
+  const joined = texts.join(" ").trim();
+  if (joined === "") return 0;
+  return joined.split(/\s+/).filter((token) => token !== "").length;
 }

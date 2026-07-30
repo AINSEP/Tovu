@@ -27,6 +27,13 @@ export interface AdminPost {
   status: "draft" | "published";
   updatedAt: string;
   version: number;
+  /**
+   * SPEC-005 REQ-11/AC-14 — NEW field, additive and OPTIONAL: the plugin extension-field bag,
+   * namespaced per plugin (`{ [pluginId]: { …declaredFields } }`). Present only when a plugin has
+   * actually written to this entry; an entry with no contributing plugin carries no `ext` key at
+   * all, and every pre-feature field above is unchanged.
+   */
+  ext?: Record<string, Record<string, unknown>>;
 }
 
 export interface AdminPostEnvelope {
