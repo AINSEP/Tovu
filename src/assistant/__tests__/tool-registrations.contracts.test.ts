@@ -8,6 +8,8 @@ import { contentTypesAgentToolCatalog, type AgentToolDefinition } from "../../fe
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools";
+import { getSettingsAgentToolCatalog } from "../../features/settings/agent-tools";
+import { getWorkspaceAgentToolCatalog } from "../../features/workspace/agent-tools";
 import { formsAgentToolCatalog } from "../../forms/agent-tools";
 import { identityAgentToolCatalog } from "../../identity/agent-tools";
 import { mediaAgentToolCatalog } from "../../media/agent-tools";
@@ -74,13 +76,14 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
 }
 
 /** Every catalog whose entries `buildAssistantToolRegistrations` wires. A newly wired domain must
- * be added here — an id missing from all of them fails rather than being skipped. All 12 wired
+ * be added here — an id missing from all of them fails rather than being skipped. All 14 wired
  * domains are listed; the generic contract/risk assertions below iterate EVERY wired registration,
  * not just content-types', so each domain's catalog has to be resolvable from here even when that
- * domain also has its own dedicated test file. The `as unknown as` casts cover the three catalogs
+ * domain also has its own dedicated test file. The `as unknown as` casts cover the five catalogs
  * whose own `AgentToolDefinition` is a structural sibling rather than the content-types one this
- * array is typed as (identity requires `inputSchema`, database/recovery/plugins declare their own
- * copies) — the shared structural supertype lives in `assistant/tool-registration-kit.ts`. */
+ * array is typed as (identity requires `inputSchema`, database/recovery/plugins/workspace/settings
+ * declare their own copies) — the shared structural supertype lives in
+ * `assistant/tool-registration-kit.ts`. */
 const WIRED_CATALOGS: AgentToolDefinition[] = [
   ...contentTypesAgentToolCatalog,
   ...formsAgentToolCatalog,
@@ -94,6 +97,8 @@ const WIRED_CATALOGS: AgentToolDefinition[] = [
   ...(getDatabaseAgentToolCatalog() as unknown as AgentToolDefinition[]),
   ...(recoveryAgentToolCatalog as unknown as AgentToolDefinition[]),
   ...(pluginAgentToolCatalog as unknown as AgentToolDefinition[]),
+  ...(getWorkspaceAgentToolCatalog() as unknown as AgentToolDefinition[]),
+  ...(getSettingsAgentToolCatalog() as unknown as AgentToolDefinition[]),
 ];
 
 function catalogEntry(toolId: string): AgentToolDefinition {
