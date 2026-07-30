@@ -75,8 +75,8 @@
   height: 48px;
   border-radius: var(--r-pill);
   border: 1px solid var(--border-strong);
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: #ffffff;
+  color: #d4af37;
   display: flex;
   align-items: center;
   justify-content: center;
