@@ -1,0 +1,381 @@
+/**
+ * @file Inbound webhooks: real HMAC verification over real bytes, and the idempotency and ordering
+ * guarantees core enforces on the provider's behalf.
+ *
+ * Every signature in this file is produced by the same HMAC the gateway verifies with — nothing is
+ * stubbed. A test that mocks signature verification does not test signature verification.
+ */
+import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
+import test from "node:test";
+
+import { InMemoryPaymentCredentials } from "../credentials";
+import { signLipayWebhook } from "../providers/lipay-gateway";
+import { chargeOk, cleanup, makeLipay, WEBHOOK_SECRET, WORKSPACE_ID, type Harness } from "./support";
+
+const USD = (minorUnits: number) => ({ minorUnits, currency: "USD" });
+
+function delivery(
+  event: { id: string; type: string; createdSeconds: number; charge: { id: string; amount?: number; currency?: string } },
+  optional: { secret?: string; signedAtSeconds?: number } = {}
+): { rawBody: Buffer; headers: Record<string, string> } {
+  const rawBody = Buffer.from(
+    JSON.stringify({
+      id: event.id,
+      type: event.type,
+      created: event.createdSeconds,
+      data: event.charge,
+    }),
+    "utf8"
+  );
+  const signature = signLipayWebhook({
+    secret: optional.secret ?? WEBHOOK_SECRET,
+    rawBody,
+    timestampSeconds: optional.signedAtSeconds ?? event.createdSeconds,
+  });
+  return { rawBody, headers: { "content-type": "application/json", "x-lipay-signature": signature } };
+}
+
+async function pendingPayment(harness: Harness, minorUnits = 1000) {
+  const created = await harness.api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(minorUnits),
+    idempotencyKey: "order-1",
+  });
+  if (!created.ok) throw new Error("charge fixture failed");
+  return created.payment;
+}
+
+const eventRows = (db: import("better-sqlite3").Database) =>
+  db.prepare(`SELECT * FROM "p_lipay__events" ORDER BY received_at, id`).all() as {
+    provider_event_id: string;
+    payment_id: string | null;
+    kind: string;
+    applied: number;
+    payload: string;
+  }[];
+
+test("webhook: a genuinely signed delivery verifies and advances the payment to succeeded", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  const ack = await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+  });
+
+  assert.deepEqual(ack, { accepted: true, processed: 1, duplicates: 0 });
+  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "succeeded");
+
+  const rows = eventRows(harness.db);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].applied, 1);
+  assert.equal(rows[0].payment_id, payment.id);
+  // The raw body is retained verbatim as the audit record of what the provider actually sent.
+  assert.equal(JSON.parse(rows[0].payload).id, "evt_1");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: a tampered body fails verification and changes nothing", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  const signed = delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } });
+  // Same signature, different bytes — exactly what a parse-then-reserialize round trip, or an
+  // attacker replaying a captured signature over an edited payload, would produce.
+  const tampered = Buffer.from(signed.rawBody.toString("utf8").replace('"charge.succeeded"', '"charge.failed"'), "utf8");
+  assert.notEqual(tampered.toString("utf8"), signed.rawBody.toString("utf8"));
+
+  const ack = await harness.api.handleWebhook({ providerId: "lipay", rawBody: tampered, headers: signed.headers });
+
+  assert.equal(ack.accepted, false);
+  assert.equal(ack.error?.code, "SIGNATURE_INVALID");
+  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "pending");
+  assert.equal(eventRows(harness.db).length, 0, "an unverified delivery is never recorded");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: a signature made with the wrong secret is rejected", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  const ack = await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery(
+      { id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } },
+      { secret: "whsec_attacker" }
+    ),
+  });
+
+  assert.equal(ack.error?.code, "SIGNATURE_INVALID");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: a missing or malformed signature header is rejected", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  await pendingPayment(harness);
+  const signed = delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: 1, charge: { id: "ch_1" } });
+
+  for (const headers of [{}, { "x-lipay-signature": "garbage" }, { "x-lipay-signature": "t=abc,v1=zz" }]) {
+    const ack = await harness.api.handleWebhook({ providerId: "lipay", rawBody: signed.rawBody, headers });
+    assert.equal(ack.error?.code, "SIGNATURE_INVALID");
+  }
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: a validly signed but stale timestamp is refused, so a captured body cannot be replayed forever", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  await pendingPayment(harness);
+  const staleSeconds = Math.floor(harness.clock.now() / 1000) - 3600;
+
+  const ack = await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: staleSeconds, charge: { id: "ch_1" } }),
+  });
+
+  assert.equal(ack.error?.code, "SIGNATURE_INVALID");
+  assert.match(ack.error?.message ?? "", /outside the accepted window/);
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: the signature covers the timestamp too — moving t invalidates it", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  const signed = delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } });
+  const mac = signed.headers["x-lipay-signature"].split("v1=")[1];
+  const shifted = { ...signed.headers, "x-lipay-signature": `t=${nowSeconds - 1},v1=${mac}` };
+
+  const ack = await harness.api.handleWebhook({ providerId: "lipay", rawBody: signed.rawBody, headers: shifted });
+  assert.equal(ack.error?.code, "SIGNATURE_INVALID");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: a redelivered event is a database constraint hit, not a code branch — no double apply", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness, 1000);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+  const refund = delivery({
+    id: "evt_refund_1",
+    type: "charge.refunded",
+    createdSeconds: nowSeconds,
+    charge: { id: "ch_1", amount: 400, currency: "USD" },
+  });
+
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+  });
+
+  const first = await harness.api.handleWebhook({ providerId: "lipay", ...refund });
+  const second = await harness.api.handleWebhook({ providerId: "lipay", ...refund });
+  const third = await harness.api.handleWebhook({ providerId: "lipay", ...refund });
+
+  assert.deepEqual(first, { accepted: true, processed: 1, duplicates: 0 });
+  assert.deepEqual(second, { accepted: true, processed: 0, duplicates: 1 });
+  assert.deepEqual(third, { accepted: true, processed: 0, duplicates: 1 });
+
+  // The failure this prevents: an incrementing refund total applied once per redelivery.
+  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  assert.equal(after?.amountRefundedMinor, 400);
+  assert.equal(after?.status, "partially_refunded");
+  assert.equal(eventRows(harness.db).filter((r) => r.provider_event_id === "evt_refund_1").length, 1);
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: distinct refund events accumulate, and the total is capped at the payment amount", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness, 1000);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+  });
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({
+      id: "evt_2",
+      type: "charge.refunded",
+      createdSeconds: nowSeconds + 1,
+      charge: { id: "ch_1", amount: 600, currency: "USD" },
+    }),
+  });
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({
+      id: "evt_3",
+      type: "charge.refunded",
+      createdSeconds: nowSeconds + 2,
+      charge: { id: "ch_1", amount: 900, currency: "USD" },
+    }),
+  });
+
+  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  assert.equal(after?.amountRefundedMinor, 1000, "the refunded total never exceeds the payment");
+  assert.equal(after?.status, "refunded");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: an event older than the last applied one is recorded but never applied", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_2", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+  });
+  // A `charge.failed` that was emitted BEFORE the success but delivered after it.
+  const late = await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery(
+      { id: "evt_1", type: "charge.failed", createdSeconds: nowSeconds - 30, charge: { id: "ch_1" } },
+      { signedAtSeconds: nowSeconds }
+    ),
+  });
+
+  assert.equal(late.accepted, true);
+  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "succeeded");
+  const stale = eventRows(harness.db).find((r) => r.provider_event_id === "evt_1");
+  assert.equal(stale?.applied, 0, "the out-of-order event is kept for the audit trail, unapplied");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: a terminal payment rejects further transitions", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "charge.failed", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+  });
+  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "failed");
+
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_2", type: "charge.succeeded", createdSeconds: nowSeconds + 60, charge: { id: "ch_1" } }),
+  });
+
+  assert.equal(
+    harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status,
+    "failed",
+    "a failed payment must not be resurrected by a later success event"
+  );
+  assert.equal(eventRows(harness.db).find((r) => r.provider_event_id === "evt_2")?.applied, 0);
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: an expired out-of-band charge is canceled", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "charge.expired", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+  });
+
+  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "canceled");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: a chargeback is recorded without a status claim, since no status expresses it", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+  });
+  const ack = await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_2", type: "charge.chargeback", createdSeconds: nowSeconds + 1, charge: { id: "ch_1" } }),
+  });
+
+  assert.equal(ack.accepted, true);
+  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "succeeded");
+  assert.equal(eventRows(harness.db).find((r) => r.provider_event_id === "evt_2")?.kind, "chargeback");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: an unrecognized event type is accepted with a 2xx rather than provoking a retry storm", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  const ack = await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "payout.settled", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+  });
+
+  assert.deepEqual(ack, { accepted: true, processed: 0, duplicates: 0 });
+  assert.equal(eventRows(harness.db).length, 0);
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: an event for an unknown charge is recorded uncorrelated, not dropped", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  const ack = await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_unknown" } }),
+  });
+
+  assert.equal(ack.accepted, true);
+  const row = eventRows(harness.db)[0];
+  assert.equal(row.payment_id, null);
+  assert.equal(row.applied, 0);
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: an unregistered providerId is a typed PROVIDER_NOT_REGISTERED", async () => {
+  const harness = await makeLipay();
+  const ack = await harness.api.handleWebhook({ providerId: "stripe", rawBody: Buffer.from("{}"), headers: {} });
+
+  assert.equal(ack.accepted, false);
+  assert.equal(ack.error?.code, "PROVIDER_NOT_REGISTERED");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: an unconfigured provider is refused before any verification is attempted", async () => {
+  const harness = await makeLipay({ credentials: new InMemoryPaymentCredentials() });
+  const ack = await harness.api.handleWebhook({ providerId: "lipay", rawBody: Buffer.from("{}"), headers: {} });
+
+  assert.equal(ack.accepted, false);
+  assert.equal(ack.error?.code, "NO_CREDENTIALS_CONFIGURED");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: the signing helper and the verifier agree byte for byte", () => {
+  const rawBody = Buffer.from('{"id":"evt_1","nested":{"a":1,"b":[2,3]}}', "utf8");
+  const header = signLipayWebhook({ secret: WEBHOOK_SECRET, rawBody, timestampSeconds: 1_800_000_000 });
+
+  const expected = createHmac("sha256", WEBHOOK_SECRET).update("1800000000.").update(rawBody).digest("hex");
+  assert.equal(header, `t=1800000000,v1=${expected}`);
+});
