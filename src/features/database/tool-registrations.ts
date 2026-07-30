@@ -1,19 +1,21 @@
 /**
  * @file Database's half of ADR-049 Decision 4 (SPEC-017/ADR-041): maps the wireable subset of
- * `agent-tools.ts`'s nine catalog entries onto the timeline/restore-point reads and the one
- * clearly-reversible write, as `ToolRegistration`s.
+ * `agent-tools.ts`'s nine catalog entries onto the timeline/restore-point/introspection reads and
+ * the one clearly-reversible write, as `ToolRegistration`s.
  *
  * Risk framing: this domain is meaningfully higher-risk than Forms/Identity/content-types — a
  * migrate-forward can rewrite schema and data across every other domain at once, sometimes
  * irreversibly — so the surface is deliberately reads plus one write rather than full parity with
- * the admin UI. Five of the nine entries are declared unwired, each with its reason recorded on
- * {@link UNWIRED_DATABASE_TOOL_IDS}; `features/database/agent-tools.ts` carries the per-entry half
- * of the same reasoning.
+ * the admin UI. Two of the nine entries are still declared unwired, each with its reason recorded
+ * on {@link UNWIRED_DATABASE_TOOL_IDS}; `features/database/agent-tools.ts` carries the per-entry
+ * half of the same reasoning.
  *
  * Authorization shape: none of the underlying read functions (`getTimeline`, `listRestorePoints`,
- * `createRestorePoint`) call `authorize()` internally — the admin routes gate inline — so those
- * handlers call the kit's `requireToolPermission` themselves. The one exception is
- * `database_plan_migrate_forward`, documented at its own handler.
+ * `createRestorePoint`, `DatabaseIntrospectionPort`'s three methods) call `authorize()` internally
+ * — the admin routes gate inline (or, for the introspection trio, there is no admin route to
+ * mirror yet, so this file's own inline check is the only gate) — so those handlers call the kit's
+ * `requireToolPermission` themselves. The one exception is `database_plan_migrate_forward`,
+ * documented at its own handler.
  */
 import {
   AGENT_TOOL_PRINCIPAL_KIND,
@@ -37,6 +39,15 @@ import { getDatabaseAgentToolCatalog } from "./agent-tools";
 import { createRestorePoint as createDatabaseRestorePoint, listRestorePoints } from "./restore-points";
 import { getTimeline } from "./timeline";
 
+/**
+ * Widened this dispatch (ADR-041 §3, closing `agent-tools.ts`'s own disclosed gap) with the three
+ * `DatabaseIntrospectionPort`-backed reads below — `database_get_health`, `database_get_schema_state`,
+ * `database_list_pending_migrations`. All three are pure passthroughs to `routeDeps.databaseIntrospection`
+ * (`features/database/adapter.sqlite.ts`); none of that port's methods call `authorize()`
+ * internally, so each handler runs the identical inline `requireToolPermission` check every other
+ * read handler in this file already runs.
+ */
+
 const CATALOG_BY_ID = indexCatalogById(getDatabaseAgentToolCatalog());
 
 /**
@@ -58,14 +69,18 @@ export const databaseDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
   //    this tool id — see `features/recovery/tool-registrations.ts` for why Recovery's own catalog
   //    entry of the same name is deliberately left unwired instead of double-registered.
   ["backup_create_restore_point", "mutates-durable-state"],
+  // -> routeDeps.databaseIntrospection.getHealth() (adapter.sqlite.ts): read-only queries against
+  //    an already-open connection plus one `.site-meta.json` file read. No write of any kind.
+  ["database_get_health", "none"],
+  // -> routeDeps.databaseIntrospection.getSchemaState(): same read-only shape as getHealth() above.
+  ["database_get_schema_state", "none"],
+  // -> routeDeps.databaseIntrospection.listPendingMigrations(): one bundled-journal file read plus
+  //    one bounded `__drizzle_migrations` query. No write of any kind.
+  ["database_list_pending_migrations", "none"],
 ]);
 
 /** Database catalog entries this pass does not wire, and why — see `features/database/agent-tools.ts`'s own per-entry comments for the full reasoning. */
 const UNWIRED_DATABASE_TOOL_IDS = new Set([
-  // No backend adapter is composed into `RouteDeps` yet for any of these three.
-  "database_get_health",
-  "database_get_schema_state",
-  "database_list_pending_migrations",
   // No envelope-minting function exists (only the receiving side, `resolveDeepLinkContext`, does),
   // and minting one honestly needs a schema-drift computation this pass has no adapter for.
   "database_get_restore_guidance",
@@ -101,6 +116,24 @@ export function buildDatabaseRegistrations(routeDeps: RouteDeps): ToolRegistrati
       requireNoInput(ctx.input);
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "database.read", entityType: "restore-point" });
       return listRestorePoints({ repo: routeDeps.restorePointsRepo });
+    },
+
+    database_get_health: async (ctx) => {
+      requireNoInput(ctx.input);
+      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "database.read", entityType: "database" });
+      return routeDeps.databaseIntrospection.getHealth();
+    },
+
+    database_get_schema_state: async (ctx) => {
+      requireNoInput(ctx.input);
+      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "database.read", entityType: "database" });
+      return routeDeps.databaseIntrospection.getSchemaState();
+    },
+
+    database_list_pending_migrations: async (ctx) => {
+      requireNoInput(ctx.input);
+      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "database.read", entityType: "database" });
+      return routeDeps.databaseIntrospection.listPendingMigrations();
     },
 
     database_plan_migrate_forward: async (ctx) => {

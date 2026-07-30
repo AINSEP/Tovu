@@ -6,6 +6,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError as CommandForbiddenError } from "../../core/commands";
 import { getDatabaseAgentToolCatalog, type AgentToolDefinition as DatabaseAgentToolDefinition } from "../../features/database/agent-tools";
 import {
+  InMemoryDatabaseIntrospectionAdapter,
   InMemoryDatabaseLedgerRepo,
   InMemoryDbOpsAdapter,
   InMemoryMigrationRunsRepo,
@@ -61,6 +62,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const databaseLedgerRepo = new InMemoryDatabaseLedgerRepo();
   const siteStatusRepo = new InMemorySiteStatusRepo();
   const migrationRunsRepo = new InMemoryMigrationRunsRepo();
+  const databaseIntrospection = new InMemoryDatabaseIntrospectionAdapter();
   const disclosureWatermarkSource = new AlwaysUnavailableWatermarkSource();
   const deepLinkRestorePointLookup = new RestorePointDeepLinkLookup(realRestorePointsRepo);
 
@@ -95,6 +97,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     databaseLedgerRepo,
     restorePointsRepo,
     dbOps,
+    databaseIntrospection,
     siteStatusRepo,
     migrationRunsRepo,
     disclosureWatermarkSource,
@@ -106,7 +109,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     deps: deps as unknown as RouteDeps,
     authorizeCalls,
     order,
-    repos: { restorePointsRepo: realRestorePointsRepo, dbOps: realDbOps, databaseLedgerRepo, siteStatusRepo, migrationRunsRepo },
+    repos: { restorePointsRepo: realRestorePointsRepo, dbOps: realDbOps, databaseLedgerRepo, siteStatusRepo, migrationRunsRepo, databaseIntrospection },
   };
 }
 
@@ -177,11 +180,19 @@ function permissionOf(toolId: string): string {
 // 1. Catalog completeness — wired vs. declared-but-unwired, and the excluded tools stay excluded
 // ---------------------------------------------------------------------------
 
-test("database: exactly the 4 wireable entries are registered", () => {
+test("database: exactly the 7 wireable entries are registered", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual(
     [...databaseRegistrations(deps).keys()].sort(),
-    ["backup_create_restore_point", "database_list_restore_points", "database_plan_migrate_forward", "database_query_timeline"],
+    [
+      "backup_create_restore_point",
+      "database_get_health",
+      "database_get_schema_state",
+      "database_list_pending_migrations",
+      "database_list_restore_points",
+      "database_plan_migrate_forward",
+      "database_query_timeline",
+    ],
   );
   assert.equal(getDatabaseAgentToolCatalog().length, 9, "sanity: the full database catalog is still 9 entries");
 });
@@ -314,6 +325,9 @@ const TOOL_INPUTS: Record<string, (seededId: string) => Record<string, unknown>>
   database_query_timeline: () => ({}),
   database_list_restore_points: () => ({}),
   database_plan_migrate_forward: () => ({}),
+  database_get_health: () => ({}),
+  database_get_schema_state: () => ({}),
+  database_list_pending_migrations: () => ({}),
   backup_create_restore_point: () => ({}),
   backup_list_restore_points: () => ({}),
   backup_get_capabilities: () => ({}),
@@ -393,6 +407,48 @@ test("backup_plan_restore: authorize() is checked twice — once defensively by 
 
   assert.equal(authorizeCalls.length, 2, "this tool adds a defensive pre-check that planRestore's own cost-class short-circuit could otherwise bypass");
   assert.ok(authorizeCalls.every((call) => call.permission === "backup.read"));
+});
+
+// ---------------------------------------------------------------------------
+// 4b. The three DatabaseIntrospectionPort-backed tools (this dispatch) are pure passthroughs
+// ---------------------------------------------------------------------------
+
+test("database_get_health returns exactly what routeDeps.databaseIntrospection.getHealth() returns", async () => {
+  const { deps, repos } = fakeRouteDeps();
+  const expected = await repos.databaseIntrospection.getHealth();
+
+  const result = await wired(combinedRegistrations(deps), "database_get_health").handler(executionContext({}));
+
+  assert.deepEqual(result, expected);
+});
+
+test("database_get_schema_state returns exactly what routeDeps.databaseIntrospection.getSchemaState() returns", async () => {
+  const { deps, repos } = fakeRouteDeps();
+  const expected = await repos.databaseIntrospection.getSchemaState();
+
+  const result = await wired(combinedRegistrations(deps), "database_get_schema_state").handler(executionContext({}));
+
+  assert.deepEqual(result, expected);
+});
+
+test("database_list_pending_migrations returns exactly what routeDeps.databaseIntrospection.listPendingMigrations() returns", async () => {
+  const { deps, repos } = fakeRouteDeps();
+  const expected = await repos.databaseIntrospection.listPendingMigrations();
+
+  const result = await wired(combinedRegistrations(deps), "database_list_pending_migrations").handler(executionContext({}));
+
+  assert.deepEqual(result, expected);
+});
+
+test("database_get_health / database_get_schema_state / database_list_pending_migrations all reject a populated input — they are parameterless tools", async () => {
+  for (const toolId of ["database_get_health", "database_get_schema_state", "database_list_pending_migrations"]) {
+    const { deps } = fakeRouteDeps();
+    await assert.rejects(
+      () => wired(combinedRegistrations(deps), toolId).handler(executionContext({ unexpected: true })),
+      /accepts no input/,
+      `${toolId} must refuse a populated input`,
+    );
+  }
 });
 
 // ---------------------------------------------------------------------------

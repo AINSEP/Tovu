@@ -14,15 +14,19 @@
  * `inputSchema` — this file previously declared id/sideEffects/authorization only, one layer short
  * of what `tool-registrations.ts` requires to actually publish a tool to the model (mirrors
  * `forms/agent-tools.ts`'s `AgentToolDefinition` shape; `inputSchema` stays OPTIONAL, as in
- * `features/content-types/agent-tools.ts`, because 5 of these 9 entries are declared but
+ * `features/content-types/agent-tools.ts`, because 2 of these 9 entries are still declared but
  * deliberately never wired — see `tool-registrations.ts`'s `UNWIRED_DATABASE_TOOL_IDS` for exactly
- * which and why: `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
- * have no backing adapter composed into `RouteDeps` yet (not this pass's scope to invent one),
- * `database_get_restore_guidance` has no envelope-minting function to compose (only the RECEIVING
- * side, `recovery/deep-link.ts`'s `resolveDeepLinkContext`, exists — inventing a fresh
- * drift-computation adapter here would be new backend work, not wiring), and
- * `database_execute_migrate_forward` is the token-gated destructive tool this file's own header
- * already excludes.
+ * which and why: `database_get_restore_guidance` has no envelope-minting function to compose (only
+ * the RECEIVING side, `recovery/deep-link.ts`'s `resolveDeepLinkContext`, exists — building one
+ * would mean composing a fresh `correlationId`/`restorePointId`/ledger-event lookup on top of a
+ * cross-domain envelope format, new backend work well past a wiring pass, not a natural extension
+ * of the read-only introspection adapter below), and `database_execute_migrate_forward` is the
+ * token-gated destructive tool this file's own header already excludes.
+ *
+ * A later dispatch built `features/database/adapter.sqlite.ts` (`DatabaseIntrospectionPort`,
+ * composed into `RouteDeps` as `databaseIntrospection` in both `server/deps.ts` and `server/app.ts`)
+ * and wired `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
+ * against it — see each entry's own comment below and `tool-registrations.ts`'s handlers.
  *
  * How it relates to the project:
  * The server-side tool filter (ADR-014) consumes this catalog to decide which tool names an agent
@@ -106,30 +110,40 @@ export function getDatabaseAgentToolCatalog(
 ): AgentToolDefinition[] {
   return [
     {
-      // NOT WIRED (tool-registrations.ts): no backend function/adapter computes an overall health
-      // summary yet — inventing one would be new backend work, not a wiring pass.
+      // WIRED (tool-registrations.ts) against `adapter.sqlite.ts`'s `DatabaseIntrospectionPort.getHealth()`
+      // — connectivity + `__drizzle_migrations` readability + drift status, exactly what that
+      // method computes. Deliberately does NOT report disk headroom or interrupted-migration state
+      // despite this description's own wording — no adapter for either exists yet (disk headroom
+      // has no seam anywhere in this codebase; interrupted-migration state lives on
+      // `migrationRunsRepo`/`siteStatusRepo`, a separate port this tool does not read), so this
+      // stays a minimal, honest subset rather than fabricating fields the description implies.
       name: "database_get_health",
       description: "Reports a summary of this site's database health (connectivity, disk headroom, pending-migration/interrupted-migration state).",
       sideEffects: "none",
       authorization: { permission: "database.read" },
+      inputSchema: NO_INPUT_SCHEMA,
     },
     {
-      // NOT WIRED (tool-registrations.ts): `drift.ts`'s `getDriftStatus` is a pure classifier that
-      // needs two `SchemaSnapshot`s from adapters not yet composed into `RouteDeps` — same "no
-      // backend yet" gap as `database_get_health`.
+      // WIRED (tool-registrations.ts) against `adapter.sqlite.ts`'s `DatabaseIntrospectionPort.getSchemaState()`,
+      // which reads the two real `SchemaSnapshot`s (`.site-meta.json`, `__drizzle_migrations`) this
+      // entry's own comment used to say no adapter supplied, and passes them through `drift.ts`'s
+      // `getDriftStatus` unchanged.
       name: "database_get_schema_state",
       description: "Reports this site's schema drift status (in-sync/ahead/diverged/behind) between its persisted schema snapshot and the runtime's current schema.",
       sideEffects: "none",
       authorization: { permission: "database.read" },
+      inputSchema: NO_INPUT_SCHEMA,
     },
     {
-      // NOT WIRED (tool-registrations.ts): no `migration_runs`/pending-migration listing function
-      // exists yet — `boot/reconcile-interrupted-migration.ts` reads a single site's status, not a
-      // list of pending migrations.
+      // WIRED (tool-registrations.ts) against `adapter.sqlite.ts`'s `DatabaseIntrospectionPort.listPendingMigrations()`
+      // — diffs the bundled `infra/drizzle/meta/_journal.json` against `__drizzle_migrations`'s
+      // applied rows. Note this is the Drizzle-migration-file sense of "pending", distinct from
+      // `migration_runs`'s own in-flight-migration-run tracking (`boot/reconcile-interrupted-migration.ts`).
       name: "database_list_pending_migrations",
       description: "Lists migrations pending against this site that have not yet been applied.",
       sideEffects: "none",
       authorization: { permission: "database.read" },
+      inputSchema: NO_INPUT_SCHEMA,
     },
     {
       name: "database_query_timeline",

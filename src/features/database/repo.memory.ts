@@ -3,6 +3,7 @@ import type { CreateRestorePointRepoPort } from "../recovery/restore-points";
 import type { RestorePointListPort, RestorePointRecord } from "./restore-points";
 import type { BootLedgerPort, MigrationRunsRepoPort, SiteServeStatus, SiteStatusPort } from "./boot/reconcile-interrupted-migration";
 import type { DbOpsPort } from "../../core/gated-mutations/ports";
+import type { DatabaseHealthSummary, DatabaseIntrospectionPort, PendingMigration, SchemaStateSummary } from "./adapter.sqlite";
 
 /**
  * @file In-memory `LedgerReadPort` double (ADR-006 rule-of-two's "one being built now" partner
@@ -183,5 +184,24 @@ export class InMemoryDbOpsAdapter implements DbOpsPort {
    * instead, which performs the actual atomic file swap. */
   async restoreFromArtifact(_required: { artifactRef: string }): Promise<{ restartRequired: boolean }> {
     return { restartRequired: false };
+  }
+}
+
+/** In-memory `DatabaseIntrospectionPort` double (`adapter.sqlite.ts`) — `server/app.ts`'s hermetic
+ * composition never opens a real `content.db`/`.site-meta.json` pair, so this reports a fixed,
+ * always-"in-sync" snapshot with zero pending migrations rather than touching a filesystem. Mirrors
+ * `InMemoryDbOpsAdapter`'s identical "plausible static double" precedent. */
+export class InMemoryDatabaseIntrospectionAdapter implements DatabaseIntrospectionPort {
+  async getHealth(): Promise<DatabaseHealthSummary> {
+    return { canOpenDb: true, migrationsTableReadable: true, driftStatus: "in-sync" };
+  }
+
+  async getSchemaState(): Promise<SchemaStateSummary> {
+    const snapshot = { version: 0, tag: "memory" };
+    return { status: "in-sync", siteMeta: snapshot, runtime: snapshot };
+  }
+
+  async listPendingMigrations(): Promise<{ items: PendingMigration[] }> {
+    return { items: [] };
   }
 }

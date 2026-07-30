@@ -71,7 +71,7 @@ import {
   type RedirectsWriteDeps,
 } from "../redirects";
 import { registerSlugChangeCapture } from "../routing";
-import { InMemoryDbOpsAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "../features/database/repo.memory";
+import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "../features/database/repo.memory";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
 import { InMemoryEntryRepo } from "../features/entries/repo.memory";
 import { InMemoryWidgetRegionBindingRepo } from "../widgets/repo.memory";
@@ -398,6 +398,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     taxonomyRevisionRepo: new InMemoryTaxonomyRevisionRepo(),
     restorePointsRepo,
     dbOps: new InMemoryDbOpsAdapter(),
+    databaseIntrospection: new InMemoryDatabaseIntrospectionAdapter(),
     siteStatusRepo: new InMemorySiteStatusRepo(),
     disclosureWatermarkSource: new AlwaysUnavailableWatermarkSource(),
     deepLinkRestorePointLookup: new RestorePointDeepLinkLookup(restorePointsRepo),
