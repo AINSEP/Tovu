@@ -16,7 +16,6 @@
     "@jini-ai/agent-runtime": "file:../../../Jini/packages/agent-runtime",
     "@jini-ai/agentic": "file:../../../Jini/packages/agentic",
     "@jini-ai/chat-core": "file:../../../Jini/packages/chat-core",
-    "@jini-ai/chat-react": "file:../../../Jini/packages/chat-react",
     "@jini-ai/platform": "file:../../../Jini/packages/platform",
     "@jini-ai/protocol": "file:../../../Jini/packages/protocol",
     "@jini-ai/renderers-react": "file:../../../Jini/packages/renderers-react",
