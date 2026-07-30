@@ -21,16 +21,37 @@
  *     content (a form submission, a comment) in a way a human clicking the admin button is not.
  *     Left human-UI-only, mirroring `features/content-types/agent-tools.ts`'s reasoning for never
  *     exposing the destructive-cleanup confirm() step to an agent.
- *   - Every policy transition (`createPolicy`, `updatePolicy`, `deletePolicy`, `attachPolicy`,
- *     `writePolicyPermission`). Policies are where permissions are actually manufactured and
- *     attached, and the INV-07 clamp interacts with ADR-021 §9's built-in immutability rules
- *     across all five. Deferred to its own pass rather than bolted onto the users/roles slice.
+ *   - `writePolicyPermission` (SPEC-006 0.6.0, INV-07). This is the one policy transition still
+ *     deliberately excluded, and on different grounds than the five wired below: unlike
+ *     `identity_role_assign`/`identity_policy_attach`, which each confer whatever a role/policy
+ *     ALREADY carries onto exactly one named target principal, `writePolicyPermission` MUTATES a
+ *     shared, reusable `PolicyRecord` in place — and any non-built-in, non-frozen policy can
+ *     already be attached to an arbitrary number of OTHER users via `identity_policy_attach` (or to
+ *     roles via the seed-only `role_policies` table) before this call happens. The INV-07 clamp
+ *     (`assertGrantClamp`) still bounds WHAT the caller can add — only a permission it itself holds
+ *     unconstrained — but it says nothing about WHO ends up holding it: every principal already
+ *     attached to that policy inherits the new permission the instant it is written, invisibly to
+ *     whoever asked for the one change. That is a materially different blast-radius shape than the
+ *     single-target primitives this catalog does wire (see the tool descriptions below), and exactly
+ *     the "grant that ripples to principals never named in the call" class this pass's directive
+ *     asks to be excluded and explained rather than wired reflexively. Left human-UI-only, where
+ *     `apps/admin/src/sections/Roles.tsx`'s "Add permission" control still lives.
+ *
+ * Every OTHER policy transition (`identity_policy_list`, `identity_policy_create`,
+ * `identity_policy_update`, `identity_policy_delete`, `identity_policy_attach`) IS wired below,
+ * mirroring the risk profile this catalog already accepted for the equivalent role transitions
+ * (`identity_role_list`/`identity_role_create`/`identity_role_rename`/`identity_role_delete`/
+ * `identity_role_assign`) — see each entry's own description for why its shape matches its role
+ * counterpart exactly.
+ *
  *   - Role REVOCATION. Not a choice: no such operation exists anywhere in this codebase.
  *     `PrincipalRoleRepoPort` (`ports.ts`) declares `listByPrincipalId`, `save`, and `listByRoleId`
  *     — there is no `delete`, and no service function unassigns a role. A tool cannot be written
  *     against an operation the domain does not have, and adding a repo-level delete here to
  *     manufacture one would be exactly the "skip the service layer" failure this work exists to
- *     close.
+ *     close. The same is true of "detach a policy from a principal" — `PrincipalPolicyRepoPort`
+ *     has no delete either, so `identity_policy_attach` is one-directional exactly like
+ *     `identity_role_assign`.
  *
  * Architectural role:
  * `identity` library declaration only. Performs no I/O and no enforcement — `authorize()` and each
@@ -84,6 +105,13 @@ const ROLE_ID_SCHEMA = {
   description: "The role's id. Get it from identity_role_list, or from identity_role_create's result.",
 } as const;
 
+/** A workspace-scoped policy id, as returned by `identity_policy_list` or `identity_policy_create`. */
+const POLICY_ID_SCHEMA = {
+  type: "string",
+  minLength: 1,
+  description: "The policy's id. Get it from identity_policy_list, or from identity_policy_create's result.",
+} as const;
+
 /** A required, non-blank human-authored name. `minLength` is published because the service
  * functions reject a blank/whitespace-only name — leaving it unstated would show the model a
  * contract wider than the one enforced. */
@@ -93,7 +121,7 @@ const REQUIRED_NAME_SCHEMA = {
   description: "Human-readable name. Must not be blank or whitespace-only.",
 } as const;
 
-/** The input shape of the two read tools — they take no arguments at all. */
+/** The input shape of the three read tools — they take no arguments at all. */
 const NO_INPUT_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -129,6 +157,14 @@ export const identityAgentToolCatalog: AgentToolDefinition[] = [
     name: "identity_role_list",
     description:
       "Lists the workspace's roles (the four built-ins plus any custom ones) with their id, name, and isBuiltin flag. Read-only. Call this to find a roleId before assigning, renaming, or deleting a role.",
+    sideEffects: "none",
+    authorization: { permission: "role.manage" },
+    inputSchema: NO_INPUT_SCHEMA,
+  },
+  {
+    name: "identity_policy_list",
+    description:
+      "Lists the workspace's policies (built-ins plus any custom ones) with their id, name, description, isBuiltin, and isFrozen flags. Read-only. Call this to find a policyId before renaming, deleting, or attaching a policy.",
     sideEffects: "none",
     authorization: { permission: "role.manage" },
     inputSchema: NO_INPUT_SCHEMA,
@@ -240,6 +276,65 @@ export const identityAgentToolCatalog: AgentToolDefinition[] = [
       additionalProperties: false,
       required: ["roleId"],
       properties: { roleId: ROLE_ID_SCHEMA },
+    },
+  },
+  {
+    name: "identity_policy_create",
+    description:
+      "Creates a new custom policy. The policy starts with no permissions and therefore confers none until permissions are added, which is not an agent-callable operation — identity_policy_write_permission is deliberately not wired (see this file's own header comment). Attaching a freshly created, still-empty policy to anyone is a no-op.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "role.manage" },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["name"],
+      properties: {
+        name: REQUIRED_NAME_SCHEMA,
+        description: { type: "string", description: "Optional human-readable description." },
+      },
+    },
+  },
+  {
+    name: "identity_policy_update",
+    description:
+      "Renames and/or re-describes a custom policy. Built-in and frozen policies are refused. At least one of 'name'/'description' must be supplied.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "role.manage" },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["policyId"],
+      properties: {
+        policyId: POLICY_ID_SCHEMA,
+        name: { type: "string", minLength: 1, description: "New name. Omit to leave unchanged." },
+        description: { type: "string", description: "New description. Omit to leave unchanged." },
+      },
+    },
+  },
+  {
+    name: "identity_policy_delete",
+    description:
+      "Deletes a custom policy. Built-in and frozen policies cannot be deleted. A policy still referenced by at least one role or attached to at least one user is refused — deletion fails safe (it only ever removes access, never orphans a reference) exactly like identity_role_delete.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "role.manage" },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["policyId"],
+      properties: { policyId: POLICY_ID_SCHEMA },
+    },
+  },
+  {
+    name: "identity_policy_attach",
+    description:
+      "Attaches an existing policy directly to an existing user, granting every permission the policy carries. This is the direct-grant counterpart to identity_role_assign, targets exactly one named user per call, and carries the identical INV-07 clamp: the caller can only confer permissions it already holds itself unconstrained, so attaching a policy more powerful than the caller's own is refused. There is no detach operation.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "role.manage" },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["principalId", "policyId"],
+      properties: { principalId: PRINCIPAL_ID_SCHEMA, policyId: POLICY_ID_SCHEMA },
     },
   },
 ];

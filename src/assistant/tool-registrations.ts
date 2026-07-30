@@ -10,8 +10,8 @@
  * assistant rather than any one domain — which domains are wired at all, and the two cross-domain
  * invariants that only a file seeing all of them can check.
  *
- * Wired domains and their catalogs (20 domains, 130 catalog entries, 112 wired tools):
- *   content-types (5 of 7)   forms (3)         identity (10)      comments (7)
+ * Wired domains and their catalogs (20 domains, 138 catalog entries, 120 wired tools):
+ *   content-types (6 of 8)   forms (5)         identity (15)      comments (7)
  *   members (4)              newsletter (14)   media (4)          widgets (12)
  *   menus (5)                database (4 of 9) recovery (5 of 7)  plugins (2)
  *   workspace (2 of 4)       settings (3 of 7) entries (5 of 5)   taxonomy (6 of 7)

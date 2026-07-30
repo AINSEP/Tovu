@@ -265,6 +265,41 @@ test("a role view exposes isBuiltin — the flag that predicts whether rename/de
   assert.equal(roles.every((role) => role.isBuiltin === true), true, "a freshly seeded workspace has only built-in roles");
 });
 
+test("a policy view carries exactly the keys the model needs, with description only when set — mirrors a role view's isBuiltin plus the second immutability flag policies alone carry", async () => {
+  const { deps, ownerPrincipalId } = await buildHarness();
+
+  const withoutDescription = (await wired(deps, "identity_policy_create").handler(asOwner(ownerPrincipalId, { name: "Bare Policy" }))) as {
+    policy: Record<string, unknown>;
+  };
+  assert.deepEqual(Object.keys(withoutDescription.policy).sort(), ["id", "isBuiltin", "isFrozen", "name"]);
+  assert.equal("description" in withoutDescription.policy, false, "a policy without a description must carry no always-undefined key");
+  assert.equal(withoutDescription.policy.isBuiltin, false);
+  assert.equal(withoutDescription.policy.isFrozen, false);
+
+  const withDescription = (await wired(deps, "identity_policy_create").handler(asOwner(ownerPrincipalId, { name: "Described Policy", description: "for reviewers" }))) as {
+    policy: Record<string, unknown>;
+  };
+  assert.equal(withDescription.policy.description, "for reviewers");
+});
+
+test("identity_policy_list surfaces the built-in seeded policies plus a freshly created custom one", async () => {
+  const { deps, ownerPrincipalId } = await buildHarness();
+
+  const before = (await wired(deps, "identity_policy_list").handler(asOwner(ownerPrincipalId, {}))) as {
+    policies: Array<{ id: string; isBuiltin: boolean }>;
+  };
+  assert.ok(before.policies.length >= 4, "the seed provides at least four built-in policies");
+  assert.equal(before.policies.every((policy) => policy.isBuiltin === true), true);
+
+  const { policy: created } = (await wired(deps, "identity_policy_create").handler(asOwner(ownerPrincipalId, { name: "Custom" }))) as {
+    policy: { id: string };
+  };
+  const after = (await wired(deps, "identity_policy_list").handler(asOwner(ownerPrincipalId, {}))) as {
+    policies: Array<{ id: string; isBuiltin: boolean }>;
+  };
+  assert.ok(after.policies.some((policy) => policy.id === created.id && policy.isBuiltin === false));
+});
+
 test("identity_user_list caps its fan-out and SAYS so, rather than silently returning a partial roster", async () => {
   const { deps, repos, ownerPrincipalId } = await buildHarness();
 
@@ -296,7 +331,7 @@ test("an untruncated list carries no truncated/totalCount keys — the signal me
 // 3. Risk metadata is cross-checked, not trusted
 // ---------------------------------------------------------------------------
 
-test("the identity catalog and the wiring layer's independent classification agree for all ten wired tools", async () => {
+test("the identity catalog and the wiring layer's independent classification agree for all fifteen wired tools", async () => {
   const { deps } = await buildHarness();
 
   for (const id of identityRegistrations(deps).keys()) {
@@ -371,6 +406,53 @@ test("END TO END: create a user, assign it a role, and see the assignment show u
   // 5. And the role itself is discoverable, which is how a model would have found it without step 1.
   const { roles } = (await wired(deps, "identity_role_list").handler(asOwner(ownerPrincipalId, {}))) as { roles: Array<{ id: string; name: string }> };
   assert.ok(roles.some((candidate) => candidate.id === role.id && candidate.name === "Content Editor"));
+});
+
+test("END TO END: create a policy, see it in the list, attach it to a user, and confirm the attachment is durable", async () => {
+  const { deps, repos, ownerPrincipalId } = await buildHarness();
+
+  // 1. The policy. Starts with no permissions — attaching it grants nothing yet, which is exactly
+  //    what makes identity_policy_write_permission's absence from this catalog a real, not merely
+  //    theoretical, limitation (see identity/agent-tools.ts's file header).
+  const { policy } = (await wired(deps, "identity_policy_create").handler(asOwner(ownerPrincipalId, { name: "Reviewer Bundle", description: "read-only reviewers" }))) as {
+    policy: { id: string; name: string };
+  };
+  assert.equal(policy.name, "Reviewer Bundle");
+
+  // 2. It shows up through the read tool a model would use to discover it.
+  const { policies } = (await wired(deps, "identity_policy_list").handler(asOwner(ownerPrincipalId, {}))) as {
+    policies: Array<{ id: string; name: string }>;
+  };
+  assert.ok(policies.some((candidate) => candidate.id === policy.id && candidate.name === "Reviewer Bundle"));
+
+  // 3. The user.
+  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "Reviewer", password: "pw" }))) as {
+    user: { principalId: string };
+  };
+
+  // 4. The grant.
+  const attached = (await wired(deps, "identity_policy_attach").handler(asOwner(ownerPrincipalId, { principalId: user.principalId, policyId: policy.id }))) as {
+    attached: { principalId: string; policyId: string };
+  };
+  assert.deepEqual(attached.attached, { principalId: user.principalId, policyId: policy.id });
+
+  // 5. "Durable" — the attachment is visible through the repo directly (there is no
+  //    "policies attached to a user" read tool, mirroring the existing gap the identity domain
+  //    already accepts for role assignments read back only via identity_user_list's roleIds).
+  const rows = await repos.principalPolicies.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: user.principalId });
+  assert.deepEqual(rows.map((row) => row.policyId), [policy.id]);
+
+  // 6. A rename, then a delete-while-unattached-elsewhere is refused because it is STILL attached.
+  const renamed = (await wired(deps, "identity_policy_update").handler(asOwner(ownerPrincipalId, { policyId: policy.id, name: "Reviewer Bundle (renamed)" }))) as {
+    policy: { name: string };
+  };
+  assert.equal(renamed.policy.name, "Reviewer Bundle (renamed)");
+
+  await assert.rejects(
+    () => wired(deps, "identity_policy_delete").handler(asOwner(ownerPrincipalId, { policyId: policy.id })),
+    /referenced/,
+    "a policy still attached to a principal must not be deletable, mirroring identity_role_delete's INV-09 guard",
+  );
 });
 
 test("the email round-trips: set, changed, then cleared by omitting it", async () => {

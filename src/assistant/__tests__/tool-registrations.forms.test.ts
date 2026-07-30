@@ -17,8 +17,8 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryChangeSetRepo, ForbiddenError as CommandForbiddenError } from "../../core/commands";
 import { formsAgentToolCatalog, type AgentToolDefinition } from "../../forms/agent-tools";
-import { InMemoryFormDefinitionRepo } from "../../forms/repo.memory";
-import type { FormDefinitionRecord } from "../../forms/types";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../../forms/repo.memory";
+import type { FormDefinitionRecord, FormSubmissionRecord } from "../../forms/types";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
 
@@ -31,6 +31,7 @@ const VALID_FIELDS = [{ id: "email", label: "Email", type: "email", required: tr
 function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
   const repo = new InMemoryFormDefinitionRepo();
+  const submissionRepo = new InMemoryFormSubmissionRepo();
   const authorizeCalls: Array<Record<string, unknown>> = [];
   const order: string[] = [];
 
@@ -53,9 +54,31 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
       create: async (record: FormDefinitionRecord) => { order.push("repo.create"); return repo.create(record); },
       update: async (record: FormDefinitionRecord) => { order.push("repo.update"); return repo.update(record); },
     },
+    formSubmissionRepo: {
+      findById: (r: { workspaceId: string; id: string }) => { order.push("submissionRepo.findById"); return submissionRepo.findById(r); },
+      create: async (record: FormSubmissionRecord) => { order.push("submissionRepo.create"); return submissionRepo.create(record); },
+      listByDefinition: (r: { workspaceId: string; formDefinitionId: string; limit: number; cursor?: string }) => {
+        order.push("submissionRepo.listByDefinition");
+        return submissionRepo.listByDefinition(r);
+      },
+    },
   };
 
-  return { deps: deps as unknown as RouteDeps, repo, authorizeCalls, order };
+  return { deps: deps as unknown as RouteDeps, repo, submissionRepo, authorizeCalls, order };
+}
+
+/** Seeds one submission directly through the repo — there is no forms_submit tool (submission is a site-visitor action, not an admin one). */
+async function seedSubmission(submissionRepo: InMemoryFormSubmissionRepo, formDefinitionId: string, overrides: Partial<FormSubmissionRecord> = {}): Promise<FormSubmissionRecord> {
+  const record: FormSubmissionRecord = {
+    id: overrides.id ?? "submission-1",
+    workspaceId: WORKSPACE_ID,
+    formDefinitionId,
+    data: overrides.data ?? { email: "visitor@example.com" },
+    sourceIp: overrides.sourceIp ?? "203.0.113.5",
+    submittedAt: overrides.submittedAt ?? "2026-07-28T00:00:00.000Z",
+  };
+  await submissionRepo.create(record);
+  return record;
 }
 
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
@@ -94,13 +117,22 @@ async function seedDefinition(deps: RouteDeps): Promise<{ id: string }> {
 // 1. The catalog is complete and honest about what Forms can do
 // ---------------------------------------------------------------------------
 
-test("exactly the three write-service.ts operations are wired — no invented delete, publish, or archive", () => {
+test("exactly the three write-service.ts operations plus the two submission reads are wired — no invented delete, publish, or archive", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...formsRegistrations(deps).keys()].sort(), [
     "forms_create_definition",
+    "forms_get_submission",
+    "forms_list_submissions",
     "forms_set_definition_status",
     "forms_update_definition",
   ]);
+});
+
+test("no forms_delete_submission is wired — it stays human-UI-only (see agent-tools.ts's file header)", () => {
+  const { deps } = fakeRouteDeps();
+  const wiredIds = [...formsRegistrations(deps).keys()];
+  assert.equal(wiredIds.some((id) => /delete/i.test(id)), false);
+  assert.equal(formsAgentToolCatalog.some((tool) => /delete/i.test(tool.name)), false, "the omission belongs in the catalog too");
 });
 
 test("INV-08: no wired tool is named for a delete, and none claims to delete a form definition", () => {
@@ -250,9 +282,16 @@ const TOOL_INPUTS: Record<string, (seededId: string) => Record<string, unknown>>
   forms_set_definition_status: (id) => ({ formId: id, status: "disabled" }),
 };
 
-test("every wired Forms tool has a known input fixture — a newly wired tool must be added here, not silently skipped", () => {
+test("every SELF-ENFORCING Forms tool has a known input fixture — a newly wired one must be added here, not silently skipped", () => {
+  // Scoped to the three definition tools: they self-enforce inside write-service.ts's
+  // executeCommand, so the shared loop below can assert a single 3-key authorize() call shape.
+  // forms_list_submissions/forms_get_submission are NOT self-enforcing (no domain service layer to
+  // inherit a gate from — see tool-registrations.ts's file header) and carry an extra `entityType`
+  // in their authorize() call, so they get their own dedicated block further down instead, mirroring
+  // how tool-registrations.authorization.test.ts splits collections_content_type_list out.
   const { deps } = fakeRouteDeps();
-  assert.deepEqual([...formsRegistrations(deps).keys()].sort(), Object.keys(TOOL_INPUTS).sort());
+  const selfEnforcing = [...formsRegistrations(deps).keys()].filter((id) => id !== "forms_list_submissions" && id !== "forms_get_submission");
+  assert.deepEqual(selfEnforcing.sort(), Object.keys(TOOL_INPUTS).sort());
 });
 
 for (const toolId of Object.keys(TOOL_INPUTS)) {
@@ -310,9 +349,112 @@ test("the ToolPolicy layer is a pass-through 'allow' for every Forms registratio
   }
 });
 
-test("all three wired Forms tools declare admin.forms.manage, and it is a capability Forms actually declares", () => {
-  const { deps } = fakeRouteDeps();
-  for (const id of formsRegistrations(deps).keys()) {
-    assert.equal(catalogEntry(id).authorization.permission, "admin.forms.manage");
+test("all three definition tools declare admin.forms.manage, and it is a capability Forms actually declares", () => {
+  for (const toolId of Object.keys(TOOL_INPUTS)) {
+    assert.equal(catalogEntry(toolId).authorization.permission, "admin.forms.manage");
   }
+});
+
+// ---------------------------------------------------------------------------
+// 6. Submission reads — a separate permission tier, not self-enforcing
+// ---------------------------------------------------------------------------
+
+test("forms_list_submissions / forms_get_submission declare admin.forms.submissions.read — never admin.forms.manage", () => {
+  assert.equal(catalogEntry("forms_list_submissions").authorization.permission, "admin.forms.submissions.read");
+  assert.equal(catalogEntry("forms_get_submission").authorization.permission, "admin.forms.submissions.read");
+});
+
+test("forms_list_submissions: calls authorize() with admin.forms.submissions.read before reading the repo, and returns submissions newest-first", async () => {
+  const { deps, submissionRepo, authorizeCalls, order } = fakeRouteDeps();
+  const { id: formId } = await seedDefinition(deps);
+  await seedSubmission(submissionRepo, formId, { id: "s-1", submittedAt: "2026-07-28T00:00:00.000Z" });
+  await seedSubmission(submissionRepo, formId, { id: "s-2", submittedAt: "2026-07-29T00:00:00.000Z" });
+  authorizeCalls.length = 0;
+  order.length = 0;
+
+  const result = (await wired("forms_list_submissions", deps).handler(executionContext({ formId }))) as {
+    submissions: Array<{ id: string; data: Record<string, unknown>; sourceIp: string }>;
+    nextCursor: string | null;
+  };
+
+  assert.equal(authorizeCalls.length, 1, "exactly one authorization evaluation");
+  assert.equal(authorizeCalls[0].principalId, PRINCIPAL_ID);
+  assert.equal(authorizeCalls[0].permission, "admin.forms.submissions.read");
+  assert.equal(authorizeCalls[0].workspaceId, WORKSPACE_ID);
+  assert.equal(order[0], "authorize", "the gate must run before the repo is read");
+  assert.deepEqual(result.submissions.map((s) => s.id), ["s-2", "s-1"], "newest-first");
+  assert.deepEqual(Object.keys(result.submissions[0]).sort(), ["data", "formDefinitionId", "id", "sourceIp", "submittedAt"]);
+  assert.equal("workspaceId" in result.submissions[0], false, "the agent is already scoped to one workspace it cannot change");
+});
+
+test("forms_list_submissions: a denied principal is rejected and the submission repo is never read", async () => {
+  const { deps, order } = fakeRouteDeps({ allow: false });
+  await assert.rejects(
+    () => wired("forms_list_submissions", deps).handler(executionContext({ formId: "some-form" })),
+    (error: unknown) => {
+      assert.ok(error instanceof CommandForbiddenError, `expected ForbiddenError, got ${String(error)}`);
+      assert.match((error as Error).message, /admin\.forms\.submissions\.read/);
+      return true;
+    },
+  );
+  assert.equal(order.includes("submissionRepo.listByDefinition"), false, "the gate must run ahead of the read, not alongside it");
+});
+
+test("forms_list_submissions: an out-of-range limit is refused", async () => {
+  const { deps } = fakeRouteDeps();
+  const { id: formId } = await seedDefinition(deps);
+  await assert.rejects(
+    () => wired("forms_list_submissions", deps).handler(executionContext({ formId, limit: 500 })),
+    /'limit' must be an integer between 1 and 100/,
+  );
+});
+
+test("forms_get_submission: calls authorize() with admin.forms.submissions.read and an entityId, and returns the one submission", async () => {
+  const { deps, submissionRepo, authorizeCalls } = fakeRouteDeps();
+  const { id: formId } = await seedDefinition(deps);
+  await seedSubmission(submissionRepo, formId, { id: "s-only", data: { email: "a@b.test" } });
+  authorizeCalls.length = 0;
+
+  const result = (await wired("forms_get_submission", deps).handler(executionContext({ formId, submissionId: "s-only" }))) as {
+    submission: { id: string; data: Record<string, unknown> };
+  };
+
+  assert.equal(authorizeCalls.length, 1);
+  assert.equal(authorizeCalls[0].permission, "admin.forms.submissions.read");
+  assert.equal(authorizeCalls[0].entityId, "s-only");
+  assert.equal(result.submission.id, "s-only");
+  assert.deepEqual(result.submission.data, { email: "a@b.test" });
+});
+
+test("END TO END: forms_list_submissions -> forms_get_submission by the listed id returns the SAME data", async () => {
+  const { deps, submissionRepo } = fakeRouteDeps();
+  const { id: formId } = await seedDefinition(deps);
+  await seedSubmission(submissionRepo, formId, { id: "s-chain", data: { email: "chain@example.test" }, sourceIp: "198.51.100.7" });
+
+  const { submissions } = (await wired("forms_list_submissions", deps).handler(executionContext({ formId }))) as {
+    submissions: Array<{ id: string; data: Record<string, unknown>; sourceIp: string; submittedAt: string }>;
+  };
+  assert.equal(submissions.length, 1);
+  const listed = submissions[0];
+
+  const { submission: fetched } = (await wired("forms_get_submission", deps).handler(executionContext({ formId, submissionId: listed.id }))) as {
+    submission: { id: string; data: Record<string, unknown>; sourceIp: string; submittedAt: string };
+  };
+
+  assert.deepEqual(fetched, listed, "the two tools must agree on the same submission's shape and values");
+  assert.equal(fetched.data.email, "chain@example.test");
+});
+
+test("forms_get_submission: a submission belonging to a different form is reported not found", async () => {
+  const { deps, submissionRepo } = fakeRouteDeps();
+  const { id: formId } = await seedDefinition(deps);
+  const otherOut = (await wired("forms_create_definition", deps).handler(
+    executionContext({ name: "Other", slug: "other-form", fields: VALID_FIELDS }),
+  )) as { definition: { id: string } };
+  await seedSubmission(submissionRepo, otherOut.definition.id, { id: "s-other" });
+
+  await assert.rejects(
+    () => wired("forms_get_submission", deps).handler(executionContext({ formId, submissionId: "s-other" })),
+    /was not found/,
+  );
 });
