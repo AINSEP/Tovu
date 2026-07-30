@@ -10,7 +10,7 @@ To determine the optimal architectural path for Tovu, I analyzed the local Tovu 
 
 **Evidence Sources Inspected**:
 1. **Graphify Code Graphs**: I reviewed the cohesion metrics, node clusters, and isolated nodes in the `GRAPH_REPORT.md` (and underlying `graph.json`) for:
-   - Tovu, Ghost, Payload, Strapi, Directus (located at `AI-Dev-Shop/ADS-project-knowledge/reports/graphify-out/`)
+   - Tovu, Ghost, Payload, Strapi, Directus (located at `AI-Dev-Shop/ADS-memory/reports/graphify-out/`)
    - Open SaaS (located at `/Users/la/Desktop/Programming/OSS-Repos/open-saas/graphify-out/GRAPH_REPORT.md`)
 2. **Codebase Memory MCP CLI**: I utilized the `list_projects` and `get_architecture` commands via the MCP CLI to extract the exact directory trees, monorepo workspace boundaries, and high-level structural breakdowns of each repository.
 

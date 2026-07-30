@@ -128,7 +128,7 @@ Source of truth: `other-repos-specs/wordpress_specs/` (the reverse-engineered co
 ## 4. Package layout (v1 — small on purpose)
 
 Decisions governing this layout are recorded in
-`ADS-project-knowledge/reports/architecture/ADR-INDEX.md` (ADR-002…009).
+`ADS-memory/reports/architecture/ADR-INDEX.md` (ADR-002…009).
 
 ```
 tovu/                            # pnpm workspace root
@@ -231,7 +231,7 @@ MCP server generated from the tool registry; AG-UI/CopilotKit-style control over
 Problems in the findings docs, `tovu-architecture.md`, and this doc's own synthesis that will bite later if unaddressed. Ordered by expected damage.
 
 > **Update 2026-07-01:** W1–W7 are now *decided* — recorded as ADR-002…009 in
-> `ADS-project-knowledge/reports/architecture/` (see ADR-INDEX.md). W7's code
+> `ADS-memory/reports/architecture/` (see ADR-INDEX.md). W7's code
 > drift (unscoped `PostRepoPort`, optional `DomainEvent.workspaceId`, outbox
 > dropping the event envelope) was fixed in `tovu/src` the same day; all tests pass.
 
@@ -254,3 +254,106 @@ Problems in the findings docs, `tovu-architecture.md`, and this doc's own synthe
 **W9 — Content storage vs future collaboration.** Revisions-as-snapshots of TipTap JSON is right for v1, but if CRDT collaboration (AI Foundation docs) is ever real, retrofitting Yjs onto snapshot storage is painful. Cheap insurance: version field on the doc model, revisions addressable by id, and no code that assumes "content = one mutable row."
 
 **W10 — Metrics humility.** Cross-prefix ratio counts edges, not harm; use it as a smell, never a target. Similarly the findings docs' repo ratings differ by ±1.5 points on identical evidence — treat all of it as direction, not ground truth.
+
+---
+
+## 9. Agent capability surface (2026-07-27)
+
+Source: source-level survey of ten shipped products — Strapi, Directus, Payload, WordPress core,
+novamira, Ghost, Medusa, bolt.diy, open-saas, Jini. Reports and per-repo metrics live in
+`/Users/la/Programming/OSS-Repos/AI-Capabilities/`. All claims below were read-verified.
+
+Relevant to W6 (change-set primitive) and to the plugin capability model in §3.
+
+### 9.1 Two planes, one registry
+
+Every product that ran an agent surface and a user-facing AI surface over the *same* tool set got
+burned by it. Directus exposes 12 tools through both an MCP server and an in-admin chat; the chat's
+confirmation is client-declared and server-trusted, so the weaker path defines the security of both.
+
+**Call:** one capability registry, two planes with different postures.
+
+| | control plane | retrieval plane |
+|---|---|---|
+| principal | agent or admin | always the end user |
+| capabilities | read + write, risk-tiered | read-only, structurally |
+| gate | authorize → confirm → execute → audit | user's own permissions, no confirmation |
+| transport | MCP / delegated tools | in-product search endpoint |
+
+A capability may be published to either or both, but a retrieval-plane capability must be
+*incapable* of holding a write handler, not merely unlikely to.
+
+For end-user search ("find me articles / products"): let the model shape the query, let the product
+execute it under the user's identity through the same read path the UI already uses, and return
+results to the UI — **not into the model's context.** The retrieval plane's risk is leakage, not
+mutation; if the model never receives the result set, that entire class disappears, and latency and
+cost improve as a side effect.
+
+### 9.2 Entity as a parameter, with a per-principal enum
+
+The CRUD tool explosion is the main driver of "hundreds of capabilities". Payload collapses it
+(`packages/plugin-mcp/src/mcp/buildMcpServer.ts:126-151`): one tool per *operation*, with the entity
+slug as an argument. `findDocuments({ collectionSlug })` replaces `findPosts` / `findProducts` /
+`findUsers`, giving ~21 tools regardless of how many content types exist. Per-entity authorization
+survives — `callEntityTool` re-checks the tool-and-slug pair at execution.
+
+Strapi does the opposite (5-8 tools *per* content type) but contributes the better idea on schemas:
+each tool's advertised schema is resolved per request from the caller's live permissions
+(`content-manager/server/src/mcp/permissions.ts`), so the permission boundary is **visible in the
+contract**, not merely enforced behind it.
+
+Payload leaves the slug an unconstrained `z.string()`, which costs it: the model can't tell which
+entities exist (hence extra `getConfigInfo` / `getCollectionSchema` round trips) and can name
+entities it has no access to.
+
+**Call:** take Payload's collapse, and make the entity discriminator a per-principal enum resolved
+at activation:
+
+```ts
+collectionSlug: z.enum(permittedEntitiesFor(principal))
+```
+
+Tool count stays flat; the discovery round trip disappears because the valid set ships with the
+tool; and least privilege moves into the contract. Neither product shipped this combination.
+
+Caveats: the advertised schema becomes principal-dependent, so caches key on principal + permission
+version; execution-time authorization remains mandatory since permissions change mid-session; and
+this only collapses capabilities that *share a shape* — distinct outcomes ("export as PPTX",
+"publish campaign") don't parameterize together, and that count grows with the plugin ecosystem.
+
+### 9.3 Three patterns to adopt, four to refuse
+
+**Adopt.** Fail-closed at registration — Strapi's registry throws at boot if a capability declares
+no auth policy, making "registered with no auth check" unreachable. Enable/disable with a four-state
+status rather than a mutable registry, preserving an append-only invariant while still supporting
+plugin lifecycle. And a two-sided conformance test, verbatim: *a read-only principal cannot see
+write tools and cannot invoke them.*
+
+**Refuse.** Client-declared approval (Directus). Risk metadata that is populated and never read
+(Payload forwards `destructiveHint` and ignores it). Generic run-by-id with an untyped body (Medusa:
+332 workflows behind one endpoint taking `z.any()`, RBAC off by default). And artifacts that outlive
+the kill switch — Directus lets an agent author a Flow with an `exec` step, and novamira lets one
+write sandbox PHP; **both keep running after the AI feature is switched off.** Two of ten products
+share this bug. Whatever Tovu's disable path becomes, test it against artifacts already created.
+
+### 9.4 Two things nothing in the current design covers
+
+**Per-integration credential storage.** Directus inverts the read capability at
+`api/src/services/payload.ts:169-195` — the *absence* of a principal is what grants plaintext, so
+any principal-bearing request gets a masked value and administrators cannot read provider keys
+through the API at all. The guarantee lives in the service constructor, i.e. in the source.
+
+WordPress's Connectors API is the counter-example and should **not** be copied: the raw key is
+exposed by `register_setting(… 'show_in_rest' => true)` (`connectors.php:596-615`) and masking is
+added afterwards by a `rest_post_dispatch` filter that only fires when the route equals
+`/wp/v2/settings` exactly. That filter never runs in `dispatch()`, which `rest_do_request()` calls
+directly — so internal REST calls return the key unmasked. **Redact at the schema or the source,
+never in a late filter keyed on a route string.** Multi-tenant makes this load-bearing early.
+
+*(Corrected 2026-07-27: an earlier draft of this section credited Connectors with
+"mask-on-every-read". That was wrong — verified against source.)*
+
+**Agent-vs-human provenance in the audit log.** Directus knows the OAuth client on every request and
+never writes it to the activity row, so its audit trail cannot distinguish an agent's action from a
+human's. Given W6's change-set ambition, Tovu's event envelope should carry actor *kind* from day
+one — retrofitting provenance is the same class of mistake as retrofitting tenancy (W7).

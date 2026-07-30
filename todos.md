@@ -18,26 +18,70 @@
 gap analysis, written right after ADR-041/043/044/045 (Storage/Collections/Categories&Tags/Backups-Recovery)
 were accepted. Informal, not debated/audited — a reference to revisit before/during the Admin Section Spec
 Sweep's "competitor teardown" step below, and before building the eventual agent tool catalog. See
-`ADS-project-knowledge/reports/strategy/20260714-competitive-positioning-and-agentic-mcp-readiness.md`.
+`ADS-memory/reports/strategy/20260714-competitive-positioning-and-agentic-mcp-readiness.md`.
 
 ---
 
-## ⏰ OVERNIGHT RUN 2026-07-17 02:00 — Users/Roles/Policies + Plugins admin surface (OWES CHECK-IN)
+## ✅ RESOLVED — Users/Roles/Policies + Plugins admin surface (was the 2026-07-17 overnight-run item)
 
-**Scheduled 2026-07-16.** A cloud-triggered agent fires at 2am to build spec + implementation + tests
-(no audit) for two items:
+**Superseded 2026-07-28.** The original 2026-07-16 overnight-run ask (unaudited spec+build+test for
+these two items) was overtaken by far more rigorous work: both went through the full formal pipeline
+(Red-Team → Software Architect ADR → TDD certification → Programmer → TestRunner) as **SPEC-005**
+(plugin system) and **SPEC-006** (identity/authorization, API-key issuance).
+- **Plugins admin surface**: Phase 1 (loader/SDK/hook core + HTTP routes + admin UI screen) is built
+  and test-verified — `Plugins.tsx` implemented, nav wired, 16/16 admin tests green.
+  `ADS-memory/reports/pipeline/005-plugin-system/pipeline-state.md`. **Not fully done**:
+  Phase 2 (sample plugin), Phase 3 (wiring into the real post-save flow — has a real, proven security
+  finding that needs deliberate handling, not a drive-by fix), Phase 4 (polish) haven't started.
+- **Users/Roles/Policies backend gaps**: closed via SPEC-006's 0.6.0 amendment
+  (`ENABLE_PRINCIPAL`/`UPDATE_USER`/`UPDATE_ROLE`/`UPDATE_POLICY`/`DELETE_ROLE`/`DELETE_POLICY` etc.)
+  plus the 0.7.0 amendment resolving the `CREATE_PRINCIPAL` HTTP-surface gap for API-key issuance.
+  `ADS-memory/reports/pipeline/006-identity-and-authorization/pipeline-state.md`.
+  **Not fully done**: still needs a Red-Team pass over the 0.6.0+0.7.0 material, an owner DRAFT→APPROVED
+  spec checkpoint, and separate architecture sign-off on the API-key issuance ADR (ADR-PIPE-006) before
+  TDD/Programmer can build the actual `api_keys` plumbing.
+- The original `/audit-work` instruction no longer applies in its original form — there's no informal
+  overnight-run output left to audit; sign-off now runs through the normal pipeline gates above instead.
 
-1. **Users/Roles & Policies backend gaps** — the admin routes only cover list+create today; no
-   update/delete routes exist for users, roles, or policies. Well-scoped, existing domain.
-2. **Plugins admin surface** — currently has zero backend (nav entry correctly renders `SOON`). No
-   spec, no prior design decision for what this screen should expose. Higher-risk item — the overnight
-   agent is doing full spec→build→test for this too (owner's explicit call, not spec-only), same
-   discipline as item 1.
+---
 
-**⚠️ OWES: run `/audit-work` on both when back at the machine** (owner does this with agy + codex
-locally, not as part of the unattended run). Do not treat either as done/mergeable until audited —
-same standing discipline as every other accepted ADR/spec in this backlog. Check `git worktree list`
-and `ADS-project-knowledge/specs/` for the new SPEC-NNN(s) the overnight run produces.
+## 🔧 IN PROGRESS 2026-07-28 — finish SPEC-003 recertification + Code Review (resume here)
+
+**SPEC-003** (`tovu init`/`tovu serve`/`tovu --help` CLI surface) is implementation-complete and has
+been through one full TDD recertification round this session, but is not yet through Code Review:
+- TestRunner found 3 blockers; TDD fixed 2 for real (both independently re-verified by direct test
+  runs, not just trusted): the `EC-05` locked-db test's broken lock-priming fixture, and the
+  `serve-command` port-boundary test's indefinite hang (no timeout on a synchronous CLI spawn).
+- **One decision still owed from the owner, not yet made**: branch-coverage gates read below the
+  98%/90% bar as measured (83.72% unit / 81.68% integration), but TDD mechanically proved 100%/90.64%
+  of *real, reachable* source branches are covered — the residual is esbuild/tsx's auto-generated
+  CommonJS interop scaffolding, which the coverage tool counts but no test can ever reach. Three
+  concrete remedies on the table (switch to a source-map-accurate coverage tool; mechanically exclude
+  the transpiler-prelude ranges from the count; or a profile-override waiver as a last resort) — see
+  `ADS-memory/reports/pipeline/003-site-install-dir/test-certification.md`'s "Coverage
+  Gates" section for the full mechanical breakdown.
+- **Coverage-gate decision (made 2026-07-28, owner):** accepted TDD's real-arms evidence as
+  satisfying the gate — the residual is esbuild/tsx CJS-interop scaffolding injected into every
+  transpiled module (not Tovu source, nothing to refactor). Logged as a real follow-up, not blocking:
+  evaluate swapping to a source-map-accurate coverage tool (c8/istanbul) so measured numbers match
+  real numbers going forward, instead of needing this same real-arms argument re-litigated per feature.
+- **Next steps**: clean TestRunner re-verification pass (in progress), then Code Review + Security
+  dispatch (`/code-review`), then this feature is genuinely commit-ready.
+
+---
+
+## ⚠️ OWED — `/audit-work` + `/code-review` across this session AND the previous (uncommitted) session
+
+**Added 2026-07-28.** Nothing from either session has gone through a real review pass yet — this
+session's SPEC-003/005/006 work AND the prior long session's work (repo-wide signature refactor,
+snapshot-leak fix, posts/pages create-time validation fix, the 002/004/007 drift-fix sweep) are all
+still uncommitted and unreviewed beyond in-house TestRunner/TDD verification. Run both before treating
+any of it as mergeable:
+- `/code-review` — internal pipeline gate (Code Review + Security agents) per feature.
+- `/audit-work` — external multi-LLM audit (needs peer CLIs with pinned exact model versions; check
+  availability before assuming it can run).
+Do not skip either just because TestRunner/TDD reported green — those are necessary, not sufficient
+(see this repo's own Code Review Agent charter: "Green tests are necessary but not sufficient").
 
 ---
 
@@ -264,7 +308,7 @@ Prioritization source: `tovu-architecture.md` section 13 (User Friction Coverage
 
 This checklist is the **capability backlog**, not the decision record. Where an ADR
 exists, it is the source of truth and supersedes the loose wording below. Index:
-`ADS-project-knowledge/reports/architecture/ADR-INDEX.md`.
+`ADS-memory/reports/architecture/ADR-INDEX.md`.
 
 Which ADR owns which inventory area:
 - **§1 Kernel / §10 Server** — ADR-001 (agent-native modular monolith), ADR-009
@@ -335,6 +379,67 @@ A "site" everywhere below = **a folder (install dir) with its own `content.db` +
 - [ ] Idempotency strategy for event handlers
 - [ ] Error taxonomy + standardized API error responses
 - [ ] Safe-mode/rollback concept draft (from architecture section 13)
+
+### Agent capability surface (added 2026-07-27)
+
+Backed by a source-level survey of ten shipped products; full reports in
+`/Users/la/Programming/OSS-Repos/AI-Capabilities/`. Design written up in
+`tovu-v2-design.md` §9 and `Jini/ai-control-plane.md` §29. Build in this order.
+
+- [ ] **Split control plane from retrieval plane.** One capability registry, two postures: agent/admin
+      writes go through authorize → confirm → execute → audit; end-user search runs as the *user*,
+      read-only, no confirmation. A retrieval-plane capability must be structurally incapable of
+      holding a write handler. (Directus shares 12 tools across both and the weaker path — a
+      client-declared, server-trusted approval — defines the security of both.)
+- [ ] **Fail-closed at registration.** Throw at boot if a capability declares no auth policy, so
+      "registered with no auth check" is unreachable rather than discouraged. (Strapi,
+      `McpCapabilityDefinitionRegistry.define()`.) ~20 lines; do this first.
+- [ ] **Entity as a parameter, not tool-per-entity.** One tool per *operation* with the entity slug
+      as an argument — `findDocuments({ collectionSlug })` rather than `findPosts`/`findProducts`.
+      Keeps the tool count flat as content types grow. (Payload, `buildMcpServer.ts:126-151`.)
+- [ ] **Make the entity discriminator a per-principal enum**, not a free string. Kills the extra
+      discovery round trip and puts least privilege in the contract. Neither Payload nor Strapi
+      shipped this combination — it's ours to get right. Cache keys must include principal +
+      permission version; execution-time authorization stays mandatory regardless.
+- [ ] **Two-sided conformance test**, taken verbatim from Strapi's suite: *a read-only principal
+      cannot see write tools and cannot invoke them.* One test, both halves of the anti-pattern.
+- [ ] **Kill-switch completeness test.** Verify that disabling the AI feature stops artifacts the
+      agent already created, not just new invocations. Directus (agent-authored Flow with an `exec`
+      step) and novamira (agent-written sandbox PHP) both fail this — two of ten products.
+- [ ] **Actor kind in the event envelope.** Record agent-vs-human on every mutation. Directus knows
+      the OAuth client on every request and never writes it to the activity row, so its audit trail
+      can't tell them apart. Relates to W6 (change-set primitive); retrofitting provenance is the
+      same class of error as retrofitting tenancy (W7).
+- [ ] **Decide per-integration credential storage.** Nothing in the current design covers it. Two
+      shipped references: WordPress's Connectors API (env → constant → DB precedence,
+      validate-before-persist, mask-on-every-read) and Directus's inversion where the *absence* of a
+      principal is the read capability, so admins cannot read provider keys through the API at all
+      (`api/src/services/payload.ts:169-195`). Multi-tenant makes this load-bearing early.
+- [ ] **Validate capability *output*, not just input.** Every WordPress ability validates what it
+      returns against a declared output schema (`class-wp-ability.php:677`); Jini validates input
+      only. Cheap now, awkward once handlers exist. Relates to `ai-control-plane.md §19.4`, which
+      already asks for it under output safety but has no implementation.
+- [ ] **Ship schema-on-error before collapsing tools.** When validation fails, return the entity's
+      full schema in the error so the model self-corrects in one turn. It is a one-line change to an
+      error path and it is what makes a deliberately loose wire schema affordable — collapsing tools
+      to `findDocuments({ collectionSlug })` without it turns every mistake into a dead end.
+- [ ] **Derive risk independently of the tool author's declaration.** Treat `requiresConfirmation`
+      and `readonly` as *claims*, not facts: require `readonly === true` explicitly (absent ⇒
+      confirmation required) and OR in danger flags derived from the capability's own service
+      binding and risk class. Matters most for plugin-contributed capabilities, where the registrant
+      is not you.
+- [ ] **Do not build a tool catalog / search layer yet.** With entity-as-parameter the count lands in
+      the dozens, not hundreds. Build discovery when the *measured* count justifies it. Watch the
+      ratio of distinct-outcome capabilities (which never collapse) to CRUD ones (which do) — when
+      the former dominates, discovery stops being premature.
+
+**Where the evidence lives.** Ten canonical per-repo reports in
+`/Users/la/Programming/OSS-Repos/AI-Capabilities/` (`<repo>.md` + `<repo>.metrics.json`), merged from
+22 independent analyses across three models; raw passes preserved under `passes/<repo>/`. Design
+rationale with `file:line` citations is in `Jini/ai-control-plane.md` §29 and `tovu-v2-design.md` §9.
+Caveat when reading a single-pass report (`ghost`, `medusa`, `open-saas`, `jini`): measured across
+this corpus, **68–70% of findings came from exactly one pass**, so one pass is roughly a third of
+what is findable.
 
 ---
 
@@ -554,7 +659,7 @@ exists anywhere in `src/` yet, only a stub FAB.
 - [ ] Governance/trust and provenance strategy
 
 ### 18) Documentation / Knowledge Retention
-- [x] ~~Keep `PROJECT_MEMORY.md` updated each session~~ — superseded: the actual mechanism is `ADS-project-knowledge/memory/project_memory.md` plus the AI-Dev-Shop continuity-ledger workflow, not a root-level `PROJECT_MEMORY.md`
+- [x] ~~Keep `PROJECT_MEMORY.md` updated each session~~ — superseded: the actual mechanism is `ADS-memory/memory/project_memory.md` plus the AI-Dev-Shop continuity-ledger workflow, not a root-level `PROJECT_MEMORY.md`
 - [x] Keep module `INFO.md` accurate as files evolve — 26 `INFO.md` files maintained across modules
 - [ ] Keep module `__specs__` synced with implementation — only 10 of the many feature modules have `__specs__/` (see §14)
 - [x] Maintain ADR log for major architecture decisions — `ADR-INDEX.md`, 46 ADRs, actively maintained

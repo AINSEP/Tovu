@@ -22,7 +22,7 @@ yet.** This file is the build entry point.
 2. **`docs/architecture/READING-ORDER.md`** → the 10-minute orientation path into
    `docs/architecture/tovu-architecture.md` (target architecture, treat as
    aspirational not built).
-3. **`ADS-project-knowledge/reports/architecture/ADR-INDEX.md`** — the 14 accepted
+3. **`ADS-memory/reports/architecture/ADR-INDEX.md`** — the 14 accepted
    decisions. Non-negotiable for v1: **001** (agent-native modular monolith),
    **002** (React blessed renderer), **006** (a port needs two adapters), **007**
    (`workspaceId` on everything), **010** (declarative themes by default), **011**
