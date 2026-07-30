@@ -114,3 +114,46 @@ used, what actually happened, why it matters, status.
   secondary, smaller finding worth a follow-up: should generated credentials ever
   be echoed in plaintext into a chat transcript, regardless of which path created
   them?
+
+## 2026-07-30 (this session, AI-workflow pilot) — Root cause refined: the tool catalog is exposed behind 3 generic meta-tools with zero steering, and the model bypasses it even after finding it
+
+- **Root-cause investigation** (`src/assistant/agents.ts`, `agent-daemon-server.ts`,
+  Jini's `agent-runtime`/`daemon`/`mcp` packages): the spawned CLI's native
+  Bash/Read/Write access is hardcoded per-CLI with no restriction mechanism
+  anywhere in either repo (`RuntimeAgentDef` has no `disallowedTools`-equivalent
+  field). Tovu's ~21 domain tools are never exposed as directly-named MCP tools —
+  they sit behind exactly 3 generic meta-tools from `@jini-ai/mcp`
+  (`search_tools`, `describe_tool`, `execute_delegated_tool` —
+  `packages/mcp/src/server/tools/tool-catalog-tools.ts` +
+  `delegated-tool.ts`), which give no hint from their names alone why a model
+  should reach for them over its own native tools. A `PromptAugmenter.systemOverlay()`
+  seam exists in `agent-runtime` for injecting steering instructions but is
+  **completely unwired** — `CreateAgentExecutorOptions` has no such field, and
+  Tovu's daemon never passes one. Net effect: zero steering exists, and the
+  domain tools require active multi-step discovery (search → describe → execute)
+  against a model that already has zero-step Bash sitting right there.
+- **Where:** Forms. Prompt: *"Create a form called 'Contact Us' with fields for
+  name, email, and message."*
+- **What happened:** The assistant actually called `ToolSearch` with
+  `select:mcp__jini__search_tools,describe_tool,execute_delegated_tool,...` —
+  i.e. it found and loaded the real tool schemas — and **still did not call
+  them.** It went back to Bash/grep, found the HTTP route source
+  (`src/server/routes/admin/forms/create.ts`), then authenticated as the seeded
+  owner via `curl -X POST /api/admin/v1/auth/login -d
+  '{"username":"admin","password":"tovu-dev"}'` (credentials read directly out
+  of `src/identity/seed.ts`), and curled the forms list with that session
+  cookie — discovering a "Contact Us" form already existed (pre-existing dev
+  seed data) and correctly declining to create a duplicate.
+- **Why this matters more than the first 3 instances:** this rules out "the
+  model just doesn't know the tool exists" as the (sole) explanation. It knew.
+  It looked. It chose the raw-HTTP/owner-auth path anyway. A fix that only
+  improves discoverability (e.g. renaming/prominently surfacing the meta-tools)
+  is unlikely to be sufficient on its own — this looks like a genuine preference
+  for its native, familiar tools over an unfamiliar indirect tool-search
+  protocol, not a blind spot.
+- **Status:** Unresolved. Sharpens the priority-#1 design decision: of the 3
+  candidate fixes investigated (a: hard-restrict native tool access for this
+  surface; b: system-prompt steering via the currently-unwired
+  `PromptAugmenter` seam; c: hybrid with an opt-in dev mode), this finding
+  argues (a) is likely necessary, not just sufficient — (b) alone is competing
+  against a preference the model held even with full information.
