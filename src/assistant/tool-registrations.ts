@@ -10,10 +10,11 @@
  * assistant rather than any one domain — which domains are wired at all, and the two cross-domain
  * invariants that only a file seeing all of them can check.
  *
- * Wired domains and their catalogs (12 domains, 84 catalog entries, 75 wired tools):
- *   content-types (5 of 7)   forms (3)        identity (10)     comments (7)
- *   members (4)              newsletter (14)  media (4)         widgets (12)
- *   menus (5)                database (4 of 9) recovery (5 of 7) plugins (2)
+ * Wired domains and their catalogs (14 domains, 95 catalog entries, 80 wired tools):
+ *   content-types (5 of 7)   forms (3)         identity (10)      comments (7)
+ *   members (4)              newsletter (14)   media (4)          widgets (12)
+ *   menus (5)                database (4 of 9) recovery (5 of 7)  plugins (2)
+ *   workspace (2 of 4)       settings (3 of 7)
  * Each domain's own file records which of its entries are deliberately unwired and why; the kit's
  * `buildDomainRegistrations` fails the build on any catalog entry that is neither.
  *
@@ -27,6 +28,8 @@ import { buildContentTypesRegistrations, contentTypesDerivedRisk } from "../feat
 import { buildDatabaseRegistrations, databaseDerivedRisk } from "../features/database/tool-registrations";
 import { buildPluginsRegistrations, pluginsDerivedRisk } from "../features/plugin-runtime/tool-registrations";
 import { buildRecoveryRegistrations, recoveryDerivedRisk } from "../features/recovery/tool-registrations";
+import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/settings/tool-registrations";
+import { buildWorkspaceRegistrations, workspaceDerivedRisk } from "../features/workspace/tool-registrations";
 import { buildFormsRegistrations, formsDerivedRisk } from "../forms/tool-registrations";
 import { buildIdentityRegistrations, identityDerivedRisk } from "../identity/tool-registrations";
 import { buildMediaRegistrations, mediaDerivedRisk } from "../media/tool-registrations";
@@ -69,6 +72,8 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   { domain: "database", build: buildDatabaseRegistrations, risk: databaseDerivedRisk },
   { domain: "recovery", build: buildRecoveryRegistrations, risk: recoveryDerivedRisk },
   { domain: "plugins", build: buildPluginsRegistrations, risk: pluginsDerivedRisk },
+  { domain: "workspace", build: buildWorkspaceRegistrations, risk: workspaceDerivedRisk },
+  { domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk },
 ];
 
 /**
