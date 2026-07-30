@@ -1,0 +1,7 @@
+Read every *-agent-tools.ts file in the features/ directory here. Each exports a catalog of agent-callable tool definitions.
+
+Produce a single consolidated summary as a markdown table with columns: tool name, sideEffects, required permission, actorClassRule (or "-" if absent).
+
+Then state, in one sentence, how many tools in total are "mutates-durable-state".
+
+Do not create, edit, or write any files. Read only, then answer in your message.
