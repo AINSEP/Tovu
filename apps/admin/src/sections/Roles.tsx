@@ -89,7 +89,7 @@ export function Roles() {
     setPolicySaving(true);
     setPolicyError(null);
     try {
-      await api.createPolicy(policyName, policyDescription || undefined);
+      await api.createPolicy({ name: policyName }, { description: policyDescription || undefined });
       setPolicyName("");
       setPolicyDescription("");
       await reload();
@@ -110,7 +110,7 @@ export function Roles() {
     setRowSavingId(roleId);
     setRowError(null);
     try {
-      await api.updateRole(roleId, editingRoleName);
+      await api.updateRole({ roleId, name: editingRoleName });
       setEditingRoleId(null);
       await reload();
     } catch (e) {
@@ -144,7 +144,7 @@ export function Roles() {
     setRowSavingId(policyId);
     setRowError(null);
     try {
-      await api.updatePolicy(policyId, { name: editingPolicyName, description: editingPolicyDescription });
+      await api.updatePolicy({ policyId }, { name: editingPolicyName, description: editingPolicyDescription });
       setEditingPolicyId(null);
       await reload();
     } catch (e) {
@@ -179,7 +179,7 @@ export function Roles() {
     setRowSavingId(policyId);
     setRowError(null);
     try {
-      await api.writePolicyPermission(policyId, permissionInput, resourceTypeInput || undefined);
+      await api.writePolicyPermission({ policyId, permission: permissionInput }, { resourceType: resourceTypeInput || undefined });
       setPermissionInput("");
       setResourceTypeInput("");
     } catch (e) {

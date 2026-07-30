@@ -69,7 +69,8 @@ export function WidgetRegionEditor(props: { regionKey: string }) {
     setMessage(null);
     setError(null);
     try {
-      const { area: saved } = await api.mutateWidgetRegionPlacements(props.regionKey, {
+      const { area: saved } = await api.mutateWidgetRegionPlacements({
+        regionKey: props.regionKey,
         baseVersion: area.version,
         placements: placements.map((p) => ({ placementId: p.placementId, widgetEntryId: p.widgetEntryId, enabled: p.enabled })),
       });

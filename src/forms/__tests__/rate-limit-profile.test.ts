@@ -22,7 +22,7 @@ test("buildFormsRateLimitKey: composes `${sourceIp}:${formDefinitionId}`", () =>
 
 test("buildFormsRateLimitKey: INV-09 — two different forms from the same IP get independent windows", () => {
   const clock = { nowIso: () => "2026-07-13T00:00:00.000Z" };
-  const limiter = createRateLimiter(FORMS_SUBMIT_PROFILE, clock);
+  const limiter = createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock });
 
   const keyA = buildFormsRateLimitKey({ sourceIp: "1.2.3.4", formDefinitionId: "form-a" });
   const keyB = buildFormsRateLimitKey({ sourceIp: "1.2.3.4", formDefinitionId: "form-b" });
@@ -38,7 +38,7 @@ test("buildFormsRateLimitKey: INV-09 — two different forms from the same IP ge
 
 test("AC-14/behavior.spec.md §7 — the 5th submission in-window is accepted, the 6th is rejected", () => {
   const clock = { nowIso: () => "2026-07-13T00:00:00.000Z" };
-  const limiter = createRateLimiter(FORMS_SUBMIT_PROFILE, clock);
+  const limiter = createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock });
   const key = buildFormsRateLimitKey({ sourceIp: "9.9.9.9", formDefinitionId: "form-x" });
 
   const results = Array.from({ length: 6 }, () => limiter.check(key));

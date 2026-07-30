@@ -60,7 +60,7 @@ export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = (app, de
         },
       });
 
-      res.json(toAdminAssignLocationResponse(menu, binding, displacedMenu));
+      res.json(toAdminAssignLocationResponse({ menu, binding, displacedMenu }));
     } catch (err) {
       if (err instanceof MenuNotFoundError) {
         res.status(404).json({ error: err.message });

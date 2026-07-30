@@ -49,7 +49,7 @@ async function makeSqliteRepo(): Promise<CommentRepoPort> {
   const dbPath = path.join(dir, "content.db");
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
-  const result = await declareDataModule(db, dbPath, COMMENTS_DATA_MODULE);
+  const result = await declareDataModule({ db, dbPath, decl: COMMENTS_DATA_MODULE });
   if (!result.ok) throw new Error(`declareDataModule failed: ${JSON.stringify(result.error)}`);
   return new SqliteCommentRepo(db);
 }

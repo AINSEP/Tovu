@@ -1,5 +1,7 @@
 import { registerAdminSettingsClearRoute } from "../routes/admin/settings/clear";
 import { registerAdminSettingsGetEffectiveRoute } from "../routes/admin/settings/get-effective";
+import { registerAdminSettingsGetRawRoute } from "../routes/admin/settings/get-raw";
+import { registerAdminSettingsListDefinitionsRoute } from "../routes/admin/settings/list-definitions";
 import { registerAdminSettingsRegisterDefinitionsRoute } from "../routes/admin/settings/register-definitions";
 import { registerAdminSettingsResetRoute } from "../routes/admin/settings/reset";
 import { registerAdminSettingsSetRoute } from "../routes/admin/settings/set";
@@ -17,9 +19,14 @@ import type { ServerModuleHandle } from "./types";
  * `SettingsRouteDeps` includes, so the retype is pure narrowing, needed so the 5 registrars below
  * (now typed `SettingsRouteRegistrar` instead of the generic `RouteRegistrar`) can still call it.
  *
- * Owns all 5 registrations (register-definitions, get-effective, set, clear, reset) — moved here
- * verbatim from `app.ts`'s `createApp()`, same registrar function bodies, no behavior change,
- * same relative order.
+ * Owns all 5 pre-existing registrations (register-definitions, get-effective, set, clear, reset) —
+ * moved here verbatim from `app.ts`'s `createApp()`, same registrar function bodies, no behavior
+ * change, same relative order.
+ *
+ * SPEC-007 `SETTINGS_GET_RAW`/`SETTINGS_LIST_DEFINITIONS` (api.spec.md, drift-audit gap): added
+ * `registerAdminSettingsGetRawRoute`/`registerAdminSettingsListDefinitionsRoute` — now 7
+ * registrations total, no new `SettingsRouteDeps` fields required (both read from fields the
+ * existing 5 registrars already use).
  */
 export function createSettingsModule(deps: SettingsRouteDeps): ServerModuleHandle {
   return {
@@ -27,6 +34,8 @@ export function createSettingsModule(deps: SettingsRouteDeps): ServerModuleHandl
     registerRoutes: (app) => {
       registerAdminSettingsRegisterDefinitionsRoute(app, deps);
       registerAdminSettingsGetEffectiveRoute(app, deps);
+      registerAdminSettingsGetRawRoute(app, deps);
+      registerAdminSettingsListDefinitionsRoute(app, deps);
       registerAdminSettingsSetRoute(app, deps);
       registerAdminSettingsClearRoute(app, deps);
       registerAdminSettingsResetRoute(app, deps);

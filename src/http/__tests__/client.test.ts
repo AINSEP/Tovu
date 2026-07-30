@@ -65,7 +65,7 @@ test("classifyAddress: private/loopback/link-local/metadata/public per address f
 
 test("rejects a private/loopback/link-local target pre-connect for each address family", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
-  const client = createHttpClient(transport, makePolicy());
+  const client = createHttpClient({ transport, policy: makePolicy() });
 
   await assert.rejects(() => client.send(makeRequest({ url: "https://127.0.0.1/" })));
   await assert.rejects(() => client.send(makeRequest({ url: "https://10.0.0.1/" })));
@@ -76,10 +76,10 @@ test("rejects a private/loopback/link-local target pre-connect for each address 
 
 test("devHostAllowlist permits an otherwise-private target for that exact host", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
-  const client = createHttpClient(
+  const client = createHttpClient({
     transport,
-    makePolicy({ devHostAllowlist: ["127.0.0.1"] })
-  );
+    policy: makePolicy({ devHostAllowlist: ["127.0.0.1"] }),
+  });
 
   const response = await client.send(makeRequest({ url: "https://127.0.0.1/" }));
   assert.equal(response.bodyText, "ok");
@@ -90,7 +90,7 @@ test("a cross-origin redirect strips auth headers and is re-verified against pol
   const transport = new ScriptedTransport([
     { status: 302, headers: { location: "https://169.254.169.254/steal" }, bodyText: "" },
   ]);
-  const client = createHttpClient(transport, makePolicy());
+  const client = createHttpClient({ transport, policy: makePolicy() });
 
   await assert.rejects(
     () =>
@@ -109,7 +109,7 @@ test("a cross-origin redirect to an allowed host strips Authorization/Cookie bef
     { status: 302, headers: { location: "https://8.8.8.8/next" }, bodyText: "" },
     { status: 200, headers: {}, bodyText: "final" },
   ]);
-  const client = createHttpClient(transport, makePolicy());
+  const client = createHttpClient({ transport, policy: makePolicy() });
 
   const response = await client.send(
     makeRequest({
@@ -128,7 +128,7 @@ test("stops following redirects once maxRedirects is exhausted", async () => {
   const transport = new ScriptedTransport([
     { status: 302, headers: { location: "https://8.8.8.8/1" }, bodyText: "" },
   ]);
-  const client = createHttpClient(transport, makePolicy({ maxRedirects: 0 }));
+  const client = createHttpClient({ transport, policy: makePolicy({ maxRedirects: 0 }) });
 
   const response = await client.send(makeRequest({ url: "https://example.com/" }));
   assert.equal(response.status, 302);
@@ -137,10 +137,10 @@ test("stops following redirects once maxRedirects is exhausted", async () => {
 
 test("response body is truncated to the smaller of maxResponseBytes/maxDecompressedBytes", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "0123456789" }]);
-  const client = createHttpClient(
+  const client = createHttpClient({
     transport,
-    makePolicy({ maxResponseBytes: 4, maxDecompressedBytes: 100 })
-  );
+    policy: makePolicy({ maxResponseBytes: 4, maxDecompressedBytes: 100 }),
+  });
 
   const response = await client.send(makeRequest({ url: "https://example.com/" }));
   assert.equal(response.bodyText, "0123");
@@ -148,7 +148,7 @@ test("response body is truncated to the smaller of maxResponseBytes/maxDecompres
 
 test("connectTimeoutMs caps a caller-supplied timeout that exceeds it", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
-  const client = createHttpClient(transport, makePolicy({ connectTimeoutMs: 500 }));
+  const client = createHttpClient({ transport, policy: makePolicy({ connectTimeoutMs: 500 }) });
 
   await client.send(makeRequest({ url: "https://example.com/", timeoutMs: 60_000 }));
   assert.equal(transport.calls[0].req.timeoutMs, 500);
@@ -156,14 +156,14 @@ test("connectTimeoutMs caps a caller-supplied timeout that exceeds it", async ()
 
 test("rejects a scheme not in the policy's allowedSchemes", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
-  const client = createHttpClient(transport, makePolicy({ allowedSchemes: ["https"] }));
+  const client = createHttpClient({ transport, policy: makePolicy({ allowedSchemes: ["https"] }) });
 
   await assert.rejects(() => client.send(makeRequest({ url: "http://example.com/" })));
 });
 
 test("rejects a target URL carrying embedded credentials", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
-  const client = createHttpClient(transport, makePolicy());
+  const client = createHttpClient({ transport, policy: makePolicy() });
 
   await assert.rejects(() => client.send(makeRequest({ url: "https://user:pass@example.com/" })));
 });

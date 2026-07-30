@@ -21,6 +21,7 @@ import { Roles } from "./sections/Roles";
 import { Settings } from "./sections/Settings";
 import { Seo } from "./sections/Seo";
 import { Redirects } from "./sections/Redirects";
+import { Plugins } from "./sections/Plugins";
 import { FormsList } from "./sections/FormsList";
 import { FormEditor } from "./sections/FormEditor";
 import { Collections } from "./sections/Collections";
@@ -34,6 +35,8 @@ import { WidgetInstanceEditor } from "./sections/WidgetInstanceEditor";
 import { WidgetRegions } from "./sections/WidgetRegions";
 import { WidgetRegionEditor } from "./sections/WidgetRegionEditor";
 import { Workspace } from "./sections/Workspace";
+import { AssistantDock } from "./components/AssistantDock";
+import { ChatFab } from "./components/ChatFab";
 
 type Route =
   | { view: "dashboard" }
@@ -118,6 +121,7 @@ export function App() {
   const [user, setUser] = useState<AdminUser | null>(null);
   const [checking, setChecking] = useState(true);
   const [route, setRoute] = useState<Route>(parseHash(window.location.hash));
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     const onHash = () => setRoute(parseHash(window.location.hash));
@@ -196,6 +200,8 @@ export function App() {
           <Seo />
         ) : route.sectionId === "redirects" ? (
           <Redirects />
+        ) : route.sectionId === "plugins" ? (
+          <Plugins />
         ) : route.sectionId === "members" ? (
           <Members />
         ) : route.sectionId === "comments" ? (
@@ -232,6 +238,12 @@ export function App() {
     <div className="admin-layout">
       <Sidebar activeId={activeSectionId(route)} onLogout={logout} />
       <main className="admin-content">{content}</main>
+      {/* `hidden`, never unmounted: every admin page shares one assistant conversation, which must
+          survive both closing the dock and navigating to a different section (ADR-049). */}
+      <aside className="admin-chat-dock" hidden={!chatOpen} aria-label="Assistant">
+        <AssistantDock />
+      </aside>
+      <ChatFab open={chatOpen} onToggle={() => setChatOpen((current) => !current)} label="assistant" />
     </div>
   );
 }

@@ -79,7 +79,7 @@ export function Members() {
     if (stateFor(member.id).resending) return;
     patchRowState(member.id, { resending: true, error: null, notice: null });
     try {
-      await api.requestMemberMagicLink(member.email);
+      await api.requestMemberMagicLink({ email: member.email });
       patchRowState(member.id, { resending: false, notice: "Sign-in link sent." });
     } catch (e) {
       patchRowState(member.id, { resending: false, error: describeApiError(e, "Failed to send sign-in link.") });

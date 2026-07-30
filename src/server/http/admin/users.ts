@@ -55,12 +55,13 @@ export interface AdminPolicyResponse {
  * @complexity O(1).
  * @overallScore 100
  */
-export function toAdminUserResponse(
-  principal: PrincipalRecord,
-  user: UserRecord,
-  roleIds: string[],
-  policyIds: string[]
-): AdminUserResponse {
+export function toAdminUserResponse(required: {
+  principal: PrincipalRecord;
+  user: UserRecord;
+  roleIds: string[];
+  policyIds: string[];
+}): AdminUserResponse {
+  const { principal, user, roleIds, policyIds } = required;
   return {
     principalId: principal.id,
     workspaceId: principal.workspaceId,

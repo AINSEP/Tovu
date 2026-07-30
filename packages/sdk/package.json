@@ -1,0 +1,18 @@
+{
+  "name": "@tovu/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tovu plugin-author public SDK (SPEC-005 REQ-08, ADR-005 rule 1). The ONLY supported import surface for plugin `server/index.mjs` entry files — deep imports into `@tovu/core` are unsupported and blocked by the exports map below.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

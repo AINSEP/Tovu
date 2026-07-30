@@ -20,7 +20,7 @@ function openDb(): { db: Database.Database; dbPath: string; dir: string } {
 
 test("a declared composite index is created alongside its table", async () => {
   const { db, dbPath, dir } = openDb();
-  const result = await declareDataModule(db, dbPath, {
+  const result = await declareDataModule({ db, dbPath, decl: {
     pluginId: "idxtest",
     pluginTier: "tier-2",
     provenance: { sourceUrl: "test://idxtest", publisher: "test" },
@@ -35,7 +35,7 @@ test("a declared composite index is created alongside its table", async () => {
         indexes: [{ name: "by_workspace_status", columns: ["workspace_id", "status"] }],
       },
     ],
-  });
+  } });
 
   assert.equal(result.ok, true, JSON.stringify(result.error));
   const idx = db
@@ -50,7 +50,7 @@ test("a declared composite index is created alongside its table", async () => {
 
 test("an index referencing an undeclared column is rejected before any I/O", async () => {
   const { db, dbPath, dir } = openDb();
-  const result = await declareDataModule(db, dbPath, {
+  const result = await declareDataModule({ db, dbPath, decl: {
     pluginId: "idxtest",
     pluginTier: "tier-2",
     provenance: { sourceUrl: "test://idxtest", publisher: "test" },
@@ -61,7 +61,7 @@ test("an index referencing an undeclared column is rejected before any I/O", asy
         indexes: [{ name: "bad", columns: ["nonexistent_column"] }],
       },
     ],
-  });
+  } });
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "INDEX_UNKNOWN_COLUMN");
   assert.equal(result.snapshotPath, null, "no snapshot wasted on an invalid declaration");
@@ -72,7 +72,7 @@ test("an index referencing an undeclared column is rejected before any I/O", asy
 
 test("a unique index is enforced", async () => {
   const { db, dbPath, dir } = openDb();
-  await declareDataModule(db, dbPath, {
+  await declareDataModule({ db, dbPath, decl: {
     pluginId: "idxtest",
     pluginTier: "tier-2",
     provenance: { sourceUrl: "test://idxtest", publisher: "test" },
@@ -86,7 +86,7 @@ test("a unique index is enforced", async () => {
         indexes: [{ name: "unique_slug", columns: ["slug"], unique: true }],
       },
     ],
-  });
+  } });
 
   db.prepare(`INSERT INTO "p_idxtest__widgets" (id, slug) VALUES ('a', 'x')`).run();
   assert.throws(() => db.prepare(`INSERT INTO "p_idxtest__widgets" (id, slug) VALUES ('b', 'x')`).run());

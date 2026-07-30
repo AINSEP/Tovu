@@ -121,3 +121,51 @@ test("revision/audit trail actually persists: register + field-change + deprecat
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
+
+test("audit provenance persists: principal_kind distinguishes a human write from an assistant write on identical actor ids", async () => {
+  const { db, filePath, tmpDir } = openTempContentDb();
+  try {
+    const repo = new SqliteContentTypeRepo(db);
+    const clock = { nowIso: () => "2026-07-15T00:00:00.000Z" };
+    const deps = { repo, clock, ids: { newId: () => "ct-1" }, authorize: alwaysAllow(), indexProvisioner: noopIndexProvisioner(), outbox: { enqueue: async () => {} } };
+
+    // Both writes are attributed to the SAME principal id — the assistant runs under the human's
+    // own principal (see `server/modules/assistant.ts`), so `actor_id` cannot tell them apart.
+    await registerContentType({
+      deps,
+      input: { actorId: "principal-7", principalKind: "user", workspaceId: "ws-1", key: "recipe", label: "Recipe", fields: [] },
+    });
+    await updateContentTypeFields({
+      deps,
+      input: {
+        actorId: "principal-7",
+        principalKind: "agent",
+        workspaceId: "ws-1",
+        key: "recipe",
+        fields: [{ name: "title", kind: "text", required: true, queryable: false }],
+        expectedVersion: 1,
+      },
+    });
+    // A caller that supplies no provenance persists NULL — honestly "not recorded", never a
+    // fabricated default (the same contract every pre-existing call site inherits).
+    await deprecateContentType({
+      deps: { repo, clock, authorize: alwaysAllow(), outbox: { enqueue: async () => {} } },
+      input: { workspaceId: "ws-1", actorId: "principal-7", key: "recipe", expectedVersion: 2 },
+    });
+
+    const dbAfterRestart = openContentDb(filePath);
+    const rows = dbAfterRestart.$client
+      .prepare("SELECT actor_id, principal_kind FROM content_type_revisions ORDER BY seq ASC")
+      .all() as Array<{ actor_id: string; principal_kind: string | null }>;
+
+    assert.equal(rows.length, 3);
+    assert.ok(rows.every((r) => r.actor_id === "principal-7"), "one principal id across all three writes");
+    assert.deepEqual(
+      rows.map((r) => r.principal_kind),
+      ["user", "agent", null],
+      "the column round-trips through the real migration, adapter, and file"
+    );
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});

@@ -84,6 +84,14 @@ const BASE_CATALOG: readonly PermissionDescriptor[] = [
     description: "Set/clear another principal's user-layer value.",
   },
   {
+    id: "settings.user.read",
+    owner: "settings",
+    description:
+      "Read another principal's user-layer value. The read-side counterpart of settings.user.write — " +
+      "gates the ?principalId= cross-principal path on the settings read routes (get-raw/get-effective), " +
+      "which previously had no read permission of its own and borrowed settings.user.write.",
+  },
+  {
     id: "settings.definitions.manage",
     owner: "settings",
     description:
@@ -151,6 +159,34 @@ export const permissionCatalog = new PermissionCatalog(BASE_CATALOG);
 export function registerPermission(descriptor: PermissionDescriptor): void {
   permissionCatalog.register(descriptor);
 }
+
+/**
+ * Backfills the newly-introduced `settings.user.read` (BASE_CATALOG above) onto every policy that
+ * already holds `settings.user.write`, closing internal-audit finding F2 without narrowing anyone.
+ *
+ * Deliberate departure from this file's other four pairs: `from` here is NOT a deprecated string.
+ * `settings.user.write` remains live and meaningful (set/clear another principal's value); this pair
+ * expresses a one-time *capability implication* — anyone already trusted to overwrite another
+ * principal's user-layer value is self-evidently trusted to read it. The fan-out's contract fits
+ * exactly (`permission-migrations.ts`: for every policy holding `from`, add each missing string in
+ * `to`; additive-only, never touches `from`), so no mechanism change is needed.
+ *
+ * Why a migration is required at all: `seedIdentity` early-returns once an owner user exists
+ * (`seed.ts`), so adding the string to `BUILTIN_ADMIN_PERMISSIONS` only reaches *fresh* workspaces.
+ * Without this pair, an already-seeded install's built-in admin role would silently lose the
+ * Settings screen's target-principal read the moment the route stopped accepting
+ * `settings.user.write` — the precise fail-closed lockout this mechanism exists to prevent. The
+ * built-in owner role is unaffected either way (it holds the `*` wildcard).
+ */
+registerPermissionMigration({
+  from: "settings.user.write",
+  to: ["settings.user.read"],
+  reason:
+    "Internal audit F2 remediation (2026-07-29): the cross-principal settings read path was gated on " +
+    "settings.user.write for lack of a read-side permission. settings.user.read now gates it; every " +
+    "existing write-holder gains the explicit read grant so no operator loses a shipped capability. " +
+    "Unlike this file's other pairs, `from` is not deprecated — it stays live for writes.",
+});
 
 /**
  * Feature-registered permissions beyond the core BASE_CATALOG (REQ-03), added while wiring

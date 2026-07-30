@@ -30,7 +30,8 @@ function describeApiError(e: unknown, fallback: string): string {
 /** Depth of `term` within its taxonomy's `parentId` chain, bounded against cycles by a visited
  * set (server-side cycle detection should prevent one, but this render helper never trusts that
  * blindly). */
-function termDepth(term: AdminTerm, byId: Map<string, AdminTerm>): number {
+function termDepth(required: { term: AdminTerm; byId: Map<string, AdminTerm> }): number {
+  const { term, byId } = required;
   let depth = 0;
   let current: AdminTerm | undefined = term;
   const visited = new Set<string>();
@@ -61,10 +62,10 @@ function NewTermForm(props: {
     setSaving(true);
     setError(null);
     try {
-      await api.createTerm(props.taxonomy.taxonomy.id, {
-        name: name.trim(),
-        parentId: props.taxonomy.taxonomy.hierarchical && parentId ? parentId : null,
-      });
+      await api.createTerm(
+        { taxonomyId: props.taxonomy.taxonomy.id, name: name.trim() },
+        { parentId: props.taxonomy.taxonomy.hierarchical && parentId ? parentId : null }
+      );
       setName("");
       setParentId("");
       props.onCreated();
@@ -189,7 +190,7 @@ function MergeTermSection(props: { taxonomy: AdminTaxonomyWithTerms; term: Admin
     setBusy(true);
     setError(null);
     try {
-      const r = await api.planMergeTerm(props.term.id, intoTermId);
+      const r = await api.planMergeTerm({ fromTermId: props.term.id, intoTermId });
       setPlan({ planId: r.planId, planHash: r.planHash, overlappingContentCount: r.details.overlappingContentCount });
       setStep("planned");
     } catch (e) {
@@ -204,7 +205,7 @@ function MergeTermSection(props: { taxonomy: AdminTaxonomyWithTerms; term: Admin
     setBusy(true);
     setError(null);
     try {
-      const r = await api.confirmMergeTerm(props.term.id, plan.planId, plan.planHash);
+      const r = await api.confirmMergeTerm({ fromTermId: props.term.id, planId: plan.planId, planHash: plan.planHash });
       setConfirmationToken(r.confirmationToken);
       setStep("confirmed");
     } catch (e) {
@@ -219,7 +220,7 @@ function MergeTermSection(props: { taxonomy: AdminTaxonomyWithTerms; term: Admin
     setBusy(true);
     setError(null);
     try {
-      await api.executeMergeTerm(props.term.id, intoTermId, confirmationToken);
+      await api.executeMergeTerm({ fromTermId: props.term.id, intoTermId, confirmationToken });
       props.onMerged();
     } catch (e) {
       setError(describeApiError(e, "Failed to execute the merge"));
@@ -298,7 +299,7 @@ function TermDetailPanel(props: {
     setError(null);
     setMessage(null);
     try {
-      await api.renameTerm(props.term.id, newName.trim());
+      await api.renameTerm({ termId: props.term.id, newName: newName.trim() });
       setMessage("Renamed.");
       props.onRenamed();
     } catch (e) {
@@ -387,7 +388,7 @@ export function Taxonomy() {
                 ) : (
                   <ul role="list" className="settings-row-list">
                     {group.terms.map((term) => {
-                      const depth = group.taxonomy.hierarchical ? termDepth(term, byId) : 0;
+                      const depth = group.taxonomy.hierarchical ? termDepth({ term, byId }) : 0;
                       const parentName = term.parentId ? byId.get(term.parentId)?.name : undefined;
                       return (
                         <li

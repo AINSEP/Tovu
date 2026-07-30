@@ -89,52 +89,49 @@ export function toWhereUsedResponse(refs: readonly EntryRefRow[]): {
   };
 }
 
+export interface WidgetErrorResponse {
+  status: number;
+  body: Record<string, unknown>;
+}
+
 /**
- * Maps every typed `widgets`/`embed-service` domain error to its HTTP response, mirroring the
- * `{error, code, ...}` envelope shape `routes/admin/menus/create.ts` and every other admin route in
- * this codebase already establish. Falls through to a generic 500 for anything unrecognized —
- * callers still wrap this in their own try/catch, this function never throws.
+ * Pure typed-error -> `{status, body}` mapping, mirroring the `{error, code, ...}` envelope shape
+ * `routes/admin/menus/create.ts` and every other admin route in this codebase already establish.
+ * `mapWidgetErrorToResponse` below is the usual way to consume this (send it straight to `res`);
+ * exported separately for the rare caller (`agent-tools.ts`'s `widgets.create` — Fable adversarial-
+ * review fix, 2026-07-21, Finding D) that needs to merge extra fields into the body before sending,
+ * since a `Response` can only be finalized once.
  */
-export function mapWidgetErrorToResponse(err: unknown, res: Response): void {
+export function widgetErrorToResponse(err: unknown): WidgetErrorResponse {
   if (err instanceof WidgetConfigValidationError) {
-    res.status(400).json({ error: err.message, code: "WIDGETS_CONFIG_VALIDATION_ERROR", details: { fieldErrors: err.fieldErrors } });
-    return;
+    return { status: 400, body: { error: err.message, code: "WIDGETS_CONFIG_VALIDATION_ERROR", details: { fieldErrors: err.fieldErrors } } };
   }
   if (err instanceof WidgetTypeUnregisteredError) {
-    res.status(400).json({ error: err.message, code: "WIDGETS_TYPE_UNREGISTERED", details: { widgetType: err.widgetType } });
-    return;
+    return { status: 400, body: { error: err.message, code: "WIDGETS_TYPE_UNREGISTERED", details: { widgetType: err.widgetType } } };
   }
   if (err instanceof WidgetEmbedReorderCountMismatchError) {
-    res.status(400).json({
-      error: err.message,
-      code: "WIDGETS_EMBED_REORDER_COUNT_MISMATCH",
-      details: { expectedCount: err.expectedCount, actualCount: err.actualCount },
-    });
-    return;
+    return {
+      status: 400,
+      body: { error: err.message, code: "WIDGETS_EMBED_REORDER_COUNT_MISMATCH", details: { expectedCount: err.expectedCount, actualCount: err.actualCount } },
+    };
   }
   if (err instanceof WidgetEmbedGuardrailError) {
-    res.status(400).json({ error: err.message, code: "WIDGETS_EMBED_GUARDRAIL_VIOLATION", details: { reason: err.reason } });
-    return;
+    return { status: 400, body: { error: err.message, code: "WIDGETS_EMBED_GUARDRAIL_VIOLATION", details: { reason: err.reason } } };
   }
   if (err instanceof WidgetVersionConflictError) {
-    res.status(409).json({ error: err.message, code: "WIDGETS_VERSION_CONFLICT", details: { currentVersion: err.currentVersion } });
-    return;
+    return { status: 409, body: { error: err.message, code: "WIDGETS_VERSION_CONFLICT", details: { currentVersion: err.currentVersion } } };
   }
   if (err instanceof WidgetAreaConflictError) {
-    res.status(409).json({ error: err.message, code: "WIDGETS_AREA_CONFLICT", details: { currentVersion: err.currentVersion } });
-    return;
+    return { status: 409, body: { error: err.message, code: "WIDGETS_AREA_CONFLICT", details: { currentVersion: err.currentVersion } } };
   }
   if (err instanceof WidgetReferencedError) {
-    res.status(409).json({ error: err.message, code: "WIDGETS_REFERENCED", details: { referencingLocations: err.referencingLocations } });
-    return;
+    return { status: 409, body: { error: err.message, code: "WIDGETS_REFERENCED", details: { referencingLocations: err.referencingLocations } } };
   }
   if (err instanceof WidgetInstanceNotFoundError) {
-    res.status(404).json({ error: err.message, code: "WIDGETS_INSTANCE_NOT_FOUND" });
-    return;
+    return { status: 404, body: { error: err.message, code: "WIDGETS_INSTANCE_NOT_FOUND" } };
   }
   if (err instanceof WidgetAreaNotFoundError) {
-    res.status(404).json({ error: err.message, code: "WIDGETS_AREA_NOT_FOUND" });
-    return;
+    return { status: 404, body: { error: err.message, code: "WIDGETS_AREA_NOT_FOUND" } };
   }
   if (err instanceof WidgetForbiddenError) {
     // `WidgetForbiddenError` (thrown by `requireWidgetPermission` inside the domain functions
@@ -145,12 +142,20 @@ export function mapWidgetErrorToResponse(err: unknown, res: Response): void {
     // layer down. Falls back to an empty string if the message shape ever changes upstream —
     // still a valid 403, just without the extracted detail.
     const match = /lacks permission '([^']+)' \(([^)]+)\)/.exec(err.message);
-    res.status(403).json({
-      error: err.message,
-      code: "FORBIDDEN",
-      details: { permission: match?.[1] ?? "", reason: match?.[2] ?? "" },
-    });
-    return;
+    return {
+      status: 403,
+      body: { error: err.message, code: "FORBIDDEN", details: { permission: match?.[1] ?? "", reason: match?.[2] ?? "" } },
+    };
   }
-  res.status(500).json({ error: "internal error" });
+  return { status: 500, body: { error: "internal error" } };
+}
+
+/**
+ * Maps every typed `widgets`/`embed-service` domain error to its HTTP response. Falls through to a
+ * generic 500 for anything unrecognized — callers still wrap this in their own try/catch, this
+ * function never throws.
+ */
+export function mapWidgetErrorToResponse(err: unknown, res: Response): void {
+  const { status, body } = widgetErrorToResponse(err);
+  res.status(status).json(body);
 }

@@ -21,8 +21,14 @@
  * catalog shape, it performs no I/O and no enforcement itself.
  *
  * Architectural role:
- * `features/content-types` domain logic. No dependencies.
+ * `features/content-types` domain logic. Performs no I/O and no enforcement. Depends only on this
+ * package's own `types.ts` (the field-kind enum) and `index-provisioning.ts` (the identifier
+ * grammar pattern) — imported so the published JSON Schemas cannot drift from the single sources
+ * of those two values, rather than restating either.
  */
+
+import { IDENTIFIER_GRAMMAR_PATTERN } from "./index-provisioning";
+import { CONTENT_TYPE_FIELD_KINDS } from "./types";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
@@ -34,7 +40,70 @@ export interface AgentToolDefinition {
   sideEffects: AgentToolSideEffect;
   authorization: { permission: string };
   actorClassRule?: AgentToolActorClassRule;
+  /**
+   * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
+   * (`assistant/tool-registrations.ts`). Optional because the two cleanup entries are not wired to
+   * handlers yet and their input shape is not designed; `tool-registrations.ts` asserts that every
+   * tool it DOES wire has one.
+   *
+   * These schemas are hand-authored, and enforcement lives elsewhere — `field-defs.ts` for
+   * structure and `write-service.ts`'s CIC U-002-B1 chain for the domain rules. That is a
+   * deliberate two-artifact design, so the pair is pinned against drift by a fixture corpus in
+   * `__tests__/unit/agent-tools.schema-agreement.unit.test.ts`. The two values a schema would
+   * otherwise duplicate — the field-kind enum and the identifier grammar — are imported from their
+   * single sources rather than restated.
+   */
+  inputSchema?: Readonly<Record<string, unknown>>;
 }
+
+/** One entry of a `fields` array, as published to the model. Mirrors what `field-defs.ts` enforces. */
+const FIELD_DEF_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "kind", "required", "queryable"],
+  properties: {
+    name: {
+      type: "string",
+      pattern: IDENTIFIER_GRAMMAR_PATTERN,
+      description: "Field name. Lowercase letters, digits and underscores; must start with a letter; max 64 characters.",
+    },
+    kind: {
+      type: "string",
+      enum: [...CONTENT_TYPE_FIELD_KINDS],
+      description: "One of the five supported storage kinds. No other value is accepted.",
+    },
+    required: { type: "boolean", description: "Whether an entry must supply this field. Must be a real boolean, not a string." },
+    queryable: {
+      type: "boolean",
+      description: "Whether this field gets a queryable index. Must be a real boolean, not a string. At most 20 queryable fields per content type.",
+    },
+  },
+} as const;
+
+/** The `fields` property shared by `define` and `update_fields`. */
+const FIELDS_SCHEMA = {
+  type: "array",
+  maxItems: 500,
+  items: FIELD_DEF_SCHEMA,
+  description: "The COMPLETE field list. Both tools that accept it replace the whole schema — omitted fields are dropped, not preserved.",
+} as const;
+
+/** `expectedVersion` — present on every tool that mutates an existing content type (OCC). */
+const EXPECTED_VERSION_SCHEMA = {
+  type: "integer",
+  description: "The content type's current `version`, for optimistic concurrency. Read it first; a stale value is rejected with VersionConflictError rather than overwriting.",
+} as const;
+
+/** The input schema shared by the three lifecycle transitions, which take exactly `{key, expectedVersion}`. */
+const LIFECYCLE_INPUT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["key", "expectedVersion"],
+  properties: {
+    key: { type: "string", pattern: IDENTIFIER_GRAMMAR_PATTERN, description: "The content type's key." },
+    expectedVersion: EXPECTED_VERSION_SCHEMA,
+  },
+} as const;
 
 /** REQ-22/REQ-23 — the Collections content-types domain's fixed agent-tool catalog. */
 export const contentTypesAgentToolCatalog: AgentToolDefinition[] = [
@@ -56,29 +125,56 @@ export const contentTypesAgentToolCatalog: AgentToolDefinition[] = [
     description: "Registers a new operator-defined content type in the registry.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.collections.manage" },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["key", "label", "fields"],
+      properties: {
+        key: {
+          type: "string",
+          pattern: IDENTIFIER_GRAMMAR_PATTERN,
+          description: "Permanent identifier for the content type. Cannot be changed later. 'post' and 'page' are permanently reserved and will be rejected.",
+        },
+        label: { type: "string", description: "Human-readable display name shown in the admin UI." },
+        fields: FIELDS_SCHEMA,
+      },
+    },
   },
   {
     name: "collections_content_type_update_fields",
     description: "Full-replaces a content type's field schema.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.collections.manage" },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["key", "fields", "expectedVersion"],
+      properties: {
+        key: { type: "string", pattern: IDENTIFIER_GRAMMAR_PATTERN, description: "The content type's key." },
+        fields: FIELDS_SCHEMA,
+        expectedVersion: EXPECTED_VERSION_SCHEMA,
+      },
+    },
   },
   {
     name: "collections_content_type_deprecate",
     description: "Deprecates an active content type, blocking new entry creation only.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.collections.manage" },
+    inputSchema: LIFECYCLE_INPUT_SCHEMA,
   },
   {
     name: "collections_content_type_reactivate",
     description: "Reactivates a deprecated content type back to active.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.collections.manage" },
+    inputSchema: LIFECYCLE_INPUT_SCHEMA,
   },
   {
     name: "collections_content_type_tombstone",
     description: "Tombstones a deprecated content type and tears down its provisioned queryable-field indexes.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "admin.collections.manage" },
+    inputSchema: LIFECYCLE_INPUT_SCHEMA,
   },
 ];

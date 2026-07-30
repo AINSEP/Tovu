@@ -53,7 +53,10 @@ export const registerAdminIntegrationsListRoute: IntegrationsRouteRegistrar = (a
             subscriptionId: subscription.id,
             limit: LAST_DELIVERY_LOOKUP_LIMIT,
           });
-          return toAdminSubscriptionResponse(subscription, mostRecentDelivery(recentDeliveries));
+          return toAdminSubscriptionResponse({
+            subscription,
+            lastDelivery: mostRecentDelivery(recentDeliveries),
+          });
         })
       );
 

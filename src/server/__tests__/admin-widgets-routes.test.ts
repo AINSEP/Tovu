@@ -9,6 +9,7 @@ import { createRouteDeps } from "../app";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
 import { createWidgetsModule } from "../modules/widgets";
 import type { RouteDeps } from "../routes/types";
+import { WIDGET_CONTENT_TYPE } from "../../widgets/types";
 
 /**
  * @file Route-level tests for the admin `widgets` HTTP surface (SPEC-043, ADR-047) — instance
@@ -203,6 +204,62 @@ test("admin widgets regions: bind -> get -> mutate placements -> regions-list re
   assert.equal(blockedBody.details.referencingLocations[0].kind, "region");
 });
 
+test("Fable adversarial-review fix (2026-07-21, Finding H): region placement mutation rejects malformed placement shapes, duplicate placementIds, and strips unrecognized extra properties instead of persisting them verbatim", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const createWidget = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "Footer note", config: { body: "hi" } }),
+  });
+  const { widget } = (await createWidget.json()) as { widget: { id: string } };
+
+  const bindRes = await fetch(`${baseUrl}${BASE}/widgets/regions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ regionKey: "footer" }),
+  });
+  const { area } = (await bindRes.json()) as { area: { version: number } };
+
+  const missingField = await fetch(`${baseUrl}${BASE}/widgets/regions/footer`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: area.version, placements: [{ placementId: "p1", enabled: true }] }),
+  });
+  assert.equal(missingField.status, 400, await missingField.clone().text());
+  assert.equal((await missingField.json()).code, "VALIDATION_ERROR");
+
+  const duplicateIds = await fetch(`${baseUrl}${BASE}/widgets/regions/footer`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      baseVersion: area.version,
+      placements: [
+        { placementId: "dup", widgetEntryId: widget.id, enabled: true },
+        { placementId: "dup", widgetEntryId: widget.id, enabled: false },
+      ],
+    }),
+  });
+  assert.equal(duplicateIds.status, 400, await duplicateIds.clone().text());
+  assert.equal((await duplicateIds.json()).code, "VALIDATION_ERROR");
+
+  const extraProps = await fetch(`${baseUrl}${BASE}/widgets/regions/footer`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      baseVersion: area.version,
+      placements: [{ placementId: "p1", widgetEntryId: widget.id, enabled: true, injectedField: "should not survive" }],
+    }),
+  });
+  assert.equal(extraProps.status, 200, await extraProps.clone().text());
+
+  const regionGetRes = await fetch(`${baseUrl}${BASE}/widgets/regions/footer`, { headers: { cookie } });
+  const regionGot = (await regionGetRes.json()) as { placements: Array<Record<string, unknown>> };
+  assert.equal(regionGot.placements.length, 1);
+  assert.equal(Object.prototype.hasOwnProperty.call(regionGot.placements[0], "injectedField"), false, "an unrecognized client-supplied property must not be persisted verbatim into the area doc");
+});
+
 test("admin widgets embeds: insert -> reorder -> remove against a real generic entry, server-side, no live editor session involved (REQ-44/AC-30)", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -382,6 +439,41 @@ test("AC-28/REQ-40/41: a principal with no widgets.* grants is denied 403 (not s
   assert.equal(purgeDenied.status, 403);
   assert.equal(((await purgeDenied.json()) as { details: { permission: string } }).details.permission, "widgets.delete.force");
 
+  // Round-2 external-audit fix (2026-07-21, codex medium finding R2-WIDGETS-002): this test's own
+  // title claimed "place"/"region-mutate" coverage, but only region-BIND (a different route, which
+  // happens to share the widgets.place permission string) was ever actually exercised — the
+  // widgets.place AI TOOL (a distinct code path in agent-tools.ts) and the region-MUTATE endpoint
+  // (region-mutate-placements.ts) had zero denial coverage of their own. Bind a region with the
+  // owner, then exercise both denied paths for real with the no-grants principal.
+  const ownerBind = await fetch(`${baseUrl}${BASE}/widgets/regions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ regionKey: "ac28-region" }),
+  });
+  const { area: ac28Area } = (await ownerBind.json()) as { area: { version: number } };
+
+  const placeToolDenied = await fetch(`${baseUrl}${BASE}/widgets/tools/place`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: bareCookie },
+    body: JSON.stringify({ widgetInstanceId: widget.id, target: { kind: "region", regionKey: "ac28-region", baseVersion: ac28Area.version } }),
+  });
+  assert.equal(placeToolDenied.status, 403);
+  assert.equal(((await placeToolDenied.json()) as { details: { permission: string } }).details.permission, "widgets.place");
+
+  const regionMutateDenied = await fetch(`${baseUrl}${BASE}/widgets/regions/ac28-region`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie: bareCookie },
+    body: JSON.stringify({ baseVersion: ac28Area.version, placements: [{ placementId: "ac28-p1", widgetEntryId: widget.id, enabled: true }] }),
+  });
+  assert.equal(regionMutateDenied.status, 403);
+  assert.equal(((await regionMutateDenied.json()) as { details: { permission: string } }).details.permission, "widgets.place");
+
+  // Both denied attempts left the region untouched (still empty, same version).
+  const regionAfterDenials = await fetch(`${baseUrl}${BASE}/widgets/regions/ac28-region`, { headers: { cookie: ownerCookie } });
+  const regionAfterDenialsBody = (await regionAfterDenials.json()) as { area: { version: number }; placements: unknown[] };
+  assert.equal(regionAfterDenialsBody.area.version, ac28Area.version);
+  assert.equal(regionAfterDenialsBody.placements.length, 0);
+
   // The widget survives every denied mutation attempt untouched.
   const stillThere = await fetch(`${baseUrl}${BASE}/widgets/${widget.id}`, { headers: { cookie: ownerCookie } });
   const stillThereBody = (await stillThere.json()) as { widget: { version: number; status: string } };
@@ -407,4 +499,117 @@ test("404s for unknown workspace and unknown widget id", async (t) => {
 
   const missingWidget = await fetch(`${baseUrl}${BASE}/widgets/does-not-exist`, { headers: { cookie } });
   assert.equal(missingWidget.status, 404);
+});
+
+test("Fable adversarial-review fix (2026-07-21, Finding D): widgets.create's instance survives a placement failure — the response names the created widget id instead of silently orphaning it, and a follow-up widgets.place (not a retried widgets.create) is the correct recovery, minting no duplicate", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await deps.identityReady;
+
+  const bindRes = await fetch(`${baseUrl}${BASE}/widgets/regions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ regionKey: "sidebar" }),
+  });
+  const { area } = (await bindRes.json()) as { area: { version: number } };
+
+  // A deliberately STALE baseVersion — placement will fail with a version conflict, after the
+  // instance itself has already been created.
+  const createToolRes = await fetch(`${baseUrl}${BASE}/widgets/tools/create`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      widgetType: "text",
+      title: "Orphan-risk widget",
+      config: { body: "agent" },
+      target: { kind: "region", regionKey: "sidebar", baseVersion: area.version + 99 },
+    }),
+  });
+  assert.equal(createToolRes.status, 409, await createToolRes.clone().text());
+  const failed = (await createToolRes.json()) as { tool: string; widget?: { id: string }; placementFailed?: boolean; code?: string };
+  assert.equal(failed.placementFailed, true);
+  assert.equal(failed.code, "WIDGETS_AREA_CONFLICT");
+  assert.ok(failed.widget?.id, "the created instance's id must be in the response — it was NOT rolled back, so the caller must be told it exists");
+
+  // The instance really was created and persisted (not orphaned/invisible).
+  const getRes = await fetch(`${baseUrl}${BASE}/widgets/${failed.widget!.id}`, { headers: { cookie } });
+  assert.equal(getRes.status, 200);
+
+  // The correct recovery is widgets.place against the SAME id (never a second widgets.create) —
+  // confirms no duplicate is needed and the returned id is directly usable.
+  const regionRes = await fetch(`${baseUrl}${BASE}/widgets/regions/sidebar`, { headers: { cookie } });
+  const { area: freshArea } = (await regionRes.json()) as { area: { version: number } };
+  const placeRes = await fetch(`${baseUrl}${BASE}/widgets/tools/place`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetInstanceId: failed.widget!.id, target: { kind: "region", regionKey: "sidebar", baseVersion: freshArea.version } }),
+  });
+  assert.equal(placeRes.status, 200, await placeRes.clone().text());
+
+  const listRes = await fetch(`${baseUrl}${BASE}/widgets`, { headers: { cookie } });
+  const { widgets } = (await listRes.json()) as { widgets: unknown[] };
+  assert.equal(widgets.length, 1, "only ONE instance must exist — the create+place recovery must not have minted a duplicate");
+});
+
+test("Fable adversarial-review fix (2026-07-21, Finding B): a malformed widget-instance row is skipped by the list route, not a 500 for the whole library screen", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const createRes = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "Healthy widget", config: { body: "hello" } }),
+  });
+  assert.equal(createRes.status, 201);
+  const { widget: healthy } = (await createRes.json()) as { widget: { id: string } };
+
+  // Simulates the real reachable path Fable's review found: some OTHER write path (e.g. a generic
+  // admin entry-update endpoint that doesn't know about widgets' own payload envelope) wipes a
+  // widget entry's fieldsJson down to something `parseWidgetInstancePayload` cannot parse.
+  await deps.entryRepo.save({
+    id: "corrupted-widget",
+    workspaceId: deps.workspaceId,
+    type: WIDGET_CONTENT_TYPE,
+    slug: "corrupted-widget",
+    status: "published",
+    title: "Corrupted widget",
+    bodyJson: null,
+    fieldsJson: { ext: { site: { title: "not the widgets envelope at all" } } },
+    publishedAt: deps.clock.nowIso(),
+    createdAt: deps.clock.nowIso(),
+    updatedAt: deps.clock.nowIso(),
+    version: 1,
+  });
+
+  const listRes = await fetch(`${baseUrl}${BASE}/widgets`, { headers: { cookie } });
+  assert.equal(listRes.status, 200, await listRes.clone().text());
+  const listed = (await listRes.json()) as { widgets: Array<{ id: string }> };
+  assert.equal(listed.widgets.length, 1, "the corrupted row must be skipped, not crash the whole list");
+  assert.equal(listed.widgets[0].id, healthy.id);
+});
+
+test("Fable adversarial-review fix (2026-07-21, Finding B): widgets.diagnose on a real entry id that is NOT a widget instance reports exists:false, not a 500", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  await deps.entryRepo.save({
+    id: "a-regular-page",
+    workspaceId: deps.workspaceId,
+    type: "page",
+    slug: "a-regular-page",
+    status: "published",
+    title: "Not a widget",
+    bodyJson: null,
+    fieldsJson: { ext: { site: {} } },
+    publishedAt: deps.clock.nowIso(),
+    createdAt: deps.clock.nowIso(),
+    updatedAt: deps.clock.nowIso(),
+    version: 1,
+  });
+
+  const diagnoseRes = await fetch(`${baseUrl}${BASE}/widgets/tools/diagnose/a-regular-page`, { headers: { cookie } });
+  assert.equal(diagnoseRes.status, 200, await diagnoseRes.clone().text());
+  const diagnosed = (await diagnoseRes.json()) as { exists: boolean; status: string | null };
+  assert.equal(diagnosed.exists, false);
+  assert.equal(diagnosed.status, null);
 });

@@ -82,7 +82,18 @@ export {
   createPolicy,
   assignRole,
   attachPolicy,
+  /** Exported so the assistant's read-only identity tools gate on the SAME caller-permission
+   * helper the mutating transitions use, rather than re-implementing the OR gate (ADR-021 §2). */
+  assertCallerHasAnyPermission,
 } from "./grant-service";
+
+/** The agent-tool surface for this domain (see `agent-tools.ts` for what is deliberately omitted). */
+export {
+  identityAgentToolCatalog,
+  type AgentToolDefinition as IdentityAgentToolDefinition,
+  type AgentToolSideEffect as IdentityAgentToolSideEffect,
+} from "./agent-tools";
+export { parseIdentityToolInput, type IdentityToolInputResult } from "./agent-tool-input";
 
 /** SPEC-006 0.6.0 — the users/roles/policies admin CRUD-completion amendment. */
 export {

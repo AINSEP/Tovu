@@ -83,7 +83,7 @@ const SITE_TITLE = "Tovu Demo Site";
  * active theme id is missing/invalid (SPEC-004 REQ-10, spike-level).
  */
 function resolveActiveTheme(deps: RouteDeps, activeThemeId: string): DiscoveredTheme | null {
-  const active = findTheme(deps.themes, activeThemeId);
+  const active = findTheme({ themes: deps.themes, id: activeThemeId });
   if (active && active.status === "valid") return active;
   return deps.themes.find((t) => t.status === "valid") ?? deps.themes[0] ?? null;
 }

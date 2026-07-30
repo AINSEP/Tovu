@@ -18,7 +18,7 @@ export function CollectionEntries(props: { contentTypeKey: string }) {
 
   function load() {
     setError(null);
-    Promise.all([api.listContentTypes(), api.listEntries(props.contentTypeKey)])
+    Promise.all([api.listContentTypes(), api.listEntries({ type: props.contentTypeKey })])
       .then(([typesResult, entriesResult]) => {
         setContentType(typesResult.items.find((t) => t.key === props.contentTypeKey) ?? null);
         setEntries(entriesResult.items);

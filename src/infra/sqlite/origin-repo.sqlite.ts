@@ -70,9 +70,13 @@ export class SqliteOriginSettingRepo implements OriginSettingRepoPort {
  * restart" convention.
  */
 export function seedDevCapabilityOrigin(
-  db: ContentDb,
-  seed: { workspaceId: UUID; origin: VerifiedOrigin; redirectAllowlist?: string[]; egressAllowlist?: string[] }
+  required: {
+    db: ContentDb;
+    seed: { workspaceId: UUID; origin: VerifiedOrigin; redirectAllowlist?: string[]; egressAllowlist?: string[] };
+  },
+  _optional: Record<string, never> = {}
 ): void {
+  const { db, seed } = required;
   const existing = db.select({ workspaceId: originSettings.workspaceId }).from(originSettings).where(eq(originSettings.workspaceId, seed.workspaceId)).all();
   if (existing.length > 0) return;
 

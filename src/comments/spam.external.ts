@@ -16,7 +16,7 @@
  * port `integrations/delivery.ts`'s webhook dispatch already uses) and calls `.send()` exclusively
  * — no `fetch`/`http.request` anywhere in this file. `HttpClientPort` exists in this codebase and
  * is NOT a bigger-than-expected undertaking to depend on; what IS out of this slice's scope is
- * actually CONSTRUCTING a live `HttpClientPort` instance (`createHttpClient(transport, policy)`)
+ * actually CONSTRUCTING a live `HttpClientPort` instance (`createHttpClient({ transport, policy })`)
  * and wiring this adapter into a real composition root — `server/deps.ts` has no Akismet API
  * key/blog URL to configure it with, and `comments/index.ts#createCommentsModule` still
  * hardcodes `HeuristicSpamCheck` (unchanged by this file). This class is real and correctly

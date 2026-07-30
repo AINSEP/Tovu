@@ -1,0 +1,1466 @@
+{
+  "workspace": {
+    "id": "workspace-local",
+    "name": "Local Tovu Workspace",
+    "slug": "local-tovu",
+    "createdAt": "2026-04-06T00:00:00.000Z"
+  },
+  "entries": [
+    {
+      "id": "post-home",
+      "workspaceId": "workspace-local",
+      "title": "Welcome to Tovu",
+      "slug": "welcome",
+      "bodyJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "This editor is now using a real "
+              },
+              {
+                "type": "text",
+                "text": "TipTap",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " document with styled prose instead of an empty demo box."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Use it to pressure-test the shell before we fill in the rest of the CMS."
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Bold",
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": " and "
+                      },
+                      {
+                        "type": "text",
+                        "text": "italic",
+                        "marks": [
+                          {
+                            "type": "italic"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": " formatting should be obvious immediately."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Lists, quotes, and code blocks should round-trip through the API."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Switch themes in Appearance to verify the frontend actually changes."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "blockquote",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Build the skateboard first, but make sure it actually rolls."
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "codeBlock",
+            "content": [
+              {
+                "type": "text",
+                "text": "console.log('Tovu shell is live');"
+              }
+            ]
+          }
+        ]
+      },
+      "status": "published",
+      "kind": "post",
+      "updatedAt": "2026-07-07T00:00:00.000Z",
+      "version": 1
+    },
+    {
+      "id": "page-about",
+      "workspaceId": "workspace-local",
+      "title": "What Is Tovu?",
+      "slug": "about",
+      "bodyJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Tovu is a content platform you actually own. Your content, your themes, your data — on a machine you control, in a single folder you can copy, back up, or hand to someone else."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "The idea"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Most content platforms rent you a database and a dashboard. Tovu inverts that. The whole site — the database, your uploads, your themes, and your plugins — lives in one directory. Move it, version it in git, or export it as a standalone binary. Nothing phones home."
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "No lock-in and no per-seat pricing."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "One portable SQLite file today; Postgres-ready behind the same interface."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "An audited change-set gateway, so every edit can be reviewed and reverted."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Why it reads like this"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "The page you're reading is itself content rendered through a theme. Change the theme in the admin and this same text re-skins instantly — because in Tovu, "
+              },
+              {
+                "type": "text",
+                "text": "content is data and the theme is arrangement",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": "."
+              }
+            ]
+          },
+          {
+            "type": "blockquote",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Own your content the way you own a text file — not the way you rent a spreadsheet."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "status": "published",
+      "kind": "post",
+      "updatedAt": "2026-07-07T00:00:00.000Z",
+      "version": 1
+    },
+    {
+      "id": "page-themes",
+      "workspaceId": "workspace-local",
+      "title": "How Themes Work",
+      "slug": "how-themes-work",
+      "bodyJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "A theme decides how your site looks and how its content is arranged. Tovu themes come in three tiers — three levels of power — so you trade exactly as much safety for capability as you need, and never more."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Three kinds of theme"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "The same content renders through whichever theme you choose. What changes from tier to tier is how much a theme is allowed to do."
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Declarative",
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": " — the default, and all most sites ever need. Pure data: design tokens, JSON templates, and a sanitized stylesheet. No code runs, so it is safe to install from anyone. CSS alone goes a long way — gradients, transitions, and animation are all on the table."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Templated",
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": " — for designers who outgrow fixed blocks. It adds real arranging logic — loops, conditionals, reusable includes — through Liquid, a sandboxed template language. Expressive, but it still cannot run JavaScript, so a templated theme stays safe to share."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Code",
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": " — full power for developers: real JavaScript and component frameworks like Astro or Next, plus motion libraries like Framer Motion or GSAP. Anything you can build, you can ship."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Declarative themes ship today; templated and code themes are how Tovu grows — without ever forcing that power on a site that doesn't want it.",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "The trade you are making"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "The tiers run in a straight line from safe to powerful. A declarative theme does less, but you can install one from a stranger without a second thought. A code theme can do anything — which means it runs JavaScript on your machine, so you install it the way you'd add a dependency: from an author you trust."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "We will always tell you which tier a theme is before you install it, and we will never dress a code theme up as "
+              },
+              {
+                "type": "text",
+                "text": "safe",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": ". That honesty is the whole point — "
+              },
+              {
+                "type": "text",
+                "text": "you",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " choose the ceiling."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "What ships in a theme"
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "theme.json",
+                        "marks": [
+                          {
+                            "type": "code"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": " — the manifest: id, version, fonts, and the theme's "
+                      },
+                      {
+                        "type": "text",
+                        "text": "tier",
+                        "marks": [
+                          {
+                            "type": "code"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": "."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "tokens.json",
+                        "marks": [
+                          {
+                            "type": "code"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": " — design tokens: color, type, spacing, radii."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "templates/",
+                        "marks": [
+                          {
+                            "type": "code"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": " — how the page is arranged (home, entry, …)."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "styles.css",
+                        "marks": [
+                          {
+                            "type": "code"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": " — a sanitized stylesheet. No imports from foreign origins."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Where behavior comes from"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Whatever the tier, a theme gains new capability the same safe way — from a "
+              },
+              {
+                "type": "text",
+                "text": "plugin",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": ", the trusted plane where code lives with its permissions shown up front. A theme never has to become dangerous just to earn a feature."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "When a design needs one — a newsletter box, a pricing table, a live search — the theme can ship as a "
+              },
+              {
+                "type": "text",
+                "text": "bundle",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " that declares the plugins it needs and installs them in one consented step, instead of leaving you to hunt them down. See "
+              },
+              {
+                "type": "text",
+                "text": "How Plugins Work",
+                "marks": [
+                  {
+                    "type": "link",
+                    "attrs": {
+                      "href": "/how-plugins-work"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " and "
+              },
+              {
+                "type": "text",
+                "text": "The Plugin API",
+                "marks": [
+                  {
+                    "type": "link",
+                    "attrs": {
+                      "href": "/plugin-api"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": "."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Trying it"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Every page here renders through the active theme — because in Tovu, "
+              },
+              {
+                "type": "text",
+                "text": "content is data and the theme is arrangement",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": ". Switch between Tovu Official, Column, and Signal in the admin's Appearance section and watch this exact page change shape."
+              }
+            ]
+          },
+          {
+            "type": "codeBlock",
+            "content": [
+              {
+                "type": "text",
+                "text": "themes/\n  tovu-official/\n    theme.json      # id, version, fonts, tier\n    tokens.json\n    templates/{home,entry}.json\n    styles.css"
+              }
+            ]
+          }
+        ]
+      },
+      "status": "published",
+      "kind": "post",
+      "updatedAt": "2026-07-07T00:00:00.000Z",
+      "version": 1
+    },
+    {
+      "id": "page-plugins",
+      "workspaceId": "workspace-local",
+      "title": "How Plugins Work",
+      "slug": "how-plugins-work",
+      "bodyJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "If a theme is arrangement, a plugin is capability. When a site needs something new — a word counter, an SEO panel, a custom block — a plugin provides it."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "The split that keeps you safe"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Most themes are data — you can install one from a stranger without a second thought — and the rare theme that carries its own code is clearly marked before you install it (see "
+              },
+              {
+                "type": "text",
+                "text": "How Themes Work",
+                "marks": [
+                  {
+                    "type": "link",
+                    "attrs": {
+                      "href": "/how-themes-work"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " for the tiers). Plugins are the trusted plane where capability always lives. Keeping those planes separate is the whole security model: you add a plugin the way you'd add a dependency — deliberately, with its permissions shown up front."
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Plugins declare exactly what they touch: content fields, a few typed hooks, and admin surfaces."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "A plugin can extend a post with its own data, but it never runs raw migrations against your database."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Capabilities are permission-scoped, so the blast radius is always visible."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Themes and plugins together"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "A good-looking theme sometimes needs a capability its components don't cover. Rather than making you download a theme and then go hunt for the right plugin, a "
+              },
+              {
+                "type": "text",
+                "text": "theme bundle",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " can declare the plugins it needs and install them in one consented step. The theme stays code-free; the behavior lives in the plugin."
+              }
+            ]
+          },
+          {
+            "type": "blockquote",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Plugins power it; themes arrange it."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "status": "published",
+      "kind": "post",
+      "updatedAt": "2026-07-07T00:00:00.000Z",
+      "version": 1
+    },
+    {
+      "id": "page-plugin-api",
+      "workspaceId": "workspace-local",
+      "title": "The Plugin API",
+      "slug": "plugin-api",
+      "bodyJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "The plugin API is small on purpose. A plugin is a prebuilt module plus a signed manifest that declares what it extends. This page sketches the surface — the full contract lives in the SDK."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "A hook"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Plugins subscribe to typed hooks. The v1 walking-skeleton ships one, so you can see the shape:"
+              }
+            ]
+          },
+          {
+            "type": "codeBlock",
+            "content": [
+              {
+                "type": "text",
+                "text": "export default definePlugin({\n  id: \"acme/word-count\",\n  hooks: {\n    \"content.entry.beforeSave\": (entry) => {\n      entry.ext[\"acme/word-count\"] = countWords(entry.bodyJson);\n      return entry;\n    },\n  },\n});"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Extension fields, not schema changes"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "A plugin never owns your schema. It writes into a namespaced "
+              },
+              {
+                "type": "text",
+                "text": "ext",
+                "marks": [
+                  {
+                    "type": "code"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " bag keyed by plugin id, so two plugins can never collide and uninstalling one never corrupts your tables."
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "definePlugin(...)",
+                        "marks": [
+                          {
+                            "type": "code"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": " — declare id, hooks, and requested capabilities."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "content.entry.beforeSave",
+                        "marks": [
+                          {
+                            "type": "code"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": " — the first typed hook; more land as the surface grows."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "ext.{pluginId}",
+                        "marks": [
+                          {
+                            "type": "code"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": " — where a plugin's data lives, namespaced and safe."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "This is a preview of a thin slice; the API is not yet stable.",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "status": "published",
+      "kind": "post",
+      "updatedAt": "2026-07-07T00:00:00.000Z",
+      "version": 1
+    },
+    {
+      "id": "page-self-hosting",
+      "workspaceId": "workspace-local",
+      "title": "Self-Hosting — Coming Soon",
+      "slug": "self-hosting",
+      "bodyJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Coming soon.",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " Managed self-hosting is on the roadmap. This page is a placeholder so we can describe what it will be."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "What we're building"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Today you run Tovu yourself: one binary, one folder, your machine. That will always work and will always be free. The coming service adds a managed path for people who want the ownership model without running a server."
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "One-click deploy of your Tovu folder to a host you control."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Automatic backups of the single site folder — database, uploads, themes, and plugins."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "A painless move from SQLite to Postgres when you outgrow a file, with no rewrite."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Bring-your-own-domain and TLS, handled for you."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "What won't change"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "The important part: it stays "
+              },
+              {
+                "type": "text",
+                "text": "your",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " site. Managed hosting is a convenience layer over the same portable folder — export to a standalone binary and walk away at any time. No lock-in is the point, not a feature we can quietly remove."
+              }
+            ]
+          },
+          {
+            "type": "horizontalRule"
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Want to be notified when self-hosting opens? That signup form is one of the pages still to build.",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "status": "published",
+      "kind": "post",
+      "updatedAt": "2026-07-07T00:00:00.000Z",
+      "version": 1
+    },
+    {
+      "id": "post-typography",
+      "workspaceId": "workspace-local",
+      "title": "Field Notes: The Weight of Type",
+      "slug": "the-weight-of-type",
+      "bodyJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Type has weight before it has meaning. Before a reader parses a single word, the shape of the page has already told them how to feel about it — formal or friendly, urgent or unhurried."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Three decisions that carry a page"
+              }
+            ]
+          },
+          {
+            "type": "orderedList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Measure: the line length that keeps the eye from getting lost on the return sweep."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Rhythm: the vertical spacing that makes paragraphs feel like breathing, not stacking."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Contrast: the jump between a heading and its body that signals hierarchy without shouting."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "The quiet defaults"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Most good typography is subtraction. A comfortable measure, one restrained typeface used at two or three sizes, and enough air. The failures are almost always additions — a second decorative face, a tighter leading to \"fit more,\" a heading that competes with its own body."
+              }
+            ]
+          },
+          {
+            "type": "blockquote",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "The best typography disappears. You notice a page that is hard to read; you rarely notice one that is easy."
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Which is the honest test for any theme: read a long paragraph on it, and see whether you finish."
+              }
+            ]
+          }
+        ]
+      },
+      "status": "published",
+      "kind": "post",
+      "updatedAt": "2026-07-07T00:00:00.000Z",
+      "version": 1
+    },
+    {
+      "id": "post-mornings",
+      "workspaceId": "workspace-local",
+      "title": "Slow Mornings",
+      "slug": "slow-mornings",
+      "bodyJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "A slow morning is not an empty one. It is a morning with a deliberate order — a few small rituals that happen before the day starts asking for things."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "A short list"
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Light before screens: open a window before you open a laptop."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "One warm thing, made slowly, with both hands."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Ten minutes of the day that belong to no one else."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "None of it is productive in the way the word usually means. That is the point. The morning is the one stretch of the day you can refuse to optimize."
+              }
+            ]
+          },
+          {
+            "type": "blockquote",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Begin gently, and the rest of the day has to negotiate with a calm person."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "status": "published",
+      "kind": "post",
+      "updatedAt": "2026-07-07T00:00:00.000Z",
+      "version": 1
+    }
+  ],
+  "presentation": {
+    "workspaceId": "workspace-local",
+    "activeThemeId": "tovu-official",
+    "updatedAt": "2026-04-06T00:00:00.000Z"
+  }
+}

@@ -54,10 +54,26 @@ export interface ContentTypeRecord {
   tombstonedAt?: string | null;
 }
 
+/**
+ * Actor classes a chokepoint write can be attributed to. Structurally identical to
+ * `identity.PrincipalKind`, deliberately redeclared here rather than imported so this package
+ * stays dependency-free (the same "no shared import, kept decoupled" convention `write-service.ts`
+ * applies to `AuthorizeFn`). `identity.PrincipalRecord.kind` assigns to it directly.
+ */
+export type ActorPrincipalKind = "user" | "agent" | "api_key" | "system";
+
 /** The actor-identity envelope every chokepoint write in this package accepts (SPEC-016 REQ-01/02/16). */
 export interface ActorIdentityInput {
   actorId: string;
-  principalKind?: "user" | "agent" | "api_key";
+  /**
+   * Provenance for the audit trail: WHICH CLASS of actor performed this write. `actorId` alone
+   * cannot answer "was this the human admin, or the AI assistant acting for them?" — the assistant
+   * runs under that same human's principal id (Tovu's proxy stamps it into the run's `contextRef`,
+   * see `server/modules/assistant.ts`), so both paths record an identical `actorId`. Recorded onto
+   * the revision row by the write chokepoint; optional so pre-existing call sites are unaffected
+   * (they persist `NULL`, honestly meaning "not recorded" rather than a fabricated default).
+   */
+  principalKind?: ActorPrincipalKind;
   delegatedByWorkspaceId?: string | null;
   delegatedById?: string | null;
 }

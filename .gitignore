@@ -33,4 +33,5 @@ content.db.snapshot-comments-*
 :memory:.snapshot-comments-*
 :memory:.snapshot-store-*
 .claude/settings.local.json
-ADS-project-knowledge/tmp/
+ADS-memory/tmp/
+.mcp.json

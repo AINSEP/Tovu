@@ -232,16 +232,19 @@ test("updateMediaMetadata throws MediaNotFoundError for a missing id", async () 
 
 test("resolveWriteOnceSource allows absent -> set, and rejects set -> different value", () => {
   // absent -> set is allowed
-  const first = resolveWriteOnceSource(undefined, "abc123");
+  const first = resolveWriteOnceSource({ existing: undefined, requestedSha256: "abc123" });
   assert.equal(first.sha256, "abc123");
 
   // set -> same value is idempotent (allowed)
-  const same = resolveWriteOnceSource({ sha256: "abc123" }, "abc123");
+  const same = resolveWriteOnceSource({ existing: { sha256: "abc123" }, requestedSha256: "abc123" });
   assert.equal(same.sha256, "abc123");
 
   // set -> different value is rejected (the adversarial case: an attempted
   // source-swap through whatever future path might try it)
-  assert.throws(() => resolveWriteOnceSource({ sha256: "abc123" }, "def456"), MediaSourceImmutableError);
+  assert.throws(
+    () => resolveWriteOnceSource({ existing: { sha256: "abc123" }, requestedSha256: "def456" }),
+    MediaSourceImmutableError
+  );
 });
 
 test("trashMedia soft-deletes and is idempotent on a second call", async () => {

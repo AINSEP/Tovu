@@ -101,7 +101,11 @@ function parseTier(value: JsonValue | undefined): ThemeTier {
  * a populated `errors` list instead of throwing, so one bad theme never breaks
  * discovery (SPEC-004 REQ-10 spirit).
  */
-export function loadTheme(themeDir: string, id: string, source: "built-in" | "site"): DiscoveredTheme {
+export function loadTheme(
+  required: { themeDir: string; id: string; source: "built-in" | "site" },
+  _optional: Record<string, never> = {}
+): DiscoveredTheme {
+  const { themeDir, id, source } = required;
   const errors: string[] = [];
   const empty: ThemeManifest = { id, name: id, version: "0.0.0", tier: "declarative", engine: 1 };
 
@@ -164,9 +168,9 @@ export function loadTheme(themeDir: string, id: string, source: "built-in" | "si
   // post/page are optional specializations that fall through to entry (REQ-03).
   // The required set is tier-aware: templated themes ship `.liquid`, others JSON.
   const ext = manifest.tier === "templated" ? "liquid" : "json";
-  const required = manifest.tier === "templated" ? liquidTemplates : templates;
-  if (!required.home) errors.push(`templates/home.${ext} is required`);
-  if (!required.entry) errors.push(`templates/entry.${ext} is required`);
+  const requiredTemplates = manifest.tier === "templated" ? liquidTemplates : templates;
+  if (!requiredTemplates.home) errors.push(`templates/home.${ext} is required`);
+  if (!requiredTemplates.entry) errors.push(`templates/entry.${ext} is required`);
 
   let css = "";
   const cssPath = join(themeDir, "styles.css");
@@ -188,14 +192,18 @@ export function loadTheme(themeDir: string, id: string, source: "built-in" | "si
  * Discover every theme folder under `dir`. Missing dir ⇒ empty list (a site
  * served without a themes/ dir is legal, SPEC-004 REQ-05).
  */
-export function discoverThemes(dir: string, source: "built-in" | "site"): DiscoveredTheme[] {
+export function discoverThemes(
+  required: { dir: string; source: "built-in" | "site" },
+  _optional: Record<string, never> = {}
+): DiscoveredTheme[] {
+  const { dir, source } = required;
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((name) => {
       const full = join(dir, name);
       return statSync(full).isDirectory();
     })
-    .map((name) => loadTheme(join(dir, name), name, source))
+    .map((name) => loadTheme({ themeDir: join(dir, name), id: name, source }))
     .sort((a, b) => a.manifest.id.localeCompare(b.manifest.id));
 }
 
@@ -205,7 +213,11 @@ export function validThemeIds(themes: DiscoveredTheme[]): string[] {
 }
 
 /** Find a theme by id (any status). */
-export function findTheme(themes: DiscoveredTheme[], id: string): DiscoveredTheme | undefined {
+export function findTheme(
+  required: { themes: DiscoveredTheme[]; id: string },
+  _optional: Record<string, never> = {}
+): DiscoveredTheme | undefined {
+  const { themes, id } = required;
   return themes.find((t) => t.manifest.id === id);
 }
 
@@ -217,9 +229,10 @@ export function findTheme(themes: DiscoveredTheme[], id: string): DiscoveredThem
  *          override a theme may add to specialize posts — AC-07)
  */
 export function resolveTemplateId(
-  route: "home" | "post",
-  templates: Record<string, TemplateNode>
+  required: { route: "home" | "post"; templates: Record<string, TemplateNode> },
+  _optional: Record<string, never> = {}
 ): string | null {
+  const { route, templates } = required;
   if (route === "home") return templates.home ? "home" : null;
   if (templates.post) return "post";
   if (templates.entry) return "entry";
@@ -232,9 +245,10 @@ export function resolveTemplateId(
  * `.liquid` source map.
  */
 export function resolveLiquidTemplateId(
-  route: "home" | "post",
-  liquidTemplates: Record<string, string>
+  required: { route: "home" | "post"; liquidTemplates: Record<string, string> },
+  _optional: Record<string, never> = {}
 ): string | null {
+  const { route, liquidTemplates } = required;
   if (route === "home") return liquidTemplates.home ? "home" : null;
   if (liquidTemplates.post) return "post";
   if (liquidTemplates.entry) return "entry";

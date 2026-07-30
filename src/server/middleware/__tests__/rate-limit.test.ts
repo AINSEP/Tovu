@@ -32,7 +32,7 @@ function fakeClock(startIso: string) {
 
 test("createRateLimiter: requests under the max all pass", () => {
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
-  const limiter = createRateLimiter(LOGIN_STRICT, clock);
+  const limiter = createRateLimiter({ profile: LOGIN_STRICT, clock });
 
   for (let i = 0; i < LOGIN_STRICT.max; i++) {
     const result = limiter.check("1.2.3.4");
@@ -42,7 +42,7 @@ test("createRateLimiter: requests under the max all pass", () => {
 
 test("createRateLimiter: the (max+1)th request in the window is rejected with a positive integer retryAfterSeconds", () => {
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
-  const limiter = createRateLimiter(LOGIN_STRICT, clock);
+  const limiter = createRateLimiter({ profile: LOGIN_STRICT, clock });
 
   for (let i = 0; i < LOGIN_STRICT.max; i++) {
     assert.equal(limiter.check("1.2.3.4").allowed, true);
@@ -61,7 +61,7 @@ test("createRateLimiter: the (max+1)th request in the window is rejected with a 
 
 test("createRateLimiter: different IPs have independent counters", () => {
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
-  const limiter = createRateLimiter(LOGIN_STRICT, clock);
+  const limiter = createRateLimiter({ profile: LOGIN_STRICT, clock });
 
   for (let i = 0; i < LOGIN_STRICT.max; i++) {
     assert.equal(limiter.check("1.1.1.1").allowed, true);
@@ -74,7 +74,7 @@ test("createRateLimiter: different IPs have independent counters", () => {
 
 test("createRateLimiter: the window resets once windowSeconds elapses", () => {
   const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
-  const limiter = createRateLimiter(LOGIN_STRICT, clock);
+  const limiter = createRateLimiter({ profile: LOGIN_STRICT, clock });
 
   for (let i = 0; i < LOGIN_STRICT.max; i++) {
     assert.equal(limiter.check("1.2.3.4").allowed, true);
@@ -93,7 +93,7 @@ test("createRateLimiter: the window resets once windowSeconds elapses", () => {
 test("createRateLimiter: a profile's burst allowance extends the effective ceiling (forward-compat shape for WRITE_STANDARD/READ_STANDARD)", () => {
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
   const profileWithBurst: RateLimitProfile = { windowSeconds: 60, max: 2, burst: 1 };
-  const limiter = createRateLimiter(profileWithBurst, clock);
+  const limiter = createRateLimiter({ profile: profileWithBurst, clock });
 
   assert.equal(limiter.check("k").allowed, true);
   assert.equal(limiter.check("k").allowed, true);
@@ -143,7 +143,7 @@ test("resolveClientIp: a trusted peer with no forwarded-for header falls back to
 
 test("T010: MAGIC_LINK_PER_EMAIL — the 6th request within the window for the same email is denied with retryAfterSeconds", () => {
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
-  const limiter = createRateLimiter(MAGIC_LINK_PER_EMAIL, clock);
+  const limiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock });
 
   for (let i = 0; i < MAGIC_LINK_PER_EMAIL.max; i++) {
     assert.equal(limiter.check("jane@example.com").allowed, true, `request ${i + 1} should pass`);
@@ -158,7 +158,7 @@ test("T010: MAGIC_LINK_PER_EMAIL — the 6th request within the window for the s
 
 test("T010: MAGIC_LINK_PER_EMAIL — the window resets correctly", () => {
   const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
-  const limiter = createRateLimiter(MAGIC_LINK_PER_EMAIL, clock);
+  const limiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock });
 
   for (let i = 0; i < MAGIC_LINK_PER_EMAIL.max; i++) {
     assert.equal(limiter.check("jane@example.com").allowed, true);
@@ -174,7 +174,7 @@ test("T010: MAGIC_LINK_PER_EMAIL — the window resets correctly", () => {
 
 test("T011: MAGIC_LINK_PER_IP — the 21st request within the window for the same IP is denied", () => {
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
-  const limiter = createRateLimiter(MAGIC_LINK_PER_IP, clock);
+  const limiter = createRateLimiter({ profile: MAGIC_LINK_PER_IP, clock });
 
   for (let i = 0; i < MAGIC_LINK_PER_IP.max; i++) {
     assert.equal(limiter.check("203.0.113.9").allowed, true, `request ${i + 1} should pass`);
@@ -186,7 +186,7 @@ test("T011: MAGIC_LINK_PER_IP — the 21st request within the window for the sam
 
 test("T012: MAGIC_LINK_COMPLETE_ATTEMPT — the 26th attempt within 60s from one IP is denied", () => {
   const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
-  const limiter = createRateLimiter(MAGIC_LINK_COMPLETE_ATTEMPT, clock);
+  const limiter = createRateLimiter({ profile: MAGIC_LINK_COMPLETE_ATTEMPT, clock });
 
   const effectiveMax = MAGIC_LINK_COMPLETE_ATTEMPT.max + MAGIC_LINK_COMPLETE_ATTEMPT.burst;
   assert.equal(effectiveMax, 25, "sanity: max+burst should be 25 so the 26th attempt is the first denial");

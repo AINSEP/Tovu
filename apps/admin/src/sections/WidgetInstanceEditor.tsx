@@ -91,7 +91,7 @@ export function WidgetInstanceEditor(props: { widgetId: string | null; widgetTyp
         return;
       }
       if (!widget) return;
-      const { widget: saved } = await api.updateWidget(widget.id, { baseVersion: widget.version, config });
+      const { widget: saved } = await api.updateWidget({ id: widget.id, baseVersion: widget.version, config });
       setWidget(saved);
       setConfig(saved.config);
       setMessage(`Saved · version ${saved.version}`);

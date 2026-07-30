@@ -14,14 +14,16 @@ import type { FieldDescriptor, FormDefinitionRecord } from "./types";
  * never reads the manifest back (ADR-PIPE-010 Decision/Enforcement).
  */
 
+// Exported so `agent-tools.ts`'s published JSON Schemas are built FROM the same values this file
+// enforces rather than restating them. Enforcement stays here and only here.
 const MIN_FIELDS = 1;
-const MAX_FIELDS = 20;
+export const MAX_FIELDS = 20;
 const MIN_LABEL_LENGTH = 1;
-const MAX_LABEL_LENGTH = 200;
-const MIN_MAX_LENGTH = 1;
-const MAX_MAX_LENGTH = 5000;
-const FIELD_ID_PATTERN = /^[a-z][a-z0-9_]*$/;
-const FIELD_TYPES = new Set(["text", "email", "textarea", "checkbox"]);
+export const MAX_LABEL_LENGTH = 200;
+export const MIN_MAX_LENGTH = 1;
+export const MAX_MAX_LENGTH = 5000;
+export const FIELD_ID_PATTERN = /^[a-z][a-z0-9_]*$/;
+export const FIELD_TYPES = new Set(["text", "email", "textarea", "checkbox"]);
 
 /** Reserved honeypot key (REQ-08) — always accepted on a submission, never a declared field id. */
 export const HONEYPOT_KEY = "_hp";

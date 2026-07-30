@@ -68,4 +68,7 @@ export interface HttpTransportAdapter {
  * signature; the implementation lives in the composition root, guarded by the import-boundary
  * CI canary (ADR-038 amendment 3).
  */
-export type CreateHttpClient = (transport: HttpTransportAdapter, policy: EgressPolicy) => HttpClientPort;
+export type CreateHttpClient = (
+  required: { transport: HttpTransportAdapter; policy: EgressPolicy },
+  optional?: Record<string, never>
+) => HttpClientPort;

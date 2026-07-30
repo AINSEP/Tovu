@@ -5,9 +5,22 @@
  */
 export type HeadlessThemeId = string;
 
+/**
+ * SPEC-002 (content-entry-authoring) discriminates a blog-style `"post"` from a
+ * standalone `"page"` over the same underlying record shape (see
+ * `features/post/post.ts`'s `PostKind` doc). Declared locally rather than
+ * importing `features/post`'s `PostKind` — `headless` is the wire-contract
+ * layer and stays decoupled from feature internals (mirrors `HeadlessThemeId`'s
+ * open-string precedent just above); the two are kept in lockstep by
+ * `toHeadlessPost`/`toHeadlessContentPost`, the only callers that populate it.
+ */
+export type HeadlessEntryKind = "post" | "page";
+
 export interface AdminPost {
   id: string;
   workspaceId: string;
+  /** SPEC-002 api.spec.md §5 — NEW field, additive (no existing field removed/renamed). */
+  kind: HeadlessEntryKind;
   title: string;
   slug: string;
   bodyJson: Record<string, unknown>;
@@ -22,6 +35,8 @@ export interface AdminPostEnvelope {
 
 export interface ContentPost {
   id: string;
+  /** SPEC-002 api.spec.md §5 (`CONTENT_ENTRY_BY_SLUG`) — NEW field, additive. */
+  kind: HeadlessEntryKind;
   title: string;
   slug: string;
   bodyJson: Record<string, unknown>;

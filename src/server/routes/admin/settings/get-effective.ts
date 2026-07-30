@@ -1,6 +1,7 @@
 import { getEffective } from "../../../../features/settings/settings";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
+import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget } from "./shared";
 
 /**
  * GET the effective value of every setting registered in a namespace
@@ -14,6 +15,12 @@ import type { SettingsRouteRegistrar } from "./deps";
  * pure reads with no `authorize()` call of their own (unlike `write-service.ts`),
  * so this route does the explicit authorize-then-call dance itself, mirroring
  * `presentation/get.ts`.
+ *
+ * Query contract deviation (disclosed): api.spec.md §4 documents `workspaceId?`
+ * as a request param, but it is NOT honored — the workspace always comes from the
+ * authorized `deps.workspaceId`. `principalId` naming another principal requires
+ * `settings.user.read`, which is what the Settings admin screen's target-principal
+ * selector (`apps/admin/src/sections/Settings.tsx`, AC-23) gates itself on too.
  *
  * Enumerates every active key in the requested namespace across both the
  * platform partition (`workspaceId=null`, core/theme owners) and this
@@ -52,8 +59,24 @@ export const registerAdminSettingsGetEffectiveRoute: SettingsRouteRegistrar = (a
         res.status(400).json({ error: "'namespace' query param is required", code: "VALIDATION_ERROR" });
         return;
       }
-      const workspaceId = req.query.workspaceId ? String(req.query.workspaceId) : deps.workspaceId;
-      const principalId = req.query.principalId ? String(req.query.principalId) : undefined;
+      // `authorize()` above was checked against `deps.workspaceId` and `principal.id` — never let
+      // the actual read target a different workspace or principal than what was authorized.
+      // The `:workspaceId` path param is already pinned to `deps.workspaceId` above; a
+      // `workspaceId` query param is ignored rather than trusted (ADR-007).
+      const workspaceId = deps.workspaceId;
+      const readTarget = await resolveUserLayerReadTarget(deps, {
+        requestedPrincipalId: req.query.principalId ? String(req.query.principalId) : undefined,
+        callerPrincipalId: principal.id,
+      });
+      if (!readTarget.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized to read another principal's user-layer value (${readTarget.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, reason: readTarget.reason },
+        });
+        return;
+      }
+      const principalId = readTarget.principalId;
 
       const [platformDefs, siteDefs] = await Promise.all([
         deps.settingsRepo.listActiveDefinitions({ workspaceId: null }),

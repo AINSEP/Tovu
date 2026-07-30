@@ -96,7 +96,11 @@ export function mintToken(
  * @complexity O(1), pure.
  * @overallScore 100
  */
-export function isRedeemable(record: ConfirmationTokenRecord, now: string): boolean {
+export function isRedeemable(
+  required: { record: ConfirmationTokenRecord; now: string },
+  _optional: Record<string, never> = {}
+): boolean {
+  const { record, now } = required;
   if (record.status !== "minted") return false;
   return new Date(now).getTime() <= new Date(record.expiresAt).getTime();
 }
@@ -171,7 +175,7 @@ export class InMemoryTokenStore implements TokenStorePort {
   async tryRedeem(params: { token: string; now: string }): Promise<{ redeemed: boolean; record: ConfirmationTokenRecord | null }> {
     const record = this.recordsByToken.get(params.token);
     if (!record) return { redeemed: false, record: null };
-    if (!isRedeemable(record, params.now)) return { redeemed: false, record: { ...record } };
+    if (!isRedeemable({ record, now: params.now })) return { redeemed: false, record: { ...record } };
 
     const updated: ConfirmationTokenRecord = { ...record, status: "redeemed" };
     this.recordsByToken.set(params.token, updated);

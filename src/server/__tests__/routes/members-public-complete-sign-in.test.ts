@@ -31,9 +31,9 @@ function buildPublicApp(): { app: express.Express; deps: MemberPublicRouteDeps }
     mailer: routeDeps.mailer,
     clock: routeDeps.clock,
     idGen: routeDeps.idGen,
-    magicLinkPerEmailLimiter: createRateLimiter(MAGIC_LINK_PER_EMAIL, routeDeps.clock),
-    magicLinkPerIpLimiter: createRateLimiter(MAGIC_LINK_PER_IP, routeDeps.clock),
-    magicLinkCompleteAttemptLimiter: createRateLimiter(MAGIC_LINK_COMPLETE_ATTEMPT, routeDeps.clock),
+    magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock }),
+    magicLinkPerIpLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_IP, clock: routeDeps.clock }),
+    magicLinkCompleteAttemptLimiter: createRateLimiter({ profile: MAGIC_LINK_COMPLETE_ATTEMPT, clock: routeDeps.clock }),
   };
   const app = express();
   app.use(express.json());

@@ -74,7 +74,7 @@ export const registerAdminMenuDeleteRoute: MenuRouteRegistrar = (app, deps) => {
         },
       });
 
-      res.json(toAdminDeleteMenuResponse(menu, purged));
+      res.json(toAdminDeleteMenuResponse({ menu, purged }));
     } catch (err) {
       if (err instanceof MenuLocationBoundError) {
         res.status(409).json({ error: err.message, boundLocations: err.boundLocations });

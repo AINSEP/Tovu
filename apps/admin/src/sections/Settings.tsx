@@ -51,8 +51,14 @@ import {
  *    field (already computed server-side by `getEffectivePermissions` in
  *    `middleware/dev-auth.ts`, just not yet consumed by the client type) —
  *    this is what makes AC-23 ("no target-principal field offered" to a
- *    non-`settings.user.write` holder) exact rather than a guess: no new
- *    server route was needed, `api.me()`'s response already carried the data.
+ *    holder who cannot read another principal) exact rather than a guess: no
+ *    new server route was needed, `api.me()`'s response already carried the data.
+ *    The gated permission is `settings.user.read` (not `settings.user.write`,
+ *    which AC-23 originally named) since the selector drives a cross-principal
+ *    *read*; the user-scope *editor* still follows `settings.user.write`. AC-23's
+ *    observable behavior is unchanged for every existing grant, because
+ *    `identity/permissions.ts` fans `settings.user.read` out to every policy that
+ *    already held `settings.user.write`.
  *
  * `editableScopes` (ui.spec.md 2.4) is derived from `canWriteScopes` alone,
  * not intersected with the definition's `scopes` bitmask — that bitmask is
@@ -119,7 +125,8 @@ function keyOf(namespace: string, key: string): string {
 }
 
 /** Builds a `SettingSummary` from a single effective-with-principal row. */
-function toSummary(namespace: string, row: SettingResolvedValue): SettingSummary {
+function toSummary(required: { namespace: string; row: SettingResolvedValue }): SettingSummary {
+  const { namespace, row } = required;
   return {
     namespace,
     key: row.key,
@@ -135,7 +142,11 @@ function toSummary(namespace: string, row: SettingResolvedValue): SettingSummary
  * reads for one key into the per-layer detail `SettingDetailPanel` needs —
  * see this file's header comment §2 for the technique and its limits.
  */
-function buildDetail(withUser: SettingResolvedValue, withoutUser: SettingResolvedValue): SettingDetail {
+function buildDetail(required: {
+  withUser: SettingResolvedValue;
+  withoutUser: SettingResolvedValue;
+}): SettingDetail {
+  const { withUser, withoutUser } = required;
   const detail: SettingDetail = {
     effective: withUser.value,
     global: null,
@@ -472,11 +483,12 @@ function ResetNamespaceDialog(props: {
 // 2.4 / 3.4 — SettingDetailPanel
 // ---------------------------------------------------------------------------
 
-function layerCell(
-  label: string,
-  value: unknown,
-  state: "set" | "not-set" | "hidden"
-): React.ReactNode {
+function layerCell(required: {
+  label: string;
+  value: unknown;
+  state: "set" | "not-set" | "hidden";
+}): React.ReactNode {
+  const { label, value, state } = required;
   return (
     <div className="settings-layer-cell">
       <span className="settings-layer-label">{label}</span>
@@ -528,10 +540,10 @@ function SettingDetailPanel(props: {
           <span className="settings-layer-label">Effective</span>
           <span>{formatValue(detail.effective)}</span>
         </div>
-        {layerCell("User", detail.user, userState)}
-        {layerCell("Workspace", detail.workspace, workspaceState)}
-        {layerCell("Global", detail.global, globalState)}
-        {layerCell("Default", detail.default, defaultState)}
+        {layerCell({ label: "User", value: detail.user, state: userState })}
+        {layerCell({ label: "Workspace", value: detail.workspace, state: workspaceState })}
+        {layerCell({ label: "Global", value: detail.global, state: globalState })}
+        {layerCell({ label: "Default", value: detail.default, state: defaultState })}
       </div>
 
       {(["global", "workspace", "user"] as SettingScope[]).map((scope) => {
@@ -567,6 +579,13 @@ function SettingDetailPanel(props: {
 
 interface SettingsContainerProps {
   canWriteScopes: CanWriteScopes;
+  /**
+   * `settings.user.read` — gates the target-principal selector, which exists to drive a
+   * cross-principal READ (`GET_EFFECTIVE?principalId=`). Kept separate from
+   * `canWriteScopes.userOther` (`settings.user.write`), which still gates *editing* that
+   * principal's user layer, so each control follows the permission its own operation needs.
+   */
+  canReadOtherPrincipal: boolean;
   canManageDefinitions: boolean;
   canReset: CanReset;
   selfPrincipalId: string;
@@ -600,13 +619,13 @@ function SettingsContainer(props: SettingsContainerProps) {
     setError(null);
     try {
       const [withUser, withoutUser] = await Promise.all([
-        api.getSettingsEffective(namespace, { principalId: effectivePrincipalId }),
-        api.getSettingsEffective(namespace, {}),
+        api.getSettingsEffective({ namespace }, { principalId: effectivePrincipalId }),
+        api.getSettingsEffective({ namespace }),
       ]);
       setNamespaces((current) => (current.includes(namespace) ? current : [...current, namespace]));
       setGroupsByNamespace((current) => ({
         ...current,
-        [namespace]: withUser.data.map((row) => toSummary(namespace, row)),
+        [namespace]: withUser.data.map((row) => toSummary({ namespace, row })),
       }));
       setRawByNamespace((current) => ({
         ...current,
@@ -683,13 +702,10 @@ function SettingsContainer(props: SettingsContainerProps) {
     setSaving(true);
     setError(null);
     try {
-      await api.setSetting({
-        namespace: sel.namespace,
-        key: sel.key,
-        scope,
-        valueJson,
-        principalId: scope === "user" ? effectivePrincipalId : undefined,
-      });
+      await api.setSetting(
+        { namespace: sel.namespace, key: sel.key, scope, valueJson },
+        { principalId: scope === "user" ? effectivePrincipalId : undefined }
+      );
       setLiveMessage(`Saved ${sel.namespace}.${sel.key} at ${scope} scope.`);
       await loadNamespace(sel.namespace);
     } catch (e) {
@@ -705,12 +721,10 @@ function SettingsContainer(props: SettingsContainerProps) {
     setSaving(true);
     setError(null);
     try {
-      await api.clearSetting({
-        namespace: sel.namespace,
-        key: sel.key,
-        scope,
-        principalId: scope === "user" ? effectivePrincipalId : undefined,
-      });
+      await api.clearSetting(
+        { namespace: sel.namespace, key: sel.key, scope },
+        { principalId: scope === "user" ? effectivePrincipalId : undefined }
+      );
       setLiveMessage(`Cleared ${sel.namespace}.${sel.key} at ${scope} scope.`);
       await loadNamespace(sel.namespace);
     } catch (e) {
@@ -750,7 +764,7 @@ function SettingsContainer(props: SettingsContainerProps) {
           const withUserRow = rawForSelected.withUser.find((r) => r.key === sel.key);
           const withoutUserRow = rawForSelected.withoutUser.find((r) => r.key === sel.key);
           if (!withUserRow || !withoutUserRow) return null;
-          return buildDetail(withUserRow, withoutUserRow);
+          return buildDetail({ withUser: withUserRow, withoutUser: withoutUserRow });
         })()
       : null;
 
@@ -788,7 +802,7 @@ function SettingsContainer(props: SettingsContainerProps) {
       </form>
 
       <PrincipalSelector
-        visible={props.canWriteScopes.userOther}
+        visible={props.canReadOtherPrincipal}
         value={principalValue}
         validationState={principalValidationState}
         lastError={principalLastError}
@@ -870,6 +884,7 @@ export function Settings() {
     userSelf: has("settings.user.self.write"),
     userOther: has("settings.user.write"),
   };
+  const canReadOtherPrincipal = has("settings.user.read");
   const canManageDefinitions = has("settings.definitions.manage");
   const canReset: CanReset = {
     global: has("settings.reset.global"),
@@ -883,6 +898,7 @@ export function Settings() {
       <p>Layered core settings: global, workspace, and user-scope values with defaults.</p>
       <SettingsContainer
         canWriteScopes={canWriteScopes}
+        canReadOtherPrincipal={canReadOtherPrincipal}
         canManageDefinitions={canManageDefinitions}
         canReset={canReset}
         selfPrincipalId={selfPrincipalId}

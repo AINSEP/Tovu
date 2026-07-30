@@ -1,0 +1,1 @@
+ALTER TABLE `content_type_revisions` ADD `principal_kind` text;

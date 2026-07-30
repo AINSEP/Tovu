@@ -141,7 +141,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps): void {
   // AUTH_LOGIN. One limiter instance per `registerAuthRoutes` call, so each
   // `createApp()`/`createRouteDeps()` pair (and therefore each test's server)
   // gets an isolated counter store rather than sharing process-wide state.
-  const loginRateLimiter = createRateLimiter(LOGIN_STRICT, deps.clock);
+  const loginRateLimiter = createRateLimiter({ profile: LOGIN_STRICT, clock: deps.clock });
 
   app.post("/api/admin/v1/auth/login", async (req, res) => {
     await deps.identityReady;

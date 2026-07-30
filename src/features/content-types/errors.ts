@@ -53,6 +53,31 @@ export class InvalidFieldKindError extends Error {
   }
 }
 
+/**
+ * A `fields` payload whose STRUCTURE is wrong — not a value that failed a domain rule, but a
+ * shape the `ContentTypeFieldDef[]` contract does not describe at all (a non-array, a non-object
+ * element, a missing/mistyped `name`/`required`/`queryable`, or an unrecognized key).
+ *
+ * Distinct from the five CIC U-002-B1 guard errors on purpose: those judge a well-formed field
+ * definition against a domain rule, and they remain the sole owners of the grammar, kind-enum and
+ * queryable-cap decisions. This one fires strictly earlier, at the untrusted-input boundary
+ * (`field-defs.ts`), for payloads the guards could not have judged without either crashing or
+ * silently persisting a value of the wrong type.
+ *
+ * `violation.received` names the offending value's TYPE, never the value — a field payload can
+ * carry operator content, and this message reaches both an HTTP client and a model.
+ */
+export class InvalidFieldShapeError extends Error {
+  readonly code = "VALIDATION_ERROR" as const;
+  readonly violation: { path: string; expected: string; received: string };
+
+  constructor(violation: { path: string; expected: string; received: string }) {
+    super(`${violation.path} must be ${violation.expected}, received ${violation.received}`);
+    this.name = "InvalidFieldShapeError";
+    this.violation = violation;
+  }
+}
+
 /** CIC U-002-B1 guard 5 — more than the per-type cap of `queryable` fields were submitted. */
 export class QueryableFieldCapExceededError extends Error {
   constructor(message: string) {

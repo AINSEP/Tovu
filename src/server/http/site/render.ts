@@ -506,7 +506,11 @@ function renderWidgetIr(ir: WidgetRenderIR): string {
 /** Exported for `liquid-worker.ts`'s `render_block` tag, which resolves `region:` the same way it
  * resolves `component:` — over the same `COMPONENTS`-registry-adjacent seam, per ADR-047 §2a's "no
  * new Liquid capability required." */
-export function renderWidgetRegion(ctx: SiteRenderContext, regionKey: string): string {
+export function renderWidgetRegion(
+  required: { ctx: SiteRenderContext; regionKey: string },
+  _optional: Record<string, never> = {}
+): string {
+  const { ctx, regionKey } = required;
   const items = ctx.widgetRegions[regionKey] ?? [];
   if (items.length === 0) return "";
   return `<div class="widget-region widget-region--${escapeHtml(regionKey)}">${items.map((ir) => renderWidgetIr(ir)).join("")}</div>`;
@@ -577,7 +581,7 @@ function renderBlock(node: TemplateNode, ctx: SiteRenderContext): string {
   // generic doc-vocabulary fallthrough so a region node is never mistaken for unknown content-doc
   // vocabulary (which would try to walk its `content`, not its `key`).
   if (node.type === "region") {
-    return renderWidgetRegion(ctx, typeof node.key === "string" ? node.key : "");
+    return renderWidgetRegion({ ctx, regionKey: typeof node.key === "string" ? node.key : "" });
   }
 
   if (node.type === "doc") {
@@ -689,7 +693,7 @@ export async function renderSite(required: {
 
   let body: string;
   if (theme.manifest.tier === "templated") {
-    const liquidId = resolveLiquidTemplateId(route, theme.liquidTemplates);
+    const liquidId = resolveLiquidTemplateId({ route, liquidTemplates: theme.liquidTemplates });
     const source = liquidId ? theme.liquidTemplates[liquidId] : undefined;
     try {
       body = source ? await renderLiquidInSandbox({ source, ctx }) : fallbackBody();
@@ -700,7 +704,7 @@ export async function renderSite(required: {
       body = `<!-- theme render error: ${escapeHtml((err as Error).message)} -->${fallbackBody()}`;
     }
   } else {
-    const templateId = resolveTemplateId(route, theme.templates);
+    const templateId = resolveTemplateId({ route, templates: theme.templates });
     const tree = templateId ? theme.templates[templateId] : undefined;
     body = tree ? renderBlock(tree, ctx) : fallbackBody();
   }

@@ -26,7 +26,7 @@ export function Menus() {
     if (!locationKey) return;
     setError(null);
     try {
-      await api.assignMenuLocation(menuId, locationKey);
+      await api.assignMenuLocation({ id: menuId, locationKey });
       setLocationDrafts((prev) => ({ ...prev, [menuId]: "" }));
       load();
     } catch (e) {
@@ -41,7 +41,7 @@ export function Menus() {
       return;
     }
     try {
-      await api.deleteMenu(menu.id, force);
+      await api.deleteMenu({ id: menu.id }, { force });
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "delete failed");

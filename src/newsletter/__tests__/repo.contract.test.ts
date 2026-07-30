@@ -49,7 +49,10 @@ const NOW = "2026-07-13T00:00:00.000Z";
 
 async function makeSqliteDb(): Promise<ContentDb> {
   const db = openContentDb(":memory:");
-  await installNewsletterDataModule((db as unknown as { $client: import("better-sqlite3").Database }).$client, ":memory:");
+  await installNewsletterDataModule({
+    db: (db as unknown as { $client: import("better-sqlite3").Database }).$client,
+    dbPath: ":memory:",
+  });
   return db;
 }
 

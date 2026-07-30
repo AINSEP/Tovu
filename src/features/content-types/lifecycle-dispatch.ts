@@ -2,7 +2,7 @@ import type { ClockPort } from "../../core/ports";
 import { deprecateContentType, reactivateContentType, tombstoneContentType } from "./lifecycle";
 import type { AuthorizeFn, ContentTypeRepoPort, OutboxPort } from "./write-service";
 import type { TeardownIndexProvisionerPort } from "./lifecycle";
-import type { ContentTypeRecord, Result } from "./types";
+import type { ActorPrincipalKind, ContentTypeRecord, Result } from "./types";
 
 /**
  * @file Content-type lifecycle `op` dispatch (ADR-042's closed-union-dispatch convention,
@@ -38,6 +38,8 @@ export interface LifecycleDispatchInput {
   actorId: string;
   key: string;
   expectedVersion: number;
+  /** Threaded straight through to {@link LifecycleTransitionInput.principalKind} — the audit provenance stamped on the revision row. */
+  principalKind?: ActorPrincipalKind;
 }
 
 export type ContentTypeLifecycleHandler = (

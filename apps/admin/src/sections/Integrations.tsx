@@ -50,7 +50,7 @@ export function Integrations() {
 
   async function onTogglePause(subscription: AdminWebhookSubscription) {
     try {
-      await api.pauseIntegrationSubscription(subscription.id, subscription.status !== "paused");
+      await api.pauseIntegrationSubscription({ id: subscription.id, paused: subscription.status !== "paused" });
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to update subscription");

@@ -1,0 +1,498 @@
+/**
+ * `chat-react` ships no CSS despite emitting BEM-style `jini-*` class names (verified against
+ * `@jini-ai/chat-react@0.2.0`'s compiled `dist/react/**`). Styles Tovu's admin design tokens
+ * (`styles.css`'s `--bg`/`--surface`/`--fg`/`--border`/etc.) onto the class names that package
+ * actually renders. Without this file the pane renders as unstyled block elements.
+ *
+ * CORRECTION (discovered live): that's no longer fully true. `ChatPane` also self-injects its own
+ * complete default theme as a THIRD `<style>` tag at mount — a warm cream/terracotta palette
+ * (`.jini-chat-pane { --jini-chat-bg: #faf9f7; ...; --jini-chat-accent: #c96442; }`) scoped under
+ * `.jini-chat-pane` with compound selectors like `.jini-chat-pane .jini-composer-input`. Those beat
+ * this file's flat single-class selectors on specificity regardless of source order, so most of
+ * this file's rules for the composer/message list were silently dead — the visible "ugly grey
+ * yellow" panel was that unrelated warm-cream default clashing with Tovu's own cool blue-grey
+ * palette, not anything this file set. Rather than rewrite every rule to out-specificity the
+ * injected theme, `.admin-chat-dock .jini-chat-pane` below overrides the `--jini-chat-*` custom
+ * properties everything else derives from — the intended host-theming seam, confirmed by the
+ * injected stylesheet defining them as overridable custom properties in the first place.
+ */
+.admin-chat-dock .jini-chat-pane {
+  --jini-chat-bg: var(--surface);
+  --jini-chat-panel: var(--surface);
+  --jini-chat-subtle: var(--surface-2);
+  --jini-chat-text: var(--fg);
+  --jini-chat-text-strong: var(--fg);
+  --jini-chat-muted: var(--muted);
+  --jini-chat-faint: var(--faint);
+  --jini-chat-border: var(--border);
+  --jini-chat-border-strong: var(--border-strong);
+  --jini-chat-border-soft: var(--border);
+  --jini-chat-accent: var(--accent-text);
+  --jini-chat-accent-soft: var(--surface-2);
+}
+/* Doubled class, not `.admin-chat-dock .jini-runtime-popover`: this popover likely portals out of
+   `.admin-chat-dock` (which sets `overflow: hidden`) to escape that clipping, so an ancestor-scoped
+   selector could silently never match. The doubled class raises specificity to beat the injected
+   theme's plain `.jini-runtime-popover` without depending on DOM nesting. */
+.jini-runtime-popover.jini-runtime-popover {
+  --jini-chat-panel: var(--surface);
+  --jini-chat-text: var(--fg);
+  --jini-chat-text-strong: var(--fg);
+  --jini-chat-muted: var(--muted);
+  --jini-chat-faint: var(--faint);
+  --jini-chat-border: var(--border);
+  --jini-chat-border-soft: var(--border);
+  --jini-chat-subtle: var(--surface-2);
+}
+
+/* --- Global assistant dock + FAB (ADR-049) --- */
+
+.admin-chat-dock {
+  flex: 0 0 380px;
+  width: 380px;
+  min-width: 0;
+  display: flex;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.admin-chat-dock[hidden] {
+  display: none;
+}
+
+.admin-chat-dock .jini-chat-pane__body,
+.admin-chat-dock > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-strong);
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  z-index: 30;
+}
+
+.chat-fab:hover {
+  filter: brightness(1.05);
+}
+
+/* `.admin-chat-dock` is also anchored to the right edge, so a viewport-fixed FAB would otherwise
+   sit directly on top of the composer's input/send area whenever the dock is open — shift it to
+   the dock's left edge instead of the viewport's. */
+.chat-fab-dock-open {
+  right: calc(380px + 20px);
+}
+
+/* --- ChatPane shell --- */
+
+.jini-chat-pane__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.jini-chat-pane__eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+
+.jini-chat-pane__title,
+.jini-chat-pane__heading {
+  font-family: var(--font-display);
+  font-size: 15px;
+  margin: 0;
+}
+
+/* Wraps BOTH the suggestions row and the composer+drop-target below it (verified against the
+   rendered DOM, not just the class name's apparent scope) — `flex-direction: column` so they
+   stack; the earlier `row` (this rule's own default before this fix) placed them side by side,
+   squeezing the composer into a sliver and its placeholder into one-character-per-line wrapping. */
+.jini-chat-pane__controls {
+  display: flex;
+  flex-direction: column;
+}
+
+.jini-chat-pane__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.jini-chat-pane__status {
+  padding: 6px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.jini-chat-pane__error {
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.jini-chat-pane__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 10px;
+}
+
+.jini-chat-pane__suggestion {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  border-radius: var(--r-pill);
+  padding: 5px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.jini-chat-pane__suggestion:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-3);
+}
+
+.jini-chat-pane__new-thread,
+.jini-chat-pane__cancel {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  border-radius: var(--r-sm);
+  padding: 5px 10px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.jini-chat-pane__workdir {
+  font-size: 12px;
+  color: var(--faint);
+  font-family: var(--font-mono);
+}
+
+/* --- Message list --- */
+
+.jini-message-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.jini-message-content {
+  border-radius: var(--r-md);
+  padding: 10px 13px;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  max-width: 80%;
+}
+
+.jini-message-agent .jini-message-content {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+
+.jini-message-list > [data-role="user"] .jini-message-content {
+  background: var(--accent);
+  color: var(--accent-ink);
+  margin-left: auto;
+}
+
+.jini-message-pending {
+  color: var(--faint);
+  font-style: italic;
+}
+
+.jini-message-error {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-radius: var(--r-sm);
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.jini-message-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.jini-message-usage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--faint);
+  font-size: 11.5px;
+}
+
+.jini-message-usage-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.jini-message-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.jini-ext-event-error {
+  color: var(--danger);
+  font-size: 12px;
+}
+
+/* --- Composer --- */
+
+/* Undocumented wrapper `ChatPane` renders around the composer for file-drag-drop
+   (`data-testid="chat-pane-file-drop-target"`). It's a flex child of `.jini-chat-pane__controls`
+   with no explicit width of its own, so without this it shrink-wraps to its content's intrinsic
+   width instead of filling the row — the composer then has almost no room and its placeholder
+   text wraps one character per line. */
+.jini-chat-pane__drop-target {
+  flex: 1;
+  min-width: 0;
+}
+
+.jini-composer {
+  /* `Composer.tsx` renders the textarea and `.jini-composer-footer` (attach/plus-menu/send) as
+     DIRECT siblings inside this container — a row `display: flex` here put them side by side
+     instead of stacked, which is what put the input to the left of the send button instead of
+     above it. Per `@jini-ai/chat-react`'s own reference stylesheet
+     (`packages/chat-react/src/styles/reference.css`), this container isn't meant to be a flex row
+     at all; `flex-direction: column` is the minimal fix that keeps the existing `gap`. */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+
+.jini-composer-leading,
+.jini-composer-attach,
+.jini-composer-send {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  border-radius: var(--r-sm);
+  height: 34px;
+  min-width: 34px;
+  cursor: pointer;
+}
+
+.jini-composer-send {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+  padding: 0 14px;
+}
+
+.jini-composer-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.jini-composer-input {
+  flex: 1;
+  /* Flex items default to `min-width: auto`, which for a text input means "never shrink below
+     its intrinsic content width" — in the 380px dock (`admin-chat-dock`) that forced the
+     surrounding flex row to overflow instead of wrapping normally, which read as the placeholder
+     text wrapping one character per line. */
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--fg);
+  resize: none;
+  min-height: 34px;
+  max-height: 160px;
+}
+
+.jini-composer-input:focus {
+  outline: none;
+  border-color: var(--border-strong);
+}
+
+.jini-composer-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.jini-composer-plus-menu {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.jini-composer-plus-item {
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.jini-composer-plus-item:hover {
+  background: var(--surface-2);
+}
+
+.jini-composer-file-input {
+  display: none;
+}
+
+/* --- Attachment tray --- */
+
+.jini-attachment-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 8px;
+}
+
+.jini-attachment-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+  padding: 4px 8px 4px 10px;
+  font-size: 12px;
+}
+
+.jini-attachment-chip-name {
+  font-weight: 500;
+}
+
+.jini-attachment-chip-size {
+  color: var(--faint);
+}
+
+.jini-attachment-remove {
+  border: none;
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* --- Runtime/agent picker --- */
+
+.jini-runtime-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+  padding: 5px 10px 5px 6px;
+  font-size: 12.5px;
+  cursor: pointer;
+  color: var(--fg-2);
+}
+
+.jini-runtime-trigger__chevron {
+  color: var(--faint);
+  font-size: 10px;
+}
+
+.jini-runtime-popover {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  min-width: 220px;
+}
+
+.jini-runtime-popover__head {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--faint);
+  border-bottom: 1px solid var(--border);
+}
+
+.jini-runtime-section-label {
+  padding: 6px 12px 2px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+
+.jini-runtime-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.jini-runtime-select:hover {
+  background: var(--surface-2);
+}
+
+.jini-runtime-agent__copy {
+  display: flex;
+  flex-direction: column;
+}
+
+.jini-runtime-agent__status {
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.jini-runtime-empty {
+  padding: 10px 12px;
+  font-size: 12.5px;
+  color: var(--faint);
+}
+
+.jini-runtime-rescan {
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--link);
+  padding: 8px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.jini-runtime-check {
+  color: var(--ok);
+}

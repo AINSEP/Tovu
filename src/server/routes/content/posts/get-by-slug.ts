@@ -22,7 +22,7 @@ export const registerContentPostGetRoute: RouteRegistrar = (app, deps) => {
         }),
       ]);
 
-      res.json(toContentPostResponse(post, settings.activeThemeId));
+      res.json(toContentPostResponse({ post, activeThemeId: settings.activeThemeId }));
     } catch (err) {
       if (err instanceof PostNotFoundError || err instanceof PresentationSettingsNotFoundError) {
         res.status(404).json({ error: err.message });

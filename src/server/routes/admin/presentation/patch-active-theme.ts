@@ -51,7 +51,7 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
         },
       });
 
-      res.json(toAdminPresentationResponse(result.settings, result.availableThemeIds));
+      res.json(toAdminPresentationResponse({ settings: result.settings, availableThemeIds: result.availableThemeIds }));
     } catch (err) {
       if (err instanceof PresentationSettingsValidationError) {
         res.status(400).json({ error: err.message });

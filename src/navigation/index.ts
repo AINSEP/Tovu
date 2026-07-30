@@ -57,3 +57,5 @@ export {
   NAVIGATION_HOOKS,
   NAVIGATION_AI_TOOLS,
 } from "./contracts";
+
+export { createNavMenuReadModel, type NavMenuReadModelDeps } from "./read-model";

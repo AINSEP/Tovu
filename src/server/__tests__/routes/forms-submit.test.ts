@@ -54,7 +54,7 @@ async function startTestApp() {
       bus: new InMemoryEventBus(),
       clock,
       idGen,
-      rateLimiter: createRateLimiter(FORMS_SUBMIT_PROFILE, clock),
+      rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
     },
   });
 

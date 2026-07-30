@@ -85,7 +85,7 @@ export function createCommentsModule(deps: CommentsModuleDeps): CommentsModule {
   // reconfigurable per-workspace is a larger change to `server/middleware/rate-limit.ts`'s
   // fixed-window counter store, out of this slice's scope (mirrors the task's own "don't build a
   // large amount of new plumbing beyond what already exists for SEO's pattern" guidance).
-  const rateLimiter = createRateLimiter(COMMENTS_SUBMIT_PROFILE, deps.clock);
+  const rateLimiter = createRateLimiter({ profile: COMMENTS_SUBMIT_PROFILE, clock: deps.clock });
 
   // SPEC-035 — the live settings resolver: reads the ADR-028 ledger per call when `settingsRepo`
   // is supplied, else falls back to the fixed `deps.settings ?? DEFAULT_COMMENTS_SETTINGS`

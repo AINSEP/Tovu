@@ -33,11 +33,13 @@ import type { EntryRepoPort, OutboxPort } from "../features/entries/write-servic
 import { PRE_AUTHORIZED, requireWidgetPermission, type WidgetsAuthorizeFn } from "./authorize-helper";
 import { withEntryLock } from "./concurrency";
 import { validateWidgetEmbedMutation } from "./embed-validation";
+import { parseWidgetInstancePayload } from "./entry-payload";
 import {
   WidgetEmbedGuardrailError,
   WidgetInstanceNotFoundError,
   WidgetVersionConflictError,
 } from "./errors";
+import { WIDGET_CONTENT_TYPE } from "./types";
 import type { WidgetEmbedNode } from "./types";
 
 /** Matches the certified `embed-validation.unit.test.ts` suite's own value — no separate policy
@@ -144,6 +146,26 @@ async function loadHostEntry(deps: EmbedServiceDeps, workspaceId: UUID, hostEntr
   return entry;
 }
 
+/**
+ * REQ-16/17 (Fable adversarial-review fix, 2026-07-21, Finding E): mirrors
+ * `region-area-service.ts`'s identical REQ-16 placement check, previously asymmetric — a region
+ * placement referencing a nonexistent/trashed/wrong-type widget was rejected before any write, but
+ * `insertWidgetEmbed` inserted the embed node regardless, silently degrading to the render-time
+ * placeholder instead of failing at write time the way region placement does. Also enforces REQ-17
+ * (a `widget_area` entry must never itself be an embed target) via the same `type !==
+ * WIDGET_CONTENT_TYPE` check region placement already uses to exclude it.
+ */
+async function assertEmbedTargetIsLiveWidget(deps: EmbedServiceDeps, workspaceId: UUID, widgetEntryId: UUID): Promise<void> {
+  const widget = await deps.entryRepo.findById({ workspaceId, id: widgetEntryId });
+  if (!widget || widget.type !== WIDGET_CONTENT_TYPE) {
+    throw new WidgetInstanceNotFoundError(`embed references widget '${widgetEntryId}', which does not exist in workspace '${workspaceId}' (REQ-16/17)`);
+  }
+  const payload = parseWidgetInstancePayload(widget.fieldsJson);
+  if (payload.status === "trash" || payload.status === "purged") {
+    throw new WidgetInstanceNotFoundError(`embed references widget '${widgetEntryId}', which is trashed (REQ-16)`);
+  }
+}
+
 /** REQ-19/20: validates the resulting embed set BEFORE writing — the same guardrail the live
  * editor's own chokepoint-side hook must call (INV-04), never bypassable from this path. */
 function assertGuardrails(deps: EmbedServiceDeps, hostEntryType: string, resultingBodyJson: unknown): void {
@@ -216,10 +238,16 @@ export interface InsertWidgetEmbedRequired {
  * server-side embed-mutation routes) can address this exact placement afterward. */
 export async function insertWidgetEmbed(required: InsertWidgetEmbedRequired): Promise<{ entry: EntryRecord; placementId: UUID }> {
   const { deps, input } = required;
-  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, "widgets.place");
+  await requireWidgetPermission({
+    authorize: deps.authorize,
+    actor: input.actor,
+    workspaceId: input.workspaceId,
+    permission: "widgets.place",
+  });
 
   return withEntryLock(`${input.workspaceId}::${input.hostEntryId}`, async () => {
     const current = await loadHostEntry(deps, input.workspaceId, input.hostEntryId);
+    await assertEmbedTargetIsLiveWidget(deps, input.workspaceId, input.widgetEntryId);
     const placementId = deps.ids.newId();
     const nextBodyJson = appendEmbed(current.bodyJson, placementId, input.widgetEntryId);
     assertGuardrails(deps, current.type, nextBodyJson);
@@ -245,7 +273,12 @@ export interface RemoveWidgetEmbedRequired {
  * the placement itself is removed (the widget instance it referenced is untouched). */
 export async function removeWidgetEmbed(required: RemoveWidgetEmbedRequired): Promise<{ entry: EntryRecord }> {
   const { deps, input } = required;
-  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, "widgets.place");
+  await requireWidgetPermission({
+    authorize: deps.authorize,
+    actor: input.actor,
+    workspaceId: input.workspaceId,
+    permission: "widgets.place",
+  });
 
   return withEntryLock(`${input.workspaceId}::${input.hostEntryId}`, async () => {
     const current = await loadHostEntry(deps, input.workspaceId, input.hostEntryId);
@@ -287,7 +320,12 @@ export class WidgetEmbedReorderCountMismatchError extends Error {
  * mismatch before writing anything (the caller must supply exactly one id per existing slot). */
 export async function reorderWidgetEmbeds(required: ReorderWidgetEmbedsRequired): Promise<{ entry: EntryRecord }> {
   const { deps, input } = required;
-  await requireWidgetPermission(deps.authorize, input.actor, input.workspaceId, "widgets.place");
+  await requireWidgetPermission({
+    authorize: deps.authorize,
+    actor: input.actor,
+    workspaceId: input.workspaceId,
+    permission: "widgets.place",
+  });
 
   return withEntryLock(`${input.workspaceId}::${input.hostEntryId}`, async () => {
     const current = await loadHostEntry(deps, input.workspaceId, input.hostEntryId);
@@ -300,6 +338,19 @@ export async function reorderWidgetEmbeds(required: ReorderWidgetEmbedsRequired)
         existing.length,
         input.orderedWidgetEntryIds.length
       );
+    }
+
+    // Round-2 external-audit fix (2026-07-21, codex WIDGETS-R2-001/blocker): reorder assigns NEW
+    // widgetEntryId values to slots (see reorderEmbedSlots below) exactly like insertWidgetEmbed
+    // does, but never got the same REQ-16/17 target-existence/liveness/type check — an authorized
+    // widgets.place caller could persist a nonexistent, wrong-type, trashed, or cross-workspace id
+    // (codex reproduced both a numeric id and a dangling entry_refs row for "does-not-exist").
+    // Every distinct replacement target is validated before the host document or entry_refs change.
+    for (const widgetEntryId of new Set(input.orderedWidgetEntryIds)) {
+      if (typeof widgetEntryId !== "string" || widgetEntryId.length === 0) {
+        throw new WidgetInstanceNotFoundError("reorder contains an invalid widgetEntryId");
+      }
+      await assertEmbedTargetIsLiveWidget(deps, input.workspaceId, widgetEntryId);
     }
 
     const cursor = { index: 0 };

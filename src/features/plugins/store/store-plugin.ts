@@ -71,8 +71,12 @@ export const SEED_PRODUCTS: Product[] = [
 ];
 
 /** Declare the store's tables through core (snapshot→DDL), seed once, and return the store API. */
-export async function activateStore(db: Database.Database, dbPath: string): Promise<StoreApi> {
-  const result = await declareDataModule(db, dbPath, STORE_MANIFEST);
+export async function activateStore(
+  required: { db: Database.Database; dbPath: string },
+  _optional: Record<string, never> = {}
+): Promise<StoreApi> {
+  const { db, dbPath } = required;
+  const result = await declareDataModule({ db, dbPath, decl: STORE_MANIFEST });
   if (!result.ok) {
     throw new Error(`store dataModule declaration failed: ${result.error?.code} — ${result.error?.message}`);
   }
@@ -151,5 +155,5 @@ export async function bootstrapStore(dbPath: string): Promise<StoreApi> {
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   db.pragma("busy_timeout = 5000");
-  return activateStore(db, dbPath);
+  return activateStore({ db, dbPath });
 }

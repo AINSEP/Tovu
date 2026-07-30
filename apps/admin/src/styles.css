@@ -80,7 +80,7 @@ input, select {
   font-family: var(--font-ui); font-size: 0.9rem; background: var(--surface); color: var(--fg);
   transition: border-color 0.14s, box-shadow 0.14s;
 }
-input:focus, select:focus { outline: none; border-color: var(--accent-text); box-shadow: 0 0 0 3px var(--accent-ring); }
+input:focus, select:focus { outline: none; border-color: var(--accent-text); }
 
 /* Page headings + intro copy */
 .admin-content h1 { font-family: var(--font-display); font-size: 1.65rem; font-weight: 700; letter-spacing: -0.01em; color: var(--fg); margin: 0 0 0.4rem; }
@@ -309,6 +309,13 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); box
 .status-expensive { background: var(--accent-dim); color: var(--accent-text); }
 .status-success { background: var(--ok-bg); color: var(--ok); }
 .status-failure, .status-error { background: var(--danger-bg); color: var(--danger); }
+
+/* Plugins (SPEC-005 ui.spec.md §5) — the discovery-status pill values and the trust-tier badge,
+ * reusing the `.status` pill geometry above rather than introducing a new badge token. */
+.status-valid { background: var(--ok-bg); color: var(--ok); }
+.status-invalid, .status-incompatible { background: var(--danger-bg); color: var(--danger); }
+.tier { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; background: var(--surface-3); color: var(--muted); }
+.plugin-errors { margin: 0; padding-left: 1rem; font-size: 0.8rem; }
 
 .collections-type-dialog { max-width: 34rem; max-height: 85vh; overflow-y: auto; }
 .collections-field-row { border: 1px solid var(--border); border-radius: var(--r-md); padding: 0.7rem 0.8rem; margin: 0 0 0.7rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }

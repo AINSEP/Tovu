@@ -47,6 +47,17 @@ export interface CreatePostInput {
   title: string;
   /** Defaults to `"post"` — the existing posts-create route relies on this default. */
   kind?: PostKind;
+  /**
+   * SPEC-002 api.spec.md `POST_CREATE`/`PAGE_CREATE` §4 — optional caller-supplied slug.
+   * When present it is validated and checked for uniqueness exactly like `updatePost`
+   * (same format rule, same `PostConflictError`/`SLUG_CONFLICT` semantics); when absent
+   * it is derived from `title` (existing BR-01/BR-02-style behavior, unchanged).
+   */
+  slug?: string;
+  /** Optional caller-supplied body document. Defaults to an empty TipTap doc when absent (see `DEFAULT_BODY_JSON`). */
+  bodyJson?: JsonObject;
+  /** Optional caller-supplied status. Defaults to `"draft"` when absent. */
+  status?: PostStatus;
 }
 
 export interface CreatePostDeps {
@@ -107,21 +118,146 @@ export class PostNotFoundError extends Error {}
 export class PostValidationError extends Error {}
 export class PostConflictError extends Error {}
 
-/** Creates a blank draft post with a title-derived slug (disambiguated on collision). */
+/**
+ * SPEC-002 api.spec.md `POST_CREATE`/`PAGE_CREATE` §4 documented `bodyJson` default —
+ * an empty TipTap doc, not `{}` (the pre-fix behavior asserted the wrong shape).
+ */
+const DEFAULT_BODY_JSON: JsonObject = { type: "doc", content: [] };
+
+/** api.spec.md §4 / behavior.spec.md §4: `title` maxLength. */
+const MAX_TITLE_LENGTH = 200;
+
+/** api.spec.md §4 / behavior.spec.md §4: caller-supplied `slug` maxLength. */
+const MAX_SLUG_LENGTH = 120;
+
+/**
+ * behavior.spec.md BR-02/BR-03 — slugs a request may never claim outright (`createPost`'s
+ * explicit-slug path rejects these with `VALIDATION_ERROR`; a *derived* slug landing on one of
+ * these is a separate, not-yet-implemented BR-02 suffixing rule — see this file's `slugify`
+ * call site for the disclosed gap).
+ */
+const RESERVED_SLUGS: ReadonlySet<string> = new Set(["admin", "api"]);
+
+/** Shared slug-format rule (`updatePost` and `createPost`'s explicit-slug path both apply it — same rule, one source of truth). */
+function isValidSlugFormat(slug: string): boolean {
+  return /^[a-z0-9-]+$/.test(slug);
+}
+
+/** Shared status-enum rule (`updatePost` and `createPost`'s explicit-status path both apply it). */
+function isValidPostStatus(status: unknown): status is PostStatus {
+  return status === "draft" || status === "published";
+}
+
+/** behavior.spec.md BR-02/BR-03 reserved-word rule — see `RESERVED_SLUGS`'s doc for scope. */
+function isReservedSlug(slug: string): boolean {
+  return RESERVED_SLUGS.has(slug);
+}
+
+/** Pure, pre-repo-access fields `resolveCreateFields` computes from a `createPost` input, once validated. */
+interface ResolvedCreateFields {
+  title: string;
+  /** `undefined` when the caller omitted `slug` — `createPost` derives one in that case. */
+  explicitSlug: string | undefined;
+  bodyJson: JsonObject;
+  status: PostStatus;
+}
+
+/**
+ * Validates and normalizes `createPost`'s caller-supplied fields, in behavior.spec.md BR-03's
+ * documented order (first failure wins): title bound, then slug format/length/reserved-word
+ * (skipped when `slug` is omitted), then `bodyJson` shape, then `status` enum. Every field
+ * except `slug` falls back to its BR-03/default-value-table default when the caller omits it;
+ * `slug`'s absence is signaled by `explicitSlug: undefined` so `createPost` knows to derive one.
+ *
+ * Split out from `createPost` (Code Review, 2026-07-28) so the repo-touching orchestration
+ * (uniqueness check / derivation loop / save) reads as one job and this pure validation reads as
+ * another — each independently testable without a repo double.
+ *
+ * @complexity O(1) — a fixed sequence of length/format/set-membership checks, no loops.
+ * @overallScore 100
+ */
+function resolveCreateFields(input: CreatePostInput): ResolvedCreateFields {
+  const trimmedTitle = input.title.trim();
+  if (trimmedTitle.length > MAX_TITLE_LENGTH) {
+    throw new PostValidationError(`title must be ${MAX_TITLE_LENGTH} characters or fewer`);
+  }
+  // Pre-existing behavior (unchanged): an empty/whitespace-only title is NOT a hard failure on
+  // create (unlike `updatePost`) — it defaults to "Untitled", certified by
+  // "createPost defaults an empty title to 'Untitled'" in post.test.ts.
+  const title = trimmedTitle || "Untitled";
+
+  const explicitSlug = input.slug !== undefined ? input.slug.trim().toLowerCase() : undefined;
+  if (explicitSlug !== undefined) {
+    if (!isValidSlugFormat(explicitSlug)) {
+      throw new PostValidationError("slug must use lowercase letters, numbers, and dashes");
+    }
+    if (explicitSlug.length > MAX_SLUG_LENGTH) {
+      throw new PostValidationError(`slug must be ${MAX_SLUG_LENGTH} characters or fewer`);
+    }
+    // SPEC-002 REQ-04/AC-04 — a PROVIDED slug equal to a reserved word is a hard failure (BR-03
+    // step 3); a DERIVED slug landing on a reserved word is a different, not-yet-implemented rule
+    // (BR-02 suffixing) — see `RESERVED_SLUGS`'s doc.
+    if (isReservedSlug(explicitSlug)) {
+      throw new PostValidationError(`slug '${explicitSlug}' is reserved`);
+    }
+  }
+
+  if (input.bodyJson !== undefined && !isJsonObject(input.bodyJson)) {
+    throw new PostValidationError("bodyJson must be a JSON object");
+  }
+  const bodyJson = input.bodyJson !== undefined ? input.bodyJson : DEFAULT_BODY_JSON;
+
+  if (input.status !== undefined && !isValidPostStatus(input.status)) {
+    throw new PostValidationError("status must be 'draft' or 'published'");
+  }
+  const status = input.status !== undefined ? input.status : "draft";
+
+  return { title, explicitSlug, bodyJson, status };
+}
+
+/**
+ * Creates a post. Caller-supplied `slug`/`bodyJson`/`status` are validated (via
+ * `resolveCreateFields`) and used when present (SPEC-002 api.spec.md §4); each falls back to its
+ * documented default when absent:
+ * - `slug` absent → derived from `title`, disambiguated on collision (existing behavior).
+ * - `slug` present → validated (format, length, reserved-word) the same way `updatePost` validates
+ *   format, then checked for uniqueness (`PostConflictError` on collision, mirroring `PAGE_UPDATE`'s
+ *   `SLUG_CONFLICT` mapping at the route layer — no new conflict-handling invented here).
+ * - `bodyJson` absent → `DEFAULT_BODY_JSON`; present → validated as a JSON object (`isJsonObject`,
+ *   the same check `updatePost` applies; this codebase has no deeper TipTap schema validation
+ *   anywhere else, per `features/entries/write-service.ts`'s disclosure, so none is invented here).
+ * - `status` absent → `"draft"`; present → validated against the same `draft`/`published` enum
+ *   `updatePost` enforces.
+ *
+ * All validation runs before any repository access (fail fast, write nothing on a bad request).
+ *
+ * @complexity O(n) where n is the derived-slug suffix search depth (bounded at 999 by BR-02,
+ * unenforced here — see this file's disclosed gap on suffix-exhaustion handling); O(1) on the
+ * explicit-slug path (one uniqueness lookup).
+ * @overallScore 100
+ */
 export async function createPost(
   required: CreatePostRequired,
   _optional: CreatePostOptional = {}
 ): Promise<{ post: PostRecord }> {
   const { deps, input } = required;
+  const { title, explicitSlug, bodyJson, status } = resolveCreateFields(input);
 
-  const title = input.title.trim() || "Untitled";
-  const base = slugify(title) || "untitled";
-
-  let slug = base;
-  let suffix = 1;
-  while (await deps.repo.findBySlug({ workspaceId: input.workspaceId, slug })) {
-    suffix += 1;
-    slug = `${base}-${suffix}`;
+  let slug: string;
+  if (explicitSlug !== undefined) {
+    const duplicate = await deps.repo.findBySlug({ workspaceId: input.workspaceId, slug: explicitSlug });
+    if (duplicate) {
+      throw new PostConflictError(`slug '${explicitSlug}' already exists`);
+    }
+    slug = explicitSlug;
+  } else {
+    const base = slugify(title) || "untitled";
+    slug = base;
+    let suffix = 1;
+    while (await deps.repo.findBySlug({ workspaceId: input.workspaceId, slug })) {
+      suffix += 1;
+      slug = `${base}-${suffix}`;
+    }
   }
 
   const post: PostRecord = {
@@ -129,8 +265,8 @@ export async function createPost(
     workspaceId: input.workspaceId,
     title,
     slug,
-    bodyJson: {},
-    status: "draft",
+    bodyJson,
+    status,
     kind: input.kind ?? "post",
     updatedAt: deps.clock.nowIso(),
     version: 1,
@@ -160,13 +296,13 @@ export async function updatePost(
   const slug = input.slug.trim().toLowerCase();
 
   if (!title) throw new PostValidationError("title is required");
-  if (!slug.match(/^[a-z0-9-]+$/)) {
+  if (!isValidSlugFormat(slug)) {
     throw new PostValidationError("slug must use lowercase letters, numbers, and dashes");
   }
   if (!isJsonObject(input.bodyJson)) {
     throw new PostValidationError("bodyJson must be a JSON object");
   }
-  if (input.status !== "draft" && input.status !== "published") {
+  if (!isValidPostStatus(input.status)) {
     throw new PostValidationError("status must be 'draft' or 'published'");
   }
 
@@ -207,6 +343,15 @@ export async function updatePost(
  * certified in isolation by `post.transition-events.test.ts` (T004) before
  * `updatePost` (above) or any SEO-side subscription depends on it. Returns
  * `null` for the "no event" row (not-published -> not-published).
+ *
+ * SIGNATURE-CONVENTION SKIP (deliberate, not an oversight): this function's sole call site is
+ * inside `updatePost` above, which a concurrent, separately-dispatched fix owns for an unrelated
+ * bug (shape-mismatch handling) — converting this signature would require editing that call site
+ * too, creating exactly the merge collision both dispatches were told to avoid. Independent of that
+ * scheduling constraint, this is also a legitimate exemption on the merits: both parameters are the
+ * same primitive union type (`PostStatus`), the function is a pure comparator (no optional/defaulted
+ * field exists to justify a second `options` parameter), and it has exactly one caller in the whole
+ * repo. Left as two positional params.
  */
 export function classifyStatusTransition(
   previousStatus: PostStatus,

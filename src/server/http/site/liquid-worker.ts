@@ -88,7 +88,7 @@ liquid.registerTag("render_block", {
     // required" — a region is a `render_block` call over a resolved, ordered widget list instead of
     // a single component). Checked first since `region`/`component` are mutually exclusive tag args.
     if (typeof props.region === "string") {
-      return renderWidgetRegion(siteCtx, props.region);
+      return renderWidgetRegion({ ctx: siteCtx, regionKey: props.region });
     }
 
     const id = typeof props.component === "string" ? props.component : "";

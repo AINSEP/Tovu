@@ -60,7 +60,7 @@ export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = (
           { paused: typeof paused === "boolean" ? paused : true }
         );
 
-        res.json({ subscription: toAdminSubscriptionResponse(subscription, null) });
+        res.json({ subscription: toAdminSubscriptionResponse({ subscription, lastDelivery: null }) });
       } catch (err) {
         if (err instanceof WebhookSubscriptionNotFoundError) {
           res.status(404).json({ error: err.message });

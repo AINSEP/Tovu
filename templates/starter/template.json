@@ -1,0 +1,9 @@
+{
+  "id": "starter",
+  "version": "1.0.0",
+  "name": "Starter Site",
+  "defaultConfig": {
+    "name": null,
+    "port": null
+  }
+}

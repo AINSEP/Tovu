@@ -53,8 +53,8 @@ const mutableResolvers: Partial<Record<WidgetTypeKey, WidgetResolver>> = {};
 export const CORE_RESOLVERS: Readonly<Partial<Record<WidgetTypeKey, WidgetResolver>>> = mutableResolvers;
 
 /** Registers (or replaces) one resolver in the closed map — the one typed, non-test way to populate it. */
-export function registerCoreResolver(typeKey: WidgetTypeKey, resolver: WidgetResolver): void {
-  mutableResolvers[typeKey] = resolver;
+export function registerCoreResolver(required: { typeKey: WidgetTypeKey; resolver: WidgetResolver }): void {
+  mutableResolvers[required.typeKey] = required.resolver;
 }
 
 /**
@@ -69,7 +69,7 @@ export function registerCoreResolver(typeKey: WidgetTypeKey, resolver: WidgetRes
  */
 export function wireCoreResolvers(deps: CoreResolverDeps): void {
   for (const [typeKey, resolver] of Object.entries(createCoreResolvers(deps)) as Array<[WidgetTypeKey, WidgetResolver]>) {
-    registerCoreResolver(typeKey, resolver);
+    registerCoreResolver({ typeKey, resolver });
   }
 }
 
@@ -117,11 +117,12 @@ function clampResolveResult(result: WidgetResolveResult, registration: WidgetTyp
  * registration's `timeoutMs` clamp).
  * @overallScore 100
  */
-export async function resolveWidgetType(
-  typeKey: WidgetTypeKey,
-  instances: readonly WidgetInstanceView[],
-  context: WidgetResolveContext
-): Promise<ReadonlyMap<UUID, WidgetResolveResult>> {
+export async function resolveWidgetType(required: {
+  typeKey: WidgetTypeKey;
+  instances: readonly WidgetInstanceView[];
+  context: WidgetResolveContext;
+}): Promise<ReadonlyMap<UUID, WidgetResolveResult>> {
+  const { typeKey, instances, context } = required;
   const results = new Map<UUID, WidgetResolveResult>();
   if (instances.length === 0) return results;
 

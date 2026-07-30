@@ -66,10 +66,11 @@ export interface AdminWebhookDeliveryResponse {
  * @complexity O(1).
  * @overallScore 100
  */
-export function toAdminSubscriptionResponse(
-  subscription: WebhookSubscriptionRecord,
-  lastDelivery: WebhookDeliveryRecord | null
-): AdminWebhookSubscriptionResponse {
+export function toAdminSubscriptionResponse(required: {
+  subscription: WebhookSubscriptionRecord;
+  lastDelivery: WebhookDeliveryRecord | null;
+}): AdminWebhookSubscriptionResponse {
+  const { subscription, lastDelivery } = required;
   return {
     id: subscription.id,
     label: subscription.label,

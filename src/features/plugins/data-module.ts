@@ -16,6 +16,17 @@
  *      next boot by `migration-recovery.ts` (see that file and `restore.ts` for why restore only
  *      ever runs there, never live).
  *
+ * IN-MEMORY `dbPath` (BUG FIX, 2026-07-28): steps 3, 5, and 6 above are conditionally skipped for an
+ * in-memory (or SQLite's other non-file) `dbPath` — see `snapshot.ts`'s `isInMemoryDbPath`. Disk
+ * headroom (step 3, via `disk-headroom.ts`) and the whole snapshot/journal apparatus (steps 5-6)
+ * exist specifically to make "recovery at next boot" possible; for `:memory:` there IS no next
+ * boot — the database is discarded in full the instant the process ends, so "recoverable" and
+ * "not recoverable" are the same outcome regardless of whether a snapshot/journal entry exists.
+ * Skipping them for this case isn't a weakened guarantee, it's recognizing the guarantee doesn't
+ * apply. Step 7's same-process transaction rollback is UNAFFECTED and remains the full safety net
+ * for an in-memory db, because it is the only failure mode that can ever occur for one (there is no
+ * separate process to crash-and-restart into that could observe a different, corrupted state).
+ *
  * T2 (§4's exclusive cross-process lock) is DELIBERATELY NOT acquired here — SPEC-033 correction
  * (2026-07-16), superseding SPEC-032's original implementation. The ADR's own §4 text scopes T2's
  * purpose narrowly: "The SQLite online backup API is safe under concurrent writers during
@@ -188,10 +199,10 @@ function existingTables(db: Database.Database, names: string[]): Set<string> {
 
 /** Declare (reconcile) a plugin's tables. Core snapshots first, then runs the DDL transactionally. */
 export async function declareDataModule(
-  db: Database.Database,
-  dbPath: string,
-  decl: DataModuleDecl
+  required: { db: Database.Database; dbPath: string; decl: DataModuleDecl },
+  _optional: Record<string, never> = {}
 ): Promise<DeclareResult> {
+  const { db, dbPath, decl } = required;
   try {
     validate(decl);
   } catch (err) {
@@ -207,12 +218,14 @@ export async function declareDataModule(
   }
 
   // §5/§6/T5 — namespace-adoption guard, before any snapshot/lock/DDL.
-  const adoption = checkNamespaceAdoption(db, decl.pluginId, decl.provenance);
+  const adoption = checkNamespaceAdoption({ db, pluginId: decl.pluginId, provenance: decl.provenance });
   if (!adoption.allowed) {
     return { ok: false, created: [], snapshotPath: null, error: { code: "IDENTITY_ADOPTION_REQUIRES_CONSENT", message: adoption.reason } };
   }
 
-  // §3/T4 — disk-headroom preflight, fail closed before any file is touched.
+  // §3/T4 — disk-headroom preflight, fail closed before any file is touched. `checkDiskHeadroom`
+  // itself no-ops to `ok: true` for an in-memory `dbPath` (BUG FIX 2026-07-28) — no snapshot file
+  // will ever be written for one, so there is no headroom to require.
   const headroom = checkDiskHeadroom(dbPath);
   if (!headroom.ok) {
     return {
@@ -227,14 +240,27 @@ export async function declareDataModule(
   }
 
   // §4 — snapshot the WHOLE db BEFORE any DDL. This is the never-brick anchor.
-  const snapshotPath = await snapshotDb(db, dbPath, decl.pluginId);
+  // `snapshotDb` returns `null` for an in-memory `dbPath` (BUG FIX 2026-07-28, see `snapshot.ts`) —
+  // no file was ever written, so there is nothing to journal a recovery pointer to.
+  const snapshotPath = await snapshotDb({ db, dbPath, label: decl.pluginId });
 
-  ensureMigrationJournal(db);
-  const journalId = beginJournalEntry(db, decl.pluginId, snapshotPath);
+  // The phase-journal (§2/T3) exists solely to let `migration-recovery.ts` restore a crash-
+  // interrupted attempt at NEXT BOOT. An in-memory db has no next boot — the whole database
+  // vanishes with the process — so there is nothing for the journal to ever recover, and
+  // `_plugin_migration_journal.snapshot_path` is `NOT NULL` (see `migration-journal.ts`) and could
+  // not hold a null `snapshotPath` even if we tried. `journalId` stays `null` and every
+  // `advanceJournalPhase` call below is skipped for this case; the transaction's own same-process
+  // rollback (§9, the only failure mode a same-process in-memory db can ever hit) is unaffected and
+  // remains the complete safety net.
+  let journalId: number | null = null;
+  if (snapshotPath !== null) {
+    ensureMigrationJournal(db);
+    journalId = beginJournalEntry({ db, pluginId: decl.pluginId, snapshotPath });
+  }
 
   const created: string[] = [];
   try {
-    advanceJournalPhase(db, journalId, "DDL_IN_PROGRESS");
+    if (journalId !== null) advanceJournalPhase({ db, id: journalId, phase: "DDL_IN_PROGRESS" });
     // One transaction for all DDL: any failure rolls the live db back to a working state (§9).
     db.transaction(() => {
       ensureJournal(db);
@@ -258,24 +284,27 @@ export async function declareDataModule(
         }
       }
     })();
-    advanceJournalPhase(db, journalId, "VERIFYING");
+    if (journalId !== null) advanceJournalPhase({ db, id: journalId, phase: "VERIFYING" });
     const stillMissing = toCreate.filter((t) => !existingTables(db, [fqName(decl.pluginId, t.name)]).has(fqName(decl.pluginId, t.name)));
     if (stillMissing.length > 0) {
       throw new Error(`post-DDL verification failed: ${stillMissing.map((t) => t.name).join(", ")} not found after CREATE TABLE`);
     }
-    advanceJournalPhase(db, journalId, "COMMITTED");
+    if (journalId !== null) advanceJournalPhase({ db, id: journalId, phase: "COMMITTED" });
   } catch (err) {
     // better-sqlite3 already rolled the transaction back → live db is unchanged and working
     // (this is the same-process, catchable-failure case — no restore needed; restore only ever
     // runs at next-boot recovery for a CRASH, see migration-recovery.ts). The snapshot remains as
-    // the named recovery point (§9) for operator forensics; the plugin is left "uninstalled".
-    advanceJournalPhase(db, journalId, "ROLLED_BACK");
+    // the named recovery point (§9) for operator forensics; the plugin is left "uninstalled". For
+    // an in-memory db, `snapshotPath`/`journalId` are both null (see above) — there is no recovery
+    // point to report because the same-process rollback just performed IS the full recovery; no
+    // crash-recovery boot path can ever exist for `:memory:` to need one.
+    if (journalId !== null) advanceJournalPhase({ db, id: journalId, phase: "ROLLED_BACK" });
     const e = err as Error;
     return {
       ok: false,
       created: [],
       snapshotPath,
-      recoveryPoint: snapshotPath,
+      recoveryPoint: snapshotPath ?? undefined,
       error: { code: "DDL_FAILED", message: e.message },
     };
   }

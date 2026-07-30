@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { archiveList, ensureDefaultList, saveList, type ListsDeps } from "../lists";
-import { NewsletterDefaultListProtectedError, NewsletterListNotFoundError } from "../errors";
+import { NewsletterConflictError, NewsletterDefaultListProtectedError, NewsletterListNotFoundError } from "../errors";
 import { InMemoryNewsletterListRepo } from "../repo.memory";
 
 const WS = "ws-1";
@@ -33,6 +33,26 @@ test("saveList: admin-created lists always land isDefault:false", async () => {
   const { list } = await saveList({ deps, input: { workspaceId: WS, name: "VIPs", slug: "vips" } });
   assert.equal(list.isDefault, false);
   assert.equal(list.status, "active");
+});
+
+test("saveList: a duplicate slug within the same workspace is rejected with NEWSLETTER_CONFLICT (api.spec.md CREATE_LIST 409)", async () => {
+  const deps = makeDeps();
+  await saveList({ deps, input: { workspaceId: WS, name: "VIPs", slug: "vips" } });
+  await assert.rejects(saveList({ deps, input: { workspaceId: WS, name: "Very Important", slug: "vips" } }), NewsletterConflictError);
+});
+
+test("saveList: the same slug is allowed in a DIFFERENT workspace (uniqueness is per-workspace)", async () => {
+  const deps = makeDeps();
+  await saveList({ deps, input: { workspaceId: WS, name: "VIPs", slug: "vips" } });
+  const { list } = await saveList({ deps, input: { workspaceId: "ws-2", name: "VIPs too", slug: "vips" } });
+  assert.equal(list.slug, "vips");
+});
+
+test("saveList: renaming a list's own slug back to its own current value is not a self-collision", async () => {
+  const deps = makeDeps();
+  const { list } = await saveList({ deps, input: { workspaceId: WS, name: "VIPs", slug: "vips" } });
+  const renamed = await saveList({ deps, input: { workspaceId: WS, id: list.id, name: "VIPs Renamed", slug: "vips" } });
+  assert.equal(renamed.list.name, "VIPs Renamed");
 });
 
 test("archiveList: the default list rejects archive with NEWSLETTER_DEFAULT_LIST_PROTECTED (AC-10)", async () => {

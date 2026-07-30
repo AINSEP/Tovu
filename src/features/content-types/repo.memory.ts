@@ -30,6 +30,19 @@ export class InMemoryContentTypeRepo implements ContentTypeRepoPort, ContentType
     this.revisions.push(revision);
   }
 
+  /**
+   * The append-only revision log, oldest first. Not part of `ContentTypeRepoPort` — the domain only
+   * ever appends. Exposed so route-level tests can assert what provenance
+   * (`actorId`/`principalKind`) a write actually recorded, which is otherwise unobservable in the
+   * hermetic in-memory composition; `SqliteContentTypeRepo`'s equivalent is a plain table read.
+   *
+   * @complexity O(n) in the number of recorded revisions (defensive copy).
+   * @overallScore 100
+   */
+  listRevisions(): ContentTypeRevisionInput[] {
+    return this.revisions.map((revision) => ({ ...revision }));
+  }
+
   async findByKey(params: { workspaceId: string; key: string }): Promise<ContentTypeRecord | null> {
     const row = this.rows.get(InMemoryContentTypeRepo.key(params.workspaceId, params.key));
     return row ? { ...row } : null;

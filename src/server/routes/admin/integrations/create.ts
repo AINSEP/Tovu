@@ -57,7 +57,7 @@ export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = 
         },
       });
 
-      res.status(201).json({ subscription: toAdminSubscriptionResponse(subscription, null) });
+      res.status(201).json({ subscription: toAdminSubscriptionResponse({ subscription, lastDelivery: null }) });
     } catch (err) {
       if (err instanceof WebhookSubscriptionValidationError) {
         res.status(400).json({ error: err.message });

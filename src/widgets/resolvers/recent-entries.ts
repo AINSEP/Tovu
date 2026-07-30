@@ -38,10 +38,13 @@ export function createRecentEntriesResolver(deps: RecentEntriesResolverDeps): Wi
       const registryMax = registration?.clamps.maxItems ?? 20;
 
       // One batched query for the whole call (REQ-24) — EntryListPort has no `findByIds` batch
-      // primitive, so a single `listByWorkspace` scoped to the widget content type stands in for
-      // the outline's literal "WHERE id IN (...)" shape without a second entries-listing path.
-      // Bounded at the query itself (REQ-25) — `limit: registryMax` is the widest any instance in
-      // this batch is allowed to request, so no instance's own config can force a larger scan.
+      // primitive, so a single `listByWorkspace` call (scoped to `status: 'published'`, across
+      // every content type — a "recent entries" widget is intentionally not narrowed to one type;
+      // see EC-03's `categoryTermId` note below for the one dimension it does NOT filter on)
+      // stands in for the outline's literal "WHERE id IN (...)" shape without a second
+      // entries-listing path. Bounded at the query itself (REQ-25) — `limit: registryMax` is the
+      // widest any instance in this batch is allowed to request, so no instance's own config can
+      // force a larger scan.
       const published = await deps.entryList.listByWorkspace({
         workspaceId: context.workspaceId,
         status: "published",

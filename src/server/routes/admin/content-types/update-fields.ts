@@ -6,10 +6,12 @@ import {
   ForbiddenError,
   InvalidFieldKindError,
   InvalidFieldNameGrammarError,
+  InvalidFieldShapeError,
   QueryableFieldCapExceededError,
   ValidationError,
   VersionConflictError,
 } from "../../../../features/content-types/errors";
+import { parseContentTypeFieldDefs } from "../../../../features/content-types/field-defs";
 import { updateContentTypeFields } from "../../../../features/content-types/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps";
@@ -20,6 +22,7 @@ function statusFor(error: Error): { status: number; code: string } {
   if (error instanceof VersionConflictError) return { status: 409, code: "VERSION_CONFLICT" };
   if (
     error instanceof ValidationError ||
+    error instanceof InvalidFieldShapeError ||
     error instanceof InvalidFieldNameGrammarError ||
     error instanceof InvalidFieldKindError ||
     error instanceof QueryableFieldCapExceededError
@@ -53,8 +56,19 @@ export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: Co
       }
 
       const body = req.body ?? {};
-      if (!Array.isArray(body.fields) || typeof body.expectedVersion !== "number") {
-        res.status(400).json({ error: "'fields' (array) and 'expectedVersion' (number) are required", code: "VALIDATION_ERROR" });
+      if (typeof body.expectedVersion !== "number") {
+        res.status(400).json({ error: "'expectedVersion' (number) is required", code: "VALIDATION_ERROR" });
+        return;
+      }
+      // Shape-validated here rather than cast: an `Array.isArray` check alone let a non-boolean
+      // `required`/`queryable` persist verbatim and let a non-object element throw a TypeError
+      // inside the domain's field-name grammar guard. Shared with the agent-tool path so the two
+      // boundaries cannot drift. Domain rules (grammar, kind enum, queryable cap) stay in
+      // `write-service.ts`'s CIC U-002-B1 chain — see `field-defs.ts`'s header.
+      const fields = parseContentTypeFieldDefs(body.fields);
+      if (!fields.ok) {
+        const { status, code } = statusFor(fields.error);
+        res.status(status).json({ error: fields.error.message, code });
         return;
       }
 
@@ -69,9 +83,10 @@ export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: Co
         },
         input: {
           actorId: principal.id,
+          principalKind: principal.kind,
           workspaceId: deps.workspaceId,
           key: String(req.params.key),
-          fields: body.fields,
+          fields: fields.value,
           expectedVersion: body.expectedVersion,
         },
       });

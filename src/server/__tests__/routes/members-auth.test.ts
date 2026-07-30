@@ -34,7 +34,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps; membersDeps: M
   // limiter instance for this test app — mirrors `app.ts`'s per-boot wiring.
   const membersDeps: MembersRouteDeps = {
     ...deps,
-    magicLinkPerEmailLimiter: createRateLimiter(MAGIC_LINK_PER_EMAIL, deps.clock),
+    magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock }),
   };
   const app = express();
   app.use(express.json());

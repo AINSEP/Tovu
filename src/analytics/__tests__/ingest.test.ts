@@ -21,8 +21,8 @@ function makeSalt(utcDate: string): Buffer {
 
 test("normalizeIngestContext is deterministic for the same (salt, ip, ua)", () => {
   const salt = makeSalt("2026-07-10");
-  const first = normalizeIngestContext({ ip: RAW_IP, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, salt);
-  const second = normalizeIngestContext({ ip: RAW_IP, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, salt);
+  const first = normalizeIngestContext({ input: { ip: RAW_IP, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, dailySalt: salt });
+  const second = normalizeIngestContext({ input: { ip: RAW_IP, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, dailySalt: salt });
 
   assert.equal(first.visitorHash, second.visitorHash);
   assert.equal(first.deviceClass, "desktop");
@@ -34,18 +34,18 @@ test("normalizeIngestContext produces a different hash when the day (salt) rotat
   const day1Salt = makeSalt("2026-07-10");
   const day2Salt = makeSalt("2026-07-11");
 
-  const day1 = normalizeIngestContext({ ip: RAW_IP, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, day1Salt);
-  const day2 = normalizeIngestContext({ ip: RAW_IP, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, day2Salt);
+  const day1 = normalizeIngestContext({ input: { ip: RAW_IP, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, dailySalt: day1Salt });
+  const day2 = normalizeIngestContext({ input: { ip: RAW_IP, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, dailySalt: day2Salt });
 
   assert.notEqual(day1.visitorHash, day2.visitorHash);
 });
 
 test("normalizeIngestContext never places the raw ip or user-agent on its return value", () => {
   const salt = makeSalt("2026-07-10");
-  const normalized = normalizeIngestContext(
-    { ip: RAW_IP, userAgent: RAW_USER_AGENT, siteHost: "example.com" },
-    salt
-  );
+  const normalized = normalizeIngestContext({
+    input: { ip: RAW_IP, userAgent: RAW_USER_AGENT, siteHost: "example.com" },
+    dailySalt: salt,
+  });
 
   const serialized = JSON.stringify(normalized);
   assert.equal(serialized.includes(RAW_IP), false);

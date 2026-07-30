@@ -8,6 +8,7 @@ export function toHeadlessPost(post: PostRecord): AdminPost {
   return {
     id: post.id,
     workspaceId: post.workspaceId,
+    kind: post.kind,
     title: post.title,
     slug: post.slug,
     bodyJson: post.bodyJson,
@@ -23,6 +24,7 @@ export function toHeadlessPost(post: PostRecord): AdminPost {
 export function toHeadlessContentPost(post: PostRecord): ContentPost {
   return {
     id: post.id,
+    kind: post.kind,
     title: post.title,
     slug: post.slug,
     bodyJson: post.bodyJson,

@@ -51,7 +51,7 @@ const productsDecl = {
 
 test("dataModule: declares a namespaced table and records a migration-journal entry", async () => {
   const { db, dbPath, dir } = openWithCore();
-  const result = await declareDataModule(db, dbPath, productsDecl);
+  const result = await declareDataModule({ db, dbPath, decl: productsDecl });
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.created, ["p_hello__products"]);
@@ -69,7 +69,7 @@ test("dataModule: declares a namespaced table and records a migration-journal en
 
 test("dataModule: the snapshot is taken BEFORE the DDL (never-brick proof)", async () => {
   const { db, dbPath, dir } = openWithCore();
-  const result = await declareDataModule(db, dbPath, productsDecl);
+  const result = await declareDataModule({ db, dbPath, decl: productsDecl });
   assert.equal(result.ok, true);
 
   // Open the snapshot as its own db: it must be the PRE-state — core content present, plugin table absent.
@@ -84,19 +84,19 @@ test("dataModule: the snapshot is taken BEFORE the DDL (never-brick proof)", asy
 
 test("dataModule: rejects a table outside the p_{pluginId}__* namespace / bad declaration (no DDL)", async () => {
   const { db, dbPath, dir } = openWithCore();
-  const bad = await declareDataModule(db, dbPath, {
+  const bad = await declareDataModule({ db, dbPath, decl: {
     pluginId: "Bad-Id", // invalid: not a stable lowercase id
     tables: productsDecl.tables,
-  });
+  } });
   assert.equal(bad.ok, false);
   assert.equal(bad.error?.code, "BAD_PLUGIN_ID");
   assert.equal(bad.snapshotPath, null, "no snapshot wasted on an invalid declaration");
   assert.equal(tableExists(db, "p_Bad-Id__products"), false);
 
-  const badType = await declareDataModule(db, dbPath, {
+  const badType = await declareDataModule({ db, dbPath, decl: {
     pluginId: "hello",
     tables: [{ name: "x", columns: [{ name: "c", type: "DROP TABLE" as never }] }],
-  });
+  } });
   assert.equal(badType.ok, false);
   assert.equal(badType.error?.code, "BAD_TYPE");
 
@@ -107,7 +107,7 @@ test("dataModule: rejects a table outside the p_{pluginId}__* namespace / bad de
 test("dataModule: a failing DDL rolls back to a working state (never-brick), snapshot kept as recovery point", async () => {
   const { db, dbPath, dir } = openWithCore();
   // Two tables with the same name in one call: the second CREATE fails → whole tx rolls back.
-  const result = await declareDataModule(db, dbPath, {
+  const result = await declareDataModule({ db, dbPath, decl: {
     pluginId: "hello",
     pluginTier: "tier-2" as const,
     provenance: { sourceUrl: "test://hello", publisher: "test" },
@@ -115,7 +115,7 @@ test("dataModule: a failing DDL rolls back to a working state (never-brick), sna
       { name: "dup", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
       { name: "dup", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
     ],
-  });
+  } });
 
   assert.equal(result.ok, false);
   assert.equal(result.error?.code, "DDL_FAILED");
@@ -134,15 +134,83 @@ test("dataModule: a failing DDL rolls back to a working state (never-brick), sna
 
 test("dataModule: declaring the same table twice is idempotent (no error, no double-create)", async () => {
   const { db, dbPath, dir } = openWithCore();
-  const first = await declareDataModule(db, dbPath, productsDecl);
+  const first = await declareDataModule({ db, dbPath, decl: productsDecl });
   assert.equal(first.ok, true);
   assert.deepEqual(first.created, ["p_hello__products"]);
 
-  const second = await declareDataModule(db, dbPath, productsDecl);
+  const second = await declareDataModule({ db, dbPath, decl: productsDecl });
   assert.equal(second.ok, true);
   assert.deepEqual(second.created, [], "nothing re-created");
   assert.equal(second.snapshotPath, null, "no snapshot taken when there's nothing to do");
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+/**
+ * BUG FIX regression coverage (2026-07-28): `declareDataModule` against an in-memory (`:memory:`)
+ * db used to call `snapshotDb` with that literal string, which resolved to a REAL file named
+ * `:memory:.snapshot-<label>-<ts>` written into the process's cwd (the repo root in this suite) —
+ * this is exactly the codepath `src/newsletter/__tests__/repo.contract.test.ts` and other
+ * `:memory:`-backed contract-test suites exercise on every run. These tests are the actual
+ * regression test that would have caught the original bug: they prove no such file appears, that
+ * the DDL still succeeds/rolls back correctly, and that the phase-journal (meaningless for a db
+ * with no "next boot" to recover at) is skipped entirely rather than crashing on a null-into-
+ * NOT-NULL write.
+ */
+test("dataModule: against an in-memory db, snapshotPath is null and NO `:memory:.snapshot-*` file is ever created", async () => {
+  const db = new Database(":memory:");
+  db.prepare(`CREATE TABLE posts (id TEXT PRIMARY KEY, title TEXT)`).run();
+
+  const before = new Set(fs.readdirSync(process.cwd()));
+  const result = await declareDataModule({ db, dbPath: ":memory:", decl: productsDecl });
+  const after = fs.readdirSync(process.cwd());
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.created, ["p_hello__products"]);
+  assert.equal(result.snapshotPath, null, "no file backs an in-memory db — nothing to snapshot");
+  assert.ok(tableExists(db, "p_hello__products"), "the DDL still ran and committed in-process");
+
+  const newFiles = after.filter((name) => !before.has(name));
+  assert.deepEqual(newFiles, [], "no `:memory:.snapshot-*` (or any other) file leaked into the cwd");
+
+  assert.equal(
+    tableExists(db, "_plugin_migration_journal"),
+    false,
+    "the phase-journal is never even created for an in-memory db — nothing to recover at a next boot that never happens"
+  );
+
+  db.close();
+});
+
+test("dataModule: an in-memory db's failing DDL still rolls back to a working state, with no journal entry involved", async () => {
+  const db = new Database(":memory:");
+  db.prepare(`CREATE TABLE posts (id TEXT PRIMARY KEY, title TEXT)`).run();
+  db.prepare(`INSERT INTO posts VALUES ('p1', 'hello')`).run();
+
+  const before = new Set(fs.readdirSync(process.cwd()));
+  const result = await declareDataModule({ db, dbPath: ":memory:", decl: {
+    pluginId: "hello",
+    pluginTier: "tier-2" as const,
+    provenance: { sourceUrl: "test://hello", publisher: "test" },
+    tables: [
+      { name: "dup", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
+      { name: "dup", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
+    ],
+  } });
+  const after = fs.readdirSync(process.cwd());
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error?.code, "DDL_FAILED");
+  assert.equal(result.snapshotPath, null);
+  assert.equal(result.recoveryPoint, undefined, "no snapshot file exists, so there is no recovery point to report");
+  assert.equal(tableExists(db, "p_hello__dup"), false, "no partial table left behind — same-process rollback still works");
+  assert.equal(
+    (db.prepare(`SELECT COUNT(*) AS n FROM posts`).get() as { n: number }).n,
+    1,
+    "core content is fully intact — the transaction rollback is the complete safety net here"
+  );
+  assert.deepEqual(after.filter((name) => !before.has(name)), [], "still no stray file, even on the failure path");
+
+  db.close();
 });

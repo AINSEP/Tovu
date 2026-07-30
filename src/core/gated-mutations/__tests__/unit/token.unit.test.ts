@@ -43,7 +43,8 @@ import {
  * export function mintToken(required: { planId: string; planHash: string; scopeId: string;
  *   confirmerPrincipalId: string; now: string; ttlSeconds?: number }, optional?: {}): ConfirmationTokenRecord;
  *
- * export function isRedeemable(record: ConfirmationTokenRecord, now: string): boolean;
+ * export function isRedeemable(required: { record: ConfirmationTokenRecord; now: string },
+ *   optional?: {}): boolean;
  *
  * export async function redeemToken(required: { store: TokenStorePort; token: string; now: string },
  *   optional?: {}): Promise<ConfirmationTokenRecord>; // throws TokenExpiredError / TokenAlreadyRedeemedError
@@ -89,19 +90,19 @@ test("AC-14: mintToken binds (planHash, scopeId, confirmerPrincipalId) exactly a
 
 test("behavior.spec.md §4: token redemption limit is exactly 1 — isRedeemable false once status !== 'minted'", () => {
   const minted = mintToken(baseMintParams());
-  assert.equal(isRedeemable(minted, NOW), true);
+  assert.equal(isRedeemable({ record: minted, now: NOW }), true);
 
   const redeemed: ConfirmationTokenRecord = { ...minted, status: "redeemed" };
-  assert.equal(isRedeemable(redeemed, NOW), false);
+  assert.equal(isRedeemable({ record: redeemed, now: NOW }), false);
 
   const expired: ConfirmationTokenRecord = { ...minted, status: "expired" };
-  assert.equal(isRedeemable(expired, NOW), false);
+  assert.equal(isRedeemable({ record: expired, now: NOW }), false);
 });
 
 test("EC (§7): execute() at exact TTL boundary — redeemable at expiresAt itself, not redeemable one second after", () => {
   const minted = mintToken(baseMintParams());
-  assert.equal(isRedeemable(minted, TEN_MIN_LATER), true, "boundary instant itself must still be valid");
-  assert.equal(isRedeemable(minted, TEN_MIN_ONE_SEC_LATER), false, "one second past the boundary must be expired");
+  assert.equal(isRedeemable({ record: minted, now: TEN_MIN_LATER }), true, "boundary instant itself must still be valid");
+  assert.equal(isRedeemable({ record: minted, now: TEN_MIN_ONE_SEC_LATER }), false, "one second past the boundary must be expired");
 });
 
 test("INV-03: redeemToken on an already-redeemed token throws TokenAlreadyRedeemedError, never re-succeeds", async () => {

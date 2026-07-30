@@ -43,7 +43,7 @@ export function recoverIncompleteDataModuleMigrations(dbPath: string): RecoveryR
 
   // The file must be untouched by any open connection while it is overwritten.
   for (const entry of incomplete) {
-    restoreFromSnapshot(dbPath, entry.snapshotPath);
+    restoreFromSnapshot({ dbPath, snapshotPath: entry.snapshotPath });
   }
 
   return { recovered: incomplete.length, entries: incomplete.map((e) => ({ pluginId: e.pluginId, snapshotPath: e.snapshotPath })) };

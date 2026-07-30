@@ -45,7 +45,7 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
         input: { workspaceId: deps.workspaceId },
       });
 
-      res.json(toAdminPresentationResponse(result.settings, result.availableThemeIds));
+      res.json(toAdminPresentationResponse({ settings: result.settings, availableThemeIds: result.availableThemeIds }));
     } catch (err) {
       if (err instanceof PresentationSettingsNotFoundError) {
         res.status(404).json({ error: err.message });

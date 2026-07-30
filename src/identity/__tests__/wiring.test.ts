@@ -89,7 +89,7 @@ test("createSqliteIdentityRouteDeps: a session survives a simulated restart (fre
 
     // "First boot."
     const db1 = openContentDb(dbPath);
-    const first = createSqliteIdentityRouteDeps(db1, { workspaceId: ws, clock: fixedClock, idGen: counterIdGen() });
+    const first = createSqliteIdentityRouteDeps({ db: db1, workspaceId: ws, clock: fixedClock, idGen: counterIdGen() });
     await first.identityReady;
 
     const ownerBefore = await first.userRepo.findByUsername({ workspaceId: ws, username: "admin" });
@@ -107,7 +107,7 @@ test("createSqliteIdentityRouteDeps: a session survives a simulated restart (fre
     // "Restart": a brand-new content.db handle + a brand-new createSqliteIdentityRouteDeps call
     // against the SAME on-disk file — this is exactly what `tsx watch` does to the real process.
     const db2 = openContentDb(dbPath);
-    const second = createSqliteIdentityRouteDeps(db2, { workspaceId: ws, clock: fixedClock, idGen: counterIdGen() });
+    const second = createSqliteIdentityRouteDeps({ db: db2, workspaceId: ws, clock: fixedClock, idGen: counterIdGen() });
     await second.identityReady;
 
     const ownerAfter = await second.userRepo.findByUsername({ workspaceId: ws, username: "admin" });

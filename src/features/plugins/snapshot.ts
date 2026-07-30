@@ -5,13 +5,60 @@
  * BACKUP API (not a raw `fs` copy — the backup API is WAL-safe on a live db) before ANY plugin
  * DDL. If the change fails, the snapshot is the named recovery point (§9). Copy-on-write
  * shadow-tables are a deferred >~1GB optimization (§11), not this.
+ *
+ * BUG FIX (2026-07-28): for an in-memory (or SQLite's other non-file) `dbPath`, this function is a
+ * no-op that returns `null` instead of attempting a file backup. This is NOT a weakened guarantee —
+ * it's recognizing the guarantee doesn't apply. §4's whole doctrine is "next-boot recovery from a
+ * crash" (see `data-module.ts`'s file header and `migration-recovery.ts`): for `:memory:`, there is
+ * no "next boot" — the database is discarded in full the instant the process ends, whether or not a
+ * snapshot exists. Before this fix, `path.dirname(":memory:")` resolved to `"."` (the process's
+ * current working directory) and `path.basename(":memory:")` resolved to the literal string
+ * `":memory:"`, so every call against an in-memory test db (used pervasively by this repo's test
+ * suite, e.g. `src/newsletter/__tests__/repo.contract.test.ts` via `openContentDb(":memory:")`)
+ * wrote a REAL, non-empty SQLite backup file literally named `:memory:.snapshot-<label>-<ts>` into
+ * the repo root — hundreds of MB accumulated across a single session's test runs.
  */
 import path from "node:path";
 
 import type Database from "better-sqlite3";
 
-/** Snapshot `db` to a sibling file and return its path. Async: mirrors the online-backup API. */
-export async function snapshotDb(db: Database.Database, dbPath: string, label: string): Promise<string> {
+/**
+ * True when `dbPath` is one of SQLite's special non-file identifiers rather than a real path on
+ * disk, for any of which `path.dirname`/`path.basename` produce meaningless fragments:
+ *  - the literal `:memory:` identifier (an anonymous, process-private in-memory database);
+ *  - the empty string `""` (SQLite's OTHER special identifier — an anonymous, private on-disk temp
+ *    database deleted when the connection closes; like `:memory:` it never has a stable path to
+ *    snapshot to or restore from, so it gets the same no-op treatment);
+ *  - a `file:` URI naming the same thing via SQLite's URI-filename syntax — either the path
+ *    component is itself the `:memory:` token (e.g. `file::memory:?cache=shared`, the form SQLite's
+ *    own docs use) or the query string sets `mode=memory` explicitly (e.g. `file:x?mode=memory`).
+ * See sqlite.org/inmemorydb.html and sqlite.org/uri.html.
+ */
+export function isInMemoryDbPath(dbPath: string): boolean {
+  if (dbPath === ":memory:" || dbPath === "") return true;
+  if (!dbPath.startsWith("file:")) return false;
+
+  const withoutScheme = dbPath.slice("file:".length);
+  const queryIndex = withoutScheme.indexOf("?");
+  const pathPart = queryIndex === -1 ? withoutScheme : withoutScheme.slice(0, queryIndex);
+  if (pathPart === ":memory:") return true;
+
+  const queryPart = queryIndex === -1 ? "" : withoutScheme.slice(queryIndex + 1);
+  return new URLSearchParams(queryPart).get("mode") === "memory";
+}
+
+/**
+ * Snapshot `db` to a sibling file and return its path — or `null` for an in-memory `dbPath` (see
+ * `isInMemoryDbPath` and this file's header), for which no snapshot is taken because no real file
+ * backs the database at all. Async: mirrors the online-backup API.
+ */
+export async function snapshotDb(
+  required: { db: Database.Database; dbPath: string; label: string },
+  _optional: Record<string, never> = {}
+): Promise<string | null> {
+  const { db, dbPath, label } = required;
+  if (isInMemoryDbPath(dbPath)) return null;
+
   const dir = path.dirname(dbPath);
   const base = path.basename(dbPath);
   const snapshotPath = path.join(dir, `${base}.snapshot-${label}-${Date.now()}`);
