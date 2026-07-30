@@ -8,6 +8,7 @@ import { contentTypesAgentToolCatalog, type AgentToolDefinition } from "../../fe
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools";
 import { entriesAgentToolCatalog } from "../../features/entries/agent-tools";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools";
+import { postAgentToolCatalog } from "../../features/post/agent-tools";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools";
 import { getSettingsAgentToolCatalog } from "../../features/settings/agent-tools";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools";
@@ -81,13 +82,13 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
 }
 
 /** Every catalog whose entries `buildAssistantToolRegistrations` wires. A newly wired domain must
- * be added here — an id missing from all of them fails rather than being skipped. All 19 wired
+ * be added here — an id missing from all of them fails rather than being skipped. All 20 wired
  * domains are listed; the generic contract/risk assertions below iterate EVERY wired registration,
  * not just content-types', so each domain's catalog has to be resolvable from here even when that
  * domain also has its own dedicated test file. The `as unknown as` casts cover the catalogs whose
  * own `AgentToolDefinition` is a structural sibling rather than the content-types one this array is
  * typed as (identity requires `inputSchema`, database/recovery/plugins/workspace/settings/taxonomy/
- * seo/redirects/integrations each declare their own copy — taxonomy's additionally carries
+ * seo/redirects/integrations/post each declare their own copy — taxonomy's additionally carries
  * `actorClassRule`) — the shared structural supertype lives in `assistant/tool-registration-kit.ts`. */
 const WIRED_CATALOGS: AgentToolDefinition[] = [
   ...contentTypesAgentToolCatalog,
@@ -109,6 +110,7 @@ const WIRED_CATALOGS: AgentToolDefinition[] = [
   ...(getSeoAgentToolCatalog() as unknown as AgentToolDefinition[]),
   ...(getRedirectsAgentToolCatalog() as unknown as AgentToolDefinition[]),
   ...(getIntegrationsAgentToolCatalog() as unknown as AgentToolDefinition[]),
+  ...(postAgentToolCatalog as unknown as AgentToolDefinition[]),
 ];
 
 function catalogEntry(toolId: string): AgentToolDefinition {

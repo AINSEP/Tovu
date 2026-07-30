@@ -200,11 +200,18 @@ function mergeExt(existingExt: JsonObject | undefined, patch: JsonObject): JsonO
   return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
-/** api.spec.md §4 / behavior.spec.md §4: `title` maxLength. */
-const MAX_TITLE_LENGTH = 200;
+/** api.spec.md §4 / behavior.spec.md §4: `title` maxLength. Exported so `agent-tools.ts`'s
+ * published `inputSchema` can reuse the same bound instead of a second, driftable copy. */
+export const MAX_TITLE_LENGTH = 200;
 
-/** api.spec.md §4 / behavior.spec.md §4: caller-supplied `slug` maxLength. */
-const MAX_SLUG_LENGTH = 120;
+/** api.spec.md §4 / behavior.spec.md §4: caller-supplied `slug` maxLength. Exported for the same
+ * reason as {@link MAX_TITLE_LENGTH}. */
+export const MAX_SLUG_LENGTH = 120;
+
+/** Shared slug-format rule, exported so `agent-tools.ts` can publish the identical pattern rather
+ * than a hand-copied regex literal that could silently drift from what `updatePost`/`createPost`
+ * actually enforce. */
+export const SLUG_FORMAT_PATTERN = /^[a-z0-9-]+$/;
 
 /**
  * behavior.spec.md BR-02/BR-03 — slugs a request may never claim outright (`createPost`'s
@@ -216,7 +223,7 @@ const RESERVED_SLUGS: ReadonlySet<string> = new Set(["admin", "api"]);
 
 /** Shared slug-format rule (`updatePost` and `createPost`'s explicit-slug path both apply it — same rule, one source of truth). */
 function isValidSlugFormat(slug: string): boolean {
-  return /^[a-z0-9-]+$/.test(slug);
+  return SLUG_FORMAT_PATTERN.test(slug);
 }
 
 /** Shared status-enum rule (`updatePost` and `createPost`'s explicit-status path both apply it). */
