@@ -69,6 +69,7 @@ import { SqliteToolAttemptAuditSink } from "../features/tool-audit/repo.sqlite";
 import { openContentDb } from "../infra/sqlite/content-db";
 import { createRouteDeps } from "../server/app";
 import { createSqliteRouteDeps, defaultContentDbPath } from "../server/deps";
+import { resolveRuntimeMode } from "../server/runtime-mode";
 import { listAssistantAgents } from "./agents";
 import { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-auth";
 import { attachFederatedMcpTools } from "./mcp-federation/bootstrap";
@@ -82,8 +83,25 @@ const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;
 const DEFAULT_AGENT_ID = "claude";
 
+/**
+ * A spawned agent CLI has no TTY to answer an interactive permission prompt, so "restricted"
+ * here means every permission-gated action (including MCP tool use) silently stalls rather than
+ * executing — confirmed live (2026-07-30) that `identity_user_create` and every other agent-tool
+ * call hangs on an unanswerable "requested permission... but you haven't granted it yet" prompt
+ * without an explicit bypass.
+ *
+ * `TOVU_AGENT_PERMISSION_MODE` still wins when set explicitly, either direction. With no
+ * override, this follows `resolveRuntimeMode()`'s own safe-default philosophy (SPEC-022 INV-04:
+ * anything not explicitly `TOVU_RUNTIME_MODE=production` resolves to the permissive/local case) —
+ * bypass unless running in production. A fresh clone with no env vars at all (`git clone && npm
+ * install && npm run dev`) gets a working assistant with no setup step to discover, regardless of
+ * which script or command actually launches this process; a real production deployment stays
+ * restricted-by-default unless an operator explicitly opts into bypass.
+ */
 function resolvePermissionMode(): "bypass" | "restricted" {
-  return process.env.TOVU_AGENT_PERMISSION_MODE === "bypass" ? "bypass" : "restricted";
+  if (process.env.TOVU_AGENT_PERMISSION_MODE === "bypass") return "bypass";
+  if (process.env.TOVU_AGENT_PERMISSION_MODE === "restricted") return "restricted";
+  return resolveRuntimeMode() === "production" ? "restricted" : "bypass";
 }
 
 // Mirrors `src/index.ts`'s own `useMemory` branch exactly — see this file's module doc on why
