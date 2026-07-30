@@ -1,5 +1,12 @@
 import type { PostRecord, PostRepoPort } from "./post";
 
+/**
+ * SPEC-005 (T021): `ext` needs no special handling here. Unlike `repo.sqlite.ts` — which has to
+ * serialize it to a JSON text column and normalize the `{}` default back to an absent field —
+ * this adapter stores and returns whole `PostRecord`s verbatim, exactly as it already does for
+ * `bodyJson`, so `ext` (present or absent) round-trips unchanged.
+ */
+
 export class InMemoryPostRepo implements PostRepoPort {
   private rows: PostRecord[];
 

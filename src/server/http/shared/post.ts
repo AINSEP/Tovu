@@ -3,6 +3,10 @@ import type { AdminPost, ContentPost } from "../../../headless";
 
 /**
  * Maps a post record into the richer admin-facing DTO shape.
+ *
+ * SPEC-005 REQ-11 (T022): `ext` is spread in only when the record actually carries one, so an
+ * entry with no contributing plugin serializes with no `ext` key at all (AC-14) and every
+ * pre-feature response field is untouched.
  */
 export function toHeadlessPost(post: PostRecord): AdminPost {
   return {
@@ -15,6 +19,7 @@ export function toHeadlessPost(post: PostRecord): AdminPost {
     status: post.status,
     updatedAt: post.updatedAt,
     version: post.version,
+    ...(post.ext !== undefined ? { ext: post.ext as Record<string, Record<string, unknown>> } : {}),
   };
 }
 

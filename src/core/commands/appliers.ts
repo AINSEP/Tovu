@@ -1,5 +1,10 @@
-import type { ClockPort, OutboxPort, UUID } from "../ports";
-import { updatePost, type PostRepoPort, type PostStatus } from "../../features/post";
+import type { ClockPort, JsonObject, OutboxPort, UUID } from "../ports";
+import {
+  classifyStatusTransition,
+  type PostRecord,
+  type PostRepoPort,
+  type PostStatus,
+} from "../../features/post";
 import type { SettingsRepoPort } from "../../features/settings/ports";
 import type { ChangeSetItemRecord } from "./change-set";
 
@@ -63,7 +68,23 @@ export function createRevertRegistry(): RevertRegistry {
   };
 }
 
-/** Restores a post to the title/slug/bodyJson/status captured before the edit. */
+/**
+ * Restores a post to the title/slug/bodyJson/status/ext captured before the edit.
+ *
+ * **SPEC-005 CIC U-005-B1 / SM2 transition (`ESCALATE_SECURITY`) — read before editing:** this
+ * restore MUST write through `deps.postRepo.save()` directly and MUST NEVER route through
+ * `updatePost`/`createPost`. A revert re-applies a stored pre-image; it is not a genuine save, so
+ * it must not fire `content.entry.beforeSave` (BR-08). Routing it through `updatePost` — which is
+ * exactly what this reverter did before SPEC-005 T023 — would let a plugin that happens to be
+ * enabled *now* stamp fresh `ext` onto a historical entry during someone else's undo, and would
+ * make the restore depend on the contributing plugin still being installed, which AC-17 forbids.
+ * Reverting is therefore a pure data write: `ext` is re-applied verbatim from the pre-image,
+ * including the case where the pre-image has no `ext` at all (the reverted save was the one that
+ * first created the namespace) — never merged with, or recomputed from, current state.
+ *
+ * `revert-plugin-ext.integration.test.ts` pins this via an observable side effect: `updatePost`
+ * always calls `repo.findBySlug()` for its uniqueness check, and a correct revert never does.
+ */
 export const postUpdateReverter: EntityReverter = {
   async currentVersion({ workspaceId, entityId, deps }) {
     const post = await deps.postRepo.findById({ workspaceId, id: entityId });
@@ -71,23 +92,58 @@ export const postUpdateReverter: EntityReverter = {
   },
   async applyInverse({ workspaceId, item, deps }) {
     const inverse = item.inversePayload as
-      | { title: string; slug: string; bodyJson: Record<string, unknown>; status: PostStatus }
+      | {
+          title: string;
+          slug: string;
+          bodyJson: Record<string, unknown>;
+          status: PostStatus;
+          ext?: Record<string, unknown>;
+        }
       | undefined;
     if (!inverse) {
       throw new Error("post reverter called without an inverse payload");
     }
-    // updatePost bumps version by 1 and refreshes updatedAt — INV-04 (never restore the old number).
-    await updatePost({
-      deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox },
-      input: {
-        workspaceId,
-        id: item.entityId,
-        title: inverse.title,
-        slug: inverse.slug,
-        bodyJson: inverse.bodyJson as never,
-        status: inverse.status,
-      },
-    });
+
+    const existing = await deps.postRepo.findById({ workspaceId, id: item.entityId });
+    if (!existing) {
+      throw new Error(`post '${item.entityId}' was not found`);
+    }
+
+    // `ext` is destructured off the current record so the conditional spread below is the single
+    // source of truth: a pre-image without `ext` restores to an entry without `ext` (AC-17).
+    const { ext: _currentExt, ...carriedOver } = existing;
+    const restored: PostRecord = {
+      ...carriedOver,
+      title: inverse.title,
+      slug: inverse.slug,
+      bodyJson: inverse.bodyJson as JsonObject,
+      status: inverse.status,
+      // Bump version by 1 and refresh updatedAt — INV-04 (never restore the old number). This is
+      // what `updatePost` used to do for us; it is reproduced here rather than delegated.
+      updatedAt: deps.clock.nowIso(),
+      version: existing.version + 1,
+      ...(inverse.ext !== undefined && Object.keys(inverse.ext).length > 0
+        ? { ext: inverse.ext as JsonObject }
+        : {}),
+    };
+
+    await deps.postRepo.save(restored);
+
+    // Preserved from the previous `updatePost`-based implementation, deliberately: BR-08 forbids
+    // re-firing the plugin hook, not the status-transition event. SEO's sitemap-cache
+    // invalidation (SPEC-008 INV-010) subscribes to these, so dropping them would leave a stale
+    // sitemap after a revert that publishes or unpublishes an entry.
+    const transitionEventName = classifyStatusTransition(existing.status, restored.status);
+    if (transitionEventName) {
+      await deps.outbox.enqueue({
+        id: `${restored.id}-${transitionEventName}-${restored.version}`,
+        name: transitionEventName,
+        occurredAt: restored.updatedAt,
+        aggregateId: restored.id,
+        workspaceId: restored.workspaceId,
+        payload: { entryId: restored.id, contentType: restored.kind },
+      });
+    }
   },
 };
 

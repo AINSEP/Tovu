@@ -80,6 +80,11 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
                 slug: priorPost.slug,
                 bodyJson: priorPost.bodyJson,
                 status: priorPost.status,
+                // SPEC-005 BR-08 (T024) — the pre-edit plugin `ext` bag travels in the pre-image
+                // alongside the core fields, so one revert restores both together. Spread
+                // conditionally: an entry with no `ext` yet must produce an inverse payload with
+                // no `ext` key, which is what restores it to "namespace absent" (AC-17).
+                ...(priorPost.ext !== undefined ? { ext: priorPost.ext } : {}),
               };
             },
             execute: () =>

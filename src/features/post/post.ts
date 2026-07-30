@@ -31,7 +31,42 @@ export interface PostRecord {
    * own the `JSON.parse`/`JSON.stringify` boundary.
    */
   seoExtJson?: string | null;
+  /**
+   * SPEC-005 (ADR-005-ARCH REQ-06/BR-06) — the plugin extension-field bag, namespaced per plugin
+   * (`{ [pluginId]: { …declaredFields } }`). Written ONLY by the `content.entry.beforeSave`
+   * hook-merge step immediately before the single `deps.repo.save()` call below (CIC U-004), and
+   * restored verbatim (never recomputed) by the gateway revert path (BR-08, CIC U-005).
+   *
+   * Absent — not `{}` — when no plugin has ever written to this entry, so an entry with no
+   * contributing plugin carries no `ext` object at all on its DTO (AC-14). A namespace whose
+   * plugin is later disabled or uninstalled is retained inert here, never deleted (INV-03).
+   */
+  ext?: JsonObject;
 }
+
+/**
+ * SPEC-005 REQ-05 — the read-only entry snapshot handed to `BeforeSaveHookPort`. Declared
+ * structurally here rather than importing `@tovu/sdk`'s `ContentEntryDraft` so `post.ts` stays
+ * plugin-ignorant (Module Map): `post` knows it may call one optional function before saving, and
+ * nothing about plugins, capabilities, or the hook registry. `plugin-runtime/hook-registry.ts`'s
+ * `runBeforeSave` satisfies this port structurally.
+ */
+export interface BeforeSaveEntryDraft {
+  readonly id: UUID;
+  readonly workspaceId: UUID;
+  readonly title: string;
+  readonly slug: string;
+  readonly status: PostStatus;
+  readonly bodyJson: Readonly<Record<string, unknown>>;
+  readonly ext: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+}
+
+/**
+ * SPEC-005 C-014/W-003 — the sole plugin-facing surface `post.ts` depends on. Resolves to the
+ * merged, already-validated `ext` patch (`{ [pluginId]: { …fields } }`), or throws to abort the
+ * whole save (BR-07/EC-10 fail-closed).
+ */
+export type BeforeSaveHookPort = (entry: BeforeSaveEntryDraft) => Promise<JsonObject>;
 
 export interface PostRepoPort {
   findById(required: { workspaceId: UUID; id: UUID }): Promise<PostRecord | null>;
@@ -63,6 +98,11 @@ export interface CreatePostInput {
 export interface CreatePostDeps {
   clock: ClockPort;
   repo: PostRepoPort;
+  /**
+   * SPEC-005 (CIC U-004) — OPTIONAL. Absent ⇒ the zero-plugin path behaves exactly as it did
+   * before this feature (no `ext` is written, no extra call is made). See `runBeforeSaveHook`.
+   */
+  beforeSaveHook?: BeforeSaveHookPort;
 }
 
 export interface CreatePostRequired {
@@ -93,6 +133,11 @@ export interface UpdatePostDeps {
    * `src/seo/sitemap.ts`'s cache invalidation (REQ-10) depends on.
    */
   outbox: OutboxPort;
+  /**
+   * SPEC-005 (CIC U-004) — OPTIONAL. Absent ⇒ the zero-plugin path behaves exactly as it did
+   * before this feature (no `ext` is written, no extra call is made). See `runBeforeSaveHook`.
+   */
+  beforeSaveHook?: BeforeSaveHookPort;
 }
 
 export interface UpdatePostRequired {
@@ -123,6 +168,37 @@ export class PostConflictError extends Error {}
  * an empty TipTap doc, not `{}` (the pre-fix behavior asserted the wrong shape).
  */
 const DEFAULT_BODY_JSON: JsonObject = { type: "doc", content: [] };
+
+/**
+ * SPEC-005 CIC U-004-B1/F1 — runs the optional `content.entry.beforeSave` hook and resolves to the
+ * patch, or throws. The no-op default (`{}` when no hook is wired) is what keeps the zero-plugin
+ * path byte-for-byte unchanged.
+ *
+ * **This must be awaited BEFORE the final `PostRecord` is constructed and BEFORE the single
+ * `deps.repo.save()` call.** If it throws, the throw propagates out of `createPost`/`updatePost`
+ * untouched and `repo.save()` is never reached — no partial write, no change set (BR-06/BR-07,
+ * EC-10). Do not move this call below `repo.save()`, and do not wrap it in a `try` that swallows.
+ */
+async function runBeforeSaveHook(
+  hook: BeforeSaveHookPort | undefined,
+  draft: BeforeSaveEntryDraft
+): Promise<JsonObject> {
+  if (!hook) return {};
+  return hook(draft);
+}
+
+/**
+ * Namespace-level merge of the hook's patch onto whatever `ext` the entry already carried.
+ *
+ * Merging (rather than replacing) is what makes INV-03 hold: a plugin that has since been disabled
+ * or uninstalled contributes no patch, so its namespace simply survives untouched instead of being
+ * wiped by the next save. Returns `undefined` — not `{}` — when nothing has ever been written, so
+ * an entry with no contributing plugin carries no `ext` at all (AC-14).
+ */
+function mergeExt(existingExt: JsonObject | undefined, patch: JsonObject): JsonObject | undefined {
+  const merged: JsonObject = { ...(existingExt ?? {}), ...patch };
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
 
 /** api.spec.md §4 / behavior.spec.md §4: `title` maxLength. */
 const MAX_TITLE_LENGTH = 200;
@@ -260,6 +336,19 @@ export async function createPost(
     }
   }
 
+  // CIC U-004: the hook resolves (or throws) BEFORE the record is built and BEFORE the single
+  // repo.save() below. A new entry has no prior ext, so the draft's ext starts empty.
+  const extPatch = await runBeforeSaveHook(deps.beforeSaveHook, {
+    id: input.id,
+    workspaceId: input.workspaceId,
+    title,
+    slug,
+    status,
+    bodyJson,
+    ext: {},
+  });
+  const ext = mergeExt(undefined, extPatch);
+
   const post: PostRecord = {
     id: input.id,
     workspaceId: input.workspaceId,
@@ -270,6 +359,7 @@ export async function createPost(
     kind: input.kind ?? "post",
     updatedAt: deps.clock.nowIso(),
     version: 1,
+    ...(ext !== undefined ? { ext } : {}),
   };
 
   await deps.repo.save(post);
@@ -311,14 +401,33 @@ export async function updatePost(
     throw new PostConflictError(`slug '${slug}' already exists`);
   }
 
+  // CIC U-004: the hook resolves (or throws) BEFORE the record is built and BEFORE the single
+  // repo.save() below. The draft the filters see carries the entry's already-written ext (every
+  // other plugin's namespaces), per REQ-05.
+  const extPatch = await runBeforeSaveHook(deps.beforeSaveHook, {
+    id: existing.id,
+    workspaceId: input.workspaceId,
+    title,
+    slug,
+    status: input.status,
+    bodyJson: input.bodyJson,
+    ext: (existing.ext ?? {}) as Readonly<Record<string, Readonly<Record<string, unknown>>>>,
+  });
+  const ext = mergeExt(existing.ext, extPatch);
+
+  // `ext` is destructured off `existing` so the conditional spread below is the single source of
+  // truth for whether the saved record carries one at all (a stale `ext: {}` surviving the spread
+  // would violate AC-14).
+  const { ext: _priorExt, ...carriedOver } = existing;
   const post: PostRecord = {
-    ...existing,
+    ...carriedOver,
     title,
     slug,
     bodyJson: input.bodyJson,
     status: input.status,
     updatedAt: deps.clock.nowIso(),
     version: existing.version + 1,
+    ...(ext !== undefined ? { ext } : {}),
   };
 
   await deps.repo.save(post);

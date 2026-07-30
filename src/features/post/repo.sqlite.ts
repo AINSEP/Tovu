@@ -12,10 +12,22 @@ import type { PostKind, PostRecord, PostRepoPort, PostStatus } from "./post";
  * Satisfies the same `PostRepoPort` as `repo.memory.ts` (slices unchanged). `bodyJson`
  * is stored as JSON text and parsed on read. Queries are typed against the shared
  * `posts` schema, so a Postgres adapter can reuse the same query shapes.
+ *
+ * SPEC-005 (T021): `ext` is stored the same way `bodyJson` already is — JSON text in, parsed
+ * object out. Its column is `NOT NULL DEFAULT '{}'`, so every pre-feature row reads back as "no
+ * plugin has written anything" with zero backfill; an empty bag is normalized to an absent `ext`
+ * on the record so an entry with no contributing plugin carries no `ext` at all (AC-14).
  */
 type PostRow = typeof posts.$inferSelect;
 
+/** `{}` (the column default, and every pre-SPEC-005 row) reads back as no `ext` at all — AC-14. */
+function parseExt(rawExt: string): JsonObject | undefined {
+  const parsed = JSON.parse(rawExt) as JsonObject;
+  return Object.keys(parsed).length > 0 ? parsed : undefined;
+}
+
 function toRecord(row: PostRow): PostRecord {
+  const ext = parseExt(row.ext);
   return {
     id: row.id,
     workspaceId: row.workspaceId,
@@ -27,6 +39,7 @@ function toRecord(row: PostRow): PostRecord {
     updatedAt: row.updatedAt,
     version: row.version,
     seoExtJson: row.seoExtJson ?? null,
+    ...(ext !== undefined ? { ext } : {}),
   };
 }
 
@@ -57,7 +70,12 @@ export class SqlitePostRepo implements PostRepoPort {
   }
 
   async save(record: PostRecord): Promise<void> {
-    const row = { ...record, bodyJson: JSON.stringify(record.bodyJson), seoExtJson: record.seoExtJson ?? null };
+    const row = {
+      ...record,
+      bodyJson: JSON.stringify(record.bodyJson),
+      seoExtJson: record.seoExtJson ?? null,
+      ext: JSON.stringify(record.ext ?? {}),
+    };
     this.db
       .insert(posts)
       .values(row)
@@ -73,6 +91,7 @@ export class SqlitePostRepo implements PostRepoPort {
           updatedAt: row.updatedAt,
           version: row.version,
           seoExtJson: row.seoExtJson,
+          ext: row.ext,
         },
       })
       .run();
