@@ -9,9 +9,16 @@
 import { AGENT_DEFS, resolveAgentLaunch } from "@jini-ai/agent-runtime";
 import type { AgentSummary } from "@jini-ai/http-kit";
 
-/** Streaming/prompt-delivery families `@jini-ai/daemon`'s `AgentExecutor` actually drives (its own
- * module doc: 23 of 24 defs — every family except `antigravity`, deliberately deferred upstream). */
-const UNSUPPORTED_AGENT_IDS = new Set(["antigravity"]);
+/** Defs `@jini-ai/daemon`'s `AgentExecutor` cannot drive, kept out of the picker so the composer
+ * never offers an agent whose run then fails (see this file's header). Empty as of 2026-07-30:
+ * `antigravity` was the sole previous entry, deferred while its `AgentExecutor` support was
+ * unbuilt; `agent-executor.ts`'s own module doc now documents it as one of the 5 `streamFormat:
+ * 'plain'` defs the driver actually drives, via declarative `needsAgentLogFile`/`stdoutPolicy`/
+ * `runtimeLock` fields (verified directly against the current source, not just the doc comment) —
+ * this list drifting out of sync with that is exactly the kind of duplicated-guard bug
+ * `assessAgentExecutorCompatibility`'s own doc warns about; `@jini-ai/daemon` doesn't export that
+ * predicate publicly yet, so this hardcoded list is the interim mechanism until it does. */
+const UNSUPPORTED_AGENT_IDS = new Set<string>([]);
 
 export async function listAssistantAgents(): Promise<AgentSummary[]> {
   return Promise.all(
