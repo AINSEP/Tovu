@@ -71,8 +71,8 @@
   position: fixed;
   right: 20px;
   bottom: 20px;
-  width: 48px;
-  height: 48px;
+  width: 64px;
+  height: 64px;
   border-radius: var(--r-pill);
   border: 1px solid var(--border-strong);
   background: #ffffff;
