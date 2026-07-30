@@ -6,22 +6,29 @@
  * which domain function each tool id runs, and therefore what it actually costs — lives next to
  * those functions. `assistant/tool-registrations.ts` only assembles what every domain returns.
  *
- * Scope: the 5 non-cleanup entries are wired. `collections_plan_cleanup`/`collections_execute_cleanup`
- * are declared unwired — the destructive token-gated ceremony, whose mapping is deferred per
- * ADR-049's own deferred list. `ToolRegistry.list()` will not show them, which is intentional: no
- * silent stub registrations that could look like a bug if ever actually invoked.
+ * Scope: 6 of 7 entries are wired — the 5 non-cleanup mutations plus the read-only
+ * `collections_content_type_list`. `collections_plan_cleanup`/`collections_execute_cleanup` are
+ * declared unwired — the destructive token-gated ceremony, whose mapping is deferred per ADR-049's
+ * own deferred list. `ToolRegistry.list()` will not show them, which is intentional: no silent stub
+ * registrations that could look like a bug if ever actually invoked.
  *
- * `ToolPolicy.authorize` is a pass-through for every entry here (see `buildDomainRegistrations`),
- * because ADR-021 §2 is "one evaluator" and each of these five handlers already reaches it: all
- * five domain entrypoints — `registerContentType`, `updateContentTypeFields` (`write-service.ts`),
- * `deprecateContentType`, `reactivateContentType`, `tombstoneContentType` (`lifecycle.ts`) — open
- * with an `await deps.authorize({ permission: 'admin.collections.manage', ... })` that returns
+ * `ToolPolicy.authorize` is a pass-through for every entry here (see `buildDomainRegistrations`).
+ * For the five mutations, that is ADR-021 §2 "one evaluator": each domain entrypoint —
+ * `registerContentType`, `updateContentTypeFields` (`write-service.ts`), `deprecateContentType`,
+ * `reactivateContentType`, `tombstoneContentType` (`lifecycle.ts`) — opens with an
+ * `await deps.authorize({ permission: 'admin.collections.manage', ... })` that returns
  * `ForbiddenError` before any repo read, repo write, or index-provisioner call, and
  * `admin.collections.manage` is exactly what each of their five catalog entries declares under
  * `authorization.permission`. `assistant/__tests__/tool-registrations.authorization.test.ts` drives
  * all five through a denying `authorize` and asserts each refuses and writes nothing, deriving its
  * expectations from the catalog itself — so a future tool wired here whose handler does NOT
  * self-enforce fails rather than silently inheriting the pass-through.
+ *
+ * `collections_content_type_list` is the exception: `listContentTypes` (`list.ts`) is a pure
+ * pass-through read with no `authorize()` call of its own — exactly like `routes/admin/content-
+ * types/list.ts`, which checks `admin.collections.read` in the route BEFORE calling it. Its handler
+ * below does the identical explicit `requireToolPermission` check, in the route's place, the same
+ * pattern `comments/tool-registrations.ts` uses for `comments_list_moderation_queue`.
  */
 import {
   AGENT_TOOL_PRINCIPAL_KIND,
@@ -30,8 +37,10 @@ import {
   fromResult,
   indexCatalogById,
   requireInputRecord,
+  requireNoInput,
   requireNumber,
   requireString,
+  requireToolPermission,
   type AgentToolSideEffect,
   type DerivedRiskByToolId,
   type ToolHandler,
@@ -40,6 +49,7 @@ import {
 import type { RouteDeps } from "../../server/routes/types";
 import { contentTypesAgentToolCatalog } from "./agent-tools";
 import { parseContentTypeFieldDefs } from "./field-defs";
+import { listContentTypes } from "./list";
 import { deprecateContentType, reactivateContentType, tombstoneContentType } from "./lifecycle";
 import type { ContentTypeFieldDef, ContentTypeRecord } from "./types";
 import { registerContentType, updateContentTypeFields } from "./write-service";
@@ -55,6 +65,8 @@ const UNWIRED_CONTENT_TYPES_TOOL_IDS = new Set(["collections_plan_cleanup", "col
  * `sideEffects` field. See `DerivedRiskByToolId` in the kit for why that independence matters.
  */
 export const contentTypesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+  // -> listContentTypes (list.ts): one repo.listByWorkspace read, no write of any kind.
+  ["collections_content_type_list", "none"],
   // -> registerContentType (write-service.ts): repo.save + appendRevision in one tx.
   ["collections_content_type_define", "mutates-durable-state"],
   // -> updateContentTypeFields (write-service.ts): full field-schema replace + index transitions.
@@ -145,6 +157,16 @@ function contentTypesDeps(routeDeps: RouteDeps) {
 
 export function buildContentTypesRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
+    collections_content_type_list: async (ctx) => {
+      requireNoInput(ctx.input);
+      await requireToolPermission(routeDeps, {
+        principalId: ctx.principal.id,
+        permission: "admin.collections.read",
+        entityType: "content-type",
+      });
+      const { items } = await listContentTypes({ repo: routeDeps.contentTypeRepo, workspaceId: routeDeps.workspaceId });
+      return { contentTypes: items.map(toContentTypeView) };
+    },
     collections_content_type_define: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       return fromContentTypeResult(() =>

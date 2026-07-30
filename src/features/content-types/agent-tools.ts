@@ -5,9 +5,11 @@
  *
  * Purpose:
  * A static, in-process catalog describing every agent-callable tool this domain exposes and the
- * permission/actor-class rule each one carries. `collections_plan_cleanup` is a free read
- * (`admin.collections.read`, `sideEffects:'none'`) — it only recomputes and returns an eligibility
- * plan. `collections_execute_cleanup` is the one destructive tool, gated to
+ * permission/actor-class rule each one carries. `collections_content_type_list` (admin-UI-backend-
+ * gap closure, mirroring `routes/admin/content-types/list.ts`) and `collections_plan_cleanup` are
+ * both free reads (`admin.collections.read`, `sideEffects:'none'`) — the former lists the registry,
+ * the latter only recomputes and returns an eligibility plan. `collections_execute_cleanup` is the
+ * one destructive tool, gated to
  * `admin.collections.manage` and restricted to `confirmer-must-equal-own-delegatedBy`. There is
  * deliberately no `collections_confirm_cleanup` tool and no tool description implying an agent can
  * perform the confirm() step — confirmation of a destructive cleanup is human-UI-only (mirrors
@@ -80,6 +82,14 @@ const FIELD_DEF_SCHEMA = {
   },
 } as const;
 
+/** The input shape of the one read tool this catalog carries — it takes no arguments. */
+const NO_INPUT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: [],
+  properties: {},
+} as const;
+
 /** The `fields` property shared by `define` and `update_fields`. */
 const FIELDS_SCHEMA = {
   type: "array",
@@ -105,8 +115,23 @@ const LIFECYCLE_INPUT_SCHEMA = {
   },
 } as const;
 
-/** REQ-22/REQ-23 — the Collections content-types domain's fixed agent-tool catalog. */
+/**
+ * REQ-22/REQ-23 — the Collections content-types domain's fixed agent-tool catalog.
+ *
+ * `collections_content_type_list` is ordered first, mirroring `identity/agent-tools.ts`'s
+ * "read-tools-first" convention: a model cannot call `update_fields`/`deprecate`/`reactivate`/
+ * `tombstone` without a `key` and current `expectedVersion`, and this is the only way to learn
+ * either for a content type it did not itself just create.
+ */
 export const contentTypesAgentToolCatalog: AgentToolDefinition[] = [
+  {
+    name: "collections_content_type_list",
+    description:
+      "Lists every content type registered in the workspace — active, deprecated, and tombstoned alike — with its key, label, status, version, and fields. Read-only. Call this before update_fields/deprecate/reactivate/tombstone to find a content type's key and current version.",
+    sideEffects: "none",
+    authorization: { permission: "admin.collections.read" },
+    inputSchema: NO_INPUT_SCHEMA,
+  },
   {
     name: "collections_plan_cleanup",
     description: "Recomputes and returns the destructive-removal eligibility plan for a tombstoned content type. Read-only; performs no removal.",

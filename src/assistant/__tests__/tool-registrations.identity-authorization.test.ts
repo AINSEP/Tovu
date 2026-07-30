@@ -174,6 +174,7 @@ function declaredPermissions(toolId: string): string[] {
 const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   identity_user_list: {},
   identity_role_list: {},
+  identity_policy_list: {},
   identity_user_create: { username: "newcomer", password: "pw" },
   identity_user_update_email: { principalId: "target-principal", email: "a@b.test" },
   identity_user_disable: { principalId: "target-principal" },
@@ -182,21 +183,28 @@ const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   identity_role_assign: { principalId: "target-principal", roleId: "target-role" },
   identity_role_rename: { roleId: "target-role", name: "Renamed" },
   identity_role_delete: { roleId: "target-role" },
+  identity_policy_create: { name: "Custom Policy" },
+  identity_policy_update: { policyId: "target-policy", name: "Renamed Policy" },
+  identity_policy_delete: { policyId: "target-policy" },
+  identity_policy_attach: { principalId: "target-principal", policyId: "target-policy" },
 };
 
-/** Seed the target principal and a custom (deletable, renameable, assignable) role the fixtures reference. */
+/** Seed the target principal, a custom role, and a custom policy the fixtures reference. */
 async function seedTargets(repos: IdentityRepos): Promise<void> {
   await addPrincipal(repos, "target-principal");
   await repos.roles.save({ id: "target-role", workspaceId: WORKSPACE_ID, name: "Target Role", isBuiltin: false });
+  await repos.policies.save({ id: "target-policy", workspaceId: WORKSPACE_ID, name: "Target Policy", isBuiltin: false, isFrozen: false });
 }
 
 /** A cheap durable-state fingerprint: every table these tools can write. */
 async function stateFingerprint(repos: IdentityRepos): Promise<string> {
   const principals = await repos.principals.list({ workspaceId: WORKSPACE_ID });
   const roles = await repos.roles.list({ workspaceId: WORKSPACE_ID });
+  const policies = await repos.policies.list({ workspaceId: WORKSPACE_ID });
   const assignments = await Promise.all(principals.map((p) => repos.principalRoles.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: p.id })));
+  const attachments = await Promise.all(principals.map((p) => repos.principalPolicies.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: p.id })));
   const users = await Promise.all(principals.map((p) => repos.users.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: p.id })));
-  return JSON.stringify({ principals, roles, assignments, users });
+  return JSON.stringify({ principals, roles, policies, assignments, attachments, users });
 }
 
 // ---------------------------------------------------------------------------
@@ -209,7 +217,7 @@ test("every wired identity tool has an input fixture here — wiring one without
 
   assert.deepEqual(wiredIds, Object.keys(TOOL_INPUTS).sort());
   assert.deepEqual(wiredIds, identityAgentToolCatalog.map((tool) => tool.name).sort(), "every catalog entry must be wired, and nothing else");
-  assert.equal(wiredIds.length, 10);
+  assert.equal(wiredIds.length, 15);
 });
 
 // ---------------------------------------------------------------------------
@@ -344,6 +352,45 @@ test("identity_role_assign: the OWNER can assign the owner role — the clamp is
   assert.deepEqual(assignments.map((a) => a.roleId), [ownerRole.id]);
 });
 
+test("identity_policy_attach: a non-owner caller cannot attach the built-in owner policy — the INV-07 clamp survives this tool path too, identically to identity_role_assign", async () => {
+  const { deps, repos } = await buildHarness();
+  const caller = await addPrincipal(repos, "policy-manager");
+  await grant(repos, caller, ["role.manage"]);
+  const target = await addPrincipal(repos, "escalation-target-2");
+
+  const policies = await repos.policies.list({ workspaceId: WORKSPACE_ID });
+  const ownerPolicy = policies.find((policy) => policy.name === "owner" || policy.isBuiltin);
+  assert.ok(ownerPolicy, "the seed must provide at least one built-in policy for this test to mean anything");
+
+  await assert.rejects(
+    () => wired(deps, "identity_policy_attach").handler(executionContext(caller, { principalId: target, policyId: ownerPolicy.id })),
+    GrantExceedsIssuerError,
+    "a role.manage holder that does not itself hold the policy's permissions unconstrained must not be able to confer them through an agent tool",
+  );
+
+  const attachments = await repos.principalPolicies.listByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: target });
+  assert.deepEqual(attachments, [], "a refused grant must write no row");
+});
+
+test("identity_policy_delete / identity_policy_update: built-in policies are refused, so a tool cannot escalate by relabelling or removing one", async () => {
+  const { deps, repos, ownerPrincipalId } = await buildHarness();
+  const policies = await repos.policies.list({ workspaceId: WORKSPACE_ID });
+  const builtin = policies.find((policy) => policy.isBuiltin);
+  assert.ok(builtin, "the seed must provide at least one built-in policy for this test to mean anything");
+
+  await assert.rejects(
+    () => wired(deps, "identity_policy_update").handler(executionContext(ownerPrincipalId, { policyId: builtin.id, name: "Trusted Admin" })),
+    /built-in/,
+  );
+  await assert.rejects(
+    () => wired(deps, "identity_policy_delete").handler(executionContext(ownerPrincipalId, { policyId: builtin.id })),
+    /built-in/,
+  );
+
+  const after = await repos.policies.list({ workspaceId: WORKSPACE_ID });
+  assert.deepEqual(after.find((policy) => policy.id === builtin.id)?.name, builtin.name);
+});
+
 test("identity_user_disable: the seeded owner cannot be disabled through a tool, even by the owner itself", async () => {
   const { deps, ownerPrincipalId } = await buildHarness();
 
@@ -407,12 +454,23 @@ test("no password-reset tool is wired — the one identity transition with no IN
   );
 });
 
-test("no policy tool is wired — policies are where permissions are manufactured, and are deferred to their own pass", async () => {
+test("identity_policy_list/create/update/delete/attach are wired, but identity_policy_write_permission is NOT — the one policy transition with a shared-object blast radius stays human-UI-only", async () => {
   const { deps } = await buildHarness();
+  const wiredIds = [...identityRegistrations(deps).keys()];
 
-  for (const toolId of identityRegistrations(deps).keys()) {
-    assert.equal(/policy|policies/i.test(toolId), false, `${toolId} exposes a policy transition that this pass deliberately deferred`);
+  for (const toolId of ["identity_policy_list", "identity_policy_create", "identity_policy_update", "identity_policy_delete", "identity_policy_attach"]) {
+    assert.ok(wiredIds.includes(toolId), `${toolId} should be wired — it mirrors an already-wired role transition's risk profile`);
   }
+  assert.equal(
+    wiredIds.some((id) => /write.?permission/i.test(id)),
+    false,
+    "writePolicyPermission can silently widen access for every principal already attached to a shared policy, unlike the single-target tools above — it must not be agent-reachable",
+  );
+  assert.equal(
+    identityAgentToolCatalog.some((tool) => /write.?permission/i.test(tool.name)),
+    false,
+    "the omission belongs in the catalog too — an unwired-but-catalogued entry is still advertised by the ADR-014 tool filter",
+  );
 });
 
 test("every wired identity tool declares user.manage or role.manage — never a read-only or unrelated permission", () => {

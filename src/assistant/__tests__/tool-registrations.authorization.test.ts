@@ -6,6 +6,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { contentTypesAgentToolCatalog } from "../../features/content-types/agent-tools";
 import { ForbiddenError } from "../../features/content-types/errors";
 import type { ContentTypeRecord } from "../../features/content-types/types";
+import { ForbiddenError as CoreForbiddenError } from "../../core/commands";
 import type { RouteDeps } from "../../server/routes/types";
 import { buildAssistantToolRegistrations } from "../tool-registrations";
 
@@ -68,6 +69,10 @@ function fakeRouteDeps(options: { allow: boolean; existing?: ContentTypeRecord }
       findByKey: async () => {
         order.push("repo.findByKey");
         return options.existing ?? null;
+      },
+      listByWorkspace: async () => {
+        order.push("repo.listByWorkspace");
+        return options.existing ? [options.existing] : [];
       },
       transaction: async <T>(fn: () => Promise<T>) => fn(),
     },
@@ -157,9 +162,22 @@ test("every wired CONTENT-TYPES tool has a known input fixture — a newly wired
   // ADR-043 "Collections" domain, per `server/routes/admin/content-types/deps.ts`'s own file
   // header) — a bare `collections_` filter would silently pull those into this content-types-only
   // fixture table too.
-  const wiredIds = [...registrationsById().keys()].filter((id) => id.startsWith("collections_content_type_")).sort();
+  //
+  // `collections_content_type_list` is excluded from THIS table on purpose: unlike the five below,
+  // it is not self-enforcing (see `tool-registrations.ts`'s file header), so its `authorize()` call
+  // carries an `entityType` the shared per-tool loop's 3-key `deepEqual` does not expect. It has its
+  // own dedicated block further down, the same split `tool-registrations.comments.test.ts` uses
+  // between its shared mutation loop and `comments_list_moderation_queue`'s own tests.
+  const wiredIds = [...registrationsById().keys()]
+    .filter((id) => id.startsWith("collections_content_type_") && id !== "collections_content_type_list")
+    .sort();
   assert.deepEqual(wiredIds, Object.keys(TOOL_INPUTS).sort());
   assert.equal(wiredIds.length, 5);
+});
+
+test("collections_content_type_list is wired alongside the five mutations — the 6th of 7 catalog entries", () => {
+  const wiredIds = [...registrationsById().keys()].filter((id) => id.startsWith("collections_content_type_"));
+  assert.equal(wiredIds.length, 6);
 });
 
 for (const toolId of Object.keys(TOOL_INPUTS)) {
@@ -222,4 +240,52 @@ test("all five wired tools declare admin.collections.manage — the mutating per
   for (const toolId of Object.keys(TOOL_INPUTS)) {
     assert.equal(permissionFor(toolId), "admin.collections.manage");
   }
+});
+
+// ---------------------------------------------------------------------------
+// collections_content_type_list — not self-enforcing, so it is not part of the shared loop above.
+// Its handler calls `requireToolPermission` explicitly (the route's own gate, done in the route's
+// place), which is why it gets its own block rather than joining TOOL_INPUTS.
+// ---------------------------------------------------------------------------
+
+test("collections_content_type_list declares admin.collections.read — the read permission, never the mutating one", () => {
+  assert.equal(permissionFor("collections_content_type_list"), "admin.collections.read");
+});
+
+test("collections_content_type_list: calls authorize() with 'admin.collections.read' and the run's principal, before touching the repo", async () => {
+  const { deps, authorizeCalls, order } = fakeRouteDeps({ allow: true });
+  const wired = buildAssistantToolRegistrations(deps).find((r) => r.descriptor.id === "collections_content_type_list");
+  assert.ok(wired);
+
+  await wired.handler(executionContext({}));
+
+  assert.equal(authorizeCalls.length, 1, "exactly one authorization evaluation — ADR-021 §2 'one evaluator'");
+  assert.equal(authorizeCalls[0].principalId, PRINCIPAL_ID);
+  assert.equal(authorizeCalls[0].permission, "admin.collections.read");
+  assert.equal(authorizeCalls[0].workspaceId, WORKSPACE_ID);
+  assert.equal(order[0], "authorize", `first observable effect was '${order[0]}', not the authorization check`);
+});
+
+test("collections_content_type_list: a denied principal is rejected and the repo is never read", async () => {
+  const { deps, order } = fakeRouteDeps({ allow: false });
+  const wired = buildAssistantToolRegistrations(deps).find((r) => r.descriptor.id === "collections_content_type_list");
+  assert.ok(wired);
+
+  await assert.rejects(
+    () => wired.handler(executionContext({})),
+    (error: unknown) => {
+      assert.ok(error instanceof CoreForbiddenError, `expected core/commands' ForbiddenError, got ${String(error)}`);
+      assert.match((error as Error).message, new RegExp(PRINCIPAL_ID));
+      return true;
+    },
+  );
+  assert.equal(order.includes("repo.listByWorkspace"), false, "the permission gate must run ahead of the read, not alongside it");
+});
+
+test("collections_content_type_list: a populated input is refused — this tool accepts no arguments", async () => {
+  const { deps } = fakeRouteDeps({ allow: true });
+  const wired = buildAssistantToolRegistrations(deps).find((r) => r.descriptor.id === "collections_content_type_list");
+  assert.ok(wired);
+
+  await assert.rejects(() => wired.handler(executionContext({ unexpected: true })), /accepts no input/);
 });

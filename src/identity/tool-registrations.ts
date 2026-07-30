@@ -1,11 +1,11 @@
 /**
- * @file Identity's half of ADR-049 Decision 4 (ADR-021): maps `agent-tools.ts`'s ten catalog
- * entries onto the users/roles transitions `grant-service.ts`/`admin-crud-service.ts` export, plus
- * the two repo-backed reads, as `ToolRegistration`s.
+ * @file Identity's half of ADR-049 Decision 4 (ADR-021): maps `agent-tools.ts`'s fifteen catalog
+ * entries onto the users/roles/policies transitions `grant-service.ts`/`admin-crud-service.ts`
+ * export, plus the three repo-backed reads, as `ToolRegistration`s.
  *
- * `ToolPolicy.authorize` is a pass-through for all ten (see `buildDomainRegistrations`) for the
- * ADR-021 §2 "one evaluator" reason: the gate is the domain layer's, reached identically by both
- * tool kinds — mutations through their own service function, which opens with the check, and reads
+ * `ToolPolicy.authorize` is a pass-through for all fifteen (see `buildDomainRegistrations`) for the
+ * ADR-021 §2 "one evaluator" reason: the gate is the domain layer's, reached identically by every
+ * tool kind — mutations through their own service function, which opens with the check, and reads
  * through {@link assertIdentityReadAllowed}, which calls the domain's own exported
  * `assertCallerHasAnyPermission` rather than re-deriving an OR gate. A second check here would be a
  * duplicate evaluator, and one any non-tool caller of the same service function would bypass. See
@@ -23,9 +23,9 @@ import { identityServiceDepsFrom } from "../server/routes/admin/users/deps";
 import type { RouteDeps } from "../server/routes/types";
 import { parseIdentityToolInput } from "./agent-tool-input";
 import { identityAgentToolCatalog, type AgentToolDefinition as IdentityAgentToolDefinition } from "./agent-tools";
-import { assertCallerHasAnyPermission, assignRole, createRole, createUser } from "./grant-service";
-import { deleteRole, disablePrincipal, enablePrincipal, updateRole, updateUser } from "./admin-crud-service";
-import type { PrincipalRecord, PrincipalRoleRecord, RoleRecord, UserRecord } from "./types";
+import { assertCallerHasAnyPermission, assignRole, attachPolicy, createPolicy, createRole, createUser } from "./grant-service";
+import { deletePolicy, deleteRole, disablePrincipal, enablePrincipal, updatePolicy, updateRole, updateUser } from "./admin-crud-service";
+import type { PolicyRecord, PrincipalRecord, PrincipalRoleRecord, RoleRecord, UserRecord } from "./types";
 
 const CATALOG_BY_ID = indexCatalogById(identityAgentToolCatalog);
 
@@ -38,6 +38,7 @@ export const identityDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
   // -> authorize() + repo reads only; no save on any path.
   ["identity_user_list", "none"],
   ["identity_role_list", "none"],
+  ["identity_policy_list", "none"],
   // -> createUser (grant-service.ts): saves a principal row AND a users row (credential).
   ["identity_user_create", "mutates-durable-state"],
   // -> updateUser (admin-crud-service.ts): users.save, email field only.
@@ -55,6 +56,16 @@ export const identityDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
   ["identity_role_rename", "mutates-durable-state"],
   // -> deleteRole (admin-crud-service.ts): roles.delete, refuses built-ins and referenced roles.
   ["identity_role_delete", "mutates-durable-state"],
+  // -> createPolicy (grant-service.ts): policies.save, always isBuiltin=false/isFrozen=false.
+  ["identity_policy_create", "mutates-durable-state"],
+  // -> updatePolicy (admin-crud-service.ts): policies.save, refuses built-in/frozen.
+  ["identity_policy_update", "mutates-durable-state"],
+  // -> deletePolicy (admin-crud-service.ts): policyPermissions.deleteByPolicyId + policies.delete,
+  //    refuses built-in/frozen and still-referenced policies.
+  ["identity_policy_delete", "mutates-durable-state"],
+  // -> attachPolicy (grant-service.ts): principalPolicies.save behind the INV-07 grant clamp — the
+  //    direct-grant counterpart to identity_role_assign, same weight.
+  ["identity_policy_attach", "mutates-durable-state"],
 ]);
 
 /**
@@ -163,6 +174,23 @@ function toIdentityRoleView(role: RoleRecord): { id: string; name: string; isBui
   return { id: role.id, name: role.name, isBuiltin: role.isBuiltin };
 }
 
+/**
+ * What an identity policy tool returns to the model. `isBuiltin`/`isFrozen` are both kept because
+ * together they are what predicts an update/delete/write-permission refusal (mirrors
+ * `toIdentityRoleView`'s `isBuiltin`, extended for the second immutability flag policies carry that
+ * roles do not). `description` is present only when set, matching `toIdentityUserView`'s `email`.
+ */
+function toIdentityPolicyView(policy: PolicyRecord): { id: string; name: string; isBuiltin: boolean; isFrozen: boolean; description?: string } {
+  const view: { id: string; name: string; isBuiltin: boolean; isFrozen: boolean; description?: string } = {
+    id: policy.id,
+    name: policy.name,
+    isBuiltin: policy.isBuiltin,
+    isFrozen: policy.isFrozen,
+  };
+  if (policy.description) view.description = policy.description;
+  return view;
+}
+
 /** Read a principal's role-assignment ids. Shared by every tool that returns a user view. */
 async function roleIdsFor(routeDeps: RouteDeps, principalId: string): Promise<string[]> {
   const links = await routeDeps.principalRoleRepo.listByPrincipalId({ workspaceId: routeDeps.workspaceId, principalId });
@@ -217,6 +245,14 @@ export function buildIdentityRegistrations(routeDeps: RouteDeps): ToolRegistrati
 
       const roles = await routeDeps.roleRepo.list({ workspaceId: routeDeps.workspaceId });
       return { roles: roles.map(toIdentityRoleView) };
+    },
+
+    identity_policy_list: async (ctx) => {
+      identityInput("identity_policy_list", ctx.input);
+      await assertIdentityReadAllowed(routeDeps, "identity_policy_list", ctx.principal.id);
+
+      const policies = await routeDeps.policyRepo.list({ workspaceId: routeDeps.workspaceId });
+      return { policies: policies.map(toIdentityPolicyView) };
     },
 
     identity_user_create: async (ctx) => {
@@ -323,6 +359,67 @@ export function buildIdentityRegistrations(routeDeps: RouteDeps): ToolRegistrati
       // `deleteRole` resolves void; an empty tool result would read to the model as "nothing
       // happened", so the deleted id is echoed as the acknowledgement.
       return { deleted: { roleId: input.roleId } };
+    },
+
+    identity_policy_create: async (ctx) => {
+      const input = identityInput("identity_policy_create", ctx.input);
+      const { policy } = await createPolicy({
+        deps: serviceDeps(),
+        input: {
+          workspaceId: routeDeps.workspaceId,
+          callerPrincipalId: ctx.principal.id,
+          name: input.name,
+          // Absent stays absent: `input.description` is only present when the caller supplied it
+          // (`parseIdentityToolInput` omits absent optional keys entirely), so this passes through
+          // unchanged rather than coercing a caller-supplied empty string to "no description".
+          description: input.description,
+        },
+      });
+      return { policy: toIdentityPolicyView(policy) };
+    },
+
+    identity_policy_update: async (ctx) => {
+      const input = identityInput("identity_policy_update", ctx.input);
+      const { policy } = await updatePolicy({
+        deps: serviceDeps(),
+        input: {
+          workspaceId: routeDeps.workspaceId,
+          callerPrincipalId: ctx.principal.id,
+          policyId: input.policyId,
+          // Same absent-stays-absent reasoning as identity_policy_create — `updatePolicy` itself
+          // distinguishes undefined ("leave unchanged") from an explicit empty string.
+          name: input.name,
+          description: input.description,
+        },
+      });
+      return { policy: toIdentityPolicyView(policy) };
+    },
+
+    identity_policy_delete: async (ctx) => {
+      const input = identityInput("identity_policy_delete", ctx.input);
+      await deletePolicy({
+        deps: serviceDeps(),
+        input: { workspaceId: routeDeps.workspaceId, callerPrincipalId: ctx.principal.id, policyId: input.policyId },
+      });
+      // `deletePolicy` resolves void; an empty tool result would read to the model as "nothing
+      // happened", so the deleted id is echoed as the acknowledgement (mirrors identity_role_delete).
+      return { deleted: { policyId: input.policyId } };
+    },
+
+    identity_policy_attach: async (ctx) => {
+      const input = identityInput("identity_policy_attach", ctx.input);
+      const { attachment } = await attachPolicy({
+        deps: serviceDeps(),
+        input: {
+          workspaceId: routeDeps.workspaceId,
+          callerPrincipalId: ctx.principal.id,
+          principalId: input.principalId,
+          policyId: input.policyId,
+        },
+      });
+      // The join row's own id is not addressable by any other tool, so it is dropped; what the
+      // model needs back is confirmation of WHICH pair is now linked (mirrors identity_role_assign).
+      return { attached: { principalId: attachment.principalId, policyId: attachment.policyId } };
     },
   };
 

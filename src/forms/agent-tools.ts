@@ -15,9 +15,20 @@
  *   "Delete this form" must therefore route an agent to `forms_set_definition_status` — never to a
  *   lever that does not exist. This mirrors `features/recovery/agent-tools.ts`'s identical
  *   discipline around `backup_confirm_restore`.
- * - Submission tools (read/delete of visitor-supplied `form_submissions` PII) are deliberately out
- *   of scope: a separate permission tier (`admin.forms.submissions.*`) that does not go through
- *   `write-service.ts`. Adding them is a separate, deliberate decision.
+ * - Submissions carry a separate permission tier (`admin.forms.submissions.*`) that does not go
+ *   through `write-service.ts` — `routes/admin/forms/{list,get,delete}-submissions.ts` gate
+ *   directly, the same split `comments/agent-tools.ts` makes for its read tools. Read access
+ *   (`forms_list_submissions`/`forms_get_submission`) IS wired below: a `FormSubmissionRecord` is
+ *   `{id, formDefinitionId, data, sourceIp, submittedAt}` (`types.ts`) — the same visitor-typed
+ *   field values plus one raw request IP the human admin submissions screen already displays, no
+ *   payment or credential material of any kind, so listing/reading what a human operator can
+ *   already see through the same permission is not a new exposure. There is deliberately NO
+ *   `forms_delete_submission`: unlike a form definition (which only ever gets soft-retired) a
+ *   submission's delete is genuinely irreversible and, unlike `identity_role_delete`/
+ *   `identity_policy_delete`, carries no "still referenced, so refuse" guard at all — nothing stops
+ *   a single call from permanently destroying a visitor's data with no way back. That asymmetry
+ *   (reversible read vs. unconditional permanent write) is exactly the read/write split this pass's
+ *   directive asks for; delete stays human-UI-only.
  *
  * How it relates to the project:
  * `assistant/tool-registrations.ts` maps these entries into `@jini-ai/core` `ToolRegistration`s;
@@ -111,13 +122,32 @@ const FORM_ID_SCHEMA = {
 } as const;
 
 /**
- * Forms' fixed agent-tool catalog — exactly the three operations `write-service.ts` exports.
+ * Submission pagination bounds — mirrors `routes/admin/forms/list-submissions.ts`'s own
+ * `MIN_LIMIT`/`MAX_LIMIT` literals (not exported from there, since a domain catalog does not import
+ * a route file; kept in sync by hand, the same disclosed duplication `types.ts`'s own header
+ * already accepts for `FieldType` vs. `manifest.ts`).
+ */
+const SUBMISSIONS_MIN_LIMIT = 1;
+const SUBMISSIONS_MAX_LIMIT = 100;
+
+const SUBMISSION_ID_SCHEMA = {
+  type: "string",
+  description: "The submission's id, as returned by forms_list_submissions.",
+} as const;
+
+/**
+ * Forms' fixed agent-tool catalog: the three `write-service.ts` operations plus the two read-only
+ * submission tools.
  *
- * All three are gated on `admin.forms.manage`, which is what each `executeCommand` call in
- * `write-service.ts` actually passes to `authorize()`. Forms declares no separate read capability
- * for definitions (`manifest.ts`'s `FORMS_CAPABILITIES` has three strings, and the human
- * `list.ts`/`get-by-id.ts` routes already authorize reads against `admin.forms.manage`), so
- * nothing here invents an `admin.forms.read` that no policy would ever grant.
+ * The three definition tools are gated on `admin.forms.manage`, which is what each `executeCommand`
+ * call in `write-service.ts` actually passes to `authorize()`. Forms declares no separate read
+ * capability for definitions (`manifest.ts`'s `FORMS_CAPABILITIES` has three strings, and the human
+ * `list.ts`/`get-by-id.ts` routes already authorize reads against `admin.forms.manage`), so nothing
+ * here invents an `admin.forms.read` that no policy would ever grant.
+ *
+ * The two submission tools are gated on the SEPARATE `admin.forms.submissions.read` permission —
+ * exactly what `routes/admin/forms/{list,get}-submissions.ts` check, since submissions are visitor
+ * data with their own permission tier, not form-configuration state.
  */
 export const formsAgentToolCatalog: AgentToolDefinition[] = [
   {
@@ -178,6 +208,40 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
           description: "'disabled' takes the form out of service (its stored submissions are retained); 'active' puts it back.",
         },
       },
+    },
+  },
+  {
+    name: "forms_list_submissions",
+    description:
+      "Lists a form's submissions, newest-first, with each submission's field values, source IP, and submission time. Read-only. There is no forms_delete_submission — permanently removing a visitor's data stays human-UI-only.",
+    sideEffects: "none",
+    authorization: { permission: "admin.forms.submissions.read" },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["formId"],
+      properties: {
+        formId: FORM_ID_SCHEMA,
+        limit: {
+          type: "integer",
+          minimum: SUBMISSIONS_MIN_LIMIT,
+          maximum: SUBMISSIONS_MAX_LIMIT,
+          description: `Page size, ${SUBMISSIONS_MIN_LIMIT}-${SUBMISSIONS_MAX_LIMIT}. Defaults to 50 if omitted.`,
+        },
+        cursor: { type: "string", description: "Opaque pagination cursor from a previous call's nextCursor. Omit for the first page." },
+      },
+    },
+  },
+  {
+    name: "forms_get_submission",
+    description: "Reads one submission's full field values, source IP, and submission time by id. Read-only.",
+    sideEffects: "none",
+    authorization: { permission: "admin.forms.submissions.read" },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["formId", "submissionId"],
+      properties: { formId: FORM_ID_SCHEMA, submissionId: SUBMISSION_ID_SCHEMA },
     },
   },
 ];

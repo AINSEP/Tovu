@@ -54,6 +54,7 @@ function fakeRouteDeps(existing?: ContentTypeRecord) {
       save: async () => {},
       appendRevision: async () => {},
       findByKey: async () => existing ?? null,
+      listByWorkspace: async () => (existing ? [existing] : []),
       transaction: async <T>(fn: () => Promise<T>) => fn(),
     },
     contentTypeIndexProvisioner: {
@@ -221,6 +222,23 @@ test("tombstonedAt appears only when set, so an active type's payload carries no
   )) as { contentType: Record<string, unknown> };
   assert.equal(typeof tombstoned.contentType.tombstonedAt, "string");
   assert.equal(tombstoned.contentType.status, "tombstone");
+});
+
+test("collections_content_type_list returns every content type as the same model-facing view, regardless of status", async () => {
+  const registration = wiredRegistration("collections_content_type_list", existingRecipe("deprecated"));
+
+  const output = (await registration.handler(executionContext({}))) as { contentTypes: Array<Record<string, unknown>> };
+
+  assert.equal(output.contentTypes.length, 1);
+  assert.deepEqual(Object.keys(output.contentTypes[0]).sort(), ["fields", "key", "label", "status", "version"]);
+  assert.equal(output.contentTypes[0].status, "deprecated");
+  assert.equal("workspaceId" in output.contentTypes[0], false, "same drop as every other content-type view — the agent cannot change its own workspace");
+});
+
+test("collections_content_type_list returns an empty list rather than an error when the workspace has none", async () => {
+  const registration = wiredRegistration("collections_content_type_list");
+  const output = (await registration.handler(executionContext({}))) as { contentTypes: unknown[] };
+  assert.deepEqual(output.contentTypes, []);
 });
 
 test("the returned fields array is a copy — a tool caller cannot mutate domain state through it", async () => {
