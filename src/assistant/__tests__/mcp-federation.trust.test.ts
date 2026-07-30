@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { SUPABASE_DEFAULT_ALLOWED_TOOLS } from "../mcp-federation/config";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports";
 import {
   admitRemoteTools,
@@ -323,72 +322,8 @@ test("R7: an unserializable remote payload degrades to a note instead of throwin
   assert.ok(wrapped.includes("could not be serialized"));
 });
 
-// ---------------------------------------------------------------------------
-// The concrete Supabase case the whole design was built against
-// ---------------------------------------------------------------------------
-
-test("Supabase: execute_sql is kept out by the OPERATOR ALLOWLIST, not by its annotations", () => {
-  // Under `--read-only`, @supabase/mcp-server-supabase@0.9.0 sets execute_sql's own
-  // `readOnlyHint` to true (verified in its `database-operation-tools.ts`). So R3 alone would let
-  // arbitrary SQL through. R2 is what actually stops it — which is the entire argument for the
-  // allowlist being the load-bearing control.
-  const report = admitRemoteTools({
-    tools: [
-      remoteTool({ name: "execute_sql", annotations: { readOnlyHint: true, destructiveHint: false } }),
-      remoteTool({ name: "list_tables", annotations: { readOnlyHint: true } }),
-    ],
-    config: { ...CONFIG, allowedToolNames: SUPABASE_DEFAULT_ALLOWED_TOOLS },
-  });
-
-  assert.deepEqual(
-    report.admitted.map((tool) => tool.remoteName),
-    ["list_tables"],
-  );
-  assert.equal(refusalFor(report, "execute_sql"), "not-in-operator-allowlist");
-});
-
-test("Supabase: the default allowlist excludes every write, every account-wide tool, and the key-returning one", () => {
-  const forbidden = [
-    "execute_sql",
-    "apply_migration",
-    "get_publishable_keys",
-    "list_projects",
-    "get_project",
-    "create_project",
-    "pause_project",
-    "restore_project",
-    "delete_branch",
-    "merge_branch",
-    "reset_branch",
-    "rebase_branch",
-    "create_branch",
-    "deploy_edge_function",
-    "update_storage_config",
-  ];
-
-  for (const name of forbidden) {
-    assert.ok(!SUPABASE_DEFAULT_ALLOWED_TOOLS.includes(name), `${name} must not be allowlisted by default`);
-  }
-  // And the reads it does allow are exactly the documented set.
-  assert.deepEqual([...SUPABASE_DEFAULT_ALLOWED_TOOLS].sort(), [
-    "generate_typescript_types",
-    "get_advisors",
-    "get_logs",
-    "get_project_url",
-    "list_extensions",
-    "list_migrations",
-    "list_tables",
-    "search_docs",
-  ]);
-});
-
-test("Supabase: apply_migration is refused twice over — allowlist first, and its own destructiveHint too", () => {
-  const report = admitRemoteTools({
-    tools: [remoteTool({ name: "apply_migration", annotations: { destructiveHint: true } })],
-    config: { ...CONFIG, allowedToolNames: ["apply_migration"] },
-  });
-
-  // With the operator having explicitly (and unwisely) allowlisted it, R3 is the backstop that
-  // still keeps it out, because Supabase honestly marks it destructive.
-  assert.equal(refusalFor(report, "apply_migration"), "remote-declares-destructive");
-});
+// The concrete Supabase cases these rules were designed against — that its `execute_sql` is stopped
+// by R2 and not by R3, and what its Tovu-authored default allowlist does and does not contain — live
+// with the preset they are about, in
+// `src/features/plugins/supabase-mcp/__tests__/supabase-mcp-plugin.test.ts`. Nothing in this file
+// imports a vendor module; the rules above hold for any remote.

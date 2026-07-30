@@ -6,8 +6,9 @@ import type { ToolExecutionContext, ToolDescriptor, ToolRegistration, ToolRegist
 import { ForbiddenError } from "../../core/commands";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory";
 import { attachFederatedMcpTools } from "../mcp-federation/bootstrap";
-import { resolveSupabaseMcpConnection, SUPABASE_DEFAULT_ALLOWED_TOOLS, SUPABASE_MCP_PACKAGE } from "../mcp-federation/config";
+import type { ResolvedFederatedConnection } from "../mcp-federation/config";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports";
+import { registerFederatedMcpPreset, resetFederatedMcpPresetsForTests } from "../mcp-federation/presets";
 import { buildFederatedMcpRegistrations, federateSession } from "../mcp-federation/registrations";
 import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION } from "../mcp-federation/trust";
 
@@ -15,7 +16,12 @@ import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION } from "../mcp-federat
  * @file The federation wiring half: that an admitted remote tool becomes a real `ToolRegistration`,
  * that its handler runs Tovu's OWN authorization before anything crosses the network, that the
  * remote sees its own name rather than Tovu's namespaced id, that results come back inside the
- * untrusted envelope — plus the operator-facing config resolution and the fail-open bootstrap.
+ * untrusted envelope — plus the preset-registry seam and the fail-open bootstrap.
+ *
+ * Vendor-blind by construction: nothing here imports a preset module. Where a preset is needed, the
+ * test registers its own fake one through `presets.ts`, which is also the most direct check that the
+ * seam works for a vendor core has never heard of. The real Supabase preset's own resolution is
+ * covered by `src/features/plugins/supabase-mcp/__tests__/supabase-mcp-plugin.test.ts`.
  *
  * The `fakeDeps` here follows `tool-registrations.database-recovery.test.ts`'s technique exactly:
  * an `order` array recording every authorize call and every outbound tool call, so "authorized
@@ -239,71 +245,95 @@ test("a federated id colliding with a natively-registered one refuses the whole 
 });
 
 // ---------------------------------------------------------------------------
-// Configuration (the site-owner-facing surface)
+// The preset registry — the core/plugin seam
 // ---------------------------------------------------------------------------
 
-test("federation is off unless a site owner turns it on", () => {
-  assert.equal(resolveSupabaseMcpConnection({}), null);
-  assert.equal(resolveSupabaseMcpConnection({ TOVU_SUPABASE_MCP_ENABLED: "0" }), null);
-  assert.equal(resolveSupabaseMcpConnection({ TOVU_SUPABASE_MCP_ENABLED: "false" }), null);
-});
+const FAKE_LAUNCH = { command: "unused", args: [] as string[], env: {} };
 
-test("an enabled-but-incomplete configuration fails loudly instead of connecting to something broader", () => {
-  assert.throws(
-    () => resolveSupabaseMcpConnection({ TOVU_SUPABASE_MCP_ENABLED: "1" }),
-    /requires a personal access token \(PAT\), not the project anon or service-role key/,
-  );
-  // project-ref is REQUIRED here though optional upstream, because omitting it upstream scopes the
-  // PAT to the entire account.
-  assert.throws(
-    () => resolveSupabaseMcpConnection({ TOVU_SUPABASE_MCP_ENABLED: "1", TOVU_SUPABASE_MCP_ACCESS_TOKEN: "sbp_x" }),
-    /TOVU_SUPABASE_MCP_PROJECT_REF/,
-  );
-  assert.throws(
-    () =>
-      resolveSupabaseMcpConnection({
-        TOVU_SUPABASE_MCP_ENABLED: "1",
-        TOVU_SUPABASE_MCP_ACCESS_TOKEN: "sbp_x",
-        TOVU_SUPABASE_MCP_PROJECT_REF: "NOT A REF",
-      }),
-    /TOVU_SUPABASE_MCP_PROJECT_REF/,
-  );
-});
+/** A vendor core has never heard of, resolved entirely through the public seam. */
+function fakePreset(options: { presetId: string; resolve: (env: NodeJS.ProcessEnv) => ResolvedFederatedConnection | null }) {
+  registerFederatedMcpPreset({ presetId: options.presetId, resolve: options.resolve });
+}
 
-test("a valid configuration pins the package, forces --read-only, scopes to the project, and keeps the PAT out of argv", () => {
-  const resolved = resolveSupabaseMcpConnection({
-    TOVU_SUPABASE_MCP_ENABLED: "true",
-    TOVU_SUPABASE_MCP_ACCESS_TOKEN: "sbp_secret_token",
-    TOVU_SUPABASE_MCP_PROJECT_REF: "abcdefghijklmnop",
+test("a preset registered from outside core is resolved and connected without core knowing the vendor", async (t) => {
+  t.after(resetFederatedMcpPresetsForTests);
+  resetFederatedMcpPresetsForTests();
+
+  const seenEnv: NodeJS.ProcessEnv[] = [];
+  fakePreset({
+    presetId: "acme",
+    resolve: (env) => {
+      seenEnv.push(env);
+      return { config: { ...CONFIG, connectionId: "acme" }, launch: FAKE_LAUNCH };
+    },
   });
 
-  assert.ok(resolved);
-  assert.equal(resolved.config.connectionId, "supabase");
-  assert.deepEqual(resolved.config.allowedToolNames, SUPABASE_DEFAULT_ALLOWED_TOOLS);
+  const registry = fakeRegistry(["database_get_health"]);
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: fakeDeps().deps,
+    logger: collectingLogger().logger,
+    connect: async () => sessionFor(),
+    env: { SOME_VENDOR_SETTING: "1" },
+  });
 
-  assert.equal(resolved.launch.command, "npx");
-  assert.ok(resolved.launch.args.includes(SUPABASE_MCP_PACKAGE), "the package version must be pinned, not floating");
-  assert.ok(resolved.launch.args.includes("--read-only"));
-  assert.ok(resolved.launch.args.includes("--project-ref=abcdefghijklmnop"));
-
-  // argv is world-readable via /proc/<pid>/cmdline and `ps`; the token must be in env only.
-  assert.equal(resolved.launch.args.join(" ").includes("sbp_secret_token"), false);
-  assert.deepEqual(resolved.launch.env, { SUPABASE_ACCESS_TOKEN: "sbp_secret_token" });
+  assert.deepEqual(result.registeredToolIds, ["mcp__acme__list_tables", "mcp__acme__get_advisors"]);
+  // The env bag reaches the preset by injection, not by the preset reading `process.env` itself.
+  assert.deepEqual(seenEnv, [{ SOME_VENDOR_SETTING: "1" }]);
 });
 
-test("an operator can widen the allowlist explicitly, or empty it to disable every tool", () => {
-  const base = {
-    TOVU_SUPABASE_MCP_ENABLED: "1",
-    TOVU_SUPABASE_MCP_ACCESS_TOKEN: "sbp_x",
-    TOVU_SUPABASE_MCP_PROJECT_REF: "abcdefghijklmnop",
-  };
+test("a preset that declines contributes nothing, silently — 'not configured' is the default state", async (t) => {
+  t.after(resetFederatedMcpPresetsForTests);
+  resetFederatedMcpPresetsForTests();
 
-  assert.deepEqual(resolveSupabaseMcpConnection({ ...base, TOVU_SUPABASE_MCP_ALLOWED_TOOLS: "list_tables, execute_sql" })?.config.allowedToolNames, [
-    "list_tables",
-    "execute_sql",
-  ]);
-  // Explicitly empty is distinguishable from unset, and means "nothing".
-  assert.deepEqual(resolveSupabaseMcpConnection({ ...base, TOVU_SUPABASE_MCP_ALLOWED_TOOLS: "" })?.config.allowedToolNames, []);
+  fakePreset({ presetId: "acme", resolve: () => null });
+
+  const { messages, logger } = collectingLogger();
+  const registry = fakeRegistry();
+  const result = await attachFederatedMcpTools({ registry, deps: fakeDeps().deps, logger, env: {} });
+
+  assert.deepEqual(result.registeredToolIds, []);
+  assert.deepEqual(messages, [], "an unconfigured preset must not log every boot");
+});
+
+test("two presets both contribute, and one vendor's broken config does not disable the other's working one", async (t) => {
+  t.after(resetFederatedMcpPresetsForTests);
+  resetFederatedMcpPresetsForTests();
+
+  fakePreset({
+    presetId: "broken",
+    resolve: () => {
+      throw new Error("BROKEN_VENDOR_TOKEN is empty");
+    },
+  });
+  fakePreset({ presetId: "working", resolve: () => ({ config: { ...CONFIG, connectionId: "working" }, launch: FAKE_LAUNCH }) });
+
+  const { messages, logger } = collectingLogger();
+  const registry = fakeRegistry();
+  const result = await attachFederatedMcpTools({ registry, deps: fakeDeps().deps, logger, connect: async () => sessionFor(), env: {} });
+
+  assert.deepEqual(result.registeredToolIds, ["mcp__working__list_tables", "mcp__working__get_advisors"]);
+  assert.ok(messages.some((message) => message.includes("preset 'broken' configuration is invalid, continuing without federated tools")));
+});
+
+test("re-registering the same presetId replaces it, so a module imported twice cannot self-collide", async (t) => {
+  t.after(resetFederatedMcpPresetsForTests);
+  resetFederatedMcpPresetsForTests();
+
+  // Two connections with the same `connectionId` would make R1's collision assertion drop the
+  // second one for shadowing what is really itself.
+  fakePreset({ presetId: "acme", resolve: () => ({ config: { ...CONFIG, connectionId: "acme" }, launch: FAKE_LAUNCH }) });
+  fakePreset({ presetId: "acme", resolve: () => ({ config: { ...CONFIG, connectionId: "acme" }, launch: FAKE_LAUNCH }) });
+
+  const { messages, logger } = collectingLogger();
+  const registry = fakeRegistry();
+  const result = await attachFederatedMcpTools({ registry, deps: fakeDeps().deps, logger, connect: async () => sessionFor(), env: {} });
+
+  assert.deepEqual(result.registeredToolIds, ["mcp__acme__list_tables", "mcp__acme__get_advisors"]);
+  assert.equal(
+    messages.some((message) => message.includes("must never be able to shadow")),
+    false,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -396,16 +426,23 @@ test("a remote that connects but cannot enumerate is stepped over, and its sessi
   assert.equal(session.closed, true, "a session that failed mid-setup must not leak its child process");
 });
 
-test("an invalid-but-enabled configuration warns and continues rather than throwing out of boot", async () => {
+test("an invalid-but-enabled configuration warns and continues rather than throwing out of boot", async (t) => {
+  t.after(resetFederatedMcpPresetsForTests);
+  resetFederatedMcpPresetsForTests();
+
+  // A preset THROWS (rather than returning null) exactly when the operator asked for a connection
+  // and got the settings wrong — the one case that must be loud without being fatal.
+  fakePreset({
+    presetId: "acme",
+    resolve: () => {
+      throw new Error("ACME_MCP_ENABLED is set but ACME_MCP_TOKEN is empty");
+    },
+  });
+
   const registry = fakeRegistry();
   const { messages, logger } = collectingLogger();
 
-  const result = await attachFederatedMcpTools({
-    registry,
-    deps: fakeDeps().deps,
-    logger,
-    env: { TOVU_SUPABASE_MCP_ENABLED: "1" },
-  });
+  const result = await attachFederatedMcpTools({ registry, deps: fakeDeps().deps, logger, env: {} });
 
   assert.deepEqual(result.registeredToolIds, []);
   assert.ok(messages.some((message) => message.includes("configuration is invalid, continuing without federated tools")));

@@ -63,6 +63,7 @@ import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, create
 import { registerAgentRoutes, registerDelegatedToolRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/http-kit";
 import type { AdapterContext, DelegatedToolExecuteRequest, RunStartHandler } from "@jini-ai/http-kit";
 
+import { registerSupabaseMcpPreset } from "../features/plugins/supabase-mcp/supabase-mcp-plugin";
 import { createInMemoryToolAttemptAuditSink } from "../features/tool-audit/repo.memory";
 import { SqliteToolAttemptAuditSink } from "../features/tool-audit/repo.sqlite";
 import { openContentDb } from "../infra/sqlite/content-db";
@@ -211,14 +212,21 @@ registerDelegatedToolRoutes(app, { lifecycle, toolExecutor, resolvePrincipal }, 
 
 /**
  * OUTBOUND MCP federation — the reverse direction from `mcp-injection.ts`. Tovu connects OUT to a
- * site owner's configured external MCP server (Supabase's official one is the built-in preset) and
- * registers whatever clears `mcp-federation/trust.ts`'s separate, more restricted trust tier.
+ * site owner's configured external MCP server and registers whatever clears
+ * `mcp-federation/trust.ts`'s separate, more restricted trust tier.
  *
- * Off unless configured: with no `TOVU_SUPABASE_MCP_ENABLED`, `attachFederatedMcpTools` resolves
- * zero connections and this boot is byte-for-byte the one that ran before the capability existed.
- * It never rejects — a third party's server must not be able to stop Tovu's daemon booting — so
- * there is no failure branch to handle here; see `mcp-federation/bootstrap.ts` for the fail-open
- * rationale and why it is the opposite of `daemon-auth.ts`'s fail-closed posture.
+ * The MECHANISM is core (`mcp-federation/`); which VENDORS exist is not. Each vendor preset is a
+ * first-party plugin module that registers itself through `mcp-federation/presets.ts`, and this
+ * function is the composition root that installs the default-included ones — today just Supabase,
+ * the same wiring posture `store-plugin.ts` has. A second vendor is one more `register*Preset()`
+ * call here plus its own module; core federation never learns any vendor's name.
+ *
+ * Registration is not activation. Off unless configured: with no `TOVU_SUPABASE_MCP_ENABLED` the
+ * Supabase resolver returns `null`, `attachFederatedMcpTools` resolves zero connections, and this
+ * boot is byte-for-byte the one that ran before the capability existed. It never rejects — a third
+ * party's server must not be able to stop Tovu's daemon booting — so there is no failure branch to
+ * handle here; see `mcp-federation/bootstrap.ts` for the fail-open rationale and why it is the
+ * opposite of `daemon-auth.ts`'s fail-closed posture.
  *
  * Ordering is load-bearing, which is why the last two registrars moved inside this async start:
  * `buildToolCatalogQuery` snapshots `registry.list()` into a one-shot FTS index, so a federated tool
@@ -227,6 +235,8 @@ registerDelegatedToolRoutes(app, { lifecycle, toolExecutor, resolvePrincipal }, 
  * order is otherwise unchanged: the catalog routes were already registered last.
  */
 async function start(): Promise<void> {
+  registerSupabaseMcpPreset();
+
   await attachFederatedMcpTools({
     registry,
     deps: { authorize: routeDeps.authorize, workspaceId: routeDeps.workspaceId },

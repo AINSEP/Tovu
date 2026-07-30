@@ -113,9 +113,10 @@ export interface McpStdioChannel {
  *
  * `allowedToolNames` is the load-bearing field and has NO safe default at this layer: an empty
  * allowlist yields zero federated tools, which is the correct behaviour for a misconfigured
- * connection. `config.ts` supplies a Tovu-authored default for the Supabase preset specifically —
- * authored here from the server's real, inspected tool surface, which is what makes it an
- * independent classification rather than a restatement of the remote's own claims.
+ * connection. A DEFAULT is a per-vendor judgement and therefore belongs to a vendor preset, not
+ * here — see `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts`, whose default was authored
+ * from that server's real, inspected tool surface, which is what makes it an independent
+ * classification rather than a restatement of the remote's own claims.
  */
 export interface FederatedMcpConnectionConfig {
   /** Operator-chosen, stable, `[a-z0-9-]`. Becomes part of every federated tool id, so renaming it
