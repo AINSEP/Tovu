@@ -1,11 +1,66 @@
 # Tovu Task Tracker
 
-Last updated: 2026-07-30 (session continuing from `ADS-memory/.local-artifacts/handoff/20260730T185856Z-handoff.md`)
+Last updated: 2026-07-30 (session continuing from
+`ADS-memory/.local-artifacts/handoff/20260730T224540Z-handoff.md`)
 
 Living checklist — update status inline as items move. This is the durable copy;
 the in-harness `TaskList` mirrors it for the current session but does NOT persist
 across sessions (confirmed empty on this session's start despite the prior
 session's #4-#10 list) — treat this file as the source of truth going forward.
+
+## 2026-07-30 update, part 3 (handoff continuation — everything committed + pushed)
+
+Picked up from the `20260730T224540Z` handoff. Its own contract said to re-run
+`git status` first to check for drift — did, and found real drift: the mcp-ui
+build the handoff called "fully uncommitted" had actually already landed as
+Jini commit `f387a1665` (timestamped ~76s before the handoff was captured —
+a genuine race between a background subagent's commit and the handoff script's
+git-status snapshot, not an error in the handoff).
+
+- **Tovu**: all 6 outstanding files committed as 4 logical commits
+  (`e86b51f` permission-mode fix, `6b8cc47` ChatFab CSS fix, `3128908`
+  `@jini-ai/ui/chat` import migration, `c0deb88` docs) and pushed to
+  `origin/main` (`5dbf32e..c0deb88`).
+- **Jini**: cleaned up a stale git index left by an untracked intermediate
+  rename (`packages/chat-react` → `packages/ui/src/react/chat-react` → the
+  real final path `packages/ui/src/react/chat`, only the last hop was ever
+  reflected on disk) and committed as 4 commits (`5eb432544` chat relocation,
+  `876d9431f` missing `./mcp-ui` package.json exports, plus the already-landed
+  `f387a1665`, plus `bf6436e41` fixing reference-web's 9 stale
+  `@jini-ai/chat-react` imports). Pushed to `origin/main` (`f2f999dfc..bf6436e41`).
+  - mcp-ui's own test suite (never run before, only typechecked): **232/232 pass**.
+  - `pnpm run build` in `packages/ui` rebuilt cleanly; `dist/react/chat`,
+    `dist/react/mcp-ui`, `dist/features/mcp-ui` all present.
+  - reference-web: `tsc --noEmit` clean, 41/41 local tests pass.
+  - Jini commits are landing under git identity `LA <la@LAs-MacBook-Pro.lan>`
+    (auto-configured, no `user.name`/`user.email` set in that repo) — different
+    from Tovu's configured `Leona Burime` identity. Not fixed (never touch git
+    config unasked) — flagged for the user to set if they care about consistent
+    authorship.
+- **Re-verified `9b284b7`** (Supabase-to-plugin refactor): read the real diff,
+  spot-checked `presets.ts` and `agent-daemon-server.ts`'s registration call —
+  matches the commit message's architecture claims exactly. Independently
+  reran the scoped tests: **73/73 pass**, confirming the commit's own claim.
+- **Read `a689082`'s report** (`front-facing-assistant-search-approach.md`,
+  never read this session before now): well-grounded, recommends direct DB
+  calls as the starting option for the public-site assistant's search, names
+  the precise open variable (whether the roadmap needs more public-facing
+  agent actions soon) rather than guessing. No code changes — research only,
+  as scoped.
+- **The `jini-fix-*-2026-07-30` triggers (4 of them)**: confirmed landed —
+  all 4 are ancestors of Jini's current `main` via the
+  `integration/agent-executor-reconcile-2026-07-30` merge chain
+  (`fix/post-merge-audit-{http-kit,agentic,agent-runtime-mcp,daemon}-2026-07-30`).
+- **"Jini: reach OD route parity" trigger — genuinely unresolved, not just
+  unverified.** Checked `RemoteTrigger action:list` directly: this trigger
+  does not exist anywhere in the current list of 20 triggers (only 4 target
+  Jini, and those are the 4 post-merge-audit fixes above, not this one).
+  Checked Jini's `git log`/remote branches for any matching commit or
+  branch — nothing. This work was either never actually dispatched, or its
+  trigger record has rolled off the API's retention — either way, **the
+  described work (model-proxy providers, ops endpoints, connectors route
+  parity) has no evidence of existing anywhere** and should be treated as
+  not started, not "unknown."
 
 ## 2026-07-30 update, part 2 (evals investigation)
 
@@ -136,11 +191,30 @@ session's #4-#10 list) — treat this file as the source of truth going forward.
 
 ## Open questions (unanswered, need the user)
 
-1. ~~NLWeb vs MCP-search~~ — now a cloud research dispatch in flight (C6).
-2. ~~Supabase MCP federation~~ — now a cloud dispatch in flight (C3).
-3. Keep, discard, or fold the local `ChatFab.tsx` size edit? (B1)
+1. ~~NLWeb vs MCP-search~~ — landed (`a689082`), re-read and verified 2026-07-30
+   part 3: recommends direct DB calls to start; the real open variable is
+   whether public-facing agent *actions* (not just search) are on the near-term
+   roadmap.
+2. ~~Supabase MCP federation (read-only tool access)~~ — landed and verified
+   (`19d0320`, `9b284b7`). **But this is NOT the same thing as the question
+   below — do not treat it as having answered #6.**
+3. Keep, discard, or fold the local `ChatFab.tsx` size edit? — resolved by
+   circumstance: it landed as its own commit (`6b8cc47`, 2026-07-30 part 3)
+   paired with the CSS container fix, since both were needed for the icon to
+   actually render at the intended size.
 4. What exactly is in scope for D1 (frontend) and D2 (admin) beyond what's listed?
-5. ~~mcp-ui gate choice~~ — answered: real MCP-UI protocol, not the flag. Dispatched (C4).
+5. ~~mcp-ui gate choice~~ — answered: real MCP-UI protocol, not the flag. Landed
+   and test-verified 2026-07-30 part 3 (232/232 mcp-ui tests pass).
+6. **STILL OPEN, asked twice now, unanswered both times: Supabase as an actual
+   database backend** (not the read-only assistant-tool federation in #2). The
+   user's own words: "i want them to be able to set up a supabase db project
+   completely new and have it be the database and not sqllite... a user decided
+   they dont want to use sqllite so they see the supabase plugin and create one
+   on Supabase through this Tovu platform." This is materially bigger than #2 —
+   `ContentDb` is concretely SQLite-typed today, no Postgres adapter exists, and
+   the real unknown is whether `declareDataModule()`'s raw-`better-sqlite3` DDL
+   engine (ADR-023) can be made provider-agnostic. Needs its own spec/ADR pass
+   before any code is written — do not start building it without that.
 
 ---
 
