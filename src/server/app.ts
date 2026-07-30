@@ -99,6 +99,7 @@ import { applySiteServingGate } from "./middleware/site-serving-gate";
 import { registerAdminStatic } from "./middleware/admin-static";
 import { registerSiteRoutes } from "./routes/site/pages";
 import { registerStoreRoutes } from "./routes/site/store";
+import { registerPaymentsWebhookRoute } from "./routes/site/payments-webhook";
 import { registerProductRoutes } from "./routes/site/products";
 import { registerAnalyticsIngestRoute } from "./routes/site/analytics-ingest";
 import { registerContentPostGetRoute } from "./routes/content/posts/get-by-slug";
@@ -436,6 +437,15 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // BLOCKED_PENDING_RECOVERY site refuses normal traffic regardless of which route would have
   // handled it. See site-serving-gate.ts's own header for the allowlist rationale.
   applySiteServingGate(app, { siteStatusRepo: routeDeps.siteStatusRepo, workspaceId: routeDeps.workspaceId });
+
+  // MUST stay ahead of the blanket `express.json()` immediately below. Payment webhooks are
+  // HMAC-signed over the exact received bytes, and the blanket parser destroys them — so this one
+  // route registers its own `express.raw()` first and terminates the response before the JSON
+  // parser layer is ever reached. See `routes/site/payments-webhook.ts`'s file header for why
+  // registration order is the fix and why the API is resolved per request rather than captured
+  // here. This is the only route in the app that inverts the parser/route registration order.
+  registerPaymentsWebhookRoute(app, { resolveLipay: () => routeDeps.lipay ?? null });
+
   // Default 100kb body limit is too small for the media upload route, which accepts
   // base64-encoded bytes in the JSON body (no multipart-parsing dependency in this repo yet —
   // see routes/admin/media/upload.ts's file comment for the disclosed simplification). 15mb

@@ -14,6 +14,7 @@ import type {
   SessionRepoPort,
   UserRepoPort,
 } from "../../identity";
+import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin";
 import type { PostRepoPort } from "../../features/post";
 import type { PresentationSettingsRepoPort } from "../../features/presentation";
 import type { SettingsRepoPort } from "../../features/settings/ports";
@@ -331,6 +332,14 @@ export interface RouteDeps {
       | { ok: true; orderId: string; remainingStock: number; retries: number }
       | { ok: false; reason: "not-found" | "out-of-stock" | "conflict"; retries: number };
   };
+  /**
+   * The lipay payments framework plugin's composed API (`features/plugins/lipay`). Optional and
+   * wired only by a composition root that has a real SQLite handle, exactly like `store` above —
+   * lipay's tables come from `declareDataModule()`, which the in-memory composition has no
+   * counterpart for. `routes/site/payments-webhook.ts` reads this lazily per request, so its route
+   * can be registered ahead of the blanket body parser while activation still happens later.
+   */
+  lipay?: LipayApi;
   /** ADR-031/ADR-023 (SPEC-033) — the Comments bundled plugin's composed backend
    * (`comments/index.ts#createCommentsModule`). */
   commentRepo: CommentRepoPort;
