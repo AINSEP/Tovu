@@ -151,7 +151,13 @@ test("every wired CONTENT-TYPES tool has a known input fixture — a newly wired
   // Scoped to this domain deliberately: each domain owns its own fixtures in its own sibling file
   // (`tool-registrations.forms.test.ts`, ...), so adding a domain does not force every existing
   // fixture table to grow. The per-domain tripwire is what stays load-bearing.
-  const wiredIds = [...registrationsById().keys()].filter((id) => id.startsWith("collections_")).sort();
+  //
+  // Filters on the CONTENT-TYPE-level sub-prefix, not the bare `collections_` prefix: `features/
+  // entries/agent-tools.ts` now also publishes `collections_entry_*` (the sibling half of this SAME
+  // ADR-043 "Collections" domain, per `server/routes/admin/content-types/deps.ts`'s own file
+  // header) — a bare `collections_` filter would silently pull those into this content-types-only
+  // fixture table too.
+  const wiredIds = [...registrationsById().keys()].filter((id) => id.startsWith("collections_content_type_")).sort();
   assert.deepEqual(wiredIds, Object.keys(TOOL_INPUTS).sort());
   assert.equal(wiredIds.length, 5);
 });
