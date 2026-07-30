@@ -1,0 +1,49 @@
+{{!--
+  Ledger — home (Handlebars tier demonstrator).
+
+  Header + footer come from Tovu's shared component registry via {{render_block}};
+  the ruled entry list below is authored in Handlebars ({{#each}} with its {{else}}
+  inverse branch, {{#if}}, {{#unless}}, and the @first/@index loop data) — the logic
+  a fixed-component declarative template cannot express.
+
+  Every expression here is {{escaped}}. This template deliberately contains no
+  {{{raw}}} output at all: nothing on the home page is pre-sanitized server HTML.
+--}}
+{{render_block component="tovu/site-header" tagline="A ruled ledger of everything published here"}}
+
+<main class="ledger">
+  <section class="ledger-head">
+    <div class="wrap">
+      <p class="ledger-head__kicker">{{site.title}} &middot; {{theme.name}}</p>
+      <h1 class="ledger-head__title">The record so far.</h1>
+      <p class="ledger-head__lead">
+        A <strong>handlebars</strong> theme. Each line below is one entry, ruled and dated,
+        rendered by a Handlebars <code>each</code> block inside an isolated worker thread.
+      </p>
+    </div>
+  </section>
+
+  <section class="ledger-body">
+    <div class="wrap">
+      <ol class="rows">
+        {{#each posts}}
+          <li class="row{{#if @first}} row--latest{{/if}}">
+            <a class="row__link" href="/{{slug}}">
+              <span class="row__title">{{title}}</span>
+              <span class="row__rule"></span>
+              <span class="row__date">{{dateShort}}</span>
+              {{#if @first}}<span class="row__flag">latest</span>{{/if}}
+              {{#unless @first}}<span class="row__flag row__flag--quiet">entry</span>{{/unless}}
+            </a>
+          </li>
+        {{else}}
+          <li class="row row--empty">
+            <p class="ledger-empty">Nothing has been published yet &mdash; the ledger is open.</p>
+          </li>
+        {{/each}}
+      </ol>
+    </div>
+  </section>
+</main>
+
+{{render_block component="tovu/site-footer"}}

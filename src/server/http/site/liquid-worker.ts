@@ -3,7 +3,7 @@ import { Liquid, Hash, type TagToken, type Context, type FS } from "liquidjs";
 
 import type { JsonObject } from "../../../core/ports";
 import { lintLiquidTemplate } from "../../../features/theme";
-import { COMPONENTS, escapeHtml, renderDocNode, renderWidgetRegion, type SiteRenderContext } from "./render";
+import { buildTemplateRenderData, renderBlockSeam, RENDER_CTX_KEY, type SiteRenderContext } from "./render";
 import type { LiquidWorkerInput, LiquidWorkerResult } from "./liquid-sandbox";
 
 /**
@@ -50,9 +50,6 @@ const NO_ACCESS_FS: FS = {
   sep: "/",
 };
 
-/** Key under which the live render context is passed to the `render_block` tag. */
-const CTX_KEY = "__siteCtx";
-
 const liquid = new Liquid({
   outputEscape: "escape",
   strictVariables: false,
@@ -80,51 +77,22 @@ liquid.registerTag("render_block", {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   *render(this: any, ctx: Context): Generator<unknown, string, unknown> {
     const props = (yield this.hash.render(ctx)) as JsonObject;
-    const siteCtx = ctx.getSync([CTX_KEY]) as SiteRenderContext | undefined;
+    const siteCtx = ctx.getSync([RENDER_CTX_KEY]) as SiteRenderContext | undefined;
     if (!siteCtx) return `<!-- render_block: no site context -->`;
 
     // SPEC-043/ADR-047 §2a W-004: `{% render_block region: "footer" %}` — a theme-declared widget
     // region, resolved over the SAME seam as `component:` (ADR-047 §2a: "no new Liquid capability
     // required" — a region is a `render_block` call over a resolved, ordered widget list instead of
-    // a single component). Checked first since `region`/`component` are mutually exclusive tag args.
-    if (typeof props.region === "string") {
-      return renderWidgetRegion({ ctx: siteCtx, regionKey: props.region });
-    }
-
-    const id = typeof props.component === "string" ? props.component : "";
-    const { component: _component, ...rest } = props;
-    void _component;
-    const component = COMPONENTS[id];
-    if (!component) return `<!-- unknown component: ${escapeHtml(id)} -->`;
-    return component(siteCtx, rest);
+    // a single component). `renderBlockSeam` (render.ts) owns that resolution and is shared with the
+    // Handlebars tier's own `render_block` helper.
+    return renderBlockSeam(siteCtx, props);
   },
 });
 
-/** `2800` (cents) → `"$28.00"`. No `money` filter in the ADR-020 §3 allowlist (Shopify-specific,
- * not a core LiquidJS filter), so this is precomputed server-side instead. */
-function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-/** Shapes the plain Liquid render context from a `SiteRenderContext`, matching the pre-worker `renderLiquidBody`'s data contract exactly. */
+/** The shared cross-tier data contract (`render.ts`'s `buildTemplateRenderData`) plus the private
+ * context handle the `render_block` tag reads back out of the render scope. */
 function buildLiquidData(ctx: SiteRenderContext): Record<string, unknown> {
-  return {
-    site: { title: ctx.siteTitle },
-    theme: { name: ctx.themeName },
-    route: ctx.route,
-    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: p.updatedAt })),
-    // `content` is pre-sanitized HTML; templates emit it with `| raw`.
-    post: ctx.post
-      ? { title: ctx.post.title, slug: ctx.post.slug, date: ctx.post.updatedAt, content: renderDocNode(ctx.post.bodyJson, ctx.widgetInlineResolved) }
-      : null,
-    // `price` stays in cents — themes format it themselves (no `money` filter in the allowlist);
-    // `priceFormatted` is precomputed here so a theme can just `{{ product.priceFormatted }}`.
-    products: ctx.products.map((p) => ({ id: p.id, title: p.title, price: p.price, priceFormatted: formatCents(p.price), stock: p.stock })),
-    product: ctx.product
-      ? { id: ctx.product.id, title: ctx.product.title, price: ctx.product.price, priceFormatted: formatCents(ctx.product.price), stock: ctx.product.stock }
-      : null,
-    [CTX_KEY]: ctx,
-  };
+  return { ...buildTemplateRenderData(ctx), [RENDER_CTX_KEY]: ctx };
 }
 
 function isLiquidWorkerInput(value: unknown): value is LiquidWorkerInput {

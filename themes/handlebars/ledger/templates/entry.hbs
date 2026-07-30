@@ -1,0 +1,53 @@
+{{!--
+  Ledger — entry (single post).
+
+  Demonstrates the ONE raw-output seam this tier permits: {{{post.content}}}.
+  That value is not theme data and not user text as typed — it is the server's own
+  renderDocNode() output, HTML this codebase generated from a TipTap document through
+  a closed node vocabulary with escapeHtml() on every text run and safeHref() on every
+  link. Escaping it a second time would print visible <p> tags to readers.
+
+  Everything else — post.title, site.title, every other entry's title — is {{escaped}}.
+  Writing {{{post.title}}} here would fail the whole theme at load time with
+  `status: "invalid"` (see features/theme/handlebars-allowlist.ts). That is the point:
+  the raw seam is one named path, not a capability the theme may point anywhere.
+--}}
+{{render_block component="tovu/site-header" compact=true}}
+
+<main class="ledger">
+  {{#if post}}
+    <article class="entry">
+      <div class="wrap wrap--narrow">
+        <a class="entry__back" href="/">&larr; {{site.title}}</a>
+        <p class="entry__kicker">Entry</p>
+        <h1 class="entry__title">{{post.title}}</h1>
+        <p class="entry__meta"><time>{{post.dateShort}}</time></p>
+        <div class="prose">{{{post.content}}}</div>
+      </div>
+    </article>
+  {{/if}}
+
+  {{#unless post}}
+    <div class="wrap wrap--narrow">
+      <p class="ledger-empty">That entry is no longer in the ledger.</p>
+    </div>
+  {{/unless}}
+
+  <section class="alsoin">
+    <div class="wrap wrap--narrow">
+      <h2 class="alsoin__title">Elsewhere in the ledger</h2>
+      <ul class="alsoin__list">
+        {{#each posts}}
+          <li>
+            <a href="/{{slug}}">{{title}}</a>
+            <time>{{dateShort}}</time>
+          </li>
+        {{else}}
+          <li class="alsoin__empty">Nothing else yet.</li>
+        {{/each}}
+      </ul>
+    </div>
+  </section>
+</main>
+
+{{render_block component="tovu/site-footer"}}

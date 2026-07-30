@@ -34,6 +34,11 @@ const BUILTIN_ADMIN_PERMISSIONS: readonly string[] = [
   "content.publish",
   "content.delete",
   "theme.set",
+  // Editing a theme's source files is an admin capability, deliberately NOT in the editor set
+  // below (which keeps theme.set): an editor may switch the site between validated themes, but
+  // authoring template/CSS source is a build-time-shaped capability whose failure mode is a broken
+  // theme, not a different-looking one.
+  "theme.edit",
   "plugin.read",
   "plugin.enable",
   "plugin.disable",

@@ -304,6 +304,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     // instance, matching what the old separate executeCommand()-level enqueue() call did.
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
     themes: discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" }),
+    themesDir: builtInThemesDir(),
     outbox,
     bus,
     clock,

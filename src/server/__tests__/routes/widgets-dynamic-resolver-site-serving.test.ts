@@ -35,6 +35,8 @@ function fakeThemeWithRegions(regions: string[]): DiscoveredTheme {
       entry: { type: "doc", content: [{ type: "slot", name: "content" }] },
     },
     liquidTemplates: {},
+    handlebarsTemplates: {},
+    dir: "/nonexistent/test-theme",
     css: "",
     source: "site",
     status: "valid",

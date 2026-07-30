@@ -10,12 +10,13 @@
  * assistant rather than any one domain — which domains are wired at all, and the two cross-domain
  * invariants that only a file seeing all of them can check.
  *
- * Wired domains and their catalogs (20 domains, 138 catalog entries, 120 wired tools):
+ * Wired domains and their catalogs (21 domains, 142 catalog entries, 124 wired tools):
  *   content-types (6 of 8)   forms (5)         identity (15)      comments (7)
  *   members (4)              newsletter (14)   media (4)          widgets (12)
  *   menus (5)                database (4 of 9) recovery (5 of 7)  plugins (2)
  *   workspace (2 of 4)       settings (3 of 7) entries (5 of 5)   taxonomy (6 of 7)
  *   seo (6)                  redirects (6 of 7) integrations (5)  post (4 of 4)
+ *   themes (4 of 4)
  * Each domain's own file records which of its entries are deliberately unwired and why; the kit's
  * `buildDomainRegistrations` fails the build on any catalog entry that is neither.
  *
@@ -33,6 +34,7 @@ import { buildPostRegistrations, postDerivedRisk } from "../features/post/tool-r
 import { buildRecoveryRegistrations, recoveryDerivedRisk } from "../features/recovery/tool-registrations";
 import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/settings/tool-registrations";
 import { buildTaxonomyRegistrations, taxonomyDerivedRisk } from "../features/taxonomy/tool-registrations";
+import { buildThemesRegistrations, themesDerivedRisk } from "../features/theme/tool-registrations";
 import { buildWorkspaceRegistrations, workspaceDerivedRisk } from "../features/workspace/tool-registrations";
 import { buildFormsRegistrations, formsDerivedRisk } from "../forms/tool-registrations";
 import { buildIdentityRegistrations, identityDerivedRisk } from "../identity/tool-registrations";
@@ -87,6 +89,7 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   { domain: "seo", build: buildSeoRegistrations, risk: seoDerivedRisk },
   { domain: "redirects", build: buildRedirectsRegistrations, risk: redirectsDerivedRisk },
   { domain: "integrations", build: buildIntegrationsRegistrations, risk: integrationsDerivedRisk },
+  { domain: "themes", build: buildThemesRegistrations, risk: themesDerivedRisk },
 ];
 
 /**

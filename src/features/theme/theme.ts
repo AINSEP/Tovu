@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import type { JsonObject, JsonValue } from "../../core/ports";
+import { lintHandlebarsTemplate } from "./handlebars-allowlist";
 import { lintLiquidTemplate } from "./liquid-allowlist";
 
 /**
@@ -21,12 +22,14 @@ import { lintLiquidTemplate } from "./liquid-allowlist";
 
 /**
  * ADR-020 capability tier. `declarative` = data-only (safe from anyone),
- * `templated` = LiquidJS-rendered (sandboxed logic, no JS), `code` = trusted
+ * `templated` = LiquidJS-rendered (sandboxed logic, no JS), `handlebars` =
+ * Handlebars-rendered (sandboxed logic, no JS — a sibling of `templated` with
+ * its own allowlist/worker pair, not a replacement for it), `code` = trusted
  * signed-plugin JS (not built yet). Absent in `theme.json` ⇒ `declarative`.
  */
-export type ThemeTier = "declarative" | "templated" | "code";
+export type ThemeTier = "declarative" | "templated" | "handlebars" | "code";
 
-const THEME_TIERS: readonly ThemeTier[] = ["declarative", "templated", "code"];
+const THEME_TIERS: readonly ThemeTier[] = ["declarative", "templated", "handlebars", "code"];
 
 /** `theme.json` — static theme identity. */
 export interface ThemeManifest {
@@ -66,6 +69,15 @@ export interface ThemeManifest {
    * runtime's independent layers (worker isolation, `NO_ACCESS_FS` filesystem lockdown, memory/
    * render/parse limits — `liquid-worker.ts`) still apply regardless of this flag; only the
    * allowlist's own pre-flight lint is skipped.
+   *
+   * Liquid-only by name and by effect: the `handlebars` tier has NO equivalent opt-out, and that
+   * asymmetry is deliberate rather than an omission. Liquid's excluded surface is mostly
+   * capability breadth (a wider filter set, `include`/`render`), so "I accept this theme is a
+   * first-party artifact" is a coherent trade. The Handlebars allowlist's three headline refusals
+   * — raw `{{{output}}}`, partials, and decorators — are not breadth; they are the tier's XSS seam
+   * and its two documented routes from template text into the compiler's own object graph (see
+   * `handlebars-allowlist.ts`). There is no theme whose convenience justifies re-opening those, so
+   * the flag simply does not apply to `.hbs`/`.handlebars` files.
    */
   skipLiquidAllowlist?: boolean;
 }
@@ -79,11 +91,22 @@ export type TemplateNode = JsonValue;
 /** A fully-loaded, discovered theme. */
 export interface DiscoveredTheme {
   manifest: ThemeManifest;
+  /**
+   * Absolute path of the folder this theme was loaded from. Recorded at load time because it is the
+   * one fact about a theme that discovery knows and no consumer can re-derive: a theme id alone does
+   * not say whether the folder sits at the top level of `themes/` or under one of
+   * {@link ENGINE_SUBFOLDERS}. The `themes` agent-tool domain (`agent-tools.ts`) resolves every
+   * read/write against THIS value rather than re-deriving a path from the id, so an id can never be
+   * used to steer a file operation at a folder discovery did not itself produce.
+   */
+  dir: string;
   tokens: ThemeTokens;
   /** Template id (`home`, `post`, …) → block tree (declarative tier). */
   templates: Record<string, TemplateNode>;
   /** Template id → raw LiquidJS source (templated tier, ADR-020). */
   liquidTemplates: Record<string, string>;
+  /** Template id → raw Handlebars source (handlebars tier, ADR-020). */
+  handlebarsTemplates: Record<string, string>;
   /** Raw theme stylesheet (unsanitized in the spike). */
   css: string;
   source: "built-in" | "site";
@@ -151,6 +174,7 @@ export function loadTheme(
 
   const templates: Record<string, TemplateNode> = {};
   const liquidTemplates: Record<string, string> = {};
+  const handlebarsTemplates: Record<string, string> = {};
   const templatesDir = join(themeDir, "templates");
   if (existsSync(templatesDir)) {
     for (const file of readdirSync(templatesDir)) {
@@ -176,14 +200,36 @@ export function loadTheme(
         } else {
           liquidTemplates[templateId] = source;
         }
+      } else if (file.endsWith(".hbs") || file.endsWith(".handlebars")) {
+        // Handlebars tier (ADR-020): raw Handlebars source, rendered by the
+        // isolated worker in `server/http/site/handlebars-worker.ts`. Exactly the
+        // same lint-before-publish contract the `.liquid` branch above applies,
+        // against the Handlebars-specific allowlist — a disallowed helper, a
+        // partial, a decorator, or a `{{{raw}}}` output outside the one sanctioned
+        // path fails the theme rather than reaching the compiler. Both extensions
+        // are accepted (Handlebars' ecosystem uses them interchangeably) and map to
+        // the same template-id namespace, so `home.hbs` and `home.handlebars` are
+        // the same template id — the last one `readdirSync` yields wins, which is
+        // why a theme should ship one or the other, not both.
+        const ext = file.endsWith(".hbs") ? ".hbs" : ".handlebars";
+        const templateId = file.slice(0, -ext.length);
+        const source = readFileSync(join(templatesDir, file), "utf8");
+        const violations = lintHandlebarsTemplate(source);
+        if (violations.length > 0) {
+          errors.push(`templates/${file}: ${violations.join("; ")}`);
+        } else {
+          handlebarsTemplates[templateId] = source;
+        }
       }
     }
   }
   // REQ-01: a theme's required template minimum is home + entry (the base). C3:
   // post/page are optional specializations that fall through to entry (REQ-03).
-  // The required set is tier-aware: templated themes ship `.liquid`, others JSON.
-  const ext = manifest.tier === "templated" ? "liquid" : "json";
-  const requiredTemplates = manifest.tier === "templated" ? liquidTemplates : templates;
+  // The required set is tier-aware: templated themes ship `.liquid`, handlebars
+  // themes ship `.hbs`, others JSON.
+  const ext = manifest.tier === "templated" ? "liquid" : manifest.tier === "handlebars" ? "hbs" : "json";
+  const requiredTemplates =
+    manifest.tier === "templated" ? liquidTemplates : manifest.tier === "handlebars" ? handlebarsTemplates : templates;
   if (!requiredTemplates.home) errors.push(`templates/home.${ext} is required`);
   if (!requiredTemplates.entry) errors.push(`templates/entry.${ext} is required`);
 
@@ -193,9 +239,11 @@ export function loadTheme(
 
   return {
     manifest,
+    dir: themeDir,
     tokens,
     templates,
     liquidTemplates,
+    handlebarsTemplates,
     css,
     source,
     status: errors.length === 0 ? "valid" : "invalid",
@@ -231,12 +279,16 @@ export function discoverThemes(
 /**
  * Named engine-specific subfolders under a themes root: declarative (JSON block-tree) themes stay
  * at the top level as Tovu's native format; each other engine gets its own subfolder so `themes/`
- * doesn't mix formats in one flat listing. `handlebars/` has no themes yet (no Handlebars tier
- * exists — see `ThemeTier`) but is listed now so the convention is established before that tier
- * lands; scanning a missing subfolder is a no-op (`discoverThemes`'s own missing-dir ⇒ empty-list
- * behavior), so this is forward-compatible with zero migration when it does.
+ * doesn't mix formats in one flat listing. Scanning a missing subfolder is a no-op
+ * (`discoverThemes`'s own missing-dir ⇒ empty-list behavior), so adding an engine here ahead of its
+ * first theme costs nothing.
+ *
+ * Exported because it is also the containment boundary the `themes` agent-tool domain enforces
+ * (`agent-tools.ts`/`tool-registrations.ts`): a theme folder that is not a direct child of the
+ * themes root or of one of THESE subfolders is not a recognized theme root, and no agent-driven file
+ * write may resolve into it.
  */
-const ENGINE_SUBFOLDERS = ["liquidjs", "handlebars"] as const;
+export const ENGINE_SUBFOLDERS = ["liquidjs", "handlebars"] as const;
 
 /**
  * Discover every built-in theme across the top-level (declarative) folder plus every engine
@@ -307,5 +359,23 @@ export function resolveLiquidTemplateId(
   if (route === "product") return liquidTemplates.product ? "product" : null;
   if (liquidTemplates.post) return "post";
   if (liquidTemplates.entry) return "entry";
+  return null;
+}
+
+/**
+ * Handlebars-tier analogue of `resolveTemplateId`: same REQ-03 fallthrough
+ * (`home` → `home`; `post` → `post` else `entry`; `products`/`product` → own-named
+ * template only) over the raw `.hbs` source map.
+ */
+export function resolveHandlebarsTemplateId(
+  required: { route: "home" | "post" | "products" | "product"; handlebarsTemplates: Record<string, string> },
+  _optional: Record<string, never> = {}
+): string | null {
+  const { route, handlebarsTemplates } = required;
+  if (route === "home") return handlebarsTemplates.home ? "home" : null;
+  if (route === "products") return handlebarsTemplates.products ? "products" : null;
+  if (route === "product") return handlebarsTemplates.product ? "product" : null;
+  if (handlebarsTemplates.post) return "post";
+  if (handlebarsTemplates.entry) return "entry";
   return null;
 }

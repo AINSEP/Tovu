@@ -137,6 +137,8 @@ function declarativeTheme(home: JsonObject): DiscoveredTheme {
     tokens: {},
     templates: { home, entry: { type: "doc", content: [] } },
     liquidTemplates: {},
+    handlebarsTemplates: {},
+    dir: "/nonexistent/test-theme",
     css: "",
     source: "site",
     status: "valid",
