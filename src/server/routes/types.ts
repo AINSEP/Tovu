@@ -125,7 +125,7 @@ export interface RouteDeps {
    */
   assistantSettingsReady: Promise<void>;
   /**
-   * Resolves once the one-time `ensureExecutionSettingDefinitions()` boot call registers the 6
+   * Resolves once the one-time `ensureExecutionSettingDefinitions()` boot call registers the 8
    * `core.execution.*` setting definitions backing the admin "Execution mode" tab (`@jini-ai/ui`'s
    * `ExecutionTab`). Same shape/convention as `assistantSettingsReady`, chained after it in both
    * composition roots for the identical transaction-hazard reason. Unlike the other three
@@ -136,6 +136,15 @@ export interface RouteDeps {
    * reason every other boot registration is, and so a future dedicated route has it available.
    */
   executionSettingsReady: Promise<void>;
+  /**
+   * Resolves once `ensureSettingsUiTabDefinitions()` registers the 9 definitions across
+   * `core.instructions.*`, `core.notifications.*`, and `core.privacy.*` — the settings-dialog
+   * tabs whose entire Tovu-side cost is ledger storage (no routes, no port). Chained after
+   * `executionSettingsReady` in both composition roots for the same transaction-hazard reason
+   * every other registration is, and likewise has no dedicated route consumer: all three tabs
+   * read/write through the generic settings routes.
+   */
+  settingsUiTabsReady: Promise<void>;
   /** Change-set store for the command gateway (in-memory in v1, ADR-008/018). */
   changeSets: ChangeSetRepoPort;
   /** Themes discovered at boot (built-in + site themes/ dir), SPEC-004 spike. */

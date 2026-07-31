@@ -1,9 +1,9 @@
-import type { ClockPort, IdGeneratorPort, UUID } from "../core/ports";
-import type { PrincipalRepoPort } from "../identity/ports";
-import type { SettingsRepoPort } from "../features/settings/ports";
-import { resolveDefinitionRaw } from "../features/settings/settings";
-import { SCOPE_BIT, type SettingValueSchema } from "../features/settings/types";
-import { registerDefinitions, type AuthorizeFn } from "../features/settings/write-service";
+import type { UUID } from "../core/ports";
+import {
+  ensureSettingDefinitions,
+  type EnsureSettingDefinitionsDeps,
+  type SettingDefinitionSpec,
+} from "../features/settings/ensure-definitions";
 
 /**
  * @file Boot-time `core.execution.*` setting-definition registration for the
@@ -86,17 +86,16 @@ type ExecutionSettingKey =
   | "localCli.agentId"
   | "localCli.model";
 
-interface ExecutionDefinitionSpec {
+/** Narrows the shared spec's open `key: string` to this namespace's own key
+ *  union, so a typo here is a compile error rather than a definition
+ *  registered under a key nothing reads. */
+interface ExecutionDefinitionSpec extends SettingDefinitionSpec {
   key: ExecutionSettingKey;
-  schema: SettingValueSchema;
-  /** Every non-secret definition needs a non-null default (totality) — see
-   *  `MAX_TOKENS_UNSET_SENTINEL`'s doc comment for why none of these six use
-   *  a literal `null`, even for the one nullable-in-spirit field. */
-  defaultValue: string | number | boolean;
 }
 
 /** The 8 registered `core.execution.*` definitions. No `byok.apiKey` — see
- *  this file's header. */
+ *  this file's header. Scope is the shared default (workspace): one operator's
+ *  endpoint choice doesn't silently become every workspace's. */
 const EXECUTION_DEFINITIONS: readonly ExecutionDefinitionSpec[] = [
   { key: "mode", schema: { type: "enum", values: ["local-cli", "byok"] }, defaultValue: "local-cli" },
   {
@@ -140,12 +139,7 @@ const EXECUTION_DEFINITIONS: readonly ExecutionDefinitionSpec[] = [
   { key: "localCli.model", schema: { type: "string" }, defaultValue: "" },
 ];
 
-export interface EnsureExecutionSettingDefinitionsDeps {
-  settingsRepo: SettingsRepoPort;
-  clock: ClockPort;
-  ids: IdGeneratorPort;
-  principals: PrincipalRepoPort;
-}
+export type EnsureExecutionSettingDefinitionsDeps = EnsureSettingDefinitionsDeps;
 
 export interface EnsureExecutionSettingDefinitionsInput {
   /** The trusted boot-time actor these writes are attributed to (mirrors
@@ -153,25 +147,12 @@ export interface EnsureExecutionSettingDefinitionsInput {
   systemPrincipalId: UUID;
 }
 
-/** Boot-time infra work is trusted by construction — mirrors every other
- *  `ensure*SettingDefinitions`'s identical shim. */
-const alwaysAllowBoot: AuthorizeFn = async () => ({ allowed: true, reason: "system_boot" });
-
-function bootWriteServiceDeps(deps: EnsureExecutionSettingDefinitionsDeps) {
-  return { repo: deps.settingsRepo, clock: deps.clock, ids: deps.ids, authorize: alwaysAllowBoot, principals: deps.principals };
-}
-
 /**
- * Idempotently registers the 8 `core.execution.*` definitions (skip if
- * already registered, mirrors `ensureSeoSettingDefinitions`/
- * `ensureCommentsSettingDefinitions`/`ensurePublicAssistantSettingDefinitions`).
- * Safe to call on every boot.
- *
- * Unlike those three (all `ownerKind: "site"`), this registers `ownerKind:
- * "core"` definitions, so — per the namespace-fence CHECK — `workspaceId` is
- * `null` at the DEFINITION level regardless of which workspace is booting;
- * `resolveDefinitionRaw`'s own lookup below passes `workspaceId: null` to
- * match (a per-workspace lookup would never find a platform definition).
+ * Idempotently registers the 8 `core.execution.*` definitions. Safe to call on
+ * every boot. The skip-if-registered loop, the `ownerKind: "core"` /
+ * `workspaceId: null` namespace-fence handling, and the boot-trust shim all
+ * live in `features/settings/ensure-definitions.ts` — this module owns only
+ * the definition list above.
  *
  * @complexity O(1) — 8 definitions, each a skip-if-registered check plus at
  * most one `registerDefinitions` call.
@@ -181,35 +162,9 @@ export async function ensureExecutionSettingDefinitions(
   deps: EnsureExecutionSettingDefinitionsDeps,
   input: EnsureExecutionSettingDefinitionsInput
 ): Promise<void> {
-  for (const def of EXECUTION_DEFINITIONS) {
-    const existing = await resolveDefinitionRaw(
-      { repo: deps.settingsRepo },
-      { namespace: EXECUTION_NAMESPACE, key: def.key, workspaceId: null }
-    );
-    if (existing) continue;
-
-    await registerDefinitions({
-      deps: bootWriteServiceDeps(deps),
-      input: {
-        callerPrincipalId: input.systemPrincipalId,
-        // Platform (core) definitions aren't scoped to any one workspace, but
-        // `registerDefinitions`'s authorization check still needs a workspace
-        // context to authorize against — the seeded workspace mirrors every
-        // other boot-time registrar's identical `authWorkspaceId` shape.
-        authWorkspaceId: input.systemPrincipalId,
-        definitions: [
-          {
-            namespace: EXECUTION_NAMESPACE,
-            key: def.key,
-            ownerKind: "core",
-            workspaceId: null,
-            schema: def.schema,
-            defaultValue: def.defaultValue,
-            scopes: SCOPE_BIT.workspace,
-            secret: false,
-          },
-        ],
-      },
-    });
-  }
+  await ensureSettingDefinitions(deps, {
+    namespace: EXECUTION_NAMESPACE,
+    definitions: EXECUTION_DEFINITIONS,
+    systemPrincipalId: input.systemPrincipalId,
+  });
 }
