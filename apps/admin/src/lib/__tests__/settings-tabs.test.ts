@@ -38,10 +38,18 @@ import {
   INSTRUCTIONS_NAMESPACE,
   NOTIFICATIONS_NAMESPACE,
   PRIVACY_NAMESPACE,
+  APPEARANCE_NAMESPACE,
+  LANGUAGE_NAMESPACE,
+  DEFAULT_APPEARANCE,
+  DEFAULT_LOCALE,
+  loadAppearance,
   loadInstructions,
+  loadLanguage,
   loadNotifications,
   loadPrivacy,
+  saveAppearance,
   saveInstructions,
+  saveLanguage,
   saveNotifications,
   savePrivacy,
 } from "../settings-tabs";
@@ -337,5 +345,134 @@ describe("savePrivacy — sentinel round-trip on write", () => {
     const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; changed: boolean }>;
     const decisionCandidate = candidates.find((c) => c.key === "decisionAt");
     expect(decisionCandidate?.changed).toBe(false);
+  });
+});
+
+// --- Appearance -------------------------------------------------------------
+
+describe("loadAppearance", () => {
+  it("defaults when nothing is stored", async () => {
+    loadNamespaceValues.mockResolvedValue(new Map());
+    expect(await loadAppearance()).toEqual(DEFAULT_APPEARANCE);
+  });
+
+  it("returns stored theme and accent", async () => {
+    loadNamespaceValues.mockResolvedValue(
+      new Map<string, unknown>([
+        ["theme", "dark"],
+        ["accentColor", "#ff0000"],
+      ]),
+    );
+    expect(await loadAppearance()).toEqual({ theme: "dark", accentColor: "#ff0000" });
+  });
+
+  it("accepts every legal theme", async () => {
+    for (const theme of ["system", "light", "dark"] as const) {
+      loadNamespaceValues.mockResolvedValue(new Map<string, unknown>([["theme", theme]]));
+      expect((await loadAppearance()).theme).toBe(theme);
+    }
+  });
+
+  it("falls back for an unrecognised stored theme", async () => {
+    // Must not reach the tab as a value its radio group cannot select.
+    loadNamespaceValues.mockResolvedValue(new Map<string, unknown>([["theme", "solarized"]]));
+    expect((await loadAppearance()).theme).toBe(DEFAULT_APPEARANCE.theme);
+  });
+
+  it("falls back for a wrong-typed theme", async () => {
+    loadNamespaceValues.mockResolvedValue(new Map<string, unknown>([["theme", 42]]));
+    expect((await loadAppearance()).theme).toBe(DEFAULT_APPEARANCE.theme);
+  });
+
+  it("passes an arbitrary accent through — the picker allows any #rrggbb", async () => {
+    loadNamespaceValues.mockResolvedValue(new Map<string, unknown>([["accentColor", "#0f0f0f"]]));
+    expect((await loadAppearance()).accentColor).toBe("#0f0f0f");
+  });
+
+  it("reads the appearance namespace", async () => {
+    loadNamespaceValues.mockResolvedValue(new Map());
+    await loadAppearance();
+    expect(loadNamespaceValues).toHaveBeenCalledWith(APPEARANCE_NAMESPACE);
+  });
+});
+
+describe("saveAppearance", () => {
+  it("writes only what changed", async () => {
+    await saveAppearance({ theme: "dark", accentColor: "#111111" }, { theme: "system", accentColor: "#111111" });
+    const [namespace, scope, candidates] = saveChangedEntries.mock.calls.at(-1) as [
+      string,
+      string,
+      Array<{ key: string; changed: boolean }>,
+    ];
+    expect(namespace).toBe(APPEARANCE_NAMESPACE);
+    // Per-operator, like Notifications — one admin's theme is not the workspace's.
+    expect(scope).toBe("user");
+    expect(candidates.find((c) => c.key === "theme")?.changed).toBe(true);
+    expect(candidates.find((c) => c.key === "accentColor")?.changed).toBe(false);
+  });
+
+  it("marks nothing changed for an identical save", async () => {
+    await saveAppearance(DEFAULT_APPEARANCE, DEFAULT_APPEARANCE);
+    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ changed: boolean }>;
+    expect(candidates.every((c) => !c.changed)).toBe(true);
+  });
+
+  it("detects an accent-only change", async () => {
+    await saveAppearance({ theme: "light", accentColor: "#abcdef" }, { theme: "light", accentColor: "#111111" });
+    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ key: string; changed: boolean }>;
+    expect(candidates.find((c) => c.key === "accentColor")?.changed).toBe(true);
+    expect(candidates.find((c) => c.key === "theme")?.changed).toBe(false);
+  });
+});
+
+// --- Language ---------------------------------------------------------------
+
+describe("loadLanguage", () => {
+  it("defaults when nothing is stored", async () => {
+    loadNamespaceValues.mockResolvedValue(new Map());
+    expect(await loadLanguage()).toBe(DEFAULT_LOCALE);
+  });
+
+  it("returns the stored locale", async () => {
+    loadNamespaceValues.mockResolvedValue(new Map<string, unknown>([["locale", "fr"]]));
+    expect(await loadLanguage()).toBe("fr");
+  });
+
+  it("returns an unknown stored code as-is rather than rejecting it", async () => {
+    // Tovu has no locale catalog yet; an unrecognised code simply selects
+    // nothing in the tab, which is better than failing the read.
+    loadNamespaceValues.mockResolvedValue(new Map<string, unknown>([["locale", "xx-YZ"]]));
+    expect(await loadLanguage()).toBe("xx-YZ");
+  });
+
+  it("falls back for a wrong-typed value", async () => {
+    loadNamespaceValues.mockResolvedValue(new Map<string, unknown>([["locale", 7]]));
+    expect(await loadLanguage()).toBe(DEFAULT_LOCALE);
+  });
+
+  it("reads the language namespace", async () => {
+    loadNamespaceValues.mockResolvedValue(new Map());
+    await loadLanguage();
+    expect(loadNamespaceValues).toHaveBeenCalledWith(LANGUAGE_NAMESPACE);
+  });
+});
+
+describe("saveLanguage", () => {
+  it("writes a changed locale at user scope", async () => {
+    await saveLanguage("fr", "en");
+    const [namespace, scope, candidates] = saveChangedEntries.mock.calls.at(-1) as [
+      string,
+      string,
+      Array<{ key: string; valueJson: unknown; changed: boolean }>,
+    ];
+    expect(namespace).toBe(LANGUAGE_NAMESPACE);
+    expect(scope).toBe("user");
+    expect(candidates[0]).toMatchObject({ key: "locale", valueJson: "fr", changed: true });
+  });
+
+  it("marks nothing changed for an identical save", async () => {
+    await saveLanguage("en", "en");
+    const candidates = saveChangedEntries.mock.calls.at(-1)?.[2] as Array<{ changed: boolean }>;
+    expect(candidates[0]?.changed).toBe(false);
   });
 });
