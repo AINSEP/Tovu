@@ -44,6 +44,8 @@ const CATALOG_BY_ID = indexCatalogById(formsAgentToolCatalog);
  * `sideEffects` declaration.
  */
 export const formsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+  // -> formDefinitionRepo.list: one unfiltered read, no write of any kind.
+  ["forms_list_definitions", "none"],
   // -> createFormDefinition (write-service.ts): executeCommand -> repo.create + change-set + outbox.
   ["forms_create_definition", "mutates-durable-state"],
   // -> updateFormDefinition (write-service.ts): executeCommand -> repo.update + change-set + outbox.
@@ -189,6 +191,15 @@ function requireFormsPatch(input: Record<string, unknown>): { name?: string; fie
 
 export function buildFormsRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
+    forms_list_definitions: async (ctx) => {
+      await requireToolPermission(routeDeps, {
+        principalId: ctx.principal.id,
+        permission: "admin.forms.manage",
+        entityType: "form_definition",
+      });
+      const definitions = await routeDeps.formDefinitionRepo.list({ workspaceId: routeDeps.workspaceId });
+      return { definitions: definitions.map(toFormDefinitionView) };
+    },
     forms_create_definition: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       return withSchemaOnRejection({ toolId: "forms_create_definition", catalog: CATALOG_BY_ID, isShapeRejection: isFormsShapeRejection }, async () => {
