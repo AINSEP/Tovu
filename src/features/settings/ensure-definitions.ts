@@ -1,13 +1,14 @@
-import type { ClockPort, IdGeneratorPort, UUID } from "../../core/ports";
+import type { ClockPort, IdGeneratorPort, JsonValue, UUID } from "../../core/ports";
 import type { PrincipalRepoPort } from "../../identity/ports";
 import type { SettingsRepoPort } from "./ports";
 import { resolveDefinitionRaw } from "./settings";
 import { SCOPE_BIT, type SettingValueSchema } from "./types";
-import { registerDefinitions, type AuthorizeFn } from "./write-service";
+import { reconcileDefinitionDefault, registerDefinitions, type AuthorizeFn } from "./write-service";
 
 /**
- * @file The one boot-time "register these definitions if they aren't already"
- * loop, shared by every registrar that backs a settings-dialog tab.
+ * @file The one boot-time "register these definitions if they aren't already,
+ * and keep their defaults honest if they are" loop, shared by every registrar
+ * that backs a settings-dialog tab.
  *
  * This exists because the loop is genuinely identical everywhere it appears —
  * `assistant/execution-mode-settings.ts` had the first copy, and each of the
@@ -39,8 +40,14 @@ export interface SettingDefinitionSpec {
    * a non-secret definition (totality)" case). A field that is nullable in
    * spirit needs a sentinel instead — see `execution-mode-settings.ts`'s
    * `MAX_TOKENS_UNSET_SENTINEL` for the worked example.
+   *
+   * Typed `Exclude<…, null>` rather than a bare primitive union: `DefinitionInput`
+   * already accepts any `JsonValue`, and a `{ type: "json" }` definition needs an
+   * array/object default (`core.analytics.excludedPaths` is the first). Excluding
+   * `null` at the type level keeps the non-null rule above a compile error rather
+   * than a boot-time throw.
    */
-  defaultValue: string | number | boolean;
+  defaultValue: Exclude<JsonValue, null>;
   /**
    * Bitmask over `SCOPE_BIT`. Defaults to `workspace`, which is what every
    * settings-dialog tab has wanted so far: one operator's choice shouldn't
@@ -71,8 +78,13 @@ const alwaysAllowBoot: AuthorizeFn = async () => ({ allowed: true, reason: "syst
 
 /**
  * Idempotently registers every definition in `input.definitions` under
- * `input.namespace`, skipping any that already exist. Safe to call on every
- * boot.
+ * `input.namespace`, and reconciles the stored default of any that already
+ * exist to the default source declares. Safe to call on every boot.
+ *
+ * The reconcile half matters as much as the register half: registration is
+ * once-only, so without it a `defaultValue` edited in source never reaches an
+ * install that has booted before. Code owns `core` defaults; the stored row
+ * does not get to outvote it.
  *
  * All definitions registered here are `ownerKind: "core"` — a settings-dialog
  * tab configures a platform-level capability (which agent runtime backs the
@@ -90,21 +102,52 @@ export async function ensureSettingDefinitions(
   deps: EnsureSettingDefinitionsDeps,
   input: EnsureSettingDefinitionsInput,
 ): Promise<void> {
+  const writeDeps = {
+    repo: deps.settingsRepo,
+    clock: deps.clock,
+    ids: deps.ids,
+    authorize: alwaysAllowBoot,
+    principals: deps.principals,
+  };
+
   for (const def of input.definitions) {
     const existing = await resolveDefinitionRaw(
       { repo: deps.settingsRepo },
       { namespace: input.namespace, key: def.key, workspaceId: null },
     );
-    if (existing) continue;
+    if (existing) {
+      // Registration is once-only, but the DEFAULT is not. Without this, a
+      // `defaultValue` changed in source is unreachable in any install that
+      // has already booted — the stored `default_json` from first boot keeps
+      // winning, for all fourteen settings-dialog tabs. See
+      // `reconcileDefinitionDefault` for the bug this closes.
+      //
+      // Three slots are deliberately left alone rather than reconciled:
+      // a non-`active` row (deprecated/tombstoned) is not ours to rewrite; a
+      // non-`core` row is operator-owned; and a row whose identity differs
+      // from the slot we asked for means `resolveDefinitionRaw` followed an
+      // alias, so rewriting it would silently change a DIFFERENT definition's
+      // default. `reconcileDefinitionDefault` would throw on the first two —
+      // this skips them quietly because boot must not fail on them.
+      const isSameSlot = existing.namespace === input.namespace && existing.key === def.key;
+      if (existing.status === "active" && existing.ownerKind === "core" && isSameSlot) {
+        await reconcileDefinitionDefault({
+          deps: writeDeps,
+          input: {
+            namespace: input.namespace,
+            key: def.key,
+            workspaceId: null,
+            defaultValue: def.defaultValue,
+            callerPrincipalId: input.systemPrincipalId,
+            authWorkspaceId: input.systemPrincipalId,
+          },
+        });
+      }
+      continue;
+    }
 
     await registerDefinitions({
-      deps: {
-        repo: deps.settingsRepo,
-        clock: deps.clock,
-        ids: deps.ids,
-        authorize: alwaysAllowBoot,
-        principals: deps.principals,
-      },
+      deps: writeDeps,
       input: {
         callerPrincipalId: input.systemPrincipalId,
         // Platform (core) definitions aren't scoped to any one workspace, but
