@@ -1,5 +1,15 @@
+/**
+ * NOTE on this file's actual reach, recorded because the name suggests more than it delivers: the
+ * React admin's rendered sidebar comes from `apps/admin/src/nav.ts`, not from `adminSections`
+ * below — see that file's own header ("Replaces the flat, WordPress-shaped menu that came from
+ * `@tovu/admin-shell`"). What still consumes this module is `getAdminSectionById`, via
+ * `apps/admin/src/sections/Placeholder.tsx`, which renders a section's `label`/`description` for
+ * any route with no component yet. So a new section belongs in BOTH files: here for the shared,
+ * framework-agnostic metadata, and there for the entry a human actually clicks.
+ */
 export type AdminSectionId =
   | "dashboard"
+  | "ai-assistant"
   | "posts"
   | "media"
   | "pages"
@@ -107,6 +117,13 @@ export const adminSections: AdminSectionDefinition[] = [
     label: "Dashboard",
     icon: "D",
     description: "Overview widgets, content shortcuts, and product status for the local shell.",
+  },
+  {
+    id: "ai-assistant",
+    label: "AI Assistant",
+    icon: "AI",
+    description:
+      "The visitor-facing AI assistant: its master on/off switch, plus the operator controls (cost caps, per-visitor rate limiting, live status) that are not built yet.",
   },
   {
     id: "posts",
@@ -498,6 +515,7 @@ const adminMenuDefinitions: AdminMenuDefinition[] = [
 export function createEmptyAdminCurrentState(): Record<AdminCurrentKey, boolean> {
   return {
     dashboard: false,
+    "ai-assistant": false,
     posts: false,
     media: false,
     pages: false,

@@ -164,11 +164,30 @@ export function createTovuAssistantTransport(): ChatTransport {
       const prompt = latestUserPrompt(input.history);
       if (!prompt) throw new Error("no user message to send");
 
+      /**
+       * Which browser tab this run should be allowed to drive, from `ChatPane`'s `runContext`
+       * prop (`AssistantDock.tsx` supplies it from the live `FrontendSessionBridge`).
+       *
+       * Read by name rather than spreading the whole `input.context` blob: `contextRef` is a
+       * shared envelope that Tovu's proxy also writes `principalId` into
+       * (`src/server/modules/assistant.ts`), and a spread would let any future `runContext` key
+       * silently shadow it — an identity field being overwritten by a UI prop is not a failure
+       * mode worth leaving open to save one line.
+       *
+       * Omitted entirely when absent, which is a normal state, not an error: the daemon treats a
+       * run with no bind token as one with no screen to drive (`agent-daemon-server.ts`).
+       */
+      const frontendBindToken = input.context?.["frontendBindToken"];
+      const contextRef: Record<string, unknown> = { prompt };
+      if (typeof frontendBindToken === "string" && frontendBindToken.length > 0) {
+        contextRef.frontendBindToken = frontendBindToken;
+      }
+
       const response = await fetch(RUNS_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ contextRef: JSON.stringify({ prompt }), agentId: input.agentId }),
+        body: JSON.stringify({ contextRef: JSON.stringify(contextRef), agentId: input.agentId }),
         signal: input.signal,
       });
 

@@ -10,6 +10,17 @@ import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqli
  *
  * Content is stored as normalized columns + JSON text (`body_json`) so it stays
  * portable to Postgres `jsonb` later.
+ *
+ * NOT EVERYTHING IN content.db IS DECLARED HERE, and one omission is deliberate rather than a gap:
+ * the posts full-text search index (`post_search_document` + the `post_search_fts` FTS5 virtual
+ * table + its three sync triggers) lives only in migration
+ * `drizzle/0022_posts_fts_search_index.sql`, because drizzle-orm's sqlite-core has no builder for a
+ * virtual table or a trigger. That migration was produced with
+ * `drizzle-kit generate --custom`, which wrote its own `_journal.json` entry and
+ * `0022_snapshot.json` baseline, so `npm run db:generate` still diffs against a consistent snapshot
+ * and will neither re-propose earlier migrations nor try to drop objects it cannot see. If those
+ * objects ever need to change, hand-write another `--custom` migration; do not attempt to express
+ * them here. See `features/post/search-index.sqlite.ts` for how they are maintained at runtime.
  */
 export const workspaces = sqliteTable("workspaces", {
   id: text("id").primaryKey(),

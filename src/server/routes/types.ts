@@ -15,7 +15,7 @@ import type {
   UserRepoPort,
 } from "../../identity";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin";
-import type { PostRepoPort } from "../../features/post";
+import type { PostRepoPort, PostSearchPort } from "../../features/post";
 import type { PresentationSettingsRepoPort } from "../../features/presentation";
 import type { SettingsRepoPort } from "../../features/settings/ports";
 import type { DiscoveredTheme } from "../../features/theme";
@@ -72,6 +72,16 @@ export interface RouteDeps {
   workspaceId: UUID;
   workspaceRepo: WorkspaceRepoPort;
   postRepo: PostRepoPort;
+  /**
+   * Ranked full-text search over posts/pages, backing the `content_post_search` agent tool.
+   *
+   * A sibling of `postRepo` rather than a method on it: `PostRepoPort` is a record store of exact
+   * lookups whose in-memory adapter is three array scans, while this is a durable inverted index
+   * with its own migration, sync obligation and backfill. See `features/post/search.ts` for the
+   * full argument, and `search-index.sqlite.ts` for why the index carries only text while
+   * workspace/kind/status/trash stay query-time filters on the live row.
+   */
+  postSearch: PostSearchPort;
   presentationRepo: PresentationSettingsRepoPort;
   /**
    * SPEC-007 — the settings ledger's repo port. `core.commands.appliers`
@@ -96,6 +106,14 @@ export interface RouteDeps {
    * await this first, same as `settings/get-effective.ts` awaits `settingsReady`.
    */
   seoReady: Promise<void>;
+  /**
+   * Resolves once the one-time `ensurePublicAssistantSettingDefinitions()` boot call registers the
+   * `site.assistant.public_enabled` definition. Same shape and same convention as `seoReady` above,
+   * and chained after it in both composition roots for the reason `seoReady`'s own comment in
+   * `app.ts` gives: concurrent openers of the settings write chokepoint's transaction throw on the
+   * SQLite root. The 2 admin assistant-settings routes await this before reading `settingsRepo`.
+   */
+  assistantSettingsReady: Promise<void>;
   /** Change-set store for the command gateway (in-memory in v1, ADR-008/018). */
   changeSets: ChangeSetRepoPort;
   /** Themes discovered at boot (built-in + site themes/ dir), SPEC-004 spike. */

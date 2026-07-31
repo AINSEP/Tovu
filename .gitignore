@@ -35,3 +35,6 @@ content.db.snapshot-comments-*
 .claude/settings.local.json
 ADS-memory/tmp/
 .mcp.json
+# Per-run MCP config the agent daemon writes for each spawned CLI (`mcp-injection.ts`), named
+# `.mcp.jini-<runId>.json`. Transient and machine-specific; one is left behind per run.
+.mcp.jini-*.json

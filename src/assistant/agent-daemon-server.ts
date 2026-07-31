@@ -57,10 +57,21 @@
  */
 import express from "express";
 
+import { PAGE_CAPABILITIES } from "@jini-ai/agentic";
 import { createToolRegistry } from "@jini-ai/core";
 import type { Principal } from "@jini-ai/core";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { registerAgentRoutes, registerDelegatedToolRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/http-kit";
+// From `@jini-ai/agent-runtime`, which owns the seam — not `@jini-ai/daemon`, which only accepts
+// one as an option. The ambient shim this repo used to carry declared it on `daemon`, and being a
+// shim it made that wrong claim typecheck cleanly.
+import type { PromptAugmenter } from "@jini-ai/agent-runtime";
+import {
+  createFrontendControl,
+  registerAgentRoutes,
+  registerDelegatedToolRoutes,
+  registerRunRoutes,
+  registerToolCatalogRoutes,
+} from "@jini-ai/http-kit";
 import type { AdapterContext, DelegatedToolExecuteRequest, RunStartHandler } from "@jini-ai/http-kit";
 
 import { registerSupabaseMcpPreset } from "../features/plugins/supabase-mcp/supabase-mcp-plugin";
@@ -118,6 +129,61 @@ const registry = createToolRegistry();
 for (const registration of buildAssistantToolRegistrations(routeDeps)) {
   registry.register(registration);
 }
+
+/**
+ * Agent-driven control of the admin's own browser tab — `page.navigate`, `page.scroll_to`,
+ * `page.find_elements` and the rest of `@jini-ai/agentic`'s {@link PAGE_CAPABILITIES}.
+ *
+ * `createFrontendControl` assembles the three parts (session registry, gated tool registrations,
+ * the stream/response routes) and deliberately never hands back the registry — its `invoke`
+ * executes a capability on a real admin's real screen with no policy check, no timeout and no
+ * audit record, and is safe only because the one thing that can reach it is a `ToolHandler`
+ * `ToolExecutor` has already gated.
+ *
+ * `PAGE_CAPABILITIES` is imported rather than restated so the manifest the daemon gates and the
+ * manifest `apps/admin` executes are the same array — the two cannot drift into a state where an
+ * agent is offered a verb the page does not implement, or vice versa.
+ */
+const frontendControl = createFrontendControl({
+  capabilities: PAGE_CAPABILITIES,
+  /**
+   * Which tab this run may drive. Tovu's own `contextRef` envelope carries it, put there by the
+   * admin's `FrontendSessionBridge` (`apps/admin/src/lib/assistant-transport.ts`) and passed
+   * through untouched by the proxy.
+   *
+   * `undefined` is normal, not an error — a run with no originating surface (a future CLI or
+   * scheduled trigger) is still legitimate; it simply has no screen, and each `page.*` call it
+   * makes is refused by name rather than hanging. A malformed envelope is treated the same way:
+   * `onStarted` below already reports and fails the run for that, so throwing here as well would
+   * turn one diagnosable error into two.
+   */
+  resolveBindToken: (request) => {
+    try {
+      const parsed = JSON.parse(request.contextRef) as { frontendBindToken?: unknown };
+      return typeof parsed.frontendBindToken === "string" && parsed.frontendBindToken.length > 0
+        ? parsed.frontendBindToken
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  },
+  // Pass-through `allow`, matching ADR-021 §2 and every other Tovu registration (see
+  // `tool-registration-kit.ts`). It is not a missing check: these verbs carry no Tovu permission
+  // of their own, and the authorization that matters already happened twice before a call gets
+  // here — Tovu's proxy required an admin session to start the run at all, and the daemon will
+  // only route the invocation to the one surface bound to THAT run. An agent therefore cannot
+  // reach a tab other than the one whose own admin started it.
+  policy: { authorize: () => "allow" },
+  // Page text is untrusted input to whatever model reads the result back. `page.find_elements`
+  // returns labels and values written by the page itself, so bound what one call can return.
+  maxOutputBytes: 64 * 1024,
+  onBindError: ({ runId, error }) => {
+    console.error(`[agent-daemon] run ${runId}: could not bind to a frontend surface`, error);
+  },
+});
+for (const registration of frontendControl.toolRegistrations) {
+  registry.register(registration);
+}
 // Wrapped, not bare: `@jini-ai/daemon`'s executor keeps its audit records in an in-process `Map`
 // and mints them only AFTER authorization resolves, so an unknown tool id or a throwing
 // authorization leaves no trace at all, and everything else is lost on restart. The decorator
@@ -135,9 +201,38 @@ const auditSink =
     : new SqliteToolAttemptAuditSink(openContentDb(defaultContentDbPath()));
 const toolExecutor = withToolAttemptAudit(createToolExecutor({ registry }), auditSink, { workspaceId: routeDeps.workspaceId });
 
+/**
+ * Live-tested 2026-07-30: given a bare natural-language admin request with a matching registered
+ * tool (a DB health check, user creation, role listing, form creation), the spawned CLI reliably
+ * used its own native Bash/curl instead of `search_tools`/`execute_delegated_tool` — in the worst
+ * case, self-authenticating as the seeded site owner via the raw admin login route rather than
+ * going through the tool catalog's authorization/risk-classification/audit-log system. The BM25
+ * tool-catalog backend itself is not the problem (confirmed healthy via direct query); nothing
+ * upstream of it ever told the CLI these tools exist and should be preferred. This overlay is that
+ * missing instruction — see `ADS-memory/reports/architecture/ai-workflow-testing-findings.md`.
+ */
+const assistantPromptAugmenter: PromptAugmenter = {
+  contextKinds: () => [],
+  augmentUserRequest: ({ basePrompt }) => basePrompt,
+  systemOverlay: () =>
+    "You are answering a live administrator's request through Tovu's own admin chat assistant, " +
+    "not doing general development work on the Tovu codebase. Tovu exposes a purpose-built, " +
+    "audited catalog of tools for every action that touches this site's actual content, users, " +
+    "permissions, forms, database state, or configuration. For any such request: call " +
+    "search_tools with a keyword query FIRST, then describe_tool on the top 1-3 candidates, then " +
+    "execute_delegated_tool to perform the action. Do this before reaching for Bash, curl, or " +
+    "direct SQLite/database access — those bypass this site's authorization, risk-classification, " +
+    "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
+    "the admin login route) to perform an action a registered tool already exists for. Bash and " +
+    "file access remain available for genuinely code-level questions about how Tovu itself works, " +
+    "but are not a substitute for the tool catalog when the request is about this site's live " +
+    "data or configuration.",
+};
+
 const agentExecutor = createAgentExecutor({
   lifecycle,
   mcpJsonInjection: resolveMcpJsonInjection(daemonUrl),
+  promptAugmenter: assistantPromptAugmenter,
 });
 
 /** Populated by `onStarted`, read by `resolveDelegatedPrincipal` — see module doc. Deleted on
@@ -153,6 +248,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   let prompt: string;
   let principal: Principal;
   try {
+    // `frontendBindToken` also rides in this envelope but is deliberately not read here —
+    // `createFrontendControl`'s own `resolveBindToken` above owns that field, so there is exactly
+    // one place that decides which tab a run may drive.
     const parsed = JSON.parse(request.contextRef) as { prompt?: unknown; principalId?: unknown };
     if (typeof parsed.prompt !== "string" || parsed.prompt.length === 0) {
       throw new Error("contextRef did not decode to a non-empty 'prompt'");
@@ -179,6 +277,16 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   principalByRunId.set(run.id, principal);
   runOwners.record(run.id, principal.id);
   void runLifecycle.waitForTerminal(run.id).finally(() => principalByRunId.delete(run.id));
+
+  // Bind this run to the tab that started it, so `page.*` calls have an addressee. A run has
+  // exactly one originating surface, which is what makes the routing unambiguous with several
+  // admin tabs open — there is no heuristic that could pick a window nobody is watching.
+  //
+  // A failed bind never fails the run (see `onBindError` above): the agent simply cannot drive the
+  // page and says so on each attempt, where killing an otherwise-working session over one optional
+  // channel would turn a degraded run into no run at all. The facade also releases the binding on
+  // terminal, so a long-lived tab does not accumulate bindings for runs that ended.
+  frontendControl.bindOnStarted({ request, run, lifecycle: runLifecycle });
 
   void agentExecutor
     .run({
@@ -227,6 +335,13 @@ app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners 
 registerRunRoutes(app, { lifecycle, onStarted }, adapter);
 registerAgentRoutes(app, { listAgents: listAssistantAgents }, adapter);
 registerDelegatedToolRoutes(app, { lifecycle, toolExecutor, resolvePrincipal }, adapter);
+// The browser half of the `page.*` channel: an SSE stream that carries invocations down to the
+// admin tab, and a POST that carries its answers back. Deliberately NOT added to the bearer gate's
+// `exemptPaths` — unlike `/api/delegated-tool-calls` (whose caller is a spawned `jini-mcp`
+// subprocess that holds no token), these two are reached by the browser through Tovu's own
+// session-authenticated proxy, which attaches the bearer like every other forwarded route. See
+// `src/server/modules/assistant.ts`.
+frontendControl.httpExtension(app, { adapter });
 
 /**
  * OUTBOUND MCP federation — the reverse direction from `mcp-injection.ts`. Tovu connects OUT to a

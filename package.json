@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "@jini-ai/agent-runtime": "file:../Jini/packages/agent-runtime",
+    "@jini-ai/agentic": "file:../Jini/packages/agentic",
     "@jini-ai/core": "file:../Jini/packages/core",
     "@jini-ai/daemon": "file:../Jini/packages/daemon",
     "@jini-ai/http-kit": "file:../Jini/packages/http-kit",
@@ -53,7 +54,7 @@
     "@biomejs/biome": "^2.5.5",
     "@playwright/test": "^1.61.1",
     "@types/better-sqlite3": "^7.6.12",
-    "@types/express": "^5.0.0",
+    "@types/express": "^4.17.21",
     "@types/node": "^22.13.10",
     "@types/semver": "^7.5.8",
     "dependency-cruiser": "^18.1.0",

@@ -5,7 +5,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryChangeSetRepo } from "../../core/commands";
 import { InMemoryEventBus, InMemoryOutbox } from "../../core/events";
-import { InMemoryPostRepo } from "../../features/post";
+import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../../features/post";
 import { postAgentToolCatalog, type AgentToolDefinition as PostAgentToolDefinition } from "../../features/post/agent-tools";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
@@ -13,15 +13,17 @@ import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "..
 /**
  * @file The Posts + Pages tool-wiring test file — mirrors `tool-registrations.entries.test.ts`'s/
  * `tool-registrations.plugins.test.ts`'s own shape: catalog completeness, published contract
- * parity, the risk cross-check, the ADR-021 §2 authorization half (2 inline-gated reads + 2
+ * parity, the risk cross-check, the ADR-021 §2 authorization half (3 inline-gated reads + 2
  * executeCommand-gated writes, the same split `tool-registrations.plugins.test.ts` covers for a
  * domain with no self-enforcing write-service layer of its own), field-validation shape rejection,
  * and a multi-tool workflow test chaining create -> update(bodyJson) -> publish -> list, for both a
- * post and a page.
+ * post and a page. Section 7 covers `content_post_search`, the one read with no admin route to
+ * mirror.
  *
- * Real in-memory adapters throughout (`InMemoryPostRepo`, `InMemoryChangeSetRepo`, `InMemoryOutbox`,
- * `InMemoryEventBus`), no mocking of the chokepoint itself, per Constitution Article V
- * (Integration-First Testing) — mirrors `tool-registrations.entries.test.ts`'s identical discipline.
+ * Real in-memory adapters throughout (`InMemoryPostRepo`, `InMemoryPostSearchIndex`,
+ * `InMemoryChangeSetRepo`, `InMemoryOutbox`, `InMemoryEventBus`), no mocking of the chokepoint
+ * itself, per Constitution Article V (Integration-First Testing) — mirrors
+ * `tool-registrations.entries.test.ts`'s identical discipline.
  */
 
 const WORKSPACE_ID = "ws-post-tools";
@@ -45,6 +47,10 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     outbox,
     bus,
     postRepo,
+    // The REAL search adapter, not a stub: `InMemoryPostSearchIndex` runs the same FTS5/BM25 query
+    // the durable one does (see its own header), so `content_post_search`'s wiring is certified
+    // against real ranking rather than against a hand-fed result list.
+    postSearch: new InMemoryPostSearchIndex(postRepo),
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
@@ -101,13 +107,20 @@ const RICH_DOC = {
 // 1. Catalog completeness
 // ---------------------------------------------------------------------------
 
-test("exactly the 5 Posts/Pages operations are wired — the entire catalog", () => {
+test("exactly the 6 Posts/Pages operations are wired — the entire catalog", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual(
     [...postRegistrations(deps).keys()].sort(),
-    ["content_post_create", "content_post_delete", "content_post_get", "content_post_list", "content_post_update"],
+    [
+      "content_post_create",
+      "content_post_delete",
+      "content_post_get",
+      "content_post_list",
+      "content_post_search",
+      "content_post_update",
+    ],
   );
-  assert.equal(postAgentToolCatalog.length, 5, "sanity: no catalog entry is silently excluded");
+  assert.equal(postAgentToolCatalog.length, 6, "sanity: no catalog entry is silently excluded");
 });
 
 /**
@@ -169,7 +182,7 @@ test("content_post_create's and content_post_update's published bodyJson schema 
 // 3. Risk metadata is cross-checked, not trusted
 // ---------------------------------------------------------------------------
 
-test("the independent risk classification agrees with the catalog for all 5 wired Posts/Pages tools", () => {
+test("the independent risk classification agrees with the catalog for all 6 wired Posts/Pages tools", () => {
   const { deps } = fakeRouteDeps();
   for (const id of postRegistrations(deps).keys()) {
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
@@ -449,4 +462,175 @@ test("workflow (page): create a page, give it a real TipTap body, publish it, th
   const fetched = (await wired("content_post_get", deps).handler(executionContext({ id: pageId, kind: "page" }))) as { post: { id: string; status: string } };
   assert.equal(fetched.post.id, pageId);
   assert.equal(fetched.post.status, "published");
+});
+
+// ---------------------------------------------------------------------------
+// 7. content_post_search — the one read with no admin route to mirror.
+//
+// Certified through the REAL ranking path (`InMemoryPostSearchIndex`, which runs the same FTS5 +
+// BM25 query the durable adapter does), not a stubbed port: the interesting failures of a search
+// tool are ranking and filtering, and a hand-fed result list would assert neither. The index
+// itself — sync-on-write, backfill, trash exclusion at the storage layer — is certified separately
+// against the durable adapter in `features/post/__tests__/search-index.sqlite.test.ts`.
+// ---------------------------------------------------------------------------
+
+/** Seeds three findable rows through the real create/update tools, so what is searched is what the
+ * write path actually persisted rather than a record hand-built past it. */
+async function seedSearchCorpus(deps: RouteDeps): Promise<Record<string, string>> {
+  const body = (text: string) => ({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+  const ids: Record<string, string> = {};
+
+  for (const spec of [
+    { key: "pricing", kind: "post", title: "Pricing and plans", slug: "pricing", text: "Every plan is billed monthly.", status: "published" },
+    { key: "about", kind: "page", title: "About the team", slug: "about", text: "We mention pricing here only in passing.", status: "published" },
+    { key: "draft", kind: "post", title: "Draft pricing rework", slug: "pricing-rework", text: "Not published yet.", status: "draft" },
+  ] as const) {
+    const created = (await wired("content_post_create", deps).handler(
+      executionContext({ kind: spec.kind, title: spec.title, slug: spec.slug, bodyJson: body(spec.text), status: spec.status }),
+    )) as { post: { id: string } };
+    ids[spec.key] = created.post.id;
+  }
+
+  return ids;
+}
+
+interface SearchResult {
+  hits: Array<{ id: string; kind: string; title: string; slug: string; status: string; updatedAt: string; snippet: string; score: number }>;
+}
+
+async function search(deps: RouteDeps, input: Record<string, unknown>): Promise<SearchResult> {
+  return (await wired("content_post_search", deps).handler(executionContext(input))) as SearchResult;
+}
+
+test("content_post_search: ranks a title/slug match above a passing body mention", async () => {
+  const { deps } = fakeRouteDeps();
+  const ids = await seedSearchCorpus(deps);
+
+  const { hits } = await search(deps, { query: "pricing" });
+  const found = hits.map((hit) => hit.id);
+
+  assert.ok(found.includes(ids.pricing), "the page named 'Pricing and plans' must be found");
+  assert.ok(found.includes(ids.about), "a body-only mention must still be found (terms are OR'd, not filtered out)");
+  assert.ok(
+    found.indexOf(ids.pricing) < found.indexOf(ids.about),
+    "a title+slug match must outrank a single body mention — that is what the BM25 column weights encode",
+  );
+  assert.ok(hits[0].score > hits[hits.length - 1].score, "scores must be reported highest-is-best");
+});
+
+test("content_post_search: returns summaries only — never bodyJson", async () => {
+  const { deps } = fakeRouteDeps();
+  await seedSearchCorpus(deps);
+
+  const { hits } = await search(deps, { query: "pricing" });
+  assert.ok(hits.length > 0);
+  for (const hit of hits) {
+    assert.deepEqual(
+      Object.keys(hit).sort(),
+      ["id", "kind", "score", "slug", "snippet", "status", "title", "updatedAt"],
+      "the hit shape is fixed: no bodyJson, no version",
+    );
+  }
+});
+
+test("content_post_search: kind and status narrow the result set", async () => {
+  const { deps } = fakeRouteDeps();
+  const ids = await seedSearchCorpus(deps);
+
+  const pagesOnly = await search(deps, { query: "pricing", kind: "page" });
+  assert.deepEqual(pagesOnly.hits.map((hit) => hit.id), [ids.about]);
+
+  const publishedOnly = await search(deps, { query: "pricing", status: "published" });
+  assert.equal(
+    publishedOnly.hits.some((hit) => hit.id === ids.draft),
+    false,
+    "status:'published' must exclude the draft",
+  );
+
+  const everything = await search(deps, { query: "pricing" });
+  assert.ok(
+    everything.hits.some((hit) => hit.id === ids.draft),
+    "with no status filter, drafts are included — this mirrors listAdminPosts' admin-facing lens",
+  );
+});
+
+test("content_post_search: limit is honored and clamped rather than rejected", async () => {
+  const { deps } = fakeRouteDeps();
+  await seedSearchCorpus(deps);
+
+  const one = await search(deps, { query: "pricing", limit: 1 });
+  assert.equal(one.hits.length, 1);
+
+  // Far past MAX_POST_SEARCH_LIMIT: clamped, not a rejection (see MAX_POST_SEARCH_LIMIT's own doc).
+  const clamped = await search(deps, { query: "pricing", limit: 10_000 });
+  assert.ok(clamped.hits.length > 0, "an oversized limit must still return results");
+});
+
+test("content_post_search: a trashed post disappears from results", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  const ids = await seedSearchCorpus(deps);
+
+  const before = await search(deps, { query: "pricing" });
+  assert.ok(before.hits.some((hit) => hit.id === ids.pricing));
+
+  // Straight through the repo port — `content_post_delete`'s own two-step MCP-UI gate is certified
+  // in `features/post/__tests__/agent-tools.delete-confirmation.test.ts`; what matters here is that
+  // the trash marker alone removes the row from search.
+  await postRepo.softDelete({ workspaceId: WORKSPACE_ID, id: ids.pricing, deletedAt: NOW, updatedAt: NOW, version: 2 });
+
+  const after = await search(deps, { query: "pricing" });
+  assert.equal(after.hits.some((hit) => hit.id === ids.pricing), false, "a trashed post must never be returned");
+  assert.ok(after.hits.some((hit) => hit.id === ids.about), "trashing one row must not affect the others");
+});
+
+test("content_post_search: an edit changes what the post is findable by", async () => {
+  const { deps } = fakeRouteDeps();
+  const ids = await seedSearchCorpus(deps);
+  const body = (text: string) => ({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
+
+  await wired("content_post_update", deps).handler(
+    executionContext({ id: ids.pricing, kind: "post", title: "Sponsorship tiers", slug: "sponsorship", bodyJson: body("Nothing about money here."), status: "published" }),
+  );
+
+  const byNewTitle = await search(deps, { query: "sponsorship" });
+  assert.ok(byNewTitle.hits.some((hit) => hit.id === ids.pricing), "the new title must be findable");
+
+  const byOldTitle = await search(deps, { query: "plans" });
+  assert.equal(
+    byOldTitle.hits.some((hit) => hit.id === ids.pricing),
+    false,
+    "the replaced text must be gone from the index, not merely outranked",
+  );
+});
+
+test("content_post_search: calls authorize() with content.read, inline (searchAdminPosts has no authorize of its own)", async () => {
+  const { deps, authorizeCalls } = fakeRouteDeps();
+  await search(deps, { query: "anything" });
+
+  assert.deepEqual(authorizeCalls, [
+    { principalId: PRINCIPAL_ID, permission: "content.read", workspaceId: WORKSPACE_ID, entityType: "post", entityId: undefined },
+  ]);
+});
+
+test("content_post_search: a denied principal is rejected", async () => {
+  const { deps } = fakeRouteDeps({ allow: false });
+  await assert.rejects(() => search(deps, { query: "anything" }), /not authorized for 'content.read'/);
+});
+
+test("content_post_search: a query with no searchable term is rejected, with the schema attached for retry", async () => {
+  const { deps } = fakeRouteDeps();
+  await assert.rejects(
+    () => search(deps, { query: "!!! ???" }),
+    (error: Error) => {
+      assert.match(error.message, /at least one letter or digit/);
+      assert.match(error.message, /Schema for 'content_post_search'/);
+      return true;
+    },
+  );
+});
+
+test("content_post_search: an empty corpus returns no hits rather than failing", async () => {
+  const { deps } = fakeRouteDeps();
+  const { hits } = await search(deps, { query: "nothing has been written yet" });
+  assert.deepEqual(hits, []);
 });

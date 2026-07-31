@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "../core/events";
-import { SqlitePostRepo } from "../features/post";
+import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex } from "../features/post";
 import { SqlitePresentationSettingsRepo } from "../features/presentation";
 import { SqliteSettingsRepo } from "../features/settings/repo.sqlite";
 import { discoverAllBuiltInThemes } from "../features/theme";
@@ -93,6 +93,7 @@ import { WORD_COUNT_BUILT_IN } from "../features/plugin-runtime/built-ins/word-c
 import { wireCoreResolvers } from "../widgets/resolvers/index";
 import { createNavMenuReadModel } from "../navigation/read-model";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
+import { ensurePublicAssistantSettingDefinitions } from "../assistant/public-assistant-settings";
 import { SqliteCommentRepo } from "../comments/repo.sqlite";
 import { installCommentsDataModule } from "../comments/data-module-install";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "../features/taxonomy/repo.sqlite";
@@ -206,6 +207,14 @@ export function createSqliteRouteDeps(
   // every existing seeded fixture has exactly one workspace row, so this is behavior-identical to
   // the old literal for every current caller — see CIC's Design Context).
   const workspaceId = overrides?.workspaceId ?? resolveWorkspace({ db }).id;
+  // Posts written before migration 0022 existed — and the demo content `openContentDb` seeds
+  // directly into `posts`, bypassing `SqlitePostRepo` entirely — have no FTS projection yet, so
+  // `content_post_search` would not find them without an edit. Synchronous and unconditional (not
+  // one of this file's fire-and-forget `*Ready` promises): on a warm database it is a single
+  // indexed anti-join that writes nothing, and running it before the deps are handed out means no
+  // consumer can ever observe a half-indexed corpus. See `backfillPostSearchIndex`'s own doc for
+  // why it fills gaps rather than rebuilding.
+  backfillPostSearchIndex(db.$client);
   const clock = { nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
   // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a
@@ -243,6 +252,17 @@ export function createSqliteRouteDeps(
   // hazard `seoReady`'s own comment documents immediately above.
   const commentsSettingsReady = seoReady.then(() =>
     ensureCommentsSettingDefinitions(
+      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+    ).then(() => undefined)
+  );
+
+  // The visitor-facing assistant's master switch (`assistant/public-assistant-settings.ts`).
+  // Chained after `commentsSettingsReady`, not fired in parallel, for the same
+  // single-SQLite-connection transaction hazard `seoReady`'s comment above documents. Registering
+  // the definition does NOT enable anything: its default is `false`.
+  const assistantSettingsReady = commentsSettingsReady.then(() =>
+    ensurePublicAssistantSettingDefinitions(
       { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
       { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
@@ -435,10 +455,12 @@ export function createSqliteRouteDeps(
     workspaceId: workspaceId,
     workspaceRepo: new SqliteWorkspaceRepo(db),
     postRepo: new SqlitePostRepo(db),
+    postSearch: new SqlitePostSearchIndex(db),
     presentationRepo,
     settingsRepo,
     seoReady,
     settingsReady,
+    assistantSettingsReady,
     // ADR-046 Phase 1 slice 1 (SPEC-023, 2026-07-16): change-set mutation history now survives a
     // restart — the first durable-adapter slice off Phase 1's capability table, per the ADR's own
     // "pull-based per capability, not a uniform sweep" fold-in guidance.

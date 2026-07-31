@@ -1,5 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-ai/ui/chat";
+import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { Sidebar } from "./components/Sidebar";
+import { buildAdminAgentPages } from "./lib/agent-pages";
 import { api, type AdminUser } from "./lib/api";
 import { Appearance } from "./sections/Appearance";
 import { Dashboard } from "./sections/Dashboard";
@@ -35,6 +38,7 @@ import { WidgetInstanceEditor } from "./sections/WidgetInstanceEditor";
 import { WidgetRegions } from "./sections/WidgetRegions";
 import { WidgetRegionEditor } from "./sections/WidgetRegionEditor";
 import { Workspace } from "./sections/Workspace";
+import { AiAssistant } from "./sections/AiAssistant";
 import { AssistantDock } from "./components/AssistantDock";
 import { ChatFab } from "./components/ChatFab";
 
@@ -122,12 +126,68 @@ export function App() {
   const [checking, setChecking] = useState(true);
   const [route, setRoute] = useState<Route>(parseHash(window.location.hash));
   const [chatOpen, setChatOpen] = useState(false);
+  /**
+   * State, not a `useRef`, and attached as a callback ref below — because the effect that builds
+   * the page driver needs to run *when this node appears*, and a ref being populated is not a
+   * dependency change.
+   *
+   * The concrete failure that forced this (caught live, not in review): `api.me()` resolves
+   * `setUser` in a `.then` and `setChecking(false)` in a `.finally`, which are separate
+   * microtasks and therefore separate renders. On the first of them `user` is set but the layout
+   * is still showing the boot screen, so `<main>` is not mounted — a `useRef` would read `null`,
+   * the effect would bail, and the render that actually mounts `<main>` would not re-run it,
+   * because nothing in its dependency list changed. Page control would then be silently dead for
+   * the whole session with no error anywhere.
+   */
+  const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
+  const [agentBridge, setAgentBridge] = useState<FrontendSessionBridge | null>(null);
 
   useEffect(() => {
     const onHash = () => setRoute(parseHash(window.location.hash));
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
+
+  // Stable for the app's lifetime: rebuilding it would tear down the driver (and with it the SSE
+  // connection) on every render.
+  const agentPages = useMemo(() => buildAdminAgentPages(), []);
+
+  /**
+   * Agent-driven control of this tab. The daemon relays each `page.*` invocation down the
+   * frontend-session SSE stream (proxied by `src/server/modules/assistant.ts`), having already
+   * passed `ToolExecutor`'s authorization, timeout and audit on the way in — this side only
+   * executes what arrives.
+   *
+   * Scoped to `contentRef`, never `document`. Scanning the whole page would make any markup
+   * anywhere — including rendered post content an author or a commenter wrote — into an
+   * authorization decision, which is the opposite of an explicit allowlist. The chat pane itself
+   * sits outside this subtree on purpose, so a page verb cannot reach into the assistant's own UI.
+   *
+   * No `currentPage`: the driver reads `data-agent-page` off the live DOM on every call, so a
+   * navigation actually changes what elements report themselves as belonging to. Pinning it here
+   * would freeze it at whatever was mounted when this effect ran.
+   *
+   * Outlives every route change — the connection belongs to the tab, not to a view. `contentEl`
+   * is stable across navigations (the same `<main>` is reused; only its children swap), so this
+   * does not reconnect on every section change.
+   */
+  useEffect(() => {
+    if (!contentEl) return;
+
+    const bridge = createFrontendSessionBridge({
+      pageDriver: createDomPageDriver({ root: contentEl, pages: agentPages }),
+      onError: (error) => console.error("[admin] frontend session", error),
+    });
+    // Attach failure is not fatal: the assistant still works, it just cannot drive the page, and
+    // every `page.*` call it makes is refused by name rather than hanging.
+    bridge.ready.catch((error: unknown) => console.error("[admin] page control never attached", error));
+    setAgentBridge(bridge);
+
+    return () => {
+      bridge.close();
+      setAgentBridge((current) => (current === bridge ? null : current));
+    };
+  }, [contentEl, agentPages]);
 
   useEffect(() => {
     api
@@ -228,6 +288,8 @@ export function App() {
           <Recovery />
         ) : route.sectionId === "workspace" ? (
           <Workspace />
+        ) : route.sectionId === "ai-assistant" ? (
+          <AiAssistant />
         ) : (
           <Placeholder sectionId={route.sectionId} />
         );
@@ -237,11 +299,18 @@ export function App() {
   return (
     <div className="admin-layout">
       <Sidebar activeId={activeSectionId(route)} onLogout={logout} />
-      <main className="admin-content">{content}</main>
+      {/* `data-agent-page` is how the page driver reports where it is: `page.find_elements` tags
+          every handle with its nearest `[data-agent-page]` ancestor, and `page.navigate` reads it
+          back to say which page it left and which it landed on. Set from the same
+          `activeSectionId(route)` the sidebar highlights, so the id an agent sees is the id a
+          human sees selected. */}
+      <main className="admin-content" ref={setContentEl} data-agent-page={activeSectionId(route)}>
+        {content}
+      </main>
       {/* `hidden`, never unmounted: every admin page shares one assistant conversation, which must
           survive both closing the dock and navigating to a different section (ADR-049). */}
       <aside className="admin-chat-dock" hidden={!chatOpen} aria-label="Assistant">
-        <AssistantDock />
+        <AssistantDock agentBridge={agentBridge} />
       </aside>
       <ChatFab open={chatOpen} onToggle={() => setChatOpen((current) => !current)} label="assistant" />
     </div>

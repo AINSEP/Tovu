@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { agentHandle } from "@jini-ai/agentic";
 import {
   ApiError,
   api,
@@ -262,7 +263,13 @@ function SeoEntrySection() {
   const [entryId, setEntryId] = useState("");
 
   return (
-    <div className="seo-entry-section">
+    <div
+      className="seo-entry-section"
+      {...agentHandle("seo-per-entry", {
+        role: "region",
+        label: "Per-entry SEO overrides — pick one entry and edit or analyze its metadata",
+      })}
+    >
       <h2>Per-entry SEO</h2>
       <EntryPicker entryId={entryId} onChange={setEntryId} />
       {entryId ? <SeoEntryPanel key={entryId} entryId={entryId} /> : null}
@@ -325,6 +332,10 @@ export function Seo() {
       {notice ? <div className="notice">{notice}</div> : null}
 
       <form
+        {...agentHandle("seo-defaults-form", {
+          role: "form",
+          label: "Site-wide SEO defaults — title template, meta description, social image, robots",
+        })}
         onSubmit={(e) => {
           e.preventDefault();
           const form = new FormData(e.currentTarget);
@@ -343,42 +354,115 @@ export function Seo() {
       >
         <label>
           Title template (must contain %s)
-          <input name="titleTemplate" defaultValue={settings.titleTemplate} />
+          <input
+            name="titleTemplate"
+            defaultValue={settings.titleTemplate}
+            {...agentHandle("seo-title-template", {
+              role: "field",
+              label: "Site-wide title template; %s is replaced by the page's own title",
+            })}
+          />
         </label>
         <label>
           Default meta description
-          <textarea name="defaultDescription" defaultValue={settings.defaultDescription ?? ""} />
+          <textarea
+            name="defaultDescription"
+            defaultValue={settings.defaultDescription ?? ""}
+            {...agentHandle("seo-default-description", {
+              role: "field",
+              label: "Fallback meta description for pages that set none of their own",
+            })}
+          />
         </label>
         <label>
           Default Open Graph / Twitter image (media ref)
-          <input name="defaultOgImage" defaultValue={settings.defaultOgImage ?? ""} />
+          <input
+            name="defaultOgImage"
+            defaultValue={settings.defaultOgImage ?? ""}
+            {...agentHandle("seo-default-og-image", {
+              role: "field",
+              label: "Media reference used as the default social share image",
+            })}
+          />
         </label>
         <label>
           Twitter @site handle
-          <input name="twitterSite" defaultValue={settings.twitterSite ?? ""} />
+          <input
+            name="twitterSite"
+            defaultValue={settings.twitterSite ?? ""}
+            {...agentHandle("seo-twitter-site", {
+              role: "field",
+              label: "The site's Twitter @handle, used in Twitter card metadata",
+            })}
+          />
         </label>
         <label>
-          <input type="checkbox" name="noindex" defaultChecked={settings.defaultRobots.noindex} />
+          <input
+            type="checkbox"
+            name="noindex"
+            defaultChecked={settings.defaultRobots.noindex}
+            {...agentHandle("seo-default-noindex", {
+              role: "checkbox",
+              label: "Ask search engines not to index pages by default",
+            })}
+          />
           Default noindex
         </label>
         <label>
-          <input type="checkbox" name="nofollow" defaultChecked={settings.defaultRobots.nofollow} />
+          <input
+            type="checkbox"
+            name="nofollow"
+            defaultChecked={settings.defaultRobots.nofollow}
+            {...agentHandle("seo-default-nofollow", {
+              role: "checkbox",
+              label: "Ask search engines not to follow links by default",
+            })}
+          />
           Default nofollow
         </label>
         <label>
-          <input type="checkbox" name="sitemapEnabled" defaultChecked={settings.sitemapEnabled} />
+          <input
+            type="checkbox"
+            name="sitemapEnabled"
+            defaultChecked={settings.sitemapEnabled}
+            {...agentHandle("seo-sitemap-enabled", {
+              role: "checkbox",
+              label: "Whether this site publishes a sitemap at all",
+            })}
+          />
           Sitemap enabled
         </label>
-        <button type="submit" disabled={saving}>
+        <button
+          type="submit"
+          disabled={saving}
+          {...agentHandle("seo-save-settings", {
+            role: "button",
+            label: "Save the site-wide SEO defaults above",
+          })}
+        >
           {saving ? "Saving…" : "Save settings"}
         </button>
       </form>
 
-      <h2>Sitemap</h2>
-      <p>Force-rebuild the cached sitemap now, bypassing the normal cache-hit path.</p>
-      <button disabled={saving} onClick={regenerateSitemap}>
-        {saving ? "Working…" : "Regenerate sitemap"}
-      </button>
+      <div
+        {...agentHandle("seo-sitemap", {
+          role: "region",
+          label: "Sitemap — force a rebuild of the cached sitemap",
+        })}
+      >
+        <h2>Sitemap</h2>
+        <p>Force-rebuild the cached sitemap now, bypassing the normal cache-hit path.</p>
+        <button
+          disabled={saving}
+          onClick={regenerateSitemap}
+          {...agentHandle("seo-regenerate-sitemap", {
+            role: "button",
+            label: "Rebuild the cached sitemap now, bypassing the cache",
+          })}
+        >
+          {saving ? "Working…" : "Regenerate sitemap"}
+        </button>
+      </div>
 
       <SeoEntrySection />
     </div>

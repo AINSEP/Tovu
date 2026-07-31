@@ -15,7 +15,7 @@
  *   members (4)              newsletter (14)   media (4)          widgets (12)
  *   menus (5)                database (4 of 9) recovery (5 of 7)  plugins (2)
  *   workspace (2 of 4)       settings (3 of 7) entries (5 of 5)   taxonomy (6 of 7)
- *   seo (6)                  redirects (6 of 7) integrations (5)  post (4 of 4)
+ *   seo (6)                  redirects (6 of 7) integrations (5)  post (6 of 6)
  *   themes (4 of 4)
  * Each domain's own file records which of its entries are deliberately unwired and why; the kit's
  * `buildDomainRegistrations` fails the build on any catalog entry that is neither.

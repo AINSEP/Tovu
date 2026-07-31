@@ -5,7 +5,7 @@ import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../core/events"
 import { InMemoryChangeSetRepo } from "../core/commands";
 import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../seo";
 import { registerPageHeadContributor } from "./http/site/page-head";
-import { InMemoryPostRepo } from "../features/post";
+import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../features/post";
 import { InMemoryPresentationSettingsRepo } from "../features/presentation";
 import { InMemorySettingsRepo } from "../features/settings/repo.memory";
 import { discoverAllBuiltInThemes } from "../features/theme";
@@ -83,6 +83,7 @@ import { createPluginsModule } from "./modules/plugins";
 import { wireCoreResolvers } from "../widgets/resolvers/index";
 import { createNavMenuReadModel } from "../navigation/read-model";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
+import { ensurePublicAssistantSettingDefinitions } from "../assistant/public-assistant-settings";
 import { InMemoryCommentRepo } from "../comments/repo.memory";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";
 import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo } from "../features/taxonomy/repo.memory";
@@ -129,6 +130,7 @@ import { createDatabaseRecoveryModule } from "./modules/database-recovery";
 import { createContentTypesModule } from "./modules/content-types";
 import { createSeoModule } from "./modules/seo";
 import { createAssistantModule } from "./modules/assistant";
+import { createAssistantSettingsModule } from "./modules/assistant-settings";
 import type { RouteDeps } from "./routes/types";
 
 /**
@@ -191,6 +193,17 @@ export function createRouteDeps(): NewsletterRouteDeps {
   // chains after `settingsReady` — see that binding's comment immediately above.
   const commentsSettingsReady = seoReady.then(() =>
     ensureCommentsSettingDefinitions(
+      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+    ).then(() => undefined)
+  );
+
+  // The visitor-facing assistant's master switch (`assistant/public-assistant-settings.ts`).
+  // Chained after `commentsSettingsReady` rather than fired in parallel, for the identical reason
+  // that binding chains after `seoReady` — see `seoReady`'s own comment above. Registering the
+  // definition does NOT enable anything: its default is `false`.
+  const assistantSettingsReady = commentsSettingsReady.then(() =>
+    ensurePublicAssistantSettingDefinitions(
       { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
       { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
@@ -297,10 +310,16 @@ export function createRouteDeps(): NewsletterRouteDeps {
     workspaceId: seededWorkspace.id,
     workspaceRepo,
     postRepo,
+    // Mirrors `postRepo` on every query rather than maintaining an index — see
+    // `features/post/search-index.memory.ts` for why that is right for this root and wrong for
+    // `deps.ts`'s. Constructed eagerly, but its scratch database is not opened until the first
+    // search, so the many tests that call `createRouteDeps()` without searching pay nothing.
+    postSearch: new InMemoryPostSearchIndex(postRepo),
     presentationRepo,
     settingsRepo,
     settingsReady,
     seoReady,
+    assistantSettingsReady,
     // BR-04 (2026-07-16): the repo forwards insert()'s optional event to this SAME outbox
     // instance, matching what the old separate executeCommand()-level enqueue() call did.
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
@@ -620,6 +639,12 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // ADR-049: the admin assistant's tool-execution/run surface, composed from the published
   // `@jini-ai/core` + `@jini-ai/daemon` + `@jini-ai/node-host` kernel — see `src/assistant/`.
   createAssistantModule(routeDeps).registerRoutes?.(app);
+
+  // The AI Assistant admin section's 2 settings routes (GET/PUT the public assistant's master
+  // switch). Registered next to `createAssistantModule` for readability only — the two modules share
+  // no dependencies and no path prefix (see `modules/assistant-settings.ts`'s header), and both sit
+  // inside the `/api/admin` session gate, so this position is not load-bearing.
+  createAssistantSettingsModule(routeDeps).registerRoutes?.(app);
 
   // ADR-046 Phase 3 (SPEC-042, final slice): the `content-types` server module (ADR-043
   // Collections backend) — all 8 registrations (content-types' list/register/update-fields/

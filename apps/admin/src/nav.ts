@@ -39,6 +39,17 @@ export const NAV: NavGroup[] = [
         href: "#/",
         icon: '<rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="10" y="2" width="6" height="9" rx="1.5"/><rect x="2" y="10" width="6" height="6" rx="1.5"/><rect x="10" y="13" width="6" height="3" rx="1.5"/>',
       },
+      {
+        // Sits in the ungrouped top row directly under Overview rather than in "Design & System",
+        // because the control it owns is an incident switch: the operator reaching for it is
+        // dealing with a leak, a bad deploy, or runaway spend, and should not have to scroll a
+        // grouped menu to find the off switch. Kept out of "Marketing" for the same reason — this
+        // is not a growth surface, it is a kill switch with a roadmap attached.
+        id: "ai-assistant",
+        label: "AI Assistant",
+        href: "#/section/ai-assistant",
+        icon: '<rect x="3" y="5" width="12" height="9" rx="2.5"/><path d="M9 5V2.5M6.5 9v.01M11.5 9v.01M7 12h4"/><path d="M1.5 8.5v2M16.5 8.5v2"/>',
+      },
     ],
   },
   {

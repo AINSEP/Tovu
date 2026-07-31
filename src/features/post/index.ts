@@ -20,5 +20,20 @@ export {
   type PostKind,
   type PostStatus,
 } from "./post";
+export {
+  extractPostPlainText,
+  searchAdminPosts,
+  toPostSearchDocument,
+  toSearchTerms,
+  DEFAULT_POST_SEARCH_LIMIT,
+  MAX_INDEXED_BODY_CHARS,
+  MAX_POST_SEARCH_LIMIT,
+  type PostSearchDocument,
+  type PostSearchHit,
+  type PostSearchPort,
+  type PostSearchQuery,
+} from "./search";
 export { InMemoryPostRepo } from "./repo.memory";
 export { SqlitePostRepo } from "./repo.sqlite";
+export { InMemoryPostSearchIndex } from "./search-index.memory";
+export { backfillPostSearchIndex, SqlitePostSearchIndex } from "./search-index.sqlite";

@@ -350,3 +350,19 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
 .seo-entry-panel label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; color: var(--fg-2); }
 .seo-analyze-panel { margin-top: 0.8rem; }
 .seo-analyze-panel ul { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+
+/* AI Assistant — the public assistant's master switch + the not-yet-built roadmap accordion.
+   The accordion reuses the native <details>/<summary> affordance `.redirects-import` above already
+   established in this admin, rather than introducing a second, JS-driven disclosure widget. */
+.assistant-switch { display: flex; flex-direction: column; gap: 0.5rem; }
+.assistant-switch > label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; font-weight: 600; color: var(--fg); }
+.assistant-switch p { margin: 0; }
+
+.assistant-roadmap { margin-top: 1.6rem; }
+.assistant-roadmap > p { margin: 0.3rem 0 0.8rem; max-width: 62ch; }
+.assistant-roadmap details { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); margin-bottom: 0.5rem; }
+.assistant-roadmap summary { display: flex; align-items: center; gap: 0.55rem; cursor: pointer; padding: 0.65rem 0.85rem; font-size: 0.88rem; color: var(--fg-2); }
+.assistant-roadmap summary input { pointer-events: none; }
+.assistant-roadmap summary > span:first-of-type { flex: 1; }
+.assistant-roadmap-tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0.1rem 0.4rem; }
+.assistant-roadmap details p { margin: 0; padding: 0 0.85rem 0.75rem 2rem; max-width: 62ch; }
