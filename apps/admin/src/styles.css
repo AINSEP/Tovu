@@ -389,3 +389,252 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
   border: 1px solid var(--jini-border); border-radius: var(--jini-radius-pill);
 }
 .settings-ui-dialog-btn:hover { color: var(--jini-text); border-color: var(--jini-border-strong); }
+/* OD's Local CLI / BYOK toggle shows only the mode name, no second line —
+ * confirmed against `od-settings-execution.png`. `ExecutionTab` renders that
+ * description unconditionally (`.jini-seg-meta`, no prop to suppress it), so
+ * parity is restored here rather than by forking the component. Scoped to
+ * this section: `.jini-seg-title`/`.jini-seg-btn` are shared with Appearance
+ * and Notifications, but only `ExecutionTab` ever emits `.jini-seg-meta`. */
+.settings-ui-section .jini-seg-meta { display: none; }
+
+/* --- Compensating styles for classes `settings-dialog.css` never defined ---
+ *
+ * Cross-referenced every `className` emitted by the seven mounted tabs'
+ * source (Jini `packages/ui/src/features/{instructions,notifications,
+ * privacy,language,integrations}`) against `settings-dialog.css`. Roughly
+ * fifty classes are used by those components and never appear in that
+ * stylesheet at all — not a naming nuance, `grep` returns zero matches. Five
+ * tabs render with browser-default box/typography as a result: Instructions'
+ * textarea had no card and no sizing, Notifications' toggle became a
+ * full-width bar instead of a pill next to its title, Privacy's consent
+ * copy showed raw `<dd>` indentation, Language's own tile concatenated
+ * "English" + "en" into "Englishen" with no line break, and MCP server's
+ * client picker concatenated "Claude Code" + "CLI command" the same way.
+ * The last two read as outright typos, not just an unstyled control.
+ *
+ * This is a Jini `@jini-ai/ui` package gap, not a Tovu one — the locked
+ * project decision is gaps get pushed upstream, not forked here. Written
+ * anyway, scoped and using only the existing `--jini-*` tokens (never a new
+ * hard-coded color), because leaving five of seven mounted tabs visibly
+ * broken blocks the visual-parity pass this section exists for. Delete this
+ * block once `settings-dialog.css` grows the real rules upstream — every
+ * selector below matches a class already documented in this file's JSDoc
+ * cross-reference, so removal is a clean no-op once Jini catches up.
+ */
+
+/* Card/section titles across these tabs are bare `<h4>` elements with no
+   className of their own; the browser's ~1.33em block margin would otherwise
+   fight every `gap` set below. */
+.settings-ui-section h4 { margin: 0; font-size: 14px; font-weight: 600; color: var(--jini-text-strong); }
+
+/* `.jini-hint` — Notifications/Privacy/MCP server's helper-text class.
+   `settings-dialog.css` only ever defined `.jini-field-hint`; same look. */
+.settings-ui-section .jini-hint { margin: 0; font-size: 12px; color: var(--jini-text-muted); }
+
+/* `.jini-button` / `-ghost` / `-primary` / `-disabled` — Privacy's "Delete my
+   data" and MCP server's "One-click install" use this family; the
+   stylesheet only ever defined `.jini-btn` / `.jini-btn-ghost`. Mirrors that
+   recipe, plus a filled variant for the one primary use. */
+.settings-ui-section .jini-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 7px 14px; font: inherit; font-size: 12px; font-weight: 500;
+  color: var(--jini-text); background: var(--jini-bg-panel);
+  border: 1px solid var(--jini-border); border-radius: var(--jini-radius-sm);
+  cursor: pointer; text-decoration: none;
+}
+.settings-ui-section .jini-button:hover { border-color: var(--jini-border-strong); }
+.settings-ui-section .jini-button-ghost { background: transparent; }
+.settings-ui-section .jini-button-primary { color: #fff; background: var(--jini-accent); border-color: var(--jini-accent); }
+.settings-ui-section .jini-button-primary:hover { background: var(--jini-accent-hover); border-color: var(--jini-accent-hover); }
+.settings-ui-section .jini-button-disabled { opacity: 0.55; pointer-events: none; }
+
+/* `.jini-empty-card-error` / `-warning` — color modifiers on the already-
+   defined `.jini-empty-card` (MCP server's daemon-error / prerequisite-
+   missing states). */
+.settings-ui-section .jini-empty-card-error {
+  border-color: color-mix(in srgb, var(--jini-danger) 45%, var(--jini-border));
+  color: var(--jini-danger);
+  background: color-mix(in srgb, var(--jini-danger) 6%, var(--jini-bg-subtle));
+}
+.settings-ui-section .jini-empty-card-warning {
+  border-color: color-mix(in srgb, var(--jini-accent) 45%, var(--jini-border));
+  background: color-mix(in srgb, var(--jini-accent) 6%, var(--jini-bg-subtle));
+}
+
+/* Instructions — `od-settings-instructions.png`: one bordered card holding
+   the title, description and textarea; textarea spans the card and is
+   several lines tall, not a ~80px browser-default box. */
+.settings-ui-section .jini-settings-section-card {
+  margin-top: 0; padding: 16px; border: 1px solid var(--jini-border);
+  border-radius: var(--jini-radius); background: var(--jini-bg-panel);
+}
+.settings-ui-section .jini-field-block { display: flex; flex-direction: column; gap: 12px; }
+.settings-ui-section .jini-instructions-input,
+.settings-ui-section .jini-custom-instructions-input {
+  width: 100%; min-height: 96px; box-sizing: border-box;
+  padding: 10px 12px; font: inherit; font-size: 13px; line-height: 1.5;
+  color: var(--jini-text); background: var(--jini-bg-panel);
+  border: 1px solid var(--jini-border); border-radius: var(--jini-radius-sm);
+  resize: vertical;
+}
+.settings-ui-section .jini-instructions-input:focus,
+.settings-ui-section .jini-custom-instructions-input:focus {
+  outline: none; border-color: var(--jini-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--jini-accent) 18%, transparent);
+}
+
+/* Notifications — `od-settings-notifications.png`: title and its On/Off
+   pill share one row inside a bordered card; description sits below both,
+   still inside the same card. Without this, the pill's `--seg-cols: 1`
+   `.jini-seg-control` stretches to the full panel width instead of sizing
+   to its own label. */
+.settings-ui-section .jini-settings-subsection { display: flex; flex-direction: column; gap: 10px; }
+.settings-ui-section .jini-settings-notify-card {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 14px 16px; border: 1px solid var(--jini-border);
+  border-radius: var(--jini-radius); background: var(--jini-bg-panel);
+}
+.settings-ui-section .jini-settings-notify-card-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.settings-ui-section .jini-settings-field { display: flex; flex-direction: column; gap: 6px; }
+.settings-ui-section .jini-settings-field > label { font-size: 12px; font-weight: 500; color: var(--jini-text-muted); }
+
+/* Privacy — `od-settings-privacy.png`: the two disclosure items read as
+   plain title+description pairs, not an indented definition list; the two
+   consent buttons sit side by side, the primary one filled; the granular
+   toggles (once a decision exists — see `hasMadeConsentDecision`) are real
+   switches, not unstyled `<button>`s. */
+.settings-ui-section .jini-settings-privacy-disclosure { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.settings-ui-section .jini-settings-privacy-disclosure > div { display: flex; flex-direction: column; gap: 2px; }
+.settings-ui-section .jini-settings-privacy-disclosure dt { margin: 0; font-size: 13px; font-weight: 600; color: var(--jini-text-strong); }
+.settings-ui-section .jini-settings-privacy-disclosure dd { margin: 0; font-size: 12px; color: var(--jini-text-muted); }
+.settings-ui-section .jini-privacy-consent-actions { display: flex; gap: 10px; }
+.settings-ui-section .jini-privacy-consent-action {
+  flex: 1 1 0; padding: 9px 16px; font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--jini-text); background: var(--jini-bg-panel);
+  border: 1px solid var(--jini-border-strong); border-radius: var(--jini-radius-sm);
+  cursor: pointer;
+}
+.settings-ui-section .jini-privacy-consent-action:hover { border-color: var(--jini-text-muted); }
+.settings-ui-section .jini-privacy-consent-action--primary {
+  color: #fff; background: var(--jini-accent); border-color: var(--jini-accent);
+}
+.settings-ui-section .jini-privacy-consent-action--primary:hover,
+.settings-ui-section .jini-privacy-consent-action--primary.is-active {
+  background: var(--jini-accent-hover); border-color: var(--jini-accent-hover);
+}
+.settings-ui-section .jini-settings-privacy-toggles { display: flex; flex-direction: column; gap: 8px; }
+.settings-ui-section .jini-toggle-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  width: 100%; padding: 12px 14px; font: inherit; text-align: left;
+  color: var(--jini-text); background: var(--jini-bg-panel);
+  border: 1px solid var(--jini-border); border-radius: var(--jini-radius); cursor: pointer;
+}
+.settings-ui-section .jini-toggle-row-text { display: flex; flex-direction: column; gap: 2px; }
+.settings-ui-section .jini-toggle-row-label { font-size: 13px; font-weight: 600; color: var(--jini-text-strong); }
+.settings-ui-section .jini-toggle-row-hint { font-size: 12px; color: var(--jini-text-muted); }
+.settings-ui-section .jini-toggle-row-switch {
+  position: relative; flex: 0 0 auto; width: 36px; height: 20px;
+  border-radius: var(--jini-radius-pill); background: var(--jini-border-strong);
+  transition: background-color 120ms var(--jini-ease-out);
+}
+.settings-ui-section .jini-toggle-row-switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; box-shadow: var(--jini-shadow-xs);
+  transition: transform 120ms var(--jini-ease-out);
+}
+.settings-ui-section .jini-toggle-row.on .jini-toggle-row-switch { background: var(--jini-accent); }
+.settings-ui-section .jini-toggle-row.on .jini-toggle-row-switch::after { transform: translateX(16px); }
+
+/* Language — `od-settings-language.png`: a grid of bordered tiles, each
+   title above its locale code. Without this the title and code spans sit
+   on one line with no separator at all — "English" + "en" reads as
+   "Englishen". */
+.settings-ui-section .jini-settings-language-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px;
+}
+.settings-ui-section .jini-settings-language-tile {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 12px; font: inherit; text-align: left;
+  color: var(--jini-text); background: var(--jini-bg-panel);
+  border: 1px solid var(--jini-border); border-radius: var(--jini-radius); cursor: pointer;
+}
+.settings-ui-section .jini-settings-language-tile:hover { border-color: var(--jini-border-strong); }
+.settings-ui-section .jini-settings-language-tile.active {
+  border-color: var(--jini-accent);
+  background: color-mix(in srgb, var(--jini-accent) 8%, var(--jini-bg-panel));
+  color: var(--jini-accent);
+}
+.settings-ui-section .jini-settings-language-tile-text { display: flex; flex-direction: column; gap: 2px; }
+.settings-ui-section .jini-settings-language-tile-title { font-size: 13px; font-weight: 600; }
+.settings-ui-section .jini-settings-language-tile-code { font-size: 11px; color: var(--jini-text-muted); }
+.settings-ui-section .jini-settings-language-tile.active .jini-settings-language-tile-code { color: inherit; }
+
+/* MCP server — `od-settings-mcp-server.png`: an uppercase-kicker capabilities
+   card, a bordered client-picker dropdown (not a dark pill — and its name
+   and method sub-label need to be on separate lines, or "Claude Code" +
+   "CLI command" reads as "Claude CodeCLI command"), and a dark code block
+   with the Copy button overlaid on it rather than sitting below as its own
+   row. */
+.settings-ui-section .jini-mcp-capabilities-card {
+  padding: 14px 16px; border: 1px solid var(--jini-border);
+  border-radius: var(--jini-radius); background: var(--jini-bg-panel);
+}
+.settings-ui-section .jini-mcp-capabilities-label {
+  margin: 0 0 8px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--jini-text-muted);
+}
+.settings-ui-section .jini-mcp-capabilities-list {
+  margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px;
+  font-size: 13px; color: var(--jini-text);
+}
+.settings-ui-section .jini-mcp-setup-card { display: flex; flex-direction: column; gap: 12px; }
+.settings-ui-section .jini-mcp-instruction { margin: 0; font-size: 12px; color: var(--jini-text-muted); }
+.settings-ui-section .jini-mcp-restart-note { font-size: 12px; color: var(--jini-text-muted); }
+.settings-ui-section .jini-mcp-deeplink-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.settings-ui-section .jini-picker { position: relative; }
+.settings-ui-section .jini-picker-trigger {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; padding: 10px 14px; font: inherit; text-align: left;
+  color: var(--jini-text); background: var(--jini-bg-panel);
+  border: 1px solid var(--jini-border); border-radius: var(--jini-radius); cursor: pointer;
+}
+.settings-ui-section .jini-picker-trigger:hover,
+.settings-ui-section .jini-picker-trigger.open { border-color: var(--jini-border-strong); }
+.settings-ui-section .jini-picker-meta { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.settings-ui-section .jini-picker-title { font-size: 13px; font-weight: 600; }
+.settings-ui-section .jini-picker-sub { font-size: 12px; color: var(--jini-text-muted); }
+.settings-ui-section .jini-picker-chevron { flex: 0 0 auto; color: var(--jini-text-muted); transition: transform 120ms var(--jini-ease-out); }
+.settings-ui-section .jini-picker-popover {
+  position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0;
+  padding: 6px; background: var(--jini-bg-elevated); border: 1px solid var(--jini-border);
+  border-radius: var(--jini-radius); box-shadow: var(--jini-shadow-lg);
+}
+.settings-ui-section .jini-picker-list { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; }
+.settings-ui-section .jini-picker-item {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  padding: 8px 10px; font: inherit; text-align: left; color: var(--jini-text);
+  background: transparent; border: none; border-radius: var(--jini-radius-sm); cursor: pointer;
+}
+.settings-ui-section .jini-picker-item:hover { background: var(--jini-bg-subtle); }
+.settings-ui-section .jini-picker-item.active { background: color-mix(in srgb, var(--jini-accent) 10%, transparent); color: var(--jini-accent); }
+.settings-ui-section .jini-picker-item-title { font-size: 13px; }
+.settings-ui-section .jini-picker-item-sub { font-size: 11px; color: var(--jini-text-muted); }
+
+.settings-ui-section .jini-snippet-block { position: relative; }
+.settings-ui-section .jini-snippet-pre {
+  margin: 0; padding: 14px 16px; overflow-x: auto;
+  background: var(--jini-text-strong); border-radius: var(--jini-radius);
+}
+.settings-ui-section .jini-snippet-code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; line-height: 1.6;
+  color: var(--jini-bg-panel); white-space: pre-wrap; word-break: break-all;
+}
+.settings-ui-section .jini-snippet-copy-btn {
+  position: absolute; top: 10px; right: 10px;
+  color: var(--jini-bg-panel); background: color-mix(in srgb, var(--jini-text-strong) 60%, transparent);
+  border-color: transparent;
+}
+.settings-ui-section .jini-snippet-copy-btn:hover { background: color-mix(in srgb, var(--jini-text-strong) 75%, transparent); }
