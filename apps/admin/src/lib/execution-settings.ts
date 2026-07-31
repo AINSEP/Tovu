@@ -53,6 +53,8 @@ const KEYS = {
   baseUrl: "byok.baseUrl",
   model: "byok.model",
   maxTokens: "byok.maxTokens",
+  localCliAgentId: "localCli.agentId",
+  localCliModel: "localCli.model",
 } as const;
 
 /** Mirrors `assistant/execution-mode-settings.ts`'s identical sentinel —
@@ -135,6 +137,7 @@ export const DEFAULT_EXECUTION_CONFIG: ExecutionConfig = {
     baseUrl: "https://api.anthropic.com",
     model: "",
   },
+  localCli: { agentId: null },
 };
 
 function asString(value: unknown, fallback: string): string {
@@ -165,6 +168,8 @@ export async function loadExecutionConfig(): Promise<ExecutionConfig> {
   const rawMaxTokens = byKey.get(KEYS.maxTokens);
   const rawProviderId = byKey.get(KEYS.providerId);
   const rawProtocol = byKey.get(KEYS.protocol);
+  const rawLocalCliAgentId = asString(byKey.get(KEYS.localCliAgentId), "").trim();
+  const rawLocalCliModel = asString(byKey.get(KEYS.localCliModel), "").trim();
   const credentials = readStoredCredentials();
 
   return {
@@ -195,7 +200,28 @@ export async function loadExecutionConfig(): Promise<ExecutionConfig> {
         ? { savedByProviderId: credentials.savedByProviderId }
         : {}),
     },
+    localCli: {
+      // `""` is the ledger's "nothing picked yet" (a non-null default is
+      // required — see `execution-mode-settings.ts`), which `@jini-ai/ui`
+      // spells as `null`.
+      agentId: rawLocalCliAgentId ? rawLocalCliAgentId : null,
+      // Only the SELECTED agent's model round-trips through the ledger; see
+      // the `localCli.model` definition for why the per-agent map does not.
+      ...(rawLocalCliAgentId && rawLocalCliModel
+        ? { modelByAgentId: { [rawLocalCliAgentId]: rawLocalCliModel } }
+        : {}),
+    },
   };
+}
+
+/** The model of whichever agent is currently selected — the one value the
+ *  ledger persists out of `LocalCliConfig.modelByAgentId`. Returns `""` when
+ *  no agent is picked or that agent has no explicit model, which is exactly
+ *  the registered default. */
+function selectedLocalCliModel(config: ExecutionConfig): string {
+  const agentId = config.localCli.agentId;
+  if (!agentId) return "";
+  return config.localCli.modelByAgentId?.[agentId] ?? "";
 }
 
 /** Field-level diff so a keystroke in one input writes one revision, not six
@@ -219,6 +245,16 @@ function changedLedgerEntries(
       key: KEYS.maxTokens,
       valueJson: next.byok.maxTokens ?? MAX_TOKENS_UNSET_SENTINEL,
       changed: (next.byok.maxTokens ?? MAX_TOKENS_UNSET_SENTINEL) !== (previous.byok.maxTokens ?? MAX_TOKENS_UNSET_SENTINEL),
+    },
+    {
+      key: KEYS.localCliAgentId,
+      valueJson: next.localCli.agentId ?? "",
+      changed: (next.localCli.agentId ?? "") !== (previous.localCli.agentId ?? ""),
+    },
+    {
+      key: KEYS.localCliModel,
+      valueJson: selectedLocalCliModel(next),
+      changed: selectedLocalCliModel(next) !== selectedLocalCliModel(previous),
     },
   ];
   return pairs.filter((pair) => pair.changed).map(({ key, valueJson }) => ({ key, valueJson }));
@@ -300,6 +336,13 @@ export function createExecutionPort(): ExecutionPort {
         apiKey: config.apiKey,
         model: config.model,
       });
+    },
+    async testAgent(agentId: string, model?: string | undefined) {
+      // Same `{ok:false}`-is-a-value split as `testConnection`: the route
+      // classifies "the CLI ran and reported it is not usable" server-side and
+      // returns it as a value, and REJECTS (throws out of `api.*`) only when
+      // the probe could not run at all.
+      return api.testExecutionAgent({ agentId, ...(model ? { model } : {}) });
     },
     async listModels(config: ByokConfig) {
       const result = await api.listExecutionModels({
