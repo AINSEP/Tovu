@@ -168,6 +168,55 @@ test("an unusable first message leaves the chat namable by the next one", async 
   assert.equal(named.conversations[0]?.title, "Redirect Loop");
 });
 
+test("a message id belonging to another conversation cannot overwrite it", async (t) => {
+  /*
+   * The upsert behind `appendMessage` conflicts on `id`, the global message primary key. Its
+   * `DO UPDATE` used to carry no conversation predicate, so PUTting an id that already existed in a
+   * different conversation updated THAT row — and the caller still got a 404, because the follow-up
+   * read is conversation-scoped and found nothing. A rejected-looking request that had already
+   * written.
+   *
+   * Asserted here as well as in `@jini-ai/sqlite`'s own isolation tests because this is the layer
+   * where the misleading 404 is visible, and because the real trigger was a client bug, not an
+   * attacker: the admin dock briefly PUT one conversation's transcript against another's id.
+   */
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
+  const mk = async (firstMessage: string) =>
+    (
+      (await (
+        await api(baseUrl, cookie, "", { method: "POST", body: JSON.stringify({ firstMessage }) })
+      ).json()) as { conversation: { id: string } }
+    ).conversation.id;
+
+  const first = await mk("first chat");
+  const second = await mk("second chat");
+
+  await api(baseUrl, cookie, `/${first}/messages/shared-id`, {
+    method: "PUT",
+    body: JSON.stringify({ role: "user", content: "original", createdAt: 1 }),
+  });
+
+  const collide = await api(baseUrl, cookie, `/${second}/messages/shared-id`, {
+    method: "PUT",
+    body: JSON.stringify({ role: "user", content: "overwritten", createdAt: 2 }),
+  });
+  assert.equal(collide.status, 404, "a foreign message id must be refused");
+
+  const { messages } = (await (await api(baseUrl, cookie, `/${first}/messages`)).json()) as {
+    messages: { id: string; content: string }[];
+  };
+  assert.deepEqual(
+    messages.map((m) => m.content),
+    ["original"],
+    "the first conversation's message was overwritten through the other conversation's route",
+  );
+
+  const other = (await (await api(baseUrl, cookie, `/${second}/messages`)).json()) as {
+    messages: unknown[];
+  };
+  assert.deepEqual(other.messages, [], "the refused write must not have landed here either");
+});
+
 test("404s rather than 403s on another principal's conversation id", async (t) => {
   // Both requests hit the same app and the same store; only the principal differs. A 403 here
   // would confirm the id exists, which is exactly what an enumeration attempt is looking for.
