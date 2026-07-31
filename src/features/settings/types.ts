@@ -18,6 +18,14 @@ export type RevisionOp =
   | "register"
   | "alias"
   | "retype"
+  /**
+   * A `core` definition's stored `default_json` was reconciled to the default
+   * its source declares (`write-service.ts`'s `reconcileDefinitionDefault`).
+   * Distinct from `retype`: the schema is unchanged, so no stored value needs
+   * coercion and the definition version does NOT advance. Only unset-value
+   * resolution changes.
+   */
+  | "redefault"
   | "deprecate"
   | "tombstone"
   | "set"

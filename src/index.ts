@@ -125,7 +125,24 @@ async function main(): Promise<void> {
     // identity seed and crashed both processes on a `UNIQUE constraint failed` (two concurrent
     // `createSqliteRouteDeps()` calls, one per process, both trying to seed the same row).
     // Awaiting them first, then spawning, closes that window.
-    Promise.all([deps.identityReady, deps.settingsReady, deps.seoReady, deps.commentsReady, deps.commentsSettingsReady])
+    // `executionSettingsReady`/`settingsUiTabsReady` belong in this list for exactly the reason
+    // the paragraph above describes, and their absence was not theoretical — it shipped a real
+    // defect. `content.db` currently holds TWO `status='active'` rows for `core.execution.mode`,
+    // distinct `setting_id`s, both `version=1`, created 12ms apart, which violates the
+    // one-active-row-per-slot invariant. Mechanism: the daemon was spawned while this process's
+    // `ensureExecutionSettingDefinitions` was still mid-flight, so both processes ran the same
+    // check-then-act (`resolveDefinitionRaw` -> absent -> register) against the same slot. Only
+    // `mode` duplicated because it is the FIRST entry in `EXECUTION_DEFINITIONS` — by key 2 the
+    // loser could already see the winner's rows. Awaiting both closes the window.
+    Promise.all([
+      deps.identityReady,
+      deps.settingsReady,
+      deps.seoReady,
+      deps.commentsReady,
+      deps.commentsSettingsReady,
+      deps.executionSettingsReady,
+      deps.settingsUiTabsReady,
+    ])
       .then(() => spawnAgentDaemon())
       .catch((error: unknown) => {
         console.error("[index] a boot-readiness promise rejected — not starting the agent daemon", error);
