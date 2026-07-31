@@ -109,7 +109,31 @@ describe("loadExecutionConfig", () => {
         model: "gpt-4o",
         maxTokens: 4096,
       },
+      localCli: { agentId: null },
     });
+  });
+
+  it("restores the selected local CLI agent and its model", async () => {
+    getSettingsEffective.mockResolvedValue({
+      data: [
+        { key: "mode", value: "local-cli", sourceLayer: "workspace", defVersion: 1 },
+        { key: "localCli.agentId", value: "claude", sourceLayer: "workspace", defVersion: 1 },
+        { key: "localCli.model", value: "claude-opus-5", sourceLayer: "workspace", defVersion: 1 },
+      ],
+    });
+    const config = await loadExecutionConfig();
+    expect(config.localCli).toEqual({
+      agentId: "claude",
+      modelByAgentId: { claude: "claude-opus-5" },
+    });
+  });
+
+  it("treats an empty agentId as nothing selected rather than an agent named \"\"", async () => {
+    getSettingsEffective.mockResolvedValue({
+      data: [{ key: "localCli.agentId", value: "", sourceLayer: "workspace", defVersion: 1 }],
+    });
+    const config = await loadExecutionConfig();
+    expect(config.localCli.agentId).toBeNull();
   });
 
   it("treats the maxTokens sentinel (0) as unset", async () => {

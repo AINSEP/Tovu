@@ -3,15 +3,32 @@ import { ADMIN_ASSISTANT_PERMISSION } from "../../../../assistant/public-assista
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { AssistantExecutionRouteRegistrar } from "./execution-deps";
 
-/** The `@jini-ai/ui` `ExecutionTab`'s `DetectedAgent` shape (`{id,label,installed,version?,path?}`)
- *  — narrower than `@jini-ai/agent-runtime`'s own `DetectedAgent`, which also carries model lists,
- *  auth status, and diagnostics the execution-mode picker doesn't render. */
+/**
+ * Maps `@jini-ai/agent-runtime`'s `DetectedAgent` onto the `@jini-ai/ui`
+ * `ExecutionTab`'s own `DetectedAgent`.
+ *
+ * This used to narrow the payload to `{id,label,installed,version?,path?}` on
+ * the theory that the picker rendered nothing else. It does: the tab's agent
+ * cards show the model list and its provenance, the auth status, and the
+ * binary path, and every one of those fields already exists on the runtime
+ * shape (`types.ts`, the `models` / `modelsSource` / `authStatus` /
+ * `authMessage` intersection). Dropping them here left the UI unable to render
+ * what detection had already paid to discover.
+ *
+ * `diagnostics` is still not forwarded — the tab has no affordance for the
+ * fix-actions they describe, so it would be dead weight on the wire rather
+ * than data the client can use.
+ */
 function toExecutionTabAgent(agent: RuntimeDetectedAgent): {
   id: string;
   label: string;
   installed: boolean;
   version?: string;
   path?: string;
+  models?: Array<{ id: string; label: string }>;
+  modelsSource?: "live" | "fallback";
+  authStatus?: "ok" | "missing" | "unknown";
+  authMessage?: string;
 } {
   return {
     id: agent.id,
@@ -19,6 +36,14 @@ function toExecutionTabAgent(agent: RuntimeDetectedAgent): {
     installed: agent.available,
     ...(agent.version ? { version: agent.version } : {}),
     ...(agent.path ? { path: agent.path } : {}),
+    ...(agent.models?.length
+      ? { models: agent.models.map((model) => ({ id: model.id, label: model.label })) }
+      : {}),
+    ...(agent.modelsSource ? { modelsSource: agent.modelsSource } : {}),
+    ...(agent.authStatus ? { authStatus: agent.authStatus } : {}),
+    // Auth guidance is operator-facing text from the adapter ("run `x login`"),
+    // not provider output, so it carries no credential material.
+    ...(agent.authMessage ? { authMessage: agent.authMessage } : {}),
   };
 }
 

@@ -54,12 +54,51 @@ export function SettingsUi() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const port = useRef(createExecutionPort());
 
+  /** The newest config the operator has produced, saved or not. A queued save
+   *  writes THIS rather than whatever value was current when it was scheduled,
+   *  so a save that waited behind another one still persists the latest state
+   *  instead of resurrecting an intermediate one. */
+  const latest = useRef<ExecutionConfig>(DEFAULT_EXECUTION_CONFIG);
+
+  /**
+   * Saves run strictly one at a time, chained off this promise.
+   *
+   * The debounce alone does NOT prevent overlap: it only cancels a save that
+   * has not STARTED. Once one is in flight, the next edit schedules a fresh
+   * timer that can fire while the first is still running, and then two saves
+   * race — their per-key `setSetting` calls interleave (so the ledger can end
+   * on the older value), and both diff against the same `persisted` base,
+   * which the slower one then overwrites on completion. That leaves the diff
+   * base claiming a value was persisted that never was, so the next edit
+   * skips writing the fields it thinks are already saved.
+   */
+  const saveChain = useRef<Promise<void>>(Promise.resolve());
+
+  /** Monotonic ticket, so only the newest save may write the status
+   *  indicator. Without it a slow earlier save resolving last would paint
+   *  "Saved" over a newer save's error, or vice versa. */
+  const saveTicket = useRef(0);
+
+  /**
+   * True whenever `latest` has moved ahead of `persisted` — i.e. the operator
+   * has edited something that no save has committed yet.
+   *
+   * The ticket alone does NOT cover this. A ticket is only taken when a
+   * DEBOUNCE TIMER FIRES, so an edit made while an earlier save is still in
+   * flight has no ticket yet: the in-flight save still owns the newest one,
+   * completes, and paints "Saved" over changes that are not saved at all. If
+   * the operator then navigates away, unmount clears the pending timer and
+   * those edits are gone — with the UI's last word having been "Saved".
+   */
+  const hasUnsavedEdits = useRef(false);
+
   useEffect(() => {
     let alive = true;
     loadExecutionConfig()
       .then((loaded) => {
         if (!alive) return;
         persisted.current = loaded;
+        latest.current = loaded;
         setConfig(loaded);
       })
       .catch((error: unknown) => {
@@ -72,29 +111,60 @@ export function SettingsUi() {
     };
   }, []);
 
+  // On unmount, don't just drop a debounced edit — run it. Cancelling the
+  // timer silently discards whatever the operator typed in the last 600ms.
   useEffect(
     () => () => {
-      if (timer.current) clearTimeout(timer.current);
+      if (!timer.current) return;
+      clearTimeout(timer.current);
+      if (!hasUnsavedEdits.current) return;
+      const target = latest.current;
+      const base = persisted.current;
+      // Fire-and-forget: the component is going away, so there is no status
+      // left to paint. The write itself still has to happen.
+      saveChain.current = saveChain.current.then(() =>
+        saveExecutionConfig(target, base).then(
+          () => {},
+          () => {},
+        ),
+      );
     },
     [],
   );
 
   const onConfigChange = useCallback((next: ExecutionConfig) => {
     setConfig(next);
+    latest.current = next;
+    hasUnsavedEdits.current = true;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
+      const ticket = ++saveTicket.current;
       setSave({ status: "saving" });
-      saveExecutionConfig(next, persisted.current)
-        .then((written) => {
-          persisted.current = next;
+      saveChain.current = saveChain.current.then(async () => {
+        // Read both the target and the diff base at RUN time, not at schedule
+        // time: by the time this link runs, an earlier save may have already
+        // advanced `persisted`, and the operator may have edited further.
+        const target = latest.current;
+        try {
+          const written = await saveExecutionConfig(target, persisted.current);
+          persisted.current = target;
+          // Only clear the flag if nothing was edited WHILE this save ran.
+          if (latest.current === target) hasUnsavedEdits.current = false;
+          if (saveTicket.current !== ticket) return;
+          // A newer edit is already queued behind this one, so "Saved" would
+          // be a claim about state that is not saved. Stay in "saving".
+          if (hasUnsavedEdits.current) return;
           setSave(written.length > 0 ? { status: "saved" } : { status: "idle" });
-        })
-        .catch((error: unknown) => {
+        } catch (error: unknown) {
+          // `persisted` is deliberately NOT advanced on failure, so the next
+          // save re-attempts the fields this one could not write.
+          if (saveTicket.current !== ticket) return;
           setSave({
             status: "error",
             message: error instanceof Error ? error.message : String(error),
           });
-        });
+        }
+      });
     }, SAVE_DEBOUNCE_MS);
   }, []);
 
@@ -126,7 +196,11 @@ export function SettingsUi() {
           config={config}
           onConfigChange={onConfigChange}
           port={port.current}
-          localCliUnavailableReason="No local agent runtime is wired to this Tovu instance yet."
+          // Detection runs wherever the Tovu SERVER runs, not on the browser's
+          // machine. For a deployed CMS those are different computers, so the
+          // component's own default ("on this machine") would be a false claim
+          // about whose CLIs these are.
+          localCliScopeLabel="Detected on the Tovu server, not on your own computer."
         />
       ),
     },

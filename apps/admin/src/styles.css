@@ -366,3 +366,26 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
 .assistant-roadmap summary > span:first-of-type { flex: 1; }
 .assistant-roadmap-tag { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0.1rem 0.4rem; }
 .assistant-roadmap details p { margin: 0; padding: 0 0.85rem 0.75rem 2rem; max-width: 62ch; }
+
+/* --- Settings (ported Open Design settings dialog) ------------------------
+ * Layout only. The dialog's own look ships as `@jini-ai/ui`'s opt-in
+ * `settings-dialog.css`, imported by `sections/SettingsUi.tsx`; everything
+ * there resolves through `--jini-*` custom properties, so an override belongs
+ * in a `:root` block here rather than in an edit to the package's rules.
+ *
+ * The section deliberately has no heading strip of its own: the shell renders
+ * its own kicker/title/subtitle, and stacking a second header above it was
+ * what made the first pass look cluttered. The page is admin sidebar →
+ * settings sidebar → panel, nothing else. */
+.settings-ui-section { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.settings-ui-section > .jini-settings-dialog { flex: 1 1 auto; min-height: 0; }
+.settings-ui-load-error { margin: 0 0 0.75rem; color: var(--danger, #9c2a25); font-size: 0.85rem; }
+.settings-ui-save { font-size: 0.75rem; color: var(--faint); align-self: center; }
+.settings-ui-save.is-error { color: var(--danger, #9c2a25); }
+.settings-ui-save.is-saved { color: var(--ok, #1f7a3a); }
+.settings-ui-dialog-btn {
+  font: inherit; font-size: 0.75rem; padding: 0.25rem 0.6rem; cursor: pointer;
+  color: var(--jini-text-muted); background: var(--jini-bg-panel);
+  border: 1px solid var(--jini-border); border-radius: var(--jini-radius-pill);
+}
+.settings-ui-dialog-btn:hover { color: var(--jini-text); border-color: var(--jini-border-strong); }

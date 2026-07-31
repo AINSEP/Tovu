@@ -76,7 +76,15 @@ export const EXECUTION_NAMESPACE = "core.execution";
  */
 const MAX_TOKENS_UNSET_SENTINEL = 0;
 
-type ExecutionSettingKey = "mode" | "byok.protocol" | "byok.providerId" | "byok.baseUrl" | "byok.model" | "byok.maxTokens";
+type ExecutionSettingKey =
+  | "mode"
+  | "byok.protocol"
+  | "byok.providerId"
+  | "byok.baseUrl"
+  | "byok.model"
+  | "byok.maxTokens"
+  | "localCli.agentId"
+  | "localCli.model";
 
 interface ExecutionDefinitionSpec {
   key: ExecutionSettingKey;
@@ -87,7 +95,7 @@ interface ExecutionDefinitionSpec {
   defaultValue: string | number | boolean;
 }
 
-/** The 6 registered `core.execution.*` definitions. No `byok.apiKey` — see
+/** The 8 registered `core.execution.*` definitions. No `byok.apiKey` — see
  *  this file's header. */
 const EXECUTION_DEFINITIONS: readonly ExecutionDefinitionSpec[] = [
   { key: "mode", schema: { type: "enum", values: ["local-cli", "byok"] }, defaultValue: "local-cli" },
@@ -106,6 +114,30 @@ const EXECUTION_DEFINITIONS: readonly ExecutionDefinitionSpec[] = [
   // (non-nullable) number definition defaulting to the sentinel rather than
   // a nullable schema defaulting to `null`.
   { key: "byok.maxTokens", schema: { type: "number" }, defaultValue: MAX_TOKENS_UNSET_SENTINEL },
+  // Which detected CLI runs the admin assistant's prompts. Empty string is
+  // "none picked yet" — `@jini-ai/ui` models that as `agentId: null`, but a
+  // non-null default is required (ADR-028 totality), and `""` is not a legal
+  // agent id, so it cannot collide with a real selection.
+  { key: "localCli.agentId", schema: { type: "string" }, defaultValue: "" },
+  // The model for the SELECTED agent only.
+  //
+  // `@jini-ai/ui`'s `LocalCliConfig.modelByAgentId` is a per-agent MAP, so
+  // switching agents and back preserves each one's own pick. That map is not
+  // persisted as a map here, and deliberately so: storing it would need a
+  // second `{type:"json"}` definition, and ADR-PIPE-008 Enforcement is
+  // normative that this ledger has exactly ONE such definition in the whole
+  // codebase (`site.seo.robots_rules`) — a JSON value is not a general escape
+  // hatch for fields that can be scalar-decomposed. Encoding the map as a JSON
+  // *string* would be the same escape hatch with the type check laundered off,
+  // which is worse, not better.
+  //
+  // Consequence, stated rather than hidden: the per-agent map is live for as
+  // long as the tab is open, but a reload restores only the selected agent's
+  // model. Picking a different agent then shows that agent's own first
+  // reported model rather than a previously-saved pick for it. Persisting the
+  // full map needs either a scalar-per-agent scheme (unbounded keys) or an
+  // ADR-PIPE-008 amendment; neither belongs in this pass.
+  { key: "localCli.model", schema: { type: "string" }, defaultValue: "" },
 ];
 
 export interface EnsureExecutionSettingDefinitionsDeps {
@@ -130,7 +162,7 @@ function bootWriteServiceDeps(deps: EnsureExecutionSettingDefinitionsDeps) {
 }
 
 /**
- * Idempotently registers the 6 `core.execution.*` definitions (skip if
+ * Idempotently registers the 8 `core.execution.*` definitions (skip if
  * already registered, mirrors `ensureSeoSettingDefinitions`/
  * `ensureCommentsSettingDefinitions`/`ensurePublicAssistantSettingDefinitions`).
  * Safe to call on every boot.
@@ -141,7 +173,7 @@ function bootWriteServiceDeps(deps: EnsureExecutionSettingDefinitionsDeps) {
  * `resolveDefinitionRaw`'s own lookup below passes `workspaceId: null` to
  * match (a per-workspace lookup would never find a platform definition).
  *
- * @complexity O(1) — 6 definitions, each a skip-if-registered check plus at
+ * @complexity O(1) — 8 definitions, each a skip-if-registered check plus at
  * most one `registerDefinitions` call.
  * @overallScore 100
  */

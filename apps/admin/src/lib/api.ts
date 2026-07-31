@@ -50,6 +50,10 @@ export interface AdminExecutionDetectedAgent {
   installed: boolean;
   version?: string;
   path?: string;
+  models?: Array<{ id: string; label: string }>;
+  modelsSource?: "live" | "fallback";
+  authStatus?: "ok" | "missing" | "unknown";
+  authMessage?: string;
 }
 
 /**
@@ -1022,6 +1026,11 @@ export const api = {
     }),
   testExecutionConnection: (input: { protocol: string; baseUrl: string; apiKey: string; model: string; apiVersion?: string }) =>
     request<{ ok: boolean; message: string }>(`/workspaces/${WORKSPACE_ID}/assistant/execution/test-connection`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  testExecutionAgent: (input: { agentId: string; model?: string }) =>
+    request<{ ok: boolean; message: string }>(`/workspaces/${WORKSPACE_ID}/assistant/execution/test-agent`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
