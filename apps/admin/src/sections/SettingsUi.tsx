@@ -131,7 +131,6 @@ export function SettingsUi() {
     {
       id: "execution",
       label: "Execution mode",
-      navHint: "Local CLI / BYOK",
       title: "Execution mode",
       subtitle: "Choose Local CLI or BYOK.",
       icon: (
@@ -158,7 +157,6 @@ export function SettingsUi() {
     {
       id: "instructions",
       label: "Instructions",
-      navHint: "Custom prompt",
       title: "Custom instructions",
       subtitle: "Applied to every assistant conversation in this workspace.",
       icon: (
@@ -180,7 +178,6 @@ export function SettingsUi() {
     {
       id: "notifications",
       label: "Notifications",
-      navHint: "Sounds / desktop",
       title: "Notifications",
       subtitle: "How you're told a task finished. Saved per operator, not per workspace.",
       icon: (
@@ -205,7 +202,6 @@ export function SettingsUi() {
     {
       id: "privacy",
       label: "Privacy",
-      navHint: "Telemetry",
       title: "Privacy",
       subtitle: "Choose what this installation shares.",
       icon: (
@@ -223,7 +219,6 @@ export function SettingsUi() {
       // entries reading "Appearance" that configure different things is the
       // label collision recon §4 flagged. This one styles the settings surface.
       label: "Dialog appearance",
-      navHint: "Theme / accent",
       title: "Dialog appearance",
       subtitle: "Theme and accent color for this settings surface. Saved per operator.",
       icon: (
@@ -252,7 +247,6 @@ export function SettingsUi() {
     {
       id: "language",
       label: "Language",
-      navHint: "Admin locale",
       title: "Language",
       // Stated rather than hidden: the preference persists, but nothing reads
       // it yet because Tovu has no i18n module. See `ADMIN_LOCALES`.
@@ -274,7 +268,6 @@ export function SettingsUi() {
     {
       id: "mcp",
       label: "MCP server",
-      navHint: "Client snippets",
       title: "MCP server",
       // The component defaults to an in-memory fake port, so this renders and
       // is explorable with no backend at all. Wiring a real McpIntegrationsPort
