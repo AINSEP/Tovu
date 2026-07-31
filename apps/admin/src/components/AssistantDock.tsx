@@ -41,8 +41,11 @@ declare global {
  * and calls them through the daemon's `/api/delegated-tool-calls` gate, which shows up in this
  * same transcript as ordinary `tool_use`/`tool_result` events — `ChatPane` renders those itself.
  *
- * `chat-react` ships no CSS despite emitting BEM-style `jini-*` class names, so
- * `styles/assistant.css` supplies them. Without it the pane renders as unstyled block elements.
+ * `styles/assistant.css` themes the pane. Note that the package does NOT ship zero CSS, contrary to
+ * what this comment used to claim: `ChatPane` injects its own complete default theme as a `<style>`
+ * tag at mount, appended last in the cascade. Host overrides therefore need either the
+ * `--jini-chat-*` custom-property seam or a descendant selector — a flat `.jini-*` rule in
+ * `assistant.css` loses even at equal specificity. See that file's header for the full account.
  */
 
 const AGENTS_URL = "/api/agents";

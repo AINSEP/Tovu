@@ -123,11 +123,44 @@ export function createAssistantChatsModule(deps: RouteDeps): ServerModuleHandle 
           ...(body as unknown as ChatMessage),
           id: req.params.messageId!,
         };
-        storeFor(res)
-          .appendMessage(req.params.id!, message)
-          .then((saved) =>
-            saved ? res.json({ message: saved }) : res.status(404).json({ error: "not found" }),
-          )
+        const id = req.params.id!;
+        const store = storeFor(res);
+        store
+          .appendMessage(id, message)
+          .then(async (saved) => {
+            if (!saved) {
+              res.status(404).json({ error: "not found" });
+              return;
+            }
+            // Naming happens here, not only at create time, because the admin dock creates the
+            // conversation when "New" is clicked — before any prompt has been typed — so the
+            // create route's `firstMessage` seed is never populated on that path and every admin
+            // chat stayed permanently "Untitled". Deriving on append is what actually names them.
+            //
+            // Guarded on the title still being empty rather than on `title_source`: the store's
+            // no-clobber guard only applies to `generated`, and a `fallback` rename would happily
+            // overwrite a manual one. "Only name a chat that has no name" cannot do that, and it
+            // also self-limits — once a title lands, this stops firing. A first prompt that yields
+            // no usable title (a bare URL, only punctuation) leaves the chat unnamed and lets the
+            // next message name it, which is better than locking in a blank.
+            //
+            // Deliberately after the append and in its own catch: a naming failure must never turn
+            // a successfully persisted message into an error response.
+            if (message.role === "user") {
+              try {
+                const conversation = await store.get(id);
+                if (conversation && !conversation.title) {
+                  const derived = deriveConversationTitle(
+                    typeof body.content === "string" ? body.content : "",
+                  );
+                  if (derived) await store.rename(id, derived, "fallback");
+                }
+              } catch {
+                // Leave it untitled; the next user message gets another chance.
+              }
+            }
+            res.json({ message: saved });
+          })
           .catch(next);
       });
     },

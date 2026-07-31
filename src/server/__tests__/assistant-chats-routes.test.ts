@@ -97,6 +97,77 @@ test("round-trips messages in position order", async (t) => {
   assert.deepEqual(messages.map((m) => m.id), ["m1", "m2"]);
 });
 
+test("names an untitled conversation from its first user message", async (t) => {
+  // The dock creates the conversation when "New" is clicked, before anything is typed, so this is
+  // the only path that can ever name an admin chat. Without it every conversation in the switcher
+  // reads "Untitled" forever — which is exactly what shipped.
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
+  const { conversation } = (await (
+    await api(baseUrl, cookie, "", { method: "POST", body: JSON.stringify({}) })
+  ).json()) as { conversation: { id: string; title: string | null } };
+  assert.equal(conversation.title, null, "a conversation created with no first message starts unnamed");
+
+  await api(baseUrl, cookie, `/${conversation.id}/messages/m1`, {
+    method: "PUT",
+    body: JSON.stringify({ role: "user", content: "please rebuild the sitemap for the blog", createdAt: 1 }),
+  });
+
+  const listed = (await (await api(baseUrl, cookie, "")).json()) as {
+    conversations: { title: string | null; titleSource: string }[];
+  };
+  assert.equal(listed.conversations[0]?.title, "Rebuild Sitemap Blog");
+  assert.equal(listed.conversations[0]?.titleSource, "fallback");
+});
+
+test("a later message does not rename a conversation the user named", async (t) => {
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
+  const { conversation } = (await (
+    await api(baseUrl, cookie, "", { method: "POST", body: JSON.stringify({}) })
+  ).json()) as { conversation: { id: string } };
+
+  await api(baseUrl, cookie, `/${conversation.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title: "My Own Name" }),
+  });
+  await api(baseUrl, cookie, `/${conversation.id}/messages/m1`, {
+    method: "PUT",
+    body: JSON.stringify({ role: "user", content: "now purge the cache and redeploy", createdAt: 1 }),
+  });
+
+  const listed = (await (await api(baseUrl, cookie, "")).json()) as {
+    conversations: { title: string | null; titleSource: string }[];
+  };
+  assert.equal(listed.conversations[0]?.title, "My Own Name");
+  assert.equal(listed.conversations[0]?.titleSource, "manual");
+});
+
+test("an unusable first message leaves the chat namable by the next one", async (t) => {
+  // A bare URL derives to "", so nothing is written and the *next* message gets to name it. The
+  // alternative — stamping a blank title — would lock the chat as unnamed permanently.
+  const { baseUrl, cookie } = await bootAuthenticated(buildApp(), t);
+  const { conversation } = (await (
+    await api(baseUrl, cookie, "", { method: "POST", body: JSON.stringify({}) })
+  ).json()) as { conversation: { id: string } };
+
+  await api(baseUrl, cookie, `/${conversation.id}/messages/m1`, {
+    method: "PUT",
+    body: JSON.stringify({ role: "user", content: "https://example.com/a/b/c", createdAt: 1 }),
+  });
+  const stillUnnamed = (await (await api(baseUrl, cookie, "")).json()) as {
+    conversations: { title: string | null }[];
+  };
+  assert.equal(stillUnnamed.conversations[0]?.title, null);
+
+  await api(baseUrl, cookie, `/${conversation.id}/messages/m2`, {
+    method: "PUT",
+    body: JSON.stringify({ role: "user", content: "fix the redirect loop", createdAt: 2 }),
+  });
+  const named = (await (await api(baseUrl, cookie, "")).json()) as {
+    conversations: { title: string | null }[];
+  };
+  assert.equal(named.conversations[0]?.title, "Redirect Loop");
+});
+
 test("404s rather than 403s on another principal's conversation id", async (t) => {
   // Both requests hit the same app and the same store; only the principal differs. A 403 here
   // would confirm the id exists, which is exactly what an enumeration attempt is looking for.

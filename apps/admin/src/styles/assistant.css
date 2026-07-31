@@ -15,6 +15,17 @@
  * injected theme, `.admin-chat-dock .jini-chat-pane` below overrides the `--jini-chat-*` custom
  * properties everything else derives from — the intended host-theming seam, confirmed by the
  * injected stylesheet defining them as overridable custom properties in the first place.
+ *
+ * SECOND CORRECTION (also found live): specificity is not the only way this file loses. The
+ * injected tag is appended at mount, so it is LAST in the cascade — which means an *equal*
+ * specificity collision goes to the package too, not to this file. Concretely dead right now for
+ * that reason alone: this file's `.jini-chat-pane__header { padding: 12px 16px }` (the package's
+ * `18px 22px 14px` + `min-height: 74px` is what renders). The `--jini-chat-*` seam above handles
+ * colour, but any *layout* or *typography* rule here that names a single `jini-*` class the package
+ * also styles is inert. Check the computed style in the browser before believing a rule in this
+ * file has any effect; where it must win, use a descendant selector (see the header-title block).
+ * The source of truth for what the package sets is
+ * `Jini/packages/ui/src/react/chat/features/chat-pane/react/styles.ts`.
  */
 .admin-chat-dock .jini-chat-pane {
   --jini-chat-bg: var(--surface);
@@ -119,6 +130,53 @@
   font-family: var(--font-display);
   font-size: 15px;
   margin: 0;
+}
+
+/* --- Header title: wrap instead of shoving the switcher out of the dock ---
+ *
+ * IMPORTANT — the doubled `.jini-chat-pane` prefix in the next three selectors is deliberate and
+ * load-bearing. `@jini-ai/ui` DOES ship CSS, contrary to what this file's own header note and the
+ * project's earlier notes claim: `ChatPane` injects `CHAT_PANE_STYLES`
+ * (`packages/ui/src/react/chat/features/chat-pane/react/styles.ts`) as a runtime `<style>` tag, and
+ * that tag lands *after* this stylesheet. So a single-class rule here loses every collision to the
+ * package's own single-class rule on cascade order alone — verified in the live DOM, where this
+ * file's `.jini-chat-pane__header { padding: 12px 16px }` is already dead for exactly this reason.
+ * Anything here that must beat the package default needs a descendant selector, not just a later
+ * line in this file. Do not "simplify" these back to one class.
+ *
+ * What the package sets, and why it does not suit this host: `white-space: nowrap` +
+ * `text-overflow: ellipsis`, which is a fair default for a full-width pane. In a 380px dock with
+ * `overflow: hidden`, a long derived title ("Newsletter Signup Widget Footer Wire It") instead grew
+ * the flex header past the dock edge and carried the conversation switcher out of the visible area
+ * entirely. The reported symptom was "the switcher icon vanished" — not a text-overflow complaint,
+ * which is what made it hard to place.
+ */
+
+/* Wrap rather than ellipsize: a chat's name is how it is recognised, so two lines of it beat one
+   truncated line. Clamped at 2 so a pathological title cannot walk the composer off the bottom.
+   `anywhere` so a single long unspaced token still breaks instead of overflowing. `-webkit-box` is
+   required for `-webkit-line-clamp` to take effect, and it also overrides the package's `nowrap`
+   layout mode; `white-space: normal` is stated explicitly rather than relied on. */
+.jini-chat-pane .jini-chat-pane__title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+
+/* The package already sets `min-width: 0` here; restated because the wrap above only helps if this
+   flex item is actually allowed to shrink, and that dependency is invisible from the rule above. */
+.jini-chat-pane .jini-chat-pane__heading {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Never let the switcher be the thing that gives way when the title is long. */
+.jini-chat-pane .jini-conv {
+  flex: 0 0 auto;
 }
 
 /* Wraps BOTH the suggestions row and the composer+drop-target below it (verified against the
