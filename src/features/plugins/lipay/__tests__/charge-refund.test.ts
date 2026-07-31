@@ -547,3 +547,194 @@ test("refund: a provider that declares no refund support is refused by core", as
 
   cleanup(db, dir);
 });
+
+test("charge: an empty or whitespace-only idempotency key is rejected before any HTTP call", async () => {
+  const { api, db, dir, http } = await makeLipay();
+
+  for (const idempotencyKey of ["", "   ", "\t\n"]) {
+    const result = await api.charge({
+      workspaceId: WORKSPACE_ID,
+      providerId: "lipay",
+      amount: USD(2500),
+      idempotencyKey,
+    });
+    assert.equal(result.ok, false, `${JSON.stringify(idempotencyKey)} should have been rejected`);
+    if (!result.ok) assert.equal(result.error.code, "INVALID_REQUEST");
+  }
+  assert.equal(http.calls.length, 0);
+
+  cleanup(db, dir);
+});
+
+test("charge: two concurrent charges racing the same idempotency key resolve to one payment, not a crash", async () => {
+  const { api, db, dir, http } = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const request = {
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "race-1",
+  } as const;
+
+  // Both calls run their synchronous prefix (including the upfront "does this key already exist?"
+  // read) before either reaches the first `await` — the same interleaving window a real double-click
+  // or client retry racing an in-flight request produces on one Node process.
+  const [first, second] = await Promise.all([api.charge(request), api.charge(request)]);
+
+  assert.equal(first.ok && second.ok, true);
+  if (first.ok && second.ok) {
+    assert.equal(first.payment.id, second.payment.id, "both concurrent calls resolve to the SAME payment row");
+    assert.equal(
+      [first.replayed, second.replayed].filter((replayed) => replayed).length,
+      1,
+      "exactly one of the two lost the race to the UNIQUE index and was reconciled, not both"
+    );
+  }
+  assert.equal(http.calls.length, 1, "only the race's winner ever reached the provider");
+  assert.equal(api.listPayments({ workspaceId: WORKSPACE_ID }).length, 1, "no duplicate payment row from the race");
+
+  cleanup(db, dir);
+});
+
+test("refund: malformed amount is rejected before the provider is reached", async () => {
+  const { api, db, dir, http, payment } = await succeededPayment([chargeOk("ch_1", "succeeded")]);
+
+  for (const amount of [
+    { minorUnits: 0, currency: "USD" },
+    { minorUnits: -100, currency: "USD" },
+    { minorUnits: 10.5, currency: "USD" },
+    { minorUnits: 100, currency: "usd" },
+    { minorUnits: 100, currency: "DOLLARS" },
+  ]) {
+    const result = await api.refund({
+      workspaceId: WORKSPACE_ID,
+      paymentId: payment.id,
+      idempotencyKey: `k-${amount.minorUnits}-${amount.currency}`,
+      amount,
+    });
+    assert.equal(result.ok, false, `${JSON.stringify(amount)} should have been rejected`);
+    if (!result.ok) assert.equal(result.error.code, "INVALID_REQUEST");
+  }
+  assert.equal(http.calls.length, 1, "only the original charge reached the provider; no refund attempt did");
+
+  cleanup(db, dir);
+});
+
+test("refund: a currency different from the original charge's is refused, not silently converted", async () => {
+  const { api, db, dir, payment } = await succeededPayment([chargeOk("ch_1", "succeeded")]);
+
+  const result = await api.refund({
+    workspaceId: WORKSPACE_ID,
+    paymentId: payment.id,
+    idempotencyKey: "r1",
+    amount: { minorUnits: 100, currency: "EUR" },
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "CURRENCY_UNSUPPORTED");
+    assert.match(result.error.message, /does not match the payment's USD/);
+  }
+
+  cleanup(db, dir);
+});
+
+test("refund: a missing credential bundle fails before any HTTP call, mirroring charge's own gate", async () => {
+  const { api, db, dir, http, credentials, payment } = await succeededPayment([chargeOk("ch_1", "succeeded")]);
+  credentials.set("lipay", null);
+
+  const result = await api.refund({
+    workspaceId: WORKSPACE_ID,
+    paymentId: payment.id,
+    idempotencyKey: "r1",
+    amount: USD(400),
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "NO_CREDENTIALS_CONFIGURED");
+  assert.equal(http.calls.length, 1, "only the original charge reached the provider; the refund never did");
+
+  cleanup(db, dir);
+});
+
+const refundRows = (db: import("better-sqlite3").Database) =>
+  db.prepare(`SELECT * FROM "p_lipay__refunds" ORDER BY created_at, id`).all() as {
+    id: string;
+    payment_id: string;
+    status: string;
+    provider_ref: string | null;
+  }[];
+
+test("refund: a provider-side failure marks the refund row failed, never a throw", async () => {
+  const { api, db, dir, payment } = await succeededPayment([
+    chargeOk("ch_1", "succeeded"),
+    { status: 500, headers: {}, bodyText: "upstream unavailable" },
+  ]);
+
+  const result = await api.refund({
+    workspaceId: WORKSPACE_ID,
+    paymentId: payment.id,
+    idempotencyKey: "r1",
+    amount: USD(400),
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "PROVIDER_ERROR");
+    assert.equal(result.error.retryable, true);
+  }
+  const rows = refundRows(db);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].status, "failed");
+  // The payment itself is untouched by a refund attempt that never reached the provider successfully.
+  assert.equal(api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.amountRefundedMinor, 0);
+
+  cleanup(db, dir);
+});
+
+test("refund: a provider-pending refund does not advance amount_refunded_minor until confirmed", async () => {
+  const { api, db, dir, payment } = await succeededPayment([
+    chargeOk("ch_1", "succeeded"),
+    { status: 200, headers: {}, bodyText: JSON.stringify({ id: "re_1", status: "pending" }) },
+  ]);
+
+  const result = await api.refund({
+    workspaceId: WORKSPACE_ID,
+    paymentId: payment.id,
+    idempotencyKey: "r1",
+    amount: USD(400),
+  });
+
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.refund.status, "pending");
+    assert.equal(result.payment.amountRefundedMinor, 0, "a still-pending refund must not move the payment's total");
+    assert.equal(result.payment.status, "succeeded", "the payment stays put until the refund is confirmed");
+  }
+
+  cleanup(db, dir);
+});
+
+test("refund: two concurrent refunds racing the same idempotency key resolve to one refund, not a crash", async () => {
+  const { api, db, dir, http, payment } = await succeededPayment([chargeOk("ch_1", "succeeded"), refundOk("re_1")]);
+  const request = {
+    workspaceId: WORKSPACE_ID,
+    paymentId: payment.id,
+    idempotencyKey: "refund-race-1",
+    amount: USD(400),
+  } as const;
+
+  const [first, second] = await Promise.all([api.refund(request), api.refund(request)]);
+
+  assert.equal(first.ok && second.ok, true);
+  if (first.ok && second.ok) {
+    assert.equal(first.refund.id, second.refund.id, "both concurrent calls resolve to the SAME refund row");
+    assert.equal(
+      [first.replayed, second.replayed].filter((replayed) => replayed).length,
+      1,
+      "exactly one of the two lost the race to the UNIQUE index and was reconciled, not both"
+    );
+  }
+  assert.equal(http.calls.length, 2, "one charge call plus exactly one refund call — the race's other side never reached the provider");
+
+  cleanup(db, dir);
+});
