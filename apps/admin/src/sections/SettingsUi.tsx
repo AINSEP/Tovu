@@ -324,22 +324,30 @@ export function SettingsUi() {
   );
 
   /**
-   * Pins the dialog's palette to the operator's choice, scoped to this section.
+   * Pins the dialog's palette to LIGHT, unconditionally, scoped to this section.
    *
-   * `settings-dialog.css` resolves its `--jini-*` tokens from a
-   * `data-theme` attribute on ANY ancestor, falling back to
-   * `@media (prefers-color-scheme)`. Without this the dialog silently follows
-   * the OS — so an admin on a dark-mode machine got a dark panel inside an
-   * otherwise light admin, with no way to say otherwise.
+   * `settings-dialog.css` resolves its `--jini-*` tokens from a `data-theme`
+   * attribute on ANY ancestor, falling back to `@media (prefers-color-scheme)`.
+   * Emitting a literal `"light"` is what stops that media query from applying:
+   * the surrounding Tovu admin is a light surface with NO dark variant, so any
+   * path that resolves to dark puts a dark panel inside a light app.
    *
-   * `'system'` deliberately emits NO attribute rather than a computed value:
-   * that lets the media query do its job and keeps following the OS if the
-   * operator changes it while the page is open.
+   * Why unconditional rather than reading the operator's stored choice: the
+   * stored `core.appearance.theme` definition default is `"system"` on any
+   * install that booted before the source default became `"light"`, and
+   * `ensureSettingDefinitions` skips definitions that already exist
+   * (`if (existing) continue;`) — so a source-side default can never reach an
+   * existing database. Rather than depend on a value we cannot correct from
+   * code, this ignores it. That is deliberate and temporary.
+   *
+   * Consequence, stated not hidden: the Appearance tab's theme control is
+   * currently INERT — picking dark or system still saves to the ledger but
+   * changes nothing on screen. Restore `data-theme={theme === 'system' ?
+   * undefined : theme}` here once the admin has a real dark variant, or once
+   * the stored-default drift is fixed and the control is worth honouring.
    */
-  const dialogTheme = (appearance.value as AppearanceConfig).theme;
-
   return (
-    <div className="settings-ui-section" data-theme={dialogTheme === "system" ? undefined : dialogTheme}>
+    <div className="settings-ui-section" data-theme="light">
       {loadError ? (
         <p className="settings-ui-load-error" role="alert">
           Could not load saved settings ({loadError}). Showing defaults — edits will still save.
