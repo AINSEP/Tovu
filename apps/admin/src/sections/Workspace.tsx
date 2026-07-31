@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ApiError, api, type AdminWorkspace } from "../lib/api";
 
 /**
- * @file "Workspace" admin screen (SPEC-044) — the `#/section/workspace` route.
+ * @file "Workspace" admin screen (SPEC-044) — the `/admin/workspace` route.
  *
  * Mirrors `sections/Roles.tsx`'s fetch/loading/error/form shape. Shows the current (single, v1)
  * workspace's `name`/`slug`/`createdAt` and an editable rename form (REQ-04). No list/create UI —

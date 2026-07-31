@@ -185,12 +185,14 @@ describe("nav wiring", () => {
     const item = overviewGroup.items.find((i) => i.id === "ai-assistant");
     expect(item).toBeDefined();
     expect(item?.label).toBe("AI Assistant");
-    expect(item?.href).toBe("#/section/ai-assistant");
+    expect(item?.href).toBe("/ai-assistant");
     expect(item?.soon).toBeFalsy();
   });
 
   it("the nav id matches the route section id App.activeSectionId derives the highlight from", () => {
     const item = NAV.flatMap((group) => group.items).find((i) => i.id === "ai-assistant");
-    expect(item?.href).toBe(`#/section/${item?.id}`);
+    // `href` is a route path now, not a hash, and the `section/` segment is gone — so the id is
+    // simply the path. That is what lets `activeSectionId` light this row up from the URL alone.
+    expect(item?.href).toBe(`/${item?.id}`);
   });
 });

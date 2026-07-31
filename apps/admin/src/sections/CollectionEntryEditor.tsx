@@ -10,10 +10,11 @@ import {
   type ContentTypeFieldDef,
 } from "../lib/api";
 import { WidgetEmbed, WidgetEmbedInsertControl } from "../lib/widget-embed-extension";
+import { navigate } from "../lib/router";
 
 /**
  * @file Collections' entry editor (design-spec.md §1.5/§1.6) — the
- * `#/collections/{typeKey}/{entryId|new}` route.
+ * `/admin/collections/{typeKey}/{entryId|new}` route.
  *
  * Disclosed deviation from design-spec.md §1.5's "do not build a second TipTap wiring from
  * scratch — extract/reuse [PostEditor.tsx's]" direction: this dispatch's own scope discipline
@@ -239,7 +240,7 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
         );
         setEntry(created);
         setMessage(`Created · version ${created.version}`);
-        window.location.hash = `#/collections/${props.contentTypeKey}/${created.id}`;
+        navigate(`/collections/${props.contentTypeKey}/${created.id}`);
       }
     } catch (e) {
       setError(describeApiError(e, "save failed"));
@@ -268,7 +269,7 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
   return (
     <div className="editor-page">
       <div className="editor-header">
-        <a href={`#/collections/${props.contentTypeKey}`}>← {contentType.label}</a>
+        <a href={`/admin/collections/${props.contentTypeKey}`}>← {contentType.label}</a>
         <div className="editor-actions">
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? <span className="save-error">{error}</span> : null}

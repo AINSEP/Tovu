@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { api, type AdminPost } from "../lib/api";
 import { siteUrl } from "../lib/site-url";
+import { navigate } from "../lib/router";
 
 /**
  * Pages admin screen — same shape as `Posts.tsx`, backed by the pages-filtered
  * endpoints (`GET/POST .../pages`). A page is a `post` row with `kind: "page"`
  * (see `features/post/post.ts`), so it's edited through the same `PostEditor`
- * reached via `#/posts/{id}`.
+ * reached via `/admin/posts/{id}`.
  */
 export function Pages() {
   const [pages, setPages] = useState<AdminPost[] | null>(null);
@@ -25,7 +26,7 @@ export function Pages() {
     setError(null);
     try {
       const { post } = await api.createPage("Untitled");
-      window.location.hash = `#/posts/${post.id}`;
+      navigate(`/posts/${post.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to create page");
       setCreating(false);
@@ -57,7 +58,7 @@ export function Pages() {
           {pages.map((page) => (
             <tr key={page.id}>
               <td>
-                <a href={`#/posts/${page.id}`}>{page.title}</a>
+                <a href={`/admin/posts/${page.id}`}>{page.title}</a>
               </td>
               <td>
                 <a href={siteUrl(`/${page.slug}`)} target="_blank" rel="noreferrer">

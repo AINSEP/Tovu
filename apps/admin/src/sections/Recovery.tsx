@@ -9,7 +9,7 @@ import {
 } from "../lib/api";
 
 /**
- * @file Recovery screen (design-spec.md §4, ADR-045) — the `#/section/recovery` route.
+ * @file Recovery screen (design-spec.md §4, ADR-045) — the `/admin/recovery` route.
  *
  * Per design-spec.md §0.1: one screen, two views — a restore-points list and a restore-flow for a
  * selected point — never a separate "Backups" route (ADR-045 explicitly rejects that shape).
@@ -51,7 +51,7 @@ function DegradedBannerView(props: { status: AdminRecoveryStatus }) {
     <div className={`notice error recovery-degraded-banner`} role={assertive ? "alert" : undefined} aria-live={assertive ? "assertive" : "polite"}>
       <span>{banner.accessibleText}</span>
       {banner.actionKind === "deep-link-to-database-migration" ? (
-        <a href="#/section/database">
+        <a href="/admin/database">
           <button type="button">Go to Database</button>
         </a>
       ) : null}

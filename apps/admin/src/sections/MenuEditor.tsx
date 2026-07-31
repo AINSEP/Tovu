@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type AdminMenu, type AdminMenuItem, type AdminMenuTarget } from "../lib/api";
+import { navigate } from "../lib/router";
 
 type AdminMenuTargetKind = AdminMenuTarget["kind"];
 
@@ -264,7 +265,7 @@ export function MenuEditor(props: { menuId: string | null }) {
     try {
       if (isNew) {
         const { menu: created } = await api.createMenu({ title, slug }, { items });
-        window.location.hash = `#/menus/${created.id}`;
+        navigate(`/menus/${created.id}`);
         return;
       }
       if (!menu) return;
@@ -286,7 +287,7 @@ export function MenuEditor(props: { menuId: string | null }) {
   return (
     <div className="editor-page">
       <div className="editor-header">
-        <a href="#/menus">← Menus</a>
+        <a href="/admin/menus">← Menus</a>
         <div className="editor-actions">
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? <span className="save-error">{error}</span> : null}

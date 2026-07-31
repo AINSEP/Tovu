@@ -1,12 +1,28 @@
 import path from "node:path";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 
 // The admin SPA is served at /admin by the Tovu server in production builds.
 // In dev, Vite serves it at :5173 and proxies /api to the backend.
+/**
+ * Dev-only: 301 a bare `/admin` to `/admin/`, which `base: "/admin/"` otherwise answers with Vite's
+ * own "did you mean to visit /admin/" 404. The real server already does this — `express.static`
+ * mounted at `/admin` redirects on its own — so this just stops dev diverging from production.
+ */
+const redirectBareAdmin: Plugin = {
+  name: "tovu:redirect-bare-admin",
+  configureServer(server) {
+    server.middlewares.use((req, res, next) => {
+      if (req.url !== "/admin" && !req.url?.startsWith("/admin?")) return next();
+      res.writeHead(301, { Location: `/admin/${req.url.slice("/admin".length)}` });
+      res.end();
+    });
+  },
+};
+
 export default defineConfig({
   base: "/admin/",
-  plugins: [react()],
+  plugins: [redirectBareAdmin, react()],
   resolve: {
     alias: {
       // Shared framework-agnostic shell metadata (see src/admin-shell INFO.md).

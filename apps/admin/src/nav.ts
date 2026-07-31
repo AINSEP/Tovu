@@ -8,8 +8,15 @@
  *
  * How it relates to the project:
  * - Rendered by `components/Sidebar.tsx`.
- * - `href` points at the hash routes `App.tsx` understands; items marked `soon`
- *   are not built yet and render disabled.
+ * - `href` is a **route path**, not a URL: `/settings`, not `/admin/settings`. Sidebar applies the
+ *   `/admin` base via `lib/router.ts`'s `adminHref`, so this file stays base-agnostic and the base
+ *   lives in exactly one place. Items marked `soon` are not built yet and render disabled.
+ * - This file controls sidebar *presence* only, never reachability: a section is routable as soon as
+ *   it is in `App.tsx`'s `SECTIONS` map, with or without an entry here (`appearance` and
+ *   `settings-raw` are both deliberately reachable without being ordinary nav rows).
+ * - **`id` must equal the section's `SECTIONS` key.** `App.activeSectionId` derives the highlighted
+ *   nav id from the route's section id, so a mismatch renders a link that works but never lights up.
+ * - Adding a section: see `apps/admin/INFO.md`, "Adding a new admin section".
  *
  * Icons are inline SVG inner-markup (viewBox 0 0 18 18, stroke=currentColor).
  */
@@ -19,7 +26,7 @@ export interface NavItem {
   label: string;
   /** Inner SVG markup for an 18x18 stroked icon. */
   icon: string;
-  /** Hash route; omit for not-yet-built ("soon") items. */
+  /** Route path (`/settings`), not a URL — Sidebar adds the base. Omit for `soon` items. */
   href?: string;
   soon?: boolean;
 }
@@ -36,7 +43,7 @@ export const NAV: NavGroup[] = [
       {
         id: "dashboard",
         label: "Overview",
-        href: "#/",
+        href: "/",
         icon: '<rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="10" y="2" width="6" height="9" rx="1.5"/><rect x="2" y="10" width="6" height="6" rx="1.5"/><rect x="10" y="13" width="6" height="3" rx="1.5"/>',
       },
       {
@@ -47,7 +54,7 @@ export const NAV: NavGroup[] = [
         // is not a growth surface, it is a kill switch with a roadmap attached.
         id: "ai-assistant",
         label: "AI Assistant",
-        href: "#/section/ai-assistant",
+        href: "/ai-assistant",
         icon: '<rect x="3" y="5" width="12" height="9" rx="2.5"/><path d="M9 5V2.5M6.5 9v.01M11.5 9v.01M7 12h4"/><path d="M1.5 8.5v2M16.5 8.5v2"/>',
       },
     ],
@@ -58,49 +65,49 @@ export const NAV: NavGroup[] = [
       {
         id: "pages",
         label: "Pages",
-        href: "#/section/pages",
+        href: "/pages",
         icon: '<rect x="3" y="2" width="12" height="14" rx="1.5"/><path d="M6 6h6M6 9h6M6 12h4"/>',
       },
       {
         id: "posts",
         label: "Posts",
-        href: "#/posts",
+        href: "/posts",
         icon: '<path d="M3 4h12M3 8h12M3 12h8"/>',
       },
       {
         id: "media",
         label: "Media",
-        href: "#/section/media",
+        href: "/media",
         icon: '<rect x="2" y="3" width="14" height="11" rx="1.5"/><path d="M2 11l4-3 3 2 3-3 4 3"/><circle cx="6" cy="6.5" r="1"/>',
       },
       {
         id: "collections",
         label: "Collections",
-        href: "#/section/collections",
+        href: "/collections",
         icon: '<rect x="2.5" y="4" width="13" height="10" rx="1.5"/><path d="M2.5 7.5h13M6 4V2.5M12 4V2.5"/>',
       },
       {
         id: "menus",
         label: "Menus",
-        href: "#/menus",
+        href: "/menus",
         icon: '<path d="M4 3h10M4 7h10M4 11h6M2 3v.01M2 7v.01M2 11v.01"/>',
       },
       {
         id: "widgets",
         label: "Widgets",
-        href: "#/widgets",
+        href: "/widgets",
         icon: '<rect x="2" y="2" width="6" height="6" rx="1"/><rect x="10" y="2" width="6" height="6" rx="1"/><rect x="2" y="10" width="6" height="6" rx="1"/><rect x="10" y="10" width="6" height="6" rx="1"/>',
       },
       {
         id: "taxonomy",
         label: "Categories & Tags",
-        href: "#/section/taxonomy",
+        href: "/taxonomy",
         icon: '<path d="M9 2l2 3.5 4 .6-3 2.9.7 4L9 11.5 5.6 13l.7-4-3-2.9 4-.6L9 2z"/>',
       },
       {
         id: "forms",
         label: "Forms",
-        href: "#/forms",
+        href: "/forms",
         icon: '<rect x="3" y="2" width="12" height="14" rx="1.5"/><path d="M6 6h6M6 9h6M6 12h3"/>',
       },
     ],
@@ -111,25 +118,25 @@ export const NAV: NavGroup[] = [
       {
         id: "users",
         label: "Users",
-        href: "#/section/users",
+        href: "/users",
         icon: '<circle cx="9" cy="6" r="3"/><path d="M3 15c0-3.3 2.7-6 6-6s6 2.7 6 6"/>',
       },
       {
         id: "roles",
         label: "Roles & Permissions",
-        href: "#/section/roles",
+        href: "/roles",
         icon: '<rect x="2.5" y="4" width="13" height="10" rx="1.5"/><path d="M2.5 8h13M6 12h3"/>',
       },
       {
         id: "members",
         label: "Members",
-        href: "#/section/members",
+        href: "/members",
         icon: '<circle cx="7" cy="6" r="2.5"/><path d="M2 15c0-2.8 2.2-5 5-5s5 2.2 5 5"/><path d="M12.5 6.5l1.3 1.3 2.2-2.5"/>',
       },
       {
         id: "comments",
         label: "Comments",
-        href: "#/section/comments",
+        href: "/comments",
         icon: '<path d="M3 4h12v8H8l-3 3v-3H3V4z"/>',
       },
     ],
@@ -140,7 +147,7 @@ export const NAV: NavGroup[] = [
       {
         id: "themes",
         label: "Themes",
-        href: "#/section/themes",
+        href: "/themes",
         icon: '<circle cx="6.2" cy="7" r="3.4"/><circle cx="11.8" cy="7" r="3.4"/><circle cx="9" cy="11.6" r="3.4"/>',
       },
       {
@@ -149,7 +156,7 @@ export const NAV: NavGroup[] = [
         // instead of being marked `soon`.
         id: "plugins",
         label: "Plugins",
-        href: "#/section/plugins",
+        href: "/plugins",
         icon: '<path d="M7 2v3H4v9h10V5h-3V2H7z"/>',
       },
       {
@@ -161,13 +168,13 @@ export const NAV: NavGroup[] = [
         // the label.
         id: "database",
         label: "Database",
-        href: "#/section/database",
+        href: "/database",
         icon: '<ellipse cx="9" cy="4.5" rx="6" ry="2.2"/><path d="M3 4.5v9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2v-9"/><path d="M3 9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"/>',
       },
       {
         id: "integrations",
         label: "Integrations & API",
-        href: "#/integrations",
+        href: "/integrations",
         icon: '<path d="M6 6l-3 3 3 3M12 6l3 3-3 3M10 4l-2 10"/>',
       },
       {
@@ -175,14 +182,25 @@ export const NAV: NavGroup[] = [
         // no separate Backups screen (see Recovery.tsx's own header comment).
         id: "recovery",
         label: "Recovery",
-        href: "#/section/recovery",
+        href: "/recovery",
         icon: '<path d="M9 2a7 7 0 107 7"/><path d="M9 5v4l2.5 1.5"/>',
       },
       {
         id: "settings",
         label: "Settings",
-        href: "#/section/settings",
+        href: "/settings",
         icon: '<circle cx="9" cy="9" r="2.5"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.2 4.2l1.4 1.4M12.4 12.4l1.4 1.4M4.2 13.8l1.4-1.4M12.4 5.6l1.4-1.4"/>',
+      },
+      {
+        // The SPEC-007 raw namespace/key ledger inspector, kept available beside
+        // the curated tabbed surface that now owns `/settings`. Both read and
+        // write the same `content.db` rows through the ADR-028 chokepoint — a
+        // second *view*, not a second store. Reverting the swap is two lines:
+        // point `settings` back at `<Settings />` in App.tsx and drop this entry.
+        id: "settings-raw",
+        label: "Settings (Raw)",
+        href: "/settings-raw",
+        icon: '<path d="M3 4h12M3 9h12M3 14h8"/>',
       },
       {
         // SPEC-044 (Workspace Administration). Placement call (OQ-04 in feature.spec.md, not yet
@@ -190,7 +208,7 @@ export const NAV: NavGroup[] = [
         // concept — could instead become a Settings tab; either satisfies every REQ/AC unchanged.
         id: "workspace",
         label: "Workspace",
-        href: "#/section/workspace",
+        href: "/workspace",
         icon: '<rect x="2.5" y="2.5" width="13" height="13" rx="2"/><path d="M2.5 7h13"/>',
       },
     ],
@@ -201,13 +219,13 @@ export const NAV: NavGroup[] = [
       {
         id: "seo",
         label: "SEO & Metadata",
-        href: "#/section/seo",
+        href: "/seo",
         icon: '<circle cx="8" cy="8" r="5.5"/><path d="M12 12l3.5 3.5"/>',
       },
       {
         id: "redirects",
         label: "Redirects",
-        href: "#/section/redirects",
+        href: "/redirects",
         icon: '<path d="M3 6h8a3 3 0 010 6H6M3 6l2.5-2.5M3 6l2.5 2.5"/>',
       },
       {
@@ -219,7 +237,7 @@ export const NAV: NavGroup[] = [
       {
         id: "analytics",
         label: "Analytics",
-        href: "#/section/analytics",
+        href: "/analytics",
         icon: '<path d="M3 15V9M8 15V4M13 15v-4"/>',
       },
     ],

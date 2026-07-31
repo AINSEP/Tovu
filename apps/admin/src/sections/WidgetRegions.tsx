@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { ApiError, api, type AdminWidgetRegionBinding } from "../lib/api";
+import { navigate } from "../lib/router";
 
 /**
- * @file `WidgetRegionsScreen` (`ui.spec.md` §2.4/§3.6/§4.5/§9) — `#/widgets/regions`. Lists
+ * @file `WidgetRegionsScreen` (`ui.spec.md` §2.4/§3.6/§4.5/§9) — `/admin/widgets/regions`. Lists
  * currently-bound regions; the bind-new-region control is a free-text `regionKey` input, mirroring
  * `Menus.tsx`'s location-assign control exactly (no "theme declares regions" list API exists to
  * source a dropdown from — `ThemeManifest.regions` is read server-side at render time, not exposed
@@ -37,7 +38,7 @@ export function WidgetRegions() {
     try {
       await api.bindWidgetRegion(regionKey);
       setNewRegionKey("");
-      window.location.hash = `#/widgets/regions/${regionKey}`;
+      navigate(`/widgets/regions/${regionKey}`);
     } catch (e) {
       setError(describeApiError(e, "bind failed"));
     } finally {
@@ -51,7 +52,7 @@ export function WidgetRegions() {
   return (
     <div>
       <div className="editor-header">
-        <a href="#/widgets">← Widgets</a>
+        <a href="/admin/widgets">← Widgets</a>
         <h1>Widget Regions</h1>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
@@ -80,11 +81,11 @@ export function WidgetRegions() {
             {regions.map((region) => (
               <tr key={region.regionKey}>
                 <td>
-                  <a href={`#/widgets/regions/${region.regionKey}`}>{region.regionKey}</a>
+                  <a href={`/admin/widgets/regions/${region.regionKey}`}>{region.regionKey}</a>
                 </td>
                 <td>{region.placementCount}</td>
                 <td>
-                  <a href={`#/widgets/regions/${region.regionKey}`}>
+                  <a href={`/admin/widgets/regions/${region.regionKey}`}>
                     <button>Manage</button>
                   </a>
                 </td>

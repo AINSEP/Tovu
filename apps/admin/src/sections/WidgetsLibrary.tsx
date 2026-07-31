@@ -4,7 +4,7 @@ import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields";
 
 /**
  * @file `WidgetsLibraryScreen` (`ui.spec.md` §2.1/§3.1/§4.1) — the widget library/list screen,
- * `#/widgets`. Mirrors `Menus.tsx`'s list-table/status-badge/header-action shape exactly.
+ * `/admin/widgets`. Mirrors `Menus.tsx`'s list-table/status-badge/header-action shape exactly.
  */
 
 function describeApiError(e: unknown, fallback: string): string {
@@ -74,7 +74,7 @@ export function WidgetsLibrary() {
       <div className="editor-header">
         <h1>Widgets</h1>
         <span className="editor-actions">
-          <a href="#/widgets/regions">Regions →</a>
+          <a href="/admin/widgets/regions">Regions →</a>
           <select value={createType} onChange={(e) => setCreateType(e.target.value as AdminWidgetType)} aria-label="Widget type to create">
             {WIDGET_TYPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -82,7 +82,7 @@ export function WidgetsLibrary() {
               </option>
             ))}
           </select>
-          <a href={`#/widgets/new?type=${createType}`}>
+          <a href={`/admin/widgets/new?type=${createType}`}>
             <button>Add New</button>
           </a>
         </span>
@@ -105,7 +105,7 @@ export function WidgetsLibrary() {
             {widgets.map((widget) => (
               <tr key={widget.id}>
                 <td>
-                  <a href={`#/widgets/${widget.id}`}>{widget.title}</a>
+                  <a href={`/admin/widgets/${widget.id}`}>{widget.title}</a>
                 </td>
                 <td>{WIDGET_TYPE_OPTIONS.find((o) => o.value === widget.widgetType)?.label ?? widget.widgetType}</td>
                 <td>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type AdminPost } from "../lib/api";
 import { siteUrl } from "../lib/site-url";
+import { navigate } from "../lib/router";
 
 export function Posts() {
   const [posts, setPosts] = useState<AdminPost[] | null>(null);
@@ -19,7 +20,7 @@ export function Posts() {
     setError(null);
     try {
       const { post } = await api.createPost("Untitled");
-      window.location.hash = `#/posts/${post.id}`;
+      navigate(`/posts/${post.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to create post");
       setCreating(false);
@@ -51,7 +52,7 @@ export function Posts() {
           {posts.map((post) => (
             <tr key={post.id}>
               <td>
-                <a href={`#/posts/${post.id}`}>{post.title}</a>
+                <a href={`/admin/posts/${post.id}`}>{post.title}</a>
               </td>
               <td>
                 <a href={siteUrl(`/${post.slug}`)} target="_blank" rel="noreferrer">

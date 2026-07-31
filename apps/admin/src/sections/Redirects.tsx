@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ApiError, api, type AdminRedirect, type AdminRedirectImportResponse } from "../lib/api";
 
 /**
- * @file Redirects admin screen (SPEC-009 ui.spec.md) — the `#/section/redirects` route.
+ * @file Redirects admin screen (SPEC-009 ui.spec.md) — the `/admin/redirects` route.
  * Single-screen list + inline create form + per-row disable/enable + tombstone, mirroring
  * `FormsList.tsx`/`Seo.tsx`'s fetch/loading/error convention.
  *

@@ -55,7 +55,7 @@ export function Menus() {
     <div>
       <div className="editor-header">
         <h1>Menus</h1>
-        <a href="#/menus/new">
+        <a href="/admin/menus/new">
           <button>Add New</button>
         </a>
       </div>
@@ -76,7 +76,7 @@ export function Menus() {
           {menus.map((menu) => (
             <tr key={menu.id}>
               <td>
-                <a href={`#/menus/${menu.id}`}>{menu.title}</a>
+                <a href={`/admin/menus/${menu.id}`}>{menu.title}</a>
               </td>
               <td>{menu.slug}</td>
               <td>

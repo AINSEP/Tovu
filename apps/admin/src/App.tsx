@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-ai/ui/chat";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { Sidebar } from "./components/Sidebar";
 import { buildAdminAgentPages } from "./lib/agent-pages";
+import { installInternalLinkInterceptor, useRouteLocation } from "./lib/router";
 import { api, type AdminUser } from "./lib/api";
 import { Appearance } from "./sections/Appearance";
 import { Dashboard } from "./sections/Dashboard";
@@ -22,6 +23,7 @@ import { IntegrationDeliveries } from "./sections/IntegrationDeliveries";
 import { Users } from "./sections/Users";
 import { Roles } from "./sections/Roles";
 import { Settings } from "./sections/Settings";
+import { SettingsUi } from "./sections/SettingsUi";
 import { Seo } from "./sections/Seo";
 import { Redirects } from "./sections/Redirects";
 import { Plugins } from "./sections/Plugins";
@@ -60,9 +62,81 @@ type Route =
   | { view: "collection-entry-editor"; contentTypeKey: string; entryId: string | null }
   | { view: "section"; sectionId: string };
 
-function parseHash(hash: string): Route {
-  const [rawPath, rawQuery] = hash.replace(/^#\/?/, "").split("?");
-  const parts = rawPath.split("/").filter(Boolean);
+/**
+ * Every section screen, keyed by the URL segment that reaches it: `/admin/settings` → `settings`.
+ *
+ * This map is the single definition of a section — it is both what the router will accept as a
+ * one-segment path and what gets rendered there. There is deliberately no second id allowlist to
+ * keep in sync: path routing needs one (a path with no `section/` marker is otherwise
+ * indistinguishable from a typo), and deriving it from this map is what stops it drifting out of
+ * step with the dispatch. Do not reintroduce a parallel list.
+ *
+ * An entry here is all that is *required* — it gets you the URL, the screen, the sidebar highlight
+ * and the right `data-agent-page`. It does **not** put the section in the sidebar (`nav.ts`, which
+ * owns label/icon/group/order) or let the assistant navigate to it (`lib/agent-pages.ts`, a
+ * security allowlist that is manual on purpose). Both are deliberate opt-ins — the full checklist,
+ * and why each is separate, is in `apps/admin/INFO.md` under "Adding a new admin section".
+ *
+ * Thunks rather than component references so a screen that needs props can still live here —
+ * `newsletter` has no screen yet and renders `Placeholder`, exactly as `#/section/newsletter` did.
+ * `themes` and `appearance` both point at `Appearance`: two accepted spellings, one screen.
+ */
+const SECTIONS: Readonly<Record<string, () => ReactNode>> = {
+  "ai-assistant": () => <AiAssistant />,
+  analytics: () => <Analytics />,
+  appearance: () => <Appearance />,
+  collections: () => <Collections />,
+  comments: () => <Comments />,
+  database: () => <Database />,
+  media: () => <Media />,
+  members: () => <Members />,
+  newsletter: () => <Placeholder sectionId="newsletter" />,
+  pages: () => <Pages />,
+  plugins: () => <Plugins />,
+  recovery: () => <Recovery />,
+  redirects: () => <Redirects />,
+  roles: () => <Roles />,
+  seo: () => <Seo />,
+  settings: () => <SettingsUi />,
+  // The SPEC-007 raw ledger browser, kept reachable now that `/settings` renders the curated
+  // tabbed surface ported from Open Design. Both views hit the same rows.
+  "settings-raw": () => <Settings />,
+  taxonomy: () => <Taxonomy />,
+  themes: () => <Appearance />,
+  users: () => <Users />,
+  workspace: () => <Workspace />,
+};
+
+/**
+ * The renderer for a section id, or `undefined` if there is no such section.
+ *
+ * `Object.hasOwn`, deliberately never `key in SECTIONS`. `in` walks the prototype chain, so every
+ * `Object.prototype` member passed the allowlist and then got *called as a section renderer*:
+ * `/admin/constructor` and `/admin/valueOf` returned a bare `{}` and crashed the render with
+ * "Objects are not valid as a React child"; `/admin/__proto__` resolved to a non-function and threw;
+ * `/admin/toString` rendered the literal string "[object Object]" as the page. All five previously
+ * fell through to the dashboard. Both call sites below go through here so neither can regress
+ * independently — the render path needs it just as much as the parser, because the legacy
+ * `/section/:id` branch accepts an arbitrary id that never passed the parser's check at all.
+ */
+function sectionRenderer(sectionId: string): (() => ReactNode) | undefined {
+  return Object.hasOwn(SECTIONS, sectionId) ? SECTIONS[sectionId] : undefined;
+}
+
+/**
+ * Parses a *route path* (base already stripped by `router.ts`) into a `Route`.
+ *
+ * Was `parseHash`. The body is unchanged apart from the input: the hash router already parsed a
+ * path-shaped string after stripping `#/`, so the segment matching below is the same logic that
+ * ran before — only the source of the string moved from `location.hash` to `location.pathname`.
+ *
+ * `section/` is still accepted as a leading segment. Not for new URLs — nothing generates it any
+ * more — but `router.ts`'s legacy-hash redirect strips it, and this is the second line of defence
+ * for a stored URL that reaches the parser without going through that redirect.
+ */
+export function parseRoute(routePath: string): Route {
+  const [rawPath, rawQuery] = routePath.split("?");
+  const parts = (rawPath ?? "").split("/").filter(Boolean);
   const query = new URLSearchParams(rawQuery ?? "");
   if (parts.length === 0) return { view: "dashboard" };
   if (parts[0] === "posts" && parts[1]) return { view: "post-editor", postId: parts[1] };
@@ -85,14 +159,18 @@ function parseHash(hash: string): Route {
   if (parts[0] === "collections" && parts[1] && parts[2])
     return { view: "collection-entry-editor", contentTypeKey: parts[1], entryId: parts[2] === "new" ? null : parts[2] };
   if (parts[0] === "collections" && parts[1]) return { view: "collection-entries", contentTypeKey: parts[1] };
-  if (parts[0] === "appearance" || (parts[0] === "section" && parts[1] === "appearance"))
-    return { view: "section", sectionId: "appearance" };
   if (parts[0] === "section" && parts[1]) return { view: "section", sectionId: parts[1] };
+  // A bare section segment — the shape every section URL now takes (`/settings`, not
+  // `/section/settings`). Tested against `SECTIONS` rather than accepting any single segment, so an
+  // unrecognized path still falls through to the dashboard the way it always has instead of
+  // rendering an empty Placeholder for a typo. Nothing to maintain: the map is the dispatch.
+  if (parts.length === 1 && parts[0] && sectionRenderer(parts[0]))
+    return { view: "section", sectionId: parts[0] };
   return { view: "dashboard" };
 }
 
 /** Which sidebar NavItem.id is highlighted for the current route. */
-function activeSectionId(route: Route): string {
+function activeNavId(route: Route): string {
   switch (route.view) {
     case "dashboard":
       return "dashboard";
@@ -121,10 +199,39 @@ function activeSectionId(route: Route): string {
   }
 }
 
+/**
+ * The page id this view reports to an agent through `data-agent-page`.
+ *
+ * Deliberately a separate function from {@link activeNavId}, which is what it used to share. The
+ * two answer different questions and only *usually* agree: the sidebar wants the nav row to light
+ * up, and an agent wants the id it can pass back to `page.navigate`. Widget regions is where they
+ * genuinely diverge — `agent-pages.ts` publishes `widget-regions`, and the sidebar has no such row,
+ * so it highlights `widgets`. Sharing one function meant `page.navigate("widget-regions")` landed
+ * on the right screen and then reported `after: "widgets"`, i.e. told the agent it had arrived
+ * somewhere it had not asked for. An agent's only correction for that is to navigate again.
+ *
+ * Everything else still falls through to the nav id on purpose: a detail route reports its list
+ * page (`/posts/abc` → `posts`), which is the nearest id an agent can actually act on, and the
+ * region editor follows the same rule under `widget-regions`.
+ *
+ * Values here must stay keys of `ADMIN_AGENT_PAGE_PATHS` wherever a published page exists for the
+ * view, or the id an agent reads back is one `page.navigate` will refuse.
+ */
+export function agentPageId(route: Route): string {
+  switch (route.view) {
+    case "widget-regions":
+    case "widget-region-editor":
+      return "widget-regions";
+    default:
+      return activeNavId(route);
+  }
+}
+
 export function App() {
   const [user, setUser] = useState<AdminUser | null>(null);
   const [checking, setChecking] = useState(true);
-  const [route, setRoute] = useState<Route>(parseHash(window.location.hash));
+  const routePath = useRouteLocation();
+  const route = useMemo(() => parseRoute(routePath), [routePath]);
   const [chatOpen, setChatOpen] = useState(false);
   /**
    * State, not a `useRef`, and attached as a callback ref below — because the effect that builds
@@ -142,11 +249,9 @@ export function App() {
   const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
   const [agentBridge, setAgentBridge] = useState<FrontendSessionBridge | null>(null);
 
-  useEffect(() => {
-    const onHash = () => setRoute(parseHash(window.location.hash));
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, []);
+  // Plain `<a href="/admin/...">` links stay plain anchors and become SPA navigations here — see
+  // `installInternalLinkInterceptor` for why this is a document listener and not a <Link>.
+  useEffect(() => installInternalLinkInterceptor(), []);
 
   // Stable for the app's lifetime: rebuilding it would tear down the driver (and with it the SSE
   // connection) on every render.
@@ -253,58 +358,21 @@ export function App() {
       content = <CollectionEntryEditor contentTypeKey={route.contentTypeKey} entryId={route.entryId} />;
       break;
     case "section":
-      content =
-        route.sectionId === "themes" || route.sectionId === "appearance" ? (
-          <Appearance />
-        ) : route.sectionId === "seo" ? (
-          <Seo />
-        ) : route.sectionId === "redirects" ? (
-          <Redirects />
-        ) : route.sectionId === "plugins" ? (
-          <Plugins />
-        ) : route.sectionId === "members" ? (
-          <Members />
-        ) : route.sectionId === "comments" ? (
-          <Comments />
-        ) : route.sectionId === "users" ? (
-          <Users />
-        ) : route.sectionId === "roles" ? (
-          <Roles />
-        ) : route.sectionId === "analytics" ? (
-          <Analytics />
-        ) : route.sectionId === "media" ? (
-          <Media />
-        ) : route.sectionId === "pages" ? (
-          <Pages />
-        ) : route.sectionId === "settings" ? (
-          <Settings />
-        ) : route.sectionId === "collections" ? (
-          <Collections />
-        ) : route.sectionId === "taxonomy" ? (
-          <Taxonomy />
-        ) : route.sectionId === "database" ? (
-          <Database />
-        ) : route.sectionId === "recovery" ? (
-          <Recovery />
-        ) : route.sectionId === "workspace" ? (
-          <Workspace />
-        ) : route.sectionId === "ai-assistant" ? (
-          <AiAssistant />
-        ) : (
-          <Placeholder sectionId={route.sectionId} />
-        );
+      // The fallback still matters: the legacy `/section/:id` branch in `parseRoute` accepts any id,
+      // so a stored URL naming a section that no longer exists lands here rather than in the map.
+      content = sectionRenderer(route.sectionId)?.() ?? <Placeholder sectionId={route.sectionId} />;
       break;
   }
 
   return (
     <div className="admin-layout">
-      <Sidebar activeId={activeSectionId(route)} onLogout={logout} />
+      <Sidebar activeId={activeNavId(route)} onLogout={logout} />
       {/* `data-agent-page` is how the page driver reports where it is: `page.find_elements` tags
           every handle with its nearest `[data-agent-page]` ancestor, and `page.navigate` reads it
-          back to say which page it left and which it landed on. Set from the same
-          `activeSectionId(route)` the sidebar highlights, so the id an agent sees is the id a
-          human sees selected. */}
-      <main className="admin-content" ref={setContentEl} data-agent-page={activeSectionId(route)}>
+          back to say which page it left and which it landed on. `agentPageId`, not `activeNavId`
+          — they agree for every view but widget regions, where the published page id and the
+          highlighted sidebar row are genuinely different things. */}
+      <main className="admin-content" ref={setContentEl} data-agent-page={agentPageId(route)}>
         {content}
       </main>
       {/* `hidden`, never unmounted: every admin page shares one assistant conversation, which must

@@ -1,4 +1,5 @@
 import { NAV, type NavItem } from "../nav";
+import { adminHref } from "../lib/router";
 
 /**
  * Grouped admin sidebar (the `.cms-nav` design). Replaces the flat,
@@ -30,7 +31,13 @@ function Item(props: { item: NavItem; active: boolean }) {
   }
 
   return (
-    <a className={`cms-item${active ? " active" : ""}`} href={item.href} aria-current={active ? "page" : undefined}>
+    <a
+      className={`cms-item${active ? " active" : ""}`}
+      // `NavItem.href` is a route path; the `/admin` base is applied here so nav.ts never has to
+      // know it. A real URL, so cmd-click and "copy link address" behave normally.
+      href={adminHref(item.href)}
+      aria-current={active ? "page" : undefined}
+    >
       <Icon markup={item.icon} />
       <span>{item.label}</span>
     </a>
