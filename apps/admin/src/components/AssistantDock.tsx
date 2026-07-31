@@ -128,17 +128,36 @@ export function AssistantDock({ agentBridge = null }: AssistantDockProps) {
         initialSelection={{ agentId: "claude" }}
         {...(chats.activeId ? { conversationId: chats.activeId } : {})}
         initialMessages={chats.initialMessages}
-        // The conversation switcher sits in the pane's own leading slot, so this needs no fork of
-        // `ChatPane` — it is the seam the component already exposes.
-        leadingAccessory={
-          <ConversationList
-            conversations={chats.conversations}
-            activeConversationId={chats.activeId}
-            onSelect={chats.select}
-            onCreate={chats.create}
-            onDelete={chats.remove}
-            onRename={chats.rename}
-          />
+        /**
+         * Replaces `ChatPane`'s default header, which is not merely a styling preference.
+         *
+         * That default ships a "New thread" button wired to the pane's own `onReset`, which
+         * clears the local transcript and nothing else. With durable history that is actively
+         * wrong: the pane would empty while `activeId` still pointed at the previous
+         * conversation, so the next message would silently append to the chat the user thought
+         * they had just left. `chats.create` makes a real conversation row and switches to it.
+         *
+         * The switcher belongs here rather than in `leadingAccessory` for the same reason — that
+         * slot sits above the composer, so the dropdown opened over the input instead of below
+         * the title where a history control is looked for.
+         */
+        header={
+          <div className="jini-chat-pane__header">
+            <div className="jini-chat-pane__heading">
+              <span className="jini-chat-pane__eyebrow">Workspace chat</span>
+              <h1 className="jini-chat-pane__title">
+                {chats.conversations.find((c) => c.id === chats.activeId)?.title ?? "Tovu assistant"}
+              </h1>
+            </div>
+            <ConversationList
+              conversations={chats.conversations}
+              activeConversationId={chats.activeId}
+              onSelect={chats.select}
+              onCreate={chats.create}
+              onDelete={chats.remove}
+              onRename={chats.rename}
+            />
+          </div>
         }
         title="Tovu assistant"
         placeholder="Ask the assistant to do something…"

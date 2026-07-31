@@ -496,3 +496,262 @@
 .jini-runtime-check {
   color: var(--ok);
 }
+
+/* --- Conversation switcher (`ConversationList` from `@jini-ai/ui/chat`) ---------------------
+ *
+ * The package ships semantic markup with `jini-conv-*` class names and no CSS at all, exactly
+ * like every other component it exports — see this file's header. Without these rules the
+ * switcher renders as unstyled block elements: the dropdown has no surface of its own, so it
+ * bleeds through onto the composer beneath it, and its heading, count and "New" button stack
+ * on top of the placeholder text instead of forming a panel.
+ *
+ * Deliberately anchored to `.admin-chat-dock` so these do not leak onto any other pane, and
+ * built from the same `--jini-chat-*` custom properties the shell above defines, so the
+ * switcher inherits light/dark and accent changes rather than pinning its own colours.
+ */
+
+.jini-conv {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.jini-conv-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.jini-conv-trigger:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+
+.jini-conv-trigger-open {
+  border-color: var(--accent-text);
+  color: var(--accent-text);
+}
+
+/* Absolute rather than in flow: the panel must float ABOVE the transcript, not push it down.
+ *
+ * Anchored RIGHT, not left. The trigger sits at the right edge of the pane header, so a
+ * left-anchored panel grows rightward off the dock — and `.admin-chat-dock` sets
+ * `overflow: hidden`, so it does not merely spill, it gets sliced: the heading and the search
+ * field were cut mid-glyph. Anchoring to the same edge the trigger is pinned to makes the panel
+ * open inward, where there is room.
+ *
+ * `width` is expressed against the dock rather than the viewport for the same reason — the
+ * constraint that matters is the 380px dock, and `100vw` would happily allow a panel three times
+ * too wide on a large screen. */
+.jini-conv-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  left: auto;
+  z-index: 40;
+  width: max-content;
+  min-width: 260px;
+  max-width: min(340px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 12%);
+  overflow: hidden;
+}
+
+.jini-conv-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.jini-conv-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Its own element and its own gap — as a bare sibling text node the count rendered flush
+   against the heading, reading as "Conversations0". */
+.jini-conv-count {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+.jini-conv-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.jini-conv-new:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.jini-conv-new:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.jini-conv-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 12px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--faint);
+}
+
+.jini-conv-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--fg);
+}
+
+/* Native affordance removed: it sits inside our bordered wrapper and renders as a second,
+   differently-styled control. */
+.jini-conv-search input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+/* Scrolls rather than growing without limit — a year of chats must not produce a panel taller
+   than the viewport with its "New" button pushed off-screen. */
+.jini-conv-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px 8px 8px;
+}
+
+.jini-conv-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 8px;
+  border-radius: 8px;
+}
+
+.jini-conv-item:hover {
+  background: var(--surface-2);
+}
+
+.jini-conv-item-active {
+  background: var(--accent-soft, var(--surface-2));
+}
+
+.jini-conv-item-select {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+/* The title yields to the meta rather than wrapping to a second line: a list of chats is
+   scanned by first words, and ragged two-line rows destroy that. */
+.jini-conv-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.jini-conv-item-meta {
+  flex: none;
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hidden until the row is hovered or the button itself is focused. Keeping the focus-visible
+   case is what stops this being keyboard-inaccessible — a delete you can tab to but never see
+   is worse than no delete at all. */
+.jini-conv-item-delete {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.jini-conv-item:hover .jini-conv-item-delete,
+.jini-conv-item-delete:focus-visible {
+  opacity: 1;
+}
+
+.jini-conv-item-delete:hover {
+  background: var(--surface);
+  color: var(--danger-text, #b3261e);
+}
+
+.jini-conv-rename {
+  flex: 1;
+  min-width: 0;
+  margin: 4px 0;
+  padding: 6px 8px;
+  border: 1px solid var(--accent-text);
+  border-radius: 6px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 13px;
+  color: var(--fg);
+  outline: none;
+}
+
+.jini-conv-empty {
+  padding: 18px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--faint);
+}
