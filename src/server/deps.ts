@@ -96,6 +96,7 @@ import { createNavMenuReadModel } from "../navigation/read-model";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { ensurePublicAssistantSettingDefinitions } from "../assistant/public-assistant-settings";
 import { ensureExecutionSettingDefinitions } from "../assistant/execution-mode-settings";
+import { ensureSettingsUiTabDefinitions } from "../features/settings/ui-tab-definitions";
 import { SqliteCommentRepo } from "../comments/repo.sqlite";
 import { installCommentsDataModule } from "../comments/data-module-install";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "../features/taxonomy/repo.sqlite";
@@ -278,6 +279,16 @@ export function createSqliteRouteDeps(
   // header for the namespace-fence reasoning.
   const executionSettingsReady = assistantSettingsReady.then(() =>
     ensureExecutionSettingDefinitions(
+      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+    ).then(() => undefined)
+  );
+
+  // The remaining ledger-only settings-dialog tabs (Instructions, Notifications, Privacy).
+  // Chained after `executionSettingsReady` rather than fired alongside it for the same
+  // single-SQLite-connection-transaction reason every registration above documents.
+  const settingsUiTabsReady = executionSettingsReady.then(() =>
+    ensureSettingsUiTabDefinitions(
       { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
       { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
@@ -482,6 +493,7 @@ export function createSqliteRouteDeps(
     settingsReady,
     assistantSettingsReady,
     executionSettingsReady,
+    settingsUiTabsReady,
     // ADR-046 Phase 1 slice 1 (SPEC-023, 2026-07-16): change-set mutation history now survives a
     // restart — the first durable-adapter slice off Phase 1's capability table, per the ADR's own
     // "pull-based per capability, not a uniform sweep" fold-in guidance.

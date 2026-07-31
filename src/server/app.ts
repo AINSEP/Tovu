@@ -86,6 +86,7 @@ import { createNavMenuReadModel } from "../navigation/read-model";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { ensurePublicAssistantSettingDefinitions } from "../assistant/public-assistant-settings";
 import { ensureExecutionSettingDefinitions } from "../assistant/execution-mode-settings";
+import { ensureSettingsUiTabDefinitions } from "../features/settings/ui-tab-definitions";
 import { InMemoryCommentRepo } from "../comments/repo.memory";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";
 import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo } from "../features/taxonomy/repo.memory";
@@ -226,6 +227,16 @@ export function createRouteDeps(): NewsletterRouteDeps {
     ).then(() => undefined)
   );
 
+  // The remaining ledger-only settings-dialog tabs (Instructions, Notifications, Privacy).
+  // Chained after `executionSettingsReady` rather than fired alongside it for the same
+  // single-SQLite-connection-transaction reason every registration above documents.
+  const settingsUiTabsReady = executionSettingsReady.then(() =>
+    ensureSettingsUiTabDefinitions(
+      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+    ).then(() => undefined)
+  );
+
   // SPEC-011 (Newsletter) — declared here (not inline in the return object) so `newsletterReady`
   // below can seed the default list against the SAME repo instance the returned deps expose.
   const newsletterListRepoInMemory = new InMemoryNewsletterListRepo();
@@ -346,6 +357,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     seoReady,
     assistantSettingsReady,
     executionSettingsReady,
+    settingsUiTabsReady,
     // BR-04 (2026-07-16): the repo forwards insert()'s optional event to this SAME outbox
     // instance, matching what the old separate executeCommand()-level enqueue() call did.
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
