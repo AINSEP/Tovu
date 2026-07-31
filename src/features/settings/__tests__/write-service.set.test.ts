@@ -157,6 +157,35 @@ test("set rejects a write to a tombstoned definition", async () => {
   );
 });
 
+test("clear is rejected FORBIDDEN and writes nothing when the caller is unauthorized and skipAuthorize is not set", async () => {
+  const def = definition();
+  const repo = new InMemorySettingsRepo({ definitions: [def] });
+  const principals = new InMemoryPrincipalRepo([]);
+
+  await set({
+    deps: { repo, clock, ids, authorize: alwaysAllow, principals },
+    input: { namespace: def.namespace, key: def.key, scope: "global", value: "atlas", callerPrincipalId: "actor-1" },
+  });
+
+  await assert.rejects(
+    () =>
+      clear({
+        deps: { repo, clock, ids, authorize: alwaysDeny, principals },
+        input: { namespace: def.namespace, key: def.key, scope: "global", callerPrincipalId: "actor-1" },
+      }),
+    ForbiddenError
+  );
+
+  const stored = await repo.getGlobalValue(def.settingId);
+  assert.equal(stored?.state, "set", "a denied clear() must not flip state to 'cleared'");
+  assert.equal(stored?.valueJson, "atlas");
+  assert.equal(
+    (await repo.listRevisions({ settingId: def.settingId })).length,
+    1,
+    "only the original 'set' revision should exist -- a denied clear() must append none"
+  );
+});
+
 test("clear writes state='cleared' and a same-call op='clear' revision", async () => {
   const def = definition();
   const repo = new InMemorySettingsRepo({ definitions: [def] });

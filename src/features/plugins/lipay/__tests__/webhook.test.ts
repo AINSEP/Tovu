@@ -230,6 +230,30 @@ test("webhook: distinct refund events accumulate, and the total is capped at the
   cleanup(harness.db, harness.dir);
 });
 
+test("webhook: a refund event that omits an amount is treated as a full refund of the payment", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness, 1000);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+  });
+  const ack = await harness.api.handleWebhook({
+    providerId: "lipay",
+    // No `amount`/`currency` on the charge — the shape a provider sends when it doesn't itemize a
+    // full refund, relying on the receiver to infer "the whole payment" from the absence.
+    ...delivery({ id: "evt_2", type: "charge.refunded", createdSeconds: nowSeconds + 1, charge: { id: "ch_1" } }),
+  });
+
+  assert.deepEqual(ack, { accepted: true, processed: 1, duplicates: 0 });
+  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  assert.equal(after?.amountRefundedMinor, 1000, "an amount-less refund event infers the full charge amount");
+  assert.equal(after?.status, "refunded");
+
+  cleanup(harness.db, harness.dir);
+});
+
 test("webhook: an event older than the last applied one is recorded but never applied", async () => {
   const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
   const payment = await pendingPayment(harness);
