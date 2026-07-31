@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "../core/events";
 import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex } from "../features/post";
+import { createChatStoreFactory } from "../assistant/persistence/store-factory";
 import { SqlitePresentationSettingsRepo } from "../features/presentation";
 import { SqliteSettingsRepo } from "../features/settings/repo.sqlite";
 import { discoverAllBuiltInThemes } from "../features/theme";
@@ -456,6 +457,11 @@ export function createSqliteRouteDeps(
     workspaceRepo: new SqliteWorkspaceRepo(db),
     postRepo: new SqlitePostRepo(db),
     postSearch: new SqlitePostSearchIndex(db),
+    // `$client` is the raw better-sqlite3 handle under Drizzle. Passed through because
+    // `@jini-ai/sqlite`'s chat-history adapter takes a handle and never opens a database — the
+    // property that keeps it writing into `content.db` rather than its own `app.sqlite`. The
+    // tables come from migration `0023`, applied by Tovu's own migrator.
+    chatHistory: createChatStoreFactory(db.$client),
     presentationRepo,
     settingsRepo,
     seoReady,

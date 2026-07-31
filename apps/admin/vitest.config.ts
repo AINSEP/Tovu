@@ -11,6 +11,20 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   plugins: [react()],
   resolve: {
+    /**
+     * One React, one react-dom, no matter who imports them.
+     *
+     * `@jini-ai/ui` is a `file:` dependency symlinked into the sibling Jini checkout, which has its
+     * own pnpm-installed React. Without this, `ChatPane` resolves Jini's copy while `react-dom`
+     * renders with this app's, and the first hook it calls throws
+     * `Cannot read properties of null (reading 'useContext')` — the classic two-Reacts symptom,
+     * which reads like a bug in the component rather than a resolution problem.
+     *
+     * It surfaced as an unhandled error rather than a failure (the render is inside React's own
+     * work loop, so the test that triggered it still passed), which is why it went unnoticed: any
+     * admin test that mounts `App` renders the assistant dock, and therefore `ChatPane`.
+     */
+    dedupe: ["react", "react-dom"],
     alias: {
       "@tovu/admin-shell": path.resolve(__dirname, "../../src/admin-shell"),
       "@tovu/headless": path.resolve(__dirname, "../../src/headless"),

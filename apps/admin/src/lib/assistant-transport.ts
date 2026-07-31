@@ -14,10 +14,22 @@
  * per delta (not accumulated here) — chat-core's own `ChatMessage.events` array is what
  * concatenates them into one growing message, so accumulating twice would double the text.
  */
-import type { AgentEvent } from "@jini-ai/chat-core";
+import { buildTranscript, latestUserPromptFromHistory } from "@jini-ai/chat-core";
+import type { AgentEvent, ChatMessage } from "@jini-ai/chat-core";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/ui/chat";
 
 const RUNS_URL = "/api/runs";
+
+/**
+ * How many trailing messages of a conversation go to the agent.
+ *
+ * A cap rather than none: each turn cold-boots a fresh subprocess and pays for its whole input, so
+ * an uncapped transcript makes every message in a long chat more expensive than the last. 40 is
+ * roughly 20 exchanges — beyond what a working session usually needs to stay coherent, and far
+ * short of where input cost starts to dominate. `buildTranscript` separately truncates any single
+ * oversized message, so this bounds the number of turns, not their size.
+ */
+const MAX_TRANSCRIPT_TURNS = 40;
 
 interface RunAgentPayload {
   readonly type: string;
@@ -74,13 +86,29 @@ function translateRunAgentPayload(payload: RunAgentPayload): AgentEvent | null {
   }
 }
 
-/** Pulls the newest user-authored text out of the history chat-react hands us. */
-function latestUserPrompt(history: StartRunInput["history"]): string {
-  for (let i = history.length - 1; i >= 0; i -= 1) {
-    const msg = history[i];
-    if (msg.role === "user" && msg.content) return msg.content;
-  }
-  return "";
+/**
+ * The prompt for one run: the whole conversation so far, not just the newest message.
+ *
+ * This used to send only the latest user turn, which is why the assistant appeared to have no
+ * memory — ask it something, then ask a follow-up, and the second run had never seen the first.
+ * That looked like a missing capability and was not: `ChatPane` hands the full history to every
+ * `startRun`, and it was being discarded here, in the browser, before the request was even built.
+ * Nothing server-side had to change.
+ *
+ * `buildTranscript` rather than a hand-rolled join, because flattening a transcript has more edges
+ * than it first appears: it truncates any single oversized message, escapes `## user`/`## assistant`
+ * inside message bodies so a user cannot forge a turn boundary by pasting one, summarizes persisted
+ * artifacts instead of replaying them, and prepends a warning when prior-run telemetry shows the
+ * context was already large. Every admin turn cold-boots a fresh CLI subprocess, so the transcript
+ * IS the memory — and the same property makes an unbounded one expensive.
+ *
+ * Bounded deliberately: each run is billed, and an unbounded transcript grows the input cost of
+ * every subsequent turn in a conversation that has no natural end. {@link MAX_TRANSCRIPT_TURNS}
+ * keeps a long-running chat from silently becoming the most expensive thing in the product.
+ */
+function runPrompt(history: StartRunInput["history"]): string {
+  const recent = history.slice(-MAX_TRANSCRIPT_TURNS);
+  return buildTranscript(recent as ChatMessage[]);
 }
 
 /** `@jini-ai/protocol`'s `RunState` -> chat-core's flat `RunStatus` union (different spelling: `cancelled` vs `canceled`, `pending` vs `queued`). */
@@ -161,8 +189,13 @@ function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSign
 export function createTovuAssistantTransport(): ChatTransport {
   return {
     async startRun(input: StartRunInput, handlers: RunHandlers): Promise<{ runId: string }> {
-      const prompt = latestUserPrompt(input.history);
-      if (!prompt) throw new Error("no user message to send");
+      // Guard on the newest USER turn, not on the assembled transcript: a history containing only
+      // assistant messages would still produce a non-empty transcript, and sending that as a
+      // prompt asks the agent to reply to itself.
+      if (!latestUserPromptFromHistory(input.history as ChatMessage[])) {
+        throw new Error("no user message to send");
+      }
+      const prompt = runPrompt(input.history);
 
       /**
        * Which browser tab this run should be allowed to drive, from `ChatPane`'s `runContext`

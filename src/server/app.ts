@@ -6,6 +6,7 @@ import { InMemoryChangeSetRepo } from "../core/commands";
 import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../seo";
 import { registerPageHeadContributor } from "./http/site/page-head";
 import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../features/post";
+import { createInMemoryChatStoreFactory } from "../assistant/persistence/store-factory";
 import { InMemoryPresentationSettingsRepo } from "../features/presentation";
 import { InMemorySettingsRepo } from "../features/settings/repo.memory";
 import { discoverAllBuiltInThemes } from "../features/theme";
@@ -130,6 +131,7 @@ import { createDatabaseRecoveryModule } from "./modules/database-recovery";
 import { createContentTypesModule } from "./modules/content-types";
 import { createSeoModule } from "./modules/seo";
 import { createAssistantModule } from "./modules/assistant";
+import { createAssistantChatsModule } from "./modules/assistant-chats";
 import { createAssistantSettingsModule } from "./modules/assistant-settings";
 import type { RouteDeps } from "./routes/types";
 
@@ -315,6 +317,14 @@ export function createRouteDeps(): NewsletterRouteDeps {
     // `deps.ts`'s. Constructed eagerly, but its scratch database is not opened until the first
     // search, so the many tests that call `createRouteDeps()` without searching pay nothing.
     postSearch: new InMemoryPostSearchIndex(postRepo),
+    // No in-memory *reimplementation* of the chat store: this root gets the real adapter over a
+    // throwaway `:memory:` database. `search-index.memory.ts` earns a hand-written double because
+    // it mirrors `postRepo` rather than maintaining an index; chat history has no such alternate
+    // shape, so a second implementation would only be a second thing to keep in sync — and the
+    // one property tests most need to trust here is the isolation predicate, which only the real
+    // adapter has. `ensureChatHistoryTables` is the package's own path for a host with no
+    // migration system, which is exactly this root's situation.
+    chatHistory: createInMemoryChatStoreFactory(),
     presentationRepo,
     settingsRepo,
     settingsReady,
@@ -639,6 +649,12 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // ADR-049: the admin assistant's tool-execution/run surface, composed from the published
   // `@jini-ai/core` + `@jini-ai/daemon` + `@jini-ai/node-host` kernel — see `src/assistant/`.
   createAssistantModule(routeDeps).registerRoutes?.(app);
+
+  // Durable transcripts for that same assistant, in `content.db` rather than the daemon. Separate
+  // module because nothing here is proxied: run execution belongs to the daemon (that is where run
+  // state lives), while history belongs to Tovu's own database, where backups, snapshots, and
+  // workspace scoping already work. The daemon can restart or be replaced without touching it.
+  createAssistantChatsModule(routeDeps).registerRoutes?.(app);
 
   // The AI Assistant admin section's 2 settings routes (GET/PUT the public assistant's master
   // switch). Registered next to `createAssistantModule` for readability only — the two modules share

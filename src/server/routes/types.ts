@@ -16,6 +16,7 @@ import type {
 } from "../../identity";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin";
 import type { PostRepoPort, PostSearchPort } from "../../features/post";
+import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope";
 import type { PresentationSettingsRepoPort } from "../../features/presentation";
 import type { SettingsRepoPort } from "../../features/settings/ports";
 import type { DiscoveredTheme } from "../../features/theme";
@@ -82,6 +83,15 @@ export interface RouteDeps {
    * workspace/kind/status/trash stay query-time filters on the live row.
    */
   postSearch: PostSearchPort;
+  /**
+   * Durable AI chat history, obtained per-principal.
+   *
+   * A factory rather than a store, because there is no such thing as "the" chat store — every
+   * query must be filtered by who is asking. Composition closes over the `content.db` handle so
+   * no route ever holds one, which is what makes an unscoped `WHERE id = ?` unwritable rather
+   * than merely against convention. See `assistant/persistence/tenant-scope.ts`.
+   */
+  chatHistory: ChatStoreFactory;
   presentationRepo: PresentationSettingsRepoPort;
   /**
    * SPEC-007 — the settings ledger's repo port. `core.commands.appliers`
