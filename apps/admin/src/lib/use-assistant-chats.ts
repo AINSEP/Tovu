@@ -47,6 +47,15 @@ export function useAssistantChats(): UseAssistantChats {
   const writtenRef = useRef<Map<string, Set<string>>>(new Map());
   const activeIdRef = useRef<string | null>(null);
   activeIdRef.current = activeId;
+  /**
+   * Monotonic token identifying the most recent switch intent.
+   *
+   * `activeId` cannot serve as the staleness guard any more, because `select` now resolves the
+   * transcript *before* publishing the id (see below) — at the moment a load returns, `activeId`
+   * still names the previous conversation. Every switch-initiating path bumps this and then
+   * verifies it is still the newest before committing.
+   */
+  const switchSeqRef = useRef(0);
 
   const refresh = useCallback(async () => {
     const next = await listConversations().catch(() => []);
@@ -58,23 +67,49 @@ export function useAssistantChats(): UseAssistantChats {
     void refresh();
   }, [refresh]);
 
+  /**
+   * Publishes `activeId` and `initialMessages` in one commit, and only once the transcript is in
+   * hand.
+   *
+   * Setting `activeId` first is what the obvious version does, and it is wrong in a way that is
+   * invisible in tests: `activeId` is `ChatPane`'s `key`, so assigning it remounts the pane
+   * *immediately*, while `initialMessages` still holds the conversation being navigated away from.
+   * `ChatPane` reads `initialMessages` at mount only, so the fresh transcript — arriving a tick
+   * later — was silently discarded and the pane displayed the previous chat's messages under the
+   * new chat's title.
+   *
+   * The display fault was the mild half. The pane then reported that stale transcript through
+   * `onMessagesChange`, and because `writtenRef` for the newly selected conversation was still
+   * empty, every one of those messages was queued as an unsaved message *belonging to the new
+   * conversation*. Observed live: selecting an empty chat fired four `PUT`s carrying the previous
+   * chat's messages. They 404'd only because those message ids already existed under their real
+   * conversation — an accident of the primary key, not a safeguard. Seeding `writtenRef` in the
+   * same commit as the id is what actually closes that hole.
+   *
+   * React batches both setters (and the ref write precedes them), so the pane remounts exactly
+   * once, already knowing what it holds and what has been persisted.
+   */
   const select = useCallback((id: string) => {
-    setActiveId(id);
+    const seq = ++switchSeqRef.current;
+    const commit = (messages: ChatMessage[]) => {
+      // A slower load for a conversation the user has since navigated away from must not land.
+      if (switchSeqRef.current !== seq) return;
+      writtenRef.current.set(id, new Set(messages.map((m) => m.id)));
+      setInitialMessages(messages);
+      setActiveId(id);
+    };
     void loadMessages(id)
-      .then((messages) => {
-        // Guard the stale response: a slow load for the conversation the user has already
-        // navigated away from must not overwrite the one they are now looking at.
-        if (activeIdRef.current !== id) return;
-        setInitialMessages(messages);
-        writtenRef.current.set(id, new Set(messages.map((m) => m.id)));
-      })
-      .catch(() => {
-        if (activeIdRef.current === id) setInitialMessages([]);
-      });
+      .then(commit)
+      // A failed load still switches, to an empty pane: leaving the user on the previous
+      // conversation while its title says otherwise is the worse of the two failures.
+      .catch(() => commit([]));
   }, []);
 
   const create = useCallback(async () => {
     const conversation = await createConversation();
+    // Same guard as `select`, in the other direction: a switch still in flight when "New" is
+    // clicked would otherwise resolve afterwards and drop its transcript into the new empty chat.
+    switchSeqRef.current += 1;
     setConversations((current) => [conversation, ...current]);
     setActiveId(conversation.id);
     setInitialMessages([]);
