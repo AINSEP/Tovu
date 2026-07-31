@@ -95,6 +95,7 @@ import { wireCoreResolvers } from "../widgets/resolvers/index";
 import { createNavMenuReadModel } from "../navigation/read-model";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { ensurePublicAssistantSettingDefinitions } from "../assistant/public-assistant-settings";
+import { ensureExecutionSettingDefinitions } from "../assistant/execution-mode-settings";
 import { SqliteCommentRepo } from "../comments/repo.sqlite";
 import { installCommentsDataModule } from "../comments/data-module-install";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "../features/taxonomy/repo.sqlite";
@@ -266,6 +267,19 @@ export function createSqliteRouteDeps(
     ensurePublicAssistantSettingDefinitions(
       { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
       { workspaceId: workspaceId, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+    ).then(() => undefined)
+  );
+
+  // The admin "Execution mode" tab's `core.execution.*` definitions
+  // (`assistant/execution-mode-settings.ts`). Chained after `assistantSettingsReady` rather than
+  // fired in parallel, for the identical single-SQLite-connection-transaction reason `seoReady`'s
+  // own comment above documents. `ownerKind: "core"` (not "site"), so unlike the three bindings
+  // above this one does not pass a `workspaceId` into the registration call — see that file's
+  // header for the namespace-fence reasoning.
+  const executionSettingsReady = assistantSettingsReady.then(() =>
+    ensureExecutionSettingDefinitions(
+      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
 
@@ -467,6 +481,7 @@ export function createSqliteRouteDeps(
     seoReady,
     settingsReady,
     assistantSettingsReady,
+    executionSettingsReady,
     // ADR-046 Phase 1 slice 1 (SPEC-023, 2026-07-16): change-set mutation history now survives a
     // restart — the first durable-adapter slice off Phase 1's capability table, per the ADR's own
     // "pull-based per capability, not a uniform sweep" fold-in guidance.
