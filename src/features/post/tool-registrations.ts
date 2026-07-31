@@ -1,7 +1,7 @@
 /**
- * @file Posts + Pages' half of ADR-049 Decision 4: maps `agent-tools.ts`'s 4 catalog entries onto
- * `post.ts`'s `createPost`/`updatePost`/`listAdminPosts`/`listAdminPages`/`getAdminPostById`, as
- * `ToolRegistration`s.
+ * @file Posts + Pages' half of ADR-049 Decision 4: maps `agent-tools.ts`'s 6 catalog entries onto
+ * `post.ts`'s `createPost`/`updatePost`/`deletePost`/`listAdminPosts`/`listAdminPages`/
+ * `getAdminPostById` plus `search.ts`'s `searchAdminPosts`, as `ToolRegistration`s.
  *
  * Authorization shape: `createPost`/`updatePost` (`post.ts`) carry no `authorize()` call of their
  * own (confirmed by reading the whole file) — unlike Forms' write-service functions, which
@@ -14,12 +14,15 @@
  * (`listAdminPosts`/`listAdminPages`/`getAdminPostById` take no `authorize()` param at all), so
  * their handlers perform the same inline `content.read` check the admin GET routes perform
  * themselves — mirroring `features/entries/tool-registrations.ts`'s identical `collections_entry_list`
- * precedent.
+ * precedent. `content_post_search` is in that same group (`searchAdminPosts` takes no `authorize`
+ * param either), with the one difference that it has no admin route to mirror at all — see
+ * `agent-tools.ts`'s header for why that is deliberate rather than a gap in the mirroring rule.
  */
 import {
   AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
   indexCatalogById,
+  optionalNumber,
   optionalString,
   requireInputRecord,
   requireObject,
@@ -53,6 +56,7 @@ import {
   type PostRecord,
   type PostStatus,
 } from "./post";
+import { searchAdminPosts } from "./search";
 
 const CATALOG_BY_ID = indexCatalogById(postAgentToolCatalog);
 
@@ -62,6 +66,11 @@ const CATALOG_BY_ID = indexCatalogById(postAgentToolCatalog);
  * `sideEffects` declaration.
  */
 export const postDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+  // -> searchAdminPosts (search.ts) -> PostSearchPort.search(): a SELECT against the FTS5 index
+  //    joined back to `posts`. Read-only in both adapters — the durable one runs one prepared
+  //    query, and the in-memory one's per-query mirror writes only to its own private `:memory:`
+  //    scratch database, never to anything a caller can observe or that survives the process.
+  ["content_post_search", "none"],
   // -> listAdminPosts/listAdminPages (post.ts): postRepo.list() only, no write.
   ["content_post_list", "none"],
   // -> getAdminPostById (post.ts): postRepo.findById() only, no write.
@@ -181,6 +190,46 @@ export function buildPostRegistrations(
   const confirmations = options.confirmations ?? createPendingConfirmationStore();
 
   const handlers: Record<string, ToolHandler> = {
+    /**
+     * Ranked search. Gated exactly like `content_post_list` — same `content.read` permission, same
+     * inline check in the route's place, because `searchAdminPosts` (like `listAdminPosts`) takes no
+     * `authorize` param of its own. No `entityId` on the check: the caller has not named a row yet,
+     * which is the whole point of searching, so this authorizes the ACT of reading posts in this
+     * workspace rather than access to any particular one.
+     *
+     * `withSchemaOnRejection` wraps it for the same reason the write handlers use it: the two things
+     * that can go wrong here (a query with no searchable term, a non-numeric `limit`) are both
+     * `PostValidationError`s a different input would fix, so publishing the schema alongside saves
+     * the model a turn.
+     */
+    content_post_search: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "content.read", entityType: "post" });
+
+      return withSchemaOnRejection({ toolId: "content_post_search", catalog: CATALOG_BY_ID, isShapeRejection: isPostShapeRejection }, async () => {
+        const query = requireString(input, "query");
+        const kind = input.kind !== undefined ? requirePostKind(input) : undefined;
+        const status = optionalPostStatus(input);
+        const limit = optionalNumber(input, "limit");
+
+        const { hits } = await searchAdminPosts({
+          deps: { search: routeDeps.postSearch },
+          input: {
+            workspaceId: routeDeps.workspaceId,
+            query,
+            ...(kind !== undefined ? { kind } : {}),
+            ...(status !== undefined ? { status } : {}),
+            ...(limit !== undefined ? { limit } : {}),
+          },
+        });
+
+        // `hits` is already the model-facing shape (`PostSearchHit`), so unlike every other handler
+        // here there is no `toPostToolView` projection to apply — and deliberately no `bodyJson` to
+        // drop, because the search layer never loads one. See `search.ts`'s `PostSearchHit` doc.
+        return { hits };
+      });
+    },
+
     content_post_list: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "content.read", entityType: "post" });
@@ -451,7 +500,7 @@ export function buildPostRegistrations(
   };
 
   // No `unwiredToolIds`: Posts/Pages wires its ENTIRE catalog, same tripwire discipline as
-  // Forms/Entries/Widgets — a 6th catalog entry added without a handler fails the build.
+  // Forms/Entries/Widgets — a 7th catalog entry added without a handler fails the build.
   return buildDomainRegistrations({
     domain: "post",
     catalogModule: "features/post/agent-tools.ts",

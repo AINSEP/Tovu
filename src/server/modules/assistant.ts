@@ -159,6 +159,22 @@ export function createAssistantModule(routeDeps: RouteDeps): ServerModuleHandle 
       app.use("/api/agents", requireAdminSession(routeDeps));
       app.get("/api/agents", (req, res, next) => proxyPassthrough(req, res).catch(next));
       app.post("/api/agents/rescan", (req, res, next) => proxyPassthrough(req, res).catch(next));
+
+      // Agent-driven control of the admin's own tab (`page.navigate`, `page.scroll_to`, …). The
+      // stream carries invocations down to the browser and the response route carries answers
+      // back; both are `@jini-ai/http-kit`'s, mounted on the daemon by `agent-daemon-server.ts`.
+      //
+      // Proxied rather than reached directly for the same reason every other route here is: the
+      // daemon requires a bearer token the browser must never hold, and `requireAdminSession`
+      // is what proves a caller is an admin at all. The stream in particular depends on
+      // `relayResponse` above streaming rather than buffering — it is SSE, exactly like
+      // `/api/runs/:runId/events`, and buffering it would mean the tab never receives an
+      // invocation until the connection closed.
+      app.use("/api/frontend-sessions", requireAdminSession(routeDeps));
+      app.get("/api/frontend-sessions/stream", (req, res, next) => proxyPassthrough(req, res).catch(next));
+      app.post("/api/frontend-sessions/:sessionId/responses", (req, res, next) =>
+        proxyPassthrough(req, res).catch(next),
+      );
     },
   };
 }

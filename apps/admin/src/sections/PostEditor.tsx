@@ -3,6 +3,7 @@ import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/r
 import type { EditorView } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
+import { agentHandle } from "@jini-ai/agentic";
 import { api, type AdminPost } from "../lib/api";
 import { WidgetEmbed, WidgetEmbedInsertControl } from "../lib/widget-embed-extension";
 import { siteUrl } from "../lib/site-url";
@@ -171,29 +172,79 @@ export function PostEditor(props: { postId: string }) {
 
   return (
     <div className="editor-page">
-      <div className="editor-header">
-        <a href="#/posts">← Posts</a>
+      <div
+        className="editor-header"
+        {...agentHandle("post-header", {
+          role: "region",
+          label: "Editor header — back link, save status, publish state and the Save button",
+        })}
+      >
+        <a
+          href="#/posts"
+          {...agentHandle("post-back-to-list", { role: "link", label: "Back to the list of all posts" })}
+        >
+          ← Posts
+        </a>
         <div className="editor-actions">
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? <span className="save-error">{error}</span> : null}
-          <select value={status} onChange={(e) => setStatus(e.target.value as "draft" | "published")}>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value as "draft" | "published")}
+            {...agentHandle("post-status", {
+              role: "field",
+              label: "Whether this post is a draft or published — set with page.select_option, not click",
+            })}
+          >
             <option value="draft">Draft</option>
             <option value="published">Published</option>
           </select>
-          <button onClick={save}>Save</button>
+          <button
+            onClick={save}
+            {...agentHandle("post-save", { role: "button", label: "Save this post's title, slug, status and body" })}
+          >
+            Save
+          </button>
         </div>
       </div>
-      <input className="editor-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Post title" />
+      <input
+        className="editor-title"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Post title"
+        {...agentHandle("post-title", { role: "field", label: "This post's title" })}
+      />
       <div className="editor-slug">
         /{" "}
-        <input value={slug} onChange={(e) => setSlug(e.target.value)} />
-        <a href={siteUrl(`/${post.slug}`)} target="_blank" rel="noreferrer">
+        <input
+          value={slug}
+          onChange={(e) => setSlug(e.target.value)}
+          {...agentHandle("post-slug", { role: "field", label: "URL slug this post is published at" })}
+        />
+        <a
+          href={siteUrl(`/${post.slug}`)}
+          target="_blank"
+          rel="noreferrer"
+          {...agentHandle("post-view-live", { role: "link", label: "Open this post on the public site in a new tab" })}
+        >
           view ↗
         </a>
       </div>
-      <div className="editor-shell">
+      <div
+        className="editor-shell"
+        {...agentHandle("post-editor-shell", {
+          role: "region",
+          label: "Formatting toolbar and the post body editor",
+        })}
+      >
         {editor ? <Toolbar editor={editor} /> : null}
-        <div className="editor-body">
+        {/* `role: "field"` rather than `region`: this is a TipTap `contenteditable`, which the
+            page driver treats as a fillable rich-text surface (see its `isEditableRegion`), so an
+            agent can read and write the body through the same field verbs it uses for an input. */}
+        <div
+          className="editor-body"
+          {...agentHandle("post-body", { role: "field", label: "The post's rich-text body content" })}
+        >
           <EditorContent editor={editor} />
         </div>
       </div>

@@ -28,7 +28,12 @@ module.exports = {
       name: "only-composition-constructs-concrete-adapters",
       severity: "warn",
       comment: "Only bootstrap/composition modules (server/deps.ts, server/app.ts, index.ts) may select production implementations directly.",
-      from: { path: "^src/features", pathNot: "^src/features/.*/repo\\.(sqlite|memory)\\.ts$" },
+      // `repo.*` was the only adapter filename convention when this rule was written. Posts' search
+      // index (`features/post/search-index.{sqlite,memory}.ts`) is the same category of file — a
+      // concrete storage adapter behind a port — under a different name, because it backs
+      // `PostSearchPort` rather than `PostRepoPort`. Exempted by name for the same reason `repo.*`
+      // is, not as a loosening: everything else under `src/features` still may not reach `src/infra`.
+      from: { path: "^src/features", pathNot: "^src/features/.*/(repo|search-index)\\.(sqlite|memory)\\.ts$" },
       to: { path: "^src/infra" },
     },
     {

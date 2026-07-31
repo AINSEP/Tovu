@@ -323,6 +323,24 @@ registerPermission({
   description: "Read and write per-entry SEO overrides, site-level SEO settings, and the sitemap cache.",
 });
 /**
+ * A single umbrella permission gating both AI Assistant admin routes (read and write), registered
+ * under the frozen `admin.<section>.<action>` convention `admin.seo.manage`'s own comment above
+ * names as the shape new admin sections should use.
+ *
+ * One string, not a read/write split, matching SEO's rationale verbatim: there is no self-vs-other
+ * branching here to get wrong, and the read is not sensitive independently of the write — knowing
+ * whether the public assistant is on is exactly as privileged as being able to turn it off.
+ *
+ * This gates the PUBLIC assistant's master switch only. It has nothing to do with reaching the admin
+ * assistant dock, which is gated by `requireAdminSession` at the proxy
+ * (`server/modules/assistant.ts`) and by each individual agent tool's own permission thereafter.
+ */
+registerPermission({
+  id: "admin.assistant.manage",
+  owner: "assistant",
+  description: "Read and change the visitor-facing AI assistant's settings, including its master on/off switch.",
+});
+/**
  * FEAT-014 / ADR-PIPE-014 §1: closes the standing Article VI gap on the analytics
  * `recent-hits` admin route (previously zero `authorize()` call at all). Flat
  * `domain.verb` shape, matching `navigation.manage`/`integration.manage` above rather

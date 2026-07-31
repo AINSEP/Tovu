@@ -5,6 +5,8 @@ import { posts } from "../../infra/db/schema";
 import type { ContentDb } from "../../infra/sqlite/content-db";
 import { findOneBy } from "../../infra/sqlite/repo-helpers";
 import type { PostKind, PostRecord, PostRepoPort, PostStatus } from "./post";
+import { toPostSearchDocument } from "./search";
+import { indexPostSearchDocument } from "./search-index.sqlite";
 
 /**
  * @file Drizzle/SQLite post repository adapter.
@@ -17,6 +19,14 @@ import type { PostKind, PostRecord, PostRepoPort, PostStatus } from "./post";
  * object out. Its column is `NOT NULL DEFAULT '{}'`, so every pre-feature row reads back as "no
  * plugin has written anything" with zero backfill; an empty bag is normalized to an absent `ext`
  * on the record so an entry with no contributing plugin carries no `ext` at all (AC-14).
+ *
+ * SEARCH INDEX: `save()` — and only `save()` — also refreshes this post's row in the durable FTS5
+ * index (migration 0022). That is the whole sync obligation, because `title`/`slug`/`bodyJson` are
+ * the only indexed values and this is their only writer. `softDelete()` deliberately does NOT touch
+ * the index; a trashed post is excluded by `searchPostIndex`'s own `deleted_at IS NULL` filter
+ * against the live row, which is also what makes a later restore searchable again with no extra
+ * step. See `search-index.sqlite.ts`'s header for why the visibility fields are query-time filters
+ * rather than indexed columns.
  */
 type PostRow = typeof posts.$inferSelect;
 
@@ -101,6 +111,12 @@ export class SqlitePostRepo implements PostRepoPort {
         },
       })
       .run();
+
+    // Refreshed here rather than by a trigger on `posts`, because the indexed body is plain text
+    // walked out of a nested TipTap document — an extraction SQL has no business attempting. This
+    // is the only writer of the three indexed columns, so this is the only place the obligation
+    // exists (see this file's header).
+    indexPostSearchDocument(this.db.$client, toPostSearchDocument(record));
   }
 
   /**

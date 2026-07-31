@@ -1,4 +1,5 @@
 import { MAX_SLUG_LENGTH, MAX_TITLE_LENGTH, SLUG_FORMAT_PATTERN } from "./post";
+import { DEFAULT_POST_SEARCH_LIMIT, MAX_POST_SEARCH_LIMIT } from "./search";
 
 /**
  * @file The Posts + Pages agent-tool catalog — this domain's instance of the per-domain
@@ -63,6 +64,17 @@ import { MAX_SLUG_LENGTH, MAX_TITLE_LENGTH, SLUG_FORMAT_PATTERN } from "./post";
  *   inherits the legacy laxity, `kind:"page"` inherits the guard — rather than picking one behavior
  *   and silently applying it to both, which would invent a capability (or a restriction) neither
  *   real route has.
+ *
+ * `content_post_search` is the one entry here that does NOT mirror an existing admin screen, and
+ * that is deliberate rather than an oversight in the "mirror the routes" discipline the rest of this
+ * catalog follows. The mirroring rule exists so a catalog never advertises a capability the product
+ * does not have; it is not a rule that an agent may only do what a human can already click. There is
+ * no admin search screen yet, but there IS a real capability underneath (`features/post/search.ts`
+ * plus a durable FTS5 index, migration 0022), and the alternative for a model that needs to find
+ * something is `content_post_list` — whose own description above admits it requires a `kind`, offers
+ * no filter of any sort, and returns full `bodyJson` for every row. On a site with real content that
+ * is not a search, it is a corpus dump. `content_post_search` exists so the "find the page about X,
+ * then navigate to it with `page.navigate`" flow costs one bounded, ranked result set instead.
  *
  * What IS included, and why it is safe: `content_post_create`/`content_post_update` are wired
  * through `core/commands`'s `executeCommand` — the SAME command gateway `posts/create.ts`,
@@ -293,17 +305,67 @@ const TIPTAP_DOC_SCHEMA = {
 } as const;
 
 /**
- * The Posts + Pages domain's fixed agent-tool catalog: 2 reads (`content_post_list`/
- * `content_post_get`) plus the 3 writes `post.ts` actually exposes (`content_post_create`/
- * `content_post_update`/`content_post_delete`) — see this file's header for the 2 remaining
- * deliberate absences (no separate publish/unpublish, no partial update), the retired
- * no-delete-tool note, and the disclosed `kind`-guard asymmetry.
+ * The Posts + Pages domain's fixed agent-tool catalog: 3 reads (`content_post_search`/
+ * `content_post_list`/`content_post_get`) plus the 3 writes `post.ts` actually exposes
+ * (`content_post_create`/`content_post_update`/`content_post_delete`) — see this file's header for
+ * the 2 remaining deliberate absences (no separate publish/unpublish, no partial update), the
+ * retired no-delete-tool note, and the disclosed `kind`-guard asymmetry.
  *
  * Ordered read-first and destructive-last, matching `widgets/agent-tools.ts`'s/
  * `identity/agent-tools.ts`'s convention: a model needs a `postId` before it can update or delete
- * one, and `content_post_list` (or `content_post_create`'s own result) is how it learns one.
+ * one, and `content_post_search`/`content_post_list` (or `content_post_create`'s own result) is how
+ * it learns one. `content_post_search` leads because it is the one a model should reach for first —
+ * see its own entry for why.
  */
 export const postAgentToolCatalog: AgentToolDefinition[] = [
+  {
+    name: "content_post_search",
+    description:
+      "Finds posts and pages by relevance to a search query — the RIGHT WAY to locate content when you do not already " +
+      "know its id or exact slug (for example, to answer 'where is the page about pricing?' and then navigate there with " +
+      "page.navigate). Searches titles, slugs, and the body text of every post and page in the workspace, ranked best " +
+      "match first. Drafts are included; trashed items are never returned. " +
+      "Returns SUMMARIES ONLY — id, kind, title, slug, status, updatedAt, a short body snippet, and a relevance score. " +
+      "It deliberately does NOT return bodyJson: call content_post_get with the id once you have picked a result. " +
+      "PREFER THIS OVER content_post_list for finding things — content_post_list has no query and returns the full body " +
+      "of every row, which will flood your context on a site with real content. Use content_post_list only when you " +
+      "genuinely need the complete inventory of one kind. " +
+      "Scores are relative within one result set (higher is better) and are not comparable across different queries; " +
+      "an empty result means no post or page contains any of your terms, so try fewer or more general words.",
+    sideEffects: "none",
+    authorization: { permission: "content.read" },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["query"],
+      properties: {
+        query: {
+          type: "string",
+          minLength: 1,
+          description:
+            "Words to search for. Plain words only — this is not a query language, and punctuation/operators are " +
+            "stripped rather than interpreted. Terms are OR'd, so a result matching only one of several words can " +
+            "still rank; more specific queries simply rank better than broader ones. Rejected only if it contains " +
+            "no letter or digit at all.",
+        },
+        kind: {
+          ...POST_KIND_SCHEMA,
+          description: `${POST_KIND_SCHEMA.description} Omit to search posts AND pages together — unlike content_post_list, this tool does not require a kind.`,
+        },
+        status: {
+          type: "string",
+          enum: ["draft", "published"],
+          description: "Omit to search drafts and published entries together. Set to 'published' to search only what is live on the public site.",
+        },
+        limit: {
+          type: "integer",
+          minimum: 1,
+          maximum: MAX_POST_SEARCH_LIMIT,
+          description: `Maximum results to return. Defaults to ${DEFAULT_POST_SEARCH_LIMIT}; values above ${MAX_POST_SEARCH_LIMIT} are clamped to ${MAX_POST_SEARCH_LIMIT} rather than rejected.`,
+        },
+      },
+    },
+  },
   {
     name: "content_post_list",
     description:

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useMemo } from "react";
-import { ChatPane, JiniChatProvider, type ChatPaneAgent } from "@jini-ai/ui/chat";
+import { ChatPane, JiniChatProvider, type ChatPaneAgent, type FrontendSessionBridge } from "@jini-ai/ui/chat";
 import type { ChatMessage } from "@jini-ai/chat-core";
 
 import { createTovuAssistantTransport } from "../lib/assistant-transport";
@@ -47,7 +47,15 @@ async function fetchAgents(): Promise<ChatPaneAgent[]> {
   return agents;
 }
 
-export function AssistantDock() {
+export interface AssistantDockProps {
+  /**
+   * This tab's page-control connection, owned by `App.tsx` (it outlives this pane, which unmounts
+   * with the dock). `null` until the daemon has attached the surface, or if it never does.
+   */
+  agentBridge?: FrontendSessionBridge | null;
+}
+
+export function AssistantDock({ agentBridge = null }: AssistantDockProps) {
   // The transport holds no per-render state; rebuilding it each render would drop in-flight runs.
   const transport = useMemo(() => createTovuAssistantTransport(), []);
   const runtimeAccess = useMemo(
@@ -70,6 +78,28 @@ export function AssistantDock() {
     window.__tovuAssistantMessages = messages;
   }, []);
 
+  /**
+   * Tells the daemon which tab this run is allowed to drive, so `page.navigate` and friends have
+   * an addressee. `assistant-transport.ts` reads `frontendBindToken` out of this and puts it in
+   * the run's `contextRef`.
+   *
+   * A function, and the token read *inside* it, because `EventSource` reconnects on its own — a
+   * daemon restart, a sleeping laptop, an ordinary blip — and every reattach mints a new session
+   * and a new token. Capturing the value once would keep sending a dead one, and the only symptom
+   * would be the agent being told "no frontend is bound to this run" on every page call, long
+   * after the reconnect that caused it.
+   *
+   * Depends on `agentBridge` identity rather than reading a ref: the bridge object is stable for
+   * the tab's lifetime, so this rebuilds only when page control genuinely appears or goes away.
+   */
+  const runContext = useMemo(
+    () => () => {
+      const bindToken = agentBridge?.bindToken();
+      return bindToken === undefined ? {} : { frontendBindToken: bindToken };
+    },
+    [agentBridge],
+  );
+
   return (
     <JiniChatProvider transport={transport}>
       {/* ChatPane takes `transport` directly as well as via the provider — the package's
@@ -81,6 +111,7 @@ export function AssistantDock() {
         title="Tovu assistant"
         placeholder="Ask the assistant to do something…"
         onMessagesChange={handleMessagesChange}
+        runContext={runContext}
         // Purely a label — `workingDirectoryAccess` (native folder picker) is intentionally
         // omitted, and the daemon's real `cwd` (`agent-daemon-server.ts`'s
         // `process.env.TOVU_AGENT_CWD ?? process.cwd()`) isn't round-tripped back to the client

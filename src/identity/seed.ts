@@ -108,6 +108,12 @@ const BUILTIN_ADMIN_PERMISSIONS: readonly string[] = [
   // SPEC-008 (ADR-PIPE-008 Decision §8): every freshly-seeded workspace's built-in admin role
   // gets the one SEO umbrella permission directly, mirroring the admin.menus.* precedent above.
   "admin.seo.manage",
+  // The AI Assistant section's umbrella permission, granted directly here for the same reason
+  // `admin.seo.manage` above is: a freshly-seeded workspace's built-in admin must be able to reach
+  // the public assistant's master switch without depending on any deprecated-grant fan-out. Turning
+  // the public assistant ON is still a deliberate act — the SETTING defaults to off
+  // (`assistant/public-assistant-settings.ts`); this only grants the ability to flip it.
+  "admin.assistant.manage",
   // SPEC-044 (Workspace Administration, feature.spec.md REQ-06): admin gets workspace.manage
   // directly at seed — a distinct grant from settings.write, not owner-only (unlike user.manage/
   // role.manage below).

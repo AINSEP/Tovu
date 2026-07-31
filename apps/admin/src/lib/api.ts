@@ -42,6 +42,17 @@ export interface SettingResetResponse {
   revisionSeqs: number[];
 }
 
+/**
+ * Mirrors `src/assistant/public-assistant-settings.ts`'s `PublicAssistantSettings`.
+ *
+ * `publicEnabled: false` is a hard off — the public page ships no assistant bundle and exposes no
+ * assistant endpoint. It is NOT a client-side visibility flag, and nothing in this admin app should
+ * ever treat it as one; see that module's header for the contract in full.
+ */
+export interface PublicAssistantSettings {
+  publicEnabled: boolean;
+}
+
 /** Mirrors `src/seo/types.ts`'s `SeoSettings`/`RobotsRule` (SPEC-008). */
 export interface RobotsRule {
   userAgent: string;
@@ -1028,6 +1039,15 @@ export const api = {
   ) =>
     request<void>(`/workspaces/${WORKSPACE_ID}/forms/${formId}/submissions/${submissionId}`, {
       method: "DELETE",
+    }),
+  // AI Assistant — the visitor-facing assistant's master switch. Same `{ data }` envelope and same
+  // partial-PUT shape as the SEO settings pair below, because the two routes are deliberately
+  // identical in contract (see `server/routes/admin/assistant/put-settings.ts`).
+  getAssistantSettings: () => request<{ data: PublicAssistantSettings }>(`/workspaces/${WORKSPACE_ID}/assistant/settings`),
+  setAssistantSettings: (patch: Partial<PublicAssistantSettings>) =>
+    request<{ data: PublicAssistantSettings }>(`/workspaces/${WORKSPACE_ID}/assistant/settings`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
     }),
   getSeoSettings: () => request<{ data: SeoSettings }>(`/workspaces/${WORKSPACE_ID}/seo/settings`),
   setSeoSettings: (options: Partial<SeoSettings> = {}) =>
