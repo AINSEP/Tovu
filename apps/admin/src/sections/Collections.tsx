@@ -9,12 +9,12 @@ import {
 } from "../lib/api";
 
 /**
- * @file Collections screen (design-spec.md §1, ADR-022/ADR-043) — the `#/section/collections`
+ * @file Collections screen (design-spec.md §1, ADR-022/ADR-043) — the `/admin/collections`
  * landing view: the content-type registry list plus the "New content type" modal.
  *
  * Structural reference: `FormsList.tsx` (list/fetch/loading/error/empty shape) crossed with
  * `Settings.tsx`'s `.settings-dialog` modal idiom, per design-spec.md §0.3/§1.3. The entry list
- * (`#/collections/{typeKey}`) and entry editor (`#/collections/{typeKey}/{entryId|new}`) are
+ * (`/admin/collections/{typeKey}`) and entry editor (`/admin/collections/{typeKey}/{entryId|new}`) are
  * separate routed screens — see `CollectionEntries.tsx`/`CollectionEntryEditor.tsx`.
  *
  * Reserved key + grammar validation (§1.3) is duplicated client-side as a fast-reject only; the
@@ -504,7 +504,7 @@ export function Collections() {
                   <span className={`status status-${ct.status}`}>{ct.status}</span>
                 </td>
                 <td>
-                  <a href={`#/collections/${ct.key}`}>Manage entries</a>
+                  <a href={`/admin/collections/${ct.key}`}>Manage entries</a>
                 </td>
                 <td className="collections-row-actions">
                   <button type="button" onClick={() => setEditingFieldsFor(ct)}>

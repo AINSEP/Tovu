@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
@@ -34,19 +34,46 @@ beforeEach(() => {
     return new Response(JSON.stringify({ plugins: [] }), { status: 200, headers: { "content-type": "application/json" } });
   });
   vi.stubGlobal("fetch", fetchMock);
-  window.location.hash = "#/section/plugins";
+  // jsdom has no `EventSource`, and `App`'s page-control bridge constructs one in an effect. That
+  // throw used to surface as tolerated unhandled noise, but it tears the tree down — so `<main>` is
+  // gone by the time the `data-agent-page` assertion runs. An inert stub is enough; nothing here
+  // exercises page control.
+  vi.stubGlobal(
+    "EventSource",
+    class {
+      close() {}
+      addEventListener() {}
+      removeEventListener() {}
+    },
+  );
+  // `replaceState`, not `location.pathname = …`: assigning a path is a real navigation, which jsdom
+  // does not implement (it warns and leaves the URL alone, so the app would render the dashboard
+  // and this test would pass vacuously — the dashboard has no Placeholder copy either).
+  window.history.replaceState(null, "", "/admin/plugins");
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  window.location.hash = "";
+  window.history.replaceState(null, "", "/");
 });
 
-it("AC-25: navigating to #/section/plugins does NOT fall through to <Placeholder>'s copy", async () => {
-  render(<App />);
+it("AC-25: navigating to /admin/plugins does NOT fall through to <Placeholder>'s copy", async () => {
+  const { container } = render(<App />);
 
-  // Wait past the initial "Loading Tovu…" / api.me() resolution.
-  await screen.findByText(/plugins/i, {}, { timeout: 3000 }).catch(() => undefined);
+  // Wait for the boot screen to clear, rather than for text: `findByText(/plugins/i)` rejects
+  // immediately when several nodes match (the sidebar item *and* the screen), and the `.catch` that
+  // used to swallow that let the assertions run before the tree had settled.
+  await waitFor(() => expect(container.querySelector(".boot-screen")).toBeNull(), { timeout: 3000 });
 
+  /*
+   * Assert the route actually resolved, not merely that the Placeholder copy is absent.
+   *
+   * Raised in an external audit of the hash→path routing change: on its own, the assertion below
+   * passes for the wrong reason if `/admin/plugins` regresses to the dashboard — `findByText(/plugins/i)`
+   * happily matches the *sidebar* nav item, and the dashboard has no Placeholder copy either. So the
+   * test would go green while proving nothing. `data-agent-page` is set from `activeSectionId(route)`,
+   * making it the one assertion that pins which route the app believes it is on.
+   */
+  expect(container.querySelector("main")).toHaveAttribute("data-agent-page", "plugins");
   expect(screen.queryByText(PLACEHOLDER_COPY)).not.toBeInTheDocument();
 });

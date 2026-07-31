@@ -25,7 +25,7 @@ export function IntegrationDeliveries(props: { subscriptionId: string }) {
   return (
     <div>
       <div className="editor-header">
-        <a href="#/integrations">← Integrations</a>
+        <a href="/admin/integrations">← Integrations</a>
       </div>
       <h1>Delivery log</h1>
       {deliveries.length === 0 ? (

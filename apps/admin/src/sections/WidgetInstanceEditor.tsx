@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { ApiError, api, type AdminWidget, type AdminWidgetType, type AdminWidgetWhereUsed } from "../lib/api";
 import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields";
+import { navigate } from "../lib/router";
 
 /**
  * @file `WidgetInstanceEditorScreen` (`ui.spec.md` §2.2/§3.3/§4.3) — create/edit one widget
- * instance, `#/widgets/new?type=X` and `#/widgets/{id}`. Mirrors `MenuEditor.tsx`'s editor-shell
+ * instance, `/admin/widgets/new?type=X` and `/admin/widgets/{id}`. Mirrors `MenuEditor.tsx`'s editor-shell
  * shape; config editing delegates to the shared `WidgetConfigFields` (§3.4).
  */
 
@@ -87,7 +88,7 @@ export function WidgetInstanceEditor(props: { widgetId: string | null; widgetTyp
     try {
       if (isNew) {
         const { widget: created } = await api.createWidget({ widgetType, title, config });
-        window.location.hash = `#/widgets/${created.id}`;
+        navigate(`/widgets/${created.id}`);
         return;
       }
       if (!widget) return;
@@ -116,7 +117,7 @@ export function WidgetInstanceEditor(props: { widgetId: string | null; widgetTyp
   return (
     <div className="editor-page">
       <div className="editor-header">
-        <a href="#/widgets">← Widgets</a>
+        <a href="/admin/widgets">← Widgets</a>
         <div className="editor-actions">
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? (

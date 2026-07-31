@@ -23,14 +23,14 @@ export function Dashboard() {
           <h3>Content</h3>
           <p className="dash-number">{postCount ?? "…"}</p>
           <p>
-            posts ({publishedCount ?? "…"} published) · <a href="#/posts">manage</a>
+            posts ({publishedCount ?? "…"} published) · <a href="/admin/posts">manage</a>
           </p>
         </div>
         <div className="dash-card">
           <h3>Theme</h3>
           <p className="dash-number">{themeId ?? "…"}</p>
           <p>
-            active theme · <a href="#/section/themes">switch</a>
+            active theme · <a href="/admin/themes">switch</a>
           </p>
         </div>
         <div className="dash-card">

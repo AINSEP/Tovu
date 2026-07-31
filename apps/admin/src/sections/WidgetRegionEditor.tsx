@@ -4,7 +4,7 @@ import { WidgetAddControl } from "../components/WidgetPickerDialog";
 
 /**
  * @file `RegionPlacementEditorScreen` + `RegionPlacementList` (`ui.spec.md` §2.5/§2.6/§3.7/§3.8/
- * §4.6/§4.7) — `#/widgets/regions/{regionKey}`. Flat ordered list, ↑/↓ move controls, mirrors
+ * §4.6/§4.7) — `/admin/widgets/regions/{regionKey}`. Flat ordered list, ↑/↓ move controls, mirrors
  * `MenuEditor.tsx`'s `ItemRow`/`moveAtPath` reorder UX exactly, without the nesting a menu tree
  * has (a region's placement list has no parent/child structure, REQ-15).
  */
@@ -95,7 +95,7 @@ export function WidgetRegionEditor(props: { regionKey: string }) {
   return (
     <div className="editor-page">
       <div className="editor-header">
-        <a href="#/widgets/regions">← Regions</a>
+        <a href="/admin/widgets/regions">← Regions</a>
         <div className="editor-actions">
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? (

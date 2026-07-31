@@ -3,7 +3,7 @@ import { ApiError, api, type AdminPlugin } from "../lib/api";
 
 /**
  * @file `Plugins` — the admin plugins list + enable/disable screen (SPEC-005 REQ-12..18,
- * ui.spec.md). Route `#/section/plugins`; consumes REQ-10's `PLUGINS_LIST`/`PLUGIN_SET_ENABLED`
+ * ui.spec.md). Route `/admin/plugins`; consumes REQ-10's `PLUGINS_LIST`/`PLUGIN_SET_ENABLED`
  * HTTP contract (`api.listPlugins()`/`api.setPluginEnabled()`) as a black box.
  *
  * Mirrors `Roles.tsx`/`Redirects.tsx`'s conventions exactly (ui.spec.md §0): `<table

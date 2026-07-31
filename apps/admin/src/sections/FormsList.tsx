@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type AdminFormDefinition } from "../lib/api";
 
 /**
- * @file Forms list screen (SPEC-010 ui.spec.md §2.1/§3.1) — the `#/forms` route.
+ * @file Forms list screen (SPEC-010 ui.spec.md §2.1/§3.1) — the `/admin/forms` route.
  * Mirrors `Menus.tsx`/`Posts.tsx`'s fetch/loading/error/table convention.
  */
 export function FormsList() {
@@ -25,7 +25,7 @@ export function FormsList() {
     <div>
       <div className="editor-header">
         <h1>Forms</h1>
-        <a href="#/forms/new">
+        <a href="/admin/forms/new">
           <button>New form</button>
         </a>
       </div>
@@ -47,7 +47,7 @@ export function FormsList() {
             {forms.map((form) => (
               <tr key={form.id}>
                 <td>
-                  <a href={`#/forms/${form.id}`}>{form.name}</a>
+                  <a href={`/admin/forms/${form.id}`}>{form.name}</a>
                 </td>
                 <td>{form.slug}</td>
                 <td>

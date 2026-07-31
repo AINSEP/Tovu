@@ -3,7 +3,7 @@ import { ApiError, api, type AdminPolicy, type AdminRole } from "../lib/api";
 
 /**
  * @file "Roles & Permissions" screen (SPEC-006 + 0.6.0 CRUD-completion amendment) — the
- * `#/section/roles` route.
+ * `/admin/roles` route.
  *
  * Lists roles and policies, creates new ones (`CREATE_ROLE`/`CREATE_POLICY`), and (0.6.0) renames
  * (`UPDATE_ROLE`/`UPDATE_POLICY`), deletes (`DELETE_ROLE`/`DELETE_POLICY`), and — for policies —
@@ -199,7 +199,7 @@ export function Roles() {
       </div>
       <p>
         Roles and policies grant access to operator users. Assign a role or policy to a
-        specific user from the <a href="#/section/users">Users</a> screen.
+        specific user from the <a href="/admin/users">Users</a> screen.
       </p>
       {rowError ? <div className="notice error">{rowError}</div> : null}
 

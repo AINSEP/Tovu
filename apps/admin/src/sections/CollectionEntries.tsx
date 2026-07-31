@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ApiError, api, type AdminContentType, type AdminEntry } from "../lib/api";
 
 /**
- * @file Collections' entries list (design-spec.md §1.4) — the `#/collections/{typeKey}` route.
+ * @file Collections' entries list (design-spec.md §1.4) — the `/admin/collections/{typeKey}` route.
  * Same `.list-table` shape as `FormsList.tsx`/`Posts.tsx`.
  */
 
@@ -36,11 +36,11 @@ export function CollectionEntries(props: { contentTypeKey: string }) {
   return (
     <div>
       <p className="muted-cell">
-        <a href="#/section/collections">Collections</a> / {label}
+        <a href="/admin/collections">Collections</a> / {label}
       </p>
       <div className="editor-header">
         <h1>{label}</h1>
-        <a href={`#/collections/${props.contentTypeKey}/new`}>
+        <a href={`/admin/collections/${props.contentTypeKey}/new`}>
           <button>New entry</button>
         </a>
       </div>
@@ -63,7 +63,7 @@ export function CollectionEntries(props: { contentTypeKey: string }) {
             {entries.map((entry) => (
               <tr key={entry.id}>
                 <td>
-                  <a href={`#/collections/${props.contentTypeKey}/${entry.id}`}>{entry.title}</a>
+                  <a href={`/admin/collections/${props.contentTypeKey}/${entry.id}`}>{entry.title}</a>
                 </td>
                 <td>{entry.slug}</td>
                 <td>

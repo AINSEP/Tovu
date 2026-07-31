@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ApiError, api, type PublicAssistantSettings } from "../lib/api";
 
 /**
- * @file "AI Assistant" admin screen — the `#/section/ai-assistant` route.
+ * @file "AI Assistant" admin screen — the `/admin/ai-assistant` route.
  *
  * Two things, and deliberately only two.
  *

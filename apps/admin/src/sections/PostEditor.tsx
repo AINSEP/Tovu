@@ -180,7 +180,7 @@ export function PostEditor(props: { postId: string }) {
         })}
       >
         <a
-          href="#/posts"
+          href="/admin/posts"
           {...agentHandle("post-back-to-list", { role: "link", label: "Back to the list of all posts" })}
         >
           ← Posts

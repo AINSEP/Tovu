@@ -119,7 +119,7 @@ export function Integrations() {
           {subscriptions.map((subscription) => (
             <tr key={subscription.id}>
               <td>
-                <a href={`#/integrations/${subscription.id}`}>{subscription.label}</a>
+                <a href={`/admin/integrations/${subscription.id}`}>{subscription.label}</a>
               </td>
               <td>{subscription.targetUrl}</td>
               <td>

@@ -36,11 +36,19 @@ export const FORMS_CAPABILITIES = [
 /** The domain-event topic name `submit-service.ts` enqueues onto the outbox (REQ-11, REQ-12). */
 export const FORM_SUBMISSION_RECEIVED_TOPIC = "form.submission.received";
 
-/** The admin sidebar nav entry descriptor Forms declares (ui.spec.md §6, mirrors `apps/admin/src/nav.ts`'s shape). */
+/**
+ * The admin sidebar nav entry descriptor Forms declares (ui.spec.md §6, mirrors
+ * `apps/admin/src/nav.ts`'s shape).
+ *
+ * `href` is a **route path**, not a URL — same convention as `nav.ts`, where the `/admin` base is
+ * applied at render time by `lib/router.ts`'s `adminHref`. It was `#/forms` while the admin used hash
+ * routing; a hash-shaped href here would now be inert, because the path router ignores hash-only
+ * changes after boot.
+ */
 export const FORMS_ADMIN_NAV_ENTRY = {
   id: "forms",
   label: "Forms",
-  href: "#/forms",
+  href: "/forms",
 } as const;
 
 /**

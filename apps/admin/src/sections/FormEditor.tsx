@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { api, type AdminFormDefinition, type AdminFormField, type AdminFormNotify, type AdminFormSubmission } from "../lib/api";
+import { navigate } from "../lib/router";
 
 /**
- * @file Form editor screen (SPEC-010 ui.spec.md §2.2-2.5/§3.2-3.5) — the `#/forms/:formId` route.
+ * @file Form editor screen (SPEC-010 ui.spec.md §2.2-2.5/§3.2-3.5) — the `/admin/forms/:formId` route.
  * Internally composed of `FormFieldsEditor`, `FormSubmissions`, `FormSubmissionDetail` (single
  * flat file per this admin app's convention — same escape hatch ADR-PIPE-007 pre-approved for
  * `Settings.tsx`). `formId === "new"` renders the create form; the slug field is editable only
@@ -304,7 +305,7 @@ export function FormEditor(props: { formId: string }) {
     try {
       if (isNew) {
         const created = await api.createForm({ name, slug, fields }, { notify: notifyPayload });
-        window.location.hash = `#/forms/${created.data.id}`;
+        navigate(`/forms/${created.data.id}`);
       } else {
         await api.updateForm({ id: props.formId }, { name, fields, notify: notifyPayload });
         load();
@@ -338,7 +339,7 @@ export function FormEditor(props: { formId: string }) {
     <div>
       <div className="editor-header">
         <h1>{isNew ? "New form" : name || "Form"}</h1>
-        <a href="#/forms">
+        <a href="/admin/forms">
           <button type="button">Back to forms</button>
         </a>
       </div>

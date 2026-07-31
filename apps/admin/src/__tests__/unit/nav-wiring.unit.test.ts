@@ -20,10 +20,10 @@ function findPluginsNavItem() {
 }
 
 describe("REQ-17/AC-25: the plugins NavItem is an active link, not disabled/soon", () => {
-  it("has href '#/section/plugins' and no soon flag", () => {
+  it("has href '/plugins' and no soon flag", () => {
     const item = findPluginsNavItem();
     expect(item).toBeDefined();
-    expect(item?.href).toBe("#/section/plugins");
+    expect(item?.href).toBe("/plugins");
     expect(item?.soon).toBeFalsy();
   });
 

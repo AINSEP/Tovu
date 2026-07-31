@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ApiError, api, type AdminTaxonomyWithTerms, type AdminTerm } from "../lib/api";
 
 /**
- * @file Categories & Tags screen (design-spec.md §2, ADR-044) — the `#/section/taxonomy` route.
+ * @file Categories & Tags screen (design-spec.md §2, ADR-044) — the `/admin/taxonomy` route.
  *
  * Structural reference: `Settings.tsx`'s two-pane namespace-list + detail-panel layout
  * (design-spec.md §0.3/§2.2) — reuses `.settings-body`/`.settings-row`/`.settings-namespace-*`

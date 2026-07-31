@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { ApiError, api, type AdminLedgerRow, type AdminRestorePoint } from "../lib/api";
+import { navigate } from "../lib/router";
 
 /**
- * @file Database screen (design-spec.md §3, ADR-041) — the `#/section/database` route: the
+ * @file Database screen (design-spec.md §3, ADR-041) — the `/admin/database` route: the
  * read-first Timeline, the restore-points list, and the migrate-forward ceremony. Structural
  * reference: `Analytics.tsx`'s "raw ingest, said so explicitly" pattern (design-spec.md §0.3).
  *
@@ -31,9 +32,11 @@ function describeApiError(e: unknown, fallback: string): string {
 }
 
 /** Stashes a client-constructed `DatabaseContextEnvelope` for `Recovery.tsx` to re-resolve
- * server-side on arrival (ADR-041 §7/ADR-045 §5, INV-04) — this admin app's hash router has no
- * query-string/state-passing mechanism, so `sessionStorage` carries the envelope across the
- * navigation the same way route state would in a router that supported it. The envelope itself
+ * server-side on arrival (ADR-041 §7/ADR-045 §5, INV-04) — this admin app's router has no
+ * per-navigation state mechanism, so `sessionStorage` carries the envelope across the navigation the
+ * same way route state would in a router that supported it. A query string would technically work
+ * now that routing is path-based, but this is transient handoff state: putting it in the URL would
+ * make it bookmarkable and shareable, which is exactly what it must not be. The envelope itself
  * carries display continuity only; `resolveDeepLinkContext` never trusts it as authoritative. */
 function navigateToRecoveryWithDeepLink(row: AdminLedgerRow) {
   if (!row.restorePointId) return;
@@ -48,7 +51,7 @@ function navigateToRecoveryWithDeepLink(row: AdminLedgerRow) {
     issuedAt: new Date().toISOString(),
   };
   sessionStorage.setItem("recovery-deep-link-envelope", JSON.stringify(envelope));
-  window.location.hash = "#/section/recovery";
+  navigate("/recovery");
 }
 
 function TimelineSection() {
