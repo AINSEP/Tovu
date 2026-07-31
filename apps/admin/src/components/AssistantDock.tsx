@@ -1,9 +1,16 @@
 import { useCallback } from "react";
 import { useMemo } from "react";
-import { ChatPane, JiniChatProvider, type ChatPaneAgent, type FrontendSessionBridge } from "@jini-ai/ui/chat";
+import {
+  ChatPane,
+  ConversationList,
+  JiniChatProvider,
+  type ChatPaneAgent,
+  type FrontendSessionBridge,
+} from "@jini-ai/ui/chat";
 import type { ChatMessage } from "@jini-ai/chat-core";
 
 import { createTovuAssistantTransport } from "../lib/assistant-transport";
+import { useAssistantChats } from "../lib/use-assistant-chats";
 import "../styles/assistant.css";
 
 declare global {
@@ -74,9 +81,16 @@ export function AssistantDock({ agentBridge = null }: AssistantDockProps) {
     }),
     [],
   );
-  const handleMessagesChange = useCallback((messages: ChatMessage[]) => {
-    window.__tovuAssistantMessages = messages;
-  }, []);
+  const chats = useAssistantChats();
+  const handleMessagesChange = useCallback(
+    (messages: ChatMessage[]) => {
+      window.__tovuAssistantMessages = messages;
+      // Persistence is selective, not per-delta — see `lib/assistant-chats.ts`'s
+      // `persistableMessages` for why a streaming reply is written once rather than per token.
+      chats.onMessagesChange(messages);
+    },
+    [chats],
+  );
 
   /**
    * Tells the daemon which tab this run is allowed to drive, so `page.navigate` and friends have
@@ -105,9 +119,27 @@ export function AssistantDock({ agentBridge = null }: AssistantDockProps) {
       {/* ChatPane takes `transport` directly as well as via the provider — the package's
           components read their dependencies from props, not implicitly from context. */}
       <ChatPane
+        // Remounts the pane on a conversation switch. `ChatPane` owns its transcript and takes
+        // `initialMessages` only at mount, so re-keying is how a different conversation's history
+        // gets in — pushing new messages into a live pane would fight its own state.
+        key={chats.activeId ?? "new"}
         transport={transport}
         runtimeAccess={runtimeAccess}
         initialSelection={{ agentId: "claude" }}
+        {...(chats.activeId ? { conversationId: chats.activeId } : {})}
+        initialMessages={chats.initialMessages}
+        // The conversation switcher sits in the pane's own leading slot, so this needs no fork of
+        // `ChatPane` — it is the seam the component already exposes.
+        leadingAccessory={
+          <ConversationList
+            conversations={chats.conversations}
+            activeConversationId={chats.activeId}
+            onSelect={chats.select}
+            onCreate={chats.create}
+            onDelete={chats.remove}
+            onRename={chats.rename}
+          />
+        }
         title="Tovu assistant"
         placeholder="Ask the assistant to do something…"
         onMessagesChange={handleMessagesChange}
