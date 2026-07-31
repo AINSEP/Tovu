@@ -1,11 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * @file The ADR-028 §6 compliance boundary this file exists to prove: the BYOK API key must NEVER
- * reach `api.setSetting` (the settings ledger's write chokepoint) — only mode/protocol/providerId/
- * baseUrl/model/maxTokens may. The key lives in `localStorage` instead. Also covers the
- * `ExecutionPort` adapter's real wiring to `api.detectExecutionAgents`/`testExecutionConnection`/
- * `listExecutionModels`, and that every port method resolves rather than throwing on failure.
+ * @file Two things this file exists to prove.
+ *
+ * 1. The ADR-028 §6 compliance boundary: the BYOK API key must NEVER reach `api.setSetting` (the
+ *    settings ledger's write chokepoint) — only mode/protocol/providerId/baseUrl/model/maxTokens
+ *    may. The key lives in `localStorage` instead.
+ * 2. The error-reporting contract (`ADS-memory/governance/contracts/error-reporting.md`):
+ *    `detectLocalAgents`/`rescanLocalAgents`/`listModels` REJECT on failure rather than resolving
+ *    an empty value indistinguishable from a real empty result; `testConnection` rejects ONLY on a
+ *    transport failure (a reachable-but-rejecting provider is a value, per its own doc comment);
+ *    and a failed `localStorage` write for a just-typed API key is never silently absorbed.
  */
 
 // `vi.mock` factories are hoisted above the top of the module — `vi.hoisted` is the escape hatch
@@ -214,10 +219,16 @@ describe("createExecutionPort", () => {
     expect(await port.detectLocalAgents()).toEqual([{ id: "claude", label: "Claude Code", installed: true }]);
   });
 
-  it("detectLocalAgents resolves to [] rather than throwing on a transport failure", async () => {
+  it("detectLocalAgents REJECTS on a transport failure — an empty array must stay reserved for a real zero-agents result", async () => {
     detectExecutionAgents.mockRejectedValue(new FakeApiError("network down", 0));
     const port = createExecutionPort();
-    await expect(port.detectLocalAgents()).resolves.toEqual([]);
+    await expect(port.detectLocalAgents()).rejects.toThrow("network down");
+  });
+
+  it("rescanLocalAgents REJECTS on a transport failure, same as detectLocalAgents", async () => {
+    detectExecutionAgents.mockRejectedValue(new FakeApiError("daemon unreachable", 0));
+    const port = createExecutionPort();
+    await expect(port.rescanLocalAgents?.()).rejects.toThrow("daemon unreachable");
   });
 
   it("testConnection passes protocol/baseUrl/apiKey/model through and returns the result verbatim", async () => {
@@ -239,29 +250,106 @@ describe("createExecutionPort", () => {
     });
   });
 
-  it("testConnection resolves ok:false rather than throwing on a transport failure", async () => {
+  it("testConnection REJECTS on a transport failure (no provider-side answer to report as a value)", async () => {
     testExecutionConnection.mockRejectedValue(new FakeApiError("network down", 0));
+    const port = createExecutionPort();
+    await expect(
+      port.testConnection({
+        protocol: "anthropic",
+        providerId: "anthropic",
+        apiKey: "",
+        baseUrl: "https://api.anthropic.com",
+        model: "",
+      }),
+    ).rejects.toThrow("network down");
+  });
+
+  it("testConnection resolves {ok:false} as a VALUE when the route reached the provider and it rejected — this is the documented domain-outcome exception, not a bug", async () => {
+    testExecutionConnection.mockResolvedValue({ ok: false, message: "Unauthorized" });
     const port = createExecutionPort();
     const result = await port.testConnection({
       protocol: "anthropic",
       providerId: "anthropic",
-      apiKey: "",
+      apiKey: "bad-key",
       baseUrl: "https://api.anthropic.com",
-      model: "",
+      model: "claude-sonnet-4-5",
     });
-    expect(result.ok).toBe(false);
+    expect(result).toEqual({ ok: false, message: "Unauthorized" });
   });
 
-  it("listModels returns [] when the route reports ok:false", async () => {
+  it("listModels REJECTS when the route reports ok:false — an empty array must stay reserved for a real zero-models result", async () => {
     listExecutionModels.mockResolvedValue({ ok: false, models: [], message: "invalid key" });
+    const port = createExecutionPort();
+    await expect(
+      port.listModels?.({
+        protocol: "openai",
+        providerId: "openai",
+        apiKey: "bad",
+        baseUrl: "https://api.openai.com/v1",
+        model: "",
+      }),
+    ).rejects.toThrow("invalid key");
+  });
+
+  it("listModels resolves the real list on success", async () => {
+    listExecutionModels.mockResolvedValue({ ok: true, models: ["gpt-4o", "gpt-4o-mini"] });
     const port = createExecutionPort();
     const models = await port.listModels?.({
       protocol: "openai",
       providerId: "openai",
-      apiKey: "bad",
+      apiKey: "sk-test",
       baseUrl: "https://api.openai.com/v1",
       model: "",
     });
-    expect(models).toEqual([]);
+    expect(models).toEqual(["gpt-4o", "gpt-4o-mini"]);
+  });
+
+  it("listModels REJECTS on a transport failure too", async () => {
+    listExecutionModels.mockRejectedValue(new FakeApiError("network down", 0));
+    const port = createExecutionPort();
+    await expect(
+      port.listModels?.({
+        protocol: "openai",
+        providerId: "openai",
+        apiKey: "sk-test",
+        baseUrl: "https://api.openai.com/v1",
+        model: "",
+      }),
+    ).rejects.toThrow("network down");
+  });
+});
+
+describe("writeStoredCredentials failure — never silently lose a just-typed API key", () => {
+  it("saveExecutionConfig REJECTS when the localStorage write fails, rather than reporting success", async () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("QuotaExceededError");
+    });
+    try {
+      const previous = DEFAULT_EXECUTION_CONFIG;
+      const next: ExecutionConfig = { ...previous, byok: { ...previous.byok, apiKey: "sk-new-key" } };
+      await expect(saveExecutionConfig(next, previous)).rejects.toThrow(/could not save the api key/i);
+    } finally {
+      setItemSpy.mockRestore();
+    }
+  });
+
+  it("a failed credential write does not silently roll back an already-written ledger field either way — the caller is told something went wrong", async () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("QuotaExceededError");
+    });
+    try {
+      const previous = DEFAULT_EXECUTION_CONFIG;
+      const next: ExecutionConfig = {
+        ...previous,
+        byok: { ...previous.byok, apiKey: "sk-new-key", model: "claude-opus-4-5" },
+      };
+      await expect(saveExecutionConfig(next, previous)).rejects.toThrow();
+      // The ledger field write itself still went through (it happens before the credential write) —
+      // the point of this test is that the CALLER is told the overall save failed, not that nothing
+      // happened; a caller that ignored the rejection would otherwise believe the API key was saved.
+      expect(setSetting).toHaveBeenCalledWith(expect.objectContaining({ key: "byok.model" }));
+    } finally {
+      setItemSpy.mockRestore();
+    }
   });
 });

@@ -106,12 +106,23 @@ function readStoredCredentials(): StoredCredentials {
   }
 }
 
+/**
+ * PROPAGATES on failure (error-reporting contract §1/§4) — a quota-exceeded or
+ * disabled-storage write must never look like a successful save. This is the
+ * ONE place an operator's just-typed API key can be lost, so it is not
+ * absorbed: `saveExecutionConfig` lets this throw straight through to its own
+ * caller, which is `SettingsUi.tsx`'s existing `.catch(...)` into the
+ * save-status indicator's `{status:'error'}` state — the same path a failed
+ * ledger write already reports through.
+ */
 function writeStoredCredentials(next: StoredCredentials): void {
   try {
     window.localStorage.setItem(CREDENTIALS_STORAGE_KEY, JSON.stringify(next));
-  } catch {
-    // Storage can be full or disabled (private browsing in some browsers); losing the convenience
-    // cache is not worth surfacing an error over — the operator can retype the key.
+  } catch (error) {
+    throw new Error(
+      `Could not save the API key to this browser's storage (${error instanceof Error ? error.message : String(error)}). ` +
+        "It was NOT saved — private-browsing mode or a full storage quota can cause this. Try again or use a different browser profile.",
+    );
   }
 }
 
@@ -258,55 +269,53 @@ export async function saveExecutionConfig(
 
 /**
  * Tovu's real `ExecutionPort` — wired to `src/server/modules/assistant-
- * execution.ts`'s 3 routes (`@jini-ai/agent-runtime` underneath). Every
- * method resolves (never throws) so the tab renders its normal empty/error
- * states rather than an unhandled rejection; a transport failure is reported
- * through the SAME `{ok:false}`/error shape a reachable-but-rejecting
- * endpoint would produce.
+ * execution.ts`'s 3 routes (`@jini-ai/agent-runtime` underneath). Follows
+ * `@jini-ai/ui`'s `ports.ts` contract (error-reporting contract §3.1):
+ *
+ * - `detectLocalAgents`/`rescanLocalAgents`/`listModels` REJECT on any
+ *   failure (a network error, a non-2xx from this admin's own route, a
+ *   provider that could not be reached). An empty array is reserved for a
+ *   real "detection ran, found nothing" / "no models" outcome — collapsing a
+ *   broken request into `[]` would make it indistinguishable from that,
+ *   which is exactly the bug this port used to have.
+ * - `testConnection` is the one documented exception: `api.testExecutionConnection`
+ *   already classifies "reached the provider, credentials rejected" as an
+ *   `{ok:false}` VALUE server-side (`test-connection.ts`), so this method
+ *   simply returns whatever it resolves with. It only REJECTS when the
+ *   route call itself fails (session expired, network down, this admin's own
+ *   route 500ing) — a case with no provider-side answer to report as a value.
  */
 export function createExecutionPort(): ExecutionPort {
   return {
     async detectLocalAgents() {
-      try {
-        return (await api.detectExecutionAgents()).data;
-      } catch {
-        return [];
-      }
+      return (await api.detectExecutionAgents()).data;
     },
     async rescanLocalAgents() {
-      try {
-        return (await api.detectExecutionAgents()).data;
-      } catch {
-        return [];
-      }
+      return (await api.detectExecutionAgents()).data;
     },
     async testConnection(config: ByokConfig) {
-      try {
-        const result = await api.testExecutionConnection({
-          protocol: config.protocol,
-          baseUrl: config.baseUrl,
-          apiKey: config.apiKey,
-          model: config.model,
-        });
-        return result;
-      } catch (error) {
-        return {
-          ok: false,
-          message: error instanceof ApiError ? error.message : "Connection test failed",
-        };
-      }
+      return api.testExecutionConnection({
+        protocol: config.protocol,
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
+        model: config.model,
+      });
     },
     async listModels(config: ByokConfig) {
-      try {
-        const result = await api.listExecutionModels({
-          protocol: config.protocol,
-          baseUrl: config.baseUrl,
-          apiKey: config.apiKey,
-        });
-        return result.ok ? result.models : [];
-      } catch {
-        return [];
+      const result = await api.listExecutionModels({
+        protocol: config.protocol,
+        baseUrl: config.baseUrl,
+        apiKey: config.apiKey,
+      });
+      // `result.ok === false` here is ALWAYS "discovery could not reach/read the
+      // provider" (auth failure, timeout, blocked base URL, unsupported protocol)
+      // — `list-models.ts`'s route never reports a reachable-but-genuinely-empty
+      // catalog as `ok:false`, so there is no legitimate value to return here.
+      // Reject with the server's own message rather than resolving `[]`.
+      if (!result.ok) {
+        throw new Error(result.message?.trim() ? result.message : "Model discovery failed");
       }
+      return result.models;
     },
   };
 }
