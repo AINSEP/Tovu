@@ -135,6 +135,16 @@ const SUBMISSION_ID_SCHEMA = {
   description: "The submission's id, as returned by forms_list_submissions.",
 } as const;
 
+/** `forms_list_definitions`'s input — it takes no arguments at all, matching how
+ * `identity_user_list`/`identity_role_list`/`menus_list_menus` are this codebase's convention for a
+ * small, bounded catalog: one unfiltered list IS the domain's "search", not a separate capability. */
+const NO_INPUT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: [],
+  properties: {},
+} as const;
+
 /**
  * Forms' fixed agent-tool catalog: the three `write-service.ts` operations plus the two read-only
  * submission tools.
@@ -150,6 +160,14 @@ const SUBMISSION_ID_SCHEMA = {
  * data with their own permission tier, not form-configuration state.
  */
 export const formsAgentToolCatalog: AgentToolDefinition[] = [
+  {
+    name: "forms_list_definitions",
+    description:
+      "Lists every form definition in the workspace with its id, name, slug, status, and field count. Read-only. Call this to find a form's opaque id from its name or slug before calling forms_update_definition, forms_set_definition_status, forms_list_submissions, or forms_get_submission — those tools take formId, not slug.",
+    sideEffects: "none",
+    authorization: { permission: "admin.forms.manage" },
+    inputSchema: NO_INPUT_SCHEMA,
+  },
   {
     name: "forms_create_definition",
     description:
