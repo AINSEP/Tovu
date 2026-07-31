@@ -1,0 +1,695 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { ChatMessage } from "@jini-ai/chat-core";
+
+import { HttpError, persistableMessages, type AssistantConversation } from "../lib/assistant-chats";
+import { defaultAssistantChatsPort } from "./assistant-chats-dependencies.hooks";
+import type { AssistantChatsPort } from "./assistant-chats-port.hooks";
+
+/**
+ * @file Owns the admin assistant's conversation state: which chat is open, what is in it, and what
+ * has already been written.
+ *
+ * `ChatPane` is deliberately left as the uncontrolled component it already is — it takes
+ * `initialMessages` and a `conversationId` and manages the live transcript itself. This hook only
+ * supplies those two props and listens to `onMessagesChange`, which is why switching conversations
+ * remounts the pane via its `key` rather than trying to push new messages into a running one.
+ */
+/**
+ * Backoff before each re-attempt of a failed message write — three retries over ~13s.
+ *
+ * The gap this closes: `flush` used to un-mark a failed message so it could be retried, and then
+ * nothing ever retried it. Retrying is driven by `onMessagesChange`, which fires on deltas — and
+ * the message most likely to fail is the *final* assistant reply, after which no further delta
+ * arrives. A single transient 503 on that write plus a reload and the reply is gone from durable
+ * history while still sitting on screen, which is the worst shape this failure can take: the user
+ * has every reason to believe it was saved.
+ *
+ * Short and bounded on purpose. This is a foreground write for a transcript the user is looking
+ * at, not a background job; if the server is still refusing after ~13s the honest outcome is to
+ * stop and leave the id un-marked for a later delta, not to queue writes indefinitely.
+ */
+const SAVE_RETRY_DELAYS_MS = [1_000, 3_000, 9_000] as const;
+
+/**
+ * Whether a failed write is worth attempting again.
+ *
+ * A rejected `fetch` carries no status at all — offline, DNS, connection reset, the server
+ * restarting mid-request — and is exactly the case retrying exists for. A response we actually
+ * received is retryable when the server said "not now" (429, any 5xx) or "not there yet" (404).
+ *
+ * **404 belongs here, and leaving it out was a real bug.** It was excluded from `isPermanent` on
+ * the correct reasoning that a 404 is reachable from a benign race — but it then matched neither
+ * predicate, so `saveWithRetry` returned `"exhausted"` on the FIRST failure with no backoff at all,
+ * `flush` un-marked it, and the next delta re-sent it immediately. That is the retry storm the
+ * classification exists to prevent, just running at delta cadence instead of in a tight loop.
+ * Treated as transient it consumes the bounded ladder and is only un-marked once, after ~13s.
+ */
+function isTransient(error: unknown): boolean {
+  if (error instanceof HttpError) {
+    return error.status === 404 || error.status === 429 || error.status >= 500;
+  }
+  return true;
+}
+
+/**
+ * Whether a failure means "this write can never succeed", which is a stronger and far more
+ * dangerous claim than "this attempt failed" — a message classified permanent is kept marked as
+ * written, so it is never retried and never persisted.
+ *
+ * Deliberately narrower than "not transient", and **404 is the exclusion that matters**. A 404 here
+ * means the conversation was not found *for this caller*, which is genuinely reachable from a race
+ * rather than from a malformed request: delete a conversation while a write is in flight and the
+ * write 404s for a message that was perfectly valid. Treating that as permanent turns a lost race
+ * into permanently lost data. Left retryable, it gets one more attempt from a later delta, and if
+ * the conversation really is gone the pane has already switched away so no further delta names it.
+ *
+ * What remains permanent is the class that says the request itself is wrong — 400, 403, 422 — where
+ * re-sending identical bytes is guaranteed to fail and retrying only produces a request storm.
+ */
+function isPermanent(error: unknown): boolean {
+  if (!(error instanceof HttpError)) return false;
+  return error.status >= 400 && error.status < 500 && error.status !== 404 && error.status !== 429;
+}
+
+/**
+ * The outcome of a write, at the granularity the caller has to act on.
+ *
+ * Four states rather than a boolean, because "failed" carries three different instructions.
+ *
+ * - `"exhausted"` — could plausibly succeed later, so un-mark the id and let a future delta retry.
+ * - `"permanent"` — never will (400 on a malformed body, 403, 422). Un-marking THAT is actively
+ *   harmful: every subsequent `onMessagesChange` re-queues it, so one dead message issues a doomed
+ *   request on every delta for the rest of the session, and they accumulate as more fail alike.
+ * - `"missing"` — exhausted specifically against a 404. Behaves like `"exhausted"` for marking, but
+ *   is reported separately so `flush` can re-read the list: a write that keeps 404ing means the row
+ *   this pane believes it is writing to may be gone, and the switcher should get the chance to
+ *   reflect that rather than the pane grinding out doomed writes with nothing visible anywhere.
+ */
+type SaveOutcome = "saved" | "exhausted" | "permanent" | "missing";
+
+/**
+ * Writes one message, re-attempting transient failures on {@link SAVE_RETRY_DELAYS_MS}.
+ *
+ * @param isDisposed checked before and after every sleep — an unmounted dock must not still be
+ *   writing minutes later. Never rejects, so a caller can treat the result as data rather than
+ *   wrapping every call.
+ */
+async function saveWithRetry(
+  port: AssistantChatsPort,
+  conversationId: string,
+  message: ChatMessage,
+  isDisposed: () => boolean,
+): Promise<SaveOutcome> {
+  /** Whether the attempt that finally gave up did so against a 404 — see `"missing"`. */
+  const wasMissing = (error: unknown) => error instanceof HttpError && error.status === 404;
+
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await port.saveMessage(conversationId, message);
+      return "saved";
+    } catch (error) {
+      if (isPermanent(error)) {
+        // The one outcome that discards a message the user can still see on screen, so it does not
+        // get to be silent. There is no error surface in the dock to route this to yet; a console
+        // error is the honest minimum, and is what makes the drop findable rather than mysterious.
+        console.error("[admin] message permanently rejected, not persisted", {
+          conversationId,
+          messageId: message.id,
+          error,
+        });
+        return "permanent";
+      }
+      if (!isTransient(error)) return "exhausted";
+      const delay = SAVE_RETRY_DELAYS_MS[attempt];
+      // Out of attempts, or torn down mid-backoff. Both are "might work later", not "never will" —
+      // but a ladder spent entirely on 404s says something more specific, so report that.
+      if (delay === undefined || isDisposed()) return wasMissing(error) ? "missing" : "exhausted";
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      if (isDisposed()) return wasMissing(error) ? "missing" : "exhausted";
+    }
+  }
+}
+
+export interface UseAssistantChats {
+  conversations: AssistantConversation[];
+  activeId: string | null;
+  /**
+   * `ChatPane`'s `key`. Deliberately NOT `activeId`.
+   *
+   * Remounting the pane is correct for a user-initiated switch and destructive at any other time: it
+   * re-seeds from `initialMessages` and discards whatever the pane currently holds. `activeId` now
+   * also changes when an untitled pane silently adopts a freshly created conversation mid-run (see
+   * `onMessagesChange`), and re-keying on that would wipe the reply being streamed. So the two are
+   * separate: this changes only on `select`/`create`/`remove`, `activeId` tracks where writes go.
+   */
+  paneKey: string;
+  /** Messages to seed the pane with. Changes identity only on a real conversation switch. */
+  initialMessages: ChatMessage[];
+  select: (id: string) => void;
+  create: () => Promise<void>;
+  remove: (id: string) => Promise<void>;
+  rename: (id: string, title: string) => Promise<void>;
+  onMessagesChange: (messages: ChatMessage[]) => void;
+}
+
+/**
+ * @param port every call this hook makes off its own island. Injected rather than imported so a
+ *   test can describe conversation state and write failures directly — see
+ *   `createFakeAssistantChatsPort`. Referential stability is NOT required; see `portRef`.
+ */
+export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
+  /**
+   * The port, read through a ref so its identity is not a dependency of anything.
+   *
+   * The obvious alternative — listing `port` in each `useCallback` below — makes referential
+   * stability a load-bearing, unenforceable contract on every caller. It is unenforceable because
+   * the natural way to write the injection is the broken one:
+   * `useChats={() => useAssistantChats(createFakeAssistantChatsPort())}` builds a new port per
+   * render, so `refresh` changes identity, its effect re-runs, `setConversations` re-renders, and
+   * it spins forever. Documenting "must be stable" only converts that into a trap with a footnote.
+   *
+   * A ref removes the contract instead of restating it: reads always see the latest port, and no
+   * callback identity depends on it. Nothing here wants to *react* to a port swap — a new port does
+   * not mean new conversation state — so there is no behaviour to lose.
+   *
+   * Captured ONCE at mount and never written again — not during render, and not in an effect.
+   *
+   * Both of the obvious spellings leak. A render-phase `portRef.current = port` publishes a value
+   * from a render React may still discard (a `startTransition`, a suspended tree), so an event from
+   * the still-committed old tree calls through a port that never committed. Moving it to an effect
+   * fixes that and opens a different hole: React runs a CHILD's effects before its parent's in the
+   * same commit, and `ChatPane` is a child of this hook's caller — so a delta forwarded from
+   * `ChatPane`'s own effect, in the commit where `port` changed, reaches `flush` before this hook's
+   * sync effect has run and reads the OUTGOING port. `useLayoutEffect` does not help: layout effects
+   * are also child-first. The two spellings trade one gap for the other.
+   *
+   * So do not track the swap at all. Nothing here wants to react to one — a new port does not mean
+   * new conversation state — and "permanently fixed at mount" is an honest contract where
+   * "eventually consistent, with a window" is a latent bug. A caller that genuinely needs a
+   * different backend should remount (key the calling component on whatever identifies it) rather
+   * than swap the prop under a live instance.
+   */
+  const portRef = useRef(port);
+
+  const [conversations, setConversations] = useState<AssistantConversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [paneKey, setPaneKey] = useState("new");
+  const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
+  /**
+   * Message ids already written, keyed by conversation.
+   *
+   * Without this, every `onMessagesChange` would re-`PUT` the entire settled transcript — the
+   * callback fires on each delta, and the settled prefix only grows. Keyed by conversation so
+   * switching away and back does not resurrect stale ids.
+   */
+  const writtenRef = useRef<Map<string, Set<string>>>(new Map());
+  const activeIdRef = useRef<string | null>(null);
+  /**
+   * Monotonic token identifying the most recent switch intent.
+   *
+   * `activeId` cannot serve as the staleness guard any more, because `select` now resolves the
+   * transcript *before* publishing the id (see below) — at the moment a load returns, `activeId`
+   * still names the previous conversation. Every switch-initiating path bumps this and then
+   * verifies it is still the newest before committing.
+   */
+  const switchSeqRef = useRef(0);
+  /** In-flight lazy conversation creation, so concurrent deltas adopt one conversation, not many. */
+  const adoptingRef = useRef<Promise<string | null> | null>(null);
+  /**
+   * Bumped by {@link resetAdoption}. An adoption captures it and re-checks before publishing.
+   *
+   * `switchSeqRef` cannot do this job, and the version that tried was wrong in a way only a
+   * specific ordering exposes: `select(B)` bumps the switch token *at call time*, so an
+   * `onMessagesChange` arriving from the outgoing pane a moment later reads the ALREADY-bumped
+   * value. B's load then commits (its own token still current), and the adoption resolves with a
+   * token that still matches — so it published `activeId = A` while `paneKey` and `initialMessages`
+   * were B's. The pane showed B's transcript and wrote it into A. Clearing `adoptingRef` in that
+   * commit does not help either: it drops the reference, not the promise that is already running.
+   *
+   * So invalidation gets its own counter, bumped by the one function whose entire job is "this
+   * adoption no longer belongs to anything".
+   */
+  const adoptionGenRef = useRef(0);
+  /**
+   * Makes each "fresh pane" key distinct.
+   *
+   * Resetting to a constant `"new"` is not enough: a pane that lazily adopted a conversation still
+   * has `paneKey === "new"`, so deleting that conversation would set the key to the value it already
+   * has, skip the remount, and leave the deleted chat's transcript sitting on screen.
+   */
+  const paneNonceRef = useRef(0);
+  /** Stops a sleeping write retry from firing against a dock that is no longer mounted. */
+  const disposedRef = useRef(false);
+
+  useEffect(() => {
+    // Reset on mount rather than only setting on unmount. StrictMode runs mount → unmount → mount
+    // in development, so a cleanup-only version would latch `true` on the throwaway first pass and
+    // leave every retry disabled for the real one — a bug that exists only in dev, which is the
+    // worst place for it to hide.
+    disposedRef.current = false;
+    return () => {
+      disposedRef.current = true;
+    };
+  }, []);
+
+  /**
+   * Bumped by every local mutation of the conversation list, so an older server snapshot cannot
+   * overwrite it.
+   *
+   * The race without it: the mount `refresh()` is in flight and will resolve to `[]`. Before it
+   * lands, the user creates (or lazily adopts) conversation A, which is inserted optimistically.
+   * The stale response then arrives and replaces the list with `[]` — `activeId` still points at A,
+   * but the switcher no longer lists it and the header falls back to the default title, so a real
+   * conversation is invisible until some later write happens to refresh again.
+   */
+  const listSeqRef = useRef(0);
+  /**
+   * Titles whose PATCH is still in flight, by conversation id, each tagged with the rename that
+   * queued it. Applied over every list read until that rename settles — see `refresh`.
+   *
+   * The version tag is what lets a settling rename clear only its OWN entry. A plain `delete(id)`
+   * would drop a second, newer rename of the same conversation that queued while the first was in
+   * flight, reopening the exact window this exists to close.
+   */
+  const pendingRenamesRef = useRef<Map<string, { version: number; title: string }>>(new Map());
+  const renameVersionRef = useRef(0);
+  /**
+   * Mirrors the last `conversations` state this hook actually committed.
+   *
+   * The one consumer is `remove()`'s fallback, for exactly the case its own `refresh()` comes back
+   * stale (a faster, concurrent mutation resolved first and is already reflected in state). Reading
+   * `conversations` itself is not an option: the closure `remove` was built from can be arbitrarily
+   * many renders behind by the time its `await`s resolve, and adding it as a dependency would just
+   * reintroduce the identity churn `portRef`/`activeIdRef` exist to avoid.
+   *
+   * A plain `useEffect` is the right tool here, unlike for `portRef`/`activeIdRef` above: those had
+   * to be current for a delta `ChatPane` — a CHILD — forwards inside the very commit that changed
+   * them, and child effects run before parent effects, so an effect always lagged by exactly the
+   * commit that mattered. `remove()`'s fallback is read from inside an already-`await`ed
+   * continuation, at least one microtask after any mutation that would have updated it — well after
+   * this hook's own effects for that commit have flushed. There is no same-commit reader to race.
+   */
+  const conversationsRef = useRef<AssistantConversation[]>([]);
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  /**
+   * Re-reads the list, and reports whether the snapshot was still current when it arrived.
+   *
+   * The `fresh` flag is not decoration. An earlier version returned the list unconditionally with a
+   * comment claiming `remove` needed the server's view regardless — which handed `remove` exactly
+   * the snapshot this function had just decided was too stale to render: conversation A is active,
+   * `remove(A)` starts a list read whose response still contains C, C is deleted meanwhile and a
+   * newer refresh completes, then A's older response arrives, is correctly refused by
+   * `setConversations`, and is still handed back. `remove` routes to C, so `activeId` lands on a
+   * conversation that no longer exists and every subsequent message is written at a dead row.
+   */
+  const refresh = useCallback(async () => {
+    const seq = ++listSeqRef.current;
+    const listed = await portRef.current.listConversations().catch(() => []);
+    /*
+     * A rename whose PATCH has not settled wins over whatever the server just said.
+     *
+     * `markListMutated` cannot cover this, and assuming it did was the bug: that counter answers
+     * "did a response from BEFORE my write land after it?", and says nothing about a read that
+     * STARTS after the optimistic update but reaches a server which has not applied the PATCH yet.
+     * Such a read is legitimately `fresh`, so it wrote the old title straight over the new one —
+     * rename a conversation, let any unrelated activity trigger a refresh (a message save completing
+     * elsewhere is enough), and the title visibly reverted until the rename's own trailing refresh
+     * corrected it.
+     */
+    const pending = pendingRenamesRef.current;
+    const conversations =
+      pending.size === 0
+        ? listed
+        : listed.map((conversation) => {
+            const rename = pending.get(conversation.id);
+            return rename
+              ? { ...conversation, title: rename.title, titleSource: "manual" as const }
+              : conversation;
+          });
+    const fresh = listSeqRef.current === seq;
+    // Not written to state when superseded: a local insert that landed while this was in flight is
+    // strictly newer than this snapshot.
+    if (fresh) setConversations(conversations);
+    return { conversations, fresh };
+  }, []);
+
+  /** Records a local list mutation, invalidating any `refresh` already in flight. */
+  const markListMutated = useCallback(() => {
+    listSeqRef.current += 1;
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  /**
+   * Discards any lazy adoption belonging to a pane that is about to be replaced.
+   *
+   * `adoptingRef` is scoped to exactly one pane — it names the conversation *that* pane adopted —
+   * and every path that re-keys the pane has to clear it. The path that did not was a real fault:
+   * delete your only conversation and `activeId` returns to `null`, which routes the next message
+   * down the lazy-adoption branch, where `??=` found the previous pane's already-resolved promise
+   * still naming the conversation that had just been deleted. The messages were `PUT` at a row that
+   * no longer existed (404, silently), `activeId` was never set again, and no new conversation was
+   * ever created — so the dock persisted nothing at all for the rest of the session. That is the
+   * same user-visible symptom lazy adoption was introduced to fix, reachable by a different route.
+   */
+  /**
+   * Sets `activeId` and its mirror ref together. Nothing may call `setActiveId` directly.
+   *
+   * The ref exists because `onMessagesChange` and `remove` have to know where writes go *now*, not
+   * as of the render they closed over. It used to be kept current by a render-phase
+   * `activeIdRef.current = activeId`, which is the same hazard the `portRef` comment above rejects:
+   * a render React later discards has already published its id, and a delta from the still-
+   * committed tree then routes a message into a conversation that was never actually selected.
+   *
+   * An effect is the usual remedy and is wrong here too — child effects run before parent effects,
+   * so `ChatPane` can forward a delta before the sync effect runs, and the ref lags by a commit at
+   * the exact moment it is being read. Writing both together at the point of decision avoids both:
+   * every call site below is an event handler or a promise continuation, never a render, so the ref
+   * is published only when the change is real and is never behind the state.
+   */
+  const commitActiveId = useCallback((id: string | null) => {
+    activeIdRef.current = id;
+    setActiveId(id);
+  }, []);
+
+  const resetAdoption = useCallback(() => {
+    adoptingRef.current = null;
+    // The half that actually stops an already-running adoption from publishing — see
+    // `adoptionGenRef`. Dropping the reference alone only prevents *reuse*.
+    adoptionGenRef.current += 1;
+  }, []);
+
+  /**
+   * Publishes `activeId` and `initialMessages` in one commit, and only once the transcript is in
+   * hand.
+   *
+   * Setting `activeId` first is what the obvious version does, and it is wrong in a way that is
+   * invisible in tests: `activeId` is `ChatPane`'s `key`, so assigning it remounts the pane
+   * *immediately*, while `initialMessages` still holds the conversation being navigated away from.
+   * `ChatPane` reads `initialMessages` at mount only, so the fresh transcript — arriving a tick
+   * later — was silently discarded and the pane displayed the previous chat's messages under the
+   * new chat's title.
+   *
+   * The display fault was the mild half. The pane then reported that stale transcript through
+   * `onMessagesChange`, and because `writtenRef` for the newly selected conversation was still
+   * empty, every one of those messages was queued as an unsaved message *belonging to the new
+   * conversation*. Observed live: selecting an empty chat fired four `PUT`s carrying the previous
+   * chat's messages. They 404'd only because those message ids already existed under their real
+   * conversation — an accident of the primary key, not a safeguard. Seeding `writtenRef` in the
+   * same commit as the id is what actually closes that hole.
+   *
+   * React batches both setters (and the ref write precedes them), so the pane remounts exactly
+   * once, already knowing what it holds and what has been persisted.
+   */
+  const select = useCallback(
+    (id: string) => {
+      const seq = ++switchSeqRef.current;
+      const commit = (messages: ChatMessage[]) => {
+        // A slower load for a conversation the user has since navigated away from must not land.
+        if (switchSeqRef.current !== seq) return;
+        writtenRef.current.set(id, new Set(messages.map((m) => m.id)));
+        setInitialMessages(messages);
+        commitActiveId(id);
+        // A user-initiated switch is exactly when remounting the pane IS the intent.
+        setPaneKey(id);
+        resetAdoption();
+      };
+      void portRef.current
+        .loadMessages(id)
+        .then(commit)
+        // A failed load still switches, to an empty pane: leaving the user on the previous
+        // conversation while its title says otherwise is the worse of the two failures.
+        .catch(() => commit([]));
+    },
+    [resetAdoption],
+  );
+
+  const create = useCallback(async () => {
+    /*
+     * The token is claimed BEFORE the request, and re-checked after.
+     *
+     * Claiming it after `createConversation()` resolved made "New" the winner of every race it
+     * happened to finish last: click New, change your mind, pick chat B from the list, watch B load —
+     * and then the earlier POST returns and yanks you into an empty new chat. Bumping up front
+     * registers the intent at the moment of the click; re-checking means a selection made *after*
+     * the click still wins, which is the ordering a user expects.
+     *
+     * The conversation row is still created either way. That is deliberate — it exists server-side,
+     * and abandoning it silently would be worse than leaving an empty chat in the list.
+     */
+    const seq = ++switchSeqRef.current;
+    const conversation = await portRef.current.createConversation();
+    // Both branches insert locally, so both have to invalidate an in-flight `refresh` — otherwise a
+    // list snapshot taken before this POST lands overwrites the row that was just added.
+    markListMutated();
+    if (switchSeqRef.current !== seq) {
+      // Superseded: surface the new row in the list, but do not steal the user's current view.
+      setConversations((current) => [conversation, ...current]);
+      return;
+    }
+    setConversations((current) => [conversation, ...current]);
+    commitActiveId(conversation.id);
+    setInitialMessages([]);
+    setPaneKey(conversation.id);
+    writtenRef.current.set(conversation.id, new Set());
+    resetAdoption();
+  }, [markListMutated, resetAdoption]);
+
+  const remove = useCallback(
+    async (id: string) => {
+      await portRef.current.deleteConversation(id);
+      writtenRef.current.delete(id);
+      const snapshot = await refresh();
+      if (activeIdRef.current !== id) return;
+      /*
+       * A stale snapshot must not be trusted for routing: if this list read landed superseded (the
+       * user deleted something else while it was in flight), it can still name a conversation that
+       * has since been deleted, and routing there would strand `activeId` on a row no fresh list
+       * will ever contain again — `select`'s `.catch(() => commit([]))` even dresses that up as a
+       * successful switch to an empty pane.
+       *
+       * `fresh` is exactly the signal for that, and the earlier gap was checking it for nothing:
+       * this used `snapshot.conversations` regardless of `fresh`. Falling back to `conversationsRef`
+       * — mirroring the last state this hook actually committed, kept current by the effect above —
+       * instead of an unguarded stale read closes it: by the time this snapshot is judged stale,
+       * whatever concurrent mutation outraced it has already had its own `refresh()` commit, which
+       * is what "stale" means here. `id` is filtered out regardless, so the row just deleted can
+       * never be the landing spot even from the fallback.
+       */
+      const remaining = (snapshot.fresh ? snapshot.conversations : conversationsRef.current).filter(
+        (conversation) => conversation.id !== id,
+      );
+      // Land on the next most recent chat rather than an empty pane with no way back.
+      const next = remaining[0]?.id ?? null;
+      if (!next) {
+        // Nothing left to land on. Bump the token so a switch still in flight cannot resurrect a
+        // transcript into the now-empty pane.
+        switchSeqRef.current += 1;
+        commitActiveId(null);
+        setInitialMessages([]);
+        paneNonceRef.current += 1;
+        setPaneKey(`new-${paneNonceRef.current}`);
+        // The branch `resetAdoption` exists for: this is the one place `activeId` goes back to
+        // `null`, which is the only state that re-enters the lazy-adoption path. Without this the
+        // fresh pane inherits the deleted conversation's adoption and never persists again.
+        resetAdoption();
+        return;
+      }
+      /*
+       * `select` and ONLY `select` — deliberately no `setActiveId(next)` first.
+       *
+       * Setting the id here looks harmless and is not: `activeId` is `ChatPane`'s `key`, so it
+       * remounts the pane immediately with `initialMessages` still empty, and then `select`'s own
+       * commit sets `activeId` to the value it ALREADY has. The key never changes again, so the pane
+       * is never remounted, and `ChatPane` seeds `initialMessages` at mount only — nothing resets it
+       * on a prop change. The empty transcript is therefore permanent, not a flicker: deleting the
+       * active chat landed on the next one showing no history at all, and the next prompt was sent
+       * without it as context. `select` alone publishes id, transcript and written-ids in one commit.
+       */
+      select(next);
+    },
+    [refresh, resetAdoption, select],
+  );
+
+  const rename = useCallback(
+    async (id: string, title: string) => {
+      // Optimistic: a rename that only appears after a round-trip feels broken during the edit.
+      // `markListMutated` for the same reason `create` needs it — this is a local write to the
+      // list, so a refresh already in flight is now older than it. Without the mark, that older
+      // response lands and the title visibly reverts to its previous value until the refresh below
+      // corrects it a moment later.
+      markListMutated();
+      // Held until the PATCH settles, so any refresh landing in between re-applies this title
+      // instead of trusting a server read that has not caught up yet.
+      const version = ++renameVersionRef.current;
+      pendingRenamesRef.current.set(id, { version, title });
+      setConversations((current) =>
+        current.map((c) => (c.id === id ? { ...c, title, titleSource: "manual" as const } : c)),
+      );
+      try {
+        await portRef.current.renameConversation(id, title);
+      } catch {
+        // Swallowed as before — the trailing refresh shows whatever the server actually has, which
+        // is the correct outcome for a failed rename too.
+      } finally {
+        // Only if no NEWER rename of this conversation has queued behind us.
+        if (pendingRenamesRef.current.get(id)?.version === version) {
+          pendingRenamesRef.current.delete(id);
+        }
+      }
+      void refresh();
+    },
+    [markListMutated, refresh],
+  );
+
+  /** Writes whatever in `messages` has settled and is not already stored, into `conversationId`. */
+  const flush = useCallback(
+    (conversationId: string, messages: ChatMessage[]) => {
+      const written = writtenRef.current.get(conversationId) ?? new Set<string>();
+      writtenRef.current.set(conversationId, written);
+
+      const pending = persistableMessages(messages).filter((m) => !written.has(m.id));
+      if (pending.length === 0) return;
+
+      // Marked before the request resolves so a second `onMessagesChange` arriving mid-flight —
+      // which it will, since deltas keep coming — does not queue the same message twice.
+      for (const message of pending) written.add(message.id);
+
+      void Promise.all(
+        pending.map(async (message) => ({
+          message,
+          outcome: await saveWithRetry(portRef.current, conversationId, message, () => disposedRef.current),
+        })),
+      ).then((results) => {
+        /*
+         * Un-marked ONLY when the write could plausibly succeed later.
+         *
+         * Un-marking on any failure — which this did — turns a permanent error into a permanent
+         * load: the id goes back in the queue, the next `onMessagesChange` re-sends it, it fails
+         * identically, and it is un-marked again. One 400 therefore issues a doomed request on
+         * every subsequent delta for the rest of the session, and they accumulate as more messages
+         * fail the same way. `saveWithRetry` has already spent its attempts by this point, so
+         * "exhausted" is the only outcome where another try is worth queueing at all.
+         */
+        for (const { message, outcome } of results) {
+          if (outcome === "exhausted" || outcome === "missing") written.delete(message.id);
+        }
+        // `some`, not "all succeeded": one message failing must not suppress the list refresh for
+        // the others. The first turn is what gives an untitled chat its name server-side, and
+        // `messageCount` changes on every turn, so the list needs re-reading rather than patching.
+        if (results.some((result) => result.outcome === "saved")) void refresh();
+        // A write that spent its whole ladder on 404s means this conversation may no longer exist.
+        // Re-read so the switcher stops showing a row the server has already forgotten, rather than
+        // leaving the pane to grind out doomed writes with nothing visible anywhere in the UI.
+        else if (
+          results.some((result) => result.outcome === "missing") &&
+          activeIdRef.current === conversationId
+        ) {
+          void refresh();
+        }
+      });
+    },
+    [refresh],
+  );
+
+  const onMessagesChange = useCallback(
+    (messages: ChatMessage[]) => {
+      const conversationId = activeIdRef.current;
+      if (conversationId) {
+        flush(conversationId, messages);
+        return;
+      }
+
+      /*
+       * No conversation is active — and this is the DEFAULT state, not an edge case. Nothing selects
+       * a conversation on mount, so opening the admin and typing straight into the dock (without
+       * first clicking "New" or picking from history) landed here, where the old code simply
+       * returned. The run worked on screen and neither turn was ever stored: the entire conversation
+       * vanished on reload, silently, on the most common path through the feature.
+       *
+       * So adopt one lazily, at the first moment there is actually something to save. Created on
+       * demand rather than on mount, because a row per admin page-load would litter the switcher with
+       * empty conversations.
+       *
+       * `setActiveId` WITHOUT `setPaneKey`: the pane is mid-run and keyed on `paneKey`, so leaving
+       * that alone is what keeps this invisible to the user. Re-keying here would remount the pane
+       * and destroy the reply currently streaming into it.
+       */
+      if (persistableMessages(messages).length === 0) return;
+
+      /*
+       * The adoption generation is READ here, and `resetAdoption` is the only thing that bumps it.
+       *
+       * Deliberately NOT `switchSeqRef`. That token is bumped at the *call* of `select`/`create`,
+       * so an `onMessagesChange` arriving after the click reads the already-bumped value, matches
+       * it when the adoption resolves, and publishes `activeId` into a pane that has since been
+       * re-keyed to someone else's transcript. `adoptionGenRef` moves with the commit rather than
+       * the intent, which is the thing this actually needs to be later than.
+       */
+      const generation = adoptionGenRef.current;
+      // `??=` so two deltas arriving before the POST resolves await one creation, not two.
+      const adoption = (adoptingRef.current ??= portRef.current
+        .createConversation()
+        .then((conversation) => {
+          markListMutated();
+          setConversations((current) => [conversation, ...current]);
+          writtenRef.current.set(conversation.id, new Set());
+          // Superseded: the row exists and shows up in the list, but the pane that asked for it is
+          // gone, so pointing `activeId` at it would send the NEXT pane's writes here. The flush
+          // below still runs either way — these messages came from the pane that asked for this
+          // conversation, and dropping them would be the data loss adoption exists to prevent.
+          if (adoptionGenRef.current === generation) commitActiveId(conversation.id);
+          return conversation.id;
+        })
+        .catch(() => null));
+
+      void adoption.then((id) => {
+        if (!id) {
+          /*
+           * Cleared so a later turn can retry; keeping a rejected promise would wedge persistence
+           * for the rest of the session.
+           *
+           * Guarded on identity, because a bare `adoptingRef.current = null` clears whatever is
+           * there NOW, which need not be this promise. A stale adoption rejecting late would wipe a
+           * newer one that is still in flight, and the next delta would start a third — two
+           * conversations created for one turn, with the same messages flushed into both and
+           * whichever resolved last taking `activeId`.
+           */
+          if (adoptingRef.current === adoption) adoptingRef.current = null;
+          return;
+        }
+        flush(id, messages);
+      });
+    },
+    [flush, markListMutated],
+  );
+
+  return {
+    conversations,
+    activeId,
+    paneKey,
+    initialMessages,
+    select,
+    create,
+    remove,
+    rename,
+    onMessagesChange,
+  };
+}
+
+/**
+ * Binds the real `/api/assistant/chats` client — see `assistant-chats-dependencies.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so a component composes
+ * this and a test composes {@link useAssistantChats} with a fake. Deliberately a one-liner with no
+ * logic of its own: anything that lived here would be untestable by construction, since the whole
+ * point of this function is that it is the part nobody injects.
+ */
+export function useWiredAssistantChats(): UseAssistantChats {
+  return useAssistantChats(defaultAssistantChatsPort);
+}

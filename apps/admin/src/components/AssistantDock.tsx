@@ -10,7 +10,7 @@ import {
 import type { ChatMessage } from "@jini-ai/chat-core";
 
 import { createTovuAssistantTransport } from "../lib/assistant-transport";
-import { useAssistantChats } from "../lib/use-assistant-chats";
+import { useWiredAssistantChats, type UseAssistantChats } from "../hooks/use-assistant-chats.hooks";
 import "../styles/assistant.css";
 
 declare global {
@@ -27,7 +27,7 @@ declare global {
 
 /**
  * @file The global assistant dock (ADR-049) — every admin page gets the same chat pane on the
- * right, not a routed `#/section/assistant` page. Mounted once in `App.tsx`, outside the routed
+ * right, not a routed `/admin/assistant` page. Mounted once in `App.tsx`, outside the routed
  * `content` switch, and toggled via `hidden` (never conditional render) so the conversation
  * survives both a FAB close/reopen AND navigating to a different admin section — matches
  * `examples/reference-web/src/AgentLab.tsx`'s own pane in Jini's own repo: "the pane keeps its
@@ -63,9 +63,18 @@ export interface AssistantDockProps {
    * with the dock). `null` until the daemon has attached the surface, or if it never does.
    */
   agentBridge?: FrontendSessionBridge | null;
+  /**
+   * The conversation-state hook, overridable so a test can drive this component against a fake
+   * port without stubbing `fetch` — the `useX`/`useWiredX` consumption shape used throughout
+   * `@jini-ai/ui` (`ChatComposer`'s `useWorkingDir = useWiredWorkingDirStatus` is the precedent).
+   *
+   * Passing a *hook* rather than the port itself is what keeps this component dumb: it never has to
+   * know a port exists, only that something supplies it conversation state.
+   */
+  useChats?: () => UseAssistantChats;
 }
 
-export function AssistantDock({ agentBridge = null }: AssistantDockProps) {
+export function AssistantDock({ agentBridge = null, useChats = useWiredAssistantChats }: AssistantDockProps) {
   // The transport holds no per-render state; rebuilding it each render would drop in-flight runs.
   const transport = useMemo(() => createTovuAssistantTransport(), []);
   const runtimeAccess = useMemo(
@@ -84,7 +93,7 @@ export function AssistantDock({ agentBridge = null }: AssistantDockProps) {
     }),
     [],
   );
-  const chats = useAssistantChats();
+  const chats = useChats();
   const handleMessagesChange = useCallback(
     (messages: ChatMessage[]) => {
       window.__tovuAssistantMessages = messages;
@@ -125,7 +134,7 @@ export function AssistantDock({ agentBridge = null }: AssistantDockProps) {
         // Remounts the pane on a conversation switch. `ChatPane` owns its transcript and takes
         // `initialMessages` only at mount, so re-keying is how a different conversation's history
         // gets in — pushing new messages into a live pane would fight its own state.
-        key={chats.activeId ?? "new"}
+        key={chats.paneKey}
         transport={transport}
         runtimeAccess={runtimeAccess}
         initialSelection={{ agentId: "claude" }}
