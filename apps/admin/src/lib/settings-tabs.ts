@@ -14,7 +14,13 @@
  * explained there and mirrored (not re-derived) here.
  */
 
-import { DEFAULT_NOTIFICATIONS_PREFERENCES, type NotificationsPreferences, type PrivacyConsentState } from "@jini-ai/ui";
+import {
+  DEFAULT_NOTIFICATIONS_PREFERENCES,
+  type LocaleOption,
+  type NotificationsPreferences,
+  type PrivacyConsentState,
+  type SettingsThemeChoice,
+} from "@jini-ai/ui";
 import type { SettingScope } from "./api";
 import {
   loadNamespaceValues,
@@ -28,6 +34,8 @@ import {
 export const INSTRUCTIONS_NAMESPACE = "core.instructions";
 export const NOTIFICATIONS_NAMESPACE = "core.notifications";
 export const PRIVACY_NAMESPACE = "core.privacy";
+export const APPEARANCE_NAMESPACE = "core.appearance";
+export const LANGUAGE_NAMESPACE = "core.language";
 
 /** Workspace-scoped: custom instructions and telemetry consent are properties
  *  of the workspace, not of whoever happens to be looking at the tab. */
@@ -154,6 +162,81 @@ export async function loadPrivacy(): Promise<PrivacyConsentState> {
     installationId: installationId === NO_INSTALLATION_ID_SENTINEL ? null : installationId,
     privacyDecisionAt: decisionAt === NO_DECISION_SENTINEL ? null : decisionAt,
   };
+}
+
+// --- Appearance -----------------------------------------------------------
+
+const APPEARANCE_KEYS = { theme: "theme", accentColor: "accentColor" } as const;
+
+/** Mirrors `@jini-ai/ui`'s own `DEFAULT_ACCENT_COLOR` and the registered
+ *  ledger default. */
+export interface AppearanceConfig {
+  theme: SettingsThemeChoice;
+  accentColor: string;
+}
+
+/**
+ * Defaults to LIGHT, not `'system'`.
+ *
+ * The rest of the Tovu admin is a light surface with no dark variant, so
+ * following the OS would put a dark settings panel inside a light app for
+ * every operator on a dark-mode machine. `'system'` is still selectable — it
+ * is just not the default, because here it means "match an OS the surrounding
+ * UI doesn't match".
+ */
+export const DEFAULT_APPEARANCE: AppearanceConfig = { theme: "light", accentColor: "#2563eb" };
+
+export async function loadAppearance(): Promise<AppearanceConfig> {
+  const values = await loadNamespaceValues(APPEARANCE_NAMESPACE);
+  const theme = readString(values, APPEARANCE_KEYS.theme, DEFAULT_APPEARANCE.theme);
+  return {
+    // An unrecognised stored theme falls back rather than reaching the tab as
+    // a value its radio group cannot select.
+    theme: theme === "system" || theme === "light" || theme === "dark" ? theme : DEFAULT_APPEARANCE.theme,
+    accentColor: readString(values, APPEARANCE_KEYS.accentColor, DEFAULT_APPEARANCE.accentColor),
+  };
+}
+
+export async function saveAppearance(
+  next: AppearanceConfig,
+  previous: AppearanceConfig,
+): Promise<readonly string[]> {
+  return saveChangedEntries(APPEARANCE_NAMESPACE, USER_SCOPE, [
+    { key: APPEARANCE_KEYS.theme, valueJson: next.theme, changed: next.theme !== previous.theme },
+    {
+      key: APPEARANCE_KEYS.accentColor,
+      valueJson: next.accentColor,
+      changed: next.accentColor !== previous.accentColor,
+    },
+  ]);
+}
+
+// --- Language -------------------------------------------------------------
+
+const LANGUAGE_KEY = "locale";
+
+export const DEFAULT_LOCALE = "en";
+
+/**
+ * Locales the admin offers.
+ *
+ * Deliberately a stub: Tovu has NO i18n module yet, so selecting a locale
+ * persists a preference that nothing currently reads. The tab is wired so the
+ * surface exists and the choice round-trips; translating the admin is a
+ * separate piece of work. Replace this list from the real catalog when one
+ * lands.
+ */
+export const ADMIN_LOCALES: readonly LocaleOption[] = [{ code: "en", label: "English" }];
+
+export async function loadLanguage(): Promise<string> {
+  const values = await loadNamespaceValues(LANGUAGE_NAMESPACE);
+  return readString(values, LANGUAGE_KEY, DEFAULT_LOCALE);
+}
+
+export async function saveLanguage(next: string, previous: string): Promise<readonly string[]> {
+  return saveChangedEntries(LANGUAGE_NAMESPACE, USER_SCOPE, [
+    { key: LANGUAGE_KEY, valueJson: next, changed: next !== previous },
+  ]);
 }
 
 export async function savePrivacy(

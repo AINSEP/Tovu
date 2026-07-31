@@ -34,6 +34,12 @@ export const NOTIFICATIONS_NAMESPACE = "core.notifications";
 /** Telemetry consent state. */
 export const PRIVACY_NAMESPACE = "core.privacy";
 
+/** Theme choice and accent color for the settings-dialog surface. */
+export const APPEARANCE_NAMESPACE = "core.appearance";
+
+/** Admin UI locale. */
+export const LANGUAGE_NAMESPACE = "core.language";
+
 /**
  * "No consent decision recorded yet", which `@jini-ai/ui` spells as
  * `privacyDecisionAt: null`.
@@ -60,6 +66,8 @@ const NO_INSTALLATION_ID_SENTINEL = "";
 type InstructionsKey = "custom";
 type NotificationsKey = "soundEnabled" | "successSoundId" | "failureSoundId" | "desktopEnabled";
 type PrivacyKey = "telemetry.metrics" | "telemetry.content" | "installationId" | "decisionAt";
+type AppearanceKey = "theme" | "accentColor";
+type LanguageKey = "locale";
 
 interface KeyedSpec<K extends string> extends SettingDefinitionSpec {
   key: K;
@@ -113,6 +121,45 @@ const PRIVACY_DEFINITIONS: readonly KeyedSpec<PrivacyKey>[] = [
   { key: "decisionAt", schema: { type: "number" }, defaultValue: NO_DECISION_SENTINEL },
 ];
 
+/**
+ * Appearance and Language are per-OPERATOR, same reasoning as Notifications:
+ * which theme one admin looks at, and which language they read, are not
+ * properties of the workspace. The `workspace` bit stays in the mask so an
+ * operator with no user-scoped row still inherits a workspace default.
+ */
+const PER_OPERATOR_SCOPES = SCOPE_BIT.user | SCOPE_BIT.workspace;
+
+const APPEARANCE_DEFINITIONS: readonly KeyedSpec<AppearanceKey>[] = [
+  // Defaults to LIGHT rather than "system": the surrounding Tovu admin is a
+  // light surface with no dark variant, so following the OS would put a dark
+  // panel inside a light app for every operator on a dark-mode machine.
+  // "system" stays selectable — see `apps/admin/src/lib/settings-tabs.ts`.
+  {
+    key: "theme",
+    schema: { type: "enum", values: ["system", "light", "dark"] },
+    defaultValue: "light",
+    scopes: PER_OPERATOR_SCOPES,
+  },
+  // Free-form string rather than an enum over the swatch palette: the tab
+  // ships a color picker, so any `#rrggbb` is reachable, and `@jini-ai/ui`'s
+  // `normalizeAccentColor` already rejects malformed values at render time.
+  // Pinning an enum here would reject a legitimate custom color at the ledger.
+  {
+    key: "accentColor",
+    schema: { type: "string" },
+    defaultValue: "#2563eb",
+    scopes: PER_OPERATOR_SCOPES,
+  },
+];
+
+const LANGUAGE_DEFINITIONS: readonly KeyedSpec<LanguageKey>[] = [
+  // A BCP-47-ish code, not an enum. Tovu has no i18n module yet, so the
+  // catalog of real locales is not known here; the tab takes a host-supplied
+  // `LocaleOption[]` and an unknown stored code simply selects nothing rather
+  // than failing a ledger write.
+  { key: "locale", schema: { type: "string" }, defaultValue: "en", scopes: PER_OPERATOR_SCOPES },
+];
+
 export interface EnsureSettingsUiTabDefinitionsInput {
   /** The trusted boot-time actor these writes are attributed to. */
   systemPrincipalId: UUID;
@@ -133,6 +180,8 @@ export async function ensureSettingsUiTabDefinitions(
     { namespace: INSTRUCTIONS_NAMESPACE, definitions: INSTRUCTIONS_DEFINITIONS },
     { namespace: NOTIFICATIONS_NAMESPACE, definitions: NOTIFICATIONS_DEFINITIONS },
     { namespace: PRIVACY_NAMESPACE, definitions: PRIVACY_DEFINITIONS },
+    { namespace: APPEARANCE_NAMESPACE, definitions: APPEARANCE_DEFINITIONS },
+    { namespace: LANGUAGE_NAMESPACE, definitions: LANGUAGE_DEFINITIONS },
   ];
 
   for (const { namespace, definitions } of namespaces) {

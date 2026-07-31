@@ -20,8 +20,11 @@
 
 import { useMemo, useRef, useState } from "react";
 import {
+  AppearanceTab,
   ExecutionTab,
   InstructionsTab,
+  IntegrationsTab,
+  LanguageTab,
   NotificationsTab,
   PrivacyTab,
   SettingsDialogShell,
@@ -38,15 +41,23 @@ import {
   saveExecutionConfig,
 } from "../lib/execution-settings";
 import {
+  ADMIN_LOCALES,
+  DEFAULT_APPEARANCE,
   DEFAULT_INSTRUCTIONS,
+  DEFAULT_LOCALE,
   DEFAULT_NOTIFICATIONS,
   DEFAULT_PRIVACY,
+  loadAppearance,
   loadInstructions,
+  loadLanguage,
   loadNotifications,
   loadPrivacy,
+  saveAppearance,
   saveInstructions,
+  saveLanguage,
   saveNotifications,
   savePrivacy,
+  type AppearanceConfig,
 } from "../lib/settings-tabs";
 import { mergeSaveStates, useSettingsSlice } from "../hooks/use-settings-slice.hooks";
 
@@ -83,8 +94,18 @@ export function SettingsUi() {
     save: savePrivacy,
     defaultValue: DEFAULT_PRIVACY,
   });
+  const appearance = useSettingsSlice<AppearanceConfig>({
+    load: loadAppearance,
+    save: saveAppearance,
+    defaultValue: DEFAULT_APPEARANCE,
+  });
+  const language = useSettingsSlice<string>({
+    load: loadLanguage,
+    save: saveLanguage,
+    defaultValue: DEFAULT_LOCALE,
+  });
 
-  const slices = [execution, instructions, notifications, privacy];
+  const slices = [execution, instructions, notifications, privacy, appearance, language];
   const save = useMemo(
     () => mergeSaveStates(slices.map((slice) => slice.saveState)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -195,6 +216,79 @@ export function SettingsUi() {
       ),
       panel: <PrivacyTab state={privacy.value as PrivacyConsentState} onChange={privacy.onChange} />,
     },
+    {
+      id: "appearance",
+      // Labelled "Dialog appearance", not "Appearance": Tovu already has an
+      // Appearance concept (site theming, its own admin section), and two nav
+      // entries reading "Appearance" that configure different things is the
+      // label collision recon §4 flagged. This one styles the settings surface.
+      label: "Dialog appearance",
+      navHint: "Theme / accent",
+      title: "Dialog appearance",
+      subtitle: "Theme and accent color for this settings surface. Saved per operator.",
+      icon: (
+        <TabIcon>
+          <circle cx="9" cy="9" r="6" />
+          <path d="M9 3a6 6 0 0 1 0 12z" fill="currentColor" stroke="none" />
+        </TabIcon>
+      ),
+      panel: (
+        <AppearanceTab
+          theme={(appearance.value as AppearanceConfig).theme}
+          onThemeChange={(theme) => appearance.onChange({ ...(appearance.value as AppearanceConfig), theme })}
+          accentColor={(appearance.value as AppearanceConfig).accentColor}
+          onAccentColorChange={(accentColor) =>
+            appearance.onChange({ ...(appearance.value as AppearanceConfig), accentColor })
+          }
+          // OFF deliberately. The tab's default writes the picked theme onto
+          // `document.documentElement`, which would re-theme the ENTIRE admin
+          // — every other section included — from a control that says it
+          // configures this dialog. We scope it to the section wrapper below
+          // via `data-theme` instead.
+          livePreview={false}
+        />
+      ),
+    },
+    {
+      id: "language",
+      label: "Language",
+      navHint: "Admin locale",
+      title: "Language",
+      // Stated rather than hidden: the preference persists, but nothing reads
+      // it yet because Tovu has no i18n module. See `ADMIN_LOCALES`.
+      subtitle: "Admin interface language. The choice is saved, but translation is not wired up yet.",
+      icon: (
+        <TabIcon>
+          <circle cx="9" cy="9" r="6.5" />
+          <path d="M2.5 9h13M9 2.5c1.8 2 2.7 4.2 2.7 6.5S10.8 13.5 9 15.5c-1.8-2-2.7-4.2-2.7-6.5S7.2 4.5 9 2.5z" />
+        </TabIcon>
+      ),
+      panel: (
+        <LanguageTab
+          locales={ADMIN_LOCALES}
+          selectedLocale={language.value as string}
+          onSelectLocale={language.onChange}
+        />
+      ),
+    },
+    {
+      id: "mcp",
+      label: "MCP server",
+      navHint: "Client snippets",
+      title: "MCP server",
+      // The component defaults to an in-memory fake port, so this renders and
+      // is explorable with no backend at all. Wiring a real McpIntegrationsPort
+      // to Tovu's daemon is its own piece of work.
+      subtitle: "Connect an MCP client. Showing sample output — not yet wired to a live server.",
+      icon: (
+        <TabIcon>
+          <path d="M4 6.5h10M4 11.5h10" />
+          <circle cx="6.5" cy="6.5" r="1.5" />
+          <circle cx="11.5" cy="11.5" r="1.5" />
+        </TabIcon>
+      ),
+      panel: <IntegrationsTab serverName="tovu" />,
+    },
   ];
 
   /**
@@ -229,8 +323,23 @@ export function SettingsUi() {
     </>
   );
 
+  /**
+   * Pins the dialog's palette to the operator's choice, scoped to this section.
+   *
+   * `settings-dialog.css` resolves its `--jini-*` tokens from a
+   * `data-theme` attribute on ANY ancestor, falling back to
+   * `@media (prefers-color-scheme)`. Without this the dialog silently follows
+   * the OS — so an admin on a dark-mode machine got a dark panel inside an
+   * otherwise light admin, with no way to say otherwise.
+   *
+   * `'system'` deliberately emits NO attribute rather than a computed value:
+   * that lets the media query do its job and keeps following the OS if the
+   * operator changes it while the page is open.
+   */
+  const dialogTheme = (appearance.value as AppearanceConfig).theme;
+
   return (
-    <div className="settings-ui-section">
+    <div className="settings-ui-section" data-theme={dialogTheme === "system" ? undefined : dialogTheme}>
       {loadError ? (
         <p className="settings-ui-load-error" role="alert">
           Could not load saved settings ({loadError}). Showing defaults — edits will still save.
