@@ -42,6 +42,16 @@ export interface SettingResetResponse {
   revisionSeqs: number[];
 }
 
+/** Mirrors `@jini-ai/ui`'s `ExecutionTab` `DetectedAgent` shape — see
+ *  `src/server/routes/admin/assistant/detect-agents.ts`'s `toExecutionTabAgent`. */
+export interface AdminExecutionDetectedAgent {
+  id: string;
+  label: string;
+  installed: boolean;
+  version?: string;
+  path?: string;
+}
+
 /**
  * Mirrors `src/assistant/public-assistant-settings.ts`'s `PublicAssistantSettings`.
  *
@@ -996,6 +1006,27 @@ export const api = {
     }),
   resetSettingsNamespace: (input: { namespace: string; scope: SettingScope }) =>
     request<SettingResetResponse>(`/workspaces/${WORKSPACE_ID}/settings/reset`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  // "Execution mode" tab (`@jini-ai/ui`'s `ExecutionTab`) — Local CLI detection + BYOK connection
+  // test/model discovery. Deliberately separate from the settings.* methods above: these are
+  // stateless egress probes (`src/server/modules/assistant-execution.ts`), not ledger CRUD, and the
+  // `apiKey` field these two POST bodies carry is used for exactly one outbound request server-side
+  // and never persisted (ADR-028 §6 — see `apps/admin/src/lib/execution-settings.ts`'s header).
+  detectExecutionAgents: () =>
+    request<{ data: AdminExecutionDetectedAgent[] }>(`/workspaces/${WORKSPACE_ID}/assistant/execution/detect-agents`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+  testExecutionConnection: (input: { protocol: string; baseUrl: string; apiKey: string; model: string; apiVersion?: string }) =>
+    request<{ ok: boolean; message: string }>(`/workspaces/${WORKSPACE_ID}/assistant/execution/test-connection`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  listExecutionModels: (input: { protocol: string; baseUrl: string; apiKey: string; apiVersion?: string }) =>
+    request<{ ok: boolean; models: string[]; message?: string }>(`/workspaces/${WORKSPACE_ID}/assistant/execution/models`, {
       method: "POST",
       body: JSON.stringify(input),
     }),

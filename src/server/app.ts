@@ -85,6 +85,7 @@ import { wireCoreResolvers } from "../widgets/resolvers/index";
 import { createNavMenuReadModel } from "../navigation/read-model";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { ensurePublicAssistantSettingDefinitions } from "../assistant/public-assistant-settings";
+import { ensureExecutionSettingDefinitions } from "../assistant/execution-mode-settings";
 import { InMemoryCommentRepo } from "../comments/repo.memory";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";
 import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo } from "../features/taxonomy/repo.memory";
@@ -133,6 +134,7 @@ import { createSeoModule } from "./modules/seo";
 import { createAssistantModule } from "./modules/assistant";
 import { createAssistantChatsModule } from "./modules/assistant-chats";
 import { createAssistantSettingsModule } from "./modules/assistant-settings";
+import { createAssistantExecutionModule } from "./modules/assistant-execution";
 import type { RouteDeps } from "./routes/types";
 
 /**
@@ -208,6 +210,19 @@ export function createRouteDeps(): NewsletterRouteDeps {
     ensurePublicAssistantSettingDefinitions(
       { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
       { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+    ).then(() => undefined)
+  );
+
+  // The admin "Execution mode" tab's `core.execution.*` definitions
+  // (`assistant/execution-mode-settings.ts`). Chained after `assistantSettingsReady` rather than
+  // fired in parallel, for the identical single-SQLite-connection-transaction reason `seoReady`'s
+  // own comment above documents. `ownerKind: "core"` (not "site"), so unlike the three bindings
+  // above this one does not pass a `workspaceId` into the registration call — see that file's
+  // header for the namespace-fence reasoning.
+  const executionSettingsReady = assistantSettingsReady.then(() =>
+    ensureExecutionSettingDefinitions(
+      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
 
@@ -330,6 +345,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     settingsReady,
     seoReady,
     assistantSettingsReady,
+    executionSettingsReady,
     // BR-04 (2026-07-16): the repo forwards insert()'s optional event to this SAME outbox
     // instance, matching what the old separate executeCommand()-level enqueue() call did.
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
@@ -661,6 +677,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // no dependencies and no path prefix (see `modules/assistant-settings.ts`'s header), and both sit
   // inside the `/api/admin` session gate, so this position is not load-bearing.
   createAssistantSettingsModule(routeDeps).registerRoutes?.(app);
+  // The same admin section's "Execution mode" tab — Local CLI detection + BYOK connection
+  // test/model discovery. Separate module from the settings pair above for the reason
+  // `modules/assistant-execution.ts`'s header gives (stateless egress probes, not settings CRUD).
+  createAssistantExecutionModule(routeDeps).registerRoutes?.(app);
 
   // ADR-046 Phase 3 (SPEC-042, final slice): the `content-types` server module (ADR-043
   // Collections backend) — all 8 registrations (content-types' list/register/update-fields/

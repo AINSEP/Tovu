@@ -124,6 +124,18 @@ export interface RouteDeps {
    * SQLite root. The 2 admin assistant-settings routes await this before reading `settingsRepo`.
    */
   assistantSettingsReady: Promise<void>;
+  /**
+   * Resolves once the one-time `ensureExecutionSettingDefinitions()` boot call registers the 6
+   * `core.execution.*` setting definitions backing the admin "Execution mode" tab (`@jini-ai/ui`'s
+   * `ExecutionTab`). Same shape/convention as `assistantSettingsReady`, chained after it in both
+   * composition roots for the identical transaction-hazard reason. Unlike the other three
+   * `*Ready` bindings there is no dedicated execution-settings route today — the tab reads/writes
+   * `core.execution.*` through the fully generic `settings/get-effective.ts`/`settings/set.ts`
+   * routes (which only await the base `settingsReady`), so this promise currently has no route
+   * consumer; it is still threaded through `RouteDeps` for the same discoverability/consistency
+   * reason every other boot registration is, and so a future dedicated route has it available.
+   */
+  executionSettingsReady: Promise<void>;
   /** Change-set store for the command gateway (in-memory in v1, ADR-008/018). */
   changeSets: ChangeSetRepoPort;
   /** Themes discovered at boot (built-in + site themes/ dir), SPEC-004 spike. */
