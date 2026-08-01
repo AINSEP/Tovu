@@ -649,3 +649,18 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
   border-color: transparent;
 }
 .settings-ui-section .jini-snippet-copy-btn:hover { background: color-mix(in srgb, var(--jini-text-strong) 75%, transparent); }
+
+/* --- "Coming soon" panel (`ComingSoonPanel` in `SettingsUi.tsx`) ---------
+ * Tovu-local, not a Jini package gap: every other class this panel uses
+ * (`jini-settings-section`, `jini-empty-card`) already ships real styles in
+ * `settings-dialog.css`. Only the badge is new — a small pill next to the
+ * empty-card notice, mirroring the pill OD itself uses on its own
+ * "Coming soon 8" media-providers disclosure
+ * (`od-settings-media-providers-comingsoon.png`) rather than inventing a new
+ * visual language for "not built yet". */
+.settings-ui-coming-soon-badge {
+  align-self: flex-start; padding: 3px 10px; font-size: 11px; font-weight: 600;
+  color: var(--jini-text-muted); background: var(--jini-bg-subtle);
+  border: 1px solid var(--jini-border); border-radius: var(--jini-radius-pill);
+  white-space: nowrap;
+}

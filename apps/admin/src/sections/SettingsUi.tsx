@@ -6,11 +6,15 @@
  * namespace/key inspector are two views of the same `content.db` store, and
  * the decision on record is that both stay available.
  *
- * Four tabs mounted: Execution mode, Instructions, Notifications, Privacy.
- * The shell is generic over its tab array, so adding the remaining ten is
- * appending entries to `tabs` below — not restructuring this file. Each tab
- * owns one `useSettingsSlice` instance (its own load, debounce, save chain and
- * diff base); the page chrome renders `mergeSaveStates` over all four.
+ * 13 tabs mounted: Execution mode, Instructions, Notifications, Privacy,
+ * Dialog appearance, Language, MCP server, Media providers, Connectors,
+ * Memory, External MCP, Skills, About. The shell is generic over its tab
+ * array, so adding more is appending entries to `tabs` below — not
+ * restructuring this file. Each ledger-backed tab owns one `useSettingsSlice`
+ * instance (its own load, debounce, save chain and diff base); the page
+ * chrome renders `mergeSaveStates` over all of them. The last five of the 13
+ * (Media providers, Connectors, Memory, External MCP, Skills) have no Tovu
+ * backend at all and so own no slice — see `ComingSoonPanel` below.
  *
  * Both render modes are exercised here on purpose. `SettingsDialogShell`
  * treats `onClose` as the modal/inline switch (omit it and the shell renders
@@ -60,6 +64,7 @@ import {
   type AppearanceConfig,
 } from "../lib/settings-tabs";
 import { mergeSaveStates, useSettingsSlice } from "../hooks/use-settings-slice.hooks";
+import { TOVU_ADMIN_VERSION } from "../lib/app-version";
 
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data. */
 function TabIcon({ children }: { children: React.ReactNode }) {
@@ -67,6 +72,96 @@ function TabIcon({ children }: { children: React.ReactNode }) {
     <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
       {children}
     </svg>
+  );
+}
+
+/**
+ * Panel body for a settings tab whose Tovu backend doesn't exist yet.
+ *
+ * Locked project decision (coordinator dispatch, 2026-07-31): a tab with no
+ * real backend must never ship as a live control that saves but changes
+ * nothing — five such controls already existed elsewhere and were treated as
+ * a bug. It must instead be visibly disabled / "coming soon". Open Design
+ * does the same thing for 8 of its own media providers
+ * (`od-settings-media-providers-comingsoon.png` in the OD-parity screenshot
+ * set) — a plain notice, not a dimmed-but-present interactive form. That's
+ * the shape this follows, deliberately *not* the `inert`-wrapped-real-
+ * component pattern the Privacy tab's telemetry toggles use next door in
+ * this same file, for two reasons:
+ *
+ * 1. Three of the five callers (Connectors, Memory, External MCP) have no
+ *    ready-made `*Tab` export in `@jini-ai/ui` at all — mounting them "for
+ *    real" means composing several sub-components behind a fake port/
+ *    dependency object per feature, which invites fabricated-looking sample
+ *    data (a fake Composio catalog, fake memory entries) that isn't true of
+ *    this Tovu install.
+ * 2. Even where a real component exists (`MediaProvidersTab`, `SkillsTab`),
+ *    dimming a fully-interactive form still invites a click that does
+ *    nothing — closer to the "live but inert" trap the governing rule exists
+ *    to avoid than a plain notice is.
+ *
+ * Renders no title/description of its own: `SettingsDialogShell` already
+ * renders the active tab's `title`/`subtitle` as its own page header (see
+ * `SettingsDialogShell.tsx`'s `<h2>{activeTab.title}</h2>`), so repeating
+ * them here would double the heading — confirmed against every OD coming-
+ * soon-style reference shot, none of which show a duplicated title. Only
+ * real, already-styled classes are used (`jini-settings-section`,
+ * `jini-empty-card` both ship in `settings-dialog.css` upstream), plus one
+ * small Tovu-local badge class — so, unlike every tab mounted before this
+ * one, this needed no compensating CSS for a Jini package gap.
+ *
+ * @complexity O(1) — fixed-shape render, no iteration, no branching.
+ * @overallScore 100 — no branches, no I/O, no state; matches the existing
+ * `TabIcon` helper's exemption from a full function-quality write-up.
+ */
+function ComingSoonPanel({ reason }: { reason: string }) {
+  return (
+    <section className="jini-settings-section settings-ui-coming-soon">
+      <span className="settings-ui-coming-soon-badge">Coming soon</span>
+      <div className="jini-empty-card">{reason}</div>
+    </section>
+  );
+}
+
+/**
+ * About tab body: version only, no updater surface.
+ *
+ * Deliberately NOT `@jini-ai/ui`'s own `AboutTab`, even though the dispatch
+ * table names it as the drop-in to use. Reason, found while wiring it up:
+ * `AboutTab`'s update-status row always renders `t(control.statusKey)`,
+ * and every branch of `deriveAboutUpdateControl` (ui-core) sets `statusKey`
+ * to a semantic dictionary id like `settings.updateStatusUnsupported` — never
+ * to literal English, unlike every other label on every other tab mounted in
+ * this file (`t('Version')`, `t('Media providers')`, ...). Tovu mounts no
+ * `I18nProvider` anywhere (`useT()` runs in passthrough mode: `t(key)`
+ * returns `key`), so any `AboutTab` mount would show that raw id as on-screen
+ * text — a second instance of the already-known "no dictionary mounted" gap
+ * (Notifications' sound picker), and unlike that one, unavoidable here: there
+ * is no `UpdaterModel` state that produces a null status text, and
+ * `showReleaseLink` is `true` in every reachable static state, so "omit the
+ * updater surface entirely" (the dispatch's own instruction) cannot be done
+ * through `AboutTab`'s props at all. Composing a minimal panel instead is
+ * the smallest change that actually satisfies "version info only, no
+ * updater" rather than papering over the raw-key display. Worth fixing
+ * upstream: `ABOUT_UPDATE_KEYS` has no literal-English fallback path the way
+ * every other tab's default labels do.
+ *
+ * @complexity O(1) — fixed-shape render, no iteration, no branching.
+ * @overallScore 100 — no branches, no I/O, no state.
+ */
+function AboutPanel() {
+  return (
+    <section className="jini-settings-section">
+      <div className="jini-settings-section-card">
+        <div className="jini-field">
+          <span className="jini-field-label">Version</span>
+          <strong>{`Tovu Admin ${TOVU_ADMIN_VERSION}`}</strong>
+        </div>
+        <p className="jini-hint">
+          Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -315,6 +410,108 @@ export function SettingsUi() {
         </TabIcon>
       ),
       panel: <IntegrationsTab serverName="tovu" />,
+    },
+    {
+      id: "media-providers",
+      label: "Media providers",
+      title: "Media providers",
+      subtitle: "API keys for image, video, and audio generation.",
+      icon: (
+        <TabIcon>
+          <path d="M3 4.5h12v9H3z" />
+          <circle cx="7" cy="8" r="1.4" />
+          <path d="M4 12l3.5-3 2 2 2.5-3 3 4" />
+        </TabIcon>
+      ),
+      // No Tovu backend — see `ComingSoonPanel`'s doc comment for why this is
+      // a plain notice rather than `MediaProvidersTab` behind a fake port.
+      panel: (
+        <ComingSoonPanel reason="Tovu doesn't have a media-provider backend yet — there's nothing to configure. Tracked for the roadmap, the same way Open Design tracks its own not-yet-wired providers." />
+      ),
+    },
+    {
+      id: "connectors",
+      label: "Connectors",
+      title: "Connectors",
+      subtitle: "Third-party accounts and APIs via Composio.",
+      icon: (
+        <TabIcon>
+          <path d="M4 5h10M4 9h10M4 13h10" />
+          <circle cx="7" cy="5" r="1.4" />
+          <circle cx="11" cy="9" r="1.4" />
+          <circle cx="6" cy="13" r="1.4" />
+        </TabIcon>
+      ),
+      // `ConnectorsBrowser` has no ready-made `*Tab` export — see
+      // `ComingSoonPanel`'s doc comment for why this isn't a composed panel
+      // behind a fake Composio catalog.
+      panel: <ComingSoonPanel reason="Composio-backed third-party connectors aren't wired up in Tovu yet." />,
+    },
+    {
+      id: "memory",
+      label: "Memory",
+      title: "Memory",
+      subtitle: "Saved facts and context for future chats.",
+      icon: (
+        <TabIcon>
+          <circle cx="9" cy="9" r="6.5" />
+          <path d="M9 5.5V9l3 2" />
+        </TabIcon>
+      ),
+      // No `*Tab` export — see `ComingSoonPanel`'s doc comment. Distinct from
+      // the AI Assistant's chat *history*, which does persist: this is about
+      // extracting and reusing standing facts across conversations, which
+      // Tovu's assistant doesn't do.
+      panel: (
+        <ComingSoonPanel reason="Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist." />
+      ),
+    },
+    {
+      id: "external-mcp",
+      label: "External MCP",
+      title: "External MCP",
+      subtitle: "Add MCP tools from external services.",
+      icon: (
+        <TabIcon>
+          <path d="M6 3v4M12 3v4M4.5 7h9v2a4.5 4.5 0 0 1-9 0z" />
+          <path d="M9 13.5V16" />
+        </TabIcon>
+      ),
+      // OD as MCP *client* (`source-config-list`) — distinct from the "MCP
+      // server" tab above, where Tovu is the one being connected TO. No
+      // `*Tab` export — see `ComingSoonPanel`'s doc comment.
+      panel: <ComingSoonPanel reason="Tovu doesn't run an MCP client yet, so there are no external MCP servers to add here." />,
+    },
+    {
+      id: "skills",
+      label: "Skills",
+      title: "Skills",
+      subtitle: "Custom skills your assistant can invoke mid-task.",
+      icon: (
+        <TabIcon>
+          <path d="M9 3l1.2 3.8L14 8l-3.8 1.2L9 13l-1.2-3.8L4 8l3.8-1.2z" />
+        </TabIcon>
+      ),
+      // Mounted in Settings by explicit user decision, even though OD keeps
+      // Skills on its top-level `/integrations` page instead
+      // (`od-integrations-skills.png`) — a reversible placement call, not a
+      // parity miss. No Tovu backend yet, so this is a coming-soon notice
+      // like its four siblings above rather than `SkillsTab` behind a fake
+      // port.
+      panel: <ComingSoonPanel reason="Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page." />,
+    },
+    {
+      id: "about",
+      label: "About",
+      title: "About",
+      subtitle: "Version and runtime details.",
+      icon: (
+        <TabIcon>
+          <circle cx="9" cy="9" r="6.5" />
+          <path d="M9 6.2h.01M8.3 8.5h1v4h1" />
+        </TabIcon>
+      ),
+      panel: <AboutPanel />,
     },
   ];
 

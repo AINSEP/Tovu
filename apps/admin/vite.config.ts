@@ -1,9 +1,24 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
 // The admin SPA is served at /admin by the Tovu server in production builds.
 // In dev, Vite serves it at :5173 and proxies /api to the backend.
+
+/**
+ * This package's own version, read at build time for the About tab.
+ *
+ * Not a server-reported version: Tovu has no `/api/*` route that exposes an
+ * app/build version (the whole `api.ts` surface was checked), and adding one
+ * is server-side work outside `apps/admin/**`'s scope. `lib/app-version.ts`
+ * labels the resulting constant "Tovu Admin", not "Tovu", so the About panel
+ * doesn't claim more precision than a bundle version actually has.
+ */
+const adminPackageVersion = (
+  JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf8")) as { version: string }
+).version;
+
 /**
  * Dev-only: 301 a bare `/admin` to `/admin/`, which `base: "/admin/"` otherwise answers with Vite's
  * own "did you mean to visit /admin/" 404. The real server already does this — `express.static`
@@ -22,6 +37,9 @@ const redirectBareAdmin: Plugin = {
 
 export default defineConfig({
   base: "/admin/",
+  define: {
+    __TOVU_ADMIN_VERSION__: JSON.stringify(adminPackageVersion),
+  },
   plugins: [redirectBareAdmin, react()],
   resolve: {
     alias: {
