@@ -82,6 +82,7 @@ import { createRouteDeps } from "../server/app";
 import { createSqliteRouteDeps, defaultContentDbPath } from "../server/deps";
 import { resolveRuntimeMode } from "../server/runtime-mode";
 import { listAssistantAgents } from "./agents";
+import { createCustomInstructionsCache } from "./custom-instructions";
 import { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-auth";
 import { attachFederatedMcpTools } from "./mcp-federation/bootstrap";
 import { resolveMcpJsonInjection } from "./mcp-injection";
@@ -202,6 +203,19 @@ const auditSink =
 const toolExecutor = withToolAttemptAudit(createToolExecutor({ registry }), auditSink, { workspaceId: routeDeps.workspaceId });
 
 /**
+ * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see
+ * `custom-instructions.ts`'s module doc for why this is a refreshable cache rather than a direct
+ * ledger read: `PromptAugmenter.systemOverlay()` below is called synchronously, and the cross-process
+ * cache the ledger's own `getEffective` keeps would otherwise go stale forever after this process's
+ * first read. `onStarted` calls `.refresh()` before every run; `assistantPromptAugmenter.
+ * systemOverlay()` reads the result synchronously.
+ */
+const customInstructionsCache = createCustomInstructionsCache(
+  { settingsRepo: routeDeps.settingsRepo, settingsReady: routeDeps.settingsUiTabsReady },
+  { workspaceId: routeDeps.workspaceId },
+);
+
+/**
  * Live-tested 2026-07-30: given a bare natural-language admin request with a matching registered
  * tool (a DB health check, user creation, role listing, form creation), the spawned CLI reliably
  * used its own native Bash/curl instead of `search_tools`/`execute_delegated_tool` — in the worst
@@ -214,19 +228,28 @@ const toolExecutor = withToolAttemptAudit(createToolExecutor({ registry }), audi
 const assistantPromptAugmenter: PromptAugmenter = {
   contextKinds: () => [],
   augmentUserRequest: ({ basePrompt }) => basePrompt,
-  systemOverlay: () =>
-    "You are answering a live administrator's request through Tovu's own admin chat assistant, " +
-    "not doing general development work on the Tovu codebase. Tovu exposes a purpose-built, " +
-    "audited catalog of tools for every action that touches this site's actual content, users, " +
-    "permissions, forms, database state, or configuration. For any such request: call " +
-    "search_tools with a keyword query FIRST, then describe_tool on the top 1-3 candidates, then " +
-    "execute_delegated_tool to perform the action. Do this before reaching for Bash, curl, or " +
-    "direct SQLite/database access — those bypass this site's authorization, risk-classification, " +
-    "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
-    "the admin login route) to perform an action a registered tool already exists for. Bash and " +
-    "file access remain available for genuinely code-level questions about how Tovu itself works, " +
-    "but are not a substitute for the tool catalog when the request is about this site's live " +
-    "data or configuration.",
+  systemOverlay: () => {
+    const baseOverlay =
+      "You are answering a live administrator's request through Tovu's own admin chat assistant, " +
+      "not doing general development work on the Tovu codebase. Tovu exposes a purpose-built, " +
+      "audited catalog of tools for every action that touches this site's actual content, users, " +
+      "permissions, forms, database state, or configuration. For any such request: call " +
+      "search_tools with a keyword query FIRST, then describe_tool on the top 1-3 candidates, then " +
+      "execute_delegated_tool to perform the action. Do this before reaching for Bash, curl, or " +
+      "direct SQLite/database access — those bypass this site's authorization, risk-classification, " +
+      "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
+      "the admin login route) to perform an action a registered tool already exists for. Bash and " +
+      "file access remain available for genuinely code-level questions about how Tovu itself works, " +
+      "but are not a substitute for the tool catalog when the request is about this site's live " +
+      "data or configuration.";
+    // Appended, not replaced: the tool-catalog protocol above is load-bearing for every run
+    // regardless of what an operator writes in the Instructions tab, and an operator's custom text
+    // should not be able to silently drop it. `readOverlay()` is `null` for an unset/cleared tab
+    // (see `custom-instructions.ts`), so a workspace with no custom instructions gets exactly the
+    // base overlay this returned before that tab had any consumer at all.
+    const customOverlay = customInstructionsCache.readOverlay();
+    return customOverlay === null ? baseOverlay : `${baseOverlay}\n\n${customOverlay}`;
+  },
 };
 
 const agentExecutor = createAgentExecutor({
@@ -288,14 +311,23 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   // terminal, so a long-lived tab does not accumulate bindings for runs that ended.
   frontendControl.bindOnStarted({ request, run, lifecycle: runLifecycle });
 
-  void agentExecutor
-    .run({
-      runId: run.id,
-      agentId: request.agentId ?? DEFAULT_AGENT_ID,
-      prompt,
-      cwd: process.env.TOVU_AGENT_CWD ?? process.cwd(),
-      permissionMode: resolvePermissionMode(),
-    })
+  // Refresh the custom-instructions cache before starting the agent, not concurrently with it: this
+  // is the one point in a run's lifecycle before `systemOverlay()` is called (synchronously, inside
+  // `run()`'s own argv-building step) where an `await` is still possible. Sequencing here — rather
+  // than racing the refresh against `run()` and hoping the internal timing works out — makes the
+  // guarantee independent of `@jini-ai/daemon`'s internal ordering. `refresh()` never rejects (see
+  // `custom-instructions.ts`), so this adds no new failure path before `run()` is even reached.
+  void customInstructionsCache
+    .refresh()
+    .then(() =>
+      agentExecutor.run({
+        runId: run.id,
+        agentId: request.agentId ?? DEFAULT_AGENT_ID,
+        prompt,
+        cwd: process.env.TOVU_AGENT_CWD ?? process.cwd(),
+        permissionMode: resolvePermissionMode(),
+      }),
+    )
     // `AgentExecutor.run()` already transitions the run to `'failed'` via `lifecycle.finish()` on
     // every failure path before it rejects — this catch only guards against an unhandled rejection.
     .catch((error: unknown) => {
