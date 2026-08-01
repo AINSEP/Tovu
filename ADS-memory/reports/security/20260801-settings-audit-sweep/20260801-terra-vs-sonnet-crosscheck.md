@@ -44,6 +44,18 @@ Terra also got the *line* wrong — it filed against `write-service.ts:264`, a f
 fires for an HTTP request because every route supplies `authWorkspaceId` explicitly. Right bug,
 wrong location.
 
+**And its failure scenario was overstated — as was the first draft of my own verification.** Measured
+against the original code with both guards disabled: `set` and `clear` return **404**, not 200,
+because the definition is resolved in the *target* workspace's partition and must already exist
+there. Only `reset` returns 200 unconditionally, because it derives its key list from the target
+workspace itself. In production the precondition is usually met (boot registers the same definitions
+per workspace), so the bug is real — but "post another workspace's id and the write lands" is not
+accurate for two of the three verbs. See the CORRECTION section in the verification doc.
+
+The lesson generalizes past this finding: **a failure scenario derived by reading is a hypothesis
+until it is run.** Both auditors' reports, and my own first pass, are full of scenarios that have
+never been executed.
+
 **Why Sonnet missed it, fairly:** the three route files were not in batch 3's file list. The packet
 said to read siblings freely; Terra did, Sonnet didn't. A scope-edge miss, not a judgment error —
 but it is exactly why "the second opinion found nothing" is not clearance.
