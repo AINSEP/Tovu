@@ -535,11 +535,17 @@ export async function resetNamespace(
   // could reasonably assume nothing had happened. "Reset this namespace" is not
   // a meaningful operation if it can apply to an arbitrary prefix of the keys.
   //
-  // This works because `transaction` is reentrant: the inner `clear()` calls
-  // join this frame instead of opening their own, and only the outermost frame
-  // commits. See `repo.sqlite.ts`'s `txDepth` — reentrancy was added FOR this,
-  // since `BEGIN IMMEDIATE` inside a transaction is a SQLite error and composing
-  // atomic single-key writes was otherwise impossible.
+  // This works because each inner `clear()` is passed `skipTransaction: true`
+  // and so writes into THIS frame instead of opening its own. That is explicit
+  // at the call site by design: an earlier version made `transaction` reentrant
+  // via an instance-level depth counter, which could not tell a genuine nested
+  // call from an unrelated concurrent one and silently merged the two. See
+  // `repo.sqlite.ts`'s `transaction` doc for how that failed.
+  //
+  // Both adapters honour the rollback: `repo.sqlite.ts` via ROLLBACK, and
+  // `repo.memory.ts` via a snapshot/restore journal. The in-memory one is the
+  // wired default in `server/app.ts`, so a no-op wrapper there — as it was —
+  // meant this guarantee did not actually hold in dev.
   return deps.repo.transaction(async () => {
     let clearedCount = 0;
     const revisionSeqs: number[] = [];

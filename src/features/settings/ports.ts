@@ -87,6 +87,18 @@ export interface SettingsRepoPort {
   /** The newest assigned `seq`, or 0 when the ledger is empty — a subscriber's starting cursor. */
   maxRevisionSeq(): Promise<number>;
 
-  /** Runs `fn` with the guarantee that all repo calls inside it commit or roll back together. */
+  /**
+   * Runs `fn` with the guarantee that all repo calls inside it commit or roll
+   * back together. Every adapter must honour this — it is what makes a
+   * composite write like `resetNamespace` all-or-nothing, and the contract
+   * suite asserts it against all of them rather than only the durable one.
+   *
+   * **Not reentrant.** Calling this while another `transaction` on the same
+   * repo is open must fail loudly, never silently join. An adapter cannot tell
+   * a genuine nested call from an unrelated concurrent one, and joining a
+   * stranger's transaction makes it inherit that transaction's rollback. A
+   * caller that needs several writes to commit together opens ONE transaction
+   * and passes `skipTransaction` to the inner writes.
+   */
   transaction<T>(fn: () => Promise<T>): Promise<T>;
 }
