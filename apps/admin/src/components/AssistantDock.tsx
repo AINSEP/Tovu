@@ -188,9 +188,17 @@ export function AssistantDock({ agentBridge = null, useChats = useWiredAssistant
           <div className="jini-chat-pane__header">
             <div className="jini-chat-pane__heading">
               <span className="jini-chat-pane__eyebrow">Workspace chat</span>
-              <h1 className="jini-chat-pane__title">
+              {/* Was an `<h1>` — the dock mounts on every route (ADR-049, one conversation for
+                  the whole session), so every admin screen had two `<h1>`s: its own page title
+                  and this one, with no signal to a screen-reader user navigating by heading which
+                  was the real page title. `<h2>` inside this `aria-label="Assistant"` complementary
+                  region (see `App.tsx`'s `<aside>`) reads correctly as a subsection heading
+                  instead of competing with the page's own `<h1>`. Class names, not the element
+                  type, drive this component's styling (`styles/assistant.css`), so the tag change
+                  is visually inert. */}
+              <h2 className="jini-chat-pane__title">
                 {chats.conversations.find((c) => c.id === chats.activeId)?.title ?? "Tovu assistant"}
-              </h1>
+              </h2>
             </div>
             <ConversationList
               conversations={chats.conversations}

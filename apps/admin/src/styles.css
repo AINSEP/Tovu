@@ -28,11 +28,44 @@
   --accent-dim:  oklch(22% 0.006 260 / 0.07);
   --accent-ring: oklch(22% 0.006 260 / 0.16);
 
+  /* Primary-action color (burnt orange, user-supplied swatch ~#C0714F) — deliberately a token
+     separate from `--accent` above, not a repaint of it. `--accent` still drives the sidebar's
+     selected row (`--accent-dim`), `.settings-row.is-selected`, `.tb-btn.on`, and focus rings —
+     Open Design's own settings dialog (`od-settings-external-mcp.png`) makes the same split: its
+     selected sidebar row is plain neutral grey, and the orange appears on exactly one button per
+     panel. Repainting `--accent` would have made every selection state orange along with buttons.
+
+     Contrast, measured (WCAG 2.1 relative-luminance formula, verified with a standalone script,
+     not eyeballed): the user's exact swatch `#C0714F` is oklch(62.83% 0.1111 43.6) and measures
+     **3.67:1 against white** — normal-size button labels (13.6px/600) need 4.5:1 for AA, so the
+     raw swatch fails. `--primary` below lands the text-bearing fill at oklch(55.29% 0.1129 43.4)
+     (~#A85A38 — same hue/chroma, seated deeper), which measures **5.02:1 against white**, a real
+     margin over the 4.5:1 floor rather than a hairline pass. The original, lighter swatch is kept
+     as `--primary-strong` for surfaces that never carry small text (large icons, decorative
+     fills) — it is not used as a button hover state, because a button's hover still shows the
+     same label text and swapping to the failing swatch there would undo the fix; hover instead
+     reuses the existing `button:hover { opacity: 0.88 }` mechanism below. */
+  --primary:        oklch(55.29% 0.1129 43.4); /* ~#A85A38 — 5.02:1 vs white */
+  --primary-strong: oklch(62.83% 0.1111 43.6); /* ~#C0714F — user's exact swatch, decorative-only, 3.67:1 vs white (not for text) */
+  --primary-ink:    oklch(99% 0 0);
+  --primary-dim:    oklch(55.29% 0.1129 43.4 / 0.10);
+  --primary-ring:   oklch(55.29% 0.1129 43.4 / 0.22);
+
   --link:      oklch(45% 0.13 250);
   --ok:        oklch(48% 0.12 150);
   --ok-bg:     oklch(93% 0.05 150);
   --danger:    oklch(52% 0.19 25);
   --danger-bg: oklch(95% 0.04 25);
+  /* Third tier between secondary/neutral and destructive — reversible but access-affecting
+     actions (Users' Disable/Reset-password, per the MSG-14 hierarchy audit) that the existing
+     secondary/danger split doesn't express. `--danger`'s hue is 25 (red); this sits at 80 (amber)
+     so the two are never confusable at a glance, not just numerically distinct. Scaffold only —
+     `.btn-warning` below has no callers in this dispatch's own files; applying it to Users'
+     specific Disable/Reset actions needs that section's own markup, which is out of scope here
+     (see the report's phase-2 hierarchy section). ~6.1:1 against white, measured the same way as
+     `--primary` (see that token's own comment). */
+  --warning:    oklch(50% 0.15 80);  /* ~#8E5500 — 6.09:1 vs white */
+  --warning-bg: oklch(95% 0.035 80);
 
   --font-display: 'Space Grotesk', system-ui, sans-serif;
   --font-ui:      'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
@@ -41,6 +74,31 @@
   --r-sm: 7px; --r-md: 11px; --r-lg: 16px; --r-pill: 999px;
   --shadow-sm: 0 1px 2px rgba(20,28,45,0.05), 0 1px 3px rgba(20,28,45,0.05);
   --shadow-md: 0 4px 14px rgba(20,28,45,0.07), 0 2px 5px rgba(20,28,45,0.05);
+
+  /* Spacing scale — the primitives below (page/card/toolbar/etc.) use these exclusively instead
+     of the ad hoc 0.85rem/0.7rem/1.2rem literals sprinkled through the per-section rules further
+     down this file. Those older rules are out of this pass's scope and keep their literals for
+     now; phase 2 (rolling the primitives out to the remaining ~30 sections) is the place to
+     migrate them. */
+  --space-1: 0.25rem; /* 4px */
+  --space-2: 0.5rem;  /* 8px */
+  --space-3: 0.75rem; /* 12px */
+  --space-4: 1rem;    /* 16px */
+  --space-5: 1.25rem; /* 20px */
+  --space-6: 1.5rem;  /* 24px */
+  --space-7: 2rem;    /* 32px */
+  --space-8: 2.5rem;  /* 40px */
+
+  /* Type scale — sized against Settings' own measured computed styles (`.jini-settings-dialog-
+     kicker` 11px, `-subtitle` 13px, panel body 16px, page `h2` 26px) so the primitives below
+     reproduce its rhythm using this file's own tokens rather than `--jini-*`. */
+  --text-2xs: 0.6875rem; /* 11px   — eyebrow/kicker, dense badges */
+  --text-xs:  0.75rem;   /* 12px   — helper/hint text */
+  --text-sm:  0.8125rem; /* 13px   — dense table/list text, secondary UI */
+  --text-base: 0.875rem; /* 14px   — default body/button/input text */
+  --text-md:  0.95rem;   /* 15.2px — lead/description copy */
+  --text-lg:  1.05rem;   /* 16.8px — card/section headings */
+  --text-xl:  1.65rem;   /* 26.4px — page title; matches the existing .admin-content h1 */
 }
 
 :root[data-theme="dark"] {
@@ -61,35 +119,284 @@
   --accent-dim:  oklch(100% 0 0 / 0.10);
   --accent-ring: oklch(100% 0 0 / 0.18);
 
+  /* Dark-theme primary: a fill tuned to hold 5.02:1 on white paper does not survive unchanged on
+     `oklch(14% 0.018 255)` paper — the same hue read against near-black reads over-saturated
+     ("glowing") well before it reads under-contrast, so this is lighter and less chroma than the
+     light-theme `--primary`, not the same value reused. Still measured, not eyeballed:
+     oklch(56% 0.10 44) is ~#A56042, **4.83:1 against white** — clears AA with a real margin
+     while sitting visibly softer than the light-theme fill when the two are compared side by
+     side in the browser (see report §token-layer screenshots). */
+  --primary:        oklch(56% 0.10 44); /* ~#A56042 — 4.83:1 vs white */
+  --primary-strong: oklch(64% 0.095 45); /* ~#BC795B — decorative-only, proportionally lighter than dark-mode --primary */
+  --primary-ink:    oklch(99% 0 0);
+  --primary-dim:    oklch(56% 0.10 44 / 0.16);
+  --primary-ring:   oklch(56% 0.10 44 / 0.30);
+
   --link:      oklch(74% 0.11 245);
   --ok:        oklch(74% 0.14 150);
   --ok-bg:     oklch(45% 0.08 150 / 0.24);
   --danger:    oklch(74% 0.16 25);
   --danger-bg: oklch(50% 0.12 25 / 0.22);
+  --warning:    oklch(76% 0.13 82);
+  --warning-bg: oklch(50% 0.09 82 / 0.22);
 }
 
 * { box-sizing: border-box; }
 body { margin: 0; font-family: var(--font-ui); background: var(--bg); color: var(--fg); -webkit-font-smoothing: antialiased; }
 a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* Skip link — off-screen (not `display: none`/`visibility: hidden`, both of which would also
+   remove it from the tab order and defeat the point) until it receives keyboard focus, at which
+   point it becomes the first visible thing on the page. `top: -100%` rather than `left: -9999px`
+   so it cannot introduce horizontal scroll on the way in — an off-canvas element still
+   participates in `scrollWidth` on some engines if it is offset in X, not Y. */
+.skip-link {
+  position: fixed; top: -100%; left: var(--space-3); z-index: 100;
+  background: var(--primary); color: var(--primary-ink);
+  padding: 0.6rem 1rem; border-radius: var(--r-sm);
+  font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 600;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: var(--space-3);
+  outline: 2px solid var(--primary-ink); outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skip-link { transition: none; }
+}
+/* Bare `button` is the filled primary CTA — burnt orange, per the user's swatch (see the
+   `--primary` token comment above for the measured-contrast reasoning). This is the app-wide
+   default specifically so every section keeps a working, accessible primary action without
+   individually opting in; it is why `.btn-secondary`/`.btn-ghost`/`.btn-danger` below exist as
+   deliberate *opt-outs* for a screen's non-primary actions, rather than the other way around.
+   One primary per screen is a per-section discipline the class names cannot enforce by
+   themselves — Posts/Media apply it explicitly (see those files); `/admin/users` and
+   `/admin/redirects` were spot-checked after this change and still read correctly since neither
+   screen has more than one bare button competing for attention. */
 button {
-  background: var(--accent); color: var(--accent-ink); border: 1px solid transparent;
+  background: var(--primary); color: var(--primary-ink); border: 1px solid transparent;
   border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
   font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
   transition: opacity 0.14s, box-shadow 0.14s;
 }
 button:hover { opacity: 0.88; }
-button:disabled { opacity: 0.5; cursor: default; }
-input, select {
-  padding: 0.5rem 0.7rem; border: 1px solid var(--border-strong); border-radius: var(--r-sm);
-  font-family: var(--font-ui); font-size: 0.9rem; background: var(--surface); color: var(--fg);
+/* Desaturated tint of the primary, not grey — Open Design's own disabled "All changes saved"
+   button (`od-settings-external-mcp.png`) uses this same idiom rather than opacity-dimming to
+   grey. `--primary-dim` is the same hue at 10-16% alpha over the button's own background, so
+   compositing it here (rather than switching `background` outright) keeps it correct against
+   both `--surface` and `--surface-2` without a second hard-coded color. */
+button:disabled {
+  cursor: default; opacity: 1;
+  background: color-mix(in oklch, var(--primary) 30%, var(--surface));
+  color: color-mix(in oklch, var(--primary-ink) 55%, var(--surface));
+}
+/* ============================================================
+   FORM CONTROLS — the control layer. Previously two bare-element rules total (this block's old
+   `input, select { ... }` plus a `:focus` override); rebuilt against Open Design's own reference
+   (`od-settings-external-mcp-customform.png`, `ADS-memory/.local-artifacts/handoff/od-parity-
+   20260731/`) rather than invented — height, radius, border weight, and the label idiom below
+   are measured off that screenshot, not guessed. Global base rule stays global on purpose (every
+   input in every section gets the refreshed metrics/focus ring for free); the `.field*`
+   primitives further down are additive and opt-in, so sections that lay inputs out inline
+   (Redirects' filter row, menu-item rows) keep their existing sizing/flex behavior untouched.
+   ============================================================ */
+input, select, textarea {
+  padding: 0.55rem 0.7rem; border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  font-family: var(--font-ui); font-size: var(--text-sm); background: var(--surface); color: var(--fg);
+  min-height: 37px; box-sizing: border-box;
   transition: border-color 0.14s, box-shadow 0.14s;
 }
-input:focus, select:focus { outline: none; border-color: var(--accent-text); }
+textarea { min-height: 5.5rem; line-height: 1.5; resize: vertical; }
+input::placeholder, textarea::placeholder { color: var(--faint); }
+/* Focus ring, not just a border-color swap — the previous `:focus { outline: none; border-color:
+   ... }` killed the browser's own indicator and replaced it with a 1px color change, which is a
+   weak affordance (WCAG 2.1 SC 1.4.11 wants a visible, non-color-only state change). This adds a
+   real ring back on the token system instead of relying on the browser default. */
+input:focus, select:focus, textarea:focus {
+  outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring);
+}
+
+/* Select — style the trigger, leave the native popup alone (its internals are not stylable
+   cross-browser; faking a custom listbox to get around that trades one set of a11y/behavior bugs
+   for another). `appearance: none` removes the OS-drawn arrow so the custom chevron below can
+   replace it without doubling up; metrics match the text-input rule above so a `TRANSPORT` select
+   sits flush next to an `ID` input, per the OD reference. Two chevron images (not one +
+   `currentColor`) because `background-image` data URIs can't read a custom property — light and
+   dark each get one baked to that theme's `--muted` hex. */
+select {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  padding-right: 2.25rem; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' stroke='%23666C75' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 0.7rem center; background-size: 14px;
+}
+select::-ms-expand { display: none; }
+:root[data-theme="dark"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' stroke='%23999FA6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* Checkboxes/radios previously had no rule of their own at all — not broken (the browser's UA
+   stylesheet's own `input[type="checkbox"]` selector already out-specifies the page's bare
+   `input`, so they were never forced into the padded/bordered text-input box; verified via
+   computed style before writing this comment), just entirely unstyled 13px OS defaults with no
+   connection to the token system. `accent-color` is the sanctioned lightweight way to recolor a
+   native checkbox/radio's checked state without rebuilding it as a custom widget. */
+input[type="checkbox"], input[type="radio"] {
+  width: 16px; height: 16px; min-height: 0; padding: 0;
+  accent-color: var(--primary); cursor: pointer; flex-shrink: 0;
+}
+
+/* Field primitives — label -> control -> hint/error, and the two-column short-field grid, both
+   modeled on the OD custom-form reference. Opt-in (`.field`/`.field-row`/`.field-group`), so nothing
+   outside what explicitly adopts them changes size or layout. */
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field input, .field select, .field textarea { width: 100%; }
+.field-label {
+  font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted);
+}
+.field-hint { font-size: var(--text-xs); color: var(--muted); margin: 0; }
+.field-error { font-size: var(--text-xs); color: var(--danger); margin: 0; }
+/* Short fields pair into a row (OD: ID + TRANSPORT); long ones (COMMAND, ARGS, ENV) are not
+   wrapped in `.field-row` at all and stay full-width — the grid is opt-in per field, not a
+   blanket two-column layout. */
+.field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--space-4); }
+/* Vertical rhythm: ~4px label-to-control (the `.field` gap above) vs. group-to-group below —
+   roughly a 4-5x ratio, matching the OD reference. This ratio, more than any single spacing
+   value, is what reads as "organized" rather than "cramped everywhere alike". */
+.field-group { display: flex; flex-direction: column; gap: var(--space-4); }
+.field-group + .field-group { margin-top: var(--space-5); }
+/* Command/args/env-style fields signal "this expects code" the same way OD's does — a monospace
+   placeholder (COMMAND: "e.g. npx, node, /path/to/binary"; ENV: "GITHUB_TOKEN=ghp_..."), not
+   decoration. Opt-in: most Tovu text fields (titles, alt text) are prose, not code. */
+.field-mono, .field-mono::placeholder { font-family: var(--font-mono); }
+/* A read-only value sitting where an input normally would (Media's demoted sha256 field) — same
+   metrics as a real input (border/radius/padding/min-height) so it lines up with actual fields
+   in the same `.field-group`, but rendered as a `<code>` rather than an `<input readOnly>` since
+   there is nothing here for a cursor to land in or a value to submit. */
+.field-readonly-row { display: flex; align-items: center; gap: var(--space-2); }
+.field-readonly {
+  flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap;
+  padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: var(--r-sm);
+  min-height: 37px; box-sizing: border-box; display: flex; align-items: center;
+  font-size: var(--text-sm); color: var(--fg-2); background: var(--surface-2);
+}
+
+/* Unified label idiom — replaces four different ad hoc versions previously scattered across
+   `.settings-value-editor label` / `.integrations-form label` / `.collections-dynamic-field
+   label` / `.login-card label` (each its own font-size/weight/color). Those per-section rules
+   still exist below (out of this pass's file-scope to touch every caller) but `.field-label`
+   above is the one new code should reach for; `.settings-layer-label` already used this exact
+   uppercase/letterspaced/muted idiom elsewhere in the file, so this is a consolidation onto an
+   existing pattern, not a new invention. */
+
+/* Visible keyboard focus on every interactive primitive (buttons, links, and the new drawer
+   toggle/close controls below) — WCAG 2.1 AA requires a focus indicator, and the bare `button`
+   rule above does not set one of its own. Inputs/selects already get one via border-color above;
+   this covers everything else in one place instead of per-component rules. */
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 
 /* Page headings + intro copy */
 .admin-content h1 { font-family: var(--font-display); font-size: 1.65rem; font-weight: 700; letter-spacing: -0.01em; color: var(--fg); margin: 0 0 0.4rem; }
 .admin-content h1 + p { color: var(--muted); font-size: 0.95rem; margin: 0 0 1.6rem; }
+
+/* ============================================================
+   Shared page primitives (canary pass: Posts + Media adopt these now; phase 2 migrates the
+   remaining ~30 sections onto the same set instead of leaving `.admin-content h1` above as the
+   only shared pattern). Reproduces Settings' measured qualities — kicker/title/description
+   header, bordered card with real padding, restrained button hierarchy — using this file's own
+   oklch tokens and the scale above, never `--jini-*`.
+   ============================================================ */
+
+.page { display: flex; flex-direction: column; gap: var(--space-6); }
+
+/* Kicker + title + description on the left, actions on the right — mirrors the measured
+   Settings triad (11px kicker / 26px title / 13px description) instead of a bare <h1>. */
+.page-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--space-4); flex-wrap: wrap;
+}
+.page-header-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* Scoped under `.page-header` (not bare `.page-kicker`/`.page-title`/`.page-description`) so
+   these reliably beat the legacy `.admin-content h1` / `h1 + p` rules above on specificity
+   (0,2,0 vs 0,1,1) — that legacy pair still owns every section this canary does not touch, and
+   `.page-title` is itself an `<h1>` sitting inside `.admin-content`, so both rules would
+   otherwise match the same element with conflicting margins. */
+.page-header .page-kicker {
+  font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin: 0;
+}
+.page-header .page-title {
+  font-family: var(--font-display); font-size: var(--text-xl); font-weight: 700;
+  letter-spacing: -0.01em; color: var(--fg); margin: 0;
+}
+.page-header .page-description { font-size: var(--text-md); color: var(--muted); margin: 0; max-width: 60ch; }
+.page-actions { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; flex-wrap: wrap; }
+
+/* Card — content sits inside a bordered surface with real padding, the quality Settings has and
+   a bare `.list-table` floating on the page does not. */
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: var(--space-5) var(--space-6); box-shadow: var(--shadow-sm);
+}
+/* A card wrapping a table: the table supplies its own cell padding, so the card contributes only
+   the border/radius/shadow frame, not a second layer of padding. */
+.card-flush { padding: 0; overflow: hidden; }
+
+/* Toolbar — the row of filters/search/upload controls that sits above a list, so those controls
+   read as one control group instead of stray inputs dropped on the page (Media's unstyled
+   `<input type="file">` today). */
+.toolbar { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-4); }
+.toolbar input, .toolbar select { font-size: var(--text-sm); }
+
+/* Button hierarchy — the global bare `button` rule below is the filled primary CTA (correct for
+   one action per screen, e.g. "New Post"/"Upload"). These variants give secondary/destructive
+   actions the same restraint Settings' outline "Open as dialog" pill has, instead of every button
+   on the page reading as equally urgent (today: New Post, Upload, Save, Cancel, Edit, and Trash
+   are all rendered identically). */
+.btn-secondary { background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong); }
+.btn-secondary:hover { background: var(--surface-2); opacity: 1; }
+.btn-ghost { background: transparent; color: var(--fg-2); border: 1px solid transparent; }
+.btn-ghost:hover { background: var(--surface-2); opacity: 1; }
+.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.btn-danger:hover { background: var(--danger-bg); opacity: 1; }
+/* Scaffold for phase 2 (MSG-14's hierarchy audit) — reversible-but-access-affecting row actions
+   (Users' Disable/Reset-password) that are neither plain secondary nor fully destructive. No
+   caller in this dispatch's own files; see `--warning`'s token comment for why. */
+.btn-warning { background: transparent; color: var(--warning); border: 1px solid var(--warning); }
+.btn-warning:hover { background: var(--warning-bg); opacity: 1; }
+/* Explicit alias for the bare-button styling above — for a primary action that needs to say so
+   in the markup (e.g. sitting next to secondary/ghost siblings where the reader benefits from
+   seeing the intent in the className, not just inheriting it silently from the element type). */
+.btn-primary { background: var(--primary); color: var(--primary-ink); border: 1px solid transparent; }
+.btn-primary:hover { opacity: 0.88; }
+
+/* Responsive data table — a horizontal scroller so a wide `.list-table` degrades to a scroll
+   region on narrow viewports instead of blowing out the page (the 390px canary target). */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Empty state — a list with zero rows (Media with nothing uploaded yet) gets a real message
+   instead of a header row floating over blank white space. */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-2); padding: var(--space-8) var(--space-4); color: var(--muted);
+  font-size: var(--text-sm); text-align: center;
+}
+
+/* Styled native file input — `<input type="file">` cannot be restyled into a fully custom
+   control without JS, but the cross-browser `::file-selector-button` pseudo-element lets the
+   button part match the rest of the button hierarchy instead of rendering as the bare OS widget. */
+.file-input {
+  font-size: var(--text-sm); color: var(--fg-2);
+  padding: var(--space-2) var(--space-3); border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm); background: var(--surface);
+}
+.file-input::file-selector-button {
+  margin-right: var(--space-3); padding: 0.4rem 0.8rem; border: none; border-radius: var(--r-sm);
+  background: var(--surface-2); color: var(--fg-2); font-family: var(--font-ui); font-size: var(--text-sm);
+  font-weight: 600; cursor: pointer; transition: background 0.14s;
+}
+.file-input::file-selector-button:hover { background: var(--surface-3); }
 
 .boot-screen { display: grid; place-items: center; height: 100vh; font-size: 1.1rem; color: var(--muted); }
 
@@ -98,13 +405,37 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
 .login-card { background: var(--surface); padding: 2.5rem; border: 1px solid var(--border); border-radius: var(--r-lg); width: 22rem; display: flex; flex-direction: column; gap: 0.9rem; box-shadow: var(--shadow-md); }
 .login-card h1 { margin: 0; font-family: var(--font-display); font-size: 1.8rem; letter-spacing: -0.01em; }
 .login-card p { margin: 0; color: var(--muted); }
-.login-card label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; font-weight: 600; color: var(--fg-2); }
+/* Unified onto `.field-label`'s metrics (uppercase/letterspaced/muted/11px) — was its own
+   0.85rem/600/fg-2 value, one of four different label idioms MSG-02 asked to consolidate.
+   Layout (flex/gap) stays, since that's this context's own, not shared with the primitive. */
+.login-card label { display: flex; flex-direction: column; gap: 0.3rem; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .login-error { color: var(--danger); font-size: 0.85rem; }
 .login-hint { font-size: 0.75rem; color: var(--faint); text-align: center; }
 
 /* Layout */
 .admin-layout { display: flex; height: 100vh; overflow: hidden; }
-.admin-content { flex: 1; overflow-y: auto; padding: 2rem 2.5rem; }
+/* Wraps the mobile topbar + <main> in a column so the topbar (hidden above the tablet
+   breakpoint, see the responsive block at the bottom of this file) can stack above content
+   without disturbing `.admin-layout`'s own row of sidebar/content/chat-dock. `<main>` itself
+   keeps its existing flex/overflow behavior unchanged at desktop widths. */
+.admin-main-col { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; }
+.admin-content { flex: 1; min-height: 0; overflow-y: auto; padding: 2rem 2.5rem; }
+
+/* Mobile top bar — hidden above the tablet breakpoint (desktop keeps the always-visible
+   sidebar and needs no drawer toggle or page-orientation label). */
+.admin-topbar { display: none; }
+.admin-topbar-toggle {
+  background: transparent; border: 1px solid var(--border-strong); color: var(--fg-2);
+  width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: var(--r-sm);
+  flex-shrink: 0;
+}
+.admin-topbar-toggle:hover { background: var(--surface-2); opacity: 1; }
+.admin-topbar-toggle svg { width: 18px; height: 18px; }
+.admin-topbar-title { font-family: var(--font-display); font-weight: 700; font-size: var(--text-lg); color: var(--fg); }
+
+/* Backdrop behind the off-canvas sidebar drawer (mobile only — see `.cms-nav.is-open` below).
+   Click-to-dismiss; the drawer is also Escape- and route-change-dismissible (`App.tsx`). */
+.sidebar-backdrop { position: fixed; inset: 0; background: oklch(0% 0 0 / 0.4); z-index: 45; }
 
 /* ============================================================
    SIDEBAR — grouped .cms-nav (replaces the WordPress-shaped menu)
@@ -112,9 +443,31 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
 .cms-nav {
   width: 232px; flex-shrink: 0; height: 100%;
   background: var(--surface); border-right: 1px solid var(--border);
+  /* `overflow-y: auto` (for the item list) inescapably clips X too — the CSS overflow spec
+     computes an axis to `auto` the moment the *other* axis isn't `visible`, and that holds even
+     when `overflow-x: visible` is declared explicitly (checked live: `getComputedStyle` still
+     reports `auto` for it). The rail's hover tooltip needs to paint *outside* this box, so it is
+     not a CSS-positioned child of this element at all — see `Sidebar.tsx`'s `RailTooltip`, which
+     portals it to `document.body` instead. */
   overflow-y: auto; padding: 14px 12px 10px;
   display: flex; flex-direction: column; gap: 2px;
+  /* `width` here (not only in the `@media (min-width: 901px)` rail block below) so the property
+     is already being transitioned before `.is-rail` toggles it — adding `transition` at the same
+     time as the value that changes is a common way to lose the first frame of the animation. */
+  transition: width 0.18s ease;
 }
+@media (prefers-reduced-motion: reduce) {
+  .cms-nav { transition: none; }
+}
+/* Close row inside the drawer — hidden at desktop widths (the sidebar is always in-flow there,
+   nothing to close) and shown once the drawer becomes an off-canvas overlay below. */
+.cms-nav-mobile-head { display: none; }
+.cms-nav-close {
+  background: transparent; border: 1px solid var(--border-strong); color: var(--fg-2);
+  width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: var(--r-sm);
+}
+.cms-nav-close:hover { background: var(--surface-2); opacity: 1; }
+.cms-nav-close svg { width: 16px; height: 16px; }
 .cms-section { display: flex; flex-direction: column; gap: 2px; }
 .cms-group {
   font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
@@ -128,6 +481,18 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
 .cms-item:hover { background: var(--surface-2); text-decoration: none; }
 .cms-item svg { width: 16px; height: 16px; color: var(--muted); flex-shrink: 0; }
 .cms-item > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Rail-mode hover/focus tooltip. `position: fixed`, not `absolute` — this is portaled to
+   `document.body` by `Sidebar.tsx`'s `RailTooltip`, not a descendant of the scrollable `.cms-nav`
+   (see that component's doc comment for why a CSS-only child tooltip could not escape it), so
+   `top`/`left` are plain viewport coordinates computed from the hovered item's own
+   `getBoundingClientRect()` rather than relative to any ancestor box. `pointer-events: none` so
+   the tooltip itself can never become the mouse target and cause its own hide/flicker loop. */
+.cms-tooltip-portal {
+  position: fixed; transform: translateY(-50%);
+  background: var(--fg); color: var(--bg); font-size: var(--text-xs); font-weight: 500;
+  padding: 4px 9px; border-radius: var(--r-sm); white-space: nowrap; z-index: 70;
+  pointer-events: none;
+}
 
 .cms-item.active { background: var(--accent-dim); color: var(--accent-text); font-weight: 600; }
 .cms-item.active svg { color: var(--accent-text); }
@@ -145,8 +510,18 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
 }
 
 .cms-foot { margin-top: auto; padding-top: 10px; }
+/* Hidden outside the desktop rail — see the rail block below. There is no mobile-drawer use for
+   a rail toggle, since the drawer is always full-width and has its own close control. */
+.cms-rail-toggle-row { display: none; }
+.cms-rail-toggle {
+  display: flex; align-items: center; justify-content: center; width: 100%; padding: 8px 10px;
+  background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: var(--r-md);
+  cursor: pointer; transition: background 0.14s, color 0.14s, transform 0.18s ease;
+}
+.cms-rail-toggle:hover { background: var(--surface-2); color: var(--fg); }
+.cms-rail-toggle svg { width: 16px; height: 16px; }
 .cms-logout {
-  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px;
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; position: relative;
   background: transparent; color: var(--muted); border: none; border-radius: var(--r-md);
   font-family: var(--font-ui); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.14s, color 0.14s;
 }
@@ -157,14 +532,214 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
 .cms-nav::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
 .cms-nav::-webkit-scrollbar-track { background: transparent; }
 
+/* ============================================================
+   ICON RAIL — desktop-only collapse (`.cms-nav.is-rail`, `useSidebarRail`). `min-width: 901px`,
+   the mirror image of the drawer's `max-width: 900px` below, so the two mechanisms never overlap:
+   below 900px the nav is always the full-width drawer regardless of `.is-rail` (a collapsed rail
+   would be pointless real estate on a screen already tight on width), and at/above it the rail
+   toggle is live and the drawer machinery (backdrop, close row) stays inert.
+   ============================================================ */
+@media (min-width: 901px) {
+  .cms-nav.is-rail { width: 60px; padding-left: 8px; padding-right: 8px; }
+
+  .cms-nav.is-rail .cms-item { justify-content: center; padding: 10px 0; gap: 0; }
+  /* Real label stays in the DOM (Sidebar.tsx never removes it) — clipped with the same recipe as
+     `.visually-hidden` elsewhere in this file, not `display: none`, so it is still announced.
+     `.cms-tooltip-portal` is a sibling of this element in the DOM (portaled to `document.body`),
+     never a child, so there is no `.cms-tooltip` class to exclude here the way an earlier version
+     of this rule needed to. */
+  .cms-nav.is-rail .cms-item > span {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  /* The active-row indicator bar's `left: -12px` assumes the nav's normal 12px padding — the
+     rail's own 8px padding above moved that edge, so the offset needs its own value here or the
+     bar floats detached from the rail's left edge instead of sitting flush against it. */
+  .cms-nav.is-rail .cms-item.active::before { left: -8px; }
+  .cms-nav.is-rail .cms-item .soon { display: none; }
+
+  /* Group headings become a divider rule instead of disappearing — with icons alone and no
+     separation, 26 items in five groups reads as one undifferentiated list. `font-size: 0` (not
+     `display: none` or a negative text-indent) collapses the visible glyphs to nothing while
+     leaving the text node itself in place for a screen reader, which reads DOM content
+     independent of its rendered size. */
+  .cms-nav.is-rail .cms-group {
+    height: 1px; padding: 0; margin: 12px 10px; background: var(--border);
+    font-size: 0; line-height: 0; color: transparent; overflow: hidden;
+  }
+
+  .cms-nav.is-rail .cms-logout { justify-content: center; padding: 10px 0; gap: 0; }
+  .cms-nav.is-rail .cms-logout > span {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+
+  .cms-rail-toggle-row { display: flex; margin-bottom: 4px; }
+  /* One glyph, two states — rotated 180° rather than swapped for a second icon, since the shape
+     (two chevrons pointing away from each other / toward each other) reads correctly either way. */
+  .cms-nav.is-rail .cms-rail-toggle svg { transform: rotate(180deg); }
+}
+
+/* ============================================================
+   RESPONSIVE SHELL — the app had zero @media queries before this pass; below ~900px the fixed
+   232px sidebar plus 2rem/2.5rem content padding left an unusable sliver of content width (a
+   390px phone viewport had ~150px left after the sidebar). Two breakpoints:
+
+   - 900px  — "sidebar must transform" per the design brief: the always-visible sidebar becomes
+     an off-canvas drawer behind a mobile top bar. Chosen because 900×800 was the stated tablet
+     canary viewport and is exactly where the fixed sidebar starts costing more width than a
+     dense admin table can spare; nothing below this needs to change yet, so a 380px docked chat
+     pane still fits the remaining ~520px comfortably.
+   - 640px  — the docked chat pane (`.admin-chat-dock`, fixed 380px per ADR-049) stops fitting
+     next to any usable content column, so it becomes a full-screen overlay instead of a sliver.
+     Kept as a second, narrower breakpoint rather than folding into the 900px one because a
+     900-640px viewport (most tablets in portrait) has room for both the collapsed sidebar drawer
+     AND a still-docked 380px chat pane at the same time.
+   ============================================================ */
+@media (max-width: 900px) {
+  .admin-topbar {
+    display: flex; align-items: center; gap: var(--space-3);
+    padding: 0 var(--space-4); height: 52px; flex-shrink: 0;
+    border-bottom: 1px solid var(--border); background: var(--surface);
+    position: sticky; top: 0; z-index: 20;
+  }
+
+  /* Off-canvas drawer. `position: fixed` pulls the sidebar out of `.admin-layout`'s flex row
+     entirely, so `.admin-main-col` reclaims the full width instead of leaving a 232px gap.
+
+     `visibility` (not just `transform`) gates the closed state: a translated-off-screen element
+     is still in the tab order and still exposed to screen readers, so a keyboard user tabbing
+     past the topbar toggle would land in a sidebar they cannot see. The `visibility` transition
+     is delayed on the way OUT (`0.2s` — matches the slide) so the drawer stays visible for its
+     own closing animation, and instant on the way IN so it is interactive the moment it starts
+     appearing. */
+  .cms-nav {
+    position: fixed; top: 0; left: 0; width: 272px; z-index: 50;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.2s ease, visibility 0s linear 0.2s;
+    box-shadow: var(--shadow-md);
+  }
+  .cms-nav.is-open {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.2s ease, visibility 0s linear 0s;
+  }
+  .cms-nav-mobile-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 2px 10px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--border);
+  }
+  .cms-nav-mobile-head span {
+    font-size: var(--text-2xs); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .admin-content { padding: var(--space-5) var(--space-4); }
+}
+
+@media (max-width: 640px) {
+  /* Bottom sheet instead of the 380px docked pane or a full-screen takeover (MSG-06). Full-screen
+     was rejected deliberately, not just for space: `App.tsx` mounts `createDomPageDriver` scoped
+     to `<main>`, so the assistant's `page.navigate`/`page.find_elements` calls visibly act on
+     whatever is behind the chat — covering the entire viewport would hide the exact surface the
+     agent is manipulating and break that feedback loop. A partial-height sheet keeps `<main>`
+     in view underneath it.
+
+     `.admin-chat-dock`/`.chat-fab` are defined (unconditionally) in `styles/assistant.css`,
+     loaded via a separate import in `AssistantDock.tsx` rather than this file — scoped under
+     `.admin-layout` here so this override wins on specificity regardless of which of the two
+     stylesheets' `<style>` tag lands later in the document.
+
+     Open/close itself is intentionally NOT animated (still the plain `hidden` attribute →
+     `display: none` from `App.tsx`, unchanged) — only the default↔expanded HEIGHT transition
+     below is. Animating the open/close edge as well would need replacing `hidden`'s `display:
+     none` with `visibility`/`transform`/`inert` (that combination cannot itself transition), which
+     is a real feature, not a drive-by addition; disclosed as deferred in the handoff rather than
+     bolted on incompletely. `hidden` already keeps the closed sheet out of the tab order and the
+     accessibility tree for free (no rendering at all), which is the load-bearing requirement here. */
+  .admin-layout .admin-chat-dock {
+    position: fixed; left: 0; right: 0; bottom: 0; top: auto;
+    z-index: 55; flex: none; width: 100%; border-left: none;
+    border-top: 1px solid var(--border); border-radius: 14px 14px 0 0;
+    box-shadow: var(--shadow-md);
+    flex-direction: column;
+    height: 58vh;
+    transition: height 0.2s ease;
+  }
+  .admin-layout .admin-chat-dock.is-expanded { height: 92vh; }
+  @media (prefers-reduced-motion: reduce) {
+    .admin-layout .admin-chat-dock { transition: none; }
+  }
+
+  .admin-content { padding: var(--space-4) var(--space-3); }
+}
+
+/* Sheet chrome (drag handle, title, expand/close) — App.tsx-rendered, sitting above
+   `<AssistantDock>` rather than inside it (that component stays untouched, per ADR-049's "never
+   unmount" — its own internals are not where this dispatch's changes belong). Hidden at desktop
+   widths: the docked panel has no sheet states and closes only via the FAB, same as before. */
+.chat-sheet-bar { display: none; }
+@media (max-width: 640px) {
+  .chat-sheet-bar {
+    display: flex; align-items: center; gap: var(--space-2); position: relative;
+    padding: 8px var(--space-3) 4px;
+    /* Overrides `styles/assistant.css`'s `.admin-chat-dock > * { flex: 1; ... }`, which is meant
+       for the pane's own root filling the dock — without this override that generic rule would
+       also apply here (this bar is now a sibling direct child) and let the bar itself stretch to
+       fill the dock's height instead of staying a fixed-size header row. Specificity (3 classes)
+       beats that rule regardless of the two stylesheets' load order, same reasoning as the other
+       `.admin-layout`-scoped overrides in this section. */
+    flex: 0 0 auto;
+  }
+  .chat-sheet-handle {
+    position: absolute; left: 50%; top: 6px; transform: translateX(-50%);
+    width: 32px; height: 4px; border-radius: var(--r-pill); background: var(--border-strong);
+  }
+  .chat-sheet-bar-title {
+    font-size: var(--text-xs); font-weight: 600; color: var(--muted); flex: 1; padding-top: 6px;
+  }
+  .chat-sheet-bar-actions { display: flex; gap: var(--space-1); padding-top: 2px; }
+  .chat-sheet-action {
+    background: transparent; color: var(--fg-2); border: 1px solid transparent;
+    width: 28px; height: 28px; padding: 0; display: grid; place-items: center; border-radius: var(--r-sm);
+  }
+  .chat-sheet-action:hover { background: var(--surface-2); opacity: 1; }
+  .chat-sheet-action svg { width: 15px; height: 15px; }
+}
+
 /* Content bits */
 .notice { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
 .notice.error { border-left-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
 .list-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
-.list-table th, .list-table td { text-align: left; padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.88rem; color: var(--fg-2); }
-.list-table th { background: var(--surface-2); font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.list-table th, .list-table td { text-align: left; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--fg-2); }
+.list-table th { background: var(--surface-2); font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
 .list-table tbody tr:last-child td { border-bottom: none; }
 .list-table tbody tr:hover { background: var(--surface-2); }
+/* Row actions default to a quiet/secondary treatment instead of inheriting the bare `button`
+   rule's filled-primary orange. A table of N rows each carrying a row action (`/admin/users`:
+   "New user" plus 4× "Disable" plus 4× "Manage" — nine identically loud buttons on one screen)
+   is the flatness problem the burnt-orange primary was supposed to fix, just recolored. Scoped to
+   `td` specifically so header-row/toolbar CTAs ("New Post", "Upload", "Add redirect" — none of
+   which live inside a `<td>`) keep their primary treatment; this is a STRUCTURAL rule, so it
+   reaches every section sharing `.list-table` (~15) with zero `.tsx` edits, and it composes with
+   `.list-table td { padding: ... }` above rather than duplicating it.
+
+   `:not([class*="btn-"])` is the load-bearing part: it excludes any button that already opted
+   into an explicit variant (Media's `.btn-secondary`/`.btn-danger` Edit/Trash) so those keep
+   their own intentional color. Excluding by selector rather than relying on a specificity fight
+   matters here — `.list-table td button` alone is (0,1,2), which actually OUTRANKS a bare
+   `.btn-danger` (0,1,0) on the same element, so without the `:not()` this rule would have quietly
+   overridden every explicit variant it was never meant to touch.
+
+   CSS cannot tell "Disable" from "Manage" apart by meaning, so every unclassed row button lands
+   on the same quiet treatment — a safe default, not a claim that they're equally weighted. Per-
+   action semantic promotion (a genuinely destructive or access-affecting row action earning
+   `.btn-danger` or the `.btn-warning` scaffold below) needs the owning section's own markup and
+   is phase 2 — see the report's hierarchy-spec section. */
+.list-table td button:not([class*="btn-"]) {
+  background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong);
+}
+.list-table td button:not([class*="btn-"]):hover { background: var(--surface-2); opacity: 1; }
 .status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; }
 .status-published { background: var(--ok-bg); color: var(--ok); }
 .status-draft { background: var(--surface-3); color: var(--muted); }
@@ -186,7 +761,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
 .status-delivery-canceled { background: var(--surface-3); color: var(--faint); }
 .muted-cell { color: var(--faint); font-size: 0.85rem; }
 .integrations-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
-.integrations-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.82rem; color: var(--fg-2); width: 100%; max-width: 28rem; }
+/* Same consolidation as `.login-card label` above. */
+.integrations-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); width: 100%; max-width: 28rem; }
 
 /* Dashboard */
 .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1.2rem; }
@@ -295,8 +871,11 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
 .settings-scope-editor { border-top: 1px solid var(--border); padding-top: 0.8rem; display: flex; flex-direction: column; gap: 0.5rem; }
 .settings-scope-editor h3 { margin: 0; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
 .settings-value-editor { display: flex; flex-direction: column; gap: 0.4rem; }
-.settings-value-editor label { font-size: 0.78rem; color: var(--fg-2); }
-.settings-value-editor textarea { font-family: var(--font-mono); font-size: 0.85rem; padding: 0.5rem 0.7rem; border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface); color: var(--fg); resize: vertical; }
+/* Same consolidation as `.login-card label` above. */
+.settings-value-editor label { font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+/* Only the monospace override is this rule's own — padding/border/radius/background/color/resize
+   now come from the shared `textarea` rule above; this holds a raw JSON value, hence monospace. */
+.settings-value-editor textarea { font-family: var(--font-mono); font-size: 0.85rem; }
 .settings-reset-trigger { align-self: flex-start; background: transparent; color: var(--danger); border: 1px solid var(--danger); }
 .settings-reset-trigger:hover { background: var(--danger-bg); }
 .settings-dialog-backdrop { position: fixed; inset: 0; background: oklch(0% 0 0 / 0.45); display: grid; place-items: center; z-index: 40; }
@@ -328,7 +907,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
 .collections-row-actions { display: flex; gap: 0.4rem; }
 .collections-dynamic-fields { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1rem 1.1rem; margin-top: 1rem; display: flex; flex-direction: column; gap: 0.7rem; }
 .collections-dynamic-field { display: flex; flex-direction: column; gap: 0.3rem; }
-.collections-dynamic-field label { font-size: 0.78rem; color: var(--fg-2); }
+/* Same consolidation as `.login-card label` above. */
+.collections-dynamic-field label { font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .collections-term-picker { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1rem 1.1rem; margin-top: 1rem; }
 .collections-term-checkbox { display: inline-flex; align-items: center; gap: 0.35rem; margin: 0.2rem 0.8rem 0.2rem 0; font-size: 0.85rem; }
 
@@ -338,7 +918,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
 .redirects-import { margin: 1rem 0; }
 .redirects-import summary { cursor: pointer; font-weight: 600; }
 .redirects-import form { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.7rem; }
-.redirects-import textarea { font-family: var(--font-mono); font-size: 0.82rem; padding: 0.6rem 0.7rem; border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface); color: var(--fg); resize: vertical; }
+/* Same fold as `.settings-value-editor textarea` above — only monospace is this rule's own. */
+.redirects-import textarea { font-family: var(--font-mono); font-size: 0.82rem; }
 .redirects-import-result ul { margin: 0.4rem 0; padding-left: 1.2rem; font-size: 0.85rem; }
 
 .storage-filter-bar { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
