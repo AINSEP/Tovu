@@ -385,6 +385,11 @@ export interface ClearValueRequired {
     callerPrincipalId: UUID;
     /** Set by `resetNamespace` when looping `clear()` in its own reset-authorized context (ADR-028 §7 R3-01) — bypasses the inner authorize() re-check, still writes a normal revision. */
     skipAuthorize?: boolean;
+    /** Set by a caller that has ALREADY opened a transaction around this write —
+     *  see `resetNamespace`. Explicit rather than an ambient depth counter,
+     *  because an ambient one cannot tell a genuine nesting from a concurrent
+     *  unrelated transaction and silently merges the two. */
+    skipTransaction?: boolean;
     /** SPEC-007 Phase 5 addition — see `SetValueRequired.input.authWorkspaceId`'s doc. Optional/additive. */
     authWorkspaceId?: UUID;
   };
@@ -418,7 +423,7 @@ export async function clear(required: ClearValueRequired): Promise<{ revisionSeq
   const definition = await resolveScopedDefinitionOrThrow(deps, input);
   await assertTargetPrincipalInWorkspace(deps, input);
 
-  const result = await deps.repo.transaction(async () => {
+  const runClear = async () => {
     const now = deps.clock.nowIso();
     const revisionSeq = await deps.repo.appendRevision({
       entityKind: "value",
@@ -465,7 +470,11 @@ export async function clear(required: ClearValueRequired): Promise<{ revisionSeq
     }
 
     return { revisionSeq };
-  });
+  };
+
+  // `skipTransaction` means an enclosing caller already owns the boundary, so
+  // this write joins it and a later failure rolls this one back too.
+  const result = input.skipTransaction ? await runClear() : await deps.repo.transaction(runClear);
 
   return result;
 }
@@ -545,6 +554,7 @@ export async function resetNamespace(
           principalId: input.principalId,
           callerPrincipalId: input.callerPrincipalId,
           skipAuthorize: true,
+          skipTransaction: true,
         },
       });
       revisionSeqs.push(result.revisionSeq);

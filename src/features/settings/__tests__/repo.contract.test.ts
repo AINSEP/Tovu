@@ -227,59 +227,54 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
     );
   });
 
-  test(`[${adapterName}] transaction is reentrant — a nested call joins the outer frame`, async () => {
-    // Composite writes are built from single-key writes that each open their own
-    // transaction. Before this, nesting threw (`BEGIN IMMEDIATE` inside a
-    // transaction is a SQLite error), so a composite could only be atomic per key.
+  test(`[${adapterName}] a second overlapping transaction never silently joins the first`, async () => {
+    // An earlier fix made `transaction` reentrant via an instance-level depth
+    // counter so a composite write could wrap its parts. An external audit broke
+    // it immediately: the counter is not async-context-local, so a SECOND root
+    // transaction starting while the first awaited was treated as nested — and
+    // then either lost its reported-success write on the first's rollback, or was
+    // committed by it after reporting failure.
+    //
+    // The guarantee this pins is the weaker but honest one: overlapping root
+    // transactions either fail LOUDLY or stay genuinely independent. What must
+    // never happen is the second one silently inheriting the first one's fate.
+    // (Composite atomicity is now expressed explicitly instead — a caller opens
+    // one transaction and passes `skipTransaction` to the inner writes.)
     const repo = makeRepo();
-    const result = await repo.transaction(async () => {
-      await repo.saveDefinition(def);
-      return repo.transaction(async () => {
-        await repo.saveDefinition({ ...def, settingId: "setting-nested", version: 1 });
-        return "inner";
-      });
-    });
-    assert.equal(result, "inner");
-    assert.notEqual(await repo.findDefinitionBySettingId({ settingId: "setting-1" }), null);
-    assert.notEqual(await repo.findDefinitionBySettingId({ settingId: "setting-nested" }), null);
-  });
+    let releaseFirst: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => (releaseFirst = resolve));
 
-  test(`[${adapterName}] a throw inside a NESTED transaction rolls the outer one back too`, async () => {
-    // The point of joining rather than nesting: an inner failure must not leave
-    // the outer frame's earlier writes committed.
-    const repo = makeRepo();
-    await assert.rejects(
-      repo.transaction(async () => {
-        await repo.saveDefinition(def);
-        await repo.transaction(async () => {
-          throw new Error("inner boom");
-        });
-      }),
-      /inner boom/
-    );
-    if (adapterName === "SqliteSettingsRepo") {
-      assert.equal(
-        await repo.findDefinitionBySettingId({ settingId: "setting-1" }),
-        null,
-        "the outer frame's write must not survive an inner failure"
+    const first = repo
+      .transaction(async () => {
+        await gate;
+        throw new Error("first rolls back");
+      })
+      .catch(() => "rolled-back");
+
+    const second = await repo
+      .transaction(async () => {
+        await repo.saveDefinition({ ...def, settingId: "setting-independent", version: 1 });
+        return "committed";
+      })
+      .then(
+        (value) => value,
+        () => "refused"
       );
-    }
-  });
 
-  test(`[${adapterName}] the connection is usable again after a rolled-back transaction`, async () => {
-    // A depth counter left non-zero by a failed transaction would make every
-    // later transaction think it was nested, so nothing would ever commit again.
-    const repo = makeRepo();
-    await assert.rejects(
-      repo.transaction(async () => {
-        throw new Error("boom");
-      }),
-      /boom/
-    );
-    await repo.transaction(async () => {
-      await repo.saveDefinition(def);
-    });
-    assert.notEqual(await repo.findDefinitionBySettingId({ settingId: "setting-1" }), null);
+    releaseFirst?.();
+    assert.equal(await first, "rolled-back");
+
+    if (second === "committed") {
+      // If it reported success it must actually have survived the other's rollback.
+      assert.notEqual(
+        await repo.findDefinitionBySettingId({ settingId: "setting-independent" }),
+        null,
+        "a transaction that reported success must not be undone by an unrelated rollback"
+      );
+    } else {
+      // Refusing outright is fine — a loud failure is a correct answer here.
+      assert.equal(second, "refused");
+    }
   });
 
   test(`[${adapterName}] transaction runs the callback and returns its result`, async () => {
