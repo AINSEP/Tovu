@@ -17,6 +17,7 @@ import {
   type UserRecord,
 } from "./types";
 import { normalizeUsername } from "./username";
+import { validatePasswordPolicy } from "./password-policy";
 
 /**
  * @file Human grant-writing transitions (state.spec.md §3): `CREATE_USER`,
@@ -218,6 +219,12 @@ export async function createUser(required: {
   const username = normalizeUsername(input.username ?? "");
   if (!username || !input.password) {
     throw new IdentityValidationError("username and password are required");
+  }
+  // NIST SP 800-63B length-only policy (MSG-04) — never reaches seed.ts's owner password, see
+  // password-policy.ts's own header for why that separation is deliberate.
+  const passwordError = validatePasswordPolicy(input.password);
+  if (passwordError) {
+    throw new IdentityValidationError(passwordError);
   }
 
   const existingUser = await deps.repos.users.findByUsername({ workspaceId: input.workspaceId, username });

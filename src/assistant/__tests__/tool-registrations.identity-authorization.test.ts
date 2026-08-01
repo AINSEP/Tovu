@@ -175,7 +175,7 @@ const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   identity_user_list: {},
   identity_role_list: {},
   identity_policy_list: {},
-  identity_user_create: { username: "newcomer", password: "pw" },
+  identity_user_create: { username: "newcomer", password: "pw-valid-1234" },
   identity_user_update_email: { principalId: "target-principal", email: "a@b.test" },
   identity_user_disable: { principalId: "target-principal" },
   identity_user_enable: { principalId: "target-principal" },

@@ -93,7 +93,7 @@ test("CREATE_USER: owner (holds user.manage via *) creates a brand-new user prin
 
   const { principal, user } = await createUser({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "Ed", password: "pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "Ed", password: "pw-valid-1234" },
   });
 
   assert.equal(principal.kind, "user");
@@ -110,7 +110,7 @@ test("MF-1: CREATE_USER always mints a NEW principal — never attaches a creden
 
   const { principal } = await createUser({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "ed", password: "pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "ed", password: "pw-valid-1234" },
   });
 
   // The new principal is a fresh row distinct from the caller/owner — CREATE_USER's input type
@@ -159,7 +159,7 @@ test("AC-22: a caller holding only member.manage (not user.manage) can still CRE
       workspaceId: WORKSPACE,
       callerPrincipalId: "caller-member-manage",
       username: "onboarded",
-      password: "pw",
+      password: "pw-valid-1234",
     },
   });
   assert.equal(principal.kind, "user");
@@ -173,7 +173,7 @@ test("CREATE_USER: a caller holding neither user.manage nor member.manage is rej
     () =>
       createUser({
         deps,
-        input: { workspaceId: WORKSPACE, callerPrincipalId: "no-grants", username: "ed", password: "pw" },
+        input: { workspaceId: WORKSPACE, callerPrincipalId: "no-grants", username: "ed", password: "pw-valid-1234" },
       }),
     IdentityForbiddenError
   );
@@ -185,7 +185,7 @@ test("AC-19: duplicate username within a workspace is rejected RESOURCE_CONFLICT
   const { deps, repos, ownerPrincipalId } = await buildSeededDeps();
   await createUser({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "ed", password: "pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "ed", password: "pw-valid-1234" },
   });
 
   await assert.rejects(
@@ -193,7 +193,7 @@ test("AC-19: duplicate username within a workspace is rejected RESOURCE_CONFLICT
       createUser({
         deps,
         // Case/NFC-insensitive duplicate (behavior.spec §5.1).
-        input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "ED", password: "pw2" },
+        input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "ED", password: "pw2-valid-1234" },
       }),
     IdentityConflictError
   );
@@ -209,7 +209,7 @@ test("CREATE_USER: a blank username is rejected VALIDATION_ERROR, no row written
     () =>
       createUser({
         deps,
-        input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "   ", password: "pw" },
+        input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "   ", password: "pw-valid-1234" },
       }),
     IdentityValidationError
   );

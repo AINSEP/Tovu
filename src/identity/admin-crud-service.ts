@@ -1,6 +1,7 @@
 import type { UUID } from "../core/ports";
 import { resolveEffectivePermissions } from "./authorize";
 import { assertCallerHasAnyPermission, assertGrantClamp, authorizeDepsFrom } from "./grant-service";
+import { validatePasswordPolicy } from "./password-policy";
 import { isKnownPermission } from "./permissions";
 import type { AuthServiceDeps } from "./auth-service";
 import {
@@ -205,6 +206,14 @@ export async function resetUserPassword(required: {
 
   if (!input.password) {
     throw new IdentityValidationError("password is required");
+  }
+  // Same NIST SP 800-63B length-only policy `createUser` applies. Both write paths must enforce
+  // it or neither does: a reset that accepted a 1-character password would be a strictly easier
+  // way to reach the state the create-side check exists to prevent. Never reaches `seed.ts`'s
+  // owner password or the login path — see `password-policy.ts`'s header for why.
+  const passwordError = validatePasswordPolicy(input.password);
+  if (passwordError) {
+    throw new IdentityValidationError(passwordError);
   }
 
   const passwordHash = await deps.hasher.hash(input.password);

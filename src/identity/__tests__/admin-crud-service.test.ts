@@ -165,7 +165,7 @@ test("DISABLE_PRINCIPAL: a non-owner-* principal can be disabled freely by a use
 
   const { principal: editor } = await createUser({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "editor1", password: "pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "editor1", password: "pw-valid-1234" },
   });
 
   const { principal } = await disablePrincipal({
@@ -185,11 +185,11 @@ test("DISABLE_PRINCIPAL: a caller without user.manage is denied (AC-21/RT-005)",
   const { deps, ownerPrincipalId } = await buildSeededDeps();
   const { principal: target } = await createUser({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target1", password: "pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target1", password: "pw-valid-1234" },
   });
   const { principal: caller } = await createUser({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "caller1", password: "pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "caller1", password: "pw-valid-1234" },
   });
 
   await assert.rejects(
@@ -215,7 +215,7 @@ test("AC-27: ENABLE_PRINCIPAL re-activates a disabled user and clears disabledAt
   const { deps, ownerPrincipalId } = await buildSeededDeps();
   const { principal: target } = await createUser({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target2", password: "pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target2", password: "pw-valid-1234" },
   });
   await disablePrincipal({
     deps,
@@ -248,7 +248,7 @@ test("AC-27: ENABLE_PRINCIPAL is denied for a caller without user.manage", async
   const { deps, ownerPrincipalId, repos } = await buildSeededDeps();
   const { principal: target } = await createUser({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target3", password: "pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target3", password: "pw-valid-1234" },
   });
   await disablePrincipal({
     deps,
@@ -292,7 +292,7 @@ test("AC-28: UPDATE_USER succeeds under member.manage alone (admin onboarding ga
 
   const { principal: target } = await createUser({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target4", password: "pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target4", password: "pw-valid-1234" },
   });
 
   const { user } = await updateUser({
@@ -306,7 +306,7 @@ test("UPDATE_USER: clears email when given an empty string (EC-17)", async () =>
   const { deps, ownerPrincipalId } = await buildSeededDeps();
   const { principal: target } = await createUser({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target5", password: "pw", email: "old@example.com" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target5", password: "pw-valid-1234", email: "old@example.com" },
   });
 
   const { user } = await updateUser({
@@ -336,7 +336,7 @@ test("AC-29: RESET_USER_PASSWORD changes the hash and revokes every active sessi
   const { deps, repos, ownerPrincipalId } = await buildSeededDeps();
   const { principal: target } = await createUser({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target6", password: "old-pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target6", password: "old-pw-123456" },
   });
   const before = await repos.users.findByPrincipalId({ workspaceId: WORKSPACE, principalId: target.id });
 
@@ -359,7 +359,7 @@ test("AC-29: RESET_USER_PASSWORD changes the hash and revokes every active sessi
 
   const { user } = await resetUserPassword({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, principalId: target.id, password: "new-pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, principalId: target.id, password: "new-pw-123456" },
   });
   assert.notEqual(user.passwordHash, before?.passwordHash);
 
@@ -389,14 +389,14 @@ test("AC-29: RESET_USER_PASSWORD is denied for a caller holding only member.mana
   });
   const { principal: target } = await createUser({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target7", password: "pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target7", password: "pw-valid-1234" },
   });
 
   await assert.rejects(
     () =>
       resetUserPassword({
         deps,
-        input: { workspaceId: WORKSPACE, callerPrincipalId: "member-only-caller", principalId: target.id, password: "new-pw" },
+        input: { workspaceId: WORKSPACE, callerPrincipalId: "member-only-caller", principalId: target.id, password: "new-pw-123456" },
       }),
     IdentityForbiddenError
   );
@@ -406,12 +406,12 @@ test("EC-16: RESET_USER_PASSWORD on a user with zero sessions is a no-op revoke,
   const { deps, ownerPrincipalId } = await buildSeededDeps();
   const { principal: target } = await createUser({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target8", password: "old-pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target8", password: "old-pw-123456" },
   });
 
   const { user } = await resetUserPassword({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, principalId: target.id, password: "new-pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, principalId: target.id, password: "new-pw-123456" },
   });
   assert.ok(user.passwordHash);
 });
@@ -420,7 +420,7 @@ test("RESET_USER_PASSWORD: rejects a blank password", async () => {
   const { deps, ownerPrincipalId } = await buildSeededDeps();
   const { principal: target } = await createUser({
     deps,
-    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target9", password: "old-pw" },
+    input: { workspaceId: WORKSPACE, callerPrincipalId: ownerPrincipalId, username: "target9", password: "old-pw-123456" },
   });
 
   await assert.rejects(

@@ -265,7 +265,7 @@ test("identity_user_create requires username and password but not email — emai
   const schema = schemaOf("identity_user_create");
   assert.deepEqual(requiredOf(schema).sort(), ["password", "username"]);
   assert.ok("email" in propertiesOf(schema));
-  assert.equal(parseIdentityToolInput({ schema, input: { username: "ed", password: "pw" } }).ok, true);
+  assert.equal(parseIdentityToolInput({ schema, input: { username: "ed", password: "pw-valid-1234" } }).ok, true);
 });
 
 test("identity_user_update_email accepts a blank email — that is how the tool clears the stored value", () => {
