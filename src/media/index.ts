@@ -115,3 +115,10 @@ export type { ImageTransformerPort, TransformImageInput, TransformImageOutput } 
 export { InMemoryImageTransformer } from "./image-transformer";
 
 export { SharpImageTransformer, ImageTransformUnavailableError } from "./image-transformer.sharp";
+
+// -----------------------------------------------------------------------------
+// Original-bytes admin preview route support — new in this task. See
+// `content-type-sniffer.ts`'s file header for the disclosed scope: an allowlist
+// magic-byte sniffer, not a general-purpose one.
+// -----------------------------------------------------------------------------
+export { sniffContentType, type SniffedContentType } from "./content-type-sniffer";
