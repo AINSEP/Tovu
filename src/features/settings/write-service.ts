@@ -518,26 +518,41 @@ export async function resetNamespace(
     );
   }
 
-  let clearedCount = 0;
-  const revisionSeqs: number[] = [];
-  for (const key of keysInNamespace) {
-    const result = await clear({
-      deps,
-      input: {
-        namespace: input.namespace,
-        key,
-        scope: input.scope,
-        workspaceId: input.workspaceId,
-        principalId: input.principalId,
-        callerPrincipalId: input.callerPrincipalId,
-        skipAuthorize: true,
-      },
-    });
-    revisionSeqs.push(result.revisionSeq);
-    clearedCount++;
-  }
+  // One transaction around the whole loop, so a reset is all-or-nothing.
+  //
+  // Each `clear()` opens its own transaction and commits on its own, so a
+  // failure partway through used to leave the namespace HALF reset — some keys
+  // durably cleared, the rest untouched — while the caller received an error and
+  // could reasonably assume nothing had happened. "Reset this namespace" is not
+  // a meaningful operation if it can apply to an arbitrary prefix of the keys.
+  //
+  // This works because `transaction` is reentrant: the inner `clear()` calls
+  // join this frame instead of opening their own, and only the outermost frame
+  // commits. See `repo.sqlite.ts`'s `txDepth` — reentrancy was added FOR this,
+  // since `BEGIN IMMEDIATE` inside a transaction is a SQLite error and composing
+  // atomic single-key writes was otherwise impossible.
+  return deps.repo.transaction(async () => {
+    let clearedCount = 0;
+    const revisionSeqs: number[] = [];
+    for (const key of keysInNamespace) {
+      const result = await clear({
+        deps,
+        input: {
+          namespace: input.namespace,
+          key,
+          scope: input.scope,
+          workspaceId: input.workspaceId,
+          principalId: input.principalId,
+          callerPrincipalId: input.callerPrincipalId,
+          skipAuthorize: true,
+        },
+      });
+      revisionSeqs.push(result.revisionSeq);
+      clearedCount++;
+    }
 
-  return { clearedCount, revisionSeqs };
+    return { clearedCount, revisionSeqs };
+  });
 }
 
 /**

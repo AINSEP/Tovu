@@ -227,6 +227,61 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
     );
   });
 
+  test(`[${adapterName}] transaction is reentrant — a nested call joins the outer frame`, async () => {
+    // Composite writes are built from single-key writes that each open their own
+    // transaction. Before this, nesting threw (`BEGIN IMMEDIATE` inside a
+    // transaction is a SQLite error), so a composite could only be atomic per key.
+    const repo = makeRepo();
+    const result = await repo.transaction(async () => {
+      await repo.saveDefinition(def);
+      return repo.transaction(async () => {
+        await repo.saveDefinition({ ...def, settingId: "setting-nested", version: 1 });
+        return "inner";
+      });
+    });
+    assert.equal(result, "inner");
+    assert.notEqual(await repo.findDefinitionBySettingId({ settingId: "setting-1" }), null);
+    assert.notEqual(await repo.findDefinitionBySettingId({ settingId: "setting-nested" }), null);
+  });
+
+  test(`[${adapterName}] a throw inside a NESTED transaction rolls the outer one back too`, async () => {
+    // The point of joining rather than nesting: an inner failure must not leave
+    // the outer frame's earlier writes committed.
+    const repo = makeRepo();
+    await assert.rejects(
+      repo.transaction(async () => {
+        await repo.saveDefinition(def);
+        await repo.transaction(async () => {
+          throw new Error("inner boom");
+        });
+      }),
+      /inner boom/
+    );
+    if (adapterName === "SqliteSettingsRepo") {
+      assert.equal(
+        await repo.findDefinitionBySettingId({ settingId: "setting-1" }),
+        null,
+        "the outer frame's write must not survive an inner failure"
+      );
+    }
+  });
+
+  test(`[${adapterName}] the connection is usable again after a rolled-back transaction`, async () => {
+    // A depth counter left non-zero by a failed transaction would make every
+    // later transaction think it was nested, so nothing would ever commit again.
+    const repo = makeRepo();
+    await assert.rejects(
+      repo.transaction(async () => {
+        throw new Error("boom");
+      }),
+      /boom/
+    );
+    await repo.transaction(async () => {
+      await repo.saveDefinition(def);
+    });
+    assert.notEqual(await repo.findDefinitionBySettingId({ settingId: "setting-1" }), null);
+  });
+
   test(`[${adapterName}] transaction runs the callback and returns its result`, async () => {
     const repo = makeRepo();
     const result = await repo.transaction(async () => {
