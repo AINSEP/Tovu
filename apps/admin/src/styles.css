@@ -151,12 +151,20 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
    element stays a button and only the appearance is borrowed — matching the `a` rules directly
    above, including the hover underline, so the two are indistinguishable on screen. Strips the
    UA button chrome that would otherwise draw a bordered box around the text; the global focus
-   ring below still applies, since this is still a button. */
+   ring below still applies, since this is still a button.
+
+   Used by Users' username and Members' email toggle — both sections, not editors, which is why
+   this lives here and not in a screen-scoped partial. Two identical definitions of this class were
+   written in parallel by different authors; this is the merged one, and it keeps the more complete
+   property list of the two. */
 .link-button {
-  background: none; border: none; padding: 0; font: inherit; text-align: left;
-  color: var(--link); cursor: pointer;
+  background: none; border: none; padding: 0; margin: 0; text-align: left;
+  font-family: inherit; font-size: inherit; font-weight: inherit; letter-spacing: normal;
+  color: var(--link); cursor: pointer; text-decoration: none;
 }
-.link-button:hover { text-decoration: underline; text-underline-offset: 2px; }
+/* `opacity: 1` overrides the bare `button:hover` dim — this control signals hover by underlining,
+   the way `a:hover` does, not by fading. */
+.link-button:hover { opacity: 1; text-decoration: underline; text-underline-offset: 2px; }
 
 /* Skip link — off-screen (not `display: none`/`visibility: hidden`, both of which would also
    remove it from the tab order and defeat the point) until it receives keyboard focus, at which
