@@ -21,7 +21,7 @@ import type { PresentationSettingsRepoPort } from "../../features/presentation";
 import type { SettingsRepoPort } from "../../features/settings/ports";
 import type { DiscoveredTheme } from "../../features/theme";
 import type { WorkspaceRepoPort } from "../../features/workspace";
-import type { AnalyticsSinkPort } from "../../analytics/ports";
+import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../analytics/ports";
 import type {
   MagicLinkTokenRepoPort,
   MemberRepoPort,
@@ -167,6 +167,20 @@ export interface RouteDeps {
   /** Analytics ingest buffer (ADR-035 ingest-only stage; no rollup yet). ADR-046 Phase 1: durable
    * in real composition (`SqliteBufferSink`), in-memory in hermetic composition (`LocalBufferSink`). */
   analyticsSink: AnalyticsSinkPort;
+  /**
+   * The public analytics beacon's config seam (`analytics/config.settings.ts`'s
+   * `createSettingsAnalyticsConfig`), backed by the `core.analytics.*` ledger definitions in both
+   * composition roots. Replaces the former hardcoded stub `server/app.ts`'s `registerAnalyticsIngestRoute`
+   * call used to build inline.
+   */
+  analyticsConfig: AnalyticsConfigPort;
+  /**
+   * Resolves once the one-time `ensureAnalyticsSettingDefinitions()` boot call registers the 6
+   * `core.analytics.*` setting definitions backing `analyticsConfig`. Same shape/convention as
+   * `settingsUiTabsReady`, chained after it in both composition roots for the identical
+   * single-SQLite-connection-transaction reason every registration above documents.
+   */
+  analyticsSettingsReady: Promise<void>;
   /** `members` library ports (ADR-030) — Members admin screen. */
   memberRepo: MemberRepoPort;
   memberTierRepo: MemberTierRepoPort;

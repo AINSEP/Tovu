@@ -87,6 +87,7 @@ import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comme
 import { ensurePublicAssistantSettingDefinitions } from "../assistant/public-assistant-settings";
 import { ensureExecutionSettingDefinitions } from "../assistant/execution-mode-settings";
 import { ensureSettingsUiTabDefinitions } from "../features/settings/ui-tab-definitions";
+import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../analytics/config.settings";
 import { InMemoryCommentRepo } from "../comments/repo.memory";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";
 import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo } from "../features/taxonomy/repo.memory";
@@ -237,6 +238,16 @@ export function createRouteDeps(): NewsletterRouteDeps {
     ).then(() => undefined)
   );
 
+  // The public analytics beacon's `core.analytics.*` definitions (`analytics/config.settings.ts`).
+  // Chained after `settingsUiTabsReady` rather than fired alongside it, for the identical
+  // single-SQLite-connection-transaction reason every registration above documents.
+  const analyticsSettingsReady = settingsUiTabsReady.then(() =>
+    ensureAnalyticsSettingDefinitions(
+      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
+    ).then(() => undefined)
+  );
+
   // SPEC-011 (Newsletter) — declared here (not inline in the return object) so `newsletterReady`
   // below can seed the default list against the SAME repo instance the returned deps expose.
   const newsletterListRepoInMemory = new InMemoryNewsletterListRepo();
@@ -358,6 +369,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     assistantSettingsReady,
     executionSettingsReady,
     settingsUiTabsReady,
+    analyticsSettingsReady,
     // BR-04 (2026-07-16): the repo forwards insert()'s optional event to this SAME outbox
     // instance, matching what the old separate executeCommand()-level enqueue() call did.
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
@@ -368,6 +380,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     clock,
     idGen,
     analyticsSink: new LocalBufferSink(),
+    analyticsConfig: createSettingsAnalyticsConfig({ settingsRepo }),
     ...identity,
     redirectRepo,
     redirectHitSink,
@@ -773,24 +786,14 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerCommentsSubmitRoute(app, { ingressPolicy: routeDeps.commentIngressPolicy, workspaceId: routeDeps.workspaceId });
 
   // Public analytics beacon (ADR-035 §5) — unauthenticated by design; must precede the site
-  // `/:slug` catch-all. DEV-ONLY config stub: always-enabled, no exclusions, honors DNT/GPC.
-  // Real config should be backed by ADR-028 settings once that wiring exists.
+  // `/:slug` catch-all. `config` is now the real ADR-028-backed adapter
+  // (`analytics/config.settings.ts`'s `createSettingsAnalyticsConfig`), replacing the former
+  // hardcoded dev-only stub.
   registerAnalyticsIngestRoute(app, {
     clock: routeDeps.clock,
     ids: routeDeps.idGen,
     sink: routeDeps.analyticsSink,
-    config: {
-      get: async ({ workspaceId }) => ({
-        workspaceId,
-        enabled: true,
-        honorDoNotTrack: true,
-        honorGlobalPrivacyControl: true,
-        rawRetentionDays: 30,
-        excludedPaths: [],
-        excludedIpRanges: [],
-        sink: "local",
-      }),
-    },
+    config: routeDeps.analyticsConfig,
     resolveWorkspaceForHost: async () => routeDeps.workspaceId, // single-workspace v1
     rootKeySeed: process.env.ANALYTICS_ROOT_KEY_SEED ?? "dev-only-insecure-seed",
   });
