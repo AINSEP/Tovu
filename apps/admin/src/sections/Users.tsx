@@ -16,8 +16,14 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
  * Permissions screen to reuse.
  *
  * 0.6.0: the same expandable row also carries `UPDATE_USER` (email),
- * `RESET_USER_PASSWORD`, and a quick `DISABLE_PRINCIPAL`/`ENABLE_PRINCIPAL` toggle in the
- * Actions column (a common enough single action to not require opening the panel).
+ * `RESET_USER_PASSWORD`, and a quick `DISABLE_PRINCIPAL`/`ENABLE_PRINCIPAL` toggle.
+ *
+ * Row actions (audit follow-up): all three of the above — Disable/Enable, Manage (opens the
+ * expandable row), Reset password — now live behind a single three-dot `RowMenu`, matching
+ * `Posts.tsx`/`Pages.tsx`'s row-action shape rather than a row of separate buttons. There is
+ * intentionally no Delete item: no server-side route deletes a user principal
+ * (`src/server/routes/admin/users/` has create/disable/enable/update/reset-password plus
+ * role/policy grants, nothing else) — adding one is a product decision outside this pass.
  */
 
 /** Server error `code` -> a plain-language prefix (SPEC-006 errors.spec.md §2), layered on the
@@ -214,10 +220,21 @@ export function Users() {
     setConfirmingDisable(null);
   }
 
-  /** `RowMenu` items for one user row. Disable/Enable share a single "toggle" item (label follows
-   *  status, same shape as `Redirects.tsx`'s own toggle item) — Disable confirms via the modal
-   *  above; Enable fires immediately, matching this screen's existing behavior (Enable was never
-   *  confirm-gated). Reset password moved here from the expanded "Manage" panel below. */
+  /** `RowMenu` items for one user row — matches `Posts.tsx`/`Pages.tsx`'s three-dot menu shape,
+   *  per the corrected spec: Disable/Enable, Manage, Reset password (no Delete — there is no
+   *  server-side delete route for a user principal; `src/server/routes/admin/users/` has
+   *  `create`/`disable`/`enable`/`update`/`reset-password` plus role/policy grants, nothing else).
+   *
+   *  Disable/Enable share a single "toggle" item (label follows status, same shape as
+   *  `Redirects.tsx`'s own toggle item) — Disable confirms via the modal below; Enable fires
+   *  immediately, matching this screen's existing behavior (Enable was never confirm-gated).
+   *
+   *  "Manage" always reads "Manage", never "Close": the item still toggles the expanded panel
+   *  (`toggleExpanded` — closing it again by selecting "Manage" a second time still works exactly
+   *  as it did as a standalone button), but a `RowMenu` item disappears the instant it is
+   *  selected, so a label that flips to "Close" is never actually visible mid-interaction — it
+   *  would only ever describe a state the operator cannot see while the menu that shows it is
+   *  open. A static label sidesteps that without losing any capability. */
   function rowMenuItems(user: AdminIdentityUser): RowMenuItem[] {
     return [
       {
@@ -233,6 +250,11 @@ export function Users() {
             void onToggleStatus(user);
           }
         },
+      },
+      {
+        key: "manage",
+        label: "Manage",
+        onSelect: () => toggleExpanded(user),
       },
       {
         key: "reset-password",
@@ -314,7 +336,7 @@ export function Users() {
             <th>Status</th>
             <th>Roles</th>
             <th>Policies</th>
-            <th aria-label="Actions" />
+            <th>More</th>
           </tr>
         </thead>
         <tbody>
@@ -337,15 +359,11 @@ export function Users() {
                     : <span className="muted-cell">none</span>}
                 </td>
                 <td>
-                  {/* "Manage" stays a visible button — it toggles the panel below, it doesn't
-                      perform an action, so it isn't a `RowMenu` candidate. Disable/Enable and
-                      Reset password (previously inside that panel) moved into the menu. */}
-                  <span className="editor-actions">
-                    <RowMenu triggerLabel={`Actions for user "${user.username}"`} items={rowMenuItems(user)} />
-                    <button onClick={() => toggleExpanded(user)}>
-                      {expandedId === user.principalId ? "Close" : "Manage"}
-                    </button>
-                  </span>
+                  {/* Matches Posts.tsx/Pages.tsx's three-dot RowMenu shape — Disable/Enable,
+                      Manage, and Reset password all live in the menu; there is no standalone
+                      button left in this column. See `rowMenuItems`'s own doc comment for why
+                      "Manage" keeps a static label instead of alternating with "Close". */}
+                  <RowMenu triggerLabel={`Actions for user "${user.username}"`} items={rowMenuItems(user)} />
                 </td>
               </tr>
               {expandedId === user.principalId ? (

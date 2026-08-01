@@ -6,12 +6,16 @@ import { Users } from "../Users";
 
 /**
  * @file `Users` — pins the `RowMenu` rollout (task: roll `RowMenu` out to `Users.tsx`/
- * `Members.tsx`). This screen is a hybrid: "Manage" stays a visible button (it toggles a panel,
- * not an action), while Disable/Enable and Reset password move into the menu. Disable keeps its
- * existing confirm-gate, now via the shared `ConfirmDialog` (a `RowMenu` item has no in-place
- * two-click affordance the old `ConfirmButton` used) instead of losing the protection outright.
- * Reset password moves out of the expanded "Manage" panel entirely, into its own dialog with an
- * embedded password field.
+ * `Members.tsx`). Corrected spec (superseding an earlier "Manage stays a visible button" hybrid
+ * design): the three-dot `RowMenu` holds Disable/Enable, Manage, and Reset password, matching
+ * `Posts.tsx`/`Pages.tsx`'s row-action shape — no separate button survives in that column. There
+ * is no Delete item: no server-side route deletes a user principal.
+ *
+ * Disable keeps its existing confirm-gate, now via the shared `ConfirmDialog` (a `RowMenu` item
+ * has no in-place two-click affordance the old `ConfirmButton` used) instead of losing the
+ * protection outright. Reset password moves out of the expanded "Manage" panel entirely, into its
+ * own dialog with an embedded password field. "Manage" keeps a static label rather than
+ * alternating with "Close" — see `Users.tsx`'s `rowMenuItems` doc comment for why.
  *
  * `ConfirmDialog` stays mounted unconditionally and toggles its own `open` attribute (its own doc
  * comment) — its `<h2>` title text is therefore always in the DOM regardless of open/closed state,
@@ -60,8 +64,8 @@ async function openMenu(user: ReturnType<typeof userEvent.setup>, username: stri
   return screen.getByRole("menu");
 }
 
-describe("Manage stays a visible button, not a menu item", () => {
-  it("renders Manage outside the RowMenu, toggling the expanded panel", async () => {
+describe("Manage — moved into the RowMenu, per the corrected spec (no standalone button)", () => {
+  it("has no standalone Manage button; the menu item opens the expanded panel", async () => {
     const user = userEvent.setup();
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
@@ -70,11 +74,12 @@ describe("Manage stays a visible button, not a menu item", () => {
     render(<Users />);
 
     await screen.findByText("alice");
-    expect(screen.getByRole("button", { name: "Manage" })).toBeInTheDocument();
-    const menu = await openMenu(user, "alice");
-    expect(within(menu).queryByRole("menuitem", { name: "Manage" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Manage" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Manage" }));
+    const menu = await openMenu(user, "alice");
+    expect(within(menu).getByRole("menuitem", { name: "Manage" })).toBeInTheDocument();
+    await user.click(within(menu).getByRole("menuitem", { name: "Manage" }));
+
     // Scoped to the panel itself — the reset-password `ConfirmDialog` stays mounted elsewhere in
     // the DOM regardless of open state (its own doc comment), so its "Reset password" confirm
     // button would otherwise be found unscoped even though it isn't part of this panel.
@@ -82,6 +87,29 @@ describe("Manage stays a visible button, not a menu item", () => {
     expect(panel).toBeInTheDocument();
     // Reset password no longer lives in this panel — it moved into the RowMenu.
     expect(within(panel).queryByText(/reset password/i)).not.toBeInTheDocument();
+  });
+
+  it("selecting Manage a second time closes the panel again (still a toggle, just a static label)", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
+      .mockResolvedValueOnce(jsonResponse({ roles: [] }))
+      .mockResolvedValueOnce(jsonResponse({ policies: [] }));
+    render(<Users />);
+
+    await screen.findByText("alice");
+    await user.click(within(await openMenu(user, "alice")).getByRole("menuitem", { name: "Manage" }));
+    expect(screen.getByText("Assign role")).toBeInTheDocument();
+
+    // The menu item's label never becomes "Close" (it would only ever describe a state the
+    // operator can't see, since the menu itself is gone the instant it's selected) — reopening
+    // the menu still shows "Manage", and selecting it again still closes the panel.
+    const menuAgain = await openMenu(user, "alice");
+    expect(within(menuAgain).getByRole("menuitem", { name: "Manage" })).toBeInTheDocument();
+    expect(within(menuAgain).queryByRole("menuitem", { name: "Close" })).not.toBeInTheDocument();
+    await user.click(within(menuAgain).getByRole("menuitem", { name: "Manage" }));
+
+    expect(screen.queryByText("Assign role")).not.toBeInTheDocument();
   });
 });
 
