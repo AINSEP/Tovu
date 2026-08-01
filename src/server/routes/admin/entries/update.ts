@@ -58,6 +58,17 @@ export function registerAdminEntryUpdateRoute(app: Express, deps: ContentTypesRo
           id: String(req.params.id),
           title: typeof body.title === "string" ? body.title : undefined,
           fieldsJson: body.fieldsJson,
+          // Forwarded rather than dropped. `features/entries/write-service.ts`'s
+          // `updateEntry` has always supported `bodyJson` (and leaves the stored
+          // value alone when it is `undefined`), but this route never read it —
+          // so a rich-text edit to an existing entry returned 200 while the body
+          // silently kept its pre-edit value. Two independent audits reproduced
+          // that end to end, including with `bodyJson` explicitly in the request.
+          //
+          // `undefined` when absent is load-bearing: it is what makes a
+          // title-only or fields-only PUT keep the existing body instead of
+          // clearing it.
+          bodyJson: "bodyJson" in body ? body.bodyJson : undefined,
           expectedVersion: body.expectedVersion,
         },
       });
