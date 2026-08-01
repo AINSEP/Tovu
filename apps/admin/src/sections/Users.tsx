@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "../lib/api";
-import { ConfirmButton } from "../components/ConfirmButton";
+import { RowMenu, type RowMenuItem } from "../components/RowMenu";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 /**
  * @file Admin "Users" screen (SPEC-006 §3 human grant-writing transitions + 0.6.0 CRUD-completion
@@ -56,11 +57,23 @@ export function Users() {
 
   const [editEmail, setEditEmail] = useState("");
   const [emailSaving, setEmailSaving] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordSaved, setPasswordSaved] = useState(false);
   const [toggleSavingId, setToggleSavingId] = useState<string | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Disable now confirms via a `RowMenu` item -> `ConfirmDialog` modal (replacing the in-place
+  // two-click `ConfirmButton`, which has no menu-item equivalent — same migration Posts.tsx/
+  // Redirects.tsx already made). `null` when the dialog is closed.
+  const [confirmingDisable, setConfirmingDisable] = useState<AdminIdentityUser | null>(null);
+
+  // Reset password moved out of the expanded "Manage" panel into its own `RowMenu` item, which
+  // opens this dialog (it needs a text field, so it's a `ConfirmDialog` with an input in the body,
+  // not a plain confirm). Kept open on failure (unlike the delete-style dialogs above, which close
+  // either way) so a failed attempt doesn't discard the password the operator just typed.
+  const [resetPasswordFor, setResetPasswordFor] = useState<AdminIdentityUser | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   function reload(): Promise<void> {
     return Promise.all([api.listUsers(), api.listRoles(), api.listPolicies()])
@@ -99,8 +112,6 @@ export function Users() {
     setGrantError(null);
     setPendingRoleId("");
     setPendingPolicyId("");
-    setPasswordSaved(false);
-    setNewPassword("");
     setEditEmail(user.email ?? "");
     setExpandedId((current) => (current === user.principalId ? null : user.principalId));
   }
@@ -148,17 +159,30 @@ export function Users() {
     }
   }
 
-  async function onResetPassword(principalId: string) {
-    if (!newPassword) return;
+  /** Opens the reset-password dialog for `user` — the `RowMenu` item's `onSelect`. Guards against
+   *  opening a second one while a toggle or a previous reset is still in flight, same discipline
+   *  Redirects.tsx uses for its own `RowMenu` items (no per-item `disabled` on `RowMenu` itself). */
+  function openResetPassword(user: AdminIdentityUser) {
+    if (toggleSavingId || passwordSaving) return;
+    setPasswordError(null);
+    setNewPassword("");
+    setResetPasswordFor(user);
+  }
+
+  async function confirmResetPassword() {
+    if (!resetPasswordFor || !newPassword) return;
     setPasswordSaving(true);
-    setGrantError(null);
-    setPasswordSaved(false);
+    setPasswordError(null);
     try {
-      await api.resetUserPassword({ principalId, password: newPassword });
+      await api.resetUserPassword({ principalId: resetPasswordFor.principalId, password: newPassword });
+      setNotice(`Password reset for "${resetPasswordFor.username}" — every active session for this user was revoked.`);
+      setResetPasswordFor(null);
       setNewPassword("");
-      setPasswordSaved(true);
     } catch (e) {
-      setGrantError(describeApiError(e, "failed to reset password"));
+      // Dialog stays open on failure (unlike the Disable/Delete-style dialogs elsewhere in this
+      // app, which close either way) — closing would discard the password the operator just typed
+      // for no reason; there's nothing sensitive left on screen once they retry or cancel.
+      setPasswordError(describeApiError(e, "failed to reset password"));
     } finally {
       setPasswordSaving(false);
     }
@@ -179,6 +203,44 @@ export function Users() {
     } finally {
       setToggleSavingId(null);
     }
+  }
+
+  /** Confirms the Disable that `RowMenu`'s "Disable" item asked about. Closes the dialog either
+   *  way (matching Posts.tsx/Redirects.tsx's own Disable/Delete `ConfirmDialog` convention) — a
+   *  failure surfaces via `toggleError` above the table, not by leaving the modal open. */
+  async function confirmDisable() {
+    if (!confirmingDisable) return;
+    await onToggleStatus(confirmingDisable);
+    setConfirmingDisable(null);
+  }
+
+  /** `RowMenu` items for one user row. Disable/Enable share a single "toggle" item (label follows
+   *  status, same shape as `Redirects.tsx`'s own toggle item) — Disable confirms via the modal
+   *  above; Enable fires immediately, matching this screen's existing behavior (Enable was never
+   *  confirm-gated). Reset password moved here from the expanded "Manage" panel below. */
+  function rowMenuItems(user: AdminIdentityUser): RowMenuItem[] {
+    return [
+      {
+        key: "toggle",
+        label: user.status === "active" ? "Disable" : "Enable",
+        tone: user.status === "active" ? "warning" : "default",
+        onSelect: () => {
+          if (toggleSavingId) return;
+          if (user.status === "active") {
+            setToggleError(null);
+            setConfirmingDisable(user);
+          } else {
+            void onToggleStatus(user);
+          }
+        },
+      },
+      {
+        key: "reset-password",
+        label: "Reset password",
+        tone: "warning",
+        onSelect: () => openResetPassword(user),
+      },
+    ];
   }
 
   if (error) return <div className="notice error">{error}</div>;
@@ -233,6 +295,7 @@ export function Users() {
       ) : null}
 
       {toggleError ? <div className="notice error">{toggleError}</div> : null}
+      {notice ? <div className="notice">{notice}</div> : null}
 
       {users.length === 0 ? (
         <div className="card">
@@ -274,28 +337,11 @@ export function Users() {
                     : <span className="muted-cell">none</span>}
                 </td>
                 <td>
+                  {/* "Manage" stays a visible button — it toggles the panel below, it doesn't
+                      perform an action, so it isn't a `RowMenu` candidate. Disable/Enable and
+                      Reset password (previously inside that panel) moved into the menu. */}
                   <span className="editor-actions">
-                    {user.status === "active" ? (
-                      // Disable is reversible (Enable is one click away below once it fires) but
-                      // access-affecting — warning-toned, not `.btn-danger`, per the audit's
-                      // destructive-vs-warning distinction (cross-cutting §7).
-                      <ConfirmButton
-                        label="Disable"
-                        confirmLabel="Confirm disable"
-                        className="btn-warning"
-                        pending={toggleSavingId === user.principalId}
-                        onConfirm={() => onToggleStatus(user)}
-                        ariaLabel={`Disable user "${user.username}"`}
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={toggleSavingId === user.principalId}
-                        onClick={() => onToggleStatus(user)}
-                      >
-                        {toggleSavingId === user.principalId ? "…" : "Enable"}
-                      </button>
-                    )}
+                    <RowMenu triggerLabel={`Actions for user "${user.username}"`} items={rowMenuItems(user)} />
                     <button onClick={() => toggleExpanded(user)}>
                       {expandedId === user.principalId ? "Close" : "Manage"}
                     </button>
@@ -320,37 +366,6 @@ export function Users() {
                             {emailSaving ? "Saving…" : "Save email"}
                           </button>
                         </span>
-                      </label>
-                      <label>
-                        Reset password
-                        <span className="editor-actions">
-                          <input
-                            type="password"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="New password"
-                          />
-                          {/* Reset password revokes every active session (disclosed below on
-                              success) — reversible in the sense that the account still works with
-                              the new password, but consequential enough to gate, same as Disable
-                              above. Adjacent to this dispatch's item 6 but cheap and safe to close
-                              while already in this file (audit Users section, Minor). */}
-                          <ConfirmButton
-                            label="Reset password"
-                            confirmLabel="Confirm reset"
-                            className="btn-warning"
-                            disabled={!newPassword}
-                            pending={passwordSaving}
-                            pendingLabel="Saving…"
-                            onConfirm={() => onResetPassword(user.principalId)}
-                            ariaLabel={`Reset password for "${user.username}"`}
-                          />
-                        </span>
-                        {passwordSaved ? (
-                          <span className="save-success">
-                            Password reset — every active session for this user was revoked.
-                          </span>
-                        ) : null}
                       </label>
                       <label>
                         Assign role
@@ -404,6 +419,62 @@ export function Users() {
       </table>
       </div>
       )}
+      <ConfirmDialog
+        open={confirmingDisable !== null}
+        title="Disable this user?"
+        body={
+          confirmingDisable ? (
+            <p>
+              Disable &quot;{confirmingDisable.username}&quot;? They will not be able to sign in until
+              re-enabled.
+            </p>
+          ) : null
+        }
+        confirmLabel="Disable"
+        tone="warning"
+        pending={confirmingDisable !== null && toggleSavingId === confirmingDisable.principalId}
+        onConfirm={confirmDisable}
+        onCancel={() => setConfirmingDisable(null)}
+      />
+      <ConfirmDialog
+        open={resetPasswordFor !== null}
+        title="Reset password?"
+        body={
+          resetPasswordFor ? (
+            <>
+              <p>
+                Set a new password for &quot;{resetPasswordFor.username}&quot;. Every active session for
+                this user will be signed out.
+              </p>
+              <div className="field">
+                <label className="field-label" htmlFor="users-reset-password-input">
+                  New password
+                </label>
+                <input
+                  id="users-reset-password-input"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </div>
+              {passwordError ? (
+                <p className="save-error" role="alert">
+                  {passwordError}
+                </p>
+              ) : null}
+            </>
+          ) : null
+        }
+        confirmLabel="Reset password"
+        tone="warning"
+        pending={passwordSaving}
+        onConfirm={confirmResetPassword}
+        onCancel={() => {
+          setResetPasswordFor(null);
+          setNewPassword("");
+          setPasswordError(null);
+        }}
+      />
     </div>
   );
 }
