@@ -488,6 +488,31 @@ export class SqliteSettingsRepo implements SettingsRepoPort {
     return row?.seq ?? 0;
   }
 
+  /**
+   * How many `transaction` calls are currently on the stack.
+   *
+   * Safe as a plain field precisely because better-sqlite3 has no real async
+   * I/O: every statement resolves on the same microtask tick over one
+   * connection, so two transactions can never interleave here — the same
+   * property this adapter already relies on for manual BEGIN/COMMIT.
+   */
+  private txDepth = 0;
+
+  /**
+   * Runs `fn` inside one transaction, joining an enclosing one if present.
+   *
+   * Reentrancy is the point. A composite operation like `resetNamespace` is
+   * built out of single-key writes that each open their own transaction, so
+   * without this the composite could only be atomic per key: a failure partway
+   * through left the earlier keys durably committed while the caller got an
+   * error. Nesting instead used to be impossible — `BEGIN IMMEDIATE` inside a
+   * transaction is a SQLite error — which is why those services had to choose
+   * between composing and being atomic.
+   *
+   * The inner call deliberately neither begins nor commits: the OUTERMOST frame
+   * owns the boundary, so an inner failure rolls the whole thing back rather
+   * than committing a prefix of it.
+   */
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
     // `$client` (the raw better-sqlite3 handle) exists at runtime on every
     // `drizzle()`-constructed instance but isn't part of the exported
@@ -495,7 +520,18 @@ export class SqliteSettingsRepo implements SettingsRepoPort {
     // drizzle-orm typing gap (the property lives on the factory's return
     // type, not the class). Cast narrowly, scoped to this one call site.
     const client = (this.db as unknown as { $client: Database.Database }).$client;
+
+    if (this.txDepth > 0) {
+      this.txDepth += 1;
+      try {
+        return await fn();
+      } finally {
+        this.txDepth -= 1;
+      }
+    }
+
     client.exec("BEGIN IMMEDIATE");
+    this.txDepth = 1;
     try {
       const result = await fn();
       client.exec("COMMIT");
@@ -503,6 +539,8 @@ export class SqliteSettingsRepo implements SettingsRepoPort {
     } catch (error) {
       client.exec("ROLLBACK");
       throw error;
+    } finally {
+      this.txDepth = 0;
     }
   }
 }

@@ -58,6 +58,19 @@ const POLL_INTERVAL_MS = 1_000;
 /** Comment frames keep proxies and load balancers from reaping an idle connection. */
 const KEEPALIVE_INTERVAL_MS = 25_000;
 
+/**
+ * How often an open stream re-checks that its principal is still allowed to read
+ * settings.
+ *
+ * A long-lived SSE connection outlives the single `authorize()` call that opened
+ * it, so revoking a principal's `settings.read` did not stop the change
+ * notifications already flowing to their open tab — the grant was effectively
+ * pinned for as long as they kept the connection. Re-checking on a slow interval
+ * rather than per tick keeps the cost near zero (one authorize per 30s per
+ * stream, versus one per second) while bounding the revocation window.
+ */
+const REAUTHORIZE_INTERVAL_MS = 30_000;
+
 /** Ledger rows examined per tick. Bounds a client resuming after a long absence — the remainder is
  *  drained on the following ticks rather than loaded at once. */
 const REVISION_PAGE_SIZE = 200;
@@ -119,6 +132,9 @@ export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, de
     const head = await deps.settingsRepo.maxRevisionSeq();
     let cursor = Number.isFinite(resumeFrom) && resumeFrom >= 0 ? Math.min(resumeFrom, head) : head;
 
+    /** The last id written to the wire — workspace-scoped, unlike `cursor`. See where it is emitted. */
+    let lastEmittedId = cursor;
+
     /** Namespace per settingId, cached for the connection's life: a settingId's namespace changes
      *  only via `renameDefinition`, which appends its own revision and so re-notifies anyway. */
     const namespaceBySettingId = new Map<string, string | null>();
@@ -132,11 +148,41 @@ export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, de
     };
 
     let closed = false;
+    /** True while a `tick` is mid-flight — see the guard at the top of `tick`. */
+    let ticking = false;
     const close = (): void => {
       if (closed) return;
       closed = true;
       clearInterval(pollTimer);
       clearInterval(keepaliveTimer);
+      clearInterval(reauthorizeTimer);
+    };
+
+    /**
+     * Re-runs the same authorization that opened the stream, and ends it the
+     * moment that stops holding.
+     *
+     * Never tears the stream down on an ERROR — only on an explicit denial. A
+     * transient failure in the authorizer would otherwise disconnect every open
+     * tab at once, which is a worse outcome than a slightly delayed revocation;
+     * the next interval re-checks anyway.
+     */
+    const reauthorize = async (): Promise<void> => {
+      if (closed) return;
+      try {
+        const stillAllowed = await deps.authorize({
+          principalId: principal.id,
+          permission: "settings.read",
+          workspaceId: deps.workspaceId,
+          entityType: "setting-value",
+        });
+        if (closed || stillAllowed.allowed) return;
+      } catch (error) {
+        console.error("[settings] change feed re-authorization failed", error);
+        return;
+      }
+      close();
+      res.end();
     };
 
     /**
@@ -145,7 +191,13 @@ export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, de
      * on the next tick rather than skipped.
      */
     const tick = async (): Promise<void> => {
-      if (closed) return;
+      if (closed || ticking) return;
+      // `setInterval` does not await an async callback, and one tick does two
+      // repo round trips plus a definition lookup per visible revision. A tick
+      // slower than the poll interval would otherwise have the next one start
+      // mid-await: both read the same `cursor`, both query the same window, both
+      // can emit the same frame, and the `cursor` write becomes a lost update.
+      ticking = true;
       try {
         // Read the head BEFORE the page, so every row counted by it was already durable when the
         // query below ran. Reading it after would let a concurrent write inflate the head past rows
@@ -170,11 +222,24 @@ export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, de
         cursor = Math.max(cursor, examined, batch.cursor);
         if (closed || batch.namespaces.length === 0) return;
 
-        res.write(`id: ${cursor}\n`);
+        // Emit the WORKSPACE-scoped position, not the internal `cursor`.
+        //
+        // `cursor` is advanced to the global ledger head so this connection can
+        // skip past other tenants' rows, but the id is the one part of the frame
+        // a subscriber can read. Emitting the global head would let a tab watch
+        // its own event ids jump and count another workspace's write volume — a
+        // metadata channel that only exists because the ledger is shared. The
+        // workspace-scoped `batch.cursor` is a valid resume point: reconnecting
+        // from it re-examines rows already examined, which the workspace
+        // predicate makes cheap, and cannot skip anything.
+        lastEmittedId = Math.max(lastEmittedId, batch.cursor);
+        res.write(`id: ${lastEmittedId}\n`);
         res.write("event: settings-changed\n");
         res.write(`data: ${JSON.stringify({ namespaces: batch.namespaces })}\n\n`);
       } catch (error) {
         console.error("[settings] change feed poll failed", error);
+      } finally {
+        ticking = false;
       }
     };
 
@@ -182,6 +247,7 @@ export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, de
     const keepaliveTimer = setInterval(() => {
       if (!closed) res.write(": keepalive\n\n");
     }, KEEPALIVE_INTERVAL_MS);
+    const reauthorizeTimer = setInterval(() => void reauthorize(), REAUTHORIZE_INTERVAL_MS);
 
     // `close` fires on tab close, navigation, and `EventSource.close()` alike. Without this the
     // timers outlive the response and every reconnect leaks another pair.
