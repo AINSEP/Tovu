@@ -38,7 +38,35 @@
   aspect-ratio: 4 / 3;
   background: var(--surface-2);
   overflow: hidden;
+  /* Positioning context for `.media-card-expand` below — that button is `position: absolute`
+     and needs to anchor to this box's own corner, not the next positioned ancestor up the tree
+     (which would be `.media-card`, offsetting it against the whole card instead of the preview). */
+  position: relative;
 }
+
+/* Lightbox "view larger" trigger — a small corner icon rather than a whole-preview click target.
+   See `MediaPreview`'s own doc comment in `Media.tsx` for why: the video stage renders a live
+   `<video controls>`, which cannot legally nest inside a `<button>`, and a full-box click target
+   would swallow clicks meant for the video's own play/seek bar. Fixed dark scrim (not a token
+   color) because it has to read against an arbitrary uploaded photo/video frame underneath it in
+   both light and dark theme, not against the app's own surface tokens the way every other button
+   in this file does. */
+.media-card-expand {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: oklch(0% 0 0 / 0.55);
+  color: oklch(100% 0 0);
+  border: none;
+  border-radius: var(--r-sm);
+}
+.media-card-expand:hover { background: oklch(0% 0 0 / 0.72); opacity: 1; }
+.media-card-expand svg { width: 15px; height: 15px; }
 
 .media-card-media {
   width: 100%;
@@ -113,3 +141,164 @@
 .media-edit-panel {
   margin-bottom: var(--space-4);
 }
+
+/* ============================================================
+   LIGHTBOX — a single shared <dialog> instance for the whole grid, opened via `.media-card-
+   expand`'s corner trigger above. See `MediaLightbox`'s own doc comment in `Media.tsx` for the
+   shared-vs-per-card reasoning (mirrors `ConfirmDialog`'s own `pendingPurge`-driven single
+   instance already in this file).
+
+   Same native-<dialog> foundation as `ConfirmDialog` (`styles.css`'s `.confirm-dialog`) —
+   un-styled, the UA stylesheet centers it with a system border/background and a plain black
+   `::backdrop`; this replaces both the same way that rule does. Sized differently, though:
+   `.confirm-dialog` caps at a fixed 26rem panel because its content is always a couple of
+   sentences of text, but this dialog's content is an arbitrary photo or video, so it caps against
+   the viewport itself (`vw`/`vh`) instead of a fixed rem width.
+   ============================================================ */
+.media-lightbox {
+  border: none;
+  border-radius: var(--r-lg);
+  padding: 0;
+  max-width: min(94vw, 76rem);
+  max-height: 92vh;
+  width: auto;
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow-md);
+  /* `position`/`margin` deliberately untouched — same reasoning as `.confirm-dialog`'s own
+     comment: `showModal()`'s top-layer auto-centering is why native `<dialog>` was chosen at all,
+     so this stylesheet doesn't re-implement that positioning. */
+}
+/* `display` lives on its own `[open]`-scoped rule, not the bare `.media-lightbox` rule above —
+   same reasoning as `.confirm-dialog[open]` in `styles.css`: an author-stylesheet `display`
+   declaration outranks the UA stylesheet's `dialog:not([open]) { display: none }` regardless of
+   selector specificity (origin beats specificity in the cascade), so a bare `.media-lightbox {
+   display: flex }` would force the dialog visible even while closed. */
+.media-lightbox[open] {
+  display: flex;
+  flex-direction: column;
+  /* Overrides the flex column's default `min-height: auto`, which would otherwise stop
+     `.media-lightbox-stage`'s own `min-height: 0` below from ever taking effect, letting a large
+     asset's intrinsic size grow this box past `max-height` above — the exact viewport-overflow
+     this component exists to prevent. */
+  min-height: 0;
+}
+.media-lightbox::backdrop {
+  /* Darker than `.confirm-dialog::backdrop`'s 0.45 — a confirm prompt sits over ordinary page
+     content, but this backdrop has to suppress an arbitrary bright photo/video frame rather than
+     plain text and UI chrome, so it leans darker to keep the dimmed page from fighting the
+     enlarged asset for attention. */
+  background: oklch(0% 0 0 / 0.6);
+}
+
+.media-lightbox-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.media-lightbox-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--fg);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.media-lightbox-counter {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.media-lightbox-close {
+  background: transparent;
+  color: var(--fg-2);
+  border: 1px solid var(--border-strong);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  flex-shrink: 0;
+}
+.media-lightbox-close:hover { background: var(--surface-2); opacity: 1; }
+.media-lightbox-close svg { width: 16px; height: 16px; }
+
+/* The asset stage. `min-height: 0` (not the flex-item default `auto`) is load-bearing: without
+   it, a large image/video's intrinsic size would push this box past `.media-lightbox[open]`'s own
+   `min-height: 0` / the dialog's `max-height`, defeating the viewport cap this whole block exists
+   to enforce. `overflow: auto` is the fallback for the one shape that can still exceed the
+   available space despite the contain-fit sizing below: `.media-card-placeholder`'s fixed
+   20rem/15rem footprint (see that rule further down) on a very short viewport. */
+.media-lightbox-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-5);
+  background: var(--surface-2);
+}
+
+/* Re-skins the SAME markup `MediaPreview` renders for a grid card (`.media-card-media`/
+   `.media-card-placeholder` above) for a full-size, non-cropped presentation here, rather than a
+   lightbox-specific clone of the image/video/placeholder fallback chain — see `MediaLightbox`'s
+   own doc comment in `Media.tsx`. This is the only reason the fallback logic itself, and the
+   property that a defused octet-stream asset lands on the placeholder with zero special-casing,
+   stays defined in exactly one place. */
+.media-lightbox-media {
+  display: flex;
+  max-width: 100%;
+  max-height: 100%;
+}
+/* `contain`, not the grid card's `cover` — a thumbnail's job is to fill a fixed 4:3 box
+   recognizably; a lightbox's job is to show the whole asset without cropping it, so the fit mode
+   flips here. Both dimensions cap against the viewport itself (not just `.media-lightbox`'s own
+   already-capped box), so a very large source image can never force the dialog to overflow the
+   screen before this rule gets a chance to shrink it — the explicit "constrain against the
+   viewport, preserve aspect ratio" requirement this component was built to satisfy. */
+.media-lightbox-media .media-card-media {
+  max-width: min(88vw, 70rem);
+  max-height: min(78vh, 60rem);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+/* The grid card's fixed 4:3 aspect box (`.media-card-preview` above) has nothing to sit in here —
+   this stage sizes to its content, not a fixed grid cell — so the placeholder needs its own
+   explicit footprint instead of inheriting `width: 100%; height: 100%` from the grid-card
+   `.media-card-placeholder` rule above, which would otherwise collapse to 0 in a stage with no
+   intrinsic size of its own. */
+.media-lightbox-media .media-card-placeholder {
+  width: 20rem;
+  height: 15rem;
+}
+
+.media-lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--surface);
+  color: var(--fg-2);
+  border: 1px solid var(--border-strong);
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-sm);
+}
+.media-lightbox-nav:hover { background: var(--surface-2); opacity: 1; }
+.media-lightbox-nav svg { width: 18px; height: 18px; }
+.media-lightbox-nav-prev { left: var(--space-4); }
+.media-lightbox-nav-next { right: var(--space-4); }

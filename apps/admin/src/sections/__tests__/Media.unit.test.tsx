@@ -169,6 +169,166 @@ describe("preview fallback chain", () => {
   });
 });
 
+/**
+ * `MediaLightbox` — a single shared `<dialog>` for the whole grid (see that component's own doc
+ * comment in `Media.tsx`), opened per card via `MediaPreview`'s corner "view larger" trigger.
+ * Because it is ONE instance rather than one per card, the collision `ConfirmDialog`'s own test
+ * suite pins (two *simultaneously mounted* dialogs both reachable via `getElementById`, see
+ * `ConfirmDialog.unit.test.tsx`'s "multiple instances" describe block) cannot occur here the same
+ * way — there is only ever one `<dialog class="media-lightbox">` in the DOM. The equivalent risk
+ * for a shared instance is temporal, not simultaneous: opening item B after item A must actually
+ * re-target the label, not leave `aria-labelledby` resolving to a stale heading. The "single shared
+ * instance" describe block below is this suite's version of that regression pin.
+ */
+describe("lightbox", () => {
+  it("opens via the expand trigger, and aria-labelledby resolves to a heading with the item's own title", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const { container } = render(<Media />);
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+
+    const dialog = document.querySelector("dialog.media-lightbox")!;
+    expect(dialog.hasAttribute("open")).toBe(false);
+
+    await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
+
+    await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
+    const labelledbyId = dialog.getAttribute("aria-labelledby")!;
+    expect(labelledbyId).not.toBe("");
+    expect(document.getElementById(labelledbyId)).toBe(
+      within(dialog as HTMLElement).getByRole("heading", { name: "Sunset Photo" })
+    );
+  });
+
+  it("renders the SAME MediaPreview fallback chain as the grid card (same src, same image-to-video fallback), not a reimplementation", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const { container } = render(<Media />);
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
+
+    const dialog = document.querySelector("dialog.media-lightbox")! as HTMLElement;
+    await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
+
+    const lightboxImg = dialog.querySelector(".media-lightbox-media img")!;
+    expect(lightboxImg).toHaveAttribute("src", api.mediaOriginalUrl("media-1"));
+
+    fireEvent.error(lightboxImg);
+    await waitFor(() => {
+      expect(dialog.querySelector(".media-lightbox-media video")).toHaveAttribute(
+        "src",
+        api.mediaOriginalUrl("media-1")
+      );
+    });
+  });
+
+  it("the native cancel event (what a real browser fires on Escape) closes the dialog and returns focus to the card's expand trigger", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const { container } = render(<Media />);
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    const expandButton = within(card).getByRole("button", { name: /view "sunset photo" larger/i });
+
+    await user.click(expandButton);
+    const dialog = document.querySelector("dialog.media-lightbox")!;
+    await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
+
+    fireEvent(dialog, new Event("cancel", { cancelable: true }));
+
+    expect(dialog.hasAttribute("open")).toBe(false);
+    expect(expandButton).toHaveFocus();
+  });
+
+  it("calls onCancel-equivalent (closes) when the click lands on the dialog element itself (the backdrop area), not on dialog content", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const { container } = render(<Media />);
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
+
+    const dialog = document.querySelector("dialog.media-lightbox")!;
+    await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
+
+    fireEvent.click(within(dialog as HTMLElement).getByRole("heading", { name: "Sunset Photo" }));
+    expect(dialog.hasAttribute("open")).toBe(true);
+
+    fireEvent.click(dialog);
+    expect(dialog.hasAttribute("open")).toBe(false);
+  });
+
+  it("ArrowRight/ArrowLeft navigate between assets and update the counter, clamping at the last item rather than wrapping", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const { container } = render(<Media />);
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
+
+    const dialog = document.querySelector("dialog.media-lightbox")! as HTMLElement;
+    await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
+    expect(within(dialog).getByText("1 / 2")).toBeInTheDocument();
+
+    fireEvent.keyDown(dialog, { key: "ArrowRight" });
+    expect(within(dialog).getByRole("heading", { name: "Trashed Clip" })).toBeInTheDocument();
+    expect(within(dialog).getByText("2 / 2")).toBeInTheDocument();
+
+    // Past the last item: stays put rather than wrapping to the first.
+    fireEvent.keyDown(dialog, { key: "ArrowRight" });
+    expect(within(dialog).getByRole("heading", { name: "Trashed Clip" })).toBeInTheDocument();
+
+    fireEvent.keyDown(dialog, { key: "ArrowLeft" });
+    expect(within(dialog).getByRole("heading", { name: "Sunset Photo" })).toBeInTheDocument();
+  });
+
+  it("omits the expand trigger once an asset resolves as unsupported — nothing larger to show than the existing placeholder", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const { container } = render(<Media />);
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+
+    fireEvent.error(card.querySelector("img")!);
+    await waitFor(() => expect(card.querySelector("video")).toBeInTheDocument());
+    fireEvent.error(card.querySelector("video")!);
+    await waitFor(() => expect(within(card).getByText("Preview not available")).toBeInTheDocument());
+
+    expect(within(card).queryByRole("button", { name: /view .* larger/i })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Regression pin for the shared-instance design: proves the grid mounts exactly ONE
+   * `.media-lightbox` dialog for multiple cards (not one per card), and that re-opening it for a
+   * DIFFERENT item correctly re-targets `aria-labelledby` to that item's own heading rather than
+   * leaving it resolved to whichever item opened the dialog first. See this file's own header
+   * comment above for why this is the shared-instance analogue of `ConfirmDialog`'s
+   * simultaneous-instances regression test.
+   */
+  describe("single shared instance (not one dialog per card)", () => {
+    it("mounts exactly one .media-lightbox for a multi-card grid, and re-targets its label when a different card's trigger opens it", async () => {
+      const user = userEvent.setup();
+      fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+      const { container } = render(<Media />);
+      await waitForCard(container, "Sunset Photo");
+      await waitForCard(container, "Trashed Clip");
+
+      expect(document.querySelectorAll("dialog.media-lightbox")).toHaveLength(1);
+
+      const card1 = cardFor(container, "Sunset Photo");
+      await user.click(within(card1).getByRole("button", { name: /view "sunset photo" larger/i }));
+      const dialog = document.querySelector("dialog.media-lightbox")!;
+      await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
+      expect(document.getElementById(dialog.getAttribute("aria-labelledby")!)).toHaveTextContent("Sunset Photo");
+
+      fireEvent(dialog, new Event("cancel", { cancelable: true }));
+      await waitFor(() => expect(dialog.hasAttribute("open")).toBe(false));
+
+      const card2 = cardFor(container, "Trashed Clip");
+      await user.click(within(card2).getByRole("button", { name: /view "trashed clip" larger/i }));
+      await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
+
+      expect(document.getElementById(dialog.getAttribute("aria-labelledby")!)).toHaveTextContent("Trashed Clip");
+      expect(document.querySelectorAll("dialog.media-lightbox")).toHaveLength(1);
+    });
+  });
+});
+
 describe("row actions via RowMenu", () => {
   it("an active item's menu offers Trash (not Delete permanently), and selecting it POSTs to .../trash with no confirm dialog", async () => {
     const user = userEvent.setup();
