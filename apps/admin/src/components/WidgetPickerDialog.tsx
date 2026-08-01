@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { api, ApiError, describeApiError, type AdminWidget, type AdminWidgetType } from "../lib/api";
 import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "./WidgetConfigFields";
 
@@ -43,6 +43,17 @@ export function WidgetPickerDialog(props: WidgetPickerDialogProps) {
   const [newTitle, setNewTitle] = useState("");
   const [newConfig, setNewConfig] = useState<Record<string, unknown>>(() => defaultWidgetConfig(props.widgetType));
   const [error, setError] = useState<string | null>(null);
+  // `useId()`, not string literals — this component is conditionally mounted per caller
+  // (`WidgetAddControl`'s `{pickerType ? <WidgetPickerDialog .../> : null}`), and only one
+  // `WidgetAddControl` exists per screen today, so two instances can't currently coexist in the
+  // DOM to collide. Fixed anyway (same `ConfirmDialog.tsx` id-collision class of bug, found live
+  // there via `Roles.tsx`'s two always-mounted dialogs) because the cost is a three-line diff and
+  // the alternative is a landmine for whoever adds a second widget control to one screen later —
+  // `aria-labelledby`/`htmlFor` both resolve via `getElementById`, which silently returns the
+  // first DOM match rather than erroring on a duplicate id.
+  const titleId = useId();
+  const existingSelectId = useId();
+  const newTitleInputId = useId();
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -80,10 +91,10 @@ export function WidgetPickerDialog(props: WidgetPickerDialogProps) {
         className="settings-dialog widget-picker-dialog"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="widget-picker-title"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="widget-picker-title">Place a {typeLabel} widget</h2>
+        <h2 id={titleId}>Place a {typeLabel} widget</h2>
 
         {loadError ? <div className="notice error">{loadError}</div> : null}
         {error ? (
@@ -95,8 +106,8 @@ export function WidgetPickerDialog(props: WidgetPickerDialogProps) {
         {hasExisting ? (
           <form onSubmit={submitUseExisting} className="widget-picker-section">
             <h3>Use existing</h3>
-            <label htmlFor="widget-picker-existing">Existing {typeLabel} widgets</label>
-            <select id="widget-picker-existing" value={selectedExistingId} onChange={(e) => setSelectedExistingId(e.target.value)}>
+            <label htmlFor={existingSelectId}>Existing {typeLabel} widgets</label>
+            <select id={existingSelectId} value={selectedExistingId} onChange={(e) => setSelectedExistingId(e.target.value)}>
               <option value="">Choose a widget…</option>
               {(instances ?? []).map((instance) => (
                 <option key={instance.id} value={instance.id}>
@@ -110,8 +121,8 @@ export function WidgetPickerDialog(props: WidgetPickerDialogProps) {
 
         <form onSubmit={submitCreateNew} className="widget-picker-section">
           <h3>Create new</h3>
-          <label htmlFor="widget-picker-new-title">Title</label>
-          <input id="widget-picker-new-title" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} autoFocus={!hasExisting} />
+          <label htmlFor={newTitleInputId}>Title</label>
+          <input id={newTitleInputId} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} autoFocus={!hasExisting} />
           <WidgetConfigFields widgetType={props.widgetType} config={newConfig} onChange={setNewConfig} />
           <button type="submit">Create and place</button>
         </form>
