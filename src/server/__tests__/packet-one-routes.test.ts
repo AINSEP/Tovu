@@ -664,13 +664,16 @@ test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one ma
     }>;
   };
 
-  // The seeded built-in theme folders (`themes/` top level + `themes/liquidjs/`), TB-01 ordered
-  // (built-in first, id asc). `storefront` is a genuine WIP theme (missing templates/entry.liquid),
-  // included here with the rest — this endpoint reports every discovered theme regardless of
-  // validity, not just the valid ones.
+  // The seeded built-in theme folders (`themes/` top level + `themes/liquidjs/` + the Handlebars
+  // tier under `themes/handlebars/`), TB-01 ordered (built-in first, id asc). `storefront` is a
+  // genuine WIP theme (missing templates/entry.liquid), included here with the rest — this endpoint
+  // reports every discovered theme regardless of validity, not just the valid ones.
+  //
+  // Adding a theme folder means updating this list; it is an exact match on purpose, so a theme
+  // that silently stops being discovered fails here rather than going unnoticed.
   assert.deepEqual(
     themesPayload.themes.map((t) => t.id),
-    ["clean-blog", "column", "dispatch", "grayscale", "minima", "storefront", "tovu-official"]
+    ["clean-blog", "column", "dispatch", "grayscale", "ledger", "minima", "storefront", "tovu-official"]
   );
   assert.ok(themesPayload.themes.every((t) => t.source === "built-in"));
   assert.ok(themesPayload.themes.every((t) => Array.isArray(t.errors)));

@@ -197,9 +197,19 @@ export class InMemorySettingsRepo implements SettingsRepoPort {
     return this.revisions.filter((r) => r.settingId === required.settingId).sort((a, b) => a.seq - b.seq);
   }
 
-  async listRevisionsSince(required: { sinceSeq: number; limit: number }): Promise<SettingRevisionRecord[]> {
+  async listRevisionsSince(required: {
+    sinceSeq: number;
+    limit: number;
+    workspaceId: string;
+  }): Promise<SettingRevisionRecord[]> {
     return this.revisions
-      .filter((r) => r.seq > required.sinceSeq)
+      .filter(
+        (r) =>
+          r.seq > required.sinceSeq &&
+          // Mirrors the SQL predicate exactly — see the port's doc. `null` means
+          // platform-wide (every workspace resolves through it); anything else is one tenant's.
+          (r.workspaceId === null || r.workspaceId === required.workspaceId)
+      )
       .sort((a, b) => a.seq - b.seq)
       .slice(0, required.limit);
   }

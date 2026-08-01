@@ -56,7 +56,8 @@ export interface SettingsRepoPort {
   appendRevision(record: Omit<SettingRevisionRecord, "seq">): Promise<number>;
   listRevisions(required: { settingId: UUID }): Promise<SettingRevisionRecord[]>;
   /**
-   * Revisions with `seq` strictly greater than `sinceSeq`, oldest first, capped at `limit`.
+   * Revisions with `seq` strictly greater than `sinceSeq`, oldest first, capped at `limit`, and
+   * restricted to those `workspaceId` could possibly care about.
    *
    * Exists for change detection across PROCESSES. `seq` is a monotonic autoincrement in the shared
    * database, so a poller in Tovu's main server observes writes made by the agent daemon — a
@@ -67,8 +68,22 @@ export interface SettingsRepoPort {
    *
    * `limit` bounds a client that reconnects after a long absence: it drains in pages rather than
    * loading an unbounded backlog into memory.
+   *
+   * **`workspaceId` is a page-sizing predicate, not the disclosure boundary.** The ledger is global
+   * — one file holds every workspace's revisions (see `project_tovu_workspace_multitenancy`) — so
+   * without it a `limit`-sized page is filled by whichever tenant writes fastest, and a quiet
+   * workspace's own change waits behind a busy neighbour's backlog. That is an observable
+   * cross-tenant timing channel and, at sustained write rates above `limit` per poll interval, a
+   * feed that never catches up at all. Implementations must match rows whose `workspaceId` is
+   * either `null` (platform definitions and `global`-scope values, which every workspace resolves
+   * through) or equal to the argument — deliberately a SUPERSET of what
+   * `change-feed.ts#isRevisionVisibleTo` permits, which stays the sole authority on disclosure.
    */
-  listRevisionsSince(required: { sinceSeq: number; limit: number }): Promise<SettingRevisionRecord[]>;
+  listRevisionsSince(required: {
+    sinceSeq: number;
+    limit: number;
+    workspaceId: UUID;
+  }): Promise<SettingRevisionRecord[]>;
   /** The newest assigned `seq`, or 0 when the ledger is empty — a subscriber's starting cursor. */
   maxRevisionSeq(): Promise<number>;
 
