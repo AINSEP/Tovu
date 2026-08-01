@@ -109,14 +109,6 @@ test("AC-19: a global write to namespace N invalidates only that namespace's glo
   );
   assert.equal(userRead?.value, "u-initial");
 
-  // Mutate the workspace/user rows directly (bypassing the chokepoint, hence
-  // bypassing any invalidation call) so a subsequent read only shows the
-  // mutation if that layer's cache entry was (wrongly) also invalidated.
-  await repo.saveWorkspaceValue(value({ scope: "workspace", workspaceId: "ws-1", valueJson: "ws-mutated-directly" }));
-  await repo.saveUserValue(
-    value({ scope: "user", workspaceId: "ws-1", principalId: "p-1", valueJson: "u-mutated-directly" })
-  );
-
   // The real chokepoint write: a global set() to the same namespace/key.
   await set({
     deps: { repo, clock, ids, authorize: alwaysAllow, principals },
@@ -127,28 +119,72 @@ test("AC-19: a global write to namespace N invalidates only that namespace's glo
     { repo },
     { namespace: def.namespace, key: def.key, scopeContext: { workspaceId: "ws-2" } }
   );
-  assert.equal(globalAfter?.value, "g-updated", "the global cache entry must be invalidated and refreshed");
+  assert.equal(globalAfter?.value, "g-updated", "the global write must be visible to a workspace with no override");
 
+  // The no-fan-out property, now asserted on the DATA rather than on cache bookkeeping: a global
+  // write must leave the workspace and user rows alone, so those layers keep winning precedence
+  // with their own unchanged values. This was previously demonstrated by out-of-band mutations
+  // staying INVISIBLE behind a stale cache entry — an assertion that could only ever hold while
+  // the cache existed, and which passed just as happily when the cache was wrong.
   const workspaceAfter = await getEffective(
     { repo },
     { namespace: def.namespace, key: def.key, scopeContext: { workspaceId: "ws-1" } }
   );
-  assert.equal(
-    workspaceAfter?.value,
-    "ws-initial",
-    "the workspace cache entry must NOT be touched by a global write (no fan-out) -- it should still serve its stale cached value, not the direct out-of-band mutation"
-  );
+  assert.equal(workspaceAfter?.value, "ws-initial", "a global write must not disturb the workspace layer (no fan-out)");
+  assert.equal(workspaceAfter?.sourceLayer, "workspace");
 
   const userAfter = await getEffective(
     { repo },
     { namespace: def.namespace, key: def.key, scopeContext: { workspaceId: "ws-1", principalId: "p-1" } }
   );
-  assert.equal(
-    userAfter?.value,
-    "u-initial",
-    "the user cache entry must NOT be touched by a global write (no fan-out) either"
-  );
+  assert.equal(userAfter?.value, "u-initial", "a global write must not disturb the user layer either");
+  assert.equal(userAfter?.sourceLayer, "user");
 });
+
+/**
+ * The standing guard against reintroducing the per-layer value cache.
+ *
+ * An out-of-band row mutation — one that bypasses the write chokepoint entirely, and therefore any
+ * invalidation hook a future cache might install — must be visible to the very next read. That is
+ * precisely what the removed cache could not promise across process boundaries: the agent daemon
+ * writes through its own repo instance, so from the main server's point of view EVERY agent write
+ * is out-of-band. See `settings.ts`'s cache header.
+ */
+for (const layer of ["global", "workspace", "user"] as const) {
+  test(`reads are always fresh: an out-of-band ${layer}-layer write is visible to the next getEffective`, async () => {
+    const def = definition({ scopes: 1 | 2 | 4 });
+    const scopeContext =
+      layer === "global" ? {} : layer === "workspace" ? { workspaceId: "ws-1" } : { workspaceId: "ws-1", principalId: "p-1" };
+    const seed = value(
+      layer === "global"
+        ? { scope: "global", valueJson: "before" }
+        : layer === "workspace"
+          ? { scope: "workspace", workspaceId: "ws-1", valueJson: "before" }
+          : { scope: "user", workspaceId: "ws-1", principalId: "p-1", valueJson: "before" }
+    );
+    const repo = new InMemorySettingsRepo({
+      definitions: [def],
+      ...(layer === "global" ? { globalValues: [seed] } : {}),
+      ...(layer === "workspace" ? { workspaceValues: [seed] } : {}),
+      ...(layer === "user" ? { userValues: [seed] } : {}),
+    });
+
+    const before = await getEffective({ repo }, { namespace: def.namespace, key: def.key, scopeContext });
+    assert.equal(before?.value, "before", "sanity: the seeded value is what the first read resolves");
+
+    const mutated = { ...seed, valueJson: "after" };
+    if (layer === "global") await repo.saveGlobalValue(mutated);
+    else if (layer === "workspace") await repo.saveWorkspaceValue(mutated);
+    else await repo.saveUserValue(mutated);
+
+    const after = await getEffective({ repo }, { namespace: def.namespace, key: def.key, scopeContext });
+    assert.equal(
+      after?.value,
+      "after",
+      `a ${layer}-layer row changed outside the write chokepoint must be visible immediately — if this fails, a value cache has been reintroduced without cross-process invalidation`
+    );
+  });
+}
 
 test("AC-19 (workspace scope): a workspace-scope write invalidates only that workspace's cache entry, not other workspaces' entries for the same namespace", async () => {
   const def = definition({ scopes: 1 | 2 | 4 });
@@ -168,9 +204,6 @@ test("AC-19 (workspace scope): a workspace-scope write invalidates only that wor
   );
   assert.equal(ws2Before?.value, "ws2-initial");
 
-  // Directly mutate ws-2's row (no invalidation should be triggered by the
-  // ws-1 write below), then perform the real ws-1 write.
-  await repo.saveWorkspaceValue(value({ scope: "workspace", workspaceId: "ws-2", valueJson: "ws2-mutated-directly" }));
   await set({
     deps: { repo, clock, ids, authorize: alwaysAllow, principals },
     input: {
@@ -193,7 +226,7 @@ test("AC-19 (workspace scope): a workspace-scope write invalidates only that wor
     { repo },
     { namespace: def.namespace, key: def.key, scopeContext: { workspaceId: "ws-2" } }
   );
-  assert.equal(ws2After?.value, "ws2-initial", "ws-2's cache entry must not fan out from a ws-1 write");
+  assert.equal(ws2After?.value, "ws2-initial", "a ws-1 write must not reach ws-2's row (tenant isolation, no fan-out)");
 });
 
 test("clear() invalidates the value cache so a subsequent getEffective reflects the cleared (fallen-through) layer", async () => {
@@ -432,18 +465,15 @@ test("purgeTenantSettings scoped to a principalId invalidates only that principa
     { repo },
     { namespace: def.namespace, key: def.key, scopeContext: { workspaceId: "ws-1", principalId: "p-1" } }
   );
-  assert.equal(p1After?.value, "default", "p-1's cache entry must be invalidated by the scoped purge");
+  assert.equal(p1After?.value, "default", "p-1's purged row must be gone, so the read falls through to the default");
 
-  // Directly mutate p-2's row to prove its cache entry was left untouched
-  // (no fan-out from a single-principal purge).
-  await repo.saveUserValue(
-    value({ scope: "user", workspaceId: "ws-1", principalId: "p-2", valueJson: "p2-mutated-directly" })
-  );
+  // No fan-out from a single-principal purge, asserted on the data: p-2's row must survive intact.
   const p2After = await getEffective(
     { repo },
     { namespace: def.namespace, key: def.key, scopeContext: { workspaceId: "ws-1", principalId: "p-2" } }
   );
-  assert.equal(p2After?.value, "p2-value", "p-2's cache entry must still serve its stale cached value (no fan-out)");
+  assert.equal(p2After?.value, "p2-value", "a purge scoped to p-1 must not delete p-2's row");
+  assert.equal(p2After?.sourceLayer, "user");
 });
 
 test("registerDefinitions bumps the namespace's definition-cache epoch (no stale not-found entry survives a fresh registration)", async () => {

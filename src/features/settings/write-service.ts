@@ -15,9 +15,6 @@ import type { SettingsRepoPort } from "./ports";
 import {
   type DefinitionInput,
   invalidateDefinitionNamespaceCache,
-  invalidateGlobalValueCache,
-  invalidateUserValueCache,
-  invalidateWorkspaceValueCache,
   resolveDefinitionRaw,
   validateDefinitionInput,
   validateValueAgainstSchema,
@@ -159,29 +156,6 @@ export async function registerDefinitions(
   }
 
   return { registered };
-}
-
-/** AC-19 — invalidates exactly the one layer-cache key a `set`/`clear` write touches. No fan-out. */
-function invalidateValueCacheAfterWrite(
-  deps: SettingsWriteServiceDeps,
-  input: { scope: SettingScope; namespace: string; workspaceId?: UUID; principalId?: UUID; callerPrincipalId: UUID }
-): void {
-  if (input.scope === "global") {
-    invalidateGlobalValueCache(deps.repo, input.namespace);
-    return;
-  }
-  if (input.scope === "workspace") {
-    if (input.workspaceId) invalidateWorkspaceValueCache(deps.repo, input.workspaceId, input.namespace);
-    return;
-  }
-  if (input.workspaceId) {
-    invalidateUserValueCache(
-      deps.repo,
-      input.workspaceId,
-      input.principalId ?? input.callerPrincipalId,
-      input.namespace
-    );
-  }
 }
 
 export interface SetValueRequired {
@@ -359,7 +333,6 @@ export async function set(required: SetValueRequired): Promise<{ value: JsonValu
     return { value: input.value, revisionSeq };
   });
 
-  invalidateValueCacheAfterWrite(deps, input);
   return result;
 }
 
@@ -455,7 +428,6 @@ export async function clear(required: ClearValueRequired): Promise<{ revisionSeq
     return { revisionSeq };
   });
 
-  invalidateValueCacheAfterWrite(deps, input);
   return result;
 }
 

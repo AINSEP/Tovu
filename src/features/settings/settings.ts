@@ -126,36 +126,59 @@ export function registerCoercer(tag: string, fn: (value: JsonValue) => JsonValue
 }
 
 /**
- * Per-layer effective-read cache + workspace-qualified definition cache
- * (SPEC-007 REQ-12, AC-19/AC-20; ADR-028 §8 "Cache, definition cache, and
- * API").
+ * Workspace-qualified definition cache (SPEC-007 REQ-12, AC-20; ADR-028 §8
+ * "Cache, definition cache, and API").
  *
- * Shape, straight from ADR-028 §8:
- * - Layer cache keys `settings:{global | ws:{wsId} | user:{wsId}:{pid}}:{ns}`
- *   each hold a per-namespace map of `key -> SettingValueRecord|null`;
- *   `getEffective` merges up to 3 of these in memory. A value write
- *   invalidates exactly ONE such key — no fan-out to other tenants/layers.
- * - The definition cache is itself workspace-qualified (`{wsId|"platform"}:
- *   {ns}:{key}`) — site-owned defs are per-workspace data, so ADR-007
- *   applies to the def cache too. A definition-lifecycle write bumps a
- *   per-namespace epoch folded into the definition-cache key (lazy
- *   invalidation — old-epoch entries are simply never looked up again,
- *   rather than being enumerated and deleted).
+ * ## The per-layer VALUE cache that used to live here has been REMOVED. Do not reintroduce it.
  *
- * Deviation from the ADR's prose, recorded here rather than blocking on it:
- * the store is kept in a `WeakMap<SettingsRepoPort, ...>` rather than one
- * flat module-global map. In production there is exactly one repo instance
- * for the process lifetime, so this is behaviorally identical to a single
- * shared cache; it additionally means two independent repo instances (e.g.
- * two unit tests, each constructing their own `InMemorySettingsRepo`) never
- * bleed cache state into each other without needing an explicit reset hook.
- * No TTL/max-size eviction — invalidation-driven only, matching the task's
- * "smallest reasonable call" guidance for a single-process in-memory cache
- * at this scale.
+ * ADR-028 §8 also specified a value cache keyed
+ * `settings:{global | ws:{wsId} | user:{wsId}:{pid}}:{ns}`, invalidated by the write that owned
+ * each key. It was correct for the architecture it was written against and is not correct for the
+ * one that exists now.
+ *
+ * The cache was held in a `WeakMap<SettingsRepoPort, ...>`, so its scope was one repo instance in
+ * one OS process, and its invalidation was a `set()` call against that SAME instance. The original
+ * note here recorded the assumption explicitly — "in production there is exactly one repo instance
+ * for the process lifetime" — with no TTL, because invalidation was believed to be complete.
+ *
+ * That assumption is now permanently false. The agent daemon (`assistant/agent-daemon-server.ts`)
+ * is a SECOND OS process opening its own connection to the same SQLite file, with its own repo
+ * instance and therefore its own cache. Neither process can invalidate the other's. With no TTL,
+ * a stale entry survived until restart.
+ *
+ * Observed 2026-07-31, end to end: an agent changed `core.language.locale` to `"es"` through
+ * `settings_set_ui_preference` (daemon process); the row on disk read `"es"`; and the main server's
+ * `GET /settings/effective` kept answering `"en"` across full page reloads. Worse than a constant
+ * failure — it reproduced only when the server happened to hold that key cached, so the same tool
+ * call appeared to work or not depending on what had been read moments earlier.
+ *
+ * `assistant/custom-instructions.ts` had already hit exactly this and worked around it by calling
+ * `invalidateWorkspaceValueCache` immediately before every read, concluding in its own header that
+ * the resulting uncached read is "cheap: one row". That workaround was per-call-site, so it only
+ * ever protected the one place someone noticed. This removal generalizes its conclusion instead of
+ * waiting to rediscover the bug at the next call site.
+ *
+ * What replaced it: nothing. Layer reads go straight to the repo. These are indexed primary-key
+ * lookups against a local SQLite file, at most three per resolved key, and the busiest consumer —
+ * the settings dialog — issues six namespace reads per page load. Correctness across any number of
+ * processes is worth more than that.
+ *
+ * ## The DEFINITION cache below is kept, and the asymmetry is deliberate
+ *
+ * It is workspace-qualified (`{wsId|"platform"}:{ns}:{key}`) — site-owned defs are per-workspace
+ * data, so ADR-007 applies to it too — and invalidated lazily by a per-namespace epoch folded into
+ * the key, so old-epoch entries are never looked up again rather than being enumerated.
+ *
+ * It carries the same cross-process exposure in principle, and it is kept anyway because its
+ * writers are different in kind: definitions are registered at boot and mutated only by
+ * definition-lifecycle admin routes, and `settings_register_definitions` is permanently excluded
+ * from agent callability (`features/settings/agent-tools.ts`). So the daemon never writes one, and
+ * the residual window is "an operator renames/retypes a definition while a run is in flight" —
+ * rare, and it changes schema rather than the value an operator is looking at. That is a judgement
+ * about likelihood, not a proof of safety: if definition writes ever become reachable from a second
+ * process, this cache has to go the same way the value cache did.
  */
 interface SettingsCacheStore {
-  /** `settings:{global|ws:<id>|user:<ws>:<pid>}:{namespace}` -> per-key value map. */
-  layer: Map<string, Map<string, SettingValueRecord | null>>;
   /** `def:{workspaceId|"platform"}:{namespace}:{key}:e{epoch}` -> resolved definition (or null = confirmed absent). */
   definitions: Map<string, SettingDefinitionRecord | null>;
   /** namespace -> epoch, bumped by any definition-lifecycle write against that namespace. */
@@ -167,7 +190,7 @@ const cacheByRepo = new WeakMap<SettingsRepoPort, SettingsCacheStore>();
 function getCacheStore(repo: SettingsRepoPort): SettingsCacheStore {
   let store = cacheByRepo.get(repo);
   if (!store) {
-    store = { layer: new Map(), definitions: new Map(), epoch: new Map() };
+    store = { definitions: new Map(), epoch: new Map() };
     cacheByRepo.set(repo, store);
   }
   return store;
@@ -181,57 +204,8 @@ function workspaceCachePart(workspaceId: string | null | undefined): string {
   return workspaceId ?? "platform";
 }
 
-function globalLayerCacheKey(namespace: string): string {
-  return `settings:global:${namespace}`;
-}
-
-function workspaceLayerCacheKey(workspaceId: string, namespace: string): string {
-  return `settings:ws:${workspaceId}:${namespace}`;
-}
-
-function userLayerCacheKey(workspaceId: string, principalId: string, namespace: string): string {
-  return `settings:user:${workspaceId}:${principalId}:${namespace}`;
-}
-
 function definitionCacheKey(workspaceId: string | null, namespace: string, key: string, epoch: number): string {
   return `def:${workspaceCachePart(workspaceId)}:${namespace}:${key}:e${epoch}`;
-}
-
-async function getCachedLayerValue(
-  store: SettingsCacheStore,
-  layerCacheKeyStr: string,
-  key: string,
-  fetch: () => Promise<SettingValueRecord | null>
-): Promise<SettingValueRecord | null> {
-  let bucket = store.layer.get(layerCacheKeyStr);
-  if (!bucket) {
-    bucket = new Map();
-    store.layer.set(layerCacheKeyStr, bucket);
-  }
-  if (bucket.has(key)) return bucket.get(key)!;
-  const fetched = await fetch();
-  bucket.set(key, fetched);
-  return fetched;
-}
-
-/** AC-19 — invalidates exactly the `settings:global:{namespace}` cache entry. No fan-out. */
-export function invalidateGlobalValueCache(repo: SettingsRepoPort, namespace: string): void {
-  getCacheStore(repo).layer.delete(globalLayerCacheKey(namespace));
-}
-
-/** AC-19 — invalidates exactly one workspace's cache entry for `namespace`. No fan-out to other workspaces. */
-export function invalidateWorkspaceValueCache(repo: SettingsRepoPort, workspaceId: string, namespace: string): void {
-  getCacheStore(repo).layer.delete(workspaceLayerCacheKey(workspaceId, namespace));
-}
-
-/** AC-19 — invalidates exactly one (workspace, principal) cache entry for `namespace`. No fan-out to other principals. */
-export function invalidateUserValueCache(
-  repo: SettingsRepoPort,
-  workspaceId: string,
-  principalId: string,
-  namespace: string
-): void {
-  getCacheStore(repo).layer.delete(userLayerCacheKey(workspaceId, principalId, namespace));
 }
 
 /**
@@ -248,28 +222,22 @@ export function invalidateDefinitionNamespaceCache(repo: SettingsRepoPort, names
 }
 
 /**
- * Purge support: a tenant/principal teardown deletes an unbounded number of
- * value rows across an unknown set of namespaces, so per-namespace
- * single-key invalidation (as used by `set`/`clear`) isn't practical here.
- * Clears every workspace-scope and (if `principalId` given) that principal's
- * user-scope layer-cache entry; global-scope entries are untouched (purge
- * never deletes global rows) and other principals' user-scope entries are
- * untouched when `principalId` is given (no fan-out).
+ * Purge support — now a no-op, deliberately kept rather than deleted.
+ *
+ * This cleared the workspace- and user-scope layer-cache entries a tenant/principal teardown
+ * invalidated, because a purge deletes an unbounded number of value rows across an unknown set of
+ * namespaces and per-namespace single-key invalidation was not practical for it. With the layer
+ * cache gone (see this module's cache header) there is nothing left to clear: the rows are deleted,
+ * and the next read goes to the repo and sees them gone.
+ *
+ * Kept as an explicit no-op instead of removed because of what it guards. `purge-service.ts` calls
+ * it as the last step of deleting a tenant's settings, and its correctness question — "can a purged
+ * value still be read back?" — is exactly the kind that must be answered again if anyone
+ * reintroduces caching. Deleting the call site would remove the place that question is asked. A
+ * cache added without restoring a purge hook is a tenant-teardown leak, so this stays as the seam.
  */
-export function invalidateWorkspaceSettingsCache(repo: SettingsRepoPort, workspaceId: string, principalId?: string): void {
-  const store = getCacheStore(repo);
-  if (principalId) {
-    const prefix = `settings:user:${workspaceId}:${principalId}:`;
-    for (const k of [...store.layer.keys()]) {
-      if (k.startsWith(prefix)) store.layer.delete(k);
-    }
-    return;
-  }
-  const workspacePrefix = `settings:ws:${workspaceId}:`;
-  const userPrefix = `settings:user:${workspaceId}:`;
-  for (const k of [...store.layer.keys()]) {
-    if (k.startsWith(workspacePrefix) || k.startsWith(userPrefix)) store.layer.delete(k);
-  }
+export function invalidateWorkspaceSettingsCache(_repo: SettingsRepoPort, _workspaceId: string, _principalId?: string): void {
+  // Intentionally empty — see doc above. Do not delete without re-reading `purge-service.ts`.
 }
 
 /**
@@ -362,23 +330,18 @@ export async function getEffective(
   });
   if (!definition) return null;
 
-  const store = getCacheStore(deps.repo);
-
   const coerce = (value: JsonValue, defVersion: number): JsonValue => {
     if (defVersion === definition.version) return value;
     const coercer = coercers.get(definition.coercionTag ?? "identity") ?? coercers.get("identity")!;
     return coercer(value);
   };
 
+  // Every layer read below goes straight to the repo. See this module's cache header for why the
+  // per-layer cache that used to wrap these three calls was removed rather than repaired.
   if (input.scopeContext.workspaceId && input.scopeContext.principalId) {
     const workspaceId = input.scopeContext.workspaceId;
     const principalId = input.scopeContext.principalId;
-    const userValue = await getCachedLayerValue(
-      store,
-      userLayerCacheKey(workspaceId, principalId, input.namespace),
-      input.key,
-      () => deps.repo.getUserValue({ workspaceId, principalId, settingId: definition.settingId })
-    );
+    const userValue = await deps.repo.getUserValue({ workspaceId, principalId, settingId: definition.settingId });
     if (userValue && userValue.state === "set") {
       return {
         value: coerce(userValue.valueJson, userValue.defVersion),
@@ -390,12 +353,7 @@ export async function getEffective(
 
   if (input.scopeContext.workspaceId) {
     const workspaceId = input.scopeContext.workspaceId;
-    const workspaceValue = await getCachedLayerValue(
-      store,
-      workspaceLayerCacheKey(workspaceId, input.namespace),
-      input.key,
-      () => deps.repo.getWorkspaceValue({ workspaceId, settingId: definition.settingId })
-    );
+    const workspaceValue = await deps.repo.getWorkspaceValue({ workspaceId, settingId: definition.settingId });
     if (workspaceValue && workspaceValue.state === "set") {
       return {
         value: coerce(workspaceValue.valueJson, workspaceValue.defVersion),
@@ -405,9 +363,7 @@ export async function getEffective(
     }
   }
 
-  const globalValue = await getCachedLayerValue(store, globalLayerCacheKey(input.namespace), input.key, () =>
-    deps.repo.getGlobalValue(definition.settingId)
-  );
+  const globalValue = await deps.repo.getGlobalValue(definition.settingId);
   if (globalValue && globalValue.state === "set") {
     return {
       value: coerce(globalValue.valueJson, globalValue.defVersion),

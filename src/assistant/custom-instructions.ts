@@ -1,6 +1,6 @@
 import type { UUID } from "../core/ports";
 import type { SettingsRepoPort } from "../features/settings/ports";
-import { getEffective, invalidateWorkspaceValueCache } from "../features/settings/settings";
+import { getEffective } from "../features/settings/settings";
 import { INSTRUCTIONS_NAMESPACE } from "../features/settings/ui-tab-definitions";
 
 /**
@@ -13,17 +13,26 @@ import { INSTRUCTIONS_NAMESPACE } from "../features/settings/ui-tab-definitions"
  *
  * Two problems this file exists to solve — "read the ledger value" on its own is not one of them:
  *
- * 1. CROSS-PROCESS CACHE STALENESS. `getEffective` (`features/settings/settings.ts`) caches its
- *    per-layer reads in a `WeakMap` keyed by JS object identity of the `SettingsRepoPort` passed to
- *    it, invalidated only by a `set()` call against that SAME instance. The admin's settings-dialog
- *    write happens in Tovu's MAIN process, against ITS OWN repo instance. This daemon process opens
- *    a second, independent connection to the same SQLite file (`agent-daemon-server.ts`'s module
- *    doc) with its own repo instance, and therefore its own cache that the main process's write can
- *    never invalidate. Without `invalidateWorkspaceValueCache` below, the first read in this process
- *    would cache forever: an operator's first saved instructions would take effect, and no edit
- *    after that ever would, short of restarting the daemon. `resolveCustomInstructions` invalidates
- *    immediately before every read so each call is a real (cheap: one row) SQLite read rather than a
- *    silently stale one.
+ * 1. CROSS-PROCESS CACHE STALENESS — RESOLVED UPSTREAM (2026-07-31); no longer this file's problem.
+ *    `getEffective` (`features/settings/settings.ts`) used to cache its per-layer reads in a
+ *    `WeakMap` keyed by JS object identity of the `SettingsRepoPort`, invalidated only by a `set()`
+ *    against that SAME instance. The admin's settings-dialog write happens in Tovu's MAIN process;
+ *    this daemon process opens a second, independent connection to the same SQLite file
+ *    (`agent-daemon-server.ts`'s module doc) with its own repo instance and therefore its own cache,
+ *    which the main process's write could never invalidate. An operator's first saved instructions
+ *    took effect and no edit after that ever did, short of restarting the daemon.
+ *
+ *    This file worked around it by calling `invalidateWorkspaceValueCache` immediately before every
+ *    read. That fixed this call site and only this call site — the same staleness later surfaced
+ *    through `settings_set_ui_preference`, where an agent's language change was invisible to the
+ *    main server across full page reloads. The per-layer value cache has since been removed
+ *    outright (see `settings.ts`'s cache header), which generalizes the conclusion this file had
+ *    already reached: an uncached layer read is one indexed row from a local SQLite file, and that
+ *    is cheaper than a correctness bug that only reproduces when the cache happens to be warm.
+ *
+ *    Nothing is needed here anymore; `getEffective` is always fresh. The note is kept because the
+ *    reasoning is the record of WHY the cache went away, and because a future reader tempted to
+ *    reintroduce one should find this first.
  *
  * 2. THE SYNCHRONOUS SEAM. `PromptAugmenter.systemOverlay()` (`@jini-ai/agent-runtime`) returns
  *    `string | null`, not a `Promise` — `@jini-ai/daemon`'s `AgentExecutor` calls it once per
@@ -55,8 +64,8 @@ export interface ResolveCustomInstructionsInput {
 }
 
 /**
- * Reads `core.instructions.custom` fresh from the ledger for one workspace. See this file's header
- * for why "fresh" needs a forced cache invalidation first.
+ * Reads `core.instructions.custom` fresh from the ledger for one workspace. "Fresh" needs nothing
+ * from this function anymore — see this file's header for the cache that used to make it a problem.
  *
  * FAILS OPEN: any error (a repo I/O failure, `settingsReady` rejecting, a malformed stored value) is
  * logged and reads as `""` — a broken settings read must degrade the assistant to "no custom
@@ -64,7 +73,7 @@ export interface ResolveCustomInstructionsInput {
  * that cannot assume it, `getEffective`'s own documented "total, never throws" contract — the
  * evaluator logic above the repo is exempt from throwing; the repo's actual I/O underneath it is not.
  *
- * @complexity O(1) — one cache invalidation, one `getEffective` resolution.
+ * @complexity O(1) — one `getEffective` resolution.
  * @overallScore 100
  */
 export async function resolveCustomInstructions(
@@ -73,7 +82,6 @@ export async function resolveCustomInstructions(
 ): Promise<string> {
   try {
     await (deps.settingsReady ?? Promise.resolve());
-    invalidateWorkspaceValueCache(deps.settingsRepo, input.workspaceId, INSTRUCTIONS_NAMESPACE);
     const resolved = await getEffective(
       { repo: deps.settingsRepo },
       {
