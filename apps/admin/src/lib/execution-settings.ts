@@ -321,13 +321,67 @@ export async function saveExecutionConfig(
  *   route call itself fails (session expired, network down, this admin's own
  *   route 500ing) — a case with no provider-side answer to report as a value.
  */
+async function requestAgentDetection() {
+  return (await api.detectExecutionAgents()).data;
+}
+
+/**
+ * Last detection, shared across every `ExecutionTab` mount in this tab's
+ * lifetime.
+ *
+ * Detection is not cheap and it is not local: `detect-agents.ts` calls
+ * `@jini-ai/agent-runtime`'s `detectAgents()`, which SPAWNS every known CLI
+ * with `--version` — two dozen processes on the Tovu server per call. The tab
+ * asks for it unconditionally on mount (`useExecutionTab.ts`'s auto-detect
+ * effect), and the shell renders only the ACTIVE tab's panel, so leaving
+ * Execution mode unmounts the component and returning to it re-runs the whole
+ * sweep. Same on every visit to the settings page. Without this cache the
+ * operator pays a fresh 24-process scan for what is, in practice, a fixed
+ * answer.
+ *
+ * Module-scoped rather than a `useRef`/context on purpose: the point is to
+ * outlive the component, and `SettingsUi` builds a NEW port object per mount
+ * (`useRef(createExecutionPort())`), so anything held on the port instance
+ * would die with it.
+ *
+ * Deliberately no TTL. Installing a CLI mid-session is the only way this goes
+ * stale, and that case already has a purpose-built, clearly-labelled escape
+ * hatch — the Rescan button, which bypasses this cache (see
+ * `rescanLocalAgents` below). A reload clears it too. A TTL would only add a
+ * second, invisible refresh rule on top of the explicit one.
+ */
+let cachedDetection: ReturnType<typeof requestAgentDetection> | null = null;
+
+/** Caches the in-flight promise, not just the settled value — two tabs
+ *  mounting in the same frame then share one request instead of racing two
+ *  identical process sweeps. */
+function cacheDetection(inFlight: ReturnType<typeof requestAgentDetection>) {
+  cachedDetection = inFlight;
+  // A rejection must never be cached: one network blip would otherwise pin the
+  // error in place for the rest of the session, and the port's contract is
+  // that a failure REJECTS (see this function's doc) — so a retry has to be
+  // able to actually retry.
+  inFlight.catch(() => {
+    if (cachedDetection === inFlight) cachedDetection = null;
+  });
+  return inFlight;
+}
+
+/** Test seam. Module state persists across cases in a file, so a suite that
+ *  asserts on detection has to be able to start from cold. */
+export function resetLocalAgentDetectionCache(): void {
+  cachedDetection = null;
+}
+
 export function createExecutionPort(): ExecutionPort {
   return {
     async detectLocalAgents() {
-      return (await api.detectExecutionAgents()).data;
+      return cachedDetection ?? cacheDetection(requestAgentDetection());
     },
     async rescanLocalAgents() {
-      return (await api.detectExecutionAgents()).data;
+      // Explicit operator action: always re-probe, and make the fresh result
+      // the new baseline for subsequent mounts.
+      return cacheDetection(requestAgentDetection());
     },
     async testConnection(config: ByokConfig) {
       return api.testExecutionConnection({
