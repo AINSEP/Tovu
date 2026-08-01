@@ -6,7 +6,12 @@
    Section bodies still use legacy WordPress colors below (later pass).
    ============================================================ */
 :root {
-  --bg:            oklch(98.4% 0.004 250);
+  /* Warm off-white (#FAF9F7), not the cool blue-grey the rest of this ramp
+     uses. Hue 84.6 is the deliberate odd one out here — every other neutral
+     below sits at hue ~250-262 (blue), and this one is the paper the whole
+     admin is printed on. Written in oklch to match the file's convention; it
+     round-trips to #FAF9F7 exactly, so the hex is recoverable, not approximated. */
+  --bg:            #fff; /* was oklch(98.2% 0.0029 84.6) === #FAF9F7 */
   --surface:       oklch(100% 0 0);
   --surface-2:     oklch(96.6% 0.006 250);
   --surface-3:     oklch(94% 0.008 250);
@@ -407,6 +412,98 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
  * this section: `.jini-seg-title`/`.jini-seg-btn` are shared with Appearance
  * and Notifications, but only `ExecutionTab` ever emits `.jini-seg-meta`. */
 .settings-ui-section .jini-seg-meta { display: none; }
+
+/* --- Page mode: settings nav as a top tab strip, not a left sidebar --------
+ *
+ * `SettingsDialogShell` lays its body out as `grid-template-columns:
+ * <sidebar> minmax(0, 1fr)` and gives the nav `flex-direction: column`. The
+ * admin content column is already one sidebar deep by the time this screen
+ * renders, so a second 240px column left the panel — CLI cards, connector
+ * grids, MCP tables — starved of horizontal space. Re-flowing the same DOM
+ * into a horizontal strip above the panel buys all 240px back.
+ *
+ * Pure CSS on purpose: the shell has no `orientation` prop, and the change is
+ * layout-only, so nothing here needs an upstream `@jini-ai/ui` edit (which
+ * would also mean a `dist` rebuild before Tovu saw it). Delete this block to
+ * go back to the sidebar.
+ *
+ * Scoped to `--inline` — the "Open as dialog" modal keeps its sidebar. That
+ * surface is 1040px of dedicated width with no admin chrome competing for it,
+ * so it never had the problem this solves.
+ *
+ * Semantics are deliberately unchanged: still an `<aside>` of `aria-pressed`
+ * buttons, not an ARIA tablist. Painting a nav to look like tabs is not the
+ * same as promising arrow-key tab semantics, and claiming the role without
+ * the roving-focus behaviour would be the worse of the two. */
+.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-sidebar {
+  flex: 0 0 auto;
+  flex-direction: row;
+  /* Wrap rather than scroll: 13 tabs overflow a narrow viewport, and a second
+   * row costs ~38px of height, whereas an x-scroller silently hides the tail
+   * of the list behind a scrollbar most people never look for. */
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0 2px;
+  padding: 0 var(--jini-modal-padding);
+  background: transparent;
+  border-right: none;
+  border-bottom: 1px solid var(--jini-border);
+  overflow: visible;
+}
+
+.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-nav-item {
+  width: auto;
+  /* Sidebar mode reserves a fixed 18px icon track so labels can't fall into
+   * it (see the shell's own comment); in a row, `auto` just shrink-wraps. */
+  grid-template-columns: auto auto;
+  gap: 7px;
+  padding: 9px 11px;
+  border-radius: var(--jini-radius-sm) var(--jini-radius-sm) 0 0;
+  /* Underline sits *on* the strip's own bottom border, not below it. */
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--jini-text-muted);
+}
+
+.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-nav-item strong {
+  white-space: nowrap;
+}
+
+.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-nav-item.active,
+.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-nav-item.active:hover {
+  /* The filled pill that reads as "selected" in a vertical list reads as a
+   * button in a row; an underline is the tab-strip idiom for the same state. */
+  background: transparent;
+  color: var(--jini-text-strong);
+  border-bottom-color: var(--jini-accent);
+}
+
+.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-nav-item.active svg,
+.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-nav-item.active .jini-settings-dialog-nav-icon {
+  opacity: 1;
+}
+
+/* Collapsing a full-width strip would hide the nav outright rather than
+ * reclaim space, so the chevron has nothing left to do here. */
+.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-sidebar-toggle {
+  display: none;
+}
+
+.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-content {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* NOTE: the "whole CLI card is the click target" fix that briefly lived here
+ * now ships in `@jini-ai/ui`'s own `settings-dialog.css` (see the
+ * `.jini-agent-card-main:last-child` rules there). It was a property of that
+ * component's grid, not of Tovu's page, so every host had the dead zone —
+ * keeping a copy here would just be a second place to update. */
 
 /* --- Compensating styles for classes `settings-dialog.css` never defined ---
  *
