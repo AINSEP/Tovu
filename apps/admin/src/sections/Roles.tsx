@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminPolicy, type AdminRole } from "../lib/api";
-import { ConfirmButton } from "../components/ConfirmButton";
+import { RowMenu, type RowMenuItem } from "../components/RowMenu";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 /**
  * @file "Roles & Permissions" screen (SPEC-006 + 0.6.0 CRUD-completion amendment) — the
@@ -61,6 +62,13 @@ export function Roles() {
   const [permissionPolicyId, setPermissionPolicyId] = useState<string | null>(null);
   const [permissionInput, setPermissionInput] = useState("");
   const [resourceTypeInput, setResourceTypeInput] = useState("");
+
+  // The row a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
+  // closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on why);
+  // this is what drives its `open` prop. Separate state per table since a role and a policy delete
+  // are independent operations with their own copy, not because anything shares data between them.
+  const [pendingRoleDelete, setPendingRoleDelete] = useState<AdminRole | null>(null);
+  const [pendingPolicyDelete, setPendingPolicyDelete] = useState<AdminPolicy | null>(null);
 
   function reload(): Promise<void> {
     return Promise.all([api.listRoles(), api.listPolicies()])
@@ -126,16 +134,25 @@ export function Roles() {
     }
   }
 
-  async function onDeleteRole(roleId: string) {
-    setRowSavingId(roleId);
+  /** Confirmation now gates via a `ConfirmDialog` modal, reached through `RowMenu`'s "Delete" item
+   *  (`setPendingRoleDelete` below) — this row action moved off the in-place two-click
+   *  `ConfirmButton` control (MSG-03 rollout) because a `RowMenu` item fires once and the menu
+   *  closes immediately (`selectItem` in `RowMenu.tsx`), so there is no "stay open for a second
+   *  confirm click" state for `ConfirmButton` to hold; `ConfirmDialog` is the mechanism that
+   *  survives the menu closing, same as `Posts.tsx`/`Pages.tsx`'s own Delete. */
+  async function onDeleteRole() {
+    if (!pendingRoleDelete) return;
+    const role = pendingRoleDelete;
+    setRowSavingId(role.id);
     setRowError(null);
     try {
-      await api.deleteRole(roleId);
+      await api.deleteRole(role.id);
       await reload();
     } catch (e) {
       setRowError(describeApiError(e, "failed to delete role"));
     } finally {
       setRowSavingId(null);
+      setPendingRoleDelete(null);
     }
   }
 
@@ -160,16 +177,20 @@ export function Roles() {
     }
   }
 
-  async function onDeletePolicy(policyId: string) {
-    setRowSavingId(policyId);
+  /** Same `ConfirmDialog`-via-`RowMenu` swap as `onDeleteRole` above — see that function's comment. */
+  async function onDeletePolicy() {
+    if (!pendingPolicyDelete) return;
+    const policy = pendingPolicyDelete;
+    setRowSavingId(policy.id);
     setRowError(null);
     try {
-      await api.deletePolicy(policyId);
+      await api.deletePolicy(policy.id);
       await reload();
     } catch (e) {
       setRowError(describeApiError(e, "failed to delete policy"));
     } finally {
       setRowSavingId(null);
+      setPendingPolicyDelete(null);
     }
   }
 
@@ -178,6 +199,30 @@ export function Roles() {
     setPermissionInput("");
     setResourceTypeInput("");
     setPermissionPolicyId((current) => (current === policyId ? null : policyId));
+  }
+
+  /** At-rest row actions (built-in rows and an actively-editing row never reach these — see the
+   *  table JSX below, which renders `—` or the Save/Cancel pair for those instead). */
+  function roleMenuItems(role: AdminRole): RowMenuItem[] {
+    return [
+      { key: "rename", label: "Rename", onSelect: () => startEditRole(role) },
+      { key: "delete", label: "Delete", destructive: true, onSelect: () => setPendingRoleDelete(role) },
+    ];
+  }
+
+  /** Same shape as `roleMenuItems`, plus the "Add permission"/"Close" toggle — its label still
+   *  flips based on `permissionPolicyId` exactly as the inline button it replaces did; only where
+   *  that toggle now lives (a `RowMenu` item instead of a bare button) changed. */
+  function policyMenuItems(policy: AdminPolicy): RowMenuItem[] {
+    return [
+      { key: "rename", label: "Rename", onSelect: () => startEditPolicy(policy) },
+      {
+        key: "permission",
+        label: permissionPolicyId === policy.id ? "Close" : "Add permission",
+        onSelect: () => togglePermissionForm(policy.id),
+      },
+      { key: "delete", label: "Delete", destructive: true, onSelect: () => setPendingPolicyDelete(policy) },
+    ];
   }
 
   async function onWritePermission(policyId: string) {
@@ -199,14 +244,17 @@ export function Roles() {
   if (!roles || !policies) return <div className="notice">Loading roles & permissions…</div>;
 
   return (
-    <div>
-      <div className="editor-header">
-        <h1>Roles & Permissions</h1>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">People</p>
+          <h1 className="page-title">Roles & Permissions</h1>
+          <p className="page-description">
+            Roles and policies grant access to operator users. Assign a role or policy to a
+            specific user from the <a href="/admin/users">Users</a> screen.
+          </p>
+        </div>
       </div>
-      <p>
-        Roles and policies grant access to operator users. Assign a role or policy to a
-        specific user from the <a href="/admin/users">Users</a> screen.
-      </p>
       {rowError ? <div className="notice error">{rowError}</div> : null}
 
       <h2>Roles</h2>
@@ -221,14 +269,19 @@ export function Roles() {
         </button>
       </form>
       {roles.length === 0 ? (
-        <div className="notice">No roles yet.</div>
+        <div className="card">
+          <div className="empty-state">
+            <p>No roles yet.</p>
+          </div>
+        </div>
       ) : (
+        <div className="table-scroll">
         <table className="list-table">
           <thead>
             <tr>
               <th>Name</th>
               <th>Type</th>
-              <th aria-label="Actions" />
+              <th>More</th>
             </tr>
           </thead>
           <tbody>
@@ -255,25 +308,14 @@ export function Roles() {
                       </button>
                     </span>
                   ) : (
-                    <span className="editor-actions">
-                      <button type="button" onClick={() => startEditRole(role)}>
-                        Rename
-                      </button>
-                      <ConfirmButton
-                        label="Delete"
-                        confirmLabel="Confirm delete"
-                        destructive
-                        pending={rowSavingId === role.id}
-                        onConfirm={() => onDeleteRole(role.id)}
-                        ariaLabel={`Delete role "${role.name}"`}
-                      />
-                    </span>
+                    <RowMenu triggerLabel={`Actions for role "${role.name}"`} items={roleMenuItems(role)} />
                   )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       <h2>Policies</h2>
@@ -292,15 +334,20 @@ export function Roles() {
         </button>
       </form>
       {policies.length === 0 ? (
-        <div className="notice">No policies yet.</div>
+        <div className="card">
+          <div className="empty-state">
+            <p>No policies yet.</p>
+          </div>
+        </div>
       ) : (
+        <div className="table-scroll">
         <table className="list-table">
           <thead>
             <tr>
               <th>Name</th>
               <th>Description</th>
               <th>Type</th>
-              <th aria-label="Actions" />
+              <th>More</th>
             </tr>
           </thead>
           <tbody>
@@ -345,22 +392,7 @@ export function Roles() {
                         </button>
                       </span>
                     ) : (
-                      <span className="editor-actions">
-                        <button type="button" onClick={() => startEditPolicy(policy)}>
-                          Rename
-                        </button>
-                        <button type="button" onClick={() => togglePermissionForm(policy.id)}>
-                          {permissionPolicyId === policy.id ? "Close" : "Add permission"}
-                        </button>
-                        <ConfirmButton
-                          label="Delete"
-                          confirmLabel="Confirm delete"
-                          destructive
-                          pending={rowSavingId === policy.id}
-                          onConfirm={() => onDeletePolicy(policy.id)}
-                          ariaLabel={`Delete policy "${policy.name}"`}
-                        />
-                      </span>
+                      <RowMenu triggerLabel={`Actions for policy "${policy.name}"`} items={policyMenuItems(policy)} />
                     )}
                   </td>
                 </tr>
@@ -398,7 +430,28 @@ export function Roles() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
+      <ConfirmDialog
+        open={pendingRoleDelete !== null}
+        title="Delete role?"
+        body={pendingRoleDelete ? <p>Delete role &quot;{pendingRoleDelete.name}&quot;?</p> : null}
+        confirmLabel="Delete"
+        destructive
+        pending={pendingRoleDelete !== null && rowSavingId === pendingRoleDelete.id}
+        onConfirm={onDeleteRole}
+        onCancel={() => setPendingRoleDelete(null)}
+      />
+      <ConfirmDialog
+        open={pendingPolicyDelete !== null}
+        title="Delete policy?"
+        body={pendingPolicyDelete ? <p>Delete policy &quot;{pendingPolicyDelete.name}&quot;?</p> : null}
+        confirmLabel="Delete"
+        destructive
+        pending={pendingPolicyDelete !== null && rowSavingId === pendingPolicyDelete.id}
+        onConfirm={onDeletePolicy}
+        onCancel={() => setPendingPolicyDelete(null)}
+      />
     </div>
   );
 }

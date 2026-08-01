@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ApiError, api, describeApiError, type AdminWidget, type AdminWidgetType } from "../lib/api";
 import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 /**
  * @file `WidgetsLibraryScreen` (`ui.spec.md` §2.1/§3.1/§4.1) — the widget library/list screen,
@@ -11,6 +12,11 @@ export function WidgetsLibrary() {
   const [widgets, setWidgets] = useState<AdminWidget[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [createType, setCreateType] = useState<AdminWidgetType>("text");
+  // The widget + its referencing-locations summary a `WIDGETS_REFERENCED` 409 (below) is asking to
+  // force-purge past — `null` when the dialog is closed. `ConfirmDialog` stays mounted
+  // unconditionally below (see its own doc comment on why); this is what drives its `open` prop.
+  const [pendingForcePurge, setPendingForcePurge] = useState<{ widget: AdminWidget; summary: string } | null>(null);
+  const [forcePurging, setForcePurging] = useState(false);
 
   function load() {
     api
@@ -23,7 +29,12 @@ export function WidgetsLibrary() {
 
   /** REQ-42/`ui.spec.md` §4.2: the first purge attempt is always `force: false` — only on a
    * `WidgetReferencedError` 409 (naming every referencing location) does a `force: true` retry
-   * become an option, and only after an explicit confirmation. Never `force` on the first try. */
+   * become an option, and only after an explicit confirmation. Never `force` on the first try.
+   *
+   * The escalation confirmation now gates via a `ConfirmDialog` modal (`setPendingForcePurge`)
+   * rather than a `window.confirm` built from the same dynamic "still used in: ..." message —
+   * computed here, at the point the 409 is caught, same as before; only where it's rendered
+   * (a real dialog body instead of a blocking prompt string) changed. */
   async function purge(widget: AdminWidget) {
     setError(null);
     try {
@@ -33,17 +44,25 @@ export function WidgetsLibrary() {
       if (e instanceof ApiError && e.code === "WIDGETS_REFERENCED") {
         const locations = (e.body?.details as { referencingLocations?: Array<{ kind: string; entryId: string }> } | undefined)?.referencingLocations ?? [];
         const summary = locations.map((l) => `${l.kind} (${l.entryId})`).join(", ") || "at least one other place";
-        if (window.confirm(`"${widget.title}" is still used in: ${summary}.\n\nPermanently delete anyway? This cannot be undone.`)) {
-          try {
-            await api.purgeWidget({ id: widget.id }, { force: true });
-            load();
-          } catch (e2) {
-            setError(describeApiError(e2, "force-purge failed"));
-          }
-        }
+        setPendingForcePurge({ widget, summary });
         return;
       }
       setError(describeApiError(e, "delete failed"));
+    }
+  }
+
+  async function confirmForcePurge() {
+    if (!pendingForcePurge) return;
+    const { widget } = pendingForcePurge;
+    setForcePurging(true);
+    try {
+      await api.purgeWidget({ id: widget.id }, { force: true });
+      load();
+    } catch (e2) {
+      setError(describeApiError(e2, "force-purge failed"));
+    } finally {
+      setForcePurging(false);
+      setPendingForcePurge(null);
     }
   }
 
@@ -65,10 +84,16 @@ export function WidgetsLibrary() {
   if (!widgets) return <div className="notice">Loading widgets…</div>;
 
   return (
-    <div>
-      <div className="editor-header">
-        <h1>Widgets</h1>
-        <span className="editor-actions">
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Content</p>
+          <h1 className="page-title">Widgets</h1>
+          <p className="page-description">
+            Create reusable content blocks and place them into your theme's widget regions.
+          </p>
+        </div>
+        <div className="page-actions">
           <a href="/admin/widgets/regions">Regions →</a>
           <select value={createType} onChange={(e) => setCreateType(e.target.value as AdminWidgetType)} aria-label="Widget type to create">
             {WIDGET_TYPE_OPTIONS.map((o) => (
@@ -80,12 +105,18 @@ export function WidgetsLibrary() {
           <a href={`/admin/widgets/new?type=${createType}`}>
             <button>Add New</button>
           </a>
-        </span>
+        </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
       {widgets.length === 0 ? (
-        <p className="muted-cell">No widgets yet — create one above.</p>
+        <div className="card">
+          <div className="empty-state">
+            <p>No widgets yet.</p>
+            <p className="page-description">Create one above to get started.</p>
+          </div>
+        </div>
       ) : (
+        <div className="table-scroll">
         <table className="list-table">
           <thead>
             <tr>
@@ -93,7 +124,11 @@ export function WidgetsLibrary() {
               <th>Type</th>
               <th>Status</th>
               <th>v</th>
-              <th></th>
+              {/* Not converted to a `RowMenu` — this is the row's only action (see report: a menu
+                  with one item is pure overhead over a direct button). Still labeled for
+                  accessibility, matching `Roles.tsx`/`Users.tsx`'s existing pattern for an actions
+                  column that isn't a bare `<th></th>`. */}
+              <th aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
@@ -116,7 +151,26 @@ export function WidgetsLibrary() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
+      <ConfirmDialog
+        open={pendingForcePurge !== null}
+        title="Still in use"
+        body={
+          pendingForcePurge ? (
+            <p>
+              &quot;{pendingForcePurge.widget.title}&quot; is still used in: {pendingForcePurge.summary}.
+              <br />
+              Permanently delete anyway? This cannot be undone.
+            </p>
+          ) : null
+        }
+        confirmLabel="Permanently delete"
+        destructive
+        pending={forcePurging}
+        onConfirm={confirmForcePurge}
+        onCancel={() => setPendingForcePurge(null)}
+      />
     </div>
   );
 }

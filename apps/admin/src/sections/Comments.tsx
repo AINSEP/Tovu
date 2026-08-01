@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { ApiError, api, describeApiError, type AdminComment, type CommentModerationAction, type CommentStatus, type CommentsSettings } from "../lib/api";
 import { formatTimestamp } from "../lib/format-timestamp";
+import { RowMenu, type RowMenuItem } from "../components/RowMenu";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 /**
  * @file Comments admin screen (ADR-031, SPEC-033/035 backend; SPEC-036 this frontend).
@@ -60,6 +62,12 @@ function QueueSection(props: { permissions: string[] }) {
   const [error, setError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [rowState, setRowState] = useState<Record<string, RowActionState>>({});
+  // The comment a `RowMenu` "Purge" selection is asking to confirm — `null` when the dialog is
+  // closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on why);
+  // this is what drives its `open` prop. Row actions moved into `RowMenu` below (MSG-03 rollout);
+  // Purge is the one that needed a real confirm step, so it's the one that gained this state — the
+  // others (Approve/Spam/Trash/Restore) were never gated by anything and still aren't.
+  const [pendingPurge, setPendingPurge] = useState<AdminComment | null>(null);
 
   function stateFor(id: string): RowActionState {
     return rowState[id] ?? emptyRowState();
@@ -111,16 +119,51 @@ function QueueSection(props: { permissions: string[] }) {
     }
   }
 
-  async function onPurge(comment: AdminComment) {
+  /** Confirmation now gates via a `ConfirmDialog` modal, reached through `RowMenu`'s "Purge" item
+   *  (`setPendingPurge` below), rather than `window.confirm` — same upgrade `Posts.tsx`/`Pages.tsx`
+   *  already made for their own Delete. Copy is the exact previous sentence, unchanged: states the
+   *  consequence ("permanently delete") and explicitly "this cannot be undone" because, unlike
+   *  Trash (a status this same menu can restore from), a purge genuinely has no way back. Dialog
+   *  always closes on settle (success or failure) — a failure surfaces via this row's own existing
+   *  `rs.error` mechanism, same place every other moderation action's failure already shows up. */
+  async function onPurge() {
+    if (!pendingPurge) return;
+    const comment = pendingPurge;
     if (stateFor(comment.id).busy) return;
-    if (!window.confirm(`Permanently delete this comment by "${comment.authorName}"? This cannot be undone.`)) return;
     patchRowState(comment.id, { busy: true, error: null });
     try {
       await api.purgeComment({ commentId: comment.id });
       reloadFirstPage();
     } catch (e) {
       patchRowState(comment.id, { busy: false, error: describeApiError(e, "Failed to purge comment.") });
+    } finally {
+      setPendingPurge(null);
     }
+  }
+
+  /** At-rest row actions for `RowMenu` — every condition here is copied verbatim from the inline
+   *  buttons this replaces, so a permission/status combination that used to hide a button still
+   *  omits the matching menu item rather than rendering a guaranteed-failing click. */
+  function rowMenuItems(comment: AdminComment): RowMenuItem[] {
+    const items: RowMenuItem[] = [];
+    if (comment.status !== "approved" && canModerate) {
+      items.push({ key: "approve", label: "Approve", onSelect: () => void onModerate(comment, "approve") });
+    }
+    if (comment.status !== "spam" && canModerate) {
+      items.push({ key: "spam", label: "Spam", onSelect: () => void onModerate(comment, "spam") });
+    }
+    if (comment.status !== "trash" && canDelete) {
+      items.push({ key: "trash", label: "Trash", onSelect: () => void onModerate(comment, "trash") });
+    }
+    if ((comment.status === "spam" || comment.status === "trash") && canModerate) {
+      items.push({ key: "restore", label: "Restore", onSelect: () => void onModerate(comment, "restore") });
+    }
+    // REQ-06: purge only ever surfaces from the trash filter view. Genuinely destructive (its own
+    // confirm copy: "cannot be undone") — `destructive: true`, unlike the reversible actions above.
+    if (status === "trash" && comment.status === "trash" && canForceDelete) {
+      items.push({ key: "purge", label: "Purge", destructive: true, onSelect: () => setPendingPurge(comment) });
+    }
+    return items;
   }
 
   if (error && !items) return <div className="notice error">{error}</div>;
@@ -143,9 +186,14 @@ function QueueSection(props: { permissions: string[] }) {
       {!items ? (
         <div className="notice">Loading comments…</div>
       ) : items.length === 0 ? (
-        <div className="notice">No {status} comments.</div>
+        <div className="card">
+          <div className="empty-state">
+            <p>No {status} comments.</p>
+          </div>
+        </div>
       ) : (
         <>
+          <div className="table-scroll">
           <table className="list-table">
             <thead>
               <tr>
@@ -154,12 +202,13 @@ function QueueSection(props: { permissions: string[] }) {
                 <th>Status</th>
                 <th>Depth</th>
                 <th>Created</th>
-                <th>Actions</th>
+                <th>More</th>
               </tr>
             </thead>
             <tbody>
               {items.map((comment) => {
                 const rs = stateFor(comment.id);
+                const menuItems = rowMenuItems(comment);
                 return (
                   <tr key={comment.id}>
                     <td>{comment.authorName}</td>
@@ -170,34 +219,11 @@ function QueueSection(props: { permissions: string[] }) {
                     <td>{comment.depth}</td>
                     <td>{formatTimestamp(comment.createdAt)}</td>
                     <td>
-                      <span className="editor-actions">
-                        {comment.status !== "approved" && canModerate ? (
-                          <button type="button" disabled={rs.busy} onClick={() => void onModerate(comment, "approve")}>
-                            Approve
-                          </button>
-                        ) : null}
-                        {comment.status !== "spam" && canModerate ? (
-                          <button type="button" disabled={rs.busy} onClick={() => void onModerate(comment, "spam")}>
-                            Spam
-                          </button>
-                        ) : null}
-                        {comment.status !== "trash" && canDelete ? (
-                          <button type="button" disabled={rs.busy} onClick={() => void onModerate(comment, "trash")}>
-                            Trash
-                          </button>
-                        ) : null}
-                        {(comment.status === "spam" || comment.status === "trash") && canModerate ? (
-                          <button type="button" disabled={rs.busy} onClick={() => void onModerate(comment, "restore")}>
-                            Restore
-                          </button>
-                        ) : null}
-                        {/* REQ-06: purge only ever surfaces from the trash filter view. */}
-                        {status === "trash" && comment.status === "trash" && canForceDelete ? (
-                          <button type="button" disabled={rs.busy} onClick={() => void onPurge(comment)}>
-                            Purge
-                          </button>
-                        ) : null}
-                      </span>
+                      {menuItems.length > 0 ? (
+                        <RowMenu triggerLabel={`Actions for the comment by "${comment.authorName}"`} items={menuItems} />
+                      ) : (
+                        <span className="muted-cell">—</span>
+                      )}
                       {rs.error ? (
                         <div className="notice error" role="alert">
                           {rs.error}
@@ -209,13 +235,30 @@ function QueueSection(props: { permissions: string[] }) {
               })}
             </tbody>
           </table>
+          </div>
           {nextCursor ? (
-            <button type="button" onClick={loadMore} disabled={loadingMore}>
+            <button type="button" className="btn-secondary" onClick={loadMore} disabled={loadingMore}>
               {loadingMore ? "Loading…" : "Load more"}
             </button>
           ) : null}
         </>
       )}
+      <ConfirmDialog
+        open={pendingPurge !== null}
+        title="Permanently delete this comment?"
+        body={
+          pendingPurge ? (
+            <p>
+              Permanently delete this comment by &quot;{pendingPurge.authorName}&quot;? This cannot be undone.
+            </p>
+          ) : null
+        }
+        confirmLabel="Permanently delete"
+        destructive
+        pending={pendingPurge !== null && stateFor(pendingPurge.id).busy}
+        onConfirm={onPurge}
+        onCancel={() => setPendingPurge(null)}
+      />
     </div>
   );
 }
@@ -399,9 +442,14 @@ export function Comments() {
   if (!permissions) return <div className="notice">Loading Comments…</div>;
 
   return (
-    <div>
-      <h1>Comments</h1>
-      <p>Moderate incoming comments and configure workspace-wide comment behavior.</p>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">People</p>
+          <h1 className="page-title">Comments</h1>
+          <p className="page-description">Moderate incoming comments and configure workspace-wide comment behavior.</p>
+        </div>
+      </div>
       {permissions.includes("comments.read") ? (
         <QueueSection permissions={permissions} />
       ) : (

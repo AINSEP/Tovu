@@ -3,7 +3,8 @@ import { api, type AdminPost } from "../lib/api";
 import { siteUrl } from "../lib/site-url";
 import { formatTimestamp } from "../lib/format-timestamp";
 import { navigate } from "../lib/router";
-import { ConfirmButton } from "../components/ConfirmButton";
+import { RowMenu, type RowMenuItem } from "../components/RowMenu";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 /**
  * Pages admin screen — same shape as `Posts.tsx`, backed by the pages-filtered
@@ -15,7 +16,13 @@ export function Pages() {
   const [pages, setPages] = useState<AdminPost[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // In-flight row action (Disable or the confirmed Delete) — one at a time, same `rowSavingId`
+  // convention `Roles.tsx`'s `onDeleteRole` already uses, per `ConfirmButton`'s own doc comment.
+  const [rowSavingId, setRowSavingId] = useState<string | null>(null);
+  // The page a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
+  // closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on why);
+  // this is what drives its `open` prop.
+  const [pendingDelete, setPendingDelete] = useState<AdminPost | null>(null);
 
   useEffect(() => {
     api
@@ -36,6 +43,24 @@ export function Pages() {
     }
   }
 
+  /** Unpublishes so the row is no longer publicly viewable — a reversible, access-affecting
+   *  action (not destructive: no `ConfirmDialog`, matching `ConfirmButton`'s own warning-vs-
+   *  destructive distinction). Only ever called for a `status === "published"` row — `RowMenu`'s
+   *  item list below omits "Disable" entirely once a page is already a draft, rather than
+   *  rendering it disabled with no explanation. */
+  async function disablePage(page: AdminPost) {
+    setRowSavingId(page.id);
+    setError(null);
+    try {
+      const { post: updated } = await api.updatePost({ id: page.id }, { status: "draft" });
+      setPages((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to disable page");
+    } finally {
+      setRowSavingId(null);
+    }
+  }
+
   /** Soft delete: `api.deletePage` does hit a soft-delete route that is genuinely revertible
    * server-side (see api.ts's own doc on deletePage) — but the confirm copy below states only the
    * observable consequence and does NOT claim recoverability. There is no restore path an
@@ -47,14 +72,19 @@ export function Pages() {
    * not from here. On success the row is dropped from local state rather than a full reload,
    * matching this screen's existing preference for optimistic-from-response local updates.
    *
-   * Confirmation now gates via `ConfirmButton`'s two-click in-place control, not `window.confirm`
-   * (MSG-03) — this screen's per-page Delete column was the same "wall of red" problem as
-   * `Posts.tsx`'s twin (full `.btn-danger` styling on every row at rest, before any decision was
-   * made). The disclosure that used to live only in the `window.confirm` dialog text now lives in
-   * the button's `aria-label`, reaching the operator up front rather than only after they've
-   * already clicked Delete once. */
-  async function removePage(page: AdminPost) {
-    setDeletingId(page.id);
+   * Confirmation now gates via a `ConfirmDialog` modal, reached through `RowMenu`'s "Delete" item,
+   * rather than `ConfirmButton`'s in-place two-click control or `window.confirm` — a further
+   * upgrade over MSG-03's `ConfirmButton` pass on this same screen's twin (`Posts.tsx`): that
+   * component was itself chosen at the time because `styles.css` was locked to a concurrently-
+   * editing agent and a modal needed new markup/CSS this pass could not add (see
+   * `ConfirmButton.tsx`'s own file header). Neither constraint holds for this dispatch, and a
+   * modal disclosure ("Move "X" to trash? It will disappear from the site and from this list.")
+   * reads as a deliberate decision point rather than a label change on a button already sitting in
+   * a menu the operator just opened. */
+  async function removePage() {
+    if (!pendingDelete) return;
+    const page = pendingDelete;
+    setRowSavingId(page.id);
     setError(null);
     try {
       await api.deletePage(page.id);
@@ -62,8 +92,18 @@ export function Pages() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to delete page");
     } finally {
-      setDeletingId(null);
+      setRowSavingId(null);
+      setPendingDelete(null);
     }
+  }
+
+  function rowMenuItems(page: AdminPost): RowMenuItem[] {
+    const items: RowMenuItem[] = [{ key: "edit", label: "Edit", onSelect: () => navigate(`/posts/${page.id}`) }];
+    if (page.status === "published") {
+      items.push({ key: "disable", label: "Disable", onSelect: () => disablePage(page) });
+    }
+    items.push({ key: "delete", label: "Delete", destructive: true, onSelect: () => setPendingDelete(page) });
+    return items;
   }
 
   // `error && !pages` (not just `error`), matching Media.tsx/Comments.tsx: once the list has
@@ -73,22 +113,21 @@ export function Pages() {
   if (!pages) return <div className="notice">Loading pages…</div>;
 
   return (
-    <div>
-      <div className="editor-header">
-        <h1>Pages</h1>
-        <button onClick={createPage} disabled={creating}>
-          {creating ? "Creating…" : "New Page"}
-        </button>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Content</p>
+          <h1 className="page-title">Pages</h1>
+          <p className="page-description">Manage every standalone page on this site.</p>
+        </div>
+        <div className="page-actions">
+          <button onClick={createPage} disabled={creating}>
+            {creating ? "Creating…" : "New Page"}
+          </button>
+        </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
       {pages.length === 0 ? (
-        // Previously an empty `<table>` — headers, zero rows, no message at all (audit Minor
-        // finding: this screen shares `Posts.tsx`'s exact data shape but had drifted from its
-        // sibling's empty-state treatment). Reuses the already-existing `.card`/`.empty-state`
-        // classes `Posts.tsx` established for this same situation, rather than adding new ones —
-        // `styles.css` is locked to a concurrently-editing agent for this dispatch. Only the
-        // empty-state block is ported, not the rest of `Posts.tsx`'s newer `.page`/`.table-scroll`
-        // layout — that broader restyle belongs with the shell's own in-flight visual pass.
         <div className="card">
           <div className="empty-state">
             <p>No pages yet.</p>
@@ -96,48 +135,57 @@ export function Pages() {
           </div>
         </div>
       ) : (
-        <table className="list-table">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Slug</th>
-              <th>Status</th>
-              <th>Updated</th>
-              <th>v</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {pages.map((page) => (
-              <tr key={page.id}>
-                <td>
-                  <a href={`/admin/posts/${page.id}`}>{page.title}</a>
-                </td>
-                <td>
-                  <a href={siteUrl(`/${page.slug}`)} target="_blank" rel="noreferrer">
-                    /{page.slug}
-                  </a>
-                </td>
-                <td>
-                  <span className={`status status-${page.status}`}>{page.status}</span>
-                </td>
-                <td>{formatTimestamp(page.updatedAt)}</td>
-                <td>{page.version}</td>
-                <td>
-                  <ConfirmButton
-                    label="Delete"
-                    confirmLabel="Confirm delete"
-                    destructive
-                    pending={deletingId === page.id}
-                    onConfirm={() => removePage(page)}
-                    ariaLabel={`Move "${page.title}" to trash — it will disappear from the site and from this list`}
-                  />
-                </td>
+        <div className="table-scroll">
+          <table className="list-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Slug</th>
+                <th>Status</th>
+                <th>Updated</th>
+                <th>More</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pages.map((page) => (
+                <tr key={page.id}>
+                  <td>
+                    <a href={`/admin/posts/${page.id}`}>{page.title}</a>
+                  </td>
+                  <td>
+                    <a href={siteUrl(`/${page.slug}`)} target="_blank" rel="noreferrer">
+                      /{page.slug}
+                    </a>
+                  </td>
+                  <td>
+                    <span className={`status status-${page.status}`}>{page.status}</span>
+                  </td>
+                  <td>{formatTimestamp(page.updatedAt)}</td>
+                  <td>
+                    <RowMenu triggerLabel={`Actions for "${page.title}"`} items={rowMenuItems(page)} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Move to trash?"
+        body={
+          pendingDelete ? (
+            <p>
+              Move &quot;{pendingDelete.title}&quot; to trash? It will disappear from the site and from this list.
+            </p>
+          ) : null
+        }
+        confirmLabel="Move to trash"
+        destructive
+        pending={pendingDelete !== null && rowSavingId === pendingDelete.id}
+        onConfirm={removePage}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

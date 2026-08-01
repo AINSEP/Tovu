@@ -8,6 +8,7 @@ import {
   type ContentTypeFieldDef,
   type ContentTypeFieldKind,
 } from "../lib/api";
+import { RowMenu, type RowMenuItem } from "../components/RowMenu";
 
 /**
  * @file Collections screen (design-spec.md §1, ADR-022/ADR-043) — the `/admin/collections`
@@ -184,13 +185,13 @@ function NewContentTypeDialog(props: { onCreated: () => void; onCancel: () => vo
                 Queryable (adds a database index; keep this list small)
               </label>
               {fields.length > 1 ? (
-                <button type="button" onClick={() => removeField(f._rowId)}>
+                <button type="button" className="btn-secondary" onClick={() => removeField(f._rowId)}>
                   Remove field
                 </button>
               ) : null}
             </fieldset>
           ))}
-          <button type="button" onClick={() => setFields((current) => [...current, emptyField()])}>
+          <button type="button" className="btn-secondary" onClick={() => setFields((current) => [...current, emptyField()])}>
             Add field
           </button>
         </div>
@@ -205,7 +206,7 @@ function NewContentTypeDialog(props: { onCreated: () => void; onCancel: () => vo
           <button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Create content type"}
           </button>
-          <button type="button" onClick={props.onCancel}>
+          <button type="button" className="btn-secondary" onClick={props.onCancel}>
             Cancel
           </button>
         </span>
@@ -334,12 +335,12 @@ function EditFieldsDialog(props: { contentType: AdminContentType; onSaved: () =>
                 />
                 Queryable (adds a database index; keep this list small)
               </label>
-              <button type="button" onClick={() => removeField(f._rowId)}>
+              <button type="button" className="btn-secondary" onClick={() => removeField(f._rowId)}>
                 Remove field
               </button>
             </fieldset>
           ))}
-          <button type="button" onClick={() => setFields((current) => [...current, emptyField()])}>
+          <button type="button" className="btn-secondary" onClick={() => setFields((current) => [...current, emptyField()])}>
             Add field
           </button>
         </div>
@@ -354,7 +355,7 @@ function EditFieldsDialog(props: { contentType: AdminContentType; onSaved: () =>
           <button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save fields"}
           </button>
-          <button type="button" onClick={props.onCancel}>
+          <button type="button" className="btn-secondary" onClick={props.onCancel}>
             Cancel
           </button>
         </span>
@@ -413,10 +414,19 @@ function LifecycleConfirmDialog(props: {
           {copy.body} (<strong>{props.contentType.label}</strong>)
         </p>
         <span className="editor-actions">
-          <button type="button" autoFocus={!autoFocusCancel} onClick={props.onConfirm}>
+          {/* Deprecate is reversible (Reactivate exists) but access-affecting — `.btn-warning`,
+              same distinction as Users.tsx's Disable. Tombstone is not, per its own copy above
+              ("not reversible from this screen") — `.btn-danger`, matching Roles.tsx/Redirects.tsx's
+              existing destructive-delete convention. */}
+          <button
+            type="button"
+            className={props.op === "deprecate" ? "btn-warning" : "btn-danger"}
+            autoFocus={!autoFocusCancel}
+            onClick={props.onConfirm}
+          >
             {props.op === "deprecate" ? "Deprecate" : "Tombstone"}
           </button>
-          <button type="button" autoFocus={autoFocusCancel} onClick={props.onCancel}>
+          <button type="button" className="btn-secondary" autoFocus={autoFocusCancel} onClick={props.onCancel}>
             Cancel
           </button>
         </span>
@@ -456,25 +466,64 @@ export function Collections() {
     }
   }
 
+  /** At-rest row actions — every row-level trigger here was already a plain, unclassed button (the
+   *  warning-vs-danger distinction lives entirely in `LifecycleConfirmDialog`, opened via
+   *  `setPendingLifecycle` and left untouched below), so moving them into a `RowMenu` drops
+   *  nothing. Tombstone is marked `destructive` here even though its row trigger never carried
+   *  `.btn-danger` — its own dialog copy already says "not reversible from this screen", the exact
+   *  case `RowMenuItem.destructive` exists for; Deprecate stays plain, since it is reversible
+   *  (Reactivate undoes it). */
+  function contentTypeMenuItems(ct: AdminContentType): RowMenuItem[] {
+    const items: RowMenuItem[] = [{ key: "edit-fields", label: "Edit fields", onSelect: () => setEditingFieldsFor(ct) }];
+    if (ct.status === "active") {
+      items.push({
+        key: "deprecate",
+        label: "Deprecate",
+        onSelect: () => setPendingLifecycle({ op: "deprecate", contentType: ct }),
+      });
+    }
+    if (ct.status === "deprecated") {
+      items.push({ key: "reactivate", label: "Reactivate", onSelect: () => runLifecycle(ct, "reactivate") });
+    }
+    if (ct.status !== "tombstone") {
+      items.push({
+        key: "tombstone",
+        label: "Tombstone",
+        destructive: true,
+        onSelect: () => setPendingLifecycle({ op: "tombstone", contentType: ct }),
+      });
+    }
+    return items;
+  }
+
   if (error && !types) return <div className="notice error">{error}</div>;
   if (!types) return <div className="notice">Loading content types…</div>;
 
   return (
-    <div>
-      <h1>Collections</h1>
-      <p>Content types you define, each with its own set of entries.</p>
-
-      <div className="editor-header">
-        <span />
-        <button onClick={() => setShowNewDialog(true)}>New content type</button>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Content</p>
+          <h1 className="page-title">Collections</h1>
+          <p className="page-description">Content types you define, each with its own set of entries.</p>
+        </div>
+        <div className="page-actions">
+          <button onClick={() => setShowNewDialog(true)}>New content type</button>
+        </div>
       </div>
 
       {error ? <div className="notice error">{error}</div> : null}
       {actionError ? <div className="notice error">{actionError}</div> : null}
 
       {types.length === 0 ? (
-        <div className="notice">No Collections yet. Create your first content type to start adding entries.</div>
+        <div className="card">
+          <div className="empty-state">
+            <p>No Collections yet.</p>
+            <p className="page-description">Create your first content type to start adding entries.</p>
+          </div>
+        </div>
       ) : (
+        <div className="table-scroll">
         <table className="list-table">
           <thead>
             <tr>
@@ -484,7 +533,7 @@ export function Collections() {
               <th>Queryable fields</th>
               <th>Status</th>
               <th>Entries</th>
-              <th></th>
+              <th>More</th>
             </tr>
           </thead>
           <tbody>
@@ -502,30 +551,14 @@ export function Collections() {
                 <td>
                   <a href={`/admin/collections/${ct.key}`}>Manage entries</a>
                 </td>
-                <td className="collections-row-actions">
-                  <button type="button" onClick={() => setEditingFieldsFor(ct)}>
-                    Edit fields
-                  </button>
-                  {ct.status === "active" ? (
-                    <button type="button" onClick={() => setPendingLifecycle({ op: "deprecate", contentType: ct })}>
-                      Deprecate
-                    </button>
-                  ) : null}
-                  {ct.status === "deprecated" ? (
-                    <button type="button" onClick={() => runLifecycle(ct, "reactivate")}>
-                      Reactivate
-                    </button>
-                  ) : null}
-                  {ct.status !== "tombstone" ? (
-                    <button type="button" onClick={() => setPendingLifecycle({ op: "tombstone", contentType: ct })}>
-                      Tombstone
-                    </button>
-                  ) : null}
+                <td>
+                  <RowMenu triggerLabel={`Actions for content type "${ct.label}"`} items={contentTypeMenuItems(ct)} />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       {showNewDialog ? (

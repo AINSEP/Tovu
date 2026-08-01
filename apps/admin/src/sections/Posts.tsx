@@ -3,13 +3,20 @@ import { api, type AdminPost } from "../lib/api";
 import { siteUrl } from "../lib/site-url";
 import { formatTimestamp } from "../lib/format-timestamp";
 import { navigate } from "../lib/router";
-import { ConfirmButton } from "../components/ConfirmButton";
+import { RowMenu, type RowMenuItem } from "../components/RowMenu";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 export function Posts() {
   const [posts, setPosts] = useState<AdminPost[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // In-flight row action (Disable or the confirmed Delete) — one at a time, same `rowSavingId`
+  // convention `Roles.tsx`'s `onDeleteRole` already uses, per `ConfirmButton`'s own doc comment.
+  const [rowSavingId, setRowSavingId] = useState<string | null>(null);
+  // The post a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
+  // closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on why);
+  // this is what drives its `open` prop.
+  const [pendingDelete, setPendingDelete] = useState<AdminPost | null>(null);
 
   useEffect(() => {
     api
@@ -30,6 +37,24 @@ export function Posts() {
     }
   }
 
+  /** Unpublishes so the row is no longer publicly viewable — a reversible, access-affecting
+   *  action (not destructive: no `ConfirmDialog`, matching `ConfirmButton`'s own warning-vs-
+   *  destructive distinction). Only ever called for a `status === "published"` row — `RowMenu`'s
+   *  item list below omits "Disable" entirely once a post is already a draft, rather than
+   *  rendering it disabled with no explanation. */
+  async function disablePost(post: AdminPost) {
+    setRowSavingId(post.id);
+    setError(null);
+    try {
+      const { post: updated } = await api.updatePost({ id: post.id }, { status: "draft" });
+      setPosts((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to disable post");
+    } finally {
+      setRowSavingId(null);
+    }
+  }
+
   /** Soft delete — see Pages.tsx's `removePage` (the twin of this function) for the full
    * rationale behind the confirm copy: it states only the observable consequence and
    * deliberately does not claim recoverability, because no restore path is reachable from this
@@ -37,15 +62,18 @@ export function Posts() {
    * "recoverable"/"not permanent" (unreachable promise) or "permanently"/"cannot be undone"
    * (the opposite lie) without first changing what's actually true.
    *
-   * Confirmation now gates via `ConfirmButton`'s two-click in-place control, not `window.confirm`
-   * — a straight upgrade (MSG-03), not the "don't mass-migrate an already-guarded screen" churn:
-   * this screen's row of per-post Delete buttons was the exact "wall of red" the makeover pass
-   * flagged, since every row rendered full `.btn-danger` styling at rest, before any decision was
-   * made. The disclosure that used to live only in the `window.confirm` dialog text now lives in
-   * the button's `aria-label`, so it reaches the operator up front rather than only after they've
-   * already clicked Delete once. */
-  async function removePost(post: AdminPost) {
-    setDeletingId(post.id);
+   * Confirmation now gates via a `ConfirmDialog` modal, reached through `RowMenu`'s "Delete" item,
+   * rather than `ConfirmButton`'s in-place two-click control or `window.confirm` — a further
+   * upgrade over MSG-03's `ConfirmButton` pass: that component was itself chosen at the time
+   * because `styles.css` was locked to a concurrently-editing agent and a modal needed new markup/
+   * CSS this pass could not add (see `ConfirmButton.tsx`'s own file header). Neither constraint
+   * holds for this dispatch, and a modal disclosure ("Move "X" to trash? It will disappear from
+   * the site and from this list.") reads as a deliberate decision point rather than a label change
+   * on a button already sitting in a menu the operator just opened. */
+  async function removePost() {
+    if (!pendingDelete) return;
+    const post = pendingDelete;
+    setRowSavingId(post.id);
     setError(null);
     try {
       await api.deletePost(post.id);
@@ -53,8 +81,18 @@ export function Posts() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to delete post");
     } finally {
-      setDeletingId(null);
+      setRowSavingId(null);
+      setPendingDelete(null);
     }
+  }
+
+  function rowMenuItems(post: AdminPost): RowMenuItem[] {
+    const items: RowMenuItem[] = [{ key: "edit", label: "Edit", onSelect: () => navigate(`/posts/${post.id}`) }];
+    if (post.status === "published") {
+      items.push({ key: "disable", label: "Disable", onSelect: () => disablePost(post) });
+    }
+    items.push({ key: "delete", label: "Delete", destructive: true, onSelect: () => setPendingDelete(post) });
+    return items;
   }
 
   // `error && !posts` (not just `error`): once the list has loaded, a later failure (create,
@@ -94,7 +132,7 @@ export function Posts() {
                 <th>Slug</th>
                 <th>Status</th>
                 <th>Updated</th>
-                <th></th>
+                <th>More</th>
               </tr>
             </thead>
             <tbody>
@@ -113,14 +151,7 @@ export function Posts() {
                   </td>
                   <td>{formatTimestamp(post.updatedAt)}</td>
                   <td>
-                    <ConfirmButton
-                      label="Delete"
-                      confirmLabel="Confirm delete"
-                      destructive
-                      pending={deletingId === post.id}
-                      onConfirm={() => removePost(post)}
-                      ariaLabel={`Move "${post.title}" to trash — it will disappear from the site and from this list`}
-                    />
+                    <RowMenu triggerLabel={`Actions for "${post.title}"`} items={rowMenuItems(post)} />
                   </td>
                 </tr>
               ))}
@@ -128,6 +159,22 @@ export function Posts() {
           </table>
         </div>
       )}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Move to trash?"
+        body={
+          pendingDelete ? (
+            <p>
+              Move &quot;{pendingDelete.title}&quot; to trash? It will disappear from the site and from this list.
+            </p>
+          ) : null
+        }
+        confirmLabel="Move to trash"
+        destructive
+        pending={pendingDelete !== null && rowSavingId === pendingDelete.id}
+        onConfirm={removePost}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }
