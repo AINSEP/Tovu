@@ -48,10 +48,17 @@ export const SCOPE_BIT = { global: 1, workspace: 2, user: 4 } as const;
  * any JSON value (object/array/scalar) and validates nothing about its
  * internal shape — that is the registering feature's own write-path
  * responsibility (e.g. `src/seo/settings.ts` for `site.seo.robots_rules`'s
- * 50-rule max + per-rule shape), never this ledger's job. Code Review must
- * confirm this variant is used exactly once in the codebase (ADR-PIPE-008
- * Enforcement) — it is not a general escape hatch for fields that could be
- * scalar-decomposed instead.
+ * 50-rule max + per-rule shape; `src/analytics/config.settings.ts` for
+ * `core.analytics.excludedPaths`/`excludedIpRanges`), never this ledger's job.
+ *
+ * ADR-PIPE-008 Enforcement: Code Review must confirm that EVERY use is
+ * genuinely unbounded, list-shaped data with no scalar decomposition available
+ * — it is not a general escape hatch for fields that could be scalar-
+ * decomposed instead. The check is per-use, deliberately not a headcount: an
+ * earlier revision of this comment asserted "used exactly once in the
+ * codebase", which silently went stale the moment a legitimate second and
+ * third use landed, turning a real invariant into a wrong fact. Uses as of
+ * 2026-07-31 are the three named above.
  */
 export type SettingValueSchema =
   | { type: "string"; nullable?: boolean }
