@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
@@ -8,7 +9,25 @@ import { defineConfig } from "vitest/config";
  * — so this config is minimal, deliberately mirroring `vite.config.ts`'s existing alias/plugin
  * setup rather than inventing a second, divergent build configuration.
  */
+
+/**
+ * This package's own version, read at test-run time for `lib/app-version.ts`'s
+ * `__TOVU_ADMIN_VERSION__` global. Mirrors `vite.config.ts`'s `adminPackageVersion` derivation
+ * exactly (same `package.json` read, same field) rather than hardcoding a version string here,
+ * so the two configs cannot drift apart — this was previously undefined under `vitest`, which
+ * threw `ReferenceError: __TOVU_ADMIN_VERSION__ is not defined` at import time in any suite that
+ * imports `App.tsx` (which imports `SettingsUi.tsx`, which imports `app-version.ts`), and had kept
+ * three suites (`app-plugins-route`, `app-agent-page-identity`, `app-route-prototype-keys`) from
+ * ever executing.
+ */
+const adminPackageVersion = (
+  JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf8")) as { version: string }
+).version;
+
 export default defineConfig({
+  define: {
+    __TOVU_ADMIN_VERSION__: JSON.stringify(adminPackageVersion),
+  },
   plugins: [react()],
   resolve: {
     /**
