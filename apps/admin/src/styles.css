@@ -769,15 +769,20 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    `.btn-danger` (0,1,0) on the same element, so without the `:not()` this rule would have quietly
    overridden every explicit variant it was never meant to touch.
 
+   `.link-button` needs its own exclusion rather than riding on the `btn-` substring test: the
+   class name contains "button" but not "btn-", so the attribute check does not catch it, and this
+   rule silently drew a bordered box around every username in Users. Any future link-styled row
+   control must be added here too — a new class alone will lose to this selector.
+
    CSS cannot tell "Disable" from "Manage" apart by meaning, so every unclassed row button lands
    on the same quiet treatment — a safe default, not a claim that they're equally weighted. Per-
    action semantic promotion (a genuinely destructive or access-affecting row action earning
    `.btn-danger` or the `.btn-warning` scaffold below) needs the owning section's own markup and
    is phase 2 — see the report's hierarchy-spec section. */
-.list-table td button:not([class*="btn-"]) {
+.list-table td button:not([class*="btn-"]):not(.link-button) {
   background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong);
 }
-.list-table td button:not([class*="btn-"]):hover { background: var(--surface-2); opacity: 1; }
+.list-table td button:not([class*="btn-"]):not(.link-button):hover { background: var(--surface-2); opacity: 1; }
 
 /* Row-scoped destructive/warning actions — quiet at rest, loud on intent.
    The rule above demotes UNCLASSED row buttons, which left the opposite problem for the classed
