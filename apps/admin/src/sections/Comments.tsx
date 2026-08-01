@@ -171,16 +171,24 @@ function QueueSection(props: { permissions: string[] }) {
 
   return (
     <div>
-      <label>
-        Status
-        <select value={status} onChange={(e) => setStatus(e.target.value as CommentStatus)}>
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="toolbar">
+        <div className="field">
+          <label className="field-label" htmlFor="comments-status-filter">
+            Status
+          </label>
+          <select
+            id="comments-status-filter"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as CommentStatus)}
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {error ? <div className="notice error">{error}</div> : null}
 
@@ -362,67 +370,90 @@ function SettingsSection(props: { canConfigure: boolean }) {
       {notice ? <div className="notice">{notice}</div> : null}
 
       <form
+        className="card"
         onSubmit={(e) => {
           e.preventDefault();
           void save(new FormData(e.currentTarget));
         }}
       >
-        <label>
-          <input type="checkbox" name="enabled" defaultChecked={settings.enabled} />
-          Comments enabled
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            name="requireModeration"
-            defaultChecked={settings.requireModeration}
-          />
-          Require moderation (new comments start pending)
-        </label>
-        <label>
-          Max thread depth
-          <input
-            type="number"
-            name="maxDepth"
-            min={0}
-            step={1}
-            defaultValue={settings.maxDepth}
-          />
-        </label>
-        <label>
-          Close submissions after (days, blank = never)
-          <input
-            type="number"
-            name="closeAfterDays"
-            min={0}
-            step={1}
-            defaultValue={settings.closeAfterDays ?? ""}
-          />
-        </label>
-        <label>
-          Spam auto-reject score (0–1)
-          <input
-            type="number"
-            name="spamAutoRejectScore"
-            min={0}
-            max={1}
-            step={0.01}
-            defaultValue={settings.spamAutoRejectScore}
-          />
-        </label>
-        <label>
-          Max submissions per IP per hour
-          <input
-            type="number"
-            name="maxPerIpPerHour"
-            min={1}
-            step={1}
-            defaultValue={settings.maxPerIpPerHour}
-          />
-        </label>
-        <button type="submit" disabled={saving}>
-          {saving ? "Saving…" : "Save settings"}
-        </button>
+        <div className="field-group">
+          <label className="form-checkbox-field">
+            <input type="checkbox" name="enabled" defaultChecked={settings.enabled} />
+            Comments enabled
+          </label>
+          <label className="form-checkbox-field">
+            <input
+              type="checkbox"
+              name="requireModeration"
+              defaultChecked={settings.requireModeration}
+            />
+            Require moderation (new comments start pending)
+          </label>
+        </div>
+
+        <div className="field-group">
+          <div className="field-row">
+            <div className="field">
+              <label className="field-label" htmlFor="comments-max-depth">
+                Max thread depth
+              </label>
+              <input
+                id="comments-max-depth"
+                type="number"
+                name="maxDepth"
+                min={0}
+                step={1}
+                defaultValue={settings.maxDepth}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="comments-close-after-days">
+                Close submissions after (days, blank = never)
+              </label>
+              <input
+                id="comments-close-after-days"
+                type="number"
+                name="closeAfterDays"
+                min={0}
+                step={1}
+                defaultValue={settings.closeAfterDays ?? ""}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="comments-spam-score">
+                Spam auto-reject score (0–1)
+              </label>
+              <input
+                id="comments-spam-score"
+                type="number"
+                name="spamAutoRejectScore"
+                min={0}
+                max={1}
+                step={0.01}
+                defaultValue={settings.spamAutoRejectScore}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="comments-max-per-ip">
+                Max submissions per IP per hour
+              </label>
+              <input
+                id="comments-max-per-ip"
+                type="number"
+                name="maxPerIpPerHour"
+                min={1}
+                step={1}
+                defaultValue={settings.maxPerIpPerHour}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="editor-actions form-actions">
+          <button type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Save settings"}
+          </button>
+        </div>
       </form>
     </div>
   );
