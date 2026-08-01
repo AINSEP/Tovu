@@ -70,6 +70,37 @@
   margin-top: var(--space-5);
 }
 
+/* `.field-row`'s own definition lives in `styles.css` (off-limits to this dispatch) as a plain
+   grid with no `align-items` set, so its default is `stretch`. Stretch is invisible as long as
+   every cell's label is one line (true for every OTHER `.field-row` caller today — `FormEditor.tsx`
+   "Name"/"Slug", `Media.tsx` "Title"/"Alt"/"Caption", `Redirects.tsx`'s four short labels; grepped
+   every one before writing this, not assumed): a stretched `.field` with a one-line label just
+   gains invisible slack at its own bottom, since content still packs to the top.
+   `Comments.tsx`'s "Close submissions after (days, blank = never)" breaks that assumption — it
+   wraps to two lines at the widths this row actually renders at, so that one cell's label is
+   taller top-to-bottom than its three siblings', and stretch's top-packing means the taller
+   label pushes only ITS OWN input down, leaving the other three inputs sitting higher — a visibly
+   sagging fourth control in an otherwise level row.
+
+   Fixed by overriding just `align-items` here rather than editing `styles.css`: `end` anchors each
+   `.field` by its own bottom edge instead of stretching it, so the input (the last thing in every
+   `.field`) lands on the same line across the row regardless of how tall the label above it is.
+   Same-specificity selector, later in the cascade — `main.tsx` imports this file directly after
+   `styles.css`, so this wins the tie without `!important` (same reasoning `styles.css`'s own
+   `.list-table td button:not([class*="btn-"])` comment documents for an equivalent case).
+
+   Checked against the three other callers, none of which have this problem — their labels never
+   wrap at any width this app's `.field-row` min-column (`minmax(10rem, 1fr)`) allows, so `end` and
+   the previous `stretch` render pixel-identical there. `FormEditor.tsx` (Name/Slug) and
+   `Redirects.tsx` (all four fields) confirmed live, measured via `getBoundingClientRect()`, not
+   eyeballed: every control in both rows still lands on one shared top offset, unchanged from
+   before this rule. `Media.tsx`'s edit panel (Title/Alt/Caption) could NOT be checked live — this
+   environment's media library is empty, so there was no item to open the panel on — the "labels
+   never wrap" claim for it rests on reading its short single-word labels, not on a render. */
+.field-row {
+  align-items: end;
+}
+
 /* `.widget-config-fields` (`components/WidgetConfigFields.tsx`) — five widget-type sub-forms plus
    `WidgetPickerDialog`'s "create new" path share this one class, and it had zero CSS anywhere in
    the app before this rule. Every site renders a bare `<label htmlFor>` immediately followed by
