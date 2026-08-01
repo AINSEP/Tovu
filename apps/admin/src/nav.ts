@@ -69,10 +69,15 @@ export const NAV: NavGroup[] = [
         icon: '<rect x="3" y="2" width="12" height="14" rx="1.5"/><path d="M6 6h6M6 9h6M6 12h4"/>',
       },
       {
+        // Was a plain 3-line stack (`M3 4h12M3 8h12M3 12h8`) — pixel-identical in silhouette to
+        // `settings-raw`'s icon below (same three widths, same pattern), invisible with labels
+        // present but indistinguishable in the icon-only rail. Redrawn as a bulleted list (small
+        // marker + line per row) so the two read as different controls at a glance; `settings-raw`
+        // keeps its plain lines, since "raw ledger of rows" is the more literal fit for that one.
         id: "posts",
         label: "Posts",
         href: "/posts",
-        icon: '<path d="M3 4h12M3 8h12M3 12h8"/>',
+        icon: '<circle cx="3.5" cy="4.5" r="1"/><path d="M6.5 4.5h9"/><circle cx="3.5" cy="9" r="1"/><path d="M6.5 9h9"/><circle cx="3.5" cy="13.5" r="1"/><path d="M6.5 13.5h6"/>',
       },
       {
         id: "media",
@@ -105,10 +110,15 @@ export const NAV: NavGroup[] = [
         icon: '<path d="M9 2l2 3.5 4 .6-3 2.9.7 4L9 11.5 5.6 13l.7-4-3-2.9 4-.6L9 2z"/>',
       },
       {
+        // Was `pages`'s exact rect-plus-three-lines silhouette, differing only in the last
+        // line's width by one grid unit (12/9/4 vs 12/9/3) — invisible with a label next to it,
+        // indistinguishable in an icon-only rail (the collision that blocked shipping the rail
+        // at all). Redrawn form-shaped per the fix request: two checkbox-and-line rows instead
+        // of plain lines, so the silhouette itself says "form fields", not "document".
         id: "forms",
         label: "Forms",
         href: "/forms",
-        icon: '<rect x="3" y="2" width="12" height="14" rx="1.5"/><path d="M6 6h6M6 9h6M6 12h3"/>',
+        icon: '<rect x="3" y="2" width="12" height="14" rx="1.5"/><rect x="5.5" y="5.75" width="2" height="2" rx="0.5"/><path d="M9.5 6.75h3.5"/><rect x="5.5" y="10.25" width="2" height="2" rx="0.5"/><path d="M9.5 11.25h3.5"/>',
       },
     ],
   },

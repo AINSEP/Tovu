@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-ai/ui/chat";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { Sidebar } from "./components/Sidebar";
@@ -234,6 +234,76 @@ export function App() {
   const routePath = useRouteLocation();
   const route = useMemo(() => parseRoute(routePath), [routePath]);
   const [chatOpen, setChatOpen] = useState(false);
+  // Off-canvas sidebar drawer, mobile only (`styles.css`'s `@media (max-width: 900px)`; inert
+  // at desktop widths since `.cms-nav` stays in-flow there regardless of this state).
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // --- Mobile chat sheet (MSG-06) ---
+  // Default↔full-height toggle for the bottom sheet at ≤640px (`styles.css`'s `.is-expanded`).
+  // Session-only (not persisted like the sidebar rail) — this is a per-conversation reading
+  // preference, not a durable layout choice the way the rail collapse is.
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const chatDockRef = useRef<HTMLElement | null>(null);
+  const chatFabRef = useRef<HTMLButtonElement | null>(null);
+
+  // Tracks the same breakpoint as `styles.css`'s `@media (max-width: 640px)` — needed in JS so
+  // `avoidBottomPx` below only measures/holds clearance for a *bottom* sheet, never for the
+  // desktop docked panel (which sits beside `.admin-content`, not below it, so 0 clearance is
+  // correct there regardless of the dock's own height).
+  const [isSheetMode, setIsSheetMode] = useState(() => window.matchMedia("(max-width: 640px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    function onChange(e: MediaQueryListEvent) {
+      setIsSheetMode(e.matches);
+    }
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  // Measures the sheet's actual rendered height (not a guessed `58vh`/`92vh` in px) so
+  // `ChatFab`'s `avoidBottomPx` tracks reality — including mid-transition, since `ResizeObserver`
+  // fires on every frame of the `height` CSS transition between default and expanded.
+  const [sheetHeightPx, setSheetHeightPx] = useState(0);
+  useEffect(() => {
+    if (!isSheetMode || !chatOpen) {
+      setSheetHeightPx(0);
+      return;
+    }
+    const el = chatDockRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setSheetHeightPx(entry.contentRect.height);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isSheetMode, chatOpen]);
+
+  // Escape-to-dismiss for the sheet — same pattern as the sidebar drawer's own handler below.
+  // Harmless at desktop widths too (closing the docked panel via Escape is a reasonable universal
+  // affordance, not sheet-specific), so this is not gated on `isSheetMode`.
+  useEffect(() => {
+    if (!chatOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setChatOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [chatOpen]);
+
+  // Focus into the dock on open, back to the FAB on close (MSG-06). `tabIndex={-1}` on the
+  // `<aside>` below makes it a valid programmatic focus target without adding it to the normal
+  // Tab sequence. Keyed off the open/closed *transition*, not `chatOpen` alone, so this does not
+  // fight the user's own focus once the dock has been open for a while.
+  const chatWasOpen = useRef(false);
+  useEffect(() => {
+    if (chatOpen && !chatWasOpen.current) {
+      chatDockRef.current?.focus();
+    } else if (!chatOpen && chatWasOpen.current) {
+      chatFabRef.current?.focus();
+    }
+    chatWasOpen.current = chatOpen;
+  }, [chatOpen]);
   /**
    * State, not a `useRef`, and attached as a callback ref below — because the effect that builds
    * the page driver needs to run *when this node appears*, and a ref being populated is not a
@@ -253,6 +323,23 @@ export function App() {
   // Plain `<a href="/admin/...">` links stay plain anchors and become SPA navigations here — see
   // `installInternalLinkInterceptor` for why this is a document listener and not a <Link>.
   useEffect(() => installInternalLinkInterceptor(), []);
+
+  // Auto-close the mobile drawer on navigation — every `.cms-item` click is itself a route
+  // change, so without this the drawer would stay open (covering the page it just navigated to)
+  // until the user separately dismissed it.
+  useEffect(() => setSidebarOpen(false), [routePath]);
+
+  // Escape-to-dismiss for the drawer (frontend-accessibility: "keyboard-dismissible"). Scoped to
+  // only listen while open, so this never fights other Escape handlers (e.g. a dialog) elsewhere
+  // in the app.
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setSidebarOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [sidebarOpen]);
 
   // Stable for the app's lifetime: rebuilding it would tear down the driver (and with it the SSE
   // connection) on every render.
@@ -383,21 +470,118 @@ export function App() {
 
   return (
     <div className="admin-layout">
-      <Sidebar activeId={activeNavId(route)} onLogout={logout} />
-      {/* `data-agent-page` is how the page driver reports where it is: `page.find_elements` tags
-          every handle with its nearest `[data-agent-page]` ancestor, and `page.navigate` reads it
-          back to say which page it left and which it landed on. `agentPageId`, not `activeNavId`
-          — they agree for every view but widget regions, where the published page id and the
-          highlighted sidebar row are genuinely different things. */}
-      <main className="admin-content" ref={setContentEl} data-agent-page={agentPageId(route)}>
-        {content}
-      </main>
+      {/* First focusable element in the app, deliberately before `<Sidebar>` — the auditor
+          measured 26 Tab presses to reach main content from a fresh load, because every route
+          repeats the full sidebar first, paid on every navigation by a keyboard/screen-reader
+          operator. Visually hidden until focused (`.skip-link` in styles.css); the target is
+          `#main-content` on `<main>` below, not a route change, so this works identically
+          whichever section is currently rendered there. */}
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
+      <Sidebar
+        activeId={activeNavId(route)}
+        onLogout={logout}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+      {/* Mobile-only backdrop behind the open drawer (`styles.css` hides `.cms-nav`'s off-canvas
+          behavior above 900px, so this has nothing to sit behind there either — conditionally
+          rendered rather than CSS-hidden since it would otherwise sit invisibly over the whole
+          page, intercepting clicks, whenever the drawer is closed). */}
+      {sidebarOpen ? <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} /> : null}
+      <div className="admin-main-col">
+        {/* Hidden above the tablet breakpoint (desktop keeps the always-visible sidebar) — see
+            `.admin-topbar` in styles.css. */}
+        <div className="admin-topbar">
+          <button
+            type="button"
+            className="admin-topbar-toggle"
+            aria-expanded={sidebarOpen}
+            aria-controls="admin-sidebar"
+            aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
+            onClick={() => setSidebarOpen((current) => !current)}
+          >
+            <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+              <path d="M2.5 5h13M2.5 9h13M2.5 13h13" strokeLinecap="round" />
+            </svg>
+          </button>
+          <span className="admin-topbar-title">Tovu</span>
+        </div>
+        {/* `data-agent-page` is how the page driver reports where it is: `page.find_elements` tags
+            every handle with its nearest `[data-agent-page]` ancestor, and `page.navigate` reads it
+            back to say which page it left and which it landed on. `agentPageId`, not `activeNavId`
+            — they agree for every view but widget regions, where the published page id and the
+            highlighted sidebar row are genuinely different things. */}
+        {/* `tabIndex={-1}` — without it, activating the skip link above scrolls `<main>` into
+            view but does not actually move keyboard focus there, since a plain `<main>` isn't
+            natively focusable; the skip link would then satisfy the letter of "skip navigation"
+            while missing the actual point (the next Tab press would resume from wherever focus
+            really was, not from main content). Not in the normal Tab order either way, since -1
+            only allows *programmatic* focus (the skip link's own `href` jump). */}
+        <main id="main-content" className="admin-content" ref={setContentEl} tabIndex={-1} data-agent-page={agentPageId(route)}>
+          {content}
+        </main>
+      </div>
       {/* `hidden`, never unmounted: every admin page shares one assistant conversation, which must
-          survive both closing the dock and navigating to a different section (ADR-049). */}
-      <aside className="admin-chat-dock" hidden={!chatOpen} aria-label="Assistant">
+          survive both closing the dock and navigating to a different section (ADR-049).
+          `inert` alongside it (not instead of it) — belt-and-suspenders: `hidden` already drops
+          this to `display: none`, which removes it from the tab order and accessibility tree on
+          its own, but `inert` states that intent explicitly rather than leaving it as a side
+          effect of a display value. `tabIndex={-1}` makes the element a valid *programmatic*
+          focus target (the open-focus effect above) without adding it to the normal Tab order —
+          the sheet's own close button and the assistant's composer are what Tab should reach,
+          not the `<aside>` wrapper itself. */}
+      <aside
+        ref={chatDockRef}
+        className={`admin-chat-dock${chatOpen ? " is-open" : ""}${sheetExpanded ? " is-expanded" : ""}`}
+        hidden={!chatOpen}
+        inert={!chatOpen}
+        tabIndex={-1}
+        aria-label="Assistant"
+      >
+        {/* Mobile-sheet-only chrome (`styles.css` hides this at desktop widths, where the docked
+            panel closes only via the FAB same as before) — rendered here, around
+            `<AssistantDock>`, rather than inside it: that component's own internals are not
+            where this dispatch's changes belong (ADR-049's "never unmount" is about not touching
+            its mount lifecycle, and staying out of its render body is the safest way to honor
+            that). */}
+        <div className="chat-sheet-bar">
+          <span className="chat-sheet-handle" aria-hidden="true" />
+          <span className="chat-sheet-bar-title">Tovu assistant</span>
+          <span className="chat-sheet-bar-actions">
+            <button
+              type="button"
+              className="chat-sheet-action"
+              onClick={() => setSheetExpanded((current) => !current)}
+              aria-expanded={sheetExpanded}
+              aria-label={sheetExpanded ? "Collapse assistant panel" : "Expand assistant panel"}
+            >
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                {sheetExpanded ? <path d="M4 11.5 9 6.5l5 5" /> : <path d="M4 6.5 9 11.5l5-5" />}
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="chat-sheet-action"
+              onClick={() => setChatOpen(false)}
+              aria-label="Close assistant"
+            >
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                <path d="M5 5 13 13M13 5 5 13" strokeLinecap="round" />
+              </svg>
+            </button>
+          </span>
+        </div>
         <AssistantDock agentBridge={agentBridge} />
       </aside>
-      <ChatFab open={chatOpen} onToggle={() => setChatOpen((current) => !current)} label="assistant" />
+      <ChatFab
+        ref={chatFabRef}
+        open={chatOpen}
+        onToggle={() => setChatOpen((current) => !current)}
+        label="assistant"
+        avoidBottomPx={isSheetMode && chatOpen ? sheetHeightPx : 0}
+      />
     </div>
   );
 }

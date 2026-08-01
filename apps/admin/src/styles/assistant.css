@@ -78,33 +78,53 @@
   min-width: 0;
 }
 
+/* `right`/`left`/`bottom` are deliberately NOT set here — `ChatFab.tsx`'s `useFabPosition` sets
+   them as an inline `style` (drag position, resolved fresh against the current viewport on every
+   render), which always wins over a stylesheet rule for the same property regardless of
+   specificity. A CSS rule for them here would be silently dead weight at best and a confusing
+   second source of truth at worst.
+
+   Was `background: #ffffff; color: #d4af37` — an off-token gold that read as invisible-ish
+   against the dark theme's own dark surfaces and was about to clash with the new burnt-orange
+   `--primary` (MSG-06). Repainted onto `--primary`/`--primary-ink` rather than inventing a new
+   token: the FAB is functionally a circular primary action button, `--primary` already has
+   measured AA contrast in both themes (see `styles.css`'s token comment), and reusing it means
+   the FAB and every other primary CTA in the app read as the same "this is the one thing to
+   press" signal instead of two unrelated ones. If gold was a deliberate assistant-specific brand
+   mark rather than an incidental hard-coded value, that is a one-line follow-up (a dedicated
+   `--assistant-accent` token) rather than a revert — flagged in the handoff report either way. */
 .chat-fab {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
   border-radius: var(--r-pill);
-  border: 1px solid var(--border-strong);
-  background: #ffffff;
-  color: #d4af37;
+  border: 1px solid transparent;
+  background: var(--primary);
+  color: var(--primary-ink);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow-md);
   cursor: pointer;
   z-index: 30;
+  /* MSG-09: required for Pointer Events dragging to work on touch — without this, a touchstart
+     on the FAB starts the browser's own page-scroll gesture instead of (or racing) the drag. */
+  touch-action: none;
+  transition: opacity 0.14s, right 0.2s ease, left 0.2s ease, bottom 0.2s ease;
 }
 
 .chat-fab:hover {
-  filter: brightness(1.05);
+  opacity: 0.9;
 }
 
-/* `.admin-chat-dock` is also anchored to the right edge, so a viewport-fixed FAB would otherwise
-   sit directly on top of the composer's input/send area whenever the dock is open — shift it to
-   the dock's left edge instead of the viewport's. */
-.chat-fab-dock-open {
-  right: calc(380px + 20px);
+/* No position transition while a drag is live — the live position already updates once per
+   `pointermove` (`useFabPosition`'s `renderTick`), and animating toward a target that itself
+   moves every frame reads as laggy, floaty tracking instead of a finger-tracks-1:1 drag. */
+.chat-fab-dragging {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-fab { transition: none; }
 }
 
 /* --- ChatPane shell --- */

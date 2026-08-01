@@ -1,21 +1,45 @@
+import { useFabPosition } from "../hooks/use-fab-position.hooks";
+
 interface ChatFabProps {
   open: boolean;
   onToggle: () => void;
   label?: string;
+  /**
+   * Bottom clearance (px) to hold above while `open` — the mobile sheet's current rendered
+   * height, or `0` at desktop, where the assistant docks to the *side* of `.admin-content`
+   * rather than below it, so there is nothing at the bottom edge to avoid. See `App.tsx`, which
+   * measures the actual sheet element rather than assuming a fixed height.
+   */
+  avoidBottomPx: number;
+  ref?: React.Ref<HTMLButtonElement>;
 }
 
 /**
- * Floating toggle for the global assistant dock (ADR-049). Mirrors
+ * Floating toggle for the global assistant dock (ADR-049), and — per MSG-09 — draggable to
+ * wherever the operator wants it out of the way. Mirrors
  * `examples/reference-web/src/ChatFab.tsx`'s role in Jini's own reference app: a fixed-position
  * button that opens/closes the docked chat pane without ever unmounting it — see
  * `AssistantDock.tsx`'s module doc for why the dock itself uses `hidden`, not conditional render.
+ *
+ * The drag itself is `useFabPosition`'s job entirely; this component only wires its `style`/
+ * `onPointerDown` onto the button and guards `onClick` with `consumeDragFlag()` so a drag's
+ * release does not also fire a toggle (see that function's own doc for why a plain `isDragging`
+ * check at this call site would be timing-unsafe).
  */
-export function ChatFab({ open, onToggle, label = "assistant" }: ChatFabProps) {
+export function ChatFab({ open, onToggle, label = "assistant", avoidBottomPx, ref }: ChatFabProps) {
+  const fab = useFabPosition({ dockOpen: open, avoidBottomPx });
+
   return (
     <button
+      ref={ref}
       type="button"
-      className={`chat-fab${open ? " chat-fab-dock-open" : ""}`}
-      onClick={onToggle}
+      className={`chat-fab${open ? " chat-fab-dock-open" : ""}${fab.isDragging ? " chat-fab-dragging" : ""}`}
+      style={fab.style}
+      onPointerDown={fab.onPointerDown}
+      onClick={() => {
+        if (fab.consumeDragFlag()) return;
+        onToggle();
+      }}
       aria-expanded={open}
       aria-label={open ? `Close ${label}` : `Open ${label}`}
       title={open ? `Close ${label}` : `Open ${label}`}
