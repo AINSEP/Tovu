@@ -220,13 +220,24 @@ export const DEFAULT_LOCALE = "en";
 /**
  * Locales the admin offers.
  *
- * Deliberately a stub: Tovu has NO i18n module yet, so selecting a locale
- * persists a preference that nothing currently reads. The tab is wired so the
- * surface exists and the choice round-trips; translating the admin is a
- * separate piece of work. Replace this list from the real catalog when one
- * lands.
+ * `en` is the identity source of truth (`@jini-ai/ui`'s `SETTINGS_DIALOG_EN`);
+ * `es` is the first real translated locale, wired end-to-end: picking it here
+ * persists to `core.language.locale` and `SettingsUi` feeds that value into
+ * the mounted `I18nProvider`, so tab content actually renders in Spanish (see
+ * `SettingsUi.tsx`'s `SettingsLocaleSync`). Scope note: this only translates
+ * the settings-panel tab content that goes through `@jini-ai/ui`'s `t()` —
+ * the settings sidebar labels and the rest of the Tovu admin shell are
+ * authored directly in Tovu (not via `t()`) and stay English regardless of
+ * this choice; see `SettingsUi.tsx`'s file doc comment.
+ *
+ * Adding another locale is adding one more `{ code, label }` entry here plus
+ * a matching dictionary upstream in `@jini-ai/ui` — no further Tovu-side
+ * plumbing needed.
  */
-export const ADMIN_LOCALES: readonly LocaleOption[] = [{ code: "en", label: "English" }];
+export const ADMIN_LOCALES: readonly LocaleOption[] = [
+  { code: "en", label: "English" },
+  { code: "es", label: "Español" },
+];
 
 export async function loadLanguage(): Promise<string> {
   const values = await loadNamespaceValues(LANGUAGE_NAMESPACE);
