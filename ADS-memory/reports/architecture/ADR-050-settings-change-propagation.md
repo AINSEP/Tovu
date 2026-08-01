@@ -148,6 +148,37 @@ Tests: 121 settings (incl. 10 change-feed, 3 new always-fresh cache guards), 754
 (incl. 5 bus, 9 slice-refresh weighted to the refusal paths). Three admin test *files* fail to load on
 a missing `__TOVU_ADMIN_VERSION__` define — pre-existing, confirmed by reproducing on a clean tree.
 
+## Accepted: the emitted SSE id is a global ledger position
+
+Decided 2026-08-01, after the settings-domain audit sweep raised it twice.
+
+`setting_revisions.seq` is one AUTOINCREMENT shared by every workspace, so a workspace's own
+revision is stamped with a global number — one write in `ws-a` after fifty in `ws-b` emits `id: 51`.
+A subscriber can difference the ids of its own consecutive events and infer roughly how many
+settings writes occurred platform-wide in between.
+
+**Decision: accept and document.** What leaks is a coarse aggregate write-count. It carries no
+values, no identities, and nothing attributable to a particular tenant, and it covers only
+administrative settings changes.
+
+Rejected alternatives, and why:
+
+| Option | Why not |
+|---|---|
+| Per-workspace counter column | A schema change on the ledger write path that *every* writer shares — this server and the separate agent-daemon process — plus both repo adapters, `listRevisionsSince`, `maxRevisionSeq`, the resume clamp, and the contract suite. Real correctness risk in the ledger that had just had three defects fixed in it, to hide a write-count. |
+| Opaque encrypted cursor | No schema change, and the HKDF facility already exists (`analytics/salt.ts`). But it makes resume depend on a key: if that key ever changes, every reconnecting tab fails to decrypt, falls back to the head, and **silently skips the writes it missed** while the feed still looks healthy. Trading a coarse metadata leak for a silent data-loss mode is a bad trade. |
+
+**Revisit if** the ledger begins carrying higher-frequency or more attributable events than
+administrative settings changes. The inference sharpens as write volume rises.
+
+**What is not accepted**, and is now pinned by test: emitting the global ledger *head*, which
+`tick`'s internal `cursor` is deliberately advanced to so it can skip other tenants' rows cheaply.
+That would publish the platform-wide position on every frame — precise rather than differential, and
+readable without the subscriber writing anything at all.
+`src/server/__tests__/routes/settings-events-id-disclosure.test.ts` holds that line. It works only
+because a neighbour writes *after* this workspace does; with any other arrangement the two numbers
+coincide and the test would pass against either behaviour.
+
 ## Known follow-up, not addressed here
 
 `SettingsUi` appears to write its loaded values back on every mount, producing ledger revisions for a
