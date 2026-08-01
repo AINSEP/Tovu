@@ -118,3 +118,66 @@ test("entries routes: a duplicate (workspaceId, type, slug) is rejected ENTRY_SL
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "ENTRY_SLUG_CONFLICT");
 });
+
+test("entries routes: a body edit on an existing entry actually persists (REQ-28)", async (t) => {
+  // The CRITICAL finding from the 2026-08-01 audit sweep, reproduced end-to-end
+  // by two independent auditors: the route never read `bodyJson`, so editing an
+  // existing entry's rich text returned 200 while the stored body kept its
+  // pre-edit value. Silent data loss on the primary content surface, reported as
+  // success. `features/entries/write-service.ts` always supported the field —
+  // only this route and the admin client failed to carry it.
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+
+  const before = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "before" }] }] };
+  const after = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "AFTER" }] }] };
+
+  const createRes = await fetch(`${baseUrl}/api/admin/v1/entries`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ type: "recipe", slug: "body-edit", title: "Body edit", bodyJson: before }),
+  });
+  assert.equal(createRes.status, 201);
+  const created = (await createRes.json()) as { entry: { id: string; version: number } };
+
+  const updateRes = await fetch(`${baseUrl}/api/admin/v1/entries/${created.entry.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Body edit", bodyJson: after, expectedVersion: created.entry.version }),
+  });
+  assert.equal(updateRes.status, 200);
+  const updated = (await updateRes.json()) as { entry: { bodyJson: unknown; version: number } };
+  assert.deepEqual(updated.entry.bodyJson, after, "the edited body must be what was saved, not the pre-edit one");
+
+  // And it must be durable, not just echoed back in the response.
+  const listRes = await fetch(`${baseUrl}/api/admin/v1/entries?type=recipe`, { headers: { cookie } });
+  const listed = (await listRes.json()) as { items: Array<{ id: string; bodyJson: unknown }> };
+  assert.deepEqual(listed.items.find((i) => i.id === created.entry.id)?.bodyJson, after);
+});
+
+test("entries routes: an update that omits bodyJson leaves the existing body alone (REQ-28)", async (t) => {
+  // The other half of the contract, and why `undefined`-when-absent is
+  // load-bearing: a title-only PUT must not clear the body.
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+
+  const body = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "keep me" }] }] };
+  const createRes = await fetch(`${baseUrl}/api/admin/v1/entries`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ type: "recipe", slug: "title-only", title: "Title only", bodyJson: body }),
+  });
+  const created = (await createRes.json()) as { entry: { id: string; version: number } };
+
+  const updateRes = await fetch(`${baseUrl}/api/admin/v1/entries/${created.entry.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Renamed", expectedVersion: created.entry.version }),
+  });
+  assert.equal(updateRes.status, 200);
+  const updated = (await updateRes.json()) as { entry: { title: string; bodyJson: unknown } };
+  assert.equal(updated.entry.title, "Renamed");
+  assert.deepEqual(updated.entry.bodyJson, body, "omitting bodyJson must preserve it, not clear it");
+});
