@@ -8,7 +8,8 @@ import {
   type RedirectImportRule,
 } from "../lib/api";
 import { useFetchMutation, useFetchQuery, type QueryKey } from "../lib/fetch-query";
-import { ConfirmButton } from "../components/ConfirmButton";
+import { RowMenu, type RowMenuItem } from "../components/RowMenu";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 /**
  * @file Redirects admin screen (SPEC-009 ui.spec.md) — the `/admin/redirects` route.
@@ -143,7 +144,10 @@ function ImportRedirectsForm() {
           onChange={(e) => setRaw(e.target.value)}
           placeholder='[{"matchType":"exact","fromPattern":"/old","toTarget":"/new","statusCode":301}]'
         />
-        <button type="submit" disabled={importing}>
+        {/* Secondary, not primary — "Add redirect" above is this screen's one actual create
+            action; bulk import is a power-user path to the same result, not a second headline CTA
+            competing with it. */}
+        <button type="submit" className="btn-secondary" disabled={importing}>
           {importing ? "Importing…" : "Import"}
         </button>
       </form>
@@ -212,6 +216,20 @@ export function Redirects() {
     invalidates: [KEYS.list],
   });
 
+  // The rule a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
+  // closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on why);
+  // this is what drives its `open` prop. Row action moved off the in-place two-click
+  // `ConfirmButton` control (MSG-03 rollout) — see `Roles.tsx`'s `onDeleteRole` comment for why a
+  // `RowMenu` item needs `ConfirmDialog`, not `ConfirmButton`, to hold the confirm step.
+  const [pendingDelete, setPendingDelete] = useState<AdminRedirect | null>(null);
+
+  function confirmDelete() {
+    if (!pendingDelete) return;
+    const rule = pendingDelete;
+    clearOtherWriteErrors(removeRule);
+    void removeRule.mutate(rule).finally(() => setPendingDelete(null));
+  }
+
   const writes = [createRule, toggleStatus, removeRule];
   const saving = writes.some((write) => write.status === "pending");
   const writeError = writes.find((write) => write.error)?.error ?? null;
@@ -251,14 +269,17 @@ export function Redirects() {
   if (!redirects) return <div className="notice">Loading redirects…</div>;
 
   return (
-    <div>
-      <div className="editor-header">
-        <h1>Redirects</h1>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Marketing</p>
+          <h1 className="page-title">Redirects</h1>
+          <p className="page-description">
+            Manual URL redirect rules. Rules created automatically from a slug change (source
+            <code> auto_slug_change</code>) also show up here.
+          </p>
+        </div>
       </div>
-      <p>
-        Manual URL redirect rules. Rules created automatically from a slug change (source
-        <code> auto_slug_change</code>) also show up here.
-      </p>
       {error ? <div className="notice error">{describeApiError(error, "request failed")}</div> : null}
 
       <form
@@ -302,8 +323,13 @@ export function Redirects() {
       <ImportRedirectsForm />
 
       {redirects.length === 0 ? (
-        <div className="notice">No redirect rules yet.</div>
+        <div className="card">
+          <div className="empty-state">
+            <p>No redirect rules yet.</p>
+          </div>
+        </div>
       ) : (
+        <div className="table-scroll">
         <table className="list-table">
           <thead>
             <tr>
@@ -314,50 +340,70 @@ export function Redirects() {
               <th>Source</th>
               <th>Status</th>
               <th>Hits</th>
-              <th></th>
+              <th>More</th>
             </tr>
           </thead>
           <tbody>
-            {redirects.map((rule) => (
-              <tr key={rule.id}>
-                <td>{rule.fromPattern}</td>
-                <td>{rule.toTarget}</td>
-                <td>{rule.matchType}</td>
-                <td>{rule.statusCode}</td>
-                <td>{rule.source}</td>
-                <td>
-                  <span className={`status status-${rule.status}`}>{rule.status}</span>
-                </td>
-                <td>
-                  <HitCountCell redirectId={rule.id} />
-                </td>
-                <td>
-                  <button
-                    disabled={saving}
-                    onClick={() => {
-                      clearOtherWriteErrors(toggleStatus);
-                      void toggleStatus.mutate(rule);
-                    }}
-                  >
-                    {rule.status === "active" ? "Disable" : "Enable"}
-                  </button>
-                  <ConfirmButton
-                    label="Delete"
-                    confirmLabel="Confirm delete"
-                    destructive
-                    disabled={saving}
-                    onConfirm={() => {
-                      clearOtherWriteErrors(removeRule);
-                      void removeRule.mutate(rule);
-                    }}
-                    ariaLabel={`Delete redirect rule from "${rule.fromPattern}"`}
-                  />
-                </td>
-              </tr>
-            ))}
+            {redirects.map((rule) => {
+              // `disabled={saving}` on the old inline buttons guarded against a second write
+              // firing while any of this table's writes (create/toggle/delete) is in flight —
+              // `RowMenu`'s `items` has no per-item `disabled`, so that guard moved inside each
+              // `onSelect` instead. Functionally identical (no double-submission); the only loss
+              // is the greyed-out visual cue while `saving` is true, a presentation detail, not a
+              // dropped confirmation or destructive/warning classification.
+              const items: RowMenuItem[] = [
+                {
+                  key: "toggle",
+                  label: rule.status === "active" ? "Disable" : "Enable",
+                  onSelect: () => {
+                    if (saving) return;
+                    clearOtherWriteErrors(toggleStatus);
+                    void toggleStatus.mutate(rule);
+                  },
+                },
+                {
+                  key: "delete",
+                  label: "Delete",
+                  destructive: true,
+                  onSelect: () => {
+                    if (saving) return;
+                    setPendingDelete(rule);
+                  },
+                },
+              ];
+              return (
+                <tr key={rule.id}>
+                  <td>{rule.fromPattern}</td>
+                  <td>{rule.toTarget}</td>
+                  <td>{rule.matchType}</td>
+                  <td>{rule.statusCode}</td>
+                  <td>{rule.source}</td>
+                  <td>
+                    <span className={`status status-${rule.status}`}>{rule.status}</span>
+                  </td>
+                  <td>
+                    <HitCountCell redirectId={rule.id} />
+                  </td>
+                  <td>
+                    <RowMenu triggerLabel={`Actions for redirect rule from "${rule.fromPattern}"`} items={items} />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+        </div>
       )}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete redirect rule?"
+        body={pendingDelete ? <p>Delete the redirect rule from &quot;{pendingDelete.fromPattern}&quot;?</p> : null}
+        confirmLabel="Delete"
+        destructive
+        pending={removeRule.status === "pending"}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }
