@@ -27,6 +27,7 @@
     "check:boundaries": "depcruise --config .dependency-cruiser.cjs src",
     "check:inventory": "tsx scripts/check-capability-inventory.ts",
     "lint": "biome lint .",
+    "complexity": "eslint --no-error-on-unmatched-pattern .",
     "admin:install": "npm --prefix apps/admin install",
     "admin:build": "npm --prefix apps/admin run build",
     "admin:dev": "npm --prefix apps/admin run dev",
@@ -60,8 +61,11 @@
     "@types/semver": "^7.5.8",
     "dependency-cruiser": "^18.1.0",
     "drizzle-kit": "^0.30.6",
+    "eslint": "^10.8.0",
+    "eslint-plugin-sonarjs": "^4.2.0",
     "ts-morph": "^28.0.0",
     "tsx": "^4.19.3",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.65.0"
   }
 }
