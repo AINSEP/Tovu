@@ -200,7 +200,7 @@ async function userReturningResults(harness: Harness): Promise<Array<{ toolId: s
   const { deps, ownerPrincipalId } = harness;
 
   const created = (await wired(deps, "identity_user_create").handler(
-    asOwner(ownerPrincipalId, { username: "projection-subject", password: "pw", email: "a@b.test" }),
+    asOwner(ownerPrincipalId, { username: "projection-subject", password: "pw-valid-1234", email: "a@b.test" }),
   )) as { user: { principalId: string } };
   const principalId = created.user.principalId;
 
@@ -237,13 +237,13 @@ test("a user view drops workspaceId — the agent is already scoped to one works
 test("a user view carries exactly the keys the model needs, and email only when set", async () => {
   const { deps, ownerPrincipalId } = await buildHarness();
 
-  const withoutEmail = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "no-email", password: "pw" }))) as {
+  const withoutEmail = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "no-email", password: "pw-valid-1234" }))) as {
     user: Record<string, unknown>;
   };
   assert.deepEqual(Object.keys(withoutEmail.user).sort(), ["principalId", "roleIds", "status", "username"]);
   assert.equal("email" in withoutEmail.user, false, "a user without an email must carry no always-undefined key");
 
-  const withEmail = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "with-email", password: "pw", email: "a@b.test" }))) as {
+  const withEmail = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "with-email", password: "pw-valid-1234", email: "a@b.test" }))) as {
     user: Record<string, unknown>;
   };
   assert.equal(withEmail.user.email, "a@b.test");
@@ -382,7 +382,7 @@ test("END TO END: create a user, assign it a role, and see the assignment show u
   assert.equal(role.name, "Content Editor");
 
   // 2. The user. It comes back with no roles, which is what forces step 3 to exist.
-  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "Ada", password: "pw", email: "ada@example.test" }))) as {
+  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "Ada", password: "pw-valid-1234", email: "ada@example.test" }))) as {
     user: { principalId: string; username: string; roleIds: string[] };
   };
   assert.equal(user.username, "ada", "the username is normalized by the domain, and the tool reports what was actually stored");
@@ -426,7 +426,7 @@ test("END TO END: create a policy, see it in the list, attach it to a user, and 
   assert.ok(policies.some((candidate) => candidate.id === policy.id && candidate.name === "Reviewer Bundle"));
 
   // 3. The user.
-  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "Reviewer", password: "pw" }))) as {
+  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "Reviewer", password: "pw-valid-1234" }))) as {
     user: { principalId: string };
   };
 
@@ -458,7 +458,7 @@ test("END TO END: create a policy, see it in the list, attach it to a user, and 
 test("the email round-trips: set, changed, then cleared by omitting it", async () => {
   const { deps, ownerPrincipalId } = await buildHarness();
 
-  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "mailer", password: "pw", email: "first@example.test" }))) as {
+  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "mailer", password: "pw-valid-1234", email: "first@example.test" }))) as {
     user: { principalId: string; email?: string };
   };
   assert.equal(user.email, "first@example.test");
@@ -477,7 +477,7 @@ test("the email round-trips: set, changed, then cleared by omitting it", async (
 test("disable then enable round-trips, and the status change is visible through the list tool", async () => {
   const { deps, ownerPrincipalId } = await buildHarness();
 
-  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "temp", password: "pw" }))) as {
+  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "temp", password: "pw-valid-1234" }))) as {
     user: { principalId: string };
   };
 
@@ -502,7 +502,7 @@ test("a custom role can be renamed and then deleted while unassigned, but not on
   assert.equal(renamed.role.name, "Temp Renamed");
   assert.equal(renamed.role.isBuiltin, false);
 
-  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "holder", password: "pw" }))) as {
+  const { user } = (await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "holder", password: "pw-valid-1234" }))) as {
     user: { principalId: string };
   };
   await wired(deps, "identity_role_assign").handler(asOwner(ownerPrincipalId, { principalId: user.principalId, roleId: role.id }));
@@ -524,10 +524,10 @@ test("a custom role can be renamed and then deleted while unassigned, but not on
 test("a duplicate username is refused, so a model cannot quietly create a second account under an existing name", async () => {
   const { deps, ownerPrincipalId } = await buildHarness();
 
-  await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "Dup", password: "pw" }));
+  await wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "Dup", password: "pw-valid-1234" }));
 
   await assert.rejects(
-    () => wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "dup", password: "pw" })),
+    () => wired(deps, "identity_user_create").handler(asOwner(ownerPrincipalId, { username: "dup", password: "pw-valid-1234" })),
     /already in use/,
     "the domain compares usernames case-insensitively, and the tool inherits that rather than re-implementing it",
   );

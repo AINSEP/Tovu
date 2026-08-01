@@ -91,26 +91,26 @@ test("AC-02: correct credentials create a session for an active principal", asyn
 test("AC-02: wrong password, unknown username, and a disabled principal all reject with the same error, no session created", async () => {
   const { deps, repos } = buildDeps("2026-07-10T00:00:00.000Z");
   await seedOneUser(repos, { password: "correct-horse" });
-  await seedOneUser(repos, { id: "disabled-1", username: "gone", password: "pw", status: "disabled" });
+  await seedOneUser(repos, { id: "disabled-1", username: "gone", password: "pw-valid-1234", status: "disabled" });
 
   await assert.rejects(
     () => login({ deps, input: { workspaceId: WORKSPACE, username: "ed", password: "wrong" } }),
     AuthInvalidCredentialsError
   );
   await assert.rejects(
-    () => login({ deps, input: { workspaceId: WORKSPACE, username: "nobody", password: "whatever" } }),
+    () => login({ deps, input: { workspaceId: WORKSPACE, username: "nobody", password: "whatever-1234" } }),
     AuthInvalidCredentialsError
   );
   await assert.rejects(
-    () => login({ deps, input: { workspaceId: WORKSPACE, username: "gone", password: "pw" } }),
+    () => login({ deps, input: { workspaceId: WORKSPACE, username: "gone", password: "pw-valid-1234" } }),
     AuthInvalidCredentialsError
   );
 });
 
 test("EC-02: a session whose principal is later disabled stops validating immediately", async () => {
   const { deps, repos } = buildDeps("2026-07-10T00:00:00.000Z");
-  await seedOneUser(repos, { password: "pw" });
-  const { rawToken } = await login({ deps, input: { workspaceId: WORKSPACE, username: "ed", password: "pw" } });
+  await seedOneUser(repos, { password: "pw-valid-1234" });
+  const { rawToken } = await login({ deps, input: { workspaceId: WORKSPACE, username: "ed", password: "pw-valid-1234" } });
 
   const beforeDisable = await validateSession({ deps, input: { workspaceId: WORKSPACE, rawToken } });
   assert.ok(beforeDisable);
@@ -131,10 +131,10 @@ test("EC-02: a session whose principal is later disabled stops validating immedi
 
 test("EC-13/AC-20: a session past its absolute expiry is treated as revoked (401), regardless of revokedAt", async () => {
   const { deps, repos, setNow } = buildDeps("2026-07-10T00:00:00.000Z");
-  await seedOneUser(repos, { password: "pw" });
+  await seedOneUser(repos, { password: "pw-valid-1234" });
   const { rawToken, session } = await login({
     deps,
-    input: { workspaceId: WORKSPACE, username: "ed", password: "pw" },
+    input: { workspaceId: WORKSPACE, username: "ed", password: "pw-valid-1234" },
   });
 
   // Absolute 30-day expiry (behavior.spec §4).
@@ -149,8 +149,8 @@ test("EC-13/AC-20: a session past its absolute expiry is treated as revoked (401
 
 test("AC-05: logout revokes the session; a revoked session stops validating; logout is idempotent", async () => {
   const { deps, repos } = buildDeps("2026-07-10T00:00:00.000Z");
-  await seedOneUser(repos, { password: "pw" });
-  const { rawToken } = await login({ deps, input: { workspaceId: WORKSPACE, username: "ed", password: "pw" } });
+  await seedOneUser(repos, { password: "pw-valid-1234" });
+  const { rawToken } = await login({ deps, input: { workspaceId: WORKSPACE, username: "ed", password: "pw-valid-1234" } });
 
   await logout({ deps, input: { workspaceId: WORKSPACE, rawToken } });
   assert.equal(await validateSession({ deps, input: { workspaceId: WORKSPACE, rawToken } }), null);
@@ -161,10 +161,10 @@ test("AC-05: logout revokes the session; a revoked session stops validating; log
 
 test("EC-05: concurrent sessions for one principal are independent — revoking one doesn't revoke the other", async () => {
   const { deps, repos } = buildDeps("2026-07-10T00:00:00.000Z");
-  await seedOneUser(repos, { password: "pw" });
+  await seedOneUser(repos, { password: "pw-valid-1234" });
 
-  const first = await login({ deps, input: { workspaceId: WORKSPACE, username: "ed", password: "pw" } });
-  const second = await login({ deps, input: { workspaceId: WORKSPACE, username: "ed", password: "pw" } });
+  const first = await login({ deps, input: { workspaceId: WORKSPACE, username: "ed", password: "pw-valid-1234" } });
+  const second = await login({ deps, input: { workspaceId: WORKSPACE, username: "ed", password: "pw-valid-1234" } });
 
   await logout({ deps, input: { workspaceId: WORKSPACE, rawToken: first.rawToken } });
 
@@ -174,7 +174,7 @@ test("EC-05: concurrent sessions for one principal are independent — revoking 
 
 test("REQ-07: getEffectivePermissions resolves the union of role + direct grants; empty for a grant-less principal", async () => {
   const { deps, repos } = buildDeps("2026-07-10T00:00:00.000Z");
-  await seedOneUser(repos, { password: "pw" });
+  await seedOneUser(repos, { password: "pw-valid-1234" });
 
   const noneYet = await getEffectivePermissions({
     deps: repos,
