@@ -289,6 +289,67 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
       null
     );
   });
+
+  test(`[${adapterName}] a failed transaction rolls back EVERY write it made, not just the last`, async () => {
+    // This assertion used to run against the SQLite adapter only, on the
+    // reasoning that in-memory mutations are individually atomic already. They
+    // are — but the guarantee this port sells is that a COMPOSITE is
+    // all-or-nothing, which is what `resetNamespace` depends on. Gating it left
+    // the in-memory adapter (the wired default in `server/app.ts`) leaving a
+    // half-applied namespace reset, invisible to CI. Running it against every
+    // adapter is the point of a contract suite.
+    const repo = makeRepo();
+    await assert.rejects(
+      repo.transaction(async () => {
+        await repo.saveDefinition(def);
+        await repo.saveDefinition({ ...def, settingId: "setting-2", key: "secondKey" });
+        await repo.appendRevision({
+          entityKind: "value",
+          settingId: def.settingId,
+          scope: "global",
+          workspaceId: null,
+          principalId: null,
+          op: "set",
+          beforeJson: null,
+          afterJson: "x",
+          defVersion: 1,
+          actor: "p-1",
+          originPluginId: null,
+          changeSetId: null,
+          createdAt: NOW,
+        });
+        throw new Error("fails after several writes");
+      }),
+      /fails after several writes/
+    );
+
+    // The FIRST write must be gone too — a rollback that only undoes the write
+    // nearest the failure is exactly the half-applied state this prevents.
+    assert.equal(
+      await repo.findActiveDefinition({ namespace: def.namespace, key: def.key, workspaceId: null }),
+      null,
+      "the first write in a failed transaction must not survive"
+    );
+    assert.equal(await repo.findDefinitionBySettingId({ settingId: "setting-2" }), null);
+    assert.deepEqual(await repo.listRevisions({ settingId: def.settingId }), []);
+  });
+
+  test(`[${adapterName}] a transaction that succeeds after an earlier one failed still commits`, async () => {
+    // Rolling back must restore the adapter to a usable state, not wedge it —
+    // an in-memory journal that forgot to clear its open-transaction flag would
+    // refuse every write after the first failure.
+    const repo = makeRepo();
+    await assert.rejects(
+      repo.transaction(async () => {
+        await repo.saveDefinition(def);
+        throw new Error("first fails");
+      })
+    );
+    await repo.transaction(async () => {
+      await repo.saveDefinition({ ...def, settingId: "setting-after", key: "afterKey" });
+    });
+    assert.notEqual(await repo.findDefinitionBySettingId({ settingId: "setting-after" }), null);
+  });
 }
 
 runContractSuite("InMemorySettingsRepo", () => new InMemorySettingsRepo());

@@ -8,9 +8,17 @@ import type { SettingDefinitionRecord, SettingRevisionRecord, SettingValueRecord
  * Test/dev implementation. Mirrors the exact style of
  * `features/presentation/repo.memory.ts` / `identity/repo.memory.ts`:
  * constructor takes seed rows, methods filter/mutate internal arrays.
- * `transaction` is a no-op wrapper here (all mutations are already
- * synchronous/atomic in-process) — the real atomicity guarantee is proven
- * against `repo.sqlite.ts`.
+ *
+ * `transaction` is a real snapshot/restore journal, not a no-op wrapper. It
+ * used to be `async (fn) => fn()` on the reasoning that each individual
+ * mutation is already synchronous and atomic in-process — true, but the
+ * guarantee `SettingsRepoPort.transaction` actually sells is that a COMPOSITE
+ * of several mutations is all-or-nothing. `resetNamespace` clears a whole
+ * namespace inside one transaction; under a no-op wrapper a failure partway
+ * through left the namespace half reset while the caller saw an error. This
+ * adapter is the wired default in `server/app.ts`, so that was live in dev,
+ * and the contract suite could not see it because the rollback assertion only
+ * ran against `repo.sqlite.ts`.
  */
 export class InMemorySettingsRepo implements SettingsRepoPort {
   private definitions: SettingDefinitionRecord[];
@@ -19,6 +27,9 @@ export class InMemorySettingsRepo implements SettingsRepoPort {
   private userValues: SettingValueRecord[];
   private revisions: SettingRevisionRecord[];
   private nextSeq: number;
+  /** True while `transaction` is open — see its doc for why this refuses
+   *  rather than nests. */
+  private inTransaction = false;
 
   constructor(
     seed: {
@@ -218,7 +229,59 @@ export class InMemorySettingsRepo implements SettingsRepoPort {
     return this.revisions.reduce((max, r) => (r.seq > max ? r.seq : max), 0);
   }
 
+  /**
+   * Runs `fn` atomically: every mutation it makes is discarded if it throws.
+   *
+   * A shallow copy of each array is enough because no method here mutates a
+   * record in place — `save*` REPLACES the element at its index, `delete*`
+   * reassigns a filtered array, `appendRevision` pushes. Restoring the arrays
+   * therefore restores the rows too. If a future method starts editing a
+   * record object in place, this must deep-copy instead.
+   *
+   * `nextSeq` is rolled back with the rest, matching SQLite: `sqlite_sequence`
+   * is an ordinary table, so an AUTOINCREMENT counter bumped inside a
+   * transaction is undone by its ROLLBACK. A seq handed out by a failed
+   * transaction is safe to reuse precisely because that revision no longer
+   * exists.
+   *
+   * **Deliberately NOT reentrant**, matching `SqliteSettingsRepo.transaction`,
+   * where `BEGIN IMMEDIATE` inside an open transaction is an error. Refusing
+   * loudly is the point: an instance-level flag cannot tell "nested inside my
+   * caller's transaction" from "an unrelated transaction that started while
+   * mine was awaiting" (see the SQLite adapter's doc for how that failed
+   * before). Silently joining a stranger's transaction — and inheriting its
+   * rollback — is a worse defect than refusing. A caller that needs several
+   * writes to commit together opens ONE transaction and passes
+   * `skipTransaction` to the inner writes, as `resetNamespace` does.
+   */
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    return fn();
+    if (this.inTransaction) {
+      throw new Error(
+        "InMemorySettingsRepo.transaction is not reentrant, and cannot host a second overlapping transaction. " +
+          "Open one transaction and pass `skipTransaction` to the inner writes (see resetNamespace)."
+      );
+    }
+    const snapshot = {
+      definitions: [...this.definitions],
+      globalValues: [...this.globalValues],
+      workspaceValues: [...this.workspaceValues],
+      userValues: [...this.userValues],
+      revisions: [...this.revisions],
+      nextSeq: this.nextSeq,
+    };
+    this.inTransaction = true;
+    try {
+      return await fn();
+    } catch (error) {
+      this.definitions = snapshot.definitions;
+      this.globalValues = snapshot.globalValues;
+      this.workspaceValues = snapshot.workspaceValues;
+      this.userValues = snapshot.userValues;
+      this.revisions = snapshot.revisions;
+      this.nextSeq = snapshot.nextSeq;
+      throw error;
+    } finally {
+      this.inTransaction = false;
+    }
   }
 }
