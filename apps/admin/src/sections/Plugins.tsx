@@ -82,14 +82,16 @@ export function Plugins() {
   if (!plugins) return <div className="notice">Loading plugins…</div>;
 
   return (
-    <div>
-      <div className="editor-header">
-        <h1>Plugins</h1>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Design & System</p>
+          <h1 className="page-title">Plugins</h1>
+          <p className="page-description">
+            Enable or disable plugins discovered in this site's plugin install directory.
+          </p>
+        </div>
       </div>
-      <p>
-        Plugins are installed by unpacking them into the site's plugin install directory; a new one
-        appears here on the next load. Enable or disable a discovered plugin below.
-      </p>
       {rowError ? (
         <div className="notice error">
           <span role="alert">{rowError}</span>
@@ -97,8 +99,17 @@ export function Plugins() {
       ) : null}
 
       {plugins.length === 0 ? (
-        <div className="notice">No plugins installed.</div>
+        <div className="card">
+          <div className="empty-state">
+            <p>No plugins installed.</p>
+            <p className="page-description">
+              A new one appears here on the next load, once it's unpacked into the site's plugin
+              install directory.
+            </p>
+          </div>
+        </div>
       ) : (
+        <div className="table-scroll">
         <table className="list-table">
           <thead>
             <tr>
@@ -155,6 +166,7 @@ export function Plugins() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

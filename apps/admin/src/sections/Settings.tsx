@@ -223,7 +223,13 @@ function describeApiError(e: unknown, fallback: string): string {
 // ---------------------------------------------------------------------------
 
 function EmptyState(props: { message: string }) {
-  return <div className="notice settings-empty">{props.message}</div>;
+  return (
+    <div className="card">
+      <div className="empty-state">
+        <p>{props.message}</p>
+      </div>
+    </div>
+  );
 }
 
 function ErrorBanner(props: { message: string; onRetry?: () => void }) {
@@ -288,6 +294,7 @@ function PrincipalSelector(props: {
         {props.value ? (
           <button
             type="button"
+            className="btn-secondary"
             onClick={() => {
               setDraft("");
               props.onClearPrincipal();
@@ -429,7 +436,12 @@ function ValueEditor(props: {
         <button type="submit" disabled={props.disabled || props.saving}>
           {props.saving ? "Saving…" : "Save"}
         </button>
-        <button type="button" disabled={props.disabled || props.saving} onClick={props.onClearValue}>
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={props.disabled || props.saving}
+          onClick={props.onClearValue}
+        >
           Clear
         </button>
       </span>
@@ -471,10 +483,17 @@ function ResetNamespaceDialog(props: {
           This cannot be undone.
         </p>
         <span className="editor-actions">
-          <button type="button" autoFocus onClick={props.onConfirmReset}>
+          <button type="button" className="btn-danger" onClick={props.onConfirmReset}>
             Reset to defaults
           </button>
-          <button type="button" onClick={props.onCancel}>
+          {/* `autoFocus` moved here from "Reset to defaults" (authorized fix, previously flagged
+              rather than changed under this pass's original layout-only scope) — matches
+              `ConfirmDialog.tsx`'s "focus the safe action, not confirm" rule. Autofocusing the
+              destructive action meant an operator who opened this dialog and hit Enter/Space
+              without deliberately tabbing anywhere destroyed a settings namespace; the dialog's
+              whole purpose is to make that a deliberate second step, and default focus on Reset
+              defeated it. */}
+          <button type="button" className="btn-secondary" autoFocus onClick={props.onCancel}>
             Cancel
           </button>
         </span>
@@ -566,7 +585,7 @@ function SettingDetailPanel(props: {
               onClearValue={() => props.onClearValue(scope)}
             />
             {props.canReset[scope] ? (
-              <button type="button" className="settings-reset-trigger" onClick={() => props.onRequestReset(scope)}>
+              <button type="button" className="btn-danger" onClick={() => props.onRequestReset(scope)}>
                 Reset {scope} namespace to defaults
               </button>
             ) : null}
@@ -897,9 +916,14 @@ export function Settings() {
   };
 
   return (
-    <div>
-      <h1>Settings</h1>
-      <p>Layered core settings: global, workspace, and user-scope values with defaults.</p>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Design & System</p>
+          <h1 className="page-title">Settings (Raw)</h1>
+          <p className="page-description">Layered core settings: global, workspace, and user-scope values with defaults.</p>
+        </div>
+      </div>
       <SettingsContainer
         canWriteScopes={canWriteScopes}
         canReadOtherPrincipal={canReadOtherPrincipal}

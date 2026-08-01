@@ -114,15 +114,20 @@ function TimelineSection() {
         <input id="database-filter-from" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         <label htmlFor="database-filter-to">To</label>
         <input id="database-filter-to" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-        <button type="submit">Apply filters</button>
+        <button type="submit" className="btn-secondary">Apply filters</button>
       </form>
 
       {error ? <div className="notice error">{error}</div> : null}
 
       {rows.length === 0 ? (
-        <div className="notice">No database activity recorded yet.</div>
+        <div className="card">
+          <div className="empty-state">
+            <p>No database activity recorded yet.</p>
+          </div>
+        </div>
       ) : (
         <>
+          <div className="table-scroll">
           <table className="list-table">
             <thead>
               <tr>
@@ -153,8 +158,9 @@ function TimelineSection() {
               ))}
             </tbody>
           </table>
+          </div>
           {nextCursor ? (
-            <button type="button" onClick={loadMore} disabled={loadingMore}>
+            <button type="button" className="btn-secondary" onClick={loadMore} disabled={loadingMore}>
               {loadingMore ? "Loading…" : "Load more"}
             </button>
           ) : null}
@@ -209,8 +215,13 @@ function RestorePointsSection() {
       </div>
       {error ? <div className="notice error">{error}</div> : null}
       {points.length === 0 ? (
-        <div className="notice">No restore points yet.</div>
+        <div className="card">
+          <div className="empty-state">
+            <p>No restore points yet.</p>
+          </div>
+        </div>
       ) : (
+        <div className="table-scroll">
         <table className="list-table">
           <thead>
             <tr>
@@ -233,6 +244,7 @@ function RestorePointsSection() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );
@@ -305,7 +317,7 @@ function MigrateForwardSection() {
       <div className="editor-header">
         <h2>Migrate forward</h2>
         {step !== "idle" ? (
-          <button type="button" onClick={reset} disabled={busy}>
+          <button type="button" className="btn-ghost" onClick={reset} disabled={busy}>
             Reset
           </button>
         ) : null}
@@ -317,7 +329,7 @@ function MigrateForwardSection() {
       {error ? <div className="notice error">{error}</div> : null}
 
       {step === "idle" ? (
-        <button type="button" onClick={startPlan} disabled={busy}>
+        <button type="button" className="btn-ghost" onClick={startPlan} disabled={busy}>
           {busy ? "Planning…" : "Plan migration"}
         </button>
       ) : null}
@@ -328,7 +340,7 @@ function MigrateForwardSection() {
             Plan ready (plan <code>{plan.planId}</code>). Confirming issues a one-time execution
             token — nothing is migrated yet.
           </p>
-          <button type="button" onClick={doConfirm} disabled={busy}>
+          <button type="button" className="btn-secondary" onClick={doConfirm} disabled={busy}>
             {busy ? "Confirming…" : "Confirm migration"}
           </button>
         </div>
@@ -337,7 +349,7 @@ function MigrateForwardSection() {
       {step === "confirmed" && confirmationToken ? (
         <div className="notice">
           <p>Confirmed. Executing runs the migration now.</p>
-          <button type="button" onClick={doExecute} disabled={busy}>
+          <button type="button" className="btn-warning" onClick={doExecute} disabled={busy}>
             {busy ? "Migrating…" : "Execute migration"}
           </button>
         </div>
@@ -354,9 +366,16 @@ function MigrateForwardSection() {
 
 export function Database() {
   return (
-    <div>
-      <h1>Database</h1>
-      <p>A read-first record of every migration, snapshot, index change, and template upgrade on this site.</p>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Design & System</p>
+          <h1 className="page-title">Database</h1>
+          <p className="page-description">
+            A read-first record of every migration, snapshot, index change, and template upgrade on this site.
+          </p>
+        </div>
+      </div>
       <TimelineSection />
       <RestorePointsSection />
       <MigrateForwardSection />

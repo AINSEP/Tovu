@@ -91,7 +91,9 @@ function NewTermForm(props: {
             ))}
           </select>
         ) : null}
-        <button type="submit" disabled={saving}>
+        {/* Secondary — repeated once per taxonomy group, not this page's one headline create
+            ("Create taxonomy" above owns that). */}
+        <button type="submit" className="btn-secondary" disabled={saving}>
           {saving ? "Saving…" : "Add term"}
         </button>
       </span>
@@ -146,6 +148,9 @@ function NewTaxonomyForm(props: { onCreated: () => void }) {
           <input type="checkbox" checked={hierarchical} onChange={(e) => setHierarchical(e.target.checked)} />
           Hierarchical
         </label>
+        {/* The one page-level primary — the entry point for the whole feature. Everything below
+            (per-group "Add term", the merge wizard's "Plan"/"Confirm") is scoped and repeated
+            rather than a single headline action, so those stay secondary; see their own comments. */}
         <button type="submit" disabled={saving}>
           {saving ? "Saving…" : "Create taxonomy"}
         </button>
@@ -239,7 +244,10 @@ function MergeTermSection(props: { taxonomy: AdminTaxonomyWithTerms; term: Admin
               </option>
             ))}
           </select>
-          <button type="button" onClick={startPlan} disabled={!intoTermId || busy}>
+          {/* Secondary throughout this wizard's first two steps — planning/confirming a merge
+              commits nothing yet ("nothing is merged yet" below), so neither reads as this
+              screen's primary action. Only Execute (genuinely irreversible) escalates. */}
+          <button type="button" className="btn-secondary" onClick={startPlan} disabled={!intoTermId || busy}>
             {busy ? "Planning…" : "Plan merge"}
           </button>
         </span>
@@ -252,7 +260,7 @@ function MergeTermSection(props: { taxonomy: AdminTaxonomyWithTerms; term: Admin
             term and merge <strong>{props.term.name}</strong> away. Confirming issues a one-time execution
             token — nothing is merged yet.
           </p>
-          <button type="button" onClick={doConfirm} disabled={busy}>
+          <button type="button" className="btn-secondary" onClick={doConfirm} disabled={busy}>
             {busy ? "Confirming…" : "Confirm merge"}
           </button>
         </div>
@@ -261,7 +269,8 @@ function MergeTermSection(props: { taxonomy: AdminTaxonomyWithTerms; term: Admin
       {step === "confirmed" && confirmationToken ? (
         <div>
           <p>Confirmed. Executing merges the terms now — this cannot be undone.</p>
-          <button type="button" onClick={doExecute} disabled={busy}>
+          {/* Genuinely irreversible, per the copy right above — `.btn-danger`, unlike Plan/Confirm. */}
+          <button type="button" className="btn-danger" onClick={doExecute} disabled={busy}>
             {busy ? "Merging…" : "Execute merge"}
           </button>
         </div>
@@ -326,7 +335,7 @@ function TermDetailPanel(props: {
         <label htmlFor="term-rename-input">Rename</label>
         <input id="term-rename-input" value={newName} onChange={(e) => setNewName(e.target.value)} />
         <span className="editor-actions">
-          <button type="submit" disabled={saving}>
+          <button type="submit" className="btn-secondary" disabled={saving}>
             {saving ? "Saving…" : "Save"}
           </button>
           {message ? <span className="save-ok">{message}</span> : null}
@@ -365,8 +374,14 @@ export function Taxonomy() {
   if (!taxonomies) return <div className="notice">Loading taxonomies…</div>;
 
   return (
-    <div>
-      <h1>Categories &amp; Tags</h1>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Content</p>
+          <h1 className="page-title">Categories &amp; Tags</h1>
+          <p className="page-description">Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.</p>
+        </div>
+      </div>
       {error ? <div className="notice error">{error}</div> : null}
 
       <NewTaxonomyForm onCreated={load} />

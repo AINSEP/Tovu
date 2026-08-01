@@ -78,9 +78,13 @@ export function Workspace() {
   const dirty = name !== workspace.name || slug !== workspace.slug;
 
   return (
-    <div>
-      <div className="editor-header">
-        <h1>Workspace</h1>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Design & System</p>
+          <h1 className="page-title">Workspace</h1>
+          <p className="page-description">This site's identity — its name, URL slug, and creation date.</p>
+        </div>
       </div>
 
       <form onSubmit={onSave} className="notice integrations-form">
@@ -99,6 +103,7 @@ export function Workspace() {
         </button>
       </form>
 
+      <div className="table-scroll">
       <table className="list-table">
         <tbody>
           <tr>
@@ -111,6 +116,7 @@ export function Workspace() {
           </tr>
         </tbody>
       </table>
+      </div>
 
       <h2>Delete workspace</h2>
       <div className="notice">
@@ -119,7 +125,15 @@ export function Workspace() {
           workspace is not available. This becomes available once this install supports more than
           one workspace.
         </p>
-        <button type="button" disabled title="Not available — this install has only one workspace">
+        {/* `.btn-danger` at rest, not just on some future enabled state — genuinely destructive by
+            nature even while `:disabled` (which already desaturates it); staying `.btn-danger`
+            means this doesn't quietly read as a neutral action if it's ever wired live. */}
+        <button
+          type="button"
+          className="btn-danger"
+          disabled
+          title="Not available — this install has only one workspace"
+        >
           Delete workspace
         </button>
       </div>

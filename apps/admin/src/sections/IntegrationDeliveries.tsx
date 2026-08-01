@@ -24,14 +24,23 @@ export function IntegrationDeliveries(props: { subscriptionId: string }) {
   if (!deliveries) return <div className="notice">Loading delivery log…</div>;
 
   return (
-    <div>
-      <div className="editor-header">
-        <a href="/admin/integrations">← Integrations</a>
+    <div className="page">
+      <a href="/admin/integrations">← Integrations</a>
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Design & System</p>
+          <h1 className="page-title">Delivery log</h1>
+          <p className="page-description">Every delivery attempt logged for this webhook subscription.</p>
+        </div>
       </div>
-      <h1>Delivery log</h1>
       {deliveries.length === 0 ? (
-        <div className="notice">No deliveries yet for this subscription.</div>
+        <div className="card">
+          <div className="empty-state">
+            <p>No deliveries yet for this subscription.</p>
+          </div>
+        </div>
       ) : (
+        <div className="table-scroll">
         <table className="list-table">
           <thead>
             <tr>
@@ -57,6 +66,7 @@ export function IntegrationDeliveries(props: { subscriptionId: string }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

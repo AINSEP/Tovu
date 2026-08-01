@@ -39,22 +39,36 @@ export function CollectionEntries(props: { contentTypeKey: string }) {
   const label = contentType.label;
 
   return (
-    <div>
+    <div className="page">
       <p className="muted-cell">
         <a href="/admin/collections">Collections</a> / {label}
       </p>
-      <div className="editor-header">
-        <h1>{label}</h1>
-        <a href={`/admin/collections/${props.contentTypeKey}/new`}>
-          <button>New entry</button>
-        </a>
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Content</p>
+          <h1 className="page-title">{label}</h1>
+          <p className="page-description">All &quot;{label}&quot; entries in this collection.</p>
+        </div>
+        <div className="page-actions">
+          {/* Anchor-wrapping-a-button, unchanged — real navigation to the editor route, not a
+              handler. `.btn-*` on a bare `<a>` is broken today (fix in flight elsewhere), so this
+              stays exactly as it was rather than depending on that fix landing first. */}
+          <a href={`/admin/collections/${props.contentTypeKey}/new`}>
+            <button>New entry</button>
+          </a>
+        </div>
       </div>
 
       {error ? <div className="notice error">{error}</div> : null}
 
       {entries.length === 0 ? (
-        <div className="notice">No entries yet in {label}.</div>
+        <div className="card">
+          <div className="empty-state">
+            <p>No entries yet in {label}.</p>
+          </div>
+        </div>
       ) : (
+        <div className="table-scroll">
         <table className="list-table">
           <thead>
             <tr>
@@ -79,6 +93,7 @@ export function CollectionEntries(props: { contentTypeKey: string }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

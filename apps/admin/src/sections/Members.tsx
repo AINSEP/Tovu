@@ -112,8 +112,24 @@ export function Members() {
   if (!members) return <div className="notice">Loading members…</div>;
 
   return (
-    <div>
-      <h1>Members</h1>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">People</p>
+          <h1 className="page-title">Members</h1>
+          <p className="page-description">Site visitors who have registered an account — review status, resend a sign-in link, or disable access.</p>
+        </div>
+      </div>
+
+      {members.length === 0 ? (
+        <div className="card">
+          <div className="empty-state">
+            <p>No members yet.</p>
+            <p className="page-description">Registered site visitors will show up here.</p>
+          </div>
+        </div>
+      ) : (
+      <div className="table-scroll">
       <table className="list-table">
         <thead>
           <tr>
@@ -154,6 +170,7 @@ export function Members() {
                       <ConfirmButton
                         label="Disable"
                         confirmLabel="Confirm disable"
+                        className="btn-warning"
                         disabled={member.status === "disabled"}
                         pending={rs.disabling}
                         pendingLabel="Disabling…"
@@ -199,6 +216,8 @@ export function Members() {
           })}
         </tbody>
       </table>
+      </div>
+      )}
     </div>
   );
 }

@@ -36,14 +36,30 @@ function findNavItem(sectionId: string): NavItem | undefined {
   return undefined;
 }
 
+/** The nav group this item lives in, for the page header's kicker — "Overview" for the ungrouped
+ *  top row (matches how `AiAssistant.unit.test.tsx` itself describes that row), otherwise the
+ *  group's own `label`. Real IA, not an invented word: every kicker in this pass reuses a `nav.ts`
+ *  group label rather than a per-screen ad hoc string. */
+function findNavGroupLabel(sectionId: string): string {
+  for (const group of NAV) {
+    if (group.items.some((entry) => entry.id === sectionId)) return group.label ?? "Overview";
+  }
+  return "Overview";
+}
+
 export function Placeholder(props: { sectionId: string }) {
   const item = findNavItem(props.sectionId);
   if (!item) return <div className="notice error">Unknown section: {props.sectionId}</div>;
 
   return (
-    <div>
-      <h1>{item.label}</h1>
-      <div className="notice">{item.label} is coming soon.</div>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">{findNavGroupLabel(props.sectionId)}</p>
+          <h1 className="page-title">{item.label}</h1>
+          <p className="page-description">{item.label} is coming soon.</p>
+        </div>
+      </div>
     </div>
   );
 }

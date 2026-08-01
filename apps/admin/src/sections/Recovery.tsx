@@ -49,7 +49,7 @@ function DegradedBannerView(props: { status: AdminRecoveryStatus }) {
       <span>{banner.accessibleText}</span>
       {banner.actionKind === "deep-link-to-database-migration" ? (
         <a href="/admin/database">
-          <button type="button">Go to Database</button>
+          <button type="button" className="btn-secondary">Go to Database</button>
         </a>
       ) : null}
       {banner.actionKind === "unblock-interrupted-migration" ? (
@@ -66,9 +66,16 @@ function RestorePointsList(props: {
   onSelect: (point: AdminRestorePoint) => void;
 }) {
   if (props.points.length === 0) {
-    return <div className="notice">No restore points yet.</div>;
+    return (
+      <div className="card">
+        <div className="empty-state">
+          <p>No restore points yet.</p>
+        </div>
+      </div>
+    );
   }
   return (
+    <div className="table-scroll">
     <table className="list-table">
       <thead>
         <tr>
@@ -99,6 +106,7 @@ function RestorePointsList(props: {
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
 
@@ -237,7 +245,7 @@ function RestoreFlow(props: { point: AdminRestorePoint; onBack: () => void }) {
 
   return (
     <div>
-      <button type="button" onClick={props.onBack}>
+      <button type="button" className="btn-ghost" onClick={props.onBack}>
         ← Restore points
       </button>
       <h2>Restore to {formatTimestamp(props.point.createdAt)}</h2>
@@ -269,6 +277,7 @@ function RestoreFlow(props: { point: AdminRestorePoint; onBack: () => void }) {
         <div className="notice">
           <button
             type="button"
+            className="btn-ghost"
             disabled={!acknowledged || busy}
             aria-describedby="recovery-ack-label"
             title={!acknowledged ? "Acknowledge the disclosure above to continue." : undefined}
@@ -285,7 +294,7 @@ function RestoreFlow(props: { point: AdminRestorePoint; onBack: () => void }) {
             Restore plan ready (plan <code>{plan.planId}</code>). Confirming issues a one-time
             execution token — nothing is restored yet.
           </p>
-          <button type="button" onClick={doConfirm} disabled={busy}>
+          <button type="button" className="btn-secondary" onClick={doConfirm} disabled={busy}>
             {busy ? "Confirming…" : "Confirm restore"}
           </button>
         </div>
@@ -294,7 +303,7 @@ function RestoreFlow(props: { point: AdminRestorePoint; onBack: () => void }) {
       {step === "confirmed" && confirmationToken ? (
         <div className="notice">
           <p>Confirmed. Executing performs the restore — this cannot be undone.</p>
-          <button type="button" onClick={doExecute} disabled={busy}>
+          <button type="button" className="btn-danger" onClick={doExecute} disabled={busy}>
             {busy ? "Restoring…" : "Execute restore"}
           </button>
         </div>
@@ -366,8 +375,14 @@ export function Recovery() {
   if (!points || !status) return <div className="notice">Loading restore points…</div>;
 
   return (
-    <div>
-      <h1>Recovery</h1>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Design & System</p>
+          <h1 className="page-title">Recovery</h1>
+          <p className="page-description">Restore this site to a previous point in time using a captured restore point.</p>
+        </div>
+      </div>
       {error ? <div className="notice error">{error}</div> : null}
       <div className="notice">
         Restore capability: <span className={`status status-${status.costClass}`}>{status.costClass}</span>
