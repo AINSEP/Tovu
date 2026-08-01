@@ -333,6 +333,7 @@ export function Seo() {
       {notice ? <div className="notice">{notice}</div> : null}
 
       <form
+        className="card"
         {...agentHandle("seo-defaults-form", {
           role: "form",
           label: "Site-wide SEO defaults — title template, meta description, social image, robots",
@@ -353,96 +354,116 @@ export function Seo() {
           });
         }}
       >
-        <label>
-          Title template (must contain %s)
-          <input
-            name="titleTemplate"
-            defaultValue={settings.titleTemplate}
-            {...agentHandle("seo-title-template", {
-              role: "field",
-              label: "Site-wide title template; %s is replaced by the page's own title",
+        <div className="field-group">
+          <div className="field">
+            <label className="field-label" htmlFor="seo-title-template">
+              Title template (must contain %s)
+            </label>
+            <input
+              id="seo-title-template"
+              name="titleTemplate"
+              defaultValue={settings.titleTemplate}
+              {...agentHandle("seo-title-template", {
+                role: "field",
+                label: "Site-wide title template; %s is replaced by the page's own title",
+              })}
+            />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="seo-default-description">
+              Default meta description
+            </label>
+            <textarea
+              id="seo-default-description"
+              name="defaultDescription"
+              defaultValue={settings.defaultDescription ?? ""}
+              {...agentHandle("seo-default-description", {
+                role: "field",
+                label: "Fallback meta description for pages that set none of their own",
+              })}
+            />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="seo-default-og-image">
+              Default Open Graph / Twitter image (media ref)
+            </label>
+            <input
+              id="seo-default-og-image"
+              name="defaultOgImage"
+              defaultValue={settings.defaultOgImage ?? ""}
+              {...agentHandle("seo-default-og-image", {
+                role: "field",
+                label: "Media reference used as the default social share image",
+              })}
+            />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="seo-twitter-site">
+              Twitter @site handle
+            </label>
+            <input
+              id="seo-twitter-site"
+              name="twitterSite"
+              defaultValue={settings.twitterSite ?? ""}
+              {...agentHandle("seo-twitter-site", {
+                role: "field",
+                label: "The site's Twitter @handle, used in Twitter card metadata",
+              })}
+            />
+          </div>
+        </div>
+
+        <div className="field-group">
+          <label className="form-checkbox-field">
+            <input
+              type="checkbox"
+              name="noindex"
+              defaultChecked={settings.defaultRobots.noindex}
+              {...agentHandle("seo-default-noindex", {
+                role: "checkbox",
+                label: "Ask search engines not to index pages by default",
+              })}
+            />
+            Default noindex
+          </label>
+          <label className="form-checkbox-field">
+            <input
+              type="checkbox"
+              name="nofollow"
+              defaultChecked={settings.defaultRobots.nofollow}
+              {...agentHandle("seo-default-nofollow", {
+                role: "checkbox",
+                label: "Ask search engines not to follow links by default",
+              })}
+            />
+            Default nofollow
+          </label>
+          <label className="form-checkbox-field">
+            <input
+              type="checkbox"
+              name="sitemapEnabled"
+              defaultChecked={settings.sitemapEnabled}
+              {...agentHandle("seo-sitemap-enabled", {
+                role: "checkbox",
+                label: "Whether this site publishes a sitemap at all",
+              })}
+            />
+            Sitemap enabled
+          </label>
+        </div>
+
+        <div className="editor-actions form-actions">
+          <button
+            type="submit"
+            disabled={saving}
+            {...agentHandle("seo-save-settings", {
+              role: "button",
+              label: "Save the site-wide SEO defaults above",
             })}
-          />
-        </label>
-        <label>
-          Default meta description
-          <textarea
-            name="defaultDescription"
-            defaultValue={settings.defaultDescription ?? ""}
-            {...agentHandle("seo-default-description", {
-              role: "field",
-              label: "Fallback meta description for pages that set none of their own",
-            })}
-          />
-        </label>
-        <label>
-          Default Open Graph / Twitter image (media ref)
-          <input
-            name="defaultOgImage"
-            defaultValue={settings.defaultOgImage ?? ""}
-            {...agentHandle("seo-default-og-image", {
-              role: "field",
-              label: "Media reference used as the default social share image",
-            })}
-          />
-        </label>
-        <label>
-          Twitter @site handle
-          <input
-            name="twitterSite"
-            defaultValue={settings.twitterSite ?? ""}
-            {...agentHandle("seo-twitter-site", {
-              role: "field",
-              label: "The site's Twitter @handle, used in Twitter card metadata",
-            })}
-          />
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            name="noindex"
-            defaultChecked={settings.defaultRobots.noindex}
-            {...agentHandle("seo-default-noindex", {
-              role: "checkbox",
-              label: "Ask search engines not to index pages by default",
-            })}
-          />
-          Default noindex
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            name="nofollow"
-            defaultChecked={settings.defaultRobots.nofollow}
-            {...agentHandle("seo-default-nofollow", {
-              role: "checkbox",
-              label: "Ask search engines not to follow links by default",
-            })}
-          />
-          Default nofollow
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            name="sitemapEnabled"
-            defaultChecked={settings.sitemapEnabled}
-            {...agentHandle("seo-sitemap-enabled", {
-              role: "checkbox",
-              label: "Whether this site publishes a sitemap at all",
-            })}
-          />
-          Sitemap enabled
-        </label>
-        <button
-          type="submit"
-          disabled={saving}
-          {...agentHandle("seo-save-settings", {
-            role: "button",
-            label: "Save the site-wide SEO defaults above",
-          })}
-        >
-          {saving ? "Saving…" : "Save settings"}
-        </button>
+          >
+            {saving ? "Saving…" : "Save settings"}
+          </button>
+        </div>
       </form>
 
       <div

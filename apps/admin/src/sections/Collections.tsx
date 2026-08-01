@@ -138,37 +138,45 @@ function NewContentTypeDialog(props: { onCreated: () => void; onCancel: () => vo
       >
         <h2 id="new-content-type-title">New content type</h2>
 
-        <label htmlFor="ct-label">Label</label>
-        <input id="ct-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Recipe" autoFocus />
+        <div className="field">
+          <label className="field-label" htmlFor="ct-label">Label</label>
+          <input id="ct-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Recipe" autoFocus />
+        </div>
 
-        <label htmlFor="ct-key">Key</label>
-        <input id="ct-key" value={key} onChange={(e) => setKey(e.target.value)} placeholder="e.g. recipe" />
+        <div className="field">
+          <label className="field-label" htmlFor="ct-key">Key</label>
+          <input id="ct-key" value={key} onChange={(e) => setKey(e.target.value)} placeholder="e.g. recipe" />
+        </div>
 
         <div>
           <p>Fields</p>
           {fields.map((f, index) => (
             <fieldset key={f._rowId} className="collections-field-row">
               <legend>Field {index + 1}</legend>
-              <label htmlFor={`ct-field-name-${f._rowId}`}>Name</label>
-              <input
-                id={`ct-field-name-${f._rowId}`}
-                value={f.name}
-                onChange={(e) => updateField(f._rowId, { name: e.target.value })}
-                placeholder="e.g. prep_time"
-              />
-              <label htmlFor={`ct-field-kind-${f._rowId}`}>Kind</label>
-              <select
-                id={`ct-field-kind-${f._rowId}`}
-                value={f.kind}
-                onChange={(e) => updateField(f._rowId, { kind: e.target.value as ContentTypeFieldKind })}
-              >
-                {CONTENT_TYPE_FIELD_KINDS.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </select>
-              <label>
+              <div className="field">
+                <label className="field-label" htmlFor={`ct-field-name-${f._rowId}`}>Name</label>
+                <input
+                  id={`ct-field-name-${f._rowId}`}
+                  value={f.name}
+                  onChange={(e) => updateField(f._rowId, { name: e.target.value })}
+                  placeholder="e.g. prep_time"
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor={`ct-field-kind-${f._rowId}`}>Kind</label>
+                <select
+                  id={`ct-field-kind-${f._rowId}`}
+                  value={f.kind}
+                  onChange={(e) => updateField(f._rowId, { kind: e.target.value as ContentTypeFieldKind })}
+                >
+                  {CONTENT_TYPE_FIELD_KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <label className="form-checkbox-field">
                 <input
                   type="checkbox"
                   checked={f.required}
@@ -176,7 +184,7 @@ function NewContentTypeDialog(props: { onCreated: () => void; onCancel: () => vo
                 />
                 Required
               </label>
-              <label title="Adds a database index; keep this list small.">
+              <label className="form-checkbox-field" title="Adds a database index; keep this list small.">
                 <input
                   type="checkbox"
                   checked={f.queryable}
@@ -300,26 +308,30 @@ function EditFieldsDialog(props: { contentType: AdminContentType; onSaved: () =>
           {fields.map((f, index) => (
             <fieldset key={f._rowId} className="collections-field-row">
               <legend>Field {index + 1}</legend>
-              <label htmlFor={`ct-edit-field-name-${f._rowId}`}>Name</label>
-              <input
-                id={`ct-edit-field-name-${f._rowId}`}
-                value={f.name}
-                onChange={(e) => updateField(f._rowId, { name: e.target.value })}
-                placeholder="e.g. prep_time"
-              />
-              <label htmlFor={`ct-edit-field-kind-${f._rowId}`}>Kind</label>
-              <select
-                id={`ct-edit-field-kind-${f._rowId}`}
-                value={f.kind}
-                onChange={(e) => updateField(f._rowId, { kind: e.target.value as ContentTypeFieldKind })}
-              >
-                {CONTENT_TYPE_FIELD_KINDS.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </select>
-              <label>
+              <div className="field">
+                <label className="field-label" htmlFor={`ct-edit-field-name-${f._rowId}`}>Name</label>
+                <input
+                  id={`ct-edit-field-name-${f._rowId}`}
+                  value={f.name}
+                  onChange={(e) => updateField(f._rowId, { name: e.target.value })}
+                  placeholder="e.g. prep_time"
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor={`ct-edit-field-kind-${f._rowId}`}>Kind</label>
+                <select
+                  id={`ct-edit-field-kind-${f._rowId}`}
+                  value={f.kind}
+                  onChange={(e) => updateField(f._rowId, { kind: e.target.value as ContentTypeFieldKind })}
+                >
+                  {CONTENT_TYPE_FIELD_KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <label className="form-checkbox-field">
                 <input
                   type="checkbox"
                   checked={f.required}
@@ -327,7 +339,7 @@ function EditFieldsDialog(props: { contentType: AdminContentType; onSaved: () =>
                 />
                 Required
               </label>
-              <label title="Adds a database index; keep this list small.">
+              <label className="form-checkbox-field" title="Adds a database index; keep this list small.">
                 <input
                   type="checkbox"
                   checked={f.queryable}

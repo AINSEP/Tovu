@@ -98,22 +98,30 @@ function TimelineSection() {
 
   return (
     <div>
-      <form className="notice database-filter-bar" onSubmit={applyFilters}>
-        <label htmlFor="database-filter-kind">Kind</label>
-        <select id="database-filter-kind" value={kind} onChange={(e) => setKind(e.target.value)}>
-          <option value="">(any)</option>
-          {KIND_OPTIONS.map((k) => (
-            <option key={k} value={k}>
-              {k}
-            </option>
-          ))}
-        </select>
-        <label htmlFor="database-filter-outcome">Outcome</label>
-        <input id="database-filter-outcome" value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="e.g. success" />
-        <label htmlFor="database-filter-from">From</label>
-        <input id="database-filter-from" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-        <label htmlFor="database-filter-to">To</label>
-        <input id="database-filter-to" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+      <form className="notice database-filter-bar toolbar" onSubmit={applyFilters}>
+        <div className="field">
+          <label className="field-label" htmlFor="database-filter-kind">Kind</label>
+          <select id="database-filter-kind" value={kind} onChange={(e) => setKind(e.target.value)}>
+            <option value="">(any)</option>
+            {KIND_OPTIONS.map((k) => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="database-filter-outcome">Outcome</label>
+          <input id="database-filter-outcome" value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="e.g. success" />
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="database-filter-from">From</label>
+          <input id="database-filter-from" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="database-filter-to">To</label>
+          <input id="database-filter-to" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        </div>
         <button type="submit" className="btn-secondary">Apply filters</button>
       </form>
 

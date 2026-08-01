@@ -69,3 +69,78 @@
 .form-actions {
   margin-top: var(--space-5);
 }
+
+/* `.widget-config-fields` (`components/WidgetConfigFields.tsx`) — five widget-type sub-forms plus
+   `WidgetPickerDialog`'s "create new" path share this one class, and it had zero CSS anywhere in
+   the app before this rule. Every site renders a bare `<label htmlFor>` immediately followed by
+   its `<input>`/`<select>`/`<textarea>` as plain inline siblings (never nested, never wrapped) —
+   with no `display` set on the parent, both the label and its control stay inline-level, so the
+   UA's own baseline alignment drops the short label to the bottom of a multi-line control's line
+   box (worst on `TextConfigFields`' 6-row textarea) and neither element gets a real width. `flex
+   column` on the parent is what actually fixes the baseline defect (stacks label above control
+   instead of inline-flowing them); the width rule below is the other half the dispatch's own
+   diagnosis named ("nothing sets a width — hence the dead space"). */
+.widget-config-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+/* Same uppercase/letterspaced/muted idiom as `.field-label` in `styles.css` — this is a
+   consolidation onto that existing convention, not a new one, just scoped to a class this file
+   owns instead of adding a fifth call site to the shared primitive from outside its own file. */
+.widget-config-fields > label {
+  font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted);
+}
+.widget-config-fields > input,
+.widget-config-fields > select,
+.widget-config-fields > textarea {
+  width: 100%;
+}
+/* `RecentEntriesConfigFields` and `ContactFormConfigFields` each hold TWO fields, but both land as
+   flat `label, control, label, control` siblings directly under `.widget-config-fields` rather
+   than each pair getting its own wrapper div — there is no DOM seam to hang a second field's
+   grouping on. The `gap` above is sized tight (label-to-its-own-control); this adds extra space
+   before a label that immediately FOLLOWS a control, which only happens at the start of the next
+   field, so the 4-sibling list still reads as two grouped fields instead of four evenly-spaced
+   lines. No such control-then-label sequence occurs in the single-field components (`Text`,
+   `Menu`) or in `SocialLinksConfigFields` (whose repeated units are `<fieldset>`s, not bare
+   label/control pairs), so this rule is inert there. */
+.widget-config-fields > input + label,
+.widget-config-fields > select + label,
+.widget-config-fields > textarea + label {
+  margin-top: var(--space-4);
+}
+/* `SocialLinksConfigFields`' trailing "Add link" is the one direct-child `<button>` in this whole
+   class — verified by reading all five call sites, not assumed. `flex column`'s default
+   `align-items: stretch` above would otherwise stretch it to the dialog's full width (rendered and
+   caught live: a full-width "Add link" sitting flush against `WidgetPickerDialog.tsx`'s own
+   full-width-by-coincidence "Create and place" submit button read as one glitchy double-height
+   control). Same fix shape as `styles.css`'s `.menu-tree > .btn-secondary` for the identical
+   stretch-by-default-flex-column class of bug. */
+.widget-config-fields > button {
+  align-self: flex-start;
+}
+/* The gap onto whatever comes after this block — `WidgetPickerDialog.tsx`'s own "Use this
+   widget"/"Create and place" submit button sits as the very next sibling in its `<form>`, and that
+   file sets no spacing of its own (confirmed: `.widget-picker-section` has no rule anywhere).
+   Fixed from this side, in the file this dispatch owns, rather than editing
+   `WidgetPickerDialog.tsx` (outside this dispatch's file ownership) for a one-line margin. */
+.widget-config-fields + button {
+  margin-top: var(--space-3);
+}
+
+/* `SocialLinksConfigFields`' per-link `<fieldset className="widget-config-social-link-row">` —
+   the class already existed in the TSX (a Platform/URL pair plus a Remove button) but, like
+   `.widget-config-fields` above, had never had CSS written for it, so it rendered as the bare UA
+   fieldset box. Same bordered-row idiom as `styles.css`'s `.collections-field-row` (a legend'd
+   fieldset of a few short fields plus a row action) rather than inventing a second one — this is
+   structurally the same shape, just for widget config instead of a content-type's field list. */
+.widget-config-social-link-row {
+  border: 1px solid var(--border); border-radius: var(--r-md); padding: 0.7rem 0.8rem;
+  display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;
+}
+.widget-config-social-link-row legend {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--faint); padding: 0 0.3rem;
+}
