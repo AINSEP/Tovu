@@ -1192,7 +1192,10 @@ export const api = {
     request<{ entry: AdminEntry }>("/entries", { method: "POST", body: JSON.stringify({ ...input, ...options }) }),
   updateEntry: (
     { id, expectedVersion }: { id: string; expectedVersion: number },
-    options: { title?: string; fieldsJson?: unknown } = {}
+    // `bodyJson` was missing here, which made the rich-text half of an entry
+    // edit untypeable — see `CollectionEntryEditor`'s save. `createEntry` above
+    // has always accepted it, and `updatePost` does too.
+    options: { title?: string; fieldsJson?: unknown; bodyJson?: unknown } = {}
   ) =>
     request<{ entry: AdminEntry }>(`/entries/${id}`, {
       method: "PUT",

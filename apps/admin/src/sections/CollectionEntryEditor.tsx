@@ -229,7 +229,11 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
       if (entry) {
         const { entry: saved } = await api.updateEntry(
           { id: entry.id, expectedVersion: entry.version },
-          { title, fieldsJson }
+          // `bodyJson` was omitted here while the create branch below sent it,
+          // so editing an existing entry's rich text reported "Saved · version N"
+          // and left the stored body untouched. Silent data loss on the primary
+          // content surface; `PostEditor` has always done this correctly.
+          { title, fieldsJson, bodyJson: editor.getJSON() }
         );
         setEntry(saved);
         setMessage(`Saved · version ${saved.version}`);
