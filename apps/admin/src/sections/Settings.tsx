@@ -7,6 +7,7 @@ import {
   type SettingResolvedValue,
   type SettingScope,
 } from "../lib/api";
+import { hasPermission } from "../lib/permissions";
 
 /**
  * @file Admin "Settings" screen (SPEC-007 `ui.spec.md`, tasks.md T045/T046).
@@ -899,7 +900,7 @@ export function Settings() {
   if (error) return <div className="notice error">{error}</div>;
   if (loading || !selfPrincipalId) return <div className="notice">Loading Settings…</div>;
 
-  const has = (permission: string) => permissions.includes(permission);
+  const has = (permission: string) => hasPermission(permissions, permission);
 
   const canWriteScopes: CanWriteScopes = {
     global: has("settings.global.write"),

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ApiError, api, describeApiError, type AdminComment, type CommentModerationAction, type CommentStatus, type CommentsSettings } from "../lib/api";
 import { formatTimestamp } from "../lib/format-timestamp";
+import { hasPermission } from "../lib/permissions";
 import { RowMenu, type RowMenuItem } from "../components/RowMenu";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 
@@ -51,7 +52,7 @@ function truncate(text: string, max: number): string {
 }
 
 function QueueSection(props: { permissions: string[] }) {
-  const has = (permission: string) => props.permissions.includes(permission);
+  const has = (permission: string) => hasPermission(props.permissions, permission);
   const canModerate = has("comments.moderate");
   const canDelete = has("comments.delete");
   const canForceDelete = has("comments.delete.force");
@@ -450,12 +451,12 @@ export function Comments() {
           <p className="page-description">Moderate incoming comments and configure workspace-wide comment behavior.</p>
         </div>
       </div>
-      {permissions.includes("comments.read") ? (
+      {hasPermission(permissions, "comments.read") ? (
         <QueueSection permissions={permissions} />
       ) : (
         <div className="notice">You do not have permission to view the moderation queue.</div>
       )}
-      <SettingsSection canConfigure={permissions.includes("comments.configure")} />
+      <SettingsSection canConfigure={hasPermission(permissions, "comments.configure")} />
     </div>
   );
 }
