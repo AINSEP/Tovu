@@ -41,6 +41,30 @@ describe("trigger", () => {
   });
 });
 
+/**
+ * Regression pin for the kebab-glyph fix: the trigger used to draw three horizontal lines (a
+ * hamburger), not the three-vertical-dots overflow affordance this file's own header comment
+ * ("the portaled 3-dot row overflow menu") already claimed — the comment was aspirational until
+ * this change actually matched it. Pinned as element shape/count rather than path data, so a
+ * future tweak to dot radius/spacing doesn't false-fail this test the way asserting exact `d`/`cx`
+ * coordinates would.
+ */
+describe("trigger glyph", () => {
+  it("draws three filled circles (dots), not a path (the old hamburger-line glyph)", () => {
+    render(<RowMenu triggerLabel="Actions" items={items()} />);
+    const trigger = screen.getByRole("button", { name: "Actions" });
+
+    expect(trigger.querySelectorAll("circle")).toHaveLength(3);
+    expect(trigger.querySelectorAll("path")).toHaveLength(0);
+  });
+
+  it("keeps the glyph aria-hidden — the accessible name lives on the button itself", () => {
+    render(<RowMenu triggerLabel="Actions" items={items()} />);
+    const svg = screen.getByRole("button", { name: "Actions" }).querySelector("svg")!;
+    expect(svg).toHaveAttribute("aria-hidden", "true");
+  });
+});
+
 describe("portal target", () => {
   it("renders the menu on document.body, not inside RowMenu's own render tree", async () => {
     const user = userEvent.setup();
