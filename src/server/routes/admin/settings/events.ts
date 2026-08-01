@@ -49,6 +49,29 @@ import type { SettingsRouteRegistrar } from "./deps";
  * through the ordinary authorized `getSettingsEffective` path, so this endpoint cannot become a
  * way to obtain a value the caller could not already fetch. `settings.read` gates the subscription
  * itself, matching `get-effective.ts`.
+ *
+ * ### The emitted id is a global position, and that is an accepted decision
+ *
+ * `seq` is one AUTOINCREMENT shared by every workspace, so even a workspace's OWN revision is
+ * stamped with a global number: one write in `ws-a` after fifty in `ws-b` emits `id: 51`. A
+ * subscriber can difference the ids of its own consecutive events and infer roughly how many
+ * settings writes happened platform-wide in between.
+ *
+ * Accepted rather than fixed. What leaks is a coarse aggregate write-count — no values, no
+ * identities, nothing attributable to a particular tenant, and only for administrative settings
+ * changes. Closing it needs either a per-workspace counter, which is a schema change on the write
+ * path every writer shares (this process and the agent daemon both), or an opaque encrypted cursor,
+ * which adds a key whose rotation would make reconnecting tabs silently skip the writes they
+ * missed while still looking healthy. Both cost more than the disclosure is worth.
+ *
+ * **Revisit if** the ledger starts carrying higher-frequency or more attributable events than
+ * administrative settings changes — the inference gets sharper as write volume rises.
+ *
+ * What is NOT accepted is emitting the global ledger HEAD, which `cursor` is advanced to below.
+ * That would publish the platform-wide position on every frame, precisely and without the
+ * subscriber writing anything. `__tests__/routes/settings-events-id-disclosure.test.ts` holds that
+ * line, using a neighbour that writes AFTER this workspace does — the only arrangement in which
+ * the two numbers differ.
  */
 
 /** How often the ledger is checked. Fast enough that a change feels immediate, slow enough that an
