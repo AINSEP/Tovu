@@ -55,6 +55,22 @@ export interface SettingsRepoPort {
   /** Appends a revision and returns its assigned `seq` (used to stamp the paired value row). */
   appendRevision(record: Omit<SettingRevisionRecord, "seq">): Promise<number>;
   listRevisions(required: { settingId: UUID }): Promise<SettingRevisionRecord[]>;
+  /**
+   * Revisions with `seq` strictly greater than `sinceSeq`, oldest first, capped at `limit`.
+   *
+   * Exists for change detection across PROCESSES. `seq` is a monotonic autoincrement in the shared
+   * database, so a poller in Tovu's main server observes writes made by the agent daemon — a
+   * separate OS process with its own connection — without any IPC between them. That is the same
+   * boundary that made the per-layer value cache unfixable (see `settings.ts`'s cache header);
+   * here it is turned into the mechanism rather than the obstacle, because the ledger is shared
+   * state by construction and an in-process cache never was.
+   *
+   * `limit` bounds a client that reconnects after a long absence: it drains in pages rather than
+   * loading an unbounded backlog into memory.
+   */
+  listRevisionsSince(required: { sinceSeq: number; limit: number }): Promise<SettingRevisionRecord[]>;
+  /** The newest assigned `seq`, or 0 when the ledger is empty — a subscriber's starting cursor. */
+  maxRevisionSeq(): Promise<number>;
 
   /** Runs `fn` with the guarantee that all repo calls inside it commit or roll back together. */
   transaction<T>(fn: () => Promise<T>): Promise<T>;

@@ -197,6 +197,17 @@ export class InMemorySettingsRepo implements SettingsRepoPort {
     return this.revisions.filter((r) => r.settingId === required.settingId).sort((a, b) => a.seq - b.seq);
   }
 
+  async listRevisionsSince(required: { sinceSeq: number; limit: number }): Promise<SettingRevisionRecord[]> {
+    return this.revisions
+      .filter((r) => r.seq > required.sinceSeq)
+      .sort((a, b) => a.seq - b.seq)
+      .slice(0, required.limit);
+  }
+
+  async maxRevisionSeq(): Promise<number> {
+    return this.revisions.reduce((max, r) => (r.seq > max ? r.seq : max), 0);
+  }
+
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
     return fn();
   }

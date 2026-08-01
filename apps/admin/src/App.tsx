@@ -4,7 +4,8 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { Sidebar } from "./components/Sidebar";
 import { buildAdminAgentPages } from "./lib/agent-pages";
 import { installInternalLinkInterceptor, useRouteLocation } from "./lib/router";
-import { api, type AdminUser } from "./lib/api";
+import { WORKSPACE_ID, api, type AdminUser } from "./lib/api";
+import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { Appearance } from "./sections/Appearance";
 import { Dashboard } from "./sections/Dashboard";
 import { Login } from "./sections/Login";
@@ -301,6 +302,22 @@ export function App() {
       .catch(() => setUser(null))
       .finally(() => setChecking(false));
   }, []);
+
+  /**
+   * The settings change feed, open for as long as an operator is signed in.
+   *
+   * Mounted here rather than inside `SettingsUi` on purpose. The subscribers are the settings
+   * slices, but a change can arrive while the operator is on any page, and the panel that would
+   * have opened the connection is frequently not mounted — a feed that only runs while you are
+   * already looking at Settings would miss precisely the changes worth telling you about.
+   *
+   * Gated on `user` so it opens only once authenticated: before login the request has no session
+   * and would 401, and `EventSource` would then retry that 401 forever.
+   */
+  useEffect(() => {
+    if (!user) return;
+    return subscribeToSettingsChanges(WORKSPACE_ID);
+  }, [user]);
 
   async function logout() {
     await api.logout().catch(() => undefined);

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useMemo } from "react";
 import {
   ChatPane,
@@ -10,6 +10,7 @@ import {
 import type { ChatMessage } from "@jini-ai/chat-core";
 
 import { createTovuAssistantTransport } from "../lib/assistant-transport";
+import { publishSettingsRefresh } from "../lib/settings-refresh-bus";
 import { useWiredAssistantChats, type UseAssistantChats } from "../hooks/use-assistant-chats.hooks";
 import "../styles/assistant.css";
 
@@ -94,12 +95,42 @@ export function AssistantDock({ agentBridge = null, useChats = useWiredAssistant
     [],
   );
   const chats = useChats();
+
+  /**
+   * Last assistant message id seen in a terminal state, so a run's completion fires the settings
+   * refresh below exactly once. `onMessagesChange` runs on every delta of a streaming reply, and
+   * the terminal message keeps arriving in later calls after it settles.
+   */
+  const settledRunMessageId = useRef<string | null>(null);
+
   const handleMessagesChange = useCallback(
     (messages: ChatMessage[]) => {
       window.__tovuAssistantMessages = messages;
       // Persistence is selective, not per-delta — see `lib/assistant-chats.ts`'s
       // `persistableMessages` for why a streaming reply is written once rather than per token.
       chats.onMessagesChange(messages);
+
+      /**
+       * A finished run may have written a setting — `settings_set_ui_preference` is agent-callable
+       * — so the mounted settings tabs re-read. Without this the write lands in `content.db` and
+       * the open tab keeps rendering the value it fetched at mount, which reads as the tool having
+       * silently done nothing.
+       *
+       * Deliberately triggered by RUN COMPLETION rather than by inspecting the transcript for a
+       * settings tool call. Matching tool names here would put a list of them in the admin shell,
+       * where it would fall out of date the first time the catalog grows — and the whole cost of
+       * being wrong is a few sub-millisecond SQLite reads per run. Ignorance is cheaper than
+       * coupling.
+       *
+       * `undefined` scope (rather than a namespace list) for the same reason: this publisher does
+       * not know what changed, and saying so is more honest than guessing.
+       */
+      const last = messages[messages.length - 1];
+      if (!last || last.role !== "assistant") return;
+      const terminal = last.runStatus === "succeeded" || last.runStatus === "failed" || last.runStatus === "canceled";
+      if (!terminal || settledRunMessageId.current === last.id) return;
+      settledRunMessageId.current = last.id;
+      publishSettingsRefresh();
     },
     [chats],
   );
