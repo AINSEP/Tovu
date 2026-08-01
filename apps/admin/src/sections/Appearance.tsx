@@ -41,10 +41,16 @@ export function Appearance() {
   if (!settings) return <div className="notice">Loading themes…</div>;
 
   return (
-    <div>
-      <h1>Themes</h1>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Design & System</p>
+          <h1 className="page-title">Themes</h1>
+          <p className="page-description">The active theme controls what visitors see across the entire public site.</p>
+        </div>
+      </div>
       <p>
-        The active theme drives the public site. <a href={siteUrl("/")} target="_blank" rel="noreferrer">View site ↗</a>
+        <a href={siteUrl("/")} target="_blank" rel="noreferrer">View site ↗</a>
       </p>
       {error ? <div className="notice error">{error}</div> : null}
       <div className="theme-grid">

@@ -131,9 +131,13 @@ export function AiAssistant() {
   if (!settings) return <div className="notice">Loading AI assistant settings…</div>;
 
   return (
-    <div>
-      <div className="editor-header">
-        <h1>AI Assistant</h1>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Overview</p>
+          <h1 className="page-title">AI Assistant</h1>
+          <p className="page-description">Turn the visitor-facing assistant on or off for your public site.</p>
+        </div>
       </div>
 
       <div className="notice assistant-switch">

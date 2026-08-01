@@ -45,25 +45,33 @@ export function WidgetRegions() {
   if (!regions) return <div className="notice">Loading regions…</div>;
 
   return (
-    <div>
-      <div className="editor-header">
-        <a href="/admin/widgets">← Widgets</a>
-        <h1>Widget Regions</h1>
+    <div className="page">
+      <a href="/admin/widgets">← Widgets</a>
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Content</p>
+          <h1 className="page-title">Widget Regions</h1>
+          <p className="page-description">
+            A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a
+            region by its key to start placing widgets in it.
+          </p>
+        </div>
+        <div className="page-actions">
+          <input value={newRegionKey} onChange={(e) => setNewRegionKey(e.target.value)} placeholder="e.g. footer" />
+          <button onClick={bind} disabled={binding || !newRegionKey.trim()}>
+            {binding ? "Binding…" : "Bind region"}
+          </button>
+        </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
-      <p className="muted-cell">
-        A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a
-        region by its key to start placing widgets in it.
-      </p>
-      <span className="editor-actions">
-        <input value={newRegionKey} onChange={(e) => setNewRegionKey(e.target.value)} placeholder="e.g. footer" />
-        <button onClick={bind} disabled={binding || !newRegionKey.trim()}>
-          {binding ? "Binding…" : "Bind region"}
-        </button>
-      </span>
       {regions.length === 0 ? (
-        <p className="muted-cell">No regions bound yet.</p>
+        <div className="card">
+          <div className="empty-state">
+            <p>No regions bound yet.</p>
+          </div>
+        </div>
       ) : (
+        <div className="table-scroll">
         <table className="list-table">
           <thead>
             <tr>
@@ -88,6 +96,7 @@ export function WidgetRegions() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

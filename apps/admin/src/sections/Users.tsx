@@ -188,11 +188,20 @@ export function Users() {
   const policyById = new Map(policies.map((policy) => [policy.id, policy]));
 
   return (
-    <div>
-      <div className="editor-header">
-        <h1>Users</h1>
-        <div className="editor-actions">
-          <button onClick={() => setFormOpen((v) => !v)}>{formOpen ? "Cancel" : "New user"}</button>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">People</p>
+          <h1 className="page-title">Users</h1>
+          <p className="page-description">Operator accounts with access to this admin — assign roles and policies, or disable access.</p>
+        </div>
+        <div className="page-actions">
+          {/* Same toggle button throughout — reads "New user" (the page's one primary action) when
+              closed, "Cancel" (a dismiss, not a create) once the form is open, so the tone follows
+              the label instead of a second button competing with the form's own "Create user". */}
+          <button className={formOpen ? "btn-secondary" : undefined} onClick={() => setFormOpen((v) => !v)}>
+            {formOpen ? "Cancel" : "New user"}
+          </button>
         </div>
       </div>
 
@@ -225,6 +234,15 @@ export function Users() {
 
       {toggleError ? <div className="notice error">{toggleError}</div> : null}
 
+      {users.length === 0 ? (
+        <div className="card">
+          <div className="empty-state">
+            <p>No users yet.</p>
+            <p className="page-description">Create your first operator account to get started.</p>
+          </div>
+        </div>
+      ) : (
+      <div className="table-scroll">
       <table className="list-table">
         <thead>
           <tr>
@@ -264,6 +282,7 @@ export function Users() {
                       <ConfirmButton
                         label="Disable"
                         confirmLabel="Confirm disable"
+                        className="btn-warning"
                         pending={toggleSavingId === user.principalId}
                         onConfirm={() => onToggleStatus(user)}
                         ariaLabel={`Disable user "${user.username}"`}
@@ -319,6 +338,7 @@ export function Users() {
                           <ConfirmButton
                             label="Reset password"
                             confirmLabel="Confirm reset"
+                            className="btn-warning"
                             disabled={!newPassword}
                             pending={passwordSaving}
                             pendingLabel="Saving…"
@@ -382,6 +402,8 @@ export function Users() {
           ))}
         </tbody>
       </table>
+      </div>
+      )}
     </div>
   );
 }

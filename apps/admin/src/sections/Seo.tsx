@@ -244,7 +244,7 @@ function SeoEntryPanel(props: { entryId: string }) {
       </label>
 
       <span className="editor-actions">
-        <button type="button" onClick={save} disabled={saving || Object.keys(touched).length === 0}>
+        <button type="button" className="btn-secondary" onClick={save} disabled={saving || Object.keys(touched).length === 0}>
           {saving ? "Saving…" : "Save overrides"}
         </button>
       </span>
@@ -318,12 +318,17 @@ export function Seo() {
   if (!settings) return <div className="notice">Loading SEO settings…</div>;
 
   return (
-    <div>
-      <h1>SEO</h1>
-      <p>
-        Site-wide defaults for meta titles, descriptions, Open Graph/Twitter cards, and robots
-        directives. Per-entry overrides are below.
-      </p>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Marketing</p>
+          <h1 className="page-title">SEO</h1>
+          <p className="page-description">
+            Site-wide defaults for meta titles, descriptions, Open Graph/Twitter cards, and robots
+            directives. Per-entry overrides are below.
+          </p>
+        </div>
+      </div>
       {error ? <div className="notice error">{error}</div> : null}
       {notice ? <div className="notice">{notice}</div> : null}
 
@@ -449,6 +454,7 @@ export function Seo() {
         <h2>Sitemap</h2>
         <p>Force-rebuild the cached sitemap now, bypassing the normal cache-hit path.</p>
         <button
+          className="btn-secondary"
           disabled={saving}
           onClick={regenerateSitemap}
           {...agentHandle("seo-regenerate-sitemap", {

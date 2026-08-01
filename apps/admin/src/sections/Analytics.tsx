@@ -28,8 +28,14 @@ export function Analytics() {
   if (!hits) return <div className="notice">Loading recent hits…</div>;
 
   return (
-    <div>
-      <h1>Analytics</h1>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Marketing</p>
+          <h1 className="page-title">Analytics</h1>
+          <p className="page-description">The most recent pageviews and events captured on this site.</p>
+        </div>
+      </div>
       <div className="notice">
         Raw ingest data only — the most recent hits currently sitting in memory. There is no
         aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a
@@ -37,11 +43,14 @@ export function Analytics() {
       </div>
 
       {hits.length === 0 ? (
-        <div className="notice">
-          No hits recorded yet. Once the site beacon starts sending traffic, recent hits will
-          appear here.
+        <div className="card">
+          <div className="empty-state">
+            <p>No hits recorded yet.</p>
+            <p className="page-description">Once the site beacon starts sending traffic, recent hits will appear here.</p>
+          </div>
         </div>
       ) : (
+        <div className="table-scroll">
         <table className="list-table">
           <thead>
             <tr>
@@ -67,6 +76,7 @@ export function Analytics() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );
