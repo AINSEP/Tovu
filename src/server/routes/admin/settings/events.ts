@@ -21,7 +21,19 @@ import type { SettingsRouteRegistrar } from "./deps";
  * `setting_revisions.seq` is a monotonic AUTOINCREMENT in that shared file, written inside the same
  * transaction as every value and definition change (INV-01). Polling it therefore observes every
  * writer — this process, the daemon, a future background job — with no IPC, no broker, and no
- * coordination to get wrong. The cost is one indexed `seq > ?` lookup per tick.
+ * coordination to get wrong. The cost is two indexed lookups per tick: the ledger head, then one
+ * `seq > ?` page.
+ *
+ * ## The ledger is global; this stream is not
+ *
+ * One file holds every workspace's revisions, so `seq` is a position in a shared sequence rather
+ * than in this workspace's own history. Both places that treat it as a coordinate have to account
+ * for that, and both used to get it wrong in the same way: the page query took `limit` rows
+ * globally and filtered afterwards in JS, so a busy tenant's writes crowded out a quiet one's, and
+ * the resume cursor accepted any client-supplied `Last-Event-ID` without bounding it to the ledger.
+ * The query is now workspace-predicated (see `features/settings/ports.ts`) and the cursor is
+ * clamped to the head below. Disclosure was never the issue and is unchanged — `change-feed.ts`
+ * remains the only thing that decides what a subscriber is told.
  *
  * ## Why this does not reintroduce the polling it replaces
  *
@@ -97,9 +109,15 @@ export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, de
      * reconnect, so a dropped connection replays the writes missed in the gap instead of silently
      * skipping them. A fresh subscriber starts at the current head — it has just loaded its values,
      * so replaying history would only make it re-read what it already has.
+     *
+     * It is nonetheless client-supplied input naming a position in a ledger shared by every
+     * workspace, so it is clamped INTO the ledger. An id past the head would otherwise park the
+     * cursor in the future, and `seq > cursor` would then match nothing for as long as the tab
+     * stayed open — a feed that is silently and permanently dead while still looking connected.
      */
     const resumeFrom = Number(req.headers["last-event-id"]);
-    let cursor = Number.isFinite(resumeFrom) && resumeFrom >= 0 ? resumeFrom : await deps.settingsRepo.maxRevisionSeq();
+    const head = await deps.settingsRepo.maxRevisionSeq();
+    let cursor = Number.isFinite(resumeFrom) && resumeFrom >= 0 ? Math.min(resumeFrom, head) : head;
 
     /** Namespace per settingId, cached for the connection's life: a settingId's namespace changes
      *  only via `renameDefinition`, which appends its own revision and so re-notifies anyway. */
@@ -129,13 +147,27 @@ export const registerAdminSettingsEventsRoute: SettingsRouteRegistrar = (app, de
     const tick = async (): Promise<void> => {
       if (closed) return;
       try {
-        const revisions = await deps.settingsRepo.listRevisionsSince({ sinceSeq: cursor, limit: REVISION_PAGE_SIZE });
-        if (revisions.length === 0) return;
+        // Read the head BEFORE the page, so every row counted by it was already durable when the
+        // query below ran. Reading it after would let a concurrent write inflate the head past rows
+        // the query never had a chance to see, and the cursor advance would skip them.
+        const ledgerHead = await deps.settingsRepo.maxRevisionSeq();
+        const revisions = await deps.settingsRepo.listRevisionsSince({
+          sinceSeq: cursor,
+          limit: REVISION_PAGE_SIZE,
+          workspaceId: deps.workspaceId,
+        });
 
         const batch = await collectChangedNamespaces(revisions, viewer, resolveNamespace);
         // Advance even when nothing was visible, so writes this viewer cannot see are examined once
         // rather than on every tick forever.
-        cursor = Math.max(cursor, batch.cursor);
+        //
+        // A SHORT page is what makes that true now that the query is workspace-filtered: fewer than
+        // `REVISION_PAGE_SIZE` rows means the predicate ran out of matches before it ran out of
+        // ledger, so everything up to `ledgerHead` has been examined and can be skipped past.
+        // Advancing only to `batch.cursor` would leave the cursor parked behind a busy neighbour's
+        // rows and re-walk them on every tick for the life of the connection.
+        const examined = revisions.length < REVISION_PAGE_SIZE ? ledgerHead : batch.cursor;
+        cursor = Math.max(cursor, examined, batch.cursor);
         if (closed || batch.namespaces.length === 0) return;
 
         res.write(`id: ${cursor}\n`);

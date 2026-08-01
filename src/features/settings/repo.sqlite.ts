@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, or } from "drizzle-orm";
 
 import type { JsonValue } from "../../core/ports";
 import {
@@ -442,11 +442,25 @@ export class SqliteSettingsRepo implements SettingsRepoPort {
       .sort((a, b) => a.seq - b.seq);
   }
 
-  async listRevisionsSince(required: { sinceSeq: number; limit: number }): Promise<SettingRevisionRecord[]> {
+  async listRevisionsSince(required: {
+    sinceSeq: number;
+    limit: number;
+    workspaceId: string;
+  }): Promise<SettingRevisionRecord[]> {
     const rows = this.db
       .select()
       .from(settingRevisions)
-      .where(gt(settingRevisions.seq, required.sinceSeq))
+      .where(
+        and(
+          gt(settingRevisions.seq, required.sinceSeq),
+          // A NULL `workspace_id` is a platform definition or a `global`-scope value — resolved by
+          // every workspace, so every workspace must hear about it. Everything else belongs to one
+          // tenant. See the port's doc for why this is a page-sizing predicate rather than the
+          // disclosure check: it must stay a superset of `isRevisionVisibleTo`, which remains the
+          // only thing deciding what a subscriber is actually told.
+          or(isNull(settingRevisions.workspaceId), eq(settingRevisions.workspaceId, required.workspaceId))
+        )
+      )
       .orderBy(settingRevisions.seq)
       .limit(required.limit)
       .all();

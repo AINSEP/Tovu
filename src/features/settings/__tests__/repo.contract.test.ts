@@ -109,6 +109,79 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
     );
   });
 
+  /** A revision the ledger will accept, varied only by the fields a test cares about. */
+  const revisionOf = (over: Partial<Parameters<SettingsRepoPort["appendRevision"]>[0]> = {}) => ({
+    entityKind: "value" as const,
+    settingId: def.settingId,
+    scope: "workspace" as const,
+    workspaceId: "ws-1" as string | null,
+    principalId: null,
+    op: "set" as const,
+    beforeJson: null,
+    afterJson: "x",
+    defVersion: 1,
+    actor: "actor-1",
+    originPluginId: null,
+    changeSetId: null,
+    createdAt: NOW,
+    ...over,
+  });
+
+  test(`[${adapterName}] listRevisionsSince does not let another workspace's writes crowd a page`, async () => {
+    // The ledger is global. Without a workspace predicate the page is filled by whoever wrote most
+    // recently, so a quiet tenant's own change sits beyond the limit and its SSE feed never
+    // reaches it — an observable cross-tenant timing channel, and a permanently stalled feed once
+    // the neighbour's write rate exceeds one page per poll.
+    const repo = makeRepo();
+    await repo.saveDefinition(def);
+    for (let i = 0; i < 50; i += 1) await repo.appendRevision(revisionOf({ workspaceId: "ws-2" }));
+    const mine = await repo.appendRevision(revisionOf({ workspaceId: "ws-1" }));
+
+    const page = await repo.listRevisionsSince({ sinceSeq: 0, limit: 10, workspaceId: "ws-1" });
+
+    assert.deepEqual(
+      page.map((r) => r.seq),
+      [mine],
+      "a 10-row page must carry ws-1's own revision, not the first 10 of ws-2's backlog"
+    );
+  });
+
+  test(`[${adapterName}] listRevisionsSince still returns platform-wide revisions to every workspace`, async () => {
+    // `workspaceId: null` is a platform definition or a `global`-scope value — every workspace
+    // resolves through it, so narrowing the page must not drop it. This is the half of the
+    // predicate that keeps it a SUPERSET of `isRevisionVisibleTo` rather than a second, divergent
+    // disclosure rule.
+    const repo = makeRepo();
+    await repo.saveDefinition(def);
+    const platform = await repo.appendRevision(revisionOf({ scope: "global", workspaceId: null }));
+    const other = await repo.appendRevision(revisionOf({ workspaceId: "ws-2" }));
+    const own = await repo.appendRevision(revisionOf({ workspaceId: "ws-1" }));
+
+    const page = await repo.listRevisionsSince({ sinceSeq: 0, limit: 100, workspaceId: "ws-1" });
+
+    assert.deepEqual(
+      page.map((r) => r.seq),
+      [platform, own],
+      "platform-wide and own-workspace revisions are in; another workspace's are out"
+    );
+    assert.ok(!page.some((r) => r.seq === other));
+  });
+
+  test(`[${adapterName}] listRevisionsSince still honours sinceSeq and limit under the workspace predicate`, async () => {
+    const repo = makeRepo();
+    await repo.saveDefinition(def);
+    const seqs: number[] = [];
+    for (let i = 0; i < 5; i += 1) seqs.push(await repo.appendRevision(revisionOf({ workspaceId: "ws-1" })));
+
+    const page = await repo.listRevisionsSince({ sinceSeq: seqs[1]!, limit: 2, workspaceId: "ws-1" });
+
+    assert.deepEqual(
+      page.map((r) => r.seq),
+      [seqs[2]!, seqs[3]!],
+      "strictly greater than sinceSeq, ascending, capped at limit"
+    );
+  });
+
   test(`[${adapterName}] deleteWorkspaceValue/deleteUserValue remove exactly the targeted row`, async () => {
     const repo = makeRepo();
     const base: Omit<SettingValueRecord, "scope" | "workspaceId" | "principalId"> = {

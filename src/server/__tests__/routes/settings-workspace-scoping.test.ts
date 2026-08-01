@@ -90,7 +90,7 @@ test("SETTINGS_SET: a body workspaceId naming another workspace is rejected, and
   assert.equal(((await res.json()) as { code: string }).code, "VALIDATION_ERROR");
 
   // The decisive assertion: nothing landed in the other tenant.
-  const leaked = await deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 500 });
+  const leaked = await deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 500, workspaceId: OTHER_WORKSPACE });
   assert.equal(
     leaked.filter((r) => r.workspaceId === OTHER_WORKSPACE).length,
     0,
@@ -116,7 +116,7 @@ test("SETTINGS_CLEAR: a body workspaceId naming another workspace is rejected", 
   });
 
   assert.equal(res.status, 400);
-  const leaked = await deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 500 });
+  const leaked = await deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 500, workspaceId: OTHER_WORKSPACE });
   assert.equal(leaked.filter((r) => r.workspaceId === OTHER_WORKSPACE).length, 0);
 });
 
@@ -137,7 +137,7 @@ test("SETTINGS_RESET: a body workspaceId naming another workspace is rejected be
   });
 
   assert.equal(res.status, 400, "reset is the worst case — one request would wipe another tenant's namespace");
-  const leaked = await deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 500 });
+  const leaked = await deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 500, workspaceId: OTHER_WORKSPACE });
   assert.equal(leaked.filter((r) => r.workspaceId === OTHER_WORKSPACE).length, 0);
 });
 
@@ -184,7 +184,7 @@ test("SETTINGS_SET: a workspace-scoped write with NO body workspaceId defaults t
   });
 
   assert.equal(res.status, 200);
-  const revisions = await deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 500 });
+  const revisions = await deps.settingsRepo.listRevisionsSince({ sinceSeq: 0, limit: 500, workspaceId: deps.workspaceId });
   const written = revisions.filter((r) => r.scope === "workspace" && r.op === "set");
   assert.ok(written.length > 0, "the write must have produced a revision");
   assert.ok(
