@@ -68,10 +68,19 @@ export interface FetchQueryOptions<T> {
    *  same contract `ExecutionPort` documents and for the same reason. */
   fetch: () => Promise<T>;
   /**
-   * When false, the query does not run and stays `status: 'loading'` with no
-   * request in flight. For reads gated on a user gesture or a prerequisite
-   * value (`enabled: Boolean(selectedId)`), which is otherwise the classic
-   * "fetch with an undefined id" bug.
+   * When false, the query does not run. For reads gated on a user gesture or a
+   * prerequisite value (`enabled: Boolean(selectedId)`), which is otherwise the
+   * classic "fetch with an undefined id" bug.
+   *
+   * A disabled query reports `error: null` and never `status: 'error'`, even if
+   * an earlier enabled run of the same key failed and that failure is still
+   * cached. Spelled out because the underlying cache does NOT forget a failure
+   * when a query is disabled, and passing that through meant a gesture-gated
+   * cell could render a stale error before the operator had gestured — a
+   * failure they cannot dismiss and did not ask to retry.
+   *
+   * It reports `loading` with no request in flight, or `success` if the key
+   * already holds data worth showing.
    */
   enabled?: boolean;
   /** How long a cached value is served without a background refresh, in ms.
@@ -88,6 +97,17 @@ export interface MutationResult<TInput, TOutput> {
    * caller that needs the outcome inline (`const created = await mutate(...)`)
    * can await it, while a fire-and-forget caller can ignore it and read
    * `status`/`error` instead.
+   *
+   * Both forms are safe: the returned promise already carries a rejection
+   * handler, so discarding it does NOT raise `unhandledrejection`, and
+   * awaiting it still throws. An implementation that returns a bare rejecting
+   * promise satisfies the first sentence and breaks the second usage — the
+   * default `mutateAsync` of at least one library does exactly that.
+   *
+   * Held by construction, not by test: no jsdom-level assertion could
+   * distinguish the two implementations (see the note in
+   * `__tests__/fetch-query.test.tsx`), so a replacement adapter must satisfy
+   * this by reading it here rather than by going green.
    */
   mutate: (input: TInput) => Promise<TOutput>;
   status: MutationStatus;

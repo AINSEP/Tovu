@@ -61,6 +61,23 @@ jobs:
         run: npm run lint
         continue-on-error: true
 
+      - name: Architecture boundaries (ESLint)
+        # BLOCKING, unlike the Biome step above, and deliberately a separate step
+        # rather than folded into it.
+        #
+        # `npm run lint` is Biome only and is non-blocking while ~130 pre-existing
+        # findings are triaged. ESLint was therefore running nowhere in CI, which
+        # made ADR-051's claim that a stray `@tanstack/*` import "fails lint"
+        # true only for whoever happened to run `npm run complexity` by hand — an
+        # enforcement guarantee that did not, in fact, enforce anything. Caught by
+        # external review, not by us.
+        #
+        # Safe to block because the config's only `error`-level rule is that
+        # import boundary; `complexity`/`sonarjs` are `warn` and do not affect the
+        # exit code. Verified: the command exits 0 against the tree as it stands,
+        # so this step fails only on a genuine boundary violation.
+        run: npm run complexity
+
       - name: Install admin dependencies
         run: npm ci --prefix apps/admin
 

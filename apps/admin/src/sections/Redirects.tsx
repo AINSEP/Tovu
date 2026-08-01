@@ -48,16 +48,6 @@ function describeApiError(e: unknown, fallback: string): string {
   return e instanceof Error ? e.message : fallback;
 }
 
-/**
- * `mutate` rejects on failure so a caller that needs the outcome inline can
- * `await` it. These button handlers don't — they render the mutation's own
- * `error` instead — so the rejection is absorbed explicitly rather than left
- * to surface as an unhandled promise rejection in the console.
- */
-function absorbHandledRejection() {
-  /* reported via the mutation's `error`, rendered in the banner above */
-}
-
 /** Lazy hit-count cell (REQ-03) — fetches on first click rather than on mount, so a list of many
  * rows never fires a synchronous burst of `/hits` requests. A rule with zero recorded hits still
  * renders `0` (not blank), matching `hits.ts`'s own "still 200s with hitCount: 0" contract. */
@@ -227,11 +217,23 @@ export function Redirects() {
 
   const writes = [createRule, toggleStatus, removeRule];
   const saving = writes.some((write) => write.status === "pending");
-  // Whichever write failed most recently, falling back to a list-read failure.
-  // Mirrors the single shared `error` slot the old version had — one banner,
-  // not three stacked ones.
   const writeError = writes.find((write) => write.error)?.error ?? null;
   const error = writeError ?? list.error;
+
+  /**
+   * Clears the OTHER writes' failures before starting one.
+   *
+   * The pre-migration code kept a single shared `error` and each handler opened
+   * with `setError(null)`, so any new write wiped the previous one's message.
+   * Three independent mutations do not inherit that: each keeps its own error
+   * until reset, and `find` above returns creation order rather than recency —
+   * so a failed Create would keep its banner on screen after a later, entirely
+   * successful Disable, blaming an operation that worked. `mutate` already
+   * clears the active mutation's own error, so only its siblings need this.
+   */
+  function clearOtherWriteErrors(active: { reset: () => void }) {
+    for (const write of writes) if (write !== active) write.reset();
+  }
 
   const redirects = list.data?.data;
 
@@ -257,7 +259,8 @@ export function Redirects() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          createRule.mutate(new FormData(e.currentTarget)).catch(absorbHandledRejection);
+          clearOtherWriteErrors(createRule);
+          void createRule.mutate(new FormData(e.currentTarget));
           e.currentTarget.reset();
         }}
       >
@@ -324,10 +327,22 @@ export function Redirects() {
                   <HitCountCell redirectId={rule.id} />
                 </td>
                 <td>
-                  <button disabled={saving} onClick={() => toggleStatus.mutate(rule).catch(absorbHandledRejection)}>
+                  <button
+                    disabled={saving}
+                    onClick={() => {
+                      clearOtherWriteErrors(toggleStatus);
+                      void toggleStatus.mutate(rule);
+                    }}
+                  >
                     {rule.status === "active" ? "Disable" : "Enable"}
                   </button>
-                  <button disabled={saving} onClick={() => removeRule.mutate(rule).catch(absorbHandledRejection)}>
+                  <button
+                    disabled={saving}
+                    onClick={() => {
+                      clearOtherWriteErrors(removeRule);
+                      void removeRule.mutate(rule);
+                    }}
+                  >
                     Delete
                   </button>
                 </td>

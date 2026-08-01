@@ -11,8 +11,8 @@
 ## Context
 
 The admin SPA had no server-state caching of any kind. Not "an inadequate cache" — none. Across
-`apps/admin/src`, 38 files hold 123 `api.*` call sites, and the near-universal shape is a
-hand-written triple:
+`apps/admin/src`, **40 non-test files hold 153 `api.*` call sites** (comments stripped, `lib/api.ts`
+itself excluded), and the near-universal shape is a hand-written triple:
 
 ```tsx
 const [data, setData] = useState<T | null>(null);
@@ -36,8 +36,15 @@ view of the same resource silently drifts, and the pairing is invisible to revie
 
 The immediate fix for the CLI scan was a module-scoped memo in the port implementation
 (`execution-settings.ts`). That worked, and it is the right shape *for that surface* (see the
-two-tier model below) — but it does not generalise: repeating it 38 times is a bespoke cache per
+two-tier model below) — but it does not generalise: repeating it per module is a bespoke cache per
 module, each with its own invalidation story and none with a shared contract.
+
+> **Correction (2026-08-01, external review).** This ADR first cited "38 files / 123 call sites".
+> That was wrong and understated: the count came from a line-oriented `grep` that cannot match
+> `api\n  .listRedirects()`, a multi-line form the pilot screen itself used. The figures above are
+> from an AST-shaped count with comments stripped. An independent reviewer reached 143/37 under
+> different exclusion rules; the exact total depends on whether re-exports and type-only files are
+> counted, so the methodology is stated rather than the number asserted bare.
 
 **The signal that tipped this from "tolerable" to "decide it":** ADR-050 shipped
 `settings-refresh-bus.ts` + `change-feed.ts` + an SSE `events.ts` route. That is a hand-rolled
@@ -62,11 +69,19 @@ No TanStack type appears in a component signature, so the library is a substitut
 detail rather than a shape the codebase has taken on.
 
 **2. Enforce the seam with lint, not convention.** `eslint.config.mjs` bans `@tanstack/*` imports
-across `apps/admin/src/**` with a single `ignores` exemption for `adapter.*.tsx`, at `error`
-severity. This is the load-bearing part of the decision. An abstraction whose only protection is
+across `apps/admin/src/**/*.{ts,tsx,js,jsx,mjs,cjs}` with a single `ignores` exemption for
+`adapter.*`, at `error` severity, and CI runs it as a **blocking** step. This is the load-bearing part of the decision. An abstraction whose only protection is
 reviewer diligence acquires a second importer eventually, and the rip-out claim quietly becomes
 false with no failing signal. Verified by probe: a file importing `useQuery` outside the adapter
 fails lint; the adapter passes.
+
+> **Correction (2026-08-01, external review).** As first written this guarantee did not hold. The
+> rule matched only `.ts`/`.tsx`, so `apps/admin/src/anything.js` could import the library and lint
+> clean; and ESLint ran nowhere in CI — `npm run lint` is Biome only (and `continue-on-error:
+> true`), while the ESLint entry point is `npm run complexity`, which no workflow invoked. The claim
+> that a stray import "fails lint" was therefore true only for whoever ran that script by hand. Both
+> holes are closed: the glob covers every bundled module format, and ci.yml runs `npm run complexity`
+> as a blocking step (safe because the config's only `error`-level rule is this boundary).
 
 **3. Do NOT put this in Jini.** `@jini-ai/ui` is port-injected by construction — 23 feature files
 take a `Port`/`dependencies` prop, and the `fetch()` calls that exist live in `dependencies.ts`
@@ -79,7 +94,7 @@ competing options; the boundary is structural:
 
 | Surface | Cache lives | Why it cannot be the other one |
 |---|---|---|
-| Tovu-owned sections (38 files) | `lib/fetch-query`, React-level | — |
+| Tovu-owned sections (40 files) | `lib/fetch-query`, React-level | — |
 | Jini port-driven (`ExecutionTab`, …) | the host's port implementation | Jini's own hook calls `port.detectLocalAgents()` internally; no Tovu-side React cache is on that path |
 
 `execution-settings.ts`'s `cachedDetection` is therefore **not** a case of missing this abstraction.
@@ -96,7 +111,7 @@ refetches across all of them.
 
 **6. Migrate one screen, then stop and look.** `Redirects.tsx` is the pilot — chosen because it
 exercises the entire surface in one small file (a list read, three writes that each hand-rolled
-`load()`, a gesture-gated lazy read, a bulk import). The other 37 files are untouched and keep
+`load()`, a gesture-gated lazy read, a bulk import). The other 39 files are untouched and keep
 working; the two styles coexist without interference.
 
 ## Relationship to ADR-050 — why this is not the same mistake
@@ -130,7 +145,7 @@ detection ever moves server-side, ADR-050 must be re-read first.
   cost of building invalidation without storage.
 - **Adopt TanStack Query directly, no seam.** Cheaper today, and the honest argument for it is that
   wrappers over query libraries often ossify. Rejected because the owner's explicit requirement was
-  reversibility, and 123 call sites is precisely the scale at which "we'll migrate off later" stops
+  reversibility, and 153 call sites is precisely the scale at which "we'll migrate off later" stops
   being true. The seam's cost is one indirection; its benefit is that the exit is a one-line change.
 - **SWR / hand-rolled `Map` cache.** Not materially different from TanStack for these needs, and a
   hand-rolled one would have to re-derive dedupe, prefix invalidation, and background-refresh
@@ -138,7 +153,7 @@ detection ever moves server-side, ADR-050 must be re-read first.
   documented exit, not a rewrite.
 - **Put it in Jini so every host benefits.** Rejected — see Decision 3. It would convert an injected
   contract into an inherited framework dependency.
-- **Big-bang migration of all 38 files.** Rejected: a large, risky diff with no user-visible payoff
+- **Big-bang migration of all 40 files.** Rejected: a large, risky diff with no user-visible payoff
   and no checkpoint at which to change course.
 
 ## Consequences
@@ -158,7 +173,7 @@ detection ever moves server-side, ADR-050 must be re-read first.
 
 ## Open
 
-- Whether to continue migrating. The pilot exists to answer this; the remaining 37 files are not
+- Whether to continue migrating. The pilot exists to answer this; the remaining 39 files are not
   committed to.
 - Wiring the settings SSE feed to `useInvalidate()`.
 - `Redirects.tsx` surfaced an unrelated pre-existing product defect while being migrated: "Delete"
