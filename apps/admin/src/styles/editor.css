@@ -6,7 +6,43 @@
  *
  * Everything this screen needed already exists in `styles.css` (`.page`/`.page-header`/
  * `.editor-*`/`.tb-btn`/the button-hierarchy classes, plus the now-global `.widget-add-control`
- * spacing rule — see `PostEditor.tsx`'s `Toolbar` comment for that history). This file is
- * currently empty of its own rules; kept, and still imported from `main.tsx`, as the established
- * seam for anything this screen needs later, rather than removed and re-added on the next change.
+ * spacing rule — see `PostEditor.tsx`'s `Toolbar` comment for that history).
  */
+
+/**
+ * Accessibility pass (audit: `PostEditor.tsx`/`CollectionEntryEditor.tsx`/
+ * `WidgetInstanceEditor.tsx`/`MenuEditor.tsx` title/slug/menu-item-row fields were
+ * placeholder-only — no `<label>`, so a screen reader gets nothing or falls back to the raw
+ * `type="text"` announcement; `MenuEditor.tsx`'s `ItemRow` target-kind `<select>` had no
+ * accessible name at all). Every fix wraps the already-styled control in a real `<label>`
+ * (association via nesting, same mechanism `Seo.tsx` uses) with a `.visually-hidden`
+ * (`styles.css`) text child — none of these rows had room for a new *visible* caption without
+ * a layout redesign that isn't this pass's job, so the label is real but not painted.
+ *
+ * `display: contents` drops the wrapping `<label>`'s own box from the layout tree, so the
+ * wrapped `<input>`/`<select>` keeps exactly the flex/grid sizing its containing row already
+ * prescribes in `styles.css` (`.editor-slug`'s `input` width, `.menu-item-fields`'s per-field
+ * `flex-basis` rules keyed on tag/placeholder, `.page`'s column stretch for the bare title
+ * inputs) — only the DOM nesting changes, nothing repaints or resizes. `display: contents` does
+ * not affect the label-for-control association itself (that's DOM nesting, not paint), so this
+ * is purely a layout no-op wrapped around a real accessibility fix.
+ */
+.a11y-label-wrap {
+  display: contents;
+}
+
+/* `.editor-title:focus` (styles.css) replaces the global `input:focus`/`select:focus` box-shadow
+ * ring with a plain `border-bottom-color` swap — a color-only focus state, which fails WCAG 2.1
+ * SC 1.4.11 (non-text contrast: a focus indicator cannot rely on color alone) and the
+ * frontend-accessibility skill's own checklist ("visible focus indicator... never `outline: none`
+ * without a replacement"). Confirmed live by tabbing to a title field in the rendered app: the
+ * only visible change was a 1px line thinner than the box-shadow ring every other input gets.
+ * Restores the same `--primary-ring` box-shadow every other input/select/textarea already has,
+ * layered on top of (not replacing) the border-bottom color swap, which stays this control's own
+ * visual signature. This selector has the same specificity as `styles.css`'s — it wins purely on
+ * source order, since `main.tsx` imports this file after `styles.css`. */
+.editor-title:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--primary-ring);
+  border-bottom-color: var(--accent-text);
+}

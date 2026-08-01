@@ -115,6 +115,18 @@ describe("Delete confirmation", () => {
   });
 });
 
+describe("Title and slug fields — accessible names", () => {
+  it("gives the title and slug fields a real accessible name, not just a placeholder", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));
+
+    render(<PostEditor postId="p1" />);
+
+    const titleInput = await screen.findByLabelText("Post title");
+    expect(titleInput).toHaveAttribute("placeholder", "Post title");
+    expect(screen.getByLabelText("URL slug")).toHaveValue("hello-world");
+  });
+});
+
 describe("Back-to-list link", () => {
   it("points at the Posts list for a post", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));

@@ -378,20 +378,31 @@ export function PostEditor(props: { postId: string }) {
           </button>
         </div>
       </div>
-      <input
-        className="editor-title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Post title"
-        {...agentHandle("post-title", { role: "field", label: "This post's title" })}
-      />
+      {/* Audit finding: placeholder-only, no `<label>` — a screen reader gets nothing (title) or
+          the bare `type="text"` announcement (slug, which had no placeholder either). The
+          wrapping `<label>` + `.visually-hidden` text gives each a real accessible name without
+          adding a visible caption above this screen's large title/slug controls (see
+          `styles/editor.css`'s `.a11y-label-wrap` comment for why the wrap costs no layout). */}
+      <label className="a11y-label-wrap">
+        <span className="visually-hidden">Post title</span>
+        <input
+          className="editor-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Post title"
+          {...agentHandle("post-title", { role: "field", label: "This post's title" })}
+        />
+      </label>
       <div className="editor-slug">
         /{" "}
-        <input
-          value={slug}
-          onChange={(e) => setSlug(e.target.value)}
-          {...agentHandle("post-slug", { role: "field", label: "URL slug this post is published at" })}
-        />
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">URL slug</span>
+          <input
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            {...agentHandle("post-slug", { role: "field", label: "URL slug this post is published at" })}
+          />
+        </label>
         <a
           href={siteUrl(`/${post.slug}`)}
           target="_blank"
