@@ -14,13 +14,17 @@
  * instance (its own load, debounce, save chain and diff base); the page
  * chrome renders `mergeSaveStates` over all of them. The last five of the 13
  * (Media providers, Connectors, Memory, External MCP, Skills) have no Tovu
- * backend at all and so own no slice. Three (Media providers, Connectors,
- * Skills) mount their real `@jini-ai/ui` component behind the same
- * `settings-ui-inert-wrap`/`inert` pattern Privacy's telemetry toggles use
- * below, fed an empty/fresh fake port so nothing fabricated is shown. The
- * other two (Memory, External MCP) have no ready-made `*Tab` export to wrap
- * this way — composing one is real follow-up work, not done here — and
- * render `ComingSoonPanel` instead. See both panels' doc comments.
+ * backend at all and so own no slice. All five mount their real `@jini-ai/ui`
+ * component behind the same `settings-ui-inert-wrap`/`inert` pattern Privacy's
+ * telemetry toggles use below, fed an empty/fresh fake port so nothing
+ * fabricated is shown. Memory and External MCP had no ready-made `*Tab`
+ * export upstream as of the previous pass over this file — `MemorySettingsPanel`
+ * (composing `MemoryList`/`MemoryHowPanel` with a new header) and
+ * `ExternalMcpTab` (wrapping `source-config-list`'s generic `SourceConfigList`
+ * primitive with an MCP-server field spec) were built for this pass; see
+ * `packages/ui/src/features/memory/react/components/MemorySettingsPanel.tsx`
+ * and `packages/ui/src/features/external-mcp/react/components/ExternalMcpTab.tsx`
+ * in Jini for their own doc comments.
  *
  * Both render modes are exercised here on purpose. `SettingsDialogShell`
  * treats `onClose` as the modal/inline switch (omit it and the shell renders
@@ -33,11 +37,13 @@ import {
   AppearanceTab,
   ConnectorsBrowser,
   ExecutionTab,
+  ExternalMcpTab,
   I18nProvider,
   InstructionsTab,
   IntegrationsTab,
   LanguageTab,
   MediaProvidersTab,
+  MemorySettingsPanel,
   NotificationsTab,
   PrivacyTab,
   SETTINGS_DIALOG_DICTIONARIES,
@@ -45,12 +51,18 @@ import {
   SkillsTab,
   createFakeMediaProvidersPort,
   createFakeSkillsPort,
+  createFakeSourceConfigDependencies,
   useI18n,
   type ExecutionConfig,
   type MediaProviderOption,
+  type MemoryConfigFlagKey,
+  type MemoryEntrySummary,
+  type MemoryExtractionRecord,
+  type MemoryTopTab,
   type NotificationsPreferences,
   type PrivacyConsentState,
   type SettingsDialogTab,
+  type SourceConfigItem,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import {
@@ -90,45 +102,6 @@ function TabIcon({ children }: { children: React.ReactNode }) {
   );
 }
 
-/**
- * Panel body for a settings tab with no ready-made `@jini-ai/ui` `*Tab`
- * export to mount at all — currently Memory and External MCP.
- *
- * Locked project decision (coordinator dispatch, 2026-07-31): a tab with no
- * real backend must never ship as a live control that saves but changes
- * nothing. Three siblings (Media providers, Connectors, Skills) satisfy that
- * by mounting their real component behind the same `settings-ui-inert-wrap`/
- * `inert` pattern Privacy's telemetry toggles use below — see those tabs'
- * entries in `tabs` for the exact shape. Memory and External MCP can't do
- * that cheaply: neither has a drop-in `*Tab` component, only loose pieces
- * (`MemoryConnectedPanel`/`MemoryList`/`MemoryHooksPanel`, several dozen
- * props between them; `SourceConfigList<TSource>`, generic over a source
- * shape Tovu would have to invent). Composing either behind a fake port is
- * real follow-up work, not a same-pass swap-in — this plain notice is the
- * interim, honest state: no fabricated sample data, and nothing to
- * accidentally click.
- *
- * Renders no title/description of its own: `SettingsDialogShell` already
- * renders the active tab's `title`/`subtitle` as its own page header (see
- * `SettingsDialogShell.tsx`'s `<h2>{activeTab.title}</h2>`), so repeating
- * them here would double the heading. Only real, already-styled classes are
- * used (`jini-settings-section`, `jini-empty-card` both ship in
- * `settings-dialog.css` upstream), plus one small Tovu-local badge class —
- * no compensating CSS needed for a Jini package gap.
- *
- * @complexity O(1) — fixed-shape render, no iteration, no branching.
- * @overallScore 100 — no branches, no I/O, no state; matches the existing
- * `TabIcon` helper's exemption from a full function-quality write-up.
- */
-function ComingSoonPanel({ reason }: { reason: string }) {
-  return (
-    <section className="jini-settings-section settings-ui-coming-soon">
-      <span className="settings-ui-coming-soon-badge">Coming soon</span>
-      <div className="jini-empty-card">{reason}</div>
-    </section>
-  );
-}
-
 /** Stable empty catalog for the inert-wrapped `MediaProvidersTab` mount below
  *  — Tovu genuinely has zero configured providers, so an empty array is the
  *  honest state, not a stand-in for missing data. Module-level so it's the
@@ -140,6 +113,24 @@ const EMPTY_MEDIA_PROVIDER_CATALOG: readonly MediaProviderOption[] = [];
  *  written to; it exists only to satisfy the required prop honestly (no
  *  skill is disabled because no skill can exist yet). */
 const EMPTY_DISABLED_SKILL_IDS: ReadonlySet<string> = new Set();
+
+/** Stable empty lists for the inert-wrapped `MemorySettingsPanel` mount below
+ *  — Tovu's assistant doesn't extract or persist standing facts yet, so an
+ *  empty saved-memory list is the honest state, not a stand-in. Module-level
+ *  so `MemoryList` sees the same array reference across renders. */
+const EMPTY_MEMORY_ENTRIES: MemoryEntrySummary[] = [];
+const EMPTY_MEMORY_EXTRACTIONS: MemoryExtractionRecord[] = [];
+
+/** Every hook shown "on" — matches OD's own default state
+ *  (`od-settings-memory-howitworks.png`). Never actually toggled: the whole
+ *  panel is `inert`-wrapped below, so this is reference-only, not a claim
+ *  that Tovu runs any of these hooks. */
+const MEMORY_HOOK_FLAGS: Record<MemoryConfigFlagKey, boolean> = {
+  chatExtractionEnabled: true,
+  profileEnabled: true,
+  rewriteEnabled: true,
+  verifyEnabled: true,
+};
 
 /**
  * About tab body: version only, no updater surface.
@@ -219,6 +210,18 @@ export function SettingsUi() {
   // these ports otherwise avoid.
   const mediaProvidersPort = useRef(createFakeMediaProvidersPort());
   const skillsPort = useRef(createFakeSkillsPort({ skills: [] }));
+  // Empty in-memory dependencies for the inert-wrapped `ExternalMcpTab` mount
+  // below. `createSource` only has to satisfy the type — `inert` means the
+  // add form can never actually submit, so this is never called in practice.
+  const externalMcpDependencies = useRef(
+    createFakeSourceConfigDependencies<SourceConfigItem>({
+      createSource: (input) => ({ id: input.fields.id?.trim() || `mcp-${Date.now()}`, fields: input.fields }),
+    }),
+  );
+  // Which segment of the inert-wrapped `MemorySettingsPanel` mount below is
+  // showing. Local view state only — nothing here persists, matching every
+  // other prop this tab's `inert` control feeds.
+  const [memoryTopTab, setMemoryTopTab] = useState<MemoryTopTab>("memories");
 
   const execution = useSettingsSlice<ExecutionConfig>({
     load: loadExecutionConfig,
@@ -516,10 +519,22 @@ export function SettingsUi() {
        * — omitting `dependencies` makes it default to an empty in-memory fake
        * (`useWiredConnectorsBrowser`'s own fallback), and `unlocked={false}`
        * is Tovu's real state (no Composio key configured), not a fabricated
-       * one. `gate` is omitted too: its `ctaHref` would have to point
-       * somewhere Tovu can't actually complete a Composio connection from
-       * yet, so the plain locked grid renders instead of a CTA link nothing
-       * backs.
+       * one.
+       *
+       * `gate` WAS omitted here (see git history) on the reasoning that its
+       * `ctaHref` would be "a CTA link nothing backs." Revisited during the
+       * 2026-07-31 OD-parity pass: the entire subtree is already `inert` —
+       * nothing inside it, including this link, can ever be clicked — so
+       * that risk doesn't actually exist, and omitting `gate` was also
+       * making `ConnectorGrid` render as a blank rectangle (zero connectors,
+       * no overlay) instead of `od-settings-connectors.png`'s designed empty
+       * state. Copy is adapted, not verbatim OD: OD's real copy says "Paste
+       * your key above," referring to an API-key input field that lives in
+       * OD's own page chrome, one this component has never had and Tovu
+       * doesn't render — repeating that line here would describe a field
+       * that isn't on screen. `ctaHref` points at Composio's real site
+       * (`app.composio.dev`, per `packages/ui/source-map.md`'s provenance
+       * note for this component) rather than a dead placeholder.
        */
       panel: (
         <div className="settings-ui-inert-wrap">
@@ -528,7 +543,15 @@ export function SettingsUi() {
             is shown for reference and disabled until they are.
           </p>
           <div className="settings-ui-inert-control" inert>
-            <ConnectorsBrowser unlocked={false} />
+            <ConnectorsBrowser
+              unlocked={false}
+              gate={{
+                title: "Add your Composio API key to continue",
+                body: "Save a Composio API key to load available integrations.",
+                ctaLabel: "Get API Key",
+                ctaHref: "https://app.composio.dev",
+              }}
+            />
           </div>
         </div>
       ),
@@ -544,12 +567,55 @@ export function SettingsUi() {
           <path d="M9 5.5V9l3 2" />
         </TabIcon>
       ),
-      // No `*Tab` export — see `ComingSoonPanel`'s doc comment. Distinct from
-      // the AI Assistant's chat *history*, which does persist: this is about
-      // extracting and reusing standing facts across conversations, which
-      // Tovu's assistant doesn't do.
+      /**
+       * `MemorySettingsPanel` (new upstream component — see its own doc
+       * comment) composes the header + segmented control with the two
+       * already-existing body panels (`MemoryList`/`MemoryHowPanel`). Every
+       * list below is one of the stable empty fixtures above: Tovu's
+       * assistant doesn't extract or persist standing facts across
+       * conversations yet, distinct from chat *history*, which does persist.
+       * `onFilterChange`/`onOpenPreview`/etc. are no-ops — `inert` means none
+       * of them can fire anyway.
+       */
       panel: (
-        <ComingSoonPanel reason="Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist." />
+        <div className="settings-ui-inert-wrap">
+          <p className="settings-ui-inert-note" role="note">
+            Tovu's assistant doesn't persist extracted facts across conversations yet — that's
+            separate from chat history, which does persist. The control below is shown for
+            reference and disabled until it does.
+          </p>
+          <div className="settings-ui-inert-control" inert>
+            <MemorySettingsPanel
+              enabled
+              onToggleEnabled={() => {}}
+              topTab={memoryTopTab}
+              onTopTabChange={setMemoryTopTab}
+              savedMemory={{
+                entries: EMPTY_MEMORY_ENTRIES,
+                filtered: EMPTY_MEMORY_ENTRIES,
+                visibleExtractions: EMPTY_MEMORY_EXTRACTIONS,
+                filter: "all",
+                onFilterChange: () => {},
+                unifiedMemoryCount: 0,
+                onClearExtractions: () => {},
+                onRefreshExtractions: () => {},
+                isRefreshing: false,
+                previewId: null,
+                previewBody: null,
+                nowClock: Date.now(),
+                onOpenPreview: () => {},
+                onStartEdit: () => {},
+                onDeleteEntry: () => {},
+                onDeleteExtraction: () => {},
+              }}
+              howItWorks={{
+                enabled: true,
+                hookFlags: MEMORY_HOOK_FLAGS,
+                onToggleHook: () => {},
+              }}
+            />
+          </div>
+        </div>
       ),
     },
     {
@@ -563,10 +629,33 @@ export function SettingsUi() {
           <path d="M9 13.5V16" />
         </TabIcon>
       ),
-      // OD as MCP *client* (`source-config-list`) — distinct from the "MCP
-      // server" tab above, where Tovu is the one being connected TO. No
-      // `*Tab` export — see `ComingSoonPanel`'s doc comment.
-      panel: <ComingSoonPanel reason="Tovu doesn't run an MCP client yet, so there are no external MCP servers to add here." />,
+      /**
+       * OD as MCP *client* (`source-config-list`) — distinct from the "MCP
+       * server" tab above, where Tovu is the one being connected TO.
+       * `ExternalMcpTab` (new upstream component wrapping the generic
+       * `SourceConfigList` primitive — see its own doc comment) fed a fresh
+       * empty dependencies fake, same convention as Media providers/Skills
+       * above. `connectionError` names Tovu's real gap plainly instead of
+       * reusing OD's own "local daemon" copy, which would misname a daemon
+       * Tovu doesn't run. `saveStatusLabel`/`configPath` are OD's own footer
+       * chrome, shown for visual reference under the same honest note.
+       */
+      panel: (
+        <div className="settings-ui-inert-wrap">
+          <p className="settings-ui-inert-note" role="note">
+            Tovu doesn't run an MCP client yet, so there are no external MCP servers to add here.
+            The control below is shown for reference and disabled until one exists.
+          </p>
+          <div className="settings-ui-inert-control" inert>
+            <ExternalMcpTab
+              dependencies={externalMcpDependencies.current}
+              connectionError="No MCP config store to connect to yet."
+              saveStatusLabel="All changes saved"
+              configPath=".od/mcp-config.json"
+            />
+          </div>
+        </div>
+      ),
     },
     {
       id: "skills",
