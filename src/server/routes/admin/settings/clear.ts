@@ -9,7 +9,7 @@ import type { SettingScope } from "../../../../features/settings/types";
 import { clear, deriveRequiredPermission } from "../../../../features/settings/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
-import { toWriteServiceDeps } from "./shared";
+import { resolveTargetWorkspaceId, toWriteServiceDeps } from "./shared";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -45,7 +45,16 @@ export const registerAdminSettingsClearRoute: SettingsRouteRegistrar = (app, dep
         });
         return;
       }
-      const workspaceId = body.workspaceId ? String(body.workspaceId) : undefined;
+      // See `resolveTargetWorkspaceId` in `shared.ts`. This route previously took the write target
+      // straight from the body while authorizing against `deps.workspaceId` below — a cross-tenant
+      // clear. It also never defaulted for non-global scopes, the same masked-500 gap `set.ts` was
+      // fixed for on 2026-07-31 and that its comment flagged here as an unfixed follow-up.
+      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId: body.workspaceId, scope });
+      if (!targetWorkspace.ok) {
+        res.status(400).json({ error: targetWorkspace.error, code: "VALIDATION_ERROR" });
+        return;
+      }
+      const workspaceId = targetWorkspace.workspaceId;
       const principalId = body.principalId ? String(body.principalId) : undefined;
 
       const permission = deriveRequiredPermission({

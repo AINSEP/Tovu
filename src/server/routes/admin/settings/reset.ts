@@ -3,7 +3,7 @@ import type { SettingScope } from "../../../../features/settings/types";
 import { resetNamespace } from "../../../../features/settings/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
-import { toWriteServiceDeps } from "./shared";
+import { resolveTargetWorkspaceId, toWriteServiceDeps } from "./shared";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -45,7 +45,15 @@ export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = (app, dep
         });
         return;
       }
-      const workspaceId = body.workspaceId ? String(body.workspaceId) : undefined;
+      // See `resolveTargetWorkspaceId` in `shared.ts`. This was the worst of the three: it took the
+      // target workspace from the body while authorizing against `deps.workspaceId` below, so one
+      // request could wipe an entire namespace in another tenant.
+      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId: body.workspaceId, scope });
+      if (!targetWorkspace.ok) {
+        res.status(400).json({ error: targetWorkspace.error, code: "VALIDATION_ERROR" });
+        return;
+      }
+      const workspaceId = targetWorkspace.workspaceId;
 
       const permission = `settings.reset.${scope}`;
       // See `set.ts`'s identical comment: always the ambient `deps.workspaceId`,
