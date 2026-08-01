@@ -124,10 +124,19 @@ export function WidgetInstanceEditor(props: { widgetId: string | null; widgetTyp
   }
 
   return (
-    <div className="editor-page">
-      <div className="editor-header">
-        <a href="/admin/widgets">← Widgets</a>
-        <div className="editor-actions">
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Content</p>
+          <h1 className="page-title">{isNew ? "New widget" : "Edit widget"}</h1>
+          <p className="page-description">Configure this widget&apos;s title and settings.</p>
+        </div>
+        <div className="page-actions">
+          <a href="/admin/widgets">
+            <button type="button" className="btn-secondary">
+              ← Widgets
+            </button>
+          </a>
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? (
             <span className="save-error" role="alert">

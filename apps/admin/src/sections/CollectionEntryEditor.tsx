@@ -147,7 +147,14 @@ function TermPicker(props: { taxonomies: AdminTaxonomyWithTerms[]; contentType: 
           )}
         </fieldset>
       ))}
-      <span className="editor-actions">
+      {/* `term-picker-actions` is a spacing-only hook layered on `.editor-actions`, same pattern
+          as `FormEditor.tsx`'s `.form-actions`: `.editor-actions` sets direction/gap/alignment but
+          deliberately no outer margin, and this row follows a stack of `<fieldset>`s with nothing
+          else separating them. Scoped here rather than added to `.editor-actions` itself, which is
+          shared with screens where a blanket top margin would be wrong (see this dispatch's
+          `.editor-actions` audit — most of its ~30 other callers are small inline `<span>` groups
+          inside a table row or compact form, not a bottom-of-block action bar). */}
+      <span className="editor-actions term-picker-actions">
         <button type="button" onClick={assign} disabled={saving || selected.size === 0}>
           {saving ? "Assigning…" : "Assign selected terms"}
         </button>
@@ -267,10 +274,19 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
   if (props.entryId && !entry) return <div className="notice error">Entry not found.</div>;
 
   return (
-    <div className="editor-page">
-      <div className="editor-header">
-        <a href={`/admin/collections/${props.contentTypeKey}`}>← {contentType.label}</a>
-        <div className="editor-actions">
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Content</p>
+          <h1 className="page-title">{entry ? `Edit ${contentType.label} entry` : `New ${contentType.label} entry`}</h1>
+          <p className="page-description">Update this entry&apos;s title, fields, and body.</p>
+        </div>
+        <div className="page-actions">
+          <a href={`/admin/collections/${props.contentTypeKey}`}>
+            <button type="button" className="btn-secondary">
+              ← {contentType.label}
+            </button>
+          </a>
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? <span className="save-error">{error}</span> : null}
           {entry ? <span className={`status status-${entry.status}`}>{entry.status}</span> : null}
@@ -279,12 +295,25 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
               Publish
             </button>
           ) : null}
+          {/* Reversible-but-access-affecting (drops the entry off the site; still editable here,
+              still re-publishable) — `.btn-warning`, matching `Posts.tsx`/`Pages.tsx` RowMenu's
+              own Disable, not `.btn-danger`, which stays reserved for the genuinely destructive
+              trash action. */}
           {entry && entry.status === "published" ? (
-            <button type="button" onClick={() => toggleLifecycle("unpublish")}>
+            <button type="button" className="btn-warning" onClick={() => toggleLifecycle("unpublish")}>
               Unpublish
             </button>
           ) : null}
-          <button onClick={save} disabled={saving}>
+          {/* Secondary while Publish is also showing (draft entries) so the two don't compete for
+              primary weight — mirrors `PostEditor.tsx`'s identical Save/Publish pairing exactly.
+              Once published, Publish is gone and Save is this screen's one remaining primary
+              action, so it goes back to bare/primary. */}
+          <button
+            type="button"
+            className={entry && entry.status !== "published" ? "btn-secondary" : undefined}
+            onClick={save}
+            disabled={saving}
+          >
             {saving ? "Saving…" : "Save"}
           </button>
         </div>
