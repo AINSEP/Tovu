@@ -53,8 +53,27 @@ POST /admin/workspaces/A/settings/core.appearance/theme
 The revision ledger records it under B with `actor` = the A principal, so it is at least auditable
 after the fact — but it is not prevented.
 
-**`reset.ts` is the worst of the three**: it takes the same body-supplied `workspaceId` and wipes an
-entire namespace, so one request clears every setting in a namespace for another tenant.
+### CORRECTION (added after the fix, from measurement rather than reading)
+
+**The step-5 outcome above is right for `reset` and overstated for `set`/`clear`.** I disabled both
+guards and re-ran the attack against the original code. Actual results:
+
+| Verb | Pre-fix response | Why |
+|---|---|---|
+| SET | **404**, not 200 | `resolveScopedDefinitionOrThrow` resolves the definition in the **target** workspace's partition; absent there, it throws `DefinitionNotFoundError` |
+| CLEAR | **404**, not 200 | same |
+| RESET | **200 — succeeds** | it derives `keysInNamespace` from the target workspace itself, so it needs no pre-existing definition |
+
+So `set`/`clear` carry a precondition neither the Terra report nor the first draft of this document
+stated: **the same `namespace.key` definition must already be registered in the victim workspace.**
+That is a weak barrier in production — boot registers the same core definitions into every
+workspace's partition, so in a real multi-tenant install they do exist and the write does land — but
+it is not unconditional, and any writeup claiming otherwise is wrong.
+
+**`reset` has no precondition and is the unconditionally exploitable verb.** One request wipes an
+entire namespace in another tenant. It was correctly called the worst of the three, but for the
+wrong reason: not because reset is broader, but because it is the only one that needs nothing to be
+true of the victim workspace first.
 
 ## Why it was missed
 
