@@ -145,6 +145,18 @@
 body { margin: 0; font-family: var(--font-ui); background: var(--bg); color: var(--fg); -webkit-font-smoothing: antialiased; }
 a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; text-underline-offset: 2px; }
+/* A control that looks like a link but is a real `<button>`, for actions that reveal something
+   in place rather than navigate (Users' username opens that row's Manage panel). An `<a href="#">`
+   would read as navigation to assistive tech and to anyone watching the status bar, so the
+   element stays a button and only the appearance is borrowed — matching the `a` rules directly
+   above, including the hover underline, so the two are indistinguishable on screen. Strips the
+   UA button chrome that would otherwise draw a bordered box around the text; the global focus
+   ring below still applies, since this is still a button. */
+.link-button {
+  background: none; border: none; padding: 0; font: inherit; text-align: left;
+  color: var(--link); cursor: pointer;
+}
+.link-button:hover { text-decoration: underline; text-underline-offset: 2px; }
 
 /* Skip link — off-screen (not `display: none`/`visibility: hidden`, both of which would also
    remove it from the tab order and defeat the point) until it receives keyboard focus, at which

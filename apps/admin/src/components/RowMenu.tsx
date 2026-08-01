@@ -201,12 +201,19 @@ export function RowMenu(props: RowMenuProps) {
         onClick={() => (open ? close(false) : openAt(0))}
         onKeyDown={onTriggerKeyDown}
       >
-        {/* Three horizontal stripes, not a vertical/horizontal three-dot glyph — a conventional
-            "more" affordance (matches this file's other icons' stroke-based style, e.g.
-            `Sidebar.tsx`'s rail-toggle chevrons), always paired with the real accessible name
-            above rather than shipped as a bare unlabeled icon. */}
-        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-          <path d="M3.5 5.5h11M3.5 9h11M3.5 12.5h11" strokeLinecap="round" />
+        {/* Three vertical dots — the conventional overflow/"kebab" affordance, replacing an
+            earlier three-horizontal-line (hamburger) glyph that was simply the wrong icon for
+            this control. Filled circles, not stroked outlines, unlike this file's other icons
+            (`Sidebar.tsx`'s stroke-based rail-toggle chevrons): at this glyph's actual rendered
+            size (16px, scaled down from this 18-unit viewBox — see `.row-menu-trigger svg` in
+            `styles.css`), a thin stroked ring goes muddy where a filled dot stays crisp. Always
+            paired with the real accessible name (`aria-label` on the `<button>` above, from
+            `triggerLabel`) rather than shipped as a bare unlabeled icon — this glyph itself is
+            `aria-hidden`, a screen reader never reaches it. */}
+        <svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
+          <circle cx="9" cy="4.5" r="1.5" />
+          <circle cx="9" cy="9" r="1.5" />
+          <circle cx="9" cy="13.5" r="1.5" />
         </svg>
       </button>
       {open
