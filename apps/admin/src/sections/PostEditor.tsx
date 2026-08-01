@@ -9,6 +9,7 @@ import { WidgetEmbed, WidgetEmbedInsertControl } from "../lib/widget-embed-exten
 import { siteUrl } from "../lib/site-url";
 import { navigate } from "../lib/router";
 import { useDirtyGuard } from "../hooks/use-dirty-guard.hooks";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 /** Reads a browser `File` into a full `data:` URL (mirrors Media.tsx's upload helper, but keeps the prefix). */
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -114,6 +115,15 @@ function Toolbar({ editor }: { editor: Editor }) {
           Img
         </button>
       </div>
+      {/* The "Insert widget" trigger + its widget-type `<select>` (`WidgetAddControl`, shared with
+          `CollectionEntryEditor.tsx`/`WidgetRegionEditor.tsx` via `WidgetEmbedInsertControl`) had
+          no CSS of its own anywhere in the app, so the two sat flush together with zero gap (user
+          report: "put space between insert widget and the dropdown next to it"). First fixed here
+          as a scoped `.editor-toolbar .widget-add-control` rule in `styles/editor.css` (this pass
+          hadn't verified the other two callers' layouts); once all three were confirmed to want
+          the identical fix, that rule was promoted to a plain global `.widget-add-control` rule in
+          `styles.css` and the scoped one dropped — this comment only documents where the actual
+          rule lives now. */}
       <div className="grp">
         <WidgetEmbedInsertControl editor={editor} />
       </div>
@@ -148,6 +158,12 @@ export function PostEditor(props: { postId: string }) {
   // screen). `null` until the post has loaded AND the editor has actually applied that content —
   // see the load effect below for why both conditions matter.
   const [original, setOriginal] = useState<PostFormState | null>(null);
+  // Drives `ConfirmDialog`'s `open` prop for the Delete action — replaces the previous
+  // `window.confirm` gate. `deleting` is the dialog's `pending` (in-flight) flag, separate from
+  // `confirmingDelete` itself so the dialog can stay open, disabled, mid-request rather than
+  // closing before the request resolves.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const editor = useEditor({
     extensions: [StarterKit, Image, WidgetEmbed],
@@ -187,19 +203,29 @@ export function PostEditor(props: { postId: string }) {
     original
   );
 
-  async function save() {
+  /**
+   * Persists title/slug/body, optionally forcing `status` to a specific value first —
+   * `statusOverride` is omitted for the plain Save button (keeps whatever the status select is
+   * currently set to) and passed `"published"` by the new Publish button below, so publishing is
+   * one click ("save this draft and put it live") instead of "flip the dropdown to Published, then
+   * remember to also click Save" — two actions an operator can do out of order or forget the
+   * second half of. Re-baselines `original` either way, so a publish also clears the dirty guard,
+   * same as an ordinary save.
+   */
+  async function save(statusOverride?: "draft" | "published") {
     if (!editor) return;
     setMessage(null);
     setError(null);
+    const nextStatus = statusOverride ?? status;
     try {
       const bodyJson = editor.getJSON() as Record<string, unknown>;
-      const { post: saved } = await api.updatePost({ id: props.postId }, { title, slug, status, bodyJson });
+      const { post: saved } = await api.updatePost({ id: props.postId }, { title, slug, status: nextStatus, bodyJson });
       setPost(saved);
-      setMessage(`Saved · version ${saved.version}`);
-      // A saved edit is no longer "unsaved" — re-baseline what the dirty check compares against.
-      setOriginal({ title, slug, status, bodyJson });
+      setStatus(nextStatus);
+      setMessage(`${statusOverride === "published" ? "Published" : "Saved"} · version ${saved.version}`);
+      setOriginal({ title, slug, status: nextStatus, bodyJson });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "save failed");
+      setError(e instanceof Error ? e.message : statusOverride === "published" ? "publish failed" : "save failed");
     }
   }
 
@@ -209,70 +235,88 @@ export function PostEditor(props: { postId: string }) {
    * still editable here); this moves the whole row to the trash (server/routes/admin/posts/
    * delete.ts's soft-delete route).
    *
-   * The confirm copy and the `post-delete` agentHandle label below state only the observable
-   * consequence and deliberately do NOT claim the delete is "recoverable" or "not permanent",
-   * even though the server route genuinely is a soft, revertible delete. There is no restore path
-   * an operator can reach from this product today: no change-set-revert UI, no `api.ts` method
-   * for it, and `Recovery.tsx` is a different, much heavier whole-database snapshot restore (not
-   * a per-row undo). Promising a recovery the operator cannot perform would be worse than
-   * promising nothing. Equally, do not swap it for "permanently delete" / "cannot be undone" —
-   * that overcorrects into the opposite lie, since the row genuinely is recoverable server-side,
-   * just not from here. Do not add either claim back in without first building/removing the
-   * corresponding capability.
+   * The `ConfirmDialog` body below and the `post-delete` agentHandle label state only the
+   * observable consequence and deliberately do NOT claim the delete is "recoverable" or "not
+   * permanent", even though the server route genuinely is a soft, revertible delete. There is no
+   * restore path an operator can reach from this product today: no change-set-revert UI, no
+   * `api.ts` method for it, and `Recovery.tsx` is a different, much heavier whole-database
+   * snapshot restore (not a per-row undo). Promising a recovery the operator cannot perform would
+   * be worse than promising nothing. Equally, do not swap it for "permanently delete" / "cannot be
+   * undone" — that overcorrects into the opposite lie, since the row genuinely is recoverable
+   * server-side, just not from here. Do not add either claim back in without first building/
+   * removing the corresponding capability.
    *
    * Calls `api.deletePost` (kind-blind), not `api.deletePage`, matching every other call this
    * editor already makes (`getPost`/`updatePost`) — this component is shared between posts and
    * pages via the same `/admin/posts/{id}` route (Pages.tsx's own file header), so it deletes
    * whatever row `props.postId` names rather than assuming its kind. `post.kind` (loaded from the
    * server response) is used only for display copy and for choosing which list to return to.
+   *
+   * Confirmation now gates via the shared `ConfirmDialog` modal (Delete below only opens it — see
+   * `confirmingDelete`) rather than `window.confirm`: it cannot carry destructive styling, blocks
+   * the whole tab, and reads as a browser artifact. Only `deleting`/`confirmingDelete` are reset on
+   * failure, not success — a successful delete navigates away, and the original code never touched
+   * post-navigation state either.
    */
   async function remove() {
     if (!post) return;
     setMessage(null);
     setError(null);
-    const kindLabel = post.kind === "page" ? "page" : "post";
-    if (
-      !window.confirm(
-        `Move this ${kindLabel} ("${post.title}") to trash? It will disappear from the site and from the ${kindLabel}s list.`
-      )
-    ) {
-      return;
-    }
+    setDeleting(true);
     try {
       await api.deletePost(props.postId);
       navigate(post.kind === "page" ? "/pages" : "/posts");
     } catch (e) {
       setError(e instanceof Error ? e.message : "delete failed");
+      setDeleting(false);
+      setConfirmingDelete(false);
     }
   }
 
   if (error && !post) return <div className="notice error">{error}</div>;
   if (!post) return <div className="notice">Loading editor…</div>;
 
+  const kindLabel = post.kind === "page" ? "page" : "post";
+
   return (
-    <div className="editor-page">
+    <div className="page">
       <div
-        className="editor-header"
+        className="page-header"
         {...agentHandle("post-header", {
           role: "region",
           label: "Editor header — back link, save status, publish state and the Save button",
         })}
       >
-        {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
-            edits — confirmed live on this exact screen (edit the title, click this link, the
-            edit is gone with no dialog). `preventDefault()` here also stops `router.ts`'s
-            document-level click interceptor from firing `navigate()`, since that listener's
-            first check is `event.defaultPrevented` — no change to `router.ts` needed. */}
-        <a
-          href="/admin/posts"
-          onClick={(e) => {
-            if (!confirmLeave()) e.preventDefault();
-          }}
-          {...agentHandle("post-back-to-list", { role: "link", label: "Back to the list of all posts" })}
-        >
-          ← Posts
-        </a>
-        <div className="editor-actions">
+        <div className="page-header-text">
+          <p className="page-kicker">Content</p>
+          <h1 className="page-title">{kindLabel === "page" ? "Edit page" : "Edit post"}</h1>
+          <p className="page-description">Update this {kindLabel}&apos;s title, body, and publish status.</p>
+        </div>
+        <div className="page-actions">
+          {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
+              edits — confirmed live on this exact screen (edit the title, click this link, the
+              edit is gone with no dialog). `preventDefault()` here also stops `router.ts`'s
+              document-level click interceptor from firing `navigate()`, since that listener's
+              first check is `event.defaultPrevented` — no change to `router.ts` needed. The nested
+              `<button>` is styling only (matches Forms/Posts' own "back"/"new" link idiom); the
+              real navigating element, its `href`, and its `onClick` guard all stay on the `<a>`.
+
+              Kind-aware `href`/label, reusing the same `post.kind` check `remove()` already makes
+              for its post-delete redirect just below — bug found during the page-header pass: this
+              link used to be hardcoded to "/admin/posts"/"← Posts" even while editing a *page*, so
+              it silently returned an operator to the wrong list. Deriving both from `kindLabel`
+              (not two independent ternaries) is what stops them drifting apart again. */}
+          <a
+            href={`/admin/${kindLabel}s`}
+            onClick={(e) => {
+              if (!confirmLeave()) e.preventDefault();
+            }}
+            {...agentHandle("post-back-to-list", { role: "link", label: `Back to the list of all ${kindLabel}s` })}
+          >
+            <button type="button" className="btn-secondary">
+              ← {kindLabel === "page" ? "Pages" : "Posts"}
+            </button>
+          </a>
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? <span className="save-error">{error}</span> : null}
           <select
@@ -289,8 +333,31 @@ export function PostEditor(props: { postId: string }) {
             <option value="draft">Draft</option>
             <option value="published">Published</option>
           </select>
+          {/* Publish is the one-click "save this and put it live" shortcut, and only makes sense
+              while there is something to publish — once `status` is already "published" (matching
+              `RowMenu`'s own precedent in `Posts.tsx`, which omits "Disable" entirely for an
+              already-draft row rather than showing it disabled) it disappears rather than
+              rendering disabled with nothing left to do, and plain Save takes over as the primary
+              action. The status select still covers the reverse direction (unpublish), unchanged. */}
+          {status === "draft" ? (
+            <button
+              type="button"
+              onClick={() => save("published")}
+              {...agentHandle("post-publish", {
+                role: "button",
+                label:
+                  "Publish this post/page immediately — saves the current title, slug and body and " +
+                  "sets status to Published in one action. Only shown while the post is a draft; once " +
+                  "published, use Save for further edits.",
+              })}
+            >
+              Publish
+            </button>
+          ) : null}
           <button
-            onClick={save}
+            type="button"
+            className={status === "draft" ? "btn-secondary" : undefined}
+            onClick={() => save()}
             {...agentHandle("post-save", { role: "button", label: "Save this post's title, slug, status and body" })}
           >
             Save
@@ -298,7 +365,7 @@ export function PostEditor(props: { postId: string }) {
           <button
             type="button"
             className="btn-danger"
-            onClick={remove}
+            onClick={() => setConfirmingDelete(true)}
             {...agentHandle("post-delete", {
               role: "button",
               label:
@@ -352,6 +419,21 @@ export function PostEditor(props: { postId: string }) {
           <EditorContent editor={editor} />
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Move to trash?"
+        body={
+          <p>
+            Move this {kindLabel} (&quot;{post.title}&quot;) to trash? It will disappear from the site and from the{" "}
+            {kindLabel}s list.
+          </p>
+        }
+        confirmLabel="Move to trash"
+        destructive
+        pending={deleting}
+        onConfirm={remove}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </div>
   );
 }

@@ -4,19 +4,28 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
  * @file Draggable position for the assistant `ChatFab` (MSG-09).
  *
  * Own hook, not inline state in `ChatFab.tsx` — the same reasoning as `useSidebarRail`: this is
- * real, testable-on-its-own behavior (persistence, clamping, edge-snap), and `apps/admin/INFO.md`'s
+ * real, testable-on-its-own behavior (persistence, clamping, free-drag), and `apps/admin/INFO.md`'s
  * hook convention is where it lives. No `-port.hooks.ts` / `-dependencies.hooks.ts` pair, for the
  * same reason as `useSidebarRail`: the only outside dependency is `localStorage`, a browser
  * built-in, not a swappable backend worth a fake-port seam.
  *
- * Position is persisted as **edge + a fraction of viewport height**, never raw pixels — the same
- * class of bug as the pre-existing `.chat-fab-dock-open { right: calc(380px + 20px) }` rule this
- * replaces (see `styles/assistant.css`'s old comment): a pixel position that is valid at the
- * viewport it was set on can be off-screen at a different one (window resized, phone rotated). A
- * side (`"left" | "right"`) plus a 0–1 fraction of `innerHeight` from the bottom is
- * resolution-independent by construction — re-deriving pixels on every render/resize instead of
- * trusting a stored pixel value is what actually fixes the class of bug, not just this one
- * instance of it.
+ * Position is persisted as **two independent 0–1 fractions of the viewport** —
+ * `rightFraction` (distance from the right edge, as a fraction of `innerWidth`) and
+ * `bottomFraction` (distance from the bottom edge, as a fraction of `innerHeight`) — never raw
+ * pixels. This is the same class of bug the pre-existing `.chat-fab-dock-open { right:
+ * calc(380px + 20px) }` rule had (see `styles/assistant.css`'s old comment): a pixel position
+ * valid at the viewport it was set on can be off-screen at a different one (window resized,
+ * phone rotated). A pair of fractions is resolution-independent by construction — re-deriving
+ * pixels on every render/resize instead of trusting a stored pixel value is what actually fixes
+ * the class of bug, not just one instance of it.
+ *
+ * An earlier version of this hook additionally snapped the drop point to whichever edge it was
+ * nearer, and persisted `{ side: "left" | "right", bottomFraction }` — a shape that can only ever
+ * express a position glued to one vertical edge, which is why a drop in the middle of the screen
+ * used to jump to a corner. That snap is gone: the FAB rests exactly where it is dropped,
+ * anywhere on screen. The old `{ side, bottomFraction }` value is still read and migrated, not
+ * discarded — see `readPersisted` below — so an existing user's FAB does not jump to the default
+ * corner on first load after this change.
  */
 
 const STORAGE_KEY = "tovu-admin-fab-position";
@@ -34,12 +43,23 @@ const DRAG_THRESHOLD_PX = 5;
  *  approximately never). */
 const FAB_SIZE_PX = 56;
 
-export type FabSide = "left" | "right";
-
 interface StoredFabPosition {
-  side: FabSide;
+  /** Fraction of `window.innerWidth`, measured from the right edge, in `[0, 1]`. */
+  rightFraction: number;
   /** Fraction of `window.innerHeight`, measured from the bottom edge, in `[0, 1]`. */
   bottomFraction: number;
+}
+
+/** The pre-free-drag shape: an edge plus a vertical fraction only, no horizontal offset at all
+ *  (the FAB always rested flush against `FAB_EDGE_MARGIN` on whichever side it snapped to). Kept
+ *  as its own type only long enough to describe what `readPersisted` migrates away from. */
+interface LegacyStoredFabPosition {
+  side: "left" | "right";
+  bottomFraction: number;
+}
+
+function isLegacyShape(value: Record<string, unknown>): value is Record<string, unknown> & LegacyStoredFabPosition {
+  return (value.side === "left" || value.side === "right") && typeof value.bottomFraction === "number";
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -50,9 +70,29 @@ function readPersisted(): StoredFabPosition | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<StoredFabPosition>;
-    if ((parsed.side !== "left" && parsed.side !== "right") || typeof parsed.bottomFraction !== "number") return null;
-    return { side: parsed.side, bottomFraction: clamp(parsed.bottomFraction, 0, 1) };
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+
+    if (typeof parsed.rightFraction === "number" && typeof parsed.bottomFraction === "number") {
+      return {
+        rightFraction: clamp(parsed.rightFraction, 0, 1),
+        bottomFraction: clamp(parsed.bottomFraction, 0, 1),
+      };
+    }
+
+    if (isLegacyShape(parsed)) {
+      // Map the edge to an x-fraction near that edge — the legacy shape never recorded a
+      // horizontal offset (it was always pinned flush to the edge margin), so "near that edge" is
+      // the most faithful reading of it available, not an approximation of a value that existed.
+      const rightFraction =
+        parsed.side === "right"
+          ? FAB_EDGE_MARGIN / window.innerWidth
+          : (window.innerWidth - FAB_EDGE_MARGIN - FAB_SIZE_PX) / window.innerWidth;
+      return { rightFraction: clamp(rightFraction, 0, 1), bottomFraction: clamp(parsed.bottomFraction, 0, 1) };
+    }
+
+    // Unrecognized shape (corrupted value, a future format, hand-edited localStorage) — fall back
+    // to the default rather than risk propagating `NaN`/`undefined` into pixel math downstream.
+    return null;
   } catch {
     return null;
   }
@@ -68,13 +108,17 @@ function writePersisted(position: StoredFabPosition): void {
 }
 
 /** A safe default before the first drag — bottom-right corner, matching the FAB's original
- *  hard-coded `right: 20px; bottom: 20px`. */
-const DEFAULT_POSITION: StoredFabPosition = { side: "right", bottomFraction: 0 };
+ *  hard-coded `right: 20px; bottom: 20px`. Both fractions are `0` ("flush against the edge"),
+ *  not "off-screen at the corner" — `style` below clamps them up to `FAB_EDGE_MARGIN` regardless
+ *  of viewport size. */
+const DEFAULT_POSITION: StoredFabPosition = { rightFraction: 0, bottomFraction: 0 };
 
 export interface FabPositionResult {
-  /** Inline `style` for the FAB button — `right`/`left` and `bottom`, in px, always resolved
-   *  against the *current* viewport (never a stale stored pixel value). */
-  style: { right?: number; left?: number; bottom: number };
+  /** Inline `style` for the FAB button — `right` and `bottom`, in px, always resolved against
+   *  the *current* viewport (never a stale stored pixel value). Always both: the FAB is
+   *  positioned as an offset from the right/bottom edges regardless of where on screen it was
+   *  dropped, so there is no left-vs-right branch to keep in sync with the stored fractions. */
+  style: { right: number; bottom: number };
   /** Attach to the FAB's `onPointerDown`. */
   onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => void;
   /**
@@ -138,10 +182,10 @@ export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: numb
    *  would never invalidate and the FAB would visually freeze mid-drag. */
   const [renderTick, forceRender] = useState(0);
 
-  // Re-clamp on resize/orientationchange — a `bottomFraction` is already resolution-independent
-  // for the vertical axis, but this still forces a re-render so any consumer computing pixels
-  // from `window.innerHeight` (this hook included, in `style` below) recomputes rather than
-  // holding a value measured against the previous viewport.
+  // Re-clamp on resize/orientationchange — `rightFraction`/`bottomFraction` are already
+  // resolution-independent on their own axes, but this still forces a re-render so any consumer
+  // computing pixels from `window.innerWidth`/`innerHeight` (this hook included, in `style`
+  // below) recomputes rather than holding a value measured against the previous viewport.
   useEffect(() => {
     function onResize() {
       forceRender((n) => n + 1);
@@ -189,13 +233,15 @@ export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: numb
     draggingRef.current = false;
 
     if (live && wasDragging) {
-      // Snap to whichever edge the drop point is nearer — the standard resting behavior for an
-      // edge-anchored FAB, and it keeps the persisted state in the same "edge + fraction" shape
-      // regardless of which side the drag ended on.
-      const centerX = window.innerWidth - live.right - FAB_SIZE_PX / 2;
-      const side: FabSide = centerX > window.innerWidth / 2 ? "right" : "left";
-      const bottomFraction = clamp(live.bottom / window.innerHeight, 0, 1);
-      const next: StoredFabPosition = { side, bottomFraction };
+      // Persist exactly where it was dropped — no edge-snap (see file header). Clamped to
+      // `[0, 1]` here only to keep the *fraction* well-formed; the margin-aware on-screen clamp
+      // happens once, in `style` below, the same way it already did for the vertical axis alone —
+      // so a drop near an edge still ends up fully on-screen after conversion back to pixels, on
+      // this viewport and any other.
+      const next: StoredFabPosition = {
+        rightFraction: clamp(live.right / window.innerWidth, 0, 1),
+        bottomFraction: clamp(live.bottom / window.innerHeight, 0, 1),
+      };
       setPersisted(next);
       writePersisted(next);
     }
@@ -242,6 +288,11 @@ export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: numb
         bottom: clamp(live.bottom, FAB_EDGE_MARGIN, window.innerHeight - FAB_EDGE_MARGIN - FAB_SIZE_PX),
       };
     }
+    const rightPx = clamp(
+      persisted.rightFraction * window.innerWidth,
+      FAB_EDGE_MARGIN,
+      window.innerWidth - FAB_EDGE_MARGIN - FAB_SIZE_PX,
+    );
     const bottomPx = clamp(
       persisted.bottomFraction * window.innerHeight,
       FAB_EDGE_MARGIN,
@@ -252,9 +303,7 @@ export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: numb
     // case (desktop, docked); `avoidBottomPx` generalizes it to whatever the caller's current
     // dock chrome actually measures.
     const effectiveBottom = dockOpen ? Math.max(bottomPx, avoidBottomPx + FAB_EDGE_MARGIN) : bottomPx;
-    return persisted.side === "right"
-      ? { right: FAB_EDGE_MARGIN, bottom: effectiveBottom }
-      : { left: FAB_EDGE_MARGIN, bottom: effectiveBottom };
+    return { right: rightPx, bottom: effectiveBottom };
     // `renderTick`/`isDragging` are read only to force recomputation while dragging (their values
     // are not otherwise used in the body — the live position comes from `liveRef`/`draggingRef`
     // directly, per the staleness note above) — expected extra deps, not a lint miss.

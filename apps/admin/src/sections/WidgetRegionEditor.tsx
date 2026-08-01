@@ -88,10 +88,19 @@ export function WidgetRegionEditor(props: { regionKey: string }) {
   if (!area) return null;
 
   return (
-    <div className="editor-page">
-      <div className="editor-header">
-        <a href="/admin/widgets/regions">← Regions</a>
-        <div className="editor-actions">
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Content</p>
+          <h1 className="page-title">Region: {props.regionKey}</h1>
+          <p className="page-description">Manage which widgets appear in this region and their order.</p>
+        </div>
+        <div className="page-actions">
+          <a href="/admin/widgets/regions">
+            <button type="button" className="btn-secondary">
+              ← Regions
+            </button>
+          </a>
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? (
             <span className="save-error" role="alert">
@@ -103,11 +112,14 @@ export function WidgetRegionEditor(props: { regionKey: string }) {
           </button>
         </div>
       </div>
-      <h1>Region: {props.regionKey}</h1>
 
       <div className="widget-region-placements">
         {placements.length === 0 ? (
-          <p className="muted-cell">No widgets placed in this region yet.</p>
+          <div className="card">
+            <div className="empty-state">
+              <p>No widgets placed in this region yet.</p>
+            </div>
+          </div>
         ) : (
           placements.map((placement, i) => (
             <div key={placement.placementId} className="menu-item-row">

@@ -345,21 +345,28 @@ export function MenuEditor(props: { menuId: string | null }) {
   if (loading) return <div className="notice">Loading menu…</div>;
 
   return (
-    <div className="editor-page">
-      <div className="editor-header">
-        {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
-            edits — confirmed live on this exact screen. `preventDefault()` here also stops
-            `router.ts`'s document-level click interceptor from firing `navigate()`, since that
-            listener's first check is `event.defaultPrevented` — no change to `router.ts` needed. */}
-        <a
-          href="/admin/menus"
-          onClick={(e) => {
-            if (!confirmLeave()) e.preventDefault();
-          }}
-        >
-          ← Menus
-        </a>
-        <div className="editor-actions">
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Content</p>
+          <h1 className="page-title">{isNew ? "New menu" : "Edit menu"}</h1>
+          <p className="page-description">Build this menu&apos;s items and where each one links to.</p>
+        </div>
+        <div className="page-actions">
+          {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
+              edits — confirmed live on this exact screen. `preventDefault()` here also stops
+              `router.ts`'s document-level click interceptor from firing `navigate()`, since that
+              listener's first check is `event.defaultPrevented` — no change to `router.ts` needed. */}
+          <a
+            href="/admin/menus"
+            onClick={(e) => {
+              if (!confirmLeave()) e.preventDefault();
+            }}
+          >
+            <button type="button" className="btn-secondary">
+              ← Menus
+            </button>
+          </a>
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? <span className="save-error">{error}</span> : null}
           <button onClick={save}>Save</button>
@@ -387,7 +394,13 @@ export function MenuEditor(props: { menuId: string | null }) {
             onMove={moveAt}
           />
         ))}
-        <button onClick={addRootItem}>+ Add item</button>
+        {/* Secondary, not bare/primary — Save in the header is this screen's one primary action;
+            an equally-loud "+ Add item" here would be the same two-primaries flatness problem
+            `styles.css`'s button-hierarchy comment describes for row actions, just at the
+            page level instead of a table row. */}
+        <button type="button" className="btn-secondary" onClick={addRootItem}>
+          + Add item
+        </button>
       </div>
     </div>
   );
