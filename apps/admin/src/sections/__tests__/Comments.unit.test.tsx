@@ -116,3 +116,49 @@ it("offers Purge only under the trash filter, and gates it through ConfirmDialog
   const purgeCall = fetchMock.mock.calls[3];
   expect(String(purgeCall[0])).toContain("/comments/c2/purge");
 });
+
+// ---------------------------------------------------------------------------
+// Wildcard-permission regression (`lib/permissions.ts`'s `hasPermission()`):
+// `effectivePermissions` for an owner is the literal one-element array `["*"]`, never the
+// expanded `comments.*` strings themselves. Both gates below used to be a bare
+// `permissions.includes("comments.read"/"comments.configure")`, so an owner with no policy row
+// literally named "comments.read"/"comments.configure" (true of every seeded owner today — the
+// dispatching session confirmed no `comments.*` grants exist in the live DB) was locked out of
+// this entire screen despite holding the unconstrained wildcard.
+// ---------------------------------------------------------------------------
+
+const COMMENTS_SETTINGS_FIXTURE = {
+  enabled: true,
+  requireModeration: true,
+  maxDepth: 5,
+  closeAfterDays: null,
+  spamAutoRejectScore: 0.9,
+  maxPerIpPerHour: 10,
+};
+
+it("an owner holding only the wildcard grant still sees both the moderation queue and the Comments settings form", async () => {
+  fetchMock
+    .mockResolvedValueOnce(jsonResponse({ effectivePermissions: ["*"] }))
+    .mockResolvedValueOnce(jsonResponse({ items: [PENDING_COMMENT], nextCursor: null }))
+    .mockResolvedValueOnce(jsonResponse({ data: COMMENTS_SETTINGS_FIXTURE }));
+
+  render(<Comments />);
+
+  expect(await screen.findByRole("button", { name: /actions for the comment by "jane"/i })).toBeInTheDocument();
+  expect(screen.queryByText(/you do not have permission to view the moderation queue/i)).not.toBeInTheDocument();
+  expect(await screen.findByRole("checkbox", { name: /comments enabled/i })).toBeInTheDocument();
+});
+
+it("a principal holding only an unrelated grant (comments.delete) sees neither the queue nor the settings form", async () => {
+  fetchMock.mockResolvedValueOnce(jsonResponse({ effectivePermissions: ["comments.delete"] }));
+
+  render(<Comments />);
+
+  expect(
+    await screen.findByText(/you do not have permission to view the moderation queue/i)
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("checkbox", { name: /comments enabled/i })).not.toBeInTheDocument();
+  // Confirms `SettingsSection` skipped its fetch entirely (AC-10) rather than the settings form
+  // just failing to render some other way -- only the one `/auth/me` call happened.
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
