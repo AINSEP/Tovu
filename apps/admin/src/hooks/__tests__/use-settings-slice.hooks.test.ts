@@ -518,6 +518,50 @@ describe("hasUnsavedEdits — unmount flushes a pending debounced edit instead o
     expect(save).toHaveBeenCalledTimes(1);
   });
 
+  it("flushes a revert made WHILE a save was in flight, diffing against the base that save left behind", async () => {
+    // The audit finding both auditors reported independently. Edit A->B, its
+    // save starts; the operator reverts B->A and navigates away before the
+    // second debounce fires. The flush is correctly CHAINED behind the in-flight
+    // save, but if it captures its diff base when it is QUEUED rather than when
+    // it RUNS, it diffs A against the pre-save base A, computes "unchanged", and
+    // silently drops the revert — the store keeps B forever.
+    let releaseFirst: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => (releaseFirst = resolve));
+    const save = vi.fn(async (next: string) => {
+      if (next === "B") await gate;
+      return ["k"];
+    });
+
+    const { result, unmount } = renderHook(() =>
+      useSettingsSlice({ load: () => Promise.resolve("A"), save, defaultValue: "default" }),
+    );
+    await settle();
+
+    // Edit A->B and let its debounce fire; the save blocks on the gate.
+    act(() => result.current.onChange("B"));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, SAVE_DEBOUNCE_MS + 10));
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenLastCalledWith("B", "A");
+
+    // Revert B->A while that save is still in flight, then unmount before the
+    // revert's own debounce fires.
+    act(() => result.current.onChange("A"));
+    unmount();
+
+    await act(async () => {
+      releaseFirst?.();
+      await settle();
+      await settle();
+    });
+
+    // By the time the flush runs, the first save has committed, so the base is
+    // B. Diffing the revert against B is what actually writes A back.
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith("A", "B");
+  });
+
   it("does nothing on unmount when no edit was ever made", async () => {
     const save = vi.fn(async () => ["k"]);
     const { unmount } = renderHook(() => useSettingsSlice({ load: () => Promise.resolve("v0"), save, defaultValue: "default" }));

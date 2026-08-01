@@ -106,6 +106,73 @@ describe("useSettingsSlice external refresh", () => {
     expect(result.current.value).toBe("fr");
   });
 
+  it("discards a reload response that predates a save which COMMITTED during its await", async () => {
+    // The gap the two post-await flag checks cannot see. `timer` and
+    // `hasUnsavedEdits` both describe work that is still outstanding; a save
+    // that started AND finished inside the reload's await window clears both,
+    // so the stale response passes every check — and it does not merely repaint
+    // the old value, it installs it as the diff base, so the next edit diffs
+    // against a base the store never held.
+    vi.useFakeTimers();
+    let stored = "en";
+    let releaseLoad: (() => void) | null = null;
+    let loadCount = 0;
+    const save = vi.fn(async (next: string) => {
+      stored = next;
+      return ["locale"];
+    });
+
+    const { result } = renderHook(() =>
+      useSettingsSlice<string>({
+        load: async () => {
+          loadCount += 1;
+          if (loadCount === 1) return stored;
+          // The response is decided NOW, before the operator's edit lands.
+          const snapshot = stored;
+          await new Promise<void>((resolve) => (releaseLoad = resolve));
+          return snapshot;
+        },
+        save,
+        defaultValue: "en",
+      }),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.value).toBe("en");
+
+    // A refresh starts and blocks, having already captured "en".
+    act(() => publishSettingsRefresh());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(releaseLoad).not.toBeNull();
+
+    // The operator edits and their save fully commits while the reload waits.
+    act(() => result.current.onChange("fr"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SAVE_DEBOUNCE_MS + 10);
+    });
+    expect(stored).toBe("fr");
+
+    // Only now does the stale reload resolve.
+    await act(async () => {
+      releaseLoad!();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(result.current.value).toBe("fr");
+
+    // And the diff base must still be "fr": a subsequent edit has to diff
+    // against what was actually persisted, not against the stale "en".
+    act(() => result.current.onChange("de"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SAVE_DEBOUNCE_MS + 10);
+    });
+    expect(save).toHaveBeenLastCalledWith("de", "fr");
+  });
+
   it("ignores a refresh naming only namespaces this slice does not read", async () => {
     const load = vi.fn(async () => "en");
     renderHook(() =>
