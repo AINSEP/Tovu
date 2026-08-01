@@ -160,6 +160,11 @@ export interface SeoEntryAnalysis {
 export interface AdminPost {
   id: string;
   workspaceId: string;
+  // Was missing from this client-side type even though `toHeadlessPost` (server/http/shared/post.ts)
+  // has always sent it — added here because PostEditor's delete affordance needs to tell a post
+  // apart from a page (for confirm-dialog wording and for which list to return to) and every field
+  // it needs already ships on the wire.
+  kind: "post" | "page";
   title: string;
   slug: string;
   bodyJson: Record<string, unknown>;
@@ -736,6 +741,47 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
+/**
+ * Shared translation from a thrown request error to operator-facing copy — the "opt-out by
+ * default" base every screen should build on, instead of each one copy-pasting this exact base
+ * case under its own locally-defined `describeApiError` (audit cross-cutting finding #2,
+ * `ADS-memory/reports/audits/20260801-admin-adversarial-ux-audit.md`: `request()` above throws
+ * `body.error` verbatim with no shared translation layer, so operator-quality copy was opt-in per
+ * screen — roughly two dozen screens had independently rebuilt this exact fallback chain, and any
+ * screen whose author forgot would show the operator a raw server/developer string). An
+ * `ApiError` already carries the server's own message; this only decides what to show when that
+ * message is empty, or when `e` isn't an `ApiError` at all (a network failure, a thrown non-Error
+ * value, …).
+ *
+ * A screen with real per-`code` handling should check its own codes first and fall through to
+ * this for the rest, rather than reimplementing the base case:
+ *
+ * ```ts
+ * import { describeApiError as describeApiErrorDefault } from "../lib/api";
+ *
+ * function describeApiError(e: unknown, fallback: string): string {
+ *   if (e instanceof ApiError && e.code === "MY_SCREEN_SPECIFIC_CODE") return "...";
+ *   return describeApiErrorDefault(e, fallback);
+ * }
+ * ```
+ *
+ * Deliberately NOT a single shared code→message table covering every screen's codes: the same
+ * `code` means different things in different domains here (`RESOURCE_CONFLICT` is "still
+ * referenced elsewhere" on `Roles.tsx`, "that slug is already taken" on `Workspace.tsx`, "that
+ * username is already in use" on `Users.tsx` — three genuinely different operator-facing meanings
+ * for one code, not a divergence a shared table could resolve without a screen-specific parameter
+ * every caller would have to thread through anyway). Consolidating those into one wrong answer
+ * would be a regression, not a fix — see the audit fix's own instruction to preserve each
+ * screen's existing per-code copy rather than picking one.
+ *
+ * @complexity O(1) — two `instanceof` checks, no iteration.
+ * @overallScore 100
+ */
+export function describeApiError(e: unknown, fallback: string): string {
+  if (e instanceof ApiError) return e.message || fallback;
+  return e instanceof Error ? e.message : fallback;
+}
+
 export const api = {
   login: ({ username, password }: { username: string; password: string }, _options: Record<string, never> = {}) =>
     request<{ user: AdminUser }>("/auth/login", {
@@ -762,12 +808,27 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(options),
     }),
+  // Soft delete (server/routes/admin/posts/delete.ts): trashes the row rather than removing it,
+  // revertible server-side via POST /change-sets/:id/revert. Kind-blind like getPost/updatePost —
+  // deletes whatever row has this id regardless of whether it is a post or a page, which is why
+  // PostEditor (shared between both) calls this rather than deletePage.
+  deletePost: (id: string) =>
+    request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${id}`, {
+      method: "DELETE",
+    }),
   listPages: () =>
     request<{ posts: Array<{ post: AdminPost }> }>(`/workspaces/${WORKSPACE_ID}/pages`),
   createPage: (title: string) =>
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/pages`, {
       method: "POST",
       body: JSON.stringify({ title }),
+    }),
+  // Soft delete (server/routes/admin/pages/delete.ts): same trash marker as deletePost, but
+  // kind-guarded — 404s if the id's row is not actually kind:"page" (indistinguishable from
+  // not-found, matching the rest of the pages/* routes' disclosed asymmetry).
+  deletePage: (id: string) =>
+    request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/pages/${id}`, {
+      method: "DELETE",
     }),
   getPresentation: () =>
     request<{ settings: PresentationSettings; availableThemeIds: string[] }>(
