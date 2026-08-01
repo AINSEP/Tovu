@@ -64,9 +64,13 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps)
       // Appearance, Language) never sends `workspaceId` at all. No certified
       // test exercises this path (`settings-auth.test.ts`'s SET/CLEAR
       // coverage is `scope: "global"` only), so nothing regresses by fixing
-      // it. Mirrors `authWorkspaceId` below: this is single-workspace v1, so
-      // the ambient `deps.workspaceId` is always the right default when the
-      // body doesn't name one explicitly -- `scope: "global"` alone is
+      // it. Mirrors `authWorkspaceId` below and the same pinning convention
+      // every other settings route already applies (`get-effective.ts`'s own
+      // `workspaceId = deps.workspaceId`, `list-definitions.ts`'s `workspaceId`
+      // reads): the `:workspaceId` path param is authorized against and
+      // pinned to `deps.workspaceId` (ADR-007), so the ambient `deps.workspaceId`
+      // is always the right default when the body doesn't name one explicitly
+      // -- `scope: "global"` alone is
       // exempted (no workspace concept there; seeding a value would be as
       // wrong as `authWorkspaceId`'s own doc comment already explains for
       // that scope). `clear.ts` has the identical gap at its own `workspaceId`
