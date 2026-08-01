@@ -920,6 +920,14 @@ export const api = {
       `/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${subscriptionId}/deliveries`
     ),
   listMedia: () => request<{ media: AdminMedia[] }>(`/workspaces/${WORKSPACE_ID}/media`),
+  /** Byte-serving URL for an asset's original file (MSG-05) — authenticated, same-origin, so a
+   *  plain `<img src>`/`<video src>` sends the session cookie automatically with no `crossorigin`
+   *  attribute needed. Not wrapped in `request()` like the rest of this file's methods: callers
+   *  want the URL string itself to hand to a DOM element, not a parsed JSON response. `Content-Type`
+   *  is sniffed server-side from magic bytes (falls back to `application/octet-stream`, and a
+   *  sniffed HTML/SVG is deliberately served as a non-rendering attachment) — see `Media.tsx`'s
+   *  `MediaPreview` for how the client discovers which element type an asset actually needs. */
+  mediaOriginalUrl: (id: string) => `${BASE}/workspaces/${WORKSPACE_ID}/media/${id}/original`,
   uploadMedia: (
     input: { filename: string; contentType: string; dataBase64: string },
     options: { alt?: string; caption?: string; credit?: string } = {}
