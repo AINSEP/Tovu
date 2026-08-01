@@ -122,6 +122,42 @@ describe("removing a leaf item", () => {
   });
 });
 
+describe("item-row fields — accessible names", () => {
+  it("gives the title and slug fields a real accessible name, not just a placeholder", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    render(<MenuEditor menuId="m1" />);
+
+    const titleInput = await screen.findByLabelText("Menu title");
+    expect(titleInput).toHaveAttribute("placeholder", "Menu title");
+    expect(screen.getByLabelText("Menu slug")).toHaveValue("main-menu");
+  });
+
+  it("gives the link-type select a real accessible name — previously none at all", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    render(<MenuEditor menuId="m1" />);
+
+    await screen.findByDisplayValue("Parent");
+    // One "Link type" select per item row (2 root items + 1 nested child in the fixture).
+    expect(screen.getAllByLabelText("Link type").length).toBe(3);
+  });
+
+  it("gives the item label and the target-value fields a real accessible name", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    render(<MenuEditor menuId="m1" />);
+
+    await screen.findByDisplayValue("Parent");
+    expect(screen.getAllByLabelText("Item label").length).toBe(3);
+    // The fixture's items are all "url" targets, so "URL" is the target-value field showing.
+    expect(screen.getAllByLabelText("URL").length).toBe(3);
+
+    // Switching a row's link type swaps in the field for that kind, still real-labeled.
+    const parentFields = (await screen.findByDisplayValue("Parent")).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+    await user.selectOptions(within(parentFields).getByLabelText("Link type"), "route");
+    expect(within(parentFields).getByLabelText("Route name")).toBeInTheDocument();
+  });
+});
+
 describe("move controls", () => {
   it("Move up/down buttons have their own accessible name, not just a title attribute", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));

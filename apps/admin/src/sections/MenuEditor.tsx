@@ -129,68 +129,94 @@ function ItemRow(props: {
   return (
     <div className="menu-item-row" style={{ marginLeft: path.length * 20 }}>
       <div className="menu-item-fields">
-        <input
-          value={item.label ?? ""}
-          placeholder="Label"
-          onChange={(e) => onChange(path, (it) => ({ ...it, label: e.target.value }))}
-        />
-        <select
-          value={item.target.kind}
-          onChange={(e) =>
-            onChange(path, (it) => ({
-              ...it,
-              target: targetForKind({ kind: e.target.value as AdminMenuTargetKind, prev: it.target }),
-            }))
-          }
-        >
-          <option value="url">URL</option>
-          <option value="route">Route</option>
-          <option value="entryRef">Entry</option>
-          <option value="termRef">Term</option>
-        </select>
-        {item.target.kind === "url" ? (
+        {/* Audit finding: every control below was placeholder-only (or, for the `<select>`, had no
+            accessible name at all — no placeholder, no label, nothing). Each now wraps in a real
+            `<label>` with a `.visually-hidden` name, same fix and same reasoning as the title/slug
+            fields above — see `styles/editor.css`'s `.a11y-label-wrap` comment for why the wrap
+            costs no layout in this dense flex row. */}
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">Item label</span>
           <input
-            value={item.target.href ?? ""}
-            placeholder="https://…"
-            onChange={(e) =>
-              onChange(path, (it) => ({ ...it, target: { ...it.target, href: e.target.value } }))
-            }
+            value={item.label ?? ""}
+            placeholder="Label"
+            onChange={(e) => onChange(path, (it) => ({ ...it, label: e.target.value }))}
           />
+        </label>
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">Link type</span>
+          <select
+            value={item.target.kind}
+            onChange={(e) =>
+              onChange(path, (it) => ({
+                ...it,
+                target: targetForKind({ kind: e.target.value as AdminMenuTargetKind, prev: it.target }),
+              }))
+            }
+          >
+            <option value="url">URL</option>
+            <option value="route">Route</option>
+            <option value="entryRef">Entry</option>
+            <option value="termRef">Term</option>
+          </select>
+        </label>
+        {item.target.kind === "url" ? (
+          <label className="a11y-label-wrap">
+            <span className="visually-hidden">URL</span>
+            <input
+              value={item.target.href ?? ""}
+              placeholder="https://…"
+              onChange={(e) =>
+                onChange(path, (it) => ({ ...it, target: { ...it.target, href: e.target.value } }))
+              }
+            />
+          </label>
         ) : null}
         {item.target.kind === "route" ? (
-          <input
-            value={item.target.route ?? ""}
-            placeholder="route name"
-            onChange={(e) =>
-              onChange(path, (it) => ({ ...it, target: { ...it.target, route: e.target.value } }))
-            }
-          />
+          <label className="a11y-label-wrap">
+            <span className="visually-hidden">Route name</span>
+            <input
+              value={item.target.route ?? ""}
+              placeholder="route name"
+              onChange={(e) =>
+                onChange(path, (it) => ({ ...it, target: { ...it.target, route: e.target.value } }))
+              }
+            />
+          </label>
         ) : null}
         {item.target.kind === "entryRef" ? (
-          <input
-            value={item.target.entryId ?? ""}
-            placeholder="entry id"
-            onChange={(e) =>
-              onChange(path, (it) => ({ ...it, target: { ...it.target, entryId: e.target.value } }))
-            }
-          />
+          <label className="a11y-label-wrap">
+            <span className="visually-hidden">Entry ID</span>
+            <input
+              value={item.target.entryId ?? ""}
+              placeholder="entry id"
+              onChange={(e) =>
+                onChange(path, (it) => ({ ...it, target: { ...it.target, entryId: e.target.value } }))
+              }
+            />
+          </label>
         ) : null}
         {item.target.kind === "termRef" ? (
           <>
-            <input
-              value={item.target.termId ?? ""}
-              placeholder="term id"
-              onChange={(e) =>
-                onChange(path, (it) => ({ ...it, target: { ...it.target, termId: e.target.value } }))
-              }
-            />
-            <input
-              value={item.target.taxonomy ?? ""}
-              placeholder="taxonomy"
-              onChange={(e) =>
-                onChange(path, (it) => ({ ...it, target: { ...it.target, taxonomy: e.target.value } }))
-              }
-            />
+            <label className="a11y-label-wrap">
+              <span className="visually-hidden">Term ID</span>
+              <input
+                value={item.target.termId ?? ""}
+                placeholder="term id"
+                onChange={(e) =>
+                  onChange(path, (it) => ({ ...it, target: { ...it.target, termId: e.target.value } }))
+                }
+              />
+            </label>
+            <label className="a11y-label-wrap">
+              <span className="visually-hidden">Taxonomy</span>
+              <input
+                value={item.target.taxonomy ?? ""}
+                placeholder="taxonomy"
+                onChange={(e) =>
+                  onChange(path, (it) => ({ ...it, target: { ...it.target, taxonomy: e.target.value } }))
+                }
+              />
+            </label>
           </>
         ) : null}
         {/* `aria-label` alongside `title`: `title` alone isn't reliably exposed to assistive tech
@@ -372,15 +398,23 @@ export function MenuEditor(props: { menuId: string | null }) {
           <button onClick={save}>Save</button>
         </div>
       </div>
-      <input
-        className="editor-title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Menu title"
-      />
+      {/* Audit finding: placeholder-only, no `<label>` — same fix as `PostEditor.tsx`'s title/slug
+          (see `styles/editor.css`'s `.a11y-label-wrap` comment). */}
+      <label className="a11y-label-wrap">
+        <span className="visually-hidden">Menu title</span>
+        <input
+          className="editor-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Menu title"
+        />
+      </label>
       <div className="editor-slug">
         /{" "}
-        <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="menu-slug" />
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">Menu slug</span>
+          <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="menu-slug" />
+        </label>
       </div>
       <div className="menu-tree">
         {items.map((item, i) => (

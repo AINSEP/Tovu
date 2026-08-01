@@ -47,4 +47,11 @@ describe("a known widget type on /widgets/new", () => {
     expect(screen.getByPlaceholderText("Widget title")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^save$/i })).toBeInTheDocument();
   });
+
+  it("gives the title field a real accessible name, not just a placeholder", () => {
+    render(<WidgetInstanceEditor widgetId={null} widgetType="text" />);
+
+    const titleInput = screen.getByLabelText("Widget title");
+    expect(titleInput).toHaveAttribute("placeholder", "Widget title");
+  });
 });

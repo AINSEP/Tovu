@@ -1,0 +1,63 @@
+import { render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { CollectionEntryEditor } from "../CollectionEntryEditor";
+
+/**
+ * @file `CollectionEntryEditor` — pins the accessibility fix for the audit's placeholder-only
+ * title/slug fields (task: systemic form labelling across `PostEditor.tsx`/
+ * `CollectionEntryEditor.tsx`/`WidgetInstanceEditor.tsx`/`MenuEditor.tsx`). Both fields now wrap in
+ * a real `<label>` (`.a11y-label-wrap` + `.visually-hidden`, `styles/editor.css`) instead of relying
+ * on `placeholder` alone, so `getByLabelText` must resolve them — the regression this test guards
+ * against is a future edit that strips the wrapping `<label>` and quietly falls back to
+ * placeholder-only again. Follows the RTL harness `WidgetInstanceEditor.unit.test.tsx` established
+ * for this package.
+ */
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+}
+
+const ARTICLE_TYPE = {
+  workspaceId: "w1",
+  key: "articles",
+  label: "Article",
+  fields: [],
+  status: "active" as const,
+  version: 1,
+};
+
+let fetchMock: ReturnType<typeof vi.fn>;
+
+beforeEach(() => {
+  fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("new entry — title and slug fields", () => {
+  it("gives the title field a real accessible name, not just a placeholder", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ items: [ARTICLE_TYPE] }))
+      .mockResolvedValueOnce(jsonResponse({ items: [] }));
+
+    render(<CollectionEntryEditor contentTypeKey="articles" entryId={null} />);
+
+    const titleInput = await screen.findByLabelText("Entry title");
+    expect(titleInput).toHaveAttribute("placeholder", "Entry title");
+  });
+
+  it("gives the slug field a real accessible name, not just a placeholder", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ items: [ARTICLE_TYPE] }))
+      .mockResolvedValueOnce(jsonResponse({ items: [] }));
+
+    render(<CollectionEntryEditor contentTypeKey="articles" entryId={null} />);
+
+    const slugInput = await screen.findByLabelText("Entry slug");
+    expect(slugInput).toHaveAttribute("placeholder", "entry-slug");
+  });
+});

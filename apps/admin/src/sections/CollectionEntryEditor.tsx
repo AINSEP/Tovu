@@ -319,13 +319,22 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
         </div>
       </div>
 
-      <input className="editor-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Entry title" />
+      {/* Audit finding: placeholder-only, no `<label>` — same fix as `PostEditor.tsx`'s title/slug
+          (see `styles/editor.css`'s `.a11y-label-wrap` comment). The slug field's label is only
+          rendered in the `!entry` (create) branch, matching that branch's own `<input>`. */}
+      <label className="a11y-label-wrap">
+        <span className="visually-hidden">Entry title</span>
+        <input className="editor-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Entry title" />
+      </label>
       <div className="editor-slug">
         /{" "}
         {entry ? (
           <span>{entry.slug}</span>
         ) : (
-          <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="entry-slug" />
+          <label className="a11y-label-wrap">
+            <span className="visually-hidden">Entry slug</span>
+            <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="entry-slug" />
+          </label>
         )}
       </div>
 
