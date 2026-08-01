@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { mergeAttributes, Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
-import { api, ApiError, type AdminWidget } from "./api";
+import { api, ApiError, describeApiError, type AdminWidget } from "./api";
 import { WidgetAddControl, WidgetPickerDialog } from "../components/WidgetPickerDialog";
 import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields";
 
@@ -30,11 +30,6 @@ declare module "@tiptap/core" {
 
 function newPlacementId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `placement-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
 }
 
 /**

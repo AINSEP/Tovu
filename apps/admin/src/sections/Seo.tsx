@@ -3,6 +3,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import {
   ApiError,
   api,
+  describeApiError,
   type AdminPost,
   type SeoEntryAnalysis,
   type SeoEntryMeta,
@@ -20,11 +21,6 @@ import {
  * plus a partial-override edit form and a read-only analyze view. `RobotsRuleEditor` (§2.5) is
  * still a minimal textarea-per-rule form (unchanged from the original disclosed scope note).
  */
-
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
-}
 
 /** Dropdown over every post + page, sourced from the already-existing `listPosts`/`listPages`
  * routes — cheapest entry-selection UX available given what's already built (REQ-06). */

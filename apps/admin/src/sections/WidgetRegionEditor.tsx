@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ApiError, api, type AdminWidgetArea, type AdminWidgetPlacement } from "../lib/api";
+import { ApiError, api, describeApiError, type AdminWidgetArea, type AdminWidgetPlacement } from "../lib/api";
 import { WidgetAddControl } from "../components/WidgetPickerDialog";
 
 /**
@@ -10,11 +10,6 @@ import { WidgetAddControl } from "../components/WidgetPickerDialog";
  */
 
 const STALE_VERSION_MESSAGE = "This region changed since you loaded it, refresh and try again.";
-
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
-}
 
 function move<T>(items: T[], index: number, direction: -1 | 1): T[] {
   const target = index + direction;

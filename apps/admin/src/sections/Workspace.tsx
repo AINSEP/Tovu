@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ApiError, api, type AdminWorkspace } from "../lib/api";
+import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminWorkspace } from "../lib/api";
 
 /**
  * @file "Workspace" admin screen (SPEC-044) — the `/admin/workspace` route.
@@ -17,12 +17,17 @@ import { ApiError, api, type AdminWorkspace } from "../lib/api";
  * "exists, guarded, not reachable yet."
  */
 
+/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`) — this screen's
+ *  `RESOURCE_CONFLICT` means "slug already taken", a different meaning than `Roles.tsx`'s "still
+ *  referenced" or `Users.tsx`'s "username already in use" for the same code (audit cross-cutting
+ *  finding #2 — deliberately not unified into one table). */
 function describeApiError(e: unknown, fallback: string): string {
-  if (!(e instanceof ApiError)) return e instanceof Error ? e.message : fallback;
-  if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
-  if (e.code === "RESOURCE_CONFLICT") return "That slug is already in use.";
-  if (e.code === "VALIDATION_ERROR") return e.message || "Please correct the highlighted fields.";
-  return e.message || fallback;
+  if (e instanceof ApiError) {
+    if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
+    if (e.code === "RESOURCE_CONFLICT") return "That slug is already in use.";
+    if (e.code === "VALIDATION_ERROR") return e.message || "Please correct the highlighted fields.";
+  }
+  return describeApiErrorDefault(e, fallback);
 }
 
 export function Workspace() {

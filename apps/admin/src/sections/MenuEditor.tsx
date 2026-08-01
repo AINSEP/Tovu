@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type AdminMenu, type AdminMenuItem, type AdminMenuTarget } from "../lib/api";
 import { navigate } from "../lib/router";
+import { useDirtyGuard } from "../hooks/use-dirty-guard.hooks";
 
 type AdminMenuTargetKind = AdminMenuTarget["kind"];
 
@@ -19,6 +20,17 @@ function newItemId(): string {
 
 function newItem(): AdminMenuItem {
   return { id: newItemId(), label: "", target: { kind: "url", href: "" } };
+}
+
+/** Total nested descendant count (children, grandchildren, …) — used to name exactly how many
+ *  items a Remove click would take with it (audit finding, Major: Remove previously deleted a
+ *  clicked item's entire subtree in one click with no confirmation and no indication children
+ *  existed). Recursive, not just `.children.length`, so a deep removal is described accurately
+ *  rather than undercounted — the tree is depth/size-bounded (menu-service.ts caps depth at 5,
+ *  item count at 500), so a plain recursive walk is cheap at this scale. */
+function countDescendants(item: AdminMenuItem): number {
+  const children = item.children ?? [];
+  return children.length + children.reduce((sum, child) => sum + countDescendants(child), 0);
 }
 
 function targetForKind(required: { kind: AdminMenuTargetKind; prev: AdminMenuTarget }): AdminMenuTarget {
@@ -181,16 +193,45 @@ function ItemRow(props: {
             />
           </>
         ) : null}
-        <button className="tb-btn" onClick={() => onMove(path, -1)} title="Move up">
+        {/* `aria-label` alongside `title`: `title` alone isn't reliably exposed to assistive tech
+            and isn't keyboard-discoverable without a mouse hover (audit Minor finding). */}
+        <button className="tb-btn" onClick={() => onMove(path, -1)} title="Move up" aria-label="Move item up">
           ↑
         </button>
-        <button className="tb-btn" onClick={() => onMove(path, 1)} title="Move down">
+        <button className="tb-btn" onClick={() => onMove(path, 1)} title="Move down" aria-label="Move item down">
           ↓
         </button>
         <button className="tb-btn" onClick={() => onAddChild(path)} title="Add child item">
           + child
         </button>
-        <button className="tb-btn" onClick={() => onRemove(path)} title="Remove item">
+        <button
+          className="tb-btn"
+          onClick={() => {
+            // Audit Major finding: Remove previously deleted the clicked item's entire subtree in
+            // one click, no confirmation, no indication children existed — hits hardest for a
+            // screen-reader user, since the same indentation a sighted operator reads "this has
+            // children" from (`marginLeft: path.length * 20` below) carries no structural signal
+            // for them either. A leaf item (no children) stays a bare click, matching this
+            // screen's own `FormFieldsEditor`-sibling "Remove" convention for low-stakes removals.
+            const descendantCount = countDescendants(item);
+            if (
+              descendantCount > 0 &&
+              !window.confirm(
+                `Remove "${item.label || "this item"}"? This will also remove ${descendantCount} nested item${descendantCount === 1 ? "" : "s"}.`
+              )
+            ) {
+              return;
+            }
+            onRemove(path);
+          }}
+          title="Remove item"
+          // `✕` is this button's only text content, so — unlike Move up/down above, whose glyphs
+          // are at least paired with a real word via `title` alone being insufficient too — its
+          // accessible name would otherwise compute to the glyph itself ("✕"/"multiplication
+          // sign"), not "Remove item". Found empirically while adding this button's test:
+          // `title` is never part of the accessible-name computation when text content exists.
+          aria-label="Remove item"
+        >
           ✕
         </button>
       </div>
@@ -209,6 +250,13 @@ function ItemRow(props: {
   );
 }
 
+/** What `useDirtyGuard` compares — everything an operator can actually edit on this screen. */
+interface MenuFormState {
+  title: string;
+  slug: string;
+  items: AdminMenuItem[];
+}
+
 export function MenuEditor(props: { menuId: string | null }) {
   const isNew = props.menuId === null;
   const [menu, setMenu] = useState<AdminMenu | null>(null);
@@ -218,6 +266,11 @@ export function MenuEditor(props: { menuId: string | null }) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!isNew);
+  // Snapshot of the last loaded-or-saved state (audit finding: no editor screen tracks this at
+  // all today, so there is nothing for a dirty check to compare against). `null` only while a load
+  // is still in flight — set immediately for `isNew` (an empty menu IS the loaded state to diff
+  // against), and refreshed after every successful save so a saved edit stops reading as dirty.
+  const [original, setOriginal] = useState<MenuFormState | null>(null);
 
   useEffect(() => {
     if (isNew) {
@@ -225,6 +278,7 @@ export function MenuEditor(props: { menuId: string | null }) {
       setTitle("");
       setSlug("");
       setItems([]);
+      setOriginal({ title: "", slug: "", items: [] });
       setLoading(false);
       return;
     }
@@ -237,11 +291,14 @@ export function MenuEditor(props: { menuId: string | null }) {
         setTitle(menu.title);
         setSlug(menu.slug);
         setItems(menu.items);
+        setOriginal({ title: menu.title, slug: menu.slug, items: menu.items });
       })
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load menu"))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.menuId, isNew]);
+
+  const { confirmLeave } = useDirtyGuard<MenuFormState>({ title, slug, items }, original);
 
   function changeAt(path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) {
     setItems((prev) => mapAtPath(prev, path, fn));
@@ -275,6 +332,9 @@ export function MenuEditor(props: { menuId: string | null }) {
       );
       setMenu(saved);
       setItems(saved.items);
+      // A saved edit is no longer "unsaved" — re-baseline what the dirty check compares against,
+      // or the guard would keep firing for a change the operator just persisted.
+      setOriginal({ title, slug, items: saved.items });
       setMessage(`Saved · version ${saved.version}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "save failed");
@@ -287,7 +347,18 @@ export function MenuEditor(props: { menuId: string | null }) {
   return (
     <div className="editor-page">
       <div className="editor-header">
-        <a href="/admin/menus">← Menus</a>
+        {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
+            edits — confirmed live on this exact screen. `preventDefault()` here also stops
+            `router.ts`'s document-level click interceptor from firing `navigate()`, since that
+            listener's first check is `event.defaultPrevented` — no change to `router.ts` needed. */}
+        <a
+          href="/admin/menus"
+          onClick={(e) => {
+            if (!confirmLeave()) e.preventDefault();
+          }}
+        >
+          ← Menus
+        </a>
         <div className="editor-actions">
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? <span className="save-error">{error}</span> : null}

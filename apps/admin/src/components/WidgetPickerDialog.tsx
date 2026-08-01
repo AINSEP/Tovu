@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, ApiError, type AdminWidget, type AdminWidgetType } from "../lib/api";
+import { api, ApiError, describeApiError, type AdminWidget, type AdminWidgetType } from "../lib/api";
 import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "./WidgetConfigFields";
 
 /**
@@ -22,11 +22,6 @@ export interface WidgetPickerDialogProps {
   onUseExisting: (widgetInstanceId: string) => void;
   onCreateNew: (title: string, config: Record<string, unknown>) => void;
   onCancel: () => void;
-}
-
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
 }
 
 function useExistingInstances(widgetType: AdminWidgetType) {

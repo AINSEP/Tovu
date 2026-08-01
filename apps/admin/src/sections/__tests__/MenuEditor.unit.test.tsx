@@ -1,0 +1,182 @@
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { MenuEditor } from "../MenuEditor";
+
+/**
+ * @file `MenuEditor`'s nested-item tree — pins the fix for the audit's Major finding: "Remove"
+ * previously deleted the clicked item's entire subtree (children, grandchildren, …) in a single
+ * click with no confirmation and no indication children existed. A leaf item (no children) stays
+ * a bare click, matching this app's low-stakes "Remove field" convention elsewhere
+ * (`FormEditor.tsx`'s `FormFieldsEditor`). Follows the RTL harness `Plugins.unit.test.tsx`
+ * established for this package.
+ *
+ * Also pins the `useDirtyGuard` wiring on this screen's "← Menus" back-link — the audit confirmed
+ * live that editing a field and clicking that link discarded the edit with no dialog. The
+ * assertions check `event.defaultPrevented` via a same-tick `document` listener (added AFTER
+ * React's own, so it observes the outcome of this screen's `onClick`) rather than letting the
+ * click's default action run to completion — a real, un-prevented `<a href>` click makes jsdom log
+ * "Not implemented: navigation to another Document" (this screen renders standalone here, without
+ * `router.ts`'s own click interceptor mounted to consume the event first), which is exactly the
+ * kind of tolerated console noise `apps/admin/INFO.md`'s test guidance says to avoid.
+ */
+
+/** Observes whether this screen's own `onClick` already called `preventDefault()`, then always
+ *  prevents the browser default itself — jsdom has no real navigation to perform in this
+ *  standalone render, and letting the click's default action run logs "Not implemented:
+ *  navigation to another Document" noise regardless of which branch is under test. */
+function watchDefaultPrevented(): { result: () => boolean | null } {
+  let observed: boolean | null = null;
+  document.addEventListener(
+    "click",
+    (e) => {
+      observed = e.defaultPrevented;
+      e.preventDefault();
+    },
+    { once: true }
+  );
+  return { result: () => observed };
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+}
+
+const MENU_WITH_NESTED_CHILD = {
+  menu: {
+    id: "m1",
+    title: "Main Menu",
+    slug: "main-menu",
+    version: 1,
+    items: [
+      {
+        id: "parent",
+        label: "Parent",
+        target: { kind: "url", href: "/parent" },
+        children: [{ id: "child", label: "Child", target: { kind: "url", href: "/child" } }],
+      },
+      { id: "leaf", label: "Leaf", target: { kind: "url", href: "/leaf" } },
+    ],
+  },
+};
+
+let fetchMock: ReturnType<typeof vi.fn>;
+let confirmSpy: ReturnType<typeof vi.spyOn>;
+
+beforeEach(() => {
+  fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  confirmSpy?.mockRestore();
+});
+
+describe("removing an item with nested children", () => {
+  it("asks for confirmation naming the descendant count, and does nothing on cancel", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<MenuEditor menuId="m1" />);
+
+    const parentFields = (await screen.findByDisplayValue("Parent")).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+    await user.click(within(parentFields).getByRole("button", { name: "Remove item" }));
+
+    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining("1 nested item"));
+    // Cancelled — the child row must still be present.
+    expect(screen.getByDisplayValue("Child")).toBeInTheDocument();
+  });
+
+  it("removes the item and its subtree on confirm", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<MenuEditor menuId="m1" />);
+
+    const parentFields = (await screen.findByDisplayValue("Parent")).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+    await user.click(within(parentFields).getByRole("button", { name: "Remove item" }));
+
+    expect(screen.queryByDisplayValue("Parent")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Child")).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("Leaf")).toBeInTheDocument();
+  });
+});
+
+describe("removing a leaf item", () => {
+  it("removes immediately, with no confirmation dialog", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    confirmSpy = vi.spyOn(window, "confirm");
+
+    render(<MenuEditor menuId="m1" />);
+
+    const leafFields = (await screen.findByDisplayValue("Leaf")).closest(".menu-item-row")!.querySelector(".menu-item-fields") as HTMLElement;
+    await user.click(within(leafFields).getByRole("button", { name: "Remove item" }));
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(screen.queryByDisplayValue("Leaf")).not.toBeInTheDocument();
+  });
+});
+
+describe("move controls", () => {
+  it("Move up/down buttons have their own accessible name, not just a title attribute", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    render(<MenuEditor menuId="m1" />);
+
+    await screen.findByDisplayValue("Parent");
+    expect(screen.getAllByRole("button", { name: "Move item up" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Move item down" }).length).toBeGreaterThan(0);
+  });
+});
+
+describe("unsaved-changes protection on the back-link", () => {
+  it("with no edits, the back-link click proceeds without prompting", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    confirmSpy = vi.spyOn(window, "confirm");
+    render(<MenuEditor menuId="m1" />);
+
+    await screen.findByDisplayValue("Parent");
+    const watch = watchDefaultPrevented();
+    fireEvent.click(screen.getByRole("link", { name: /menus/i }));
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(watch.result()).toBe(false); // this screen's own handler did not prevent it
+  });
+
+  it("after an edit, cancelling the prompt blocks the navigation", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<MenuEditor menuId="m1" />);
+
+    const titleInput = await screen.findByDisplayValue("Main Menu");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Renamed");
+
+    const watch = watchDefaultPrevented();
+    fireEvent.click(screen.getByRole("link", { name: /menus/i }));
+
+    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining("unsaved changes"));
+    expect(watch.result()).toBe(true); // this screen's own handler prevented it
+  });
+
+  it("after an edit, confirming the prompt allows the navigation", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<MenuEditor menuId="m1" />);
+
+    const titleInput = await screen.findByDisplayValue("Main Menu");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Renamed");
+
+    const watch = watchDefaultPrevented();
+    fireEvent.click(screen.getByRole("link", { name: /menus/i }));
+
+    expect(watch.result()).toBe(false); // this screen's own handler did not prevent it
+  });
+});

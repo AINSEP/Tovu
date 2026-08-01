@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   ApiError,
   api,
+  describeApiError,
   CONTENT_TYPE_FIELD_KINDS,
   type AdminContentType,
   type ContentTypeFieldDef,
@@ -47,11 +48,6 @@ function validateFieldName(name: string): string | null {
     return "Field name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.";
   }
   return null;
-}
-
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
 }
 
 // ---------------------------------------------------------------------------

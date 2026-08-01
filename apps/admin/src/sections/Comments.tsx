@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ApiError, api, type AdminComment, type CommentModerationAction, type CommentStatus, type CommentsSettings } from "../lib/api";
+import { ApiError, api, describeApiError, type AdminComment, type CommentModerationAction, type CommentStatus, type CommentsSettings } from "../lib/api";
+import { formatTimestamp } from "../lib/format-timestamp";
 
 /**
  * @file Comments admin screen (ADR-031, SPEC-033/035 backend; SPEC-036 this frontend).
@@ -29,11 +30,6 @@ interface RowActionState {
 
 function emptyRowState(): RowActionState {
   return { busy: false, error: null };
-}
-
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
 }
 
 /** REQ-07: a 409 (stale `expectedVersion`) gets its own message instead of the generic fallback,
@@ -172,7 +168,7 @@ function QueueSection(props: { permissions: string[] }) {
                       <span className={`status status-${comment.status}`}>{comment.status}</span>
                     </td>
                     <td>{comment.depth}</td>
-                    <td>{comment.createdAt.slice(0, 16).replace("T", " ")}</td>
+                    <td>{formatTimestamp(comment.createdAt)}</td>
                     <td>
                       <span className="editor-actions">
                         {comment.status !== "approved" && canModerate ? (

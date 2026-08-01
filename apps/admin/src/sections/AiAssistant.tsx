@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ApiError, api, type PublicAssistantSettings } from "../lib/api";
+import { ApiError, api, describeApiError as describeApiErrorDefault, type PublicAssistantSettings } from "../lib/api";
 
 /**
  * @file "AI Assistant" admin screen — the `/admin/ai-assistant` route.
@@ -27,11 +27,15 @@ import { ApiError, api, type PublicAssistantSettings } from "../lib/api";
  * settings-form conventions; no new CSS is introduced beyond the two classes below.
  */
 
+/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`) — this screen's
+ *  `FORBIDDEN` copy names the specific setting, unlike the generic "You do not have permission to
+ *  do that." most other screens use for the same code (audit cross-cutting finding #2). */
 function describeApiError(e: unknown, fallback: string): string {
-  if (!(e instanceof ApiError)) return e instanceof Error ? e.message : fallback;
-  if (e.code === "FORBIDDEN") return "You do not have permission to change the AI assistant's settings.";
-  if (e.code === "ASSISTANT_SETTINGS_VALIDATION_ERROR") return e.message || "That value was rejected.";
-  return e.message || fallback;
+  if (e instanceof ApiError) {
+    if (e.code === "FORBIDDEN") return "You do not have permission to change the AI assistant's settings.";
+    if (e.code === "ASSISTANT_SETTINGS_VALIDATION_ERROR") return e.message || "That value was rejected.";
+  }
+  return describeApiErrorDefault(e, fallback);
 }
 
 /** One not-yet-built control. `detail` is the operator-facing "what would this do for me", not an

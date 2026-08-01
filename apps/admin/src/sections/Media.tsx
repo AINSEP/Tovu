@@ -53,6 +53,21 @@ function EditMediaRow(props: { item: AdminMedia; onSaved: () => void; onCancel: 
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Feedback for the sha256 copy affordance below — resets on its own so a stale "Copied" label
+   *  never survives past the moment it's true, without needing the caller to clear it. */
+  const [hashCopied, setHashCopied] = useState(false);
+
+  async function copyHash() {
+    try {
+      await navigator.clipboard.writeText(item.sha256);
+      setHashCopied(true);
+      setTimeout(() => setHashCopied(false), 1500);
+    } catch {
+      // Clipboard access can be denied (permissions, insecure context) — the full hash is still
+      // visible and selectable in the field itself, so a failed copy degrades to "select manually"
+      // rather than losing the value.
+    }
+  }
 
   async function save() {
     const patch = diffMediaMetadata({ item, draft });
@@ -74,45 +89,75 @@ function EditMediaRow(props: { item: AdminMedia; onSaved: () => void; onCancel: 
 
   return (
     <tr className="media-edit-row">
-      <td colSpan={6}>
-        <div className="collections-field-row">
-          <label htmlFor={`media-edit-title-${item.id}`}>
-            Title
-            <input
-              id={`media-edit-title-${item.id}`}
-              value={draft.title}
-              onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
-            />
-          </label>
-          <label htmlFor={`media-edit-alt-${item.id}`}>
-            Alt
-            <input
-              id={`media-edit-alt-${item.id}`}
-              value={draft.alt}
-              onChange={(e) => setDraft((d) => ({ ...d, alt: e.target.value }))}
-            />
-          </label>
-          <label htmlFor={`media-edit-caption-${item.id}`}>
-            Caption
-            <input
-              id={`media-edit-caption-${item.id}`}
-              value={draft.caption}
-              onChange={(e) => setDraft((d) => ({ ...d, caption: e.target.value }))}
-            />
-          </label>
-          <label htmlFor={`media-edit-credit-${item.id}`}>
-            Credit
-            <input
-              id={`media-edit-credit-${item.id}`}
-              value={draft.credit}
-              onChange={(e) => setDraft((d) => ({ ...d, credit: e.target.value }))}
-            />
-          </label>
+      <td colSpan={4}>
+        {/* Field layout per the OD reference (od-settings-external-mcp-customform.png): uppercase
+            letterspaced label above its control (`.field-label`), short fields pairing into a
+            row (`.field-row`) instead of every field stacking full-width regardless of length —
+            this is the proving ground for that primitive before it rolls out past Media. */}
+        <div className="field-group">
+          <div className="field-row">
+            <div className="field">
+              <label className="field-label" htmlFor={`media-edit-title-${item.id}`}>
+                Title
+              </label>
+              <input
+                id={`media-edit-title-${item.id}`}
+                value={draft.title}
+                onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor={`media-edit-alt-${item.id}`}>
+                Alt
+              </label>
+              <input
+                id={`media-edit-alt-${item.id}`}
+                value={draft.alt}
+                onChange={(e) => setDraft((d) => ({ ...d, alt: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div className="field-row">
+            <div className="field">
+              <label className="field-label" htmlFor={`media-edit-caption-${item.id}`}>
+                Caption
+              </label>
+              <input
+                id={`media-edit-caption-${item.id}`}
+                value={draft.caption}
+                onChange={(e) => setDraft((d) => ({ ...d, caption: e.target.value }))}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor={`media-edit-credit-${item.id}`}>
+                Credit
+              </label>
+              <input
+                id={`media-edit-credit-${item.id}`}
+                value={draft.credit}
+                onChange={(e) => setDraft((d) => ({ ...d, credit: e.target.value }))}
+              />
+            </div>
+          </div>
+          {/* Integrity/dedupe metadata, demoted out of the main table (MSG-12/13) — genuinely
+              useful when chasing a duplicate upload or verifying a file, noise the rest of the
+              time, and it was costing real width on the 390px canary target. Read-only: this is
+              a content hash, not something an operator edits. Monospace per the OD idiom for
+              values that are code/identifiers, not prose. */}
+          <div className="field">
+            <span className="field-label">sha256</span>
+            <div className="field-readonly-row">
+              <code className="field-mono field-readonly">{item.sha256}</code>
+              <button type="button" className="btn-ghost" onClick={copyHash}>
+                {hashCopied ? "Copied" : "Copy"}
+              </button>
+            </div>
+          </div>
           <span className="editor-actions">
             <button type="button" onClick={save} disabled={saving}>
               {saving ? "Saving…" : "Save"}
             </button>
-            <button type="button" onClick={props.onCancel} disabled={saving}>
+            <button type="button" className="btn-secondary" onClick={props.onCancel} disabled={saving}>
               Cancel
             </button>
           </span>
@@ -200,13 +245,22 @@ export function Media() {
   if (!media) return <div className="notice">Loading media…</div>;
 
   return (
-    <div>
-      <div className="editor-header">
-        <h1>Media</h1>
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Content</p>
+          <h1 className="page-title">Media</h1>
+          <p className="page-description">Upload and manage image assets used across the site.</p>
+        </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
-      <div className="editor-header">
-        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+      <div className="toolbar">
+        <input
+          ref={fileInputRef}
+          className="file-input"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+        />
         <input
           value={altDraft}
           onChange={(e) => setAltDraft(e.target.value)}
@@ -216,51 +270,64 @@ export function Media() {
           {uploading ? "Uploading…" : "Upload"}
         </button>
       </div>
-      <table className="list-table">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Alt</th>
-            <th>Status</th>
-            <th>sha256</th>
-            <th>v</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {media.map((item) => (
-            <Fragment key={item.id}>
+      {media.length === 0 ? (
+        <div className="card">
+          <div className="empty-state">
+            <p>No media uploaded yet.</p>
+            <p className="page-description">Choose a file above and upload it to get started.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="table-scroll">
+          <table className="list-table">
+            <thead>
               <tr>
-                <td>{item.title}</td>
-                <td>{item.alt || "—"}</td>
-                <td>
-                  <span className={`status status-${item.status}`}>{item.status}</span>
-                </td>
-                <td title={item.sha256}>{item.sha256.slice(0, 12)}…</td>
-                <td>{item.version}</td>
-                <td>
-                  <button onClick={() => setEditingId(editingId === item.id ? null : item.id)}>
-                    {editingId === item.id ? "Close" : "Edit"}
-                  </button>
-                  <button onClick={() => trashOrPurge(item)}>
-                    {item.status === "trashed" ? "Delete permanently" : "Trash"}
-                  </button>
-                </td>
+                <th>Title</th>
+                <th>Alt</th>
+                <th>Status</th>
+                <th></th>
               </tr>
-              {editingId === item.id ? (
-                <EditMediaRow
-                  item={item}
-                  onSaved={() => {
-                    setEditingId(null);
-                    load();
-                  }}
-                  onCancel={() => setEditingId(null)}
-                />
-              ) : null}
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {media.map((item) => (
+                <Fragment key={item.id}>
+                  <tr>
+                    <td>{item.title}</td>
+                    <td>{item.alt || "—"}</td>
+                    <td>
+                      <span className={`status status-${item.status}`}>{item.status}</span>
+                    </td>
+                    <td>
+                      <span className="editor-actions">
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => setEditingId(editingId === item.id ? null : item.id)}
+                        >
+                          {editingId === item.id ? "Close" : "Edit"}
+                        </button>
+                        <button type="button" className="btn-danger" onClick={() => trashOrPurge(item)}>
+                          {item.status === "trashed" ? "Delete permanently" : "Trash"}
+                        </button>
+                      </span>
+                    </td>
+                  </tr>
+                  {editingId === item.id ? (
+                    <EditMediaRow
+                      item={item}
+                      onSaved={() => {
+                        setEditingId(null);
+                        load();
+                      }}
+                      onCancel={() => setEditingId(null)}
+                    />
+                  ) : null}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

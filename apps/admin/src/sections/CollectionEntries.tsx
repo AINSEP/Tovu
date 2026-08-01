@@ -1,15 +1,11 @@
 import { useEffect, useState } from "react";
-import { ApiError, api, type AdminContentType, type AdminEntry } from "../lib/api";
+import { ApiError, api, describeApiError, type AdminContentType, type AdminEntry } from "../lib/api";
+import { formatTimestamp } from "../lib/format-timestamp";
 
 /**
  * @file Collections' entries list (design-spec.md §1.4) — the `/admin/collections/{typeKey}` route.
  * Same `.list-table` shape as `FormsList.tsx`/`Posts.tsx`.
  */
-
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
-}
 
 export function CollectionEntries(props: { contentTypeKey: string }) {
   const [contentType, setContentType] = useState<AdminContentType | null | undefined>(undefined);
@@ -30,8 +26,17 @@ export function CollectionEntries(props: { contentTypeKey: string }) {
 
   if (error && !entries) return <div className="notice error">{error}</div>;
   if (!entries || contentType === undefined) return <div className="notice">Loading entries…</div>;
+  // `contentType === null` means the lookup finished and found nothing — a bogus/typo'd
+  // `contentTypeKey` (e.g. a stale bookmark). Previously nothing checked this case, so the screen
+  // fell through to rendering a real, empty, creatable collection — indistinguishable from a
+  // legitimately empty one, "New entry" button included (audit blocker, exec summary #1;
+  // `CollectionEntryEditor.tsx:266` one route deeper already gets this right — matching its exact
+  // copy here rather than inventing a second wording for the same situation).
+  if (contentType === null) {
+    return <div className="notice error">Unknown content type "{props.contentTypeKey}".</div>;
+  }
 
-  const label = contentType?.label ?? props.contentTypeKey;
+  const label = contentType.label;
 
   return (
     <div>
@@ -69,7 +74,7 @@ export function CollectionEntries(props: { contentTypeKey: string }) {
                 <td>
                   <span className={`status status-${entry.status}`}>{entry.status}</span>
                 </td>
-                <td>{entry.updatedAt.slice(0, 16).replace("T", " ")}</td>
+                <td>{formatTimestamp(entry.updatedAt)}</td>
               </tr>
             ))}
           </tbody>

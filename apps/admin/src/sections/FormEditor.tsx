@@ -332,6 +332,18 @@ export function FormEditor(props: { formId: string }) {
   }
 
   if (!isNew && !form && !error) return <div className="notice">Loading form…</div>;
+  // Previously this was the ONLY guard, and it only covers the pre-error case — once the load
+  // failed and set `error`, `!error` here goes false and rendering fell through to the full,
+  // empty, live-saveable editor below (audit blocker, exec summary #3: a bogus form id showed
+  // "form definition 'X' was not found" AND a working Save button underneath it). This guard is
+  // safe to add as a second, separate check rather than merging into the one above: it only fires
+  // while `form` is still null, so a load failure has to happen before the form ever loaded —
+  // once `form` is set, it stays set, so a LATER failure (e.g. a failed Save) never re-enters
+  // this branch and never blanks a screen the operator is already editing (same "a later failure
+  // must not erase what already rendered" principle as `Pages.tsx`/`Posts.tsx`'s `error && !data`
+  // guard — see `CollectionEntryEditor.tsx`'s sequential loading → not-found guards for the
+  // reference shape this now matches).
+  if (!isNew && !form && error) return <div className="notice error">{error}</div>;
 
   const existingFieldIds = form ? form.fields.map((f) => f.id) : [];
 
