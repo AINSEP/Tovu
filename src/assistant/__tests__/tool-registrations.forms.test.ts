@@ -117,11 +117,12 @@ async function seedDefinition(deps: RouteDeps): Promise<{ id: string }> {
 // 1. The catalog is complete and honest about what Forms can do
 // ---------------------------------------------------------------------------
 
-test("exactly the three write-service.ts operations plus the two submission reads are wired — no invented delete, publish, or archive", () => {
+test("exactly the three write-service.ts operations plus the two submission reads and the definition list are wired — no invented delete, publish, or archive", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...formsRegistrations(deps).keys()].sort(), [
     "forms_create_definition",
     "forms_get_submission",
+    "forms_list_definitions",
     "forms_list_submissions",
     "forms_set_definition_status",
     "forms_update_definition",
@@ -277,6 +278,11 @@ test("no wired Forms tool carries a confirmation-requiring actor-class rule", ()
 // ---------------------------------------------------------------------------
 
 const TOOL_INPUTS: Record<string, (seededId: string) => Record<string, unknown>> = {
+  // Takes no arguments at all (see `forms/agent-tools.ts`). Included here rather than excluded
+  // alongside the two submission reads because, despite being a read, it enforces through the
+  // same observable shape the loop below asserts: one `requireToolPermission` call carrying
+  // `admin.forms.manage` + `entityType: "form_definition"`, awaited before the repo is touched.
+  forms_list_definitions: () => ({}),
   forms_create_definition: () => ({ name: "Contact", slug: "contact-2", fields: VALID_FIELDS }),
   forms_update_definition: (id) => ({ formId: id, name: "Renamed" }),
   forms_set_definition_status: (id) => ({ formId: id, status: "disabled" }),
