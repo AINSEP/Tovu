@@ -8,11 +8,19 @@ import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
  *
  * This was `SettingsUi.tsx`'s inline machinery when exactly one tab (Execution
  * mode) was mounted. It is extracted rather than copied because the logic is
- * subtle out of proportion to its size — a `gpt-5.6-terra` audit found two
- * distinct data-loss bugs in it (see `saveTicket` and `hasUnsavedEdits` below),
- * and every one of those hazards is identical for every tab. Duplicating it
- * per tab would mean re-introducing both bugs three more times, and fixing
- * them in three more places.
+ * subtle out of proportion to its size — successive audits have found FOUR
+ * distinct data-loss bugs in it (see `saveTicket`, `hasUnsavedEdits`, `runSave`,
+ * and `commits` below), and every one of those hazards is identical for every
+ * tab. Duplicating it per tab would mean re-introducing all four bugs three
+ * more times, and fixing them in three more places.
+ *
+ * The last two share one root cause worth stating plainly, because it is the
+ * shape every future bug here will take: **a value read at schedule time is a
+ * claim about the store that may already be false by the time the code using it
+ * runs.** `runSave` fixes it for writes by reading the diff base at run time;
+ * `commits` fixes it for reads by discarding a reload whose response predates a
+ * write that landed while it was in flight. Anything added here that captures
+ * `persisted` or `latest` across an `await` needs the same treatment.
  *
  * Each mounted tab owns one instance. They are independent by construction:
  * separate debounce timers, separate save chains, separate diff bases. The
@@ -130,6 +138,20 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
    */
   const hasUnsavedEdits = useRef(false);
 
+  /**
+   * Bumped every time a save commits and advances `persisted`.
+   *
+   * `refresh` samples it before its `load()` round trip and discards the
+   * response if it moved. The two flag checks cannot cover this on their own:
+   * `timer` and `hasUnsavedEdits` describe work that is still OUTSTANDING, and
+   * a save that both started and finished inside the reload's await window
+   * clears them, so a response that predates that write passes every check.
+   * Letting it through does not merely repaint a stale value — it installs it
+   * as the diff base, so the next edit diffs against a value the store never
+   * held and skips writing the fields that differ.
+   */
+  const commits = useRef(0);
+
   /** Guards every post-await `setState` in {@link refresh}, which — unlike the
    *  mount load — can be invoked at any time by an external publisher. */
   const mounted = useRef(true);
@@ -163,6 +185,34 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * The only place a save is ever issued.
+   *
+   * Both the target and the diff base are read at RUN time, never at schedule
+   * time. By the time a chained link runs, an earlier save may already have
+   * advanced `persisted` and the operator may have edited further, so anything
+   * captured when the link was queued is potentially a lie about the store.
+   *
+   * This exists as one function rather than two call sites because the second
+   * call site is exactly where that invariant was lost: the unmount flush used
+   * to snapshot both values as it queued itself behind an in-flight save, so
+   * edit A→B, revert B→A, unmount produced `save(A, A)` — an empty diff — and
+   * the revert was dropped while the store kept B. Sharing the runner makes the
+   * rule structural instead of something each caller has to remember.
+   */
+  const runSave = useCallback(async (): Promise<readonly string[]> => {
+    const target = latest.current;
+    const written = await io.current.save(target, persisted.current);
+    // `persisted` is deliberately advanced only here, after a resolved save, so
+    // a rejection leaves the base alone and the next save re-attempts the
+    // fields this one could not write.
+    persisted.current = target;
+    commits.current += 1;
+    // Only clear the flag if nothing was edited WHILE this save ran.
+    if (latest.current === target) hasUnsavedEdits.current = false;
+    return written;
+  }, []);
+
   // On unmount, don't just drop a debounced edit — run it. Cancelling the
   // timer silently discards whatever the operator typed in the last 600ms.
   useEffect(
@@ -170,18 +220,18 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
       if (!timer.current) return;
       clearTimeout(timer.current);
       if (!hasUnsavedEdits.current) return;
-      const target = latest.current;
-      const base = persisted.current;
       // Fire-and-forget: the component is going away, so there is no status
-      // left to paint. The write itself still has to happen.
+      // left to paint. The write itself still has to happen — through the same
+      // runner as the debounce path, so it diffs against the base that is
+      // current when it RUNS, not the one that was current when it was queued.
       saveChain.current = saveChain.current.then(() =>
-        io.current.save(target, base).then(
+        runSave().then(
           () => {},
           () => {},
         ),
       );
     },
-    [],
+    [runSave],
   );
 
   const onChange = useCallback((next: T) => {
@@ -199,23 +249,14 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
       const ticket = ++saveTicket.current;
       setSaveState({ status: "saving" });
       saveChain.current = saveChain.current.then(async () => {
-        // Read both the target and the diff base at RUN time, not at schedule
-        // time: by the time this link runs, an earlier save may have already
-        // advanced `persisted`, and the operator may have edited further.
-        const target = latest.current;
         try {
-          const written = await io.current.save(target, persisted.current);
-          persisted.current = target;
-          // Only clear the flag if nothing was edited WHILE this save ran.
-          if (latest.current === target) hasUnsavedEdits.current = false;
+          const written = await runSave();
           if (saveTicket.current !== ticket) return;
           // A newer edit is already queued behind this one, so "Saved" would
           // be a claim about state that is not saved. Stay in "saving".
           if (hasUnsavedEdits.current) return;
           setSaveState(written.length > 0 ? { status: "saved" } : { status: "idle" });
         } catch (error: unknown) {
-          // `persisted` is deliberately NOT advanced on failure, so the next
-          // save re-attempts the fields this one could not write.
           if (saveTicket.current !== ticket) return;
           setSaveState({
             status: "error",
@@ -224,7 +265,7 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
         }
       });
     }, SAVE_DEBOUNCE_MS);
-  }, []);
+  }, [runSave]);
 
   /**
    * Re-reads the persisted value on an external notification.
@@ -238,12 +279,18 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
    * The check runs AGAIN after the await: `load()` is a network round trip, and an edit begun while
    * it was in flight would otherwise be clobbered by a response that predates it.
    *
+   * Re-checking the flags is necessary but NOT sufficient, which is why {@link commits} is sampled
+   * too. Both flags describe work that is still outstanding, so a save that started and finished
+   * entirely within the await window leaves them clear and the stale response sails through — see
+   * the counter's own doc for why that is worse than a wrong repaint.
+   *
    * A failed reload is swallowed on purpose. This is a background refresh the operator never asked
    * for; surfacing `loadError` here would replace a working panel with an error state because of a
    * transient blip. The mount load still reports its failures.
    */
   const refresh = useCallback(async () => {
     if (timer.current || hasUnsavedEdits.current) return;
+    const seenCommits = commits.current;
     let loaded: T;
     try {
       loaded = await io.current.load();
@@ -251,6 +298,7 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
       return;
     }
     if (!mounted.current || timer.current || hasUnsavedEdits.current) return;
+    if (commits.current !== seenCommits) return;
     persisted.current = loaded;
     latest.current = loaded;
     setValue(loaded);
