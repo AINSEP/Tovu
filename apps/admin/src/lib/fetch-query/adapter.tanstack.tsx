@@ -85,19 +85,32 @@ export function useFetchQuery<T>({ key, fetch, enabled = true, staleTime }: Fetc
   // contract folds both into `loading` ("no data, nothing to show yet"), which
   // is what a caller actually branches on.
   //
-  // Disabling does NOT clear a cached failure, though: a query that errored,
-  // unmounted, and remounted disabled comes back still `status: 'error'` with
-  // its old `error` intact. Passed straight through, that broke this module's
-  // own stated contract ("stays `loading` with no request in flight") and, on
-  // the pilot screen, made a gesture-gated cell render a stale failure before
-  // the operator had gestured at all — a lazy read that reports a failure
-  // nobody asked it to retry. A disabled query therefore reports no error, and
-  // reports `loading` unless it already holds data worth showing.
+  // Disabling does NOT clear a cached failure, though, and TanStack keeps
+  // `data` from the last success even after a LATER fetch attempt errors (the
+  // failure only flips `status`/`error`; nothing clears `data`). That leaves
+  // two distinct cached-failure shapes once disabled, not one:
+  //
+  //   - Never succeeded (`data` is `undefined`): passing the error through
+  //     broke this module's own stated contract ("stays `loading` with no
+  //     request in flight") and, on the pilot screen, made a gesture-gated
+  //     cell render a stale failure before the operator had gestured at all —
+  //     a lazy read reporting a failure nobody asked it to retry, and one it
+  //     cannot dismiss because nothing is "retrying" from its point of view.
+  //     Reports `loading`, `error: null`.
+  //   - Succeeded before, then broke on a later background refresh (`data` is
+  //     defined): the data is still the best answer available and worth
+  //     rendering, so `status` stays `success` — but silently dropping the
+  //     error here would let a caller present known-stale, known-broken data
+  //     as an unqualified success with no way to detect it. Reports
+  //     `success`, and — unlike the never-succeeded case — the real `error`,
+  //     so a caller that wants to flag "may be stale" can, without losing the
+  //     right to just keep showing `data` if it doesn't care.
   const disabled = !enabled;
+  const hasData = query.data !== undefined;
   const status: QueryResult<T>["status"] = disabled
-    ? query.data === undefined
-      ? "loading"
-      : "success"
+    ? hasData
+      ? "success"
+      : "loading"
     : query.status === "error"
       ? "error"
       : query.status === "success"
@@ -110,7 +123,7 @@ export function useFetchQuery<T>({ key, fetch, enabled = true, staleTime }: Fetc
 
   return {
     data: query.data,
-    error: disabled || !query.error ? null : toError(query.error, "request failed"),
+    error: !query.error ? null : disabled && !hasData ? null : toError(query.error, "request failed"),
     status,
     isFetching: query.isFetching,
     refetch,
