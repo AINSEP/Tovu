@@ -122,13 +122,17 @@ const EXECUTION_DEFINITIONS: readonly ExecutionDefinitionSpec[] = [
   //
   // `@jini-ai/ui`'s `LocalCliConfig.modelByAgentId` is a per-agent MAP, so
   // switching agents and back preserves each one's own pick. That map is not
-  // persisted as a map here, and deliberately so: storing it would need a
-  // second `{type:"json"}` definition, and ADR-PIPE-008 Enforcement is
-  // normative that this ledger has exactly ONE such definition in the whole
-  // codebase (`site.seo.robots_rules`) — a JSON value is not a general escape
-  // hatch for fields that can be scalar-decomposed. Encoding the map as a JSON
-  // *string* would be the same escape hatch with the type check laundered off,
-  // which is worse, not better.
+  // persisted as a map here, and deliberately so: storing it would need
+  // another `{type:"json"}` definition, and ADR-PIPE-008 Enforcement is
+  // normative that this variant is reserved for genuinely unbounded,
+  // list-shaped data with no scalar decomposition available (as of this
+  // comment: `site.seo.robots_rules`, `core.analytics.excludedPaths`,
+  // `core.analytics.excludedIpRanges` — see `features/settings/types.ts`'s
+  // `SettingValueSchema` doc comment) — a per-agent map keyed by an operator's
+  // own agent ids is not that; it is a scalar-decomposable field encoded as
+  // JSON to skip the decomposition work, which is exactly what the rule
+  // blocks. Encoding the map as a JSON *string* would be the same escape
+  // hatch with the type check laundered off, which is worse, not better.
   //
   // Consequence, stated rather than hidden: the per-agent map is live for as
   // long as the tab is open, but a reload restores only the selected agent's
