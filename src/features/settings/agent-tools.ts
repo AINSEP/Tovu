@@ -12,11 +12,34 @@
  * schema-exposing endpoint feeds a typed control). There is no fixed, curated list of named
  * settings anywhere in this codebase's admin surface to wire tools against.
  *
- * That disqualifies every WRITE in this domain from being wired here:
+ * That disqualifies every GENERIC write in this domain from being wired here:
  * - `SETTINGS_SET`/`SETTINGS_CLEAR` let a caller write/clear the value of any registered
  *   namespace+key at any scope it can name — exactly the generic "set any setting key" tool this
  *   dispatch's brief prohibits outright, regardless of the write path's own schema validation
  *   (validation constrains VALUE shape, not WHICH key can be targeted).
+ *
+ * UPDATE (2026-07-31) — the premise above has a scope this file originally could not see, and one
+ * curated write is now wired because of it. The claim "there is no fixed, curated list of named
+ * settings anywhere in this codebase's admin surface" was true when written and is no longer:
+ * `features/settings/ui-tab-definitions.ts` registers one, because the settings-dialog tabs need
+ * named keys to bind to. `SETTINGS_SET_UI_PREFERENCE` below wires a seven-key subset of that list
+ * (`features/settings/agent-writable-preferences.ts`), and it is not a weaker `settings_set`:
+ *
+ * - Its `setting` parameter is a JSON Schema `enum`, so WHICH key is targeted is constrained by
+ *   the same mechanism as everything else — the exact gap the paragraph above identifies. The
+ *   ledger's registered definition schema still bounds the VALUE, so both halves are covered.
+ * - It exposes no `scope` and no `principalId`. Every write is `scope: "user"` against the
+ *   caller's own principal, which derives `settings.user.self.write` — the narrowest write grant
+ *   in the system — and makes writing another operator's preferences unrepresentable rather than
+ *   merely unauthorized.
+ * - The keys are per-operator display preferences (locale, theme, accent, notification sounds),
+ *   each reversible in one call and visible in the admin UI the moment it changes.
+ *
+ * The generic setter stays excluded, permanently and for its original reason. Nothing below is
+ * evidence that the other three writes may now be wired: `SETTINGS_RESET` and
+ * `SETTINGS_REGISTER_DEFINITIONS` fail on their own merits (see their entries), and
+ * `SETTINGS_SET`/`SETTINGS_CLEAR` fail precisely because they are the uncurated form of what
+ * `SETTINGS_SET_UI_PREFERENCE` does safely.
  * - `SETTINGS_RESET` is broader still: a single call clears every value in an operator-named
  *   namespace at a scope, described by the admin UI's own confirmation dialog as "This cannot be
  *   undone."
@@ -41,8 +64,11 @@
  * time — this module only declares the catalog shape, it performs no I/O and no enforcement itself.
  *
  * Architectural role:
- * `features/settings` domain logic. No dependencies.
+ * `features/settings` domain logic. Depends only on its own sibling
+ * `agent-writable-preferences.ts` (for the curated write's enum) — no I/O, no enforcement.
  */
+
+import { AGENT_WRITABLE_PREFERENCE_IDS, AGENT_WRITABLE_PREFERENCES } from "./agent-writable-preferences";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
@@ -102,8 +128,42 @@ const GET_RAW_SCHEMA = {
 } as const;
 
 /**
- * The Settings domain's fixed agent-tool catalog (SPEC-007) — reads only; see file header for why
- * every write is documented but deliberately never wired.
+ * Input schema for `settings_set_ui_preference`.
+ *
+ * The `enum` on `setting` is the load-bearing part and the reason this tool is wireable at all —
+ * it is what makes "which key" a schema-constrained choice rather than free text. Built from
+ * {@link AGENT_WRITABLE_PREFERENCE_IDS} rather than listed here, so the published schema and the
+ * handler's own allowlist check cannot disagree.
+ *
+ * `value` is typed only as "present". Constraining it here would mean restating seven different
+ * per-key schemas that the ledger already holds and already enforces inside the write chokepoint
+ * (`write-service.ts`'s `set()`), and a second copy that drifts is worse than no copy: it would
+ * reject values the ledger accepts, or — far worse — describe as acceptable a shape the ledger
+ * will refuse. The per-key hints below tell the model what to send; the ledger decides.
+ */
+const SET_UI_PREFERENCE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["setting", "value"],
+  properties: {
+    setting: {
+      type: "string",
+      enum: AGENT_WRITABLE_PREFERENCE_IDS,
+      description: `The preference to set. Legal values and what each expects: ${AGENT_WRITABLE_PREFERENCES.map(
+        (p) => `${p.id} — ${p.valueHint}`,
+      ).join(" | ")}`,
+    },
+    value: {
+      description:
+        "The new value, matching the shape described for the chosen setting. Validated against that setting's registered schema; a mismatch is rejected and nothing is written.",
+    },
+  },
+} as const;
+
+/**
+ * The Settings domain's fixed agent-tool catalog (SPEC-007) — the three reads, one curated write
+ * (`settings_set_ui_preference`), and four generic writes documented but deliberately never
+ * wired. See file header.
  *
  * @complexity O(1) — a fixed, statically-defined list.
  * @overallScore 100
@@ -134,8 +194,22 @@ export function getSettingsAgentToolCatalog(): AgentToolDefinition[] {
       inputSchema: GET_RAW_SCHEMA,
     },
     {
+      name: "settings_set_ui_preference",
+      description:
+        "Sets one of the operator's own admin-UI preferences (interface language, theme, accent color, or notification sounds) and returns the stored value. Writes only to the calling operator's own user layer — it cannot target another operator, another scope, or any setting outside its fixed list. Use settings_get_effective to read current values first.",
+      sideEffects: "mutates-durable-state",
+      // The narrowest write grant in the system, and it is what this tool derives BECAUSE it never
+      // names a target principal (`write-service.ts`'s `deriveRequiredPermission`). Declared here
+      // to match; the handler does not pass this string, it lets the chokepoint derive it, so the
+      // two cannot drift into a state where this file advertises a check that is not the one run.
+      authorization: { permission: "settings.user.self.write" },
+      inputSchema: SET_UI_PREFERENCE_SCHEMA,
+    },
+    {
       // EXCLUDED BY DESIGN, never wired: see this file's header. Generic "set any setting key" —
-      // the human admin UI itself is an uncurated free-text/raw-JSON editor, not a fixed named list.
+      // the human admin UI itself is an uncurated free-text/raw-JSON editor, not a fixed named
+      // list. `settings_set_ui_preference` above is the curated alternative and does NOT make this
+      // one wireable: the whole difference is that its target key is enum-bounded.
       name: "settings_set",
       description: "Sets a setting's value at a scope. NEVER agent-callable — see file header.",
       sideEffects: "mutates-durable-state",

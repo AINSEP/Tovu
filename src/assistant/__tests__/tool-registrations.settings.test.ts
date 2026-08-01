@@ -4,6 +4,7 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { getSettingsAgentToolCatalog, type AgentToolDefinition as SettingsAgentToolDefinition } from "../../features/settings/agent-tools";
+import { AGENT_WRITABLE_PREFERENCE_IDS } from "../../features/settings/agent-writable-preferences";
 import { InMemorySettingsRepo } from "../../features/settings/repo.memory";
 import type { SettingDefinitionRecord, SettingValueRecord } from "../../features/settings/types";
 import type { RouteDeps } from "../../server/routes/types";
@@ -12,9 +13,13 @@ import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "..
 /**
  * @file The Settings (SPEC-007) tool-wiring test file — mirrors
  * `tool-registrations.database-recovery.test.ts`/`tool-registrations.plugins.test.ts`'s own shape.
- * Read-only domain: catalog completeness (3 wired reads vs. 4 declared-but-excluded writes, and
- * WHY), published contract parity, the risk cross-check, the ADR-021 §2 authorization half
- * (including the cross-principal `settings.user.read` gate), and a multi-tool workflow test.
+ * Catalog completeness (3 wired reads + 1 curated write vs. 4 declared-but-excluded generic
+ * writes, and WHY), published contract parity, the risk cross-check, the ADR-021 §2 authorization
+ * half (including the cross-principal `settings.user.read` gate), and a multi-tool workflow test.
+ *
+ * §6 covers `settings_set_ui_preference`, whose whole safety argument is that its blast radius is
+ * structural rather than behavioral — so the tests there assert what is UNREACHABLE (an unlisted
+ * key, another operator's layer, a non-user scope), not merely what the happy path returns.
  */
 
 const WORKSPACE_ID = "ws-tools";
@@ -42,16 +47,38 @@ const DEFINITION: SettingDefinitionRecord = {
   updatedAt: NOW,
 };
 
+/**
+ * The one real agent-writable preference used by §6, mirroring what
+ * `features/settings/ui-tab-definitions.ts` registers for it at boot: a string, defaulting to
+ * `"en"`, scoped `user | workspace` (`SCOPE_BIT.user | SCOPE_BIT.workspace` = 6).
+ *
+ * A real id rather than a synthetic one, because `settings_set_ui_preference`'s allowlist is
+ * closed — a made-up key could not be written through it at all, so the test would prove nothing
+ * about the path an operator actually exercises.
+ */
+const LANGUAGE_DEFINITION: SettingDefinitionRecord = {
+  ...DEFINITION,
+  settingId: "setting-language-locale",
+  namespace: "core.language",
+  key: "locale",
+  schema: { type: "string" },
+  defaultValue: "en",
+  scopes: 6,
+};
+
 function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
-  const settingsRepo = new InMemorySettingsRepo({ definitions: [DEFINITION] });
+  const settingsRepo = new InMemorySettingsRepo({ definitions: [DEFINITION, LANGUAGE_DEFINITION] });
 
   const deps = {
     workspaceId: WORKSPACE_ID,
     settingsRepo,
     settingsReady: Promise.resolve(),
+    // `settings_set_ui_preference` awaits THIS one, not `settingsReady` — its definitions come
+    // from `ensureSettingsUiTabDefinitions()`, not the legacy presentation migration.
+    settingsUiTabsReady: Promise.resolve(),
     clock: { nowIso: () => NOW },
     idGen: { newId: () => "id-unused" },
     principalRepo: { findById: async () => null },
@@ -88,10 +115,13 @@ function catalogEntry(toolId: string): SettingsAgentToolDefinition {
 // 1. Catalog completeness — wired reads vs. declared-but-excluded writes, and excluded tools stay excluded
 // ---------------------------------------------------------------------------
 
-test("exactly the 3 wireable settings entries are registered — all reads, no write", () => {
+test("exactly the 4 wireable settings entries are registered — 3 reads and the curated preference write", () => {
   const { deps } = fakeRouteDeps();
-  assert.deepEqual([...settingsRegistrations(deps).keys()].sort(), ["settings_get_effective", "settings_get_raw", "settings_list_definitions"]);
-  assert.equal(getSettingsAgentToolCatalog().length, 7, "sanity: the full settings catalog is still 7 entries (3 wired + 4 excluded writes)");
+  assert.deepEqual(
+    [...settingsRegistrations(deps).keys()].sort(),
+    ["settings_get_effective", "settings_get_raw", "settings_list_definitions", "settings_set_ui_preference"],
+  );
+  assert.equal(getSettingsAgentToolCatalog().length, 8, "sanity: the full settings catalog is 8 entries (4 wired + 4 excluded generic writes)");
 });
 
 for (const excludedId of ["settings_set", "settings_clear", "settings_reset", "settings_register_definitions"]) {
@@ -102,7 +132,7 @@ for (const excludedId of ["settings_set", "settings_clear", "settings_reset", "s
   });
 }
 
-test("no tool name across the whole assistant tool set implies a setting value can be written by an agent", () => {
+test("no GENERIC settings write is reachable anywhere in the whole assistant tool set", () => {
   const { deps } = fakeRouteDeps();
   const ids = buildAssistantToolRegistrations(deps).map((r) => r.descriptor.id);
   for (const excludedId of ["settings_set", "settings_clear", "settings_reset", "settings_register_definitions"]) {
@@ -156,12 +186,17 @@ const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
   settings_list_definitions: {},
   settings_get_effective: { namespace: "core.presentation" },
   settings_get_raw: { namespace: "core.presentation", key: "site_title" },
+  settings_set_ui_preference: { setting: "core.language.locale", value: "es" },
 };
 
 const PERMISSION_OF: Record<string, string> = {
   settings_list_definitions: "settings.read.definitions",
   settings_get_effective: "settings.read",
   settings_get_raw: "settings.read.raw",
+  // Derived by `write-service.deriveRequiredPermission`, NOT passed by the handler — a user-scoped
+  // write that names no target principal is a self-write. That this row matches the catalog
+  // entry's declared permission is the assertion that the declaration is honest.
+  settings_set_ui_preference: "settings.user.self.write",
 };
 
 test("every wired settings tool has a known input fixture", () => {
@@ -209,6 +244,59 @@ test("settings_get_effective / settings_get_raw: reading another principal's use
   assert.equal(authorizeCalls[1].principalId, PRINCIPAL_ID, "the cross-principal check is evaluated against the CALLER, not the target");
 });
 
+/**
+ * The regression the handoff's §3 asked for, filed against the ROUTE and found to be missing from
+ * the TOOL as well. Both read tools default an omitted `principalId` to the caller, because
+ * `undefined` does not mean "the caller" to `getEffective` — it means "skip the user layer".
+ *
+ * This is a positive assertion (the user value is RETURNED), not merely that no error is thrown.
+ * The broken version threw nothing: it returned the default layer's value, confidently and wrongly.
+ */
+for (const toolId of ["settings_get_effective", "settings_get_raw"]) {
+  test(`${toolId}: omitting principalId reads the CALLER's own user layer, not the default`, async () => {
+    const { deps, settingsRepo } = fakeRouteDeps();
+    await settingsRepo.saveUserValue({
+      settingId: LANGUAGE_DEFINITION.settingId,
+      scope: "user",
+      workspaceId: WORKSPACE_ID,
+      principalId: PRINCIPAL_ID,
+      valueJson: "es",
+      state: "set",
+      defVersion: 1,
+      seq: 1,
+      updatedBy: PRINCIPAL_ID,
+      updatedAt: NOW,
+    } as SettingValueRecord);
+
+    const input = toolId === "settings_get_effective" ? { namespace: "core.language" } : { namespace: "core.language", key: "locale" };
+    const result = (await wired(deps, toolId).handler(executionContext(input))) as {
+      data?: Array<{ key: string; value: unknown; sourceLayer: string }>;
+      user?: unknown;
+    };
+
+    if (toolId === "settings_get_effective") {
+      const row = result.data?.find((d) => d.key === "locale");
+      assert.ok(row, "the language key must be present in the effective read");
+      assert.equal(row.value, "es", "the caller's own user-layer value must win over the definition default");
+      assert.equal(row.sourceLayer, "user", "and it must be reported as coming from the user layer");
+    } else {
+      assert.equal(result.user, "es", "the raw read must surface the caller's own user layer");
+    }
+  });
+}
+
+test("settings_get_effective: omitting principalId does NOT trigger the cross-principal permission check", async () => {
+  const { deps, authorizeCalls } = fakeRouteDeps();
+  authorizeCalls.length = 0;
+
+  await wired(deps, "settings_get_effective").handler(executionContext({ namespace: "core.language" }));
+
+  // Defaulting to the caller must not be mistaken for naming someone else — otherwise every
+  // ordinary self-read would demand `settings.user.read`, a grant it has no business needing.
+  assert.equal(authorizeCalls.length, 1, "a self-read by default needs only the base read permission");
+  assert.equal(authorizeCalls[0].permission, "settings.read");
+});
+
 test("settings_get_effective: reading one's OWN principalId does not trigger the cross-principal check", async () => {
   const { deps, authorizeCalls } = fakeRouteDeps();
   authorizeCalls.length = 0;
@@ -239,6 +327,144 @@ test("settings_get_effective / settings_get_raw: a caller lacking settings.user.
     () => wired(deps, "settings_get_effective").handler(executionContext({ namespace: "core.presentation", principalId: OTHER_PRINCIPAL_ID })),
     /is not authorized for 'settings\.user\.read'/,
   );
+});
+
+// ---------------------------------------------------------------------------
+// 6. settings_set_ui_preference — the curated write's structural bounds
+// ---------------------------------------------------------------------------
+
+test("settings_set_ui_preference: the published enum is exactly the allowlist, so an unlisted key is not even describable", () => {
+  const { deps } = fakeRouteDeps();
+  const schema = wired(deps, "settings_set_ui_preference").descriptor.inputSchema as {
+    properties: { setting: { enum: string[] } };
+  };
+
+  assert.deepEqual([...schema.properties.setting.enum].sort(), [...AGENT_WRITABLE_PREFERENCE_IDS].sort());
+  // The point of the enum is which keys it CANNOT name. `core.privacy.*` and
+  // `core.instructions.custom` are registered by the same boot call and deliberately withheld.
+  for (const withheld of [
+    "core.privacy.telemetry.metrics",
+    "core.privacy.telemetry.content",
+    "core.privacy.decisionAt",
+    "core.privacy.installationId",
+    "core.instructions.custom",
+  ]) {
+    assert.equal(schema.properties.setting.enum.includes(withheld), false, `${withheld} must not be agent-writable`);
+  }
+});
+
+test("settings_set_ui_preference: a key outside the allowlist is refused by the handler even when the schema is bypassed", async () => {
+  const { deps, authorizeCalls } = fakeRouteDeps();
+  authorizeCalls.length = 0;
+
+  // Calls the handler directly, which is exactly the bypass being defended against: a stale or
+  // mis-published descriptor would let this input through the daemon's own enum validation.
+  await assert.rejects(
+    () => wired(deps, "settings_set_ui_preference").handler(executionContext({ setting: "core.presentation.site_title", value: "pwned" })),
+    /is not an agent-writable preference/,
+  );
+  assert.equal(authorizeCalls.length, 0, "an unlisted key is refused before any authorize() call — it cannot be used to probe grants");
+});
+
+test("settings_set_ui_preference: writes land on the CALLER's own user layer", async () => {
+  const { deps, settingsRepo } = fakeRouteDeps();
+
+  const result = (await wired(deps, "settings_set_ui_preference").handler(
+    executionContext({ setting: "core.language.locale", value: "es" }),
+  )) as { setting: string; value: unknown; scope: string };
+
+  assert.deepEqual({ setting: result.setting, value: result.value, scope: result.scope }, { setting: "core.language.locale", value: "es", scope: "user" });
+
+  const stored = await settingsRepo.getUserValue({
+    workspaceId: WORKSPACE_ID,
+    principalId: PRINCIPAL_ID,
+    settingId: LANGUAGE_DEFINITION.settingId,
+  });
+  assert.equal(stored?.valueJson, "es", "the value must be readable back from the caller's own user layer");
+
+  const other = await settingsRepo.getUserValue({
+    workspaceId: WORKSPACE_ID,
+    principalId: OTHER_PRINCIPAL_ID,
+    settingId: LANGUAGE_DEFINITION.settingId,
+  });
+  assert.equal(other, null, "no other principal's layer may be touched");
+});
+
+test("settings_set_ui_preference: input naming another principal or a wider scope is ignored, not honored", async () => {
+  const { deps, authorizeCalls, settingsRepo } = fakeRouteDeps();
+  authorizeCalls.length = 0;
+
+  // `additionalProperties: false` means a real caller could not send these at all. Asserting the
+  // handler ignores them anyway is what makes the guarantee structural: it holds even if the
+  // schema stops being enforced.
+  await wired(deps, "settings_set_ui_preference").handler(
+    executionContext({ setting: "core.language.locale", value: "es", principalId: OTHER_PRINCIPAL_ID, scope: "global" }),
+  );
+
+  assert.equal(authorizeCalls[0].permission, "settings.user.self.write", "a smuggled principalId must not escalate to settings.user.write");
+
+  const other = await settingsRepo.getUserValue({
+    workspaceId: WORKSPACE_ID,
+    principalId: OTHER_PRINCIPAL_ID,
+    settingId: LANGUAGE_DEFINITION.settingId,
+  });
+  assert.equal(other, null, "the smuggled principalId must not have been used as the write target");
+  assert.equal(
+    await settingsRepo.getGlobalValue(LANGUAGE_DEFINITION.settingId),
+    null,
+    "the smuggled scope must not have widened the write beyond the user layer",
+  );
+});
+
+test("settings_set_ui_preference: a value of the wrong shape is rejected and nothing is written", async () => {
+  const { deps, settingsRepo } = fakeRouteDeps();
+
+  await assert.rejects(
+    () => wired(deps, "settings_set_ui_preference").handler(executionContext({ setting: "core.language.locale", value: 42 })),
+    // The ledger's registered schema is the validator; the tool republishes its own schema on the
+    // rejection so a model can correct in one turn.
+    /does not match the definition schema/,
+  );
+
+  const stored = await settingsRepo.getUserValue({
+    workspaceId: WORKSPACE_ID,
+    principalId: PRINCIPAL_ID,
+    settingId: LANGUAGE_DEFINITION.settingId,
+  });
+  assert.equal(stored, null, "a rejected value must leave no row behind");
+});
+
+test("settings_set_ui_preference: `false` is a settable value, not a missing one", async () => {
+  const { deps, settingsRepo } = fakeRouteDeps();
+  const booleanDefinition: SettingDefinitionRecord = {
+    ...LANGUAGE_DEFINITION,
+    settingId: "setting-sound-enabled",
+    namespace: "core.notifications",
+    key: "soundEnabled",
+    schema: { type: "boolean" },
+    defaultValue: true,
+  };
+  await settingsRepo.saveDefinition(booleanDefinition);
+
+  await wired(deps, "settings_set_ui_preference").handler(executionContext({ setting: "core.notifications.soundEnabled", value: false }));
+
+  const stored = await settingsRepo.getUserValue({ workspaceId: WORKSPACE_ID, principalId: PRINCIPAL_ID, settingId: booleanDefinition.settingId });
+  assert.equal(stored?.valueJson, false, "a falsy-but-legal value must be stored, not treated as absent");
+});
+
+test("settings_set_ui_preference: the write is recorded in the revision ledger, attributed to the caller", async () => {
+  const { deps, settingsRepo } = fakeRouteDeps();
+
+  const result = (await wired(deps, "settings_set_ui_preference").handler(
+    executionContext({ setting: "core.language.locale", value: "es" }),
+  )) as { revisionSeq: number };
+
+  const revisions = await settingsRepo.listRevisions({ settingId: LANGUAGE_DEFINITION.settingId });
+  const revision = revisions.find((r) => r.seq === result.revisionSeq);
+  assert.ok(revision, "the returned revisionSeq must name a real ledger entry");
+  assert.equal(revision.op, "set");
+  assert.equal(revision.actor, PRINCIPAL_ID, "an agent-driven change is attributed to the human principal the run carries");
+  assert.equal(revision.afterJson, "es");
 });
 
 // ---------------------------------------------------------------------------
