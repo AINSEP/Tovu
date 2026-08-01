@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, isNull } from "drizzle-orm";
 
 import type { JsonValue } from "../../core/ports";
 import {
@@ -440,6 +440,38 @@ export class SqliteSettingsRepo implements SettingsRepoPort {
         createdAt: r.createdAt,
       }))
       .sort((a, b) => a.seq - b.seq);
+  }
+
+  async listRevisionsSince(required: { sinceSeq: number; limit: number }): Promise<SettingRevisionRecord[]> {
+    const rows = this.db
+      .select()
+      .from(settingRevisions)
+      .where(gt(settingRevisions.seq, required.sinceSeq))
+      .orderBy(settingRevisions.seq)
+      .limit(required.limit)
+      .all();
+    return rows.map((r) => ({
+      seq: r.seq,
+      entityKind: r.entityKind as RevisionEntityKind,
+      settingId: r.settingId,
+      scope: r.scope as SettingScope | null,
+      workspaceId: r.workspaceId,
+      principalId: r.principalId,
+      op: r.op as RevisionOp,
+      beforeJson: r.beforeJson == null ? null : (JSON.parse(r.beforeJson) as JsonValue),
+      afterJson: r.afterJson == null ? null : (JSON.parse(r.afterJson) as JsonValue),
+      defVersion: r.defVersion,
+      actor: r.actor,
+      originPluginId: r.originPluginId,
+      changeSetId: r.changeSetId,
+      createdAt: r.createdAt,
+    }));
+  }
+
+  async maxRevisionSeq(): Promise<number> {
+    // `seq` is the AUTOINCREMENT primary key, so this is an index lookup rather than a scan.
+    const row = this.db.select({ seq: settingRevisions.seq }).from(settingRevisions).orderBy(desc(settingRevisions.seq)).limit(1).get();
+    return row?.seq ?? 0;
   }
 
   async transaction<T>(fn: () => Promise<T>): Promise<T> {

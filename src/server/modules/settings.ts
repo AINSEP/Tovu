@@ -1,4 +1,5 @@
 import { registerAdminSettingsClearRoute } from "../routes/admin/settings/clear";
+import { registerAdminSettingsEventsRoute } from "../routes/admin/settings/events";
 import { registerAdminSettingsGetEffectiveRoute } from "../routes/admin/settings/get-effective";
 import { registerAdminSettingsGetRawRoute } from "../routes/admin/settings/get-raw";
 import { registerAdminSettingsListDefinitionsRoute } from "../routes/admin/settings/list-definitions";
@@ -27,6 +28,11 @@ import type { ServerModuleHandle } from "./types";
  * `registerAdminSettingsGetRawRoute`/`registerAdminSettingsListDefinitionsRoute` — now 7
  * registrations total, no new `SettingsRouteDeps` fields required (both read from fields the
  * existing 5 registrars already use).
+ *
+ * `registerAdminSettingsEventsRoute` (8th) is the SSE change feed. It is the only registration here
+ * that holds its response open, and the only one that reads the revision ledger — see its own file
+ * header for why a cross-process poll of `setting_revisions` is what an in-process emitter cannot
+ * be. It needs no new `SettingsRouteDeps` fields.
  */
 export function createSettingsModule(deps: SettingsRouteDeps): ServerModuleHandle {
   return {
@@ -39,6 +45,7 @@ export function createSettingsModule(deps: SettingsRouteDeps): ServerModuleHandl
       registerAdminSettingsSetRoute(app, deps);
       registerAdminSettingsClearRoute(app, deps);
       registerAdminSettingsResetRoute(app, deps);
+      registerAdminSettingsEventsRoute(app, deps);
     },
   };
 }

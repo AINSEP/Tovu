@@ -67,17 +67,23 @@ import {
 import "@jini-ai/ui/settings-dialog.css";
 import {
   DEFAULT_EXECUTION_CONFIG,
+  EXECUTION_NAMESPACE,
   createExecutionPort,
   loadExecutionConfig,
   saveExecutionConfig,
 } from "../lib/execution-settings";
 import {
   ADMIN_LOCALES,
+  APPEARANCE_NAMESPACE,
   DEFAULT_APPEARANCE,
   DEFAULT_INSTRUCTIONS,
   DEFAULT_LOCALE,
   DEFAULT_NOTIFICATIONS,
   DEFAULT_PRIVACY,
+  INSTRUCTIONS_NAMESPACE,
+  LANGUAGE_NAMESPACE,
+  NOTIFICATIONS_NAMESPACE,
+  PRIVACY_NAMESPACE,
   loadAppearance,
   loadInstructions,
   loadLanguage,
@@ -227,31 +233,37 @@ export function SettingsUi() {
     load: loadExecutionConfig,
     save: saveExecutionConfig,
     defaultValue: DEFAULT_EXECUTION_CONFIG,
+    namespaces: [EXECUTION_NAMESPACE],
   });
   const instructions = useSettingsSlice<string>({
     load: loadInstructions,
     save: saveInstructions,
     defaultValue: DEFAULT_INSTRUCTIONS,
+    namespaces: [INSTRUCTIONS_NAMESPACE],
   });
   const notifications = useSettingsSlice<NotificationsPreferences>({
     load: loadNotifications,
     save: saveNotifications,
     defaultValue: DEFAULT_NOTIFICATIONS,
+    namespaces: [NOTIFICATIONS_NAMESPACE],
   });
   const privacy = useSettingsSlice<PrivacyConsentState>({
     load: loadPrivacy,
     save: savePrivacy,
     defaultValue: DEFAULT_PRIVACY,
+    namespaces: [PRIVACY_NAMESPACE],
   });
   const appearance = useSettingsSlice<AppearanceConfig>({
     load: loadAppearance,
     save: saveAppearance,
     defaultValue: DEFAULT_APPEARANCE,
+    namespaces: [APPEARANCE_NAMESPACE],
   });
   const language = useSettingsSlice<string>({
     load: loadLanguage,
     save: saveLanguage,
     defaultValue: DEFAULT_LOCALE,
+    namespaces: [LANGUAGE_NAMESPACE],
   });
 
   const slices = [execution, instructions, notifications, privacy, appearance, language];

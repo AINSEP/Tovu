@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
+
 /**
  * @file One settings-dialog tab's load/edit/debounced-save lifecycle,
  * generic over the tab's own config type.
@@ -39,6 +41,17 @@ export interface SettingsSliceOptions<T> {
    *  indicator renders as idle rather than a misleading "Saved"). */
   save: (next: T, previous: T) => Promise<readonly string[]>;
   defaultValue: T;
+  /**
+   * Ledger namespaces this slice reads, so a refresh naming other namespaces
+   * is ignored instead of costing a pointless reload.
+   *
+   * Omit to reload on EVERY refresh. That is the safe default in both
+   * directions: a slice that forgets to declare its namespaces stays correct
+   * (it just refetches more than it needs), whereas defaulting to "ignore
+   * everything" would make a forgotten declaration silently stop updating —
+   * the exact bug this feature exists to remove.
+   */
+  namespaces?: readonly string[];
 }
 
 export interface SettingsSlice<T> {
@@ -47,6 +60,14 @@ export interface SettingsSlice<T> {
   loadError: string | null;
   saveState: SaveState;
   onChange: (next: T) => void;
+  /**
+   * Re-reads the persisted value, discarding nothing.
+   *
+   * Wired to {@link subscribeToSettingsRefresh} automatically; exposed mainly so
+   * a caller can force one. Declines while the operator has uncommitted work —
+   * see the implementation for why that is a refusal rather than a merge.
+   */
+  refresh: () => Promise<void>;
 }
 
 /**
@@ -109,6 +130,16 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
    */
   const hasUnsavedEdits = useRef(false);
 
+  /** Guards every post-await `setState` in {@link refresh}, which — unlike the
+   *  mount load — can be invoked at any time by an external publisher. */
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
   useEffect(() => {
     let alive = true;
     io.current
@@ -159,6 +190,12 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
     hasUnsavedEdits.current = true;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
+      // Cleared as the timer FIRES, so `timer.current` means "a debounce is still pending" rather
+      // than "one was ever scheduled". The unmount flush below already pairs it with
+      // `hasUnsavedEdits`, so it tolerated a stale handle; `refresh` reads it alone as the
+      // "operator has work in flight" signal, and a handle that never cleared would refuse every
+      // external refresh for the rest of the component's life after the first keystroke.
+      timer.current = null;
       const ticket = ++saveTicket.current;
       setSaveState({ status: "saving" });
       saveChain.current = saveChain.current.then(async () => {
@@ -189,7 +226,50 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
     }, SAVE_DEBOUNCE_MS);
   }, []);
 
-  return { value, loadError, saveState, onChange };
+  /**
+   * Re-reads the persisted value on an external notification.
+   *
+   * **Refuses whenever the operator has uncommitted work**, rather than merging. Three states count
+   * as uncommitted: a pending debounce timer, `hasUnsavedEdits`, and a non-idle save. Overwriting
+   * any of them replaces what the operator typed with a value from somewhere else, mid-keystroke —
+   * data loss, and the same class of bug the audit already found twice in this file. Refusing costs
+   * only a missed update, and the operator's own save re-establishes agreement a moment later.
+   *
+   * The check runs AGAIN after the await: `load()` is a network round trip, and an edit begun while
+   * it was in flight would otherwise be clobbered by a response that predates it.
+   *
+   * A failed reload is swallowed on purpose. This is a background refresh the operator never asked
+   * for; surfacing `loadError` here would replace a working panel with an error state because of a
+   * transient blip. The mount load still reports its failures.
+   */
+  const refresh = useCallback(async () => {
+    if (timer.current || hasUnsavedEdits.current) return;
+    let loaded: T;
+    try {
+      loaded = await io.current.load();
+    } catch {
+      return;
+    }
+    if (!mounted.current || timer.current || hasUnsavedEdits.current) return;
+    persisted.current = loaded;
+    latest.current = loaded;
+    setValue(loaded);
+  }, []);
+
+  /**
+   * Subscribes to out-of-band changes — an assistant run that wrote a setting, or an SSE frame from
+   * a write in another tab. `namespaces` narrows which notifications matter; see the option's doc
+   * for why omitting it means "refresh on everything" rather than "never".
+   */
+  useEffect(() => {
+    return subscribeToSettingsRefresh((scope) => {
+      const mine = io.current.namespaces;
+      if (scope && mine && !mine.some((ns) => scope.includes(ns))) return;
+      void refresh();
+    });
+  }, [refresh]);
+
+  return { value, loadError, saveState, onChange, refresh };
 }
 
 /**
