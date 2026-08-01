@@ -51,8 +51,11 @@ function routeFetch(routes: Array<{ method?: string; match: string; handler: () 
   };
 }
 
-function rowFor(title: string): HTMLElement {
-  const link = screen.getByRole("link", { name: title });
+/** Async because the list renders "Loading forms…" first — a synchronous `getByRole` here runs
+ *  before the mocked fetch resolves and fails on every caller. `findByRole` waits for the row to
+ *  exist, which is what the tests that already awaited a query directly were getting for free. */
+async function rowFor(title: string): Promise<HTMLElement> {
+  const link = await screen.findByRole("link", { name: title });
   const row = link.closest("tr");
   if (!row) throw new Error(`row for "${title}" has no <tr> ancestor`);
   return row as HTMLElement;
@@ -137,7 +140,7 @@ describe("status toggle", () => {
       ])
     );
     render(<FormsList />);
-    const row = rowFor("Contact");
+    const row = await rowFor("Contact");
 
     await user.click(within(row).getByRole("button", { name: 'Actions for form "Contact"' }));
     await user.click(screen.getByRole("menuitem", { name: "Disable" }));
@@ -166,7 +169,7 @@ describe("status toggle", () => {
       ])
     );
     render(<FormsList />);
-    const row = rowFor("Newsletter");
+    const row = await rowFor("Newsletter");
 
     await user.click(within(row).getByRole("button", { name: 'Actions for form "Newsletter"' }));
     await user.click(screen.getByRole("menuitem", { name: "Enable" }));
@@ -185,7 +188,7 @@ describe("status toggle", () => {
       ])
     );
     render(<FormsList />);
-    const row = rowFor("Contact");
+    const row = await rowFor("Contact");
 
     await user.click(within(row).getByRole("button", { name: 'Actions for form "Contact"' }));
     await user.click(screen.getByRole("menuitem", { name: "Disable" }));
@@ -221,7 +224,7 @@ describe("status toggle", () => {
       ])
     );
     render(<FormsList />);
-    const row = rowFor("Contact");
+    const row = await rowFor("Contact");
 
     // First selection starts the (still-pending) PUT.
     await user.click(within(row).getByRole("button", { name: 'Actions for form "Contact"' }));
@@ -245,7 +248,7 @@ describe("Edit", () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) }]));
     render(<FormsList />);
-    const row = rowFor("Contact");
+    const row = await rowFor("Contact");
 
     await user.click(within(row).getByRole("button", { name: 'Actions for form "Contact"' }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
