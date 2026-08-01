@@ -73,11 +73,11 @@
 /* `.field-row`'s own definition lives in `styles.css` (off-limits to this dispatch) as a plain
    grid with no `align-items` set, so its default is `stretch`. Stretch is invisible as long as
    every cell's label is one line (true for every OTHER `.field-row` caller today — `FormEditor.tsx`
-   "Name"/"Slug", `Media.tsx` "Title"/"Alt"/"Caption", `Redirects.tsx`'s four short labels; grepped
-   every one before writing this, not assumed): a stretched `.field` with a one-line label just
-   gains invisible slack at its own bottom, since content still packs to the top.
-   `Comments.tsx`'s "Close submissions after (days, blank = never)" breaks that assumption — it
-   wraps to two lines at the widths this row actually renders at, so that one cell's label is
+   "Name"/"Slug", `Media.tsx` "Title"/"Alt"/"Caption"/"Credit", `Redirects.tsx`'s four short labels;
+   grepped and rendered every one before writing this, not assumed): a stretched `.field` with a
+   one-line label just gains invisible slack at its own bottom, since content still packs to the
+   top. `Comments.tsx`'s "Close submissions after (days, blank = never)" breaks that assumption —
+   it wraps to two lines at the widths this row actually renders at, so that one cell's label is
    taller top-to-bottom than its three siblings', and stretch's top-packing means the taller
    label pushes only ITS OWN input down, leaving the other three inputs sitting higher — a visibly
    sagging fourth control in an otherwise level row.
@@ -89,14 +89,28 @@
    `styles.css`, so this wins the tie without `!important` (same reasoning `styles.css`'s own
    `.list-table td button:not([class*="btn-"])` comment documents for an equivalent case).
 
+   `styles.css` ALSO carries `.field-row > .field > :is(input, select, textarea) { margin-top: auto }`
+   (added independently, same bug, different author, before either of us knew about the other's
+   fix) — measured with THIS rule commented out to check whether that one alone was sufficient
+   before assuming both were needed: it is not. With only `margin-top: auto` in play, Comments'
+   four inputs measured `[578, 592, 578, 578]` at 1440 — the wrapped-label field is still 14px
+   off from its siblings, not flush. Whatever the exact flex/grid interaction responsible (not
+   fully chased down — a `gap`-and-auto-margin interaction inside a grid-stretched flex column is
+   plausible but unconfirmed), the empirical result is that rule does not fix this on its own.
+   This rule does, on its own — confirmed earlier today, before `styles.css`'s rule existed, at a
+   clean `[591.8, 591.8, 591.8, 591.8]`. With both rules active together (today's actual shipped
+   state) the result is `[592, 592, 592, 592]` — this rule carries the fix; the other one is inert
+   given this one, not load-bearing, but also not harmful. Do not remove this rule to de-duplicate
+   without re-measuring — that was tried in the course of writing this comment and made the row
+   sag again.
+
    Checked against the three other callers, none of which have this problem — their labels never
    wrap at any width this app's `.field-row` min-column (`minmax(10rem, 1fr)`) allows, so `end` and
-   the previous `stretch` render pixel-identical there. `FormEditor.tsx` (Name/Slug) and
-   `Redirects.tsx` (all four fields) confirmed live, measured via `getBoundingClientRect()`, not
-   eyeballed: every control in both rows still lands on one shared top offset, unchanged from
-   before this rule. `Media.tsx`'s edit panel (Title/Alt/Caption) could NOT be checked live — this
-   environment's media library is empty, so there was no item to open the panel on — the "labels
-   never wrap" claim for it rests on reading its short single-word labels, not on a render. */
+   the previous `stretch` render pixel-identical there. `FormEditor.tsx` (Name/Slug), `Redirects.tsx`
+   (all four fields), and `Media.tsx`'s edit panel (Title/Alt/Caption/Credit — a real uploaded item
+   finally existed in this environment to check it against) are all confirmed live at 1440 and 640,
+   measured via `getBoundingClientRect()`, not eyeballed: every control in every row still lands on
+   one shared top offset per row, unchanged from before this rule existed. */
 .field-row {
   align-items: end;
 }
