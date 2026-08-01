@@ -54,6 +54,7 @@ import {
   DEFAULT_EXECUTION_CONFIG,
   createExecutionPort,
   loadExecutionConfig,
+  resetLocalAgentDetectionCache,
   saveExecutionConfig,
 } from "../execution-settings";
 import type { ExecutionConfig } from "@jini-ai/ui";
@@ -62,6 +63,11 @@ const STORAGE_KEY = "tovu:execution-credentials:v1";
 
 beforeEach(() => {
   window.localStorage.clear();
+  // Agent detection is memoised at module scope so it survives ExecutionTab
+  // remounts (see `cachedDetection`). That state outlives a single `it`, so
+  // every case here has to start cold or it would assert against the previous
+  // case's cached agents instead of its own mock.
+  resetLocalAgentDetectionCache();
   setSetting.mockClear();
   getSettingsEffective.mockReset();
   detectExecutionAgents.mockReset();
@@ -253,6 +259,65 @@ describe("createExecutionPort", () => {
     detectExecutionAgents.mockRejectedValue(new FakeApiError("daemon unreachable", 0));
     const port = createExecutionPort();
     await expect(port.rescanLocalAgents?.()).rejects.toThrow("daemon unreachable");
+  });
+
+  /**
+   * Detection spawns every known CLI with `--version` server-side, and the
+   * settings shell unmounts a tab's panel the moment you switch away from it.
+   * These four pin the memoisation that keeps a tab revisit from re-paying
+   * that cost — and, just as importantly, pin the two cases that must still
+   * hit the wire.
+   */
+  it("detectLocalAgents probes once across repeated calls and separate port instances (a tab revisit must not re-scan)", async () => {
+    detectExecutionAgents.mockResolvedValue({ data: [{ id: "claude", label: "Claude Code", installed: true }] });
+
+    const first = await createExecutionPort().detectLocalAgents();
+    // A new port object is exactly what `SettingsUi`'s `useRef(createExecutionPort())`
+    // produces on remount, so the cache has to survive it.
+    const second = await createExecutionPort().detectLocalAgents();
+
+    expect(detectExecutionAgents).toHaveBeenCalledTimes(1);
+    expect(second).toEqual(first);
+  });
+
+  it("detectLocalAgents shares one in-flight request between concurrent callers", async () => {
+    detectExecutionAgents.mockResolvedValue({ data: [{ id: "codex", label: "Codex CLI", installed: true }] });
+    const port = createExecutionPort();
+
+    await Promise.all([port.detectLocalAgents(), port.detectLocalAgents()]);
+
+    expect(detectExecutionAgents).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not cache a rejection — a retry after a network blip re-probes instead of replaying the error", async () => {
+    detectExecutionAgents.mockRejectedValueOnce(new FakeApiError("network down", 0));
+    detectExecutionAgents.mockResolvedValue({ data: [{ id: "claude", label: "Claude Code", installed: true }] });
+    const port = createExecutionPort();
+
+    await expect(port.detectLocalAgents()).rejects.toThrow("network down");
+    expect(await port.detectLocalAgents()).toEqual([{ id: "claude", label: "Claude Code", installed: true }]);
+    expect(detectExecutionAgents).toHaveBeenCalledTimes(2);
+  });
+
+  it("rescanLocalAgents bypasses the cache and its fresh result becomes the baseline for later mounts", async () => {
+    detectExecutionAgents.mockResolvedValueOnce({ data: [{ id: "claude", label: "Claude Code", installed: true }] });
+    const port = createExecutionPort();
+    await port.detectLocalAgents();
+
+    detectExecutionAgents.mockResolvedValue({
+      data: [
+        { id: "claude", label: "Claude Code", installed: true },
+        { id: "codex", label: "Codex CLI", installed: true },
+      ],
+    });
+    const rescanned = await port.rescanLocalAgents?.();
+    expect(detectExecutionAgents).toHaveBeenCalledTimes(2);
+    expect(rescanned).toHaveLength(2);
+
+    // A newly-installed CLI found by Rescan must not be forgotten the next
+    // time the tab mounts — otherwise the cache would undo the rescan.
+    expect(await createExecutionPort().detectLocalAgents()).toHaveLength(2);
+    expect(detectExecutionAgents).toHaveBeenCalledTimes(2);
   });
 
   it("testConnection passes protocol/baseUrl/apiKey/model through and returns the result verbatim", async () => {
