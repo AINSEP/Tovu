@@ -110,10 +110,17 @@ export function ConfirmButton(props: ConfirmButtonProps) {
 
   return (
     <>
+      {/* `data-armed` exists so CSS can tell a resting destructive action from an armed one. It
+          carries no behavior — `confirming` is still the only source of truth — but without it a
+          stylesheet has no way to distinguish the two states, which is what forced every row's
+          Delete to paint full `.btn-danger` at rest and produced the "wall of red" a table of N
+          rows became. Row-scoped rules in `styles.css` now key off this to stay quiet until the
+          action is actually armed. */}
       <button
         ref={buttonRef}
         type="button"
         className={className}
+        data-armed={confirming ? "true" : undefined}
         disabled={props.disabled || props.pending}
         onClick={handleClick}
         onBlur={() => setConfirming(false)}
