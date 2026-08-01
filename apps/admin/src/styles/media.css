@@ -1,0 +1,115 @@
+/**
+ * `/admin/media` — asset preview grid (MSG-05). Replaces the plain `.list-table` row-per-asset
+ * layout with a grid of preview cards (image/video on top, title below) now that a byte-serving
+ * route exists (`GET .../media/:id/original`) to render real previews instead of filenames — see
+ * `Media.tsx`'s file header for the full rationale, including why content-type detection is a
+ * client-side fallback chain rather than a server read.
+ *
+ * A separate partial rather than an addition to `styles.css`, following `styles/forms.css`'s own
+ * precedent (that file is owned by a concurrent pass); imported alongside it in `main.tsx`. Uses
+ * only this app's own oklch tokens (`--surface`/`--border`/`--space-*`/`--text-*`/`--r-*`), never
+ * `--jini-*`.
+ */
+
+/* `auto-fill`, not a fixed count — the grid finds however many ~180px cards fit the viewport on
+   its own, which is what "fewer columns" than the old 4-column table actually buys: a narrow
+   viewport collapses to 1-2 cards per row without a breakpoint rule of its own, and a wide one
+   fills out without a hardcoded ceiling. */
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-4);
+}
+
+.media-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Fixed aspect box so the grid never jumps as previews load in — every card reserves the same
+   footprint up front regardless of the asset's real dimensions or which of the 3 preview stages
+   (`MediaPreview`'s image/video/placeholder) ends up filling it. */
+.media-card-preview {
+  aspect-ratio: 4 / 3;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.media-card-media {
+  width: 100%;
+  height: 100%;
+  /* `cover`, not `contain` — a media library preview's job is to fill its card recognizably, not
+     to preserve letterboxing; the full asset is one click away via the edit panel/original URL. */
+  object-fit: cover;
+  display: block;
+}
+
+/* Not a bare icon — a non-previewable asset (most often the server's defused HTML/SVG response)
+   still needs to read as "here, but can't be shown", not as broken, so this stacks the icon with
+   real text and a real way to get the file (see `MediaPreview`'s own comment on the download
+   link). Small type throughout: this whole stack has to fit the same ~180px-min card width the
+   image/video previews do. */
+.media-card-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  color: var(--faint);
+  text-align: center;
+}
+.media-card-placeholder svg {
+  width: 28px;
+  height: 28px;
+}
+.media-card-placeholder-text {
+  margin: 0;
+  font-size: var(--text-xs);
+}
+/* A plain link, not `.btn-*` — `.btn-*` on an anchor is a known broken combination elsewhere in
+   this app (the base `button` rule supplies the shape/padding those variants rely on, and it only
+   targets the `button` element), so this is styled directly here instead of reaching for that. */
+.media-card-placeholder-link {
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.media-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+.media-card-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* The in-progress metadata edit sits above the grid as its own full-width card rather than inside
+   one grid cell — see `EditMediaPanel`'s own comment for why (a single expanded cell in a CSS grid
+   would either reflow every sibling's row height or get clipped, neither of which is acceptable
+   for a form with 4+ fields plus a read-only hash row). */
+.media-edit-panel {
+  margin-bottom: var(--space-4);
+}

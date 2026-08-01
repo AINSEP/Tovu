@@ -110,7 +110,9 @@
   /* MSG-09: required for Pointer Events dragging to work on touch — without this, a touchstart
      on the FAB starts the browser's own page-scroll gesture instead of (or racing) the drag. */
   touch-action: none;
-  transition: opacity 0.14s, right 0.2s ease, left 0.2s ease, bottom 0.2s ease;
+  /* No `left` here — `useFabPosition` always positions via `right`/`bottom` (an offset from the
+     right/bottom edges), never `left`, regardless of where on screen the FAB was dropped. */
+  transition: opacity 0.14s, right 0.2s ease, bottom 0.2s ease;
 }
 
 .chat-fab:hover {
