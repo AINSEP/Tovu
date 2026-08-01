@@ -113,6 +113,62 @@ describe("Manage — moved into the RowMenu, per the corrected spec (no standalo
   });
 });
 
+describe("Username link — a second affordance for the same Manage behavior", () => {
+  it("is a real focusable button (not a bare anchor), named by the username itself", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
+      .mockResolvedValueOnce(jsonResponse({ roles: [] }))
+      .mockResolvedValueOnce(jsonResponse({ policies: [] }));
+    render(<Users />);
+
+    const usernameLink = await screen.findByRole("button", { name: "alice" });
+    expect(usernameLink.tagName).toBe("BUTTON");
+    expect(usernameLink).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("clicking it opens the same panel the RowMenu's Manage item opens, and toggles aria-expanded", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
+      .mockResolvedValueOnce(jsonResponse({ roles: [] }))
+      .mockResolvedValueOnce(jsonResponse({ policies: [] }));
+    render(<Users />);
+
+    const usernameLink = await screen.findByRole("button", { name: "alice" });
+    expect(screen.queryByText("Assign role")).not.toBeInTheDocument();
+
+    await user.click(usernameLink);
+
+    expect(screen.getByText("Assign role")).toBeInTheDocument();
+    expect(usernameLink).toHaveAttribute("aria-expanded", "true");
+
+    // Same handler, either direction: clicking it again closes the panel it opened.
+    await user.click(usernameLink);
+    expect(screen.queryByText("Assign role")).not.toBeInTheDocument();
+    expect(usernameLink).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("opening via the RowMenu's Manage item and closing via the username link both drive the same state", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
+      .mockResolvedValueOnce(jsonResponse({ roles: [] }))
+      .mockResolvedValueOnce(jsonResponse({ policies: [] }));
+    render(<Users />);
+
+    await screen.findByText("alice");
+    const menu = await openMenu(user, "alice");
+    await user.click(within(menu).getByRole("menuitem", { name: "Manage" }));
+
+    const usernameLink = screen.getByRole("button", { name: "alice" });
+    expect(usernameLink).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(usernameLink);
+    expect(screen.queryByText("Assign role")).not.toBeInTheDocument();
+    expect(usernameLink).toHaveAttribute("aria-expanded", "false");
+  });
+});
+
 describe("Disable — via RowMenu, still confirm-gated", () => {
   it("opens a ConfirmDialog instead of acting immediately, and only disables on confirm", async () => {
     const user = userEvent.setup();

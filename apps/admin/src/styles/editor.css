@@ -46,3 +46,11 @@
   box-shadow: 0 0 0 3px var(--primary-ring);
   border-bottom-color: var(--accent-text);
 }
+
+/* `.link-button` (Users.tsx's username toggle, Members.tsx's email toggle) is defined in
+ * styles.css, not here — it had no CSS at all for part of this session, then briefly had two
+ * independent same-name definitions (one here, one there) racing a shared specificity collision
+ * with `.list-table td button:not([class*="btn-"])`. styles.css's owner fixed the collision at
+ * its root (`:not([class*="btn-"]):not(.link-button)`) rather than out-specificing it from a
+ * second file, which is the better fix — this file's copy was removed rather than left as
+ * redundant, competing CSS for the same class. */

@@ -46,6 +46,29 @@
   border-bottom-color: var(--primary);
 }
 
+/* `FormFieldsEditor`'s field table (`FormEditor.tsx`) — every cell holds a live, unstyled-width
+   `<input>`/`<select>`, so the browser's default content-driven table layout let ID/Label/Type/
+   MaxLength each claim their own ~180px intrinsic width regardless of the viewport. Measured
+   before this rule: the table rendered at 925px wide inside a 566px `.table-scroll` at a 640px
+   viewport — MAX LENGTH and the Remove button were still technically reachable by scrolling
+   (`.table-scroll`'s `overflow-x: auto` genuinely works, confirmed via `scrollWidth`/`clientWidth`
+   before writing this, not assumed broken), but with zero visible affordance that anything was
+   off to the right, and a ~360px overflow on a 640px screen is well past "slightly tight."
+   `table-layout: fixed` + the TSX's own `<colgroup>` percentages replace the content-driven
+   columns with a fixed 100%-of-container layout; `width: 100%` on the controls below fills
+   whatever each fixed column ends up being instead of clipping at the control's own intrinsic
+   width. Scoped to this one table's class, not `.list-table` generally — every other `.list-table`
+   in the app holds plain text cells with occasional buttons, not a live input in every cell, and
+   forcing fixed-percentage columns onto those would be a different, unrequested change. */
+.form-fields-table {
+  table-layout: fixed;
+}
+.form-fields-table input,
+.form-fields-table select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 /* Checkbox + its own text sits beside the control, not above it like `.field-label` (which is
    block/uppercase, built for a label that sits above an input) — this is deliberately a separate,
    small rule rather than a misuse of that primitive. Layout only: the surrounding `.field-group`

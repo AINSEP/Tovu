@@ -66,13 +66,34 @@ function FormFieldsEditor(props: {
   }
 
   return (
-    <table className="list-table">
+    <table className="list-table form-fields-table">
+      {/* Fixed proportional column widths (`forms.css`'s `table-layout: fixed`) rather than the
+          browser's default content-driven auto layout — every cell here holds a live, unstyled-
+          width `<input>`/`<select>`, so auto layout let six of them each claim their own
+          intrinsic ~180px, pushing the table to ~925px wide at a 640px viewport (measured before
+          this fix) with no visible cue that "Max length"/Remove were still reachable by scrolling
+          `.table-scroll`. Percentages sized to what each column actually holds: ID/Label get the
+          most room since they're the fields an operator actually reads, Required/Max length the
+          least since a checkbox and a short number never need more. */}
+      <colgroup>
+        <col style={{ width: "14%" }} />
+        <col style={{ width: "17%" }} />
+        <col style={{ width: "17%" }} />
+        <col style={{ width: "8%" }} />
+        <col style={{ width: "18%" }} />
+        <col style={{ width: "26%" }} />
+      </colgroup>
       <thead>
         <tr>
           <th>ID</th>
           <th>Label</th>
           <th>Type</th>
-          <th>Required</th>
+          {/* "Required" is one unbreakable word — at this column's necessarily checkbox-sized
+              width it has nowhere to wrap to and was visibly overflowing into "Max length"'s own
+              header. "Req" reads fine sitting directly above the checkbox it labels; the row
+              cell's own `aria-label` ("Field N required", unchanged below) still says the full
+              word for anyone not reading the visual header at all. */}
+          <th>Req</th>
           <th>Max length</th>
           <th></th>
         </tr>
