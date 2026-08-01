@@ -14,7 +14,13 @@
  * instance (its own load, debounce, save chain and diff base); the page
  * chrome renders `mergeSaveStates` over all of them. The last five of the 13
  * (Media providers, Connectors, Memory, External MCP, Skills) have no Tovu
- * backend at all and so own no slice — see `ComingSoonPanel` below.
+ * backend at all and so own no slice. Three (Media providers, Connectors,
+ * Skills) mount their real `@jini-ai/ui` component behind the same
+ * `settings-ui-inert-wrap`/`inert` pattern Privacy's telemetry toggles use
+ * below, fed an empty/fresh fake port so nothing fabricated is shown. The
+ * other two (Memory, External MCP) have no ready-made `*Tab` export to wrap
+ * this way — composing one is real follow-up work, not done here — and
+ * render `ComingSoonPanel` instead. See both panels' doc comments.
  *
  * Both render modes are exercised here on purpose. `SettingsDialogShell`
  * treats `onClose` as the modal/inline switch (omit it and the shell renders
@@ -25,14 +31,20 @@
 import { useMemo, useRef, useState } from "react";
 import {
   AppearanceTab,
+  ConnectorsBrowser,
   ExecutionTab,
   InstructionsTab,
   IntegrationsTab,
   LanguageTab,
+  MediaProvidersTab,
   NotificationsTab,
   PrivacyTab,
   SettingsDialogShell,
+  SkillsTab,
+  createFakeMediaProvidersPort,
+  createFakeSkillsPort,
   type ExecutionConfig,
+  type MediaProviderOption,
   type NotificationsPreferences,
   type PrivacyConsentState,
   type SettingsDialogTab,
@@ -76,39 +88,30 @@ function TabIcon({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Panel body for a settings tab whose Tovu backend doesn't exist yet.
+ * Panel body for a settings tab with no ready-made `@jini-ai/ui` `*Tab`
+ * export to mount at all — currently Memory and External MCP.
  *
  * Locked project decision (coordinator dispatch, 2026-07-31): a tab with no
  * real backend must never ship as a live control that saves but changes
- * nothing — five such controls already existed elsewhere and were treated as
- * a bug. It must instead be visibly disabled / "coming soon". Open Design
- * does the same thing for 8 of its own media providers
- * (`od-settings-media-providers-comingsoon.png` in the OD-parity screenshot
- * set) — a plain notice, not a dimmed-but-present interactive form. That's
- * the shape this follows, deliberately *not* the `inert`-wrapped-real-
- * component pattern the Privacy tab's telemetry toggles use next door in
- * this same file, for two reasons:
- *
- * 1. Three of the five callers (Connectors, Memory, External MCP) have no
- *    ready-made `*Tab` export in `@jini-ai/ui` at all — mounting them "for
- *    real" means composing several sub-components behind a fake port/
- *    dependency object per feature, which invites fabricated-looking sample
- *    data (a fake Composio catalog, fake memory entries) that isn't true of
- *    this Tovu install.
- * 2. Even where a real component exists (`MediaProvidersTab`, `SkillsTab`),
- *    dimming a fully-interactive form still invites a click that does
- *    nothing — closer to the "live but inert" trap the governing rule exists
- *    to avoid than a plain notice is.
+ * nothing. Three siblings (Media providers, Connectors, Skills) satisfy that
+ * by mounting their real component behind the same `settings-ui-inert-wrap`/
+ * `inert` pattern Privacy's telemetry toggles use below — see those tabs'
+ * entries in `tabs` for the exact shape. Memory and External MCP can't do
+ * that cheaply: neither has a drop-in `*Tab` component, only loose pieces
+ * (`MemoryConnectedPanel`/`MemoryList`/`MemoryHooksPanel`, several dozen
+ * props between them; `SourceConfigList<TSource>`, generic over a source
+ * shape Tovu would have to invent). Composing either behind a fake port is
+ * real follow-up work, not a same-pass swap-in — this plain notice is the
+ * interim, honest state: no fabricated sample data, and nothing to
+ * accidentally click.
  *
  * Renders no title/description of its own: `SettingsDialogShell` already
  * renders the active tab's `title`/`subtitle` as its own page header (see
  * `SettingsDialogShell.tsx`'s `<h2>{activeTab.title}</h2>`), so repeating
- * them here would double the heading — confirmed against every OD coming-
- * soon-style reference shot, none of which show a duplicated title. Only
- * real, already-styled classes are used (`jini-settings-section`,
- * `jini-empty-card` both ship in `settings-dialog.css` upstream), plus one
- * small Tovu-local badge class — so, unlike every tab mounted before this
- * one, this needed no compensating CSS for a Jini package gap.
+ * them here would double the heading. Only real, already-styled classes are
+ * used (`jini-settings-section`, `jini-empty-card` both ship in
+ * `settings-dialog.css` upstream), plus one small Tovu-local badge class —
+ * no compensating CSS needed for a Jini package gap.
  *
  * @complexity O(1) — fixed-shape render, no iteration, no branching.
  * @overallScore 100 — no branches, no I/O, no state; matches the existing
@@ -122,6 +125,18 @@ function ComingSoonPanel({ reason }: { reason: string }) {
     </section>
   );
 }
+
+/** Stable empty catalog for the inert-wrapped `MediaProvidersTab` mount below
+ *  — Tovu genuinely has zero configured providers, so an empty array is the
+ *  honest state, not a stand-in for missing data. Module-level so it's the
+ *  same array reference across renders. */
+const EMPTY_MEDIA_PROVIDER_CATALOG: readonly MediaProviderOption[] = [];
+
+/** Stable empty set for the inert-wrapped `SkillsTab` mount below — the tab
+ *  is unusable inside its `inert` wrapper, so this never actually gets
+ *  written to; it exists only to satisfy the required prop honestly (no
+ *  skill is disabled because no skill can exist yet). */
+const EMPTY_DISABLED_SKILL_IDS: ReadonlySet<string> = new Set();
 
 /**
  * About tab body: version only, no updater surface.
@@ -168,6 +183,14 @@ function AboutPanel() {
 export function SettingsUi() {
   const [modalOpen, setModalOpen] = useState(false);
   const port = useRef(createExecutionPort());
+  // Fresh, empty in-memory ports for the three inert-wrapped backend-less
+  // tabs below (Media providers, Skills) — `useRef` so each mounts once, not
+  // once per render. `{ skills: [] }` overrides `createFakeSkillsPort`'s own
+  // sample-data default; without it the tab would show skills that don't
+  // exist in this Tovu install, which is exactly the fabricated-data problem
+  // these ports otherwise avoid.
+  const mediaProvidersPort = useRef(createFakeMediaProvidersPort());
+  const skillsPort = useRef(createFakeSkillsPort({ skills: [] }));
 
   const execution = useSettingsSlice<ExecutionConfig>({
     load: loadExecutionConfig,
@@ -423,10 +446,25 @@ export function SettingsUi() {
           <path d="M4 12l3.5-3 2 2 2.5-3 3 4" />
         </TabIcon>
       ),
-      // No Tovu backend — see `ComingSoonPanel`'s doc comment for why this is
-      // a plain notice rather than `MediaProvidersTab` behind a fake port.
+      /**
+       * No Tovu backend, but a real `*Tab` export exists — mirrors the
+       * Privacy tab's `inert`-wrap pattern (see that panel's comment below)
+       * rather than `ComingSoonPanel`: `MediaProvidersTab` renders and is
+       * genuinely explorable, just genuinely unusable. `catalog` is the
+       * empty, stable `EMPTY_MEDIA_PROVIDER_CATALOG` — Tovu really has zero
+       * configured providers, so the tab's own "No media providers
+       * configured yet." empty state is the honest state, not a stand-in.
+       */
       panel: (
-        <ComingSoonPanel reason="Tovu doesn't have a media-provider backend yet — there's nothing to configure. Tracked for the roadmap, the same way Open Design tracks its own not-yet-wired providers." />
+        <div className="settings-ui-inert-wrap">
+          <p className="settings-ui-inert-note" role="note">
+            Tovu doesn't have a media-provider backend yet. The control below is shown for
+            reference and disabled until one exists.
+          </p>
+          <div className="settings-ui-inert-control" inert>
+            <MediaProvidersTab port={mediaProvidersPort.current} catalog={EMPTY_MEDIA_PROVIDER_CATALOG} />
+          </div>
+        </div>
       ),
     },
     {
@@ -442,10 +480,27 @@ export function SettingsUi() {
           <circle cx="6" cy="13" r="1.4" />
         </TabIcon>
       ),
-      // `ConnectorsBrowser` has no ready-made `*Tab` export — see
-      // `ComingSoonPanel`'s doc comment for why this isn't a composed panel
-      // behind a fake Composio catalog.
-      panel: <ComingSoonPanel reason="Composio-backed third-party connectors aren't wired up in Tovu yet." />,
+      /**
+       * `ConnectorsBrowser` needs no props beyond `unlocked` to render safely
+       * — omitting `dependencies` makes it default to an empty in-memory fake
+       * (`useWiredConnectorsBrowser`'s own fallback), and `unlocked={false}`
+       * is Tovu's real state (no Composio key configured), not a fabricated
+       * one. `gate` is omitted too: its `ctaHref` would have to point
+       * somewhere Tovu can't actually complete a Composio connection from
+       * yet, so the plain locked grid renders instead of a CTA link nothing
+       * backs.
+       */
+      panel: (
+        <div className="settings-ui-inert-wrap">
+          <p className="settings-ui-inert-note" role="note">
+            Composio-backed third-party connectors aren't wired up in Tovu yet. The control below
+            is shown for reference and disabled until they are.
+          </p>
+          <div className="settings-ui-inert-control" inert>
+            <ConnectorsBrowser unlocked={false} />
+          </div>
+        </div>
+      ),
     },
     {
       id: "memory",
@@ -492,13 +547,32 @@ export function SettingsUi() {
           <path d="M9 3l1.2 3.8L14 8l-3.8 1.2L9 13l-1.2-3.8L4 8l3.8-1.2z" />
         </TabIcon>
       ),
-      // Mounted in Settings by explicit user decision, even though OD keeps
-      // Skills on its top-level `/integrations` page instead
-      // (`od-integrations-skills.png`) — a reversible placement call, not a
-      // parity miss. No Tovu backend yet, so this is a coming-soon notice
-      // like its four siblings above rather than `SkillsTab` behind a fake
-      // port.
-      panel: <ComingSoonPanel reason="Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page." />,
+      /**
+       * Mounted in Settings by explicit user decision, even though OD keeps
+       * Skills on its top-level `/integrations` page instead
+       * (`od-integrations-skills.png`) — a reversible placement call, not a
+       * parity miss. No Tovu backend, but a real `*Tab` export exists — same
+       * `inert`-wrap shape as Media providers above. `disabledSkillIds`/
+       * `onToggleEnabled` are the stable empty-set/no-op pair: `inert` means
+       * the toggle can never actually fire, so there is nothing for a real
+       * handler to do here.
+       */
+      panel: (
+        <div className="settings-ui-inert-wrap">
+          <p className="settings-ui-inert-note" role="note">
+            Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open
+            Design's separate Integrations page. The control below is shown for reference and
+            disabled until a real backend exists.
+          </p>
+          <div className="settings-ui-inert-control" inert>
+            <SkillsTab
+              port={skillsPort.current}
+              disabledSkillIds={EMPTY_DISABLED_SKILL_IDS}
+              onToggleEnabled={() => {}}
+            />
+          </div>
+        </div>
+      ),
     },
     {
       id: "about",
