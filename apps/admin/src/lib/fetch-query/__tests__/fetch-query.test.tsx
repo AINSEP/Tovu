@@ -51,6 +51,22 @@ function Reader({ fetch, enabled }: { fetch: () => Promise<string>; enabled?: bo
   );
 }
 
+/** One enabled reader and one disabled reader on the SAME key, so a failure
+ *  cached by the first is observable through the second — the real shape of
+ *  the lazy-cell bug, where a row's cell remounts disabled next to a key that
+ *  has already failed. */
+function Cached({ fetch }: { fetch: () => Promise<string> }) {
+  const live = useFetchQuery({ key: ["thing"], fetch });
+  const lazy = useFetchQuery({ key: ["thing"], fetch, enabled: false });
+  return (
+    <div>
+      <span data-testid="live-status">{live.status}</span>
+      <span data-testid="lazy-status">{lazy.status}</span>
+      <span data-testid="lazy-error">{lazy.error?.message ?? "-"}</span>
+    </div>
+  );
+}
+
 describe("useFetchQuery", () => {
   it("reports loading, then success with the resolved data", async () => {
     wrap(<Reader fetch={async () => "hello"} />);
@@ -86,6 +102,34 @@ describe("useFetchQuery", () => {
     );
     await waitFor(() => expect(screen.getByTestId("data")).toHaveTextContent("hits"));
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Regression — external review, 2026-08-01. Disabling a query does NOT make
+   * the cache forget an earlier failure, and passing that through meant a
+   * remounted gesture-gated cell rendered a stale error before the operator had
+   * gestured: a failure they never asked for and cannot dismiss.
+   */
+  it("a disabled query reports no error even when the same key already failed", async () => {
+    const fetch = vi.fn(async () => Promise.reject(new Error("hits route down")));
+
+    // First mount: enabled, fails, and the failure is now cached under the key.
+    const first = wrap(<Reader fetch={fetch} enabled />);
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("error"));
+    first.unmount();
+
+    // Second mount: same provider is gone, so re-create the scenario within one
+    // cache by mounting both readers under a single provider instead.
+    render(
+      <FetchQueryProvider>
+        <Cached fetch={fetch} />
+      </FetchQueryProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("live-status")).toHaveTextContent("error"));
+
+    // The disabled sibling shares the failed key but must stay quiet.
+    expect(screen.getByTestId("lazy-status")).toHaveTextContent("loading");
+    expect(screen.getByTestId("lazy-error")).toHaveTextContent("-");
   });
 
   it("shares one request between two components mounted on the same key", async () => {
@@ -144,7 +188,10 @@ function Writer({
       <span data-testid="data">{q.data ?? "-"}</span>
       <span data-testid="mstatus">{m.status}</span>
       <span data-testid="merror">{m.error?.message ?? "-"}</span>
-      <button type="button" onClick={() => void m.mutate(undefined as never).catch(() => {})}>
+      {/* Deliberately NO `.catch()` — this is the documented fire-and-forget
+          form, and a local catch here would make the unhandledrejection test
+          below pass no matter what the adapter does. */}
+      <button type="button" onClick={() => void m.mutate(undefined as never)}>
         write
       </button>
       <button type="button" onClick={m.reset}>
@@ -187,6 +234,27 @@ describe("useFetchMutation", () => {
     await userEvent.click(screen.getByRole("button", { name: "reset" }));
     await waitFor(() => expect(screen.getByTestId("mstatus")).toHaveTextContent("idle"));
     expect(screen.getByTestId("merror")).toHaveTextContent("-");
+  });
+
+  /**
+   * The fire-and-forget form (`void m.mutate(...)`, which `Writer` above uses
+   * deliberately without a local `.catch`) must still land the failure in
+   * `status`/`error` as documented.
+   *
+   * NOT a test that the discarded promise avoids `unhandledrejection`. One was
+   * written and deleted: it passed identically with and against the adapter fix
+   * it claimed to pin, because neither jsdom's `window` event nor Node's
+   * process-level hook fires for it under this runner. A test that cannot
+   * distinguish the bug from the fix is worse than no test — it reports
+   * confidence it does not have. That property is held by construction instead
+   * (see `adapter.tanstack.tsx`'s `call`), and is verifiable only in a real
+   * browser console.
+   */
+  it("the fire-and-forget form still reports the failure through status and error", async () => {
+    wrap(<Writer run={async () => Promise.reject(new Error("boom"))} fetch={async () => "v1"} />);
+    await userEvent.click(screen.getByRole("button", { name: "write" }));
+    await waitFor(() => expect(screen.getByTestId("mstatus")).toHaveTextContent("error"));
+    expect(screen.getByTestId("merror")).toHaveTextContent("boom");
   });
 
   it("mutate() rejects, so a caller that needs the outcome can await it inline", async () => {

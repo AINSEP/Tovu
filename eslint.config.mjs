@@ -42,8 +42,16 @@ export default [
      * `error`, not `warn`: a warning here would be indistinguishable from the
      * complexity warnings above, which this repo already tolerates.
      */
-    files: ['apps/admin/src/**/*.ts', 'apps/admin/src/**/*.tsx'],
-    ignores: ['apps/admin/src/lib/fetch-query/adapter.*.tsx'],
+    /**
+     * Every module format Vite will actually bundle, not just the TypeScript
+     * ones. Scoped to `.ts`/`.tsx` this rule had a hole an external review
+     * walked straight through: `apps/admin/src/anything.js` importing
+     * `@tanstack/react-query` linted clean and pinned the dependency outside
+     * the adapter, which is precisely the failure the rule exists to prevent.
+     * Verified by probe in both directions.
+     */
+    files: ['apps/admin/src/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+    ignores: ['apps/admin/src/lib/fetch-query/adapter.*.{ts,tsx,js,jsx}'],
     rules: {
       'no-restricted-imports': [
         'error',

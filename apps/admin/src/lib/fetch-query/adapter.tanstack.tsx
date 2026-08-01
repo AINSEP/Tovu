@@ -32,7 +32,7 @@ import type {
 /**
  * `unknown` is what a rejected promise actually gives us, and the contract
  * promises callers an `Error`. Normalising here rather than at each call site
- * keeps `catch (e) { e instanceof Error ? ... }` out of 38 components — the
+ * keeps `catch (e) { e instanceof Error ? ... }` out of 40 components — the
  * exact boilerplate this module exists to delete.
  */
 function toError(value: unknown, fallback: string): Error {
@@ -84,8 +84,25 @@ export function useFetchQuery<T>({ key, fetch, enabled = true, staleTime }: Fetc
   // TanStack reports a disabled query as `pending`, same as a first load. Our
   // contract folds both into `loading` ("no data, nothing to show yet"), which
   // is what a caller actually branches on.
-  const status: QueryResult<T>["status"] =
-    query.status === "error" ? "error" : query.status === "success" ? "success" : "loading";
+  //
+  // Disabling does NOT clear a cached failure, though: a query that errored,
+  // unmounted, and remounted disabled comes back still `status: 'error'` with
+  // its old `error` intact. Passed straight through, that broke this module's
+  // own stated contract ("stays `loading` with no request in flight") and, on
+  // the pilot screen, made a gesture-gated cell render a stale failure before
+  // the operator had gestured at all — a lazy read that reports a failure
+  // nobody asked it to retry. A disabled query therefore reports no error, and
+  // reports `loading` unless it already holds data worth showing.
+  const disabled = !enabled;
+  const status: QueryResult<T>["status"] = disabled
+    ? query.data === undefined
+      ? "loading"
+      : "success"
+    : query.status === "error"
+      ? "error"
+      : query.status === "success"
+        ? "success"
+        : "loading";
 
   const refetch = useCallback(() => {
     void query.refetch();
@@ -93,7 +110,7 @@ export function useFetchQuery<T>({ key, fetch, enabled = true, staleTime }: Fetc
 
   return {
     data: query.data,
-    error: query.error ? toError(query.error, "request failed") : null,
+    error: disabled || !query.error ? null : toError(query.error, "request failed"),
     status,
     isFetching: query.isFetching,
     refetch,
@@ -124,7 +141,20 @@ export function useFetchMutation<TInput, TOutput>({
   // rejects, so callers can `try/catch` a write inline. Bare `mutate` swallows
   // the rejection into state only.
   const { mutateAsync, reset } = mutation;
-  const call = useCallback((input: TInput) => mutateAsync(input), [mutateAsync]);
+  const call = useCallback(
+    (input: TInput) => {
+      const promise = mutateAsync(input);
+      // Both documented usages have to be safe, and returning `mutateAsync`
+      // bare only made one of them safe: a caller following the "ignore it and
+      // read `status`/`error`" form got an `unhandledrejection` on every failed
+      // write. Attaching a handler marks THIS promise handled; the same promise
+      // is still returned, so `await`/`.catch()` callers see the rejection
+      // exactly as before. The derived promise is discarded on purpose.
+      void promise.catch(() => {});
+      return promise;
+    },
+    [mutateAsync],
+  );
 
   const status: MutationResult<TInput, TOutput>["status"] =
     mutation.status === "pending"
