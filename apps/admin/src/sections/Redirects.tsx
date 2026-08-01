@@ -283,6 +283,7 @@ export function Redirects() {
       {error ? <div className="notice error">{describeApiError(error, "request failed")}</div> : null}
 
       <form
+        className="card"
         onSubmit={(e) => {
           e.preventDefault();
           clearOtherWriteErrors(createRule);
@@ -290,34 +291,40 @@ export function Redirects() {
           e.currentTarget.reset();
         }}
       >
-        <label>
-          Match type
-          <select name="matchType" defaultValue="exact">
-            <option value="exact">exact</option>
-            <option value="prefix">prefix</option>
-            <option value="wildcard">wildcard</option>
-          </select>
-        </label>
-        <label>
-          From path
-          <input name="fromPattern" placeholder="/old-path" required />
-        </label>
-        <label>
-          To target
-          <input name="toTarget" placeholder="/new-path or https://example.com/..." required />
-        </label>
-        <label>
-          Status code
-          <select name="statusCode" defaultValue="301">
-            <option value="301">301 (permanent)</option>
-            <option value="302">302 (temporary)</option>
-            <option value="307">307 (temporary, method-preserving)</option>
-            <option value="308">308 (permanent, method-preserving)</option>
-          </select>
-        </label>
-        <button type="submit" disabled={saving}>
-          {saving ? "Saving…" : "Add redirect"}
-        </button>
+        <div className="field-group">
+          <div className="field-row">
+            <div className="field">
+              <label className="field-label" htmlFor="redirect-match-type">Match type</label>
+              <select id="redirect-match-type" name="matchType" defaultValue="exact">
+                <option value="exact">exact</option>
+                <option value="prefix">prefix</option>
+                <option value="wildcard">wildcard</option>
+              </select>
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="redirect-from-pattern">From path</label>
+              <input id="redirect-from-pattern" name="fromPattern" placeholder="/old-path" required />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="redirect-to-target">To target</label>
+              <input id="redirect-to-target" name="toTarget" placeholder="/new-path or https://example.com/..." required />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="redirect-status-code">Status code</label>
+              <select id="redirect-status-code" name="statusCode" defaultValue="301">
+                <option value="301">301 (permanent)</option>
+                <option value="302">302 (temporary)</option>
+                <option value="307">307 (temporary, method-preserving)</option>
+                <option value="308">308 (permanent, method-preserving)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div className="editor-actions form-actions">
+          <button type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Add redirect"}
+          </button>
+        </div>
       </form>
 
       <ImportRedirectsForm />
