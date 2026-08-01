@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminMember } from "../lib/api";
-import { ConfirmButton } from "../components/ConfirmButton";
+import { RowMenu, type RowMenuItem } from "../components/RowMenu";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { formatTimestamp } from "../lib/format-timestamp";
 
 /**
@@ -46,6 +47,11 @@ export function Members() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
 
+  // Disable now confirms via a `RowMenu` item -> `ConfirmDialog` modal (replacing the in-place
+  // two-click `ConfirmButton`, which has no menu-item equivalent — same migration Posts.tsx/
+  // Redirects.tsx/Users.tsx already made). `null` when the dialog is closed.
+  const [confirmingDisable, setConfirmingDisable] = useState<AdminMember | null>(null);
+
   function load() {
     api
       .listMembers()
@@ -86,6 +92,44 @@ export function Members() {
     } catch (e) {
       patchRowState(member.id, { resending: false, error: describeApiError(e, "Failed to send sign-in link.") });
     }
+  }
+
+  /** Confirms the Disable that `RowMenu`'s "Disable" item asked about. Closes the dialog either
+   *  way (matching Posts.tsx/Redirects.tsx/Users.tsx's own Disable/Delete `ConfirmDialog`
+   *  convention) — a failure surfaces via the row's own `rs.error`, not by leaving the modal open. */
+  async function confirmDisable() {
+    if (!confirmingDisable) return;
+    await onDisable(confirmingDisable);
+    setConfirmingDisable(null);
+  }
+
+  /** `RowMenu` items for one member row. "Disable" is omitted once the member is already disabled
+   *  — `RowMenu` has no per-item `disabled`, and Posts.tsx's own precedent (RowMenu's own
+   *  precedent in `Posts.tsx`, which omits "Disable" entirely for an already-draft row rather than
+   *  showing it disabled) is to omit an inapplicable action rather than show it as a no-op. */
+  function rowMenuItems(member: AdminMember, rs: RowActionState): RowMenuItem[] {
+    const items: RowMenuItem[] = [
+      {
+        key: "resend",
+        label: "Resend sign-in link",
+        onSelect: () => {
+          if (rs.resending) return;
+          void onResendSignInLink(member);
+        },
+      },
+    ];
+    if (member.status !== "disabled") {
+      items.push({
+        key: "disable",
+        label: "Disable",
+        tone: "warning",
+        onSelect: () => {
+          if (rs.disabling) return;
+          setConfirmingDisable(member);
+        },
+      });
+    }
+    return items;
   }
 
   async function onToggleDetail(member: AdminMember) {
@@ -164,23 +208,7 @@ export function Members() {
                   </td>
                   <td>{formatTimestamp(member.createdAt)}</td>
                   <td>
-                    <span className="editor-actions">
-                      {/* Reversible-but-access-affecting, same as Users.tsx's Disable — warning-toned,
-                          not `.btn-danger` (audit cross-cutting §7). */}
-                      <ConfirmButton
-                        label="Disable"
-                        confirmLabel="Confirm disable"
-                        className="btn-warning"
-                        disabled={member.status === "disabled"}
-                        pending={rs.disabling}
-                        pendingLabel="Disabling…"
-                        onConfirm={() => void onDisable(member)}
-                        ariaLabel={`Disable member "${member.email}"`}
-                      />
-                      <button type="button" disabled={rs.resending} onClick={() => void onResendSignInLink(member)}>
-                        {rs.resending ? "Sending…" : "Resend sign-in link"}
-                      </button>
-                    </span>
+                    <RowMenu triggerLabel={`Actions for member "${member.email}"`} items={rowMenuItems(member, rs)} />
                     {rs.error ? (
                       <div className="notice error" role="alert">
                         {rs.error}
@@ -218,6 +246,20 @@ export function Members() {
       </table>
       </div>
       )}
+      <ConfirmDialog
+        open={confirmingDisable !== null}
+        title="Disable this member?"
+        body={
+          confirmingDisable ? (
+            <p>Disable &quot;{confirmingDisable.email}&quot;? They will no longer be able to sign in.</p>
+          ) : null
+        }
+        confirmLabel="Disable"
+        tone="warning"
+        pending={confirmingDisable !== null && stateFor(confirmingDisable.id).disabling}
+        onConfirm={confirmDisable}
+        onCancel={() => setConfirmingDisable(null)}
+      />
     </div>
   );
 }
