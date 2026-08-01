@@ -227,6 +227,43 @@ async function resolveScopedDefinitionOrThrow(
 }
 
 /**
+ * Every non-global write must land in the workspace it was AUTHORIZED against.
+ *
+ * `authorize()` is called with `authWorkspaceId` while the value row and revision are written with
+ * `input.workspaceId`. Nothing used to require the two to match, and the admin HTTP routes supplied
+ * them from different places — `authWorkspaceId` from the route's ambient workspace,
+ * `workspaceId` from the request BODY. A principal holding `settings.workspace.write` in its own
+ * workspace could therefore post another workspace's id and have the write land there, with both
+ * authorize() calls passing against its own. `resetNamespace` made it a whole-namespace wipe.
+ *
+ * The routes now reject a mismatched body id outright (`resolveTargetWorkspaceId` in
+ * `routes/admin/settings/shared.ts`), which is the real fix. This is the backstop: it holds for
+ * internal callers that construct the input directly (`comments/settings.ts`, `seo/settings.ts`,
+ * `public-assistant-settings.ts`, `migration.ts`, `ensure-definitions.ts`, the agent tool in
+ * `tool-registrations.ts`) and makes a future route incapable of reintroducing the gap.
+ *
+ * `ForbiddenError` rather than a validation error because the condition is exactly "you are not
+ * authorized to write to that workspace", and all three routes already map it to 403.
+ *
+ * `scope: "global"` is exempt: the platform partition has no workspace, and `set`/`clear` already
+ * force `workspaceId: null` on that path.
+ */
+function assertTargetWorkspaceMatchesAuth(input: {
+  scope: SettingScope;
+  workspaceId?: UUID;
+  authWorkspaceId: UUID;
+  callerPrincipalId: UUID;
+}): void {
+  if (input.scope === "global") return;
+  if (input.workspaceId === undefined) return;
+  if (input.workspaceId === input.authWorkspaceId) return;
+  throw new ForbiddenError(
+    `principal '${input.callerPrincipalId}' authorized against workspace '${input.authWorkspaceId}' ` +
+      `but the write targets workspace '${input.workspaceId}'`
+  );
+}
+
+/**
  * REQ-13/INV-09 — for scope=user writes targeting another principal, verify
  * that principal resolves to an active user whose own `workspace_id` equals
  * the request's `workspaceId` (ADR-007 structural scoping — a principal
@@ -262,6 +299,7 @@ export async function set(required: SetValueRequired): Promise<{ value: JsonValu
       callerPrincipalId: input.callerPrincipalId,
     });
   const authWorkspaceId = input.authWorkspaceId ?? input.workspaceId ?? input.callerPrincipalId;
+  assertTargetWorkspaceMatchesAuth({ ...input, authWorkspaceId });
   const authResult = await deps.authorize({
     principalId: input.callerPrincipalId,
     permission,
@@ -363,6 +401,7 @@ export async function clear(required: ClearValueRequired): Promise<{ revisionSeq
       callerPrincipalId: input.callerPrincipalId,
     });
     const authWorkspaceId = input.authWorkspaceId ?? input.workspaceId ?? input.callerPrincipalId;
+    assertTargetWorkspaceMatchesAuth({ ...input, authWorkspaceId });
     const authResult = await deps.authorize({
       principalId: input.callerPrincipalId,
       permission,
@@ -464,6 +503,9 @@ export async function resetNamespace(
 
   const resetPermission = `settings.reset.${input.scope}`;
   const authWorkspaceId = input.authWorkspaceId ?? input.workspaceId ?? input.callerPrincipalId;
+  // Asserted once here rather than per inner `clear()`: those run with `skipAuthorize: true`, which
+  // short-circuits the same check inside `clear()`. This is the only gate for the whole loop.
+  assertTargetWorkspaceMatchesAuth({ ...input, authWorkspaceId });
   const authResult = await deps.authorize({
     principalId: input.callerPrincipalId,
     permission: resetPermission,

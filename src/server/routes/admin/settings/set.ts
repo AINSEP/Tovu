@@ -11,7 +11,7 @@ import type { SettingScope } from "../../../../features/settings/types";
 import { deriveRequiredPermission, set } from "../../../../features/settings/write-service";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
-import { toWriteServiceDeps } from "./shared";
+import { resolveTargetWorkspaceId, toWriteServiceDeps } from "./shared";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
@@ -54,33 +54,27 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps)
         });
         return;
       }
-      // Bug found while wiring up the settings-dialog Language tab's Spanish
-      // locale (2026-07-31): `scope: "user"`/`scope: "workspace"` writes with
-      // no explicit `workspaceId` in the body reached `write-service.set()`
-      // as `undefined`, which `saveUserValue`/`saveWorkspaceValue`
-      // (`repo.sqlite.ts`) then require and throw on -- a masked 500 for
-      // EVERY user/workspace-scoped write whose caller (every settings-dialog
-      // tab adapter in `apps/admin/src/lib/settings-tabs.ts`: Notifications,
-      // Appearance, Language) never sends `workspaceId` at all. No certified
-      // test exercises this path (`settings-auth.test.ts`'s SET/CLEAR
-      // coverage is `scope: "global"` only), so nothing regresses by fixing
-      // it. Mirrors `authWorkspaceId` below and the same pinning convention
-      // every other settings route already applies (`get-effective.ts`'s own
-      // `workspaceId = deps.workspaceId`, `list-definitions.ts`'s `workspaceId`
-      // reads): the `:workspaceId` path param is authorized against and
-      // pinned to `deps.workspaceId` (ADR-007), so the ambient `deps.workspaceId`
-      // is always the right default when the body doesn't name one explicitly
-      // -- `scope: "global"` alone is
-      // exempted (no workspace concept there; seeding a value would be as
-      // wrong as `authWorkspaceId`'s own doc comment already explains for
-      // that scope). `clear.ts` has the identical gap at its own `workspaceId`
-      // line -- not fixed here (nothing in this task's scope calls it), but
-      // flagged for the same follow-up.
-      const workspaceId = body.workspaceId
-        ? String(body.workspaceId)
-        : scope !== "global"
-          ? deps.workspaceId
-          : undefined;
+      // The write target is the ambient workspace, never the body's. See
+      // `resolveTargetWorkspaceId`'s doc in `shared.ts` for why a body-named
+      // workspace is REJECTED rather than honored: accepting it authorized
+      // against this workspace while writing another tenant's row.
+      //
+      // This also keeps the 2026-07-31 fix it replaces: `scope: "user"` and
+      // `scope: "workspace"` writes with no `workspaceId` in the body used to
+      // reach `write-service.set()` as `undefined`, which
+      // `saveUserValue`/`saveWorkspaceValue` (`repo.sqlite.ts`) require and
+      // throw on -- a masked 500 for every settings-dialog tab adapter in
+      // `apps/admin/src/lib/settings-tabs.ts`, none of which send it.
+      // Defaulting to `deps.workspaceId` for non-global scopes is what every
+      // other settings route already does (`get-effective.ts`,
+      // `list-definitions.ts`), because the `:workspaceId` path param is
+      // 404-checked against `deps.workspaceId` above (ADR-007).
+      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId: body.workspaceId, scope });
+      if (!targetWorkspace.ok) {
+        res.status(400).json({ error: targetWorkspace.error, code: "VALIDATION_ERROR" });
+        return;
+      }
+      const workspaceId = targetWorkspace.workspaceId;
       const principalId = body.principalId ? String(body.principalId) : undefined;
 
       const permission = deriveRequiredPermission({
