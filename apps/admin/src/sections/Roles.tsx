@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
-import { ApiError, api, type AdminPolicy, type AdminRole } from "../lib/api";
+import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminPolicy, type AdminRole } from "../lib/api";
+import { ConfirmButton } from "../components/ConfirmButton";
 
 /**
  * @file "Roles & Permissions" screen (SPEC-006 + 0.6.0 CRUD-completion amendment) — the
@@ -20,14 +21,19 @@ import { ApiError, api, type AdminPolicy, type AdminRole } from "../lib/api";
  * delete (only when unused) + recreate.
  */
 
+/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`) — this screen's
+ *  `RESOURCE_CONFLICT` means "still referenced by an assignment/attachment", a different meaning
+ *  than `Workspace.tsx`'s "slug already taken" or `Users.tsx`'s "username already in use" for the
+ *  same code (audit cross-cutting finding #2 — deliberately not unified into one table). */
 function describeApiError(e: unknown, fallback: string): string {
-  if (!(e instanceof ApiError)) return e instanceof Error ? e.message : fallback;
-  if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
-  if (e.code === "RESOURCE_CONFLICT") return "It is still in use — remove that assignment/attachment first.";
-  if (e.code === "PERMISSION_UNKNOWN") return "That permission is not recognized.";
-  if (e.code === "GRANT_EXCEEDS_ISSUER") return "You cannot grant a permission you do not hold.";
-  if (e.code === "VALIDATION_ERROR") return e.message || "Please correct the highlighted fields.";
-  return e.message || fallback;
+  if (e instanceof ApiError) {
+    if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
+    if (e.code === "RESOURCE_CONFLICT") return "It is still in use — remove that assignment/attachment first.";
+    if (e.code === "PERMISSION_UNKNOWN") return "That permission is not recognized.";
+    if (e.code === "GRANT_EXCEEDS_ISSUER") return "You cannot grant a permission you do not hold.";
+    if (e.code === "VALIDATION_ERROR") return e.message || "Please correct the highlighted fields.";
+  }
+  return describeApiErrorDefault(e, fallback);
 }
 
 export function Roles() {
@@ -253,9 +259,14 @@ export function Roles() {
                       <button type="button" onClick={() => startEditRole(role)}>
                         Rename
                       </button>
-                      <button type="button" disabled={rowSavingId === role.id} onClick={() => onDeleteRole(role.id)}>
-                        {rowSavingId === role.id ? "…" : "Delete"}
-                      </button>
+                      <ConfirmButton
+                        label="Delete"
+                        confirmLabel="Confirm delete"
+                        destructive
+                        pending={rowSavingId === role.id}
+                        onConfirm={() => onDeleteRole(role.id)}
+                        ariaLabel={`Delete role "${role.name}"`}
+                      />
                     </span>
                   )}
                 </td>
@@ -341,13 +352,14 @@ export function Roles() {
                         <button type="button" onClick={() => togglePermissionForm(policy.id)}>
                           {permissionPolicyId === policy.id ? "Close" : "Add permission"}
                         </button>
-                        <button
-                          type="button"
-                          disabled={rowSavingId === policy.id}
-                          onClick={() => onDeletePolicy(policy.id)}
-                        >
-                          {rowSavingId === policy.id ? "…" : "Delete"}
-                        </button>
+                        <ConfirmButton
+                          label="Delete"
+                          confirmLabel="Confirm delete"
+                          destructive
+                          pending={rowSavingId === policy.id}
+                          onConfirm={() => onDeletePolicy(policy.id)}
+                          ariaLabel={`Delete policy "${policy.name}"`}
+                        />
                       </span>
                     )}
                   </td>

@@ -1,16 +1,11 @@
 import { useEffect, useState } from "react";
-import { ApiError, api, type AdminWidget, type AdminWidgetType } from "../lib/api";
+import { ApiError, api, describeApiError, type AdminWidget, type AdminWidgetType } from "../lib/api";
 import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields";
 
 /**
  * @file `WidgetsLibraryScreen` (`ui.spec.md` §2.1/§3.1/§4.1) — the widget library/list screen,
  * `/admin/widgets`. Mirrors `Menus.tsx`'s list-table/status-badge/header-action shape exactly.
  */
-
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
-}
 
 export function WidgetsLibrary() {
   const [widgets, setWidgets] = useState<AdminWidget[] | null>(null);

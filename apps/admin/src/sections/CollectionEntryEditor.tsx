@@ -4,6 +4,7 @@ import StarterKit from "@tiptap/starter-kit";
 import {
   ApiError,
   api,
+  describeApiError,
   type AdminContentType,
   type AdminEntry,
   type AdminTaxonomyWithTerms,
@@ -39,11 +40,6 @@ function readExtSiteField(fieldsJson: unknown, name: string): unknown {
   const site = (ext as Record<string, unknown>)[EXT_SITE_PATH[1]];
   if (typeof site !== "object" || site === null) return undefined;
   return (site as Record<string, unknown>)[name];
-}
-
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
 }
 
 /** One control per `ContentTypeFieldDef.kind` (design-spec.md §1.5). */

@@ -7,6 +7,8 @@ import { agentHandle } from "@jini-ai/agentic";
 import { api, type AdminPost } from "../lib/api";
 import { WidgetEmbed, WidgetEmbedInsertControl } from "../lib/widget-embed-extension";
 import { siteUrl } from "../lib/site-url";
+import { navigate } from "../lib/router";
+import { useDirtyGuard } from "../hooks/use-dirty-guard.hooks";
 
 /** Reads a browser `File` into a full `data:` URL (mirrors Media.tsx's upload helper, but keeps the prefix). */
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -119,6 +121,16 @@ function Toolbar({ editor }: { editor: Editor }) {
   );
 }
 
+/** What `useDirtyGuard` compares — every field this editor lets an operator change. `bodyJson` is
+ *  typed loosely (not TipTap's `JSONContent`) since the guard only ever serializes it for
+ *  comparison, never reads its shape. */
+interface PostFormState {
+  title: string;
+  slug: string;
+  status: "draft" | "published";
+  bodyJson: unknown;
+}
+
 export function PostEditor(props: { postId: string }) {
   const [post, setPost] = useState<AdminPost | null>(null);
   const [title, setTitle] = useState("");
@@ -126,6 +138,16 @@ export function PostEditor(props: { postId: string }) {
   const [status, setStatus] = useState<"draft" | "published">("draft");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // TipTap's content lives in the editor's own imperative state, not React state, so nothing here
+  // re-renders when the body changes on its own — `onUpdate` below exists solely to force one, so
+  // `current.bodyJson` (read fresh via `editor.getJSON()` every render) actually gets re-evaluated
+  // after a keystroke. The counter's value itself is never read.
+  const [, setBodyVersion] = useState(0);
+  // Snapshot of the last loaded-or-saved state for `useDirtyGuard` to diff against (audit finding:
+  // no editor screen tracks this at all today — confirmed live losing an edit on this exact
+  // screen). `null` until the post has loaded AND the editor has actually applied that content —
+  // see the load effect below for why both conditions matter.
+  const [original, setOriginal] = useState<PostFormState | null>(null);
 
   const editor = useEditor({
     extensions: [StarterKit, Image, WidgetEmbed],
@@ -133,6 +155,7 @@ export function PostEditor(props: { postId: string }) {
     editorProps: {
       handleDrop: (view, event, _slice, moved) => handleImageDrop(view, event, moved),
     },
+    onUpdate: () => setBodyVersion((v) => v + 1),
   });
 
   useEffect(() => {
@@ -145,25 +168,81 @@ export function PostEditor(props: { postId: string }) {
         setTitle(post.title);
         setSlug(post.slug);
         setStatus(post.status);
-        editor?.commands.setContent(post.bodyJson as never);
+        if (editor) {
+          editor.commands.setContent(post.bodyJson as never);
+          // Captured via `editor.getJSON()` right after `setContent`, not `post.bodyJson` as
+          // loaded — both sides of the later dirty comparison are then produced by the exact same
+          // serialization, so a schema-normalization difference between the server's stored JSON
+          // and TipTap's own round-trip can never register as a false "unsaved change" on a
+          // freshly-opened, untouched post.
+          setOriginal({ title: post.title, slug: post.slug, status: post.status, bodyJson: editor.getJSON() });
+        }
       })
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load post"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.postId, editor === null]);
+
+  const { confirmLeave } = useDirtyGuard<PostFormState>(
+    { title, slug, status, bodyJson: editor?.getJSON() ?? null },
+    original
+  );
 
   async function save() {
     if (!editor) return;
     setMessage(null);
     setError(null);
     try {
-      const { post: saved } = await api.updatePost(
-        { id: props.postId },
-        { title, slug, status, bodyJson: editor.getJSON() as Record<string, unknown> }
-      );
+      const bodyJson = editor.getJSON() as Record<string, unknown>;
+      const { post: saved } = await api.updatePost({ id: props.postId }, { title, slug, status, bodyJson });
       setPost(saved);
       setMessage(`Saved · version ${saved.version}`);
+      // A saved edit is no longer "unsaved" — re-baseline what the dirty check compares against.
+      setOriginal({ title, slug, status, bodyJson });
     } catch (e) {
       setError(e instanceof Error ? e.message : "save failed");
+    }
+  }
+
+  /**
+   * Soft delete — distinct from the Draft/Published status select above, and the copy below says
+   * so explicitly: the select changes `status` (unpublish — content stays, drops off the site,
+   * still editable here); this moves the whole row to the trash (server/routes/admin/posts/
+   * delete.ts's soft-delete route).
+   *
+   * The confirm copy and the `post-delete` agentHandle label below state only the observable
+   * consequence and deliberately do NOT claim the delete is "recoverable" or "not permanent",
+   * even though the server route genuinely is a soft, revertible delete. There is no restore path
+   * an operator can reach from this product today: no change-set-revert UI, no `api.ts` method
+   * for it, and `Recovery.tsx` is a different, much heavier whole-database snapshot restore (not
+   * a per-row undo). Promising a recovery the operator cannot perform would be worse than
+   * promising nothing. Equally, do not swap it for "permanently delete" / "cannot be undone" —
+   * that overcorrects into the opposite lie, since the row genuinely is recoverable server-side,
+   * just not from here. Do not add either claim back in without first building/removing the
+   * corresponding capability.
+   *
+   * Calls `api.deletePost` (kind-blind), not `api.deletePage`, matching every other call this
+   * editor already makes (`getPost`/`updatePost`) — this component is shared between posts and
+   * pages via the same `/admin/posts/{id}` route (Pages.tsx's own file header), so it deletes
+   * whatever row `props.postId` names rather than assuming its kind. `post.kind` (loaded from the
+   * server response) is used only for display copy and for choosing which list to return to.
+   */
+  async function remove() {
+    if (!post) return;
+    setMessage(null);
+    setError(null);
+    const kindLabel = post.kind === "page" ? "page" : "post";
+    if (
+      !window.confirm(
+        `Move this ${kindLabel} ("${post.title}") to trash? It will disappear from the site and from the ${kindLabel}s list.`
+      )
+    ) {
+      return;
+    }
+    try {
+      await api.deletePost(props.postId);
+      navigate(post.kind === "page" ? "/pages" : "/posts");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "delete failed");
     }
   }
 
@@ -179,8 +258,16 @@ export function PostEditor(props: { postId: string }) {
           label: "Editor header — back link, save status, publish state and the Save button",
         })}
       >
+        {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
+            edits — confirmed live on this exact screen (edit the title, click this link, the
+            edit is gone with no dialog). `preventDefault()` here also stops `router.ts`'s
+            document-level click interceptor from firing `navigate()`, since that listener's
+            first check is `event.defaultPrevented` — no change to `router.ts` needed. */}
         <a
           href="/admin/posts"
+          onClick={(e) => {
+            if (!confirmLeave()) e.preventDefault();
+          }}
           {...agentHandle("post-back-to-list", { role: "link", label: "Back to the list of all posts" })}
         >
           ← Posts
@@ -193,7 +280,10 @@ export function PostEditor(props: { postId: string }) {
             onChange={(e) => setStatus(e.target.value as "draft" | "published")}
             {...agentHandle("post-status", {
               role: "field",
-              label: "Whether this post is a draft or published — set with page.select_option, not click",
+              label:
+                "Whether this post is a draft or published — set with page.select_option, not click. " +
+                "Setting to Draft unpublishes it (content is kept, just hidden from the site); this is " +
+                "NOT the same as Delete, which moves the whole entry to the trash.",
             })}
           >
             <option value="draft">Draft</option>
@@ -204,6 +294,20 @@ export function PostEditor(props: { postId: string }) {
             {...agentHandle("post-save", { role: "button", label: "Save this post's title, slug, status and body" })}
           >
             Save
+          </button>
+          <button
+            type="button"
+            className="btn-danger"
+            onClick={remove}
+            {...agentHandle("post-delete", {
+              role: "button",
+              label:
+                "Move this post/page to the trash — different from unpublishing (the Draft/Published " +
+                "field above): the entry disappears from every list and the site. Asks for confirmation " +
+                "before deleting.",
+            })}
+          >
+            Delete
           </button>
         </div>
       </div>

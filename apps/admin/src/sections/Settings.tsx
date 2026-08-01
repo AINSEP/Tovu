@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   ApiError,
   api,
+  describeApiError as describeApiErrorDefault,
   type AdminIdentityUser,
   type SettingResolvedValue,
   type SettingScope,
@@ -203,15 +204,18 @@ function parseJsonInput(raw: string): { ok: true; value: unknown } | { ok: false
   }
 }
 
+/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`) — see that
+ *  function's header for why per-screen codes stay local rather than one shared table. */
 function describeApiError(e: unknown, fallback: string): string {
-  if (!(e instanceof ApiError)) return e instanceof Error ? e.message : fallback;
-  if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
-  if (e.code === "PRINCIPAL_NOT_FOUND") return "That principal was not found in this workspace.";
-  if (e.code === "SCOPE_NOT_ALLOWED") return "This setting cannot be edited at that scope.";
-  if (e.code === "VALUE_VALIDATION_FAILED") return e.message || "That value did not validate.";
-  if (e.code === "DEFINITION_TOMBSTONED") return "This setting has been retired.";
-  if (e.code === "DEFINITION_NOT_FOUND") return "This setting definition no longer exists.";
-  return e.message || fallback;
+  if (e instanceof ApiError) {
+    if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
+    if (e.code === "PRINCIPAL_NOT_FOUND") return "That principal was not found in this workspace.";
+    if (e.code === "SCOPE_NOT_ALLOWED") return "This setting cannot be edited at that scope.";
+    if (e.code === "VALUE_VALIDATION_FAILED") return e.message || "That value did not validate.";
+    if (e.code === "DEFINITION_TOMBSTONED") return "This setting has been retired.";
+    if (e.code === "DEFINITION_NOT_FOUND") return "This setting definition no longer exists.";
+  }
+  return describeApiErrorDefault(e, fallback);
 }
 
 // ---------------------------------------------------------------------------

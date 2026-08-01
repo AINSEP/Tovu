@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ApiError, api, type AdminWidget, type AdminWidgetType, type AdminWidgetWhereUsed } from "../lib/api";
+import { ApiError, api, describeApiError, type AdminWidget, type AdminWidgetType, type AdminWidgetWhereUsed } from "../lib/api";
 import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields";
 import { navigate } from "../lib/router";
 
@@ -11,10 +11,9 @@ import { navigate } from "../lib/router";
 
 const STALE_VERSION_MESSAGE = "This widget changed since you loaded it, refresh and try again.";
 
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
-}
+/** The five closed v1 widget types (`WIDGET_TYPE_OPTIONS`, REQ-09) as a lookup set — used to catch
+ *  a garbage `?type=` query param on `/widgets/new` before it reaches a live editor shell. */
+const KNOWN_WIDGET_TYPES = new Set<string>(WIDGET_TYPE_OPTIONS.map((o) => o.value));
 
 function fieldErrorsOf(e: unknown): Array<{ field: string; reason: string }> {
   if (e instanceof ApiError && e.code === "WIDGETS_CONFIG_VALIDATION_ERROR") {
@@ -113,6 +112,16 @@ export function WidgetInstanceEditor(props: { widgetId: string | null; widgetTyp
   if (error && !isNew && !widget) return <div className="notice error">{error}</div>;
   if (loading) return <div className="notice">Loading widget…</div>;
   if (!widgetType) return <div className="notice error">No widget type specified.</div>;
+  // Missing `?type=` was already caught above; a GARBAGE one previously wasn't (audit Major
+  // finding): `widgetType` is a query param cast to `AdminWidgetType` with no runtime check, so an
+  // unrecognized value reached a full live editor shell — title field, working Save button — with
+  // zero config fields and zero explanation (`WidgetConfigFields`'s switch has no `default` beyond
+  // `return null`). Scoped to `isNew` only: an already-saved widget's type was validated server-side
+  // at creation, so this guards the one confirmed-reachable path (a hand-typed or bookmarked
+  // `?type=` value) rather than second-guessing already-loaded data.
+  if (isNew && !KNOWN_WIDGET_TYPES.has(widgetType)) {
+    return <div className="notice error">Unknown widget type "{widgetType}".</div>;
+  }
 
   return (
     <div className="editor-page">

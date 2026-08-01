@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ApiError, api, type AdminTaxonomyWithTerms, type AdminTerm } from "../lib/api";
+import { ApiError, api, describeApiError, type AdminTaxonomyWithTerms, type AdminTerm } from "../lib/api";
 
 /**
  * @file Categories & Tags screen (design-spec.md §2, ADR-044) — the `/admin/taxonomy` route.
@@ -21,11 +21,6 @@ import { ApiError, api, type AdminTaxonomyWithTerms, type AdminTerm } from "../l
  * SPEC-037 REQ-02: `NewTaxonomyForm` wires the previously-unused `api.createTaxonomy` — a plain
  * name + hierarchical-toggle form above the taxonomy list, reusing `NewTermForm`'s shape.
  */
-
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
-}
 
 /** Depth of `term` within its taxonomy's `parentId` chain, bounded against cycles by a visited
  * set (server-side cycle detection should prevent one, but this render helper never trusts that

@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
-import { ApiError, api, type AdminMember } from "../lib/api";
+import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminMember } from "../lib/api";
+import { ConfirmButton } from "../components/ConfirmButton";
+import { formatTimestamp } from "../lib/format-timestamp";
 
 /**
  * @file Admin "Members" screen (ADR-030, ADR-PIPE-013 Decision §7).
@@ -25,10 +27,10 @@ interface RowActionState {
   notice: string | null;
 }
 
+/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`). */
 function describeApiError(e: unknown, fallback: string): string {
-  if (!(e instanceof ApiError)) return e instanceof Error ? e.message : fallback;
-  if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
-  return e.message || fallback;
+  if (e instanceof ApiError && e.code === "FORBIDDEN") return "You do not have permission to do that.";
+  return describeApiErrorDefault(e, fallback);
 }
 
 function emptyRowState(): RowActionState {
@@ -144,16 +146,20 @@ export function Members() {
                   <td>
                     <span className={`status status-${member.status}`}>{member.status}</span>
                   </td>
-                  <td>{member.createdAt.slice(0, 16).replace("T", " ")}</td>
+                  <td>{formatTimestamp(member.createdAt)}</td>
                   <td>
                     <span className="editor-actions">
-                      <button
-                        type="button"
-                        disabled={rs.disabling || member.status === "disabled"}
-                        onClick={() => void onDisable(member)}
-                      >
-                        {rs.disabling ? "Disabling…" : "Disable"}
-                      </button>
+                      {/* Reversible-but-access-affecting, same as Users.tsx's Disable — warning-toned,
+                          not `.btn-danger` (audit cross-cutting §7). */}
+                      <ConfirmButton
+                        label="Disable"
+                        confirmLabel="Confirm disable"
+                        disabled={member.status === "disabled"}
+                        pending={rs.disabling}
+                        pendingLabel="Disabling…"
+                        onConfirm={() => void onDisable(member)}
+                        ariaLabel={`Disable member "${member.email}"`}
+                      />
                       <button type="button" disabled={rs.resending} onClick={() => void onResendSignInLink(member)}>
                         {rs.resending ? "Sending…" : "Resend sign-in link"}
                       </button>

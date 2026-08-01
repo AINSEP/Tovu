@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import {
   ApiError,
   api,
+  describeApiError,
   type AdminDisclosureResult,
   type AdminRecoveryStatus,
   type AdminRestorePoint,
   type DatabaseContextEnvelope,
 } from "../lib/api";
+import { formatTimestamp } from "../lib/format-timestamp";
 
 /**
  * @file Recovery screen (design-spec.md §4, ADR-045) — the `/admin/recovery` route.
@@ -23,11 +25,6 @@ import {
  * pre-restore data until an operator restarts it — `restartRequired: true` on the response is
  * that signal, surfaced below rather than silently implied.
  */
-
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
-}
 
 const CATEGORY_LABELS: Record<string, string> = {
   posts_pages: "posts/pages writes",
@@ -84,7 +81,7 @@ function RestorePointsList(props: {
       <tbody>
         {props.points.map((p) => (
           <tr key={p.id}>
-            <td>{p.createdAt.slice(0, 16).replace("T", " ")}</td>
+            <td>{formatTimestamp(p.createdAt)}</td>
             <td>{p.trigger}</td>
             <td>
               <span className={`status status-${p.costClass}`}>{p.costClass}</span>
@@ -243,7 +240,7 @@ function RestoreFlow(props: { point: AdminRestorePoint; onBack: () => void }) {
       <button type="button" onClick={props.onBack}>
         ← Restore points
       </button>
-      <h2>Restore to {props.point.createdAt.slice(0, 16).replace("T", " ")}</h2>
+      <h2>Restore to {formatTimestamp(props.point.createdAt)}</h2>
 
       <div className="settings-layer-grid">
         <div className="settings-layer-cell">

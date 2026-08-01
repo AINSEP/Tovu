@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type AdminAnalyticsHit } from "../lib/api";
+import { formatTimestamp } from "../lib/format-timestamp";
 
 /**
  * @file Admin "Analytics" screen (ADR-035 ingest half only).
@@ -61,7 +62,7 @@ export function Analytics() {
                   {hit.browserFamily ? ` / ${hit.browserFamily}` : ""}
                 </td>
                 <td>{hit.eventName ? `event: ${hit.eventName}` : hit.kind}</td>
-                <td>{hit.occurredAt.slice(0, 16).replace("T", " ")}</td>
+                <td>{formatTimestamp(hit.occurredAt)}</td>
               </tr>
             ))}
           </tbody>

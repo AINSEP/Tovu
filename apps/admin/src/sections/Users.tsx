@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
-import { ApiError, api, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "../lib/api";
+import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "../lib/api";
+import { ConfirmButton } from "../components/ConfirmButton";
 
 /**
  * @file Admin "Users" screen (SPEC-006 §3 human grant-writing transitions + 0.6.0 CRUD-completion
@@ -18,15 +19,20 @@ import { ApiError, api, type AdminIdentityUser, type AdminPolicy, type AdminRole
  * Actions column (a common enough single action to not require opening the panel).
  */
 
-/** Server error `code` -> a plain-language prefix (SPEC-006 errors.spec.md §2). */
+/** Server error `code` -> a plain-language prefix (SPEC-006 errors.spec.md §2), layered on the
+ *  shared default (`lib/api.ts`'s `describeApiError`) — this screen's `RESOURCE_CONFLICT` means
+ *  "username already in use", a different meaning than `Roles.tsx`'s "still referenced" or
+ *  `Workspace.tsx`'s "slug already taken" for the same code (audit cross-cutting finding #2 —
+ *  deliberately not unified into one table). */
 function describeApiError(e: unknown, fallback: string): string {
-  if (!(e instanceof ApiError)) return e instanceof Error ? e.message : fallback;
-  if (e.code === "GRANT_EXCEEDS_ISSUER") return "You cannot grant a permission you do not hold.";
-  if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
-  if (e.code === "RESOURCE_CONFLICT") return "That username is already in use.";
-  if (e.code === "OWNER_REQUIRED") return "The workspace must keep at least one active owner.";
-  if (e.code === "VALIDATION_ERROR") return e.message || "Please correct the highlighted fields.";
-  return e.message || fallback;
+  if (e instanceof ApiError) {
+    if (e.code === "GRANT_EXCEEDS_ISSUER") return "You cannot grant a permission you do not hold.";
+    if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
+    if (e.code === "RESOURCE_CONFLICT") return "That username is already in use.";
+    if (e.code === "OWNER_REQUIRED") return "The workspace must keep at least one active owner.";
+    if (e.code === "VALIDATION_ERROR") return e.message || "Please correct the highlighted fields.";
+  }
+  return describeApiErrorDefault(e, fallback);
 }
 
 export function Users() {
@@ -251,18 +257,26 @@ export function Users() {
                 </td>
                 <td>
                   <span className="editor-actions">
-                    <button
-                      type="button"
-                      disabled={toggleSavingId === user.principalId}
-                      onClick={() => onToggleStatus(user)}
-                      title={user.status === "active" ? "DISABLE_PRINCIPAL" : "ENABLE_PRINCIPAL"}
-                    >
-                      {toggleSavingId === user.principalId
-                        ? "…"
-                        : user.status === "active"
-                          ? "Disable"
-                          : "Enable"}
-                    </button>
+                    {user.status === "active" ? (
+                      // Disable is reversible (Enable is one click away below once it fires) but
+                      // access-affecting — warning-toned, not `.btn-danger`, per the audit's
+                      // destructive-vs-warning distinction (cross-cutting §7).
+                      <ConfirmButton
+                        label="Disable"
+                        confirmLabel="Confirm disable"
+                        pending={toggleSavingId === user.principalId}
+                        onConfirm={() => onToggleStatus(user)}
+                        ariaLabel={`Disable user "${user.username}"`}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={toggleSavingId === user.principalId}
+                        onClick={() => onToggleStatus(user)}
+                      >
+                        {toggleSavingId === user.principalId ? "…" : "Enable"}
+                      </button>
+                    )}
                     <button onClick={() => toggleExpanded(user)}>
                       {expandedId === user.principalId ? "Close" : "Manage"}
                     </button>
@@ -297,13 +311,20 @@ export function Users() {
                             onChange={(e) => setNewPassword(e.target.value)}
                             placeholder="New password"
                           />
-                          <button
-                            type="button"
-                            disabled={!newPassword || passwordSaving}
-                            onClick={() => onResetPassword(user.principalId)}
-                          >
-                            {passwordSaving ? "Saving…" : "Reset password"}
-                          </button>
+                          {/* Reset password revokes every active session (disclosed below on
+                              success) — reversible in the sense that the account still works with
+                              the new password, but consequential enough to gate, same as Disable
+                              above. Adjacent to this dispatch's item 6 but cheap and safe to close
+                              while already in this file (audit Users section, Minor). */}
+                          <ConfirmButton
+                            label="Reset password"
+                            confirmLabel="Confirm reset"
+                            disabled={!newPassword}
+                            pending={passwordSaving}
+                            pendingLabel="Saving…"
+                            onConfirm={() => onResetPassword(user.principalId)}
+                            ariaLabel={`Reset password for "${user.username}"`}
+                          />
                         </span>
                         {passwordSaved ? (
                           <span className="save-success">

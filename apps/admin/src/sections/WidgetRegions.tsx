@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ApiError, api, type AdminWidgetRegionBinding } from "../lib/api";
+import { ApiError, api, describeApiError, type AdminWidgetRegionBinding } from "../lib/api";
 import { navigate } from "../lib/router";
 
 /**
@@ -9,11 +9,6 @@ import { navigate } from "../lib/router";
  * source a dropdown from — `ThemeManifest.regions` is read server-side at render time, not exposed
  * as an admin-listable registry; see `ui.spec.md` §9's disclosed dependency-gap note).
  */
-
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
-}
 
 export function WidgetRegions() {
   const [regions, setRegions] = useState<AdminWidgetRegionBinding[] | null>(null);

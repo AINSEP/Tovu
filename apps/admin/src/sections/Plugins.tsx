@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ApiError, api, type AdminPlugin } from "../lib/api";
+import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminPlugin } from "../lib/api";
 
 /**
  * @file `Plugins` — the admin plugins list + enable/disable screen (SPEC-005 REQ-12..18,
@@ -23,12 +23,14 @@ import { ApiError, api, type AdminPlugin } from "../lib/api";
  * @complexity O(1).
  * @overallScore 100
  */
+/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`). */
 function describeApiError(e: unknown, fallback: string): string {
-  if (!(e instanceof ApiError)) return e instanceof Error ? e.message : fallback;
-  if (e.code === "PLUGIN_NOT_FOUND") return "No plugin with that id is installed.";
-  if (e.code === "PLUGIN_INVALID") return "This plugin failed validation and cannot be enabled.";
-  if (e.code === "PLUGIN_INCOMPATIBLE") return "This plugin requires a different SDK version.";
-  return e.message || fallback;
+  if (e instanceof ApiError) {
+    if (e.code === "PLUGIN_NOT_FOUND") return "No plugin with that id is installed.";
+    if (e.code === "PLUGIN_INVALID") return "This plugin failed validation and cannot be enabled.";
+    if (e.code === "PLUGIN_INCOMPATIBLE") return "This plugin requires a different SDK version.";
+  }
+  return describeApiErrorDefault(e, fallback);
 }
 
 /**

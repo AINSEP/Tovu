@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { api, type AdminWebhookDelivery } from "../lib/api";
+import { formatTimestamp } from "../lib/format-timestamp";
 
 /** Best available timestamp for the log's "Timestamp" column: delivered time, else created time. */
 function displayTimestamp(delivery: AdminWebhookDelivery): string {
-  return (delivery.deliveredAt ?? delivery.createdAt).slice(0, 16).replace("T", " ");
+  return formatTimestamp(delivery.deliveredAt ?? delivery.createdAt);
 }
 
 export function IntegrationDeliveries(props: { subscriptionId: string }) {

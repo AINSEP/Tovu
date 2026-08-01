@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { ApiError, api, type AdminLedgerRow, type AdminRestorePoint } from "../lib/api";
+import { ApiError, api, describeApiError, type AdminLedgerRow, type AdminRestorePoint } from "../lib/api";
 import { navigate } from "../lib/router";
+import { formatTimestamp } from "../lib/format-timestamp";
 
 /**
  * @file Database screen (design-spec.md §3, ADR-041) — the `/admin/database` route: the
@@ -25,11 +26,6 @@ const KIND_OPTIONS = [
   "restore.executed",
   "migration.interrupted",
 ] as const;
-
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
-}
 
 /** Stashes a client-constructed `DatabaseContextEnvelope` for `Recovery.tsx` to re-resolve
  * server-side on arrival (ADR-041 §7/ADR-045 §5, INV-04) — this admin app's router has no
@@ -152,7 +148,7 @@ function TimelineSection() {
                       "—"
                     )}
                   </td>
-                  <td>{row.createdAt.slice(0, 16).replace("T", " ")}</td>
+                  <td>{formatTimestamp(row.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -227,7 +223,7 @@ function RestorePointsSection() {
           <tbody>
             {points.map((p) => (
               <tr key={p.id}>
-                <td>{p.createdAt.slice(0, 16).replace("T", " ")}</td>
+                <td>{formatTimestamp(p.createdAt)}</td>
                 <td>{p.trigger}</td>
                 <td>
                   <span className={`status status-${p.costClass}`}>{p.costClass}</span>

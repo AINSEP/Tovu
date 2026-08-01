@@ -2,11 +2,13 @@ import { useState } from "react";
 import {
   ApiError,
   api,
+  describeApiError,
   type AdminRedirect,
   type AdminRedirectImportResponse,
   type RedirectImportRule,
 } from "../lib/api";
 import { useFetchMutation, useFetchQuery, type QueryKey } from "../lib/fetch-query";
+import { ConfirmButton } from "../components/ConfirmButton";
 
 /**
  * @file Redirects admin screen (SPEC-009 ui.spec.md) — the `/admin/redirects` route.
@@ -42,11 +44,6 @@ const KEYS = {
   list: ["redirects"] as QueryKey,
   hits: (redirectId: string): QueryKey => ["redirects", redirectId, "hits"],
 };
-
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
-}
 
 /** Lazy hit-count cell (REQ-03) — fetches on first click rather than on mount, so a list of many
  * rows never fires a synchronous burst of `/hits` requests. A rule with zero recorded hits still
@@ -344,15 +341,17 @@ export function Redirects() {
                   >
                     {rule.status === "active" ? "Disable" : "Enable"}
                   </button>
-                  <button
+                  <ConfirmButton
+                    label="Delete"
+                    confirmLabel="Confirm delete"
+                    destructive
                     disabled={saving}
-                    onClick={() => {
+                    onConfirm={() => {
                       clearOtherWriteErrors(removeRule);
                       void removeRule.mutate(rule);
                     }}
-                  >
-                    Delete
-                  </button>
+                    ariaLabel={`Delete redirect rule from "${rule.fromPattern}"`}
+                  />
                 </td>
               </tr>
             ))}
