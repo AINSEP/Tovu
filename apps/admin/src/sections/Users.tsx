@@ -234,7 +234,9 @@ export function Users() {
    *  as it did as a standalone button), but a `RowMenu` item disappears the instant it is
    *  selected, so a label that flips to "Close" is never actually visible mid-interaction — it
    *  would only ever describe a state the operator cannot see while the menu that shows it is
-   *  open. A static label sidesteps that without losing any capability. */
+   *  open. A static label sidesteps that without losing any capability. The username cell's own
+   *  button calls the same `toggleExpanded` for the identical toggle behavior via a second
+   *  affordance, rather than this item being the only door into the panel. */
   function rowMenuItems(user: AdminIdentityUser): RowMenuItem[] {
     return [
       {
@@ -343,7 +345,25 @@ export function Users() {
           {users.map((user) => (
             <Fragment key={user.principalId}>
               <tr>
-                <td>{user.username}</td>
+                <td>
+                  {/* Two affordances, one behavior: this and the RowMenu's "Manage" item both
+                      call `toggleExpanded` directly rather than duplicating its logic. A real
+                      `<button>`, not `<a href="#">` — this doesn't navigate anywhere, it only
+                      toggles the panel below, and an anchor with no real target is its own
+                      accessibility smell. The visible text is the username itself, so the
+                      accessible name already identifies which user this manages — no need for a
+                      separate "Manage user ..." label duplicating what's already legible.
+                      `aria-expanded` mirrors `Members.tsx`'s identical email-toggle-button
+                      convention for the same shape of control. */}
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={() => toggleExpanded(user)}
+                    aria-expanded={expandedId === user.principalId}
+                  >
+                    {user.username}
+                  </button>
+                </td>
                 <td>{user.email ?? <span className="muted-cell">—</span>}</td>
                 <td>
                   <span className={`status status-${user.status}`}>{user.status}</span>
