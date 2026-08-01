@@ -26,10 +26,18 @@
  *     row that points at the source blob (created by `uploadMedia`). No
  *     `transform_registry` table, no eager/lazy generation, no
  *     `/m/{assetId}/{transformName}.v{version}/{slug}.{ext}` URL contract.
- *  3. **Origin-isolated serving** — there is no HTTP route in this build that
- *     serves media bytes at all (the admin UI shows filenames, not thumbnails
- *     — acceptable per this task's explicit scope). No cookie-less media
- *     origin, no signed mint-URLs, no `Content-Disposition` rules.
+ *  3. **Origin-isolated serving** — an authenticated, workspace-scoped admin
+ *     route now DOES serve original bytes (`GET .../media/:mediaId/original`,
+ *     `server/routes/admin/media/original.ts`, added for the admin preview
+ *     task; content type is derived at serve time by `content-type-sniffer.ts`
+ *     rather than trusted from upload, since no real content type is stored
+ *     anywhere — see that route's own file header for the full security
+ *     model). What is still NOT built, per the full ADR-027 §1/§6 design: a
+ *     second, cookie-less media origin/process, and signed mint-URLs (the
+ *     `media.download_original` permission reserves that capability for a
+ *     future route — see `identity/permissions.ts`). `Content-Disposition`
+ *     rules DO now exist, but only the one the new route needs (forcing
+ *     `attachment` when the sniffed bytes are HTML/SVG-shaped).
  *  4. **`MediaIngressPolicy`** — no SSRF guards, IP pinning, redirect
  *     handling, pixel-bomb caps, or magic-byte sniffing. Only a byte-size cap
  *     and an advisory `contentType` allowlist (see `DEFAULT_ALLOWED_MIME_TYPES`
