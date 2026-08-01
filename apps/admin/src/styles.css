@@ -270,6 +270,9 @@ input[type="checkbox"], input[type="radio"] {
    wrapped in `.field-row` at all and stay full-width — the grid is opt-in per field, not a
    blanket two-column layout. */
 .field-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--space-4); }
+/* Baseline alignment when one cell's label wraps and its neighbours' don't is handled by
+   `styles/forms.css`'s `.field-row { align-items: end }` override, which carries the reasoning
+   and the measured evidence. Do not add a second mechanism here. */
 /* Vertical rhythm: ~4px label-to-control (the `.field` gap above) vs. group-to-group below —
    roughly a 4-5x ratio, matching the OD reference. This ratio, more than any single spacing
    value, is what reads as "organized" rather than "cramped everywhere alike". */
@@ -802,6 +805,11 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; }
 .status-published { background: var(--ok-bg); color: var(--ok); }
 .status-draft { background: var(--surface-3); color: var(--muted); }
+/* A disabled form is switched off, not failed or destructive — so it takes the same muted
+   treatment as `.status-draft`/`.status-sub-paused`, not the danger tone. This had no rule at all
+   until Forms grew a row menu that can actually reach the disabled state: before that, nothing in
+   the app could render a non-active form pill, so the gap never showed. */
+.status-disabled { background: var(--surface-3); color: var(--muted); }
 
 /* Media (ADR-027 walking skeleton) */
 .status-active { background: var(--ok-bg); color: var(--ok); }
