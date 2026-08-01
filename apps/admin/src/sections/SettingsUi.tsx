@@ -28,21 +28,24 @@
  * the same component with one prop different.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AppearanceTab,
   ConnectorsBrowser,
   ExecutionTab,
+  I18nProvider,
   InstructionsTab,
   IntegrationsTab,
   LanguageTab,
   MediaProvidersTab,
   NotificationsTab,
   PrivacyTab,
+  SETTINGS_DIALOG_DICTIONARIES,
   SettingsDialogShell,
   SkillsTab,
   createFakeMediaProvidersPort,
   createFakeSkillsPort,
+  useI18n,
   type ExecutionConfig,
   type MediaProviderOption,
   type NotificationsPreferences,
@@ -178,6 +181,31 @@ function AboutPanel() {
       </div>
     </section>
   );
+}
+
+/**
+ * Bridges the `core.language.locale` setting (loaded/persisted by the
+ * `language` slice below, via Tovu's own `content.db`) to the mounted
+ * `I18nProvider`'s active locale.
+ *
+ * `I18nProvider` has no *controlled* `locale` prop — only `initialLocale`,
+ * read once at mount via a lazy `useState` initializer — so a locale picked
+ * in `LanguageTab` (which calls `onSelectLocale` → the `language` slice's
+ * `onChange`, not `useI18n().setLocale`) would otherwise only take effect on
+ * the next full remount, not immediately. This renders nothing; it exists
+ * only to keep the two locale sources of truth in sync after the first
+ * render, so Tovu's own persistence stays the one real source and the
+ * provider's internal state just follows it.
+ *
+ * @complexity O(1) — one equality check per render, no iteration.
+ * @overallScore 100
+ */
+function SettingsLocaleSync({ locale }: { locale: string }) {
+  const { locale: activeLocale, setLocale } = useI18n();
+  useEffect(() => {
+    if (activeLocale !== locale) setLocale(locale);
+  }, [locale, activeLocale, setLocale]);
+  return null;
 }
 
 export function SettingsUi() {
@@ -400,9 +428,12 @@ export function SettingsUi() {
       id: "language",
       label: "Language",
       title: "Language",
-      // Stated rather than hidden: the preference persists, but nothing reads
-      // it yet because Tovu has no i18n module. See `ADMIN_LOCALES`.
-      subtitle: "Admin interface language. The choice is saved, but translation is not wired up yet.",
+      // Real translation as of this pass: picking Español actually switches
+      // this settings panel's tab content (see `SettingsLocaleSync` and the
+      // `I18nProvider` mount below). Scoped honestly in the subtitle itself —
+      // see `ADMIN_LOCALES`'s doc comment for exactly what is and isn't
+      // covered.
+      subtitle: "Admin interface language. Applies to this settings panel's tab content only.",
       icon: (
         <TabIcon>
           <circle cx="9" cy="9" r="6.5" />
@@ -650,31 +681,56 @@ export function SettingsUi() {
   const dialogDataTheme = dialogTheme === "system" ? undefined : dialogTheme;
 
   return (
-    <div className="settings-ui-section" data-theme={dialogDataTheme}>
-      {loadError ? (
-        <p className="settings-ui-load-error" role="alert">
-          Could not load saved settings ({loadError}). Showing defaults — edits will still save.
-        </p>
-      ) : null}
+    /**
+     * `initialLocale` is safe to read straight from the slice here: this
+     * whole function already returned the "Loading settings…" placeholder
+     * above until every slice (including `language`) resolved, so
+     * `language.value` is never null at this point — no detection race.
+     * `dictionaries` is upstream's shipped EN+ES pair (`@jini-ai/ui`'s
+     * `SETTINGS_DIALOG_DICTIONARIES`); `fallbackLocale="en"` is already the
+     * default, named here for clarity since it's load-bearing (a key missing
+     * from `es` renders real English, never a raw key — see
+     * `dictionaries.test.tsx` upstream). `syncDocumentAttributes={false}`:
+     * the default would set `<html lang/dir>` for the WHOLE document, but
+     * only this settings panel's tab content is actually translated — the
+     * rest of the Tovu admin shell stays English regardless of this choice
+     * (same scoping rule as `AppearanceTab`'s `livePreview={false}` above),
+     * so claiming a document-wide language via `<html lang="es">` here would
+     * misinform assistive tech about the untranslated majority of the page.
+     */
+    <I18nProvider
+      initialLocale={language.value as string}
+      dictionaries={SETTINGS_DIALOG_DICTIONARIES}
+      fallbackLocale="en"
+      syncDocumentAttributes={false}
+    >
+      <SettingsLocaleSync locale={language.value as string} />
+      <div className="settings-ui-section" data-theme={dialogDataTheme}>
+        {loadError ? (
+          <p className="settings-ui-load-error" role="alert">
+            Could not load saved settings ({loadError}). Showing defaults — edits will still save.
+          </p>
+        ) : null}
 
-      {/* Page mode: `presentation="inline"` renders the shell in the admin's own
-          content column — two sidebars (admin, then settings) and the panel. */}
-      <SettingsDialogShell
-        tabs={tabs}
-        presentation="inline"
-        className="jini-settings-dialog--inline"
-        fullscreenEnabled={false}
-        chromeExtra={pageChrome}
-      />
-
-      {/* Modal mode: same component, same tabs, one different prop. */}
-      {modalOpen ? (
+        {/* Page mode: `presentation="inline"` renders the shell in the admin's own
+            content column — two sidebars (admin, then settings) and the panel. */}
         <SettingsDialogShell
           tabs={tabs}
-          onClose={() => setModalOpen(false)}
-          chromeExtra={saveStatus}
+          presentation="inline"
+          className="jini-settings-dialog--inline"
+          fullscreenEnabled={false}
+          chromeExtra={pageChrome}
         />
-      ) : null}
-    </div>
+
+        {/* Modal mode: same component, same tabs, one different prop. */}
+        {modalOpen ? (
+          <SettingsDialogShell
+            tabs={tabs}
+            onClose={() => setModalOpen(false)}
+            chromeExtra={saveStatus}
+          />
+        ) : null}
+      </div>
+    </I18nProvider>
   );
 }

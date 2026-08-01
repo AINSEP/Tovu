@@ -54,7 +54,29 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps)
         });
         return;
       }
-      const workspaceId = body.workspaceId ? String(body.workspaceId) : undefined;
+      // Bug found while wiring up the settings-dialog Language tab's Spanish
+      // locale (2026-07-31): `scope: "user"`/`scope: "workspace"` writes with
+      // no explicit `workspaceId` in the body reached `write-service.set()`
+      // as `undefined`, which `saveUserValue`/`saveWorkspaceValue`
+      // (`repo.sqlite.ts`) then require and throw on -- a masked 500 for
+      // EVERY user/workspace-scoped write whose caller (every settings-dialog
+      // tab adapter in `apps/admin/src/lib/settings-tabs.ts`: Notifications,
+      // Appearance, Language) never sends `workspaceId` at all. No certified
+      // test exercises this path (`settings-auth.test.ts`'s SET/CLEAR
+      // coverage is `scope: "global"` only), so nothing regresses by fixing
+      // it. Mirrors `authWorkspaceId` below: this is single-workspace v1, so
+      // the ambient `deps.workspaceId` is always the right default when the
+      // body doesn't name one explicitly -- `scope: "global"` alone is
+      // exempted (no workspace concept there; seeding a value would be as
+      // wrong as `authWorkspaceId`'s own doc comment already explains for
+      // that scope). `clear.ts` has the identical gap at its own `workspaceId`
+      // line -- not fixed here (nothing in this task's scope calls it), but
+      // flagged for the same follow-up.
+      const workspaceId = body.workspaceId
+        ? String(body.workspaceId)
+        : scope !== "global"
+          ? deps.workspaceId
+          : undefined;
       const principalId = body.principalId ? String(body.principalId) : undefined;
 
       const permission = deriveRequiredPermission({
