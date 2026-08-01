@@ -1,0 +1,71 @@
+/**
+ * `/admin/forms` — FormsList + FormEditor layout pass. This screen was the worst-looking surface
+ * in the admin (audit callout: "no responsiveness, crammed together etc.") because it never
+ * adopted the shared page primitives (`.page`/`.page-header`/`.card`/`.field*`/`.table-scroll`)
+ * the Posts/Media canary pass introduced in `styles.css` — it still used only the older bare
+ * `.editor-header` + unstyled `<label>` + unstyled `role="tab"` buttons. This file supplies the
+ * handful of rules those shared primitives don't cover (a real tab strip, and an inline
+ * checkbox+label row) rather than duplicating anything `styles.css` already provides.
+ *
+ * A separate partial rather than an addition to `styles.css` because another pass currently owns
+ * that file; see `styles/assistant.css` for the established precedent of a scoped partial
+ * imported alongside it (`main.tsx`).
+ */
+
+/* Tab strip for the Fields/Submissions switch (`FormEditor.tsx`) — previously two `role="tab"`
+   buttons with zero styling of their own, so they inherited the app-wide bare-`button` rule and
+   rendered as two identical filled-primary buttons stacked under the title (defect #2: no
+   selected state, no separation from the tab content below). Underline style, not a second
+   filled/pill treatment — a filled "selected" tab would just be a second primary-looking control
+   competing with Save, the exact flatness problem `styles.css`'s button-hierarchy comment
+   (`.btn-secondary` et al.) exists to avoid elsewhere in this app. */
+.form-tabs {
+  display: flex;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.form-tab {
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: var(--space-3) var(--space-1);
+  margin-bottom: -1px; /* sits the tab's own border flush on top of `.form-tabs`' border-bottom */
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.form-tab:hover {
+  color: var(--fg);
+}
+
+.form-tab[aria-selected="true"] {
+  color: var(--fg);
+  border-bottom-color: var(--primary);
+}
+
+/* Checkbox + its own text sits beside the control, not above it like `.field-label` (which is
+   block/uppercase, built for a label that sits above an input) — this is deliberately a separate,
+   small rule rather than a misuse of that primitive. Layout only: the surrounding `.field-group`
+   in `FormEditor.tsx` supplies the vertical rhythm to its neighbors, same as every other field on
+   this screen, so this rule does not set its own margin. */
+.form-checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+/* Separates the Disable/Save row from the field group above it. The shared `.editor-actions` in
+   `styles.css` supplies direction/gap/alignment but deliberately no outer margin, and this row is
+   not a `.field-group`, so it falls outside the `.field-group + .field-group` rhythm that spaces
+   everything else on this screen — the buttons ended up flush against the Recipients input.
+   Scoped to this screen rather than added to `.editor-actions`, which is shared with the other
+   editor screens where the surrounding markup differs and a blanket margin could over-space. */
+.form-actions {
+  margin-top: var(--space-5);
+}

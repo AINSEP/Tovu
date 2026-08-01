@@ -174,7 +174,16 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
    themselves — Posts/Media apply it explicitly (see those files); `/admin/users` and
    `/admin/redirects` were spot-checked after this change and still read correctly since neither
    screen has more than one bare button competing for attention. */
-button {
+/* `.btn-*` classes are listed here too (not just below) so an element carrying one of them gets
+   this SHAPE — radius/padding/font/cursor/transition — regardless of whether it's a real
+   `<button>` or something else (an `<a>` styled to look like a button, e.g. Dashboard's
+   "View site ↗"). Safe to add: the variant rules further down only set `background`/`color`/
+   `border-color`, all at the same (0,1,0) specificity as their entry in this selector list, and
+   they sit later in the file — same-specificity ties resolve by source order, so they still win
+   for color regardless of this rule also matching. See the `a.btn-*` block below this one for
+   the anchor-specific fixes (`display`, `text-decoration`) a bare shape rule can't provide. */
+button,
+.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary {
   background: var(--primary); color: var(--primary-ink); border: 1px solid transparent;
   border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
   font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
@@ -370,6 +379,20 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    seeing the intent in the className, not just inheriting it silently from the element type). */
 .btn-primary { background: var(--primary); color: var(--primary-ink); border: 1px solid transparent; }
 .btn-primary:hover { opacity: 0.88; }
+
+/* Anchor-specific fixes the shape rule above cannot provide by itself. An `<a>` is inline by
+   default, so the shape rule's `padding` never gets the box to center around — `inline-flex` +
+   `align-items: center` is what actually makes a `.btn-*`-classed link look like the button it's
+   styled as. `text-decoration: none` undoes the global `a`/`a:hover` rules' underline (`a:hover`
+   specifically sets it back on hover, at the same (0,1,1) type+pseudo-class specificity as this
+   rule's own `:hover` variant, so both states need an explicit override, not just the resting
+   one). Verified against the Dashboard's "View site ↗" `.btn-secondary` anchor, a real caller —
+   without this it rendered as underlined text wearing a border, no padding, no centering. */
+a.btn-secondary, a.btn-ghost, a.btn-danger, a.btn-warning, a.btn-primary {
+  display: inline-flex; align-items: center; text-decoration: none;
+}
+a.btn-secondary:hover, a.btn-ghost:hover, a.btn-danger:hover,
+a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 
 /* Responsive data table — a horizontal scroller so a wide `.list-table` degrades to a scroll
    region on narrow viewports instead of blowing out the page (the 390px canary target). */
@@ -740,6 +763,42 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
   background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong);
 }
 .list-table td button:not([class*="btn-"]):hover { background: var(--surface-2); opacity: 1; }
+
+/* Row-scoped destructive/warning actions — quiet at rest, loud on intent.
+   The rule above demotes UNCLASSED row buttons, which left the opposite problem for the classed
+   ones: `.btn-danger`'s resting state is a full red outline, so a nine-row Posts table painted
+   nine red boxes and the most visually dominant thing on a content list was the way to destroy
+   its rows. The primary "New Post" CTA lost to a wall of red it had to compete with.
+
+   Resting state keeps `.btn-danger`'s red TEXT (the semantic signal survives — this still does not
+   read as a neutral action) but drops the box. Hover/focus restores the full outline, and the armed
+   state goes solid-filled, which is the one moment the control genuinely should be the loudest
+   thing on screen: the operator's next click destroys something.
+
+   Keyed on `[data-armed]` from `ConfirmButton`, so this only escalates for a control that has
+   actually been armed — a plain non-confirming `.btn-danger` in a row still gets the quiet
+   resting treatment and its hover outline.
+
+   Specificity: `.list-table td .btn-danger` is (0,2,1), which clears both bare `.btn-danger`
+   (0,1,0) and the demotion rule above (0,1,2). Scoped to `td` for the same reason that rule is —
+   a header/toolbar destructive action ("Purge all", "Delete workspace") is a deliberate, singular
+   page-level decision and keeps its full weight. */
+.list-table td .btn-danger,
+.list-table td .btn-warning {
+  background: transparent; border-color: transparent;
+}
+.list-table td .btn-danger:hover,
+.list-table td .btn-danger:focus-visible { background: var(--danger-bg); border-color: var(--danger); }
+.list-table td .btn-warning:hover,
+.list-table td .btn-warning:focus-visible { background: var(--warning-bg); border-color: var(--warning); }
+.list-table td .btn-danger[data-armed="true"] {
+  background: var(--danger); border-color: var(--danger); color: var(--accent-ink); font-weight: 600;
+}
+.list-table td .btn-warning[data-armed="true"] {
+  background: var(--warning); border-color: var(--warning); color: var(--accent-ink); font-weight: 600;
+}
+:root[data-theme="dark"] .list-table td .btn-danger[data-armed="true"],
+:root[data-theme="dark"] .list-table td .btn-warning[data-armed="true"] { color: oklch(18% 0.006 260); }
 .status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; }
 .status-published { background: var(--ok-bg); color: var(--ok); }
 .status-draft { background: var(--surface-3); color: var(--muted); }
@@ -764,17 +823,103 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
 /* Same consolidation as `.login-card label` above. */
 .integrations-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); width: 100%; max-width: 28rem; }
 
-/* Dashboard */
-.dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1.2rem; }
-.dash-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1.3rem 1.4rem; box-shadow: var(--shadow-sm); transition: box-shadow 0.14s, border-color 0.14s; }
-.dash-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
-.dash-card h3 { margin: 0 0 0.4rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; color: var(--faint); }
-.dash-card p { color: var(--muted); font-size: 0.85rem; margin: 0.3rem 0 0; }
-.dash-card p.dash-number { font-family: var(--font-display); font-size: 2rem; font-weight: 700; margin: 0.2rem 0; color: var(--fg); letter-spacing: -0.01em; text-transform: capitalize; }
+/* Dashboard
+   The previous version was three `.dash-card`s in an auto-fit grid, and the grid was the whole
+   screen — everything below the first 200px was empty. Worse, the three cards disagreed about what
+   a card IS: one held a count, one held a theme name rendered at `font-size: 2rem` (display type on
+   a proper noun, which is why "Tovu-Official" dominated a screen it should not have), and one held
+   a bare sentence with no value at all. Nothing lined up because nothing was the same shape.
+
+   Split into two things with two jobs: `.dash-stat` is strictly ONE NUMBER and its label — no
+   exceptions, which is what makes a row of them scan — and `.dash-panel` carries everything that
+   is prose, a list, or a name. The theme moved into a panel for exactly that reason. */
+.dash-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-4); }
+
+/* An `<a>`, not a `<div>` — the number was already the answer to "how many posts", so the card is
+   the natural way to go read them. Being a real link also means it is keyboard-reachable and
+   announces as a link, which the old div-with-a-nested-"manage"-link was not. */
+.dash-stat {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: var(--space-4) var(--space-5); box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.14s, border-color 0.14s, transform 0.14s;
+  color: inherit; text-decoration: none;
+}
+.dash-stat:hover {
+  border-color: var(--border-strong); box-shadow: var(--shadow-md);
+  text-decoration: none; transform: translateY(-1px);
+}
+@media (prefers-reduced-motion: reduce) { .dash-stat { transition: none; } .dash-stat:hover { transform: none; } }
+.dash-stat-label { font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+/* `font-variant-numeric: tabular-nums` keeps a column of counts optically aligned as values change
+   width (9 -> 10 -> 100) instead of the digits shifting under each other. */
+.dash-stat-value {
+  font-family: var(--font-display); font-size: 2rem; font-weight: 700; line-height: 1.1;
+  letter-spacing: -0.01em; color: var(--fg); font-variant-numeric: tabular-nums;
+}
+.dash-stat-meta { font-size: var(--text-xs); color: var(--muted); }
+/* A failed stat still renders its card at full size — the value becomes an em-dash and the reason
+   takes the meta slot. The audit's finding here (exec summary #5) was that a failure was SILENT,
+   not that it was quiet: replacing the card with a full-width error banner would fix the silence by
+   destroying the grid, so the honest state has to fit in the space the healthy state occupies. */
+.dash-stat-value.is-error { color: var(--faint); }
+.dash-stat-meta.is-error { color: var(--danger); }
+
+/* Everything that is not a single number. `minmax(0, …)` on both tracks lets a long title inside
+   the activity list ellipsize instead of forcing the column wider than its share. */
+.dash-panels { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+@media (max-width: 1100px) { .dash-panels { grid-template-columns: minmax(0, 1fr); } }
+.dash-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+.dash-panel-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border);
+}
+.dash-panel-title { font-size: var(--text-base); font-weight: 600; color: var(--fg); margin: 0; }
+.dash-panel-body { padding: var(--space-4) var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); }
+.dash-panel-body p { margin: 0; font-size: var(--text-sm); color: var(--muted); }
+
+/* Activity rows. Grid rather than flex so the timestamp column is a fixed track and every row's
+   time starts at the same x — with flex the times ragged-right against variable title lengths. */
+.dash-activity { display: flex; flex-direction: column; }
+.dash-activity-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--border);
+}
+.dash-activity-row:last-child { border-bottom: none; }
+.dash-activity-row:hover { background: var(--surface-2); }
+.dash-activity-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); }
+.dash-activity-time { font-size: var(--text-xs); color: var(--faint); font-variant-numeric: tabular-nums; }
+/* Distinguishes a page from a post in a merged list. Deliberately a neutral chip and not a
+   `.status` pill — kind is not a lifecycle state, and reusing `.status` would make "page" read as
+   if it were a peer of "published"/"draft". */
+.dash-kind { font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); background: var(--surface-3); padding: 0.1rem 0.4rem; border-radius: var(--r-sm); }
 
 /* Editor */
-.editor-page { display: flex; flex-direction: column; gap: 0.9rem; }
+/* `.editor-page` (the old `display:flex;flex-direction:column;gap:0.9rem` outer wrapper) is
+   removed as of this pass — its last four callers (MenuEditor/CollectionEntryEditor/
+   WidgetInstanceEditor/WidgetRegionEditor) all moved onto `.page`, `PostEditor.tsx`'s own
+   established precedent, leaving zero remaining callers app-wide (verified: grepped for it before
+   deleting). `.editor-header` stays — `Database.tsx` and `Media.tsx` still use it and are outside
+   this pass's scope. */
 .editor-header { display: flex; justify-content: space-between; align-items: center; }
+/* Before reaching for a top margin here: this class is doing three structurally unrelated jobs
+   under one name (audited across all 37 call sites app-wide, not sampled), and "just add a
+   margin" is wrong for most of them.
+     1. Header action group — a `<div>` next to a "← Back" link inside the old `.editor-header`
+        pattern (Database.tsx, Media.tsx today; MenuEditor/CollectionEntryEditor/
+        WidgetInstanceEditor/WidgetRegionEditor used to, before this pass moved them onto
+        `.page-header`/`.page-actions`, which needs no margin here at all).
+     2. Bottom-of-form Save bar below the last field — also a `<div>`, and the ONLY role that
+        actually wants a top margin (the "flush against the field above" bug). Two known callers,
+        both fixed with their own scoped hook rather than a change here: `FormEditor.tsx`'s
+        `.form-actions` and `CollectionEntryEditor.tsx`'s `.term-picker-actions`.
+     3. Small inline flex group of 1-2 buttons inside a table row or compact form — a `<span>`,
+        28 of the 37 call sites (Roles/Users/Taxonomy/Comments/Members/Collections/Media/Seo/
+        Settings/WidgetPickerDialog). These sit inline next to other row content; a top margin
+        here would misalign every one of them.
+   The `<span>` vs `<div>` split is not a hard rule (case 1's header usage was a `<div>` too), but
+   in practice every bottom-of-form case found so far has been a `<div>`. Check the actual
+   surrounding markup before assuming which role a given caller is in. */
 .editor-actions { display: flex; gap: 0.6rem; align-items: center; }
 .save-ok { color: var(--ok); font-size: 0.85rem; }
 .save-error { color: var(--danger); font-size: 0.85rem; }
@@ -786,6 +931,22 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
 
 /* Menu tree editor */
 .menu-tree { display: flex; flex-direction: column; gap: 0.6rem; }
+/* A flex column defaults to `align-items: stretch` — correct for the `.menu-item-row` siblings
+   (rows of fields that should span the full width) but not for the trailing "+ Add item" button,
+   which stretched to the container's full content width (user report, with screenshot: "way too
+   large... left align and cap it"). `align-self: flex-start` sizes it to its own content instead,
+   satisfying both halves of the report without a `max-width` magic number. Scoped to a direct
+   `.menu-tree` child rather than a new class on the element — `.menu-tree`'s only direct
+   `.btn-secondary` child is this one button (verified: `.menu-item-row` isn't `.btn-secondary`, so
+   this can't accidentally catch a row that wants to stay full-width). Same root cause and same fix
+   shape as `.settings-scope-editor .btn-danger` below (another stretch-by-default flex column) —
+   audited every other `flex-direction: column` rule in this file for the same pattern (a bare
+   button as a direct child) and found no other live instance in a screen this pass owns; the
+   `.settings-namespace-loader`/`.settings-principal-selector` forms already guard against it with
+   their own explicit `align-items: flex-start`, and every other button-bearing container found
+   wraps its buttons in an intermediate row-flex group (`.editor-actions`, `.page-actions`) rather
+   than exposing them as direct flex-column children. */
+.menu-tree > .btn-secondary { align-self: flex-start; }
 .menu-item-row { position: relative; }
 .menu-item-row + .menu-item-row { margin-top: 0.6rem; }
 .menu-item-fields {
@@ -818,6 +979,21 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
 .tb-btn.on { background: var(--accent-dim); color: var(--accent-text); }
 .tb-btn:disabled { opacity: 0.38; cursor: default; }
 .tb-btn i { font-style: italic; } .tb-btn s { text-decoration: line-through; }
+/* `WidgetAddControl`'s `<span className="widget-add-control">` (its widget-type `<select>` plus
+   the "Insert widget"/"+ Add widget" trigger button, `components/WidgetPickerDialog.tsx`) had
+   never had any CSS anywhere in the app — the two controls sat flush with zero gap between them.
+   First fixed scoped (`.editor-toolbar .widget-add-control` in `styles/editor.css`) because that
+   pass didn't own this file and hadn't verified this span's other two call sites. Promoted to a
+   plain global rule here now that all three have actually been read, not assumed: `PostEditor.tsx`
+   and `CollectionEntryEditor.tsx` both render it inside `.editor-toolbar .grp` (identical
+   structure), and `WidgetRegionEditor.tsx` renders it bare at the end of `.widget-region-placements`
+   (an unstyled block `<div>` — `display: inline-flex` on this span doesn't care what its parent's
+   own display mode is). All three want the identical fix because the defect is in the span's own
+   two children, not in any one screen's surrounding layout — the opposite situation from
+   `.editor-actions` above, where the same class name really was serving unrelated roles. The
+   `styles/editor.css` scoped rule is now redundant and should be dropped by whoever owns that
+   file. */
+.widget-add-control { display: inline-flex; align-items: center; gap: var(--space-2); }
 .editor-body { background: var(--surface); padding: 1.5rem 2rem; min-height: 22rem; }
 .editor-body .tiptap { outline: none; min-height: 20rem; }
 .editor-body .tiptap p { line-height: 1.6; }
@@ -876,8 +1052,13 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
 /* Only the monospace override is this rule's own — padding/border/radius/background/color/resize
    now come from the shared `textarea` rule above; this holds a raw JSON value, hence monospace. */
 .settings-value-editor textarea { font-family: var(--font-mono); font-size: 0.85rem; }
-.settings-reset-trigger { align-self: flex-start; background: transparent; color: var(--danger); border: 1px solid var(--danger); }
-.settings-reset-trigger:hover { background: var(--danger-bg); }
+/* The reset-to-defaults trigger uses the shared `.btn-danger` now (was a bespoke
+   `.settings-reset-trigger` with the same colors) — matches `PostEditor.tsx`'s own precedent of
+   styling a destructive confirm-dialog TRIGGER `.btn-danger` directly, not just the dialog's own
+   confirm button. `.settings-scope-editor` is a flex column with default `align-items: stretch`,
+   so without this the button would stretch to the container's full width; `.btn-danger` itself
+   stays unscoped/full-width-agnostic for its other callers, so the `align-self` fix lives here. */
+.settings-scope-editor .btn-danger { align-self: flex-start; }
 .settings-dialog-backdrop { position: fixed; inset: 0; background: oklch(0% 0 0 / 0.45); display: grid; place-items: center; z-index: 40; }
 .settings-dialog { background: var(--surface); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; max-width: 26rem; box-shadow: var(--shadow-md); display: flex; flex-direction: column; gap: 0.9rem; }
 .settings-dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
@@ -911,6 +1092,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
 .collections-dynamic-field label { font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .collections-term-picker { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1rem 1.1rem; margin-top: 1rem; }
 .collections-term-checkbox { display: inline-flex; align-items: center; gap: 0.35rem; margin: 0.2rem 0.8rem 0.2rem 0; font-size: 0.85rem; }
+/* Same `.editor-actions` flush-spacing fix as `FormEditor.tsx`'s `.form-actions` — see
+   `CollectionEntryEditor.tsx`'s `TermPicker` for why this is scoped here rather than added to
+   `.editor-actions` itself (that class is shared with ~30 other, structurally different callers
+   across the app, most of them small inline row-action groups that must NOT get a top margin). */
+.term-picker-actions { margin-top: var(--space-5); }
 
 .taxonomy-new-term-form { margin-top: 0.7rem; }
 
@@ -1327,3 +1513,85 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
   border-color: transparent;
 }
 .settings-ui-section .jini-snippet-copy-btn:hover { background: color-mix(in srgb, var(--jini-text-strong) 75%, transparent); }
+
+/* Row action menu (`RowMenu.tsx`) + confirm dialog (`ConfirmDialog.tsx`) — replaces the
+   one-visible-button-per-row pattern and `window.confirm` respectively, wired into
+   `Posts.tsx`/`Pages.tsx`'s Edit/Disable/Delete row actions. See both components' own file-header
+   comments for the portal-to-`document.body` and native-`<dialog>` rationale; this block is just
+   their visual styling on top of the existing token system. */
+
+/* Icon-only trigger — quiet at rest like every other row action, but round rather than the
+   rectangular outline `.list-table td button:not([class*="btn-"])` gives unclassed row buttons
+   further up this file (a "⋯" glyph inside a full rectangular outline reads as a broken label,
+   not a control). The `.list-table td` prefix matches that rule's own scoping technique
+   (specificity (0,3,0) here vs. its (0,1,2)) so this cleanly outranks it instead of fighting it. */
+.row-menu-trigger {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0; flex-shrink: 0;
+  background: transparent; color: var(--muted); border: 1px solid transparent; border-radius: var(--r-pill);
+}
+.row-menu-trigger svg { width: 16px; height: 16px; }
+.list-table td .row-menu-trigger { background: transparent; color: var(--muted); border-color: transparent; }
+.row-menu-trigger:hover,
+.row-menu-trigger[aria-expanded="true"] { background: var(--surface-2); color: var(--fg-2); opacity: 1; }
+
+/* Popup — portaled to `document.body`, so this is a DOM sibling of the app root and needs its own
+   `position`/`z-index` rather than relying on any ancestor's stacking context; `RowMenu.tsx` sets
+   `position: fixed` inline per-instance (computed from `getBoundingClientRect()`), so only the
+   static box styling and stacking live here. `z-index: 70` matches `.cms-tooltip-portal` above,
+   the file's other portal-to-body element — both are transient overlays that never need to
+   outrank a modal `<dialog>` (the browser's top layer always wins over any `z-index` regardless),
+   and never coexist with each other. */
+.row-menu-popup {
+  min-width: 9rem; padding: var(--space-1);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+  box-shadow: var(--shadow-md); z-index: 70;
+  display: flex; flex-direction: column; gap: 1px;
+}
+/* Flipped-above variant gets a shadow that reads as "resting on top of" its anchor instead of
+   underneath it — a purely cosmetic tell so the flip doesn't look like a positioning bug. */
+.row-menu-popup-above { box-shadow: 0 -4px 14px rgba(20,28,45,0.09), 0 -1px 4px rgba(20,28,45,0.06); }
+.row-menu-item {
+  display: block; width: 100%; text-align: left;
+  background: transparent; color: var(--fg-2); border: none; border-radius: var(--r-sm);
+  padding: 0.45rem 0.65rem; font-size: var(--text-sm); font-weight: 500; cursor: pointer;
+}
+.row-menu-item:hover, .row-menu-item:focus-visible { background: var(--surface-2); color: var(--fg); opacity: 1; outline: none; }
+/* Warning/danger menu items reuse the shared `.btn-warning`/`.btn-danger` classes for their color
+   tokens (`RowMenu`'s three-tier `tone` API) rather than a bespoke class — was
+   `.row-menu-item-destructive` (danger-only, its own color literals) until this pass. Composed
+   here rather than left to fight the base classes: a `RowMenu` item is portaled to
+   `document.body`, so it is never a descendant of `.list-table td` and the row-scoped quiet-at-
+   rest rules below (which key off exactly that ancestry) cannot reach it — and `.btn-danger`/
+   `.btn-warning`'s own base rule is a bordered pill button, which painted a full red/amber outline
+   at rest inside a 3-item dropdown, the same "wall of red" problem those row-scoped rules exist to
+   prevent, just recreated in a new context. Chained-class selectors here (0,2,0 and up) outrank
+   both `.row-menu-item` alone and `.btn-danger`/`.btn-warning` alone (0,1,0 each) regardless of
+   source order, so shape stays `.row-menu-item`'s (block, full-width, menu-item padding) while
+   color and hover state come from the tone. */
+.row-menu-item.btn-danger, .row-menu-item.btn-warning { background: transparent; border: none; }
+.row-menu-item.btn-danger { color: var(--danger); }
+.row-menu-item.btn-danger:hover, .row-menu-item.btn-danger:focus-visible { background: var(--danger-bg); color: var(--danger); outline: none; }
+.row-menu-item.btn-warning { color: var(--warning); }
+.row-menu-item.btn-warning:hover, .row-menu-item.btn-warning:focus-visible { background: var(--warning-bg); color: var(--warning); outline: none; }
+
+/* Confirm dialog — native `<dialog>`; un-styled, the UA stylesheet centers it with a system
+   border/background and a plain black `::backdrop`. This replaces both with the token system but
+   deliberately leaves `position`/`margin` alone, so the browser's own top-layer centering (what
+   `showModal()` was chosen for in the first place) keeps doing the layout work. */
+.confirm-dialog {
+  border: 1px solid var(--border); border-radius: var(--r-lg); padding: var(--space-6);
+  max-width: 26rem; width: calc(100% - var(--space-6));
+  background: var(--surface); color: var(--fg); box-shadow: var(--shadow-md);
+}
+/* `display` lives on its own `[open]`-scoped rule rather than the bare `.confirm-dialog` rule
+   above — an author-stylesheet `display` declaration always wins over the UA stylesheet's
+   `dialog:not([open]) { display: none }` regardless of selector specificity (origin outranks
+   specificity in the cascade), so a bare `.confirm-dialog { display: flex }` would force the
+   dialog visible even while closed. Caught live in the browser, not just by reasoning about it:
+   the dialog rendered open-by-default on page load until this was scoped. */
+.confirm-dialog[open] { display: flex; flex-direction: column; gap: var(--space-4); }
+.confirm-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
+.confirm-dialog h2 { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
+.confirm-dialog-body { margin: 0; color: var(--fg-2); font-size: var(--text-md); line-height: 1.5; }
+.confirm-dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
