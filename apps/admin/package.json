@@ -20,6 +20,7 @@
     "@jini-ai/protocol": "file:../../../Jini/packages/protocol",
     "@jini-ai/renderers-react": "file:../../../Jini/packages/renderers-react",
     "@jini-ai/ui": "file:../../../Jini/packages/ui",
+    "@tanstack/react-query": "^5.101.4",
     "@tiptap/extension-image": "^3.27.2",
     "@tiptap/react": "^3.22.2",
     "@tiptap/starter-kit": "^3.22.2",

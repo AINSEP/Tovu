@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
+import { FetchQueryProvider } from "./lib/fetch-query";
 import { redirectLegacyHashUrl } from "./lib/router";
 import "./styles.css";
 
@@ -10,6 +11,11 @@ redirectLegacyHashUrl();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    {/* Server-state cache for every section that reads through `fetch-query`.
+        Sections not yet migrated are unaffected — they still call `api.*`
+        directly, and the two styles coexist without interfering. */}
+    <FetchQueryProvider>
+      <App />
+    </FetchQueryProvider>
   </React.StrictMode>
 );

@@ -1,48 +1,85 @@
-import { useEffect, useState } from "react";
-import { ApiError, api, type AdminRedirect, type AdminRedirectImportResponse } from "../lib/api";
+import { useState } from "react";
+import {
+  ApiError,
+  api,
+  type AdminRedirect,
+  type AdminRedirectImportResponse,
+  type RedirectImportRule,
+} from "../lib/api";
+import { useFetchMutation, useFetchQuery, type QueryKey } from "../lib/fetch-query";
 
 /**
  * @file Redirects admin screen (SPEC-009 ui.spec.md) — the `/admin/redirects` route.
- * Single-screen list + inline create form + per-row disable/enable + tombstone, mirroring
- * `FormsList.tsx`/`Seo.tsx`'s fetch/loading/error convention.
+ * Single-screen list + inline create form + per-row disable/enable + tombstone.
  *
  * SPEC-037 REQ-03/REQ-04: `HitCountCell` wires the previously-unused `api.getRedirectHits` as a
  * lazy per-row fetch (button-triggered, not fired for every row on mount — avoids an N+1 burst on
  * a large list), and `ImportRedirectsForm` wires the new `api.importRedirects` bulk-import
  * affordance, surfacing the route's own `207` per-item created/failed breakdown.
+ *
+ * ## Pilot for `lib/fetch-query`
+ *
+ * First screen migrated off the admin's `useState`-triple convention
+ * (`data`/`loading`/`error` + a hand-written `load()`), which the other 37
+ * fetching files still use. Picked as the pilot because it exercises the whole
+ * interface in one small file: a list read, three writes that each used to
+ * call `load()` by hand, a gesture-gated lazy read, and an import that
+ * refreshes the list.
+ *
+ * Two things genuinely change beyond line count. Writes now name what they
+ * invalidate instead of calling a loader the component happens to own — so a
+ * second mounted view of the same key refreshes too, where `load()` only ever
+ * refreshed this one. And a background refresh no longer throws the table
+ * away: `status` stays `'success'` while `isFetching` is true, so the old
+ * `if (!redirects) return <Loading/>` full-screen flash after every write is
+ * gone.
  */
+
+/** One cache identity per resource, defined once so a write's `invalidates`
+ *  and a read's `key` cannot drift apart — the failure mode being an
+ *  invalidation that silently matches nothing and a list that never refreshes. */
+const KEYS = {
+  list: ["redirects"] as QueryKey,
+  hits: (redirectId: string): QueryKey => ["redirects", redirectId, "hits"],
+};
 
 function describeApiError(e: unknown, fallback: string): string {
   if (e instanceof ApiError) return e.message || fallback;
   return e instanceof Error ? e.message : fallback;
 }
 
+/**
+ * `mutate` rejects on failure so a caller that needs the outcome inline can
+ * `await` it. These button handlers don't — they render the mutation's own
+ * `error` instead — so the rejection is absorbed explicitly rather than left
+ * to surface as an unhandled promise rejection in the console.
+ */
+function absorbHandledRejection() {
+  /* reported via the mutation's `error`, rendered in the banner above */
+}
+
 /** Lazy hit-count cell (REQ-03) — fetches on first click rather than on mount, so a list of many
  * rows never fires a synchronous burst of `/hits` requests. A rule with zero recorded hits still
  * renders `0` (not blank), matching `hits.ts`'s own "still 200s with hitCount: 0" contract. */
 function HitCountCell(props: { redirectId: string }) {
-  const [stats, setStats] = useState<{ hitCount: number } | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // `enabled` is what keeps this lazy: the query is declared for every row but
+  // runs for none of them until its own button is pressed, preserving the
+  // no-N+1-burst property without a manual imperative fetch.
+  const [requested, setRequested] = useState(false);
+  const hits = useFetchQuery({
+    key: KEYS.hits(props.redirectId),
+    fetch: () => api.getRedirectHits(props.redirectId),
+    enabled: requested,
+  });
 
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      const r = await api.getRedirectHits(props.redirectId);
-      setStats({ hitCount: r.data.hitCount });
-    } catch (e) {
-      setError(describeApiError(e, "failed"));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (error) return <span className="save-error">{error}</span>;
-  if (stats) return <span>{stats.hitCount}</span>;
+  if (hits.error) return <span className="save-error">{describeApiError(hits.error, "failed")}</span>;
+  // A rule with zero recorded hits still renders `0` (not blank), matching
+  // `hits.ts`'s own "still 200s with hitCount: 0" contract — so this branches
+  // on the request having completed, never on the count's truthiness.
+  if (hits.data) return <span>{hits.data.data.hitCount}</span>;
   return (
-    <button type="button" onClick={load} disabled={loading}>
-      {loading ? "Loading…" : "Load hits"}
+    <button type="button" onClick={() => setRequested(true)} disabled={hits.isFetching}>
+      {hits.isFetching ? "Loading…" : "Load hits"}
     </button>
   );
 }
@@ -51,40 +88,58 @@ function HitCountCell(props: { redirectId: string }) {
  * `api.importRedirects`, and surface the `207` per-item created/failed breakdown directly
  * (never collapsed into a single pass/fail toast — a partial-batch failure is the route's own
  * designed behavior, not an edge case). */
-function ImportRedirectsForm(props: { onImported: () => void }) {
+function ImportRedirectsForm() {
   const [raw, setRaw] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // Client-side validation only — the JSON never reached the server, so this
+  // is not a request failure and does not belong in the mutation's `error`.
+  const [parseError, setParseError] = useState<string | null>(null);
   const [result, setResult] = useState<AdminRedirectImportResponse | null>(null);
-  const [importing, setImporting] = useState(false);
+
+  const importRules = useFetchMutation({
+    // Typed as the route's own shape, but the value is operator-pasted JSON
+    // that has only been checked for "is an array" — see the cast at the call
+    // site. The server is the validator here and reports per-item failures in
+    // its `207`; duplicating that schema client-side would be a second source
+    // of truth for it.
+    run: (rules: RedirectImportRule[]) => api.importRedirects(rules),
+    // Replaces the `onImported` callback the parent used to thread down purely
+    // so this form could refresh a list it does not own.
+    invalidates: [KEYS.list],
+  });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setParseError(null);
     setResult(null);
+    importRules.reset();
 
     let rules: unknown;
     try {
       rules = JSON.parse(raw);
     } catch {
-      setError("Not valid JSON.");
+      setParseError("Not valid JSON.");
       return;
     }
     if (!Array.isArray(rules)) {
-      setError("Must be a JSON array of rule objects.");
+      setParseError("Must be a JSON array of rule objects.");
       return;
     }
 
-    setImporting(true);
+    // A partial batch (the route's `207`) RESOLVES — it is a result to render,
+    // not a failure — so only a transport/route error lands in `catch`, where
+    // the mutation's own `error` already holds the message.
     try {
-      const r = await api.importRedirects(rules);
-      setResult(r);
-      if (r.created.length > 0) props.onImported();
-    } catch (e) {
-      setError(describeApiError(e, "Import failed"));
-    } finally {
-      setImporting(false);
+      // Unchecked by design (see `run` above). The previous version reached the
+      // same place implicitly — `Array.isArray` narrows `unknown` to `any[]`,
+      // which the parameter accepted silently; this states it instead.
+      setResult(await importRules.mutate(rules as RedirectImportRule[]));
+    } catch {
+      /* surfaced via `importRules.error` below */
     }
   }
+
+  const error = parseError ?? (importRules.error ? describeApiError(importRules.error, "Import failed") : null);
+  const importing = importRules.status === "pending";
 
   return (
     <details className="notice redirects-import">
@@ -143,64 +198,49 @@ function ImportRedirectsForm(props: { onImported: () => void }) {
 }
 
 export function Redirects() {
-  const [redirects, setRedirects] = useState<AdminRedirect[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const list = useFetchQuery({ key: KEYS.list, fetch: () => api.listRedirects() });
 
-  function load() {
-    api
-      .listRedirects()
-      .then((r) => setRedirects(r.data))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load redirects"));
-  }
-
-  useEffect(load, []);
-
-  async function createRule(form: FormData) {
-    setSaving(true);
-    setError(null);
-    try {
-      await api.createRedirect({
+  // Each write names the cache it affects rather than calling a loader; the
+  // list refetches because it is mounted under that key, not because this
+  // component remembered to ask it to.
+  const createRule = useFetchMutation({
+    run: (form: FormData) =>
+      api.createRedirect({
         matchType: String(form.get("matchType") ?? "exact"),
         fromPattern: String(form.get("fromPattern") ?? ""),
         toTarget: String(form.get("toTarget") ?? ""),
         statusCode: Number(form.get("statusCode") ?? 301),
-      });
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to create redirect");
-    } finally {
-      setSaving(false);
-    }
-  }
+      }),
+    invalidates: [KEYS.list],
+  });
 
-  async function toggleStatus(rule: AdminRedirect) {
-    setSaving(true);
-    setError(null);
-    try {
-      await api.updateRedirect({ id: rule.id }, { status: rule.status === "active" ? "disabled" : "active" });
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to update redirect");
-    } finally {
-      setSaving(false);
-    }
-  }
+  const toggleStatus = useFetchMutation({
+    run: (rule: AdminRedirect) =>
+      api.updateRedirect({ id: rule.id }, { status: rule.status === "active" ? "disabled" : "active" }),
+    invalidates: [KEYS.list],
+  });
 
-  async function removeRule(rule: AdminRedirect) {
-    setSaving(true);
-    setError(null);
-    try {
-      await api.tombstoneRedirect(rule.id);
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to delete redirect");
-    } finally {
-      setSaving(false);
-    }
-  }
+  const removeRule = useFetchMutation({
+    run: (rule: AdminRedirect) => api.tombstoneRedirect(rule.id),
+    invalidates: [KEYS.list],
+  });
 
-  if (error && !redirects) return <div className="notice error">{error}</div>;
+  const writes = [createRule, toggleStatus, removeRule];
+  const saving = writes.some((write) => write.status === "pending");
+  // Whichever write failed most recently, falling back to a list-read failure.
+  // Mirrors the single shared `error` slot the old version had — one banner,
+  // not three stacked ones.
+  const writeError = writes.find((write) => write.error)?.error ?? null;
+  const error = writeError ?? list.error;
+
+  const redirects = list.data?.data;
+
+  // Only a FIRST load blocks the screen. A refetch triggered by a write keeps
+  // the table on screen (`status` stays `'success'`), where the old
+  // `if (!redirects)` guard blanked the whole page after every single edit.
+  if (list.status === "error" && !redirects) {
+    return <div className="notice error">{describeApiError(list.error, "failed to load redirects")}</div>;
+  }
   if (!redirects) return <div className="notice">Loading redirects…</div>;
 
   return (
@@ -212,12 +252,12 @@ export function Redirects() {
         Manual URL redirect rules. Rules created automatically from a slug change (source
         <code> auto_slug_change</code>) also show up here.
       </p>
-      {error ? <div className="notice error">{error}</div> : null}
+      {error ? <div className="notice error">{describeApiError(error, "request failed")}</div> : null}
 
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          createRule(new FormData(e.currentTarget));
+          createRule.mutate(new FormData(e.currentTarget)).catch(absorbHandledRejection);
           e.currentTarget.reset();
         }}
       >
@@ -251,7 +291,7 @@ export function Redirects() {
         </button>
       </form>
 
-      <ImportRedirectsForm onImported={load} />
+      <ImportRedirectsForm />
 
       {redirects.length === 0 ? (
         <div className="notice">No redirect rules yet.</div>
@@ -284,10 +324,10 @@ export function Redirects() {
                   <HitCountCell redirectId={rule.id} />
                 </td>
                 <td>
-                  <button disabled={saving} onClick={() => toggleStatus(rule)}>
+                  <button disabled={saving} onClick={() => toggleStatus.mutate(rule).catch(absorbHandledRejection)}>
                     {rule.status === "active" ? "Disable" : "Enable"}
                   </button>
-                  <button disabled={saving} onClick={() => removeRule(rule)}>
+                  <button disabled={saving} onClick={() => removeRule.mutate(rule).catch(absorbHandledRejection)}>
                     Delete
                   </button>
                 </td>
