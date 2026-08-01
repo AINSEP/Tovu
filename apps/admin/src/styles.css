@@ -389,6 +389,17 @@ input:focus, select:focus { outline: none; border-color: var(--accent-text); }
   border: 1px solid var(--jini-border); border-radius: var(--jini-radius-pill);
 }
 .settings-ui-dialog-btn:hover { color: var(--jini-text); border-color: var(--jini-border-strong); }
+/* Privacy tab: telemetry consent controls with no real collection pipeline
+ * behind them yet (see the panel comment in SettingsUi.tsx). `inert` on
+ * `.settings-ui-inert-control` already makes it unusable; this is the visual
+ * complement so it also *looks* disabled rather than merely being inert to
+ * screen readers/keyboard while appearing fully interactive to the eye. */
+.settings-ui-inert-note {
+  margin: 0 0 12px; padding: 10px 14px; font-size: 12px; line-height: 1.5;
+  color: var(--jini-text-muted); background: var(--jini-bg-subtle);
+  border: 1px dashed var(--jini-border); border-radius: var(--jini-radius-sm);
+}
+.settings-ui-inert-control { opacity: 0.55; }
 /* OD's Local CLI / BYOK toggle shows only the mode name, no second line —
  * confirmed against `od-settings-execution.png`. `ExecutionTab` renders that
  * description unconditionally (`.jini-seg-meta`, no prop to suppress it), so

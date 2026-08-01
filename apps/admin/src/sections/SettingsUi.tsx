@@ -203,14 +203,48 @@ export function SettingsUi() {
       id: "privacy",
       label: "Privacy",
       title: "Privacy",
-      subtitle: "Choose what this installation shares.",
+      // Not "Choose what this installation shares" — there is nothing to
+      // choose yet. See the panel note below.
+      subtitle: "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.",
       icon: (
         <TabIcon>
           <path d="M9 2.5 14 4.5v4c0 3.2-2.1 6-5 7-2.9-1-5-3.8-5-7v-4z" />
           <path d="M6.75 8.75 8.5 10.5l3-3.25" />
         </TabIcon>
       ),
-      panel: <PrivacyTab state={privacy.value as PrivacyConsentState} onChange={privacy.onChange} />,
+      /**
+       * `core.privacy.telemetry.{metrics,content}` models consent to share
+       * anonymous usage data with the *vendor* (this port's origin control).
+       * Tovu has no outbound telemetry path at all — no `ForwardingSink`
+       * implementation exists anywhere in `src/`, only doc comments saying
+       * one will be "built later". Leaving this tab live-but-inert would let
+       * an operator believe they are choosing to share (or successfully
+       * withholding) data that was never going anywhere either way — the
+       * exact "mount for completeness" trap this project's decisions call
+       * out. So: the note says so plainly, and `inert` makes the controls
+       * genuinely unusable (not just dimmed — `inert` also removes them from
+       * focus and keyboard activation, unlike a CSS-only `pointer-events`
+       * fake-disable). `PrivacyTab` has no `disabled` prop to plumb this
+       * through instead.
+       *
+       * A separate, real first-party analytics privacy surface
+       * (`core.analytics.*` — DNT/GPC, retention, path exclusions) is being
+       * built alongside this by another agent. That one is unrelated: it is
+       * about Tovu's OWN first-party analytics, not vendor telemetry, and it
+       * is NOT this tab.
+       */
+      panel: (
+        <div className="settings-ui-inert-wrap">
+          <p className="settings-ui-inert-note" role="note">
+            Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent
+            regardless of this choice. The control below is shown for reference and disabled until a
+            real collection path exists.
+          </p>
+          <div className="settings-ui-inert-control" inert>
+            <PrivacyTab state={privacy.value as PrivacyConsentState} onChange={privacy.onChange} />
+          </div>
+        </div>
+      ),
     },
     {
       id: "appearance",
@@ -317,30 +351,35 @@ export function SettingsUi() {
   );
 
   /**
-   * Pins the dialog's palette to LIGHT, unconditionally, scoped to this section.
+   * Follows the operator's stored `core.appearance.theme` choice, scoped to
+   * this section only.
    *
    * `settings-dialog.css` resolves its `--jini-*` tokens from a `data-theme`
-   * attribute on ANY ancestor, falling back to `@media (prefers-color-scheme)`.
-   * Emitting a literal `"light"` is what stops that media query from applying:
-   * the surrounding Tovu admin is a light surface with NO dark variant, so any
-   * path that resolves to dark puts a dark panel inside a light app.
+   * attribute on ANY ancestor, falling back to `@media (prefers-color-scheme)`
+   * when none is set. `"system"` means "match the OS", which this dialog
+   * already does natively via that same media query — so `"system"` maps to
+   * `undefined` here rather than a literal string data-theme has no value for.
    *
-   * Why unconditional rather than reading the operator's stored choice: the
-   * stored `core.appearance.theme` definition default is `"system"` on any
-   * install that booted before the source default became `"light"`, and
-   * `ensureSettingDefinitions` skips definitions that already exist
-   * (`if (existing) continue;`) — so a source-side default can never reach an
-   * existing database. Rather than depend on a value we cannot correct from
-   * code, this ignores it. That is deliberate and temporary.
+   * This used to be pinned to a literal `"light"` unconditionally, because the
+   * stored default for `core.appearance.theme` could get stuck on `"system"`
+   * on any install that booted before the source default became `"light"` —
+   * `ensureSettingDefinitions` used to skip definitions that already existed,
+   * so a source-side default fix could never reach an existing database. Fixed
+   * upstream in `reconcileDefinitionDefault` (see `ensure-definitions.ts`):
+   * `content.db` now reconciles a drifted core-owned default at boot instead
+   * of leaving it stuck. The control is real again — picking dark or system
+   * now actually changes what renders here, not just what's stored.
    *
-   * Consequence, stated not hidden: the Appearance tab's theme control is
-   * currently INERT — picking dark or system still saves to the ledger but
-   * changes nothing on screen. Restore `data-theme={theme === 'system' ?
-   * undefined : theme}` here once the admin has a real dark variant, or once
-   * the stored-default drift is fixed and the control is worth honouring.
+   * Note this only themes the settings panel itself, not the rest of the
+   * Tovu admin shell (which stays light-only) — picking "dark" or "system" on
+   * a dark OS renders a dark settings panel inside an otherwise-light admin.
+   * That is the intended scope of a "Dialog appearance" control, not a bug.
    */
+  const dialogTheme = (appearance.value as AppearanceConfig).theme;
+  const dialogDataTheme = dialogTheme === "system" ? undefined : dialogTheme;
+
   return (
-    <div className="settings-ui-section" data-theme="light">
+    <div className="settings-ui-section" data-theme={dialogDataTheme}>
       {loadError ? (
         <p className="settings-ui-load-error" role="alert">
           Could not load saved settings ({loadError}). Showing defaults — edits will still save.
