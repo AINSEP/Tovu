@@ -2,7 +2,7 @@
  * @file The `fetch-query` contract — deliberately free of any library import.
  *
  * This file is the whole point of the `fetch-query/` directory: it is the
- * vocabulary the admin's 38 fetching files speak, and it names nothing from
+ * vocabulary the admin's 40 fetching files speak, and it names nothing from
  * TanStack Query. Swapping the implementation out (see `index.ts`'s header for
  * the rip-out procedure) must not require touching a single call site, which
  * is only true for as long as no TanStack type leaks through here.
@@ -49,6 +49,10 @@ export type QueryStatus = "loading" | "success" | "error";
 export interface QueryResult<T> {
   /** `undefined` until the first successful load. */
   data: T | undefined;
+  /** Independent of `status` — a disabled query holding data from an earlier
+   *  success can be `status: 'success'` with `error` non-null at the same
+   *  time, if a LATER background refresh of that same data failed. See
+   *  `FetchQueryOptions.enabled`'s doc for the full breakdown. */
   error: Error | null;
   status: QueryStatus;
   /** True whenever a request is in flight, including a background refresh
@@ -72,15 +76,22 @@ export interface FetchQueryOptions<T> {
    * prerequisite value (`enabled: Boolean(selectedId)`), which is otherwise the
    * classic "fetch with an undefined id" bug.
    *
-   * A disabled query reports `error: null` and never `status: 'error'`, even if
-   * an earlier enabled run of the same key failed and that failure is still
-   * cached. Spelled out because the underlying cache does NOT forget a failure
-   * when a query is disabled, and passing that through meant a gesture-gated
-   * cell could render a stale error before the operator had gestured — a
-   * failure they cannot dismiss and did not ask to retry.
+   * A disabled query never has `status: 'error'`, but whether `error` itself
+   * is `null` depends on whether the key ever held data, because the
+   * underlying cache does NOT forget a failure when a query is disabled:
    *
-   * It reports `loading` with no request in flight, or `success` if the key
-   * already holds data worth showing.
+   * - Never held data (no earlier run of this key ever succeeded): reports
+   *   `loading` and `error: null`, full stop — even if an earlier enabled run
+   *   of the same key failed and that failure is still cached. Spelled out
+   *   because passing that through meant a gesture-gated cell could render a
+   *   stale error before the operator had gestured — a failure they cannot
+   *   dismiss and did not ask to retry.
+   * - Already holds data worth showing (an earlier run succeeded, even if a
+   *   LATER background refresh of it then failed): reports `success` — the
+   *   data is still the right thing to render — but `error` is the real
+   *   failure, not `null`, so a caller that wants to flag "this may be stale"
+   *   can. Silently dropping it here would let known-stale, known-broken data
+   *   pass as an unqualified success with no way to tell.
    */
   enabled?: boolean;
   /** How long a cached value is served without a background refresh, in ms.
@@ -104,10 +115,12 @@ export interface MutationResult<TInput, TOutput> {
    * promise satisfies the first sentence and breaks the second usage — the
    * default `mutateAsync` of at least one library does exactly that.
    *
-   * Held by construction, not by test: no jsdom-level assertion could
-   * distinguish the two implementations (see the note in
-   * `__tests__/fetch-query.test.tsx`), so a replacement adapter must satisfy
-   * this by reading it here rather than by going green.
+   * Pinned by test. An earlier revision of this doc claimed the property was
+   * only holdable "by construction" because no jsdom assertion could see it;
+   * that was wrong, and twice over — jsdom's `window` event does not fire, but
+   * Node's `process.on('unhandledRejection')` does, and discriminates a bare
+   * `mutateAsync` from a handler-attached one. A replacement adapter is held to
+   * this by the suite, not by trust.
    */
   mutate: (input: TInput) => Promise<TOutput>;
   status: MutationStatus;

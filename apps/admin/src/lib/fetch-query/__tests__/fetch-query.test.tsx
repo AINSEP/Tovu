@@ -132,6 +132,43 @@ describe("useFetchQuery", () => {
     expect(screen.getByTestId("lazy-error")).toHaveTextContent("-");
   });
 
+  /**
+   * Regression — external review, 2026-08-01/02, round 2. The test above only
+   * covers a key that NEVER succeeded. A key that succeeded once and then
+   * failed on a LATER background refresh keeps its stale `data` — TanStack
+   * does not clear `data` on a refetch error — and disabling it at that point
+   * must not silently launder that into an unqualified success: the data is
+   * still real and worth showing (`status` stays `'success'`), but `error`
+   * must carry the failure rather than being hidden behind the
+   * never-succeeded case's `null`, or a caller has no way to tell the last
+   * refresh attempt broke.
+   */
+  it("a disabled query with data from an earlier success still surfaces a later refresh's failure", async () => {
+    let call = 0;
+    const fetch = vi.fn(() => {
+      call++;
+      return call === 1 ? Promise.resolve("v1") : Promise.reject(new Error("refresh broke"));
+    });
+
+    const { rerender } = wrap(<Reader fetch={fetch} />);
+    await waitFor(() => expect(screen.getByTestId("data")).toHaveTextContent("v1"));
+
+    await userEvent.click(screen.getByRole("button", { name: "refetch" }));
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("error"));
+    // The failed refresh keeps the stale data rather than clearing it.
+    expect(screen.getByTestId("data")).toHaveTextContent("v1");
+
+    rerender(
+      <FetchQueryProvider>
+        <Reader fetch={fetch} enabled={false} />
+      </FetchQueryProvider>,
+    );
+
+    expect(screen.getByTestId("status")).toHaveTextContent("success");
+    expect(screen.getByTestId("data")).toHaveTextContent("v1");
+    expect(screen.getByTestId("error")).toHaveTextContent("refresh broke");
+  });
+
   it("shares one request between two components mounted on the same key", async () => {
     const fetch = vi.fn(async () => "shared");
     wrap(
@@ -240,21 +277,54 @@ describe("useFetchMutation", () => {
    * The fire-and-forget form (`void m.mutate(...)`, which `Writer` above uses
    * deliberately without a local `.catch`) must still land the failure in
    * `status`/`error` as documented.
-   *
-   * NOT a test that the discarded promise avoids `unhandledrejection`. One was
-   * written and deleted: it passed identically with and against the adapter fix
-   * it claimed to pin, because neither jsdom's `window` event nor Node's
-   * process-level hook fires for it under this runner. A test that cannot
-   * distinguish the bug from the fix is worse than no test — it reports
-   * confidence it does not have. That property is held by construction instead
-   * (see `adapter.tanstack.tsx`'s `call`), and is verifiable only in a real
-   * browser console.
    */
   it("the fire-and-forget form still reports the failure through status and error", async () => {
     wrap(<Writer run={async () => Promise.reject(new Error("boom"))} fetch={async () => "v1"} />);
     await userEvent.click(screen.getByRole("button", { name: "write" }));
     await waitFor(() => expect(screen.getByTestId("mstatus")).toHaveTextContent("error"));
     expect(screen.getByTestId("merror")).toHaveTextContent("boom");
+  });
+
+  /**
+   * Regression — external review, 2026-08-01/02. `mutate()`'s documented
+   * fire-and-forget usage (`void m.mutate(...)`, no local `.catch`, exactly
+   * what `Writer` above does) must not raise `unhandledrejection`.
+   *
+   * An earlier version of this test was written and deleted on the claim that
+   * "neither jsdom's `window` event nor Node's `process` hook fires under this
+   * runner." That claim was half right: jsdom's `window` `unhandledrejection`
+   * event genuinely does not fire under vitest+jsdom. But Node's own
+   * `process.on('unhandledRejection', ...)` hook DOES fire here, and it
+   * cleanly discriminates the bug from the fix — reverting `adapter.tsx`'s
+   * `call` to the pre-fix `useCallback((input) => mutateAsync(input), ...)`
+   * (bare, no handler attached) makes this test fail.
+   *
+   * `process.on`/`process.off` are paired in a `finally` so a failing
+   * assertion still removes the listener rather than leaking it into a later
+   * test in the same worker.
+   */
+  it("the fire-and-forget form does not raise a process-level unhandledRejection", async () => {
+    const reasons: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => reasons.push(reason);
+    process.on("unhandledRejection", onUnhandledRejection);
+
+    try {
+      wrap(<Writer run={async () => Promise.reject(new Error("boom"))} fetch={async () => "v1"} />);
+      await userEvent.click(screen.getByRole("button", { name: "write" }));
+      await waitFor(() => expect(screen.getByTestId("mstatus")).toHaveTextContent("error"));
+
+      // `unhandledRejection` fires on a LATER turn of the event loop than the
+      // rejection itself — only once Node has confirmed no handler was ever
+      // attached — so the assertion above resolving is not sufficient; give
+      // the loop room to report it before checking `reasons`.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    } finally {
+      process.off("unhandledRejection", onUnhandledRejection);
+    }
+
+    expect(reasons).toEqual([]);
   });
 
   it("mutate() rejects, so a caller that needs the outcome can await it inline", async () => {

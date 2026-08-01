@@ -218,7 +218,15 @@ export function Redirects() {
   const writes = [createRule, toggleStatus, removeRule];
   const saving = writes.some((write) => write.status === "pending");
   const writeError = writes.find((write) => write.error)?.error ?? null;
-  const error = writeError ?? list.error;
+  // A failed background list refresh keeps `list.error` set while the table
+  // still shows its last good data. Rendered unconditionally, that error became
+  // the banner the operator sees the instant they click Disable — reading as
+  // "your Disable failed" when the write is merely in flight and the stale
+  // message belongs to an earlier refresh. Suppressed while a write is running,
+  // for the same reason the pre-migration handlers each opened with
+  // `setError(null)`. It returns afterwards if the list is genuinely still
+  // failing, which is honest rather than hidden.
+  const error = writeError ?? (saving ? null : list.error);
 
   /**
    * Clears the OTHER writes' failures before starting one.
