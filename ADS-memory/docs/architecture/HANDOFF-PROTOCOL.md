@@ -47,7 +47,7 @@ Use this when you need to brief another LLM quickly:
 
 ```text
 Canonical source: tovu-architecture.md
-Start packet: docs/architecture/CONTEXT-PACKET.md
+Start packet: ADS-memory/docs/architecture/CONTEXT-PACKET.md
 Question type: <architecture proposal | package layout | theme/plugin | planning | pattern research>
 Required reads: <paths from CONTEXT-PACKET.md>
 Non-negotiables: dependencies point inward, core never imports adapters, no circular dependencies, no provider SDKs in core, Section 13 modular friction rules, Section 14 delivery rules

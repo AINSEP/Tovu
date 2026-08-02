@@ -137,7 +137,7 @@ export interface FederatedMcpConnectionConfig {
 }
 
 /** How a federated connection is launched. Only stdio is implemented this pass — see
- * `docs/architecture/reference/external-mcp-server-federation.md` for why the hosted HTTP
+ * `ADS-memory/docs/architecture/reference/external-mcp-server-federation.md` for why the hosted HTTP
  * transport is deferred rather than half-built. */
 export interface McpStdioLaunchSpec {
   readonly command: string;

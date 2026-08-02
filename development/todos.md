@@ -331,7 +331,7 @@ Which ADR owns which inventory area:
 - **§12 Agentic UI / AI Layer** — **ADR-013**: one CopilotKit client + one AG-UI
   daemon agent; `tools.ts` registry with an execution `surface` (frontend/data);
   agent detection ported from open-design; composer rebuilt headless. Paradigm note:
-  `docs/architecture/appendices/A12-tool-use-first-architecture.md`.
+  `ADS-memory/docs/architecture/appendices/A12-tool-use-first-architecture.md`.
 - **§13 Protocols** — ADR-011 (two deployment topologies; open-design desktop host),
   ADR-013 (AG-UI/MCP surface, tool exposure).
 

@@ -767,7 +767,7 @@ Ghost's block editor (Koenig) demonstrates how to build a card-based rich text e
 
 ### What Tovu Should Avoid
 
-**Avoid Ghost's Bookshelf ORM — and Strapi/Directus's untyped Knex layer.** Bookshelf is legacy; Knex (Strapi + Directus) is a query builder with no compile-time type safety at the data layer. **Tovu adopted Drizzle on 2026-07-06** (a code-first schema in `src/infra/db/schema.ts` → generated migrations in `drizzle/` → typed adapters behind the feature ports) — Payload's shared-schema shape, so the future Postgres/Supabase adapter reuses one typed schema instead of hand-written per-dialect SQL.
+**Avoid Ghost's Bookshelf ORM — and Strapi/Directus's untyped Knex layer.** Bookshelf is legacy; Knex (Strapi + Directus) is a query builder with no compile-time type safety at the data layer. **Tovu adopted Drizzle on 2026-07-06** (a code-first schema in `src/db/schema.ts` → generated migrations in `drizzle/` → typed adapters behind the feature ports) — Payload's shared-schema shape, so the future Postgres/Supabase adapter reuses one typed schema instead of hand-written per-dialect SQL.
 
 **Avoid Ghost's Ember.js admin.** Choosing a niche admin framework creates a talent problem. Ghost is now migrating away from Ember after years of technical debt. Tovu's admin should be React (aligned with the largest component ecosystem) or Vue (Directus's choice), but not an outlier framework.
 

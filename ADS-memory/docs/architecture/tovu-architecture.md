@@ -958,7 +958,7 @@ The fundamental trade-off: this architecture requires more work upfront because 
 
 This section maps the major user-frustration clusters into architecture capabilities Tovu must support over time.
 It is intentionally a living backlog, not a claim that everything below is already solved.
-Reference corpus: `docs/user-complaints/` contains the raw complaint research that motivates this backlog; review it if restarting or reprioritizing.
+Reference corpus: `ADS-memory/docs/user-complaints/` contains the raw complaint research that motivates this backlog; review it if restarting or reprioritizing.
 Current planning checkpoint: `AI-Dev-Shop/reports/swarm-consensus/runs/2026-03-24-191415-consensus-report.md` captures the latest Codex + Claude synthesis on starting sequence and early slices; use it as supporting context, not as a replacement for this document.
 
 ### 13.1 Main Issue Families to Solve

@@ -1,0 +1,108 @@
+version: 1
+purpose: llm_navigation
+
+canonical_source:
+  path: tovu-architecture.md
+  role: active_source_of_truth
+
+authority_order:
+  - path: tovu-architecture.md
+    tier: 1
+    role: canonical
+  - path: ADS-memory/docs/architecture/sections/
+    tier: 2
+    role: exact_extracts
+  - path: ADS-memory/docs/architecture/appendices/
+    tier: 2
+    role: exact_extracts
+  - path: ADS-memory/docs/architecture/MIGRATION-MAP.yaml
+    tier: 3
+    role: proof_and_lookup
+  - path: ADS-memory/docs/architecture/README.md
+    tier: 4
+    role: human_guidance
+  - path: ADS-memory/docs/architecture/CONTEXT-PACKET.md
+    tier: 4
+    role: human_guidance
+  - path: ADS-memory/docs/architecture/HANDOFF-PROTOCOL.md
+    tier: 4
+    role: human_guidance
+  - path: ADS-memory/docs/architecture/LLM-NAVIGATION.md
+    tier: 4
+    role: guidance_only
+  - path: ADS-memory/docs/architecture/READING-ORDER.md
+    tier: 4
+    role: guidance_only
+  - path: ADS-memory/docs/architecture/CONTEXT-PACKET.yaml
+    tier: 5
+    role: machine_packet
+  - path: ADS-memory/docs/architecture/LLM-ROUTING.yaml
+    tier: 5
+    role: machine_guidance
+  - path: ADS-memory/docs/architecture/reference/
+    tier: 6
+    role: background_only
+
+always_include:
+  - ADS-memory/docs/architecture/sections/00-document-header.md
+  - ADS-memory/docs/architecture/sections/02-core-design-principle-dependency-inversion-everywhere.md
+  - ADS-memory/docs/architecture/sections/13-user-friction-coverage-living-backlog.md
+  - ADS-memory/docs/architecture/sections/14-meta-coding-framework-spec-first-test-first-pattern-first.md
+
+routes:
+  architecture_change:
+    read:
+      - ADS-memory/docs/architecture/sections/00-document-header.md
+      - ADS-memory/docs/architecture/sections/01-architectural-foundation.md
+      - ADS-memory/docs/architecture/sections/02-core-design-principle-dependency-inversion-everywhere.md
+      - ADS-memory/docs/architecture/sections/10-dependency-rules.md
+      - ADS-memory/docs/architecture/sections/11-architecture-enforcement.md
+      - ADS-memory/docs/architecture/sections/13-user-friction-coverage-living-backlog.md
+      - ADS-memory/docs/architecture/sections/14-meta-coding-framework-spec-first-test-first-pattern-first.md
+  package_layout:
+    read:
+      - ADS-memory/docs/architecture/sections/03-package-structure.md
+      - ADS-memory/docs/architecture/sections/04-port-interfaces.md
+      - ADS-memory/docs/architecture/sections/05-the-kernel-ioc-container.md
+      - ADS-memory/docs/architecture/sections/10-dependency-rules.md
+  theme_or_plugin:
+    read:
+      - ADS-memory/docs/architecture/sections/07-theme-engine.md
+      - ADS-memory/docs/architecture/sections/08-plugin-sdk.md
+      - ADS-memory/docs/architecture/sections/10-dependency-rules.md
+      - ADS-memory/docs/architecture/sections/13-user-friction-coverage-living-backlog.md
+      - ADS-memory/docs/architecture/sections/14-meta-coding-framework-spec-first-test-first-pattern-first.md
+  api_or_runtime:
+    read:
+      - ADS-memory/docs/architecture/sections/06-configuration.md
+      - ADS-memory/docs/architecture/sections/09-api-layer.md
+      - ADS-memory/docs/architecture/sections/10-dependency-rules.md
+  implementation_planning:
+    read:
+      - ADS-memory/docs/architecture/sections/13-user-friction-coverage-living-backlog.md
+      - ADS-memory/docs/architecture/sections/14-meta-coding-framework-spec-first-test-first-pattern-first.md
+    note: add the target feature section before planning
+  pattern_research:
+    read:
+      - ADS-memory/docs/architecture/appendices/00-architectural-patterns-reference.md
+    note: then select the specific appendix file implied by the pattern name
+
+update_workflow:
+  - edit: tovu-architecture.md
+  - verify: scripts/verify-architecture-split.sh
+  - refresh_hub: ADS-memory/docs/architecture/README.md
+  - refresh_packet: ADS-memory/docs/architecture/CONTEXT-PACKET.md
+  - refresh_handoff: ADS-memory/docs/architecture/HANDOFF-PROTOCOL.md
+  - refresh_llm_navigation: ADS-memory/docs/architecture/LLM-NAVIGATION.md
+  - refresh_reading_order: ADS-memory/docs/architecture/READING-ORDER.md
+  - refresh_machine_packet: ADS-memory/docs/architecture/CONTEXT-PACKET.yaml
+  - refresh_machine_routing: ADS-memory/docs/architecture/LLM-ROUTING.yaml
+  - refresh_repo_entrypoints:
+      - README.md
+      - ADS-memory/docs/README.md
+
+anti_patterns:
+  - treat_reference_as_canonical
+  - hand_edit_extracts_instead_of_root
+  - infer_active_commitments_from_appendix_material
+  - bypass_section_13_or_14_constraints

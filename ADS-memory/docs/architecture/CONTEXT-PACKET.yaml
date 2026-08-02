@@ -1,0 +1,47 @@
+version: 1
+kind: architecture_context_packet
+canonical_source: tovu-architecture.md
+guidance_only: true
+
+baseline_reads:
+  - ADS-memory/docs/architecture/CONTEXT-PACKET.md
+  - ADS-memory/docs/architecture/LLM-NAVIGATION.md
+  - ADS-memory/docs/architecture/HANDOFF-PROTOCOL.md
+
+non_negotiables:
+  - dependencies_point_inward_only
+  - core_never_imports_adapters
+  - no_circular_dependencies
+  - no_core_dependency_inversion_violations
+  - no_temporary_provider_sdk_dependencies_in_core
+  - section_13_modular_friction_rules_apply
+  - section_14_delivery_rules_apply
+
+read_sets:
+  architecture_proposal:
+    - ADS-memory/docs/architecture/sections/00-document-header.md
+    - ADS-memory/docs/architecture/sections/01-architectural-foundation.md
+    - ADS-memory/docs/architecture/sections/02-core-design-principle-dependency-inversion-everywhere.md
+    - ADS-memory/docs/architecture/sections/10-dependency-rules.md
+    - ADS-memory/docs/architecture/sections/11-architecture-enforcement.md
+    - ADS-memory/docs/architecture/sections/13-user-friction-coverage-living-backlog.md
+    - ADS-memory/docs/architecture/sections/14-meta-coding-framework-spec-first-test-first-pattern-first.md
+  package_layout:
+    - ADS-memory/docs/architecture/sections/03-package-structure.md
+    - ADS-memory/docs/architecture/sections/04-port-interfaces.md
+    - ADS-memory/docs/architecture/sections/05-the-kernel-ioc-container.md
+    - ADS-memory/docs/architecture/sections/10-dependency-rules.md
+  theme_plugin_extensibility:
+    - ADS-memory/docs/architecture/sections/07-theme-engine.md
+    - ADS-memory/docs/architecture/sections/08-plugin-sdk.md
+    - ADS-memory/docs/architecture/sections/10-dependency-rules.md
+    - ADS-memory/docs/architecture/sections/13-user-friction-coverage-living-backlog.md
+    - ADS-memory/docs/architecture/sections/14-meta-coding-framework-spec-first-test-first-pattern-first.md
+  planning:
+    - ADS-memory/docs/architecture/sections/13-user-friction-coverage-living-backlog.md
+    - ADS-memory/docs/architecture/sections/14-meta-coding-framework-spec-first-test-first-pattern-first.md
+
+warnings:
+  - appendices_are_not_adoption_ledgers
+  - reference_files_are_background_only
+  - packet_is_not_canonical
