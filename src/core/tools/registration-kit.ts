@@ -26,7 +26,7 @@
  */
 import type { ToolHandler, ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError, type AuthorizeFn } from "../core/commands";
+import { ForbiddenError, type AuthorizeFn } from "../commands";
 
 // Re-exported so a domain file's imports read as one line from this kit rather than a second import
 // of `@jini-ai/core` alongside it — every domain needs both of these types and nothing else from
