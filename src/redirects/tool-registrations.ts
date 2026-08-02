@@ -11,6 +11,7 @@
  * mirroring those routes' identical check (ADR-021 §2's single evaluator, located at the handler
  * here rather than inside the domain function).
  */
+import type { AuthorizeFn } from "../core/commands";
 import {
   buildDomainRegistrations,
   indexCatalogById,
@@ -25,14 +26,28 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../assistant/tool-registration-kit";
-import type { RouteDeps } from "../server/routes/types";
+} from "../core/tools/registration-kit";
 import { getRedirectsAgentToolCatalog } from "./agent-tools";
-import { createRedirect, tombstoneRedirect, updateRedirect } from "./redirects";
+import type { RedirectHitSink, RedirectRepoPort } from "./ports";
+import { createRedirect, tombstoneRedirect, updateRedirect, type RedirectsWriteDeps } from "./redirects";
 import { RedirectNotFoundError } from "./types";
 import type { RedirectMatchType, RedirectRecord, RedirectSource, RedirectStatus, RedirectStatusCode } from "./types";
 
 const CATALOG_BY_ID = indexCatalogById(getRedirectsAgentToolCatalog());
+
+/**
+ * The exact slice of the route-deps bag Redirects' tool handlers read. Declared structurally
+ * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
+ * into the composition root. `server/routes/*` satisfies this structurally by passing its existing
+ * `RouteDeps` object; nothing there changes.
+ */
+export interface RedirectsToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  redirectRepo: RedirectRepoPort;
+  redirectHitSink: RedirectHitSink;
+  redirectsWriteDeps: RedirectsWriteDeps;
+}
 
 /** Model-facing redirect-rule view — drops `workspaceId` (redundant: every call is already scoped
  * to the caller's own workspace) and the actor/lineage-attribution internals
@@ -85,7 +100,7 @@ const UNWIRED_REDIRECTS_TOOL_IDS = new Set([
   "redirects_import",
 ]);
 
-export function buildRedirectsRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildRedirectsRegistrations(routeDeps: RedirectsToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     redirects_list: async (ctx) => {
       const input = requireInputRecord(ctx.input);

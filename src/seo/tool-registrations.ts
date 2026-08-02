@@ -21,6 +21,11 @@
  *    tools already use (contrast `features/workspace/tool-registrations.ts`'s `workspace_update`,
  *    which self-enforces nothing and is checked only at the handler).
  */
+import type { AuthorizeFn } from "../core/commands";
+import type { PostRepoPort } from "../features/post";
+import type { SettingsRepoPort } from "../features/settings/ports";
+import type { PrincipalRepoPort } from "../identity";
+import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/ports";
 import {
   buildDomainRegistrations,
   indexCatalogById,
@@ -33,8 +38,7 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../assistant/tool-registration-kit";
-import type { RouteDeps } from "../server/routes/types";
+} from "../core/tools/registration-kit";
 import { getSeoAgentToolCatalog } from "./agent-tools";
 import { SeoFieldValidationError, SeoInvalidCanonicalUrlError, SeoSettingsValidationError } from "./errors";
 import { getEntryMeta, analyzeEntry } from "./seo";
@@ -44,6 +48,30 @@ import type { SeoExtFields, SeoSettings } from "./types";
 import { setEntrySeoOverrides } from "./write-service";
 
 const CATALOG_BY_ID = indexCatalogById(getSeoAgentToolCatalog());
+
+/**
+ * The exact slice of the route-deps bag SEO's tool handlers read. Declared structurally (rather
+ * than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge into the
+ * composition root. `server/routes/*` satisfies this structurally by passing its existing
+ * `RouteDeps` object; nothing there changes.
+ *
+ * Also satisfies `./media.ts`'s `ResolveSeoImageRefDeps` structurally (via the three media fields
+ * below) — every handler that calls `getEntryMeta`/`analyzeEntry`/`regenerateSitemapCache` passes
+ * this same object as their `media` dependency, exactly as `RouteDeps` does today.
+ */
+export interface SeoToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  seoReady: Promise<void>;
+  postRepo: PostRepoPort;
+  settingsRepo: SettingsRepoPort;
+  principalRepo: PrincipalRepoPort;
+  mediaRepo: MediaRepoPort;
+  assetRenditionRepo: AssetRenditionRepoPort;
+  transformDefinitionRepo: TransformDefinitionRepoPort;
+}
 
 /**
  * Builds `setEntrySeoOverrides`'s `patch` from `ctx.input` by dropping only `entryId` (the one key
@@ -96,7 +124,7 @@ export const seoDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSide
   ["seo_regenerate_sitemap", "mutates-durable-state"],
 ]);
 
-export function buildSeoRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     seo_get_entry_meta: async (ctx) => {
       const entryId = requireString(requireInputRecord(ctx.input), "entryId");

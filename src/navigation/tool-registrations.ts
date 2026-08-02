@@ -9,6 +9,8 @@
  * handler here does the same via the kit's `requireToolPermission`, which is ADR-021 §2's single
  * evaluation for these tools, located where the real route locates it.
  */
+import type { AuthorizeFn } from "../core/commands";
+import type { OutboxPort } from "../core/ports";
 import {
   buildDomainRegistrations,
   indexCatalogById,
@@ -21,13 +23,30 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../assistant/tool-registration-kit";
-import type { RouteDeps } from "../server/routes/types";
+} from "../core/tools/registration-kit";
 import { menusAgentToolCatalog } from "./agent-tools";
 import { assignLocation, createMenu, MenuNotFoundError, MenuValidationError, updateMenuTree } from "./menu-service";
+import type { NavLocationBindingRepoPort } from "./ports";
+import type { MenuRepoPort } from "./repo.memory";
 import type { NavItemNode, NavMenuEntry } from "./types";
 
 const CATALOG_BY_ID = indexCatalogById(menusAgentToolCatalog);
+
+/**
+ * The exact slice of the route-deps bag Menus' tool handlers read. Declared structurally (rather
+ * than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge into the
+ * composition root. `server/routes/*` satisfies this structurally by passing its existing
+ * `RouteDeps` object; nothing there changes.
+ */
+export interface MenusToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  outbox: OutboxPort;
+  menuRepo: MenuRepoPort;
+  navLocationBindingRepo: NavLocationBindingRepoPort;
+}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -85,11 +104,11 @@ function toMenuToolView(menu: NavMenuEntry): MenuToolView {
   };
 }
 
-function menusDeps(routeDeps: RouteDeps) {
+function menusDeps(routeDeps: MenusToolDeps) {
   return { repo: routeDeps.menuRepo, clock: routeDeps.clock, idGen: routeDeps.idGen, outbox: routeDeps.outbox };
 }
 
-export function buildMenusRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildMenusRegistrations(routeDeps: MenusToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     menus_list_menus: async (ctx) => {
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.menus.read", entityType: "menu" });

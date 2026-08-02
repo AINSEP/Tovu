@@ -23,6 +23,7 @@
  * learn that in the same turn, because the live site has already started serving the fallback body
  * for that theme.
  */
+import type { AuthorizeFn } from "../../core/commands";
 import {
   buildDomainRegistrations,
   indexCatalogById,
@@ -35,13 +36,31 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../assistant/tool-registration-kit";
-import type { RouteDeps } from "../../server/routes/types";
+} from "../../core/tools/registration-kit";
 import { getThemesAgentToolCatalog, THEME_READ_PERMISSION, THEME_WRITE_PERMISSION } from "./agent-tools";
 import { listThemeFiles, readThemeFile, ThemePathError, writeThemeFile } from "./theme-files";
 import { loadTheme, type DiscoveredTheme } from "./theme";
 
 const CATALOG_BY_ID = indexCatalogById(getThemesAgentToolCatalog());
+
+/**
+ * The exact slice of the route-deps bag Themes' tool handlers read. Declared structurally (rather
+ * than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge into the
+ * composition root — the same reason `core/tools/registration-kit.ts`'s `requireToolPermission`
+ * takes a bare `{ authorize, workspaceId }` shape instead of the whole deps bag. `server/routes/*`
+ * satisfies this structurally by passing its existing `RouteDeps` object; nothing there changes.
+ */
+export interface ThemeToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  /**
+   * Boot-discovered themes (built-in + site `themes/` dir). Mutated in place by
+   * `theme_write_file` — see that handler's own comment — so this is `DiscoveredTheme[]`, not a
+   * readonly array, mirroring `RouteDeps.themes`'s identical mutable-array contract.
+   */
+  themes: DiscoveredTheme[];
+  themesDir: string;
+}
 
 /** Raised when `themeId` names no discovered theme. Its own class so the handler layer can decorate
  * it with the published schema — a wrong id is a shape problem a different input fixes. */
@@ -80,7 +99,7 @@ function toThemeToolView(theme: DiscoveredTheme) {
   };
 }
 
-function findThemeOrThrow(routeDeps: RouteDeps, themeId: string): DiscoveredTheme {
+function findThemeOrThrow(routeDeps: ThemeToolDeps, themeId: string): DiscoveredTheme {
   const theme = routeDeps.themes.find((t) => t.manifest.id === themeId);
   if (!theme) {
     const known = routeDeps.themes.map((t) => t.manifest.id).join(", ") || "(none discovered)";
@@ -106,7 +125,7 @@ export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolS
   ["theme_write_file", "mutates-durable-state"],
 ]);
 
-export function buildThemesRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildThemesRegistrations(routeDeps: ThemeToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     theme_list: async (ctx) => {
       const input = requireInputRecord(ctx.input ?? {});

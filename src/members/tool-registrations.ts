@@ -8,6 +8,7 @@
  * handler here therefore performs that same check itself via the kit's `requireToolPermission`,
  * which is ADR-021 §2's single evaluation for these tools, located where the real route locates it.
  */
+import type { AuthorizeFn } from "../core/commands";
 import {
   buildDomainRegistrations,
   indexCatalogById,
@@ -18,14 +19,77 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../assistant/tool-registration-kit";
-import { toMembersWriteServiceDeps, type MembersRouteDeps } from "../server/routes/admin/members/deps";
-import type { RouteDeps } from "../server/routes/types";
+} from "../core/tools/registration-kit";
 import { membersAgentToolCatalog } from "./agent-tools";
+import type {
+  MagicLinkTokenRepoPort,
+  MemberRepoPort,
+  MemberSessionRepoPort,
+  MemberSubscriptionRepoPort,
+  MemberTierRepoPort,
+  MembersWriteServiceDeps,
+} from "./ports";
 import { MemberNotFoundError, type MemberRecord } from "./types";
 import { disableMember, requestSignInLink } from "./write-service";
 
 const CATALOG_BY_ID = indexCatalogById(membersAgentToolCatalog);
+
+/**
+ * The rate-limiter shape `members_request_magic_link` actually calls (`.check(key)`), declared
+ * structurally instead of importing `server/middleware/rate-limit`'s nominal `RateLimiter` type.
+ *
+ * This is the one field in this file that would otherwise cost Members its whole architectural win:
+ * unlike every other domain wired here, Members has no OTHER file that reaches into `server/*`
+ * today, so importing `RateLimiter` from there — even though that specific type carries no Express
+ * coupling itself — would single-handedly reintroduce the `members <-> server` module cycle this
+ * narrowing exists to remove. `createRateLimiter()`'s real return value already has exactly this
+ * shape, so it satisfies this structurally with no adapter needed.
+ */
+export interface MagicLinkRateLimiter {
+  check(key: string): { allowed: true } | { allowed: false; retryAfterSeconds: number };
+}
+
+/**
+ * The exact slice of the route-deps bag Members' tool handlers read. Declared structurally (rather
+ * than importing `server/routes/types`'s `RouteDeps`, or `server/routes/admin/members/deps.ts`'s
+ * `MembersRouteDeps`, which itself extends `RouteDeps`) so this module carries no back-edge into the
+ * composition root. `server/routes/*` satisfies this structurally by passing its existing
+ * `MembersRouteDeps` object; nothing there changes.
+ */
+export interface MembersToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  memberRepo: MemberRepoPort;
+  memberTierRepo: MemberTierRepoPort;
+  memberSubscriptionRepo: MemberSubscriptionRepoPort;
+  memberSessionRepo: MemberSessionRepoPort;
+  magicLinkRepo: MagicLinkTokenRepoPort;
+  mailer: MembersWriteServiceDeps["mailer"];
+  magicLinkPerEmailLimiter: MagicLinkRateLimiter;
+}
+
+/**
+ * Assembles `write-service.ts`'s `MembersWriteServiceDeps` bundle from {@link MembersToolDeps} —
+ * a local duplicate of `server/routes/admin/members/deps.ts`'s `toMembersWriteServiceDeps` rather
+ * than an import of it, for the identical reason `features/settings/tool-registrations.ts`'s header
+ * gives for duplicating `toWriteServiceDeps`: importing from the HTTP admin layer would invert this
+ * codebase's ports/adapters direction. It is a field mapping, not logic, so the two copies carry no
+ * behavioral drift risk.
+ */
+function toMembersWriteServiceDeps(deps: MembersToolDeps): MembersWriteServiceDeps {
+  return {
+    clock: deps.clock,
+    ids: deps.idGen,
+    members: deps.memberRepo,
+    tiers: deps.memberTierRepo,
+    subscriptions: deps.memberSubscriptionRepo,
+    sessions: deps.memberSessionRepo,
+    magicLinks: deps.magicLinkRepo,
+    mailer: deps.mailer,
+  };
+}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -78,14 +142,7 @@ function toMemberToolView(member: MemberRecord) {
   return view;
 }
 
-export function buildMembersRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
-  // Narrowing cast, not a widening one (`MembersRouteDeps extends RouteDeps`) — the identical,
-  // already-established precedent every `routes/admin/members/*.ts` registrar uses for the one
-  // field (`magicLinkPerEmailLimiter`) `RouteDeps` itself does not yet declare. See
-  // `routes/admin/members/deps.ts`'s own file header for the "report the field set back, don't
-  // edit the shared file" rationale this inherits unchanged.
-  const deps = routeDeps as MembersRouteDeps;
-
+export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     members_list: async (ctx) => {
       const input = requireInputRecord(ctx.input);

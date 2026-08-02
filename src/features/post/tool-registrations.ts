@@ -33,13 +33,15 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../assistant/tool-registration-kit";
+} from "../../core/tools/registration-kit";
+// Both stay sourced from `assistant/` — explicitly out-of-scope back-edges for this pass (see the
+// dispatch notes this file's narrowing was reported under), not fields this file could re-source
+// from a domain-owned port: the MCP-UI confirmation protocol is genuinely assistant-owned.
 import { createPendingConfirmationStore, type PendingConfirmationStore } from "../../assistant/pending-confirmations";
 import { buildUIToolResult } from "../../assistant/mcp-ui";
-import { executeCommand } from "../../core/commands";
+import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../core/commands";
 import { processOutbox } from "../../core/events";
-import type { JsonObject } from "../../core/ports";
-import type { RouteDeps } from "../../server/routes/types";
+import type { EventBusPort, JsonObject, OutboxPort } from "../../core/ports";
 import { postAgentToolCatalog, type AgentToolDefinition as PostAgentToolDefinition } from "./agent-tools";
 import { buildDeleteConfirmationResource, CONTENT_POST_DELETE_TOOL_ID } from "./delete-confirmation-ui";
 import {
@@ -54,11 +56,32 @@ import {
   PostValidationError,
   type PostKind,
   type PostRecord,
+  type PostRepoPort,
   type PostStatus,
 } from "./post";
-import { searchAdminPosts } from "./search";
+import { searchAdminPosts, type PostSearchPort } from "./search";
 
 const CATALOG_BY_ID = indexCatalogById(postAgentToolCatalog);
+
+/**
+ * The exact slice of the route-deps bag Posts/Pages' tool handlers read. Declared structurally
+ * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
+ * into the composition root for the `RouteDeps` god type specifically — the `assistant/mcp-ui`/
+ * `assistant/pending-confirmations` imports above are separate, already-disclosed back-edges left
+ * untouched per the dispatch's explicit out-of-scope list. `server/routes/*` satisfies this
+ * structurally by passing its existing `RouteDeps` object; nothing there changes.
+ */
+export interface PostToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  changeSets: ChangeSetRepoPort;
+  outbox: OutboxPort;
+  bus: EventBusPort;
+  postRepo: PostRepoPort;
+  postSearch: PostSearchPort;
+}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -133,7 +156,7 @@ function requireBodyJson(input: Record<string, unknown>, key: string): JsonObjec
 
 /** Shared dependency bag for `core/commands`'s `executeCommand` — identical shape to the one
  * `posts/create.ts`/`posts/update.ts`/`pages/create.ts`/`pages/update.ts` each build inline. */
-function postCommandDeps(routeDeps: RouteDeps) {
+function postCommandDeps(routeDeps: PostToolDeps) {
   return {
     clock: routeDeps.clock,
     idGen: routeDeps.idGen,
@@ -184,7 +207,7 @@ function toPostToolView(post: PostRecord): PostToolView {
  * real TTL or guessing 256 bits of entropy.
  */
 export function buildPostRegistrations(
-  routeDeps: RouteDeps,
+  routeDeps: PostToolDeps,
   options: { confirmations?: PendingConfirmationStore } = {}
 ): ToolRegistration[] {
   const confirmations = options.confirmations ?? createPendingConfirmationStore();

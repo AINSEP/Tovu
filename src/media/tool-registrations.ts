@@ -9,6 +9,7 @@
  * handler here does the same via the kit's `requireToolPermission`, which is ADR-021 §2's single
  * evaluation for these tools, located where the real route locates it.
  */
+import type { AuthorizeFn } from "../core/commands";
 import {
   buildDomainRegistrations,
   indexCatalogById,
@@ -20,13 +21,30 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../assistant/tool-registration-kit";
-import type { RouteDeps } from "../server/routes/types";
+} from "../core/tools/registration-kit";
 import { mediaAgentToolCatalog } from "./agent-tools";
 import { listMedia, MediaValidationError, trashMedia, updateMediaMetadata, uploadMedia } from "./media-service";
+import type { AssetBlobRepoPort, AssetRenditionRepoPort, BlobStorePort, MediaRepoPort } from "./ports";
 import type { MediaRecord } from "./types";
 
 const CATALOG_BY_ID = indexCatalogById(mediaAgentToolCatalog);
+
+/**
+ * The exact slice of the route-deps bag Media's tool handlers read. Declared structurally (rather
+ * than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge into the
+ * composition root. `server/routes/*` satisfies this structurally by passing its existing
+ * `RouteDeps` object; nothing there changes.
+ */
+export interface MediaToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  mediaRepo: MediaRepoPort;
+  assetBlobRepo: AssetBlobRepoPort;
+  assetRenditionRepo: AssetRenditionRepoPort;
+  blobStore: BlobStorePort;
+}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -80,7 +98,7 @@ function toMediaToolView(record: MediaRecord): MediaToolView {
   };
 }
 
-export function buildMediaRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildMediaRegistrations(routeDeps: MediaToolDeps): ToolRegistration[] {
   const mediaWriteDeps = () => ({
     clock: routeDeps.clock,
     idGen: routeDeps.idGen,

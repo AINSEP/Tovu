@@ -77,9 +77,10 @@ import type { AdapterContext, DelegatedToolExecuteRequest, RunStartHandler } fro
 import { registerSupabaseMcpPreset } from "../features/plugins/supabase-mcp/supabase-mcp-plugin";
 import { createInMemoryToolAttemptAuditSink } from "../features/tool-audit/repo.memory";
 import { SqliteToolAttemptAuditSink } from "../features/tool-audit/repo.sqlite";
-import { openContentDb } from "../infra/sqlite/content-db";
+import { openContentDb } from "../db/sqlite/content-db";
 import { createRouteDeps } from "../server/app";
 import { createSqliteRouteDeps, defaultContentDbPath } from "../server/deps";
+import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../server/middleware/rate-limit";
 import { resolveRuntimeMode } from "../server/runtime-mode";
 import { listAssistantAgents } from "./agents";
 import { createCustomInstructionsCache } from "./custom-instructions";
@@ -126,8 +127,21 @@ lifecycle.rehydrate().catch((error: unknown) => {
   console.error("[agent-daemon] lifecycle.rehydrate() failed", error);
 });
 
+// `createRouteDeps()`/`createSqliteRouteDeps()` do not construct `magicLinkPerEmailLimiter` — it is
+// built per-boot inside `server/app.ts`'s `registerAdminRoutes` and spread into a local
+// `membersDeps`, never onto the object those factories return (ADR-PIPE-013 §2-3, C-015: one
+// counter per email). This process is a separate boot that never runs that code, so it must build
+// its own, exactly as `server/app.ts:566` does.
+//
+// Until the tool-registration deps types were narrowed, `buildMembersRegistrations` cast its way
+// past this with `routeDeps as MembersRouteDeps`, so the field was simply `undefined` here and
+// `members_request_magic_link` would have thrown `Cannot read properties of undefined (reading
+// 'check')` the first time it was invoked through the daemon. The cast was hiding a real crash;
+// removing it surfaced this, and this is the fix rather than a re-widening.
+const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
+
 const registry = createToolRegistry();
-for (const registration of buildAssistantToolRegistrations(routeDeps)) {
+for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter })) {
   registry.register(registration);
 }
 

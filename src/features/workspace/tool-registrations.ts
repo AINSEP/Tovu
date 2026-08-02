@@ -13,6 +13,7 @@
  * `update.ts`) — so both handlers here call the kit's `requireToolPermission` themselves, mirroring
  * those routes' identical `workspace.manage` check.
  */
+import type { AuthorizeFn } from "../../core/commands";
 import {
   buildDomainRegistrations,
   indexCatalogById,
@@ -24,12 +25,24 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../assistant/tool-registration-kit";
-import type { RouteDeps } from "../../server/routes/types";
+} from "../../core/tools/registration-kit";
 import { getWorkspaceAgentToolCatalog } from "./agent-tools";
 import { updateWorkspace } from "./update";
+import type { WorkspaceRepoPort } from "./create";
 
 const CATALOG_BY_ID = indexCatalogById(getWorkspaceAgentToolCatalog());
+
+/**
+ * The exact slice of the route-deps bag Workspace's tool handlers read. Declared structurally
+ * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
+ * into the composition root. `server/routes/*` satisfies this structurally by passing its existing
+ * `RouteDeps` object; nothing there changes.
+ */
+export interface WorkspaceToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  workspaceRepo: WorkspaceRepoPort;
+}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -60,7 +73,7 @@ const UNWIRED_WORKSPACE_TOOL_IDS = new Set([
   "workspace_delete",
 ]);
 
-export function buildWorkspaceRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildWorkspaceRegistrations(routeDeps: WorkspaceToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     workspace_get: async (ctx) => {
       requireNoInput(ctx.input);

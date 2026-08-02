@@ -30,6 +30,8 @@
  * below does the identical explicit `requireToolPermission` check, in the route's place, the same
  * pattern `comments/tool-registrations.ts` uses for `comments_list_moderation_queue`.
  */
+import type { AuthorizeFn } from "../../core/commands";
+import type { OutboxPort } from "../../core/ports";
 import {
   AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
@@ -45,16 +47,31 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../assistant/tool-registration-kit";
-import type { RouteDeps } from "../../server/routes/types";
+} from "../../core/tools/registration-kit";
 import { contentTypesAgentToolCatalog } from "./agent-tools";
 import { parseContentTypeFieldDefs } from "./field-defs";
-import { listContentTypes } from "./list";
-import { deprecateContentType, reactivateContentType, tombstoneContentType } from "./lifecycle";
+import { listContentTypes, type ContentTypeListPort } from "./list";
+import { deprecateContentType, reactivateContentType, tombstoneContentType, type TeardownIndexProvisionerPort } from "./lifecycle";
 import type { ContentTypeFieldDef, ContentTypeRecord } from "./types";
-import { registerContentType, updateContentTypeFields } from "./write-service";
+import { registerContentType, updateContentTypeFields, type ContentTypeRepoPort, type IndexProvisionerPort } from "./write-service";
 
 const CATALOG_BY_ID = indexCatalogById(contentTypesAgentToolCatalog);
+
+/**
+ * The exact slice of the route-deps bag Content-Types' tool handlers read. Declared structurally
+ * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
+ * into the composition root. `server/routes/*` satisfies this structurally by passing its existing
+ * `RouteDeps` object; nothing there changes.
+ */
+export interface ContentTypesToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  outbox: OutboxPort;
+  contentTypeRepo: ContentTypeRepoPort & ContentTypeListPort;
+  contentTypeIndexProvisioner: IndexProvisionerPort & TeardownIndexProvisionerPort;
+}
 
 /** Descriptors for the 2 cleanup tools this pass does not wire — see file header. */
 const UNWIRED_CONTENT_TYPES_TOOL_IDS = new Set(["collections_plan_cleanup", "collections_execute_cleanup"]);
@@ -144,7 +161,7 @@ function fromContentTypeResult(
   return fromResult(fn).then(({ contentType }) => ({ contentType: toContentTypeView(contentType) }));
 }
 
-function contentTypesDeps(routeDeps: RouteDeps) {
+function contentTypesDeps(routeDeps: ContentTypesToolDeps) {
   return {
     repo: routeDeps.contentTypeRepo,
     clock: routeDeps.clock,
@@ -155,7 +172,7 @@ function contentTypesDeps(routeDeps: RouteDeps) {
   };
 }
 
-export function buildContentTypesRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildContentTypesRegistrations(routeDeps: ContentTypesToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     collections_content_type_list: async (ctx) => {
       requireNoInput(ctx.input);

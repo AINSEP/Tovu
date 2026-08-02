@@ -13,6 +13,8 @@
  * feature call, not routed through the SPEC-001 command gateway"), and every handler below does the
  * same via the kit's `requireToolPermission`.
  */
+import type { AuthorizeFn } from "../core/commands";
+import type { OriginRegistryPort } from "../origin";
 import {
   buildDomainRegistrations,
   indexCatalogById,
@@ -26,13 +28,29 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../assistant/tool-registration-kit";
-import type { RouteDeps } from "../server/routes/types";
+} from "../core/tools/registration-kit";
 import { getIntegrationsAgentToolCatalog } from "./agent-tools";
+import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports";
 import { createSubscription, deleteSubscription, pauseSubscription, WebhookSubscriptionNotFoundError } from "./subscriptions";
 import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "./types";
 
 const CATALOG_BY_ID = indexCatalogById(getIntegrationsAgentToolCatalog());
+
+/**
+ * The exact slice of the route-deps bag Integrations' tool handlers read. Declared structurally
+ * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
+ * into the composition root. `server/routes/*` satisfies this structurally by passing its existing
+ * `RouteDeps` object; nothing there changes.
+ */
+export interface IntegrationsToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  webhookSubscriptionRepo: WebhookSubscriptionRepoPort;
+  webhookDeliveryRepo: WebhookDeliveryRepoPort;
+  originRegistry: OriginRegistryPort;
+}
 
 /**
  * Bound on how many of a subscription's most recent deliveries are read to compute the
@@ -123,7 +141,7 @@ export const integrationsDerivedRisk: DerivedRiskByToolId = new Map<string, Agen
   ["integrations_delete_subscription", "mutates-durable-state"],
 ]);
 
-export function buildIntegrationsRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildIntegrationsRegistrations(routeDeps: IntegrationsToolDeps): ToolRegistration[] {
   const isAllowedTarget = (url: string) => routeDeps.originRegistry.isAllowedEgressTarget({ workspaceId: routeDeps.workspaceId }, url);
 
   const handlers: Record<string, ToolHandler> = {

@@ -11,6 +11,8 @@
  * the kit's `requireToolPermission` — ADR-021 §2's single evaluation, located where the real route
  * locates it.
  */
+import type { AuthorizeFn } from "../core/commands";
+import type { EventBusPort, OutboxPort } from "../core/ports";
 import {
   buildDomainRegistrations,
   indexCatalogById,
@@ -21,27 +23,143 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../assistant/tool-registration-kit";
-import {
-  toCampaignWriteServiceDeps,
-  toConfirmationDeps,
-  toListsDeps,
-  toSendPipelineDeps,
-  toSubscriptionsDeps,
-  toUnsubscribeSubscriptionDeps,
-  type NewsletterRouteDeps,
-} from "../server/routes/admin/newsletter/deps";
-import type { RouteDeps } from "../server/routes/types";
+} from "../core/tools/registration-kit";
+import type { MailerPort } from "../mail";
+import type { OriginRegistryPort } from "../origin";
 import { newsletterAgentToolCatalog } from "./agent-tools";
-import { cancelCampaign, saveCampaign } from "./campaign-write-service";
-import { issueConfirmationToken } from "./confirmation";
+import { cancelCampaign, saveCampaign, type CampaignWriteServiceDeps } from "./campaign-write-service";
+import { issueConfirmationToken, type ConfirmationDeps } from "./confirmation";
 import { NewsletterCampaignNotFoundError, NewsletterSubscriptionNotFoundError } from "./errors";
-import { archiveList, saveList } from "./lists";
-import { pauseCampaign } from "./send-pipeline";
-import { saveSubscription, unsubscribeSubscription } from "./subscriptions";
+import type { HookRegistry } from "./hooks";
+import { archiveList, saveList, type ListsDeps } from "./lists";
+import type {
+  MembersConsentCapability,
+  NewsletterAudienceSnapshotRepoPort,
+  NewsletterCampaignRepoPort,
+  NewsletterConfirmationTokenRepoPort,
+  NewsletterListRepoPort,
+  NewsletterSendRepoPort,
+  NewsletterSubscriptionRepoPort,
+  SubscriberDirectoryPort,
+} from "./ports";
+import { pauseCampaign, type SendPipelineDeps } from "./send-pipeline";
+import { saveSubscription, unsubscribeSubscription, type SubscriptionsDeps, type UnsubscribeSubscriptionDeps } from "./subscriptions";
 import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from "./types";
 
 const CATALOG_BY_ID = indexCatalogById(newsletterAgentToolCatalog);
+
+/**
+ * The exact slice of the route-deps bag Newsletter's tool handlers read. Declared structurally
+ * (rather than importing `server/routes/types`'s `RouteDeps`, or `server/routes/admin/newsletter/
+ * deps.ts`'s `NewsletterRouteDeps`, which itself extends `RouteDeps`) so this module carries no
+ * back-edge into the composition root. `server/routes/*` satisfies this structurally by passing its
+ * existing `NewsletterRouteDeps` object; nothing there changes.
+ */
+export interface NewsletterToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  outbox: OutboxPort;
+  bus: EventBusPort;
+  mailer: MailerPort;
+  originRegistry: OriginRegistryPort;
+  newsletterReady: Promise<void>;
+  newsletterCampaignRepo: NewsletterCampaignRepoPort;
+  newsletterListRepo: NewsletterListRepoPort;
+  newsletterSubscriptionRepo: NewsletterSubscriptionRepoPort;
+  newsletterAudienceSnapshotRepo: NewsletterAudienceSnapshotRepoPort;
+  newsletterSendRepo: NewsletterSendRepoPort;
+  newsletterConfirmationTokenRepo: NewsletterConfirmationTokenRepoPort;
+  newsletterSubscriberDirectory: SubscriberDirectoryPort;
+  newsletterHooks: HookRegistry;
+  membersConsentCapability: MembersConsentCapability | null;
+}
+
+/**
+ * Assembles `campaign-write-service.ts`'s deps bundle from {@link NewsletterToolDeps} — a local
+ * duplicate of `server/routes/admin/newsletter/deps.ts`'s `toCampaignWriteServiceDeps` rather than
+ * an import of it, for the same reason `features/settings/tool-registrations.ts`'s header gives for
+ * duplicating `toWriteServiceDeps`: importing from the HTTP admin layer would invert this codebase's
+ * ports/adapters direction. Each `to*Deps` mapper below carries the identical rationale.
+ */
+function toCampaignWriteServiceDeps(deps: NewsletterToolDeps): CampaignWriteServiceDeps {
+  return {
+    campaignRepo: deps.newsletterCampaignRepo,
+    listRepo: deps.newsletterListRepo,
+    clock: deps.clock,
+    ids: deps.idGen,
+  };
+}
+
+/** Assembles `lists.ts`'s deps bundle — the local twin of `toCampaignWriteServiceDeps` above. */
+function toListsDeps(deps: NewsletterToolDeps): ListsDeps {
+  return { listRepo: deps.newsletterListRepo, clock: deps.clock, ids: deps.idGen };
+}
+
+/** Assembles `confirmation.ts`'s deps bundle — the local twin of `toCampaignWriteServiceDeps` above. */
+function toConfirmationDeps(deps: NewsletterToolDeps): ConfirmationDeps {
+  return {
+    tokenRepo: deps.newsletterConfirmationTokenRepo,
+    subscriptionRepo: deps.newsletterSubscriptionRepo,
+    mailer: deps.mailer,
+    consentCapability: deps.membersConsentCapability,
+    originRegistry: deps.originRegistry,
+    clock: deps.clock,
+    ids: deps.idGen,
+  };
+}
+
+/** Assembles `subscriptions.ts`'s deps bundle (nests `toConfirmationDeps` — `saveSubscription`
+ * triggers `issueConfirmationToken`) — the local twin of `toCampaignWriteServiceDeps` above. */
+function toSubscriptionsDeps(deps: NewsletterToolDeps): SubscriptionsDeps {
+  return {
+    subscriptionRepo: deps.newsletterSubscriptionRepo,
+    listRepo: deps.newsletterListRepo,
+    subscriberDirectory: deps.newsletterSubscriberDirectory,
+    confirmationDeps: toConfirmationDeps(deps),
+    clock: deps.clock,
+    ids: deps.idGen,
+  };
+}
+
+/** Assembles `subscriptions.ts`'s `unsubscribeSubscription` deps bundle — the local twin of
+ * `toCampaignWriteServiceDeps` above. */
+function toUnsubscribeSubscriptionDeps(deps: NewsletterToolDeps): UnsubscribeSubscriptionDeps {
+  return {
+    subscriptionRepo: deps.newsletterSubscriptionRepo,
+    consentCapability: deps.membersConsentCapability,
+    clock: deps.clock,
+  };
+}
+
+/**
+ * Assembles `send-pipeline.ts`'s deps bundle — the local twin of `toCampaignWriteServiceDeps` above.
+ * `launchGateDeps.isSendingEnabled` always resolves `false`, matching
+ * `server/routes/admin/newsletter/deps.ts`'s own identical, disclosed default (see that file's doc
+ * comment for the full rationale — no admin route manages this toggle yet).
+ */
+function toSendPipelineDeps(deps: NewsletterToolDeps): SendPipelineDeps {
+  return {
+    campaignRepo: deps.newsletterCampaignRepo,
+    subscriptionRepo: deps.newsletterSubscriptionRepo,
+    audienceSnapshotRepo: deps.newsletterAudienceSnapshotRepo,
+    sendRepo: deps.newsletterSendRepo,
+    subscriberDirectory: deps.newsletterSubscriberDirectory,
+    hooks: deps.newsletterHooks,
+    mailer: deps.mailer,
+    launchGateDeps: {
+      isSendingEnabled: async () => false,
+      consentCapability: deps.membersConsentCapability,
+      originRegistry: deps.originRegistry,
+      mailer: deps.mailer,
+    },
+    outbox: deps.outbox,
+    bus: deps.bus,
+    clock: deps.clock,
+    ids: deps.idGen,
+  };
+}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -129,11 +247,7 @@ function toSendLogToolView(row: SendRow) {
   };
 }
 
-export function buildNewsletterRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
-  // Narrowing cast, not a widening one (`NewsletterRouteDeps extends RouteDeps`) — the identical,
-  // already-established precedent every `routes/admin/newsletter/*.ts` registrar uses.
-  const deps = routeDeps as NewsletterRouteDeps;
-
+export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     newsletter_list_campaigns: async (ctx) => {
       const input = requireInputRecord(ctx.input);

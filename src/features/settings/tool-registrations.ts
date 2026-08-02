@@ -23,6 +23,7 @@
  * inspection, the same discipline `resolveUserLayerReadTarget`'s own header already asks of its two
  * route callers.
  */
+import type { AuthorizeFn } from "../../core/commands";
 import {
   buildDomainRegistrations,
   indexCatalogById,
@@ -36,9 +37,9 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../assistant/tool-registration-kit";
+} from "../../core/tools/registration-kit";
 import type { JsonValue } from "../../core/ports";
-import type { RouteDeps } from "../../server/routes/types";
+import type { PrincipalRepoPort } from "../../identity";
 import { getSettingsAgentToolCatalog } from "./agent-tools";
 import {
   AGENT_PREFERENCE_WRITE_SCOPE,
@@ -51,11 +52,29 @@ import {
   ScopeNotAllowedError,
   ValueValidationFailedError,
 } from "./errors";
+import type { SettingsRepoPort } from "./ports";
 import { getEffective, resolveDefinition } from "./settings";
 import type { SettingValueRecord } from "./types";
 import { set as setSettingValue, type SettingsWriteServiceDeps } from "./write-service";
 
 const CATALOG_BY_ID = indexCatalogById(getSettingsAgentToolCatalog());
+
+/**
+ * The exact slice of the route-deps bag Settings' tool handlers read. Declared structurally
+ * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
+ * into the composition root. `server/routes/*` satisfies this structurally by passing its existing
+ * `RouteDeps` object; nothing there changes.
+ */
+export interface SettingsToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  settingsReady: Promise<void>;
+  settingsUiTabsReady: Promise<void>;
+  settingsRepo: SettingsRepoPort;
+  principalRepo: PrincipalRepoPort;
+}
 
 /** Permission gating a read that names a DIFFERENT principal than the caller — mirrors
  * `routes/admin/settings/shared.ts`'s `CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION` (kept as a literal
@@ -75,7 +94,7 @@ const CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION = "settings.user.read";
  * @overallScore 100
  */
 async function resolveOwnOrOtherPrincipalRead(
-  routeDeps: RouteDeps,
+  routeDeps: SettingsToolDeps,
   required: { requestedPrincipalId: string | undefined; callerPrincipalId: string }
 ): Promise<string | undefined> {
   const { requestedPrincipalId, callerPrincipalId } = required;
@@ -120,7 +139,7 @@ function layerValueOf(record: SettingValueRecord | null): JsonValue | null {
  * copies carry no behavioral drift risk — and `write-service.ts` is the single chokepoint either
  * way, so a divergence here could only produce a missing dependency, which fails loudly.
  */
-function toWriteDeps(routeDeps: RouteDeps): SettingsWriteServiceDeps {
+function toWriteDeps(routeDeps: SettingsToolDeps): SettingsWriteServiceDeps {
   return {
     repo: routeDeps.settingsRepo,
     clock: routeDeps.clock,
@@ -184,7 +203,7 @@ const UNWIRED_SETTINGS_TOOL_IDS = new Set([
   "settings_register_definitions",
 ]);
 
-export function buildSettingsRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildSettingsRegistrations(routeDeps: SettingsToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     settings_list_definitions: async (ctx) => {
       requireNoInput(ctx.input);

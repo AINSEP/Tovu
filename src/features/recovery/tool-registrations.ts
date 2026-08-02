@@ -14,6 +14,11 @@
  * every handler here calls the kit's `requireToolPermission` — ADR-021 §2's single evaluation,
  * located where the real route locates it.
  */
+import type { AuthorizeFn } from "../../core/commands";
+import type { GatewayDeps } from "../../core/gated-mutations/gateway";
+import { plan as gatewayPlan } from "../../core/gated-mutations/gateway";
+import type { DbOpsPort } from "../../core/gated-mutations/ports";
+import { isOperationInFlight } from "../../core/operation-lock";
 import {
   AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
@@ -27,19 +32,44 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../assistant/tool-registration-kit";
-import { plan as gatewayPlan } from "../../core/gated-mutations/gateway";
-import { isOperationInFlight } from "../../core/operation-lock";
-import { buildRestoreHooks, toRecoveryResult } from "../../server/gated-mutations-composition";
-import type { RouteDeps } from "../../server/routes/types";
-import { listRestorePoints } from "../database/restore-points";
+} from "../../core/tools/registration-kit";
+// `buildRestoreHooks`/`toRecoveryResult` — and the `LedgerAppendPort` type its own input needs —
+// stay sourced from `server/gated-mutations-composition`, an explicitly out-of-scope back-edge for
+// this pass (see the dispatch notes this file's narrowing was reported under). Reusing its
+// already-imported module for this one type, rather than duplicating it, adds no NEW cross-module edge.
+import { buildRestoreHooks, toRecoveryResult, type LedgerAppendPort } from "../../server/gated-mutations-composition";
+import type { MigrationRunsRepoPort, SiteStatusPort } from "../database/boot/reconcile-interrupted-migration";
+import { listRestorePoints, type RestorePointListPort } from "../database/restore-points";
 import { recoveryAgentToolCatalog } from "./agent-tools";
-import { resolveDeepLinkContext, type DatabaseContextEnvelope } from "./deep-link";
-import { computeDisclosure } from "./disclosure";
+import { resolveDeepLinkContext, type DatabaseContextEnvelope, type DeepLinkRestorePointLookupPort } from "./deep-link";
+import { computeDisclosure, type DisclosureWatermarkSourcePort } from "./disclosure";
 import { planRestore } from "./recovery-orchestrator";
 import { resolveDegradedBanner } from "./ui/degraded-banners";
 
 const CATALOG_BY_ID = indexCatalogById(recoveryAgentToolCatalog);
+
+/**
+ * The exact slice of the route-deps bag Recovery's tool handlers read. Declared structurally
+ * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
+ * into the composition root for the `RouteDeps` god type specifically — the
+ * `server/gated-mutations-composition` import above is a separate, already-disclosed back-edge left
+ * untouched per the dispatch's explicit out-of-scope list. `server/routes/*` satisfies this
+ * structurally by passing its existing `RouteDeps` object; nothing there changes.
+ */
+export interface RecoveryToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  dbOps: DbOpsPort;
+  restorePointsRepo: RestorePointListPort;
+  databaseLedgerRepo: LedgerAppendPort;
+  migrationRunsRepo: Pick<MigrationRunsRepoPort, "findNonTerminalForSite" | "markResolved">;
+  siteStatusRepo: SiteStatusPort;
+  disclosureWatermarkSource: DisclosureWatermarkSourcePort;
+  deepLinkRestorePointLookup: DeepLinkRestorePointLookupPort;
+  gatedMutations: { gatewayDeps: GatewayDeps };
+}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -124,7 +154,7 @@ function requireDeepLinkEnvelope(value: unknown): DatabaseContextEnvelope {
   return { v, correlationId, siteId, ledgerEventId, restorePointId, drift, intent, issuedAt };
 }
 
-export function buildRecoveryRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildRecoveryRegistrations(routeDeps: RecoveryToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     backup_list_restore_points: async (ctx) => {
       requireNoInput(ctx.input);

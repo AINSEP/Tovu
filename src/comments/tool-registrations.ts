@@ -12,6 +12,9 @@
  * real admin route performs it. The seventh, `comments_update_settings`, is the exception and is
  * documented at its own handler.
  */
+import type { AuthorizeFn } from "../core/commands";
+import type { SettingsRepoPort } from "../features/settings/ports";
+import type { PrincipalRepoPort } from "../identity";
 import {
   buildDomainRegistrations,
   indexCatalogById,
@@ -23,13 +26,33 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../assistant/tool-registration-kit";
-import type { RouteDeps } from "../server/routes/types";
+} from "../core/tools/registration-kit";
 import { commentsAgentToolCatalog } from "./agent-tools";
+import type { CommentRepoPort } from "./ports";
 import { getCommentsSettings, setCommentsSettings } from "./settings";
 import type { CommentsSettings, CommentStatus, ModerationAction, ModerationQueuePage } from "./types";
+import type { CommentWriteService } from "./write-service";
 
 const CATALOG_BY_ID = indexCatalogById(commentsAgentToolCatalog);
+
+/**
+ * The exact slice of the route-deps bag Comments' tool handlers read. Declared structurally
+ * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
+ * into the composition root. `server/routes/*` satisfies this structurally by passing its existing
+ * `RouteDeps` object; nothing there changes.
+ */
+export interface CommentsToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  commentsReady: Promise<void>;
+  commentsSettingsReady: Promise<void>;
+  commentRepo: CommentRepoPort;
+  commentWriteService: CommentWriteService;
+  settingsRepo: SettingsRepoPort;
+  principalRepo: PrincipalRepoPort;
+}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -97,7 +120,7 @@ function toModerationQueueToolView(page: ModerationQueuePage): { items: ReturnTy
  * @overallScore 100
  */
 function buildCommentsModerationHandler(
-  routeDeps: RouteDeps,
+  routeDeps: CommentsToolDeps,
   spec: { permission: string; action: ModerationAction; toStatus: CommentStatus },
 ): ToolHandler {
   return async (ctx) => {
@@ -146,7 +169,7 @@ function requireCommentsSettingsPatch(input: Record<string, unknown>): Partial<C
   return patch;
 }
 
-export function buildCommentsRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildCommentsRegistrations(routeDeps: CommentsToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     comments_list_moderation_queue: async (ctx) => {
       const input = requireInputRecord(ctx.input);

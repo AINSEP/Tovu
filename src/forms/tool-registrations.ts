@@ -13,6 +13,8 @@
  * three self-enforcing tools would be a duplicate evaluator, and a `ToolPolicy`-only check would be
  * bypassable by any future non-tool caller of the same domain function.
  */
+import type { AuthorizeFn, ChangeSetRepoPort } from "../core/commands";
+import type { OutboxPort } from "../core/ports";
 import {
   AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
@@ -25,10 +27,10 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../assistant/tool-registration-kit";
-import type { RouteDeps } from "../server/routes/types";
+} from "../core/tools/registration-kit";
 import { formsAgentToolCatalog } from "./agent-tools";
 import { FormFieldValidationError } from "./errors";
+import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports";
 import type { FieldDescriptor, FormDefinitionRecord, FormDefinitionStatus, FormSubmissionRecord, NotifyConfig } from "./types";
 import { createFormDefinition, setFormDefinitionStatus, updateFormDefinition } from "./write-service";
 
@@ -37,6 +39,23 @@ const SUBMISSIONS_MIN_LIMIT = 1;
 const SUBMISSIONS_MAX_LIMIT = 100;
 
 const CATALOG_BY_ID = indexCatalogById(formsAgentToolCatalog);
+
+/**
+ * The exact slice of the route-deps bag Forms' tool handlers read. Declared structurally (rather
+ * than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge into the
+ * composition root. `server/routes/*` satisfies this structurally by passing its existing
+ * `RouteDeps` object; nothing there changes.
+ */
+export interface FormsToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  changeSets: ChangeSetRepoPort;
+  outbox: OutboxPort;
+  formDefinitionRepo: FormDefinitionRepoPort;
+  formSubmissionRepo: FormSubmissionRepoPort;
+}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -149,7 +168,7 @@ function requireSubmissionsLimit(input: Record<string, unknown>): number {
   return limit;
 }
 
-function formsDeps(routeDeps: RouteDeps) {
+function formsDeps(routeDeps: FormsToolDeps) {
   return {
     repo: routeDeps.formDefinitionRepo,
     clock: routeDeps.clock,
@@ -189,7 +208,7 @@ function requireFormsPatch(input: Record<string, unknown>): { name?: string; fie
   return patch;
 }
 
-export function buildFormsRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     forms_list_definitions: async (ctx) => {
       await requireToolPermission(routeDeps, {

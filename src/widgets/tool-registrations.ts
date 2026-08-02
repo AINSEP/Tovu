@@ -16,6 +16,9 @@
  * helper rather than the kit's generic `requireToolPermission` precisely so both paths reach the
  * identical gate function.
  */
+import type { AuthorizeFn } from "../core/commands";
+import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
+import type { OutboxPort } from "../core/ports";
 import {
   buildDomainRegistrations,
   indexCatalogById,
@@ -29,10 +32,16 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../assistant/tool-registration-kit";
+} from "../core/tools/registration-kit";
+import type { ContentTypeRepoPort } from "../features/content-types/write-service";
+import type { EntryListPort } from "../features/entries/list";
+import type { EntryRepoPort } from "../features/entries/write-service";
+// `toWhereUsedResponse` stays sourced from the HTTP admin layer — an explicitly out-of-scope
+// back-edge for this pass (see the dispatch notes this file's narrowing was reported under); this
+// domain's own model-facing "where used" projection lives there today, not in `widgets`.
 import { toWhereUsedResponse } from "../server/http/admin/widgets";
-import type { RouteDeps } from "../server/routes/types";
 import { widgetsAgentToolCatalog } from "./agent-tools";
+import type { WidgetRegionBindingRepoPort } from "./ports";
 import { requireWidgetPermission } from "./authorize-helper";
 import { insertWidgetEmbed, removeWidgetEmbed, reorderWidgetEmbeds, WidgetEmbedReorderCountMismatchError } from "./embed-service";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload";
@@ -44,6 +53,26 @@ import type { WidgetAreaEntry, WidgetInstanceEntry, WidgetPlacementNode, WidgetT
 import { createWidgetInstance, trashWidgetInstance, updateWidgetInstance } from "./write-service";
 
 const CATALOG_BY_ID = indexCatalogById(widgetsAgentToolCatalog);
+
+/**
+ * The exact slice of the route-deps bag Widgets' tool handlers read. Declared structurally (rather
+ * than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge into the
+ * composition root for the `RouteDeps` god type specifically — the `server/http/admin/widgets`
+ * import above is a separate, already-disclosed back-edge left untouched per the dispatch's explicit
+ * out-of-scope list. `server/routes/*` satisfies this structurally by passing its existing
+ * `RouteDeps` object; nothing there changes.
+ */
+export interface WidgetsToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  outbox: OutboxPort;
+  entryRepo: EntryRepoPort & EntryListPort;
+  contentTypeRepo: ContentTypeRepoPort;
+  entryRefsRepo: EntryRefsRepoPort;
+  widgetBindingRepo: WidgetRegionBindingRepoPort;
+}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -93,7 +122,7 @@ function isWidgetsShapeRejection(error: unknown): boolean {
 }
 
 /** Shared dependency bag for `write-service.ts`/`region-area-service.ts`/`embed-service.ts` calls — every one of them takes this identical shape. */
-function widgetsDeps(routeDeps: RouteDeps) {
+function widgetsDeps(routeDeps: WidgetsToolDeps) {
   return {
     entryRepo: routeDeps.entryRepo,
     contentTypeRepo: routeDeps.contentTypeRepo,
@@ -142,7 +171,7 @@ function toWidgetAreaToolView(area: Pick<WidgetAreaEntry, "id" | "regionKey" | "
 }
 
 /** Resolves one region placement's admin-facing view (widget title/type + broken flag) — mirrors `server/routes/admin/widgets/region-get.ts`'s identical resolution. */
-async function resolveWidgetPlacementView(routeDeps: RouteDeps, placement: WidgetPlacementNode) {
+async function resolveWidgetPlacementView(routeDeps: WidgetsToolDeps, placement: WidgetPlacementNode) {
   const widget = await routeDeps.entryRepo.findById({ workspaceId: routeDeps.workspaceId, id: placement.widgetEntryId });
   const payload = widget && widget.type === WIDGET_CONTENT_TYPE ? parseWidgetInstancePayload(widget.fieldsJson) : null;
   return {
@@ -155,7 +184,7 @@ async function resolveWidgetPlacementView(routeDeps: RouteDeps, placement: Widge
   };
 }
 
-export function buildWidgetsRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildWidgetsRegistrations(routeDeps: WidgetsToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     widgets_list_instances: async (ctx) => {
       const input = isRecord(ctx.input) ? ctx.input : {};
