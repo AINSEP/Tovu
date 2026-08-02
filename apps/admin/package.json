@@ -13,6 +13,7 @@
     "test:cov": "vitest run --coverage"
   },
   "dependencies": {
+    "@jini-ai/admin": "file:../../../Jini/packages/admin",
     "@jini-ai/agent-runtime": "file:../../../Jini/packages/agent-runtime",
     "@jini-ai/agentic": "file:../../../Jini/packages/agentic",
     "@jini-ai/chat-core": "file:../../../Jini/packages/chat-core",
