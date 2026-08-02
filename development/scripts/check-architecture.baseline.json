@@ -3,10 +3,10 @@
     "fileCount": 667,
     "moduleCount": 38
   },
-  "propagationCostPct": 10.77,
-  "backEdgesIntoServer": 44,
+  "propagationCostPct": 10.34,
+  "backEdgesIntoServer": 28,
   "moduleCycles": {
-    "mutualCycleCount": 23,
+    "mutualCycleCount": 17,
     "largestScc": 33,
     "pairs": [
       "assistant <-> features/plugins",
@@ -17,25 +17,19 @@
       "core <-> features/post",
       "core <-> features/settings",
       "db <-> features/database",
-      "features/content-types <-> server",
       "features/database <-> features/recovery",
       "features/database <-> server",
-      "features/entries <-> server",
       "features/plugin-runtime <-> server",
-      "features/post <-> server",
       "features/recovery <-> server",
-      "features/settings <-> server",
       "features/taxonomy <-> server",
       "forms <-> server",
-      "identity <-> server",
       "mail <-> server",
-      "newsletter <-> server",
       "seo <-> server",
       "server <-> widgets"
     ]
   },
-  "moduleApiSurfaceFiles": 213,
-  "deepImportsBypassingIndex": 766,
+  "moduleApiSurfaceFiles": 210,
+  "deepImportsBypassingIndex": 778,
   "coreSize": {
     "count": 84,
     "total": 667,
