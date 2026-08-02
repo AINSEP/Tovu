@@ -126,7 +126,14 @@ Entry files through which outsiders reach each module:
 10 entry files (10 bypass index.ts)  assistant, features/content-types, forms
 ```
 
-~140 deep imports bypass `index.ts` entirely. Nothing enforces a surface. At "reused by millions" scale this bites harder than folder names — a package's `exports` map enforces it for free; inside one `src/` tree, only a rule can.
+Measured over the whole graph (the table above is a partial listing):
+
+- **214 distinct private files are reachable from outside their own module.** This *is* the public API surface — it is what a package `exports` map would have to enumerate. This is the number to ratchet.
+- **766 cross-module import edges bypass `index.ts`.** Informative for seeing where deep coupling concentrates, but the wrong thing to block CI on: adding a second import to an already-exposed file would fail the build without widening the surface at all. Exposing a *new* private file should fail.
+
+Nothing enforces a surface today. At "reused by millions" scale this bites harder than folder names — a package's `exports` map enforces it for free; inside one `src/` tree, only a rule can.
+
+> **Correction:** an earlier draft of this document cited "~140" here. That figure was a sum over the partial per-module table above, not a full-graph computation, and should not be reproduced. Caught by the `metrics` agent during implementation.
 
 ---
 
@@ -189,7 +196,8 @@ The durable answer to "how would we know if it's getting better." Ratcheted in C
 | propagation cost | 11.0% | ≤11% | change amplification |
 | back-edges into composition root | 53 | 0 | the actual defect |
 | module cycles / largest SCC | 30 / 33 | 0 / 1 | extractability |
-| deep imports bypassing `index.ts` | ~140 | 0 | API surface |
+| module API surface (distinct private files exposed) | 214 | 0 | API surface — **ratcheted** |
+| deep-import edges bypassing `index.ts` | 766 | ↓ | where coupling concentrates — informational |
 | core size | 12.6% | ≤12.6% | churn blast radius |
 | domain↔domain co-change | ~0 | stays ~0 | boundaries stay real |
 

@@ -57,8 +57,9 @@ test-file carve-out** — 25 of the 53 current violations are `core → db` from
 
 ## Phase 5 — separate decisions, after the graph is acyclic
 
-1. Enforce module public APIs (~140 deep imports bypass `index.ts`; `server` is entered through 18
-   different files, `core` through 16).
+1. Enforce module public APIs — **214 distinct private files are reachable from outside their own
+   module** (766 deep-import edges). `server` is entered through 18 different files, `core` through
+   16. The 214 is the ratcheted metric; it is what a package `exports` map would have to enumerate.
 2. `apps/admin` workspace status — it has its own `package-lock.json`, sits outside
    `workspaces: ["packages/*"]`, and no boundary rule points at it.
 3. Optional taxonomy rename — only now, and only if the metrics say it buys something.
