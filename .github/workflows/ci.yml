@@ -2,7 +2,7 @@ name: CI
 
 # SPEC-022 REQ-11/REQ-12 named `check:boundaries` and `check:inventory` as scripts written for
 # "whoever stands up CI later to wire in as-is" (see .dependency-cruiser.cjs and
-# scripts/check-capability-inventory.ts) — this workflow is that wiring. Kept intentionally small
+# development/scripts/check-capability-inventory.ts) — this workflow is that wiring. Kept intentionally small
 # per this repo's Constitution Simplicity Gate: one job, one OS, one Node version, no matrix.
 on:
   push:
@@ -44,8 +44,21 @@ jobs:
         # It only fails the step if the tool itself errors out.
         run: npm run check:boundaries
 
+      - name: Check architecture metrics
+        # BLOCKING, unlike check:boundaries above — and a genuinely different check.
+        #
+        # dependency-cruiser's `no-circular` finds cycles between *files*; this repo has 2 of
+        # those. It cannot express cycles between *modules* (`src/<dir>`), of which there are
+        # dozens, and those are the ones that decide whether a module can ever be extracted into
+        # its own package — nor any of the other structural questions (change propagation, imports
+        # into the composition root, enforced module APIs, core-vs-periphery blast radius) that
+        # decide the same thing. This step ratchets six such metrics against a committed baseline:
+        # it fails only when one gets WORSE than the baseline, so it can be blocking from day one
+        # while the existing violations are worked down. See development/scripts/check-architecture.ts.
+        run: npm run check:architecture
+
       - name: Check capability-inventory staleness
-        # Same report-only posture as check:boundaries (see scripts/check-capability-inventory.ts
+        # Same report-only posture as check:boundaries (see development/scripts/check-capability-inventory.ts
         # header) — always exits 0 on findings, only fails on a genuine script error.
         run: npm run check:inventory
 

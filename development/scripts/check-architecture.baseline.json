@@ -1,0 +1,44 @@
+{
+  "meta": {
+    "fileCount": 667,
+    "moduleCount": 38
+  },
+  "propagationCostPct": 10.77,
+  "backEdgesIntoServer": 44,
+  "moduleCycles": {
+    "mutualCycleCount": 23,
+    "largestScc": 33,
+    "pairs": [
+      "assistant <-> features/plugins",
+      "assistant <-> features/post",
+      "assistant <-> server",
+      "comments <-> server",
+      "core <-> db",
+      "core <-> features/post",
+      "core <-> features/settings",
+      "db <-> features/database",
+      "features/content-types <-> server",
+      "features/database <-> features/recovery",
+      "features/database <-> server",
+      "features/entries <-> server",
+      "features/plugin-runtime <-> server",
+      "features/post <-> server",
+      "features/recovery <-> server",
+      "features/settings <-> server",
+      "features/taxonomy <-> server",
+      "forms <-> server",
+      "identity <-> server",
+      "mail <-> server",
+      "newsletter <-> server",
+      "seo <-> server",
+      "server <-> widgets"
+    ]
+  },
+  "moduleApiSurfaceFiles": 213,
+  "deepImportsBypassingIndex": 766,
+  "coreSize": {
+    "count": 84,
+    "total": 667,
+    "pct": 12.59
+  }
+}
