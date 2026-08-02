@@ -20,14 +20,41 @@ back-edges.
   all 23 importers rewritten, internal `../core/commands` → `../commands` fixed.
   **Result: 50 → 30 module cycles. `npm run typecheck` clean.**
 
-## In flight (2 Sonnet subagents, disjoint files)
+- **Phase A′** — `check:module-cycles` superseded by `npm run check:architecture`
+  (`development/scripts/check-architecture.ts` + `.baseline.json`), six metrics, five ratcheted,
+  blocking in CI. Ratchet verified to actually fail (exit 1 on regression, 0 at baseline).
+  Report: `agent-report-metrics.md`.
+- **Phase 2** — all 22 `tool-registrations.ts` narrowed from `RouteDeps` to local
+  `<Domain>ToolDeps` interfaces. Typecheck clean, 601 + 105 scoped tests pass.
+  **Also fixed a latent crash the old cast was hiding** — see below.
 
-| agent | scope | expected |
-|---|---|---|
-| `routedeps` | the 22 `src/**/tool-registrations.ts` | −22 back-edges, 30 → ~14 cycles |
-| `metrics` | `development/scripts/`, `package.json`, `ci.yml` | `check:architecture` ratcheting all 6 metrics; supersedes `check-module-cycles.ts` |
+### Current metrics (baseline locked here)
 
-If these did not land, their work is re-runnable from the briefs summarized above.
+```
+propagation cost                       10.34%   (was 11.00%)
+back-edges into composition root       28       (was 53)
+module cycles (mutual pairs)           17       (was 50)
+largest strongly-connected component   33       (unchanged — needs phase 3)
+module API surface (files exposed)     210
+core size                              12.59%
+```
+
+The SCC is still 33 and will stay there until phase 3: a single remaining back-edge is enough to
+keep the component welded, so it drops in one step rather than gradually.
+
+### The latent crash phase 2 surfaced (fixed)
+
+`createRouteDeps()`/`createSqliteRouteDeps()` never construct `magicLinkPerEmailLimiter` —
+`server/app.ts` builds it per-boot inside `registerAdminRoutes` and spreads it into a local
+`membersDeps`, never onto the returned object. `agent-daemon-server.ts` passed that bare
+`routeDeps` into `buildAssistantToolRegistrations`, and `buildMembersRegistrations` cast past the
+gap with `routeDeps as MembersRouteDeps`. In the daemon the field was simply `undefined`, so
+`members_request_magic_link` would have thrown `Cannot read properties of undefined (reading
+'check')` on first invocation. The daemon now builds its own per-boot limiter, correct under
+ADR-PIPE-013 §2-3 C-015 since it is a separate boot.
+
+**This is the strongest argument for the whole refactor: the type narrowing did not just move
+edges around, it exposed a real crash that a cast had been hiding.**
 
 ## Next — Phase 3 (six relocations, ~14 → ~4 cycles)
 
