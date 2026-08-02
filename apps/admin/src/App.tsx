@@ -1,231 +1,115 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-ai/ui/chat";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
+import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
 import { Sidebar } from "./components/Sidebar";
 import { buildAdminAgentPages } from "./lib/agent-pages";
 import { installInternalLinkInterceptor, useRouteLocation } from "./lib/router";
 import { WORKSPACE_ID, api, type AdminUser } from "./lib/api";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
-import { Appearance } from "./sections/Appearance";
-import { Dashboard } from "./sections/Dashboard";
 import { Login } from "./sections/Login";
-import { PostEditor } from "./sections/PostEditor";
 import { Placeholder } from "./sections/Placeholder";
-import { Posts } from "./sections/Posts";
-import { Pages } from "./sections/Pages";
-import { Members } from "./sections/Members";
-import { Comments } from "./sections/Comments";
-import { Analytics } from "./sections/Analytics";
-import { Media } from "./sections/Media";
-import { Menus } from "./sections/Menus";
-import { MenuEditor } from "./sections/MenuEditor";
-import { Integrations } from "./sections/Integrations";
-import { IntegrationDeliveries } from "./sections/IntegrationDeliveries";
-import { Users } from "./sections/Users";
-import { Roles } from "./sections/Roles";
-import { Settings } from "./sections/Settings";
-import { SettingsUi } from "./sections/SettingsUi";
-import { Seo } from "./sections/Seo";
-import { Redirects } from "./sections/Redirects";
-import { Plugins } from "./sections/Plugins";
-import { FormsList } from "./sections/FormsList";
-import { FormEditor } from "./sections/FormEditor";
-import { Collections } from "./sections/Collections";
-import { CollectionEntries } from "./sections/CollectionEntries";
-import { CollectionEntryEditor } from "./sections/CollectionEntryEditor";
-import { Taxonomy } from "./sections/Taxonomy";
-import { Database } from "./sections/Database";
-import { Recovery } from "./sections/Recovery";
-import { WidgetsLibrary } from "./sections/WidgetsLibrary";
-import { WidgetInstanceEditor } from "./sections/WidgetInstanceEditor";
-import { WidgetRegions } from "./sections/WidgetRegions";
-import { WidgetRegionEditor } from "./sections/WidgetRegionEditor";
-import { Workspace } from "./sections/Workspace";
-import { AiAssistant } from "./sections/AiAssistant";
+import { ADMIN_PANELS } from "./panels";
 import { AssistantDock } from "./components/AssistantDock";
 import { ChatFab } from "./components/ChatFab";
 
-type Route =
-  | { view: "dashboard" }
-  | { view: "posts" }
-  | { view: "post-editor"; postId: string }
-  | { view: "menus" }
-  | { view: "menu-editor"; menuId: string | null }
-  | { view: "widgets" }
-  | { view: "widget-editor"; widgetId: string | null; widgetType: string | null }
-  | { view: "widget-regions" }
-  | { view: "widget-region-editor"; regionKey: string }
-  | { view: "integrations" }
-  | { view: "integration-deliveries"; subscriptionId: string }
-  | { view: "forms" }
-  | { view: "form-editor"; formId: string }
-  | { view: "collection-entries"; contentTypeKey: string }
-  | { view: "collection-entry-editor"; contentTypeKey: string; entryId: string | null }
-  | { view: "section"; sectionId: string };
-
 /**
- * Every section screen, keyed by the URL segment that reaches it: `/admin/settings` → `settings`.
- *
- * This map is the single definition of a section — it is both what the router will accept as a
- * one-segment path and what gets rendered there. There is deliberately no second id allowlist to
- * keep in sync: path routing needs one (a path with no `section/` marker is otherwise
- * indistinguishable from a typo), and deriving it from this map is what stops it drifting out of
- * step with the dispatch. Do not reintroduce a parallel list.
- *
- * An entry here is all that is *required* — it gets you the URL, the screen, the sidebar highlight
- * and the right `data-agent-page`. It does **not** put the section in the sidebar (`nav.ts`, which
- * owns label/icon/group/order) or let the assistant navigate to it (`lib/agent-pages.ts`, a
- * security allowlist that is manual on purpose). Both are deliberate opt-ins — the full checklist,
- * and why each is separate, is in `apps/admin/INFO.md` under "Adding a new admin section".
- *
- * Thunks rather than component references so a screen that needs props can still live here —
- * `newsletter` has no screen yet and renders `Placeholder`, exactly as `#/section/newsletter` did.
- * `themes` and `appearance` both point at `Appearance`: two accepted spellings, one screen.
+ * A resolved route, plus the one Tovu-local wrinkle `@jini-ai/admin/core`'s generic matcher does
+ * not know about — see `parseRoute` below.
  */
-const SECTIONS: Readonly<Record<string, () => ReactNode>> = {
-  "ai-assistant": () => <AiAssistant />,
-  analytics: () => <Analytics />,
-  appearance: () => <Appearance />,
-  collections: () => <Collections />,
-  comments: () => <Comments />,
-  database: () => <Database />,
-  media: () => <Media />,
-  members: () => <Members />,
-  newsletter: () => <Placeholder sectionId="newsletter" />,
-  pages: () => <Pages />,
-  plugins: () => <Plugins />,
-  recovery: () => <Recovery />,
-  redirects: () => <Redirects />,
-  roles: () => <Roles />,
-  seo: () => <Seo />,
-  settings: () => <SettingsUi />,
-  // The SPEC-007 raw ledger browser, kept reachable now that `/settings` renders the curated
-  // tabbed surface ported from Open Design. Both views hit the same rows.
-  "settings-raw": () => <Settings />,
-  taxonomy: () => <Taxonomy />,
-  themes: () => <Appearance />,
-  users: () => <Users />,
-  workspace: () => <Workspace />,
-};
-
-/**
- * The renderer for a section id, or `undefined` if there is no such section.
- *
- * `Object.hasOwn`, deliberately never `key in SECTIONS`. `in` walks the prototype chain, so every
- * `Object.prototype` member passed the allowlist and then got *called as a section renderer*:
- * `/admin/constructor` and `/admin/valueOf` returned a bare `{}` and crashed the render with
- * "Objects are not valid as a React child"; `/admin/__proto__` resolved to a non-function and threw;
- * `/admin/toString` rendered the literal string "[object Object]" as the page. All five previously
- * fell through to the dashboard. Both call sites below go through here so neither can regress
- * independently — the render path needs it just as much as the parser, because the legacy
- * `/section/:id` branch accepts an arbitrary id that never passed the parser's check at all.
- */
-function sectionRenderer(sectionId: string): (() => ReactNode) | undefined {
-  return Object.hasOwn(SECTIONS, sectionId) ? SECTIONS[sectionId] : undefined;
+interface Route extends AdminRoute {
+  /**
+   * Set only by the legacy `/section/:id` branch when `id` does not match a registered panel.
+   * Distinguishes "a stored URL naming a section that no longer exists" (render `Placeholder`,
+   * `unknownSectionId` set) from "an unrecognized bare segment" (`matchRoute` already returns
+   * `panelId: null` for that, and it means fall through to the dashboard) — the same distinction
+   * `App.tsx` used to make via a separate `"section"` variant in its own `Route` union.
+   */
+  unknownSectionId?: string;
 }
+
+/** Panel id -> panel, for O(1) render dispatch. Built once; `ADMIN_PANELS` is a module constant. */
+const PANELS_BY_ID = new Map(ADMIN_PANELS.map((panel) => [panel.id, panel] as const));
 
 /**
  * Parses a *route path* (base already stripped by `router.ts`) into a `Route`.
  *
- * Was `parseHash`. The body is unchanged apart from the input: the hash router already parsed a
- * path-shaped string after stripping `#/`, so the segment matching below is the same logic that
- * ran before — only the source of the string moved from `location.hash` to `location.pathname`.
+ * Delegates to `@jini-ai/admin/core`'s `matchRoute` against `panels.tsx`'s `ADMIN_PANELS` for
+ * everything except one Tovu-specific shape the generic matcher was never given a branch for:
+ * legacy `/section/:id` URLs, which — unlike a modern bare `/settings` segment — accept an
+ * *arbitrary* id. `matchRoute` matches over an array (`panels.find(p => p.id === segment)`), so
+ * the historic `Object.hasOwn` hazard this file used to guard against (`/admin/constructor` etc.
+ * resolving to `Object.prototype` members via `in`) cannot recur here by construction — there is
+ * no plain-object key lookup left to walk a prototype chain.
  *
  * `section/` is still accepted as a leading segment. Not for new URLs — nothing generates it any
  * more — but `router.ts`'s legacy-hash redirect strips it, and this is the second line of defence
  * for a stored URL that reaches the parser without going through that redirect.
  */
 export function parseRoute(routePath: string): Route {
-  const [rawPath, rawQuery] = routePath.split("?");
+  const [rawPath] = routePath.split("?");
   const parts = (rawPath ?? "").split("/").filter(Boolean);
-  const query = new URLSearchParams(rawQuery ?? "");
-  if (parts.length === 0) return { view: "dashboard" };
-  if (parts[0] === "posts" && parts[1]) return { view: "post-editor", postId: parts[1] };
-  if (parts[0] === "posts") return { view: "posts" };
-  if (parts[0] === "menus" && parts[1] === "new") return { view: "menu-editor", menuId: null };
-  if (parts[0] === "menus" && parts[1]) return { view: "menu-editor", menuId: parts[1] };
-  if (parts[0] === "menus") return { view: "menus" };
-  if (parts[0] === "widgets" && parts[1] === "regions" && parts[2])
-    return { view: "widget-region-editor", regionKey: parts[2] };
-  if (parts[0] === "widgets" && parts[1] === "regions") return { view: "widget-regions" };
-  if (parts[0] === "widgets" && parts[1] === "new")
-    return { view: "widget-editor", widgetId: null, widgetType: query.get("type") };
-  if (parts[0] === "widgets" && parts[1]) return { view: "widget-editor", widgetId: parts[1], widgetType: null };
-  if (parts[0] === "widgets") return { view: "widgets" };
-  if (parts[0] === "integrations" && parts[1])
-    return { view: "integration-deliveries", subscriptionId: parts[1] };
-  if (parts[0] === "integrations") return { view: "integrations" };
-  if (parts[0] === "forms" && parts[1]) return { view: "form-editor", formId: parts[1] };
-  if (parts[0] === "forms") return { view: "forms" };
-  if (parts[0] === "collections" && parts[1] && parts[2])
-    return { view: "collection-entry-editor", contentTypeKey: parts[1], entryId: parts[2] === "new" ? null : parts[2] };
-  if (parts[0] === "collections" && parts[1]) return { view: "collection-entries", contentTypeKey: parts[1] };
-  if (parts[0] === "section" && parts[1]) return { view: "section", sectionId: parts[1] };
-  // A bare section segment — the shape every section URL now takes (`/settings`, not
-  // `/section/settings`). Tested against `SECTIONS` rather than accepting any single segment, so an
-  // unrecognized path still falls through to the dashboard the way it always has instead of
-  // rendering an empty Placeholder for a typo. Nothing to maintain: the map is the dispatch.
-  if (parts.length === 1 && parts[0] && sectionRenderer(parts[0]))
-    return { view: "section", sectionId: parts[0] };
-  return { view: "dashboard" };
-}
 
-/** Which sidebar NavItem.id is highlighted for the current route. */
-function activeNavId(route: Route): string {
-  switch (route.view) {
-    case "dashboard":
-      return "dashboard";
-    case "posts":
-    case "post-editor":
-      return "posts";
-    case "menus":
-    case "menu-editor":
-      return "menus";
-    case "widgets":
-    case "widget-editor":
-    case "widget-regions":
-    case "widget-region-editor":
-      return "widgets";
-    case "integrations":
-    case "integration-deliveries":
-      return "integrations";
-    case "forms":
-    case "form-editor":
-      return "forms";
-    case "collection-entries":
-    case "collection-entry-editor":
-      return "collections";
-    case "section":
-      return route.sectionId;
+  if (parts[0] === "section" && parts[1]) {
+    const id = parts[1];
+    if (!PANELS_BY_ID.has(id)) {
+      return { panelId: null, view: null, params: {}, query: new URLSearchParams(), unknownSectionId: id };
+    }
+    // A known id resolves exactly like the modern bare-segment path. Anything past the id is
+    // ignored, matching the single inline branch this replaces (`/section/settings/foo` never
+    // looked past `settings` either).
+    return matchRoute(`/${id}`, ADMIN_PANELS);
   }
+
+  return matchRoute(routePath, ADMIN_PANELS);
 }
 
 /**
- * The page id this view reports to an agent through `data-agent-page`.
+ * Which panel id is "current" for this route — feeds the sidebar highlight directly, and (via
+ * {@link agentPageId}'s fallback) the page id an agent is told when no per-route override applies.
+ * Deliberately not always {@link agentPageId}'s answer; see that function's own comment for the one
+ * case (`widget-regions`) where the two genuinely diverge.
+ */
+function currentPanelId(route: Route): string {
+  return route.unknownSectionId ?? route.panelId ?? "dashboard";
+}
+
+/**
+ * The page id this route reports to an agent through `data-agent-page`.
  *
- * Deliberately a separate function from {@link activeNavId}, which is what it used to share. The
- * two answer different questions and only *usually* agree: the sidebar wants the nav row to light
- * up, and an agent wants the id it can pass back to `page.navigate`. Widget regions is where they
- * genuinely diverge — `agent-pages.ts` publishes `widget-regions`, and the sidebar has no such row,
- * so it highlights `widgets`. Sharing one function meant `page.navigate("widget-regions")` landed
- * on the right screen and then reported `after: "widgets"`, i.e. told the agent it had arrived
- * somewhere it had not asked for. An agent's only correction for that is to navigate again.
+ * Deliberately a separate question from {@link currentPanelId}, which is what it used to share
+ * before the split. The two answer different questions and only *usually* agree: the sidebar wants
+ * the nav row to light up, and an agent wants the id it can pass back to `page.navigate`. Widget
+ * regions is where they genuinely diverge — `agent-pages.ts` publishes `widget-regions`, and the
+ * sidebar has no such row, so it highlights `widgets`. Sharing one function meant
+ * `page.navigate("widget-regions")` landed on the right screen and then reported `after:
+ * "widgets"`, i.e. told the agent it had arrived somewhere it had not asked for. An agent's only
+ * correction for that is to navigate again. `panels.tsx`'s `widgets` entry carries this exact case
+ * forward as a per-route `agentPageId`, which `resolveAgentPageId` reads.
  *
- * Everything else still falls through to the nav id on purpose: a detail route reports its list
- * page (`/posts/abc` → `posts`), which is the nearest id an agent can actually act on, and the
- * region editor follows the same rule under `widget-regions`.
+ * Everything else still falls through to the panel id on purpose: a detail route reports its list
+ * page (`/posts/abc` → `posts`), which is the nearest id an agent can actually act on.
  *
  * Values here must stay keys of `ADMIN_AGENT_PAGE_PATHS` wherever a published page exists for the
- * view, or the id an agent reads back is one `page.navigate` will refuse.
+ * route, or the id an agent reads back is one `page.navigate` will refuse.
  */
 export function agentPageId(route: Route): string {
-  switch (route.view) {
-    case "widget-regions":
-    case "widget-region-editor":
-      return "widget-regions";
-    default:
-      return activeNavId(route);
+  if (route.unknownSectionId !== undefined) return route.unknownSectionId;
+  return resolveAgentPageId(ADMIN_PANELS, route.panelId ?? "dashboard", route.view) ?? "dashboard";
+}
+
+/**
+ * The screen for this route: `Placeholder` for a legacy `/section/:id` naming an id that no longer
+ * exists (see `Route.unknownSectionId`), otherwise the matched panel's own render — each panel does
+ * its own small `view` switch (see `panels.tsx`), which is what lets a panel own its URL space
+ * without a shared dispatch to edit.
+ */
+function renderRoute(route: Route): ReactNode {
+  if (route.unknownSectionId !== undefined) {
+    return <Placeholder sectionId={route.unknownSectionId} />;
   }
+  const panel = PANELS_BY_ID.get(route.panelId ?? "dashboard");
+  return panel ? panel.render({ view: route.view, params: route.params, query: route.query }) : null;
 }
 
 export function App() {
@@ -414,59 +298,7 @@ export function App() {
   if (checking) return <div className="boot-screen">Loading Tovu…</div>;
   if (!user) return <Login onLogin={setUser} />;
 
-  let content: React.ReactNode;
-  switch (route.view) {
-    case "dashboard":
-      content = <Dashboard />;
-      break;
-    case "posts":
-      content = <Posts />;
-      break;
-    case "post-editor":
-      content = <PostEditor postId={route.postId} />;
-      break;
-    case "menus":
-      content = <Menus />;
-      break;
-    case "menu-editor":
-      content = <MenuEditor menuId={route.menuId} />;
-      break;
-    case "widgets":
-      content = <WidgetsLibrary />;
-      break;
-    case "widget-editor":
-      content = <WidgetInstanceEditor widgetId={route.widgetId} widgetType={route.widgetType} />;
-      break;
-    case "widget-regions":
-      content = <WidgetRegions />;
-      break;
-    case "widget-region-editor":
-      content = <WidgetRegionEditor regionKey={route.regionKey} />;
-      break;
-    case "integrations":
-      content = <Integrations />;
-      break;
-    case "integration-deliveries":
-      content = <IntegrationDeliveries subscriptionId={route.subscriptionId} />;
-      break;
-    case "forms":
-      content = <FormsList />;
-      break;
-    case "form-editor":
-      content = <FormEditor formId={route.formId} />;
-      break;
-    case "collection-entries":
-      content = <CollectionEntries contentTypeKey={route.contentTypeKey} />;
-      break;
-    case "collection-entry-editor":
-      content = <CollectionEntryEditor contentTypeKey={route.contentTypeKey} entryId={route.entryId} />;
-      break;
-    case "section":
-      // The fallback still matters: the legacy `/section/:id` branch in `parseRoute` accepts any id,
-      // so a stored URL naming a section that no longer exists lands here rather than in the map.
-      content = sectionRenderer(route.sectionId)?.() ?? <Placeholder sectionId={route.sectionId} />;
-      break;
-  }
+  const content: ReactNode = renderRoute(route);
 
   return (
     <div className="admin-layout">
@@ -480,7 +312,7 @@ export function App() {
         Skip to content
       </a>
       <Sidebar
-        activeId={activeNavId(route)}
+        activeId={currentPanelId(route)}
         onLogout={logout}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -510,9 +342,9 @@ export function App() {
         </div>
         {/* `data-agent-page` is how the page driver reports where it is: `page.find_elements` tags
             every handle with its nearest `[data-agent-page]` ancestor, and `page.navigate` reads it
-            back to say which page it left and which it landed on. `agentPageId`, not `activeNavId`
-            — they agree for every view but widget regions, where the published page id and the
-            highlighted sidebar row are genuinely different things. */}
+            back to say which page it left and which it landed on. `agentPageId`, not
+            `currentPanelId` — they agree for every route but widget regions, where the published
+            page id and the highlighted sidebar row are genuinely different things. */}
         {/* `tabIndex={-1}` — without it, activating the skip link above scrolls `<main>` into
             view but does not actually move keyboard focus there, since a plain `<main>` isn't
             natively focusable; the skip link would then satisfy the letter of "skip navigation"
