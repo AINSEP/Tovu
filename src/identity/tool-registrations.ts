@@ -18,16 +18,85 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../assistant/tool-registration-kit";
-import { identityServiceDepsFrom } from "../server/routes/admin/users/deps";
-import type { RouteDeps } from "../server/routes/types";
+} from "../core/tools/registration-kit";
 import { parseIdentityToolInput } from "./agent-tool-input";
 import { identityAgentToolCatalog, type AgentToolDefinition as IdentityAgentToolDefinition } from "./agent-tools";
+import type { AuthServiceDeps } from "./auth-service";
 import { assertCallerHasAnyPermission, assignRole, attachPolicy, createPolicy, createRole, createUser } from "./grant-service";
 import { deletePolicy, deleteRole, disablePrincipal, enablePrincipal, updatePolicy, updateRole, updateUser } from "./admin-crud-service";
+import type {
+  IdentityRepos,
+  PasswordHasherPort,
+  PolicyPermissionRepoPort,
+  PolicyRepoPort,
+  PrincipalPolicyRepoPort,
+  PrincipalRepoPort,
+  PrincipalRoleRepoPort,
+  RolePolicyRepoPort,
+  RoleRepoPort,
+  SessionRepoPort,
+  UserRepoPort,
+} from "./ports";
 import type { PolicyRecord, PrincipalRecord, PrincipalRoleRecord, RoleRecord, UserRecord } from "./types";
 
 const CATALOG_BY_ID = indexCatalogById(identityAgentToolCatalog);
+
+/**
+ * The exact slice of the route-deps bag Identity's tool handlers read. Declared structurally
+ * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
+ * into the composition root. `server/routes/*` satisfies this structurally by passing its existing
+ * `RouteDeps` (in practice `UsersRouteDeps`, a `Pick<RouteDeps, ...>` subset — a strict superset of
+ * this shape) object; nothing there changes.
+ */
+export interface IdentityToolDeps {
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  principalRepo: PrincipalRepoPort;
+  userRepo: UserRepoPort;
+  sessionRepo: SessionRepoPort;
+  roleRepo: RoleRepoPort;
+  policyRepo: PolicyRepoPort;
+  policyPermissionRepo: PolicyPermissionRepoPort;
+  rolePolicyRepo: RolePolicyRepoPort;
+  principalRoleRepo: PrincipalRoleRepoPort;
+  principalPolicyRepo: PrincipalPolicyRepoPort;
+  passwordHasher: PasswordHasherPort;
+  ownerPrincipalId: Promise<string>;
+}
+
+/**
+ * Assembles `auth-service.ts`'s `IdentityRepos` bag from {@link IdentityToolDeps}'s flat fields — a
+ * local duplicate of `server/routes/admin/users/deps.ts`'s `identityReposFrom` rather than an import
+ * of it, for the same reason `features/settings/tool-registrations.ts`'s header gives for
+ * duplicating `toWriteServiceDeps`: importing from the HTTP admin layer would invert this codebase's
+ * ports/adapters direction. It is a field mapping, not logic, so the two copies carry no behavioral
+ * drift risk.
+ */
+function identityReposFrom(deps: IdentityToolDeps): IdentityRepos {
+  return {
+    principals: deps.principalRepo,
+    users: deps.userRepo,
+    sessions: deps.sessionRepo,
+    roles: deps.roleRepo,
+    policies: deps.policyRepo,
+    policyPermissions: deps.policyPermissionRepo,
+    rolePolicies: deps.rolePolicyRepo,
+    principalRoles: deps.principalRoleRepo,
+    principalPolicies: deps.principalPolicyRepo,
+  };
+}
+
+/** Assembles `grant-service.ts`'s/`admin-crud-service.ts`'s `AuthServiceDeps` bag from
+ * {@link IdentityToolDeps} — the local twin of `identityReposFrom` just above. */
+function identityServiceDepsFrom(deps: IdentityToolDeps): AuthServiceDeps {
+  return {
+    repos: identityReposFrom(deps),
+    hasher: deps.passwordHasher,
+    clock: deps.clock,
+    idGen: deps.idGen,
+  };
+}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -124,7 +193,7 @@ function identityPermissionsFor(toolId: string): string[] {
  * the kit's generic `requireToolPermission`, which cannot express an OR), so ADR-021 §2's single
  * evaluator is reached by an identical path from both tool kinds.
  */
-async function assertIdentityReadAllowed(routeDeps: RouteDeps, toolId: string, callerPrincipalId: string): Promise<void> {
+async function assertIdentityReadAllowed(routeDeps: IdentityToolDeps, toolId: string, callerPrincipalId: string): Promise<void> {
   await assertCallerHasAnyPermission({
     deps: identityServiceDepsFrom(routeDeps),
     workspaceId: routeDeps.workspaceId,
@@ -192,7 +261,7 @@ function toIdentityPolicyView(policy: PolicyRecord): { id: string; name: string;
 }
 
 /** Read a principal's role-assignment ids. Shared by every tool that returns a user view. */
-async function roleIdsFor(routeDeps: RouteDeps, principalId: string): Promise<string[]> {
+async function roleIdsFor(routeDeps: IdentityToolDeps, principalId: string): Promise<string[]> {
   const links = await routeDeps.principalRoleRepo.listByPrincipalId({ workspaceId: routeDeps.workspaceId, principalId });
   return links.map((link) => link.roleId);
 }
@@ -204,13 +273,13 @@ async function roleIdsFor(routeDeps: RouteDeps, principalId: string): Promise<st
  * the miss is defensive rather than an expected path — the same reasoning `routes/admin/users/
  * disable.ts` records for its identical second lookup.
  */
-async function requireUserRecord(routeDeps: RouteDeps, principalId: string): Promise<UserRecord> {
+async function requireUserRecord(routeDeps: IdentityToolDeps, principalId: string): Promise<UserRecord> {
   const user = await routeDeps.userRepo.findByPrincipalId({ workspaceId: routeDeps.workspaceId, principalId });
   if (!user) throw new Error(`user '${principalId}' was not found`);
   return user;
 }
 
-export function buildIdentityRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildIdentityRegistrations(routeDeps: IdentityToolDeps): ToolRegistration[] {
   /** Assembled per call, not per handler, because every mutating handler needs the identical bag. */
   const serviceDeps = () => identityServiceDepsFrom(routeDeps);
 

@@ -17,6 +17,7 @@
  * `requireToolPermission` themselves. The one exception is `database_plan_migrate_forward`,
  * documented at its own handler.
  */
+import type { AuthorizeFn } from "../../core/commands";
 import {
   AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
@@ -31,13 +32,38 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../assistant/tool-registration-kit";
-import { plan as gatewayPlan, type GatedMutationHooks } from "../../core/gated-mutations/gateway";
-import { buildMigrateForwardHooks } from "../../server/gated-mutations-composition";
-import type { RouteDeps } from "../../server/routes/types";
+} from "../../core/tools/registration-kit";
+import { plan as gatewayPlan, type GatedMutationHooks, type GatewayDeps } from "../../core/gated-mutations/gateway";
+import type { DbOpsPort } from "../../core/gated-mutations/ports";
+// `buildMigrateForwardHooks` — and the `LedgerAppendPort` type its own input needs — stay sourced
+// from `server/gated-mutations-composition`, an explicitly out-of-scope back-edge for this pass
+// (see the dispatch notes this file's narrowing was reported under). Reusing its already-imported
+// module for this one type, rather than duplicating it, adds no NEW cross-module edge.
+import { buildMigrateForwardHooks, type LedgerAppendPort } from "../../server/gated-mutations-composition";
 import { getDatabaseAgentToolCatalog } from "./agent-tools";
-import { createRestorePoint as createDatabaseRestorePoint, listRestorePoints } from "./restore-points";
-import { getTimeline } from "./timeline";
+import type { DatabaseIntrospectionPort } from "./adapter.sqlite";
+import { createRestorePoint as createDatabaseRestorePoint, listRestorePoints, type RestorePointListPort, type RestorePointSavePort } from "./restore-points";
+import { getTimeline, type LedgerReadPort } from "./timeline";
+
+/**
+ * The exact slice of the route-deps bag Database's tool handlers read. Declared structurally
+ * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
+ * into the composition root for the `RouteDeps` god type specifically — the
+ * `server/gated-mutations-composition` import above is a separate, already-disclosed back-edge left
+ * untouched per the dispatch's explicit out-of-scope list. `server/routes/*` satisfies this
+ * structurally by passing its existing `RouteDeps` object; nothing there changes.
+ */
+export interface DatabaseToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  databaseLedgerRepo: LedgerReadPort & LedgerAppendPort;
+  restorePointsRepo: RestorePointListPort & RestorePointSavePort;
+  databaseIntrospection: DatabaseIntrospectionPort;
+  dbOps: DbOpsPort;
+  gatedMutations: { gatewayDeps: GatewayDeps };
+}
 
 /**
  * Widened this dispatch (ADR-041 §3, closing `agent-tools.ts`'s own disclosed gap) with the three
@@ -92,7 +118,7 @@ const UNWIRED_DATABASE_TOOL_IDS = new Set([
   "database_execute_migrate_forward",
 ]);
 
-export function buildDatabaseRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildDatabaseRegistrations(routeDeps: DatabaseToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     database_query_timeline: async (ctx) => {
       if (ctx.input !== undefined && !isRecord(ctx.input)) throw new Error("input must be an object");

@@ -13,6 +13,8 @@
  * `admin.collections.read` first") — so `collections_entry_list`'s handler performs that identical
  * inline check itself, mirroring `entries/list.ts`'s admin route.
  */
+import type { AuthorizeFn } from "../../core/commands";
+import type { OutboxPort } from "../../core/ports";
 import {
   AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
@@ -28,16 +30,36 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../assistant/tool-registration-kit";
-import type { RouteDeps } from "../../server/routes/types";
+} from "../../core/tools/registration-kit";
 import { entriesAgentToolCatalog } from "./agent-tools";
 import { EntryFieldValidationError } from "./errors";
-import { listEntries } from "./list";
+import { listEntries, type EntryListPort } from "./list";
 import type { EntryRecord, EntryStatus } from "./types";
-import { createEntry, publishEntry, unpublishEntry, updateEntry } from "./write-service";
+import { createEntry, publishEntry, unpublishEntry, updateEntry, type ContentTypeLookupPort, type EntryRepoPort } from "./write-service";
 import { toEntryOutbox } from "./repo.memory";
 
 const CATALOG_BY_ID = indexCatalogById(entriesAgentToolCatalog);
+
+/**
+ * The exact slice of the route-deps bag Entries' tool handlers read. Declared structurally (rather
+ * than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge into the
+ * composition root. `server/routes/*` satisfies this structurally by passing its existing
+ * `RouteDeps` object; nothing there changes.
+ *
+ * `contentTypeRepo` is typed as `write-service.ts`'s own `ContentTypeLookupPort` — the narrow
+ * lookup contract Entries itself declares, not content-types' full `ContentTypeRepoPort` — mirroring
+ * `RouteDeps`'s own doc comment on this field ("satisfies entries' `ContentTypeLookupPort`
+ * structurally").
+ */
+export interface EntriesToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  outbox: OutboxPort;
+  entryRepo: EntryRepoPort & EntryListPort;
+  contentTypeRepo: ContentTypeLookupPort;
+}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -69,7 +91,7 @@ function isEntriesShapeRejection(error: unknown): boolean {
 /** Shared dependency bag for `write-service.ts` calls — every mutating handler here takes this
  * identical shape (a superset of what `updateEntry`/`publishEntry`/`unpublishEntry` individually
  * need; passing the extra `ids` field to those is harmless since none of them declare it). */
-function entriesDeps(routeDeps: RouteDeps) {
+function entriesDeps(routeDeps: EntriesToolDeps) {
   return {
     entryRepo: routeDeps.entryRepo,
     contentTypeRepo: routeDeps.contentTypeRepo,
@@ -117,7 +139,7 @@ function fromEntryResult(fn: () => ReturnType<typeof createEntry>): Promise<{ en
   return fromResult(fn).then(({ entry }) => ({ entry: toEntryToolView(entry) }));
 }
 
-export function buildEntriesRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildEntriesRegistrations(routeDeps: EntriesToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     collections_entry_list: async (ctx) => {
       const input = ctx.input !== undefined ? requireInputRecord(ctx.input) : {};

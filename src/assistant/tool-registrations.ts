@@ -24,40 +24,77 @@
  * {@link DOMAIN_SLICES} below. That is the only edit here — a new domain never adds handler code to
  * this file, which is what makes two domains developable in parallel without colliding.
  */
-import type { RouteDeps } from "../server/routes/types";
-import { buildCommentsRegistrations, commentsDerivedRisk } from "../comments/tool-registrations";
-import { buildContentTypesRegistrations, contentTypesDerivedRisk } from "../features/content-types/tool-registrations";
-import { buildDatabaseRegistrations, databaseDerivedRisk } from "../features/database/tool-registrations";
-import { buildEntriesRegistrations, entriesDerivedRisk } from "../features/entries/tool-registrations";
-import { buildPluginsRegistrations, pluginsDerivedRisk } from "../features/plugin-runtime/tool-registrations";
-import { buildPostRegistrations, postDerivedRisk } from "../features/post/tool-registrations";
-import { buildRecoveryRegistrations, recoveryDerivedRisk } from "../features/recovery/tool-registrations";
-import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/settings/tool-registrations";
-import { buildTaxonomyRegistrations, taxonomyDerivedRisk } from "../features/taxonomy/tool-registrations";
-import { buildThemesRegistrations, themesDerivedRisk } from "../features/theme/tool-registrations";
-import { buildWorkspaceRegistrations, workspaceDerivedRisk } from "../features/workspace/tool-registrations";
-import { buildFormsRegistrations, formsDerivedRisk } from "../forms/tool-registrations";
-import { buildIdentityRegistrations, identityDerivedRisk } from "../identity/tool-registrations";
-import { buildIntegrationsRegistrations, integrationsDerivedRisk } from "../integrations/tool-registrations";
-import { buildMediaRegistrations, mediaDerivedRisk } from "../media/tool-registrations";
-import { buildMembersRegistrations, membersDerivedRisk } from "../members/tool-registrations";
-import { buildMenusRegistrations, menusDerivedRisk } from "../navigation/tool-registrations";
-import { buildNewsletterRegistrations, newsletterDerivedRisk } from "../newsletter/tool-registrations";
-import { buildRedirectsRegistrations, redirectsDerivedRisk } from "../redirects/tool-registrations";
-import { buildSeoRegistrations, seoDerivedRisk } from "../seo/tool-registrations";
-import { buildWidgetsRegistrations, widgetsDerivedRisk } from "../widgets/tool-registrations";
+import { buildCommentsRegistrations, commentsDerivedRisk, type CommentsToolDeps } from "../comments/tool-registrations";
+import { buildContentTypesRegistrations, contentTypesDerivedRisk, type ContentTypesToolDeps } from "../features/content-types/tool-registrations";
+import { buildDatabaseRegistrations, databaseDerivedRisk, type DatabaseToolDeps } from "../features/database/tool-registrations";
+import { buildEntriesRegistrations, entriesDerivedRisk, type EntriesToolDeps } from "../features/entries/tool-registrations";
+import { buildPluginsRegistrations, pluginsDerivedRisk, type PluginsToolDeps } from "../features/plugin-runtime/tool-registrations";
+import { buildPostRegistrations, postDerivedRisk, type PostToolDeps } from "../features/post/tool-registrations";
+import { buildRecoveryRegistrations, recoveryDerivedRisk, type RecoveryToolDeps } from "../features/recovery/tool-registrations";
+import { buildSettingsRegistrations, settingsDerivedRisk, type SettingsToolDeps } from "../features/settings/tool-registrations";
+import { buildTaxonomyRegistrations, taxonomyDerivedRisk, type TaxonomyToolDeps } from "../features/taxonomy/tool-registrations";
+import { buildThemesRegistrations, themesDerivedRisk, type ThemeToolDeps } from "../features/theme/tool-registrations";
+import { buildWorkspaceRegistrations, workspaceDerivedRisk, type WorkspaceToolDeps } from "../features/workspace/tool-registrations";
+import { buildFormsRegistrations, formsDerivedRisk, type FormsToolDeps } from "../forms/tool-registrations";
+import { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps } from "../identity/tool-registrations";
+import { buildIntegrationsRegistrations, integrationsDerivedRisk, type IntegrationsToolDeps } from "../integrations/tool-registrations";
+import { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps } from "../media/tool-registrations";
+import { buildMembersRegistrations, membersDerivedRisk, type MembersToolDeps } from "../members/tool-registrations";
+import { buildMenusRegistrations, menusDerivedRisk, type MenusToolDeps } from "../navigation/tool-registrations";
+import { buildNewsletterRegistrations, newsletterDerivedRisk, type NewsletterToolDeps } from "../newsletter/tool-registrations";
+import { buildRedirectsRegistrations, redirectsDerivedRisk, type RedirectsToolDeps } from "../redirects/tool-registrations";
+import { buildSeoRegistrations, seoDerivedRisk, type SeoToolDeps } from "../seo/tool-registrations";
+import { buildWidgetsRegistrations, widgetsDerivedRisk, type WidgetsToolDeps } from "../widgets/tool-registrations";
 import {
   assertToolIsWirable,
   mergeDerivedRiskMaps,
   type DerivedRiskByToolId,
   type ToolRegistration,
   type WirableToolDefinition,
-} from "./tool-registration-kit";
+} from "../core/tools/registration-kit";
+
+/**
+ * The union of every wired domain's own narrow tool-deps contract — never `server/routes/types`'s
+ * `RouteDeps` (the god type this whole ADR-049 restructure exists to stop importing here). This is
+ * the one place that genuinely needs all 21 at once: {@link buildAssistantToolRegistrations} fans
+ * the SAME deps bag out to every domain's builder, so its parameter (and {@link DomainSlice.build}'s
+ * field type below) must satisfy every domain's own declared shape simultaneously. Each domain still
+ * only ever imports its own slice — this union is assembled here, in the one file whose whole job is
+ * seeing every domain at once, not re-exported for any domain to depend on.
+ *
+ * `server/routes/*` composition roots satisfy this structurally by constructing an object with every
+ * field every domain declares — today via `RouteDeps` plus each admin section's own additive
+ * `*RouteDeps` extension (`MembersRouteDeps`, `NewsletterRouteDeps`, `UsersRouteDeps`, ...). A
+ * composition root that returns a narrower type (for example `NewsletterRouteDeps` alone) will fail
+ * this assignment at compile time for any field only a DIFFERENT extension declares — a real,
+ * pre-existing gap this narrowing surfaces rather than introduces; see this dispatch's handoff notes.
+ */
+export type AssistantToolRegistryDeps = CommentsToolDeps &
+  ContentTypesToolDeps &
+  DatabaseToolDeps &
+  EntriesToolDeps &
+  PluginsToolDeps &
+  PostToolDeps &
+  RecoveryToolDeps &
+  SettingsToolDeps &
+  TaxonomyToolDeps &
+  ThemeToolDeps &
+  WorkspaceToolDeps &
+  FormsToolDeps &
+  IdentityToolDeps &
+  IntegrationsToolDeps &
+  MediaToolDeps &
+  MembersToolDeps &
+  MenusToolDeps &
+  NewsletterToolDeps &
+  RedirectsToolDeps &
+  SeoToolDeps &
+  WidgetsToolDeps;
 
 /** One wired domain: its builder and the risk classification its own wiring file maintains. */
 interface DomainSlice {
   domain: string;
-  build: (routeDeps: RouteDeps) => ToolRegistration[];
+  build: (routeDeps: AssistantToolRegistryDeps) => ToolRegistration[];
   risk: DerivedRiskByToolId;
 }
 
@@ -123,10 +160,11 @@ export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: Wirabl
 }
 
 /**
- * Builds the complete agent-tool surface for one workspace's `RouteDeps`.
+ * Builds the complete agent-tool surface for one workspace's route-deps bag.
  *
- * @param routeDeps - The same dependency bag the admin HTTP routes are built from, so a tool call
- * and the equivalent human click reach identical domain code.
+ * @param routeDeps - The same dependency bag the admin HTTP routes are built from (structurally —
+ * see {@link AssistantToolRegistryDeps}), so a tool call and the equivalent human click reach
+ * identical domain code.
  * @returns Every wired domain's registrations, concatenated in {@link DOMAIN_SLICES} order.
  * @throws {Error} If two domains register the same tool id, or if any domain's own build-time gates
  * refuse (unclassified risk, missing `inputSchema`, catalog drift, an entry neither wired nor
@@ -134,7 +172,7 @@ export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: Wirabl
  * @complexity O(t) in the total wired-tool count.
  * @overallScore 100
  */
-export function buildAssistantToolRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildAssistantToolRegistrations(routeDeps: AssistantToolRegistryDeps): ToolRegistration[] {
   const registrations: ToolRegistration[] = [];
   const ownerByToolId = new Map<string, string>();
 

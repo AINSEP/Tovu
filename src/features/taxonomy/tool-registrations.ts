@@ -20,6 +20,10 @@
  * `buildMergeTermHooks` directly (the one place other than a route file this codebase already
  * imports `core/gated-mutations` composition from a domain's own `tool-registrations.ts`).
  */
+import type { AuthorizeFn } from "../../core/commands";
+import { plan as gatewayPlan, type GatedMutationHooks, type GatewayDeps } from "../../core/gated-mutations/gateway";
+import type { OutboxPort } from "../../core/ports";
+import type { PostRepoPort } from "../post";
 import {
   AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
@@ -32,18 +36,55 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../assistant/tool-registration-kit";
-import { plan as gatewayPlan, type GatedMutationHooks } from "../../core/gated-mutations/gateway";
-import { buildMergeTermHooks } from "../../server/gated-mutations-composition";
-import type { RouteDeps } from "../../server/routes/types";
+} from "../../core/tools/registration-kit";
+// `buildMergeTermHooks` — and the `MergeableEntryTermRepoPort` type its own input needs — stay
+// sourced from `server/gated-mutations-composition`, an explicitly out-of-scope back-edge for this
+// pass (see the dispatch notes this file's narrowing was reported under). Reusing its
+// already-imported module for this one type, rather than duplicating it, adds no NEW cross-module edge.
+import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "../../server/gated-mutations-composition";
 import { taxonomyAgentToolCatalog } from "./agent-tools";
 import { createPostBackedContentLookup } from "./content-lookup";
-import { listTaxonomiesWithTerms } from "./list";
+import { listTaxonomiesWithTerms, type TaxonomyListPort, type TermListPort } from "./list";
 import { planMergeTerm } from "./merge-term";
 import { noopStampWatermark, toTaxonomyOutbox } from "./repo.memory";
-import { assignTerms, createTaxonomy, createTerm, renameTerm, type WriteServiceDeps } from "./write-service";
+import {
+  assignTerms,
+  createTaxonomy,
+  createTerm,
+  renameTerm,
+  type EntryTermRepoPort,
+  type TaxonomyRepoPort,
+  type TaxonomyRevisionRepoPort,
+  type TermRepoPort,
+  type WriteServiceDeps,
+} from "./write-service";
 
 const CATALOG_BY_ID = indexCatalogById(taxonomyAgentToolCatalog);
+
+/**
+ * The exact slice of the route-deps bag Taxonomy's tool handlers read. Declared structurally
+ * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
+ * into the composition root for the `RouteDeps` god type specifically — the
+ * `server/gated-mutations-composition` import above is a separate, already-disclosed back-edge left
+ * untouched per the dispatch's explicit out-of-scope list. `server/routes/*` satisfies this
+ * structurally by passing its existing `RouteDeps` object; nothing there changes.
+ */
+export interface TaxonomyToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort;
+  termRepo: TermRepoPort & TermListPort;
+  entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort;
+  taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
+  /** Passed wholesale to `repo.memory.ts`'s `toTaxonomyOutbox` adapter, which reads this field plus
+   * `clock`/`idGen` off the same bag rather than taking a pre-built outbox — see that function's own
+   * doc comment. */
+  outbox: OutboxPort;
+  postRepo: PostRepoPort;
+  gatedMutations: { gatewayDeps: GatewayDeps };
+}
 
 /** Taxonomy catalog entries this pass does not wire, and why — see `agent-tools.ts`'s own header
  * for the full `mergeTerm` safety analysis. */
@@ -81,7 +122,7 @@ export const taxonomyDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
 
 /** Shared dependency bag for `write-service.ts` calls — every mutating handler here takes this
  * identical shape, mirroring each admin route's own inline construction. */
-function taxonomyDeps(routeDeps: RouteDeps): WriteServiceDeps {
+function taxonomyDeps(routeDeps: TaxonomyToolDeps): WriteServiceDeps {
   return {
     authorize: (params) => routeDeps.authorize({ ...params, workspaceId: routeDeps.workspaceId }),
     clock: routeDeps.clock,
@@ -97,7 +138,7 @@ function taxonomyDeps(routeDeps: RouteDeps): WriteServiceDeps {
   };
 }
 
-export function buildTaxonomyRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildTaxonomyRegistrations(routeDeps: TaxonomyToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     taxonomy_list: async (ctx) => {
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.taxonomy.manage", entityType: "taxonomy" });

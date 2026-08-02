@@ -22,14 +22,37 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../assistant/tool-registration-kit";
-import { executeCommand } from "../../core/commands";
+} from "../../core/tools/registration-kit";
+import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../core/commands";
+import type { OutboxPort } from "../../core/ports";
+// `toAdminPluginResponse` stays sourced from the HTTP admin layer — an explicitly out-of-scope
+// back-edge for this pass (see the dispatch notes this file's narrowing was reported under); this
+// domain's own model-facing projection lives there today, not in `features/plugin-runtime`.
 import { toAdminPluginResponse } from "../../server/http/admin/plugins";
-import type { RouteDeps } from "../../server/routes/types";
-import { setPluginEnabled, type PluginActivationRecord } from "./activation";
+import { setPluginEnabled, type PluginActivationRecord, type PluginActivationRepoPort } from "./activation";
 import { pluginAgentToolCatalog } from "./agent-tools";
+import type { PluginDiscoveryRecord } from "./discovery";
 
 const CATALOG_BY_ID = indexCatalogById(pluginAgentToolCatalog);
+
+/**
+ * The exact slice of the route-deps bag Plugins' tool handlers read. Declared structurally (rather
+ * than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge into the
+ * composition root for the `RouteDeps` god type specifically — the `toAdminPluginResponse` import
+ * above is a separate, already-disclosed back-edge (`server/http/admin/plugins`) left untouched per
+ * the dispatch's explicit out-of-scope list. `server/routes/*` satisfies this structurally by
+ * passing its existing `RouteDeps` object; nothing there changes.
+ */
+export interface PluginsToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+  changeSets: ChangeSetRepoPort;
+  outbox: OutboxPort;
+  pluginActivationRepo: PluginActivationRepoPort;
+  discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
+}
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -45,7 +68,7 @@ export const pluginsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   ["plugins_set_enabled", "mutates-durable-state"],
 ]);
 
-export function buildPluginsRegistrations(routeDeps: RouteDeps): ToolRegistration[] {
+export function buildPluginsRegistrations(routeDeps: PluginsToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     plugins_list: async (ctx) => {
       requireNoInput(ctx.input);
