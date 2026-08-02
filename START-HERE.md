@@ -15,12 +15,12 @@ yet.** This file is the build entry point.
 
 ## Read first (in order)
 
-1. **`tovu-v2-design.md`** — the reconciled v1 blueprint. The "Where they disagree,
+1. **`development/tovu-v2-design.md`** — the reconciled v1 blueprint. The "Where they disagree,
    and the call" section *is* the scope: it's already made the hard calls (split
    into 4–6 workspaces, payments is a plugin, SQLite-first via Payload's shape,
    Zod at boundaries, Claude's architecture doc is canonical).
-2. **`docs/architecture/READING-ORDER.md`** → the 10-minute orientation path into
-   `docs/architecture/tovu-architecture.md` (target architecture, treat as
+2. **`ADS-memory/docs/architecture/READING-ORDER.md`** → the 10-minute orientation path into
+   `ADS-memory/docs/architecture/tovu-architecture.md` (target architecture, treat as
    aspirational not built).
 3. **`ADS-memory/reports/architecture/ADR-INDEX.md`** — the 14 accepted
    decisions. Non-negotiable for v1: **001** (agent-native modular monolith),
@@ -28,7 +28,7 @@ yet.** This file is the build entry point.
    (`workspaceId` on everything), **010** (declarative themes by default), **011**
    (two topologies), **012** (site = folder instantiated from a template),
    **013/014** (assistant: one engine, N profiles, layered manifest).
-4. **`todos.md`** — the full product backlog (see "Backlog" below).
+4. **`development/todos.md`** — the full product backlog (see "Backlog" below).
 
 ## The v1 first slice (proposed — confirm or cut before building)
 
@@ -45,7 +45,7 @@ create→serve flow. A walking skeleton, not a layer:
 4. **Admin** — a minimal auth boundary + one "edit this post" screen.
 5. **Serve** — the `tovu` binary boots the install-dir and serves site + admin.
 
-**Explicitly cut from v1** (present in `todos.md`, gated behind the skeleton):
+**Explicitly cut from v1** (present in `development/todos.md`, gated behind the skeleton):
 plugin runtime, commerce, AEO/GEO plugins, search, membership, multi-template
 gallery, and the assistant itself. The assistant lands *after* the skeleton rolls.
 
@@ -55,7 +55,7 @@ other capability hangs off. It's the skateboard that actually rolls.
 
 ## Build order
 
-Maps onto `todos.md` sections:
+Maps onto `development/todos.md` sections:
 **§1 Kernel** (DI/ports/config) → **§3 Data Layer** (`SiteStorePort` +
 better-sqlite3, migrations) → **§7 Feature Modules** (post/page only) →
 **§8 Theme** (one declarative theme + the renderer) → **§11 Admin** (minimal) →
@@ -67,12 +67,12 @@ and the AEO/GEO plugin suite.
 
 - **Language/shape:** TypeScript, ESM, strict. Modular monolith with ports/adapters;
   **core never imports adapters** — enforce with **dependency-cruiser** as a
-  CI-failing rule (`todos.md` §24).
+  CI-failing rule (`development/todos.md` §24).
 - **Data:** `better-sqlite3` per-site `content.db` behind `SiteStorePort`; the
   rule-of-two second adapter (ADR-006) is Supabase/Postgres later. **Zod** at every
   boundary (single source of truth for types over SQLite JSON-text).
 - **Renderer:** React (ADR-002).
-- **Server:** Express baseline (`todos.md` §10), transport-agnostic handler shape.
+- **Server:** Express baseline (`development/todos.md` §10), transport-agnostic handler shape.
 - **Workspace layout:** start with **4–6 packages, not 20** (v2-design call):
   `core/`, `features/`, `server/`, `themes/`, `admin/`, `sdk/`. Split further only
   when a module gains a second consumer or its own release cadence.
