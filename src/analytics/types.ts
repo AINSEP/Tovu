@@ -21,7 +21,7 @@
  * is `visitorHash`, a daily-rotating, per-site, salted, non-reversible digest (cookie-less,
  * not cross-site, not cross-day). This is the Plausible/Fathom mechanism.
  */
-import type { ISODateTime, JsonObject, UUID } from "../core/ports";
+import type { ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
 
 /** Kind of a recorded hit. `event` covers custom/goal events; `pageview` is the default. */
 export type HitKind = "pageview" | "event";

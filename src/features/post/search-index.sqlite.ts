@@ -1,6 +1,6 @@
 import type { Database as SqliteDatabase } from "better-sqlite3";
 
-import type { UUID } from "../../core/ports";
+import type { UUID } from "@jini-ai/cms/core";
 import type { ContentDb } from "../../db/sqlite/content-db";
 import type { PostKind, PostStatus } from "./post";
 import {

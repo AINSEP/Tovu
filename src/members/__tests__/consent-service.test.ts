@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ClockPort, IdGeneratorPort } from "../../core/ports";
+import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
 import { InMemoryMemberConsentRepo, InMemoryMemberRepo } from "../repo.memory";
 import { checkConsent, confirmConsent, requestConsent, revokeConsent } from "../consent-service";
 import { MemberNotFoundError } from "../types";

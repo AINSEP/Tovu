@@ -20,7 +20,7 @@
  */
 import { createHash } from "node:crypto";
 
-import type { ISODateTime, JsonObject, UUID } from "../core/ports";
+import type { ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
 import type { IngestDeps } from "./ports";
 import { AnalyticsPiiRejectedError } from "./ports";
 import { deriveDailySalt } from "./salt";

@@ -24,34 +24,114 @@
  * {@link DOMAIN_SLICES} below. That is the only edit here — a new domain never adds handler code to
  * this file, which is what makes two domains developable in parallel without colliding.
  */
-import { buildCommentsRegistrations, commentsDerivedRisk, type CommentsToolDeps } from "../comments/tool-registrations";
-import { buildContentTypesRegistrations, contentTypesDerivedRisk, type ContentTypesToolDeps } from "../features/content-types/tool-registrations";
-import { buildDatabaseRegistrations, databaseDerivedRisk, type DatabaseToolDeps } from "../features/database/tool-registrations";
-import { buildEntriesRegistrations, entriesDerivedRisk, type EntriesToolDeps } from "../features/entries/tool-registrations";
-import { buildPluginsRegistrations, pluginsDerivedRisk, type PluginsToolDeps } from "../features/plugin-runtime/tool-registrations";
-import { buildPostRegistrations, postDerivedRisk, type PostToolDeps } from "../features/post/tool-registrations";
-import { buildRecoveryRegistrations, recoveryDerivedRisk, type RecoveryToolDeps } from "../features/recovery/tool-registrations";
-import { buildSettingsRegistrations, settingsDerivedRisk, type SettingsToolDeps } from "../features/settings/tool-registrations";
-import { buildTaxonomyRegistrations, taxonomyDerivedRisk, type TaxonomyToolDeps } from "../features/taxonomy/tool-registrations";
-import { buildThemesRegistrations, themesDerivedRisk, type ThemeToolDeps } from "../features/theme/tool-registrations";
-import { buildWorkspaceRegistrations, workspaceDerivedRisk, type WorkspaceToolDeps } from "../features/workspace/tool-registrations";
-import { buildFormsRegistrations, formsDerivedRisk, type FormsToolDeps } from "../forms/tool-registrations";
-import { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps } from "../identity/tool-registrations";
-import { buildIntegrationsRegistrations, integrationsDerivedRisk, type IntegrationsToolDeps } from "../integrations/tool-registrations";
-import { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps } from "../media/tool-registrations";
-import { buildMembersRegistrations, membersDerivedRisk, type MembersToolDeps } from "../members/tool-registrations";
-import { buildMenusRegistrations, menusDerivedRisk, type MenusToolDeps } from "../navigation/tool-registrations";
-import { buildNewsletterRegistrations, newsletterDerivedRisk, type NewsletterToolDeps } from "../newsletter/tool-registrations";
-import { buildRedirectsRegistrations, redirectsDerivedRisk, type RedirectsToolDeps } from "../redirects/tool-registrations";
+import {
+  buildCommentsRegistrations,
+  commentsDerivedRisk,
+  type CommentsToolDeps,
+} from "../comments/tool-registrations";
+import {
+  buildContentTypesRegistrations,
+  contentTypesDerivedRisk,
+  type ContentTypesToolDeps,
+} from "../features/content-types/tool-registrations";
+import {
+  buildDatabaseRegistrations,
+  databaseDerivedRisk,
+  type DatabaseToolDeps,
+} from "../features/database/tool-registrations";
+import {
+  buildEntriesRegistrations,
+  entriesDerivedRisk,
+  type EntriesToolDeps,
+} from "../features/entries/tool-registrations";
+import {
+  buildPluginsRegistrations,
+  pluginsDerivedRisk,
+  type PluginsToolDeps,
+} from "../features/plugin-runtime/tool-registrations";
+import {
+  buildPostRegistrations,
+  postDerivedRisk,
+  type PostToolDeps,
+} from "../features/post/tool-registrations";
+import {
+  buildRecoveryRegistrations,
+  recoveryDerivedRisk,
+  type RecoveryToolDeps,
+} from "../features/recovery/tool-registrations";
+import {
+  buildSettingsRegistrations,
+  settingsDerivedRisk,
+  type SettingsToolDeps,
+} from "../features/settings/tool-registrations";
+import {
+  buildTaxonomyRegistrations,
+  taxonomyDerivedRisk,
+  type TaxonomyToolDeps,
+} from "../features/taxonomy/tool-registrations";
+import {
+  buildThemesRegistrations,
+  themesDerivedRisk,
+  type ThemeToolDeps,
+} from "../features/theme/tool-registrations";
+import {
+  buildWorkspaceRegistrations,
+  workspaceDerivedRisk,
+  type WorkspaceToolDeps,
+} from "../features/workspace/tool-registrations";
+import {
+  buildFormsRegistrations,
+  formsDerivedRisk,
+  type FormsToolDeps,
+} from "../forms/tool-registrations";
+import {
+  buildIdentityRegistrations,
+  identityDerivedRisk,
+  type IdentityToolDeps,
+} from "../identity/tool-registrations";
+import {
+  buildIntegrationsRegistrations,
+  integrationsDerivedRisk,
+  type IntegrationsToolDeps,
+} from "../integrations/tool-registrations";
+import {
+  buildMediaRegistrations,
+  mediaDerivedRisk,
+  type MediaToolDeps,
+} from "../media/tool-registrations";
+import {
+  buildMembersRegistrations,
+  membersDerivedRisk,
+  type MembersToolDeps,
+} from "../members/tool-registrations";
+import {
+  buildMenusRegistrations,
+  menusDerivedRisk,
+  type MenusToolDeps,
+} from "../navigation/tool-registrations";
+import {
+  buildNewsletterRegistrations,
+  newsletterDerivedRisk,
+  type NewsletterToolDeps,
+} from "../newsletter/tool-registrations";
+import {
+  buildRedirectsRegistrations,
+  redirectsDerivedRisk,
+  type RedirectsToolDeps,
+} from "../redirects/tool-registrations";
 import { buildSeoRegistrations, seoDerivedRisk, type SeoToolDeps } from "../seo/tool-registrations";
-import { buildWidgetsRegistrations, widgetsDerivedRisk, type WidgetsToolDeps } from "../widgets/tool-registrations";
+import {
+  buildWidgetsRegistrations,
+  widgetsDerivedRisk,
+  type WidgetsToolDeps,
+} from "../widgets/tool-registrations";
 import {
   assertToolIsWirable,
   mergeDerivedRiskMaps,
   type DerivedRiskByToolId,
   type ToolRegistration,
   type WirableToolDefinition,
-} from "../core/tools/registration-kit";
+} from "@jini-ai/cms/core";
 
 /**
  * The union of every wired domain's own narrow tool-deps contract — never `server/routes/types`'s

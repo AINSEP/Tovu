@@ -1,4 +1,4 @@
-import type { ClockPort, IdGeneratorPort } from "../ports";
+import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
 import type { AuthorizeFn, PrincipalKind } from "./ports";
 import {
   type ConfirmationTokenRecord,

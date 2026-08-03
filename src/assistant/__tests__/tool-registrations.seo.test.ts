@@ -15,16 +15,23 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError } from "../../core/commands/command";
+import { ForbiddenError } from "@jini-ai/cms/core";
 import { InMemoryPostRepo } from "../../features/post";
 import type { PostRecord } from "../../features/post/post";
 import { InMemorySettingsRepo } from "../../features/settings";
-import { InMemoryPrincipalRepo } from "../../identity";
-import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media";
+import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import {
+  InMemoryAssetRenditionRepo,
+  InMemoryMediaRepo,
+  InMemoryTransformDefinitionRepo,
+} from "../../media";
 import { getSeoAgentToolCatalog, type AgentToolDefinition } from "../../seo/agent-tools";
 import { ensureSeoSettingDefinitions, getSeoSettings } from "../../seo/settings";
 import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
+import {
+  assertRiskMetadataIsWirable,
+  buildAssistantToolRegistrations,
+} from "../tool-registrations";
 
 const WORKSPACE_ID = "ws-seo-tools";
 const PRINCIPAL_ID = "principal-under-test";

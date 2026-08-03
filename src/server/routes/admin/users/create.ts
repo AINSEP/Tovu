@@ -3,7 +3,7 @@ import {
   IdentityConflictError,
   IdentityForbiddenError,
   IdentityValidationError,
-} from "#src/identity/index";
+} from "@jini-ai/cms/identity";
 import { toAdminUserResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";

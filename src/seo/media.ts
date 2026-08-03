@@ -1,5 +1,10 @@
-import type { UUID } from "../core/ports";
-import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort, TransformFormat } from "../media";
+import type { UUID } from "@jini-ai/cms/core";
+import type {
+  AssetRenditionRepoPort,
+  MediaRepoPort,
+  TransformDefinitionRepoPort,
+  TransformFormat,
+} from "../media";
 
 /**
  * @file `resolveSeoImageRef` (ADR-PIPE-008 Decision §6, C-013, EC-07) —

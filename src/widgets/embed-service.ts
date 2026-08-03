@@ -22,15 +22,20 @@
  * dispatch rather than the earlier domain-layer session, since it composes `updateEntry`'s new
  * `bodyJson` capability which did not exist yet at that time.
  */
-import type { ClockPort, JsonValue, UUID } from "../core/ports";
+import type { ClockPort, JsonValue, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
 import { extractEntryRefs } from "../core/entry-refs/extractor";
 import type { ContentTypeRepoPort } from "../features/content-types/write-service";
 import { VersionConflictError } from "../features/entries/errors";
+import { toEntryOutbox } from "../features/entries/repo.memory";
 import type { EntryRecord } from "../features/entries/types";
 import { updateEntry } from "../features/entries/write-service";
-import type { EntryRepoPort, OutboxPort } from "../features/entries/write-service";
-import { PRE_AUTHORIZED, requireWidgetPermission, type WidgetsAuthorizeFn } from "./authorize-helper";
+import type { EntryRepoPort } from "../features/entries/write-service";
+import {
+  PRE_AUTHORIZED,
+  requireWidgetPermission,
+  type WidgetsAuthorizeFn,
+} from "./authorize-helper";
 import { withEntryLock } from "./concurrency";
 import { validateWidgetEmbedMutation } from "./embed-validation";
 import { parseWidgetInstancePayload } from "./entry-payload";
@@ -198,7 +203,13 @@ async function writeHostBody(
       contentTypeRepo: deps.contentTypeRepo,
       clock: deps.clock,
       authorize: PRE_AUTHORIZED,
-      outbox: deps.outbox,
+      // Bridges the raw, full-`DomainEvent` infra port (`EmbedServiceDeps.outbox`) into the
+      // narrower `{enqueue({name,payload})}` shape `updateEntry` declares locally — same fix,
+      // same reasoning as `write-service.ts`'s `entriesWriteDeps` helper (only one call site
+      // here, so inlined rather than factored out). Previously `deps.outbox` was forwarded
+      // unwrapped, which compiled but threw `NOT NULL constraint failed: outbox_events.id`
+      // against the real SQLite outbox on every embed insert/remove/reorder.
+      outbox: toEntryOutbox({ outbox: deps.outbox, clock: deps.clock, idGen: deps.ids }),
       onWritten: (entry) => extractAndStoreEmbedRefs(deps, workspaceId, entry),
     },
     input: {

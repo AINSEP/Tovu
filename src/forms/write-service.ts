@@ -1,9 +1,19 @@
-import type { ClockPort, IdGeneratorPort, UUID } from "../core/ports";
-import { executeCommand, type AuthorizeFn, type CommandActor, type ChangeSetRepoPort } from "../core/commands";
+import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
+import {
+  executeCommand,
+  type AuthorizeFn,
+  type CommandActor,
+  type ChangeSetRepoPort,
+} from "../core/commands";
 import { FormDefinitionNotFoundError, FormFieldValidationError } from "./errors";
 import { validateFieldDescriptors } from "./forms";
 import type { FormDefinitionRepoPort } from "./ports";
-import type { FieldDescriptor, FormDefinitionRecord, FormDefinitionStatus, NotifyConfig } from "./types";
+import type {
+  FieldDescriptor,
+  FormDefinitionRecord,
+  FormDefinitionStatus,
+  NotifyConfig,
+} from "./types";
 
 /**
  * @file `write-service.ts` — the admin-CRUD write chokepoint (SPEC-010 REQ-01..04, ADR-PIPE-010).
@@ -25,7 +35,7 @@ export interface FormWriteServiceDeps {
   clock: ClockPort;
   idGen: IdGeneratorPort;
   changeSets: ChangeSetRepoPort;
-  outbox?: import("../core/ports").OutboxPort;
+  outbox?: import("@jini-ai/cms/core").OutboxPort;
   authorize: AuthorizeFn;
 }
 

@@ -1,4 +1,4 @@
-import type { JsonValue, UUID } from "../core/ports";
+import type { JsonValue, UUID } from "@jini-ai/cms/core";
 import {
   ensureSettingDefinitions,
   type EnsureSettingDefinitionsDeps,

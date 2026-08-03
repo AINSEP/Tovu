@@ -26,7 +26,7 @@ import type {
   ISODateTime,
   OutboxPort,
   UUID,
-} from "../core/ports";
+} from "@jini-ai/cms/core";
 import type {
   AnalyticsAggregateRow,
   AnalyticsDomainEventName,

@@ -7,10 +7,10 @@ const SEED_OWNER_PASSWORD = "seed-owner-pw";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { identityAgentToolCatalog, type IdentityAgentToolDefinition as AgentToolDefinition } from "../../identity";
-import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
-import type { IdentityRepos } from "../../identity";
 import {
+  identityAgentToolCatalog,
+  type IdentityAgentToolDefinition as AgentToolDefinition,
+  type IdentityRepos,
   InMemoryPolicyPermissionRepo,
   InMemoryPolicyRepo,
   InMemoryPrincipalPolicyRepo,
@@ -20,10 +20,14 @@ import {
   InMemoryRoleRepo,
   InMemorySessionRepo,
   InMemoryUserRepo,
-} from "../../identity";
-import { seedIdentity } from "../../identity";
+  seedIdentity,
+} from "@jini-ai/cms/identity";
+import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
 import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
+import {
+  assertRiskMetadataIsWirable,
+  buildAssistantToolRegistrations,
+} from "../tool-registrations";
 
 /**
  * @file The model-facing contract half of the identity tool wiring — companion to

@@ -12,10 +12,8 @@
  * real admin route performs it. The seventh, `comments_update_settings`, is the exception and is
  * documented at its own handler.
  */
-import type { AuthorizeFn } from "../core/commands/command";
-import type { SettingsRepoPort } from "../features/settings";
-import type { PrincipalRepoPort } from "../identity";
 import {
+  type AuthorizeFn,
   buildDomainRegistrations,
   indexCatalogById,
   requireInputRecord,
@@ -26,11 +24,18 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../core/tools/registration-kit";
+} from "@jini-ai/cms/core";
+import type { SettingsRepoPort } from "../features/settings";
+import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
 import { commentsAgentToolCatalog } from "./agent-tools";
 import type { CommentRepoPort } from "./ports";
 import { getCommentsSettings, setCommentsSettings } from "./settings";
-import type { CommentsSettings, CommentStatus, ModerationAction, ModerationQueuePage } from "./types";
+import type {
+  CommentsSettings,
+  CommentStatus,
+  ModerationAction,
+  ModerationQueuePage,
+} from "./types";
 import type { CommentWriteService } from "./write-service";
 
 const CATALOG_BY_ID = indexCatalogById(commentsAgentToolCatalog);

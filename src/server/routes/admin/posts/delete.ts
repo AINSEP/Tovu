@@ -1,4 +1,4 @@
-import { DuplicateCommandError, ForbiddenError, executeCommand } from "#src/core/commands/command";
+import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { processOutbox } from "#src/core/events/index";
 import { PostNotFoundError, deletePost, type PostRecord } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/http/admin/posts";

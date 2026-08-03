@@ -1,4 +1,9 @@
-import { enablePrincipal, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "#src/identity/index";
+import {
+  enablePrincipal,
+  IdentityForbiddenError,
+  IdentityNotFoundError,
+  IdentityValidationError,
+} from "@jini-ai/cms/identity";
 import { toAdminUserResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";

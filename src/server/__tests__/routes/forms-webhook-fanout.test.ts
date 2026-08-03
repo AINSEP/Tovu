@@ -71,7 +71,7 @@ function makeHarness() {
           name: event.name,
           workspaceId: event.workspaceId,
           occurredAt: event.occurredAt,
-          payload: event.payload as Record<string, unknown> as import("#src/core/ports").JsonObject,
+          payload: event.payload as Record<string, unknown> as import("@jini-ai/cms/core").JsonObject,
         },
       },
     });

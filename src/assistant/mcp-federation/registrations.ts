@@ -1,5 +1,9 @@
-import type { AuthorizeFn } from "../../core/commands/command";
-import { requireToolPermission, type ToolHandler, type ToolRegistration } from "../../core/tools/registration-kit";
+import {
+  type AuthorizeFn,
+  requireToolPermission,
+  type ToolHandler,
+  type ToolRegistration,
+} from "@jini-ai/cms/core";
 import type { FederatedMcpConnectionConfig, McpSessionPort } from "./ports";
 import {
   admitRemoteTools,

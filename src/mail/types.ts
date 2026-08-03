@@ -15,7 +15,7 @@
  * Tier-2 core library (ADR-024 §1 core-mediated primitive). A Tier-3 plugin never holds a
  * live `MailerPort` object — core injects and calls it (ADR-024 §3).
  */
-import type { ISODateTime, UUID } from "../core/ports";
+import type { ISODateTime, UUID } from "@jini-ai/cms/core";
 
 /** A single outbound message. Serializable-only (ADR-024 §3) — no streams, no live handles. */
 export interface OutboundEmail {

@@ -14,7 +14,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError } from "../../core/commands/command";
+import { ForbiddenError } from "@jini-ai/cms/core";
 import {
   InMemoryMenuRepo,
   InMemoryNavLocationBindingRepo,
@@ -22,7 +22,10 @@ import {
   type NavigationAgentToolDefinition,
 } from "../../navigation";
 import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
+import {
+  assertRiskMetadataIsWirable,
+  buildAssistantToolRegistrations,
+} from "../tool-registrations";
 
 const WORKSPACE_ID = "ws-menus-tools";
 const PRINCIPAL_ID = "principal-under-test";

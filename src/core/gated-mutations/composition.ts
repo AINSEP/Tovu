@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { AuthorizeFn } from "../commands/command";
-import type { ClockPort, IdGeneratorPort } from "../ports";
+import type { AuthorizeFn, ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
 import type { GatedMutationHooks, GatewayDeps } from "./gateway";
 import { InMemoryTokenStore } from "./token";
 import type { PrincipalKind } from "./ports";

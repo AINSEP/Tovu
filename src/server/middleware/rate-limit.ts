@@ -1,4 +1,4 @@
-import type { ClockPort } from "../../core/ports";
+import type { ClockPort } from "@jini-ai/cms/core";
 
 /**
  * @file In-memory fixed-window rate limiter (SPEC-006 REQ-14 / api.spec §3).

@@ -14,7 +14,7 @@
  *
  * Architectural role: ADR-040 (`core/origin` trusted canonical-origin registry).
  */
-import type { ISODateTime } from "../core/ports";
+import type { ISODateTime } from "@jini-ai/cms/core";
 
 /**
  * Origin scheme. `"http"` exists only to represent local dev/preview capability

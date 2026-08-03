@@ -1,4 +1,4 @@
-import type { JsonObject } from "../../core/ports";
+import type { JsonObject } from "@jini-ai/cms/core";
 import type { FormDefinitionRepoPort } from "../../forms/ports";
 import type { WidgetResolveResult, WidgetResolver } from "../types";
 

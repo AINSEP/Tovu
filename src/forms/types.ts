@@ -1,4 +1,4 @@
-import type { UUID } from "../core/ports";
+import type { UUID } from "@jini-ai/cms/core";
 
 /**
  * @file Shared types for the `forms` library (SPEC-010, ADR-PIPE-010).

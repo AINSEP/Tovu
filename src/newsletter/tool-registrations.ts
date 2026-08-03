@@ -11,9 +11,10 @@
  * the kit's `requireToolPermission` — ADR-021 §2's single evaluation, located where the real route
  * locates it.
  */
-import type { AuthorizeFn } from "../core/commands/command";
-import type { EventBusPort, OutboxPort } from "../core/ports";
 import {
+  type AuthorizeFn,
+  type EventBusPort,
+  type OutboxPort,
   buildDomainRegistrations,
   indexCatalogById,
   requireInputRecord,
@@ -23,11 +24,15 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../core/tools/registration-kit";
+} from "@jini-ai/cms/core";
 import type { MailerPort } from "../mail";
 import type { OriginRegistryPort } from "../origin";
 import { newsletterAgentToolCatalog } from "./agent-tools";
-import { cancelCampaign, saveCampaign, type CampaignWriteServiceDeps } from "./campaign-write-service";
+import {
+  cancelCampaign,
+  saveCampaign,
+  type CampaignWriteServiceDeps,
+} from "./campaign-write-service";
 import { issueConfirmationToken, type ConfirmationDeps } from "./confirmation";
 import { NewsletterCampaignNotFoundError, NewsletterSubscriptionNotFoundError } from "./errors";
 import type { HookRegistry } from "./hooks";
@@ -43,7 +48,12 @@ import type {
   SubscriberDirectoryPort,
 } from "./ports";
 import { pauseCampaign, type SendPipelineDeps } from "./send-pipeline";
-import { saveSubscription, unsubscribeSubscription, type SubscriptionsDeps, type UnsubscribeSubscriptionDeps } from "./subscriptions";
+import {
+  saveSubscription,
+  unsubscribeSubscription,
+  type SubscriptionsDeps,
+  type UnsubscribeSubscriptionDeps,
+} from "./subscriptions";
 import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from "./types";
 
 const CATALOG_BY_ID = indexCatalogById(newsletterAgentToolCatalog);

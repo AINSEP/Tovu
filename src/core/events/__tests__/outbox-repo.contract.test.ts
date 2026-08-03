@@ -4,7 +4,7 @@ import test from "node:test";
 import { openContentDb } from "#src/db/sqlite/content-db";
 import { SqliteOutboxAdapter } from "#src/db/sqlite/outbox-repo.sqlite";
 import { InMemoryOutbox } from "../memory-bus";
-import type { DomainEvent, OutboxPort } from "../../ports";
+import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 
 /**
  * @file ADR-046 Phase 1 — shared `OutboxPort` contract-test suite, run against BOTH

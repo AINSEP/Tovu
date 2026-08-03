@@ -1,6 +1,6 @@
 import type { Express, Request } from "express";
 
-import type { JsonObject } from "#src/core/ports";
+import type { JsonObject } from "@jini-ai/cms/core";
 import { ingestHit, type IngestHitDeps } from "#src/analytics/ingest";
 import type { IngestBeacon, IngestContext } from "#src/analytics/types";
 

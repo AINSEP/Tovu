@@ -8,7 +8,7 @@
  *
  * INTERFACES ONLY. No feature logic lives here.
  */
-import type { UUID } from "../ports";
+import type { UUID } from "@jini-ai/cms/core";
 import type { EntryRefRow, EntryRefTargetKind } from "./types";
 
 export interface EntryRefsRepoPort {

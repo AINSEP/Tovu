@@ -1,14 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
+import type {
+  ToolExecutionContext,
+  ToolDescriptor,
+  ToolRegistration,
+  ToolRegistry,
+} from "@jini-ai/core";
 
-import { ForbiddenError } from "../../core/commands/command";
+import { ForbiddenError } from "@jini-ai/cms/core";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory";
 import { attachFederatedMcpTools } from "../mcp-federation/bootstrap";
 import type { ResolvedFederatedConnection } from "../mcp-federation/config";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports";
-import { registerFederatedMcpPreset, resetFederatedMcpPresetsForTests } from "../mcp-federation/presets";
+import {
+  registerFederatedMcpPreset,
+  resetFederatedMcpPresetsForTests,
+} from "../mcp-federation/presets";
 import { buildFederatedMcpRegistrations, federateSession } from "../mcp-federation/registrations";
 import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION } from "../mcp-federation/trust";
 

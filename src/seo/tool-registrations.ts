@@ -21,12 +21,8 @@
  *    tools already use (contrast `features/workspace/tool-registrations.ts`'s `workspace_update`,
  *    which self-enforces nothing and is checked only at the handler).
  */
-import type { AuthorizeFn } from "../core/commands/command";
-import type { PostRepoPort } from "../features/post";
-import type { SettingsRepoPort } from "../features/settings";
-import type { PrincipalRepoPort } from "../identity";
-import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media";
 import {
+  type AuthorizeFn,
   buildDomainRegistrations,
   indexCatalogById,
   requireInputRecord,
@@ -38,9 +34,17 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../core/tools/registration-kit";
+} from "@jini-ai/cms/core";
+import type { PostRepoPort } from "../features/post";
+import type { SettingsRepoPort } from "../features/settings";
+import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
+import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media";
 import { getSeoAgentToolCatalog } from "./agent-tools";
-import { SeoFieldValidationError, SeoInvalidCanonicalUrlError, SeoSettingsValidationError } from "./errors";
+import {
+  SeoFieldValidationError,
+  SeoInvalidCanonicalUrlError,
+  SeoSettingsValidationError,
+} from "./errors";
 import { getEntryMeta, analyzeEntry } from "./seo";
 import { getSeoSettings, setSeoSettings } from "./settings";
 import { regenerateSitemapCache, invalidateSitemapCache } from "./sitemap";

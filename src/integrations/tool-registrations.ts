@@ -13,9 +13,8 @@
  * feature call, not routed through the SPEC-001 command gateway"), and every handler below does the
  * same via the kit's `requireToolPermission`.
  */
-import type { AuthorizeFn } from "../core/commands/command";
-import type { OriginRegistryPort } from "../origin";
 import {
+  type AuthorizeFn,
   buildDomainRegistrations,
   indexCatalogById,
   optionalBoolean,
@@ -28,10 +27,16 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../core/tools/registration-kit";
+} from "@jini-ai/cms/core";
+import type { OriginRegistryPort } from "../origin";
 import { getIntegrationsAgentToolCatalog } from "./agent-tools";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports";
-import { createSubscription, deleteSubscription, pauseSubscription, WebhookSubscriptionNotFoundError } from "./subscriptions";
+import {
+  createSubscription,
+  deleteSubscription,
+  pauseSubscription,
+  WebhookSubscriptionNotFoundError,
+} from "./subscriptions";
 import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "./types";
 
 const CATALOG_BY_ID = indexCatalogById(getIntegrationsAgentToolCatalog());

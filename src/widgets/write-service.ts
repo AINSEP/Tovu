@@ -26,16 +26,21 @@
  * Architectural role:
  * `widgets` domain logic (implementation outline C-005).
  */
-import type { ClockPort, UUID } from "../core/ports";
+import type { ClockPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
 import { extractEntryRefs } from "../core/entry-refs/extractor";
 import type { ContentTypeRepoPort } from "../features/content-types/write-service";
 import { VersionConflictError } from "../features/entries/errors";
 import type { EntryListPort } from "../features/entries/list";
+import { toEntryOutbox } from "../features/entries/repo.memory";
 import type { EntryRecord } from "../features/entries/types";
 import { createEntry, updateEntry } from "../features/entries/write-service";
-import type { EntryRepoPort, OutboxPort } from "../features/entries/write-service";
-import { PRE_AUTHORIZED, requireWidgetPermission, type WidgetsAuthorizeFn } from "./authorize-helper";
+import type { EntryRepoPort } from "../features/entries/write-service";
+import {
+  PRE_AUTHORIZED,
+  requireWidgetPermission,
+  type WidgetsAuthorizeFn,
+} from "./authorize-helper";
 import { withEntryLock } from "./concurrency";
 import { validateWidgetConfig } from "./config-validation";
 import {
@@ -86,6 +91,32 @@ async function extractAndStoreInstanceRefs(deps: WidgetWriteServiceDeps, workspa
   await deps.entryRefsRepo.replaceForSource({ workspaceId, sourceEntryId: entry.id, refs });
 }
 
+/**
+ * The one shared shape every `createEntry`/`updateEntry` call in this file needs — mirrors
+ * `region-area-service.ts`'s identical `entriesWriteDeps` helper. Bridges `deps.outbox` (the raw,
+ * full-`DomainEvent` infra port — see `WidgetWriteServiceDeps.outbox`) through `toEntryOutbox` into
+ * the narrower `{enqueue({name,payload})}` shape `createEntry`/`updateEntry` declare locally.
+ * Previously each of the four call sites below passed `deps.outbox` straight through unwrapped —
+ * compiled fine (`features/entries/write-service.ts`'s own narrow `OutboxPort` accepted it via a
+ * structural/bivariance loophole), but threw `NOT NULL constraint failed: outbox_events.id` against
+ * the real SQLite outbox in production on every widget create/update/trash/purge, invisible against
+ * the in-memory test double (which accepts any shape). One composer means the bridge can't be
+ * missed at a fifth call site later — see `ADS-memory/.local-artifacts/agent-reports/
+ * 20260803-widget-delete-outbox-bug.md` and `20260803-jini-outbox-contract.md` for the full
+ * investigation. `onWritten` is deliberately NOT included — it differs per call site (or is absent
+ * entirely, as in `trashWidgetInstance`), so each caller still supplies its own.
+ */
+function entriesWriteDeps(deps: WidgetWriteServiceDeps) {
+  return {
+    entryRepo: deps.entryRepo,
+    contentTypeRepo: deps.contentTypeRepo,
+    clock: deps.clock,
+    ids: deps.ids,
+    authorize: PRE_AUTHORIZED,
+    outbox: toEntryOutbox({ outbox: deps.outbox, clock: deps.clock, idGen: deps.ids }),
+  };
+}
+
 export interface CreateWidgetInstanceInput {
   readonly workspaceId: UUID;
   readonly actor: { readonly principalId: UUID };
@@ -130,12 +161,7 @@ export async function createWidgetInstance(required: CreateWidgetInstanceRequire
 
   const created = await createEntry({
     deps: {
-      entryRepo: deps.entryRepo,
-      contentTypeRepo: deps.contentTypeRepo,
-      clock: deps.clock,
-      ids: deps.ids,
-      authorize: PRE_AUTHORIZED,
-      outbox: deps.outbox,
+      ...entriesWriteDeps(deps),
       onWritten: (entry) => extractAndStoreInstanceRefs(deps, input.workspaceId, entry),
     },
     input: {
@@ -199,11 +225,7 @@ export async function updateWidgetInstance(required: UpdateWidgetInstanceRequire
 
     const result = await updateEntry({
       deps: {
-        entryRepo: deps.entryRepo,
-        contentTypeRepo: deps.contentTypeRepo,
-        clock: deps.clock,
-        authorize: PRE_AUTHORIZED,
-        outbox: deps.outbox,
+        ...entriesWriteDeps(deps),
         onWritten: (entry) => extractAndStoreInstanceRefs(deps, input.workspaceId, entry),
       },
       input: {
@@ -267,13 +289,7 @@ export async function trashWidgetInstance(required: TrashWidgetInstanceRequired)
 
     const payload = parseWidgetInstancePayload(current.fieldsJson);
     const result = await updateEntry({
-      deps: {
-        entryRepo: deps.entryRepo,
-        contentTypeRepo: deps.contentTypeRepo,
-        clock: deps.clock,
-        authorize: PRE_AUTHORIZED,
-        outbox: deps.outbox,
-      },
+      deps: entriesWriteDeps(deps),
       input: {
         actorId: input.actor.principalId,
         workspaceId: input.workspaceId,
@@ -347,11 +363,7 @@ export async function purgeWidgetInstance(required: PurgeWidgetInstanceRequired)
     const payload = parseWidgetInstancePayload(current.fieldsJson);
     const result = await updateEntry({
       deps: {
-        entryRepo: deps.entryRepo,
-        contentTypeRepo: deps.contentTypeRepo,
-        clock: deps.clock,
-        authorize: PRE_AUTHORIZED,
-        outbox: deps.outbox,
+        ...entriesWriteDeps(deps),
         // Audit finding (2026-07-21, external /audit-work on ADR-047): a force-purged instance's
         // own OUTGOING refs (e.g. a Contact Form's `formDefinitionId`, a Menu widget's `menuRef`)
         // must be retracted, same transaction as the purge write — purge is the permanent step

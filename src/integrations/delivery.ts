@@ -1,4 +1,4 @@
-import type { ClockPort, IdGeneratorPort, ISODateTime, JsonObject, UUID } from "../core/ports";
+import type { ClockPort, IdGeneratorPort, ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
 import type { DeliveryEnvelopeStore } from "./repo.memory";
 import type { HttpClientPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports";
 import type { WebhookSigner } from "./signing";

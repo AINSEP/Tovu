@@ -5,8 +5,7 @@
  * revertible change set; `revertChangeSet` undoes one via the inverse-applier
  * registry. Adapters implement `ChangeSetRepoPort`.
  */
-export * from "./change-set";
-export * from "./command";
+export * from "@jini-ai/cms/core";
 export * from "./appliers";
 export * from "./revert";
 export { InMemoryChangeSetRepo } from "./repo.memory";

@@ -1,4 +1,4 @@
-import type { UUID } from "../ports";
+import type { UUID } from "@jini-ai/cms/core";
 
 /**
  * @file Port contracts for the `gated-mutations` package (SPEC-016, ADR-041 §5).

@@ -1,4 +1,4 @@
-import type { PolicyRecord, PrincipalRecord, RoleRecord, UserRecord } from "#src/identity/index";
+import type { PolicyRecord, PrincipalRecord, RoleRecord, UserRecord } from "@jini-ai/cms/identity";
 
 /**
  * @file Admin-facing user/role/policy response DTOs (mirrors `admin/members.ts`'s pattern).

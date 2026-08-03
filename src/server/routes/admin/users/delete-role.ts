@@ -1,4 +1,10 @@
-import { deleteRole, IdentityConflictError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "#src/identity/index";
+import {
+  deleteRole,
+  IdentityConflictError,
+  IdentityForbiddenError,
+  IdentityNotFoundError,
+  IdentityValidationError,
+} from "@jini-ai/cms/identity";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
 

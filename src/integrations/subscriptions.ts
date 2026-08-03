@@ -1,4 +1,4 @@
-import type { ClockPort, IdGeneratorPort, UUID } from "../core/ports";
+import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
 import type { WebhookSubscriptionRepoPort } from "./ports";
 import type { WebhookSubscriptionRecord, WebhookTopic } from "./types";
 

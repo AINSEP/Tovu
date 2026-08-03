@@ -19,11 +19,9 @@
  * `database_plan_migrate_forward` precedent, including reusing this domain's own
  * `gated-hooks.ts`'s `buildMergeTermHooks` directly.
  */
-import type { AuthorizeFn } from "../../core/commands/command";
-import { plan as gatewayPlan, type GatedMutationHooks, type GatewayDeps } from "../../core/gated-mutations/gateway";
-import type { OutboxPort } from "../../core/ports";
-import type { PostRepoPort } from "../post";
 import {
+  type AuthorizeFn,
+  type OutboxPort,
   AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
   indexCatalogById,
@@ -35,7 +33,13 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../core/tools/registration-kit";
+} from "@jini-ai/cms/core";
+import {
+  plan as gatewayPlan,
+  type GatedMutationHooks,
+  type GatewayDeps,
+} from "../../core/gated-mutations/gateway";
+import type { PostRepoPort } from "../post";
 import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "./gated-hooks";
 import { taxonomyAgentToolCatalog } from "./agent-tools";
 import { createPostBackedContentLookup } from "./content-lookup";

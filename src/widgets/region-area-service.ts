@@ -17,16 +17,22 @@
  * Architectural role:
  * `widgets` domain logic (implementation outline C-006).
  */
-import type { ClockPort, UUID } from "../core/ports";
+import type { ClockPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
 import { extractEntryRefs } from "../core/entry-refs/extractor";
 import type { ContentTypeRepoPort } from "../features/content-types/write-service";
 import { VersionConflictError } from "../features/entries/errors";
 import type { EntryListPort } from "../features/entries/list";
+import { toEntryOutbox } from "../features/entries/repo.memory";
 import type { EntryRecord } from "../features/entries/types";
 import { createEntry, updateEntry } from "../features/entries/write-service";
-import type { EntryRepoPort, OutboxPort } from "../features/entries/write-service";
-import { PRE_AUTHORIZED, requireWidgetPermission, WIDGETS_SYSTEM_ACTOR_ID, type WidgetsAuthorizeFn } from "./authorize-helper";
+import type { EntryRepoPort } from "../features/entries/write-service";
+import {
+  PRE_AUTHORIZED,
+  requireWidgetPermission,
+  WIDGETS_SYSTEM_ACTOR_ID,
+  type WidgetsAuthorizeFn,
+} from "./authorize-helper";
 import { withEntryLock } from "./concurrency";
 import {
   areaDocWithPlacements,
@@ -38,10 +44,23 @@ import {
   toWidgetAreaEntry,
   widgetAreaSlug,
 } from "./entry-payload";
-import { WidgetAreaConflictError, WidgetAreaNotFoundError, WidgetInstanceNotFoundError } from "./errors";
+import {
+  WidgetAreaConflictError,
+  WidgetAreaNotFoundError,
+  WidgetInstanceNotFoundError,
+} from "./errors";
 import type { WidgetRegionBindingRepoPort } from "./ports";
-import { WIDGET_AREA_CONTENT_TYPE, WIDGET_AREA_FIELD_NAMESPACE, WIDGET_CONTENT_TYPE } from "./types";
-import type { WidgetAreaEntry, WidgetPlacementNode, WidgetRegionBindingRow, WidgetRegionKey } from "./types";
+import {
+  WIDGET_AREA_CONTENT_TYPE,
+  WIDGET_AREA_FIELD_NAMESPACE,
+  WIDGET_CONTENT_TYPE,
+} from "./types";
+import type {
+  WidgetAreaEntry,
+  WidgetPlacementNode,
+  WidgetRegionBindingRow,
+  WidgetRegionKey,
+} from "./types";
 
 export interface RegionAreaServiceDeps {
   entryRepo: EntryRepoPort & EntryListPort;
@@ -66,6 +85,16 @@ async function extractAndStoreAreaRefs(deps: RegionAreaServiceDeps, workspaceId:
   await deps.entryRefsRepo.replaceForSource({ workspaceId, sourceEntryId: entry.id, refs });
 }
 
+/**
+ * The one shared shape both `createEntry` (`bindWidgetArea`) and `updateEntry`
+ * (`mutateWidgetAreaPlacements`) below need. Bridges `deps.outbox` (the raw, full-`DomainEvent`
+ * infra port) through `toEntryOutbox` into the narrower `{enqueue({name,payload})}` shape those
+ * chokepoints declare locally — previously `deps.outbox` was forwarded unwrapped here, which
+ * compiled but threw `NOT NULL constraint failed: outbox_events.id` against the real SQLite outbox
+ * on every region bind/placement-mutation. Both call sites share this one helper already, so fixing
+ * it here fixes both at once — see `write-service.ts`'s identically-named, identically-reasoned
+ * helper for the full investigation pointer.
+ */
 function entriesWriteDeps(deps: RegionAreaServiceDeps, workspaceId: string) {
   return {
     entryRepo: deps.entryRepo,
@@ -73,7 +102,7 @@ function entriesWriteDeps(deps: RegionAreaServiceDeps, workspaceId: string) {
     clock: deps.clock,
     ids: deps.ids,
     authorize: PRE_AUTHORIZED,
-    outbox: deps.outbox,
+    outbox: toEntryOutbox({ outbox: deps.outbox, clock: deps.clock, idGen: deps.ids }),
     onWritten: (entry: EntryRecord) => extractAndStoreAreaRefs(deps, workspaceId, entry),
   };
 }

@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import type { JsonObject, JsonValue } from "../../core/ports";
+import type { JsonObject, JsonValue } from "@jini-ai/cms/core";
 import { lintHandlebarsTemplate } from "./handlebars-allowlist";
 import { lintLiquidTemplate } from "./liquid-allowlist";
 

@@ -28,7 +28,7 @@
  * repo, revisions, and the command gateway are reused unchanged from ADR-022 /
  * ADR-008.
  */
-import type { ISODateTime, JsonObject, UUID } from "../core/ports";
+import type { ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
 
 // ---------------------------------------------------------------------------
 // Content-type identity

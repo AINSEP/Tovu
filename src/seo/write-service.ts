@@ -1,6 +1,10 @@
-import { ForbiddenError, type AuthorizeFn } from "../core/commands/command";
+import { ForbiddenError, type AuthorizeFn } from "@jini-ai/cms/core";
 import type { PostRepoPort } from "../features/post/post";
-import { SeoEntryNotFoundError, SeoFieldValidationError, SeoInvalidCanonicalUrlError } from "./errors";
+import {
+  SeoEntryNotFoundError,
+  SeoFieldValidationError,
+  SeoInvalidCanonicalUrlError,
+} from "./errors";
 import type { SeoExtFields } from "./types";
 
 /**

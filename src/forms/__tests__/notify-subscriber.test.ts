@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEventBus } from "../../core/events";
-import type { DomainEvent } from "../../core/ports";
+import type { DomainEvent } from "@jini-ai/cms/core";
 import type { MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "../../mail";
 import { registerFormNotifySubscriber } from "../notify-subscriber";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory";

@@ -7,7 +7,7 @@
  * adapter exists yet (out of scope for this library-layer slice); this is the
  * only implementation of `OriginSettingRepoPort` for now.
  */
-import type { UUID } from "../core/ports";
+import type { UUID } from "@jini-ai/cms/core";
 import type { OriginSettingRepoPort } from "./ports";
 import { createVerifiedOrigin, type VerifiedOrigin } from "./types";
 

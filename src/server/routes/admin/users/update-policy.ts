@@ -1,4 +1,9 @@
-import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, updatePolicy } from "#src/identity/index";
+import {
+  IdentityForbiddenError,
+  IdentityNotFoundError,
+  IdentityValidationError,
+  updatePolicy,
+} from "@jini-ai/cms/identity";
 import { toAdminPolicyResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";

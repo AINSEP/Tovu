@@ -1,4 +1,4 @@
-import type { JsonObject } from "../../core/ports";
+import type { JsonObject } from "@jini-ai/cms/core";
 import type { NavMenuReadModel, ResolvedNavItem, ResolveTargetHrefFn } from "../../navigation";
 import { resolveMenuDoc } from "../../navigation";
 import type { WidgetResolveResult, WidgetResolver } from "../types";

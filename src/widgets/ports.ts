@@ -21,7 +21,7 @@
  *
  * INTERFACES ONLY. No feature logic lives here.
  */
-import type { ISODateTime, UUID } from "../core/ports";
+import type { ISODateTime, UUID } from "@jini-ai/cms/core";
 import type { WidgetRegionBindingRow, WidgetRegionDescriptor, WidgetRegionKey } from "./types";
 
 // ---------------------------------------------------------------------------

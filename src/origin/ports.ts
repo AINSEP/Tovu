@@ -11,7 +11,7 @@
  * raw request `Host`/`:authority` for a canonical/link/allowlist/redirect
  * decision (ADR-040 F2) — they call these ports instead.
  */
-import type { UUID } from "../core/ports";
+import type { UUID } from "@jini-ai/cms/core";
 import type { VerifiedOrigin } from "./types";
 
 /** Context for resolving a workspace's canonical origin. */

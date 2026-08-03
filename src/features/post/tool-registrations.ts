@@ -33,17 +33,28 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../core/tools/registration-kit";
+  type EventBusPort,
+  type JsonObject,
+  type OutboxPort,
+} from "@jini-ai/cms/core";
 // Both stay sourced from `assistant/` — explicitly out-of-scope back-edges for this pass (see the
 // dispatch notes this file's narrowing was reported under), not fields this file could re-source
 // from a domain-owned port: the MCP-UI confirmation protocol is genuinely assistant-owned.
-import { createPendingConfirmationStore, type PendingConfirmationStore } from "../../assistant/pending-confirmations";
+import {
+  createPendingConfirmationStore,
+  type PendingConfirmationStore,
+} from "../../assistant/pending-confirmations";
 import { buildUIToolResult } from "../../assistant/mcp-ui";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../core/commands";
 import { processOutbox } from "../../core/events";
-import type { EventBusPort, JsonObject, OutboxPort } from "../../core/ports";
-import { postAgentToolCatalog, type AgentToolDefinition as PostAgentToolDefinition } from "./agent-tools";
-import { buildDeleteConfirmationResource, CONTENT_POST_DELETE_TOOL_ID } from "./delete-confirmation-ui";
+import {
+  postAgentToolCatalog,
+  type AgentToolDefinition as PostAgentToolDefinition,
+} from "./agent-tools";
+import {
+  buildDeleteConfirmationResource,
+  CONTENT_POST_DELETE_TOOL_ID,
+} from "./delete-confirmation-ui";
 import {
   createPost,
   deletePost,

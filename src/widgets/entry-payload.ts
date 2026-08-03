@@ -1,7 +1,7 @@
 import type { ContentTypeRepoPort } from "../features/content-types/write-service";
-import { NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
+import { NoopContentTypeIndexProvisioner, toContentTypeOutbox } from "../features/content-types/repo.memory";
 import { registerContentType } from "../features/content-types/write-service";
-import type { ClockPort, JsonObject } from "../core/ports";
+import type { ClockPort, JsonObject, OutboxPort } from "@jini-ai/cms/core";
 import type { EntryRecord } from "../features/entries/types";
 import { PRE_AUTHORIZED, WIDGETS_SYSTEM_ACTOR_ID } from "./authorize-helper";
 import {
@@ -161,7 +161,16 @@ export async function ensureWidgetContentTypesRegistered(
       contentTypeRepo: ContentTypeRepoPort;
       clock: ClockPort;
       ids: { newId: () => string };
-      outbox: { enqueue(event: { name: string; payload: Record<string, unknown> }): Promise<void> };
+      // Full-`DomainEvent` infra port (`core/ports.ts`'s own `OutboxPort`, what `SqliteOutboxAdapter`/
+      // `InMemoryOutbox` actually implement) — NOT `content-types`' own narrower local port.
+      // `ensureOneContentTypeRegistered` below bridges it with `toContentTypeOutbox` at its own
+      // `registerContentType` call, mirroring `write-service.ts`'s `entriesWriteDeps`/`toEntryOutbox`
+      // for the sibling `entries` chokepoint. Previously this parameter WAS the narrow local shape,
+      // so the raw adapter callers pass in here flowed straight through unwrapped to
+      // `registerContentType` — compiled, but threw `NOT NULL constraint failed: outbox_events.id`
+      // against the real SQLite outbox the first time a workspace creates its first widget/widget_area
+      // (this function's whole reason to exist is seeding those two content types on first use).
+      outbox: OutboxPort;
     };
     workspaceId: string;
   },
@@ -173,7 +182,7 @@ export async function ensureWidgetContentTypesRegistered(
 }
 
 async function ensureOneContentTypeRegistered(
-  deps: { contentTypeRepo: ContentTypeRepoPort; clock: ClockPort; ids: { newId: () => string }; outbox: { enqueue(event: { name: string; payload: Record<string, unknown> }): Promise<void> } },
+  deps: { contentTypeRepo: ContentTypeRepoPort; clock: ClockPort; ids: { newId: () => string }; outbox: OutboxPort },
   workspaceId: string,
   key: string,
   label: string
@@ -188,7 +197,7 @@ async function ensureOneContentTypeRegistered(
       ids: deps.ids,
       authorize: PRE_AUTHORIZED,
       indexProvisioner: new NoopContentTypeIndexProvisioner(),
-      outbox: deps.outbox,
+      outbox: toContentTypeOutbox({ outbox: deps.outbox, clock: deps.clock, idGen: deps.ids }),
     },
     input: {
       actorId: WIDGETS_SYSTEM_ACTOR_ID,

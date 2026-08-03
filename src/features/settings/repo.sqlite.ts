@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { and, desc, eq, gt, isNull, or } from "drizzle-orm";
 
-import type { JsonValue } from "../../core/ports";
+import type { JsonValue } from "@jini-ai/cms/core";
 import {
   settingDefinitions,
   settingRevisions,

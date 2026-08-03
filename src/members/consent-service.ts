@@ -25,7 +25,7 @@
  * ADR-022 §4a / ADR-028 §4 write-chokepoint discipline every other
  * core-owned mutation in this repo already follows.
  */
-import type { ClockPort, IdGeneratorPort } from "../core/ports";
+import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
 import type { MemberConsentRepoPort, MemberRepoPort } from "./ports";
 import {
   MemberNotFoundError,

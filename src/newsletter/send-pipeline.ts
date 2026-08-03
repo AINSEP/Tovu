@@ -11,11 +11,16 @@
  * wires onto `newsletter.send.batch.claimed` (T040), mirroring the existing
  * `bus.subscribe("workspace.created", ...)` demonstration.
  */
-import type { DomainEvent, EventBusPort, OutboxPort } from "../core/ports";
+import type { DomainEvent, EventBusPort, OutboxPort } from "@jini-ai/cms/core";
 import { processOutbox } from "../core/events";
 import type { MailerPort } from "../mail";
 import { transitionCampaignStatus } from "./campaign";
-import { NewsletterCampaignNotEditableError, NewsletterCampaignNotFoundError, NewsletterLaunchGateBlockedError, NewsletterValidationError } from "./errors";
+import {
+  NewsletterCampaignNotEditableError,
+  NewsletterCampaignNotFoundError,
+  NewsletterLaunchGateBlockedError,
+  NewsletterValidationError,
+} from "./errors";
 import { createHookRegistry, type HookRegistry } from "./hooks";
 import { evaluateLaunchGate, type LaunchGateDeps } from "./launch-gate";
 import type {

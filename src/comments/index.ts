@@ -17,7 +17,7 @@
  * that don't want to wire the ledger) AND the per-key default `getCommentsSettings` itself falls
  * back to before `ensureCommentsSettingDefinitions` has run in a real composition.
  */
-import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "../core/ports";
+import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { EntryRepoPort } from "../features/entries";
 import type { SettingsRepoPort } from "../features/settings";
 import { createRateLimiter } from "../server/middleware/rate-limit";

@@ -15,7 +15,7 @@
  * - `../core/ports` — UUID/ISODateTime/JsonObject/DomainEvent (ADR-007/009 spine).
  * - `../features/plugins/data-module` — the ADR-023 declared-schema shape core executes.
  */
-import type { DomainEvent, ISODateTime, JsonObject, UUID } from "../core/ports";
+import type { DomainEvent, ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
 import type { DataModuleDecl } from "../features/plugins/data-module";
 
 /* ------------------------------------------------------------------------------------------------

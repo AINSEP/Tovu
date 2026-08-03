@@ -13,8 +13,14 @@
  */
 import { randomUUID } from "node:crypto";
 
-import type { ClockPort, IdGeneratorPort } from "../core/ports";
-import type { MailerCapabilities, MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "../mail";
+import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
+import type {
+  MailerCapabilities,
+  MailerPort,
+  MailerSendOptions,
+  MailerSendResult,
+  OutboundEmail,
+} from "../mail";
 
 /** Body preview length before truncation in the console log line. */
 const BODY_PREVIEW_LENGTH = 200;

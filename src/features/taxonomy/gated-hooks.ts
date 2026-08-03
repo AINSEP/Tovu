@@ -1,4 +1,4 @@
-import type { ClockPort } from "../../core/ports";
+import type { ClockPort } from "@jini-ai/cms/core";
 import type { GatedMutationHooks } from "../../core/gated-mutations/gateway";
 import { planHashOf, resolveActorClassIdentity } from "../../core/gated-mutations/composition";
 import type { MergeTermPlanDetails } from "./merge-term";

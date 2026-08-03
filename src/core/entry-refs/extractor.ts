@@ -17,7 +17,7 @@
  * transaction. Body throws until the Programmer stage implements against
  * `__tests__/integration/extractor.integration.test.ts`.
  */
-import type { UUID } from "../ports";
+import type { UUID } from "@jini-ai/cms/core";
 import type { EntryRefRow, EntryRefTargetKind } from "./types";
 
 export interface ExtractEntryRefsInput {

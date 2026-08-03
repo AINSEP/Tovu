@@ -11,8 +11,8 @@
  * mirroring those routes' identical check (ADR-021 §2's single evaluator, located at the handler
  * here rather than inside the domain function).
  */
-import type { AuthorizeFn } from "../core/commands/command";
 import {
+  type AuthorizeFn,
   buildDomainRegistrations,
   indexCatalogById,
   optionalBoolean,
@@ -26,12 +26,23 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../core/tools/registration-kit";
+} from "@jini-ai/cms/core";
 import { getRedirectsAgentToolCatalog } from "./agent-tools";
 import type { RedirectHitSink, RedirectRepoPort } from "./ports";
-import { createRedirect, tombstoneRedirect, updateRedirect, type RedirectsWriteDeps } from "./redirects";
+import {
+  createRedirect,
+  tombstoneRedirect,
+  updateRedirect,
+  type RedirectsWriteDeps,
+} from "./redirects";
 import { RedirectNotFoundError } from "./types";
-import type { RedirectMatchType, RedirectRecord, RedirectSource, RedirectStatus, RedirectStatusCode } from "./types";
+import type {
+  RedirectMatchType,
+  RedirectRecord,
+  RedirectSource,
+  RedirectStatus,
+  RedirectStatusCode,
+} from "./types";
 
 const CATALOG_BY_ID = indexCatalogById(getRedirectsAgentToolCatalog());
 

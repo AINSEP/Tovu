@@ -8,8 +8,8 @@
  * handler here therefore performs that same check itself via the kit's `requireToolPermission`,
  * which is ADR-021 §2's single evaluation for these tools, located where the real route locates it.
  */
-import type { AuthorizeFn } from "../core/commands/command";
 import {
+  type AuthorizeFn,
   buildDomainRegistrations,
   indexCatalogById,
   requireInputRecord,
@@ -19,7 +19,7 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../core/tools/registration-kit";
+} from "@jini-ai/cms/core";
 import { membersAgentToolCatalog } from "./agent-tools";
 import type {
   MagicLinkTokenRepoPort,
