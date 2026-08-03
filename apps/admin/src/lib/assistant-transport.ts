@@ -76,6 +76,17 @@ function translateRunAgentPayload(payload: RunAgentPayload): AgentEvent | null {
     }
     case "raw":
       return { kind: "raw", line: asString(payload.line) };
+    // An MCP content block the daemon withheld from the tool result because it is for the HUMAN,
+    // not the model (`@jini-ai/daemon`'s `delegated-tool-bridge.ts` → `tool-result-surfaces.ts`).
+    // Explicit rather than left to `default` below because the shapes do not line up: the default
+    // passes the WHOLE wire payload as `data`, but `@jini-ai/chat`'s `McpUiSurfaceCard` runs
+    // `parseUIResource` over each event's `data` and that requires the bare `EmbeddedResource`
+    // (`{type:'resource', resource:{uri,mimeType,text}}`). Handing it the envelope instead fails
+    // the `type !== 'resource'` check and renders an empty frame — a silent no-op, which is the
+    // worst possible failure for a confirmation dialog. Unwrapping here is what makes the two ends
+    // meet. `name` must stay `"mcp-ui"` to match `MCP_UI_EXT_EVENT_NAME`.
+    case "mcp-ui":
+      return { kind: "ext", name: "mcp-ui", data: payload.resource };
     // thinking_start/stage_start/stage_end/surface_request/surface_response/a2ui: no dedicated
     // chat-core variant. Routed through the `ext` escape hatch rather than dropped, so a future
     // renderer can opt in without a transport change.

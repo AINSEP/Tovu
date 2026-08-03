@@ -5,6 +5,8 @@ import {
   ConversationList,
   JiniChatProvider,
   createDaemonAttachmentUploader,
+  createMcpUiToolCaller,
+  registerMcpUiSurfaceRenderer,
   type ChatPaneAgent,
   type FrontendSessionBridge,
 } from "@jini-ai/chat/react";
@@ -14,6 +16,38 @@ import { createTovuAssistantTransport } from "../lib/assistant-transport";
 import { publishSettingsRefresh } from "../lib/settings-refresh-bus";
 import { useWiredAssistantChats, type UseAssistantChats } from "../hooks/use-assistant-chats.hooks";
 import "../styles/assistant.css";
+
+/**
+ * Renders the MCP-UI surfaces the daemon withholds from tool results, and wires the dialog's
+ * confirmed click back to Tovu's own redemption endpoint (ADR-053 Decision 3).
+ *
+ * Module scope, once, deliberately — `registerMcpUiSurfaceRenderer` populates `@jini-ai/chat`'s
+ * ext-event renderer registry, which every `ChatPane` consults thereafter; calling it inside a
+ * component would re-register on each render for no benefit. This is the whole of the host-side
+ * wiring: `ChatPane` itself is untouched, and an admin build that never imports this module simply
+ * renders nothing for `mcp-ui` events rather than breaking.
+ *
+ * `onToolCall: createMcpUiToolCaller("", { path: "/api/admin/v1/mcp-ui/tool-calls" })` is what
+ * completes the confirmation loop: when a human clicks "Delete" in the rendered dialog, the View
+ * posts a `tools/call`, and this relays it (same-origin, session cookie) to Tovu's own
+ * admin-session-authenticated proxy (`src/server/modules/assistant.ts`), which forwards it to the
+ * daemon-side redemption route (`src/assistant/mcp-ui-tool-calls-route.ts`) — the one place that
+ * actually holds the `content_post_delete` handler and its `PendingConfirmationStore`. `path` is
+ * required rather than the library's own bare-daemon default (`/api/mcp-ui/tool-calls`): Tovu mounts
+ * this behind the admin-session-gated `/api/admin/v1` prefix, exactly the case
+ * `CreateMcpUiToolCallerOptions.path`'s own doc calls out ("hosts mounting the redemption route
+ * inside an already-authenticated admin API will need this"). With `onToolCall` wired, the dialog no
+ * longer refuses every tool call — a real confirmed click now redeems the token and completes the
+ * delete.
+ *
+ * The other half of the contract lives in `../lib/assistant-transport.ts`'s `case "mcp-ui"`, which
+ * unwraps the wire envelope to the bare `EmbeddedResource` this renderer's `parseUIResource`
+ * requires. All three pieces are needed; any one missing renders an empty frame or a dialog that
+ * cannot complete its action.
+ */
+registerMcpUiSurfaceRenderer({
+  onToolCall: createMcpUiToolCaller("", { path: "/api/admin/v1/mcp-ui/tool-calls" }),
+});
 
 declare global {
   interface Window {

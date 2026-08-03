@@ -32,6 +32,8 @@
 import type { Express, NextFunction, Request, Response } from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR } from "../../assistant/daemon-auth";
+import { isMcpUiToolCallAllowed } from "../../assistant/mcp-ui-tool-calls";
+import { MCP_UI_TOOL_CALLS_PATH } from "../../assistant/mcp-ui-tool-calls-route";
 import { RUN_PRINCIPAL_HEADER } from "../../assistant/run-ownership";
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth";
 import type { RouteDeps } from "../routes/types";
@@ -138,6 +140,37 @@ async function proxyPassthrough(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * `POST /api/admin/v1/mcp-ui/tool-calls` (ADR-053 Decision 3) — the redemption half of the MCP-UI
+ * confirmation pattern: a human clicked a rendered dialog (`McpUiSurfaceCard` /
+ * `useMcpUiHost`), and `@jini-ai/chat`'s `createMcpUiToolCaller` posted `{toolName, params}` here.
+ *
+ * Not `proxyPassthrough`: that client deliberately validates neither field (its own module doc says
+ * so — a View's HTML is untrusted, so a client-side check would be a check the attacker writes both
+ * sides of), which makes the allowlist check below load-bearing rather than decorative. Checked
+ * again, authoritatively, by `mcp-ui-tool-calls-route.ts` on the daemon side — that route, not this
+ * one, is the actual call site that can reach `ToolExecutor.execute`, so THIS check exists only to
+ * fail fast and keep an obviously-bad request off the wire to the daemon at all; removing it would
+ * not reopen the hole, but would turn a cheap 403 into a wasted round trip.
+ *
+ * Otherwise an ordinary forward: `forwardToAgentDaemon` attaches the daemon bearer token and
+ * {@link RUN_PRINCIPAL_HEADER} exactly like every other route in this module, and the daemon-side
+ * route trusts both the same way `run-ownership.ts`'s routes do.
+ */
+async function proxyMcpUiToolCall(req: Request, res: Response): Promise<void> {
+  const body = (req.body ?? {}) as { toolName?: unknown };
+  const toolName = body.toolName;
+  if (typeof toolName !== "string" || toolName.length === 0) {
+    res.status(400).json({ error: "'toolName' must be a non-empty string", code: "VALIDATION_ERROR" });
+    return;
+  }
+  if (!isMcpUiToolCallAllowed(toolName)) {
+    res.status(403).json({ error: `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
+    return;
+  }
+  await forwardToAgentDaemon(req, res, req.body);
+}
+
+/**
  * `POST /api/attachments`'s dedicated proxy — every other route in this module forwards through
  * `forwardToAgentDaemon`'s `JSON.stringify(req.body)` path, which is wrong here on purpose: the
  * real (and only) client, `@jini-ai/chat/react`'s `createDaemonAttachmentUploader`, always sends
@@ -240,6 +273,15 @@ export function createAssistantModule(routeDeps: RouteDeps): ServerModuleHandle 
         forwardAttachmentUpload(req, res).catch(next);
       });
       app.delete("/api/attachments", (req, res, next) => proxyPassthrough(req, res).catch(next));
+
+      // The MCP-UI confirmation redemption endpoint (ADR-053 Decision 3) — see
+      // `proxyMcpUiToolCall`'s own doc. Session-gated like every route above; distinct from
+      // `/api/delegated-tool-calls`, which is intentionally NOT mounted in this module at all (see
+      // this file's header) and whose trust boundary this endpoint does not reuse or widen.
+      app.use(MCP_UI_TOOL_CALLS_PATH, requireAdminSession(routeDeps));
+      app.post(MCP_UI_TOOL_CALLS_PATH, (req: Request, res: Response, next: NextFunction) => {
+        proxyMcpUiToolCall(req, res).catch(next);
+      });
     },
   };
 }

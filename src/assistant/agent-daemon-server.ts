@@ -90,6 +90,7 @@ import { listAssistantAgents } from "./agents";
 import { createCustomInstructionsCache } from "./custom-instructions";
 import { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-auth";
 import { attachFederatedMcpTools } from "./mcp-federation/bootstrap";
+import { registerMcpUiToolCallsRoute } from "./mcp-ui-tool-calls-route";
 import { resolveMcpJsonInjection } from "./mcp-injection";
 import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership } from "./run-ownership";
 import { buildToolCatalogQuery } from "./tool-catalog-query";
@@ -494,6 +495,15 @@ app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners 
 registerRunRoutes(app, { lifecycle, onStarted }, adapter);
 registerAgentRoutes(app, { listAgents: listAssistantAgents }, adapter);
 registerDelegatedToolRoutes(app, { lifecycle, toolExecutor, resolvePrincipal }, adapter);
+// The MCP-UI confirmation redemption endpoint (ADR-053 Decision 3) — a human's confirmed click
+// re-invoking `content_post_delete` a second time, this time with the token only the rendered
+// dialog held. Same non-exemption reasoning as `frontendControl.httpExtension` just below: the
+// browser reaches this through Tovu's session-authenticated proxy, which attaches the bearer token
+// like every other forwarded route, so no `exemptPaths` entry is needed or wanted. See
+// `mcp-ui-tool-calls-route.ts` for why this must live in THIS process (it is the one holding the
+// `ToolExecutor`/`PendingConfirmationStore` a redemption actually needs) and
+// `src/server/modules/assistant.ts` for the proxy half.
+registerMcpUiToolCallsRoute(app, { toolExecutor });
 // The browser half of the `page.*` channel: an SSE stream that carries invocations down to the
 // admin tab, and a POST that carries its answers back. Deliberately NOT added to the bearer gate's
 // `exemptPaths` — unlike `/api/delegated-tool-calls` (whose caller is a spawned `jini-mcp`
