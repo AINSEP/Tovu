@@ -1,41 +1,41 @@
-import {
-  createUIResource,
-  escapeHtml,
-  escapeJsString,
-  type UIResource,
-  type UIResourceUri,
-} from "../../assistant/mcp-ui";
+import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 /**
- * @file The Posts/Pages half of the MCP-UI confirmation gate: the actual interactive dialog
- * `content_post_delete` returns on its first call.
+ * @file The Posts/Pages half of the MCP-UI confirmation gate: the dialog `content_post_delete`
+ * raises on its first call.
  *
- * Split out of `tool-registrations.ts` because it is a genuinely different job — this file writes
- * HTML and the protocol message an iframe posts back, that file wires handlers to domain functions
- * — and because keeping the HTML isolated makes the one security-critical property easy to check by
- * eye: **the confirmation token is interpolated into this file's output and nowhere else.**
+ * ## 2026-08-03: this file no longer writes HTML
  *
- * ## The protocol shape, end to end
+ * It used to render the whole document by hand — markup, styles, and an inline script that spoke an
+ * ad-hoc `postMessage` dialect of its own invention. Two problems, both fatal:
  *
- * 1. Agent calls `content_post_delete { id, kind }`. The handler resolves the row, mints a pending
- *    confirmation bound to (tool, workspace, principal, entity, entity VERSION), and returns
- *    `{ content: [ textBlock, uiResource ] }` — an MCP-UI `EmbeddedResource` with a `ui://` URI and
- *    the `text/html;profile=mcp-app` MIME type. NOTHING IS DELETED. The text block tells the model
- *    a dialog is open and that it cannot proceed on its own; the token appears only in the HTML.
- * 2. The host renders that HTML in a sandboxed iframe for the HUMAN. Per MCP Apps' security model
- *    the HTML is not fed to the model, which is what keeps the token out of the agent's reach.
- * 3. The human clicks. The iframe posts a real mcp-ui `UIActionResult` of type `"tool"` —
- *    `{ type: "tool", messageId, payload: { toolName: "content_post_delete", params: { id, kind,
- *    confirmationToken, decision } } }` — to `window.parent`.
- * 4. The host's `onUIAction` turns that into a second `content_post_delete` call. Because the
- *    action carries a `messageId`, mcp-ui's client answers the iframe with `ui-message-received`
- *    and then `ui-message-response`; this dialog listens for both so the human sees the outcome
- *    rather than a dialog that appears to do nothing.
- * 5. The handler redeems the token (single-use, TTL-bounded, binding-checked, version-checked) and
- *    only then calls `deletePost` through the command gateway.
+ * 1. **Wrong protocol.** `@jini-ai/ui`'s `useMcpUiHost` runs a real MCP-UI JSON-RPC handshake
+ *    (`ui/initialize`, then `tools/call`). The hand-written dialog posted a bare
+ *    `{type:'tool', messageId, payload}` object, which no compliant Host answers. The dialog
+ *    rendered and its buttons did nothing.
+ * 2. **Duplicated a solved problem.** `@jini-ai/ui/mcp-ui/surfaces`'s `buildConfirmationSurface` was
+ *    generalized *from this very file*, and carries the parts that are easy to get quietly wrong:
+ *    the handshake, `</script`-safe interpolation, focus handling, and status text that reports the
+ *    real outcome instead of leaving a spinner up.
  *
- * A `decision: "cancel"` click redeems the token too — burning it — and returns without deleting,
- * so "cancel" genuinely closes the window rather than leaving a live token behind.
+ * So this module is now an adapter: it decides what a Posts/Pages deletion should *say*, and Jini
+ * owns how a confirmation dialog *behaves*. Anything reusable belongs upstream in
+ * `@jini-ai/ui`, not here.
+ *
+ * ## The security property, restated because it is easy to erode
+ *
+ * The confirmation token is interpolated into this surface and **nowhere else** — never into the
+ * tool's `modelText`, its `_meta`, or an error message. Two independent mechanisms keep it from the
+ * model, and both matter:
+ *
+ * - `@jini-ai/daemon`'s `delegated-tool-bridge.ts` splits UI blocks out of the tool result and emits
+ *   them as `mcp-ui` run events, so the resource never reaches the value the model reads.
+ * - Per MCP Apps' model, a Host renders the HTML for the human and does not feed it to the model.
+ *
+ * Before the first of those existed, this file's own doc claimed the second was sufficient. It was
+ * not: `@jini-ai/mcp`'s `okResult()` JSON.stringifies a tool result into one text block, so the
+ * token arrived as ordinary model-visible context and the model could approve its own deletion.
+ * **Do not reintroduce a path that puts the token in the return value.**
  */
 
 /** What the dialog needs to describe the row truthfully. */
@@ -48,17 +48,19 @@ export interface DeleteConfirmationSubject {
   version: number;
 }
 
-/** The tool id the dialog asks the host to call back. Single source of truth for both halves. */
+/** The tool id the dialog asks the Host to call back. Single source of truth for both halves. */
 export const CONTENT_POST_DELETE_TOOL_ID = "content_post_delete";
 
 /**
  * Builds the `ui://` URI for one confirmation instance.
  *
- * Keyed by entity id and version, NOT by the token: a URI is an identifier a host may log, cache,
- * or show in a devtools pane, so putting the secret in it would defeat the whole arrangement.
+ * Keyed by entity id and version, NOT by the token: a URI is an identifier a host may log, cache, or
+ * show in a devtools pane, so putting the secret in it would defeat the whole arrangement. Keying by
+ * version also means a row edited since the dialog opened yields a different URI, so the stale
+ * dialog is never silently treated as the current one.
  */
 export function deleteConfirmationUri(subject: DeleteConfirmationSubject): UIResourceUri {
-  return `ui://tovu/content-post-delete/${subject.id}/${subject.version}`;
+  return `ui://tovu/content-post-delete/${subject.id}/${subject.version}` as UIResourceUri;
 }
 
 /**
@@ -66,12 +68,9 @@ export function deleteConfirmationUri(subject: DeleteConfirmationSubject): UIRes
  *
  * @param spec.subject - The row the human is being asked about. Every field is shown, because a
  * dialog that says "delete this?" without naming what "this" is provides no real consent.
- * @param spec.confirmationToken - The single-use secret. **This is the only place it may go.** It
- * is interpolated into the inline script, which the host renders for the human and does not feed
- * to the model.
- * @returns The `EmbeddedResource` to place in the tool result's `content` array.
+ * @param spec.confirmationToken - The single-use secret. **This is the only place it may go.**
+ * @returns The `EmbeddedResource` the daemon splits out and renders for the human.
  * @complexity O(n) in the rendered field lengths.
- * @overallScore 100
  */
 export function buildDeleteConfirmationResource(spec: {
   subject: DeleteConfirmationSubject;
@@ -79,105 +78,36 @@ export function buildDeleteConfirmationResource(spec: {
 }): UIResource {
   const { subject, confirmationToken } = spec;
   const noun = subject.kind === "page" ? "page" : "post";
-  const publishedWarning =
-    subject.status === "published"
-      ? `<p class="warn">This ${escapeHtml(noun)} is currently <strong>published</strong>. Deleting it removes it from the public site immediately.</p>`
-      : "";
 
-  // Self-contained by necessity: a sandboxed iframe has no bundler, no network, and no shared
-  // stylesheet. Everything the dialog needs is inline.
-  const htmlString = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Confirm deletion</title>
-<style>
-  :root { color-scheme: light dark; }
-  body { margin: 0; padding: 16px; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  h1 { margin: 0 0 4px; font-size: 16px; }
-  dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 12px 0; }
-  dt { font-weight: 600; opacity: 0.7; }
-  dd { margin: 0; overflow-wrap: anywhere; }
-  .warn { padding: 8px 10px; border-radius: 6px; background: rgba(200, 60, 40, 0.12); }
-  .note { opacity: 0.75; }
-  .actions { display: flex; gap: 8px; margin-top: 16px; }
-  button { font: inherit; padding: 7px 14px; border-radius: 6px; border: 1px solid currentColor; background: transparent; cursor: pointer; }
-  button.danger { border-color: transparent; background: #c1392b; color: #fff; }
-  button[disabled] { opacity: 0.5; cursor: default; }
-  #outcome { margin-top: 12px; min-height: 1.5em; }
-</style>
-</head>
-<body>
-  <h1>Delete this ${escapeHtml(noun)}?</h1>
-  <dl>
-    <dt>Title</dt><dd>${escapeHtml(subject.title)}</dd>
-    <dt>Slug</dt><dd>/${escapeHtml(subject.slug)}</dd>
-    <dt>Kind</dt><dd>${escapeHtml(subject.kind)}</dd>
-    <dt>Status</dt><dd>${escapeHtml(subject.status)}</dd>
-    <dt>ID</dt><dd>${escapeHtml(subject.id)}</dd>
-  </dl>
-  ${publishedWarning}
-  <p class="note">This is a soft delete: the ${escapeHtml(noun)} is moved to the trash and hidden everywhere, but it is retained and can be restored by reverting the resulting change set.</p>
-  <div class="actions">
-    <button type="button" id="confirm" class="danger">Delete ${escapeHtml(noun)}</button>
-    <button type="button" id="cancel">Cancel</button>
-  </div>
-  <p id="outcome" role="status" aria-live="polite"></p>
-<script>
-(function () {
-  var TOKEN = ${escapeJsString(confirmationToken)};
-  var TOOL = ${escapeJsString(CONTENT_POST_DELETE_TOOL_ID)};
-  var ID = ${escapeJsString(subject.id)};
-  var KIND = ${escapeJsString(subject.kind)};
-  var outcome = document.getElementById("outcome");
-  var buttons = [document.getElementById("confirm"), document.getElementById("cancel")];
-  var pendingMessageId = null;
-
-  function send(decision) {
-    buttons.forEach(function (b) { b.disabled = true; });
-    outcome.textContent = decision === "confirm" ? "Deleting…" : "Cancelling…";
-    // A real mcp-ui UIActionResult of type "tool" — the host's onUIAction turns this into the
-    // second content_post_delete call. messageId is what makes the host answer with
-    // ui-message-received / ui-message-response so this dialog can report the outcome.
-    pendingMessageId = "content-post-delete-" + ID + "-" + decision;
-    window.parent.postMessage({
-      type: "tool",
-      messageId: pendingMessageId,
-      payload: {
-        toolName: TOOL,
-        params: { id: ID, kind: KIND, confirmationToken: TOKEN, decision: decision }
-      }
-    }, "*");
-  }
-
-  window.addEventListener("message", function (event) {
-    var data = event.data;
-    if (!data || typeof data !== "object") return;
-    if (data.messageId && data.messageId !== pendingMessageId) return;
-    if (data.type === "ui-message-received") {
-      outcome.textContent = "Sent — waiting for the server…";
-      return;
-    }
-    if (data.type === "ui-message-response") {
-      outcome.textContent = data.payload && data.payload.error
-        ? "Failed: " + String(data.payload.error)
-        : "Done.";
-    }
-  });
-
-  document.getElementById("confirm").addEventListener("click", function () { send("confirm"); });
-  document.getElementById("cancel").addEventListener("click", function () { send("cancel"); });
-}());
-</script>
-</body>
-</html>`;
-
-  return createUIResource({
+  return buildConfirmationSurface({
     uri: deleteConfirmationUri(subject),
-    htmlString,
-    // mcp-ui's own resource metadata namespace (`UI_METADATA_PREFIX` + `preferred-frame-size`),
-    // so a host that honors it sizes the dialog instead of guessing.
-    meta: { "mcpui.dev/ui-preferred-frame-size": ["420px", "440px"] },
+    title: `Delete this ${noun}?`,
+    description: `The ${noun} will be moved to the trash.`,
+    details: [
+      { label: "Title", value: subject.title },
+      { label: "Slug", value: subject.slug },
+      { label: "Status", value: subject.status },
+    ],
+    // Surfaced only when it is actually true — a warning shown unconditionally is one people learn
+    // to click past, which is worse than no warning at all.
+    ...(subject.status === "published"
+      ? { warning: `This ${noun} is currently published. Deleting it removes it from the public site immediately.` }
+      : {}),
+    danger: true,
+    confirm: {
+      label: `Delete ${noun}`,
+      toolName: CONTENT_POST_DELETE_TOOL_ID,
+      params: { id: subject.id, kind: subject.kind, confirmationToken, decision: "confirm" },
+    },
+    // A tool action, not a bare dismiss: cancelling REDEEMS the token too, burning it server-side.
+    // A dialog that just closes leaves a live token behind for its whole TTL, so "cancel" would
+    // weaken the gate rather than close it.
+    cancel: {
+      label: "Cancel",
+      toolName: CONTENT_POST_DELETE_TOOL_ID,
+      params: { id: subject.id, kind: subject.kind, confirmationToken, decision: "cancel" },
+    },
+    app: { appName: "tovu-content-post-delete", appVersion: "1" },
+    preferredFrameSize: ["100%", "320px"],
   });
 }

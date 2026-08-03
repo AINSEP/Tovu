@@ -61,3 +61,48 @@
 - Whether `page.click`-driven dialogs (the separate, non-MCP-UI mechanism this recon's Part 2/3 covers for human-initiated in-app actions) and this mechanism should share any wiring beyond the discipline both already follow (explicit opt-in, resolvable handle, fail-closed on miss) — Part 3 of the recon argues they should stay separate implementations; nothing here revisits that.
 - Whether the three currently-excluded `ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT` tools should be built against this mechanism once it exists — a decision for each tool's owner, not implied by this ADR.
 - Full implementation outline / task breakdown for steps 1-5 — this ADR establishes the shape and sequencing; a follow-up spec/outline is needed before implementation starts.
+
+---
+
+## Addendum A (2026-08-03, implementation): `@jini-ai/ui` becomes a root Tovu dependency
+
+**Decision:** add `"@jini-ai/ui": "file:../Jini/packages/ui"` to the **root** `package.json`, rather than
+moving the surface builders into a separate server-safe package.
+
+**Why this needed deciding at all.** `src/features/post/delete-confirmation-ui.ts` is server-side code
+compiled by the root `tsconfig.json` and running in the API process. Consequence bullet above claims
+`@jini-ai/ui` "already exists in the pinned `file:../Jini/packages/ui` dependency" — **that is true of
+`apps/admin/package.json` only.** The root had no such entry and no `node_modules/@jini-ai/ui`
+symlink, so the rewritten adapter failed to compile (`TS2307`). Adding a *UI* package to the *server's*
+dependency list is a real layering choice, and the risk it carries is pulling React into the API
+process by accident.
+
+**Evidence gathered before choosing — observed, not inferred from the subtree's own doc comment:**
+
+1. `packages/ui/package.json` maps `./mcp-ui/surfaces` → `dist/features/mcp-ui/index.js`, a subpath
+   distinct from the React entry `./mcp-ui` → `dist/react/mcp-ui/index.js`.
+2. `grep` for `from 'react'` / `require('react')` / `jsx` across the **built** `dist/features/mcp-ui/`
+   tree returns nothing. Every occurrence of the string "React" in that subtree is prose in a comment.
+3. `react` and `react-dom` are **optional** `peerDependenciesMeta` entries of `@jini-ai/ui`, so the
+   install cannot drag them in implicitly.
+4. **The decisive check:** after installing, `node -e "await import('@jini-ai/ui/mcp-ui/surfaces')"`
+   from the Tovu root succeeds and yields 59 exports — in a root where `node_modules/react` does not
+   exist. A React import anywhere in that graph would have thrown `ERR_MODULE_NOT_FOUND`. The
+   React-free property is therefore *executed*, not asserted.
+
+**Cost actually paid:** `npm install` added 99 packages — all `micromark` / `micromark-extension-gfm`
+transitives (`@jini-ai/ui`'s only non-workspace runtime deps). No `react`, no `react-dom`, no
+`lexical`, no `@lexical/*` at the root. The three `@jini-ai/*` workspace deps resolve inside the Jini
+monorepo through the existing symlink, exactly as the nine sibling `file:` entries already do.
+
+**Rejected: move the builders to a new server-safe package.** Better layering on paper, but it buys
+nothing here — the export map already *is* the split, and the split is now empirically verified. It
+would also cut against the owner's 2026-08-03 steer to maximise Jini reuse by adding a package
+boundary whose only job is to restate a boundary that already holds.
+
+**What to re-check if this ages badly:** the guarantee is "the `./mcp-ui/surfaces` subpath imports no
+React." If a future change makes `features/mcp-ui/` import from `react/mcp-ui/`, the server silently
+gains React. `packages/ui/src/features/mcp-ui/index.ts`'s header already forbids that direction; a
+build-time assertion would be the durable version of this addendum.
+
+**Verified after:** Tovu root `npm run typecheck` clean; `apps/admin` `npm run typecheck` clean.
