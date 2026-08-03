@@ -23,13 +23,24 @@
  * `settingsRepo` when the composition root supplies one, falling back to a fixed snapshot
  * otherwise (hermetic tests that don't wire the ledger).
  */
-import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "../core/ports";
+import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { RateLimiter } from "../server/middleware/rate-limit";
 import type { CommentHookRegistry } from "./hooks";
-import type { CommentIngressPolicy, CommentIngressResult, CommentRepoPort, SpamCheckPort } from "./ports";
+import type {
+  CommentIngressPolicy,
+  CommentIngressResult,
+  CommentRepoPort,
+  SpamCheckPort,
+} from "./ports";
 import { countLinks, sanitizeCommentBody } from "./sanitize";
 import { COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID } from "./types";
-import type { CommentRecord, CommentStatus, CommentSubmission, CommentsSettings, ModerationLogEntry } from "./types";
+import type {
+  CommentRecord,
+  CommentStatus,
+  CommentSubmission,
+  CommentsSettings,
+  ModerationLogEntry,
+} from "./types";
 
 const MAX_BODY_LENGTH = 10_000;
 const MAX_LINKS = 5;

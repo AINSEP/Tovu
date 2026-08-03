@@ -1,4 +1,4 @@
-import type { ClockPort } from "./ports";
+import type { ClockPort } from "@jini-ai/cms/core";
 
 /**
  * @file CIC U-001 (SPEC-019 `critical-internal-constraints.md`) — site-wide gated-operation

@@ -1,7 +1,11 @@
-import type { JsonObject, JsonValue } from "#src/core/ports";
+import type { JsonObject, JsonValue } from "@jini-ai/cms/core";
 import type { PostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme, TemplateNode } from "#src/features/theme/index";
-import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "#src/features/theme/index";
+import {
+  resolveTemplateId,
+  resolveLiquidTemplateId,
+  resolveHandlebarsTemplateId,
+} from "#src/features/theme/index";
 import type { ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
 import type { WidgetRenderIR } from "#src/widgets/types";
 import { ATTRIBUTE_NAME_PATTERN } from "#src/forms/forms";

@@ -1,4 +1,4 @@
-import type { DomainEvent, EventBusPort, OutboxPort, OutboxRecord } from "../ports";
+import type { DomainEvent, EventBusPort, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
 
 /**
  * @file In-memory implementations of the event bus and outbox contracts.

@@ -21,7 +21,7 @@
  * strings, composite workspace scoping), ADR-007 (workspaceId everywhere),
  * ADR-009 (typed calls / outbox events / hooks), ADR-015 (repo behind a port).
  */
-import type { ISODateTime, UUID } from "../core/ports";
+import type { ISODateTime, UUID } from "@jini-ai/cms/core";
 
 /**
  * HTTP status a matched rule emits. 301/308 are permanent (cacheable, SEO

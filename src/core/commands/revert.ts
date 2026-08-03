@@ -1,5 +1,12 @@
-import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort, UUID } from "../ports";
-import type { ChangeSetRecord, ChangeSetRepoPort } from "./change-set";
+import type {
+  ClockPort,
+  DomainEvent,
+  IdGeneratorPort,
+  OutboxPort,
+  UUID,
+  ChangeSetRecord,
+  ChangeSetRepoPort,
+} from "@jini-ai/cms/core";
 import type { RevertRegistry, ReverterDeps } from "./appliers";
 
 /**

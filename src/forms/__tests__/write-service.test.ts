@@ -2,10 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryChangeSetRepo } from "../../core/commands";
-import { ForbiddenError as CommandForbiddenError } from "../../core/commands/command";
-import { FormFieldValidationError, FormSlugConflictError, FormDefinitionNotFoundError } from "../errors";
+import { ForbiddenError as CommandForbiddenError } from "@jini-ai/cms/core";
+import {
+  FormFieldValidationError,
+  FormSlugConflictError,
+  FormDefinitionNotFoundError,
+} from "../errors";
 import { InMemoryFormDefinitionRepo } from "../repo.memory";
-import { createFormDefinition, setFormDefinitionStatus, updateFormDefinition } from "../write-service";
+import {
+  createFormDefinition,
+  setFormDefinitionStatus,
+  updateFormDefinition,
+} from "../write-service";
 
 /**
  * @file Unit tests for `write-service.ts` (C-005/C-006/C-007, REQ-01/03/04, AC-01/02/04/05/06,

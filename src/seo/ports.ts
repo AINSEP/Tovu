@@ -23,9 +23,15 @@
  * `seo.ts`/`sitemap.ts`'s exported functions, matching this shape, rather than
  * literally constructing one object with these five methods.
  */
-import type { UUID } from "../core/ports";
+import type { UUID } from "@jini-ai/cms/core";
 import type { HeadElement, PageHeadContext } from "../server/http/site/page-head";
-import type { RobotsPolicy, SeoAnalysis, SeoMeta, SitemapCollectContext, SitemapEntry } from "./types";
+import type {
+  RobotsPolicy,
+  SeoAnalysis,
+  SeoMeta,
+  SitemapCollectContext,
+  SitemapEntry,
+} from "./types";
 
 /**
  * `seo.sitemap.collect` — lets other bundled plugins/core contribute URL sets

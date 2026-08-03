@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DuplicateCommandError, ForbiddenError, executeCommand } from "../command";
+import {
+  DuplicateCommandError,
+  ForbiddenError,
+  executeCommand,
+  type AuthorizeFn,
+  type CommandMutation,
+} from "@jini-ai/cms/core";
 import { InMemoryChangeSetRepo } from "../repo.memory";
-import type { AuthorizeFn, CommandMutation } from "../command";
 
 /**
  * @file SPEC-006 REQ-05/INV-04 — the gateway's `authorize()` gate.

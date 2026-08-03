@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ClockPort, IdGeneratorPort, JsonObject, UUID } from "../../core/ports";
+import type { ClockPort, IdGeneratorPort, JsonObject, UUID } from "@jini-ai/cms/core";
 import { AnalyticsPiiRejectedError, type AnalyticsConfigPort } from "../ports";
-import { ingestHit, normalizeIngestContext, validateEventProps, type IngestHitDeps } from "../ingest";
+import {
+  ingestHit,
+  normalizeIngestContext,
+  validateEventProps,
+  type IngestHitDeps,
+} from "../ingest";
 import { LocalBufferSink } from "../repo.memory";
 import type { AnalyticsSiteConfig, IngestBeacon, IngestContext } from "../types";
 

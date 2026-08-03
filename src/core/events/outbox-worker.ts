@@ -1,4 +1,4 @@
-import type { ClockPort, EventBusPort, OutboxPort } from "../ports";
+import type { ClockPort, EventBusPort, OutboxPort } from "@jini-ai/cms/core";
 
 /**
  * @file Outbox processing orchestration.

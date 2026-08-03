@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { EventBusPort, OutboxPort, UUID } from "../../core/ports";
+import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort } from "../../core/commands";
 import type {
   PasswordHasherPort,
@@ -13,7 +13,7 @@ import type {
   RoleRepoPort,
   SessionRepoPort,
   UserRepoPort,
-} from "../../identity";
+} from "@jini-ai/cms/identity";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin";
 import type { PostRepoPort, PostSearchPort } from "../../features/post";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope";
@@ -48,16 +48,28 @@ import type { CommentIngressPolicy, CommentRepoPort } from "../../comments/ports
 import type { CommentWriteService } from "../../comments/write-service";
 import type { RateLimiter } from "../middleware/rate-limit";
 import type { LedgerReadPort } from "../../features/database/timeline";
-import type { RestorePointListPort, RestorePointSavePort } from "../../features/database/restore-points";
+import type {
+  RestorePointListPort,
+  RestorePointSavePort,
+} from "../../features/database/restore-points";
 import type { DatabaseIntrospectionPort } from "../../features/database/adapter.sqlite";
-import type { BootLedgerPort, MigrationRunsRepoPort, SiteStatusPort } from "../../features/database/boot/reconcile-interrupted-migration";
+import type {
+  BootLedgerPort,
+  MigrationRunsRepoPort,
+  SiteStatusPort,
+} from "../../features/database/boot/reconcile-interrupted-migration";
 import type { DbOpsPort } from "../../core/gated-mutations/ports";
 import type { ContentTypeRepoPort, IndexProvisionerPort } from "../../features/content-types";
 import type { TeardownIndexProvisionerPort } from "../../features/content-types";
 import type { ContentTypeListPort } from "../../features/content-types";
 import type { EntryRepoPort } from "../../features/entries";
 import type { EntryListPort } from "../../features/entries";
-import type { EntryTermRepoPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TermRepoPort } from "../../features/taxonomy/write-service";
+import type {
+  EntryTermRepoPort,
+  TaxonomyRepoPort,
+  TaxonomyRevisionRepoPort,
+  TermRepoPort,
+} from "../../features/taxonomy/write-service";
 import type { TaxonomyListPort, TermListPort } from "../../features/taxonomy/list";
 import type { DisclosureWatermarkSourcePort } from "../../features/recovery/disclosure";
 import type { DeepLinkRestorePointLookupPort } from "../../features/recovery/deep-link";

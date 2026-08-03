@@ -1,4 +1,4 @@
-import type { JsonValue } from "../core/ports";
+import type { JsonValue } from "@jini-ai/cms/core";
 import type { PostKind, PostRecord, PostRepoPort } from "../features/post/post";
 import { getEffective, type SettingsRepoPort } from "../features/settings";
 import { urlFor } from "../routing";

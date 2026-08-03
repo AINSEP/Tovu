@@ -1,4 +1,4 @@
-import type { JsonValue } from "#src/core/ports";
+import type { JsonValue } from "@jini-ai/cms/core";
 import { resolveDefinition, type SettingValueRecord } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";

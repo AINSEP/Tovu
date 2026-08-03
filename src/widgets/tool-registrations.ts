@@ -16,9 +16,6 @@
  * helper rather than the kit's generic `requireToolPermission` precisely so both paths reach the
  * identical gate function.
  */
-import type { AuthorizeFn } from "../core/commands/command";
-import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
-import type { OutboxPort } from "../core/ports";
 import {
   buildDomainRegistrations,
   indexCatalogById,
@@ -32,44 +29,42 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../core/tools/registration-kit";
-import type { ContentTypeRepoPort } from "../features/content-types/write-service";
-import type { EntryListPort } from "../features/entries/list";
-import type { EntryRepoPort } from "../features/entries/write-service";
+} from "@jini-ai/cms/core";
 import { toWhereUsedResponse } from "./where-used";
 import { widgetsAgentToolCatalog } from "./agent-tools";
-import type { WidgetRegionBindingRepoPort } from "./ports";
 import { requireWidgetPermission } from "./authorize-helper";
-import { insertWidgetEmbed, removeWidgetEmbed, reorderWidgetEmbeds, WidgetEmbedReorderCountMismatchError } from "./embed-service";
+import { buildWidgetsDeps, buildWidgetsRegionDeps, type WidgetsRouteDeps } from "./deps";
+import {
+  insertWidgetEmbed,
+  removeWidgetEmbed,
+  reorderWidgetEmbeds,
+  WidgetEmbedReorderCountMismatchError,
+} from "./embed-service";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload";
-import { WidgetAreaNotFoundError, WidgetConfigValidationError, WidgetEmbedGuardrailError, WidgetTypeUnregisteredError } from "./errors";
+import {
+  WidgetAreaNotFoundError,
+  WidgetConfigValidationError,
+  WidgetEmbedGuardrailError,
+  WidgetTypeUnregisteredError,
+} from "./errors";
 import { getWidgetInstance, listWidgetInstances } from "./read-service";
 import { bindWidgetArea, mutateWidgetAreaPlacements } from "./region-area-service";
 import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "./types";
-import type { WidgetAreaEntry, WidgetInstanceEntry, WidgetPlacementNode, WidgetTypeKey } from "./types";
+import type {
+  WidgetAreaEntry,
+  WidgetInstanceEntry,
+  WidgetPlacementNode,
+  WidgetTypeKey,
+} from "./types";
 import { createWidgetInstance, trashWidgetInstance, updateWidgetInstance } from "./write-service";
 
 const CATALOG_BY_ID = indexCatalogById(widgetsAgentToolCatalog);
 
-/**
- * The exact slice of the route-deps bag Widgets' tool handlers read. Declared structurally (rather
- * than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge into the
- * composition root for the `RouteDeps` god type specifically — the `server/http/admin/widgets`
- * import above is a separate, already-disclosed back-edge left untouched per the dispatch's explicit
- * out-of-scope list. `server/routes/*` satisfies this structurally by passing its existing
- * `RouteDeps` object; nothing there changes.
- */
-export interface WidgetsToolDeps {
-  authorize: AuthorizeFn;
-  workspaceId: string;
-  clock: { nowIso(): string };
-  idGen: { newId(): string };
-  outbox: OutboxPort;
-  entryRepo: EntryRepoPort & EntryListPort;
-  contentTypeRepo: ContentTypeRepoPort;
-  entryRefsRepo: EntryRefsRepoPort;
-  widgetBindingRepo: WidgetRegionBindingRepoPort;
-}
+/** Re-exported for this file's existing callers/tests, now sourced from the shared composer
+ * (`./deps.ts`) instead of being declared locally — see that file's header for why one composer
+ * replaces what used to be this interface's own copy plus `server/routes/admin/widgets/
+ * agent-tools.ts`'s separately-written, identically-shaped one. */
+export type WidgetsToolDeps = WidgetsRouteDeps;
 
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
@@ -116,19 +111,6 @@ function isWidgetsShapeRejection(error: unknown): boolean {
     error instanceof WidgetEmbedGuardrailError ||
     error instanceof WidgetEmbedReorderCountMismatchError
   );
-}
-
-/** Shared dependency bag for `write-service.ts`/`region-area-service.ts`/`embed-service.ts` calls — every one of them takes this identical shape. */
-function widgetsDeps(routeDeps: WidgetsToolDeps) {
-  return {
-    entryRepo: routeDeps.entryRepo,
-    contentTypeRepo: routeDeps.contentTypeRepo,
-    entryRefsRepo: routeDeps.entryRefsRepo,
-    clock: routeDeps.clock,
-    ids: routeDeps.idGen,
-    authorize: routeDeps.authorize,
-    outbox: routeDeps.outbox,
-  };
 }
 
 /** What a Widgets instance tool returns to the model — see {@link toWidgetInstanceToolView}. */
@@ -239,7 +221,7 @@ export function buildWidgetsRegistrations(routeDeps: WidgetsToolDeps): ToolRegis
       const input = requireInputRecord(ctx.input);
       return withSchemaOnRejection({ toolId: "widgets_create_instance", catalog: CATALOG_BY_ID, isShapeRejection: isWidgetsShapeRejection }, async () => {
         const { instance } = await createWidgetInstance({
-          deps: widgetsDeps(routeDeps),
+          deps: buildWidgetsDeps(routeDeps),
           input: {
             workspaceId: routeDeps.workspaceId,
             actor: { principalId: ctx.principal.id },
@@ -257,7 +239,7 @@ export function buildWidgetsRegistrations(routeDeps: WidgetsToolDeps): ToolRegis
       const input = requireInputRecord(ctx.input);
       return withSchemaOnRejection({ toolId: "widgets_update_instance", catalog: CATALOG_BY_ID, isShapeRejection: isWidgetsShapeRejection }, async () => {
         const { instance } = await updateWidgetInstance({
-          deps: widgetsDeps(routeDeps),
+          deps: buildWidgetsDeps(routeDeps),
           input: {
             workspaceId: routeDeps.workspaceId,
             actor: { principalId: ctx.principal.id },
@@ -273,7 +255,7 @@ export function buildWidgetsRegistrations(routeDeps: WidgetsToolDeps): ToolRegis
     widgets_trash_instance: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       const { instance } = await trashWidgetInstance({
-        deps: widgetsDeps(routeDeps),
+        deps: buildWidgetsDeps(routeDeps),
         input: { workspaceId: routeDeps.workspaceId, actor: { principalId: ctx.principal.id }, widgetInstanceId: requireString(input, "widgetInstanceId") },
       });
       return { instance: toWidgetInstanceToolView(instance) };
@@ -286,7 +268,7 @@ export function buildWidgetsRegistrations(routeDeps: WidgetsToolDeps): ToolRegis
       // inline before calling it, and this handler does the identical inline `widgets.place` check.
       await requireWidgetPermission({ authorize: routeDeps.authorize, actor: { principalId: ctx.principal.id }, workspaceId: routeDeps.workspaceId, permission: "widgets.place" });
       const { areaEntry } = await bindWidgetArea({
-        deps: { ...widgetsDeps(routeDeps), bindingRepo: routeDeps.widgetBindingRepo },
+        deps: buildWidgetsRegionDeps(routeDeps),
         input: { workspaceId: routeDeps.workspaceId, regionKey },
       });
       return { area: toWidgetAreaToolView(areaEntry) };
@@ -313,7 +295,7 @@ export function buildWidgetsRegistrations(routeDeps: WidgetsToolDeps): ToolRegis
       if (!binding) throw new WidgetAreaNotFoundError(`region '${regionKey}' is not bound`);
 
       const { areaEntry } = await mutateWidgetAreaPlacements({
-        deps: { ...widgetsDeps(routeDeps), bindingRepo: routeDeps.widgetBindingRepo },
+        deps: buildWidgetsRegionDeps(routeDeps),
         input: { workspaceId: routeDeps.workspaceId, actor: { principalId: ctx.principal.id }, areaEntryId: binding.areaEntryId, baseVersion, placements },
       });
       return { area: toWidgetAreaToolView(areaEntry) };
@@ -323,7 +305,7 @@ export function buildWidgetsRegistrations(routeDeps: WidgetsToolDeps): ToolRegis
       const input = requireInputRecord(ctx.input);
       return withSchemaOnRejection({ toolId: "widgets_insert_embed", catalog: CATALOG_BY_ID, isShapeRejection: isWidgetsShapeRejection }, async () => {
         const { entry, placementId } = await insertWidgetEmbed({
-          deps: widgetsDeps(routeDeps),
+          deps: buildWidgetsDeps(routeDeps),
           input: {
             workspaceId: routeDeps.workspaceId,
             actor: { principalId: ctx.principal.id },
@@ -339,7 +321,7 @@ export function buildWidgetsRegistrations(routeDeps: WidgetsToolDeps): ToolRegis
     widgets_remove_embed: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       const { entry } = await removeWidgetEmbed({
-        deps: widgetsDeps(routeDeps),
+        deps: buildWidgetsDeps(routeDeps),
         input: {
           workspaceId: routeDeps.workspaceId,
           actor: { principalId: ctx.principal.id },
@@ -358,7 +340,7 @@ export function buildWidgetsRegistrations(routeDeps: WidgetsToolDeps): ToolRegis
       }
       return withSchemaOnRejection({ toolId: "widgets_reorder_embeds", catalog: CATALOG_BY_ID, isShapeRejection: isWidgetsShapeRejection }, async () => {
         const { entry } = await reorderWidgetEmbeds({
-          deps: widgetsDeps(routeDeps),
+          deps: buildWidgetsDeps(routeDeps),
           input: {
             workspaceId: routeDeps.workspaceId,
             actor: { principalId: ctx.principal.id },

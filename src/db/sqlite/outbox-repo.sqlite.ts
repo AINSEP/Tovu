@@ -2,7 +2,7 @@ import { and, asc, eq, lte } from "drizzle-orm";
 
 import { outboxEvents } from "../schema";
 import type { ContentDb } from "./content-db";
-import type { DomainEvent, ISODateTime, OutboxPort, OutboxRecord, UUID } from "../../core/ports";
+import type { DomainEvent, ISODateTime, OutboxPort, OutboxRecord, UUID } from "@jini-ai/cms/core";
 
 /**
  * @file ADR-046 Phase 1 — real SQLite `OutboxPort` adapter (ADR-006 rule-of-two "second adapter"

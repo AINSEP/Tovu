@@ -14,8 +14,8 @@
  * bypassable by any future non-tool caller of the same domain function.
  */
 import type { AuthorizeFn, ChangeSetRepoPort } from "../core/commands";
-import type { OutboxPort } from "../core/ports";
 import {
+  type OutboxPort,
   AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
   indexCatalogById,
@@ -27,12 +27,22 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../core/tools/registration-kit";
+} from "@jini-ai/cms/core";
 import { formsAgentToolCatalog } from "./agent-tools";
 import { FormFieldValidationError } from "./errors";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports";
-import type { FieldDescriptor, FormDefinitionRecord, FormDefinitionStatus, FormSubmissionRecord, NotifyConfig } from "./types";
-import { createFormDefinition, setFormDefinitionStatus, updateFormDefinition } from "./write-service";
+import type {
+  FieldDescriptor,
+  FormDefinitionRecord,
+  FormDefinitionStatus,
+  FormSubmissionRecord,
+  NotifyConfig,
+} from "./types";
+import {
+  createFormDefinition,
+  setFormDefinitionStatus,
+  updateFormDefinition,
+} from "./write-service";
 
 const SUBMISSIONS_DEFAULT_LIMIT = 50;
 const SUBMISSIONS_MIN_LIMIT = 1;

@@ -1,10 +1,11 @@
-import type { DomainEvent, OutboxPort } from "../ports";
 import type {
+  DomainEvent,
+  OutboxPort,
   ChangeSetItemRecord,
   ChangeSetRecord,
   ChangeSetRepoPort,
   ChangeSetWithItems,
-} from "./change-set";
+} from "@jini-ai/cms/core";
 
 export class InMemoryChangeSetRepo implements ChangeSetRepoPort {
   private rows: ChangeSetRecord[];

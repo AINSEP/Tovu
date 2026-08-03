@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ClockPort, JsonObject, OutboxPort } from "#src/core/ports";
+import type { ClockPort, JsonObject, OutboxPort } from "@jini-ai/cms/core";
 import { openContentDb, type ContentDb } from "#src/db/sqlite/content-db";
 import { createPost, deletePost, updatePost, type PostRecord } from "../post";
 import { SqlitePostRepo } from "../repo.sqlite";

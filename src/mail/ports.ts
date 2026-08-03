@@ -15,8 +15,13 @@
  * credit" rule is scoped to this external-effect port specifically — it does not relax ADR-015's
  * in-memory + SQLite convention for ordinary repo ports (ADR-037 fold item 10).
  */
-import type { UUID } from "../core/ports";
-import type { MailerCapabilities, MailerSendOptions, MailerSendResult, OutboundEmail } from "./types";
+import type { UUID } from "@jini-ai/cms/core";
+import type {
+  MailerCapabilities,
+  MailerSendOptions,
+  MailerSendResult,
+  OutboundEmail,
+} from "./types";
 
 export type { MailerCapabilities, MailerSendOptions, MailerSendResult, OutboundEmail } from "./types";
 

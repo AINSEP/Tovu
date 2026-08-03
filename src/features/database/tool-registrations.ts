@@ -17,8 +17,8 @@
  * `requireToolPermission` themselves. The one exception is `database_plan_migrate_forward`,
  * documented at its own handler.
  */
-import type { AuthorizeFn } from "../../core/commands/command";
 import {
+  type AuthorizeFn,
   AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
   indexCatalogById,
@@ -32,13 +32,22 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../core/tools/registration-kit";
-import { plan as gatewayPlan, type GatedMutationHooks, type GatewayDeps } from "../../core/gated-mutations/gateway";
+} from "@jini-ai/cms/core";
+import {
+  plan as gatewayPlan,
+  type GatedMutationHooks,
+  type GatewayDeps,
+} from "../../core/gated-mutations/gateway";
 import type { DbOpsPort } from "../../core/gated-mutations/ports";
 import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks";
 import { getDatabaseAgentToolCatalog } from "./agent-tools";
 import type { DatabaseIntrospectionPort } from "./adapter.sqlite";
-import { createRestorePoint as createDatabaseRestorePoint, listRestorePoints, type RestorePointListPort, type RestorePointSavePort } from "./restore-points";
+import {
+  createRestorePoint as createDatabaseRestorePoint,
+  listRestorePoints,
+  type RestorePointListPort,
+  type RestorePointSavePort,
+} from "./restore-points";
 import { getTimeline, type LedgerReadPort } from "./timeline";
 
 /**

@@ -1,5 +1,5 @@
-import type { ClockPort, IdGeneratorPort, JsonValue, UUID } from "../core/ports";
-import type { PrincipalRepoPort } from "../identity";
+import type { ClockPort, IdGeneratorPort, JsonValue, UUID } from "@jini-ai/cms/core";
+import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
 import {
   type SettingsRepoPort,
   getEffective,

@@ -2,16 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { updatePost, InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
-import { executeCommand } from "../command";
+import {
+  executeCommand,
+  type ChangeSetItemRecord,
+  type ChangeSetRecord,
+  type ChangeSetRepoPort,
+  type ChangeSetWithItems,
+  type CommandMutation,
+  type DomainEvent,
+} from "@jini-ai/cms/core";
 import { InMemoryChangeSetRepo } from "../repo.memory";
-import type {
-  ChangeSetItemRecord,
-  ChangeSetRecord,
-  ChangeSetRepoPort,
-  ChangeSetWithItems,
-} from "../change-set";
-import type { CommandMutation } from "../command";
-import type { DomainEvent } from "../../ports";
 
 /**
  * @file SPEC-001 REQ-01 / BR-04 / EC-08 / AC-17 — gateway atomicity.

@@ -4,7 +4,10 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { commentsAgentToolCatalog } from "../../comments/agent-tools";
-import { contentTypesAgentToolCatalog, type AgentToolDefinition } from "../../features/content-types";
+import {
+  contentTypesAgentToolCatalog,
+  type AgentToolDefinition,
+} from "../../features/content-types";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools";
 import { entriesAgentToolCatalog } from "../../features/entries";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools";
@@ -14,7 +17,7 @@ import { getSettingsAgentToolCatalog } from "../../features/settings";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools";
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace";
 import { formsAgentToolCatalog } from "../../forms/agent-tools";
-import { identityAgentToolCatalog } from "../../identity";
+import { identityAgentToolCatalog } from "@jini-ai/cms/identity";
 import { getIntegrationsAgentToolCatalog } from "../../integrations/agent-tools";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools";
 import { mediaAgentToolCatalog } from "../../media";
@@ -26,7 +29,10 @@ import { getSeoAgentToolCatalog } from "../../seo/agent-tools";
 import { widgetsAgentToolCatalog } from "../../widgets/agent-tools";
 import type { ContentTypeRecord } from "../../features/content-types";
 import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
+import {
+  assertRiskMetadataIsWirable,
+  buildAssistantToolRegistrations,
+} from "../tool-registrations";
 
 /**
  * @file The model-facing contract half of `tool-registrations.ts` — companion to

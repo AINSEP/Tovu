@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPrincipalRepo } from "../../identity";
+import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
 import { InMemorySettingsRepo, ForbiddenError } from "../../features/settings";
 import { ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings } from "../settings";
 import { SeoSettingsValidationError } from "../errors";

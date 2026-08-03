@@ -32,7 +32,7 @@
  * Feature logic. No Express/route code, no direct SQL — writes go through the
  * injected `RedirectDbHandle`; reads go through the injected `RedirectRepoPort`.
  */
-import type { ClockPort, IdGeneratorPort } from "../core/ports";
+import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
 import type { SlugChangeCapture, SlugChangeCaptureInput } from "../routing";
 
 import { insertRedirectAndRevision, type RedirectDbHandle } from "./ports.internal";

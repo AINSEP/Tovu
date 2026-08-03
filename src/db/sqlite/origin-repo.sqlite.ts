@@ -2,9 +2,14 @@ import { eq } from "drizzle-orm";
 
 import { originSettings } from "../schema";
 import type { ContentDb } from "./content-db";
-import type { UUID } from "../../core/ports";
+import type { UUID } from "@jini-ai/cms/core";
 import type { OriginSettingRepoPort } from "../../origin/ports";
-import { createVerifiedOrigin, type OriginScheme, type OriginSource, type VerifiedOrigin } from "../../origin/types";
+import {
+  createVerifiedOrigin,
+  type OriginScheme,
+  type OriginSource,
+  type VerifiedOrigin,
+} from "../../origin/types";
 
 /**
  * @file ADR-046 Phase 1 — real SQLite `OriginSettingRepoPort` adapter (ADR-006 rule-of-two

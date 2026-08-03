@@ -16,7 +16,7 @@
  * All cross-seam payloads are async + serializable, no live core objects (ADR-024 §3, ADR-025 §2).
  * INTERFACES + TYPES ONLY — no feature logic lives here.
  */
-import type { DomainEvent, ISODateTime, UUID } from "../core/ports";
+import type { DomainEvent, ISODateTime, UUID } from "@jini-ai/cms/core";
 import type {
   CommentRecord,
   CommentStatus,

@@ -1,4 +1,4 @@
-import { DuplicateCommandError, ForbiddenError, executeCommand } from "#src/core/commands/command";
+import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { processOutbox } from "#src/core/events/index";
 import {
   PostConflictError,
@@ -8,7 +8,10 @@ import {
   type PostRecord,
 } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/http/admin/posts";
-import { CONTENT_ENTRY_MAX_BODY_BYTES, rejectOversizedJsonBody } from "#src/server/middleware/body-size-limit";
+import {
+  CONTENT_ENTRY_MAX_BODY_BYTES,
+  rejectOversizedJsonBody,
+} from "#src/server/middleware/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps";
 

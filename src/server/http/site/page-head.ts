@@ -1,4 +1,4 @@
-import type { ISODateTime, JsonObject, UUID } from "#src/core/ports";
+import type { ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
 import type { ThemeTier } from "#src/features/theme/theme";
 
 /**

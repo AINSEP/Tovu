@@ -22,14 +22,18 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../core/tools/registration-kit";
+  type OutboxPort,
+} from "@jini-ai/cms/core";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../core/commands";
-import type { OutboxPort } from "../../core/ports";
 // `toAdminPluginResponse` stays sourced from the HTTP admin layer — an explicitly out-of-scope
 // back-edge for this pass (see the dispatch notes this file's narrowing was reported under); this
 // domain's own model-facing projection lives there today, not in `features/plugin-runtime`.
 import { toAdminPluginResponse } from "../../server/http/admin/plugins";
-import { setPluginEnabled, type PluginActivationRecord, type PluginActivationRepoPort } from "./activation";
+import {
+  setPluginEnabled,
+  type PluginActivationRecord,
+  type PluginActivationRepoPort,
+} from "./activation";
 import { pluginAgentToolCatalog } from "./agent-tools";
 import type { PluginDiscoveryRecord } from "./discovery";
 

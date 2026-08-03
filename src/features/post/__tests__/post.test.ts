@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { OutboxPort } from "#src/core/ports";
+import type { OutboxPort } from "@jini-ai/cms/core";
 import {
   createPost,
   getPublishedPostBySlug,

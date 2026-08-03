@@ -1,4 +1,4 @@
-import { createRole, IdentityForbiddenError, IdentityValidationError } from "#src/identity/index";
+import { createRole, IdentityForbiddenError, IdentityValidationError } from "@jini-ai/cms/identity";
 import { toAdminRoleResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";

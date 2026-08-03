@@ -24,7 +24,7 @@
  * INTERFACES ONLY. In-memory adapters back local dev/tests; the SQLite/undici adapters are the
  * production second half of each rule-of-two.
  */
-import type { ISODateTime, UUID } from "../core/ports";
+import type { ISODateTime, UUID } from "@jini-ai/cms/core";
 import type { EgressPolicy, HttpClientPort } from "../http";
 import type {
   IntegrationId,
@@ -115,7 +115,7 @@ export interface WebhookSubscriptionRepoPort {
 
 /**
  * Persistence for webhook deliveries — an outbox-shaped claim/mark contract (mirrors
- * {@link import("../core/ports").OutboxPort}) but a distinct table so per-endpoint retry state
+ * {@link import("@jini-ai/cms/core").OutboxPort}) but a distinct table so per-endpoint retry state
  * stays off the core event outbox (ADR-036 §4).
  */
 export interface WebhookDeliveryRepoPort {

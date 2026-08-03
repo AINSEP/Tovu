@@ -3,8 +3,11 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError as CommandForbiddenError } from "../../core/commands/command";
-import { getDatabaseAgentToolCatalog, type AgentToolDefinition as DatabaseAgentToolDefinition } from "../../features/database/agent-tools";
+import { ForbiddenError as CommandForbiddenError } from "@jini-ai/cms/core";
+import {
+  getDatabaseAgentToolCatalog,
+  type AgentToolDefinition as DatabaseAgentToolDefinition,
+} from "../../features/database/agent-tools";
 import {
   InMemoryDatabaseIntrospectionAdapter,
   InMemoryDatabaseLedgerRepo,
@@ -13,11 +16,20 @@ import {
   InMemoryRestorePointsRepo,
   InMemorySiteStatusRepo,
 } from "../../features/database/repo.memory";
-import { recoveryAgentToolCatalog, type AgentToolDefinition as RecoveryAgentToolDefinition } from "../../features/recovery/agent-tools";
-import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../../features/recovery/repo.memory";
+import {
+  recoveryAgentToolCatalog,
+  type AgentToolDefinition as RecoveryAgentToolDefinition,
+} from "../../features/recovery/agent-tools";
+import {
+  AlwaysUnavailableWatermarkSource,
+  RestorePointDeepLinkLookup,
+} from "../../features/recovery/repo.memory";
 import { buildGatewayDeps } from "../../core/gated-mutations/composition";
 import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
+import {
+  assertRiskMetadataIsWirable,
+  buildAssistantToolRegistrations,
+} from "../tool-registrations";
 
 /**
  * @file The combined Database (SPEC-017, ADR-041) + Recovery (SPEC-019, ADR-045) tool-wiring test

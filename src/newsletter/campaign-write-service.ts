@@ -9,7 +9,7 @@
  * revision write in the SAME transaction (INV-01: a campaign row must never exist without a
  * same-tx revision row).
  */
-import type { UUID } from "../core/ports";
+import type { UUID } from "@jini-ai/cms/core";
 import { transitionCampaignStatus, type CampaignActorTier } from "./campaign";
 import {
   NewsletterCampaignNotEditableError,

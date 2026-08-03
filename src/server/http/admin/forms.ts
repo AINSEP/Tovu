@@ -7,7 +7,7 @@ import {
   FormSubmissionNotFoundError,
 } from "#src/forms/errors";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "#src/forms/types";
-import { ForbiddenError as CommandForbiddenError } from "#src/core/commands/command";
+import { ForbiddenError as CommandForbiddenError } from "@jini-ai/cms/core";
 
 /**
  * @file Response DTOs for the admin `forms` HTTP surface (SPEC-010 api.spec.md §5).

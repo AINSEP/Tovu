@@ -1,4 +1,4 @@
-import type { UUID } from "../core/ports";
+import type { UUID } from "@jini-ai/cms/core";
 import { FormSlugConflictError } from "./errors";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports";
 import type { FormDefinitionRecord, FormSubmissionPage, FormSubmissionRecord } from "./types";

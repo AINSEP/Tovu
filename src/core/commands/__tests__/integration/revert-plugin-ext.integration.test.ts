@@ -4,7 +4,7 @@ import test from "node:test";
 import { defaultRevertRegistry, revertChangeSet } from "../..";
 import { InMemoryChangeSetRepo } from "../../repo.memory";
 import { InMemoryPostRepo } from "#src/features/post/index";
-import type { ChangeSetItemRecord, ChangeSetRecord } from "../../change-set";
+import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/cms/core";
 import type { PostRepoPort } from "#src/features/post/index";
 import type { ReverterDeps } from "../../appliers";
 import type { SettingsRepoPort } from "#src/features/settings/index";

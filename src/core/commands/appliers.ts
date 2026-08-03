@@ -1,4 +1,10 @@
-import type { ClockPort, JsonObject, OutboxPort, UUID } from "../ports";
+import type {
+  ClockPort,
+  JsonObject,
+  OutboxPort,
+  UUID,
+  ChangeSetItemRecord,
+} from "@jini-ai/cms/core";
 import {
   classifyStatusTransition,
   type PostRecord,
@@ -6,7 +12,6 @@ import {
   type PostStatus,
 } from "../../features/post";
 import type { SettingsRepoPort } from "../../features/settings";
-import type { ChangeSetItemRecord } from "./change-set";
 
 /**
  * @file Inverse-applier registry (ADR-018 C-005/C-006).

@@ -15,7 +15,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError } from "../../core/commands/command";
+import { ForbiddenError } from "@jini-ai/cms/core";
 import { newsletterAgentToolCatalog, type AgentToolDefinition } from "../../newsletter/agent-tools";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
@@ -25,10 +25,16 @@ import {
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
 } from "../../newsletter/repo.memory";
-import { NewsletterCampaignNotFoundError, NewsletterSubscriptionNotFoundError } from "../../newsletter/errors";
+import {
+  NewsletterCampaignNotFoundError,
+  NewsletterSubscriptionNotFoundError,
+} from "../../newsletter/errors";
 import type { CampaignRecord, NewsletterListRow, SubscriptionRow } from "../../newsletter/types";
 import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
+import {
+  assertRiskMetadataIsWirable,
+  buildAssistantToolRegistrations,
+} from "../tool-registrations";
 
 const WORKSPACE_ID = "ws-newsletter-tools";
 const PRINCIPAL_ID = "principal-under-test";

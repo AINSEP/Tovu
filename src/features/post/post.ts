@@ -1,4 +1,4 @@
-import type { ClockPort, JsonObject, OutboxPort, UUID } from "../../core/ports";
+import type { ClockPort, JsonObject, OutboxPort, UUID } from "@jini-ai/cms/core";
 
 export type PostStatus = "draft" | "published";
 

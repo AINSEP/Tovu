@@ -1,4 +1,4 @@
-import type { JsonValue } from "#src/core/ports";
+import type { JsonValue } from "@jini-ai/cms/core";
 import {
   NON_REGISTER_DEFINITION_OPS,
   parseNonRegisterDefinitionOp,

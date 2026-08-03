@@ -2,8 +2,14 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import type { MailerCapabilities, MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "../../mail";
-import type { ClockPort, IdGeneratorPort } from "../../core/ports";
+import type {
+  MailerCapabilities,
+  MailerPort,
+  MailerSendOptions,
+  MailerSendResult,
+  OutboundEmail,
+} from "../../mail";
+import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
 import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "../../origin";
 import {
   InMemoryMagicLinkTokenRepo,
@@ -20,7 +26,12 @@ import {
   setSubscriptionStatus,
   updateProfile,
 } from "../write-service";
-import { MemberAuthError, MemberConflictError, MemberNotFoundError, MemberValidationError } from "../types";
+import {
+  MemberAuthError,
+  MemberConflictError,
+  MemberNotFoundError,
+  MemberValidationError,
+} from "../types";
 import type { MembersWriteServiceDeps } from "../ports";
 
 const WORKSPACE_ID = "ws-1";

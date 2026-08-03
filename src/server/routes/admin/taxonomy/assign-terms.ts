@@ -1,10 +1,18 @@
 import type { Express } from "express";
 
-import { ForbiddenError } from "#src/core/commands/command";
+import { ForbiddenError } from "@jini-ai/cms/core";
 import { createPostBackedContentLookup } from "#src/features/taxonomy/content-lookup";
 import { noopStampWatermark, toTaxonomyOutbox } from "#src/features/taxonomy/repo.memory";
-import { TaxonomyNotApplicableError, WorkspaceMismatchError, ContentTypeMismatchError } from "#src/features/taxonomy/validation-chain";
-import { assignTerms, ContentRecordNotFoundError, TermRecordNotFoundError } from "#src/features/taxonomy/write-service";
+import {
+  TaxonomyNotApplicableError,
+  WorkspaceMismatchError,
+  ContentTypeMismatchError,
+} from "#src/features/taxonomy/validation-chain";
+import {
+  assignTerms,
+  ContentRecordNotFoundError,
+  TermRecordNotFoundError,
+} from "#src/features/taxonomy/write-service";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps";
 

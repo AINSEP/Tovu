@@ -18,7 +18,7 @@
  * Webhook *tables are core-owned* (like ADR-027's `asset_blobs` sidecars / ADR-028's settings
  * tables), NOT ADR-023 plugin data modules — that path is for third-party integration plugins.
  */
-import type { DomainEvent, ISODateTime, JsonObject, UUID } from "../core/ports";
+import type { DomainEvent, ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
 
 /**
  * A subscribable event topic. The topic namespace IS the domain-event name namespace
@@ -96,7 +96,7 @@ export type WebhookDeliveryStatus =
 /**
  * One outbound delivery attempt-group: the join of a single delivered domain event to a single
  * matching subscription (core-owned table `webhook_deliveries`). This is an outbox-SHAPED table
- * (mirrors {@link import("../core/ports").OutboxRecord }) but deliberately distinct from the core
+ * (mirrors {@link import("@jini-ai/cms/core").OutboxRecord }) but deliberately distinct from the core
  * event outbox: one event fans out to N endpoints, each retrying on its own backoff clock, so
  * per-endpoint HTTP retry state must not be crammed into the event outbox (ADR-036 §4).
  *

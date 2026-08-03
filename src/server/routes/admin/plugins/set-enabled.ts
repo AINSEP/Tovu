@@ -1,4 +1,4 @@
-import { DuplicateCommandError, executeCommand, ForbiddenError } from "#src/core/commands/command";
+import { DuplicateCommandError, executeCommand, ForbiddenError } from "@jini-ai/cms/core";
 import {
   PluginIncompatibleError,
   PluginInvalidError,

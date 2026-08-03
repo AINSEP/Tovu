@@ -17,7 +17,7 @@
  * functions directly and map thrown typed errors to HTTP codes per
  * errors.spec.md.
  */
-import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort } from "../core/ports";
+import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort } from "@jini-ai/cms/core";
 import type { OriginRegistryPort, RedirectTargetContext } from "../origin";
 
 import { insertRedirectAndRevision, type RedirectDbHandle } from "./ports.internal";

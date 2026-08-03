@@ -13,7 +13,7 @@
  * Architectural role:
  * INTERFACES + TYPES ONLY (no feature logic).
  */
-import type { UUID } from "../ports";
+import type { UUID } from "@jini-ai/cms/core";
 
 /**
  * What kind of thing a reference's *source* location is. Widgets are the

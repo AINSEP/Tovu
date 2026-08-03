@@ -2,15 +2,15 @@ import { and, eq } from "drizzle-orm";
 
 import { changeSetItems, changeSets, outboxEvents } from "../schema";
 import type { ContentDb } from "./content-db";
-import type { DomainEvent } from "../../core/ports";
 import type {
+  DomainEvent,
   ChangeSetItemRecord,
   ChangeSetOperation,
   ChangeSetRecord,
   ChangeSetRepoPort,
   ChangeSetStatus,
   ChangeSetWithItems,
-} from "../../core/commands/change-set";
+} from "@jini-ai/cms/core";
 
 /**
  * @file SPEC-023 / ADR-046 Phase 1 — real SQLite `ChangeSetRepoPort` adapter (ADR-006 rule-of-two

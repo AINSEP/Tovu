@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import { ForbiddenError } from "#src/core/commands/command";
+import { ForbiddenError } from "@jini-ai/cms/core";
 import { TaxonomyRecordNotFoundError } from "#src/features/taxonomy/write-service";
 import {
   HierarchyCycleDetectedError,

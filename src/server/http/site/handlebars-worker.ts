@@ -1,7 +1,7 @@
 import { parentPort, workerData } from "node:worker_threads";
 import Handlebars from "handlebars";
 
-import type { JsonObject } from "#src/core/ports";
+import type { JsonObject } from "@jini-ai/cms/core";
 import { lintHandlebarsTemplate } from "#src/features/theme/index";
 import { buildTemplateRenderData, renderBlockSeam, type SiteRenderContext } from "./render";
 import type { HandlebarsWorkerInput, HandlebarsWorkerResult } from "./handlebars-sandbox";

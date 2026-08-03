@@ -1,4 +1,4 @@
-import type { ClockPort } from "#src/core/ports";
+import type { ClockPort } from "@jini-ai/cms/core";
 
 /**
  * @file SPEC-017 C-105 / CIC U-003 (binding reference to SPEC-019 CIC U-001) / REQ-08 / AC-09 /

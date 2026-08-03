@@ -2,9 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPostRepo, deletePost, isTrashed, type PostRecord } from "#src/features/post/index";
-import type { OutboxPort } from "../../ports";
+import type { OutboxPort, ChangeSetItemRecord } from "@jini-ai/cms/core";
 import { defaultRevertRegistry, postDeleteReverter, type ReverterDeps } from "../appliers";
-import type { ChangeSetItemRecord } from "../change-set";
 
 /**
  * @file Certification of `postDeleteReverter` — the restore that makes the soft delete genuinely

@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { and, eq } from "drizzle-orm";
 
-import type { JsonObject } from "../core/ports";
+import type { JsonObject } from "@jini-ai/cms/core";
 import {
   memberConsents,
   memberMagicTokens,

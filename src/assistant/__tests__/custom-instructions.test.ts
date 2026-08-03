@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPrincipalRepo } from "../../identity";
-import { InMemorySettingsRepo, INSTRUCTIONS_NAMESPACE, ensureSettingsUiTabDefinitions } from "../../features/settings";
+import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
+import {
+  InMemorySettingsRepo,
+  INSTRUCTIONS_NAMESPACE,
+  ensureSettingsUiTabDefinitions,
+} from "../../features/settings";
 import {
   createCustomInstructionsCache,
   formatCustomInstructionsOverlay,

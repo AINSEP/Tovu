@@ -7,10 +7,9 @@ const SEED_OWNER_PASSWORD = "seed-owner-pw";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { identityAgentToolCatalog } from "../../identity";
-import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
-import type { IdentityRepos } from "../../identity";
 import {
+  identityAgentToolCatalog,
+  type IdentityRepos,
   InMemoryPolicyPermissionRepo,
   InMemoryPolicyRepo,
   InMemoryPrincipalPolicyRepo,
@@ -20,9 +19,11 @@ import {
   InMemoryRoleRepo,
   InMemorySessionRepo,
   InMemoryUserRepo,
-} from "../../identity";
-import { seedIdentity } from "../../identity";
-import { GrantExceedsIssuerError, IdentityForbiddenError } from "../../identity";
+  seedIdentity,
+  GrantExceedsIssuerError,
+  IdentityForbiddenError,
+} from "@jini-ai/cms/identity";
+import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
 import type { RouteDeps } from "../../server/routes/types";
 import { buildAssistantToolRegistrations } from "../tool-registrations";
 

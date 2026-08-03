@@ -23,8 +23,8 @@
  * learn that in the same turn, because the live site has already started serving the fallback body
  * for that theme.
  */
-import type { AuthorizeFn } from "../../core/commands/command";
 import {
+  type AuthorizeFn,
   buildDomainRegistrations,
   indexCatalogById,
   optionalString,
@@ -36,8 +36,12 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../core/tools/registration-kit";
-import { getThemesAgentToolCatalog, THEME_READ_PERMISSION, THEME_WRITE_PERMISSION } from "./agent-tools";
+} from "@jini-ai/cms/core";
+import {
+  getThemesAgentToolCatalog,
+  THEME_READ_PERMISSION,
+  THEME_WRITE_PERMISSION,
+} from "./agent-tools";
 import { listThemeFiles, readThemeFile, ThemePathError, writeThemeFile } from "./theme-files";
 import { loadTheme, type DiscoveredTheme } from "./theme";
 

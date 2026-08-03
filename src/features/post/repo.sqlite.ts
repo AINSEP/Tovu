@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import type { JsonObject } from "../../core/ports";
+import type { JsonObject } from "@jini-ai/cms/core";
 import { posts } from "../../db/schema";
 import type { ContentDb } from "../../db/sqlite/content-db";
 import { findOneBy } from "../../db/sqlite/repo-helpers";

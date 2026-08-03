@@ -16,7 +16,7 @@
  * contract is design-frozen from SPEC-043; the body throws until the Programmer stage implements
  * against `__tests__/integration/resolver-service.integration.test.ts`.
  */
-import type { UUID } from "../../core/ports";
+import type { UUID } from "@jini-ai/cms/core";
 import { getWidgetTypeRegistration } from "../registry";
 import { createCoreResolvers, type CoreResolverDeps } from "./create-core-resolvers";
 import type {

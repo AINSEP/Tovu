@@ -21,7 +21,7 @@
  * `__tests__/integration/activation.integration.test.ts`. Do not implement ahead of that suite
  * being reviewed — this file exists so the test suite compiles and fails red, not green.
  */
-import type { ClockPort, UUID } from "../../core/ports";
+import type { ClockPort, UUID } from "@jini-ai/cms/core";
 import type { PluginDiscoveryRecord } from "./discovery";
 
 /** `plugin_activations` row (durable, behind the gateway) — state.spec.md §2. */

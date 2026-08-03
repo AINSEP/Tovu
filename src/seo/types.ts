@@ -19,7 +19,7 @@
  *    render seam is core-owned, not SEO-owned); re-exported here for
  *    convenience so `seo` callers don't need two import paths.
  */
-import type { JsonObject } from "../core/ports";
+import type { JsonObject } from "@jini-ai/cms/core";
 import type { PostRecord } from "../features/post/post";
 
 export type {

@@ -17,7 +17,7 @@
  * *entitlement* axis (tier membership), never by the operator RBAC axis
  * (ADR-021 §1). Nothing in this file grants a member an operator permission.
  */
-import type { ISODateTime, JsonObject, UUID } from "../core/ports";
+import type { ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
 
 /**
  * Principal kind for a front-end member. Distinct from ADR-021's

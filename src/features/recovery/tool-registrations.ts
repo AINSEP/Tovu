@@ -14,12 +14,8 @@
  * every handler here calls the kit's `requireToolPermission` — ADR-021 §2's single evaluation,
  * located where the real route locates it.
  */
-import type { AuthorizeFn } from "../../core/commands/command";
-import type { GatewayDeps } from "../../core/gated-mutations/gateway";
-import { plan as gatewayPlan } from "../../core/gated-mutations/gateway";
-import type { DbOpsPort } from "../../core/gated-mutations/ports";
-import { isOperationInFlight } from "../../core/operation-lock";
 import {
+  type AuthorizeFn,
   AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
   indexCatalogById,
@@ -32,9 +28,16 @@ import {
   type DerivedRiskByToolId,
   type ToolHandler,
   type ToolRegistration,
-} from "../../core/tools/registration-kit";
+} from "@jini-ai/cms/core";
+import type { GatewayDeps } from "../../core/gated-mutations/gateway";
+import { plan as gatewayPlan } from "../../core/gated-mutations/gateway";
+import type { DbOpsPort } from "../../core/gated-mutations/ports";
+import { isOperationInFlight } from "../../core/operation-lock";
 import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks";
-import type { MigrationRunsRepoPort, SiteStatusPort } from "../database/boot/reconcile-interrupted-migration";
+import type {
+  MigrationRunsRepoPort,
+  SiteStatusPort,
+} from "../database/boot/reconcile-interrupted-migration";
 // `LedgerAppendPort` is Database-owned — Recovery already imports several other Database ports
 // this same way (`RestorePointListPort` below, `MigrationRunsRepoPort`/`SiteStatusPort` above), so
 // sourcing this one type from `features/database/gated-hooks.ts` too is the established "Recovery
@@ -42,7 +45,11 @@ import type { MigrationRunsRepoPort, SiteStatusPort } from "../database/boot/rec
 import type { LedgerAppendPort } from "../database/gated-hooks";
 import { listRestorePoints, type RestorePointListPort } from "../database/restore-points";
 import { recoveryAgentToolCatalog } from "./agent-tools";
-import { resolveDeepLinkContext, type DatabaseContextEnvelope, type DeepLinkRestorePointLookupPort } from "./deep-link";
+import {
+  resolveDeepLinkContext,
+  type DatabaseContextEnvelope,
+  type DeepLinkRestorePointLookupPort,
+} from "./deep-link";
 import { computeDisclosure, type DisclosureWatermarkSourcePort } from "./disclosure";
 import { planRestore } from "./recovery-orchestrator";
 import { resolveDegradedBanner } from "./ui/degraded-banners";

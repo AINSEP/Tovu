@@ -1,4 +1,9 @@
-import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, resetUserPassword } from "#src/identity/index";
+import {
+  IdentityForbiddenError,
+  IdentityNotFoundError,
+  IdentityValidationError,
+  resetUserPassword,
+} from "@jini-ai/cms/identity";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
 

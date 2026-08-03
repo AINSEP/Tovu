@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import { entryRefs } from "../../db/schema";
 import type { ContentDb } from "../../db/sqlite/content-db";
-import type { UUID } from "../ports";
+import type { UUID } from "@jini-ai/cms/core";
 import type { EntryRefsRepoPort } from "./ports";
 import type { EntryRefRow, EntryRefSourceKind, EntryRefTargetKind } from "./types";
 

@@ -1,6 +1,6 @@
 import { and, desc, eq, lt, or } from "drizzle-orm";
 
-import type { UUID } from "../core/ports";
+import type { UUID } from "@jini-ai/cms/core";
 import { formDefinitions, formSubmissions } from "../db/schema";
 import type { ContentDb } from "../db/sqlite/content-db";
 import { findOneBy } from "../db/sqlite/repo-helpers";

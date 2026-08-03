@@ -1,4 +1,4 @@
-import type { UUID } from "../ports";
+import type { UUID } from "@jini-ai/cms/core";
 import type { EntryRefsRepoPort } from "./ports";
 import type { EntryRefRow, EntryRefTargetKind } from "./types";
 

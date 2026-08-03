@@ -8,7 +8,7 @@ import {
   validateSession,
   type IdentityRepos,
   type PrincipalRecord,
-} from "../../identity";
+} from "@jini-ai/cms/identity";
 import type { RouteDeps } from "../routes/types";
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "./rate-limit";
 

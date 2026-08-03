@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import type { JsonObject } from "#src/core/ports";
+import type { JsonObject } from "@jini-ai/cms/core";
 import type { PostRecord } from "#src/features/post/index";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import type { ResolvePageWidgetsResult } from "#src/widgets/resolver-service";

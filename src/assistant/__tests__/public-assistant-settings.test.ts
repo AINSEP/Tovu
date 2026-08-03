@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemorySettingsRepo } from "../../features/settings";
-import { InMemoryPrincipalRepo } from "../../identity";
+import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
 import {
   ensurePublicAssistantSettingDefinitions,
   getPublicAssistantSettings,

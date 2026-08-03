@@ -30,7 +30,7 @@
  * implement ahead of that suite being reviewed — this file exists so the test suite compiles and
  * fails red, not green.
  */
-import type { JsonObject } from "../../core/ports";
+import type { JsonObject } from "@jini-ai/cms/core";
 import type { BeforeSaveFilter, ContentEntryDraft } from "../../../packages/sdk/src/index";
 
 /** Thrown (and caught by the caller, mapped to 500 `PLUGIN_HOOK_FAILED`) when a filter throws,

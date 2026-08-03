@@ -4,7 +4,7 @@ import test from "node:test";
 import { openContentDb } from "#src/db/sqlite/content-db";
 import { SqliteChangeSetRepo } from "#src/db/sqlite/change-set-repo.sqlite";
 import { InMemoryChangeSetRepo } from "../repo.memory";
-import type { ChangeSetItemRecord, ChangeSetRecord, ChangeSetRepoPort } from "../change-set";
+import type { ChangeSetItemRecord, ChangeSetRecord, ChangeSetRepoPort } from "@jini-ai/cms/core";
 
 /**
  * @file SPEC-023 / ADR-046 Phase 1 — shared `ChangeSetRepoPort` contract-test suite, run against
