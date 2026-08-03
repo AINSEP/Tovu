@@ -11,6 +11,12 @@ import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 export function WidgetsLibrary() {
   const [widgets, setWidgets] = useState<AdminWidget[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Dossier C5 follow-up (2026-08-03): `listWidgetInstances` silently skips a widget-instance row
+  // whose `fields_json` doesn't parse into the expected shape, rather than 500ing the whole
+  // screen — correct, but it used to be invisible. The server now counts the skips; this just
+  // surfaces that count as a quiet note, never as an error (nothing failed — some rows just
+  // aren't shown). `undefined`/`0` both mean "nothing to say", handled identically below.
+  const [skippedCount, setSkippedCount] = useState<number>(0);
   const [createType, setCreateType] = useState<AdminWidgetType>("text");
   // The widget + its referencing-locations summary a `WIDGETS_REFERENCED` 409 (below) is asking to
   // force-purge past — `null` when the dialog is closed. `ConfirmDialog` stays mounted
@@ -21,7 +27,10 @@ export function WidgetsLibrary() {
   function load() {
     api
       .listWidgets({ includeInactive: true })
-      .then((r) => setWidgets(r.widgets))
+      .then((r) => {
+        setWidgets(r.widgets);
+        setSkippedCount(r.skippedCount ?? 0);
+      })
       .catch((e) => setError(describeApiError(e, "failed to load widgets")));
   }
 
@@ -108,6 +117,13 @@ export function WidgetsLibrary() {
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
+      {skippedCount > 0 ? (
+        <div className="notice">
+          {skippedCount === 1
+            ? "1 row could not be displayed."
+            : `${skippedCount} rows could not be displayed.`}
+        </div>
+      ) : null}
       <DataTable
         rows={widgets}
         rowKey={(widget) => widget.id}

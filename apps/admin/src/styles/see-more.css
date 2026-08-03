@@ -1,0 +1,106 @@
+/**
+ * `components/SeeMore.tsx` — the line-clamped block plus its "See more" / "See less" toggle.
+ * Imported directly by that component, the scoped-partial precedent `styles/select.css` and
+ * `styles/assistant.css` establish, rather than a new line in `main.tsx`.
+ *
+ * EVERY RULE BELOW IS WRITTEN AT TWO-CLASS SPECIFICITY (`.see-more .see-more-*`) ON PURPOSE. A
+ * self-imported partial does NOT reliably load after `styles.css` — measured via
+ * `document.styleSheets` on the running app, `select.css` lands at index 0 and `styles.css` at
+ * index 1, i.e. the partial loads FIRST. `select.css` survives that only because its selectors
+ * happen to outrank the bare `button` type selector they compete with; `form-field-attrs.css` was
+ * class-vs-class and genuinely LOST (`.settings-dialog`'s `max-width: 26rem` clamped its own
+ * `width: 32rem` down to 416px on every render) until it was raised to two classes. Order here is
+ * not a mechanism to rely on — it depends on when a route-level module first evaluates, and it will
+ * shift again when this file moves into `@jini-ai/admin`. Do not "simplify" these back to one class.
+ *
+ * Two-class specificity is also what makes the caller contract below work: it outranks the single
+ * class a caller passes via `textClassName`, so the clamp cannot be accidentally broken by a
+ * caller's own `display`.
+ */
+
+/* Deliberately NOT a flex column. The natural-looking `display: flex; flex-direction: column` here
+   would make the toggle a direct flex child under the default `align-items: stretch` and blow it
+   edge-to-edge — the exact stretch-by-default bug this admin has now hit four separate times
+   (`styles.css`'s `.menu-tree > .btn-secondary` and `.settings-scope-editor .btn-danger`,
+   `styles/form-field-attrs.css`'s `.field-attrs-rows > .btn-secondary`, each one reported by the
+   user from a screenshot). Normal block flow gives the text region its full width and leaves the
+   inline-level toggle at its own content width, with no `align-self` correction needed. */
+.see-more {
+  display: block;
+}
+
+/* `display: -webkit-box` + `-webkit-box-orient: vertical` is what makes `-webkit-line-clamp` take
+   effect at all; the prefixed trio is the reliable cross-engine multi-line clamp (Firefox
+   implements the `-webkit-` names too) and is the same idiom `styles/assistant.css` already uses
+   for the chat-pane title. `overflow: hidden` is required — the clamp hides the overflowing lines,
+   it does not remove them from layout.
+
+   READ THIS BEFORE "FIXING" AN APPARENTLY-INERT RULE: `getComputedStyle(el).display` on this
+   element reports **`flow-root`**, NOT `-webkit-box`. That looks exactly like the rule losing a
+   cascade fight and is the obvious wrong conclusion to draw from a measurement — Chromium
+   blockifies legacy `-webkit-box` into a block container when it line-clamps, so the *used* value
+   `getComputedStyle` returns is not the value declared here. The declaration is still fully
+   load-bearing. Isolated A/B in Chromium 149, minimal page, identical text and width:
+     `display: -webkit-box` + `-webkit-line-clamp: 2` → clientHeight 39, scrollHeight 78 (CLAMPED)
+     `display: block`      + `-webkit-line-clamp: 2` → clientHeight 78, scrollHeight 78 (INERT)
+   Dropping `-webkit-box` because the computed value "isn't it anyway" silently unclamps every
+   caller, with nothing in the computed styles to show what changed. */
+
+/* No color, font-size, or line-height here on purpose. Those are the caller's, supplied through
+   `textClassName` (the first caller passes `field-attrs-hint` and keeps its own typography intact).
+   This rule owns clamp mechanics only, so the two-class specificity above cannot accidentally
+   override typography a caller set. `-webkit-line-clamp` counts real line boxes, so it stays
+   correct at whatever `line-height` the caller lands on. */
+.see-more .see-more-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--see-more-lines, 2);
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere; /* a single long unspaced token (a class string, a URL) breaks instead of overflowing the clamp box sideways */
+  text-overflow: clip;
+}
+
+/* Expanded — back to normal block flow. `display: block` alone would already disable the clamp
+   (`-webkit-line-clamp` applies only to `-webkit-box`), but the clamp and the overflow are reset
+   explicitly so this rule reads as the complete inverse of the one above rather than depending on
+   a side effect of the display change. */
+.see-more .see-more-text.is-expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+/* A link-shaped toggle, not a button-shaped one: bare `button` in `styles.css` is the app's filled
+   burnt-orange primary CTA, and a filled CTA under a hint paragraph would outweigh the two real
+   inputs the hint describes.
+
+   These resets duplicate `styles.css`'s `.link-button` rather than reusing that class, the same
+   self-containment call `select.css` made when it re-embedded the chevron SVG instead of sharing
+   one. This file is meant to travel into `@jini-ai/admin` with `SeeMore.tsx`; a dependency on a
+   class defined in the host app's `styles.css` would resolve today and silently produce a
+   full-width orange CTA after the move. If `.link-button` itself ever changes, this is the second
+   place to look. */
+.see-more .see-more-toggle {
+  display: inline-block;
+  margin-top: 0.15rem;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  color: var(--link);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+/* `opacity: 1` overrides the bare `button:hover` dim — this control signals hover by underlining
+   the way an anchor does, matching `.link-button:hover`. */
+.see-more .see-more-toggle:hover {
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

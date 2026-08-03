@@ -122,3 +122,39 @@ test("REQ-04: listWidgetInstances defaults to active-only, narrows by widgetType
   });
   assert.equal(includingTrashed.instances.length, 2);
 });
+
+test("dossier C5 follow-up: a malformed widget-instance row (wrong owner namespace, e.g. written by bypassing the widgets domain layer) is skipped, not a crash, and skippedCount reports it instead of staying silent", async () => {
+  const repos = makeRepos();
+  await createWidgetInstance({
+    deps: writeDeps(repos),
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetType: "text", title: "Good widget", config: { body: "hi" } },
+  });
+
+  // Reproduces the two real `workspace-local` rows found during the C5 investigation
+  // (`__entries-create-probe__`/`__fix-verify-entries__`): created via the generic entries route
+  // directly, so `fields_json` is `{ ext: { site: {...} } }` instead of the widgets domain's own
+  // `{ ext: { widget: { payload: ... } } }` shape. `parseWidgetInstancePayload` throws on this.
+  await repos.entryRepo.save({
+    id: "malformed-1",
+    workspaceId: WORKSPACE_ID,
+    type: "widget",
+    slug: "malformed-probe",
+    status: "draft",
+    title: "malformed-probe",
+    bodyJson: null,
+    fieldsJson: { ext: { site: { payload: "probe" } } },
+    publishedAt: null,
+    createdAt: "2026-08-03T00:00:00.000Z",
+    updatedAt: "2026-08-03T00:00:00.000Z",
+    version: 1,
+  });
+
+  const result = await listWidgetInstances({
+    deps: readDeps(repos),
+    input: { workspaceId: WORKSPACE_ID, actor: ACTOR, includeInactive: true },
+  });
+
+  assert.equal(result.instances.length, 1, "the one well-formed widget must still be returned");
+  assert.equal(result.instances[0].title, "Good widget");
+  assert.equal(result.skippedCount, 1, "the malformed row must be counted, not silently disappear with no trace");
+});

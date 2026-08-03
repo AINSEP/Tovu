@@ -1,3 +1,4 @@
+import { buildWidgetsDeps } from "#src/widgets/deps";
 import { updateWidgetInstance } from "#src/widgets/write-service";
 import { mapWidgetErrorToResponse, toAdminWidgetResponse } from "#src/server/http/admin/widgets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
@@ -20,15 +21,7 @@ export const registerAdminWidgetUpdateRoute: RouteRegistrar = (app, deps) => {
     try {
       const principal = getAuthedPrincipal(res);
       const { instance } = await updateWidgetInstance({
-        deps: {
-          entryRepo: deps.entryRepo,
-          contentTypeRepo: deps.contentTypeRepo,
-          entryRefsRepo: deps.entryRefsRepo,
-          clock: deps.clock,
-          ids: deps.idGen,
-          authorize: deps.authorize,
-          outbox: deps.outbox,
-        },
+        deps: buildWidgetsDeps(deps),
         input: {
           workspaceId: deps.workspaceId,
           actor: { principalId: principal.id },

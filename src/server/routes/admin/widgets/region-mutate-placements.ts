@@ -1,3 +1,4 @@
+import { buildWidgetsRegionDeps } from "#src/widgets/deps";
 import { mutateWidgetAreaPlacements } from "#src/widgets/region-area-service";
 import type { WidgetPlacementNode } from "#src/widgets/types";
 import { mapWidgetErrorToResponse, toAdminWidgetAreaResponse } from "#src/server/http/admin/widgets";
@@ -66,16 +67,7 @@ export const registerAdminWidgetRegionMutatePlacementsRoute: RouteRegistrar = (a
       }
 
       const { areaEntry } = await mutateWidgetAreaPlacements({
-        deps: {
-          entryRepo: deps.entryRepo,
-          contentTypeRepo: deps.contentTypeRepo,
-          entryRefsRepo: deps.entryRefsRepo,
-          bindingRepo: deps.widgetBindingRepo,
-          clock: deps.clock,
-          ids: deps.idGen,
-          authorize: deps.authorize,
-          outbox: deps.outbox,
-        },
+        deps: buildWidgetsRegionDeps(deps),
         input: {
           workspaceId: deps.workspaceId,
           actor: { principalId: principal.id },

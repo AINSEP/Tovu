@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, type AdminFormDefinition, type AdminFormField, type AdminFormNotify, type AdminFormSubmission } from "../lib/api";
 import { navigate } from "../lib/router";
 import { DataTable } from "@jini-ai/admin/react";
+import { SeeMore } from "../components/SeeMore";
 import "../styles/form-field-attrs.css";
 
 /**
@@ -204,13 +205,22 @@ function FieldAttributesDialog(props: {
         <h2 id="field-attrs-title">
           Field attributes — {fieldDisplayName(field, props.fieldIndex)}
         </h2>
-        <p className="field-attrs-hint">
+        {/* Clamped to two lines rather than shortened. Measured in a real browser at this dialog's
+            461px content width: the full text is 5 lines / 98px and the dialog 389px tall;
+            collapsed it is 2 lines / 39px and the dialog 330px — a 59px reduction, and the
+            explainer no longer outweighs the two inputs below it. Kept whole rather than trimmed
+            because the allowlist half is the part a first-time user actually needs, and cutting it
+            would leave `onclick` rejections unexplained. Two lines is also the natural break: the
+            collapsed view ends after the Tailwind example, on a complete sentence. The
+            attribute-name `<datalist>` below already communicates the allowlist implicitly by only
+            offering valid names, so this paragraph is reinforcement, not the sole channel. */}
+        <SeeMore lines={2} textClassName="field-attrs-hint" toggleAriaLabel="See more about field attributes">
           Add CSS classes and HTML attributes to this field&rsquo;s input. Classes are unrestricted — Tailwind
           utility classes like <code>md:col-span-2</code> or <code>w-1/2</code> work as expected. Attribute names
           are limited to a safe allowlist (<code>aria-*</code>, <code>data-*</code>, and a fixed list of
           layout/behavior attributes) — anything else, including event handlers like <code>onclick</code>, is
           rejected.
-        </p>
+        </SeeMore>
 
         <div className="field">
           <label className="field-label" htmlFor="field-attrs-classname">

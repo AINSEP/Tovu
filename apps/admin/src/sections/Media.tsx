@@ -225,6 +225,21 @@ function EditMediaPanel(props: { item: AdminMedia; onSaved: () => void; onCancel
   /** Feedback for the sha256 copy affordance below — resets on its own so a stale "Copied" label
    *  never survives past the moment it's true, without needing the caller to clear it. */
   const [hashCopied, setHashCopied] = useState(false);
+  /** Same pattern as `hashCopied`, for the asset URL field below. Separate state because the two
+   *  copy buttons can be clicked independently and each needs its own "Copied" label lifetime. */
+  const [urlCopied, setUrlCopied] = useState(false);
+
+  /** `MediaRecord` (`@jini-ai/cms/media`) carries no filename/path/URL field at all — only
+   *  `title`/`alt`/`caption`/`credit`/`source.sha256` (see that type's own doc comment: media is
+   *  a bespoke editorial record, not yet the generic `entries` model ADR-022 describes, and even
+   *  that model wouldn't store a filesystem path — the physical bytes live in the separate
+   *  `asset_blobs` sidecar, keyed by `(workspaceId, sha256)` for dedup, not by this media record).
+   *  So "where is this asset" has no stored answer to surface — the correct one to show is the
+   *  same authenticated byte-serving URL `MediaPreview` already uses as this exact item's `<img>`/
+   *  `<video>` `src` (`api.mediaOriginalUrl`, REQ from MSG-05's rewrite): it is the one thing that
+   *  reliably, uniquely resolves to THIS media record's bytes regardless of dedup (two records can
+   *  share one blob's `storageKey`, which is why that internal key is not what's shown here). */
+  const originalUrl = api.mediaOriginalUrl(item.id);
 
   async function copyHash() {
     try {
@@ -235,6 +250,17 @@ function EditMediaPanel(props: { item: AdminMedia; onSaved: () => void; onCancel
       // Clipboard access can be denied (permissions, insecure context) — the full hash is still
       // visible and selectable in the field itself, so a failed copy degrades to "select manually"
       // rather than losing the value.
+    }
+  }
+
+  async function copyUrl() {
+    try {
+      await navigator.clipboard.writeText(originalUrl);
+      setUrlCopied(true);
+      setTimeout(() => setUrlCopied(false), 1500);
+    } catch {
+      // Same degrade-to-select-manually reasoning as `copyHash` above — the link itself is still
+      // there to click or select even if the clipboard write is denied.
     }
   }
 
@@ -307,6 +333,27 @@ function EditMediaPanel(props: { item: AdminMedia; onSaved: () => void; onCancel
               value={draft.credit}
               onChange={(e) => setDraft((d) => ({ ...d, credit: e.target.value }))}
             />
+          </div>
+        </div>
+        {/* User report: "where is the location of the asset? I dont see the location data" — there
+            was no answer to that anywhere in this panel. Same read-only+Copy shape as the sha256
+            row below (this component's own established idiom for "show it, let it be copied, it
+            isn't something you type into"), but a clickable `<a>` instead of `<code>` since this
+            value is a real, followable URL, not an opaque identifier. */}
+        <div className="field">
+          <span className="field-label">File URL</span>
+          <div className="field-readonly-row">
+            <a
+              className="field-mono field-readonly"
+              href={originalUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {originalUrl}
+            </a>
+            <button type="button" className="btn-ghost" onClick={copyUrl}>
+              {urlCopied ? "Copied" : "Copy"}
+            </button>
           </div>
         </div>
         {/* Integrity/dedupe metadata, demoted out of the main view — genuinely useful when

@@ -14,9 +14,9 @@
  * per delta (not accumulated here) — chat-core's own `ChatMessage.events` array is what
  * concatenates them into one growing message, so accumulating twice would double the text.
  */
-import { buildTranscript, latestUserPromptFromHistory } from "@jini-ai/chat-core";
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat-core";
-import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/ui/chat";
+import { buildTranscript, latestUserPromptFromHistory } from "@jini-ai/chat/core";
+import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 
 const RUNS_URL = "/api/runs";
 
@@ -214,6 +214,21 @@ export function createTovuAssistantTransport(): ChatTransport {
       const contextRef: Record<string, unknown> = { prompt };
       if (typeof frontendBindToken === "string" && frontendBindToken.length > 0) {
         contextRef.frontendBindToken = frontendBindToken;
+      }
+
+      /**
+       * Opaque `attachment:<uuid>` capability ids (`ChatAttachment.path` — never a real filesystem
+       * path this early; see `@jini-ai/http-kit`'s `attachments.ts` trust-model doc), not the
+       * attachments themselves — `contextRef` is the one channel `prompt`/`frontendBindToken`
+       * already ride on to reach `agent-daemon-server.ts`'s `onStarted`, which is where these ids
+       * get exchanged for real, re-validated paths via `AttachmentStore.claim()`. Nothing on this
+       * side of the wire is trusted; the id is inert until the daemon claims it.
+       *
+       * Omitted entirely when there are none, same convention as `frontendBindToken` above — a run
+       * with no attachments is the overwhelmingly common case and should not carry a key for it.
+       */
+      if (input.attachments && input.attachments.length > 0) {
+        contextRef.attachmentIds = input.attachments.map((attachment) => attachment.path);
       }
 
       const response = await fetch(RUNS_URL, {

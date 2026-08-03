@@ -651,3 +651,43 @@ export function createSqliteRouteDeps(
     discoverPlugins: () => discoverPluginRuntimePlugins({ builtIns: [WORD_COUNT_BUILT_IN] }),
   };
 }
+
+/**
+ * D10 fix — lets a second process (the agent daemon, `assistant/agent-daemon-server.ts`) bind to
+ * the SAME workspace the main server process already resolved, instead of independently
+ * re-resolving `resolveWorkspace`'s default (oldest-row) answer on its own connection. Without
+ * this, the two processes agree only because the default resolution happens to be
+ * time-invariant today (a newly created workspace can never become "the oldest") — correct by a
+ * coincidence of `resolveWorkspace`'s current semantics, not by construction, and the two
+ * processes have no way to agree at all once an explicit workspace choice enters the picture.
+ *
+ * `workspaceIdOverride` undefined reproduces `createSqliteRouteDeps()`'s existing no-override
+ * behavior exactly (byte-identical for every current single-workspace caller). When supplied, it
+ * is validated against a real workspace row via {@link resolveWorkspace} BEFORE
+ * `createSqliteRouteDeps` is called — CIC U-001's `overrides.db`/`overrides.workspaceId`
+ * "together or not at all" rule (`createSqliteRouteDeps` above) means the caller cannot supply a
+ * bare workspaceId override without also supplying the db handle it was validated against, so
+ * this function opens that db handle itself rather than asking `createSqliteRouteDeps` to do so
+ * twice.
+ *
+ * @throws {ValidationError} `workspaceIdOverride` was supplied but names no real workspace row —
+ *   propagates uncaught (`resolveWorkspace`'s own error), which is deliberate: a caller (the
+ *   daemon) that silently fell back to the default workspace on a bad override would be a worse
+ *   failure mode than a loud boot-time crash naming the bad id.
+ * @complexity O(1) beyond `resolveWorkspace`'s own cost (see that function's own complexity note).
+ * @overallScore 100
+ */
+export function createSqliteRouteDepsForWorkspace(
+  workspaceIdOverride: string | undefined,
+  dbPath: string = defaultContentDbPath()
+): NewsletterRouteDeps {
+  if (workspaceIdOverride === undefined) return createSqliteRouteDeps(dbPath);
+
+  const db = openContentDb(
+    dbPath,
+    { workspace: seededWorkspace, posts: seededPosts, presentation: seededPresentation },
+    recoverIncompleteDataModuleMigrations
+  );
+  const workspace = resolveWorkspace({ db }, { workspaceId: workspaceIdOverride });
+  return createSqliteRouteDeps(dbPath, { db, workspaceId: workspace.id });
+}

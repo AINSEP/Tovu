@@ -142,8 +142,11 @@ export const integrationsDerivedRisk: DerivedRiskByToolId = new Map<string, Agen
   ["integrations_create_subscription", "mutates-durable-state"],
   // -> pauseSubscription (subscriptions.ts): status flip + repo.save().
   ["integrations_pause_subscription", "mutates-durable-state"],
-  // -> deleteSubscription (subscriptions.ts): soft-delete status flip + repo.save(). Never row-deletes.
-  ["integrations_delete_subscription", "mutates-durable-state"],
+  // -> deleteSubscription (subscriptions.ts): soft-delete status flip + repo.save(). Never
+  //    row-deletes, but classified `deletes-durable-state` (not `mutates-durable-state`): no
+  //    un-disable/reactivate path exists anywhere in this domain, so there is no agent-reachable
+  //    undo — the same standard `content_post_delete` is classified under.
+  ["integrations_delete_subscription", "deletes-durable-state"],
 ]);
 
 export function buildIntegrationsRegistrations(routeDeps: IntegrationsToolDeps): ToolRegistration[] {

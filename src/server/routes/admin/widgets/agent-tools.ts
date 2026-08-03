@@ -1,5 +1,6 @@
 import type { Response } from "express";
 
+import { buildWidgetsDeps, buildWidgetsRegionDeps } from "#src/widgets/deps";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "#src/widgets/entry-payload";
 import { insertWidgetEmbed, removeWidgetEmbed } from "#src/widgets/embed-service";
 import { mutateWidgetAreaPlacements } from "#src/widgets/region-area-service";
@@ -38,18 +39,6 @@ type PlaceTarget =
   | { readonly kind: "region"; readonly regionKey: string; readonly baseVersion: number }
   | { readonly kind: "embed"; readonly hostEntryId: string; readonly baseVersion: number };
 
-function widgetsDeps(deps: RouteDeps) {
-  return {
-    entryRepo: deps.entryRepo,
-    contentTypeRepo: deps.contentTypeRepo,
-    entryRefsRepo: deps.entryRefsRepo,
-    clock: deps.clock,
-    ids: deps.idGen,
-    authorize: deps.authorize,
-    outbox: deps.outbox,
-  };
-}
-
 /** Appends `widgetEntryId` to a region's CURRENT placement list (loaded fresh) and writes the
  * whole list back, per REQ-15's whole-document discipline — never a partial patch. */
 async function placeIntoRegion(deps: RouteDeps, workspaceId: string, actor: { principalId: string }, regionKey: string, baseVersion: number, widgetEntryId: string) {
@@ -64,7 +53,7 @@ async function placeIntoRegion(deps: RouteDeps, workspaceId: string, actor: { pr
   const nextPlacements: WidgetPlacementNode[] = [...currentPlacements, { placementId: deps.idGen.newId(), widgetEntryId, enabled: true }];
 
   return mutateWidgetAreaPlacements({
-    deps: { ...widgetsDeps(deps), bindingRepo: deps.widgetBindingRepo },
+    deps: buildWidgetsRegionDeps(deps),
     input: { workspaceId, actor, areaEntryId: binding.areaEntryId, baseVersion, placements: nextPlacements },
   });
 }
@@ -74,7 +63,7 @@ async function placeTarget(deps: RouteDeps, workspaceId: string, actor: { princi
     return placeIntoRegion(deps, workspaceId, actor, target.regionKey, target.baseVersion, widgetEntryId);
   }
   return insertWidgetEmbed({
-    deps: widgetsDeps(deps),
+    deps: buildWidgetsDeps(deps),
     input: { workspaceId, actor, hostEntryId: target.hostEntryId, baseVersion: target.baseVersion, widgetEntryId },
   });
 }
@@ -142,7 +131,7 @@ const registerCreateTool: RouteRegistrar = (app, deps) => {
       const principal = getAuthedPrincipal(res);
       const actor = { principalId: principal.id };
       const { instance } = await createWidgetInstance({
-        deps: widgetsDeps(deps),
+        deps: buildWidgetsDeps(deps),
         input: {
           workspaceId: deps.workspaceId,
           actor,
@@ -192,7 +181,7 @@ const registerRemoveTool: RouteRegistrar = (app, deps) => {
 
       if (target.kind === "embed") {
         const result = await removeWidgetEmbed({
-          deps: widgetsDeps(deps),
+          deps: buildWidgetsDeps(deps),
           input: { workspaceId: deps.workspaceId, actor, hostEntryId: target.hostEntryId, baseVersion: target.baseVersion, placementId: body.placementId },
         });
         res.status(200).json({ tool: "widgets.remove", result });
@@ -205,7 +194,7 @@ const registerRemoveTool: RouteRegistrar = (app, deps) => {
       if (!areaEntry) throw new WidgetAreaNotFoundError(`region area entry for '${target.regionKey}' was not found`);
       const nextPlacements = parseWidgetAreaPayload(areaEntry.fieldsJson).doc.placements.filter((p) => p.placementId !== body.placementId);
       const result = await mutateWidgetAreaPlacements({
-        deps: { ...widgetsDeps(deps), bindingRepo: deps.widgetBindingRepo },
+        deps: buildWidgetsRegionDeps(deps),
         input: { workspaceId: deps.workspaceId, actor, areaEntryId: binding.areaEntryId, baseVersion: target.baseVersion, placements: nextPlacements },
       });
       res.status(200).json({ tool: "widgets.remove", result });

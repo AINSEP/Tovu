@@ -49,7 +49,16 @@
  * itself, same as the admin UI's own free-text topic entry.
  */
 
-export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
+/**
+ * This domain's copy of the shared union (see `@jini-ai/cms/core`'s own `AgentToolSideEffect` for
+ * why `deletes-durable-state` is a distinct member and not a flavor of `mutates-durable-state`, and
+ * why each domain must widen its own narrower copy to opt in rather than inheriting it for free).
+ * Widened to add `deletes-durable-state` for `integrations_delete_subscription`: once a subscription
+ * is disabled there is no un-disable/reactivate path anywhere in this domain, so — same standard as
+ * `content_post_delete` (`features/post/agent-tools.ts`) — there is no agent-reachable undo, even
+ * though the row itself is never physically deleted.
+ */
+export type AgentToolSideEffect = "none" | "mutates-durable-state" | "deletes-durable-state" | "mints-token";
 
 export interface AgentToolDefinition {
   name: string;
@@ -173,7 +182,14 @@ export function getIntegrationsAgentToolCatalog(): AgentToolDefinition[] {
       name: "integrations_delete_subscription",
       description:
         "Soft-deletes a webhook subscription (never row-deleted, for audit durability). Safe to call again on an already-deleted subscription — it does not error, though disabledAt/updatedAt are stamped again.",
-      sideEffects: "mutates-durable-state",
+      // Classified `deletes-durable-state`, not `mutates-durable-state`, despite being a soft
+      // delete at the storage layer: the same "no agent-reachable undo" standard that justifies
+      // `content_post_delete`'s classification (`features/post/tool-registrations.ts`) applies
+      // here too. Once disabled there is no un-disable/reactivate path anywhere in this domain —
+      // `pauseSubscription` explicitly refuses once `status === "disabled"` — so from an agent's
+      // (or this tool's caller's) perspective the effect is as final as a hard delete, even though
+      // the row survives for audit. See the matching comment on `integrationsDerivedRisk` below.
+      sideEffects: "deletes-durable-state",
       authorization: { permission: "admin.integrations.manage" },
       inputSchema: SUBSCRIPTION_ID_SCHEMA,
     },

@@ -147,5 +147,14 @@ export function widgetErrorToResponse(err: unknown): WidgetErrorResponse {
  */
 export function mapWidgetErrorToResponse(err: unknown, res: Response): void {
   const { status, body } = widgetErrorToResponse(err);
+  // Every branch in `widgetErrorToResponse` above is a KNOWN, typed domain error and self-documents
+  // via its own `code`. Anything that falls through to the generic 500 is, by definition, something
+  // this mapping doesn't recognize — worth a server-side trace on its own, since the client only
+  // ever sees `{error: "internal error"}` with no detail. This started as a TEMP-DIAGNOSTIC line
+  // (2026-08-03) while chasing a real bug that reached exactly this branch with zero trace anywhere
+  // else in the request path (see `ADS-memory/.local-artifacts/agent-reports/
+  // 20260803-widget-delete-outbox-bug.md`); promoted to permanent since the same blind spot would
+  // recur for the next unrecognized error otherwise.
+  if (status === 500) console.error("[widgets] unrecognized error reaching mapWidgetErrorToResponse:", err);
   res.status(status).json(body);
 }
