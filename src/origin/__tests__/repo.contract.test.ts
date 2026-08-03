@@ -4,15 +4,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../infra/sqlite/content-db";
-import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../../infra/sqlite/origin-repo.sqlite";
+import { openContentDb } from "../../db/sqlite/content-db";
+import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../../db/sqlite/origin-repo.sqlite";
 import { InMemoryOriginSettingRepo } from "../repo.memory";
 import { createVerifiedOrigin } from "../types";
 import type { OriginSettingRepoPort } from "../ports";
 
 /**
  * @file ADR-046 Phase 1 — shared `OriginSettingRepoPort` read-contract suite, run against BOTH
- * `repo.memory.ts` and `infra/sqlite/origin-repo.sqlite.ts` (rule-of-two, ADR-006).
+ * `repo.memory.ts` and `db/sqlite/origin-repo.sqlite.ts` (rule-of-two, ADR-006).
  *
  * Unlike every other rule-of-two suite in this codebase, the two adapters' WRITE paths are not
  * symmetric — `OriginSettingRepoPort` itself declares no write method (no admin route or

@@ -23,7 +23,7 @@
  * inspection, the same discipline `resolveUserLayerReadTarget`'s own header already asks of its two
  * route callers.
  */
-import type { AuthorizeFn } from "../../core/commands";
+import type { AuthorizeFn } from "../../core/commands/command";
 import {
   buildDomainRegistrations,
   indexCatalogById,

@@ -1,14 +1,14 @@
 import { eq } from "drizzle-orm";
 
-import { pluginActivations } from "../../infra/db/schema";
-import type { ContentDb } from "../../infra/sqlite/content-db";
-import { findOneBy } from "../../infra/sqlite/repo-helpers";
+import { pluginActivations } from "../../db/schema";
+import type { ContentDb } from "../../db/sqlite/content-db";
+import { findOneBy } from "../../db/sqlite/repo-helpers";
 import type { PluginActivationRecord, PluginActivationRepoPort } from "./activation";
 
 /**
  * @file Drizzle/SQLite `PluginActivationRepoPort` adapter — mirrors
  * `src/features/presentation/repo.sqlite.ts`'s shape. Depends on `pluginActivations` landing in
- * `src/infra/db/schema.ts` (Track C, additive migration) — this is the only file besides
+ * `src/db/schema.ts` (Track C, additive migration) — this is the only file besides
  * `schema.ts`/`content-db.ts` allowed to import Drizzle for this feature (ADR-015 rule 2).
  *
  * Architectural role:

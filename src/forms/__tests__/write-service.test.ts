@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryChangeSetRepo } from "../../core/commands";
-import { ForbiddenError as CommandForbiddenError } from "../../core/commands";
+import { ForbiddenError as CommandForbiddenError } from "../../core/commands/command";
 import { FormFieldValidationError, FormSlugConflictError, FormDefinitionNotFoundError } from "../errors";
 import { InMemoryFormDefinitionRepo } from "../repo.memory";
 import { createFormDefinition, setFormDefinitionStatus, updateFormDefinition } from "../write-service";

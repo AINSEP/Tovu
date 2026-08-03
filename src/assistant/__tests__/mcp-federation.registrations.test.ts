@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
 
-import { ForbiddenError } from "../../core/commands";
+import { ForbiddenError } from "../../core/commands/command";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory";
 import { attachFederatedMcpTools } from "../mcp-federation/bootstrap";
 import type { ResolvedFederatedConnection } from "../mcp-federation/config";

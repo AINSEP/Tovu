@@ -1,6 +1,6 @@
 import type { EntryListPort } from "../../features/entries/list";
 import type { FormDefinitionRepoPort } from "../../forms/ports";
-import type { NavMenuReadModel } from "../../navigation/ports";
+import type { NavMenuReadModel } from "../../navigation";
 import type { WidgetResolver, WidgetTypeKey } from "../types";
 import { createContactFormResolver } from "./contact-form";
 import { createMenuResolver } from "./menu";

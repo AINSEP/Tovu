@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../../infra/sqlite/content-db";
-import { workspaces } from "../../../infra/db/schema";
+import { openContentDb } from "../../../db/sqlite/content-db";
+import { workspaces } from "../../../db/schema";
 import { resolveWorkspace } from "../../resolve-workspace";
 
 /**

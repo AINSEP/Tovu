@@ -6,7 +6,7 @@ import type { UUID } from "../ports";
  * Purpose:
  * Dependency-inversion seam for the plan→confirm→execute gateway (`gateway.ts`), the
  * transaction-scoped watermark (`watermark.ts`), and the dialect-neutral restore-point
- * capability surface (`db-ops.ts` adapters under `src/infra/*`).
+ * capability surface (`db-ops.ts` adapters under `src/db/*`).
  *
  * Interfaces and types only — no feature logic.
  */

@@ -1,12 +1,17 @@
 /**
- * @file Public surface (barrel) for the `media` library (ADR-027).
+ * @file Public surface (barrel) for `media` — re-exported from `@jini-ai/cms/media`.
  *
- * See `types.ts` and `media-service.ts` file headers for the disclosed scope
- * adjustments this walking-skeleton build makes relative to the full ADR-027
- * design (bespoke table instead of generic entries; no transform registry,
- * origin isolation, or ingress policy). Blob GC (`blob-gc.ts`) IS built for
- * real within its own disclosed scope — see that file's header for what's
- * still stubbed (`entry_refs`, retained snapshots, the monthly orphan sweep).
+ * The domain moved into the package on 2026-08-03 so a second host can use the same media
+ * assets/blob-GC/transform-registry model. What is left in this directory is only what is
+ * genuinely this host's:
+ *
+ * - `__tests__/repo.contract.test.ts` — a contract suite parameterized over BOTH the package's
+ *   in-memory repos and this host's own SQLite adapters (`db/sqlite/media-repo.sqlite.ts`), so it
+ *   stays here rather than moving with the domain (mirrors `identity`'s identical precedent).
+ *
+ * Everything else here is a re-export, and the shape of what is *not* re-exported is the point:
+ * there is no SQLite adapter export on this barrel, so nothing outside the composition root can
+ * accidentally depend on this host's persistence choice.
  */
 export type {
   MediaStatus,
@@ -16,7 +21,7 @@ export type {
   AssetBlobRecord,
   AssetRenditionRecord,
   BlobGcJournalEntry,
-} from "./types";
+} from "@jini-ai/cms/media";
 
 export {
   MediaNotFoundError,
@@ -24,7 +29,7 @@ export {
   MediaConflictError,
   MediaSourceImmutableError,
   MediaStillReferencedError,
-} from "./types";
+} from "@jini-ai/cms/media";
 
 export type {
   MediaRepoPort,
@@ -34,9 +39,9 @@ export type {
   BlobGcJournalRepoPort,
   PutBlobInput,
   TransformDefinitionRepoPort,
-} from "./ports";
+} from "@jini-ai/cms/media";
 
-export { computeBlobStorageKey } from "./blob-key";
+export { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 export {
   InMemoryMediaRepo,
@@ -44,9 +49,9 @@ export {
   InMemoryAssetRenditionRepo,
   InMemoryBlobGcJournalRepo,
   InMemoryTransformDefinitionRepo,
-} from "./repo.memory";
+} from "@jini-ai/cms/media";
 
-export { withSha256Lock } from "./blob-gc-lock";
+export { withSha256Lock } from "@jini-ai/cms/media";
 
 export {
   DEFAULT_GC_GRACE_MS,
@@ -57,10 +62,9 @@ export {
   runBlobGcUnlinkPass,
   runBlobGcCycle,
   runMonthlyOrphanSweepStub,
-} from "./blob-gc";
+} from "@jini-ai/cms/media";
 
-export { InMemoryBlobStore } from "./blob-store.memory";
-export { LocalFsBlobStore, type LocalFsBlobStoreDeps } from "./blob-store.fs";
+export { InMemoryBlobStore, LocalFsBlobStore, type LocalFsBlobStoreDeps } from "@jini-ai/cms/media";
 
 export {
   DEFAULT_MAX_UPLOAD_BYTES,
@@ -75,25 +79,17 @@ export {
   type UploadMediaInput,
   type UploadMediaDeps,
   type UpdateMediaMetadataInput,
-} from "./media-service";
+} from "@jini-ai/cms/media";
 
-// -----------------------------------------------------------------------------
-// Named transform registry + rendition generation (ADR-027 §4) — new in this
-// task. See `transform-types.ts`, `transform-registry.ts`,
-// `rendition-service.ts`, `image-transformer*.ts` file headers for the
-// disclosed scope: core-declared transforms only, in-process lazy
-// single-flight generation only (no eager hot-set worker, no out-of-process
-// generation, no theme/plugin declaration API).
-// -----------------------------------------------------------------------------
 export type {
   TransformFit,
   TransformFormat,
   TransformParams,
   TransformDefinitionRecord,
-} from "./transform-types";
-export { TransformValidationError, mimeForTransformFormat, MAX_TRANSFORM_DIMENSION_PX } from "./transform-types";
+} from "@jini-ai/cms/media";
+export { TransformValidationError, mimeForTransformFormat, MAX_TRANSFORM_DIMENSION_PX } from "@jini-ai/cms/media";
 
-export { withRenditionLock, withTransformRegistryLock } from "./transform-lock";
+export { withRenditionLock, withTransformRegistryLock } from "@jini-ai/cms/media";
 
 export {
   registerTransform,
@@ -102,23 +98,23 @@ export {
   isReferencedByPublishedContent,
   type RegisterTransformInput,
   type RegisterTransformDeps,
-} from "./transform-registry";
+} from "@jini-ai/cms/media";
 
 export {
   resolveMediaRendition,
   type ResolveMediaRenditionDeps,
   type ResolveMediaRenditionInput,
   type ResolveMediaRenditionResult,
-} from "./rendition-service";
+} from "@jini-ai/cms/media";
 
-export type { ImageTransformerPort, TransformImageInput, TransformImageOutput } from "./image-transformer";
-export { InMemoryImageTransformer } from "./image-transformer";
+export type { ImageTransformerPort, TransformImageInput, TransformImageOutput } from "@jini-ai/cms/media";
+export { InMemoryImageTransformer } from "@jini-ai/cms/media";
 
-export { SharpImageTransformer, ImageTransformUnavailableError } from "./image-transformer.sharp";
+export { SharpImageTransformer, ImageTransformUnavailableError } from "@jini-ai/cms/media";
 
-// -----------------------------------------------------------------------------
-// Original-bytes admin preview route support — new in this task. See
-// `content-type-sniffer.ts`'s file header for the disclosed scope: an allowlist
-// magic-byte sniffer, not a general-purpose one.
-// -----------------------------------------------------------------------------
-export { sniffContentType, type SniffedContentType } from "./content-type-sniffer";
+export { sniffContentType, type SniffedContentType } from "@jini-ai/cms/media";
+
+export {
+  mediaAgentToolCatalog,
+  type MediaAgentToolDefinition as AgentToolDefinition,
+} from "@jini-ai/cms/media";

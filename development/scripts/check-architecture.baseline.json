@@ -3,7 +3,7 @@
     "fileCount": 667,
     "moduleCount": 38
   },
-  "propagationCostPct": 10.34,
+  "propagationCostPct": 10.23,
   "backEdgesIntoServer": 28,
   "moduleCycles": {
     "mutualCycleCount": 17,
@@ -28,11 +28,11 @@
       "server <-> widgets"
     ]
   },
-  "moduleApiSurfaceFiles": 210,
-  "deepImportsBypassingIndex": 778,
+  "moduleApiSurfaceFiles": 211,
+  "deepImportsBypassingIndex": 780,
   "coreSize": {
-    "count": 84,
+    "count": 82,
     "total": 667,
-    "pct": 12.59
+    "pct": 12.29
   }
 }

@@ -7,7 +7,7 @@ import type { DatabaseHealthSummary, DatabaseIntrospectionPort, PendingMigration
 
 /**
  * @file In-memory `LedgerReadPort` double (ADR-006 rule-of-two's "one being built now" partner
- * to `infra/sqlite/database-journal-repo.ts`'s `SqliteDatabaseLedgerRepo`). Backs
+ * to `db/sqlite/database-journal-repo.ts`'s `SqliteDatabaseLedgerRepo`). Backs
  * `server/app.ts`'s hermetic test/dev composition, mirroring every other feature's
  * `repo.memory.ts`/`repo.sqlite.ts` split in this codebase.
  */
@@ -68,7 +68,7 @@ export class InMemoryDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPor
  * In-memory double for both `recovery/restore-points.ts`'s `CreateRestorePointRepoPort` (the
  * idempotency-keyed persistence side) and `database/restore-points.ts`'s `RestorePointListPort`
  * (the read side this dispatch adds) — the same dual-port shape
- * `infra/sqlite/database-journal-repo.ts`'s real `SqliteRestorePointsRepo` already implements.
+ * `db/sqlite/database-journal-repo.ts`'s real `SqliteRestorePointsRepo` already implements.
  * Backs `server/app.ts`'s hermetic composition.
  */
 export class InMemoryRestorePointsRepo implements CreateRestorePointRepoPort, RestorePointListPort {
@@ -162,7 +162,7 @@ export class InMemoryMigrationRunsRepo implements MigrationRunsRepoPort {
 }
 
 /** In-memory `DbOpsPort` double (`core/gated-mutations/ports.ts`) — reports the same static
- * `cheap`/`file-snapshot` capability `infra/sqlite/db-ops.ts`'s real `SqliteDbOpsAdapter` reports
+ * `cheap`/`file-snapshot` capability `db/sqlite/db-ops.ts`'s real `SqliteDbOpsAdapter` reports
  * for a SQLite-backed site (this codebase's only dialect today), and fabricates an in-process
  * `artifactRef` instead of performing a real online backup, since `server/app.ts`'s hermetic
  * composition never touches a real content.db file. `server/deps.ts`'s real composition uses

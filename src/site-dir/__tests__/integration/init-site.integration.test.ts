@@ -18,7 +18,7 @@ import { runtimeSchemaVersion } from "../../schema-guard";
  * `src/site-dir/init-site.ts` (tasks.md T014). Correct TDD state.
  */
 
-const TEMPLATE_JSON_PATH = path.resolve(__dirname, "../../../../templates/starter/template.json");
+const TEMPLATE_JSON_PATH = path.resolve(__dirname, "../../../templates/starter/template.json");
 
 function mkTempParent(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-init-site-"));

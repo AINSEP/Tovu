@@ -63,7 +63,7 @@ export class SqliteDbOpsAdapter implements DbOpsPort {
   }
 
   /**
-   * Closes the "ledger-only" disclosed gap (`server/gated-mutations-composition.ts`'s
+   * Closes the "ledger-only" disclosed gap (`features/recovery/gated-hooks.ts`'s
    * `buildRestoreHooks`): physically swaps `content.db` for a previously-captured artifact.
    *
    * Crash-safety: copies the artifact to a same-directory temp file first, then does a single

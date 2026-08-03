@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { MenuRepoPort } from "../../../navigation/repo.memory";
+import type { MenuRepoPort } from "../../../navigation";
 import type {
   NavItemNode,
   NavLocationBindingRepoPort,

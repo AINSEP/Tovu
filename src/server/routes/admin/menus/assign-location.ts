@@ -1,4 +1,4 @@
-import { assignLocation, MenuNotFoundError } from "../../../../navigation/menu-service";
+import { assignLocation, MenuNotFoundError } from "../../../../navigation";
 import { toAdminAssignLocationResponse, type MenuRouteRegistrar } from "../../../../server/http/admin/menus";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 

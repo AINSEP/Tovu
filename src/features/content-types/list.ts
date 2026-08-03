@@ -16,7 +16,7 @@ import type { ContentTypeRecord } from "./types";
  * `write-service.ts`'s `ContentTypeRepoPort` — so a caller who only needs read access
  * (`routes/admin/content-types/list.ts`) can be typed against just this port, matching this
  * codebase's port-segregation convention (`LedgerReadPort` vs `BootLedgerPort` on the same
- * underlying table, `infra/sqlite/database-journal-repo.ts`). The concrete adapter
+ * underlying table, `db/sqlite/database-journal-repo.ts`). The concrete adapter
  * (`repo.memory.ts`'s `InMemoryContentTypeRepo`) implements both this and `ContentTypeRepoPort`.
  *
  * Architectural role:

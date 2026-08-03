@@ -8,7 +8,7 @@
  * handler here therefore performs that same check itself via the kit's `requireToolPermission`,
  * which is ADR-021 §2's single evaluation for these tools, located where the real route locates it.
  */
-import type { AuthorizeFn } from "../core/commands";
+import type { AuthorizeFn } from "../core/commands/command";
 import {
   buildDomainRegistrations,
   indexCatalogById,

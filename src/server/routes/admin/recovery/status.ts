@@ -12,7 +12,7 @@ import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps";
  * `resolveDegradedBanner` itself is pure/no-I/O (`degraded-banners.ts`'s own file header) — this
  * route's only job is assembling its `capabilities` input from real (or, where disclosed below,
  * honestly-stubbed) sources:
- *  - `costClass`: real, from `deps.dbOps.getCapabilities()` (`infra/sqlite/db-ops.ts`'s
+ *  - `costClass`: real, from `deps.dbOps.getCapabilities()` (`db/sqlite/db-ops.ts`'s
  *    `SqliteDbOpsAdapter` in the running server).
  *  - `pendingMigration`/`migrationInterrupted`: real read of `deps.siteStatusRepo`. ADR-041/043/
  *    044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix):

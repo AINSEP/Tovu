@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import type { ContentDb } from "../../infra/sqlite/content-db";
+import type { ContentDb } from "../../db/sqlite/content-db";
 import { getDriftStatus, type DriftStatus, type SchemaSnapshot } from "./drift";
 
 /**
@@ -13,7 +13,7 @@ import { getDriftStatus, type DriftStatus, type SchemaSnapshot } from "./drift";
  * Purpose:
  * Reads the two real sources `drift.ts`'s header names (ADR-041 §3) — a site's persisted
  * `.site-meta.json` stamp and the runtime's `__drizzle_migrations` table — plus the bundled
- * `infra/drizzle/meta/_journal.json` this runtime ships, and turns them into the three read
+ * `db/drizzle/meta/_journal.json` this runtime ships, and turns them into the three read
  * summaries the Database agent-tool catalog promises. `__drizzle_migrations`'s shape
  * (`id`/`hash`/`created_at`) was confirmed empirically against `drizzle-orm`'s own
  * `SQLiteSyncDialect.migrate()` (`node_modules/drizzle-orm/sqlite-core/dialect.js`), not assumed:
@@ -30,12 +30,12 @@ import { getDriftStatus, type DriftStatus, type SchemaSnapshot } from "./drift";
  *
  * Architectural role:
  * Infrastructure adapter, co-located with its port under `features/database` (mirrors
- * `features/content-types/repo.sqlite.ts`'s identical co-location, not `infra/sqlite/`'s older
+ * `features/content-types/repo.sqlite.ts`'s identical co-location, not `db/sqlite/`'s older
  * per-port-file convention) because the port here is this adapter's own invention, not a
  * cross-domain-shared one.
  */
 
-/** One `infra/drizzle/meta/_journal.json` entry — `idx`/`tag` identify the migration (RT-005);
+/** One `db/drizzle/meta/_journal.json` entry — `idx`/`tag` identify the migration (RT-005);
  * `when` is the epoch-millis value `drizzle-orm`'s migrator stamps into `__drizzle_migrations.created_at`
  * verbatim when that migration is applied. */
 interface DrizzleJournalEntry {
@@ -48,10 +48,10 @@ interface DrizzleJournal {
   entries: DrizzleJournalEntry[];
 }
 
-/** Resolved from this file's own location: `src/infra/drizzle/meta/_journal.json` — the SAME file
+/** Resolved from this file's own location: `src/db/drizzle/meta/_journal.json` — the SAME file
  * `site-dir/schema-guard.ts`'s `runtimeSchemaVersion()` reads, but this adapter needs every entry
  * (for pending-migration detection), not just the last one. */
-const DEFAULT_JOURNAL_PATH = path.resolve(__dirname, "../../infra/drizzle/meta/_journal.json");
+const DEFAULT_JOURNAL_PATH = path.resolve(__dirname, "../../db/drizzle/meta/_journal.json");
 
 export interface DatabaseHealthSummary {
   /** Whether the underlying `content.db` connection can still run a query at all. */

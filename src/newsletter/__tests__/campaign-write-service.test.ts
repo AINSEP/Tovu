@@ -6,8 +6,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../infra/sqlite/content-db";
-import { newsletterCampaignRevisions, newsletterCampaigns } from "../../infra/db/schema";
+import { openContentDb } from "../../db/sqlite/content-db";
+import { newsletterCampaignRevisions, newsletterCampaigns } from "../../db/schema";
 import { cancelCampaign, saveCampaign, scheduleCampaign, type CampaignWriteServiceDeps } from "../campaign-write-service";
 import { NewsletterCampaignNotEditableError, NewsletterConflictError, NewsletterListNotFoundError, NewsletterValidationError } from "../errors";
 import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterListRepo } from "../repo.memory";

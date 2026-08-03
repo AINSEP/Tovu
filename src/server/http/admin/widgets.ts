@@ -1,6 +1,6 @@
 import type { Response } from "express";
 
-import type { AuthorizeFn } from "../../../core/commands";
+import type { AuthorizeFn } from "../../../core/commands/command";
 import type { EntryRefRow } from "../../../core/entry-refs/types";
 import type { PrincipalRecord } from "../../../identity";
 import { getAuthedPrincipal } from "../../middleware/dev-auth";

@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+/** `seedIdentity` requires an explicit owner password: `@jini-ai/cms` supplies no default,
+ * so the host (or a test) always states the credential it is seeding. */
+const SEED_OWNER_PASSWORD = "seed-owner-pw";
+
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { identityAgentToolCatalog, type AgentToolDefinition } from "../../identity/agent-tools";
-import { Argon2PasswordHasher } from "../../identity/hasher";
-import type { IdentityRepos } from "../../identity/ports";
+import { identityAgentToolCatalog, type IdentityAgentToolDefinition as AgentToolDefinition } from "../../identity";
+import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
+import type { IdentityRepos } from "../../identity";
 import {
   InMemoryPolicyPermissionRepo,
   InMemoryPolicyRepo,
@@ -16,8 +20,8 @@ import {
   InMemoryRoleRepo,
   InMemorySessionRepo,
   InMemoryUserRepo,
-} from "../../identity/repo.memory";
-import { seedIdentity } from "../../identity/seed";
+} from "../../identity";
+import { seedIdentity } from "../../identity";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
 
@@ -69,7 +73,7 @@ async function buildHarness(): Promise<Harness> {
 
   const { ownerPrincipalId } = await seedIdentity({
     deps: { repos, hasher: HASHER, clock, idGen },
-    input: { workspaceId: WORKSPACE_ID },
+    input: { workspaceId: WORKSPACE_ID, ownerPassword: SEED_OWNER_PASSWORD },
   });
 
   const deps = {
@@ -357,7 +361,7 @@ test("the two read tools are classified 'none', and claiming otherwise also fail
 test("an identity tool that carried a confirmation-requiring actor-class rule could not be wired while no transport exists", () => {
   assert.throws(
     () => assertRiskMetadataIsWirable("identity_user_disable", { ...catalogEntry("identity_user_disable"), actorClassRule: "confirmer-must-equal-own-delegatedBy" }),
-    /requires a human-confirmation transport Tovu has not wired/,
+    /requires a human-confirmation transport/,
   );
 });
 

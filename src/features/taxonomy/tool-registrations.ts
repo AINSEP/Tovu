@@ -16,11 +16,10 @@
  * `taxonomy_plan_merge_term` is a THIRD shape: `core/gated-mutations/gateway.ts`'s `plan()` itself
  * calls `authorize()` unconditionally before `hooks.computePlan()` ever runs (verified directly
  * against that function's body) — mirrors `features/database/tool-registrations.ts`'s identical
- * `database_plan_migrate_forward` precedent, including reusing `server/gated-mutations-composition.ts`'s
- * `buildMergeTermHooks` directly (the one place other than a route file this codebase already
- * imports `core/gated-mutations` composition from a domain's own `tool-registrations.ts`).
+ * `database_plan_migrate_forward` precedent, including reusing this domain's own
+ * `gated-hooks.ts`'s `buildMergeTermHooks` directly.
  */
-import type { AuthorizeFn } from "../../core/commands";
+import type { AuthorizeFn } from "../../core/commands/command";
 import { plan as gatewayPlan, type GatedMutationHooks, type GatewayDeps } from "../../core/gated-mutations/gateway";
 import type { OutboxPort } from "../../core/ports";
 import type { PostRepoPort } from "../post";
@@ -37,11 +36,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "../../core/tools/registration-kit";
-// `buildMergeTermHooks` — and the `MergeableEntryTermRepoPort` type its own input needs — stay
-// sourced from `server/gated-mutations-composition`, an explicitly out-of-scope back-edge for this
-// pass (see the dispatch notes this file's narrowing was reported under). Reusing its
-// already-imported module for this one type, rather than duplicating it, adds no NEW cross-module edge.
-import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "../../server/gated-mutations-composition";
+import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "./gated-hooks";
 import { taxonomyAgentToolCatalog } from "./agent-tools";
 import { createPostBackedContentLookup } from "./content-lookup";
 import { listTaxonomiesWithTerms, type TaxonomyListPort, type TermListPort } from "./list";
@@ -64,10 +59,11 @@ const CATALOG_BY_ID = indexCatalogById(taxonomyAgentToolCatalog);
 /**
  * The exact slice of the route-deps bag Taxonomy's tool handlers read. Declared structurally
  * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
- * into the composition root for the `RouteDeps` god type specifically — the
- * `server/gated-mutations-composition` import above is a separate, already-disclosed back-edge left
- * untouched per the dispatch's explicit out-of-scope list. `server/routes/*` satisfies this
- * structurally by passing its existing `RouteDeps` object; nothing there changes.
+ * into the composition root for the `RouteDeps` god type. This domain's `buildMergeTermHooks`/
+ * `MergeableEntryTermRepoPort` now live in this module's own `gated-hooks.ts` (moved out of
+ * `server/gated-mutations-composition.ts`, closing the back-edge into `server/` that file's import
+ * previously required), so `server/routes/*` satisfies this interface structurally by passing its
+ * existing `RouteDeps` object; nothing there changes.
  */
 export interface TaxonomyToolDeps {
   authorize: AuthorizeFn;

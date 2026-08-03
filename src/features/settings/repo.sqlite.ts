@@ -8,9 +8,9 @@ import {
   settingValuesGlobal,
   settingValuesUser,
   settingValuesWorkspace,
-} from "../../infra/db/schema";
-import type { ContentDb } from "../../infra/sqlite/content-db";
-import { findOneBy } from "../../infra/sqlite/repo-helpers";
+} from "../../db/schema";
+import type { ContentDb } from "../../db/sqlite/content-db";
+import { findOneBy } from "../../db/sqlite/repo-helpers";
 import type { SettingsRepoPort } from "./ports";
 import type {
   DefinitionStatus,

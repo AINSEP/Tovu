@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemorySettingsRepo } from "../../features/settings/repo.memory";
-import { InMemoryPrincipalRepo } from "../../identity/repo.memory";
+import { InMemoryPrincipalRepo } from "../../identity";
 import {
   ensurePublicAssistantSettingDefinitions,
   getPublicAssistantSettings,

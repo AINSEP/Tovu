@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+/** `seedIdentity` requires an explicit owner password: `@jini-ai/cms` supplies no default,
+ * so the host (or a test) always states the credential it is seeding. */
+const SEED_OWNER_PASSWORD = "seed-owner-pw";
+
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { identityAgentToolCatalog } from "../../identity/agent-tools";
-import { Argon2PasswordHasher } from "../../identity/hasher";
-import type { IdentityRepos } from "../../identity/ports";
+import { identityAgentToolCatalog } from "../../identity";
+import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
+import type { IdentityRepos } from "../../identity";
 import {
   InMemoryPolicyPermissionRepo,
   InMemoryPolicyRepo,
@@ -16,9 +20,9 @@ import {
   InMemoryRoleRepo,
   InMemorySessionRepo,
   InMemoryUserRepo,
-} from "../../identity/repo.memory";
-import { seedIdentity } from "../../identity/seed";
-import { GrantExceedsIssuerError, IdentityForbiddenError } from "../../identity/types";
+} from "../../identity";
+import { seedIdentity } from "../../identity";
+import { GrantExceedsIssuerError, IdentityForbiddenError } from "../../identity";
 import type { RouteDeps } from "../../server/routes/types";
 import { buildAssistantToolRegistrations } from "../tool-registrations";
 
@@ -79,7 +83,7 @@ async function buildHarness(): Promise<Harness> {
 
   const { ownerPrincipalId } = await seedIdentity({
     deps: { repos, hasher: HASHER, clock, idGen },
-    input: { workspaceId: WORKSPACE_ID },
+    input: { workspaceId: WORKSPACE_ID, ownerPassword: SEED_OWNER_PASSWORD },
   });
 
   const deps = {

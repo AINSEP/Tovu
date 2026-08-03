@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb, type ContentDb } from "../../infra/sqlite/content-db";
+import { openContentDb, type ContentDb } from "../../db/sqlite/content-db";
 import { installNewsletterDataModule } from "../data-module-manifest";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,

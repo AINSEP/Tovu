@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError as CommandForbiddenError } from "../../core/commands";
+import { ForbiddenError as CommandForbiddenError } from "../../core/commands/command";
 import { getDatabaseAgentToolCatalog, type AgentToolDefinition as DatabaseAgentToolDefinition } from "../../features/database/agent-tools";
 import {
   InMemoryDatabaseIntrospectionAdapter,
@@ -15,7 +15,7 @@ import {
 } from "../../features/database/repo.memory";
 import { recoveryAgentToolCatalog, type AgentToolDefinition as RecoveryAgentToolDefinition } from "../../features/recovery/agent-tools";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../../features/recovery/repo.memory";
-import { buildGatewayDeps } from "../../server/gated-mutations-composition";
+import { buildGatewayDeps } from "../../core/gated-mutations/composition";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
 

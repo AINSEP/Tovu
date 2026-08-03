@@ -65,7 +65,7 @@ import { checkDiskHeadroom } from "./disk-headroom";
 import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal } from "./migration-journal";
 import { checkNamespaceAdoption } from "./plugin-identity";
 import type { PluginProvenance } from "./plugin-identity";
-import { snapshotDb } from "./snapshot";
+import { discardCommittedSnapshot, snapshotDb } from "./snapshot";
 
 export type ColumnType = "TEXT" | "INTEGER" | "REAL" | "BLOB";
 export type PluginTier = "tier-1" | "tier-2" | "tier-3";
@@ -290,6 +290,13 @@ export async function declareDataModule(
       throw new Error(`post-DDL verification failed: ${stillMissing.map((t) => t.name).join(", ")} not found after CREATE TABLE`);
     }
     if (journalId !== null) advanceJournalPhase({ db, id: journalId, phase: "COMMITTED" });
+    // The snapshot's recovery window closed on the line above. `migration-recovery.ts` only ever
+    // restores from NON-terminal journal entries, so a COMMITTED entry's snapshot is unreachable
+    // by every code path that exists — keeping it means a permanent whole-database copy per
+    // plugin, which is what filled the working directory with `.snapshot-store-*`,
+    // `.snapshot-newsletter-*` and `.snapshot-comments-*` files. See `discardCommittedSnapshot`
+    // for why this removes no recovery capability. Failure keeps its snapshot (catch branch).
+    if (snapshotPath !== null) await discardCommittedSnapshot(snapshotPath);
   } catch (err) {
     // better-sqlite3 already rolled the transaction back → live db is unchanged and working
     // (this is the same-process, catchable-failure case — no restore needed; restore only ever

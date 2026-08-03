@@ -13,7 +13,7 @@
  * `admin.collections.read` first") — so `collections_entry_list`'s handler performs that identical
  * inline check itself, mirroring `entries/list.ts`'s admin route.
  */
-import type { AuthorizeFn } from "../../core/commands";
+import type { AuthorizeFn } from "../../core/commands/command";
 import type { OutboxPort } from "../../core/ports";
 import {
   AGENT_TOOL_PRINCIPAL_KIND,

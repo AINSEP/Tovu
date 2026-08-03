@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../infra/sqlite/content-db";
+import { openContentDb } from "../../db/sqlite/content-db";
 import {
   InMemoryPolicyPermissionRepo,
   InMemoryPolicyRepo,
@@ -12,7 +12,7 @@ import {
   InMemoryRoleRepo,
   InMemorySessionRepo,
   InMemoryUserRepo,
-} from "../repo.memory";
+} from "@jini-ai/cms/identity";
 import {
   SqlitePolicyPermissionRepo,
   SqlitePolicyRepo,
@@ -34,7 +34,7 @@ import type {
   RoleRepoPort,
   SessionRepoPort,
   UserRepoPort,
-} from "../ports";
+} from "@jini-ai/cms/identity";
 
 /**
  * @file Shared contract-test suite for the nine `identity` repo ports, run against both

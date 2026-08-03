@@ -15,10 +15,8 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError } from "../../core/commands";
-import { mediaAgentToolCatalog, type AgentToolDefinition } from "../../media/agent-tools";
-import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryMediaRepo } from "../../media/repo.memory";
-import { InMemoryBlobStore } from "../../media/blob-store.memory";
+import { ForbiddenError } from "../../core/commands/command";
+import { mediaAgentToolCatalog, type AgentToolDefinition, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryBlobStore } from "../../media";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
 

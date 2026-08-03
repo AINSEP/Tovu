@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 
 import { openContentDb } from "../content-db";
 import { findOneBy } from "../repo-helpers";
-import { workspaces } from "../../db/schema";
+import { workspaces } from "../../schema";
 
 /**
  * @file Direct unit coverage for `findOneBy` itself (ADR-042 item 1 / `/debate` D1,

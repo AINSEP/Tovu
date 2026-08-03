@@ -1,9 +1,9 @@
 import { and, desc, eq, lt, or } from "drizzle-orm";
 
 import type { UUID } from "../core/ports";
-import { formDefinitions, formSubmissions } from "../infra/db/schema";
-import type { ContentDb } from "../infra/sqlite/content-db";
-import { findOneBy } from "../infra/sqlite/repo-helpers";
+import { formDefinitions, formSubmissions } from "../db/schema";
+import type { ContentDb } from "../db/sqlite/content-db";
+import { findOneBy } from "../db/sqlite/repo-helpers";
 import { FormSlugConflictError } from "./errors";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports";
 import type {
@@ -19,7 +19,7 @@ import type {
  * @file Drizzle/SQLite adapters for `forms` (rule-of-two half #2, ADR-006, C-012).
  *
  * `create`'s slug-uniqueness relies on the real DB unique index
- * (`form_definitions_workspace_slug_unique`, `infra/db/schema.ts`) — behavior.spec.md §6.1's
+ * (`form_definitions_workspace_slug_unique`, `db/schema.ts`) — behavior.spec.md §6.1's
  * actual tie-break mechanism, not app-level check-then-insert. A `SQLITE_CONSTRAINT_UNIQUE`
  * violation is mapped here to `FormSlugConflictError`, matching `repo.memory.ts`'s emulated
  * behavior so `write-service.ts`'s error handling is identical against either adapter.

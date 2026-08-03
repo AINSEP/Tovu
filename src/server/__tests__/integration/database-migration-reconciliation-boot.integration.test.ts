@@ -8,8 +8,8 @@ import { createSqliteRouteDeps, defaultDatabaseJournalDbPath } from "../../deps"
 import { buildBootModules } from "../../bootstrap";
 import { runBootLifecycle } from "../../boot-lifecycle";
 import { createApp } from "../../app";
-import { openDatabaseJournalDb } from "../../../infra/sqlite/database-journal-db";
-import { SqliteMigrationRunsRepo } from "../../../infra/sqlite/database-journal-repo";
+import { openDatabaseJournalDb } from "../../../db/sqlite/database-journal-db";
+import { SqliteMigrationRunsRepo } from "../../../db/sqlite/database-journal-repo";
 import { loginAsOwner, startTestServer } from "../helpers/http-test-server";
 
 /**

@@ -13,7 +13,7 @@
  * feature call, not routed through the SPEC-001 command gateway"), and every handler below does the
  * same via the kit's `requireToolPermission`.
  */
-import type { AuthorizeFn } from "../core/commands";
+import type { AuthorizeFn } from "../core/commands/command";
 import type { OriginRegistryPort } from "../origin";
 import {
   buildDomainRegistrations,

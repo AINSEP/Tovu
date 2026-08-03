@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../../../infra/sqlite/content-db";
+import { openContentDb } from "../../../../db/sqlite/content-db";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo, sqliteStampWatermark } from "../../repo.sqlite";
 import { createTaxonomy, createTerm, renameTerm } from "../../write-service";
 

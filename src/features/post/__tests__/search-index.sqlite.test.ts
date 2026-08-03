@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ClockPort, JsonObject, OutboxPort } from "../../../core/ports";
-import { openContentDb, type ContentDb } from "../../../infra/sqlite/content-db";
+import { openContentDb, type ContentDb } from "../../../db/sqlite/content-db";
 import { createPost, deletePost, updatePost, type PostRecord } from "../post";
 import { SqlitePostRepo } from "../repo.sqlite";
 import { searchAdminPosts, type PostSearchHit } from "../search";

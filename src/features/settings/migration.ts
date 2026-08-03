@@ -1,5 +1,5 @@
 import type { ClockPort, IdGeneratorPort, UUID } from "../../core/ports";
-import type { PrincipalRepoPort } from "../../identity/ports";
+import type { PrincipalRepoPort } from "../../identity";
 import { ALLOWED_THEME_IDS, type PresentationSettingsRepoPort } from "../presentation";
 import type { SettingsRepoPort } from "./ports";
 import { resolveDefinitionRaw } from "./settings";

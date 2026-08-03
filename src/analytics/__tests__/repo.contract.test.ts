@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../infra/sqlite/content-db";
-import { SqliteBufferSink } from "../../infra/sqlite/analytics-sink.sqlite";
+import { openContentDb } from "../../db/sqlite/content-db";
+import { SqliteBufferSink } from "../../db/sqlite/analytics-sink.sqlite";
 import { LocalBufferSink } from "../repo.memory";
 import type { AnalyticsSinkPort } from "../ports";
 import type { NormalizedHit } from "../types";

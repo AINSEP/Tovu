@@ -1,4 +1,4 @@
-import { DuplicateCommandError, executeCommand, ForbiddenError } from "../../../../core/commands";
+import { DuplicateCommandError, executeCommand, ForbiddenError } from "../../../../core/commands/command";
 import {
   PluginIncompatibleError,
   PluginInvalidError,

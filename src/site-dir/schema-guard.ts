@@ -22,8 +22,8 @@ import { SiteNewerThanRuntimeError } from "./errors";
  * import, no db handle) — this module never touches `content.db`.
  */
 
-/** Resolved from this file's own location: `src/infra/drizzle/meta/_journal.json`. */
-const JOURNAL_PATH = path.resolve(__dirname, "../infra/drizzle/meta/_journal.json");
+/** Resolved from this file's own location: `src/db/drizzle/meta/_journal.json`. */
+const JOURNAL_PATH = path.resolve(__dirname, "../db/drizzle/meta/_journal.json");
 
 interface DrizzleJournal {
   entries: Array<{ idx: number; tag: string }>;

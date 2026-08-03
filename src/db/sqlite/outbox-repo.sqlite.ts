@@ -1,6 +1,6 @@
 import { and, asc, eq, lte } from "drizzle-orm";
 
-import { outboxEvents } from "../db/schema";
+import { outboxEvents } from "../schema";
 import type { ContentDb } from "./content-db";
 import type { DomainEvent, ISODateTime, OutboxPort, OutboxRecord, UUID } from "../../core/ports";
 

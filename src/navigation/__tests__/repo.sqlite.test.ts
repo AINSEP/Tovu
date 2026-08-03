@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../infra/sqlite/content-db";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type MenuRepoPort } from "../repo.memory";
+import { openContentDb } from "../../db/sqlite/content-db";
+import {
+  InMemoryMenuRepo,
+  InMemoryNavLocationBindingRepo,
+  type MenuRepoPort,
+  type NavLocationBindingRepoPort,
+  type NavMenuDoc,
+  type NavMenuEntry,
+} from "@jini-ai/cms/navigation";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../repo.sqlite";
-import type { NavLocationBindingRepoPort } from "../ports";
-import type { NavMenuDoc, NavMenuEntry } from "../types";
 
 /**
  * @file Shared contract-test suites for `MenuRepoPort` and

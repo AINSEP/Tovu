@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPrincipalRepo } from "../../identity/repo.memory";
+import { InMemoryPrincipalRepo } from "../../identity";
 import { InMemorySettingsRepo } from "../../features/settings/repo.memory";
 import { CommentsSettingsValidationError } from "../errors";
 import { ensureCommentsSettingDefinitions, getCommentsSettings, setCommentsSettings } from "../settings";

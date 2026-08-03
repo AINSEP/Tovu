@@ -14,7 +14,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError } from "../../core/commands";
+import { ForbiddenError } from "../../core/commands/command";
 import { membersAgentToolCatalog, type AgentToolDefinition } from "../../members/agent-tools";
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, MemberNotFoundError, type MemberRecord } from "../../members";
 import { createRateLimiter } from "../../server/middleware/rate-limit";

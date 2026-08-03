@@ -13,7 +13,7 @@
  * `update.ts`) — so both handlers here call the kit's `requireToolPermission` themselves, mirroring
  * those routes' identical `workspace.manage` check.
  */
-import type { AuthorizeFn } from "../../core/commands";
+import type { AuthorizeFn } from "../../core/commands/command";
 import {
   buildDomainRegistrations,
   indexCatalogById,

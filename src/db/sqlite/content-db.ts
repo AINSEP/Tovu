@@ -5,7 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-import * as schema from "../db/schema";
+import * as schema from "../schema";
 
 /**
  * @file Per-site content.db bootstrap (Drizzle over better-sqlite3).
@@ -19,7 +19,7 @@ import * as schema from "../db/schema";
  * - The composition root (`server/deps.ts`) opens the db here, passing in its own
  *   `server/seed.ts` demo data, and injects the typed Drizzle handle into the
  *   per-feature `repo.sqlite.ts` adapters.
- * - Schema is code-first (`infra/db/schema.ts`) → `infra/drizzle/` migrations, so
+ * - Schema is code-first (`db/schema.ts`) → `db/drizzle/` migrations, so
  *   same schema maps cleanly to a future Postgres adapter (ADR-006 rule-of-two,
  *   Payload's shared-schema shape).
  * - ADR-042 item 3: this file previously imported `seededWorkspace`/`seededPosts`/
@@ -41,7 +41,7 @@ import * as schema from "../db/schema";
  */
 export type ContentDb = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
 
-/** Generated migrations live at `src/infra/drizzle/` (resolved from this file). */
+/** Generated migrations live at `src/db/drizzle/` (resolved from this file). */
 const MIGRATIONS_DIR = path.resolve(__dirname, "../drizzle");
 
 /** First-run demo content a caller may supply to `openContentDb`/`seedContentDb`. */

@@ -29,7 +29,7 @@ import {
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
 } from "../members";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../navigation/repo.memory";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../navigation";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../integrations";
 import { InMemoryKeyring } from "../integrations/keyring.memory";
 import { createKeyringBackedSigner } from "../integrations/signing.keyring";
@@ -41,7 +41,7 @@ import {
   InMemoryMediaRepo,
   InMemoryTransformDefinitionRepo,
 } from "../media";
-import { createInMemoryIdentityRouteDeps } from "../identity";
+import { createInMemoryIdentityRouteDeps } from "../identity/wiring";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,
@@ -82,7 +82,7 @@ import { InMemoryPluginActivationRepo } from "../features/plugin-runtime/repo.me
 import { WORD_COUNT_BUILT_IN } from "../features/plugin-runtime/built-ins/word-count";
 import { createPluginsModule } from "./modules/plugins";
 import { wireCoreResolvers } from "../widgets/resolvers/index";
-import { createNavMenuReadModel } from "../navigation/read-model";
+import { createNavMenuReadModel } from "../navigation";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { ensurePublicAssistantSettingDefinitions } from "../assistant/public-assistant-settings";
 import { ensureExecutionSettingDefinitions } from "../assistant/execution-mode-settings";
@@ -92,7 +92,7 @@ import { InMemoryCommentRepo } from "../comments/repo.memory";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";
 import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo } from "../features/taxonomy/repo.memory";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
-import { buildGatewayDeps } from "./gated-mutations-composition";
+import { buildGatewayDeps } from "../core/gated-mutations/composition";
 import { resolveRuntimeMode } from "./runtime-mode";
 import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer";
 import { registerAdminTaxonomyMergeTermRoutes } from "./routes/admin/taxonomy/merge-term";
@@ -476,8 +476,8 @@ export function createRouteDeps(): NewsletterRouteDeps {
     deepLinkRestorePointLookup: new RestorePointDeepLinkLookup(restorePointsRepo),
     // SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — same composition `server/deps.ts`
     // wires for the real server, mirrored here for the hermetic test/dev composition (its own
-    // `InMemoryTokenStore` instance — see `gated-mutations-composition.ts`'s file header for the
-    // disclosed `TokenStorePort` decision).
+    // `InMemoryTokenStore` instance — see `core/gated-mutations/composition.ts`'s file header for
+    // the disclosed `TokenStorePort` decision).
     gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize: identity.authorize }) },
     commentRepo: commentsModule.commentRepo,
     commentIngressPolicy: commentsModule.ingressPolicy,
@@ -769,7 +769,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `/admin/*`-scoped static serving above. Served from Tovu's own root here (in both dev, via
   // `apps/admin/vite.config.ts`'s matching proxy entry, and prod) rather than duplicated inside
   // `apps/admin/dist` (which would only ever resolve under `/admin/`).
-  app.use("/agent-icons", express.static(path.resolve(__dirname, "../../public/agent-icons")));
+  app.use("/agent-icons", express.static(path.resolve(__dirname, "../public/agent-icons")));
 
   // SPEC-044: the `workspace` server module (list/create/get/update/delete) is registered near the
   // other ADR-046 Phase 3 module calls above (`createUsersModule`); the original inline

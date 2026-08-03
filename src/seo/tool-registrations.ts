@@ -21,11 +21,11 @@
  *    tools already use (contrast `features/workspace/tool-registrations.ts`'s `workspace_update`,
  *    which self-enforces nothing and is checked only at the handler).
  */
-import type { AuthorizeFn } from "../core/commands";
+import type { AuthorizeFn } from "../core/commands/command";
 import type { PostRepoPort } from "../features/post";
 import type { SettingsRepoPort } from "../features/settings/ports";
 import type { PrincipalRepoPort } from "../identity";
-import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/ports";
+import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media";
 import {
   buildDomainRegistrations,
   indexCatalogById,

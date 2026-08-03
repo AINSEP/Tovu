@@ -1,11 +1,17 @@
 import { and, eq } from "drizzle-orm";
 
-import { menus, navLocationBindings } from "../infra/db/schema";
-import type { ContentDb } from "../infra/sqlite/content-db";
-import { findOneBy } from "../infra/sqlite/repo-helpers";
-import type { MenuRepoPort } from "./repo.memory";
-import type { NavLocationBindingRepoPort } from "./ports";
-import type { MenuStatus, NavLocationBindingRow, NavLocationKey, NavMenuDoc, NavMenuEntry } from "./types";
+import { menus, navLocationBindings } from "../db/schema";
+import type { ContentDb } from "../db/sqlite/content-db";
+import { findOneBy } from "../db/sqlite/repo-helpers";
+import type {
+  MenuRepoPort,
+  MenuStatus,
+  NavLocationBindingRepoPort,
+  NavLocationBindingRow,
+  NavLocationKey,
+  NavMenuDoc,
+  NavMenuEntry,
+} from "@jini-ai/cms/navigation";
 
 /**
  * @file Drizzle/SQLite adapters for `MenuRepoPort` and

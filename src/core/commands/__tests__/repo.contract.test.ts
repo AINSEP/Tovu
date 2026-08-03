@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../../infra/sqlite/content-db";
-import { SqliteChangeSetRepo } from "../../../infra/sqlite/change-set-repo.sqlite";
+import { openContentDb } from "../../../db/sqlite/content-db";
+import { SqliteChangeSetRepo } from "../../../db/sqlite/change-set-repo.sqlite";
 import { InMemoryChangeSetRepo } from "../repo.memory";
 import type { ChangeSetItemRecord, ChangeSetRecord, ChangeSetRepoPort } from "../change-set";
 
 /**
  * @file SPEC-023 / ADR-046 Phase 1 — shared `ChangeSetRepoPort` contract-test suite, run against
- * BOTH `repo.memory.ts` and `infra/sqlite/change-set-repo.sqlite.ts` (rule-of-two, ADR-006).
+ * BOTH `repo.memory.ts` and `db/sqlite/change-set-repo.sqlite.ts` (rule-of-two, ADR-006).
  * Same pattern as `redirects/__tests__/repo.contract.test.ts`/every other rule-of-two contract
  * suite in this codebase.
  */

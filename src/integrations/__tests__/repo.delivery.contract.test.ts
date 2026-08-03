@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../infra/sqlite/content-db";
+import { openContentDb } from "../../db/sqlite/content-db";
 import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo } from "../repo.memory";
 import { SqliteWebhookDeliveryRepo } from "../repo.sqlite";
 import type { DeliveryEnvelopeStore } from "../repo.memory";

@@ -11,7 +11,7 @@
  * mirroring those routes' identical check (ADR-021 §2's single evaluator, located at the handler
  * here rather than inside the domain function).
  */
-import type { AuthorizeFn } from "../core/commands";
+import type { AuthorizeFn } from "../core/commands/command";
 import {
   buildDomainRegistrations,
   indexCatalogById,

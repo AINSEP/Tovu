@@ -1,6 +1,5 @@
 import type { UUID } from "../core/ports";
-import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/ports";
-import type { TransformFormat } from "../media/transform-types";
+import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort, TransformFormat } from "../media";
 
 /**
  * @file `resolveSeoImageRef` (ADR-PIPE-008 Decision §6, C-013, EC-07) —

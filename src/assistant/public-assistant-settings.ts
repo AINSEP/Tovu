@@ -1,5 +1,5 @@
 import type { ClockPort, IdGeneratorPort, JsonValue, UUID } from "../core/ports";
-import type { PrincipalRepoPort } from "../identity/ports";
+import type { PrincipalRepoPort } from "../identity";
 import type { SettingsRepoPort } from "../features/settings/ports";
 import { getEffective, resolveDefinitionRaw } from "../features/settings/settings";
 import { SCOPE_BIT, type SettingValueSchema } from "../features/settings/types";

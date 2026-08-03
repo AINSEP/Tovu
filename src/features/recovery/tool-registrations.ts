@@ -14,7 +14,7 @@
  * every handler here calls the kit's `requireToolPermission` — ADR-021 §2's single evaluation,
  * located where the real route locates it.
  */
-import type { AuthorizeFn } from "../../core/commands";
+import type { AuthorizeFn } from "../../core/commands/command";
 import type { GatewayDeps } from "../../core/gated-mutations/gateway";
 import { plan as gatewayPlan } from "../../core/gated-mutations/gateway";
 import type { DbOpsPort } from "../../core/gated-mutations/ports";
@@ -33,12 +33,13 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "../../core/tools/registration-kit";
-// `buildRestoreHooks`/`toRecoveryResult` — and the `LedgerAppendPort` type its own input needs —
-// stay sourced from `server/gated-mutations-composition`, an explicitly out-of-scope back-edge for
-// this pass (see the dispatch notes this file's narrowing was reported under). Reusing its
-// already-imported module for this one type, rather than duplicating it, adds no NEW cross-module edge.
-import { buildRestoreHooks, toRecoveryResult, type LedgerAppendPort } from "../../server/gated-mutations-composition";
+import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks";
 import type { MigrationRunsRepoPort, SiteStatusPort } from "../database/boot/reconcile-interrupted-migration";
+// `LedgerAppendPort` is Database-owned — Recovery already imports several other Database ports
+// this same way (`RestorePointListPort` below, `MigrationRunsRepoPort`/`SiteStatusPort` above), so
+// sourcing this one type from `features/database/gated-hooks.ts` too is the established "Recovery
+// depends on Database, never the reverse" direction, not a new cross-domain edge.
+import type { LedgerAppendPort } from "../database/gated-hooks";
 import { listRestorePoints, type RestorePointListPort } from "../database/restore-points";
 import { recoveryAgentToolCatalog } from "./agent-tools";
 import { resolveDeepLinkContext, type DatabaseContextEnvelope, type DeepLinkRestorePointLookupPort } from "./deep-link";
@@ -51,10 +52,11 @@ const CATALOG_BY_ID = indexCatalogById(recoveryAgentToolCatalog);
 /**
  * The exact slice of the route-deps bag Recovery's tool handlers read. Declared structurally
  * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
- * into the composition root for the `RouteDeps` god type specifically — the
- * `server/gated-mutations-composition` import above is a separate, already-disclosed back-edge left
- * untouched per the dispatch's explicit out-of-scope list. `server/routes/*` satisfies this
- * structurally by passing its existing `RouteDeps` object; nothing there changes.
+ * into the composition root for the `RouteDeps` god type. This domain's `buildRestoreHooks`/
+ * `toRecoveryResult` now live in this module's own `gated-hooks.ts` (moved out of
+ * `server/gated-mutations-composition.ts`, closing the back-edge into `server/` that file's import
+ * previously required), so `server/routes/*` satisfies this interface structurally by passing its
+ * existing `RouteDeps` object; nothing there changes.
  */
 export interface RecoveryToolDeps {
   authorize: AuthorizeFn;

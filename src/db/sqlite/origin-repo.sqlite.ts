@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { originSettings } from "../db/schema";
+import { originSettings } from "../schema";
 import type { ContentDb } from "./content-db";
 import type { UUID } from "../../core/ports";
 import type { OriginSettingRepoPort } from "../../origin/ports";

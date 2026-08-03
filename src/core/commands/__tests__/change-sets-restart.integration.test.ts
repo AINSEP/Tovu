@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../../infra/sqlite/content-db";
-import { SqliteChangeSetRepo } from "../../../infra/sqlite/change-set-repo.sqlite";
+import { openContentDb } from "../../../db/sqlite/content-db";
+import { SqliteChangeSetRepo } from "../../../db/sqlite/change-set-repo.sqlite";
 
 /**
  * @file ADR-046 Phase 1's own required production gate for the Change Sets row: "Restart and

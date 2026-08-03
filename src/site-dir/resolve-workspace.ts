@@ -1,5 +1,5 @@
-import type { ContentDb } from "../infra/sqlite/content-db";
-import { workspaces } from "../infra/db/schema";
+import type { ContentDb } from "../db/sqlite/content-db";
+import { workspaces } from "../db/schema";
 import type { WorkspaceRecord } from "../features/workspace";
 import { SiteCorruptError, ValidationError } from "./errors";
 

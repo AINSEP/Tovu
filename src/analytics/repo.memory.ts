@@ -59,7 +59,7 @@ export class LocalBufferSink implements AnalyticsSinkPort {
     // ADR-046 Phase 1: this adapter is a process-local array — it does NOT survive a restart.
     // Previously self-reported `durable: true`, which capability-inventory.ts's INV-03 check
     // flagged as an untrustworthy claim (see `SqliteBufferSink` in
-    // `infra/sqlite/analytics-sink.sqlite.ts` for the adapter that actually earns `durable: true`).
+    // `db/sqlite/analytics-sink.sqlite.ts` for the adapter that actually earns `durable: true`).
     return { durable: false, batch: true };
   }
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Argon2PasswordHasher } from "../hasher";
+import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
 
 /**
  * @file argon2id password hashing (INV-05).

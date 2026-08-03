@@ -13,7 +13,7 @@
  * is an in-memory-only sink, the same pattern `analytics/repo.memory.ts`'s
  * `LocalBufferSink` already uses in BOTH `server/app.ts` (test/dev) and
  * `server/deps.ts` (the real running server) — no SQLite adapter exists yet
- * for either. The `redirect_hits` table (`infra/db/schema.ts`) is reserved
+ * for either. The `redirect_hits` table (`db/schema.ts`) is reserved
  * for a future real adapter; REQ-21/AC-26 are fully testable and functional
  * against this in-memory sink.
  *

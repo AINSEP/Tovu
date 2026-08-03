@@ -9,13 +9,13 @@ import { SqlitePresentationSettingsRepo } from "../features/presentation";
 import { SqliteSettingsRepo } from "../features/settings/repo.sqlite";
 import { discoverAllBuiltInThemes } from "../features/theme";
 import { SqliteWorkspaceRepo } from "../features/workspace";
-import { openContentDb, type ContentDb } from "../infra/sqlite/content-db";
+import { openContentDb, type ContentDb } from "../db/sqlite/content-db";
 import { resolveWorkspace } from "../site-dir/resolve-workspace";
 import { recoverIncompleteDataModuleMigrations } from "../features/plugins/migration-recovery";
-import { SqliteChangeSetRepo } from "../infra/sqlite/change-set-repo.sqlite";
-import { SqliteOutboxAdapter } from "../infra/sqlite/outbox-repo.sqlite";
-import { openDatabaseJournalDb } from "../infra/sqlite/database-journal-db";
-import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "../infra/sqlite/database-journal-repo";
+import { SqliteChangeSetRepo } from "../db/sqlite/change-set-repo.sqlite";
+import { SqliteOutboxAdapter } from "../db/sqlite/outbox-repo.sqlite";
+import { openDatabaseJournalDb } from "../db/sqlite/database-journal-db";
+import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "../db/sqlite/database-journal-repo";
 import { ensureSeoSettingDefinitions } from "../seo";
 import { installNewsletterDataModule } from "../newsletter/data-module-manifest";
 import { ensureDefaultList } from "../newsletter/lists";
@@ -36,7 +36,7 @@ import {
   seedSettingsFromPresentation,
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "./seed";
-import { SqliteBufferSink } from "../infra/sqlite/analytics-sink.sqlite";
+import { SqliteBufferSink } from "../db/sqlite/analytics-sink.sqlite";
 import {
   ConsoleMailerAdapter,
   SqliteMagicLinkTokenRepo,
@@ -45,7 +45,7 @@ import {
   SqliteMemberSubscriptionRepo,
   SqliteMemberTierRepo,
 } from "../members";
-import { rebuildNavLocationBindings } from "../navigation/reconcile";
+import { rebuildNavLocationBindings } from "../navigation";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../navigation/repo.sqlite";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "../integrations";
 import { EnvOrFileKeyring } from "../integrations/keyring.env";
@@ -54,20 +54,20 @@ import {
   LocalFsBlobStore,
   SharpImageTransformer,
 } from "../media";
-import { createSqliteIdentityRouteDeps } from "../identity";
+import { createSqliteIdentityRouteDeps } from "../identity/wiring";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../forms/repo.sqlite";
 import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile";
 import { createRateLimiter } from "./middleware/rate-limit";
 import type { RouteDeps } from "./routes/types";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps";
 import { createVerifiedOrigin, OriginRegistry } from "../origin";
-import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../infra/sqlite/origin-repo.sqlite";
+import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../db/sqlite/origin-repo.sqlite";
 import {
   SqliteAssetBlobRepo,
   SqliteAssetRenditionRepo,
   SqliteMediaRepo,
   SqliteTransformDefinitionRepo,
-} from "../infra/sqlite/media-repo.sqlite";
+} from "../db/sqlite/media-repo.sqlite";
 import {
   RedirectHitSinkImpl,
   RedirectPhaseHandlerResolver,
@@ -79,8 +79,8 @@ import {
   type RedirectsWriteDeps,
 } from "../redirects";
 import { registerSlugChangeCapture } from "../routing";
-import { SqliteDbOpsAdapter } from "../infra/sqlite/db-ops";
-import { SqliteRestorePointsRepo } from "../infra/sqlite/database-journal-repo";
+import { SqliteDbOpsAdapter } from "../db/sqlite/db-ops";
+import { SqliteRestorePointsRepo } from "../db/sqlite/database-journal-repo";
 import { SqliteDatabaseIntrospectionAdapter } from "../features/database/adapter.sqlite";
 import { InMemorySiteStatusRepo } from "../features/database/repo.memory";
 import { NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
@@ -92,7 +92,7 @@ import { discoverPlugins as discoverPluginRuntimePlugins } from "../features/plu
 import { SqlitePluginActivationRepo } from "../features/plugin-runtime/repo.sqlite";
 import { WORD_COUNT_BUILT_IN } from "../features/plugin-runtime/built-ins/word-count";
 import { wireCoreResolvers } from "../widgets/resolvers/index";
-import { createNavMenuReadModel } from "../navigation/read-model";
+import { createNavMenuReadModel } from "../navigation";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { ensurePublicAssistantSettingDefinitions } from "../assistant/public-assistant-settings";
 import { ensureExecutionSettingDefinitions } from "../assistant/execution-mode-settings";
@@ -102,7 +102,7 @@ import { SqliteCommentRepo } from "../comments/repo.sqlite";
 import { installCommentsDataModule } from "../comments/data-module-install";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "../features/taxonomy/repo.sqlite";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
-import { buildGatewayDeps } from "./gated-mutations-composition";
+import { buildGatewayDeps } from "../core/gated-mutations/composition";
 import { resolveRuntimeMode } from "./runtime-mode";
 import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer";
 
@@ -111,17 +111,21 @@ import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer";
  * convention, mirroring `builtInThemesDir()`/`defaultContentDbPath()` above).
  */
 export function mediaUploadsDir(): string {
-  return process.env.TOVU_MEDIA_UPLOADS_DIR ?? join(process.cwd(), "uploads");
+  // Sibling of `defaultContentDbPath()`'s `infra/content.db` — see its comment. Unlike the db
+  // path, this one is NOT derived from `dirname(contentDbPath)`, so it has to be moved explicitly;
+  // that independence is why `uploads/` was the one runtime directory that did not follow the
+  // database automatically.
+  return process.env.TOVU_MEDIA_UPLOADS_DIR ?? join(process.cwd(), "infra", "uploads");
 }
 
 /**
- * Built-in themes ship in the repo-root `themes/` dir (SPEC-004 spike), copied to `dist/themes/`
- * at build time (mirrors `templates/` -> `dist/templates/`) and resolved package-relative to this
- * file — never `process.cwd()` (CR-R04 fix: `tovu serve` used to read `process.cwd()/themes`,
+ * Built-in themes ship in the `src/themes/` dir (SPEC-004 spike), copied to `dist/src/themes/`
+ * at build time (mirrors `src/templates/` -> `dist/src/templates/`) and resolved package-relative
+ * to this file — never `process.cwd()` (CR-R04 fix: `tovu serve` used to read `process.cwd()/themes`,
  * which is wrong whenever the CLI is invoked from outside the repo checkout).
  */
 export function builtInThemesDir(): string {
-  return process.env.TOVU_THEMES_DIR ?? resolve(__dirname, "../../themes");
+  return process.env.TOVU_THEMES_DIR ?? resolve(__dirname, "../themes");
 }
 
 /**
@@ -140,7 +144,14 @@ export function builtInThemesDir(): string {
  * slice. Persistence here covers the content model (workspaces/posts/themes).
  */
 export function defaultContentDbPath(): string {
-  return process.env.TOVU_CONTENT_DB ?? "content.db";
+  // `infra/`, not the bare working directory (2026-08-02). ADR-012's model is unchanged — a site
+  // is still a portable folder owning its own `content.db`/`uploads/` — but the *default* used to
+  // make the repo root itself that folder, and everything derived from `dirname(contentDbPath)`
+  // piled up beside it: the `ops/` sidecar journals, every plugin-migration snapshot, and every
+  // captured restore point. Naming a subdirectory keeps the install-dir model intact (a deployment
+  // still passes an explicit dir, and `TOVU_CONTENT_DB` still overrides) while giving the local
+  // dev site one home instead of scattering it across the repo root.
+  return process.env.TOVU_CONTENT_DB ?? join("infra", "content.db");
 }
 
 /**
@@ -622,7 +633,8 @@ export function createSqliteRouteDeps(
     // root for the first time this dispatch (Session 5's own disclosure: "a token-store-backed
     // primitive composed into ZERO composition roots in this codebase as of this session"). One
     // process-lifetime `GatewayDeps` (in-process `InMemoryTokenStore` — see
-    // `gated-mutations-composition.ts`'s file header for the disclosed TokenStorePort decision).
+    // `core/gated-mutations/composition.ts`'s file header for the disclosed TokenStorePort
+    // decision).
     gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize: identity.authorize }) },
     commentRepo: commentsModule.commentRepo,
     commentIngressPolicy: commentsModule.ingressPolicy,
