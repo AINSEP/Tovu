@@ -18,17 +18,27 @@
  * `{ workspaceId }` — it has no `status` parameter to push down into the query at all
  * (`PostRepoPort` keeps `findById`/`findBySlug`/`list` deliberately trash- and status-BLIND so
  * uniqueness checks and reverters elsewhere can see every row; see `post.ts`'s `PostRecord.deletedAt`
- * doc). That means the filter below is not a second belt-and-braces layer on top of a query-level
- * one — it is the ONLY filter standing between anonymous traffic and every draft/trashed row in the
- * workspace. There is no query-level fallback to lean on here.
+ * doc). That means the `status === "published" && !isTrashed(row)` predicate is not a second
+ * belt-and-braces layer on top of a query-level one — it is the ONLY filter standing between
+ * anonymous traffic and every draft/trashed row in the workspace. There is no query-level fallback
+ * to lean on here.
  *
- * Note what this file deliberately does NOT use: calling `deps.postRepo.list()` and trusting the
- * caller to filter. Every read goes through this file's own `readPublished()`, so there is exactly
- * one place that decides what "public" means.
+ * That predicate is not reimplemented in this file. `readPublished()` below calls
+ * `features/post`'s own `listPublishedPosts` — the SAME function `routes/site/pages.ts` calls to
+ * decide what a visitor's browser renders. "What is publicly visible" has exactly one definition in
+ * this codebase; this file consumes it rather than keeping a second copy that happens to agree
+ * today. A second copy is exactly how the assistant would end up MORE permissive than the site it
+ * speaks for the first time someone adds a visibility condition — scheduled publishing, per-post
+ * visibility, membership gating — to `listPublishedPosts` alone: the site would start honoring it
+ * and a locally-reimplemented filter here would not, silently. Note what this file still deliberately
+ * does NOT do: call `deps.postRepo.list()` directly and filter (or trust a caller to have filtered)
+ * — every read goes through `readPublished()`, so there is exactly one call site in this file that
+ * decides what "public" means, and it defers that decision to the one place in the codebase that
+ * already owns it.
  */
 
 import type { PostRecord, PostRepoPort } from "../../features/post";
-import { isTrashed } from "../../features/post";
+import { listPublishedPosts } from "../../features/post";
 
 /** What a tool hands back to the model. Deliberately not `PostRecord` — that carries `workspaceId`,
  *  `version`, `ext`, and internal ids the model has no use for and that should not enter a prompt.
@@ -100,22 +110,25 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps) {
   const limit = deps.maxResults ?? DEFAULT_MAX_RESULTS;
 
   /**
-   * One place that decides what "public" means, so no tool below can quietly disagree with another.
+   * One place that decides what "public" means, so no tool below can quietly disagree with another
+   * — and so this file agrees with the public site itself, not just with its own idea of "public".
    *
    * `PostRepoPort.list()` returns every row in the workspace regardless of status or trash state
    * (see this file's header) — there is no query-level filter to push down here, unlike the
-   * `entries`/`EntryListPort` model this file used before. This filter is therefore the entire
-   * enforcement, not a second pass on top of one.
+   * `entries`/`EntryListPort` model this file used before. `listPublishedPosts` applies
+   * `status === "published" && !isTrashed(row)` (a positive match on the one allowed status, never
+   * `!== "draft"`, which would admit every status added to the union tomorrow; `isTrashed` is
+   * independent of `status`, since trashing only stamps `deletedAt`) — that predicate is therefore
+   * the entire enforcement standing between anonymous traffic and hidden content, not a second pass
+   * on top of a query-level one. It just now lives in `features/post/post.ts`, reused rather than
+   * copied — see this file's header for why that reuse is load-bearing, not tidiness.
    *
-   * Proven by test: a fake port that returns drafts and trashed rows alongside published ones is
-   * still withheld here.
+   * Proven by test: a fake `PostRepoPort` that returns drafts and trashed rows alongside published
+   * ones is still withheld here.
    */
   async function readPublished(): Promise<PostRecord[]> {
-    const rows = await deps.postRepo.list({ workspaceId: deps.workspaceId });
-    // Positive match on the one allowed status — never `!== "draft"`, which would admit every
-    // status added to the union tomorrow. `!isTrashed` is independent of `status`: trashing only
-    // stamps `deletedAt`, so a trashed row can still read `status: "published"`.
-    return rows.filter((row) => row.status === "published" && !isTrashed(row));
+    const { posts } = await listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } });
+    return posts;
   }
 
   return {
