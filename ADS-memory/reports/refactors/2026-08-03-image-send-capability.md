@@ -383,3 +383,45 @@ a paraphrased ack, and re-check on completion whether each correction actually l
   two concurrent agents from having to coordinate a shared type.
 - The milestone check-in earned its cost. The OpenAI/Google agent's tool-result finding arrived
   *before* implementation, when redirecting was free.
+
+---
+
+## 2026-08-03 (later session) — live BYOK verification against a real Gemini key
+
+**Transport: CONFIRMED on all four adapters.** Ran `image-wire-probe.mjs` with a real 201KB PNG.
+Image bytes reach the continuation request in each provider's correct wire shape:
+
+| provider | mechanism | landing site in the request body |
+|---|---|---|
+| Anthropic | native | `$.messages[2].content[0].content[0].source.data` |
+| Ollama | native | `$.messages[2].images[0]` |
+| OpenAI / Azure | synthetic labeled user turn | `$.messages[3].content[1].image_url.url` |
+| Google | `inlineData` folded into the `functionResponse` Content | `$.contents[2].parts[2].inlineData.data` |
+
+**Comprehension: still unproven for Gemini — blocked behind a NEW, unrelated adapter defect.**
+
+Tested with a real `GEMINI_API_KEY`. The key is valid (`gemini-flash-latest` → `200`). The blocker is
+our own code:
+
+> HTTP 400 — "Function call is missing a thought_signature in functionCall parts. This is required
+> for tools to work correctly … position 2."
+
+`grep -rn "thoughtSignature|thought_signature" packages/agent-runtime/src/` → **zero hits**. The
+adapter never captures the `thoughtSignature` off a `functionCall` part and never echoes it back on
+the continuation, which Gemini 3.x requires. The continuation is rejected before the model evaluates
+any image, so the inlineData fold is **neither confirmed nor refuted** — it is untested behind an
+earlier break.
+
+**The 2.x escape hatch is gone.** Measured on this key: `gemini-2.5-flash` and `gemini-2.5-flash-lite`
+return **404**; `gemini-2.0-flash` reports quota `limit: 0`; `gemini-2.0-flash-001`/`-lite` return 429.
+Only 3.x (`gemini-flash-latest` → `gemini-3.6-flash`, `gemini-3-flash-preview`) serves traffic. So the
+Google adapter's tool loop works on no currently-served Gemini model.
+
+**Scope of impact — deliberately narrow.** This route (`/api/proxy/*/stream`, direct-provider BYOK) is
+NOT the path a user's dropped image travels; `grep -rn "api/proxy" src apps/admin/src` is still zero
+hits, and the admin assistant uses the CLI-agent/daemon path. It does not affect the composer
+attachment feature, ChatFab/ChatPane, or anything currently shipping. It blocks the vision self-check
+loop and any future BYOK chat surface, and only those.
+
+**Fix, when wanted:** capture `thoughtSignature` per `functionCall` part in `google-messages.ts` and
+echo it back on the continuation request, plus a regression test. Self-contained; good cloud dispatch.
