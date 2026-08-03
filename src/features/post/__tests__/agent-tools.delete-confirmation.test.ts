@@ -17,10 +17,17 @@ import { handleUIAction, renderUIResource } from "./fake-mcp-ui-host";
  * itself, not just the delete underneath it.
  *
  * The client side is faked (`fake-mcp-ui-host.ts`) because no live MCP host runs in this sandbox,
- * but the fake EXECUTES the dialog's real inline script against a sandboxed DOM and routes the real
- * `postMessage` it emits back into the real handler. So these tests fail if the returned resource
- * stops being valid MCP-UI, if the dialog stops posting a well-formed `UIActionResult`, or if the
- * token stops travelling only through the rendered UI.
+ * but the fake EXECUTES the dialog's real two inline scripts (protocol bridge + surface) against a
+ * sandboxed DOM, drives a real `ui/initialize` → `ui/notifications/initialized` → `tools/call`
+ * JSON-RPC handshake, and routes the captured call back into the real handler. So these tests fail
+ * if the returned resource stops being valid MCP-UI, if the dialog stops speaking that handshake, or
+ * if the token stops travelling only through the rendered UI.
+ *
+ * `renderUIResource` is async (the handshake genuinely takes a microtask or two to settle) and
+ * `dialog.click(...)` now returns a flat `{requestId, toolName, params}` — the real MCP Apps
+ * `tools/call` shape, not the legacy `@mcp-ui/client` `{type:'tool', messageId, payload}` dialect
+ * this suite was written against before `delete-confirmation-ui.ts`'s 2026-08-03 protocol rewrite.
+ * See `fake-mcp-ui-host.ts`'s own header for the full account of what changed and why.
  *
  * The load-bearing assertion is `the confirmation token never appears anywhere the model can read`.
  * Everything else is a supporting property.
@@ -118,7 +125,11 @@ test("step 1 returns an MCP-UI resource with a ui:// URI and the MCP Apps mime t
   assert.equal(ui.resource.mimeType, MCP_UI_MIME_TYPE);
   assert.equal(ui.resource.mimeType, "text/html;profile=mcp-app", "the spec's literal, not a paraphrase");
   assert.ok(ui.resource.text.includes("<html"), "the resource must carry renderable HTML");
-  assert.deepEqual(ui.resource._meta, { "mcpui.dev/ui-preferred-frame-size": ["420px", "440px"] });
+  // `["420px","440px"]` was the OLD hand-rolled dialog's own value — legitimately obsolete since
+  // ADR-053 Decision 2's rewrite onto `buildConfirmationSurface`, which passes
+  // `preferredFrameSize: ["100%", "320px"]` (`delete-confirmation-ui.ts`). Updated to match the
+  // current, intentional value rather than the pre-rewrite one this assertion still pinned.
+  assert.deepEqual(ui.resource._meta, { "mcpui.dev/ui-preferred-frame-size": ["100%", "320px"] });
 });
 
 test("step 1 writes NOTHING — calling the tool is not deleting", async () => {
@@ -143,7 +154,12 @@ test("the dialog names exactly what is about to be deleted, so the consent is in
   assert.match(ui.resource.text, /Quarterly Report/);
   assert.match(ui.resource.text, /quarterly-report/);
   assert.match(ui.resource.text, /published/);
-  assert.match(ui.resource.text, /soft delete/i, "the human must be told it is recoverable");
+  // "soft delete" was the OLD hand-rolled dialog's own phrasing. ADR-053 Decision 2's rewrite onto
+  // `buildConfirmationSurface` says the same thing in plainer language — `delete-confirmation-ui.ts`'s
+  // `description: \`The ${noun} will be moved to the trash.\`` — which conveys recoverability just as
+  // clearly to the human reading it. Legitimately obsolete wording, updated rather than the property
+  // (informed, reversible-sounding consent) weakened.
+  assert.match(ui.resource.text, /moved to the trash/i, "the human must be told it is recoverable");
 });
 
 test("the dialog HTML-escapes the row's own fields — a title cannot inject markup into the dialog", async () => {
@@ -217,10 +233,9 @@ test("a token minted for one post cannot be replayed against another", async () 
   await seedPost(postRepo, { id: "p2", slug: "two" });
 
   const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const dialog = renderUIResource(ui);
+  const dialog = await renderUIResource(ui);
   const action = dialog.click("confirm");
-  assert.equal(action.type, "tool");
-  const token = action.type === "tool" ? action.payload.params.confirmationToken : undefined;
+  const token = action.params.confirmationToken;
 
   await assert.rejects(
     () => deleteTool.handler(ctx({ id: "p2", kind: "post", confirmationToken: token, decision: "confirm" })),
@@ -241,19 +256,18 @@ test("full round trip: dialog renders, human clicks Delete, the host's follow-up
   // Step 1 — the agent's call.
   const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
 
-  // The host renders it and a human clicks.
-  const dialog = renderUIResource(ui);
+  // The host renders it (a real ui/initialize -> ui/notifications/initialized handshake) and a
+  // human clicks.
+  const dialog = await renderUIResource(ui);
   const action = dialog.click("confirm");
 
-  // The action is a real mcp-ui UIActionResult of type "tool".
-  assert.equal(action.type, "tool");
-  assert.ok(action.messageId, "the action must carry a messageId so the host can answer the iframe");
-  if (action.type !== "tool") throw new Error("unreachable");
-  assert.equal(action.payload.toolName, "content_post_delete");
-  assert.equal(action.payload.params.id, "p1");
-  assert.equal(action.payload.params.kind, "post");
-  assert.equal(action.payload.params.decision, "confirm");
-  assert.equal(typeof action.payload.params.confirmationToken, "string");
+  // The action is a real MCP Apps tools/call request's {name, arguments}, flattened to
+  // {toolName, params} — see fake-mcp-ui-host.ts's DialogAction.
+  assert.equal(action.toolName, "content_post_delete");
+  assert.equal(action.params.id, "p1");
+  assert.equal(action.params.kind, "post");
+  assert.equal(action.params.decision, "confirm");
+  assert.equal(typeof action.params.confirmationToken, "string");
 
   // Step 2 — the host routes it back as an ordinary tool call.
   const routed = await handleUIAction(action, dialog, (toolId, input) => {
@@ -277,8 +291,9 @@ test("full round trip: dialog renders, human clicks Delete, the host's follow-up
   assert.deepEqual(listed.posts, []);
   await assert.rejects(() => tool(registrations, "content_post_get").handler(ctx({ id: "p1", kind: "post" })), /was not found/);
 
-  // The dialog reported the outcome to the human via ui-message-received / ui-message-response.
-  assert.equal(dialog.textOf("outcome"), "Done.");
+  // The dialog reported the outcome to the human by updating its own status region — a real
+  // tools/call response round trip, not a canned string.
+  assert.equal(dialog.textOf("mcpui-status"), "Done.");
 });
 
 test("full round trip: clicking Cancel deletes nothing and burns the token", async () => {
@@ -288,10 +303,9 @@ test("full round trip: clicking Cancel deletes nothing and burns the token", asy
   const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
   assert.equal(confirmations.size(), 1);
 
-  const dialog = renderUIResource(ui);
+  const dialog = await renderUIResource(ui);
   const action = dialog.click("cancel");
-  if (action.type !== "tool") throw new Error("unreachable");
-  assert.equal(action.payload.params.decision, "cancel");
+  assert.equal(action.params.decision, "cancel");
 
   const routed = await handleUIAction(action, dialog, (toolId, input) =>
     tool(registrations, toolId).handler(ctx(input)) as Promise<unknown>
@@ -313,25 +327,30 @@ test("the confirmed delete cannot be replayed — the second run of the same act
   await seedPost(postRepo);
 
   const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const dialog = renderUIResource(ui);
-  const action = dialog.click("confirm");
+  const dialog = await renderUIResource(ui);
 
   const call: Parameters<typeof handleUIAction>[2] = (toolId, input) =>
     tool(registrations, toolId).handler(ctx(input)) as Promise<unknown>;
 
-  const first = await handleUIAction(action, dialog, call);
+  const first = await handleUIAction(dialog.click("confirm"), dialog, call);
   assert.equal(first.error, undefined);
   const afterFirst = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
   assert.equal(afterFirst?.version, 2);
 
-  const second = await handleUIAction(action, dialog, call);
+  // A second, genuinely distinct click of the same (still-live, since this fake does not model the
+  // real UI's button-disable-on-click) button — a real second tools/call request with the same
+  // params (the token the dialog's own script closure still holds), not a replay of the first
+  // request's already-settled response. A real MCP Apps View drops a second response to an already-
+  // resolved request id, so re-delivering the FIRST response here would prove nothing new; a fresh
+  // click is what actually exercises the server-side replay guard end to end.
+  const second = await handleUIAction(dialog.click("confirm"), dialog, call);
   // Two INDEPENDENT guards refuse this replay, and the outer one wins: `post.ts` treats an
   // already-trashed row as not-found, so the handler rejects before it ever reaches the token
   // store. (The store would refuse too — the token was burned on the first call — which the
   // cancel-then-confirm test below exercises against a row that is still live.) Asserting the
   // not-found message here pins the ORDER: target validity is checked before the token.
   assert.match(String(second.error), /post 'p1' was not found/);
-  assert.equal(dialog.textOf("outcome"), `Failed: ${second.error}`, "the human is told the replay failed");
+  assert.equal(dialog.textOf("mcpui-status"), `Failed: ${second.error}`, "the human is told the replay failed");
 
   const afterSecond = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
   assert.equal(afterSecond?.version, 2, "the refused replay must not advance the version");
@@ -343,15 +362,14 @@ test("a token burned by Cancel cannot then be used to Confirm — the store refu
   await seedPost(postRepo);
 
   const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const action = renderUIResource(ui).click("cancel");
-  if (action.type !== "tool") throw new Error("unreachable");
+  const action = (await renderUIResource(ui)).click("cancel");
 
   // Cancel first — the row stays live, so the trashed-row guard cannot mask the store's refusal.
-  await deleteTool.handler(ctx(action.payload.params));
+  await deleteTool.handler(ctx(action.params));
   assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
 
   await assert.rejects(
-    () => deleteTool.handler(ctx({ ...action.payload.params, decision: "confirm" })),
+    () => deleteTool.handler(ctx({ ...action.params, decision: "confirm" })),
     /could not be redeemed \(unknown-or-expired\)/,
   );
   assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
@@ -362,7 +380,7 @@ test("a delete confirmed against a stale version is refused — the row changed 
   await seedPost(postRepo);
 
   const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const dialog = renderUIResource(ui);
+  const dialog = await renderUIResource(ui);
   const action = dialog.click("confirm");
 
   // Someone edits the post between the dialog rendering and the human clicking.
@@ -403,9 +421,8 @@ test("the confirmed delete goes through executeCommand's content.write gate, and
   await seedPost(postRepo, { title: "Quarterly Report" });
 
   const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const action = renderUIResource(ui).click("confirm");
-  if (action.type !== "tool") throw new Error("unreachable");
-  await deleteTool.handler(ctx(action.payload.params));
+  const action = (await renderUIResource(ui)).click("confirm");
+  await deleteTool.handler(ctx(action.params));
 
   const writeCall = authorizeCalls.find((c) => c.permission === "content.write");
   assert.ok(writeCall, "the confirmed delete must consult content.write");
@@ -425,15 +442,14 @@ test("a denied principal cannot complete the delete even holding a valid token",
   const allowed = fakeRouteDeps({ confirmations });
   await seedPost(allowed.postRepo);
   const { ui } = splitResult(await allowed.deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const action = renderUIResource(ui).click("confirm");
-  if (action.type !== "tool") throw new Error("unreachable");
+  const action = (await renderUIResource(ui)).click("confirm");
 
   // Same store, same seeded row, but authorize() now denies.
   const denied = fakeRouteDeps({ allow: false, confirmations });
   await seedPost(denied.postRepo);
 
   await assert.rejects(
-    () => denied.deleteTool.handler(ctx(action.payload.params)),
+    () => denied.deleteTool.handler(ctx(action.params)),
     /is not authorized/,
   );
   assert.equal((await denied.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
@@ -457,9 +473,8 @@ test("deleting a published row drains entry.unpublished to the bus (SEO's sitema
   });
 
   const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const action = renderUIResource(ui).click("confirm");
-  if (action.type !== "tool") throw new Error("unreachable");
-  await tool(registrations, "content_post_delete").handler(ctx(action.payload.params));
+  const action = (await renderUIResource(ui)).click("confirm");
+  await tool(registrations, "content_post_delete").handler(ctx(action.params));
 
   assert.equal(seen.length, 1, "the confirmed delete of a published row must reach the bus");
 });
@@ -469,9 +484,8 @@ test("a trashed row cannot be deleted again — the second attempt does not even
   await seedPost(postRepo);
 
   const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const action = renderUIResource(ui).click("confirm");
-  if (action.type !== "tool") throw new Error("unreachable");
-  await tool(registrations, "content_post_delete").handler(ctx(action.payload.params));
+  const action = (await renderUIResource(ui)).click("confirm");
+  await tool(registrations, "content_post_delete").handler(ctx(action.params));
 
   assert.equal(confirmations.size(), 0);
   await assert.rejects(() => deleteTool.handler(ctx({ id: "p1", kind: "post" })), /post 'p1' was not found/);
