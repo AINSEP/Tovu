@@ -53,8 +53,26 @@
      at rest (not just on focus), which is also the one visible cue that this control opens a
      search panel rather than an OS popup. `color-mix` keeps it a tint of the token, not the full
      saturated `--primary`, so it doesn't read as an error/required-field state next to plain
-     inputs in the same form. */
-  border: 1px solid color-mix(in oklch, var(--primary) 45%, var(--border-strong));
+     inputs in the same form.
+
+     `in oklab`, not `in oklch` — found live, not a style preference. `--border-strong` sits at hue
+     255° (blue), `--primary` at 43.4° (rust); `color-mix(in oklch, ...)` interpolates hue around
+     the wheel by the SHORTER arc, and the shorter path from 255° to 43.4° (148.4° vs the 211.6° the
+     other way) runs backward through 300s°/0°, i.e. straight through magenta. At the 45% this
+     rule originally used, that landed at hue 321.78° — a cool lavender, not a tint of `--primary`
+     at all, and the user correctly flagged it against a rust reference. Raising the percentage
+     doesn't escape this: it only walks further along the same magenta-crossing arc (measured:
+     70% → hue 358.9°, still dusty rose; 80% → hue 13.7°, still not `--primary`'s own 43.4°; only
+     ~90%+ gets hue-close to `--primary`, at which point it is barely a tint anymore). `oklab`
+     blends the `a`/`b` channels linearly instead of walking the hue wheel, so there is no polar
+     detour — at this SAME 45% ratio it resolves to hue ≈39.9°, almost exactly `--primary`'s own
+     hue, sampled as `#c09c90` (a warm terracotta) via `getComputedStyle`/canvas pixel read in a
+     real browser. Generalizable trap: mixing toward any cool-hued neutral (`--border`,
+     `--border-strong`, `--surface`'s own neutral variants) with a warm accent in `oklch` risks
+     the same magenta detour whenever the two hues are far enough apart that the "shorter" arc
+     crosses 0°/360° — `oklab` (or `in oklch longer hue`, less predictable) is the fix, not a
+     bigger ratio. */
+  border: 1px solid color-mix(in oklab, var(--primary) 45%, var(--border-strong));
   border-radius: var(--r-sm); padding: 0.55rem 0.7rem; min-height: 37px;
   font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 400; letter-spacing: normal;
   cursor: pointer; text-align: left;
