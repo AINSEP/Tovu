@@ -9,6 +9,7 @@ import {
   type DatabaseContextEnvelope,
 } from "../lib/api";
 import { formatTimestamp } from "../lib/format-timestamp";
+import { DataTable } from "@jini-ai/admin/react";
 
 /**
  * @file Recovery screen (design-spec.md §4, ADR-045) — the `/admin/recovery` route.
@@ -65,48 +66,38 @@ function RestorePointsList(props: {
   points: AdminRestorePoint[];
   onSelect: (point: AdminRestorePoint) => void;
 }) {
-  if (props.points.length === 0) {
-    return (
-      <div className="card">
-        <div className="empty-state">
-          <p>No restore points yet.</p>
-        </div>
-      </div>
-    );
-  }
   return (
-    <div className="table-scroll">
-    <table className="list-table">
-      <thead>
-        <tr>
-          <th>Timestamp</th>
-          <th>Trigger</th>
-          <th>Cost class</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {props.points.map((p) => (
-          <tr key={p.id}>
-            <td>{formatTimestamp(p.createdAt)}</td>
-            <td>{p.trigger}</td>
-            <td>
-              <span className={`status status-${p.costClass}`}>{p.costClass}</span>
-            </td>
-            <td>
-              {p.costClass === "unavailable" ? (
-                <span className="muted-cell">No restore-point mechanism available — see the runbook.</span>
-              ) : (
-                <button type="button" onClick={() => props.onSelect(p)}>
-                  Restore…
-                </button>
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-    </div>
+    <DataTable
+      rows={props.points}
+      rowKey={(p) => p.id}
+      empty={
+        <div className="card">
+          <div className="empty-state">
+            <p>No restore points yet.</p>
+          </div>
+        </div>
+      }
+      columns={[
+        { key: "timestamp", header: "Timestamp", cell: (p) => formatTimestamp(p.createdAt) },
+        { key: "trigger", header: "Trigger", cell: (p) => p.trigger },
+        {
+          key: "cost-class",
+          header: "Cost class",
+          cell: (p) => <span className={`status status-${p.costClass}`}>{p.costClass}</span>,
+        },
+        {
+          key: "restore",
+          cell: (p) =>
+            p.costClass === "unavailable" ? (
+              <span className="muted-cell">No restore-point mechanism available — see the runbook.</span>
+            ) : (
+              <button type="button" onClick={() => props.onSelect(p)}>
+                Restore…
+              </button>
+            ),
+        },
+      ]}
+    />
   );
 }
 

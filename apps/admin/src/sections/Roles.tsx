@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminPolicy, type AdminRole } from "../lib/api";
-import { RowMenu, type RowMenuItem } from "../components/RowMenu";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
 
 /**
  * @file "Roles & Permissions" screen (SPEC-006 + 0.6.0 CRUD-completion amendment) — the
@@ -268,55 +267,49 @@ export function Roles() {
           {roleSaving ? "Creating…" : "Create role"}
         </button>
       </form>
-      {roles.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No roles yet.</p>
+      <DataTable
+        rows={roles}
+        rowKey={(role) => role.id}
+        empty={
+          <div className="card">
+            <div className="empty-state">
+              <p>No roles yet.</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="table-scroll">
-        <table className="list-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>More</th>
-            </tr>
-          </thead>
-          <tbody>
-            {roles.map((role) => (
-              <tr key={role.id}>
-                <td>
-                  {editingRoleId === role.id ? (
-                    <input value={editingRoleName} onChange={(e) => setEditingRoleName(e.target.value)} />
-                  ) : (
-                    role.name
-                  )}
-                </td>
-                <td>{role.isBuiltin ? "Built-in" : "Custom"}</td>
-                <td>
-                  {role.isBuiltin ? (
-                    <span className="muted-cell">—</span>
-                  ) : editingRoleId === role.id ? (
-                    <span className="editor-actions">
-                      <button type="button" disabled={rowSavingId === role.id} onClick={() => onSaveRole(role.id)}>
-                        {rowSavingId === role.id ? "Saving…" : "Save"}
-                      </button>
-                      <button type="button" onClick={() => setEditingRoleId(null)}>
-                        Cancel
-                      </button>
-                    </span>
-                  ) : (
-                    <RowMenu triggerLabel={`Actions for role "${role.name}"`} items={roleMenuItems(role)} />
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      )}
+        }
+        columns={[
+          {
+            key: "name",
+            header: "Name",
+            cell: (role) =>
+              editingRoleId === role.id ? (
+                <input value={editingRoleName} onChange={(e) => setEditingRoleName(e.target.value)} />
+              ) : (
+                role.name
+              ),
+          },
+          { key: "type", header: "Type", cell: (role) => (role.isBuiltin ? "Built-in" : "Custom") },
+          {
+            key: "actions",
+            header: "More",
+            cell: (role) =>
+              role.isBuiltin ? (
+                <span className="muted-cell">—</span>
+              ) : editingRoleId === role.id ? (
+                <span className="editor-actions">
+                  <button type="button" disabled={rowSavingId === role.id} onClick={() => onSaveRole(role.id)}>
+                    {rowSavingId === role.id ? "Saving…" : "Save"}
+                  </button>
+                  <button type="button" onClick={() => setEditingRoleId(null)}>
+                    Cancel
+                  </button>
+                </span>
+              ) : (
+                <RowMenu triggerLabel={`Actions for role "${role.name}"`} items={roleMenuItems(role)} />
+              ),
+          },
+        ]}
+      />
 
       <h2>Policies</h2>
       <form onSubmit={onCreatePolicy} className="notice integrations-form">

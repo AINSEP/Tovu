@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type AdminWebhookDelivery } from "../lib/api";
 import { formatTimestamp } from "../lib/format-timestamp";
+import { DataTable } from "@jini-ai/admin/react";
 
 /** Best available timestamp for the log's "Timestamp" column: delivered time, else created time. */
 function displayTimestamp(delivery: AdminWebhookDelivery): string {
@@ -33,41 +34,38 @@ export function IntegrationDeliveries(props: { subscriptionId: string }) {
           <p className="page-description">Every delivery attempt logged for this webhook subscription.</p>
         </div>
       </div>
-      {deliveries.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No deliveries yet for this subscription.</p>
+      <DataTable
+        rows={deliveries}
+        rowKey={(delivery) => delivery.id}
+        empty={
+          <div className="card">
+            <div className="empty-state">
+              <p>No deliveries yet for this subscription.</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="table-scroll">
-        <table className="list-table">
-          <thead>
-            <tr>
-              <th>Status</th>
-              <th>Attempts</th>
-              <th>Last response</th>
-              <th>Timestamp</th>
-            </tr>
-          </thead>
-          <tbody>
-            {deliveries.map((delivery) => (
-              <tr key={delivery.id}>
-                <td>
-                  <span className={`status status-delivery-${delivery.status}`}>{delivery.status}</span>
-                </td>
-                <td>{delivery.attempts}</td>
-                <td>
-                  {delivery.lastResponseStatus ?? "—"}
-                  {delivery.lastError ? <div className="save-error">{delivery.lastError}</div> : null}
-                </td>
-                <td>{displayTimestamp(delivery)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      )}
+        }
+        columns={[
+          {
+            key: "status",
+            header: "Status",
+            cell: (delivery) => (
+              <span className={`status status-delivery-${delivery.status}`}>{delivery.status}</span>
+            ),
+          },
+          { key: "attempts", header: "Attempts", cell: (delivery) => delivery.attempts },
+          {
+            key: "last-response",
+            header: "Last response",
+            cell: (delivery) => (
+              <>
+                {delivery.lastResponseStatus ?? "—"}
+                {delivery.lastError ? <div className="save-error">{delivery.lastError}</div> : null}
+              </>
+            ),
+          },
+          { key: "timestamp", header: "Timestamp", cell: (delivery) => displayTimestamp(delivery) },
+        ]}
+      />
     </div>
   );
 }

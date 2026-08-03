@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AiAssistant } from "../AiAssistant";
-import { NAV } from "../../nav";
+import { getNav } from "../../nav";
 
 /**
  * @file The "AI Assistant" admin screen — the public assistant's master switch plus the
@@ -179,7 +179,7 @@ describe("the not-yet-built roadmap accordion", () => {
 
 describe("nav wiring", () => {
   it("the AI Assistant entry sits in the ungrouped Overview row and links to its route", () => {
-    const overviewGroup = NAV[0];
+    const overviewGroup = getNav()[0];
     expect(overviewGroup.label).toBeUndefined();
 
     const item = overviewGroup.items.find((i) => i.id === "ai-assistant");
@@ -190,7 +190,7 @@ describe("nav wiring", () => {
   });
 
   it("the nav id matches the route section id App.activeSectionId derives the highlight from", () => {
-    const item = NAV.flatMap((group) => group.items).find((i) => i.id === "ai-assistant");
+    const item = getNav().flatMap((group) => group.items).find((i) => i.id === "ai-assistant");
     // `href` is a route path now, not a hash, and the `section/` segment is gone — so the id is
     // simply the path. That is what lets `activeSectionId` light this row up from the URL alone.
     expect(item?.href).toBe(`/${item?.id}`);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ApiError, api, describeApiError, type AdminWidget, type AdminWidgetType } from "../lib/api";
 import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 
 /**
  * @file `WidgetsLibraryScreen` (`ui.spec.md` §2.1/§3.1/§4.1) — the widget library/list screen,
@@ -108,51 +108,50 @@ export function WidgetsLibrary() {
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
-      {widgets.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No widgets yet.</p>
-            <p className="page-description">Create one above to get started.</p>
+      <DataTable
+        rows={widgets}
+        rowKey={(widget) => widget.id}
+        empty={
+          <div className="card">
+            <div className="empty-state">
+              <p>No widgets yet.</p>
+              <p className="page-description">Create one above to get started.</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="table-scroll">
-        <table className="list-table">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>v</th>
-              {/* Not converted to a `RowMenu` — this is the row's only action (see report: a menu
-                  with one item is pure overhead over a direct button). Still labeled for
-                  accessibility, matching `Roles.tsx`/`Users.tsx`'s existing pattern for an actions
-                  column that isn't a bare `<th></th>`. */}
-              <th aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {widgets.map((widget) => (
-              <tr key={widget.id}>
-                <td>
-                  <a href={`/admin/widgets/${widget.id}`}>{widget.title}</a>
-                </td>
-                <td>{WIDGET_TYPE_OPTIONS.find((o) => o.value === widget.widgetType)?.label ?? widget.widgetType}</td>
-                <td>
-                  <span className={`status status-${widget.status}`}>{widget.status}</span>
-                </td>
-                <td>{widget.version}</td>
-                <td>
-                  <button onClick={() => trashOrPurge(widget)}>
-                    {widget.status === "active" ? "Trash" : "Delete permanently"}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      )}
+        }
+        columns={[
+          {
+            key: "title",
+            header: "Title",
+            cell: (widget) => <a href={`/admin/widgets/${widget.id}`}>{widget.title}</a>,
+          },
+          {
+            key: "type",
+            header: "Type",
+            cell: (widget) =>
+              WIDGET_TYPE_OPTIONS.find((o) => o.value === widget.widgetType)?.label ?? widget.widgetType,
+          },
+          {
+            key: "status",
+            header: "Status",
+            cell: (widget) => <span className={`status status-${widget.status}`}>{widget.status}</span>,
+          },
+          { key: "version", header: "v", cell: (widget) => widget.version },
+          {
+            key: "actions",
+            // Not converted to a `RowMenu` — this is the row's only action (see report: a menu
+            // with one item is pure overhead over a direct button). Still labeled for
+            // accessibility, matching `Roles.tsx`/`Users.tsx`'s existing pattern for an actions
+            // column that isn't a bare `<th></th>`.
+            headerLabel: "Actions",
+            cell: (widget) => (
+              <button onClick={() => trashOrPurge(widget)}>
+                {widget.status === "active" ? "Trash" : "Delete permanently"}
+              </button>
+            ),
+          },
+        ]}
+      />
       <ConfirmDialog
         open={pendingForcePurge !== null}
         title="Still in use"

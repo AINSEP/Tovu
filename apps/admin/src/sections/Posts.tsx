@@ -3,8 +3,7 @@ import { api, type AdminPost } from "../lib/api";
 import { siteUrl } from "../lib/site-url";
 import { formatTimestamp } from "../lib/format-timestamp";
 import { navigate } from "../lib/router";
-import { RowMenu, type RowMenuItem } from "../components/RowMenu";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
 
 export function Posts() {
   const [posts, setPosts] = useState<AdminPost[] | null>(null);
@@ -116,49 +115,41 @@ export function Posts() {
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
-      {posts.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No posts yet.</p>
-            <p className="page-description">Create your first post to get started.</p>
+      <DataTable
+        rows={posts}
+        rowKey={(post) => post.id}
+        empty={
+          <div className="card">
+            <div className="empty-state">
+              <p>No posts yet.</p>
+              <p className="page-description">Create your first post to get started.</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="table-scroll">
-          <table className="list-table">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Slug</th>
-                <th>Status</th>
-                <th>Updated</th>
-                <th>More</th>
-              </tr>
-            </thead>
-            <tbody>
-              {posts.map((post) => (
-                <tr key={post.id}>
-                  <td>
-                    <a href={`/admin/posts/${post.id}`}>{post.title}</a>
-                  </td>
-                  <td>
-                    <a href={siteUrl(`/${post.slug}`)} target="_blank" rel="noreferrer">
-                      /{post.slug}
-                    </a>
-                  </td>
-                  <td>
-                    <span className={`status status-${post.status}`}>{post.status}</span>
-                  </td>
-                  <td>{formatTimestamp(post.updatedAt)}</td>
-                  <td>
-                    <RowMenu triggerLabel={`Actions for "${post.title}"`} items={rowMenuItems(post)} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+        }
+        columns={[
+          { key: "title", header: "Title", cell: (post) => <a href={`/admin/posts/${post.id}`}>{post.title}</a> },
+          {
+            key: "slug",
+            header: "Slug",
+            cell: (post) => (
+              <a href={siteUrl(`/${post.slug}`)} target="_blank" rel="noreferrer">
+                /{post.slug}
+              </a>
+            ),
+          },
+          {
+            key: "status",
+            header: "Status",
+            cell: (post) => <span className={`status status-${post.status}`}>{post.status}</span>,
+          },
+          { key: "updated", header: "Updated", cell: (post) => formatTimestamp(post.updatedAt) },
+          {
+            key: "actions",
+            header: "More",
+            cell: (post) => <RowMenu triggerLabel={`Actions for "${post.title}"`} items={rowMenuItems(post)} />,
+          },
+        ]}
+      />
       <ConfirmDialog
         open={pendingDelete !== null}
         title="Move to trash?"

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type AdminFormDefinition } from "../lib/api";
 import { navigate } from "../lib/router";
-import { RowMenu, type RowMenuItem } from "../components/RowMenu";
+import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
 
 /**
  * @file Forms list screen (SPEC-010 ui.spec.md §2.1/§3.1) — the `/admin/forms` route.
@@ -87,47 +87,38 @@ export function FormsList() {
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
-      {forms.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No forms yet.</p>
-            <p className="page-description">Create your first form to start collecting submissions.</p>
+      <DataTable
+        rows={forms}
+        rowKey={(form) => form.id}
+        empty={
+          <div className="card">
+            <div className="empty-state">
+              <p>No forms yet.</p>
+              <p className="page-description">Create your first form to start collecting submissions.</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="table-scroll">
-          <table className="list-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Slug</th>
-                <th>Status</th>
-                <th>Fields</th>
-                <th>Notify</th>
-                <th>More</th>
-              </tr>
-            </thead>
-            <tbody>
-              {forms.map((form) => (
-                <tr key={form.id}>
-                  <td>
-                    <a href={`/admin/forms/${form.id}`}>{form.name}</a>
-                  </td>
-                  <td>{form.slug}</td>
-                  <td>
-                    <span className={`status status-${form.status}`}>{form.status}</span>
-                  </td>
-                  <td>{form.fields.length}</td>
-                  <td>{form.notify.enabled ? `${form.notify.recipients.length} recipient(s)` : "off"}</td>
-                  <td>
-                    <RowMenu triggerLabel={`Actions for form "${form.name}"`} items={rowMenuItems(form)} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+        }
+        columns={[
+          { key: "name", header: "Name", cell: (form) => <a href={`/admin/forms/${form.id}`}>{form.name}</a> },
+          { key: "slug", header: "Slug", cell: (form) => form.slug },
+          {
+            key: "status",
+            header: "Status",
+            cell: (form) => <span className={`status status-${form.status}`}>{form.status}</span>,
+          },
+          { key: "fields", header: "Fields", cell: (form) => form.fields.length },
+          {
+            key: "notify",
+            header: "Notify",
+            cell: (form) => (form.notify.enabled ? `${form.notify.recipients.length} recipient(s)` : "off"),
+          },
+          {
+            key: "actions",
+            header: "More",
+            cell: (form) => <RowMenu triggerLabel={`Actions for form "${form.name}"`} items={rowMenuItems(form)} />,
+          },
+        ]}
+      />
     </div>
   );
 }

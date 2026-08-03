@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ApiError, api, type AdminMedia } from "../lib/api";
-import { RowMenu, type RowMenuItem } from "../components/RowMenu";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
 
 /**
  * @file Media admin screen — list + upload + trash/purge ladder, wiring the `media` backend into

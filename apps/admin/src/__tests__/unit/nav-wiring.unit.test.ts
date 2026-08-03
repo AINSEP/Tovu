@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { NAV } from "../../nav";
+import { getNav } from "../../nav";
 
 /**
  * @file REQ-17/AC-25 — `nav.ts`'s `plugins` `NavItem` wiring (SPEC-005 1.1.0 amendment).
@@ -12,7 +12,7 @@ import { NAV } from "../../nav";
  */
 
 function findPluginsNavItem() {
-  for (const group of NAV) {
+  for (const group of getNav()) {
     const item = group.items.find((i) => i.id === "plugins");
     if (item) return item;
   }

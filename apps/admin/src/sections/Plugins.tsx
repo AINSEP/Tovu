@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminPlugin } from "../lib/api";
+import { DataTable } from "@jini-ai/admin/react";
 
 /**
  * @file `Plugins` — the admin plugins list + enable/disable screen (SPEC-005 REQ-12..18,
@@ -98,76 +99,68 @@ export function Plugins() {
         </div>
       ) : null}
 
-      {plugins.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No plugins installed.</p>
-            <p className="page-description">
-              A new one appears here on the next load, once it's unpacked into the site's plugin
-              install directory.
-            </p>
+      <DataTable
+        rows={plugins}
+        rowKey={(plugin) => plugin.id}
+        empty={
+          <div className="card">
+            <div className="empty-state">
+              <p>No plugins installed.</p>
+              <p className="page-description">
+                A new one appears here on the next load, once it's unpacked into the site's plugin
+                install directory.
+              </p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="table-scroll">
-        <table className="list-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Version</th>
-              <th>Source</th>
-              <th>Tier</th>
-              <th>Status</th>
-              <th aria-label="Enabled" />
-              <th>Errors</th>
-            </tr>
-          </thead>
-          <tbody>
-            {plugins.map((plugin) => (
-              <tr key={plugin.id}>
-                <td>{plugin.name}</td>
-                <td>{plugin.version}</td>
-                <td>{plugin.source}</td>
-                <td>
-                  {/* `tier-${plugin.tier}` doubles the prefix (`tier-tier-3`) because the manifest
-                      value already carries it — ui.spec.md §5's literal template, kept verbatim. */}
-                  <span className={`tier tier-${plugin.tier}`}>{plugin.tier}</span>
-                </td>
-                <td>
-                  <span className={`status status-${plugin.status}`}>{plugin.status}</span>
-                </td>
-                <td>
-                  {plugin.enabled || plugin.status === "valid" ? (
-                    <button
-                      type="button"
-                      disabled={rowSavingId === plugin.id}
-                      onClick={() => onToggleEnabled(plugin)}
-                    >
-                      {rowSavingId === plugin.id ? "…" : plugin.enabled ? "Disable" : "Enable"}
-                    </button>
-                  ) : (
-                    // AC-21: enabling this row is already known to 422, so no enable-capable
-                    // control is offered at all (`Roles.tsx`'s built-in-row `—` idiom).
-                    <span className="muted-cell">—</span>
-                  )}
-                </td>
-                <td>
-                  {plugin.errors.length > 0 ? (
-                    <ul className="plugin-errors">
-                      {plugin.errors.map((e) => (
-                        <li key={`${e.code}:${e.file ?? ""}:${e.message}`}>
-                          <span className="save-error">{e.code}</span> <span>{e.message}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      )}
+        }
+        columns={[
+          { key: "name", header: "Name", cell: (plugin) => plugin.name },
+          { key: "version", header: "Version", cell: (plugin) => plugin.version },
+          { key: "source", header: "Source", cell: (plugin) => plugin.source },
+          {
+            key: "tier",
+            header: "Tier",
+            cell: (plugin) => (
+              // `tier-${plugin.tier}` doubles the prefix (`tier-tier-3`) because the manifest
+              // value already carries it — ui.spec.md §5's literal template, kept verbatim.
+              <span className={`tier tier-${plugin.tier}`}>{plugin.tier}</span>
+            ),
+          },
+          {
+            key: "status",
+            header: "Status",
+            cell: (plugin) => <span className={`status status-${plugin.status}`}>{plugin.status}</span>,
+          },
+          {
+            key: "enabled",
+            headerLabel: "Enabled",
+            cell: (plugin) =>
+              plugin.enabled || plugin.status === "valid" ? (
+                <button type="button" disabled={rowSavingId === plugin.id} onClick={() => onToggleEnabled(plugin)}>
+                  {rowSavingId === plugin.id ? "…" : plugin.enabled ? "Disable" : "Enable"}
+                </button>
+              ) : (
+                // AC-21: enabling this row is already known to 422, so no enable-capable
+                // control is offered at all (`Roles.tsx`'s built-in-row `—` idiom).
+                <span className="muted-cell">—</span>
+              ),
+          },
+          {
+            key: "errors",
+            header: "Errors",
+            cell: (plugin) =>
+              plugin.errors.length > 0 ? (
+                <ul className="plugin-errors">
+                  {plugin.errors.map((e) => (
+                    <li key={`${e.code}:${e.file ?? ""}:${e.message}`}>
+                      <span className="save-error">{e.code}</span> <span>{e.message}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null,
+          },
+        ]}
+      />
     </div>
   );
 }

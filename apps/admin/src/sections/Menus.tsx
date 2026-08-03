@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type AdminMenu } from "../lib/api";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 
 /**
  * @file Menus admin screens: list view (this file) + tree editor
@@ -92,39 +92,35 @@ export function Menus() {
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
-      {menus.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No menus yet.</p>
-            <p className="page-description">Create your first menu to get started.</p>
+      <DataTable
+        rows={menus}
+        rowKey={(menu) => menu.id}
+        empty={
+          <div className="card">
+            <div className="empty-state">
+              <p>No menus yet.</p>
+              <p className="page-description">Create your first menu to get started.</p>
+            </div>
           </div>
-        </div>
-      ) : (
-      <div className="table-scroll">
-      <table className="list-table">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Slug</th>
-            <th>Status</th>
-            <th>Locations</th>
-            <th>Assign location</th>
-            <th>v</th>
-            <th aria-label="Actions" />
-          </tr>
-        </thead>
-        <tbody>
-          {menus.map((menu) => (
-            <tr key={menu.id}>
-              <td>
-                <a href={`/admin/menus/${menu.id}`}>{menu.title}</a>
-              </td>
-              <td>{menu.slug}</td>
-              <td>
-                <span className={`status status-${menu.status}`}>{menu.status}</span>
-              </td>
-              <td>{menu.locations.length ? menu.locations.join(", ") : "—"}</td>
-              <td>
+        }
+        columns={[
+          { key: "title", header: "Title", cell: (menu) => <a href={`/admin/menus/${menu.id}`}>{menu.title}</a> },
+          { key: "slug", header: "Slug", cell: (menu) => menu.slug },
+          {
+            key: "status",
+            header: "Status",
+            cell: (menu) => <span className={`status status-${menu.status}`}>{menu.status}</span>,
+          },
+          {
+            key: "locations",
+            header: "Locations",
+            cell: (menu) => (menu.locations.length ? menu.locations.join(", ") : "—"),
+          },
+          {
+            key: "assign-location",
+            header: "Assign location",
+            cell: (menu) => (
+              <>
                 <input
                   value={locationDrafts[menu.id] ?? ""}
                   onChange={(e) =>
@@ -133,19 +129,21 @@ export function Menus() {
                   placeholder="e.g. primary"
                 />
                 <button onClick={() => assign(menu.id)}>Assign</button>
-              </td>
-              <td>{menu.version}</td>
-              <td>
-                <button onClick={() => trashOrPurge(menu)}>
-                  {menu.status === "trash" ? "Delete permanently" : "Trash"}
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>
-      )}
+              </>
+            ),
+          },
+          { key: "version", header: "v", cell: (menu) => menu.version },
+          {
+            key: "actions",
+            headerLabel: "Actions",
+            cell: (menu) => (
+              <button onClick={() => trashOrPurge(menu)}>
+                {menu.status === "trash" ? "Delete permanently" : "Trash"}
+              </button>
+            ),
+          },
+        ]}
+      />
       <ConfirmDialog
         open={pendingForceDelete !== null}
         title="Permanently delete menu?"

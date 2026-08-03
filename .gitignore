@@ -6,12 +6,12 @@ development/coverage/
 .DS_Store
 .env
 .env.*
-infra/content.db
-infra/content.db-wal
-infra/content.db-shm
-infra/uploads/
-# ADR-041 §2 sidecar ops journal, a runtime artifact next to content.db (now infra/ops/).
-infra/ops/
+# infra/ is the site's runtime data folder: content.db + WAL sidecars, uploads/, the ADR-041 ops
+# journals, plugin snapshots, restore points. None of it is source. README.md stays tracked so the
+# directory exists in a fresh clone -- openContentDb does not create the parent, so an absent
+# infra/ fails boot with SQLITE_CANTOPEN.
+infra/*
+!infra/README.md
 
 # Vendored dev toolkit — cloned separately, has its own git history (not part of Tovu)
 AI-Dev-Shop/
@@ -26,9 +26,6 @@ blob-report/
 
 # stray/local artifacts (do not track)
 admin-page.png
-infra/content.db.snapshot-store-*
-infra/content.db.snapshot-newsletter-*
-infra/content.db.snapshot-comments-*
 :memory:.snapshot-newsletter-*
 :memory:.snapshot-comments-*
 :memory:.snapshot-store-*
@@ -47,4 +44,3 @@ development/other-repos-specs/shopify_specs/schema-dumps/
 # Per-run MCP config the agent daemon writes for each spawned CLI (`mcp-injection.ts`), named
 # `.mcp.jini-<runId>.json`. Transient and machine-specific; one is left behind per run.
 .mcp.jini-*.json
-infra/restore-point-*.db

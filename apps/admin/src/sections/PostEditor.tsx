@@ -9,7 +9,7 @@ import { WidgetEmbed, WidgetEmbedInsertControl } from "../lib/widget-embed-exten
 import { siteUrl } from "../lib/site-url";
 import { navigate } from "../lib/router";
 import { useDirtyGuard } from "../hooks/use-dirty-guard.hooks";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { ConfirmDialog } from "@jini-ai/admin/react";
 
 /** Reads a browser `File` into a full `data:` URL (mirrors Media.tsx's upload helper, but keeps the prefix). */
 function readFileAsDataUrl(file: File): Promise<string> {

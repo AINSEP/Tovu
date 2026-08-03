@@ -11,9 +11,8 @@
     "isolatedModules": true,
     "types": ["vite/client"],
     "paths": {
-      "@tovu/admin-shell": ["../../src/admin-shell/index.ts"],
       "@tovu/headless": ["../../src/headless/index.ts"]
     }
   },
-  "include": ["src", "vite.config.ts", "../../src/admin-shell/**/*.ts", "../../src/headless/**/*.ts"]
+  "include": ["src", "vite.config.ts", "../../src/headless/**/*.ts"]
 }

@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "../lib/api";
-import { RowMenu, type RowMenuItem } from "../components/RowMenu";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
 
 /**
  * @file Admin "Users" screen (SPEC-006 §3 human grant-writing transitions + 0.6.0 CRUD-completion

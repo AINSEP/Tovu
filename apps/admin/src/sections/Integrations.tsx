@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type AdminWebhookSubscription } from "../lib/api";
-import { RowMenu, type RowMenuItem } from "../components/RowMenu";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
 
 /** Parses the comma-separated topics field into a trimmed, blank-free list. */
 function parseTopics(raw: string): string[] {
@@ -129,71 +128,74 @@ export function Integrations() {
         </form>
       ) : null}
 
-      {subscriptions.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No webhooks yet.</p>
-            <p className="page-description">Add one above to start sending event notifications.</p>
+      <DataTable
+        rows={subscriptions}
+        rowKey={(subscription) => subscription.id}
+        empty={
+          <div className="card">
+            <div className="empty-state">
+              <p>No webhooks yet.</p>
+              <p className="page-description">Add one above to start sending event notifications.</p>
+            </div>
           </div>
-        </div>
-      ) : (
-      <div className="table-scroll">
-      <table className="list-table">
-        <thead>
-          <tr>
-            <th>Label</th>
-            <th>Target URL</th>
-            <th>Status</th>
-            <th>Last delivery</th>
-            <th aria-label="Actions" />
-          </tr>
-        </thead>
-        <tbody>
-          {subscriptions.map((subscription) => (
-            <tr key={subscription.id}>
-              <td>
-                <a href={`/admin/integrations/${subscription.id}`}>{subscription.label}</a>
-              </td>
-              <td>{subscription.targetUrl}</td>
-              <td>
-                <span className={`status status-sub-${subscription.status}`}>{subscription.status}</span>
-              </td>
-              <td>
-                {subscription.lastDelivery ? (
-                  <span className={`status status-delivery-${subscription.lastDelivery.status}`}>
-                    {subscription.lastDelivery.status}
-                  </span>
-                ) : (
-                  <span className="muted-cell">never</span>
-                )}
-              </td>
-              <td>
-                {subscription.status === "disabled" ? (
-                  // `disabled` on both old inline buttons for a `status === "disabled"` row — a
-                  // built-in-row-style "nothing to do here" case, `RowMenu` has no equivalent
-                  // per-item `disabled`, so the whole trigger is withheld instead, matching
-                  // `Roles.tsx`'s built-in-row `—` idiom rather than an unusably empty dropdown.
-                  <span className="muted-cell">—</span>
-                ) : (
-                  <RowMenu
-                    triggerLabel={`Actions for webhook "${subscription.label}"`}
-                    items={[
-                      {
-                        key: "pause",
-                        label: subscription.status === "paused" ? "Resume" : "Pause",
-                        onSelect: () => onTogglePause(subscription),
-                      },
-                      { key: "delete", label: "Delete", destructive: true, onSelect: () => setPendingDelete(subscription) },
-                    ]}
-                  />
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>
-      )}
+        }
+        columns={[
+          {
+            key: "label",
+            header: "Label",
+            cell: (subscription) => <a href={`/admin/integrations/${subscription.id}`}>{subscription.label}</a>,
+          },
+          { key: "target-url", header: "Target URL", cell: (subscription) => subscription.targetUrl },
+          {
+            key: "status",
+            header: "Status",
+            cell: (subscription) => (
+              <span className={`status status-sub-${subscription.status}`}>{subscription.status}</span>
+            ),
+          },
+          {
+            key: "last-delivery",
+            header: "Last delivery",
+            cell: (subscription) =>
+              subscription.lastDelivery ? (
+                <span className={`status status-delivery-${subscription.lastDelivery.status}`}>
+                  {subscription.lastDelivery.status}
+                </span>
+              ) : (
+                <span className="muted-cell">never</span>
+              ),
+          },
+          {
+            key: "actions",
+            headerLabel: "Actions",
+            cell: (subscription) =>
+              subscription.status === "disabled" ? (
+                // `disabled` on both old inline buttons for a `status === "disabled"` row — a
+                // built-in-row-style "nothing to do here" case, `RowMenu` has no equivalent
+                // per-item `disabled`, so the whole trigger is withheld instead, matching
+                // `Roles.tsx`'s built-in-row `—` idiom rather than an unusably empty dropdown.
+                <span className="muted-cell">—</span>
+              ) : (
+                <RowMenu
+                  triggerLabel={`Actions for webhook "${subscription.label}"`}
+                  items={[
+                    {
+                      key: "pause",
+                      label: subscription.status === "paused" ? "Resume" : "Pause",
+                      onSelect: () => onTogglePause(subscription),
+                    },
+                    {
+                      key: "delete",
+                      label: "Delete",
+                      destructive: true,
+                      onSelect: () => setPendingDelete(subscription),
+                    },
+                  ]}
+                />
+              ),
+          },
+        ]}
+      />
       <ConfirmDialog
         open={pendingDelete !== null}
         title="Delete webhook?"

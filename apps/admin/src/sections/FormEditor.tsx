@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type AdminFormDefinition, type AdminFormField, type AdminFormNotify, type AdminFormSubmission } from "../lib/api";
 import { navigate } from "../lib/router";
+import { DataTable } from "@jini-ai/admin/react";
 
 /**
  * @file Form editor screen (SPEC-010 ui.spec.md §2.2-2.5/§3.2-3.5) — the `/admin/forms/:formId` route.
@@ -289,30 +290,22 @@ function FormSubmissions(props: { formId: string }) {
   return (
     <div>
       {error ? <div className="notice error">{error}</div> : null}
-      <div className="table-scroll">
-        <table className="list-table">
-          <thead>
-            <tr>
-              <th>Submitted at</th>
-              <th>Source IP</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {submissions.map((s) => (
-              <tr key={s.id}>
-                <td>{s.submittedAt}</td>
-                <td>{s.sourceIp}</td>
-                <td>
-                  <button type="button" onClick={() => setSelectedId(s.id)}>
-                    View
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        rows={submissions}
+        rowKey={(s) => s.id}
+        columns={[
+          { key: "submitted-at", header: "Submitted at", cell: (s) => s.submittedAt },
+          { key: "source-ip", header: "Source IP", cell: (s) => s.sourceIp },
+          {
+            key: "view",
+            cell: (s) => (
+              <button type="button" onClick={() => setSelectedId(s.id)}>
+                View
+              </button>
+            ),
+          },
+        ]}
+      />
       {nextCursor ? (
         <button type="button" className="btn-secondary" onClick={() => load(nextCursor)}>
           Load more
