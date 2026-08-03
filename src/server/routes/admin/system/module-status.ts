@@ -1,8 +1,8 @@
 import type { Express } from "express";
 
-import { getReadinessSnapshot } from "../../../readiness-state";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../../routes/types";
+import { getReadinessSnapshot } from "#src/server/readiness-state";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file ADR-046 Phase 2 (SPEC-030 REQ-10) — admin module-status view.

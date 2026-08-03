@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
-import type { RedirectHitStats, RedirectRecord } from "../../../redirects";
-import type { RedirectsWriteDeps } from "../../../redirects";
+import type { RedirectHitStats, RedirectRecord } from "#src/redirects/index";
+import type { RedirectsWriteDeps } from "#src/redirects/index";
 import type { RouteDeps } from "../../routes/types";
 
 /**

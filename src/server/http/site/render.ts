@@ -1,10 +1,10 @@
-import type { JsonObject, JsonValue } from "../../../core/ports";
-import type { PostRecord } from "../../../features/post";
-import type { DiscoveredTheme, TemplateNode } from "../../../features/theme";
-import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "../../../features/theme";
-import type { ResolvePageWidgetsResult } from "../../../widgets/resolver-service";
-import type { WidgetRenderIR } from "../../../widgets/types";
-import { ATTRIBUTE_NAME_PATTERN } from "../../../forms/forms";
+import type { JsonObject, JsonValue } from "#src/core/ports";
+import type { PostRecord } from "#src/features/post/index";
+import type { DiscoveredTheme, TemplateNode } from "#src/features/theme/index";
+import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "#src/features/theme/index";
+import type { ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
+import type { WidgetRenderIR } from "#src/widgets/types";
+import { ATTRIBUTE_NAME_PATTERN } from "#src/forms/forms";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox";
 import { renderLiquidInSandbox } from "./liquid-sandbox";
 

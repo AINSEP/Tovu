@@ -2,9 +2,9 @@ import {
   pauseSubscription,
   WebhookSubscriptionNotFoundError,
   WebhookSubscriptionValidationError,
-} from "../../../../integrations";
-import { toAdminSubscriptionResponse } from "../../../http/admin/integrations";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/integrations/index";
+import { toAdminSubscriptionResponse } from "#src/server/http/admin/integrations";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { IntegrationsRouteRegistrar } from "./deps";
 
 /**

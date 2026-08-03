@@ -10,7 +10,7 @@ import { createRouteDeps } from "../../app";
 import { createNewsletterModule } from "../../modules/newsletter";
 import type { NewsletterRouteDeps } from "../../routes/admin/newsletter/deps";
 import type { NewsletterPublicRouteDeps } from "../../routes/site/newsletter-deps";
-import { buildUnsubscribeLink } from "../../../newsletter/unsubscribe";
+import { buildUnsubscribeLink } from "#src/newsletter/unsubscribe";
 
 /**
  * @file SPEC-011 (Newsletter) Stage 5, AC-39/INV-09 — `CONFIRM_SUBSCRIPTION`/`UNSUBSCRIBE` never

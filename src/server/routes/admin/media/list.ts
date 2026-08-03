@@ -1,6 +1,6 @@
-import { listMedia } from "../../../../media";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import { toAdminMediaListResponse } from "../../../http/admin/media";
+import { listMedia } from "#src/media/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { toAdminMediaListResponse } from "#src/server/http/admin/media";
 import type { MediaRouteRegistrar } from "./deps";
 
 /**

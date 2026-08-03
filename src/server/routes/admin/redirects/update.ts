@@ -1,13 +1,13 @@
-import { updateRedirect } from "../../../../redirects";
+import { updateRedirect } from "#src/redirects/index";
 import {
   RedirectConflictError,
   RedirectLoopError,
   RedirectNotFoundError,
   RedirectTargetNotAllowedError,
   RedirectValidationError,
-} from "../../../../redirects";
-import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "../../../http/admin/redirects";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/redirects/index";
+import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/http/admin/redirects";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
 /**
  * PATCH mutable fields on an existing redirect rule (api.spec.md

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEntryRefsRepo } from "../../../core/entry-refs/repo.memory";
-import { InMemoryContentTypeRepo } from "../../../features/content-types/repo.memory";
-import { InMemoryEntryRepo } from "../../../features/entries/repo.memory";
+import { InMemoryEntryRefsRepo } from "#src/core/entry-refs/repo.memory";
+import { InMemoryContentTypeRepo } from "#src/features/content-types/repo.memory";
+import { InMemoryEntryRepo } from "#src/features/entries/repo.memory";
 import { createWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory";
 import {

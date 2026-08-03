@@ -32,8 +32,8 @@ import type {
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
   MembersWriteServiceDeps,
-} from "../../../../members";
-import type { RateLimiter } from "../../../middleware/rate-limit";
+} from "#src/members/index";
+import type { RateLimiter } from "#src/server/middleware/rate-limit";
 import type { RouteDeps } from "../../types";
 
 /**

@@ -1,9 +1,9 @@
 import type { Express } from "express";
 
-import type { AuthorizeFn, ChangeSetRepoPort } from "../../../../core/commands";
-import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "../../../../core/ports";
-import type { PluginActivationRepoPort } from "../../../../features/plugin-runtime/activation";
-import type { PluginDiscoveryRecord } from "../../../../features/plugin-runtime/discovery";
+import type { AuthorizeFn, ChangeSetRepoPort } from "#src/core/commands/index";
+import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "#src/core/ports";
+import type { PluginActivationRepoPort } from "#src/features/plugin-runtime/activation";
+import type { PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
 
 /**
  * @file Narrow `RouteDeps` slice for the `plugins` admin HTTP surface (SPEC-005 REQ-10, C-016) —

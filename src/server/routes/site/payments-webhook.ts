@@ -1,7 +1,7 @@
 import express, { type Express, type Request } from "express";
 
-import type { LipayApi } from "../../../features/plugins/lipay/lipay-plugin";
-import type { PaymentError } from "../../../features/plugins/lipay/ports";
+import type { LipayApi } from "#src/features/plugins/lipay/lipay-plugin";
+import type { PaymentError } from "#src/features/plugins/lipay/ports";
 
 /**
  * @file The one core-owned payment webhook route: `POST /payments/webhook/:providerId`.

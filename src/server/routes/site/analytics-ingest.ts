@@ -1,8 +1,8 @@
 import type { Express, Request } from "express";
 
-import type { JsonObject } from "../../../core/ports";
-import { ingestHit, type IngestHitDeps } from "../../../analytics/ingest";
-import type { IngestBeacon, IngestContext } from "../../../analytics/types";
+import type { JsonObject } from "#src/core/ports";
+import { ingestHit, type IngestHitDeps } from "#src/analytics/ingest";
+import type { IngestBeacon, IngestContext } from "#src/analytics/types";
 
 /**
  * @file Public ingest beacon route for the `analytics` library (ADR-035 §5).

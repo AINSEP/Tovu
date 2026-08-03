@@ -1,4 +1,4 @@
-import { buildRobots } from "../../../seo";
+import { buildRobots } from "#src/seo/index";
 import type { SeoRouteRegistrar } from "../admin/seo/deps";
 
 /**

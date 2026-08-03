@@ -1,5 +1,5 @@
-import { toAdminMenuResponse, type MenuRouteRegistrar } from "../../../../server/http/admin/menus";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/http/admin/menus";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
 /**
  * GET one menu by id, including its full item tree (ADR-029).

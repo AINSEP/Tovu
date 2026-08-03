@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { readTemplate } from "../../read-template";
-import { seededWorkspace, seededPosts, seededPresentation } from "../../../server/seed";
+import { seededWorkspace, seededPosts, seededPresentation } from "#src/server/seed";
 
 /**
  * @file SPEC-003 C-009 (`readTemplate`) — TDD certification, unit tier.

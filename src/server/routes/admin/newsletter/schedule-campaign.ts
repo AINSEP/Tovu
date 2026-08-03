@@ -1,6 +1,6 @@
-import { scheduleCampaign } from "../../../../newsletter/campaign-write-service";
-import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "../../../http/admin/newsletter";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { scheduleCampaign } from "#src/newsletter/campaign-write-service";
+import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "../../types";
 import { toCampaignWriteServiceDeps, type NewsletterRouteDeps } from "./deps";
 

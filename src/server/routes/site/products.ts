@@ -1,5 +1,5 @@
-import { getPresentationSettings } from "../../../features/presentation";
-import { findTheme, type DiscoveredTheme } from "../../../features/theme";
+import { getPresentationSettings } from "#src/features/presentation/index";
+import { findTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import { renderSite, type SiteProduct } from "../../http/site/render";
 import type { RouteDeps, RouteRegistrar } from "../types";
 

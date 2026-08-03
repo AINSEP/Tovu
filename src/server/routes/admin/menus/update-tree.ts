@@ -3,10 +3,10 @@ import {
   MenuNotFoundError,
   MenuValidationError,
   updateMenuTree,
-} from "../../../../navigation";
-import type { NavItemNode } from "../../../../navigation";
-import { toAdminMenuResponse, type MenuRouteRegistrar } from "../../../../server/http/admin/menus";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/navigation/index";
+import type { NavItemNode } from "#src/navigation/index";
+import { toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/http/admin/menus";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
 /**
  * PUT a menu's whole item tree (ADR-029 `updateMenuTree`, whole-tree replace

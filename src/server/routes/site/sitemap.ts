@@ -1,4 +1,4 @@
-import { buildSitemap } from "../../../seo";
+import { buildSitemap } from "#src/seo/index";
 import type { SeoRouteRegistrar } from "../admin/seo/deps";
 
 function escapeXml(value: string): string {

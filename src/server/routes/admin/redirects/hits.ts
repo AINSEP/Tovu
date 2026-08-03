@@ -1,5 +1,5 @@
-import { toAdminRedirectHitStatsResponse, type RedirectRouteRegistrar } from "../../../http/admin/redirects";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { toAdminRedirectHitStatsResponse, type RedirectRouteRegistrar } from "#src/server/http/admin/redirects";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
 /**
  * GET aggregate hit stats for a redirect rule (api.spec.md

@@ -1,8 +1,8 @@
 import type { Express } from "express";
 import { randomUUID } from "node:crypto";
 
-import { listRestorePoints, createRestorePoint, RestorePointUnavailableError, ValidationError } from "../../../../features/database/restore-points";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { listRestorePoints, createRestorePoint, RestorePointUnavailableError, ValidationError } from "#src/features/database/restore-points";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps";
 
 /**

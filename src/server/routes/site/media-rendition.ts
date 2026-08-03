@@ -1,4 +1,4 @@
-import { ImageTransformUnavailableError, resolveMediaRendition } from "../../../media";
+import { ImageTransformUnavailableError, resolveMediaRendition } from "#src/media/index";
 import type { MediaRouteRegistrar } from "../admin/media/deps";
 
 /**

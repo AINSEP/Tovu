@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { eq } from "drizzle-orm";
 
-import { posts } from "../../../db/schema";
+import { posts } from "#src/db/schema";
 import { initSite } from "../../init-site";
 import { bootSiteDir } from "../../boot-site-dir";
 

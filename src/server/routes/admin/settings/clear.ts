@@ -7,8 +7,8 @@ import {
   type SettingScope,
   clear,
   deriveRequiredPermission,
-} from "../../../../features/settings";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/features/settings/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
 import { resolveTargetWorkspaceId, toWriteServiceDeps } from "./shared";
 

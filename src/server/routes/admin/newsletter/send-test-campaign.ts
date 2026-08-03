@@ -1,5 +1,5 @@
-import { sendTestCampaign } from "../../../../newsletter/send-pipeline";
-import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond } from "../../../http/admin/newsletter";
+import { sendTestCampaign } from "#src/newsletter/send-pipeline";
+import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond } from "#src/server/http/admin/newsletter";
 import type { RouteRegistrar } from "../../types";
 import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps";
 

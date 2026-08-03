@@ -15,8 +15,8 @@
  * against `__tests__/unit/plugins-dto.unit.test.ts`. Do not implement ahead of that suite being
  * reviewed — this file exists so the test suite compiles and fails red, not green.
  */
-import type { PluginActivationRecord } from "../../../features/plugin-runtime/activation";
-import type { PluginDiscoveryRecord } from "../../../features/plugin-runtime/discovery";
+import type { PluginActivationRecord } from "#src/features/plugin-runtime/activation";
+import type { PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
 
 /** api.spec.md §5 `PLUGINS_LIST`/`PLUGIN_SET_ENABLED` per-plugin wire shape. */
 export interface AdminPluginEnvelope {

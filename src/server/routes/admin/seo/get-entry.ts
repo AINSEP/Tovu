@@ -1,5 +1,5 @@
-import { getEntryMeta, SeoEntryNotFoundError } from "../../../../seo";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { getEntryMeta, SeoEntryNotFoundError } from "#src/seo/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SeoRouteRegistrar } from "./deps";
 
 /**

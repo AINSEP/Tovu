@@ -1,4 +1,4 @@
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
 
 /**

@@ -4,9 +4,9 @@ import {
   SeoEntryNotFoundError,
   SeoFieldValidationError,
   SeoInvalidCanonicalUrlError,
-} from "../../../../seo";
-import { invalidateSitemapCache } from "../../../../seo/sitemap";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/seo/index";
+import { invalidateSitemapCache } from "#src/seo/sitemap";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SeoRouteRegistrar } from "./deps";
 
 /**

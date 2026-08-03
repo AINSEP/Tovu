@@ -4,7 +4,7 @@ import test from "node:test";
 import { createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
-import { createRouteDeps } from "../../../server/app";
+import { createRouteDeps } from "#src/server/app";
 import { buildAssistantToolRegistrations } from "../../tool-registrations";
 
 /**

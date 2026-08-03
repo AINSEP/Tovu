@@ -5,9 +5,9 @@ import {
   RevertConflictError,
   RevertNotPossibleError,
   revertChangeSet,
-} from "../../../../core/commands";
-import { toChangeSetHeaderResponse } from "../../../../server/http/admin/change-sets";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/core/commands/index";
+import { toChangeSetHeaderResponse } from "#src/server/http/admin/change-sets";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps";
 
 /**

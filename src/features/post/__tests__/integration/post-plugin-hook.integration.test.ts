@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, updatePost, type PostRecord, type PostRepoPort } from "../../../post";
+import { InMemoryPostRepo, updatePost, type PostRecord, type PostRepoPort } from "#src/features/post/index";
 
 /**
  * @file `post.ts`'s `BeforeSaveHookPort` integration seam — SPEC-005 REQ-05/06/11, C-014, W-003.

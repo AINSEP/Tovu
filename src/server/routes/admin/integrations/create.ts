@@ -1,6 +1,6 @@
-import { createSubscription, WebhookSubscriptionValidationError } from "../../../../integrations";
-import { toAdminSubscriptionResponse } from "../../../http/admin/integrations";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { createSubscription, WebhookSubscriptionValidationError } from "#src/integrations/index";
+import { toAdminSubscriptionResponse } from "#src/server/http/admin/integrations";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { IntegrationsRouteRegistrar } from "./deps";
 
 /**

@@ -1,12 +1,12 @@
-import { createRedirect } from "../../../../redirects";
+import { createRedirect } from "#src/redirects/index";
 import {
   RedirectConflictError,
   RedirectLoopError,
   RedirectTargetNotAllowedError,
   RedirectValidationError,
-} from "../../../../redirects";
-import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "../../../http/admin/redirects";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/redirects/index";
+import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/http/admin/redirects";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
 const VALID_MATCH_TYPES = new Set(["exact", "prefix", "wildcard", "regex"]);
 const VALID_STATUS_CODES = new Set([301, 302, 307, 308]);
