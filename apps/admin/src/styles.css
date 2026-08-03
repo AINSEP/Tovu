@@ -1027,6 +1027,46 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    `styles/editor.css` scoped rule is now redundant and should be dropped by whoever owns that
    file. */
 .widget-add-control { display: inline-flex; align-items: center; gap: var(--space-2); }
+/* User report: "insert widget button should be one line" — `WidgetAddControl`'s trigger button
+   (`components/WidgetPickerDialog.tsx`) wrapped to two lines ("Insert" / "widget"). NOT the
+   `.menu-tree > .btn-secondary` / `.settings-scope-editor .btn-danger` / `.field-attrs-rows >
+   .btn-secondary` species (a flex-COLUMN's `align-items: stretch` blowing a button edge-to-edge) —
+   measured and ruled out: `.widget-add-control` is `inline-flex` row with `align-items: center`,
+   and the wrap reproduces even with the span fully detached from `.grp`/`.editor-toolbar`
+   (`position: fixed`, no ancestor flex context at all, still wraps at the same width). The button
+   and the type `<select>` beside it are shrinking EACH OTHER inside this span alone — a flex row's
+   default automatic minimum size lets a wrapping-eligible text button collapse toward its
+   longest-word width instead of guaranteeing its single-line (`white-space: nowrap`) width, with
+   nothing here needing the collapse. Verified live: `flex-shrink: 0` alone fixed it, `white-space:
+   nowrap` alone fixed it (120px/one line either way, vs 78px/two lines before); using
+   `white-space: nowrap` as the primary fix since it directly encodes "this label must not wrap"
+   rather than relying on a flex side effect, per the direct-child idiom the three prior instances
+   above already use. */
+.widget-add-control > button { white-space: nowrap; flex-shrink: 0; }
+/* User report (separate from the one above): toolbar overflows past the right edge instead of
+   wrapping to a second line — "Insert…" clipped mid-word — at real (not edge-case) window widths,
+   e.g. viewport ~1200-1300px where `.editor-toolbar`'s own rendered width lands around 786-986px.
+   Measured with a live sweep across 600-1400px in 20px steps (`getComputedStyle`/`scrollWidth` vs
+   `clientWidth`, not eyeballed): this band overflows by 13-113px; every other width in the sweep is
+   clean. `.editor-toolbar` already has `flex-wrap: wrap` (styles.css above) and reflows correctly at
+   every OTHER width, including down to 500px where it wraps to three lines with zero overflow — so
+   this isn't a missing-wrap regression from the `> button` fix above (A/B-verified: reverting that
+   fix does make the overflow disappear, but only by reintroducing the two-line "Insert widget"
+   label it was written to stop, and adding `flex-shrink: 0`/`min-width: 0` to `.grp` or to
+   `.widget-add-control` itself does NOT fix the overflow band either — ruled out live).
+   Root cause, isolated by bisecting `.widget-add-control`'s two children: `components/Select.tsx`'s
+   trigger (`styles/select.css`'s `.select-trigger`) is `width: 100%`, correct for its normal home
+   (a form field filling a container with a real defined width) but meaningless here — this span is
+   `inline-flex` with no explicit width of its own, so the trigger's 100% has no resolvable basis.
+   That circularity feeds an underestimate into the browser's flex line-breaking pre-pass (which
+   must guess each item's width before the real layout runs), so `.grp` gets assigned to line 1
+   assuming it needs less room than it actually does once real layout resolves the select's width —
+   the same line then can't shrink enough to fit (the button's `flex-shrink: 0` above forbids it) and
+   overflows instead of having already wrapped. A/B-verified live: this one rule alone eliminates
+   the overflow across the full 600-1400px sweep, with either the default "Text" option or the
+   widest label ("Recent Entries") selected; scoped to this control only, so every other `<Select>`
+   in the app (built to fill its container) keeps `width: 100%`. */
+.widget-add-control .select-trigger { width: auto; }
 .editor-body { background: var(--surface); padding: 1.5rem 2rem; min-height: 22rem; }
 .editor-body .tiptap { outline: none; min-height: 20rem; }
 .editor-body .tiptap p { line-height: 1.6; }

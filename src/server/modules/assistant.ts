@@ -137,6 +137,58 @@ async function proxyPassthrough(req: Request, res: Response): Promise<void> {
   await forwardToAgentDaemon(req, res, req.method === "GET" || req.method === "HEAD" ? undefined : req.body);
 }
 
+/**
+ * `POST /api/attachments`'s dedicated proxy — every other route in this module forwards through
+ * `forwardToAgentDaemon`'s `JSON.stringify(req.body)` path, which is wrong here on purpose: the
+ * real (and only) client, `@jini-ai/chat/react`'s `createDaemonAttachmentUploader`, always sends
+ * `content-type: application/octet-stream` with the raw file bytes as the body — re-serializing
+ * `req.body` as JSON would send `"{}"` (an empty object, `express.json()`'s default for a body it
+ * did not parse) instead of the file.
+ *
+ * That `content-type` mismatch is exactly what keeps this safe to read directly: Tovu's app-wide
+ * `app.use(express.json({limit:"15mb"}))` (`server/app.ts`) only consumes a request whose
+ * `content-type` it recognizes as JSON — for anything else it calls `next()` without touching the
+ * stream at all, so `req` (a `http.IncomingMessage`, itself an async-iterable readable stream)
+ * reaches this handler completely intact regardless of where in the middleware stack this route
+ * was registered relative to that parser. `@jini-ai/http-kit`'s `attachments.ts` module doc calls
+ * out exactly this class of bug ("a dropped `.json` file... `express.json()` eats the body") for
+ * the daemon's OWN mount of this route pack — the same reasoning applies one hop earlier, here.
+ *
+ * No `RUN_PRINCIPAL_HEADER` stamp: unlike every other forwarded route, an attachment upload has no
+ * `runId` yet (a run doesn't exist until `POST /api/runs`, which happens after the composer has
+ * already staged its uploads) — there is nothing for the daemon's per-run ownership check to
+ * compare against, and the daemon-side attachment store does not read that header. Authentication
+ * is still enforced twice: `requireAdminSession` below (browser session) and the bearer token this
+ * function still attaches (proves the call came from Tovu's own proxy, not an arbitrary local
+ * process) — see `daemon-auth.ts`.
+ */
+async function forwardAttachmentUpload(req: Request, res: Response): Promise<void> {
+  const target = `${AGENT_DAEMON_URL}${req.originalUrl}`;
+  const headers: Record<string, string> = {
+    "content-type": req.get("content-type") ?? "application/octet-stream",
+  };
+  const token = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let upstream: globalThis.Response;
+  try {
+    upstream = await fetch(target, {
+      method: "POST",
+      headers,
+      // `req` is a Node `Readable` (an `IncomingMessage`), which Node's `fetch` accepts directly as
+      // a streaming request body — `duplex: "half"` is what the Fetch spec requires to opt into
+      // that; omitting it throws synchronously before any request is even sent.
+      body: req as unknown as BodyInit,
+      duplex: "half",
+    } as RequestInit);
+  } catch (error) {
+    console.error(`[assistant] agent daemon unreachable at ${AGENT_DAEMON_URL}`, error);
+    res.status(502).json({ error: "assistant is unavailable", code: "BAD_GATEWAY" });
+    return;
+  }
+  await relayResponse(upstream, req, res);
+}
+
 export function createAssistantModule(routeDeps: RouteDeps): ServerModuleHandle {
   return {
     name: "assistant",
@@ -175,6 +227,19 @@ export function createAssistantModule(routeDeps: RouteDeps): ServerModuleHandle 
       app.post("/api/frontend-sessions/:sessionId/responses", (req, res, next) =>
         proxyPassthrough(req, res).catch(next),
       );
+
+      // Composer image/file uploads (`@jini-ai/chat/react`'s `uploadAttachments` prop,
+      // `AssistantDock.tsx`). Same session-auth requirement as every other route in this module —
+      // an unauthenticated upload endpoint is an arbitrary-file-write primitive reachable by
+      // anyone who can reach this port, so this gate is not optional. `POST` needs the dedicated
+      // raw-stream proxy above; `DELETE`'s body is real small JSON
+      // (`{batchId, paths}` — `create-daemon-attachment-uploader.ts`'s `deletePartialUpload`), so
+      // the ordinary `proxyPassthrough` JSON path is correct for it unchanged.
+      app.use("/api/attachments", requireAdminSession(routeDeps));
+      app.post("/api/attachments", (req: Request, res: Response, next: NextFunction) => {
+        forwardAttachmentUpload(req, res).catch(next);
+      });
+      app.delete("/api/attachments", (req, res, next) => proxyPassthrough(req, res).catch(next));
     },
   };
 }

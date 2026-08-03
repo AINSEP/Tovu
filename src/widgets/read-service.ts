@@ -84,7 +84,9 @@ export interface ListWidgetInstancesRequired {
   input: ListWidgetInstancesInput;
 }
 
-export async function listWidgetInstances(required: ListWidgetInstancesRequired): Promise<{ instances: WidgetInstanceEntry[] }> {
+export async function listWidgetInstances(
+  required: ListWidgetInstancesRequired
+): Promise<{ instances: WidgetInstanceEntry[]; skippedCount: number }> {
   const { deps, input } = required;
   await requireWidgetPermission({
     authorize: deps.authorize,
@@ -95,6 +97,7 @@ export async function listWidgetInstances(required: ListWidgetInstancesRequired)
 
   const rows = await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId, type: WIDGET_CONTENT_TYPE });
   const instances: WidgetInstanceEntry[] = [];
+  let skippedCount = 0;
   for (const row of rows) {
     let instance: WidgetInstanceEntry;
     try {
@@ -103,11 +106,23 @@ export async function listWidgetInstances(required: ListWidgetInstancesRequired)
       // A malformed widget-instance row (e.g. wiped by an unrelated generic-entry update that
       // bypassed this feature's own write path) is skipped, not a 500 for the whole admin library
       // screen (Fable adversarial-review fix, 2026-07-21, Finding B).
+      //
+      // 2026-08-03 (dossier C5 follow-up): the skip itself was silent — nothing recorded that a row
+      // never reached the caller, so a genuinely corrupted widget could vanish from the library with
+      // zero trace. Kept the skip (a malformed row must not 500 the whole screen), added a
+      // server-side log line and a returned count so it's observable instead of invisible.
+      // Deliberately logs only `row.id`/`workspaceId`, never `row.fieldsJson` — a malformed payload
+      // may hold arbitrary caller-supplied content, and this line is not the place to disclose it.
+      console.warn("[widgets] listWidgetInstances: skipping malformed widget-instance row", {
+        entryId: row.id,
+        workspaceId: input.workspaceId,
+      });
+      skippedCount += 1;
       continue;
     }
     if (input.widgetType && instance.widgetType !== input.widgetType) continue;
     if (!input.includeInactive && instance.status !== "active") continue;
     instances.push(instance);
   }
-  return { instances };
+  return { instances, skippedCount };
 }

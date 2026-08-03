@@ -145,7 +145,7 @@ async function main(): Promise<void> {
       deps.settingsUiTabsReady,
       deps.analyticsSettingsReady,
     ])
-      .then(() => spawnAgentDaemon())
+      .then(() => spawnAgentDaemon(deps.workspaceId))
       .catch((error: unknown) => {
         console.error("[index] a boot-readiness promise rejected — not starting the agent daemon", error);
       });
@@ -171,13 +171,24 @@ async function main(): Promise<void> {
  * launches `agent-daemon-server.ts` under `tsx` in dev and the compiled
  * `agent-daemon-server.js` under plain `node` in a built `dist/` — whichever this process itself
  * is running as.
+ *
+ * D10 fix: `workspaceId` is this process's own already-resolved `deps.workspaceId` (`main()`'s
+ * `createSqliteRouteDeps()`/`createRouteDeps()` call, above), passed through the child's env as
+ * `TOVU_WORKSPACE` so the daemon binds to the SAME workspace instead of independently
+ * re-resolving `resolveWorkspace`'s default on its own connection — the two processes agreeing
+ * today relies on that default being time-invariant (a newly created workspace can never become
+ * "the oldest"), which is true but not something either process was ever told to rely on. Added
+ * to an explicit `env: {...process.env, ...}` object rather than mutating `process.env` before
+ * the call, so the propagation is visible in a diff/grep the same way the doc comment above
+ * already lists every other inherited variable.
  */
-function spawnAgentDaemon(): void {
+function spawnAgentDaemon(workspaceId: string): void {
   const isCompiled = __filename.endsWith(".js");
   const daemonPath = path.join(__dirname, "assistant", isCompiled ? "agent-daemon-server.js" : "agent-daemon-server.ts");
+  const env = { ...process.env, TOVU_WORKSPACE: workspaceId };
   const child = isCompiled
-    ? spawn(process.execPath, [daemonPath], { stdio: "inherit" })
-    : spawn("npx", ["tsx", daemonPath], { stdio: "inherit" });
+    ? spawn(process.execPath, [daemonPath], { stdio: "inherit", env })
+    : spawn("npx", ["tsx", daemonPath], { stdio: "inherit", env });
 
   child.on("error", (error) => {
     console.error("[index] failed to start the agent daemon — the assistant will be unavailable", error);

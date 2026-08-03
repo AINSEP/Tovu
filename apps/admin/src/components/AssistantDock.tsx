@@ -4,10 +4,11 @@ import {
   ChatPane,
   ConversationList,
   JiniChatProvider,
+  createDaemonAttachmentUploader,
   type ChatPaneAgent,
   type FrontendSessionBridge,
-} from "@jini-ai/ui/chat";
-import type { ChatMessage } from "@jini-ai/chat-core";
+} from "@jini-ai/chat/react";
+import type { ChatMessage } from "@jini-ai/chat/core";
 
 import { createTovuAssistantTransport } from "../lib/assistant-transport";
 import { publishSettingsRefresh } from "../lib/settings-refresh-bus";
@@ -35,12 +36,18 @@ declare global {
  * conversation across toggles... it also drops out of layout and the tab order when closed, so
  * the page genuinely resizes rather than reserving a gap."
  *
- * Hosts `@jini-ai/chat-react`'s `<ChatPane>` against Tovu's own `@jini-ai/core`+`@jini-ai/daemon`
- * kernel (`src/assistant/kernel.ts`, mounted by `src/server/modules/assistant.ts`). Tool execution
- * is not a prop here — it happens server-side: the spawned coding-agent CLI gets
+ * Hosts `@jini-ai/chat/react`'s `<ChatPane>` against Tovu's own `@jini-ai/core`+`@jini-ai/daemon`
+ * kernel (`src/assistant/agent-daemon-server.ts`, proxied by `src/server/modules/assistant.ts`).
+ * Tool execution is not a prop here — it happens server-side: the spawned coding-agent CLI gets
  * `.mcp.json`-injected access to Tovu's registered tools (`src/assistant/tool-registrations.ts`)
  * and calls them through the daemon's `/api/delegated-tool-calls` gate, which shows up in this
  * same transcript as ordinary `tool_use`/`tool_result` events — `ChatPane` renders those itself.
+ *
+ * `uploadAttachments`/`attachmentAccept` below wire the composer's existing (host-agnostic,
+ * `@jini-ai/chat/react`-native) drag-and-drop and file-picker mechanism to this daemon's own
+ * `/api/attachments` route — see that route's registration in `src/assistant/agent-daemon-server.ts`
+ * and its proxy pass-through in `src/server/modules/assistant.ts` for the rest of the chain
+ * (`onStarted` claims the upload and hands the daemon's `AgentExecutor.run()` real `imagePaths`).
  *
  * `styles/assistant.css` themes the pane. Note that the package does NOT ship zero CSS, contrary to
  * what this comment used to claim: `ChatPane` injects its own complete default theme as a `<style>`
@@ -78,6 +85,16 @@ export interface AssistantDockProps {
 export function AssistantDock({ agentBridge = null, useChats = useWiredAssistantChats }: AssistantDockProps) {
   // The transport holds no per-render state; rebuilding it each render would drop in-flight runs.
   const transport = useMemo(() => createTovuAssistantTransport(), []);
+  /**
+   * `''` baseUrl: `createDaemonAttachmentUploader` builds `${baseUrl}/api/attachments`, so an
+   * empty string resolves to the same bare `/api/attachments` relative path `AGENTS_URL`/`RUNS_URL`
+   * already use — same-origin, proxied by `src/server/modules/assistant.ts` to the agent daemon,
+   * matching every other request this dock makes. Memoized for the same reason `transport` is: it
+   * owns internal per-uploader batch-quota state (`create-daemon-attachment-uploader.ts`'s
+   * `batchUsage` map), so rebuilding it on every render would silently reset a turn's running quota
+   * mid-upload.
+   */
+  const uploadAttachments = useMemo(() => createDaemonAttachmentUploader(""), []);
   const runtimeAccess = useMemo(
     () => ({
       listAgents: fetchAgents,
@@ -214,6 +231,13 @@ export function AssistantDock({ agentBridge = null, useChats = useWiredAssistant
         placeholder="Ask the assistant to do something…"
         onMessagesChange={handleMessagesChange}
         runContext={runContext}
+        uploadAttachments={uploadAttachments}
+        // Restricts the composer's file picker to image MIME types. Not a security boundary —
+        // `detectAttachmentKind` sniffs magic bytes server-side regardless of what a renamed file
+        // or a drag-drop bypassing this filter claims to be (see `attachments.ts`) — this only
+        // keeps the picker's own dialog from offering non-image files the daemon-side pipeline
+        // isn't built to do anything useful with yet.
+        attachmentAccept="image/*"
         // Purely a label — `workingDirectoryAccess` (native folder picker) is intentionally
         // omitted, and the daemon's real `cwd` (`agent-daemon-server.ts`'s
         // `process.env.TOVU_AGENT_CWD ?? process.cwd()`) isn't round-tripped back to the client

@@ -1,4 +1,4 @@
-import { deriveConversationTitle, type ChatMessage } from "@jini-ai/chat-core";
+import { deriveConversationTitle, type ChatMessage } from "@jini-ai/chat/core";
 
 import {
   createConversation,

@@ -1,4 +1,4 @@
-import { isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat-core";
+import { isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
 
 /**
  * @file The admin's client for `/api/assistant/chats` — the browser half of durable transcripts.

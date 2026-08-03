@@ -102,7 +102,7 @@ function entriesWriteDeps(deps: RegionAreaServiceDeps, workspaceId: string) {
     clock: deps.clock,
     ids: deps.ids,
     authorize: PRE_AUTHORIZED,
-    outbox: toEntryOutbox({ outbox: deps.outbox, clock: deps.clock, idGen: deps.ids }),
+    outbox: toEntryOutbox({ outbox: deps.outbox, clock: deps.clock, idGen: deps.ids, workspaceId }),
     onWritten: (entry: EntryRecord) => extractAndStoreAreaRefs(deps, workspaceId, entry),
   };
 }

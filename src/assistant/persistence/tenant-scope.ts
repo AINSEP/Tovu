@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { createChatHistoryStore } from "@jini-ai/sqlite";
-import type { ChatHistoryStore } from "@jini-ai/chat-core";
+import type { ChatHistoryStore } from "@jini-ai/chat/core";
 import type { Database as SqliteDatabase } from "better-sqlite3";
 
 /**

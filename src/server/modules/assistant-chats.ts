@@ -21,8 +21,8 @@
  */
 import type { Express, Request, Response } from "express";
 
-import { deriveConversationTitle } from "@jini-ai/chat-core";
-import type { ChatMessage } from "@jini-ai/chat-core";
+import { deriveConversationTitle } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth";
 import type { RouteDeps } from "../routes/types";

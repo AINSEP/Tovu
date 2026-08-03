@@ -106,14 +106,14 @@ async function extractAndStoreInstanceRefs(deps: WidgetWriteServiceDeps, workspa
  * investigation. `onWritten` is deliberately NOT included — it differs per call site (or is absent
  * entirely, as in `trashWidgetInstance`), so each caller still supplies its own.
  */
-function entriesWriteDeps(deps: WidgetWriteServiceDeps) {
+function entriesWriteDeps(deps: WidgetWriteServiceDeps, workspaceId: UUID) {
   return {
     entryRepo: deps.entryRepo,
     contentTypeRepo: deps.contentTypeRepo,
     clock: deps.clock,
     ids: deps.ids,
     authorize: PRE_AUTHORIZED,
-    outbox: toEntryOutbox({ outbox: deps.outbox, clock: deps.clock, idGen: deps.ids }),
+    outbox: toEntryOutbox({ outbox: deps.outbox, clock: deps.clock, idGen: deps.ids, workspaceId }),
   };
 }
 
@@ -161,7 +161,7 @@ export async function createWidgetInstance(required: CreateWidgetInstanceRequire
 
   const created = await createEntry({
     deps: {
-      ...entriesWriteDeps(deps),
+      ...entriesWriteDeps(deps, input.workspaceId),
       onWritten: (entry) => extractAndStoreInstanceRefs(deps, input.workspaceId, entry),
     },
     input: {
@@ -225,7 +225,7 @@ export async function updateWidgetInstance(required: UpdateWidgetInstanceRequire
 
     const result = await updateEntry({
       deps: {
-        ...entriesWriteDeps(deps),
+        ...entriesWriteDeps(deps, input.workspaceId),
         onWritten: (entry) => extractAndStoreInstanceRefs(deps, input.workspaceId, entry),
       },
       input: {
@@ -289,7 +289,7 @@ export async function trashWidgetInstance(required: TrashWidgetInstanceRequired)
 
     const payload = parseWidgetInstancePayload(current.fieldsJson);
     const result = await updateEntry({
-      deps: entriesWriteDeps(deps),
+      deps: entriesWriteDeps(deps, input.workspaceId),
       input: {
         actorId: input.actor.principalId,
         workspaceId: input.workspaceId,
@@ -363,7 +363,7 @@ export async function purgeWidgetInstance(required: PurgeWidgetInstanceRequired)
     const payload = parseWidgetInstancePayload(current.fieldsJson);
     const result = await updateEntry({
       deps: {
-        ...entriesWriteDeps(deps),
+        ...entriesWriteDeps(deps, input.workspaceId),
         // Audit finding (2026-07-21, external /audit-work on ADR-047): a force-purged instance's
         // own OUTGOING refs (e.g. a Contact Form's `formDefinitionId`, a Menu widget's `menuRef`)
         // must be retracted, same transaction as the purge write — purge is the permanent step

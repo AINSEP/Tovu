@@ -1,3 +1,4 @@
+import { buildWidgetsDeps } from "#src/widgets/deps";
 import { trashWidgetInstance } from "#src/widgets/write-service";
 import { mapWidgetErrorToResponse, toAdminWidgetResponse } from "#src/server/http/admin/widgets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
@@ -15,15 +16,7 @@ export const registerAdminWidgetTrashRoute: RouteRegistrar = (app, deps) => {
     try {
       const principal = getAuthedPrincipal(res);
       const { instance } = await trashWidgetInstance({
-        deps: {
-          entryRepo: deps.entryRepo,
-          contentTypeRepo: deps.contentTypeRepo,
-          entryRefsRepo: deps.entryRefsRepo,
-          clock: deps.clock,
-          ids: deps.idGen,
-          authorize: deps.authorize,
-          outbox: deps.outbox,
-        },
+        deps: buildWidgetsDeps(deps),
         input: { workspaceId: deps.workspaceId, actor: { principalId: principal.id }, widgetInstanceId: String(req.params.id) },
       });
       res.status(200).json(toAdminWidgetResponse(instance));

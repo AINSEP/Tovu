@@ -1,3 +1,4 @@
+import { buildWidgetsRegionDeps } from "#src/widgets/deps";
 import { bindWidgetArea } from "#src/widgets/region-area-service";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond, toAdminWidgetAreaResponse } from "#src/server/http/admin/widgets";
 import type { RouteRegistrar } from "../../types";
@@ -26,16 +27,7 @@ export const registerAdminWidgetRegionBindRoute: RouteRegistrar = (app, deps) =>
       const principal = await requireWidgetsPermissionOrRespond(deps.authorize, deps.workspaceId, "widgets.place", res);
       if (!principal) return;
       const { areaEntry } = await bindWidgetArea({
-        deps: {
-          entryRepo: deps.entryRepo,
-          contentTypeRepo: deps.contentTypeRepo,
-          entryRefsRepo: deps.entryRefsRepo,
-          bindingRepo: deps.widgetBindingRepo,
-          clock: deps.clock,
-          ids: deps.idGen,
-          authorize: deps.authorize,
-          outbox: deps.outbox,
-        },
+        deps: buildWidgetsRegionDeps(deps),
         input: { workspaceId: deps.workspaceId, regionKey: body.regionKey.trim() },
       });
       res.status(201).json(toAdminWidgetAreaResponse(areaEntry));

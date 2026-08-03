@@ -165,11 +165,19 @@ export async function ensureWidgetContentTypesRegistered(
       // `InMemoryOutbox` actually implement) — NOT `content-types`' own narrower local port.
       // `ensureOneContentTypeRegistered` below bridges it with `toContentTypeOutbox` at its own
       // `registerContentType` call, mirroring `write-service.ts`'s `entriesWriteDeps`/`toEntryOutbox`
-      // for the sibling `entries` chokepoint. Previously this parameter WAS the narrow local shape,
-      // so the raw adapter callers pass in here flowed straight through unwrapped to
-      // `registerContentType` — compiled, but threw `NOT NULL constraint failed: outbox_events.id`
-      // against the real SQLite outbox the first time a workspace creates its first widget/widget_area
-      // (this function's whole reason to exist is seeding those two content types on first use).
+      // for the sibling `entries` chokepoint.
+      //
+      // CORRECTION (2026-08-03, verified): an earlier version of this comment claimed the unwrapped
+      // adapter "threw `NOT NULL constraint failed: outbox_events.id` the first time a workspace
+      // creates its first widget/widget_area". That is FALSE and was inferred, never observed.
+      // `registerContentType` (`@jini-ai/cms` `content-types/write-service.ts:141`) declares `outbox`
+      // as a required dep and **never calls `enqueue` on it** — the only content-types functions that
+      // enqueue are `lifecycle.ts`'s `deprecateContentType`/`tombstoneContentType`. So this seeding
+      // path could not have thrown, and the bridge here is defensive rather than load-bearing. Kept
+      // wrapped anyway: the dep is declared, `registerContentType` may legitimately start enqueuing a
+      // `content_type.registered` event later, and an unwrapped adapter would then fail exactly the
+      // way the entries path did. See
+      // `ADS-memory/reports/audits/2026-08-03-audit-dossier-outbox-and-tool-surface.md`.
       outbox: OutboxPort;
     };
     workspaceId: string;
@@ -197,7 +205,7 @@ async function ensureOneContentTypeRegistered(
       ids: deps.ids,
       authorize: PRE_AUTHORIZED,
       indexProvisioner: new NoopContentTypeIndexProvisioner(),
-      outbox: toContentTypeOutbox({ outbox: deps.outbox, clock: deps.clock, idGen: deps.ids }),
+      outbox: toContentTypeOutbox({ outbox: deps.outbox, clock: deps.clock, idGen: deps.ids, workspaceId }),
     },
     input: {
       actorId: WIDGETS_SYSTEM_ACTOR_ID,

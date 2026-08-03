@@ -55,6 +55,8 @@
  * remains gated by `resolvePrincipal`'s fail-closed check that the posted `runId` is a live,
  * `randomUUID()`-derived id this process is currently tracking. See `DELEGATED_TOOL_CALLS_PATH`.
  */
+import path from "node:path";
+
 import express from "express";
 
 import { PAGE_CAPABILITIES } from "@jini-ai/agentic";
@@ -66,20 +68,22 @@ import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, create
 // shim it made that wrong claim typecheck cleanly.
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 import {
+  createDiskAttachmentStore,
   createFrontendControl,
   registerAgentRoutes,
+  registerAttachmentRoutes,
   registerDelegatedToolRoutes,
   registerRunRoutes,
   registerToolCatalogRoutes,
 } from "@jini-ai/http-kit";
-import type { AdapterContext, DelegatedToolExecuteRequest, RunStartHandler } from "@jini-ai/http-kit";
+import type { AdapterContext, AttachmentStore, DelegatedToolExecuteRequest, RunStartHandler, StoredAttachment } from "@jini-ai/http-kit";
 
 import { registerSupabaseMcpPreset } from "../features/plugins/supabase-mcp/supabase-mcp-plugin";
 import { createInMemoryToolAttemptAuditSink } from "../features/tool-audit/repo.memory";
 import { SqliteToolAttemptAuditSink } from "../features/tool-audit/repo.sqlite";
 import { openContentDb } from "../db/sqlite/content-db";
 import { createRouteDeps } from "../server/app";
-import { createSqliteRouteDeps, defaultContentDbPath } from "../server/deps";
+import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../server/deps";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../server/middleware/rate-limit";
 import { resolveRuntimeMode } from "../server/runtime-mode";
 import { listAssistantAgents } from "./agents";
@@ -95,6 +99,33 @@ import { buildAssistantToolRegistrations } from "./tool-registrations";
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;
 const DEFAULT_AGENT_ID = "claude";
+
+/**
+ * Root directory the chat composer's staged image/file uploads land in before a run claims them
+ * (`@jini-ai/http-kit`'s `createDiskAttachmentStore`) — deliberately NOT `process.cwd()`.
+ *
+ * `TOVU_CONTENT_DB`/`TOVU_MEDIA_UPLOADS_DIR` are this process's own precedent for "resolve against
+ * an explicit env var, falling back to something derived rather than a bare `process.cwd()`", and
+ * this follows the same shape with its own override (`TOVU_CHAT_ATTACHMENTS_DIR`). It is
+ * deliberately NOT anchored the way `mediaUploadsDir()` is (`server/deps.ts` — `TOVU_MEDIA_UPLOADS_DIR
+ * ?? join(process.cwd(), "infra", "uploads")`): that fallback is itself `process.cwd()`-relative
+ * and this process's own `process.cwd()` is not provably the site install dir (this daemon is a
+ * `spawn(..., {stdio:"inherit"})` child of `src/index.ts`, inheriting whatever cwd THAT process
+ * happened to have — see that file's module doc). Anchoring to `dirname(defaultContentDbPath())`
+ * instead ties this to the SAME directory the daemon's own `content.db` connection already resolves
+ * against, which is the strongest "the daemon process agrees this is the site's home" signal
+ * available here without adding a new resolution path this process doesn't already have.
+ *
+ * Residual, disclosed rather than silently assumed safe: unlike `cli/commands/serve.ts`'s
+ * `resolveInstallDirTarget()`-based boot path (which `serve-command.integration.test.ts`'s CR-R01
+ * case exercises under a foreign cwd), this daemon process is never spawned by that CLI path at all
+ * — it only exists under `src/index.ts`'s env-var-driven boot, which that regression test does not
+ * cover. No foreign-cwd assertion protects this constant specifically; an operator who needs a
+ * guaranteed location should set `TOVU_CHAT_ATTACHMENTS_DIR` explicitly, same as
+ * `TOVU_CONTENT_DB`/`TOVU_MEDIA_UPLOADS_DIR` today.
+ */
+const ATTACHMENT_UPLOAD_DIRECTORY =
+  process.env.TOVU_CHAT_ATTACHMENTS_DIR ?? path.join(path.dirname(defaultContentDbPath()), "uploads", "chat-attachments");
 
 /**
  * A spawned agent CLI has no TTY to answer an interactive permission prompt, so "restricted"
@@ -119,7 +150,15 @@ function resolvePermissionMode(): "bypass" | "restricted" {
 
 // Mirrors `src/index.ts`'s own `useMemory` branch exactly — see this file's module doc on why
 // memory mode gives this process a disconnected store rather than sharing Tovu's.
-const routeDeps = process.env.TOVU_DB === "memory" ? createRouteDeps() : createSqliteRouteDeps();
+//
+// D10 fix: `TOVU_WORKSPACE`, when present, is the main process's own already-resolved
+// `deps.workspaceId` (`index.ts`'s `spawnAgentDaemon()` sets it from the SAME value used to build
+// its own route deps) — binding this process to that exact workspace instead of letting it
+// independently re-resolve `resolveWorkspace`'s default. Irrelevant in memory mode: each process
+// gets its own disconnected in-memory store regardless (see module doc above), so there is no
+// second process to agree with.
+const routeDeps =
+  process.env.TOVU_DB === "memory" ? createRouteDeps() : createSqliteRouteDepsForWorkspace(process.env.TOVU_WORKSPACE);
 
 const eventLog = createInMemoryEventLog();
 const lifecycle = createRunLifecycle({ eventLog });
@@ -277,6 +316,15 @@ const agentExecutor = createAgentExecutor({
  * is that a `runId` only resolves while its run is in flight (`daemon-auth.ts`). */
 const principalByRunId = new Map<string, Principal>();
 
+/**
+ * Assigned once, inside `start()`, before `app.listen()` ever binds the port — `onStarted` cannot
+ * be invoked by a real request until then, so every call site below sees this populated. Typed
+ * `| undefined` anyway (not asserted non-null) because `onStarted`'s own contract is "never throw
+ * synchronously past the point a run is already durably started" — a theoretically-unreachable
+ * `undefined` here should still fail the one run it affects, not crash the process.
+ */
+let attachmentStore: AttachmentStore | undefined;
+
 /** The same fact with the opposite lifetime — a finished run is still readable, so its owner must
  * stay known. See `run-ownership.ts` for why the two maps are not redundant. */
 const runOwners = createRunOwnerRegistry();
@@ -284,16 +332,24 @@ const runOwners = createRunOwnerRegistry();
 const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) => {
   let prompt: string;
   let principal: Principal;
+  let attachmentIds: readonly string[] = [];
   try {
     // `frontendBindToken` also rides in this envelope but is deliberately not read here —
     // `createFrontendControl`'s own `resolveBindToken` above owns that field, so there is exactly
     // one place that decides which tab a run may drive.
-    const parsed = JSON.parse(request.contextRef) as { prompt?: unknown; principalId?: unknown };
+    const parsed = JSON.parse(request.contextRef) as { prompt?: unknown; principalId?: unknown; attachmentIds?: unknown };
     if (typeof parsed.prompt !== "string" || parsed.prompt.length === 0) {
       throw new Error("contextRef did not decode to a non-empty 'prompt'");
     }
     if (typeof parsed.principalId !== "string" || parsed.principalId.length === 0) {
       throw new Error("contextRef did not decode to a non-empty 'principalId'");
+    }
+    // Opaque `attachment:<uuid>` capability ids from `apps/admin/src/lib/assistant-transport.ts`
+    // — untrusted strings until `attachmentStore.claim()` re-validates them below. A malformed or
+    // absent field is silently treated as "no attachments" rather than failing the whole run: an
+    // attachment is optional, unlike `prompt`/`principalId` above.
+    if (Array.isArray(parsed.attachmentIds)) {
+      attachmentIds = parsed.attachmentIds.filter((id): id is string => typeof id === "string" && id.length > 0);
     }
     // `<<SUBAGENT_DISPATCH>>` is AGENTS.md's own documented marker (Mandatory Startup section,
     // detection priority 1) for "skip the whole AI-Dev-Shop startup ceremony — this is a
@@ -313,7 +369,18 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
 
   principalByRunId.set(run.id, principal);
   runOwners.record(run.id, principal.id);
-  void runLifecycle.waitForTerminal(run.id).finally(() => principalByRunId.delete(run.id));
+  void runLifecycle.waitForTerminal(run.id).finally(() => {
+    principalByRunId.delete(run.id);
+    // Safe to call even for a run that claimed nothing (`AttachmentStore.cleanupRun`'s own
+    // contract) — always wired, not only when `attachmentIds` was non-empty, so a run that failed
+    // before reaching the claim step below still releases anything a *retry* of the same run id
+    // could theoretically have claimed. Best-effort: a cleanup failure must not resurface as a run
+    // failure this late in the run's life, and the store's own `retentionMs`/`pruneExpired` is the
+    // backstop if this never runs at all (process crash, etc.).
+    void attachmentStore?.cleanupRun(run.id).catch((error: unknown) => {
+      console.error(`[agent-daemon] run ${run.id}: attachment cleanup failed`, error);
+    });
+  });
 
   // Bind this run to the tab that started it, so `page.*` calls have an addressee. A run has
   // exactly one originating surface, which is what makes the routing unambiguous with several
@@ -333,17 +400,63 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   // `custom-instructions.ts`), so this adds no new failure path before `run()` is even reached.
   void customInstructionsCache
     .refresh()
-    .then(() =>
-      agentExecutor.run({
+    .then(async () => {
+      // `imagePaths`/`extraAllowedDirs`/`uploadRoot` are pre-existing `AgentExecutor.run()` options
+      // (`packages/daemon/src/agent-executor.ts`) — this only ever produces real values for them.
+      // Deliberately NOT touching `prompt` here: a second agent owns making the CLI agent actually
+      // look at `imagePaths` (per-def prompt augmentation / delivery mode), and augmenting it here
+      // too would deliver the same image twice for whichever defs it lands on. This handler's job
+      // ends at handing `run()` correct paths.
+      let attachmentRunFields: { imagePaths?: readonly string[]; extraAllowedDirs?: readonly string[]; uploadRoot?: string } = {};
+      if (attachmentIds.length > 0) {
+        if (!attachmentStore) {
+          // Structurally unreachable (see `attachmentStore`'s own doc) but fails only this run,
+          // not the process, if it somehow is.
+          void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
+          console.error(`[agent-daemon] run ${run.id}: attachment claim requested before the attachment store was ready`);
+          return;
+        }
+        try {
+          // Only `.path` (the opaque capability id) is ever read by `claim()` — it looks up its own
+          // internal registry by that id and re-derives `name`/`kind`/`size` from what `register()`
+          // recorded at upload time, never from a caller-supplied value. The placeholder
+          // `name`/`kind` below satisfy `StoredAttachment`'s shape without asserting anything the
+          // store would actually trust.
+          const refs: StoredAttachment[] = attachmentIds.map((id) => ({ path: id, name: "", kind: "file" }));
+          const claimed = await attachmentStore.claim(refs, run.id);
+          if (claimed.batchDirectory !== undefined) {
+            attachmentRunFields = {
+              imagePaths: claimed.attachments.filter((attachment) => attachment.kind === "image").map((attachment) => attachment.path),
+              extraAllowedDirs: [claimed.batchDirectory],
+              uploadRoot: claimed.batchDirectory,
+            };
+          }
+        } catch (error) {
+          // Fails the run outright rather than silently continuing without the image: the same
+          // severity this handler already gives a malformed `contextRef` above. A user who attached
+          // a screenshot and gets a run that never saw it (already-claimed, expired past
+          // `retentionMs`, or an integrity check failure) would otherwise get a confusing answer
+          // about content the agent never looked at, with nothing explaining why.
+          const message = error instanceof Error ? error.message : String(error);
+          void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
+          console.error(`[agent-daemon] run ${run.id}: attachment claim failed`, message);
+          return;
+        }
+      }
+
+      await agentExecutor.run({
         runId: run.id,
         agentId: request.agentId ?? DEFAULT_AGENT_ID,
         prompt,
         cwd: process.env.TOVU_AGENT_CWD ?? process.cwd(),
         permissionMode: resolvePermissionMode(),
-      }),
-    )
+        ...attachmentRunFields,
+      });
+    })
     // `AgentExecutor.run()` already transitions the run to `'failed'` via `lifecycle.finish()` on
     // every failure path before it rejects — this catch only guards against an unhandled rejection.
+    // (The attachment-claim failure branch above finishes the run itself and returns before ever
+    // reaching `run()`, so it does not rely on this catch for that.)
     .catch((error: unknown) => {
       console.error(`[agent-daemon] run ${run.id} failed to start`, error);
     });
@@ -425,6 +538,20 @@ async function start(): Promise<void> {
   // so both 404'd for every spawned CLI despite the registry itself being fully populated. See
   // `tool-catalog-query.ts`.
   registerToolCatalogRoutes(app, { catalog: buildToolCatalogQuery(registry) }, adapter);
+
+  // `createDiskAttachmentStore` is async (it empties `uploadDirectory` on construction — see its
+  // own doc), so it cannot be a module-scope `const` the way `agentExecutor`/`toolExecutor` are.
+  // Assigned into the module-scope `attachmentStore` binding `onStarted` reads, and awaited here
+  // — before `app.listen()` a few lines down — so no request can ever reach this process while
+  // `attachmentStore` is still unset (`onStarted`'s own doc explains why that matters).
+  attachmentStore = await createDiskAttachmentStore({ uploadDirectory: ATTACHMENT_UPLOAD_DIRECTORY });
+  // Registered ahead of `express.json()` in spirit (see `attachments.ts`'s own "mount before any
+  // global body parser" note) even though call order here is necessarily after it (`express.json()`
+  // is synchronous module-scope code above; this file's own body-parser-skip behavior for a
+  // non-JSON `content-type` is what actually protects the upload route — see
+  // `src/server/modules/assistant.ts#forwardAttachmentUpload`'s doc for the full trace of why an
+  // `application/octet-stream` POST survives `express.json()` regardless of registration order).
+  registerAttachmentRoutes(app, { store: attachmentStore }, adapter);
 
   app.listen(port, "127.0.0.1", () => {
     console.log(`[agent-daemon] listening on ${daemonUrl}`);

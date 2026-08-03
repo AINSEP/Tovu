@@ -228,6 +228,62 @@ test("renderDocNode: a widgetEmbed node with no matching entry in inlineResolved
   assert.doesNotMatch(html, /w1|missing/);
 });
 
+// ---------------------------------------------------------------------------
+// D7 — TipTap `image` nodes were silently dropped (no `case "image"` in
+// `renderDocNode`, so a childless image node fell to the `default` branch,
+// which renders `node.content` — undefined for a leaf node). Fixed by
+// degrading to the same aspect-ratio placeholder convention `hero`/`section`
+// media props already use (`mediaPlaceholder`), rather than emitting a real
+// `<img src>`: today's editor writes `data:` URLs, arbitrary external URLs,
+// or the authenticated admin media-preview URL into `attrs.src` — none of
+// which are safe/correct to embed unescaped on the public site (see D7 recon
+// note). `src`/`title` are never read at all, so there is nothing to escape
+// or reject there; only `alt` reaches the output, and it is escaped by the
+// existing `mediaPlaceholder` helper.
+// ---------------------------------------------------------------------------
+
+test("renderDocNode: an image node no longer vanishes — it degrades to the media placeholder using alt text as the label, and never emits src/title (D7)", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [
+      { type: "paragraph", content: [{ type: "text", text: "before" }] },
+      { type: "image", attrs: { src: "https://evil.example/x.png", alt: '<A> cat & "friend"', title: "ignored" } },
+      { type: "paragraph", content: [{ type: "text", text: "after" }] },
+    ],
+  };
+  const html = renderDocNode(doc);
+  assert.match(html, /<p>before<\/p>/);
+  assert.match(html, /<p>after<\/p>/);
+  assert.match(html, /media-ph/);
+  assert.match(html, /&lt;A&gt; cat &amp; &quot;friend&quot;/);
+  assert.doesNotMatch(html, /evil\.example/);
+  assert.doesNotMatch(html, /ignored/);
+  assert.doesNotMatch(html, /<img/);
+});
+
+test("renderDocNode: an image node with no/non-string alt falls back to a generic 'Image' label, never crashes", () => {
+  const noAlt = renderDocNode({ type: "doc", content: [{ type: "image", attrs: { src: "https://x/y.png" } }] });
+  assert.match(noAlt, /media-ph__label">Image</);
+
+  const nonStringAlt = renderDocNode({ type: "doc", content: [{ type: "image", attrs: { src: "x", alt: 42 } as never }] });
+  assert.match(nonStringAlt, /media-ph__label">Image</);
+});
+
+test("renderSite: an image node embedded in a real post body renders the placeholder end-to-end through both the declarative slot path and the shared Liquid/Handlebars `post.content` builder", async () => {
+  const post = fakePost({
+    bodyJson: {
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "data:image/png;base64,AAAA", alt: "Team photo" } }],
+    },
+  });
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  assert.equal(theme.status, "valid");
+  const html = await renderSite({ theme, route: "post", siteTitle: "Dispatch Demo", posts: [post], post });
+  assert.match(html, /media-ph/);
+  assert.match(html, /Team photo/);
+  assert.doesNotMatch(html, /base64,AAAA/);
+});
+
 test("renderSite: every v1 widget componentId renders correctly and escapes untrusted props (text/social-links/recent-entries+entry-summary/menu/contact-form/unknown->placeholder)", async () => {
   const theme = declarativeTheme({ type: "doc", content: [{ type: "region", key: "footer" }] });
   const ir: WidgetRenderIR[] = [

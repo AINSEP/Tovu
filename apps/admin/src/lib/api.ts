@@ -1461,7 +1461,11 @@ export const api = {
     if (options.widgetType) params.set("widgetType", options.widgetType);
     if (options.includeInactive) params.set("includeInactive", "true");
     const qs = params.toString();
-    return request<{ widgets: AdminWidget[] }>(`/workspaces/${WORKSPACE_ID}/widgets${qs ? `?${qs}` : ""}`);
+    // `skippedCount` (dossier C5 follow-up, 2026-08-03) is additive and optional — present only
+    // when the server silently dropped one or more malformed rows. Absent in the common case.
+    return request<{ widgets: AdminWidget[]; skippedCount?: number }>(
+      `/workspaces/${WORKSPACE_ID}/widgets${qs ? `?${qs}` : ""}`
+    );
   },
   getWidget: (id: string) =>
     request<{ widget: AdminWidget; whereUsed: AdminWidgetWhereUsed }>(`/workspaces/${WORKSPACE_ID}/widgets/${id}`),

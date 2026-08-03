@@ -1,3 +1,4 @@
+import { buildWidgetsDeps } from "#src/widgets/deps";
 import { insertWidgetEmbed } from "#src/widgets/embed-service";
 import { mapWidgetErrorToResponse } from "#src/server/http/admin/widgets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
@@ -23,15 +24,7 @@ export const registerAdminWidgetEmbedInsertRoute: RouteRegistrar = (app, deps) =
     try {
       const principal = getAuthedPrincipal(res);
       const { entry, placementId } = await insertWidgetEmbed({
-        deps: {
-          entryRepo: deps.entryRepo,
-          contentTypeRepo: deps.contentTypeRepo,
-          entryRefsRepo: deps.entryRefsRepo,
-          clock: deps.clock,
-          ids: deps.idGen,
-          authorize: deps.authorize,
-          outbox: deps.outbox,
-        },
+        deps: buildWidgetsDeps(deps),
         input: {
           workspaceId: deps.workspaceId,
           actor: { principalId: principal.id },

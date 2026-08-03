@@ -209,7 +209,7 @@ async function writeHostBody(
       // here, so inlined rather than factored out). Previously `deps.outbox` was forwarded
       // unwrapped, which compiled but threw `NOT NULL constraint failed: outbox_events.id`
       // against the real SQLite outbox on every embed insert/remove/reorder.
-      outbox: toEntryOutbox({ outbox: deps.outbox, clock: deps.clock, idGen: deps.ids }),
+      outbox: toEntryOutbox({ outbox: deps.outbox, clock: deps.clock, idGen: deps.ids, workspaceId }),
       onWritten: (entry) => extractAndStoreEmbedRefs(deps, workspaceId, entry),
     },
     input: {

@@ -170,6 +170,23 @@ export function renderDocNode(node: JsonValue, inlineResolved: ReadonlyMap<strin
       return `<pre><code>${renderNodes(content, inlineResolved)}</code></pre>`;
     case "horizontalRule":
       return "<hr/>";
+    case "image": {
+      // D7: TipTap image nodes are leaf/atom nodes with no `content`, so before this case existed
+      // they fell to `default` (renders `node.content`) and silently vanished — no placeholder, no
+      // error, content simply gone. Fixed by degrading to the same aspect-ratio placeholder
+      // convention `hero`/`section` media props already use (`mediaPlaceholder` below), NOT by
+      // emitting a real `<img src>`: there is no working asset pipeline yet (ADR-027's ref-based
+      // `{assetId,transformName}` design was never wired into the editor) — today `attrs.src` holds
+      // either an inlined `data:` blob, an arbitrary external URL, or the *authenticated* admin
+      // media-preview URL, none of which are safe or correct to embed unescaped on public,
+      // unauthenticated HTML. `src` and `title` are therefore never read here at all (nothing to
+      // escape or reject if it's never emitted); only `alt` — plain author-supplied text — reaches
+      // the output, escaped by `mediaPlaceholder` the same as every other untrusted string in this
+      // file.
+      const attrs = isObject(node.attrs) ? node.attrs : {};
+      const alt = typeof attrs.alt === "string" ? attrs.alt : "";
+      return mediaPlaceholder({ label: alt || "Image" });
+    }
     case "widgetEmbed": {
       // REQ-18/REQ-21: a block-level atom node carrying a single widget-instance reference,
       // resolved server-side (by `resolvePageWidgets`, threaded in via `inlineResolved`) before this

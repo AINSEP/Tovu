@@ -1,3 +1,4 @@
+import { buildWidgetsDeps } from "#src/widgets/deps";
 import { reorderWidgetEmbeds } from "#src/widgets/embed-service";
 import { mapWidgetErrorToResponse } from "#src/server/http/admin/widgets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
@@ -28,15 +29,7 @@ export const registerAdminWidgetEmbedReorderRoute: RouteRegistrar = (app, deps) 
     try {
       const principal = getAuthedPrincipal(res);
       const { entry } = await reorderWidgetEmbeds({
-        deps: {
-          entryRepo: deps.entryRepo,
-          contentTypeRepo: deps.contentTypeRepo,
-          entryRefsRepo: deps.entryRefsRepo,
-          clock: deps.clock,
-          ids: deps.idGen,
-          authorize: deps.authorize,
-          outbox: deps.outbox,
-        },
+        deps: buildWidgetsDeps(deps),
         input: {
           workspaceId: deps.workspaceId,
           actor: { principalId: principal.id },

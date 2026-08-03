@@ -30,6 +30,7 @@
     "check:boundaries": "depcruise --config .dependency-cruiser.cjs src",
     "check:architecture": "tsx development/scripts/check-architecture.ts",
     "check:inventory": "tsx development/scripts/check-capability-inventory.ts",
+    "check:outbox-bridge": "tsx development/scripts/check-outbox-bridge.ts",
     "lint": "biome lint .",
     "complexity": "eslint --no-error-on-unmatched-pattern .",
     "admin:install": "npm --prefix apps/admin install",
@@ -40,7 +41,7 @@
   "dependencies": {
     "@jini-ai/agent-runtime": "file:../Jini/packages/agent-runtime",
     "@jini-ai/agentic": "file:../Jini/packages/agentic",
-    "@jini-ai/chat-core": "file:../Jini/packages/chat-core",
+    "@jini-ai/chat": "file:../Jini/packages/chat",
     "@jini-ai/cms": "file:../Jini/packages/cms",
     "@jini-ai/core": "file:../Jini/packages/core",
     "@jini-ai/daemon": "file:../Jini/packages/daemon",

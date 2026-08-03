@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { buildTranscript, latestUserPromptFromHistory, type ChatMessage } from "@jini-ai/chat-core";
+import { buildTranscript, latestUserPromptFromHistory, type ChatMessage } from "@jini-ai/chat/core";
 
 /**
  * @file The prompt-assembly contract behind the admin assistant's conversation memory.
@@ -11,7 +11,7 @@ import { buildTranscript, latestUserPromptFromHistory, type ChatMessage } from "
  * seen the question it followed. The full history was already in the browser; it was thrown away
  * before the request was built.
  *
- * These assert the properties `runPrompt` depends on from `@jini-ai/chat-core`. They are written
+ * These assert the properties `runPrompt` depends on from `@jini-ai/chat/core`. They are written
  * against the library functions directly because `assistant-transport.ts` needs `EventSource` and
  * `fetch` at module scope, which a plain node test has no business standing up just to check
  * string assembly.

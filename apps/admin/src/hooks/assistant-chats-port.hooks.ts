@@ -1,4 +1,4 @@
-import type { ChatMessage } from "@jini-ai/chat-core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 
 import type { AssistantConversation } from "../lib/assistant-chats";
 

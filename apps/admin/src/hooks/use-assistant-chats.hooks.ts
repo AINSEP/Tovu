@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChatMessage } from "@jini-ai/chat-core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 
 import { HttpError, persistableMessages, type AssistantConversation } from "../lib/assistant-chats";
 import { defaultAssistantChatsPort } from "./assistant-chats-dependencies.hooks";

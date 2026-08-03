@@ -577,7 +577,7 @@
   color: var(--ok);
 }
 
-/* --- Conversation switcher (`ConversationList` from `@jini-ai/ui/chat`) ---------------------
+/* --- Conversation switcher (`ConversationList` from `@jini-ai/chat/react`) ---------------------
  *
  * The package ships semantic markup with `jini-conv-*` class names and no CSS at all, exactly
  * like every other component it exports — see this file's header. Without these rules the
