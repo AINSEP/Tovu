@@ -110,6 +110,39 @@ test("renderSite renders the live themes/dispatch entry (post) page: content inj
   assert.doesNotMatch(html, /\{\{|\{%/);
 });
 
+test("renderSite: the ADR-054 visitor-chat mount node + script are absent by default, and every pre-existing caller (no siteAssistantEnabled param) keeps getting no widget", async () => {
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  assert.equal(theme.status, "valid");
+
+  const html = await renderSite({ theme, route: "home", siteTitle: "Dispatch Demo", posts: [] });
+  assert.doesNotMatch(html, /tovu-site-assistant-root/);
+  assert.doesNotMatch(html, /site-assistant\.js/);
+});
+
+test("renderSite: siteAssistantEnabled:false is the same as omitting it — no mount node, no script", async () => {
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  assert.equal(theme.status, "valid");
+
+  const html = await renderSite({ theme, route: "home", siteTitle: "Dispatch Demo", posts: [], siteAssistantEnabled: false });
+  assert.doesNotMatch(html, /tovu-site-assistant-root/);
+  assert.doesNotMatch(html, /site-assistant\.js/);
+});
+
+test("renderSite: siteAssistantEnabled:true injects the mount node and a deferred script, once, in the page shell (not a theme template)", async () => {
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  assert.equal(theme.status, "valid");
+
+  const html = await renderSite({ theme, route: "home", siteTitle: "Dispatch Demo", posts: [], siteAssistantEnabled: true });
+  assert.match(html, /<div id="tovu-site-assistant-root"><\/div>/);
+  assert.match(html, /<script defer src="\/site-chat\/site-assistant\.js"><\/script>/);
+  // Exactly once: this is the shell every route funnels through, not per-theme injection.
+  assert.equal(html.match(/tovu-site-assistant-root/g)?.length, 1);
+  // Deferred, and placed after the theme body — never a blocking script ahead of paintable content.
+  const bodyIndex = html.indexOf('class="site"');
+  const scriptIndex = html.indexOf("site-assistant.js");
+  assert.ok(bodyIndex < scriptIndex, "the script tag must come after the themed page body");
+});
+
 test("renderSite falls back to the minimal built-in body (never 500s) when a templated theme's source is hostile at render time", async () => {
   const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");

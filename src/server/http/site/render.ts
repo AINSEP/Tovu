@@ -769,13 +769,50 @@ function fontLink(theme: DiscoveredTheme): string {
 }
 
 /**
+ * The DOM id `apps/site-chat/src/main.tsx`'s bundle mounts itself into. Kept as a literal string in
+ * both files rather than a shared import — `site-chat` is a standalone Vite app outside this
+ * server's module graph (see that file's own header for the same tradeoff on this exact constant).
+ */
+const SITE_ASSISTANT_MOUNT_ID = "tovu-site-assistant-root";
+
+/**
+ * ADR-054 Task 2/3 — the visitor chat's mount node plus its `<script defer>`, injected once here
+ * rather than into any of the five theme templates (see this file's own module doc). `defer`, not a
+ * blocking `<script>` or a bare module tag with no attribute: the ADR's own "Costs and open risks"
+ * section requires this to never block first paint, and `defer` is what guarantees the browser keeps
+ * parsing/painting the rest of the document while the bundle fetches, only running it once parsing
+ * finishes.
+ *
+ * Gated on `enabled` — never unconditional. `src/assistant/public-assistant-settings.ts`'s file
+ * header spells out the contract this obeys: `publicEnabled: false` means the public page ships NO
+ * assistant bundle and NO mount markup, and "a CSS or JavaScript-level hide is a defect against this
+ * contract, not a shortcut." Emitting `hidden`/`display:none` markup here when disabled would be
+ * exactly that defect, so the disabled case returns nothing at all rather than an inert tag.
+ */
+function siteAssistantMarkup(enabled: boolean): string {
+  if (!enabled) return "";
+  return `<div id="${SITE_ASSISTANT_MOUNT_ID}"></div><script defer src="/site-chat/site-assistant.js"></script>`;
+}
+
+/**
  * `extraHead` is `page-head.ts`'s `serializeHeadElements()` output (SPEC-008
  * ADR-PIPE-008 T048) — already-escaped markup, inserted verbatim. When it
  * contains its own `<title>` (SEO's fold always emits one, per
  * `page-head-contributor.ts`'s priority-100 title element), this shell's own
  * hardcoded `<title>` is suppressed rather than emitting two competing tags.
  */
-function pageShell(required: { title: string; theme: DiscoveredTheme; body: string; extraHead?: string }): string {
+function pageShell(required: {
+  title: string;
+  theme: DiscoveredTheme;
+  body: string;
+  extraHead?: string;
+  /** ADR-054 — the `site.assistant.public_enabled` ledger value for this request's workspace,
+   *  resolved by the caller (the route handler, which already holds `deps.settingsRepo`; see this
+   *  function's own doc). Defaults to `false` — the same fail-closed default the setting itself
+   *  carries — so any pre-existing or test caller that does not pass this omits the assistant
+   *  rather than silently gaining it. */
+  siteAssistantEnabled?: boolean;
+}): string {
   const { theme, extraHead } = required;
   const foldHasTitle = extraHead?.includes("<title>") ?? false;
   const titleTag = foldHasTitle ? "" : `<title>${escapeHtml(required.title)}</title>`;
@@ -791,6 +828,7 @@ ${fontLink(theme)}
 </head>
 <body>
 <div class="site" data-theme="${escapeHtml(theme.manifest.id)}">${required.body}</div>
+${siteAssistantMarkup(required.siteAssistantEnabled ?? false)}
 </body>
 </html>`;
 }
@@ -831,6 +869,15 @@ export async function renderSite(required: {
   widgets?: ResolvePageWidgetsResult;
   /** SPEC-008 T049 — pre-serialized `page.head` fold output, threaded through to `pageShell`. */
   extraHead?: string;
+  /**
+   * ADR-054 — whether to inject the public visitor-chat mount node + script (Task 2/3). Threaded
+   * through unchanged to `pageShell`; see that parameter's own doc for why this defaults to `false`
+   * rather than `true`. The caller (a route handler) resolves this from
+   * `isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId })`
+   * — `render.ts` stays a pure "resolved data -> HTML" renderer and never reads the settings ledger
+   * itself, the same convention `widgets`/`posts`/`post` above already follow.
+   */
+  siteAssistantEnabled?: boolean;
 }): Promise<string> {
   const { theme, route } = required;
   const ctx: SiteRenderContext = {
@@ -889,5 +936,5 @@ export async function renderSite(required: {
     ? `${required.post.title} — ${required.siteTitle}`
     : required.siteTitle;
 
-  return pageShell({ title, theme, body, extraHead: required.extraHead });
+  return pageShell({ title, theme, body, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled });
 }

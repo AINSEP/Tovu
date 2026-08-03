@@ -1,4 +1,5 @@
 import { getPresentationSettings } from "#src/features/presentation/index";
+import { isPublicAssistantEnabled } from "#src/assistant/public-assistant-settings";
 import { findTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import { renderSite, type SiteProduct } from "../../http/site/render";
 import type { RouteDeps, RouteRegistrar } from "../types";
@@ -24,13 +25,18 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
   app.get("/products", async (req, res) => {
     try {
       const products: SiteProduct[] = deps.store?.listProducts() ?? [];
-      const settings = await getPresentationSettings({ deps: { repo: deps.presentationRepo }, input: { workspaceId: deps.workspaceId } });
+      const [settings, siteAssistantEnabled] = await Promise.all([
+        getPresentationSettings({ deps: { repo: deps.presentationRepo }, input: { workspaceId: deps.workspaceId } }),
+        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }),
+      ]);
       const theme = resolveActiveTheme(deps, settings.settings.activeThemeId);
       if (!theme) {
         res.status(500).type("html").send("<h1>No themes installed</h1>");
         return;
       }
-      res.type("html").send(await renderSite({ theme, route: "products", siteTitle: SITE_TITLE, posts: [], products }));
+      res.type("html").send(
+        await renderSite({ theme, route: "products", siteTitle: SITE_TITLE, posts: [], products, siteAssistantEnabled }),
+      );
     } catch {
       res.status(500).type("html").send("<h1>Site error</h1>");
     }
@@ -45,13 +51,18 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
         res.status(404).type("html").send("<h1>404 — product not found</h1><p><a href='/products'>All products</a></p>");
         return;
       }
-      const settings = await getPresentationSettings({ deps: { repo: deps.presentationRepo }, input: { workspaceId: deps.workspaceId } });
+      const [settings, siteAssistantEnabled] = await Promise.all([
+        getPresentationSettings({ deps: { repo: deps.presentationRepo }, input: { workspaceId: deps.workspaceId } }),
+        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }),
+      ]);
       const theme = resolveActiveTheme(deps, settings.settings.activeThemeId);
       if (!theme) {
         res.status(500).type("html").send("<h1>No themes installed</h1>");
         return;
       }
-      res.type("html").send(await renderSite({ theme, route: "product", siteTitle: SITE_TITLE, posts: [], products, product }));
+      res.type("html").send(
+        await renderSite({ theme, route: "product", siteTitle: SITE_TITLE, posts: [], products, product, siteAssistantEnabled }),
+      );
     } catch {
       res.status(500).type("html").send("<h1>Site error</h1>");
     }
