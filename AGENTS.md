@@ -21,3 +21,32 @@ Before proposing architecture changes, implementation plans, or new platform mod
 - Treat sections 13 and 14 as governing constraints for architecture decisions.
 - Do not bypass dependency inversion or modular boundaries for speed.
 - Prefer swappable ports/adapters over provider-coupled implementations in core.
+
+## Cloud Dispatch — Standing Rules
+
+Applies to every unattended run launched against this repository: `RemoteTrigger`, scheduled
+routines, any agent working with no human watching. Every rule here has already cost a real run.
+
+**1. Set up before reading a single source file.** This repo declares ~10 dependencies as
+`file:../Jini/packages/*`, so the Jini checkout must sit beside it named **exactly** `Jini`. And
+Jini's `dist/` is gitignored — a fresh clone has no build output, so every `@jini-ai/*` import
+resolves to nothing. Run `pnpm install && pnpm -r build` in Jini first. Then record a **green
+baseline on the unmodified tree**, so a setup failure is never mistaken for your own breakage.
+
+**2. Commit and push every 5–10 minutes, or per logical unit — whichever comes first.** Never
+batch a job into one commit at the end. `wip:` prefixes are fine; history can be squashed, lost
+work cannot be recovered. Two reasons:
+- **Partial work must survive.** 300 of 523 edits committed beats 523 edited and lost.
+- **Your commits are the only telemetry.** The trigger API exposes no transcript or session URL.
+  From outside, an agent that has not pushed in 15 minutes is indistinguishable from a dead one.
+
+**3. Never gate a commit on tests passing.** Commit the work, *then* verify, *then* commit fixes.
+Report failures honestly rather than withholding work. A brief that required green-before-commit,
+combined with a missing setup step, produced 65 minutes of work and zero output.
+
+**4. Always `git pull --rebase` immediately before pushing. Never force-push.** A human may be
+committing to the same branch concurrently. If a rebase will not resolve cleanly, push to a named
+fallback branch and say so prominently in the report.
+
+**5. Report every pushed SHA and the branch.** Not "done" — the actual commits, so the work can
+be found. Confirm the push succeeded; do not trust "I'm finished."
