@@ -36,10 +36,7 @@ import {
 import type { ContentTypeRepoPort } from "../features/content-types/write-service";
 import type { EntryListPort } from "../features/entries/list";
 import type { EntryRepoPort } from "../features/entries/write-service";
-// `toWhereUsedResponse` stays sourced from the HTTP admin layer — an explicitly out-of-scope
-// back-edge for this pass (see the dispatch notes this file's narrowing was reported under); this
-// domain's own model-facing "where used" projection lives there today, not in `widgets`.
-import { toWhereUsedResponse } from "../server/http/admin/widgets";
+import { toWhereUsedResponse } from "./where-used";
 import { widgetsAgentToolCatalog } from "./agent-tools";
 import type { WidgetRegionBindingRepoPort } from "./ports";
 import { requireWidgetPermission } from "./authorize-helper";
