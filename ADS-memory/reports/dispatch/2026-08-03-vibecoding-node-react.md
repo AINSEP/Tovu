@@ -13,7 +13,25 @@ cd Jini           && git checkout main && git pull origin main
 cd ../Tovu-AI-CMS && git checkout main && git pull origin main
 ```
 
-At dispatch: Jini `main` = `96f0a5c8`, Tovu `main` = `f84ae88`.
+At dispatch: Jini `main` = `f13f92c2`, Tovu `main` = `cd55427`.
+
+## MANDATORY environment setup — nothing works before this
+
+Jini uses **pnpm** (`packageManager: pnpm@10.33.2`), not npm, and its `dist/` is **gitignored** — a
+fresh clone has no build output. Run this first and confirm each step:
+
+```bash
+cd Jini
+pnpm install
+pnpm -r build      # per-package builds; there is no root build script
+npm --prefix packages/vibecoding run test    # must be 49/49 BEFORE you change anything
+```
+
+If that baseline is not 49/49 green on an unmodified tree, **stop and report** — any failure you
+see later would be a false lead rather than your bug.
+
+You do not need to build Tovu. It is read-only reference here, needed only for the handoff report
+named below.
 
 Read `AI-Dev-Shop/agents/programmer/skills.md` in the Tovu repo before any work and confirm in your
 first output that you loaded it. Do **not** read `AGENTS.md` or `CLAUDE.md` — the
