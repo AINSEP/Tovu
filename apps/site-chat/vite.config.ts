@@ -34,6 +34,64 @@ const forbidAdminImports: Plugin = {
 
 export default defineConfig({
   plugins: [forbidAdminImports, react()],
+  resolve: {
+    /**
+     * Diagnosed 2026-08-03 against a real browser (Playwright), one crash after the `define` fix
+     * below: `TypeError: Cannot read properties of null (reading 'useRef')` — the classic signature
+     * of two DIFFERENT React module instances ending up in one bundle (a hook call resolves against
+     * a dispatcher React itself never set, because the "current" React that set it and the React the
+     * hook call is running against are not the same module).
+     *
+     * Confirmed which two, by reading real files on disk, not by guessing: `@jini-ai/chat` and
+     * `@jini-ai/ui` are `file:` links whose REAL path is inside the sibling `Jini/` checkout
+     * (`apps/site-chat/node_modules/@jini-ai/chat` -> `../../../Jini/packages/chat`). Node/Rollup
+     * module resolution walks up from a file's REAL location, and Jini has its OWN independently
+     * `npm install`ed copies sitting right there —
+     * `Jini/packages/chat/node_modules/react@19.2.7` and `Jini/packages/ui/node_modules/react@19.2.7`
+     * — a different package instance, and a different version, than this app's own
+     * `apps/site-chat/node_modules/react@19.2.8`. Whichever file happened to resolve first supplied
+     * `useRef`'s dispatcher; the other's hook calls read a dispatcher React never populated. Bare
+     * `resolve.dedupe` was tried first and did not fully close this (it dedupes multiple resolutions
+     * Vite's own resolver sees, not a Jini-nested copy Rollup's commonjs/node-resolve plugins reach
+     * independently while walking `@jini-ai/chat`'s real directory) — an explicit `alias` is what
+     * actually pins every `react`/`react-dom` import, regardless of which file inside which real
+     * directory issued it, to this app's own single copy. Every subpath below is one this bundle's
+     * dependency graph genuinely imports (`react`, `react/jsx-runtime` via the `react()` plugin's
+     * automatic JSX transform, `react-dom` via `@jini-ai/chat`'s internals, `react-dom/client` via
+     * `main.tsx`) — not a blanket rewrite of every possible React entry point.
+     */
+    alias: {
+      react: path.resolve(__dirname, "node_modules/react"),
+      "react/jsx-runtime": path.resolve(__dirname, "node_modules/react/jsx-runtime"),
+      "react/jsx-dev-runtime": path.resolve(__dirname, "node_modules/react/jsx-dev-runtime"),
+      "react-dom/client": path.resolve(__dirname, "node_modules/react-dom/client"),
+      "react-dom": path.resolve(__dirname, "node_modules/react-dom"),
+    },
+    dedupe: ["react", "react-dom"],
+  },
+  /**
+   * Diagnosed 2026-08-03 against a real browser (Playwright): the shipped IIFE threw
+   * `ReferenceError: process is not defined` at load and never mounted. Root cause, confirmed by
+   * reading the actual npm-published files, not assumed: `react-dom`'s `client.js`/`index.js` entry
+   * points are plain CommonJS with an UNGUARDED `process.env.NODE_ENV` check (`checkDCE()`'s
+   * dead-code-elimination self-test) that picks the dev vs. prod internal require — React ships no
+   * alternate ESM entry that omits this, so there is no "resolve to the right build instead" fix
+   * available. `apps/admin`'s built SPA has zero `process.env.NODE_ENV` occurrences in the same
+   * React version, which is what pins the actual defect: Vite's normal (non-library) `build`
+   * auto-injects this `define` itself; `build.lib` mode deliberately does not (a library build might
+   * genuinely run under Node, where `process` is real, so Vite leaves the choice to the consumer).
+   * This bundle is browser-only — an IIFE with no Node runtime underneath it — so defining it
+   * unconditionally as `"production"` is correct here, not a paper-over: Rollup's minifier then
+   * dead-code-eliminates the now-unreachable dev branches, so the literal string
+   * `process.env.NODE_ENV` no longer appears in the output at all (verified: 0 occurrences,
+   * `check-no-process-global.mjs`).
+   *
+   * The OTHER `process.*` reference `react-dom` ships (`process.emit(...)`, its dual-environment
+   * uncaught-error reporter) is not touched by this and needs no fix: every call site is guarded by
+   * `typeof process === "object" && typeof process.emit === "function"` first, which is safe with no
+   * global `process` at all (`typeof` on an undeclared identifier never throws).
+   */
+  define: { "process.env.NODE_ENV": JSON.stringify("production") },
   build: {
     outDir: "dist",
     cssCodeSplit: false,
