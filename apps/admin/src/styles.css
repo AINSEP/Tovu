@@ -1097,6 +1097,88 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .settings-dialog h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
 .settings-dialog p { margin: 0; color: var(--fg-2); font-size: 0.9rem; line-height: 1.5; }
 
+/* `WidgetPickerDialog.tsx`'s "Place a {type} widget" modal — `.widget-picker-dialog`/`-body`/
+   `-section`/`-footer` below all first-appear here; this modal had ZERO CSS anywhere for its own
+   structure before this pass (`.widget-picker-section` specifically confirmed empty by
+   `styles/forms.css`'s own comment on the neighboring `.widget-config-fields`), so it fell all the
+   way back to plain UA defaults — an inline label+select run (a bare `<label>` is inline, a bare
+   `<select>` is inline-block, and nothing here set `display` on their shared parent), no seam
+   between "Use existing"/"Create new", unstyled bold-serif `<h3>`s, and Cancel stranded in a bare
+   `.editor-actions` span with no footer of its own.
+
+   `.widget-picker-dialog` widens the shared `.settings-dialog` for this one caller only — 26rem
+   read cramped once a real widget type (Social Links, up to 20 rows) is the thing filling the
+   "Create new" section below. `max-height` + the scrolling body below is what actually stops that
+   content from pushing the dialog past the viewport; the width change alone would not.
+
+   `width`, not just `max-width` — found live, not assumed: `.settings-dialog-backdrop` is
+   `display: grid; place-items: center`, and `place-items` sets `justify-items: center`, which
+   makes every grid item it centers (this dialog included) size by shrink-to-fit (its own
+   max-content), not stretch-to-track. A `max-width` on a shrink-to-fit box is only a CAP that
+   binds when content is already wider than it — it does not, by itself, make the box that wide.
+   A `max-width`-only version of this rule measured as literally inert in the real browser: the
+   dialog's used width came entirely from its content's own max-content size regardless of the
+   max-width value. `max-width: calc(100vw - 2rem)` alongside the explicit width is what keeps a
+   narrow viewport safe, since the explicit width alone would otherwise overflow a phone-width
+   screen. */
+.widget-picker-dialog { width: 32rem; max-width: calc(100vw - 2rem); max-height: 85vh; }
+/* The one flexible, scrolling child between the fixed `<h2>` header above and the fixed Cancel
+   footer below. `flex: 1 1 auto` + `min-height: 0` are both required: a flex child's default
+   `min-height: auto` refuses to shrink below its own content's height, so without `min-height: 0`
+   this would just keep growing past `max-height` above instead of ever engaging its own
+   `overflow-y: auto` (the identical gotcha `styles/forms.css`'s `.field-row` comment measured for
+   an unrelated property, same underlying mechanism). */
+.widget-picker-body {
+  display: flex; flex-direction: column; gap: var(--space-5);
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+}
+/* Each "Use existing"/"Create new" `<form>`. `flex column` is what actually fixes the inline
+   label+select run described above (stacks the `.field` div's label above its own control instead
+   of letting both flow as running text); `gap` matches `.field-group`'s own label-group rhythm
+   rather than inventing a new spacing value. */
+.widget-picker-section {
+  display: flex; flex-direction: column; gap: var(--space-3);
+}
+/* Section-to-section divider — an adjacent-sibling selector, so it only paints between the two
+   sections when BOTH render. `hasExisting` conditionally omits the first `<form>` entirely for a
+   freshly-registered widget type with zero existing instances; this rule is simply inert then,
+   nothing on the TSX side needs to know about it. */
+.widget-picker-section + .widget-picker-section {
+  border-top: 1px solid var(--border); padding-top: var(--space-4);
+}
+/* Section heading. NOT the `.settings-scope-editor h3` uppercase/small/muted idiom this rule used
+   originally — that idiom is character-for-character `.field-label`'s own styling, and unlike
+   `.settings-scope-editor h3` (which never sits directly above a `.field-label`), this heading
+   does: "Use existing" (the section) sits right above "Existing Text widgets" (a `.field-label`
+   inside it). Styled identically, the two were indistinguishable — a flat run of same-weight grey
+   shouty labels with no signal that one contains the other. This is deliberately the opposite
+   shape: sentence case (not uppercase), full-strength `--fg` (not `--muted`), and a full size step
+   up (`--text-base` vs. `.field-label`'s `--text-2xs`) so a section heading reads as visibly ABOVE
+   the fields it contains, not another field of the same kind. Do not fix this by restyling
+   `.field-label` instead — that class is shared across the whole admin. */
+.widget-picker-section h3 {
+  margin: 0; font-size: var(--text-base); font-weight: 700; color: var(--fg);
+}
+/* Each section's own submit ("Use this widget" / "Create and place") is the one direct-child
+   `<button>` of a flex column that now defaults to `align-items: stretch` (the rule above) — left
+   unfixed it would stretch edge-to-edge, the same stretch-by-default-flex-column bug
+   `styles/forms.css`'s `.widget-config-fields > button` and `.menu-tree > .btn-secondary` below
+   already fix elsewhere for the identical shape. Both submits stay the primary fill — each really
+   is the one clearly primary action for its own section — only sizing/alignment changes here, not
+   color. */
+.widget-picker-section > button {
+  align-self: flex-start;
+}
+/* A real footer, separated from the scrolling body above by its own border, instead of Cancel
+   being left stranded in a bare `.editor-actions` span with no visual seam of its own.
+   `Collections.tsx`'s dialogs (`NewContentTypeDialog`/`EditFieldsDialog`) already wrap their own
+   submit+Cancel pair in exactly this `.editor-actions` span — reused here unchanged (Cancel is the
+   only dialog-level action; the submits above belong to their own sections) rather than inventing
+   a second button-row idiom just for this file. */
+.widget-picker-footer {
+  border-top: 1px solid var(--border); padding-top: var(--space-4);
+}
+
 /* Collections / Categories & Tags / Storage / Recovery (design-spec.md) — additive status-pill
  * and layout classes following the exact naming/token conventions already established above.
  * Not in this dispatch's literal touch-scope list, but "match the existing design system" is a
