@@ -1,8 +1,8 @@
 import type { Express } from "express";
 
-import { ContentTypeNotActiveError, EntryNotFoundError, ForbiddenError, VersionConflictError } from "../../../../features/entries/errors";
-import { ENTRY_LIFECYCLE_OPS, parseEntryLifecycleOp } from "../../../../features/entries/lifecycle-dispatch";
-import { toEntryOutbox } from "../../../../features/entries/repo.memory";
+import { ContentTypeNotActiveError, EntryNotFoundError, ForbiddenError, VersionConflictError } from "../../../../features/entries";
+import { ENTRY_LIFECYCLE_OPS, parseEntryLifecycleOp } from "../../../../features/entries";
+import { toEntryOutbox } from "../../../../features/entries";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps";
 

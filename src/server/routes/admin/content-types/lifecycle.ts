@@ -1,8 +1,8 @@
 import type { Express } from "express";
 
-import { ContentTypeLifecycleError, ContentTypeNotFoundError, ForbiddenError, VersionConflictError } from "../../../../features/content-types/errors";
-import { CONTENT_TYPE_LIFECYCLE_OPS, parseContentTypeLifecycleOp } from "../../../../features/content-types/lifecycle-dispatch";
-import { toContentTypeOutbox } from "../../../../features/content-types/repo.memory";
+import { ContentTypeLifecycleError, ContentTypeNotFoundError, ForbiddenError, VersionConflictError } from "../../../../features/content-types";
+import { CONTENT_TYPE_LIFECYCLE_OPS, parseContentTypeLifecycleOp } from "../../../../features/content-types";
+import { toContentTypeOutbox } from "../../../../features/content-types";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps";
 

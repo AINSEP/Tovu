@@ -1,8 +1,8 @@
 import type { Express } from "express";
 
-import { ContentTypeNotActiveError, EntryFieldValidationError, EntryNotFoundError, ForbiddenError, VersionConflictError } from "../../../../features/entries/errors";
-import { toEntryOutbox } from "../../../../features/entries/repo.memory";
-import { updateEntry } from "../../../../features/entries/write-service";
+import { ContentTypeNotActiveError, EntryFieldValidationError, EntryNotFoundError, ForbiddenError, VersionConflictError } from "../../../../features/entries";
+import { toEntryOutbox } from "../../../../features/entries";
+import { updateEntry } from "../../../../features/entries";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps";
 

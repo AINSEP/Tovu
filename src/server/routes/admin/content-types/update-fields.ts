@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import { toContentTypeOutbox } from "../../../../features/content-types/repo.memory";
+import { toContentTypeOutbox } from "../../../../features/content-types";
 import {
   ContentTypeNotFoundError,
   ForbiddenError,
@@ -10,9 +10,9 @@ import {
   QueryableFieldCapExceededError,
   ValidationError,
   VersionConflictError,
-} from "../../../../features/content-types/errors";
-import { parseContentTypeFieldDefs } from "../../../../features/content-types/field-defs";
-import { updateContentTypeFields } from "../../../../features/content-types/write-service";
+} from "../../../../features/content-types";
+import { parseContentTypeFieldDefs } from "../../../../features/content-types";
+import { updateContentTypeFields } from "../../../../features/content-types";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps";
 

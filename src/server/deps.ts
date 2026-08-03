@@ -83,7 +83,7 @@ import { SqliteDbOpsAdapter } from "../db/sqlite/db-ops";
 import { SqliteRestorePointsRepo } from "../db/sqlite/database-journal-repo";
 import { SqliteDatabaseIntrospectionAdapter } from "../features/database/adapter.sqlite";
 import { InMemorySiteStatusRepo } from "../features/database/repo.memory";
-import { NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
+import { NoopContentTypeIndexProvisioner } from "../features/content-types";
 import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite";
 import { SqliteEntryRepo } from "../features/entries/repo.sqlite";
 import { SqliteWidgetRegionBindingRepo } from "../widgets/repo.sqlite";

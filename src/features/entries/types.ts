@@ -1,53 +1,15 @@
-import type { ContentTypeFieldDef, ContentTypeStatus } from "../content-types/types";
-
 /**
- * @file SPEC-020 (ADR-022 §2, ADR-043) — shared vocabulary for the `entries` package.
+ * @file Entries' domain vocabulary — re-exported from `@jini-ai/cms/entries`.
  *
- * Purpose:
- * The `EntryRecord` shape (ADR-043 §5's universal columns + the namespaced `fields.ext.{owner}.*`
- * bag) and the read-only slice of a content type this package needs (`fields`/`status`/
- * `workspaceId`) — imported by type only from `features/content-types`, never a runtime value, so
- * this package never calls into content-types' write path directly.
- *
- * Architectural role:
- * `features/entries` domain vocabulary. Type-only dependency on `features/content-types/types`.
+ * Only `src/widgets/` still imports this path directly, and that module is being ported by
+ * separate work in flight, so its imports must not be touched here. When that lands, this shim
+ * retires and widgets reaches the domain through `./index.ts` like every other consumer.
  */
-
-export type EntryStatus = "draft" | "published" | "unpublished";
-
-/** The validated, namespaced field-extension envelope (ADR-022 §2): `{ ext: { site: {...} } }`. */
-export interface EntryFieldsJson {
-  ext: { site: Record<string, unknown> };
-}
-
-export interface EntryRecord {
-  id: string;
-  workspaceId: string;
-  type: string;
-  slug: string;
-  status: EntryStatus;
-  title: string;
-  bodyJson: unknown | null;
-  fieldsJson: unknown;
-  publishedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  version: number;
-}
-
-/** The read-only slice of a `content_types` row entries need — never entries' own write authority. */
-export interface OwningContentType {
-  workspaceId: string;
-  key: string;
-  status: ContentTypeStatus;
-  fields: ContentTypeFieldDef[];
-}
-
-export interface ActorIdentityInput {
-  actorId: string;
-  principalKind?: "user" | "agent" | "api_key";
-  delegatedByWorkspaceId?: string | null;
-  delegatedById?: string | null;
-}
-
-export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
+export type {
+  EntryStatus,
+  EntryFieldsJson,
+  EntryRecord,
+  OwningContentType,
+  ActorIdentityInput,
+  Result,
+} from "@jini-ai/cms/entries";

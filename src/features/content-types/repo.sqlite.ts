@@ -4,9 +4,14 @@ import { eq } from "drizzle-orm";
 import { contentTypeRevisions, contentTypes } from "../../db/schema";
 import type { ContentDb } from "../../db/sqlite/content-db";
 import { findOneBy } from "../../db/sqlite/repo-helpers";
-import type { ContentTypeRepoPort, ContentTypeRevisionInput } from "./write-service";
-import type { ContentTypeListPort } from "./list";
-import type { ContentTypeFieldDef, ContentTypeRecord, ContentTypeStatus } from "./types";
+import type {
+  ContentTypeFieldDef,
+  ContentTypeListPort,
+  ContentTypeRecord,
+  ContentTypeRepoPort,
+  ContentTypeRevisionInput,
+  ContentTypeStatus,
+} from "./index";
 
 /**
  * @file Real SQLite `ContentTypeRepoPort` + `ContentTypeListPort` adapter (ADR-006 rule-of-two

@@ -3,8 +3,8 @@ import test from "node:test";
 
 import express from "express";
 
-import { InMemoryContentTypeRepo } from "../../features/content-types/repo.memory";
-import type { ContentTypeRevisionInput } from "../../features/content-types/write-service";
+import { InMemoryContentTypeRepo } from "../../features/content-types";
+import type { ContentTypeRevisionInput } from "../../features/content-types";
 import { buildAssistantToolRegistrations } from "../../assistant/tool-registrations";
 import { createRouteDeps } from "../app";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";

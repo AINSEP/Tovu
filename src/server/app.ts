@@ -73,8 +73,8 @@ import {
 } from "../redirects";
 import { registerSlugChangeCapture } from "../routing";
 import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "../features/database/repo.memory";
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../features/content-types/repo.memory";
-import { InMemoryEntryRepo } from "../features/entries/repo.memory";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../features/content-types";
+import { InMemoryEntryRepo } from "../features/entries";
 import { InMemoryWidgetRegionBindingRepo } from "../widgets/repo.memory";
 import { InMemoryEntryRefsRepo } from "../core/entry-refs/repo.memory";
 import { discoverPlugins as discoverPluginRuntimePlugins } from "../features/plugin-runtime/discovery";

@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { openContentDb } from "../../../../db/sqlite/content-db";
 import { SqliteEntryRepo } from "../../repo.sqlite";
-import { createEntry, publishEntry, updateEntry } from "../../write-service";
+import { createEntry, publishEntry, updateEntry } from "../../index";
 
 /**
  * @file Real SQLite persistence for `features/entries` (this dispatch). Mirrors

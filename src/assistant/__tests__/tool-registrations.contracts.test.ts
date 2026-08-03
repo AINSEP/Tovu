@@ -4,9 +4,9 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { commentsAgentToolCatalog } from "../../comments/agent-tools";
-import { contentTypesAgentToolCatalog, type AgentToolDefinition } from "../../features/content-types/agent-tools";
+import { contentTypesAgentToolCatalog, type AgentToolDefinition } from "../../features/content-types";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools";
-import { entriesAgentToolCatalog } from "../../features/entries/agent-tools";
+import { entriesAgentToolCatalog } from "../../features/entries";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools";
 import { postAgentToolCatalog } from "../../features/post/agent-tools";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools";
@@ -24,7 +24,7 @@ import { newsletterAgentToolCatalog } from "../../newsletter/agent-tools";
 import { getRedirectsAgentToolCatalog } from "../../redirects/agent-tools";
 import { getSeoAgentToolCatalog } from "../../seo/agent-tools";
 import { widgetsAgentToolCatalog } from "../../widgets/agent-tools";
-import type { ContentTypeRecord } from "../../features/content-types/types";
+import type { ContentTypeRecord } from "../../features/content-types";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
 
