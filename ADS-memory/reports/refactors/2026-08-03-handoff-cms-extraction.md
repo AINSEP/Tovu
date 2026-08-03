@@ -222,6 +222,42 @@ new slice. 15 files legitimately still need the barrel (they use `InMemoryChange
 
 ---
 
+## DISPATCHED — seven cloud routines, 2026-08-03
+
+Created via the claude.ai remote-trigger API (`RemoteTrigger`), NOT via the Agent tool. All run
+**Opus 5** with `Task`/`Agent` in `allowed_tools`, so they can spawn Sonnet 5 subagents. All clone
+**both** repos and all are told the work is on `refactor/jini-admin-extraction`, not `main`.
+
+| fires (UTC) | trigger id | scope | branch it will push |
+|---|---|---|---|
+| 15:05 | `trig_01SvzHnqPc4aBTEk31uQTNd1` | entries + content-types | `port/entries-content-types` |
+| 15:05 | `trig_01Ng3WdvyGfuaaGVHq36NYUo` | taxonomy (Categories) | `port/taxonomy` |
+| 15:05 | `trig_01KeLuTB5rvDMuPVv5dDQTDf` | widgets (moves `toWhereUsedResponse` first) | `port/widgets` |
+| 15:05 | `trig_012vP1xS5FxFXEB6a1JgijGR` | workspace + presentation | `port/workspace-presentation` |
+| 16:05 | `trig_01P5LeCNsoGy5AJdBekM7VFG` | chat-core + chat/react → `@jini-ai/ai-chat` | `refactor/ai-chat` |
+| 16:05 | `trig_01JRCK9pCFkY8QXXQj7xDGxb` | admin's generic React → `@jini-ai/ui` | `refactor/admin-react-to-ui` |
+| 17:05 | `trig_016xti2QpR31NS22cMjSqdd2` | Tovu `#` subpath imports | `refactor/subpath-imports` |
+
+**Why the alias migration runs LAST** (it was originally planned first): it rewrites nearly every
+file in `src/`. Any port branch created before it and merged after would conflict on files it never
+meant to touch. Running it over the already-merged result means nothing is in flight to conflict
+with.
+
+**Each brief carries, non-negotiably:** commit + push to its own branch in both repos, commit
+anyway and report SHAs if push is rejected, commit incrementally, never merge to main, never
+force-push. Plus complexity ≤10 target / 15 hard max (cyclomatic AND cognitive — both rules already
+exist in `Jini/eslint.config.mjs` at `warn`/15), the packaging guard, and the known-failure baseline.
+
+**Two briefs can veto themselves, deliberately.** The ai-chat one must first check whether any
+consumer imports the framework-free half alone — if so, merging would force React on it and the
+split should stay; a measured "don't do this" is a success. The widgets one must verify the closure
+actually collapses after moving `toWhereUsedResponse` before porting anything.
+
+**Next session's job is MERGING.** Seven branches across two repos. Four of the Wave-A branches
+touch the same three files (`server/deps.ts`, `server/app.ts`, `assistant/tool-registrations.ts`) —
+expect conflicts there and nowhere else. Merge order should follow the wave order. After all merges,
+run `check:architecture` once and THEN `--update` the baseline; no agent was allowed to lock it.
+
 ## Cloud dispatch — measured, not assumed
 
 A throwaway probe (`isolation: "remote"`) answered this empirically on 2026-08-03:
@@ -240,9 +276,36 @@ A throwaway probe (`isolation: "remote"`) answered this empirically on 2026-08-0
 branch/commit to start from.** Also give every cloud brief explicit commit + push + branch-fallback
 instructions — a prior cloud dispatch lost real work because it was told not to commit.
 
-Caveat: `isolation: "remote"` produced a *local* worktree. Whether true remote was unavailable and
-fell back, or remote is implemented this way here, is unresolved. The persistence conclusion holds
-either way.
+**RESOLVED, and it cost real time: the `Agent` tool's `isolation: "remote"` does NOT give you a
+cloud session here.** It silently produces a LOCAL git worktree under
+`Tovu/.claude/worktrees/agent-<id>/`, and `TaskStop` reports those agents as
+`task_type: "local_agent"`. Four "cloud" port agents were dispatched that way and had to be killed.
+
+**The actual cloud mechanism is the `RemoteTrigger` tool** — the claude.ai remote-trigger/routines
+API. Body shape, learned from existing triggers via `RemoteTrigger({action: "list"})`:
+
+```jsonc
+{ "name": "...", "run_once_at": "2026-08-03T15:05:00Z", "enabled": true,
+  "job_config": { "ccr": {
+    "environment_id": "env_01GWF3Hkm8ubh9TFhDvAis5r",
+    "session_context": {
+      "model": "claude-opus-5",              // or claude-sonnet-5
+      "sources": [ {"git_repository": {"url": "https://github.com/leonaburime-ucla/Tovu-AI-CMS"}},
+                   {"git_repository": {"url": "https://github.com/AINSEP/Jini"}} ],
+      "allowed_tools": ["Bash","Read","Write","Edit","Glob","Grep","Task","Agent","TodoWrite"] },
+    "events": [ {"data": {"type": "user", "message": {"role": "user", "content": "<prompt>"}}} ] } } }
+```
+
+Three things that are easy to get wrong:
+- **`sources` takes MULTIPLE repos.** Pre-existing triggers listed only Tovu. These ports touch both
+  repos and Tovu depends on Jini via `file:../Jini/packages/cms`, so a single-repo clone would fail
+  at install or silently half-port. The two-repo array is accepted.
+- **`allowed_tools` did not include `Task`/`Agent`** in pre-existing triggers. Without them a routine
+  cannot spawn subagents at all.
+- Use `run_once_at` (ISO-8601 UTC) for one-shots; `cron_expression` is for recurring.
+
+`CronCreate` is a different, weaker thing: session-only, in-memory, fires only while the REPL is
+idle, gone when the session ends. **Never use it to schedule real work.**
 
 ## Queued workstream — `@jini-ai/chat-core` → `@jini-ai/ai-chat`
 
