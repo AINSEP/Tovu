@@ -788,10 +788,24 @@ const SITE_ASSISTANT_MOUNT_ID = "tovu-site-assistant-root";
  * assistant bundle and NO mount markup, and "a CSS or JavaScript-level hide is a defect against this
  * contract, not a shortcut." Emitting `hidden`/`display:none` markup here when disabled would be
  * exactly that defect, so the disabled case returns nothing at all rather than an inert tag.
+ *
+ * Ships a `<link rel="stylesheet">` alongside the script — a real, measured omission until a
+ * browser check caught it (2026-08-03): the mount div and script alone got the FAB rendering, but
+ * with none of `apps/site-chat/src/widget.css`'s positioning/sizing loaded, so it rendered as a bare
+ * unstyled `<button>` (33×28px, page-flow position) instead of the designed fixed 56×56 circle.
+ * `ChatPane`'s OWN internal theme still injects itself as a runtime `<style>` tag regardless (see
+ * `AssistantDock.tsx`'s file header for that mechanism) — that part never needed this link. Only the
+ * HOST-supplied layout CSS (`.chat-fab`/`.tovu-site-assistant__panel` position/size) does, because
+ * nothing else on an arbitrary themed page provides it. Placed in `<head>` (not deferred like the
+ * script) since it is small (under 1KB) and a visible FAB pop-in after paint would be a worse
+ * regression than the negligible render-blocking cost of one tiny stylesheet.
  */
-function siteAssistantMarkup(enabled: boolean): string {
-  if (!enabled) return "";
-  return `<div id="${SITE_ASSISTANT_MOUNT_ID}"></div><script defer src="/site-chat/site-assistant.js"></script>`;
+function siteAssistantMarkup(enabled: boolean): { head: string; body: string } {
+  if (!enabled) return { head: "", body: "" };
+  return {
+    head: `<link rel="stylesheet" href="/site-chat/site-assistant.css"/>`,
+    body: `<div id="${SITE_ASSISTANT_MOUNT_ID}"></div><script defer src="/site-chat/site-assistant.js"></script>`,
+  };
 }
 
 /**
@@ -816,6 +830,7 @@ function pageShell(required: {
   const { theme, extraHead } = required;
   const foldHasTitle = extraHead?.includes("<title>") ?? false;
   const titleTag = foldHasTitle ? "" : `<title>${escapeHtml(required.title)}</title>`;
+  const siteAssistant = siteAssistantMarkup(required.siteAssistantEnabled ?? false);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -825,10 +840,11 @@ ${titleTag}
 ${extraHead ?? ""}
 ${fontLink(theme)}
 <style>${BASE_STYLE}${tokensToCss(theme.tokens)}${theme.css}</style>
+${siteAssistant.head}
 </head>
 <body>
 <div class="site" data-theme="${escapeHtml(theme.manifest.id)}">${required.body}</div>
-${siteAssistantMarkup(required.siteAssistantEnabled ?? false)}
+${siteAssistant.body}
 </body>
 </html>`;
 }

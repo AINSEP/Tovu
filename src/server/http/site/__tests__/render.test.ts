@@ -117,29 +117,38 @@ test("renderSite: the ADR-054 visitor-chat mount node + script are absent by def
   const html = await renderSite({ theme, route: "home", siteTitle: "Dispatch Demo", posts: [] });
   assert.doesNotMatch(html, /tovu-site-assistant-root/);
   assert.doesNotMatch(html, /site-assistant\.js/);
+  assert.doesNotMatch(html, /site-assistant\.css/);
 });
 
-test("renderSite: siteAssistantEnabled:false is the same as omitting it — no mount node, no script", async () => {
+test("renderSite: siteAssistantEnabled:false is the same as omitting it — no mount node, no script, no stylesheet", async () => {
   const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
 
   const html = await renderSite({ theme, route: "home", siteTitle: "Dispatch Demo", posts: [], siteAssistantEnabled: false });
   assert.doesNotMatch(html, /tovu-site-assistant-root/);
   assert.doesNotMatch(html, /site-assistant\.js/);
+  assert.doesNotMatch(html, /site-assistant\.css/);
 });
 
-test("renderSite: siteAssistantEnabled:true injects the mount node and a deferred script, once, in the page shell (not a theme template)", async () => {
+test("renderSite: siteAssistantEnabled:true injects the stylesheet link, mount node, and deferred script, once each, in the page shell (not a theme template)", async () => {
   const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
 
   const html = await renderSite({ theme, route: "home", siteTitle: "Dispatch Demo", posts: [], siteAssistantEnabled: true });
+  assert.match(html, /<link rel="stylesheet" href="\/site-chat\/site-assistant\.css"\/>/);
   assert.match(html, /<div id="tovu-site-assistant-root"><\/div>/);
   assert.match(html, /<script defer src="\/site-chat\/site-assistant\.js"><\/script>/);
-  // Exactly once: this is the shell every route funnels through, not per-theme injection.
+  // Exactly once each: this is the shell every route funnels through, not per-theme injection.
   assert.equal(html.match(/tovu-site-assistant-root/g)?.length, 1);
-  // Deferred, and placed after the theme body — never a blocking script ahead of paintable content.
+  assert.equal((html.match(/site-assistant\.css/g) ?? []).length, 1);
+  // The stylesheet link lives in <head> (never render-blocked behind the deferred script), and the
+  // deferred script comes after the themed page body — never a blocking script ahead of paintable
+  // content.
+  const headCloseIndex = html.indexOf("</head>");
+  const cssLinkIndex = html.indexOf("site-assistant.css");
   const bodyIndex = html.indexOf('class="site"');
   const scriptIndex = html.indexOf("site-assistant.js");
+  assert.ok(cssLinkIndex < headCloseIndex, "the stylesheet link must be in <head>");
   assert.ok(bodyIndex < scriptIndex, "the script tag must come after the themed page body");
 });
 
