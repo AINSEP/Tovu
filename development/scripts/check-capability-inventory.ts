@@ -9,14 +9,14 @@
  * `production-readiness-boot.integration.test.ts`'s AC-23/24 test runs, exposed here as a
  * standalone, non-test-runner-dependent script (`npm run check:inventory`).
  *
- * Usage: npx tsx scripts/check-capability-inventory.ts
+ * Usage: npx tsx development/scripts/check-capability-inventory.ts
  */
 import fs from "node:fs";
 import path from "node:path";
 
-import { CAPABILITY_INVENTORY } from "../src/server/capability-inventory";
+import { CAPABILITY_INVENTORY } from "../../src/server/capability-inventory.js";
 
-const SERVER_DIR = path.resolve(__dirname, "..", "src", "server");
+const SERVER_DIR = path.resolve(__dirname, "..", "..", "src", "server");
 const DEPS_SOURCE = fs.readFileSync(path.join(SERVER_DIR, "deps.ts"), "utf8");
 const APP_SOURCE = fs.readFileSync(path.join(SERVER_DIR, "app.ts"), "utf8");
 
