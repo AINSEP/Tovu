@@ -43,7 +43,18 @@
  * code) — the field-type list is taken from `./forms`, which is where it is actually enforced.
  */
 
-import { FIELD_ID_PATTERN, FIELD_TYPES, MAX_FIELDS, MAX_LABEL_LENGTH, MAX_MAX_LENGTH, MIN_MAX_LENGTH } from "./forms";
+import {
+  ATTRIBUTE_NAME_PATTERN,
+  FIELD_ID_PATTERN,
+  FIELD_TYPES,
+  MAX_ATTRIBUTES_PER_FIELD,
+  MAX_ATTRIBUTE_VALUE_LENGTH,
+  MAX_CLASS_NAME_LENGTH,
+  MAX_FIELDS,
+  MAX_LABEL_LENGTH,
+  MAX_MAX_LENGTH,
+  MIN_MAX_LENGTH,
+} from "./forms";
 import { MAX_NAME_LENGTH, MAX_NOTIFY_RECIPIENTS, SLUG_PATTERN } from "./write-service";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
@@ -87,6 +98,20 @@ const FIELD_DESCRIPTOR_SCHEMA = {
       minimum: MIN_MAX_LENGTH,
       maximum: MAX_MAX_LENGTH,
       description: `Optional per-field character cap (${MIN_MAX_LENGTH}-${MAX_MAX_LENGTH}). Forbidden for 'checkbox' fields — supplying it there is rejected.`,
+    },
+    className: {
+      type: "string",
+      maxLength: MAX_CLASS_NAME_LENGTH,
+      description:
+        "Optional CSS class names applied verbatim to the rendered input element (e.g. Tailwind utility classes like 'md:col-span-2 w-1/2'). Any string is accepted — classes are escaped, not sanitized or restricted to a vocabulary.",
+    },
+    attributes: {
+      type: "object",
+      maxProperties: MAX_ATTRIBUTES_PER_FIELD,
+      propertyNames: { pattern: ATTRIBUTE_NAME_PATTERN.source },
+      additionalProperties: { type: "string", maxLength: MAX_ATTRIBUTE_VALUE_LENGTH },
+      description:
+        "Optional extra HTML attributes applied to the rendered input element. Attribute NAMES are strictly allowlisted — 'aria-*', 'data-*', 'placeholder', 'autocomplete', 'inputmode', 'pattern', 'title', 'min', 'max', 'step', 'minlength', 'spellcheck', 'readonly'. Anything else, including any 'on*' event handler, 'style', 'formaction', 'href', 'src', 'srcdoc', 'id', 'name', or 'type', is rejected — the call fails rather than silently dropping it. Values are plain strings.",
     },
   },
 } as const;

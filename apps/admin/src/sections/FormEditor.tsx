@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, type AdminFormDefinition, type AdminFormField, type AdminFormNotify, type AdminFormSubmission } from "../lib/api";
 import { navigate } from "../lib/router";
 import { DataTable } from "@jini-ai/admin/react";
+import "../styles/form-field-attrs.css";
 
 /**
  * @file Form editor screen (SPEC-010 ui.spec.md §2.2-2.5/§3.2-3.5) — the `/admin/forms/:formId` route.
@@ -20,6 +21,28 @@ import { DataTable } from "@jini-ai/admin/react";
  * `.table-scroll`) plus a small new partial (`styles/forms.css`) for the tab strip and the
  * checkbox+label row those primitives don't cover. Layout/hierarchy/semantics only — no change to
  * data flow, API calls, or the guard below.
+ *
+ * Per-field CSS classes + HTML attributes (this pass): the field table was already at its column
+ * budget (six columns, fixed-percentage `<colgroup>`, see `FormFieldsEditor`'s own comment below),
+ * so two more free-text properties could not become two more columns. Each row instead gets a
+ * seventh, narrow "MORE" column holding a vertical three-dot (⋮) trigger that opens
+ * `FieldAttributesDialog` — a real modal (`.settings-dialog-backdrop`/`.settings-dialog`, the
+ * `Collections.tsx` `EditFieldsDialog` idiom), not a side panel, since the AI chat dock already
+ * occupies the right edge of this app. The trigger reuses `RowMenu`'s (`@jini-ai/admin/react`) own
+ * glyph markup verbatim (three `<circle>`s at increasing `cy`, i.e. stacked vertically — confirmed
+ * from that component's own source, not assumed) and its `.row-menu-trigger` class (`styles.css`)
+ * rather than drawing a second glyph, and its "MORE" column header — but is a plain button, not a
+ * `RowMenu` instance — `RowMenu` models a dropdown of several actions (open it, THEN pick one), and
+ * this is a single action ("open the modal"), so routing it through a one-item dropdown would cost
+ * an extra click for no benefit. `styles/form-field-attrs.css` (imported above) is this dialog's
+ * own partial, same self-imported-by-the-component precedent as `styles/select.css`/`Select.tsx`.
+ *
+ * The security-relevant half of this lives server-side, not here: `forms.ts`'s
+ * `validateFieldDescriptors` is the real gate on attribute NAMES (a closed allowlist —
+ * `ATTRIBUTE_NAME_PATTERN`), enforced identically for this admin UI and for `agent-tools.ts`'s
+ * agent-facing schema. This file's own `ATTRIBUTE_NAME_PATTERN` constant below is a disclosed
+ * duplicate for a fast, pre-save error message only (same pattern `Collections.tsx`'s
+ * `validateFieldName`/`KEY_GRAMMAR` already uses) — it is never the authoritative check.
  */
 
 const FIELD_TYPES = ["text", "email", "textarea", "checkbox"] as const;
@@ -49,12 +72,239 @@ function blankField(): AdminFormField {
   return { id: "", label: "", type: "text", required: false };
 }
 
+/** Shared "what do we call this field in a title/label" fallback — a blank draft field has neither
+ *  a label nor an id yet, so both the kebab's `aria-label` and the modal's own `<h2>` need the same
+ *  `label -> id -> "Field N"` chain rather than risking the two drifting apart. */
+function fieldDisplayName(field: AdminFormField, index: number): string {
+  return field.label || field.id || `Field ${index + 1}`;
+}
+
+// ---------------------------------------------------------------------------
+// Field attributes modal (per-field CSS classes + HTML attributes)
+// ---------------------------------------------------------------------------
+
+/** Mirrors `forms.ts`'s `ATTRIBUTE_NAME_PATTERN` exactly — see this file's own header comment for
+ *  why this is a fast-reject-only duplicate, not the authoritative check. Keep in sync by hand if
+ *  the server allowlist changes. */
+const ATTRIBUTE_NAME_PATTERN =
+  /^(aria-[a-z0-9-]+|data-[a-z0-9-]+|placeholder|autocomplete|inputmode|pattern|title|min|max|step|minlength|spellcheck|readonly)$/;
+
+/** Same bounds as `forms.ts`'s `MAX_CLASS_NAME_LENGTH`/`MAX_ATTRIBUTES_PER_FIELD` — client-side
+ *  early-reject only, not enforcement (see `ATTRIBUTE_NAME_PATTERN` above). */
+const MAX_CLASS_NAME_LENGTH = 300;
+const MAX_ATTRIBUTES_PER_FIELD = 12;
+
+/** A handful of the allowlisted names as real, pickable suggestions (the modal's own "here's what
+ *  you can do" surface — an operator has no other way to discover the allowlist) rather than every
+ *  one: `aria-*`/`data-*` are open namespaces, so `aria-label`/`data-testid` stand in for the whole
+ *  prefix family instead of listing every field-specific `aria-*` name that doesn't exist yet. */
+const ATTRIBUTE_NAME_SUGGESTIONS = [
+  "aria-label",
+  "aria-describedby",
+  "data-testid",
+  "placeholder",
+  "autocomplete",
+  "inputmode",
+  "pattern",
+  "title",
+  "min",
+  "max",
+  "step",
+  "minlength",
+  "spellcheck",
+  "readonly",
+];
+
+/** Local-only row key for the modal's attribute list, so React can key a row before it has a
+ *  stable identity — same `_rowId`/module-counter pattern `Collections.tsx`'s `EditFieldsDialog`
+ *  uses for its own draft field rows. */
+let nextAttrRowId = 0;
+
+interface AttrRow {
+  _rowId: number;
+  name: string;
+  value: string;
+}
+
+function attrRowsFromField(field: AdminFormField): AttrRow[] {
+  return Object.entries(field.attributes ?? {}).map(([name, value]) => ({ _rowId: nextAttrRowId++, name, value }));
+}
+
+function FieldAttributesDialog(props: {
+  field: AdminFormField;
+  fieldIndex: number;
+  onSave: (patch: Partial<AdminFormField>) => void;
+  onCancel: () => void;
+}) {
+  const { field } = props;
+  const [className, setClassName] = useState(field.className ?? "");
+  const [rows, setRows] = useState<AttrRow[]>(() => attrRowsFromField(field));
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") props.onCancel();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function updateRow(rowId: number, patch: Partial<AttrRow>) {
+    setRows((current) => current.map((r) => (r._rowId === rowId ? { ...r, ...patch } : r)));
+  }
+  function removeRow(rowId: number) {
+    setRows((current) => current.filter((r) => r._rowId !== rowId));
+  }
+  function addRow() {
+    setRows((current) => [...current, { _rowId: nextAttrRowId++, name: "", value: "" }]);
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    const trimmedClassName = className.trim();
+    if (trimmedClassName.length > MAX_CLASS_NAME_LENGTH) {
+      setError(`CSS classes must be at most ${MAX_CLASS_NAME_LENGTH} characters.`);
+      return;
+    }
+
+    const attributes: Record<string, string> = {};
+    for (const row of rows) {
+      const name = row.name.trim();
+      if (!name) continue;
+      if (!ATTRIBUTE_NAME_PATTERN.test(name)) {
+        setError(`Attribute "${name}" isn't allowed. Use aria-*, data-*, or one of the suggested names.`);
+        return;
+      }
+      attributes[name] = row.value;
+    }
+    if (Object.keys(attributes).length > MAX_ATTRIBUTES_PER_FIELD) {
+      setError(`At most ${MAX_ATTRIBUTES_PER_FIELD} attributes are allowed per field.`);
+      return;
+    }
+
+    props.onSave({
+      className: trimmedClassName || undefined,
+      attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
+    });
+  }
+
+  return (
+    <div className="settings-dialog-backdrop" onClick={props.onCancel}>
+      <form
+        className="settings-dialog field-attrs-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="field-attrs-title"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={submit}
+      >
+        <h2 id="field-attrs-title">
+          Field attributes — {fieldDisplayName(field, props.fieldIndex)}
+        </h2>
+        <p className="field-attrs-hint">
+          Add CSS classes and HTML attributes to this field&rsquo;s input. Classes are unrestricted — Tailwind
+          utility classes like <code>md:col-span-2</code> or <code>w-1/2</code> work as expected. Attribute names
+          are limited to a safe allowlist (<code>aria-*</code>, <code>data-*</code>, and a fixed list of
+          layout/behavior attributes) — anything else, including event handlers like <code>onclick</code>, is
+          rejected.
+        </p>
+
+        <div className="field">
+          <label className="field-label" htmlFor="field-attrs-classname">
+            CSS classes
+          </label>
+          <input
+            id="field-attrs-classname"
+            value={className}
+            placeholder="e.g. md:col-span-2 w-1/2 focus:ring-2"
+            onChange={(e) => setClassName(e.target.value)}
+          />
+        </div>
+
+        <div className="field-attrs-rows">
+          <span className="field-label">HTML attributes</span>
+          <datalist id="field-attrs-name-suggestions">
+            {ATTRIBUTE_NAME_SUGGESTIONS.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+          {rows.map((row, index) => (
+            <fieldset key={row._rowId} className="collections-field-row">
+              <legend>Attribute {index + 1}</legend>
+              <div className="field">
+                <label className="field-label" htmlFor={`field-attrs-name-${row._rowId}`}>
+                  Name
+                </label>
+                <input
+                  id={`field-attrs-name-${row._rowId}`}
+                  list="field-attrs-name-suggestions"
+                  value={row.name}
+                  placeholder="e.g. aria-label"
+                  onChange={(e) => updateRow(row._rowId, { name: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor={`field-attrs-value-${row._rowId}`}>
+                  Value
+                </label>
+                <input
+                  id={`field-attrs-value-${row._rowId}`}
+                  value={row.value}
+                  placeholder="e.g. Enter your work email"
+                  onChange={(e) => updateRow(row._rowId, { value: e.target.value })}
+                />
+              </div>
+              <button type="button" className="btn-secondary" onClick={() => removeRow(row._rowId)}>
+                Remove
+              </button>
+            </fieldset>
+          ))}
+          <button type="button" className="btn-secondary" onClick={addRow}>
+            Add attribute
+          </button>
+        </div>
+
+        {error ? (
+          <span className="save-error" role="alert">
+            {error}
+          </span>
+        ) : null}
+
+        <span className="editor-actions">
+          <button type="submit">Save</button>
+          <button type="button" className="btn-secondary" onClick={props.onCancel}>
+            Cancel
+          </button>
+        </span>
+      </form>
+    </div>
+  );
+}
+
 function FormFieldsEditor(props: {
   fields: AdminFormField[];
   existingFieldIds?: string[];
   onChange: (fields: AdminFormField[]) => void;
 }) {
   const { fields, existingFieldIds = [], onChange } = props;
+  // Which field's `FieldAttributesDialog` is open, by index — `null` when none is. Only one can be
+  // open at a time (opening a second replaces the first, same single-modal-at-a-time discipline
+  // every other dialog in this admin follows).
+  const [editingAttrsIndex, setEditingAttrsIndex] = useState<number | null>(null);
+  // Per-row kebab triggers, indexed the same as `fields` — so focus can return to the trigger that
+  // opened the dialog once it closes (WCAG 2.1 AA "focus returns to trigger element when modal
+  // closes"; neither `Collections.tsx`'s `EditFieldsDialog` nor this file's other dialog do this
+  // today, so this is a small net-new improvement rather than matched-to-precedent behavior).
+  const kebabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  function closeAttrsDialog() {
+    const index = editingAttrsIndex;
+    setEditingAttrsIndex(null);
+    if (index !== null) kebabRefs.current[index]?.focus();
+  }
 
   function updateField(index: number, patch: Partial<AdminFormField>) {
     onChange(fields.map((f, i) => (i === index ? { ...f, ...patch } : f)));
@@ -67,117 +317,164 @@ function FormFieldsEditor(props: {
   }
 
   return (
-    <table className="list-table form-fields-table">
-      {/* Fixed proportional column widths (`forms.css`'s `table-layout: fixed`) rather than the
-          browser's default content-driven auto layout — every cell here holds a live, unstyled-
-          width `<input>`/`<select>`, so auto layout let six of them each claim their own
-          intrinsic ~180px, pushing the table to ~925px wide at a 640px viewport (measured before
-          this fix) with no visible cue that "Max length"/Remove were still reachable by scrolling
-          `.table-scroll`. Percentages sized to what each column actually holds: ID/Label get the
-          most room since they're the fields an operator actually reads, Required/Max length the
-          least since a checkbox and a short number never need more. */}
-      <colgroup>
-        <col style={{ width: "14%" }} />
-        <col style={{ width: "17%" }} />
-        <col style={{ width: "17%" }} />
-        <col style={{ width: "8%" }} />
-        <col style={{ width: "18%" }} />
-        <col style={{ width: "26%" }} />
-      </colgroup>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Label</th>
-          <th>Type</th>
-          {/* "Required" is one unbreakable word — at this column's necessarily checkbox-sized
-              width it has nowhere to wrap to and was visibly overflowing into "Max length"'s own
-              header. "Req" reads fine sitting directly above the checkbox it labels; the row
-              cell's own `aria-label` ("Field N required", unchanged below) still says the full
-              word for anyone not reading the visual header at all. */}
-          <th>Req</th>
-          <th>Max length</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {fields.map((field, index) => {
-          const isExisting = existingFieldIds.includes(field.id);
-          return (
-            <tr key={index}>
-              <td>
-                <input
-                  aria-label={`Field ${index + 1} id`}
-                  value={field.id}
-                  disabled={isExisting}
-                  onChange={(e) => updateField(index, { id: e.target.value })}
-                />
-              </td>
-              <td>
-                <input
-                  aria-label={`Field ${index + 1} label`}
-                  value={field.label}
-                  onChange={(e) => updateField(index, { label: e.target.value })}
-                />
-              </td>
-              <td>
-                <select
-                  aria-label={`Field ${index + 1} type`}
-                  value={field.type}
-                  onChange={(e) => updateField(index, { type: e.target.value as AdminFormField["type"] })}
-                >
-                  {FIELD_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <input
-                  type="checkbox"
-                  aria-label={`Field ${index + 1} required`}
-                  checked={field.required}
-                  onChange={(e) => updateField(index, { required: e.target.checked })}
-                />
-              </td>
-              <td>
-                {field.type === "checkbox" ? (
-                  <span aria-hidden="true">—</span>
-                ) : (
+    <>
+      <table className="list-table form-fields-table">
+        {/* Fixed proportional column widths (`forms.css`'s `table-layout: fixed`) rather than the
+            browser's default content-driven auto layout — every cell here holds a live, unstyled-
+            width `<input>`/`<select>`, so auto layout let six of them each claim their own
+            intrinsic ~180px, pushing the table to ~925px wide at a 640px viewport (measured before
+            this fix) with no visible cue that "Max length"/Remove were still reachable by scrolling
+            `.table-scroll`. Percentages sized to what each column actually holds: ID/Label get the
+            most room since they're the fields an operator actually reads, Required/Max length the
+            least since a checkbox and a short number never need more.
+
+            A seventh "MORE" column (this pass) holds the vertical-kebab trigger for
+            `FieldAttributesDialog` — sized the same 8% as Req, since it holds nothing but one
+            30px round icon button and never needs more. Taken entirely out of the Remove column's
+            own share (26% -> 18%) rather than shrinking any of the five text/control columns, so
+            ID/Label/Type/Req/Max length keep the exact widths the 640px fix already measured and
+            fixed. */}
+        <colgroup>
+          <col style={{ width: "14%" }} />
+          <col style={{ width: "17%" }} />
+          <col style={{ width: "17%" }} />
+          <col style={{ width: "8%" }} />
+          <col style={{ width: "18%" }} />
+          <col style={{ width: "8%" }} />
+          <col style={{ width: "18%" }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Label</th>
+            <th>Type</th>
+            {/* "Required" is one unbreakable word — at this column's necessarily checkbox-sized
+                width it has nowhere to wrap to and was visibly overflowing into "Max length"'s own
+                header. "Req" reads fine sitting directly above the checkbox it labels; the row
+                cell's own `aria-label` ("Field N required", unchanged below) still says the full
+                word for anyone not reading the visual header at all. */}
+            <th>Req</th>
+            <th>Max length</th>
+            {/* "More" — the exact literal string `FormsList.tsx`'s own `RowMenu` column header
+                uses (confirmed by reading that file, not just the rendered DOM); `.list-table th`
+                (`styles.css`) uppercases it visually to "MORE", same as every other header in this
+                table (e.g. "Max length" above renders as "MAX LENGTH"). */}
+            <th>More</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {fields.map((field, index) => {
+            const isExisting = existingFieldIds.includes(field.id);
+            return (
+              <tr key={index}>
+                <td>
                   <input
-                    type="number"
-                    aria-label={`Field ${index + 1} max length`}
-                    value={field.maxLength ?? ""}
-                    onChange={(e) =>
-                      updateField(index, { maxLength: e.target.value ? Number(e.target.value) : null })
-                    }
+                    aria-label={`Field ${index + 1} id`}
+                    value={field.id}
+                    disabled={isExisting}
+                    onChange={(e) => updateField(index, { id: e.target.value })}
                   />
-                )}
-              </td>
-              <td>
-                <button
-                  type="button"
-                  disabled={isExisting}
-                  title={isExisting ? "Existing fields cannot be removed once created" : undefined}
-                  onClick={() => removeField(index)}
-                >
-                  Remove
-                </button>
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colSpan={6}>
-            <button type="button" className="btn-secondary" onClick={addField}>
-              Add field
-            </button>
-          </td>
-        </tr>
-      </tfoot>
-    </table>
+                </td>
+                <td>
+                  <input
+                    aria-label={`Field ${index + 1} label`}
+                    value={field.label}
+                    onChange={(e) => updateField(index, { label: e.target.value })}
+                  />
+                </td>
+                <td>
+                  <select
+                    aria-label={`Field ${index + 1} type`}
+                    value={field.type}
+                    onChange={(e) => updateField(index, { type: e.target.value as AdminFormField["type"] })}
+                  >
+                    {FIELD_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <input
+                    type="checkbox"
+                    aria-label={`Field ${index + 1} required`}
+                    checked={field.required}
+                    onChange={(e) => updateField(index, { required: e.target.checked })}
+                  />
+                </td>
+                <td>
+                  {field.type === "checkbox" ? (
+                    <span aria-hidden="true">—</span>
+                  ) : (
+                    <input
+                      type="number"
+                      aria-label={`Field ${index + 1} max length`}
+                      value={field.maxLength ?? ""}
+                      onChange={(e) =>
+                        updateField(index, { maxLength: e.target.value ? Number(e.target.value) : null })
+                      }
+                    />
+                  )}
+                </td>
+                <td>
+                  {/* Reuses `RowMenu`'s (`@jini-ai/admin/react`) own kebab glyph and
+                      `.row-menu-trigger` class (`styles.css`) rather than drawing a second kebab —
+                      see this file's header comment for why this is a plain button (single action)
+                      instead of a `RowMenu` instance (which models a dropdown of several). */}
+                  <button
+                    ref={(el) => {
+                      kebabRefs.current[index] = el;
+                    }}
+                    type="button"
+                    className="row-menu-trigger"
+                    aria-label={`Attributes for field "${fieldDisplayName(field, index)}"`}
+                    onClick={() => setEditingAttrsIndex(index)}
+                  >
+                    <svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
+                      <circle cx="9" cy="4.5" r="1.5" />
+                      <circle cx="9" cy="9" r="1.5" />
+                      <circle cx="9" cy="13.5" r="1.5" />
+                    </svg>
+                  </button>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    disabled={isExisting}
+                    title={isExisting ? "Existing fields cannot be removed once created" : undefined}
+                    onClick={() => removeField(index)}
+                  >
+                    Remove
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={7}>
+              <button type="button" className="btn-secondary" onClick={addField}>
+                Add field
+              </button>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+      {editingAttrsIndex !== null && fields[editingAttrsIndex] ? (
+        <FieldAttributesDialog
+          field={fields[editingAttrsIndex]}
+          fieldIndex={editingAttrsIndex}
+          onSave={(patch) => {
+            updateField(editingAttrsIndex, patch);
+            closeAttrsDialog();
+          }}
+          onCancel={closeAttrsDialog}
+        />
+      ) : null}
+    </>
   );
 }
 

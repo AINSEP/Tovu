@@ -107,3 +107,71 @@ test("validateFieldDescriptors: rejects a field id outside ^[a-z][a-z0-9_]*$", (
   const result = validateFieldDescriptors([field({ id: "1bad" })]);
   assert.equal(result.valid, false);
 });
+
+// ---------------------------------------------------------------------------
+// className/attributes (per-field CSS classes + HTML attributes, admin "field attributes" modal).
+// See forms.ts's `ATTRIBUTE_NAME_PATTERN` header comment for why attribute NAMES are deny-by-
+// default rather than a sanitize pass — an attribute value is inert once escaped, a name is not.
+// ---------------------------------------------------------------------------
+
+test("validateFieldDescriptors: accepts a Tailwind-style className string unchanged", () => {
+  const result = validateFieldDescriptors([field({ className: "md:col-span-2 w-1/2 focus:ring-2" })]);
+  assert.equal(result.valid, true);
+});
+
+test("validateFieldDescriptors: rejects a className over the length cap", () => {
+  const result = validateFieldDescriptors([field({ className: "x".repeat(301) })]);
+  assert.equal(result.valid, false);
+});
+
+test("validateFieldDescriptors: accepts every allowlisted attribute name", () => {
+  const allowlisted = [
+    "placeholder",
+    "autocomplete",
+    "inputmode",
+    "pattern",
+    "title",
+    "min",
+    "max",
+    "step",
+    "minlength",
+    "spellcheck",
+    "readonly",
+  ];
+  const attributes = Object.fromEntries(allowlisted.map((name) => [name, "value"]));
+  const result = validateFieldDescriptors([field({ attributes })]);
+  assert.equal(result.valid, true);
+});
+
+test("validateFieldDescriptors: accepts aria-* and data-* prefixed attribute names", () => {
+  const result = validateFieldDescriptors([
+    field({ attributes: { "aria-label": "Email address", "data-testid": "email-field" } }),
+  ]);
+  assert.equal(result.valid, true);
+});
+
+for (const rejected of ["onclick", "onerror", "style", "formaction", "href", "src", "srcdoc", "id", "name", "type"]) {
+  test(`validateFieldDescriptors: rejects the '${rejected}' attribute name`, () => {
+    const result = validateFieldDescriptors([field({ attributes: { [rejected]: "x" } })]);
+    assert.equal(result.valid, false);
+    if (!result.valid) {
+      assert.ok(result.fieldErrors.some((e) => e.reason.includes(rejected)));
+    }
+  });
+}
+
+test("validateFieldDescriptors: rejects an attribute name outside the allowlist entirely", () => {
+  const result = validateFieldDescriptors([field({ attributes: { colspan: "2" } })]);
+  assert.equal(result.valid, false);
+});
+
+test("validateFieldDescriptors: rejects more than the max attributes per field", () => {
+  const attributes = Object.fromEntries(Array.from({ length: 13 }, (_, i) => [`data-a${i}`, "x"]));
+  const result = validateFieldDescriptors([field({ attributes })]);
+  assert.equal(result.valid, false);
+});
+
+test("validateFieldDescriptors: rejects an attribute value over the length cap", () => {
+  const result = validateFieldDescriptors([field({ attributes: { title: "x".repeat(301) } })]);
+  assert.equal(result.valid, false);
+});

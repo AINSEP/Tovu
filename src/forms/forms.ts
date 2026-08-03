@@ -25,6 +25,29 @@ export const MAX_MAX_LENGTH = 5000;
 export const FIELD_ID_PATTERN = /^[a-z][a-z0-9_]*$/;
 export const FIELD_TYPES = new Set(["text", "email", "textarea", "checkbox"]);
 
+// className/attributes (per-field CSS classes + HTML attributes, admin UI "field attributes"
+// modal). Exported for the same reason as the constants above — `agent-tools.ts`'s published JSON
+// Schemas are built FROM these values, and `server/http/site/render.ts`'s public render path
+// re-checks `ATTRIBUTE_NAME_PATTERN` defensively rather than trusting that every stored field went
+// through this gate.
+export const MAX_CLASS_NAME_LENGTH = 300;
+export const MAX_ATTRIBUTES_PER_FIELD = 12;
+export const MAX_ATTRIBUTE_VALUE_LENGTH = 300;
+/**
+ * Attribute-NAME allowlist (deny by default). An attribute value is inert once escaped
+ * (`escapeHtml` handles `"`), but an attribute NAME is structurally dangerous — `onclick` is not
+ * escapable — so this is the only gate for names, not a fast-reject in front of a real sanitizer.
+ * `aria-*`/`data-*` are open namespaces; everything else is a fixed, closed list. In particular this
+ * rejects anything matching `^on`, plus `style`/`formaction`/`href`/`src`/`srcdoc` (script/markup
+ * injection surfaces) and `id`/`name`/`type` (the renderer already sets all three on the same
+ * element — `id` for the `<label for>` association, `name` for the submitted field key
+ * `validateSubmissionPayload` keys off of, `type` for the field's own declared vocabulary — so an
+ * attribute-authored override of any of them would either break that wiring or silently duplicate
+ * it, never usefully change it).
+ */
+export const ATTRIBUTE_NAME_PATTERN =
+  /^(aria-[a-z0-9-]+|data-[a-z0-9-]+|placeholder|autocomplete|inputmode|pattern|title|min|max|step|minlength|spellcheck|readonly)$/;
+
 /** Reserved honeypot key (REQ-08) — always accepted on a submission, never a declared field id. */
 export const HONEYPOT_KEY = "_hp";
 
@@ -81,6 +104,35 @@ export function validateFieldDescriptors(fields: FieldDescriptor[]): FieldValida
           field: label,
           reason: `maxLength must be ${MIN_MAX_LENGTH}-${MAX_MAX_LENGTH}`,
         });
+      }
+    }
+
+    if (descriptor.className != null) {
+      if (typeof descriptor.className !== "string") {
+        fieldErrors.push({ field: label, reason: "className must be a string" });
+      } else if (descriptor.className.length > MAX_CLASS_NAME_LENGTH) {
+        fieldErrors.push({ field: label, reason: `className must be at most ${MAX_CLASS_NAME_LENGTH} characters` });
+      }
+    }
+
+    if (descriptor.attributes != null) {
+      const entries = Object.entries(descriptor.attributes);
+      if (entries.length > MAX_ATTRIBUTES_PER_FIELD) {
+        fieldErrors.push({ field: label, reason: `at most ${MAX_ATTRIBUTES_PER_FIELD} attributes are allowed` });
+      }
+      for (const [attrName, attrValue] of entries) {
+        if (!ATTRIBUTE_NAME_PATTERN.test(attrName)) {
+          fieldErrors.push({ field: label, reason: `attribute '${attrName}' is not allowed` });
+          continue;
+        }
+        if (typeof attrValue !== "string") {
+          fieldErrors.push({ field: label, reason: `attribute '${attrName}' value must be a string` });
+        } else if (attrValue.length > MAX_ATTRIBUTE_VALUE_LENGTH) {
+          fieldErrors.push({
+            field: label,
+            reason: `attribute '${attrName}' value must be at most ${MAX_ATTRIBUTE_VALUE_LENGTH} characters`,
+          });
+        }
       }
     }
   }
