@@ -101,6 +101,7 @@ import { registerAdminRecoveryRestoreRoutes } from "./routes/admin/recovery/rest
 import { applyDevCors } from "./middleware/dev-cors";
 import { applySiteServingGate } from "./middleware/site-serving-gate";
 import { registerAdminStatic } from "./middleware/admin-static";
+import { registerSiteChatStatic } from "./middleware/site-chat-static";
 import { registerSiteRoutes } from "./routes/site/pages";
 import { registerStoreRoutes } from "./routes/site/store";
 import { registerPaymentsWebhookRoute } from "./routes/site/payments-webhook";
@@ -777,6 +778,13 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `apps/admin/vite.config.ts`'s matching proxy entry, and prod) rather than duplicated inside
   // `apps/admin/dist` (which would only ever resolve under `/admin/`).
   app.use("/agent-icons", express.static(path.resolve(__dirname, "../public/agent-icons")));
+
+  // ADR-054 Task 2/3 — the built public site-chat bundle (apps/site-chat/dist) at /site-chat.
+  // Distinct static mount from the admin SPA above: a single self-mounting script, not an app with
+  // client-side routing, so `site-chat-static.ts` has no `index.html` SPA fallback to serve.
+  registerSiteChatStatic(app, {
+    distDir: process.env.TOVU_SITE_CHAT_DIST ?? path.resolve(__dirname, "../../apps/site-chat/dist"),
+  });
 
   // SPEC-044: the `workspace` server module (list/create/get/update/delete) is registered near the
   // other ADR-046 Phase 3 module calls above (`createUsersModule`); the original inline

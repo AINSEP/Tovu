@@ -1,0 +1,74 @@
+/**
+ * Layout/position only — `ChatPane` injects its own complete theme as a <style> tag at mount
+ * (see `apps/admin/src/components/AssistantDock.tsx`'s file header for the measured account of
+ * that), so this file never sets colors or typography for anything ChatPane renders internally.
+ * It exists to answer the one question the shared components deliberately leave to the host:
+ * where does this widget sit on an arbitrary theme's page, and how big is it. Fully self-contained
+ * literal values, not design tokens — this bundle ships to every theme, including ones that define
+ * no CSS custom properties this widget could otherwise borrow.
+ */
+
+.tovu-site-assistant__panel {
+  position: fixed;
+  right: 24px;
+  bottom: 96px;
+  z-index: 2147483000;
+  width: min(380px, calc(100vw - 32px));
+  height: min(600px, calc(100vh - 140px));
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+}
+
+/* `[hidden]` already removes the panel from layout and the tab order (native attribute behavior) —
+   this rule only needs to stop `ChatPane`'s own internal flex/height rules from fighting the host
+   container's size, which `hidden` alone does not guarantee across every browser's UA stylesheet. */
+.tovu-site-assistant__panel[hidden] {
+  display: none;
+}
+
+.tovu-site-assistant .chat-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 2147483000;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #1a1a1a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.tovu-site-assistant .chat-fab:hover {
+  opacity: 0.92;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tovu-site-assistant .chat-fab {
+    background: #f5f5f5;
+    color: #111;
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+}
+
+@media (max-width: 480px) {
+  .tovu-site-assistant__panel {
+    right: 12px;
+    left: 12px;
+    bottom: 88px;
+    width: auto;
+  }
+  .tovu-site-assistant .chat-fab {
+    right: 12px;
+    bottom: 12px;
+  }
+}

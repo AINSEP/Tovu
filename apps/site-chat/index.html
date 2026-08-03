@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tovu site-chat — dev harness</title>
+  </head>
+  <body>
+    <!--
+      Dev-only harness for `npm run dev`/`npm run preview` — NOT part of the production build (the
+      `lib` config in vite.config.ts builds a standalone `dist/site-assistant.js` that mounts itself
+      into whatever page loads it; production never serves this file). This page exists so the
+      widget can be iterated on and looked at directly at http://localhost:5174 without a running
+      Tovu server rendering a themed page around it.
+    -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

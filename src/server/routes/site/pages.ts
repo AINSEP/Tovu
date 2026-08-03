@@ -3,6 +3,7 @@ import type { Response } from "express";
 import type { PostRecord } from "#src/features/post/index";
 import { getPresentationSettings } from "#src/features/presentation/index";
 import { getPublishedPostBySlug, listPublishedPosts, PostNotFoundError } from "#src/features/post/index";
+import { isPublicAssistantEnabled } from "#src/assistant/public-assistant-settings";
 import { findTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import { resolvePageWidgets, type ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
 import { runPostContentPhase, runPreContentPhase, urlFor } from "#src/routing/index";
@@ -121,9 +122,13 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
     try {
       if (await tryRedirectPhase("pre_content", req.path, deps.workspaceId, res)) return;
 
-      const [{ posts }, settings] = await Promise.all([
+      const [{ posts }, settings, siteAssistantEnabled] = await Promise.all([
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
         getPresentationSettings({ deps: { repo: deps.presentationRepo }, input: { workspaceId: deps.workspaceId } }),
+        // ADR-054 — the visitor-chat master switch. `render.ts` never reads settings itself; every
+        // route that calls `renderSite` resolves this the same way (see `pages.ts`'s other handler
+        // and `products.ts`'s two handlers).
+        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }),
       ]);
 
       const theme = resolveActiveTheme(deps, settings.settings.activeThemeId);
@@ -136,7 +141,9 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         resolveWidgetsForRender(deps, theme),
         buildExtraHead(deps, "home", SITE_TITLE, undefined),
       ]);
-      res.type("html").send(await renderSite({ theme, route: "home", siteTitle: SITE_TITLE, posts, widgets, extraHead }));
+      res.type("html").send(
+        await renderSite({ theme, route: "home", siteTitle: SITE_TITLE, posts, widgets, extraHead, siteAssistantEnabled }),
+      );
     } catch {
       res.status(500).type("html").send("<h1>Site error</h1>");
     }
@@ -153,10 +160,11 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
     try {
       if (await tryRedirectPhase("pre_content", req.path, deps.workspaceId, res)) return;
 
-      const [{ post }, settings, { posts }] = await Promise.all([
+      const [{ post }, settings, { posts }, siteAssistantEnabled] = await Promise.all([
         getPublishedPostBySlug({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, slug } }),
         getPresentationSettings({ deps: { repo: deps.presentationRepo }, input: { workspaceId: deps.workspaceId } }),
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
+        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }),
       ]);
 
       const theme = resolveActiveTheme(deps, settings.settings.activeThemeId);
@@ -169,7 +177,9 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         resolveWidgetsForRender(deps, theme),
         buildExtraHead(deps, "post", SITE_TITLE, post),
       ]);
-      res.type("html").send(await renderSite({ theme, route: "post", siteTitle: SITE_TITLE, posts, post, widgets, extraHead }));
+      res.type("html").send(
+        await renderSite({ theme, route: "post", siteTitle: SITE_TITLE, posts, post, widgets, extraHead, siteAssistantEnabled }),
+      );
     } catch (err) {
       if (err instanceof PostNotFoundError) {
         if (await tryRedirectPhase("post_content", req.path, deps.workspaceId, res)) return;

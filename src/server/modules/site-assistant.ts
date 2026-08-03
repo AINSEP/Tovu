@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import { runGoogleToolTurn, type GoogleToolCall, type GoogleToolResult } from "@jini-ai/agent-runtime";
 
 import { resolveSiteAssistantMode } from "../../assistant/site/mode";
+import { isPublicAssistantEnabled } from "../../assistant/public-assistant-settings";
 import { createSiteAssistantTools, SITE_ASSISTANT_TOOL_SCHEMAS } from "../../assistant/site/tools";
 import type { RouteDeps } from "../routes/types";
 import type { ServerModuleHandle } from "./types";
@@ -27,6 +28,10 @@ import type { ServerModuleHandle } from "./types";
  *    under the demo gate in `assistant/site/mode.ts`, never by default.
  * 3. **No tool the allowlist did not name.** The executor below dispatches over a closed switch,
  *    not a registry lookup, so an unknown tool name is an error rather than a resolution attempt.
+ * 4. **Off by default, and a 404 when off.** `assistant/public-assistant-settings.ts`'s
+ *    `site.assistant.public_enabled` ledger value gates `handleChat` before anything else runs —
+ *    that file's own header requires "no assistant endpoint" when disabled, not a hidden one, so a
+ *    disabled workspace answers exactly as if this route were never registered.
  *
  * Not yet here, deliberately: **rate limiting**. An anonymous endpoint in front of a paid API is a
  * cost-attack surface, and this must not be exposed publicly without it. Tracked as an open item in
@@ -112,6 +117,18 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
       });
 
       async function handleChat(req: Request, res: Response): Promise<void> {
+        // `public-assistant-settings.ts`'s file header spells out the contract this line exists to
+        // satisfy: "publicEnabled: false means the public page ships NO assistant bundle and
+        // exposes NO assistant endpoint... registers the visitor-facing assistant route(s)
+        // conditionally, or has them 404 when off." Checked first, before parsing anything else in
+        // the request, so a disabled workspace is indistinguishable from this route never having
+        // been registered at all — never a 503/403 that would confirm the feature exists but is off.
+        const enabled = await isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+        if (!enabled) {
+          res.status(404).end();
+          return;
+        }
+
         const body = (req.body ?? {}) as { message?: unknown };
         const message = typeof body.message === "string" ? body.message.trim() : "";
         if (message.length === 0) {
