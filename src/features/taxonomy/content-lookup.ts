@@ -1,19 +1,19 @@
-import type { PostRepoPort } from "../post/post";
-import type { ContentLookupPort } from "./write-service";
-
 /**
- * ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 1 fix) —
- * the real `ContentLookupPort` adapter. `TAXONOMY_ALLOWED_CONTENT_TYPES` (write-service.ts) is
- * exactly `{post, page}` today, and both live in the SAME `posts` table (`kind` column
- * distinguishes them) — so this adapter only ever needs `PostRepoPort`, not the newer `entries`
- * table. A future ADR extending the allow-list to an ADR-043 content type would extend this
- * adapter (or add a sibling), not replace it.
+ * @file The `ContentLookupPort` adapter backed by this host's posts table — re-exported from
+ * `@jini-ai/cms/taxonomy`.
+ *
+ * The package's version declares its dependency structurally, as `ContentRecordLookupPort`: a
+ * single `findById` returning `{workspaceId, kind}`. This host's `PostRepoPort` satisfies that
+ * shape as-is, so every existing call site still passes `routeDeps.postRepo` unchanged and nothing
+ * needs to implement a new interface.
+ *
+ * That narrowing is the reason taxonomy could be extracted at all. This file previously imported
+ * `PostRepoPort` from `features/post`, and `tool-registrations.ts` imported the same type through
+ * that feature's BARREL — which also re-exports `repo.sqlite.ts` and `search-index.sqlite.ts`, both
+ * of which reach `db/schema.ts`. One type import through a barrel therefore put a whole content
+ * feature and this repo's shared schema into taxonomy's dependency closure, to obtain a signature
+ * whose only used method takes two fields off one row.
  */
-export function createPostBackedContentLookup(deps: { postRepo: PostRepoPort; workspaceId: string }): ContentLookupPort {
-  return {
-    async resolve({ contentId }) {
-      const post = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: contentId });
-      return post ? { workspaceId: post.workspaceId, kind: post.kind } : null;
-    },
-  };
-}
+export { createPostBackedContentLookup } from "@jini-ai/cms/taxonomy";
+
+export type { ContentRecordLookupPort } from "@jini-ai/cms/taxonomy";
