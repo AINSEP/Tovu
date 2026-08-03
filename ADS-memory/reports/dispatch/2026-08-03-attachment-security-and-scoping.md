@@ -13,7 +13,37 @@ cd Tovu-AI-CMS && git checkout main && git pull origin main
 cd ../Jini        && git checkout main && git pull origin main
 ```
 
-At dispatch: Tovu `main` = `f84ae88`, Jini `main` = `96f0a5c8`.
+At dispatch: Tovu `main` = `cd55427`, Jini `main` = `f13f92c2`.
+
+## MANDATORY environment setup — nothing works before this
+
+**Read this before running any command. Skipping it produces a misleading
+`Cannot find module '@jini-ai/…'` that looks like missing code and is not.**
+
+Tovu declares **ten** of its dependencies as `file:../Jini/packages/*` — relative paths to a
+**sibling checkout**. Two consequences:
+
+1. **The two repos MUST sit side by side, and the Jini one must be named exactly `Jini`.** If your
+   checkout directories are named otherwise, symlink or rename so that `../Jini/packages/ui`
+   resolves from the Tovu root. Verify with `ls ../Jini/packages` from inside the Tovu checkout
+   before going further.
+2. **Jini's `dist/` is gitignored**, so a fresh clone has **no build output at all**. Every
+   `@jini-ai/*` import resolves through `dist/`, so Tovu cannot typecheck, test, or boot until Jini
+   is built.
+
+Run this, in this order, and confirm each step succeeded:
+
+```bash
+cd Jini
+pnpm install            # Jini is pnpm (packageManager: pnpm@10.33.2), NOT npm
+pnpm -r build           # per-package builds; there is no root build script
+cd ../Tovu-AI-CMS
+npm install             # Tovu is npm
+npm run typecheck       # must be clean BEFORE you change anything
+```
+
+If `npm run typecheck` is not clean on an unmodified tree, **stop and report** — something about
+the environment is wrong and any failure you see later will be a false lead, not your bug.
 
 Read `AI-Dev-Shop/agents/programmer/skills.md` in Tovu before any work and confirm in your first
 output that you loaded it. Do **not** read `AGENTS.md` or `CLAUDE.md` — the `<<SUBAGENT_DISPATCH>>`
