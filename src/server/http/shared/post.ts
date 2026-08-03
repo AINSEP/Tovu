@@ -1,5 +1,5 @@
-import type { PostRecord } from "../../../features/post";
-import type { AdminPost, ContentPost } from "../../../headless";
+import type { PostRecord } from "#src/features/post/index";
+import type { AdminPost, ContentPost } from "#src/headless/index";
 
 /**
  * Maps a post record into the richer admin-facing DTO shape.

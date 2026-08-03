@@ -1,6 +1,6 @@
-import { updateWorkspace, WorkspaceConflictError, WorkspaceNotFoundError, WorkspaceValidationError } from "../../../../features/workspace";
-import { toAdminWorkspaceResponse } from "../../../http/admin/workspace";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { updateWorkspace, WorkspaceConflictError, WorkspaceNotFoundError, WorkspaceValidationError } from "#src/features/workspace/index";
+import { toAdminWorkspaceResponse } from "#src/server/http/admin/workspace";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { WorkspaceRouteRegistrar } from "./deps";
 
 /**

@@ -12,7 +12,7 @@ import { registerAdminRecoveryDisclosureRoute } from "../../routes/admin/recover
 import { registerAdminRecoveryDeepLinkRoute } from "../../routes/admin/recovery/deep-link";
 import { registerAdminRecoveryStatusRoute } from "../../routes/admin/recovery/status";
 import type { RouteDeps } from "../../routes/types";
-import { acquireOperationLock, releaseOperationLock } from "../../../core/operation-lock";
+import { acquireOperationLock, releaseOperationLock } from "#src/core/operation-lock";
 
 /**
  * @file design-spec.md §4.8 backend-gap closure — route-level tests for Recovery's restore-points

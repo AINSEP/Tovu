@@ -1,7 +1,7 @@
-import { disableMember, MemberNotFoundError, MemberValidationError } from "../../../../members";
-import { toAdminMemberResponse } from "../../../http/admin/members";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import { disableMember, MemberNotFoundError, MemberValidationError } from "#src/members/index";
+import { toAdminMemberResponse } from "#src/server/http/admin/members";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import type { RouteRegistrar } from "#src/server/routes/types";
 import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps";
 
 /**

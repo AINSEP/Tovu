@@ -3,11 +3,11 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { MCP_UI_MIME_TYPE, type UIResource } from "../../../assistant/mcp-ui";
-import { createPendingConfirmationStore, type PendingConfirmationStore } from "../../../assistant/pending-confirmations";
-import { InMemoryChangeSetRepo } from "../../../core/commands";
-import { InMemoryEventBus, InMemoryOutbox } from "../../../core/events";
-import type { RouteDeps } from "../../../server/routes/types";
+import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/mcp-ui";
+import { createPendingConfirmationStore, type PendingConfirmationStore } from "#src/assistant/pending-confirmations";
+import { InMemoryChangeSetRepo } from "#src/core/commands/index";
+import { InMemoryEventBus, InMemoryOutbox } from "#src/core/events/index";
+import type { RouteDeps } from "#src/server/routes/types";
 import { InMemoryPostRepo } from "../repo.memory";
 import { buildPostRegistrations } from "../tool-registrations";
 import { handleUIAction, renderUIResource } from "./fake-mcp-ui-host";

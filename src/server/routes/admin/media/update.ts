@@ -1,6 +1,6 @@
-import { MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "../../../../media";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import { toAdminMediaResponse } from "../../../http/admin/media";
+import { MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "#src/media/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { toAdminMediaResponse } from "#src/server/http/admin/media";
 import type { MediaRouteRegistrar } from "./deps";
 
 /**

@@ -5,9 +5,9 @@ import {
   FormFieldValidationError,
   FormSlugConflictError,
   FormSubmissionNotFoundError,
-} from "../../../forms/errors";
-import type { FormDefinitionRecord, FormSubmissionRecord } from "../../../forms/types";
-import { ForbiddenError as CommandForbiddenError } from "../../../core/commands/command";
+} from "#src/forms/errors";
+import type { FormDefinitionRecord, FormSubmissionRecord } from "#src/forms/types";
+import { ForbiddenError as CommandForbiddenError } from "#src/core/commands/command";
 
 /**
  * @file Response DTOs for the admin `forms` HTTP surface (SPEC-010 api.spec.md §5).

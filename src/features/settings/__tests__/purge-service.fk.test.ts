@@ -3,8 +3,8 @@ import test from "node:test";
 
 import { eq } from "drizzle-orm";
 
-import { openContentDb, type ContentDb } from "../../../db/sqlite/content-db";
-import { settingValuesUser, settingValuesWorkspace, workspaces } from "../../../db/schema";
+import { openContentDb, type ContentDb } from "#src/db/sqlite/content-db";
+import { settingValuesUser, settingValuesWorkspace, workspaces } from "#src/db/schema";
 import { SqliteSettingsRepo } from "../repo.sqlite";
 import { purgeTenantSettings } from "@jini-ai/cms/settings";
 

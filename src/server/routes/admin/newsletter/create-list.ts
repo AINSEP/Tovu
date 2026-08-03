@@ -1,5 +1,5 @@
-import { saveList } from "../../../../newsletter/lists";
-import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "../../../http/admin/newsletter";
+import { saveList } from "#src/newsletter/lists";
+import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
 import type { RouteRegistrar } from "../../types";
 import { toListsDeps, type NewsletterRouteDeps } from "./deps";
 

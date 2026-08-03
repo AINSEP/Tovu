@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
-import { getTimeline } from "../../../../features/database/timeline";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { getTimeline } from "#src/features/database/timeline";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps";
 
 /**

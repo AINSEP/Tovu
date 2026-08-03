@@ -1,5 +1,5 @@
-import { setSeoSettings, SeoSettingsValidationError } from "../../../../seo";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { setSeoSettings, SeoSettingsValidationError } from "#src/seo/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SeoRouteRegistrar } from "./deps";
 
 /** PUT (partial) workspace-level `seo.*` settings (SPEC-008 api.spec.md `SEO_PUT_SETTINGS`, tasks.md T047). */

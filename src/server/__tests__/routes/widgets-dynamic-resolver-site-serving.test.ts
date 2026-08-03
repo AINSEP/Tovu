@@ -3,8 +3,8 @@ import test from "node:test";
 
 import express from "express";
 
-import type { DiscoveredTheme } from "../../../features/theme";
-import { createMenu } from "../../../navigation";
+import type { DiscoveredTheme } from "#src/features/theme/index";
+import { createMenu } from "#src/navigation/index";
 import { createRouteDeps } from "../../app";
 import { createWidgetsModule } from "../../modules/widgets";
 import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";

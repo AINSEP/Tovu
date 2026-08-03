@@ -1,17 +1,17 @@
 import type { Express } from "express";
 
-import { ForbiddenError } from "../../../../core/commands/command";
-import { TaxonomyRecordNotFoundError } from "../../../../features/taxonomy/write-service";
+import { ForbiddenError } from "#src/core/commands/command";
+import { TaxonomyRecordNotFoundError } from "#src/features/taxonomy/write-service";
 import {
   HierarchyCycleDetectedError,
   ParentCrossTaxonomyError,
   TaxonomyNotHierarchicalError,
   TermNotFoundError,
-} from "../../../../features/taxonomy/validation-chain";
-import { createPostBackedContentLookup } from "../../../../features/taxonomy/content-lookup";
-import { noopStampWatermark, toTaxonomyOutbox } from "../../../../features/taxonomy/repo.memory";
-import { createTerm } from "../../../../features/taxonomy/write-service";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/features/taxonomy/validation-chain";
+import { createPostBackedContentLookup } from "#src/features/taxonomy/content-lookup";
+import { noopStampWatermark, toTaxonomyOutbox } from "#src/features/taxonomy/repo.memory";
+import { createTerm } from "#src/features/taxonomy/write-service";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps";
 
 function statusFor(err: unknown): { status: number; code: string; message: string } {

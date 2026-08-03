@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
-import { getCommentsSettings } from "../../../../comments";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { getCommentsSettings } from "#src/comments/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { CommentsModerationRouteDeps } from "./deps";
 
 /** GET workspace-level `comments.*` settings (SPEC-035, ADR-028 Settings Layered Ledger wiring

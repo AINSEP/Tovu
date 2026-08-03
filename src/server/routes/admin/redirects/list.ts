@@ -1,5 +1,5 @@
-import { toAdminRedirectListResponse, type RedirectRouteRegistrar } from "../../../http/admin/redirects";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { toAdminRedirectListResponse, type RedirectRouteRegistrar } from "#src/server/http/admin/redirects";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
 /**
  * GET the workspace's redirect rules (admin list view, api.spec.md

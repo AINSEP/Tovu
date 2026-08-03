@@ -1,10 +1,10 @@
 import type { Express } from "express";
 
-import { ForbiddenError } from "../../../../core/commands/command";
-import { createPostBackedContentLookup } from "../../../../features/taxonomy/content-lookup";
-import { noopStampWatermark, toTaxonomyOutbox } from "../../../../features/taxonomy/repo.memory";
-import { createTaxonomy } from "../../../../features/taxonomy/write-service";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { ForbiddenError } from "#src/core/commands/command";
+import { createPostBackedContentLookup } from "#src/features/taxonomy/content-lookup";
+import { noopStampWatermark, toTaxonomyOutbox } from "#src/features/taxonomy/repo.memory";
+import { createTaxonomy } from "#src/features/taxonomy/write-service";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps";
 
 /**

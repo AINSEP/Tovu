@@ -1,9 +1,9 @@
 import type { Express } from "express";
 
-import type { CommentRepoPort } from "../../../../comments/ports";
-import type { CommentStatus } from "../../../../comments/types";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../../routes/types";
+import type { CommentRepoPort } from "#src/comments/ports";
+import type { CommentStatus } from "#src/comments/types";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file ADR-031 §6 (SPEC-033) — `GET /api/admin/v1/workspaces/:workspaceId/comments/queue`, the

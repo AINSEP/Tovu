@@ -1,5 +1,5 @@
-import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "../../../http/admin/redirects";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/http/admin/redirects";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
 /** GET a single redirect rule by id (api.spec.md `GET_REDIRECT`). Gated by `admin.redirects.manage`. */
 export const registerAdminRedirectGetRoute: RedirectRouteRegistrar = (app, deps) => {

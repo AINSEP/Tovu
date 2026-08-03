@@ -6,11 +6,11 @@ import test from "node:test";
 
 import express from "express";
 
-import type { ClockPort, IdGeneratorPort, UUID } from "../../../core/ports";
-import type { AnalyticsConfigPort } from "../../../analytics/ports";
-import type { AnalyticsSiteConfig } from "../../../analytics/types";
-import { LocalBufferSink } from "../../../analytics/repo.memory";
-import type { IngestHitDeps } from "../../../analytics/ingest";
+import type { ClockPort, IdGeneratorPort, UUID } from "#src/core/ports";
+import type { AnalyticsConfigPort } from "#src/analytics/ports";
+import type { AnalyticsSiteConfig } from "#src/analytics/types";
+import { LocalBufferSink } from "#src/analytics/repo.memory";
+import type { IngestHitDeps } from "#src/analytics/ingest";
 import { registerAnalyticsIngestRoute } from "../../routes/site/analytics-ingest";
 
 /**

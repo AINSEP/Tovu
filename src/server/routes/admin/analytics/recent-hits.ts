@@ -1,9 +1,9 @@
 import type { Express } from "express";
 
-import type { AnalyticsSinkPort } from "../../../../analytics/ports";
-import type { DeviceClass, HitKind, NormalizedHit } from "../../../../analytics/types";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../../routes/types";
+import type { AnalyticsSinkPort } from "#src/analytics/ports";
+import type { DeviceClass, HitKind, NormalizedHit } from "#src/analytics/types";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file Admin "recent hits" read route for the `analytics` library (ADR-035, ADR-PIPE-014).

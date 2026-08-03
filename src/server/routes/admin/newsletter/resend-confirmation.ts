@@ -1,6 +1,6 @@
-import { issueConfirmationToken } from "../../../../newsletter/confirmation";
-import { NewsletterSubscriptionNotFoundError } from "../../../../newsletter/errors";
-import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond } from "../../../http/admin/newsletter";
+import { issueConfirmationToken } from "#src/newsletter/confirmation";
+import { NewsletterSubscriptionNotFoundError } from "#src/newsletter/errors";
+import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond } from "#src/server/http/admin/newsletter";
 import type { RouteRegistrar } from "../../types";
 import { toConfirmationDeps, type NewsletterRouteDeps } from "./deps";
 

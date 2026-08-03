@@ -1,4 +1,4 @@
-import type { SettingScope, SettingsWriteServiceDeps } from "../../../../features/settings";
+import type { SettingScope, SettingsWriteServiceDeps } from "#src/features/settings/index";
 import type { SettingsRouteDeps } from "./deps";
 
 /**

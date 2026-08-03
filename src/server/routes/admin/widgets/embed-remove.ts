@@ -1,6 +1,6 @@
-import { removeWidgetEmbed } from "../../../../widgets/embed-service";
-import { mapWidgetErrorToResponse } from "../../../http/admin/widgets";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { removeWidgetEmbed } from "#src/widgets/embed-service";
+import { mapWidgetErrorToResponse } from "#src/server/http/admin/widgets";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "../../types";
 
 /** DELETE a `widgetEmbed` placement from a host entry's body (SPEC-043 REQ-44/45), `widgets.place`-gated. */

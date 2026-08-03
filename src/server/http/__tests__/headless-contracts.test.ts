@@ -6,9 +6,9 @@ import type {
   AdminPresentation,
   ContentPost,
   ContentPostPayload,
-} from "../../../headless";
-import type { PostRecord } from "../../../features/post";
-import type { PresentationSettingsRecord } from "../../../features/presentation";
+} from "#src/headless/index";
+import type { PostRecord } from "#src/features/post/index";
+import type { PresentationSettingsRecord } from "#src/features/presentation/index";
 import { toAdminPostResponse } from "../admin/posts";
 import { toAdminPresentationResponse } from "../admin/presentation";
 import { toContentPostResponse } from "../content/posts";

@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import { toContentTypeOutbox } from "../../../../features/content-types";
+import { toContentTypeOutbox } from "#src/features/content-types/index";
 import {
   ContentTypeNotFoundError,
   ForbiddenError,
@@ -10,10 +10,10 @@ import {
   QueryableFieldCapExceededError,
   ValidationError,
   VersionConflictError,
-} from "../../../../features/content-types";
-import { parseContentTypeFieldDefs } from "../../../../features/content-types";
-import { updateContentTypeFields } from "../../../../features/content-types";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/features/content-types/index";
+import { parseContentTypeFieldDefs } from "#src/features/content-types/index";
+import { updateContentTypeFields } from "#src/features/content-types/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps";
 
 function statusFor(error: Error): { status: number; code: string } {

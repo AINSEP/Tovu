@@ -1,5 +1,5 @@
-import { importSubscriptions } from "../../../../newsletter/subscriptions";
-import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond } from "../../../http/admin/newsletter";
+import { importSubscriptions } from "#src/newsletter/subscriptions";
+import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond } from "#src/server/http/admin/newsletter";
 import type { RouteRegistrar } from "../../types";
 import { toSubscriptionsDeps, type NewsletterRouteDeps } from "./deps";
 

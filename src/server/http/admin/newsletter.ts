@@ -1,7 +1,7 @@
 import type { Response } from "express";
 
-import type { AuthorizeFn } from "../../../core/commands/command";
-import type { PrincipalRecord } from "../../../identity";
+import type { AuthorizeFn } from "#src/core/commands/command";
+import type { PrincipalRecord } from "#src/identity/index";
 import { getAuthedPrincipal } from "../../middleware/dev-auth";
 import {
   NewsletterCampaignNotEditableError,
@@ -14,7 +14,7 @@ import {
   NewsletterSubscriberNotFoundError,
   NewsletterSubscriptionNotFoundError,
   NewsletterValidationError,
-} from "../../../newsletter/errors";
+} from "#src/newsletter/errors";
 
 /**
  * @file Response DTOs + typed-error -> HTTP mapping for the admin `newsletter` HTTP surface

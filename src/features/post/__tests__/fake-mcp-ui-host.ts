@@ -1,6 +1,6 @@
 import { createContext, runInContext } from "node:vm";
 
-import { UI_MESSAGE_RECEIVED, UI_MESSAGE_RESPONSE, type UIActionResult, type UIResource } from "../../../assistant/mcp-ui";
+import { UI_MESSAGE_RECEIVED, UI_MESSAGE_RESPONSE, type UIActionResult, type UIResource } from "#src/assistant/mcp-ui";
 
 /**
  * @file A fake MCP-UI host — the client side of the confirmation protocol, standing in for a real

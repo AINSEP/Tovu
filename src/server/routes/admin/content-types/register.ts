@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import { toContentTypeOutbox } from "../../../../features/content-types";
+import { toContentTypeOutbox } from "#src/features/content-types/index";
 import {
   ForbiddenError,
   InvalidFieldKindError,
@@ -9,10 +9,10 @@ import {
   InvalidKeyGrammarError,
   QueryableFieldCapExceededError,
   ReservedContentTypeKeyError,
-} from "../../../../features/content-types";
-import { parseContentTypeFieldDefs } from "../../../../features/content-types";
-import { registerContentType } from "../../../../features/content-types";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/features/content-types/index";
+import { parseContentTypeFieldDefs } from "#src/features/content-types/index";
+import { registerContentType } from "#src/features/content-types/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps";
 
 /** Maps a `registerContentType` rejection to an HTTP status/code pair (design-spec.md §1.9). */

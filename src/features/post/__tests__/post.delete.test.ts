@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { OutboxPort } from "../../../core/ports";
-import { openContentDb } from "../../../db/sqlite/content-db";
+import type { OutboxPort } from "#src/core/ports";
+import { openContentDb } from "#src/db/sqlite/content-db";
 import {
   createPost,
   deletePost,

@@ -1,9 +1,9 @@
 import type { Express } from "express";
 
-import { ContentTypeNotActiveError, EntryFieldValidationError, EntryNotFoundError, ForbiddenError, VersionConflictError } from "../../../../features/entries";
-import { toEntryOutbox } from "../../../../features/entries";
-import { updateEntry } from "../../../../features/entries";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { ContentTypeNotActiveError, EntryFieldValidationError, EntryNotFoundError, ForbiddenError, VersionConflictError } from "#src/features/entries/index";
+import { toEntryOutbox } from "#src/features/entries/index";
+import { updateEntry } from "#src/features/entries/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps";
 
 function statusFor(error: Error): { status: number; code: string } {

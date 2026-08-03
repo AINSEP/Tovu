@@ -1,4 +1,4 @@
-import type { WorkspaceRecord } from "../../../features/workspace";
+import type { WorkspaceRecord } from "#src/features/workspace/index";
 
 /**
  * @file Admin-facing workspace response DTO (SPEC-044, mirrors `admin/users.ts`'s pattern).

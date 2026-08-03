@@ -1,5 +1,5 @@
-import { authorizeSend, claimBatch, freezeAudience } from "../../../../newsletter/send-pipeline";
-import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "../../../http/admin/newsletter";
+import { authorizeSend, claimBatch, freezeAudience } from "#src/newsletter/send-pipeline";
+import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
 import type { RouteRegistrar } from "../../types";
 import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps";
 

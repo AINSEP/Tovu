@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PostRecord } from "../../../../features/post";
+import type { PostRecord } from "#src/features/post/index";
 import { renderLiquidInSandbox } from "../liquid-sandbox";
 import type { SiteRenderContext } from "../render";
 

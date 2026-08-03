@@ -8,8 +8,8 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-import { openContentDb, type ContentDb } from "../../../../db/sqlite/content-db";
-import { runtimeSchemaVersion } from "../../../../site-dir/schema-guard";
+import { openContentDb, type ContentDb } from "#src/db/sqlite/content-db";
+import { runtimeSchemaVersion } from "#src/site-dir/schema-guard";
 import { SqliteDatabaseIntrospectionAdapter } from "../../adapter.sqlite";
 
 /**

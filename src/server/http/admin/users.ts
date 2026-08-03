@@ -1,4 +1,4 @@
-import type { PolicyRecord, PrincipalRecord, RoleRecord, UserRecord } from "../../../identity";
+import type { PolicyRecord, PrincipalRecord, RoleRecord, UserRecord } from "#src/identity/index";
 
 /**
  * @file Admin-facing user/role/policy response DTOs (mirrors `admin/members.ts`'s pattern).

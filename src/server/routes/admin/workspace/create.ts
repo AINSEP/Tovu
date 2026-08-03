@@ -1,6 +1,6 @@
-import { processOutbox } from "../../../../core/events";
-import { createWorkspace, WorkspaceConflictError, WorkspaceValidationError } from "../../../../features/workspace";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { processOutbox } from "#src/core/events/index";
+import { createWorkspace, WorkspaceConflictError, WorkspaceValidationError } from "#src/features/workspace/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { WorkspaceRouteRegistrar } from "./deps";
 
 /**

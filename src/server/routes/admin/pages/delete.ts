@@ -1,8 +1,8 @@
-import { DuplicateCommandError, ForbiddenError, executeCommand } from "../../../../core/commands/command";
-import { processOutbox } from "../../../../core/events";
-import { PostNotFoundError, deletePost, type PostRecord } from "../../../../features/post";
-import { toAdminPostResponse } from "../../../../server/http/admin/posts";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { DuplicateCommandError, ForbiddenError, executeCommand } from "#src/core/commands/command";
+import { processOutbox } from "#src/core/events/index";
+import { PostNotFoundError, deletePost, type PostRecord } from "#src/features/post/index";
+import { toAdminPostResponse } from "#src/server/http/admin/posts";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps";
 
 /**
