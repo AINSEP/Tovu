@@ -8,25 +8,40 @@
  *
  * ## Published-only is a contract term, not a filter
  *
- * `EntryStatus` is `"draft" | "published" | "unpublished"`, so "not a draft" is **not** the same as
- * "public" — `unpublished` is content that was deliberately taken down. Every read here pins
- * `status: "published"` and pushes it into the query via `EntryListPort.listByWorkspace`, which
- * every real adapter applies in SQL rather than after a full scan.
+ * `PostStatus` is `"draft" | "published"`, and a row can independently carry a trash marker
+ * (`PostRecord.deletedAt`). "Not a draft" is not the same as "public": a trashed row can still read
+ * `status: "published"` (`PostRepoPort.softDelete` only stamps `deletedAt`; it does not touch
+ * `status` — see that port's own doc). Every read here pins BOTH `status === "published"` AND
+ * `!isTrashed(row)`.
  *
- * Note what this file deliberately does NOT use: `features/entries/list.ts`'s `listEntries()`
- * helper. Its signature accepts only `{repo, workspaceId, type}` and never forwards `status`, so it
- * returns drafts. It is the obvious-looking call and it would silently leak unreleased content to
- * the public.
+ * Unlike the `entries`/`EntryListPort` model this file used before, `PostRepoPort.list()` takes only
+ * `{ workspaceId }` — it has no `status` parameter to push down into the query at all
+ * (`PostRepoPort` keeps `findById`/`findBySlug`/`list` deliberately trash- and status-BLIND so
+ * uniqueness checks and reverters elsewhere can see every row; see `post.ts`'s `PostRecord.deletedAt`
+ * doc). That means the filter below is not a second belt-and-braces layer on top of a query-level
+ * one — it is the ONLY filter standing between anonymous traffic and every draft/trashed row in the
+ * workspace. There is no query-level fallback to lean on here.
+ *
+ * Note what this file deliberately does NOT use: calling `deps.postRepo.list()` and trusting the
+ * caller to filter. Every read goes through this file's own `readPublished()`, so there is exactly
+ * one place that decides what "public" means.
  */
 
-import type { EntryListPort } from "@jini-ai/cms/entries";
+import type { PostRecord, PostRepoPort } from "../../features/post";
+import { isTrashed } from "../../features/post";
 
-/** What a tool hands back to the model. Deliberately not `EntryRecord` — that carries `workspaceId`,
- *  `version`, and internal ids the model has no use for and that should not enter a prompt. */
+/** What a tool hands back to the model. Deliberately not `PostRecord` — that carries `workspaceId`,
+ *  `version`, `ext`, and internal ids the model has no use for and that should not enter a prompt.
+ *
+ *  `updatedAt`, not `publishedAt`: `PostRecord` has no separate "when this was published" timestamp
+ *  (only `status` and `updatedAt`). Calling this field `publishedAt` would tell the model something
+ *  the database does not actually know — a post's `updatedAt` can move on any later edit, published
+ *  or not, so this is honestly "last changed," not "went live." */
 export interface PublicEntrySummary {
   readonly slug: string;
   readonly title: string;
-  readonly publishedAt: string | null;
+  readonly updatedAt: string;
+  /** `PostRecord.kind` ("post" | "page") — the closest concept this content model has to a category. */
   readonly type: string;
 }
 
@@ -36,10 +51,14 @@ export interface PublicEntryDetail extends PublicEntrySummary {
 }
 
 export interface SiteAssistantToolDeps {
-  readonly entryList: EntryListPort;
+  readonly postRepo: PostRepoPort;
   readonly workspaceId: string;
-  /** Hard ceiling on rows returned to the model, applied at the query. Bounds both prompt size and
-   *  the cost of a pathological request; a visitor cannot raise it. */
+  /** Hard ceiling on rows returned by `search_published_entries`, applied after the published/trash
+   *  filter and after the query-string match. A visitor cannot raise it. Not applied to
+   *  `get_published_entry` (a single addressed lookup already returns at most one row, so a list
+   *  ceiling has nothing to bound there) or `list_categories` (capping the pool before deriving
+   *  categories would make older categories silently vanish once the workspace has more than
+   *  `maxResults` published posts — a correctness bug, not a cost control). */
   readonly maxResults?: number;
 }
 
@@ -48,20 +67,16 @@ const DEFAULT_MAX_RESULTS = 20;
  *  the context window and crowd out the visitor's actual question. */
 const MAX_TEXT_CHARS = 4000;
 
-function toSummary(entry: {
-  slug: string;
-  title: string;
-  publishedAt: string | null;
-  type: string;
-}): PublicEntrySummary {
-  return { slug: entry.slug, title: entry.title, publishedAt: entry.publishedAt, type: entry.type };
+function toSummary(post: PostRecord): PublicEntrySummary {
+  return { slug: post.slug, title: post.title, updatedAt: post.updatedAt, type: post.kind };
 }
 
 /**
- * Depth-first text extraction from a Tiptap document. Deliberately tolerant: `bodyJson` is
- * `unknown` on `EntryRecord` and this runs against whatever is actually in the database, including
- * rows written by older schema versions. Anything unrecognized contributes nothing rather than
- * throwing — a malformed body must degrade to a thinner answer, never to a failed request.
+ * Depth-first text extraction from a Tiptap document. Deliberately tolerant: `PostRecord.bodyJson`
+ * is typed as `JsonObject` but this runs against whatever is actually in the database, including
+ * rows written by older schema versions or hand-edited — the type does not guarantee the shape.
+ * Anything unrecognized contributes nothing rather than throwing — a malformed body must degrade to
+ * a thinner answer, never to a failed request.
  */
 function extractText(node: unknown, out: string[] = [], budget = { left: MAX_TEXT_CHARS }): string[] {
   if (budget.left <= 0 || node === null || typeof node !== "object") return out;
@@ -87,25 +102,20 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps) {
   /**
    * One place that decides what "public" means, so no tool below can quietly disagree with another.
    *
-   * The filter is applied **twice, on purpose**: pushed into the query (so a real adapter resolves
-   * it in SQL rather than scanning), and re-asserted on the rows that come back. The second pass is
-   * not redundant defensiveness — it is the difference between a bug and a breach. `EntryListPort`
-   * is an interface, so the adapter on the other side is swappable and includes in-memory and
-   * future implementations this file will never see. If any of them ignores or mishandles `status`,
-   * the failure mode without this line is *silently serving drafts to the public*.
+   * `PostRepoPort.list()` returns every row in the workspace regardless of status or trash state
+   * (see this file's header) — there is no query-level filter to push down here, unlike the
+   * `entries`/`EntryListPort` model this file used before. This filter is therefore the entire
+   * enforcement, not a second pass on top of one.
    *
-   * Proven by test: a deliberately leaky adapter that returns every row is still withheld here.
+   * Proven by test: a fake port that returns drafts and trashed rows alongside published ones is
+   * still withheld here.
    */
-  async function readPublished() {
-    const rows = await deps.entryList.listByWorkspace({
-      workspaceId: deps.workspaceId,
-      status: "published",
-      orderBy: "updatedAt",
-      limit,
-    });
-    // Positive match on the one allowed value — never `!== "draft"`, which would admit
-    // `"unpublished"` today and every status added to the union tomorrow.
-    return rows.filter((row) => row.status === "published");
+  async function readPublished(): Promise<PostRecord[]> {
+    const rows = await deps.postRepo.list({ workspaceId: deps.workspaceId });
+    // Positive match on the one allowed status — never `!== "draft"`, which would admit every
+    // status added to the union tomorrow. `!isTrashed` is independent of `status`: trashing only
+    // stamps `deletedAt`, so a trashed row can still read `status: "published"`.
+    return rows.filter((row) => row.status === "published" && !isTrashed(row));
   }
 
   return {
@@ -123,14 +133,14 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps) {
         : entries.filter(
             (e) => e.title.toLowerCase().includes(query) || e.slug.toLowerCase().includes(query),
           );
-      return matched.map(toSummary);
+      return matched.slice(0, limit).map(toSummary);
     },
 
     /**
      * Resolved by slug against the SAME published-only read as everything else, rather than by id
      * via a direct `findById`. A slug is what a visitor can legitimately know; an id lookup would
      * accept an identifier they could only have obtained from somewhere they should not have been,
-     * and would need its own status check that could drift from the one above.
+     * and would need its own status/trash check that could drift from the one above.
      */
     async get_published_entry(input: { slug?: unknown }): Promise<PublicEntryDetail | { error: string }> {
       const slug = typeof input?.slug === "string" ? input.slug.trim() : "";
@@ -138,21 +148,25 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps) {
 
       const entries = await readPublished();
       const found = entries.find((e) => e.slug === slug);
-      // Same response for "does not exist" and "exists but is not published" — distinguishing them
-      // would confirm the existence of unpublished content to anyone who can guess a slug.
+      // Same response for "does not exist" and "exists but is not published/is trashed" —
+      // distinguishing them would confirm the existence of hidden content to anyone who can guess a
+      // slug.
       if (!found) return { error: `no published entry with slug "${slug}"` };
 
       return { ...toSummary(found), text: extractText(found.bodyJson).join(" ").trim() };
     },
 
     /**
-     * Derived from published entries' own `type` field rather than read from the content-type
-     * registry. The registry lists every type that EXISTS, including ones with no public content,
-     * which would tell a visitor about sections of the site they cannot see.
+     * Derived from published posts' own `kind` field ("post" | "page") rather than any registry,
+     * for the same reason the original entries-based version avoided the content-type registry:
+     * listing kinds that have no public content would tell a visitor about sections of the site
+     * they cannot see. Runs over the full published set, not a capped page of it — see
+     * `SiteAssistantToolDeps.maxResults`'s doc for why capping first would be a correctness bug
+     * here, not a cost control.
      */
     async list_categories(): Promise<readonly string[]> {
       const entries = await readPublished();
-      return [...new Set(entries.map((e) => e.type))].sort();
+      return [...new Set(entries.map((e) => e.kind))].sort();
     },
   };
 }

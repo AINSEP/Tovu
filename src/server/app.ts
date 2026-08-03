@@ -133,6 +133,7 @@ import { createDatabaseRecoveryModule } from "./modules/database-recovery";
 import { createContentTypesModule } from "./modules/content-types";
 import { createSeoModule } from "./modules/seo";
 import { createAssistantModule } from "./modules/assistant";
+import { createSiteAssistantModule } from "./modules/site-assistant";
 import { createAssistantChatsModule } from "./modules/assistant-chats";
 import { createAssistantSettingsModule } from "./modules/assistant-settings";
 import { createAssistantExecutionModule } from "./modules/assistant-execution";
@@ -629,6 +630,13 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // ADR-046 Phase 3 (SPEC-041): the `analytics` server module — the single admin "recent hits"
   // read route (ADR-035/ADR-PIPE-014).
   createAnalyticsModule(routeDeps).registerRoutes?.(app);
+  // ADR-054: the PUBLIC visitor assistant. Deliberately NOT behind `requireAdminSession` — it is
+  // the one assistant surface anonymous traffic may reach, which is why it runs on its own
+  // in-process provider relay with a read-only published-content tool surface rather than the
+  // admin's process-spawning agent daemon. `start()` logs the demo-gate state at boot.
+  const siteAssistantModule = createSiteAssistantModule(routeDeps);
+  siteAssistantModule.start?.();
+  siteAssistantModule.registerRoutes?.(app);
   registerAdminModuleStatusRoute(app, routeDeps);
   // ADR-046 Phase 3 (SPEC-040): the `comments-moderation` server module — 4 admin
   // moderation-queue/moderate/settings routes. Distinct from `createCommentsModule` above
