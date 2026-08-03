@@ -1,6 +1,5 @@
 import type { JsonValue } from "../../../../core/ports";
-import { resolveDefinition } from "../../../../features/settings/settings";
-import type { SettingValueRecord } from "../../../../features/settings/types";
+import { resolveDefinition, type SettingValueRecord } from "../../../../features/settings";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
 import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget } from "./shared";

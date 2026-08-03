@@ -1,7 +1,7 @@
 import {
   collectChangedNamespaces,
   type ChangeFeedViewer,
-} from "../../../../features/settings/change-feed";
+} from "../../../../features/settings";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
 

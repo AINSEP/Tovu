@@ -18,7 +18,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { ForbiddenError } from "../../core/commands/command";
 import { InMemoryPostRepo } from "../../features/post";
 import type { PostRecord } from "../../features/post/post";
-import { InMemorySettingsRepo } from "../../features/settings/repo.memory";
+import { InMemorySettingsRepo } from "../../features/settings";
 import { InMemoryPrincipalRepo } from "../../identity";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media";
 import { getSeoAgentToolCatalog, type AgentToolDefinition } from "../../seo/agent-tools";

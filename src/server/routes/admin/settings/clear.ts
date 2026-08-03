@@ -4,9 +4,10 @@ import {
   ForbiddenError,
   PrincipalNotFoundError,
   ScopeNotAllowedError,
-} from "../../../../features/settings/errors";
-import type { SettingScope } from "../../../../features/settings/types";
-import { clear, deriveRequiredPermission } from "../../../../features/settings/write-service";
+  type SettingScope,
+  clear,
+  deriveRequiredPermission,
+} from "../../../../features/settings";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
 import { resolveTargetWorkspaceId, toWriteServiceDeps } from "./shared";

@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "../../identity";
-import { InMemorySettingsRepo } from "../../features/settings/repo.memory";
-import { INSTRUCTIONS_NAMESPACE, ensureSettingsUiTabDefinitions } from "../../features/settings/ui-tab-definitions";
+import { InMemorySettingsRepo, INSTRUCTIONS_NAMESPACE, ensureSettingsUiTabDefinitions } from "../../features/settings";
 import {
   createCustomInstructionsCache,
   formatCustomInstructionsOverlay,

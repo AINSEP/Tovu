@@ -1,9 +1,15 @@
 import type { ClockPort, IdGeneratorPort, JsonValue, UUID } from "../core/ports";
 import type { PrincipalRepoPort } from "../identity";
-import type { SettingsRepoPort } from "../features/settings/ports";
-import { getEffective, resolveDefinitionRaw } from "../features/settings/settings";
-import { SCOPE_BIT, type SettingValueSchema } from "../features/settings/types";
-import { registerDefinitions, set, type AuthorizeFn } from "../features/settings/write-service";
+import {
+  type SettingsRepoPort,
+  getEffective,
+  resolveDefinitionRaw,
+  SCOPE_BIT,
+  type SettingValueSchema,
+  registerDefinitions,
+  set,
+  type AuthorizeFn,
+} from "../features/settings";
 
 /**
  * @file The master on/off switch for the VISITOR-FACING assistant, on the ADR-028 Settings Layered

@@ -11,8 +11,8 @@ import {
 } from "../../db/schema";
 import type { ContentDb } from "../../db/sqlite/content-db";
 import { findOneBy } from "../../db/sqlite/repo-helpers";
-import type { SettingsRepoPort } from "./ports";
 import type {
+  SettingsRepoPort,
   DefinitionStatus,
   RevisionEntityKind,
   RevisionOp,
@@ -22,7 +22,7 @@ import type {
   SettingValueRecord,
   SettingValueSchema,
   ValueState,
-} from "./types";
+} from "@jini-ai/cms/settings";
 
 /**
  * @file Drizzle/SQLite `SettingsRepoPort` adapter (SPEC-007, rule-of-two #2).

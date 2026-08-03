@@ -7,7 +7,7 @@ import { InMemoryPostRepo } from "../../../../features/post";
 import type { ChangeSetItemRecord, ChangeSetRecord } from "../../change-set";
 import type { PostRepoPort } from "../../../../features/post";
 import type { ReverterDeps } from "../../appliers";
-import type { SettingsRepoPort } from "../../../../features/settings/ports";
+import type { SettingsRepoPort } from "../../../../features/settings";
 
 /**
  * @file `core/commands/revert.ts` × `appliers.ts`'s `postUpdateReverter` — SPEC-005 BR-08, AC-17.

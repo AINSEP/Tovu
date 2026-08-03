@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "../../identity";
-import { InMemorySettingsRepo } from "../../features/settings/repo.memory";
-import { ForbiddenError } from "../../features/settings/errors";
+import { InMemorySettingsRepo, ForbiddenError } from "../../features/settings";
 import { ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings } from "../settings";
 import { SeoSettingsValidationError } from "../errors";
 

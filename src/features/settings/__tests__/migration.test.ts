@@ -4,8 +4,7 @@ import test from "node:test";
 import { InMemoryPrincipalRepo } from "../../../identity";
 import { ALLOWED_THEME_IDS, InMemoryPresentationSettingsRepo, type PresentationSettingsRecord } from "../../presentation";
 import { migrateLegacyPresentationSettings } from "../migration";
-import { InMemorySettingsRepo } from "../repo.memory";
-import { getEffective } from "../settings";
+import { InMemorySettingsRepo, getEffective } from "@jini-ai/cms/settings";
 
 /**
  * @file T030 — failing-first tests for `migrateLegacyPresentationSettings`

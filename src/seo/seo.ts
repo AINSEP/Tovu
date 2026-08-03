@@ -1,7 +1,6 @@
 import type { JsonValue } from "../core/ports";
 import type { PostKind, PostRecord, PostRepoPort } from "../features/post/post";
-import { getEffective } from "../features/settings/settings";
-import type { SettingsRepoPort } from "../features/settings/ports";
+import { getEffective, type SettingsRepoPort } from "../features/settings";
 import { urlFor } from "../routing";
 import type { RouteResolverDeps } from "../routing/ports";
 import { SeoEntryNotFoundError } from "./errors";

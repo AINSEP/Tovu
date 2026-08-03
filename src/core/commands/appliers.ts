@@ -5,7 +5,7 @@ import {
   type PostRepoPort,
   type PostStatus,
 } from "../../features/post";
-import type { SettingsRepoPort } from "../../features/settings/ports";
+import type { SettingsRepoPort } from "../../features/settings";
 import type { ChangeSetItemRecord } from "./change-set";
 
 /**

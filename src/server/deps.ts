@@ -96,7 +96,7 @@ import { createNavMenuReadModel } from "../navigation";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
 import { ensurePublicAssistantSettingDefinitions } from "../assistant/public-assistant-settings";
 import { ensureExecutionSettingDefinitions } from "../assistant/execution-mode-settings";
-import { ensureSettingsUiTabDefinitions } from "../features/settings/ui-tab-definitions";
+import { ensureSettingsUiTabDefinitions } from "../features/settings";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../analytics/config.settings";
 import { SqliteCommentRepo } from "../comments/repo.sqlite";
 import { installCommentsDataModule } from "../comments/data-module-install";

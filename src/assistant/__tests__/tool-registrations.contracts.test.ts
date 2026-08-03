@@ -10,7 +10,7 @@ import { entriesAgentToolCatalog } from "../../features/entries/agent-tools";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools";
 import { postAgentToolCatalog } from "../../features/post/agent-tools";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools";
-import { getSettingsAgentToolCatalog } from "../../features/settings/agent-tools";
+import { getSettingsAgentToolCatalog } from "../../features/settings";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools";
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace/agent-tools";
 import { formsAgentToolCatalog } from "../../forms/agent-tools";

@@ -3,10 +3,14 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { getSettingsAgentToolCatalog, type AgentToolDefinition as SettingsAgentToolDefinition } from "../../features/settings/agent-tools";
-import { AGENT_WRITABLE_PREFERENCE_IDS } from "../../features/settings/agent-writable-preferences";
-import { InMemorySettingsRepo } from "../../features/settings/repo.memory";
-import type { SettingDefinitionRecord, SettingValueRecord } from "../../features/settings/types";
+import {
+  getSettingsAgentToolCatalog,
+  type AgentToolDefinition as SettingsAgentToolDefinition,
+  AGENT_WRITABLE_PREFERENCE_IDS,
+  InMemorySettingsRepo,
+  type SettingDefinitionRecord,
+  type SettingValueRecord,
+} from "../../features/settings";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
 

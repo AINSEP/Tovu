@@ -18,7 +18,7 @@ import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin";
 import type { PostRepoPort, PostSearchPort } from "../../features/post";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope";
 import type { PresentationSettingsRepoPort } from "../../features/presentation";
-import type { SettingsRepoPort } from "../../features/settings/ports";
+import type { SettingsRepoPort } from "../../features/settings";
 import type { DiscoveredTheme } from "../../features/theme";
 import type { WorkspaceRepoPort } from "../../features/workspace";
 import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../analytics/ports";

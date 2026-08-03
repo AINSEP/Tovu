@@ -1,6 +1,6 @@
 import type { UUID } from "../core/ports";
 import type { PostRepoPort } from "../features/post/post";
-import type { SettingsRepoPort } from "../features/settings/ports";
+import type { SettingsRepoPort } from "../features/settings";
 import type { ResolveSeoImageRefDeps } from "./media";
 import { getEntryMeta } from "./seo";
 import { getSeoSettings } from "./settings";

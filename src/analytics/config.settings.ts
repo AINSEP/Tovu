@@ -3,9 +3,9 @@ import {
   ensureSettingDefinitions,
   type EnsureSettingDefinitionsDeps,
   type SettingDefinitionSpec,
-} from "../features/settings/ensure-definitions";
-import { getEffective } from "../features/settings/settings";
-import type { SettingsRepoPort } from "../features/settings/ports";
+  getEffective,
+  type SettingsRepoPort,
+} from "../features/settings";
 import type { AnalyticsConfigPort } from "./ports";
 import type { AnalyticsSiteConfig } from "./types";
 

@@ -23,7 +23,7 @@
  */
 import type { AuthorizeFn } from "../core/commands/command";
 import type { PostRepoPort } from "../features/post";
-import type { SettingsRepoPort } from "../features/settings/ports";
+import type { SettingsRepoPort } from "../features/settings";
 import type { PrincipalRepoPort } from "../identity";
 import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media";
 import {

@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../../core/events";
 import { InMemoryPostRepo, updatePost } from "../../features/post";
 import type { PostRecord } from "../../features/post/post";
-import { InMemorySettingsRepo } from "../../features/settings/repo.memory";
+import { InMemorySettingsRepo } from "../../features/settings";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media";
 import { ensureSeoSettingDefinitions } from "../settings";
 import { buildSitemap, createSeoEventSubscriptions, invalidateSitemapCache } from "../sitemap";

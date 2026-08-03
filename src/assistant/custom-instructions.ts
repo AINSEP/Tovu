@@ -1,7 +1,5 @@
 import type { UUID } from "../core/ports";
-import type { SettingsRepoPort } from "../features/settings/ports";
-import { getEffective } from "../features/settings/settings";
-import { INSTRUCTIONS_NAMESPACE } from "../features/settings/ui-tab-definitions";
+import { type SettingsRepoPort, getEffective, INSTRUCTIONS_NAMESPACE } from "../features/settings";
 
 /**
  * @file The read half of the admin Instructions tab's system-prompt seam: turns the stored

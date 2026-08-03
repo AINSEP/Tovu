@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPostRepo } from "../../features/post";
-import { InMemorySettingsRepo } from "../../features/settings/repo.memory";
+import { InMemorySettingsRepo } from "../../features/settings";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media";
 import { ensureSeoSettingDefinitions, setSeoSettings } from "../settings";
 import { buildRobots, invalidateSitemapCache } from "../sitemap";

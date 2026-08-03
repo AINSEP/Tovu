@@ -3,7 +3,7 @@ import {
   ensureSettingDefinitions,
   type EnsureSettingDefinitionsDeps,
   type SettingDefinitionSpec,
-} from "../features/settings/ensure-definitions";
+} from "../features/settings";
 
 /**
  * @file Boot-time `core.execution.*` setting-definition registration for the

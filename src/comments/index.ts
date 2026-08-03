@@ -19,7 +19,7 @@
  */
 import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "../core/ports";
 import type { EntryRepoPort } from "../features/entries/write-service";
-import type { SettingsRepoPort } from "../features/settings/ports";
+import type { SettingsRepoPort } from "../features/settings";
 import { createRateLimiter } from "../server/middleware/rate-limit";
 import type { RateLimitProfile } from "../server/middleware/rate-limit";
 import { createCommentHookRegistry } from "./hooks";
