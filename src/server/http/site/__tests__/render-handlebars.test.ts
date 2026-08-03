@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import type { PostRecord } from "../../../../features/post";
-import { loadTheme } from "../../../../features/theme";
-import type { ResolvePageWidgetsResult } from "../../../../widgets/resolver-service";
+import type { PostRecord } from "#src/features/post/index";
+import { loadTheme } from "#src/features/theme/index";
+import type { ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
 import { renderSite } from "../render";
 
 /**

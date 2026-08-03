@@ -1,5 +1,5 @@
-import { bindWidgetArea } from "../../../../widgets/region-area-service";
-import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond, toAdminWidgetAreaResponse } from "../../../http/admin/widgets";
+import { bindWidgetArea } from "#src/widgets/region-area-service";
+import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond, toAdminWidgetAreaResponse } from "#src/server/http/admin/widgets";
 import type { RouteRegistrar } from "../../types";
 
 /**

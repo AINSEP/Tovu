@@ -1,5 +1,5 @@
-import { parseWidgetAreaPayload } from "../../../../widgets/entry-payload";
-import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond } from "../../../http/admin/widgets";
+import { parseWidgetAreaPayload } from "#src/widgets/entry-payload";
+import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond } from "#src/server/http/admin/widgets";
 import type { RouteRegistrar } from "../../types";
 
 /**

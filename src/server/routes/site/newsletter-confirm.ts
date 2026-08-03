@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
-import { consumeConfirmationToken } from "../../../newsletter/confirmation";
-import { NewsletterConfirmTokenInvalidError } from "../../../newsletter/errors";
+import { consumeConfirmationToken } from "#src/newsletter/confirmation";
+import { NewsletterConfirmTokenInvalidError } from "#src/newsletter/errors";
 import { toPublicConfirmationDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps";
 
 /**

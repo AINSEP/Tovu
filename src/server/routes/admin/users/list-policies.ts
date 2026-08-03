@@ -1,5 +1,5 @@
-import { toAdminPolicyResponse } from "../../../http/admin/users";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { toAdminPolicyResponse } from "#src/server/http/admin/users";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { UsersRouteRegistrar } from "./deps";
 
 /**

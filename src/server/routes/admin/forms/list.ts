@@ -1,5 +1,5 @@
-import { toAdminFormDefinitionListResponse } from "../../../http/admin/forms";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { toAdminFormDefinitionListResponse } from "#src/server/http/admin/forms";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { FormsRouteRegistrar } from "./deps";
 
 /** GET the workspace's form definitions (`FORMS_LIST_DEFINITIONS`, api.spec.md §1). */

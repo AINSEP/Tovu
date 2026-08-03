@@ -22,15 +22,15 @@ import type {
   NewsletterSendRepoPort,
   NewsletterConfirmationTokenRepoPort,
   SubscriberDirectoryPort,
-} from "../../../../newsletter/ports";
-import type { CampaignWriteServiceDeps } from "../../../../newsletter/campaign-write-service";
-import type { ConfirmationDeps } from "../../../../newsletter/confirmation";
-import type { HookRegistry } from "../../../../newsletter/hooks";
-import type { ListsDeps } from "../../../../newsletter/lists";
-import type { SendPipelineDeps } from "../../../../newsletter/send-pipeline";
-import type { SubscriptionsDeps, UnsubscribeSubscriptionDeps } from "../../../../newsletter/subscriptions";
-import type { UnsubscribeDeps } from "../../../../newsletter/unsubscribe";
-import type { KeyringPort } from "../../../../integrations/ports";
+} from "#src/newsletter/ports";
+import type { CampaignWriteServiceDeps } from "#src/newsletter/campaign-write-service";
+import type { ConfirmationDeps } from "#src/newsletter/confirmation";
+import type { HookRegistry } from "#src/newsletter/hooks";
+import type { ListsDeps } from "#src/newsletter/lists";
+import type { SendPipelineDeps } from "#src/newsletter/send-pipeline";
+import type { SubscriptionsDeps, UnsubscribeSubscriptionDeps } from "#src/newsletter/subscriptions";
+import type { UnsubscribeDeps } from "#src/newsletter/unsubscribe";
+import type { KeyringPort } from "#src/integrations/ports";
 import type { RouteDeps } from "../../types";
 
 export interface NewsletterRouteDeps extends RouteDeps {

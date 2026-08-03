@@ -34,7 +34,7 @@
  */
 import Database from "better-sqlite3";
 
-import type { HttpClientPort } from "../../../http";
+import type { HttpClientPort } from "#src/http/index";
 import { declareDataModule, type DataModuleDecl } from "../data-module";
 import { createPaymentProviderRegistry } from "./registry";
 import { canTransition, isTerminalPaymentStatus, statusForEventKind, type PaymentStatus } from "./state-machine";

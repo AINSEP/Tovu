@@ -1,9 +1,9 @@
 import type { Express } from "express";
 
-import type { CommentWriteService } from "../../../../comments/write-service";
-import type { CommentStatus, ModerationAction } from "../../../../comments/types";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteDeps } from "../../../routes/types";
+import type { CommentWriteService } from "#src/comments/write-service";
+import type { CommentStatus, ModerationAction } from "#src/comments/types";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file ADR-031 §6/§9 (SPEC-033) — the 5 moderation action routes (approve/spam/trash/restore/

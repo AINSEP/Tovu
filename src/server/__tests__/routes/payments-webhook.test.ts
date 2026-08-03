@@ -19,10 +19,10 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../http";
-import { InMemoryPaymentCredentials } from "../../../features/plugins/lipay/credentials";
-import { activateLipay, type LipayApi } from "../../../features/plugins/lipay/lipay-plugin";
-import { createLipayGateway, signLipayWebhook } from "../../../features/plugins/lipay/providers/lipay-gateway";
+import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/http/index";
+import { InMemoryPaymentCredentials } from "#src/features/plugins/lipay/credentials";
+import { activateLipay, type LipayApi } from "#src/features/plugins/lipay/lipay-plugin";
+import { createLipayGateway, signLipayWebhook } from "#src/features/plugins/lipay/providers/lipay-gateway";
 import { createApp, createRouteDeps } from "../../app";
 
 const WORKSPACE_ID = "workspace-1";

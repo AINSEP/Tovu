@@ -1,10 +1,10 @@
 import {
   getPresentationSettings,
   PresentationSettingsNotFoundError,
-} from "../../../../features/presentation";
-import { validThemeIds } from "../../../../features/theme";
-import { toAdminPresentationResponse } from "../../../../server/http/admin/presentation";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/features/presentation/index";
+import { validThemeIds } from "#src/features/theme/index";
+import { toAdminPresentationResponse } from "#src/server/http/admin/presentation";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps";
 
 /**

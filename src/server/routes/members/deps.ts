@@ -22,9 +22,9 @@ import type {
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
   MembersWriteServiceDeps,
-} from "../../../members";
-import type { ClockPort, IdGeneratorPort, UUID } from "../../../core/ports";
-import type { OriginRegistryPort } from "../../../origin";
+} from "#src/members/index";
+import type { ClockPort, IdGeneratorPort, UUID } from "#src/core/ports";
+import type { OriginRegistryPort } from "#src/origin/index";
 import type { RateLimiter } from "../../middleware/rate-limit";
 
 /**

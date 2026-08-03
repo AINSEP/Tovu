@@ -1,11 +1,11 @@
 import type { Response } from "express";
 
-import type { PostRecord } from "../../../features/post";
-import { getPresentationSettings } from "../../../features/presentation";
-import { getPublishedPostBySlug, listPublishedPosts, PostNotFoundError } from "../../../features/post";
-import { findTheme, type DiscoveredTheme } from "../../../features/theme";
-import { resolvePageWidgets, type ResolvePageWidgetsResult } from "../../../widgets/resolver-service";
-import { runPostContentPhase, runPreContentPhase, urlFor } from "../../../routing";
+import type { PostRecord } from "#src/features/post/index";
+import { getPresentationSettings } from "#src/features/presentation/index";
+import { getPublishedPostBySlug, listPublishedPosts, PostNotFoundError } from "#src/features/post/index";
+import { findTheme, type DiscoveredTheme } from "#src/features/theme/index";
+import { resolvePageWidgets, type ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
+import { runPostContentPhase, runPreContentPhase, urlFor } from "#src/routing/index";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head";
 import { renderSite } from "../../http/site/render";
 import type { RouteDeps, RouteRegistrar } from "../types";

@@ -1,7 +1,7 @@
-import { tombstoneRedirect } from "../../../../redirects";
-import { RedirectNotFoundError } from "../../../../redirects";
-import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "../../../http/admin/redirects";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { tombstoneRedirect } from "#src/redirects/index";
+import { RedirectNotFoundError } from "#src/redirects/index";
+import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/http/admin/redirects";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
 /**
  * DELETE (soft-delete/tombstone) a redirect rule (api.spec.md

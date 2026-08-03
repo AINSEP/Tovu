@@ -1,5 +1,5 @@
-import { MediaNotFoundError, MediaStillReferencedError, purgeMedia } from "../../../../media";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { MediaNotFoundError, MediaStillReferencedError, purgeMedia } from "#src/media/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { MediaRouteRegistrar } from "./deps";
 
 /**

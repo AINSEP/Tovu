@@ -6,9 +6,9 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { openContentDb } from "../../../../db/sqlite/content-db";
-import { SqliteDbOpsAdapter } from "../../../../db/sqlite/db-ops";
-import { evaluatePostgresRestoreCapability } from "../../../../db/postgres/db-ops";
+import { openContentDb } from "#src/db/sqlite/content-db";
+import { SqliteDbOpsAdapter } from "#src/db/sqlite/db-ops";
+import { evaluatePostgresRestoreCapability } from "#src/db/postgres/db-ops";
 import { stampWatermarkTx } from "../../watermark";
 
 /**

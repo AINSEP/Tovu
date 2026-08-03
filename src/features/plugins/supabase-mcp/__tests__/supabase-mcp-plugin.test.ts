@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../../../../assistant/mcp-federation/ports";
-import { listFederatedMcpPresets, resetFederatedMcpPresetsForTests } from "../../../../assistant/mcp-federation/presets";
-import { admitRemoteTools } from "../../../../assistant/mcp-federation/trust";
+import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "#src/assistant/mcp-federation/ports";
+import { listFederatedMcpPresets, resetFederatedMcpPresetsForTests } from "#src/assistant/mcp-federation/presets";
+import { admitRemoteTools } from "#src/assistant/mcp-federation/trust";
 import {
   registerSupabaseMcpPreset,
   resolveSupabaseMcpConnection,

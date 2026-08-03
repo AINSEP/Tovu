@@ -1,8 +1,8 @@
 import {
   toChangeSetHeaderResponse,
   toChangeSetItemResponse,
-} from "../../../../server/http/admin/change-sets";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/server/http/admin/change-sets";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps";
 
 /**

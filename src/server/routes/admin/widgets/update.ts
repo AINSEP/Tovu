@@ -1,6 +1,6 @@
-import { updateWidgetInstance } from "../../../../widgets/write-service";
-import { mapWidgetErrorToResponse, toAdminWidgetResponse } from "../../../http/admin/widgets";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { updateWidgetInstance } from "#src/widgets/write-service";
+import { mapWidgetErrorToResponse, toAdminWidgetResponse } from "#src/server/http/admin/widgets";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "../../types";
 
 /** PUT an existing widget instance's config (SPEC-043 REQ-05/06), `widgets.update`-gated, OCC via `baseVersion`. */

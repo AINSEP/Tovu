@@ -1,6 +1,6 @@
 import type { Express, Response } from "express";
 
-import { completeSignIn, MemberAuthError, MemberNotFoundError } from "../../../members";
+import { completeSignIn, MemberAuthError, MemberNotFoundError } from "#src/members/index";
 import { toPublicMemberResponse } from "../../http/members";
 import { resolveClientIp } from "../../middleware/rate-limit";
 import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps";

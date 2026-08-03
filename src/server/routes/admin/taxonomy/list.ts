@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
-import { listTaxonomiesWithTerms } from "../../../../features/taxonomy/list";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { listTaxonomiesWithTerms } from "#src/features/taxonomy/list";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps";
 
 /**

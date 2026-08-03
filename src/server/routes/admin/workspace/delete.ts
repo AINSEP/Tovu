@@ -1,5 +1,5 @@
-import { deleteWorkspace, WorkspaceLastRemainingError, WorkspaceNotFoundError } from "../../../../features/workspace";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { deleteWorkspace, WorkspaceLastRemainingError, WorkspaceNotFoundError } from "#src/features/workspace/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { WorkspaceRouteRegistrar } from "./deps";
 
 /**

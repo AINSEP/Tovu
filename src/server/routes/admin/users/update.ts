@@ -1,6 +1,6 @@
-import { IdentityForbiddenError, IdentityNotFoundError, updateUser } from "../../../../identity";
-import { toAdminUserResponse } from "../../../http/admin/users";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { IdentityForbiddenError, IdentityNotFoundError, updateUser } from "#src/identity/index";
+import { toAdminUserResponse } from "#src/server/http/admin/users";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
 
 /**

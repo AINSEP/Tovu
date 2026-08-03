@@ -1,5 +1,5 @@
-import { toAdminDeliveryResponse } from "../../../http/admin/integrations";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { toAdminDeliveryResponse } from "#src/server/http/admin/integrations";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { IntegrationsRouteRegistrar } from "./deps";
 
 /** Default page size when the caller doesn't pass `?limit=`. */

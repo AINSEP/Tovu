@@ -1,5 +1,5 @@
-import { toAdminPluginResponse } from "../../../http/admin/plugins";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { toAdminPluginResponse } from "#src/server/http/admin/plugins";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { PluginsRouteRegistrar } from "./deps";
 
 /**

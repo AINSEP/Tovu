@@ -1,4 +1,4 @@
-import type { JsonValue } from "../../../../core/ports";
+import type { JsonValue } from "#src/core/ports";
 import {
   DefinitionNotFoundError,
   DefinitionTombstonedError,
@@ -9,8 +9,8 @@ import {
   type SettingScope,
   deriveRequiredPermission,
   set,
-} from "../../../../features/settings";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/features/settings/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
 import { resolveTargetWorkspaceId, toWriteServiceDeps } from "./shared";
 

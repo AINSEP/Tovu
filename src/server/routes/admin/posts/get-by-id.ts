@@ -1,6 +1,6 @@
-import { getAdminPostById, PostNotFoundError } from "../../../../features/post";
-import { toAdminPostResponse } from "../../../../server/http/admin/posts";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { getAdminPostById, PostNotFoundError } from "#src/features/post/index";
+import { toAdminPostResponse } from "#src/server/http/admin/posts";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps";
 
 /** Gated by `content.read` (2026-07-16 authz sweep — see `posts/list.ts`'s identical fix/note). */

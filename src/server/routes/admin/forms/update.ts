@@ -1,8 +1,8 @@
-import { mapFormsWriteError, toAdminFormDefinitionResponse } from "../../../http/admin/forms";
-import { FormDefinitionNotFoundError } from "../../../../forms/errors";
-import { setFormDefinitionStatus, updateFormDefinition } from "../../../../forms/write-service";
-import type { FieldDescriptor, FormDefinitionStatus, NotifyConfig } from "../../../../forms/types";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/http/admin/forms";
+import { FormDefinitionNotFoundError } from "#src/forms/errors";
+import { setFormDefinitionStatus, updateFormDefinition } from "#src/forms/write-service";
+import type { FieldDescriptor, FormDefinitionStatus, NotifyConfig } from "#src/forms/types";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { FormsRouteRegistrar } from "./deps";
 
 const VALID_STATUSES: readonly FormDefinitionStatus[] = ["active", "disabled"];

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { NavMenuEntry, NavMenuReadModel } from "../../../navigation";
+import type { NavMenuEntry, NavMenuReadModel } from "#src/navigation/index";
 import { createMenuResolver } from "../../resolvers/menu";
 import type { WidgetInstanceView, WidgetResolveContext } from "../../types";
 

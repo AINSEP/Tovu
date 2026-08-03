@@ -6,7 +6,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { openContentDb } from "../../../../db/sqlite/content-db";
+import { openContentDb } from "#src/db/sqlite/content-db";
 import { getCurrentWatermark, reconcileMirror, stampWatermarkTx } from "../../watermark";
 
 /**

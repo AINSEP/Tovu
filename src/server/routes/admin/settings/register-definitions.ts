@@ -1,4 +1,4 @@
-import type { JsonValue } from "../../../../core/ports";
+import type { JsonValue } from "#src/core/ports";
 import {
   NON_REGISTER_DEFINITION_OPS,
   parseNonRegisterDefinitionOp,
@@ -12,8 +12,8 @@ import {
   type SettingOwnerKind,
   type SettingValueSchema,
   registerDefinitions,
-} from "../../../../features/settings";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/features/settings/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
 import { toWriteServiceDeps } from "./shared";
 

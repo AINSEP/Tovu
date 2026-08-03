@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../../../core/events";
+import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/core/events/index";
 import {
   InMemoryDeliveryEnvelopeStore,
   InMemoryWebhookDeliveryRepo,
   InMemoryWebhookSubscriptionRepo,
-} from "../../../integrations";
-import { enqueueDelivery } from "../../../integrations/delivery";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../../../forms/repo.memory";
-import { FORMS_SUBMIT_PROFILE } from "../../../forms/rate-limit-profile";
-import { submitForm } from "../../../forms/submit-service";
-import type { FormDefinitionRecord } from "../../../forms/types";
+} from "#src/integrations/index";
+import { enqueueDelivery } from "#src/integrations/delivery";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/forms/repo.memory";
+import { FORMS_SUBMIT_PROFILE } from "#src/forms/rate-limit-profile";
+import { submitForm } from "#src/forms/submit-service";
+import type { FormDefinitionRecord } from "#src/forms/types";
 import { createRateLimiter } from "../../middleware/rate-limit";
 
 /**
@@ -71,7 +71,7 @@ function makeHarness() {
           name: event.name,
           workspaceId: event.workspaceId,
           occurredAt: event.occurredAt,
-          payload: event.payload as Record<string, unknown> as import("../../../core/ports").JsonObject,
+          payload: event.payload as Record<string, unknown> as import("#src/core/ports").JsonObject,
         },
       },
     });

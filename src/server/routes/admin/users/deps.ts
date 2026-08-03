@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { AuthServiceDeps, IdentityRepos } from "../../../../identity";
+import type { AuthServiceDeps, IdentityRepos } from "#src/identity/index";
 import type { RouteDeps } from "../../types";
 
 /**

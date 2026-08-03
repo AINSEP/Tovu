@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import type { JsonObject } from "../../../../core/ports";
-import type { PostRecord } from "../../../../features/post";
-import { loadTheme, type DiscoveredTheme } from "../../../../features/theme";
-import type { ResolvePageWidgetsResult } from "../../../../widgets/resolver-service";
-import type { WidgetRenderIR } from "../../../../widgets/types";
+import type { JsonObject } from "#src/core/ports";
+import type { PostRecord } from "#src/features/post/index";
+import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
+import type { ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
+import type { WidgetRenderIR } from "#src/widgets/types";
 import { renderDocNode, renderSite } from "../render";
 
 function textDoc(...content: JsonObject[]): JsonObject {
