@@ -31,9 +31,8 @@
  * field this shape needs, so every existing caller passes its own deps object straight through
  * unchanged.
  */
-import type { AuthorizeFn } from "../core/commands/command";
 import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { AuthorizeFn, OutboxPort } from "@jini-ai/cms/core";
 import type { ContentTypeRepoPort } from "../features/content-types/write-service";
 import type { EntryListPort } from "../features/entries/list";
 import type { EntryRepoPort } from "../features/entries/write-service";
