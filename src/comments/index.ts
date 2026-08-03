@@ -18,7 +18,7 @@
  * back to before `ensureCommentsSettingDefinitions` has run in a real composition.
  */
 import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "../core/ports";
-import type { EntryRepoPort } from "../features/entries/write-service";
+import type { EntryRepoPort } from "../features/entries";
 import type { SettingsRepoPort } from "../features/settings";
 import { createRateLimiter } from "../server/middleware/rate-limit";
 import type { RateLimitProfile } from "../server/middleware/rate-limit";

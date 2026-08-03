@@ -4,9 +4,13 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { entries, entryRevisions } from "../../db/schema";
 import type { ContentDb } from "../../db/sqlite/content-db";
 import { findOneBy } from "../../db/sqlite/repo-helpers";
-import type { EntryRepoPort, EntryRevisionInput } from "./write-service";
-import type { EntryListPort } from "./list";
-import type { EntryRecord, EntryStatus } from "./types";
+import type {
+  EntryListPort,
+  EntryRecord,
+  EntryRepoPort,
+  EntryRevisionInput,
+  EntryStatus,
+} from "./index";
 
 /**
  * @file Real SQLite `EntryRepoPort` + `EntryListPort` adapter (ADR-006 rule-of-two "second

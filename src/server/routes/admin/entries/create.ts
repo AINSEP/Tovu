@@ -6,9 +6,9 @@ import {
   EntryFieldValidationError,
   EntrySlugConflictError,
   ForbiddenError,
-} from "../../../../features/entries/errors";
-import { toEntryOutbox } from "../../../../features/entries/repo.memory";
-import { createEntry } from "../../../../features/entries/write-service";
+} from "../../../../features/entries";
+import { toEntryOutbox } from "../../../../features/entries";
+import { createEntry } from "../../../../features/entries";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps";
 

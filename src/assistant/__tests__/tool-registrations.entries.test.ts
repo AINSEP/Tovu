@@ -3,10 +3,10 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types/repo.memory";
-import { registerContentType } from "../../features/content-types/write-service";
-import { entriesAgentToolCatalog, type AgentToolDefinition as EntriesAgentToolDefinition } from "../../features/entries/agent-tools";
-import { InMemoryEntryRepo } from "../../features/entries/repo.memory";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types";
+import { registerContentType } from "../../features/content-types";
+import { entriesAgentToolCatalog, type AgentToolDefinition as EntriesAgentToolDefinition } from "../../features/entries";
+import { InMemoryEntryRepo } from "../../features/entries";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
 

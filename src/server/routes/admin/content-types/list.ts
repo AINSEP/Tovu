@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import { listContentTypes } from "../../../../features/content-types/list";
+import { listContentTypes } from "../../../../features/content-types";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps";
 

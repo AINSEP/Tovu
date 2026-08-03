@@ -20,10 +20,10 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryEntryRefsRepo } from "../../core/entry-refs/repo.memory";
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types/repo.memory";
-import { registerContentType } from "../../features/content-types/write-service";
-import { InMemoryEntryRepo } from "../../features/entries/repo.memory";
-import { createEntry } from "../../features/entries/write-service";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types";
+import { registerContentType } from "../../features/content-types";
+import { InMemoryEntryRepo } from "../../features/entries";
+import { createEntry } from "../../features/entries";
 import { PRE_AUTHORIZED } from "../../widgets/authorize-helper";
 import { widgetsAgentToolCatalog, type AgentToolDefinition } from "../../widgets/agent-tools";
 import { InMemoryWidgetRegionBindingRepo } from "../../widgets/repo.memory";

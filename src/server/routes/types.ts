@@ -52,11 +52,11 @@ import type { RestorePointListPort, RestorePointSavePort } from "../../features/
 import type { DatabaseIntrospectionPort } from "../../features/database/adapter.sqlite";
 import type { BootLedgerPort, MigrationRunsRepoPort, SiteStatusPort } from "../../features/database/boot/reconcile-interrupted-migration";
 import type { DbOpsPort } from "../../core/gated-mutations/ports";
-import type { ContentTypeRepoPort, IndexProvisionerPort } from "../../features/content-types/write-service";
-import type { TeardownIndexProvisionerPort } from "../../features/content-types/lifecycle";
-import type { ContentTypeListPort } from "../../features/content-types/list";
-import type { EntryRepoPort } from "../../features/entries/write-service";
-import type { EntryListPort } from "../../features/entries/list";
+import type { ContentTypeRepoPort, IndexProvisionerPort } from "../../features/content-types";
+import type { TeardownIndexProvisionerPort } from "../../features/content-types";
+import type { ContentTypeListPort } from "../../features/content-types";
+import type { EntryRepoPort } from "../../features/entries";
+import type { EntryListPort } from "../../features/entries";
 import type { EntryTermRepoPort, TaxonomyRepoPort, TaxonomyRevisionRepoPort, TermRepoPort } from "../../features/taxonomy/write-service";
 import type { TaxonomyListPort, TermListPort } from "../../features/taxonomy/list";
 import type { DisclosureWatermarkSourcePort } from "../../features/recovery/disclosure";

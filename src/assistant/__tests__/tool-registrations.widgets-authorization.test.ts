@@ -21,8 +21,8 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryEntryRefsRepo } from "../../core/entry-refs/repo.memory";
-import { InMemoryContentTypeRepo } from "../../features/content-types/repo.memory";
-import { InMemoryEntryRepo } from "../../features/entries/repo.memory";
+import { InMemoryContentTypeRepo } from "../../features/content-types";
+import { InMemoryEntryRepo } from "../../features/entries";
 import { widgetsAgentToolCatalog, type AgentToolDefinition } from "../../widgets/agent-tools";
 import { WidgetForbiddenError } from "../../widgets/errors";
 import { InMemoryWidgetRegionBindingRepo } from "../../widgets/repo.memory";
