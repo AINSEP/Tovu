@@ -51,6 +51,26 @@
   flex-direction: column;
   gap: var(--space-2);
 }
+/* The trailing "Add attribute" button is a direct child of the flex column above, whose default
+   `align-items: stretch` blew it edge-to-edge (user report: "too wide. left align it and make it a
+   standard smaller size"). This is the third live instance of the same stretch-by-default bug in
+   this admin — `styles.css`'s `.menu-tree > .btn-secondary` records the identical report, in the
+   user's own words, about "+ Add item", and `.settings-scope-editor .btn-danger` is a fourth.
+   `align-self: flex-start` sizes it to its own content, which handles both halves of the report
+   without a `max-width` magic number.
+
+   The size step down is deliberate and scoped here rather than added to shared `.btn-secondary`:
+   this button is a *tertiary* action inside a dialog (it adds a row to a list that is itself
+   optional), sitting below two real dialog actions. `--text-xs` + the tighter padding is the same
+   proportion the `.field-attrs-rows` code chips above already use, so the block reads as one
+   scale. Scoped to a direct child so the per-row "Remove" buttons — which live inside
+   `.collections-field-row` fieldsets, not directly here — keep the standard button metrics and
+   stay visually aligned with their row's inputs. */
+.field-attrs-rows > .btn-secondary {
+  align-self: flex-start;
+  padding: 0.35rem 0.6rem;
+  font-size: var(--text-xs);
+}
 
 /* Each attribute row's Name/Value fields sit side by side, not stacked full-width —
    `.collections-field-row` (`styles.css`) already sets `flex-wrap: wrap` so they still stack at
