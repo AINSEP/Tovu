@@ -1,20 +1,20 @@
 import type { Response } from "express";
 
-import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "../../../../widgets/entry-payload";
-import { insertWidgetEmbed, removeWidgetEmbed } from "../../../../widgets/embed-service";
-import { mutateWidgetAreaPlacements } from "../../../../widgets/region-area-service";
-import { createWidgetInstance } from "../../../../widgets/write-service";
-import { WidgetAreaNotFoundError } from "../../../../widgets/errors";
-import { WIDGET_CONTENT_TYPE } from "../../../../widgets/types";
-import type { WidgetPlacementNode } from "../../../../widgets/types";
+import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "#src/widgets/entry-payload";
+import { insertWidgetEmbed, removeWidgetEmbed } from "#src/widgets/embed-service";
+import { mutateWidgetAreaPlacements } from "#src/widgets/region-area-service";
+import { createWidgetInstance } from "#src/widgets/write-service";
+import { WidgetAreaNotFoundError } from "#src/widgets/errors";
+import { WIDGET_CONTENT_TYPE } from "#src/widgets/types";
+import type { WidgetPlacementNode } from "#src/widgets/types";
 import {
   mapWidgetErrorToResponse,
   requireWidgetsPermissionOrRespond,
   toAdminWidgetResponse,
   toWhereUsedResponse,
   widgetErrorToResponse,
-} from "../../../http/admin/widgets";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/server/http/admin/widgets";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteDeps, RouteRegistrar } from "../../types";
 
 /**

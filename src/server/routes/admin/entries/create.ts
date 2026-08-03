@@ -6,10 +6,10 @@ import {
   EntryFieldValidationError,
   EntrySlugConflictError,
   ForbiddenError,
-} from "../../../../features/entries";
-import { toEntryOutbox } from "../../../../features/entries";
-import { createEntry } from "../../../../features/entries";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/features/entries/index";
+import { toEntryOutbox } from "#src/features/entries/index";
+import { createEntry } from "#src/features/entries/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps";
 
 function statusFor(error: Error): { status: number; code: string } {

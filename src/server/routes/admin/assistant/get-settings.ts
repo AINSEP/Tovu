@@ -1,5 +1,5 @@
-import { ADMIN_ASSISTANT_PERMISSION, getPublicAssistantSettings } from "../../../../assistant/public-assistant-settings";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { ADMIN_ASSISTANT_PERMISSION, getPublicAssistantSettings } from "#src/assistant/public-assistant-settings";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { AssistantSettingsRouteRegistrar } from "./deps";
 
 /**

@@ -1,6 +1,6 @@
-import { assignLocation, MenuNotFoundError } from "../../../../navigation";
-import { toAdminAssignLocationResponse, type MenuRouteRegistrar } from "../../../../server/http/admin/menus";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { assignLocation, MenuNotFoundError } from "#src/navigation/index";
+import { toAdminAssignLocationResponse, type MenuRouteRegistrar } from "#src/server/http/admin/menus";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
 /**
  * POST assign a menu to a theme location (ADR-029 `assignLocation`).

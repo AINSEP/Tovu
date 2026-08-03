@@ -1,6 +1,6 @@
-import { MemberValidationError, requestSignInLink } from "../../../../members";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import type { RouteRegistrar } from "../../../routes/types";
+import { MemberValidationError, requestSignInLink } from "#src/members/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import type { RouteRegistrar } from "#src/server/routes/types";
 import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps";
 
 /**

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEntryRepo } from "../../../features/entries/repo.memory";
+import { InMemoryEntryRepo } from "#src/features/entries/repo.memory";
 import { CORE_RESOLVERS, resolveWidgetType } from "../../resolvers/index";
 import { resolvePageWidgets } from "../../resolver-service";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory";

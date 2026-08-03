@@ -1,5 +1,5 @@
-import type { ISODateTime, JsonObject, UUID } from "../../../core/ports";
-import type { ThemeTier } from "../../../features/theme/theme";
+import type { ISODateTime, JsonObject, UUID } from "#src/core/ports";
+import type { ThemeTier } from "#src/features/theme/theme";
 
 /**
  * @file The `page.head` render seam (ADR-PIPE-008 Decision §2).

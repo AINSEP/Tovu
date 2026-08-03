@@ -1,6 +1,6 @@
-import { createRole, IdentityForbiddenError, IdentityValidationError } from "../../../../identity";
-import { toAdminRoleResponse } from "../../../http/admin/users";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { createRole, IdentityForbiddenError, IdentityValidationError } from "#src/identity/index";
+import { toAdminRoleResponse } from "#src/server/http/admin/users";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
 
 /** POST roles — `CREATE_ROLE` (state.spec §3). Gated by `role.manage`; always mints `isBuiltin=false`. */

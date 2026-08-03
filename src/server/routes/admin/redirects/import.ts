@@ -1,6 +1,6 @@
-import { importRedirects } from "../../../../redirects";
-import { toAdminRedirectImportResponse, type RedirectRouteRegistrar } from "../../../http/admin/redirects";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { importRedirects } from "#src/redirects/index";
+import { toAdminRedirectImportResponse, type RedirectRouteRegistrar } from "#src/server/http/admin/redirects";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
 const MAX_IMPORT_BATCH_SIZE = 500;
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, deletePost, isTrashed, type PostRecord } from "../../../features/post";
+import { InMemoryPostRepo, deletePost, isTrashed, type PostRecord } from "#src/features/post/index";
 import type { OutboxPort } from "../../ports";
 import { defaultRevertRegistry, postDeleteReverter, type ReverterDeps } from "../appliers";
 import type { ChangeSetItemRecord } from "../change-set";

@@ -1,13 +1,13 @@
-import { DuplicateCommandError, executeCommand, ForbiddenError } from "../../../../core/commands/command";
+import { DuplicateCommandError, executeCommand, ForbiddenError } from "#src/core/commands/command";
 import {
   PluginIncompatibleError,
   PluginInvalidError,
   PluginNotFoundError,
   setPluginEnabled,
   type PluginActivationRecord,
-} from "../../../../features/plugin-runtime/activation";
-import { toAdminPluginResponse } from "../../../http/admin/plugins";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/features/plugin-runtime/activation";
+import { toAdminPluginResponse } from "#src/server/http/admin/plugins";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { PluginsRouteRegistrar } from "./deps";
 
 /**

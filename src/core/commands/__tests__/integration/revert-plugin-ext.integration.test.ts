@@ -3,11 +3,11 @@ import test from "node:test";
 
 import { defaultRevertRegistry, revertChangeSet } from "../..";
 import { InMemoryChangeSetRepo } from "../../repo.memory";
-import { InMemoryPostRepo } from "../../../../features/post";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import type { ChangeSetItemRecord, ChangeSetRecord } from "../../change-set";
-import type { PostRepoPort } from "../../../../features/post";
+import type { PostRepoPort } from "#src/features/post/index";
 import type { ReverterDeps } from "../../appliers";
-import type { SettingsRepoPort } from "../../../../features/settings";
+import type { SettingsRepoPort } from "#src/features/settings/index";
 
 /**
  * @file `core/commands/revert.ts` × `appliers.ts`'s `postUpdateReverter` — SPEC-005 BR-08, AC-17.

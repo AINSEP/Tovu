@@ -4,8 +4,8 @@ import {
   IdentityForbiddenError,
   IdentityNotFoundError,
   IdentityValidationError,
-} from "../../../../identity";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+} from "#src/identity/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
 
 /**

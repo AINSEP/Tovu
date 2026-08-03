@@ -1,4 +1,4 @@
-import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "../../../http/admin/newsletter";
+import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
 import type { RouteRegistrar } from "../../types";
 import type { NewsletterRouteDeps } from "./deps";
 

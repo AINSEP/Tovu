@@ -1,5 +1,5 @@
-import { toAdminMenuListResponse, type MenuRouteRegistrar } from "../../../../server/http/admin/menus";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { toAdminMenuListResponse, type MenuRouteRegistrar } from "#src/server/http/admin/menus";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
 /**
  * GET the workspace's menus (admin list view, ADR-029).

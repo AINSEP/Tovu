@@ -1,5 +1,5 @@
-import { toAdminFormDefinitionResponse } from "../../../http/admin/forms";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { toAdminFormDefinitionResponse } from "#src/server/http/admin/forms";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { FormsRouteRegistrar } from "./deps";
 
 /** GET one form definition by id (`FORMS_GET_DEFINITION`, REQ-04). */

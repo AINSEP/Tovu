@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { updatePost, InMemoryPostRepo, type PostRecord } from "../../../features/post";
+import { updatePost, InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
 import { executeCommand } from "../command";
 import { InMemoryChangeSetRepo } from "../repo.memory";
 import type {

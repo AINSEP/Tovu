@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { toAdminPluginResponse } from "../../plugins";
-import type { PluginDiscoveryRecord } from "../../../../../features/plugin-runtime/discovery";
+import type { PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
 
 /**
  * @file C-017 `toAdminPluginResponse()` — SPEC-005 REQ-10/REQ-11, api.spec.md §5.

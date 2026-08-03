@@ -1,8 +1,8 @@
 import type { Express } from "express";
 
-import { isOperationInFlight } from "../../../../core/operation-lock";
-import { resolveDegradedBanner } from "../../../../features/recovery/ui/degraded-banners";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { isOperationInFlight } from "#src/core/operation-lock";
+import { resolveDegradedBanner } from "#src/features/recovery/ui/degraded-banners";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps";
 
 /**

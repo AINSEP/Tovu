@@ -1,8 +1,8 @@
 import { parentPort, workerData } from "node:worker_threads";
 import { Liquid, Hash, type TagToken, type Context, type FS } from "liquidjs";
 
-import type { JsonObject } from "../../../core/ports";
-import { lintLiquidTemplate } from "../../../features/theme";
+import type { JsonObject } from "#src/core/ports";
+import { lintLiquidTemplate } from "#src/features/theme/index";
 import { buildTemplateRenderData, renderBlockSeam, RENDER_CTX_KEY, type SiteRenderContext } from "./render";
 import type { LiquidWorkerInput, LiquidWorkerResult } from "./liquid-sandbox";
 

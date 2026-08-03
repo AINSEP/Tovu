@@ -6,10 +6,10 @@ import test from "node:test";
 
 import express from "express";
 
-import { InMemoryEventBus, InMemoryOutbox } from "../../../core/events";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../../../forms/repo.memory";
-import { FORMS_SUBMIT_PROFILE } from "../../../forms/rate-limit-profile";
-import type { FormDefinitionRecord } from "../../../forms/types";
+import { InMemoryEventBus, InMemoryOutbox } from "#src/core/events/index";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/forms/repo.memory";
+import { FORMS_SUBMIT_PROFILE } from "#src/forms/rate-limit-profile";
+import type { FormDefinitionRecord } from "#src/forms/types";
 import { createRateLimiter } from "../../middleware/rate-limit";
 import { registerFormsSubmitRoute } from "../../routes/site/forms-submit";
 

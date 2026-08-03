@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../../../db/sqlite/content-db";
+import { openContentDb } from "#src/db/sqlite/content-db";
 import { InMemoryPluginActivationRepo } from "../../repo.memory";
 import { SqlitePluginActivationRepo } from "../../repo.sqlite";
 import type { PluginActivationRecord, PluginActivationRepoPort } from "../../activation";

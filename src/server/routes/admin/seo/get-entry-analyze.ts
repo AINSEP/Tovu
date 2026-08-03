@@ -1,5 +1,5 @@
-import { analyzeEntry, SeoEntryNotFoundError } from "../../../../seo";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { analyzeEntry, SeoEntryNotFoundError } from "#src/seo/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SeoRouteRegistrar } from "./deps";
 
 /** GET SEO score+issues for an entry (SPEC-008 api.spec.md `SEO_GET_ENTRY_ANALYZE`, tasks.md T047). */

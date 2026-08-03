@@ -1,7 +1,7 @@
-import { createMenu, MenuConflictError, MenuValidationError } from "../../../../navigation";
-import type { NavItemNode } from "../../../../navigation";
-import { toAdminMenuResponse, type MenuRouteRegistrar } from "../../../../server/http/admin/menus";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { createMenu, MenuConflictError, MenuValidationError } from "#src/navigation/index";
+import type { NavItemNode } from "#src/navigation/index";
+import { toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/http/admin/menus";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
 /**
  * POST a new menu (ADR-029 `createMenu`).

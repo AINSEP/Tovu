@@ -1,5 +1,5 @@
-import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, resetUserPassword } from "../../../../identity";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, resetUserPassword } from "#src/identity/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
 
 /**

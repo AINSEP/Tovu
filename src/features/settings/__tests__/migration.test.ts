@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPrincipalRepo } from "../../../identity";
+import { InMemoryPrincipalRepo } from "#src/identity/index";
 import { ALLOWED_THEME_IDS, InMemoryPresentationSettingsRepo, type PresentationSettingsRecord } from "../../presentation";
 import { migrateLegacyPresentationSettings } from "../migration";
 import { InMemorySettingsRepo, getEffective } from "@jini-ai/cms/settings";

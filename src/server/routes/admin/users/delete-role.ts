@@ -1,5 +1,5 @@
-import { deleteRole, IdentityConflictError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "../../../../identity";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { deleteRole, IdentityConflictError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "#src/identity/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
 
 /**

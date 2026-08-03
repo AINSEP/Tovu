@@ -1,6 +1,6 @@
-import { reorderWidgetEmbeds } from "../../../../widgets/embed-service";
-import { mapWidgetErrorToResponse } from "../../../http/admin/widgets";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { reorderWidgetEmbeds } from "#src/widgets/embed-service";
+import { mapWidgetErrorToResponse } from "#src/server/http/admin/widgets";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "../../types";
 
 /** PUT a new widget-per-slot order for every EXISTING `widgetEmbed` node in a host entry's body

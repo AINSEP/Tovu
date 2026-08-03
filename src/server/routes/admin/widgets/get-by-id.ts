@@ -1,6 +1,6 @@
-import { getWidgetInstance } from "../../../../widgets/read-service";
-import { mapWidgetErrorToResponse, toWhereUsedResponse } from "../../../http/admin/widgets";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { getWidgetInstance } from "#src/widgets/read-service";
+import { mapWidgetErrorToResponse, toWhereUsedResponse } from "#src/server/http/admin/widgets";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "../../types";
 
 /**

@@ -1,6 +1,6 @@
-import { sniffContentType } from "../../../../media";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
-import { parseRangeHeader } from "../../../http/range";
+import { sniffContentType } from "#src/media/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { parseRangeHeader } from "#src/server/http/range";
 import type { MediaRouteRegistrar } from "./deps";
 
 /**

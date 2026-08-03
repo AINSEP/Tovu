@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { DomainEvent, OutboxPort } from "../../../core/ports";
+import type { DomainEvent, OutboxPort } from "#src/core/ports";
 import { updatePost } from "../post";
 import { InMemoryPostRepo } from "../repo.memory";
 

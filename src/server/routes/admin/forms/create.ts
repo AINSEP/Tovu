@@ -1,7 +1,7 @@
-import { mapFormsWriteError, toAdminFormDefinitionResponse } from "../../../http/admin/forms";
-import { createFormDefinition } from "../../../../forms/write-service";
-import type { FieldDescriptor, NotifyConfig } from "../../../../forms/types";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/http/admin/forms";
+import { createFormDefinition } from "#src/forms/write-service";
+import type { FieldDescriptor, NotifyConfig } from "#src/forms/types";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { FormsRouteRegistrar } from "./deps";
 
 /**

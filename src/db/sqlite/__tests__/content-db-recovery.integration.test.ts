@@ -7,9 +7,9 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { openContentDb } from "../content-db";
-import { beginJournalEntry, ensureMigrationJournal } from "../../../features/plugins/migration-journal";
-import { recoverIncompleteDataModuleMigrations } from "../../../features/plugins/migration-recovery";
-import { snapshotDb } from "../../../features/plugins/snapshot";
+import { beginJournalEntry, ensureMigrationJournal } from "#src/features/plugins/migration-journal";
+import { recoverIncompleteDataModuleMigrations } from "#src/features/plugins/migration-recovery";
+import { snapshotDb } from "#src/features/plugins/snapshot";
 
 /**
  * @file SPEC-032 AC — proves `openContentDb`'s `recover` hook (ADR-023 §2, wired via

@@ -1,6 +1,6 @@
-import { deleteMenu, MenuLocationBoundError, MenuNotFoundError } from "../../../../navigation";
-import { toAdminDeleteMenuResponse, type MenuRouteRegistrar } from "../../../../server/http/admin/menus";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth";
+import { deleteMenu, MenuLocationBoundError, MenuNotFoundError } from "#src/navigation/index";
+import { toAdminDeleteMenuResponse, type MenuRouteRegistrar } from "#src/server/http/admin/menus";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
 /**
  * DELETE a menu — trash on first call, hard-purge on a second call against an
