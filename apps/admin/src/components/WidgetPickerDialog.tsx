@@ -1,6 +1,7 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { api, ApiError, describeApiError, type AdminWidget, type AdminWidgetType } from "../lib/api";
 import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "./WidgetConfigFields";
+import { Select } from "./Select";
 
 /**
  * @file `WidgetPickerDialog` (`ui.spec.md` §2/§3.9/§4.8) — REQ-33's explicit reuse-vs-duplicate
@@ -54,6 +55,7 @@ export function WidgetPickerDialog(props: WidgetPickerDialogProps) {
   const titleId = useId();
   const existingSelectId = useId();
   const newTitleInputId = useId();
+  const newTitleInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -66,6 +68,23 @@ export function WidgetPickerDialog(props: WidgetPickerDialogProps) {
 
   const typeLabel = WIDGET_TYPE_OPTIONS.find((o) => o.value === props.widgetType)?.label ?? props.widgetType;
   const hasExisting = (instances?.length ?? 0) > 0;
+
+  // Found live in a real browser, not in this file's own jsdom suite: `instances` starts `null`
+  // (the `listWidgets` fetch is still in flight) on the Title input's very first paint, so
+  // `hasExisting` always reads `false` at that instant regardless of the real answer — a plain
+  // `autoFocus={!hasExisting}` on the `<input>` below therefore focused Title unconditionally on
+  // EVERY open, including widget types that already have existing instances (verified: "Live test
+  // footer note" already existed for `text`, yet Title still carried the visible focus ring).
+  // `autoFocus` only ever fires once, at that initial DOM insertion — by the time the fetch
+  // resolves and `hasExisting` flips to its real value a moment later, the element is not
+  // remounted, so nothing re-evaluates the decision. This effect defers the decision until
+  // `instances` has actually resolved, matching what `ui.spec.md` §5 (quoted in this file's own
+  // header) asks for: no pre-selected default when existing instances are real options.
+  useEffect(() => {
+    if (instances === null) return;
+    if (!hasExisting) newTitleInputRef.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instances]);
 
   function submitUseExisting(e: React.FormEvent) {
     e.preventDefault();
@@ -96,42 +115,53 @@ export function WidgetPickerDialog(props: WidgetPickerDialogProps) {
       >
         <h2 id={titleId}>Place a {typeLabel} widget</h2>
 
-        {loadError ? <div className="notice error">{loadError}</div> : null}
-        {error ? (
-          <span className="save-error" role="alert">
-            {error}
-          </span>
-        ) : null}
+        <div className="widget-picker-body">
+          {loadError ? <div className="notice error">{loadError}</div> : null}
+          {error ? (
+            <span className="save-error" role="alert">
+              {error}
+            </span>
+          ) : null}
 
-        {hasExisting ? (
-          <form onSubmit={submitUseExisting} className="widget-picker-section">
-            <h3>Use existing</h3>
-            <label htmlFor={existingSelectId}>Existing {typeLabel} widgets</label>
-            <select id={existingSelectId} value={selectedExistingId} onChange={(e) => setSelectedExistingId(e.target.value)}>
-              <option value="">Choose a widget…</option>
-              {(instances ?? []).map((instance) => (
-                <option key={instance.id} value={instance.id}>
-                  {instance.title}
-                </option>
-              ))}
-            </select>
-            <button type="submit">Use this widget</button>
+          {hasExisting ? (
+            <form onSubmit={submitUseExisting} className="widget-picker-section">
+              <h3>Use existing</h3>
+              <div className="field">
+                <label className="field-label" htmlFor={existingSelectId}>
+                  Existing {typeLabel} widgets
+                </label>
+                <Select
+                  id={existingSelectId}
+                  value={selectedExistingId}
+                  onChange={setSelectedExistingId}
+                  options={(instances ?? []).map((instance) => ({ value: instance.id, label: instance.title }))}
+                  placeholder="Choose a widget…"
+                />
+              </div>
+              <button type="submit">Use this widget</button>
+            </form>
+          ) : null}
+
+          <form onSubmit={submitCreateNew} className="widget-picker-section">
+            <h3>Create new</h3>
+            <div className="field">
+              <label className="field-label" htmlFor={newTitleInputId}>
+                Title
+              </label>
+              <input id={newTitleInputId} ref={newTitleInputRef} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+            </div>
+            <WidgetConfigFields widgetType={props.widgetType} config={newConfig} onChange={setNewConfig} />
+            <button type="submit">Create and place</button>
           </form>
-        ) : null}
+        </div>
 
-        <form onSubmit={submitCreateNew} className="widget-picker-section">
-          <h3>Create new</h3>
-          <label htmlFor={newTitleInputId}>Title</label>
-          <input id={newTitleInputId} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} autoFocus={!hasExisting} />
-          <WidgetConfigFields widgetType={props.widgetType} config={newConfig} onChange={setNewConfig} />
-          <button type="submit">Create and place</button>
-        </form>
-
-        <span className="editor-actions">
-          <button type="button" onClick={props.onCancel}>
-            Cancel
-          </button>
-        </span>
+        <div className="widget-picker-footer">
+          <span className="editor-actions">
+            <button type="button" className="btn-secondary" onClick={props.onCancel}>
+              Cancel
+            </button>
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -170,13 +200,12 @@ export function WidgetAddControl(props: {
 
   return (
     <span className="widget-add-control">
-      <select value={selectedType} onChange={(e) => setSelectedType(e.target.value as AdminWidgetType)} aria-label="Widget type">
-        {WIDGET_TYPE_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      <Select
+        value={selectedType}
+        onChange={(v) => setSelectedType(v as AdminWidgetType)}
+        options={WIDGET_TYPE_OPTIONS}
+        aria-label="Widget type"
+      />
       <button type="button" onClick={() => setPickerType(selectedType)}>
         {props.triggerLabel}
       </button>

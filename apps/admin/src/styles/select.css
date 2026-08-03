@@ -1,0 +1,122 @@
+/**
+ * `components/Select.tsx` — trigger + floating panel for the custom searchable dropdown
+ * (`WidgetPickerDialog.tsx`'s two selects only; every other `<select>` in this admin stays native,
+ * see that component's own header). Imported directly by `Select.tsx`, the same scoped-partial
+ * precedent `styles/assistant.css` established (see `AssistantDock.tsx`'s import and that file's
+ * own header) rather than a new line in `main.tsx`.
+ *
+ * The floating panel (`.select-panel`) is a real `document.body` portal, not an in-place
+ * absolutely-positioned child — two problems confirmed live, not assumed:
+ *   1. `.widget-picker-body` (added by this same dispatch's Task 1) sets `overflow-y: auto` on the
+ *      dialog's scrolling body. An in-place `position: absolute` panel is a normal descendant of
+ *      that scroll container and would get clipped by it the moment the panel needed to render
+ *      past the visible scroll area. `position: fixed`, portaled out of that subtree, is measured
+ *      against the viewport instead and is not clipped by any ancestor's `overflow`.
+ *   2. `.settings-dialog-backdrop` sets `position: fixed; z-index: 40`, which establishes a
+ *      stacking context. A `position: fixed` DESCENDANT of that backdrop still paints INSIDE that
+ *      stacking context regardless of its own z-index — CSS gives no way for a normal descendant to
+ *      escape an ancestor's stacking context except leaving that subtree entirely. A real portal to
+ *      `document.body` does that; a same-subtree `position: fixed` child would not.
+ * `Select.tsx`'s own `computePosition`/scroll-reposition logic keeps this panel anchored to the
+ * trigger regardless of where in the DOM it physically renders.
+ */
+
+/* Trigger — sized to match `input, select` (`styles.css`) so it sits flush next to a real text
+   input on the same row/form; this is what stands in for a native `<select>`, so it must share
+   that control's metrics, not just its color.
+
+   CORRECTION: this used to claim `.select-trigger` won against the app-wide bare `button` rule
+   because this file's `<style>` tag is injected after `styles.css`'s, at equal (0,1,0) specificity.
+   Both halves of that were wrong, found live rather than assumed, after a second agent working on
+   an unrelated Forms-editor dialog in this same tree hit the opposite outcome — their own
+   self-imported partial's `width` LOST to `.settings-dialog`'s `max-width` from `styles.css`, so
+   "a component's self-imported CSS lands after `styles.css`" is not a reliable mechanism at all
+   (it depends on when in the render tree that component's module first evaluates — this app has
+   route-level code that doesn't all load eagerly at boot — not on static import order in the
+   source). Checked THIS file's actual DOM order via `document.styleSheets` while the dialog was
+   open: `select.css`'s `<style>` tag is index 0, `styles.css`'s is index 1 — this file loads
+   FIRST, the opposite of the original claim. It wins anyway, because the specificity claim was
+   also wrong: `button` alone is a bare type selector, specificity (0,0,1), not (0,1,0) — `.select-
+   trigger` (a class selector, (0,1,0)) beats it unconditionally, regardless of which stylesheet
+   loads first. Verified via `getComputedStyle` in the real browser: `border-color` and `padding`
+   both come from this rule, not the bare `button` rule, independent of load order. Every other
+   selector below that shares a target with `styles.css` (`:hover`, `:focus-visible`, `:disabled`)
+   is in the same shape — a class(+pseudo-class) selector against a bare-element(+pseudo-class)
+   one — so all of them win on specificity alone too; none of this file's rules actually depend on
+   its `<style>` tag's position in the document. */
+.select-trigger {
+  width: 100%; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  background: var(--surface); color: var(--fg);
+  /* An accent-tinted resting border, not the plain `--border-strong` every real input/select gets —
+     the reference this component was built against shows the trigger itself carrying that color
+     at rest (not just on focus), which is also the one visible cue that this control opens a
+     search panel rather than an OS popup. `color-mix` keeps it a tint of the token, not the full
+     saturated `--primary`, so it doesn't read as an error/required-field state next to plain
+     inputs in the same form. */
+  border: 1px solid color-mix(in oklch, var(--primary) 45%, var(--border-strong));
+  border-radius: var(--r-sm); padding: 0.55rem 0.7rem; min-height: 37px;
+  font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 400; letter-spacing: normal;
+  cursor: pointer; text-align: left;
+  transition: border-color 0.14s, box-shadow 0.14s;
+}
+.select-trigger:hover { opacity: 1; }
+.select-trigger:focus-visible, .select-trigger[aria-expanded="true"] {
+  outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring);
+}
+.select-trigger:disabled { cursor: default; border-color: var(--border-strong); background: var(--surface-2); color: var(--faint); }
+.select-trigger-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-trigger-label.is-placeholder { color: var(--faint); }
+
+/* Chevron — the exact two SVGs `styles.css`'s own `select` rule already draws (light/dark stroke
+   hex), duplicated rather than shared because a CSS `background-image` data URI cannot read a
+   custom property (that rule's own comment documents the same constraint). Reusing the identical
+   glyph is what makes this read as the same control family as every real `<select>` in the app,
+   not a third, different-looking arrow. */
+.select-trigger-chevron {
+  width: 14px; height: 14px; flex-shrink: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' stroke='%23666C75' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: center; background-size: 14px;
+}
+:root[data-theme="dark"] .select-trigger-chevron {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M3.5 5.5 7 9l3.5-3.5' stroke='%23999FA6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* Floating panel — `position: fixed`, coordinates set inline per-instance from `Select.tsx`'s own
+   `computePosition` (this file only supplies the shape/chrome, never the placement numbers). */
+.select-panel {
+  position: fixed; z-index: 50;
+  display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-md);
+  box-shadow: var(--shadow-md); overflow: hidden;
+}
+.select-panel:focus { outline: none; } /* focused only when there is no search input to hold focus instead; the panel's own border/shadow is already the visible "this is open" state */
+.select-search {
+  margin: var(--space-2); width: auto; /* overrides the shared `input` rule's block sizing so it doesn't fight this flex column's own margin */
+}
+.select-list {
+  list-style: none; margin: 0; padding: var(--space-1) 0;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+}
+.select-empty {
+  padding: var(--space-3); font-size: var(--text-sm); color: var(--muted); text-align: center;
+}
+.select-option {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  padding: 0.5rem 0.75rem; font-size: var(--text-sm); color: var(--fg); cursor: pointer;
+}
+.select-option:hover, .select-option.is-highlighted { background: var(--surface-2); }
+/* Selected row — the same low-alpha `color-mix` tint idiom `styles.css` already uses for a primary-
+   family fill (its `button:disabled` rule, `color-mix(in oklch, var(--primary) 30%, var(--surface))`)
+   rather than a flat `--primary-dim` background, so this reads as "the primary color, faded" and
+   not a generic separate tint. Text goes fully `--primary` (not mixed) — the row still needs to
+   read clearly at 13px, and the tinted background alone already carries the "faded" quality. */
+.select-option.is-selected {
+  background: color-mix(in oklch, var(--primary) 14%, var(--surface));
+  color: var(--primary);
+  font-weight: 600;
+}
+.select-option.is-selected.is-highlighted {
+  background: color-mix(in oklch, var(--primary) 22%, var(--surface));
+}
+.select-option-check { flex-shrink: 0; width: 16px; height: 16px; color: var(--primary); }
