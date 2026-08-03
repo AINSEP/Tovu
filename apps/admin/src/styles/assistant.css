@@ -115,6 +115,18 @@
   transition: opacity 0.14s, right 0.2s ease, bottom 0.2s ease;
 }
 
+/* Measured 2026-08-03: without this the closed-state icon rendered 23.625 x 50 — the flex row
+   shrank its WIDTH to fit the 56px button while its height stayed at the authored value, so the
+   sparkle letterboxed inside a squashed slab with ~13px of dead space above and below, and the
+   icon visibly changed shape on every open/close toggle (the close "X" is authored 20x20 and was
+   unaffected). Icon sizes are now equal in both states; this rule stops the container from
+   silently reshaping any future icon rather than relying on every author picking a size that
+   happens to fit. History worth knowing: 6b8cc47 grew this button 48px -> 64px specifically to fit
+   a 50px icon, and 70f68ee's design-token pass reset it to 56px without shrinking the icon back. */
+.chat-fab > svg {
+  flex: none;
+}
+
 .chat-fab:hover {
   opacity: 0.9;
 }

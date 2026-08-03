@@ -49,7 +49,7 @@ export function ChatFab({ open, onToggle, label = "assistant", avoidBottomPx, re
           <path d="M5 5 15 15M15 5 5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         </svg>
       ) : (
-        <svg width="50" height="50" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
           <path d="M9 1.8 10.6 6 15 7.2 10.6 8.4 9 12.6 7.4 8.4 3 7.2 7.4 6Z" fill="currentColor" />
           <circle cx="14" cy="13.5" r="1.7" fill="currentColor" />
         </svg>
