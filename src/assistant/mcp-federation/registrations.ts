@@ -1,5 +1,5 @@
-import type { AuthorizeFn } from "../../core/commands";
-import { requireToolPermission, type ToolHandler, type ToolRegistration } from "../tool-registration-kit";
+import type { AuthorizeFn } from "../../core/commands/command";
+import { requireToolPermission, type ToolHandler, type ToolRegistration } from "../../core/tools/registration-kit";
 import type { FederatedMcpConnectionConfig, McpSessionPort } from "./ports";
 import {
   admitRemoteTools,

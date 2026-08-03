@@ -4,7 +4,7 @@ import test from "node:test";
 import { ForbiddenError } from "../errors";
 import { InMemorySettingsRepo } from "../repo.memory";
 import { resetNamespace, set } from "../write-service";
-import { InMemoryPrincipalRepo } from "../../../identity/repo.memory";
+import { InMemoryPrincipalRepo } from "../../../identity";
 import type { SettingDefinitionRecord } from "../types";
 
 const clock = { nowIso: () => "2026-07-11T00:00:00.000Z" };

@@ -1,9 +1,9 @@
 import { and, eq } from "drizzle-orm";
 
 import type { JsonObject } from "../../core/ports";
-import { posts } from "../../infra/db/schema";
-import type { ContentDb } from "../../infra/sqlite/content-db";
-import { findOneBy } from "../../infra/sqlite/repo-helpers";
+import { posts } from "../../db/schema";
+import type { ContentDb } from "../../db/sqlite/content-db";
+import { findOneBy } from "../../db/sqlite/repo-helpers";
 import type { PostKind, PostRecord, PostRepoPort, PostStatus } from "./post";
 import { toPostSearchDocument } from "./search";
 import { indexPostSearchDocument } from "./search-index.sqlite";

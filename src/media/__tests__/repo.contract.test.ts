@@ -4,31 +4,33 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../infra/sqlite/content-db";
+import { openContentDb } from "../../db/sqlite/content-db";
 import {
   SqliteAssetBlobRepo,
   SqliteAssetRenditionRepo,
   SqliteMediaRepo,
   SqliteTransformDefinitionRepo,
-} from "../../infra/sqlite/media-repo.sqlite";
+} from "../../db/sqlite/media-repo.sqlite";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
   InMemoryMediaRepo,
   InMemoryTransformDefinitionRepo,
-} from "../repo.memory";
+} from "@jini-ai/cms/media";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
   MediaRepoPort,
   TransformDefinitionRepoPort,
-} from "../ports";
-import type { AssetBlobRecord, AssetRenditionRecord, MediaRecord } from "../types";
-import type { TransformDefinitionRecord } from "../transform-types";
+  AssetBlobRecord,
+  AssetRenditionRecord,
+  MediaRecord,
+  TransformDefinitionRecord,
+} from "@jini-ai/cms/media";
 
 /**
  * @file ADR-046 Phase 1 — shared contract-test suite for the four route-consumed media repo
- * ports, run against BOTH `repo.memory.ts` and `infra/sqlite/media-repo.sqlite.ts` (rule-of-two,
+ * ports, run against BOTH `repo.memory.ts` and `db/sqlite/media-repo.sqlite.ts` (rule-of-two,
  * ADR-006). Same pattern as every other rule-of-two contract suite in this codebase.
  */
 

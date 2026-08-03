@@ -136,7 +136,7 @@ export function getDatabaseAgentToolCatalog(
     },
     {
       // WIRED (tool-registrations.ts) against `adapter.sqlite.ts`'s `DatabaseIntrospectionPort.listPendingMigrations()`
-      // — diffs the bundled `infra/drizzle/meta/_journal.json` against `__drizzle_migrations`'s
+      // — diffs the bundled `db/drizzle/meta/_journal.json` against `__drizzle_migrations`'s
       // applied rows. Note this is the Drizzle-migration-file sense of "pending", distinct from
       // `migration_runs`'s own in-flight-migration-run tracking (`boot/reconcile-interrupted-migration.ts`).
       name: "database_list_pending_migrations",

@@ -1,4 +1,4 @@
-import { createMenu, MenuConflictError, MenuValidationError } from "../../../../navigation/menu-service";
+import { createMenu, MenuConflictError, MenuValidationError } from "../../../../navigation";
 import type { NavItemNode } from "../../../../navigation";
 import { toAdminMenuResponse, type MenuRouteRegistrar } from "../../../../server/http/admin/menus";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";

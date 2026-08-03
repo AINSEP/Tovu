@@ -1,4 +1,4 @@
-import { deleteMenu, MenuLocationBoundError, MenuNotFoundError } from "../../../../navigation/menu-service";
+import { deleteMenu, MenuLocationBoundError, MenuNotFoundError } from "../../../../navigation";
 import { toAdminDeleteMenuResponse, type MenuRouteRegistrar } from "../../../../server/http/admin/menus";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 

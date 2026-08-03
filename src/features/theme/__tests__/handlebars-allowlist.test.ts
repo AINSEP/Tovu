@@ -22,7 +22,7 @@ import { loadTheme } from "../theme";
  */
 
 function ledgerTemplate(name: "home" | "entry"): string {
-  return readFileSync(join(process.cwd(), "themes", "handlebars", "ledger", "templates", `${name}.hbs`), "utf8");
+  return readFileSync(join(process.cwd(), "src", "themes", "handlebars", "ledger", "templates", `${name}.hbs`), "utf8");
 }
 
 test("a clean template with no expressions at all reports no violations", () => {
@@ -233,7 +233,7 @@ test("an oversized template source is rejected before it is ever parsed", () => 
 
 test("the live themes/handlebars/ledger demonstrator theme loads as valid end-to-end", () => {
   const theme = loadTheme({
-    themeDir: join(process.cwd(), "themes", "handlebars", "ledger"),
+    themeDir: join(process.cwd(), "src", "themes", "handlebars", "ledger"),
     id: "ledger",
     source: "built-in",
   });

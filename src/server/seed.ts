@@ -17,7 +17,7 @@ import type { WorkspaceRecord } from "../features/workspace";
  * How it relates to the project:
  * - The in-memory route deps seed these into their constructors (dev/tests).
  * - The SQLite content.db seeds these once, only when the store is empty
- *   (`infra/sqlite/content-db.ts` → `seedContentDb`).
+ *   (`db/sqlite/content-db.ts` → `seedContentDb`).
  * - `seedSettingsFromPresentation` (below) is this module's boot-time entry
  *   point for the SPEC-007 REQ-08 legacy-presentation → settings-ledger
  *   migration (ADR-PIPE-007 Migration Safety): both composition roots

@@ -8,7 +8,8 @@ import {
   MigrationAlreadyInFlightError,
   RestorePointUnavailableError,
 } from "../../../../features/database/migrate-forward/execute";
-import { buildConfirmOnlyHooks, buildMigrateForwardHooks } from "../../../gated-mutations-composition";
+import { buildConfirmOnlyHooks } from "../../../../core/gated-mutations/composition";
+import { buildMigrateForwardHooks } from "../../../../features/database/gated-hooks";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { RouteDeps } from "../../types";
 

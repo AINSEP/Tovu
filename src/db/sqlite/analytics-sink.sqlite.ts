@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 
-import { analyticsEvents } from "../db/schema";
+import { analyticsEvents } from "../schema";
 import type { ContentDb } from "./content-db";
 import type { AnalyticsSinkCapabilities, AnalyticsSinkPort } from "../../analytics/ports";
 import type { DeviceClass, HitKind, NormalizedHit } from "../../analytics/types";

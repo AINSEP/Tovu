@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { openContentDb } from "../infra/sqlite/content-db";
+import { openContentDb } from "../db/sqlite/content-db";
 import { writeJsonFileAtomic } from "./atomic-write";
 import { InitDirNotEmptyError, InternalError, ValidationError } from "./errors";
 import { readTemplate } from "./read-template";

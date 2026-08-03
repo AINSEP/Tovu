@@ -5,8 +5,8 @@ import path from "node:path";
 import test from "node:test";
 
 import { createSqliteRouteDeps } from "../../deps";
-import { openContentDb } from "../../../infra/sqlite/content-db";
-import { workspaces } from "../../../infra/db/schema";
+import { openContentDb } from "../../../db/sqlite/content-db";
+import { workspaces } from "../../../db/schema";
 
 /**
  * @file SPEC-003 C-010 (`createSqliteRouteDeps`, changed signature) — TDD certification,

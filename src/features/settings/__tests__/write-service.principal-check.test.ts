@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPrincipalRepo } from "../../../identity/repo.memory";
+import { InMemoryPrincipalRepo } from "../../../identity";
 import { PrincipalNotFoundError } from "../errors";
 import { InMemorySettingsRepo } from "../repo.memory";
 import { set } from "../write-service";

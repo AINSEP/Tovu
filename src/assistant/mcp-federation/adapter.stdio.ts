@@ -38,7 +38,7 @@ import type { McpSessionPort, McpStdioChannel, McpStdioLaunchSpec, RemoteToolDes
  * Architectural role:
  * Infrastructure adapter, co-located with its port under `assistant/mcp-federation` — mirroring
  * `features/database/adapter.sqlite.ts`'s co-location with the `DatabaseIntrospectionPort` it
- * implements, rather than `infra/`'s older per-port-file convention, because this port is this
+ * implements, rather than `db/`'s older per-port-file convention, because this port is this
  * adapter's own invention rather than a cross-domain-shared one.
  */
 

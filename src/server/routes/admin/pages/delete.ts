@@ -1,4 +1,4 @@
-import { DuplicateCommandError, ForbiddenError, executeCommand } from "../../../../core/commands";
+import { DuplicateCommandError, ForbiddenError, executeCommand } from "../../../../core/commands/command";
 import { processOutbox } from "../../../../core/events";
 import { PostNotFoundError, deletePost, type PostRecord } from "../../../../features/post";
 import { toAdminPostResponse } from "../../../../server/http/admin/posts";

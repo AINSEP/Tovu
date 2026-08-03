@@ -1,4 +1,4 @@
-import { openContentDb, type ContentDb } from "../../infra/sqlite/content-db";
+import { openContentDb, type ContentDb } from "../../db/sqlite/content-db";
 import type { PostRecord, PostRepoPort } from "./post";
 import { toPostSearchDocument, type PostSearchHit, type PostSearchPort, type PostSearchQuery } from "./search";
 import { indexPostSearchDocument, searchPostIndex } from "./search-index.sqlite";

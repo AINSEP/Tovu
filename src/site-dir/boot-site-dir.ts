@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { openContentDb, type ContentDb } from "../infra/sqlite/content-db";
+import { openContentDb, type ContentDb } from "../db/sqlite/content-db";
 import { writeJsonFileAtomic } from "./atomic-write";
 import { SiteCorruptError, SiteDirInvalidError } from "./errors";
 import { readSiteDir } from "./read-site-dir";

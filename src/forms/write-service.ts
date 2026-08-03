@@ -15,7 +15,7 @@ import type { FieldDescriptor, FormDefinitionRecord, FormDefinitionStatus, Notif
  * `change-set.applied` onto the outbox). Never exposes a delete (INV-08) — the repo port itself
  * has no delete method to call.
  *
- * Slug-uniqueness relies on the DB unique index (`infra/db/schema.ts`), not an app-level check
+ * Slug-uniqueness relies on the DB unique index (`db/schema.ts`), not an app-level check
  * (behavior.spec.md §6.1) — `repo.memory.ts`/`repo.sqlite.ts` both map a conflicting insert to
  * `FormSlugConflictError`, which this file lets propagate unchanged out of `mutation.execute()`.
  */

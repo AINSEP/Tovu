@@ -6,9 +6,9 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { openContentDb } from "../../../../infra/sqlite/content-db";
-import { SqliteDbOpsAdapter } from "../../../../infra/sqlite/db-ops";
-import { evaluatePostgresRestoreCapability } from "../../../../infra/postgres/db-ops";
+import { openContentDb } from "../../../../db/sqlite/content-db";
+import { SqliteDbOpsAdapter } from "../../../../db/sqlite/db-ops";
+import { evaluatePostgresRestoreCapability } from "../../../../db/postgres/db-ops";
 import { stampWatermarkTx } from "../../watermark";
 
 /**
@@ -31,12 +31,12 @@ import { stampWatermarkTx } from "../../watermark";
  *   captureRestorePoint(required: { scopeId: string }): Promise<{ artifactRef: string; watermarkAtCapture: number }>;
  * }
  *
- * // src/infra/sqlite/db-ops.ts
+ * // src/db/sqlite/db-ops.ts
  * export class SqliteDbOpsAdapter implements DbOpsPort {
  *   constructor(deps: { db: ContentDb; filePath: string });
  * }
  *
- * // src/infra/postgres/db-ops.ts (pure evaluation logic only — no live pg client here yet)
+ * // src/db/postgres/db-ops.ts (pure evaluation logic only — no live pg client here yet)
  * export interface PostgresRestoreToolingConfig {
  *   pgDumpBinaryPath: string | null;
  *   credentialsPresent: boolean;
@@ -148,7 +148,7 @@ test("REQ-19: getCapabilities() is a pure, side-effect-free static check — cal
 
 /**
  * @file 2026-07-16 addition — `restoreFromArtifact()`, closing the "ledger-only" gap
- * `server/gated-mutations-composition.ts`'s `buildRestoreHooks` previously disclosed. Verifies
+ * `features/recovery/gated-hooks.ts`'s `buildRestoreHooks` previously disclosed. Verifies
  * the actual restore effect (not just that the call resolves), the atomicity/crash-safety
  * property (no partial state possible), and the `:memory:` no-op path.
  */

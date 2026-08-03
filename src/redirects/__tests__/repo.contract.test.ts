@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../infra/sqlite/content-db";
+import { openContentDb } from "../../db/sqlite/content-db";
 import { InMemoryRedirectRepo } from "../repo.memory";
 import { SqliteRedirectRepo } from "../repo.sqlite";
 import type { RedirectRepoPort } from "../ports";

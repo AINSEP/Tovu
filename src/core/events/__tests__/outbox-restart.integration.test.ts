@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../../infra/sqlite/content-db";
-import { SqliteOutboxAdapter } from "../../../infra/sqlite/outbox-repo.sqlite";
-import { SqliteChangeSetRepo } from "../../../infra/sqlite/change-set-repo.sqlite";
+import { openContentDb } from "../../../db/sqlite/content-db";
+import { SqliteOutboxAdapter } from "../../../db/sqlite/outbox-repo.sqlite";
+import { SqliteChangeSetRepo } from "../../../db/sqlite/change-set-repo.sqlite";
 
 /**
  * @file ADR-046 Phase 1's own required production gate for the Outbox row: "Crash/restart tests

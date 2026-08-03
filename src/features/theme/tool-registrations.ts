@@ -23,7 +23,7 @@
  * learn that in the same turn, because the live site has already started serving the fallback body
  * for that theme.
  */
-import type { AuthorizeFn } from "../../core/commands";
+import type { AuthorizeFn } from "../../core/commands/command";
 import {
   buildDomainRegistrations,
   indexCatalogById,

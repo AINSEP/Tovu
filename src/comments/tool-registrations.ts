@@ -12,7 +12,7 @@
  * real admin route performs it. The seventh, `comments_update_settings`, is the exception and is
  * documented at its own handler.
  */
-import type { AuthorizeFn } from "../core/commands";
+import type { AuthorizeFn } from "../core/commands/command";
 import type { SettingsRepoPort } from "../features/settings/ports";
 import type { PrincipalRepoPort } from "../identity";
 import {

@@ -6,7 +6,7 @@ import { InMemorySettingsRepo } from "../repo.memory";
 import type { SettingsRepoPort } from "../ports";
 import { purgeTenantSettings } from "../purge-service";
 import { set } from "../write-service";
-import { InMemoryPrincipalRepo } from "../../../identity/repo.memory";
+import { InMemoryPrincipalRepo } from "../../../identity";
 import type { SettingDefinitionRecord } from "../types";
 
 /**

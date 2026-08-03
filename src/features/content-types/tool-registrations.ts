@@ -30,7 +30,7 @@
  * below does the identical explicit `requireToolPermission` check, in the route's place, the same
  * pattern `comments/tool-registrations.ts` uses for `comments_list_moderation_queue`.
  */
-import type { AuthorizeFn } from "../../core/commands";
+import type { AuthorizeFn } from "../../core/commands/command";
 import type { OutboxPort } from "../../core/ports";
 import {
   AGENT_TOOL_PRINCIPAL_KIND,

@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 
-import { widgetRegionBindings } from "../infra/db/schema";
-import type { ContentDb } from "../infra/sqlite/content-db";
-import { findOneBy } from "../infra/sqlite/repo-helpers";
+import { widgetRegionBindings } from "../db/schema";
+import type { ContentDb } from "../db/sqlite/content-db";
+import { findOneBy } from "../db/sqlite/repo-helpers";
 import type { UUID } from "../core/ports";
 import type { WidgetRegionBindingRepoPort } from "./ports";
 import type { WidgetRegionBindingRow, WidgetRegionKey } from "./types";

@@ -15,7 +15,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError } from "../../core/commands";
+import { ForbiddenError } from "../../core/commands/command";
 import { newsletterAgentToolCatalog, type AgentToolDefinition } from "../../newsletter/agent-tools";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,

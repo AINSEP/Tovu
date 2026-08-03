@@ -6,7 +6,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { contentTypesAgentToolCatalog } from "../../features/content-types/agent-tools";
 import { ForbiddenError } from "../../features/content-types/errors";
 import type { ContentTypeRecord } from "../../features/content-types/types";
-import { ForbiddenError as CoreForbiddenError } from "../../core/commands";
+import { ForbiddenError as CoreForbiddenError } from "../../core/commands/command";
 import type { RouteDeps } from "../../server/routes/types";
 import { buildAssistantToolRegistrations } from "../tool-registrations";
 

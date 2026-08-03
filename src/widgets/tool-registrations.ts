@@ -16,7 +16,7 @@
  * helper rather than the kit's generic `requireToolPermission` precisely so both paths reach the
  * identical gate function.
  */
-import type { AuthorizeFn } from "../core/commands";
+import type { AuthorizeFn } from "../core/commands/command";
 import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
 import type { OutboxPort } from "../core/ports";
 import {

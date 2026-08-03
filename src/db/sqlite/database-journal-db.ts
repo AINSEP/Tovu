@@ -29,7 +29,7 @@ import * as schema from "./database-journal-schema";
 
 export type DatabaseJournalDb = BetterSQLite3Database<typeof schema>;
 
-/** Generated migrations live at `src/infra/drizzle-database-journal/` (resolved from this file).
+/** Generated migrations live at `src/db/drizzle-database-journal/` (resolved from this file).
  * That directory carries forward the original shipped `0000_pale_weapon_omega.sql` migration (a
  * plain directory rename, not a content edit) plus a new migration that renames `storage_ledger`
  * to `database_ledger` — see that directory's own migrations for the full history. */

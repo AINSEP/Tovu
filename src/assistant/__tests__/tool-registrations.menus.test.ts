@@ -14,9 +14,13 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError } from "../../core/commands";
-import { menusAgentToolCatalog, type AgentToolDefinition } from "../../navigation/agent-tools";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../../navigation/repo.memory";
+import { ForbiddenError } from "../../core/commands/command";
+import {
+  InMemoryMenuRepo,
+  InMemoryNavLocationBindingRepo,
+  menusAgentToolCatalog,
+  type NavigationAgentToolDefinition,
+} from "../../navigation";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
 
@@ -51,7 +55,7 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
-function catalogEntry(toolId: string): AgentToolDefinition {
+function catalogEntry(toolId: string): NavigationAgentToolDefinition {
   const entry = menusAgentToolCatalog.find((tool) => tool.name === toolId);
   assert.ok(entry, `catalog has no entry for '${toolId}'`);
   return entry;

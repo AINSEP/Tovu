@@ -1,10 +1,10 @@
-import type { AuthorizeFn } from "../core/commands";
-import type { ClockPort, IdGeneratorPort, UUID } from "../core/ports";
-import type { ContentDb } from "../infra/sqlite/content-db";
-import { authorize as authorizeCore } from "./authorize";
-import { Argon2PasswordHasher } from "./hasher";
-import { migrateDeprecatedPermissionGrants } from "./permission-migrations";
-import type { IdentityRepos, PasswordHasherPort } from "./ports";
+import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
+import type { ContentDb } from "../db/sqlite/content-db";
+import { authorize as authorizeCore } from "@jini-ai/cms/identity";
+import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
+import { migrateDeprecatedPermissionGrants } from "@jini-ai/cms/identity";
+import type { IdentityRepos, PasswordHasherPort } from "@jini-ai/cms/identity";
 import {
   InMemoryPolicyPermissionRepo,
   InMemoryPolicyRepo,
@@ -15,7 +15,7 @@ import {
   InMemoryRoleRepo,
   InMemorySessionRepo,
   InMemoryUserRepo,
-} from "./repo.memory";
+} from "@jini-ai/cms/identity";
 import {
   SqlitePolicyPermissionRepo,
   SqlitePolicyRepo,
@@ -27,7 +27,7 @@ import {
   SqliteSessionRepo,
   SqliteUserRepo,
 } from "./repo.sqlite";
-import { seedIdentity } from "./seed";
+import { seedIdentity } from "@jini-ai/cms/identity";
 
 /**
  * @file Shared identity wiring for the composition roots (`server/app.ts` /
@@ -86,7 +86,16 @@ function buildIdentityRouteDeps(
 
   const seedResult = seedIdentity({
     deps: { repos, hasher: passwordHasher, clock: required.clock, idGen: required.idGen },
-    input: { workspaceId: required.workspaceId },
+    input: {
+      workspaceId: required.workspaceId,
+      // Read here, not in the library. `@jini-ai/cms` deliberately requires `ownerPassword` with no
+      // default: a library fallback would mean every host that forgot to pass one shipped the same
+      // owner credential. These two env vars and their defaults are exactly what `seedIdentity`
+      // itself used to read before the extraction, so first-boot behavior is unchanged — the
+      // decision simply moved to the host that owns the deployment model.
+      ownerUsername: process.env.TOVU_ADMIN_USER ?? "admin",
+      ownerPassword: process.env.TOVU_ADMIN_PASSWORD ?? "tovu-dev",
+    },
   });
 
   // SPEC-006 0.6.0: forked off `seedResult` (not a second seed call) so `disablePrincipal` can

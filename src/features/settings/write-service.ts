@@ -1,5 +1,5 @@
 import type { ClockPort, IdGeneratorPort, JsonValue, UUID } from "../../core/ports";
-import type { PrincipalRepoPort } from "../../identity/ports";
+import type { PrincipalRepoPort } from "../../identity";
 import {
   AliasDepthExceededError,
   DefinitionInvalidError,

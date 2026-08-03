@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 
-import { webhookDeliveries, webhookSubscriptions } from "../infra/db/schema";
-import type { ContentDb } from "../infra/sqlite/content-db";
-import { findOneBy } from "../infra/sqlite/repo-helpers";
+import { webhookDeliveries, webhookSubscriptions } from "../db/schema";
+import type { ContentDb } from "../db/sqlite/content-db";
+import { findOneBy } from "../db/sqlite/repo-helpers";
 
 import type { DeliveryEnvelopeStore } from "./repo.memory";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports";

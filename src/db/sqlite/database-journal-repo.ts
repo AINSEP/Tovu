@@ -318,7 +318,7 @@ export class SqliteRestorePointsRepo implements CreateRestorePointRepoPort {
         watermarkAtCapture: schema.restorePoints.watermarkAtCapture,
         createdAt: schema.restorePoints.createdAt,
         // 2026-07-16: previously never selected — see this file's `save()` for the matching
-        // write side and `gated-mutations-composition.ts`'s `buildRestoreHooks` for why the
+        // write side and `features/recovery/gated-hooks.ts`'s `buildRestoreHooks` for why the
         // omission mattered (the restore ceremony had no way to know which file to restore from).
         artifactRef: schema.restorePoints.artifactRef,
       })

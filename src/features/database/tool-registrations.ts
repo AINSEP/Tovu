@@ -17,7 +17,7 @@
  * `requireToolPermission` themselves. The one exception is `database_plan_migrate_forward`,
  * documented at its own handler.
  */
-import type { AuthorizeFn } from "../../core/commands";
+import type { AuthorizeFn } from "../../core/commands/command";
 import {
   AGENT_TOOL_PRINCIPAL_KIND,
   buildDomainRegistrations,
@@ -35,11 +35,7 @@ import {
 } from "../../core/tools/registration-kit";
 import { plan as gatewayPlan, type GatedMutationHooks, type GatewayDeps } from "../../core/gated-mutations/gateway";
 import type { DbOpsPort } from "../../core/gated-mutations/ports";
-// `buildMigrateForwardHooks` — and the `LedgerAppendPort` type its own input needs — stay sourced
-// from `server/gated-mutations-composition`, an explicitly out-of-scope back-edge for this pass
-// (see the dispatch notes this file's narrowing was reported under). Reusing its already-imported
-// module for this one type, rather than duplicating it, adds no NEW cross-module edge.
-import { buildMigrateForwardHooks, type LedgerAppendPort } from "../../server/gated-mutations-composition";
+import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks";
 import { getDatabaseAgentToolCatalog } from "./agent-tools";
 import type { DatabaseIntrospectionPort } from "./adapter.sqlite";
 import { createRestorePoint as createDatabaseRestorePoint, listRestorePoints, type RestorePointListPort, type RestorePointSavePort } from "./restore-points";
@@ -48,10 +44,11 @@ import { getTimeline, type LedgerReadPort } from "./timeline";
 /**
  * The exact slice of the route-deps bag Database's tool handlers read. Declared structurally
  * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
- * into the composition root for the `RouteDeps` god type specifically — the
- * `server/gated-mutations-composition` import above is a separate, already-disclosed back-edge left
- * untouched per the dispatch's explicit out-of-scope list. `server/routes/*` satisfies this
- * structurally by passing its existing `RouteDeps` object; nothing there changes.
+ * into the composition root for the `RouteDeps` god type. This domain's `buildMigrateForwardHooks`/
+ * `LedgerAppendPort` now live in this module's own `gated-hooks.ts` (moved out of
+ * `server/gated-mutations-composition.ts`, closing the back-edge into `server/` that file's import
+ * previously required), so `server/routes/*` satisfies this interface structurally by passing its
+ * existing `RouteDeps` object; nothing there changes.
  */
 export interface DatabaseToolDeps {
   authorize: AuthorizeFn;

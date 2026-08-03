@@ -1,8 +1,22 @@
 /**
- * @file Public surface (barrel) for the `identity` library (ADR-021 / SPEC-006).
+ * @file Public surface (barrel) for identity — re-exported from `@jini-ai/cms/identity`.
  *
- * A module's public contract is its `index.ts` (ADR-009 §1) — deep imports
- * from outside this directory should go through here.
+ * The domain moved into the package on 2026-08-02 so a second host can use the same users, roles,
+ * policies, sessions, and authorization rules. What is left in this directory is only what is
+ * genuinely this host's:
+ *
+ * - `repo.sqlite.ts` — the Drizzle adapters. They name `db/schema.ts`, which is this repo's shared
+ *   1,246-line schema covering every domain, so they are host persistence, not library code.
+ * - `wiring.ts` — composition. It picks the adapters, supplies the password hasher, and chooses the
+ *   first-boot owner credentials.
+ *
+ * Everything else here is a re-export, and the shape of what is *not* re-exported is the point:
+ * there is no wiring or SQLite export on this barrel, so nothing outside the composition root can
+ * accidentally depend on this host's persistence choice.
+ *
+ * `Argon2PasswordHasher` is not re-exported either — it lives at `@jini-ai/cms/identity/hasher`,
+ * behind its own subpath, because it pulls a native module that importing the domain must not
+ * require. `wiring.ts` imports it from there.
  */
 export type {
   PrincipalKind,
@@ -16,20 +30,6 @@ export type {
   RolePolicyRecord,
   PrincipalRoleRecord,
   PrincipalPolicyRecord,
-} from "./types";
-
-export {
-  IdentityValidationError,
-  IdentityNotFoundError,
-  IdentityConflictError,
-  AuthInvalidCredentialsError,
-  IdentityForbiddenError,
-  GrantExceedsIssuerError,
-  OwnerRequiredError,
-  PermissionUnknownError,
-} from "./types";
-
-export type {
   PrincipalRepoPort,
   UserRepoPort,
   SessionRepoPort,
@@ -41,9 +41,31 @@ export type {
   PrincipalPolicyRepoPort,
   IdentityRepos,
   PasswordHasherPort,
-} from "./ports";
+  AuthorizeContext,
+  AuthorizeResult,
+  AuthorizeDeps,
+  AuthServiceDeps,
+  SeedIdentityDeps,
+  SeedIdentityInput,
+  SeedIdentityResult,
+  IdentityAgentToolDefinition,
+  IdentityAgentToolSideEffect,
+  IdentityToolInputResult,
+  PermissionDescriptor,
+  PermissionMigration,
+  MigrateDeprecatedPermissionGrantsDeps,
+  MigrateDeprecatedPermissionGrantsResult,
+} from "@jini-ai/cms/identity";
 
 export {
+  IdentityValidationError,
+  IdentityNotFoundError,
+  IdentityConflictError,
+  AuthInvalidCredentialsError,
+  IdentityForbiddenError,
+  GrantExceedsIssuerError,
+  OwnerRequiredError,
+  PermissionUnknownError,
   InMemoryPrincipalRepo,
   InMemoryUserRepo,
   InMemorySessionRepo,
@@ -53,50 +75,22 @@ export {
   InMemoryRolePolicyRepo,
   InMemoryPrincipalRoleRepo,
   InMemoryPrincipalPolicyRepo,
-} from "./repo.memory";
-
-export { Argon2PasswordHasher, type Argon2PasswordHasherOptions } from "./hasher";
-
-export {
   authorize,
   resolveEffectivePermissions,
-  type AuthorizeContext,
-  type AuthorizeResult,
-  type AuthorizeDeps,
-} from "./authorize";
-
-export {
   login,
   logout,
   validateSession,
   getEffectivePermissions,
   SESSION_TTL_MS,
-  type AuthServiceDeps,
-} from "./auth-service";
-
-export { seedIdentity, type SeedIdentityDeps, type SeedIdentityInput, type SeedIdentityResult } from "./seed";
-
-export {
+  seedIdentity,
   createUser,
   createRole,
   createPolicy,
   assignRole,
   attachPolicy,
-  /** Exported so the assistant's read-only identity tools gate on the SAME caller-permission
-   * helper the mutating transitions use, rather than re-implementing the OR gate (ADR-021 §2). */
   assertCallerHasAnyPermission,
-} from "./grant-service";
-
-/** The agent-tool surface for this domain (see `agent-tools.ts` for what is deliberately omitted). */
-export {
   identityAgentToolCatalog,
-  type AgentToolDefinition as IdentityAgentToolDefinition,
-  type AgentToolSideEffect as IdentityAgentToolSideEffect,
-} from "./agent-tools";
-export { parseIdentityToolInput, type IdentityToolInputResult } from "./agent-tool-input";
-
-/** SPEC-006 0.6.0 — the users/roles/policies admin CRUD-completion amendment. */
-export {
+  parseIdentityToolInput,
   disablePrincipal,
   enablePrincipal,
   updateUser,
@@ -106,35 +100,12 @@ export {
   deleteRole,
   deletePolicy,
   writePolicyPermission,
-} from "./admin-crud-service";
-
-export {
-  createInMemoryIdentityRouteDeps,
-  createSqliteIdentityRouteDeps,
-  type IdentityRouteDepsSlice,
-} from "./wiring";
-
-export { normalizeUsername } from "./username";
-
-export {
+  normalizeUsername,
   registerPermission,
   listPermissions,
   isKnownPermission,
   permissionCatalog,
-  type PermissionDescriptor,
-} from "./permissions";
-
-/**
- * ADR-PIPE-012: the shared deprecate-old/grant-new permission migration
- * mechanism. Sibling remediation ADRs (Members/Analytics/Integrations)
- * register their own `{from, to}` pair via `registerPermissionMigration`
- * rather than hand-rolling a divergent copy (ADR-PIPE-012 Enforcement).
- */
-export {
   registerPermissionMigration,
   listPermissionMigrations,
   migrateDeprecatedPermissionGrants,
-  type PermissionMigration,
-  type MigrateDeprecatedPermissionGrantsDeps,
-  type MigrateDeprecatedPermissionGrantsResult,
-} from "./permission-migrations";
+} from "@jini-ai/cms/identity";

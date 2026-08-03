@@ -55,7 +55,16 @@ test("dataModule: declares a namespaced table and records a migration-journal en
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.created, ["p_hello__products"]);
-  assert.ok(result.snapshotPath && fs.existsSync(result.snapshotPath), "a snapshot file was written");
+  // A snapshot WAS taken (the path is reported), and is deleted once the migration commits —
+  // ADR-023 §4 amendment 2026-08-02. Its only reader is boot recovery, which acts solely on
+  // non-terminal journal entries, so a COMMITTED entry's snapshot is unreachable and was
+  // previously kept forever: one whole-database copy per plugin, per install.
+  assert.ok(result.snapshotPath, "a snapshot path is still reported");
+  assert.equal(
+    fs.existsSync(result.snapshotPath!),
+    false,
+    "the snapshot is discarded once the migration is committed",
+  );
   assert.ok(tableExists(db, "p_hello__products"), "the plugin table now exists");
   assert.ok(tableExists(db, "posts"), "core content is untouched");
   const journal = db
@@ -67,16 +76,35 @@ test("dataModule: declares a namespaced table and records a migration-journal en
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test("dataModule: the snapshot is taken BEFORE the DDL (never-brick proof)", async () => {
+test("dataModule: a FAILED migration keeps its snapshot, and that snapshot is the pre-DDL state (never-brick proof)", async () => {
+  // Proven on the failure path deliberately. A committed migration now discards its snapshot
+  // (ADR-023 §4 amendment 2026-08-02), so success is the one case where the file is legitimately
+  // gone — and it is also the case where nothing could ever need it. Failure is where the
+  // never-brick guarantee actually has to hold, so that is where it is asserted.
+  //
+  // The DDL is made to fail *after* the snapshot is taken by declaring the same table twice:
+  // `declareDataModule` emits CREATE TABLE without IF NOT EXISTS precisely so a malformed manifest
+  // fails loudly, and both entries survive the `toCreate` filter because neither exists yet.
   const { db, dbPath, dir } = openWithCore();
-  const result = await declareDataModule({ db, dbPath, decl: productsDecl });
-  assert.equal(result.ok, true);
+  const result = await declareDataModule({
+    db,
+    dbPath,
+    decl: { ...productsDecl, tables: [productsDecl.tables[0]!, productsDecl.tables[0]!] },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error?.code, "DDL_FAILED");
+  assert.ok(result.snapshotPath && fs.existsSync(result.snapshotPath), "a failed migration retains its snapshot");
+  assert.equal(result.recoveryPoint, result.snapshotPath, "the snapshot is reported as the recovery point");
 
   // Open the snapshot as its own db: it must be the PRE-state — core content present, plugin table absent.
   const snap = new Database(result.snapshotPath!);
   assert.ok(tableExists(snap, "posts"), "snapshot captured pre-existing core content");
   assert.equal(tableExists(snap, "p_hello__products"), false, "snapshot predates the new table");
   snap.close();
+
+  // And the live db was rolled back, so the failed attempt left nothing behind.
+  assert.equal(tableExists(db, "p_hello__products"), false, "the rolled-back table is absent from the live db");
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });

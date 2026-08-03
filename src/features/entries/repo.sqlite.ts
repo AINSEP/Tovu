@@ -1,9 +1,9 @@
 import type Database from "better-sqlite3";
 import { and, asc, desc, eq } from "drizzle-orm";
 
-import { entries, entryRevisions } from "../../infra/db/schema";
-import type { ContentDb } from "../../infra/sqlite/content-db";
-import { findOneBy } from "../../infra/sqlite/repo-helpers";
+import { entries, entryRevisions } from "../../db/schema";
+import type { ContentDb } from "../../db/sqlite/content-db";
+import { findOneBy } from "../../db/sqlite/repo-helpers";
 import type { EntryRepoPort, EntryRevisionInput } from "./write-service";
 import type { EntryListPort } from "./list";
 import type { EntryRecord, EntryStatus } from "./types";

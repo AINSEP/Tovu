@@ -30,8 +30,7 @@ import type {
   MemberTierRepoPort,
 } from "../../members";
 import type { MailerPort } from "../../mail";
-import type { MenuRepoPort } from "../../navigation/repo.memory";
-import type { NavLocationBindingRepoPort } from "../../navigation";
+import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../navigation";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../integrations";
 import type { WebhookSigner } from "../../integrations/signing";
 import type {
@@ -63,7 +62,8 @@ import type { TaxonomyListPort, TermListPort } from "../../features/taxonomy/lis
 import type { DisclosureWatermarkSourcePort } from "../../features/recovery/disclosure";
 import type { DeepLinkRestorePointLookupPort } from "../../features/recovery/deep-link";
 import type { GatewayDeps } from "../../core/gated-mutations/gateway";
-import type { LedgerAppendPort, MergeableEntryTermRepoPort } from "../gated-mutations-composition";
+import type { LedgerAppendPort } from "../../features/database/gated-hooks";
+import type { MergeableEntryTermRepoPort } from "../../features/taxonomy/gated-hooks";
 import type { WidgetRegionBindingRepoPort } from "../../widgets/ports";
 import type { EntryRefsRepoPort } from "../../core/entry-refs/ports";
 import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation";
@@ -277,7 +277,7 @@ export interface RouteDeps {
   formsRateLimiter: RateLimiter;
   /**
    * ADR-041 §1/§2 — the Database Timeline's read port, backed by the sidecar
-   * `ops/database-journal.db` (`infra/sqlite/database-journal-repo.ts`'s `SqliteDatabaseLedgerRepo`
+   * `ops/database-journal.db` (`db/sqlite/database-journal-repo.ts`'s `SqliteDatabaseLedgerRepo`
    * in `server/deps.ts`'s real composition; `features/database/repo.memory.ts`'s
    * `InMemoryDatabaseLedgerRepo` in `server/app.ts`'s hermetic composition). Only the read side is
    * wired into `RouteDeps` this pass — see `routes/admin/database/timeline.ts`'s file header for
@@ -285,8 +285,9 @@ export interface RouteDeps {
    */
   /** Widened this dispatch with `LedgerAppendPort` — both `SqliteDatabaseLedgerRepo` and
    * `InMemoryDatabaseLedgerRepo` already implement `.append()`; only the type declaration here was
-   * narrower than the concrete instances (see `gated-mutations-composition.ts`'s
-   * `buildMigrateForwardHooks`/`buildRestoreHooks`, which need to append real ledger rows).
+   * narrower than the concrete instances (see `features/database/gated-hooks.ts`'s
+   * `buildMigrateForwardHooks` and `features/recovery/gated-hooks.ts`'s `buildRestoreHooks`, which
+   * need to append real ledger rows).
    * Widened again (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) with
    * `BootLedgerPort` — both concrete adapters already implement `appendInterruptedRow` too; only
    * this declaration was narrower. */
@@ -302,7 +303,7 @@ export interface RouteDeps {
    * in-memory adapter in BOTH `server/app.ts` and `server/deps.ts` (no SQLite adapter exists yet
    * for `content-types`/`entries`/`taxonomy` — the same disclosed "no adapter yet" precedent
    * `mediaRepo`/`transformDefinitionRepo`/`memberRepo` already establish above), EXCEPT
-   * `restorePointsRepo`/`dbOps`, which get real `infra/sqlite/database-journal-repo.ts`/`db-ops.ts`
+   * `restorePointsRepo`/`dbOps`, which get real `db/sqlite/database-journal-repo.ts`/`db-ops.ts`
    * adapters in `server/deps.ts` — see this dispatch's handoff for the full disclosure and the
    * follow-up SQLite-adapter work item it leaves open.
    */
@@ -325,7 +326,7 @@ export interface RouteDeps {
   taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort;
   termRepo: TermRepoPort & TermListPort;
   /** Widened this dispatch with `MergeableEntryTermRepoPort` (the `mergeTerm` gated-mutation
-   * ceremony's by-term enumeration need — see `gated-mutations-composition.ts`). */
+   * ceremony's by-term enumeration need — see `features/taxonomy/gated-hooks.ts`). */
   entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort;
   taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
   /** ADR-041 §2/§4 — the `restore_points` table's list + save side (`database/restore-points.ts`'s
@@ -361,7 +362,7 @@ export interface RouteDeps {
   /**
    * SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition
    * root for the first time this dispatch. One process-lifetime `GatewayDeps` (in-process
-   * `InMemoryTokenStore`, see `gated-mutations-composition.ts`'s file header for the disclosed
+   * `InMemoryTokenStore`, see `core/gated-mutations/composition.ts`'s file header for the disclosed
    * `TokenStorePort` decision) shared by every gated-mutation route this dispatch wires
    * (`taxonomy/terms/:id/merge`, `database/migrate-forward`, `recovery/restore`).
    */

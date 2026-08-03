@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../../infra/sqlite/content-db";
-import { SqliteOutboxAdapter } from "../../../infra/sqlite/outbox-repo.sqlite";
+import { openContentDb } from "../../../db/sqlite/content-db";
+import { SqliteOutboxAdapter } from "../../../db/sqlite/outbox-repo.sqlite";
 import { InMemoryOutbox } from "../memory-bus";
 import type { DomainEvent, OutboxPort } from "../../ports";
 
 /**
  * @file ADR-046 Phase 1 — shared `OutboxPort` contract-test suite, run against BOTH
- * `memory-bus.ts`'s `InMemoryOutbox` and `infra/sqlite/outbox-repo.sqlite.ts`'s
+ * `memory-bus.ts`'s `InMemoryOutbox` and `db/sqlite/outbox-repo.sqlite.ts`'s
  * `SqliteOutboxAdapter` (rule-of-two, ADR-006). Same pattern as every other rule-of-two contract
  * suite in this codebase.
  */

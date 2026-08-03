@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import { changeSetItems, changeSets, outboxEvents } from "../db/schema";
+import { changeSetItems, changeSets, outboxEvents } from "../schema";
 import type { ContentDb } from "./content-db";
 import type { DomainEvent } from "../../core/ports";
 import type {

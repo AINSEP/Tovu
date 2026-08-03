@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb, type ContentDb } from "../../../infra/sqlite/content-db";
-import { workspaces } from "../../../infra/db/schema";
-import { InMemoryPrincipalRepo } from "../../../identity/repo.memory";
+import { openContentDb, type ContentDb } from "../../../db/sqlite/content-db";
+import { workspaces } from "../../../db/schema";
+import { InMemoryPrincipalRepo } from "../../../identity";
 import { SqliteSettingsRepo } from "../repo.sqlite";
 import { set } from "../write-service";
 import type { SettingDefinitionRecord } from "../types";

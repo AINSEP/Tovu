@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media";
-import type { AssetRenditionRecord, MediaRecord } from "../../media/types";
-import type { TransformDefinitionRecord } from "../../media/transform-types";
+import type { AssetRenditionRecord, MediaRecord, TransformDefinitionRecord } from "../../media";
 import { resolveSeoImageRef } from "../media";
 
 /**

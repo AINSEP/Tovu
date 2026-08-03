@@ -3,7 +3,7 @@ import {
   MenuNotFoundError,
   MenuValidationError,
   updateMenuTree,
-} from "../../../../navigation/menu-service";
+} from "../../../../navigation";
 import type { NavItemNode } from "../../../../navigation";
 import { toAdminMenuResponse, type MenuRouteRegistrar } from "../../../../server/http/admin/menus";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";

@@ -14,12 +14,12 @@ import { getSettingsAgentToolCatalog } from "../../features/settings/agent-tools
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools";
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace/agent-tools";
 import { formsAgentToolCatalog } from "../../forms/agent-tools";
-import { identityAgentToolCatalog } from "../../identity/agent-tools";
+import { identityAgentToolCatalog } from "../../identity";
 import { getIntegrationsAgentToolCatalog } from "../../integrations/agent-tools";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools";
-import { mediaAgentToolCatalog } from "../../media/agent-tools";
+import { mediaAgentToolCatalog } from "../../media";
 import { membersAgentToolCatalog } from "../../members/agent-tools";
-import { menusAgentToolCatalog } from "../../navigation/agent-tools";
+import { menusAgentToolCatalog } from "../../navigation";
 import { newsletterAgentToolCatalog } from "../../newsletter/agent-tools";
 import { getRedirectsAgentToolCatalog } from "../../redirects/agent-tools";
 import { getSeoAgentToolCatalog } from "../../seo/agent-tools";
@@ -291,7 +291,7 @@ test("the mismatch check is symmetric — an over-declared risk fails too, so th
 test("a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired while no confirmation transport exists", () => {
   assert.throws(
     () => assertRiskMetadataIsWirable("collections_content_type_tombstone", { ...catalogEntry("collections_content_type_tombstone"), actorClassRule: "confirmer-must-equal-own-delegatedBy" }),
-    /requires a human-confirmation transport Tovu has not wired/,
+    /requires a human-confirmation transport/,
   );
 });
 

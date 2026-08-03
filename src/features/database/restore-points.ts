@@ -92,7 +92,7 @@ export interface RestorePointRecord {
   createdAt: string;
   /** 2026-07-16: was captured (`DbOpsPort.captureRestorePoint()`) but silently dropped before
    * persistence — `list()` never surfaced it, so `features/recovery`'s restore ceremony had no
-   * way to know which file to restore from (see `gated-mutations-composition.ts`'s
+   * way to know which file to restore from (see `features/recovery/gated-hooks.ts`'s
    * `buildRestoreHooks` file history). Required, not optional: every real row has one (the
    * `restore_points` table's own column is `NOT NULL`); an empty string for a not-yet-migrated
    * legacy row is a defensive fallback at the read adapter, not a valid new-row state. */
@@ -126,7 +126,7 @@ export interface RestorePointSavePort {
 
 /**
  * Lists every restore point recorded for this site, newest-first (the port's own contract —
- * `infra/sqlite/database-journal-repo.ts`'s `SqliteRestorePointsRepo.list()` already orders this
+ * `db/sqlite/database-journal-repo.ts`'s `SqliteRestorePointsRepo.list()` already orders this
  * way; this function does not re-sort, matching `getTimeline`'s "the port owns the actual query
  * shape" precedent).
  *

@@ -3,7 +3,8 @@ import type { Express } from "express";
 import { confirm, execute, ForbiddenError, PlanStaleError, plan, type GatedMutationHooks } from "../../../../core/gated-mutations/gateway";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "../../../../core/gated-mutations/token";
 import { confirmMergeTerm, executeMergeTerm, planMergeTerm, SameTermMergeError } from "../../../../features/taxonomy/merge-term";
-import { buildConfirmOnlyHooks, buildMergeTermHooks } from "../../../gated-mutations-composition";
+import { buildConfirmOnlyHooks } from "../../../../core/gated-mutations/composition";
+import { buildMergeTermHooks } from "../../../../features/taxonomy/gated-hooks";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { RouteDeps } from "../../types";
 

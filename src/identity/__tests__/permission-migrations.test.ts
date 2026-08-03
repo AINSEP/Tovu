@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { authorize } from "../authorize";
+import { authorize } from "@jini-ai/cms/identity";
 import {
   listPermissionMigrations,
   migrateDeprecatedPermissionGrants,
   registerPermissionMigration,
-} from "../permission-migrations";
-import { NAVIGATION_PERMISSIONS } from "../../navigation/contracts";
+} from "@jini-ai/cms/identity";
+import { NAVIGATION_PERMISSIONS } from "../../navigation";
 import {
   InMemoryPolicyPermissionRepo,
   InMemoryPolicyRepo,
@@ -16,7 +16,7 @@ import {
   InMemoryPrincipalRoleRepo,
   InMemoryRolePolicyRepo,
   InMemoryRoleRepo,
-} from "../repo.memory";
+} from "@jini-ai/cms/identity";
 
 /**
  * @file Dedicated TDD-first tests for the shared deprecate-old/grant-new

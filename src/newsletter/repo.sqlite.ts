@@ -2,7 +2,7 @@
  * @file SQLite/Drizzle adapter for all 6 Newsletter repo ports (ADR-PIPE-011 §7/§8, File Map).
  *
  * `SqliteNewsletterCampaignRepo` is Drizzle-backed against the bespoke `newsletter_campaigns`/
- * `newsletter_campaign_revisions` table pair (`src/infra/db/schema.ts`) — mirrors
+ * `newsletter_campaign_revisions` table pair (`src/db/schema.ts`) — mirrors
  * `SqliteSettingsRepo`'s shape exactly, including its `transaction()` method (manual `BEGIN
  * IMMEDIATE`/`COMMIT`/`ROLLBACK` against the raw better-sqlite3 handle, since Drizzle's own
  * `db.transaction((tx) => ...)` wrapper requires a synchronous callback and this chokepoint's
@@ -19,9 +19,9 @@
 import type Database from "better-sqlite3";
 import { asc, eq, gt, and } from "drizzle-orm";
 
-import { newsletterCampaignRevisions, newsletterCampaigns } from "../infra/db/schema";
-import type { ContentDb } from "../infra/sqlite/content-db";
-import { findOneBy } from "../infra/sqlite/repo-helpers";
+import { newsletterCampaignRevisions, newsletterCampaigns } from "../db/schema";
+import type { ContentDb } from "../db/sqlite/content-db";
+import { findOneBy } from "../db/sqlite/repo-helpers";
 import { NEWSLETTER_TABLE_NAMES } from "./data-module-manifest";
 import type {
   NewsletterAudienceSnapshotRepoPort,

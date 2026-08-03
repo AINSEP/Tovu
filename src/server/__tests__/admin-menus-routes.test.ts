@@ -5,7 +5,7 @@ import { bootAuthenticated } from "./helpers/http-test-server";
 
 import express from "express";
 
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../../navigation/repo.memory";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../../navigation";
 import type { MenuRouteDeps } from "../http/admin/menus";
 import { createRouteDeps } from "../app";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";

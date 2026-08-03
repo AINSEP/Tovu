@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../infra/sqlite/content-db";
+import { openContentDb } from "../../db/sqlite/content-db";
 import { SqliteMemberRepo, SqliteMemberSessionRepo } from "../repo.sqlite";
 
 /**

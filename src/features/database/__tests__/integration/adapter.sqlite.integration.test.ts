@@ -8,20 +8,20 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-import { openContentDb, type ContentDb } from "../../../../infra/sqlite/content-db";
+import { openContentDb, type ContentDb } from "../../../../db/sqlite/content-db";
 import { runtimeSchemaVersion } from "../../../../site-dir/schema-guard";
 import { SqliteDatabaseIntrospectionAdapter } from "../../adapter.sqlite";
 
 /**
  * @file ADR-041 §3 — integration tests for `SqliteDatabaseIntrospectionAdapter`, the real backing
  * adapter for `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
- * (this dispatch). Mirrors `infra/sqlite/__tests__/database-journal.integration.test.ts`'s pattern:
+ * (this dispatch). Mirrors `db/sqlite/__tests__/database-journal.integration.test.ts`'s pattern:
  * real temp-file `better-sqlite3` databases, no mocks.
  *
  * Two fixture strategies, deliberately both used:
  *  - "real content.db" tests open an actual `content.db` via `openContentDb` (so `__drizzle_migrations`
  *    is populated by drizzle-orm's own real migrator, against this repo's real bundled
- *    `infra/drizzle/meta/_journal.json`) — proof the adapter works against production wiring, not
+ *    `db/drizzle/meta/_journal.json`) — proof the adapter works against production wiring, not
  *    just a synthetic double.
  *  - "synthetic journal" tests build their own tiny migrations folder + journal and run the SAME
  *    real `drizzle-orm` migrator against it, then hand the adapter a DELIBERATELY DIFFERENT journal

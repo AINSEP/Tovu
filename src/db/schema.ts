@@ -896,7 +896,7 @@ export const entryRevisions = sqliteTable(
 // per that package's own write-service.ts header) never thread a workspaceId
 // through their method signatures — the adapter classes are constructed
 // workspace-scoped instead (same "scoped at construction" precedent
-// `infra/sqlite/storage-journal-repo.ts` already established for `siteId`).
+// `db/sqlite/storage-journal-repo.ts` already established for `siteId`).
 // ---------------------------------------------------------------------------
 
 export const taxonomies = sqliteTable(
@@ -1034,7 +1034,7 @@ export const outboxEvents = sqliteTable(
  * array (small, bounded exact-match host lists — not worth a child table). `OriginSettingRepoPort`
  * (`origin/ports.ts`) is READ-ONLY by design (no admin route or write flow exists yet to verify a
  * real production origin) — this table's only writer today is the composition-root dev-capability
- * seed (`infra/sqlite/origin-repo.sqlite.ts`'s `seedDevCapabilityOrigin`), mirroring exactly what
+ * seed (`db/sqlite/origin-repo.sqlite.ts`'s `seedDevCapabilityOrigin`), mirroring exactly what
  * the in-memory adapter's constructor-seed did, just durable instead of recreated every restart.
  */
 export const originSettings = sqliteTable("origin_settings", {

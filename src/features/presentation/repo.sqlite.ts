@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 
-import { presentationSettings } from "../../infra/db/schema";
-import type { ContentDb } from "../../infra/sqlite/content-db";
-import { findOneBy } from "../../infra/sqlite/repo-helpers";
+import { presentationSettings } from "../../db/schema";
+import type { ContentDb } from "../../db/sqlite/content-db";
+import { findOneBy } from "../../db/sqlite/repo-helpers";
 import type {
   PresentationSettingsRecord,
   PresentationSettingsRepoPort,

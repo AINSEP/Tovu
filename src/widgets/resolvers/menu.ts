@@ -1,8 +1,6 @@
 import type { JsonObject } from "../../core/ports";
-import type { NavMenuReadModel } from "../../navigation/ports";
-import { resolveMenuDoc } from "../../navigation/resolver";
-import type { ResolveTargetHrefFn } from "../../navigation/resolver";
-import type { ResolvedNavItem } from "../../navigation/types";
+import type { NavMenuReadModel, ResolvedNavItem, ResolveTargetHrefFn } from "../../navigation";
+import { resolveMenuDoc } from "../../navigation";
 import type { WidgetResolveResult, WidgetResolver } from "../types";
 
 /**

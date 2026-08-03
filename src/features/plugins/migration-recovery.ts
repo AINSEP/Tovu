@@ -1,6 +1,6 @@
 /**
  * @file ADR-023 §2 — boot-time crash recovery for the dataModule engine. Called from
- * `infra/sqlite/content-db.ts#openContentDb`, BEFORE that file opens its own long-lived
+ * `db/sqlite/content-db.ts#openContentDb`, BEFORE that file opens its own long-lived
  * connection, so this function owns a short-lived connection of its own for the entire
  * check-and-restore sequence and always closes it before returning — no restore ever runs
  * against a file another connection still holds open (T2/T8's corruption vector).

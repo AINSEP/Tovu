@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPrincipalRepo } from "../../../identity/repo.memory";
+import { InMemoryPrincipalRepo } from "../../../identity";
 import { ALLOWED_THEME_IDS, InMemoryPresentationSettingsRepo, type PresentationSettingsRecord } from "../../presentation";
 import { migrateLegacyPresentationSettings } from "../migration";
 import { InMemorySettingsRepo } from "../repo.memory";

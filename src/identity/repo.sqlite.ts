@@ -10,9 +10,9 @@ import {
   rolePolicies,
   roles,
   sessions,
-} from "../infra/db/schema";
-import type { ContentDb } from "../infra/sqlite/content-db";
-import { findOneBy } from "../infra/sqlite/repo-helpers";
+} from "../db/schema";
+import type { ContentDb } from "../db/sqlite/content-db";
+import { findOneBy } from "../db/sqlite/repo-helpers";
 
 import type {
   PolicyPermissionRepoPort,
@@ -24,7 +24,7 @@ import type {
   RoleRepoPort,
   SessionRepoPort,
   UserRepoPort,
-} from "./ports";
+} from "@jini-ai/cms/identity";
 import type {
   PolicyPermissionRecord,
   PolicyRecord,
@@ -37,7 +37,7 @@ import type {
   RoleRecord,
   SessionRecord,
   UserRecord,
-} from "./types";
+} from "@jini-ai/cms/identity";
 
 /**
  * @file Drizzle/SQLite adapters for the `identity` repo ports (ADR-021 / SPEC-006).

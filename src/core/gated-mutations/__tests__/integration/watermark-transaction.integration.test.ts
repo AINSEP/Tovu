@@ -6,7 +6,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { openContentDb } from "../../../../infra/sqlite/content-db";
+import { openContentDb } from "../../../../db/sqlite/content-db";
 import { getCurrentWatermark, reconcileMirror, stampWatermarkTx } from "../../watermark";
 
 /**
@@ -27,7 +27,7 @@ import { getCurrentWatermark, reconcileMirror, stampWatermarkTx } from "../../wa
  * ```
  *
  * `ContentDbTransaction` is the Drizzle transaction callback argument, matching
- * `src/infra/sqlite/content-db.ts`'s existing `db.transaction((tx) => { tx.insert(...).run(); })`
+ * `src/db/sqlite/content-db.ts`'s existing `db.transaction((tx) => { tx.insert(...).run(); })`
  * idiom (see `seedContentDb` in that file) — `stampWatermarkTx` is called inside that same callback.
  *
  * Certifies: AC-01 (watermark advances by exactly 1 atomically with the stamping transaction);

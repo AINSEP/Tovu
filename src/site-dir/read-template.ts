@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import type { ContentDbSeedData } from "../infra/sqlite/content-db";
+import type { ContentDbSeedData } from "../db/sqlite/content-db";
 import { InternalError } from "./errors";
 import type { TemplateJson, TemplateSeedContent } from "./types";
 
@@ -11,7 +11,7 @@ import type { TemplateJson, TemplateSeedContent } from "./types";
  * Purpose:
  * REQ-02 — a template is versioned DATA, not code. This is the one place that maps the
  * declarative `TemplateSeedContent` on-disk shape (`workspace`/`entries`/`presentation`, per
- * state.spec.md §2) to `infra/sqlite/content-db.ts`'s existing `ContentDbSeedData` shape
+ * state.spec.md §2) to `db/sqlite/content-db.ts`'s existing `ContentDbSeedData` shape
  * (`workspace`/`posts`/`presentation`) that `openContentDb` actually consumes.
  *
  * How it relates to the project:
@@ -24,8 +24,8 @@ import type { TemplateJson, TemplateSeedContent } from "./types";
  * `site-dir` domain logic. Pure read + pure mapping, no db/fs-write, no `cli`/`express` import.
  */
 
-/** Repo-root `templates/` dir, resolved from this file's own location. */
-const TEMPLATES_ROOT = path.resolve(__dirname, "../../templates");
+/** `src/templates/` dir, resolved from this file's own location. */
+const TEMPLATES_ROOT = path.resolve(__dirname, "../templates");
 
 export interface ReadTemplateRequired {
   templateId: string;

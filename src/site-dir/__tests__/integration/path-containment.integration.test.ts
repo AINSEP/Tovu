@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../../infra/sqlite/content-db";
-import { workspaces } from "../../../infra/db/schema";
+import { openContentDb } from "../../../db/sqlite/content-db";
+import { workspaces } from "../../../db/schema";
 import { runtimeSchemaVersion } from "../../schema-guard";
 import { initSite } from "../../init-site";
 import { bootSiteDir } from "../../boot-site-dir";

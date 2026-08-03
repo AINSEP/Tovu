@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import { assetBlobs, assetRenditions, media, transformDefinitions } from "../db/schema";
+import { assetBlobs, assetRenditions, media, transformDefinitions } from "../schema";
 import type { ContentDb } from "./content-db";
 import { findOneBy } from "./repo-helpers";
 import type { UUID } from "../../core/ports";
@@ -9,9 +9,14 @@ import type {
   AssetRenditionRepoPort,
   MediaRepoPort,
   TransformDefinitionRepoPort,
-} from "../../media/ports";
-import type { AssetBlobRecord, AssetBlobStatus, AssetRenditionRecord, MediaRecord, MediaStatus } from "../../media/types";
-import type { TransformDefinitionRecord, TransformParams } from "../../media/transform-types";
+  AssetBlobRecord,
+  AssetBlobStatus,
+  AssetRenditionRecord,
+  MediaRecord,
+  MediaStatus,
+  TransformDefinitionRecord,
+  TransformParams,
+} from "@jini-ai/cms/media";
 
 /**
  * @file ADR-046 Phase 1 — real SQLite adapters for the `media` library's four route-consumed

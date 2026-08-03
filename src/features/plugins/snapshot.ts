@@ -18,6 +18,7 @@
  * wrote a REAL, non-empty SQLite backup file literally named `:memory:.snapshot-<label>-<ts>` into
  * the repo root — hundreds of MB accumulated across a single session's test runs.
  */
+import fs from "node:fs/promises";
 import path from "node:path";
 
 import type Database from "better-sqlite3";
@@ -64,4 +65,33 @@ export async function snapshotDb(
   const snapshotPath = path.join(dir, `${base}.snapshot-${label}-${Date.now()}`);
   await db.backup(snapshotPath); // SQLite online backup — captures a consistent whole-file copy
   return snapshotPath;
+}
+
+/**
+ * Delete a snapshot whose recovery window has closed. Best-effort and never throws: this runs
+ * AFTER the migration it guarded is already committed, so a failure to unlink is untidy, not
+ * unsafe, and must not turn a successful migration into a reported failure.
+ *
+ * ADR-023 §4 amendment (2026-08-02). §4 specified taking the snapshot but never said when one
+ * stops being needed, so nothing ever deleted them: every plugin that declared tables left a
+ * whole-database copy on disk permanently, three at a time for a stock install (`store`,
+ * `newsletter`, `comments`), each the full size of `content.db`.
+ *
+ * The retention rule that replaces "forever" is not a heuristic or a count — it falls out of who
+ * reads these files. The only consumer is `migration-recovery.ts`, which acts exclusively on
+ * journal entries in a NON-terminal phase (see `findIncompleteJournalEntries`). The instant an
+ * entry reaches `COMMITTED`, its snapshot is unreachable by every code path that exists. Deleting
+ * it there removes zero recovery capability: the never-brick guarantee covers the window between
+ * "snapshot taken" and "DDL committed", and that window has closed.
+ *
+ * **A failed migration keeps its snapshot**, deliberately — the catch path leaves the entry
+ * non-terminal precisely so the next boot can restore from it, and §9 also wants it retained for
+ * operator forensics.
+ *
+ * `_plugin_migrations.snapshot_path` still records which snapshot guarded each committed DDL. That
+ * row is history — it says what protected the change at the time, which stays true — so a path
+ * pointing at a since-deleted file is expected, not a dangling reference to repair.
+ */
+export async function discardCommittedSnapshot(snapshotPath: string): Promise<void> {
+  await fs.rm(snapshotPath, { force: true }).catch(() => {});
 }

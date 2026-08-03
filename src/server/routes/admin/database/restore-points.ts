@@ -96,7 +96,7 @@ export function registerAdminDatabaseRestorePointsCreateRoute(app: Express, deps
         watermarkAtCapture: captured?.watermarkAtCapture ?? null,
         // 2026-07-16: was captured above but previously never persisted — the root cause of why
         // Recovery's restore ceremony could only write a "ledger-only" note (no way to know which
-        // file to restore from). See `gated-mutations-composition.ts`'s `buildRestoreHooks`.
+        // file to restore from). See `features/recovery/gated-hooks.ts`'s `buildRestoreHooks`.
         artifactRef: captured?.artifactRef,
       });
 

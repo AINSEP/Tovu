@@ -1,4 +1,4 @@
-import { DuplicateCommandError, ForbiddenError, executeCommand } from "../../../../core/commands";
+import { DuplicateCommandError, ForbiddenError, executeCommand } from "../../../../core/commands/command";
 import { processOutbox } from "../../../../core/events";
 import {
   PostConflictError,

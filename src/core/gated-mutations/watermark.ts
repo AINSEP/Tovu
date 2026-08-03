@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
-import type { ContentDb } from "../../infra/sqlite/content-db";
-import * as schema from "../../infra/db/schema";
+import type { ContentDb } from "../../db/sqlite/content-db";
+import * as schema from "../../db/schema";
 import type { MirrorStorePort } from "./ports";
 
 /**
@@ -17,7 +17,7 @@ import type { MirrorStorePort } from "./ports";
  * How it relates to the project:
  * - `gateway.ts`'s `hooks.executeMutation()` calls `stampWatermarkTx` inside its own open
  *   Drizzle transaction, alongside whatever domain rows that mutation writes.
- * - `openContentDb` (infra/sqlite/content-db.ts) guarantees the singleton row exists.
+ * - `openContentDb` (db/sqlite/content-db.ts) guarantees the singleton row exists.
  *
  * Architectural role:
  * Core primitive shared by every gated-mutation domain (database, recovery, ...); no domain-specific

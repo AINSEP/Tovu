@@ -7,7 +7,7 @@ import {
   FormSubmissionNotFoundError,
 } from "../../../forms/errors";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "../../../forms/types";
-import { ForbiddenError as CommandForbiddenError } from "../../../core/commands";
+import { ForbiddenError as CommandForbiddenError } from "../../../core/commands/command";
 
 /**
  * @file Response DTOs for the admin `forms` HTTP surface (SPEC-010 api.spec.md §5).

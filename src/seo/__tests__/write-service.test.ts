@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ForbiddenError } from "../../core/commands";
+import { ForbiddenError } from "../../core/commands/command";
 import { InMemoryPostRepo } from "../../features/post";
 import type { PostRecord } from "../../features/post/post";
 import { SeoEntryNotFoundError, SeoFieldValidationError, SeoInvalidCanonicalUrlError } from "../errors";

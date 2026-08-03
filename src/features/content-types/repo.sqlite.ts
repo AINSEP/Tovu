@@ -1,9 +1,9 @@
 import type Database from "better-sqlite3";
 import { eq } from "drizzle-orm";
 
-import { contentTypeRevisions, contentTypes } from "../../infra/db/schema";
-import type { ContentDb } from "../../infra/sqlite/content-db";
-import { findOneBy } from "../../infra/sqlite/repo-helpers";
+import { contentTypeRevisions, contentTypes } from "../../db/schema";
+import type { ContentDb } from "../../db/sqlite/content-db";
+import { findOneBy } from "../../db/sqlite/repo-helpers";
 import type { ContentTypeRepoPort, ContentTypeRevisionInput } from "./write-service";
 import type { ContentTypeListPort } from "./list";
 import type { ContentTypeFieldDef, ContentTypeRecord, ContentTypeStatus } from "./types";

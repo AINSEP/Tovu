@@ -11,7 +11,7 @@
  * the kit's `requireToolPermission` — ADR-021 §2's single evaluation, located where the real route
  * locates it.
  */
-import type { AuthorizeFn } from "../core/commands";
+import type { AuthorizeFn } from "../core/commands/command";
 import type { EventBusPort, OutboxPort } from "../core/ports";
 import {
   buildDomainRegistrations,

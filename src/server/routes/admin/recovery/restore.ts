@@ -3,7 +3,8 @@ import type { Express } from "express";
 import { acquireOperationLock, releaseOperationLock } from "../../../../core/operation-lock";
 import { confirm, execute, plan } from "../../../../core/gated-mutations/gateway";
 import { confirmRestore, executeRestore, planRestore } from "../../../../features/recovery/recovery-orchestrator";
-import { buildConfirmOnlyHooks, buildRestoreHooks, toRecoveryResult, type RecoveryErrorPayload } from "../../../gated-mutations-composition";
+import { buildConfirmOnlyHooks } from "../../../../core/gated-mutations/composition";
+import { buildRestoreHooks, toRecoveryResult, type RecoveryErrorPayload } from "../../../../features/recovery/gated-hooks";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { RouteDeps } from "../../types";
 
@@ -15,7 +16,7 @@ import type { RouteDeps } from "../../types";
  * `features/recovery/recovery-orchestrator.ts`'s already-built `planRestore`/`confirmRestore`/
  * `executeRestore` wrappers (this file supplies the `Result`-wrapped gateway binding + the real
  * `core/operation-lock.ts` primitive those wrappers were built to receive from a composition root
- * — see `gated-mutations-composition.ts`'s `buildRestoreHooks` doc comment for the disclosed scope
+ * — see `features/recovery/gated-hooks.ts`'s `buildRestoreHooks` doc comment for the disclosed scope
  * boundary: the ceremony's token/authorize/lock plumbing is fully real, the final physical
  * `content.db` file replacement is not).
  */
