@@ -140,9 +140,24 @@ checked and what was corrected. Read those sections — in three of four cases t
 5. **Read `ADR-052-tovu-runner-is-its-own-desktop-product.md`** (written by the concurrent session)
    and reconcile it against `2026-08-03-tovu-runner-recon.md`, whose Open Question 1 was exactly this
    unresolved ADR-011-vs-ADR-014 tension. Make sure the two documents agree.
-6. **Awaiting a running recon**: `2026-08-03-jini-multimodal-capability.md` — whether Jini can send
-   an image to a model at all, across the four supported protocols. It gates the vision-self-check
-   slice. If that agent died, the question stands and is worth re-asking.
+6. **The vision self-check is BLOCKED, and now you know exactly why.** Report landed:
+   `2026-08-03-jini-multimodal-capability.md`. **Jini cannot send an image to a model today** on the
+   path that matters. Verified independently: `agent-runtime/src/providers/anthropic-messages.ts:63-86`
+   defines `text | tool_use | tool_result` with no image variant, and — the detail most likely to be
+   missed — **`AnthropicToolResultBlockParam.content` is a plain `string`, not a parts array**. A
+   self-check returns its screenshot *inside a tool result*, so adding a top-level image block is not
+   sufficient; `tool_result.content` must become a parts array. OpenAI is the same shape, Azure
+   inherits it by reusing OpenAI's builder, and Google's own source comment names multimodal parts as
+   deliberately out of scope.
+   Attachments are a red herring: they reach real disk storage through a well-built capability-claim
+   system, then feed `buildArgs(prompt, imagePaths, …)` — which **16 of 20 CLI agent defs underscore
+   and never use, including the flagship `claude.ts:81`.** That was checked adversarially, because
+   `_prompt` is underscored there too yet is delivered via stdin; images have no such fallback.
+   Only the ACP and pi-rpc protocol paths genuinely forward images.
+   **Build it on the direct-provider proxy path, not the CLI-agent path** — the proxy's turn-runners
+   already have the execute-tool-then-continue shape; the CLI path hands control to an external
+   subprocess where a mid-turn tool-result image cannot be injected. A self-check screenshot needs no
+   attachment-store involvement: renderer → callback, in memory.
 
 ## Open items carried forward
 
