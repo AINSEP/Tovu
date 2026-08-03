@@ -25,6 +25,16 @@ export interface FieldDescriptor {
   type: FieldType;
   required: boolean;
   maxLength?: number | null;
+  /** Optional CSS class names applied verbatim to the rendered input element (e.g. Tailwind
+   *  utility classes). Escaped, never sanitized — enforced only by length in `forms.ts`'s
+   *  `validateFieldDescriptors`, since a class name is inert once HTML-escaped. */
+  className?: string;
+  /** Optional extra HTML attributes applied to the rendered input element. Attribute NAMES are a
+   *  closed allowlist (`forms.ts`'s `ATTRIBUTE_NAME_PATTERN`) — unlike a value, an attribute name
+   *  cannot be made safe by escaping, so this is deny-by-default, not a sanitize pass. Values are
+   *  plain strings, escaped the same way every other user-authored string is in
+   *  `server/http/site/render.ts`. */
+  attributes?: Record<string, string>;
 }
 
 export interface NotifyConfig {

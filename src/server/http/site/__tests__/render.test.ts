@@ -279,3 +279,99 @@ test("renderSite: every v1 widget componentId renders correctly and escapes untr
   assert.match(html, /widget-placeholder/);
   assert.doesNotMatch(html, /leak-me/);
 });
+
+// ---------------------------------------------------------------------------
+// contact-form field className/attributes — the admin "field attributes" modal's data reaching
+// this public render path. `forms.ts`'s `validateFieldDescriptors` is the real gate (see that
+// file's own tests); these pin what THIS renderer does with the two new properties once they've
+// arrived here, including the defensive re-check `renderExtraFieldAttrs` does on the attribute
+// NAME (see that function's own header for why a value's escaping is not enough for a name).
+// ---------------------------------------------------------------------------
+
+test("contact-form widget: a Tailwind-style className survives intact on the rendered input", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [{ type: "region", key: "footer" }] });
+  const html = await renderSite({
+    theme,
+    route: "home",
+    siteTitle: "Widgets Demo",
+    posts: [],
+    widgets: widgetsResult({
+      regions: {
+        footer: [
+          {
+            componentId: "contact-form",
+            props: {
+              slug: "contact",
+              fields: [{ id: "email", label: "Email", type: "email", required: true, className: "md:col-span-2 w-1/2 focus:ring-2" }],
+              successMessage: null,
+            },
+          },
+        ],
+      },
+    }),
+  });
+  assert.match(html, /class="md:col-span-2 w-1\/2 focus:ring-2"/);
+});
+
+test("contact-form widget: an allowlisted attribute renders, its value escaped (\" and < cannot break out of the attribute)", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [{ type: "region", key: "footer" }] });
+  const html = await renderSite({
+    theme,
+    route: "home",
+    siteTitle: "Widgets Demo",
+    posts: [],
+    widgets: widgetsResult({
+      regions: {
+        footer: [
+          {
+            componentId: "contact-form",
+            props: {
+              slug: "contact",
+              fields: [
+                {
+                  id: "email",
+                  label: "Email",
+                  type: "email",
+                  required: true,
+                  attributes: { "aria-label": 'Say "<hi>"', "data-testid": "email-field" },
+                },
+              ],
+              successMessage: null,
+            },
+          },
+        ],
+      },
+    }),
+  });
+  assert.match(html, /aria-label="Say &quot;&lt;hi&gt;&quot;"/);
+  assert.match(html, /data-testid="email-field"/);
+  assert.doesNotMatch(html, /Say "<hi>"/);
+});
+
+test("contact-form widget: a non-allowlisted attribute name (e.g. an 'onclick' that reached storage some other way) is never emitted, even though its value would otherwise escape safely", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [{ type: "region", key: "footer" }] });
+  const html = await renderSite({
+    theme,
+    route: "home",
+    siteTitle: "Widgets Demo",
+    posts: [],
+    widgets: widgetsResult({
+      regions: {
+        footer: [
+          {
+            componentId: "contact-form",
+            props: {
+              slug: "contact",
+              fields: [
+                { id: "email", label: "Email", type: "email", required: true, attributes: { onclick: "alert(1)", style: "x" } },
+              ],
+              successMessage: null,
+            },
+          },
+        ],
+      },
+    }),
+  });
+  assert.doesNotMatch(html, /onclick=/);
+  assert.doesNotMatch(html, /style=/);
+});

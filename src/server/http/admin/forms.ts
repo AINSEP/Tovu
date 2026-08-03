@@ -24,6 +24,8 @@ export interface AdminFormFieldDto {
   type: string;
   required: boolean;
   maxLength?: number | null;
+  className?: string;
+  attributes?: Record<string, string>;
 }
 
 export interface AdminFormNotifyDto {

@@ -1,0 +1,50 @@
+/**
+ * `FieldAttributesDialog` (`FormEditor.tsx`) — the per-field "CSS classes + HTML attributes" modal
+ * reached from the field table's kebab trigger. A separate partial rather than an addition to
+ * `styles.css` because another pass currently owns that file; same scoped-partial precedent
+ * `styles/select.css`/`styles/assistant.css` establish (imported directly by the component that
+ * uses it — see `Select.tsx`'s own `import` statement — rather than wired through `main.tsx`).
+ *
+ * `.settings-dialog-backdrop` (`styles.css`) is `display: grid; place-items: center`, which sizes
+ * its child to shrink-to-fit content. A bare `max-width` on `.settings-dialog` (as
+ * `.collections-type-dialog` already relies on) only ever caps the box, it never gives it a
+ * MINIMUM — confirmed live: with no `width` rule of its own, this dialog measured ~340px wide with
+ * zero attribute rows and ~512px with three, a visibly different box every time a row was
+ * added/removed. `width` below (not `max-width`) is what keeps it one predictable size regardless
+ * of how many rows are currently open; `max-width` stays alongside it only as the narrow-viewport
+ * escape hatch.
+ */
+.field-attrs-dialog {
+  width: 32rem;
+  max-width: calc(100vw - 2rem);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.field-attrs-hint {
+  margin: 0;
+  color: var(--fg-2);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.field-attrs-hint code {
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  padding: 0.05rem 0.35rem;
+  font-size: 0.85em;
+}
+
+.field-attrs-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Each attribute row's Name/Value fields sit side by side, not stacked full-width —
+   `.collections-field-row` (`styles.css`) already sets `flex-wrap: wrap` so they still stack at
+   narrow widths, this just gives each `.field` room to grow instead of shrinking to its input's
+   own intrinsic width, the default for a flex child with no basis. */
+.field-attrs-rows .collections-field-row .field {
+  flex: 1 1 10rem;
+  min-width: 8rem;
+}

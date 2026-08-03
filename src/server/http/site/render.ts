@@ -4,6 +4,7 @@ import type { DiscoveredTheme, TemplateNode } from "../../../features/theme";
 import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "../../../features/theme";
 import type { ResolvePageWidgetsResult } from "../../../widgets/resolver-service";
 import type { WidgetRenderIR } from "../../../widgets/types";
+import { ATTRIBUTE_NAME_PATTERN } from "../../../forms/forms";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox";
 import { renderLiquidInSandbox } from "./liquid-sandbox";
 
@@ -456,6 +457,29 @@ function renderWidgetMenu(props: JsonObject): string {
   return `<nav class="widget widget-menu">${heading}<ul>${renderWidgetMenuItems(arr(props.items))}</ul></nav>`;
 }
 
+/**
+ * Renders one field descriptor's `class`/extra-attribute string, both attached to the SAME
+ * rendered input element the field's own `id`/`name`/`required`/`type` already get. Re-checks
+ * `ATTRIBUTE_NAME_PATTERN` here rather than trusting that every stored field passed through
+ * `forms.ts`'s `validateFieldDescriptors` (this is the public render path, REQ-37/ADR-047) —
+ * defense in depth, since an attribute NAME is not something `escapeHtml` can make safe the way it
+ * can a value (`onclick` is structurally dangerous regardless of how its own text is escaped).
+ * `className` carries no such risk once escaped, so it is not re-validated, only escaped.
+ */
+function renderExtraFieldAttrs(o: JsonObject): string {
+  const className = o.className;
+  const classAttr = typeof className === "string" && className.trim() !== "" ? ` class="${escapeHtml(className)}"` : "";
+  const attributes = obj(o.attributes);
+  let attrsHtml = "";
+  if (attributes) {
+    for (const [name, value] of Object.entries(attributes)) {
+      if (typeof value !== "string" || !ATTRIBUTE_NAME_PATTERN.test(name)) continue;
+      attrsHtml += ` ${name}="${escapeHtml(value)}"`;
+    }
+  }
+  return `${classAttr}${attrsHtml}`;
+}
+
 /** Renders a `contact-form` widget: Forms' own declared field vocabulary (REQ-37 — never a
  * hardcoded field-type list), posting to Forms' existing public route unmodified (`POST
  * /forms/:slug/submit`, `routes/site/forms-submit.ts`) — this widget type introduces no new
@@ -471,12 +495,13 @@ function renderWidgetContactForm(props: JsonObject): string {
       const label = escapeHtml(str(o.label));
       const required = o.required === true;
       const kind = str(o.type, "text");
+      const extraAttrs = renderExtraFieldAttrs(o);
       const inputEl =
         kind === "textarea"
-          ? `<textarea name="${id}" id="widget-contact-${id}"${required ? " required" : ""}></textarea>`
+          ? `<textarea name="${id}" id="widget-contact-${id}"${required ? " required" : ""}${extraAttrs}></textarea>`
           : kind === "checkbox"
-            ? `<input type="checkbox" name="${id}" id="widget-contact-${id}"${required ? " required" : ""}/>`
-            : `<input type="${kind === "email" ? "email" : "text"}" name="${id}" id="widget-contact-${id}"${required ? " required" : ""}/>`;
+            ? `<input type="checkbox" name="${id}" id="widget-contact-${id}"${required ? " required" : ""}${extraAttrs}/>`
+            : `<input type="${kind === "email" ? "email" : "text"}" name="${id}" id="widget-contact-${id}"${required ? " required" : ""}${extraAttrs}/>`;
       return `<div class="widget-form-field"><label for="widget-contact-${id}">${label}${required ? " *" : ""}</label>${inputEl}</div>`;
     })
     .join("");

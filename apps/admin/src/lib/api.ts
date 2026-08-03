@@ -384,6 +384,8 @@ export interface AdminFormField {
   type: "text" | "email" | "textarea" | "checkbox";
   required: boolean;
   maxLength?: number | null;
+  className?: string;
+  attributes?: Record<string, string>;
 }
 
 export interface AdminFormNotify {
