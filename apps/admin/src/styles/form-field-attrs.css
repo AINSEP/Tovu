@@ -6,15 +6,27 @@
  * uses it — see `Select.tsx`'s own `import` statement — rather than wired through `main.tsx`).
  *
  * `.settings-dialog-backdrop` (`styles.css`) is `display: grid; place-items: center`, which sizes
- * its child to shrink-to-fit content. A bare `max-width` on `.settings-dialog` (as
- * `.collections-type-dialog` already relies on) only ever caps the box, it never gives it a
- * MINIMUM — confirmed live: with no `width` rule of its own, this dialog measured ~340px wide with
- * zero attribute rows and ~512px with three, a visibly different box every time a row was
- * added/removed. `width` below (not `max-width`) is what keeps it one predictable size regardless
- * of how many rows are currently open; `max-width` stays alongside it only as the narrow-viewport
- * escape hatch.
+ * its child to shrink-to-fit content, so this dialog needs its own `width` (not just `max-width`,
+ * which only ever caps a box, never gives it a minimum) to render at a predictable size regardless
+ * of how many attribute rows are open.
+ *
+ * BUG, found live via `getComputedStyle` (not by eye) and fixed here: a bare `.field-attrs-dialog
+ * { width: 32rem }` DID NOT WIN. The element carries `className="settings-dialog
+ * field-attrs-dialog"`, and `.settings-dialog` (`styles.css`) already sets `max-width: 26rem`
+ * (416px) at the same (0,1,0) specificity as a bare `.field-attrs-dialog` rule — at equal
+ * specificity the LAST rule in cascade order wins, and this component's CSS module import running
+ * after `main.tsx`'s `import "./styles.css"` in source does NOT guarantee `styles.css`'s rule
+ * loses: measured on the running (Vite dev) app, `.settings-dialog`'s 26rem was winning and this
+ * rule's `width: 32rem` was being clamped down to 416px by that inherited `max-width`, every time,
+ * not intermittently. Whatever determines the two stylesheets' relative order in the actual
+ * injected `<style>` tags, it is not "which file a component imports" — do not rely on it.
+ * Fixed by raising specificity instead of hoping for cascade order: `.settings-dialog.field-
+ * attrs-dialog` (two classes, (0,2,0)) strictly outranks `.settings-dialog` alone regardless of
+ * source order, no `!important` needed. Re-confirmed after the fix via the same `getComputedStyle`
+ * check: `width` 512px, `max-width` matches `calc(100vw - 2rem)` (evaluates below 512px only on a
+ * viewport narrower than ~544px).
  */
-.field-attrs-dialog {
+.settings-dialog.field-attrs-dialog {
   width: 32rem;
   max-width: calc(100vw - 2rem);
   max-height: 85vh;
