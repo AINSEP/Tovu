@@ -425,3 +425,50 @@ loop and any future BYOK chat surface, and only those.
 
 **Fix, when wanted:** capture `thoughtSignature` per `functionCall` part in `google-messages.ts` and
 echo it back on the continuation request, plus a regression test. Self-contained; good cloud dispatch.
+
+---
+
+## 2026-08-03 (same session, later) — BOTH open questions closed
+
+### The `thought_signature` defect is fixed
+
+Jini `726f1ae4`. `google-messages.ts` now captures `thoughtSignature` off the response `Part` and
+echoes it back, verbatim, on the continuation.
+
+**Wire shape, measured against a live response rather than taken from docs** — the published
+`thought-signatures` page redirects to a thinking guide that describes a *different*, thinking-block
+form, which would have led to the wrong implementation:
+
+```json
+{ "functionCall": { "name": "render_preview", "args": {}, "id": "UgFzM3QW" },
+  "thoughtSignature": "EukCCuYCARFNMg+HEX+iufpVJfgG..." }
+```
+
+It is a **sibling of `functionCall` on the same `Part`**, not a field inside it. The wire key is
+camelCase `thoughtSignature` even though the 400's text spells it `thought_signature`.
+
+Treated as opaque: carried and re-sent unmodified, never parsed or synthesized. Absent and empty are
+kept distinguishable — a `functionCall` with no signature is legal; one with `""` is malformed.
+
+Tests: `agent-runtime` **1928/1928** (+2 regression tests asserting the sibling placement explicitly,
+since nesting it inside `functionCall` is the natural-looking mistake and would still typecheck).
+
+### Gemini DOES honor `inlineData` beside `functionResponse` — CONFIRMED
+
+The question this document previously recorded as *"Structurally legal, undocumented. Do not resolve
+by guessing"* is now measured, and the answer is **yes**.
+
+Method: a solid-colour PNG generated at runtime, returned as the **only** channel carrying the
+colour — no text hint anywhere in the prompt or the tool result. Two runs, two different colours:
+
+| colour sent | model replied |
+|---|---|
+| `rgb(128,0,128)` | `purple` |
+| `rgb(0,160,60)` | `green` |
+
+Two correct answers across different colours rules out a lucky guess. The vision self-check loop is
+unblocked on the Google path.
+
+**Note on why this could not be tested earlier:** it was never a key problem. The key was valid the
+whole time. The comprehension test was blocked behind the `thought_signature` 400, which killed the
+continuation before the model evaluated any image — an earlier break masking a later question.

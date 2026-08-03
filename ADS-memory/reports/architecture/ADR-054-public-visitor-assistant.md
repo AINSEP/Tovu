@@ -95,10 +95,12 @@ any custom theme a user writes — which contradicts "on the frontend, period."
   internals to anonymous visitors.
 - **Anonymous endpoint hitting a paid API is a cost-attack surface.** Rate limiting is required
   before this ships publicly, and is not optional hardening. Not yet designed — see Open.
-- **Gemini is not usable with tools here yet.** Measured 2026-08-03: `google-messages.ts` sends no
-  `thought_signature` and every currently-served Gemini model rejects the tool continuation with
-  HTTP 400. See `ADS-memory/reports/refactors/2026-08-03-image-send-capability.md`. Anthropic and
-  OpenAI are unaffected.
+- ~~**Gemini is not usable with tools here yet.**~~ **RESOLVED same day.** This was true when the
+  ADR was written and is no longer: `google-messages.ts` now carries `thoughtSignature` through and
+  echoes it back on the continuation (Jini `726f1ae4`), verified end to end against the live API.
+  Gemini is a usable provider for this feature, which matters because it is currently **the only
+  provider key available** — so the visitor assistant would otherwise have had no backend at all.
+  See `ADS-memory/reports/refactors/2026-08-03-image-send-capability.md`.
 - Every rendered page grows by a script tag and a bundle fetch. Should be deferred/async so it
   never blocks first paint.
 
