@@ -3,8 +3,11 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { getWorkspaceAgentToolCatalog, type AgentToolDefinition as WorkspaceAgentToolDefinition } from "../../features/workspace/agent-tools";
-import { InMemoryWorkspaceRepo } from "../../features/workspace/repo.memory";
+import {
+  getWorkspaceAgentToolCatalog,
+  InMemoryWorkspaceRepo,
+  type WorkspaceAgentToolDefinition,
+} from "../../features/workspace";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
 

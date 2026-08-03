@@ -7,7 +7,7 @@ import type {
   PresentationSettingsRecord,
   PresentationSettingsRepoPort,
   ThemeId,
-} from "./presentation";
+} from "@jini-ai/cms/presentation";
 
 /**
  * @file Drizzle/SQLite presentation-settings repository adapter.
