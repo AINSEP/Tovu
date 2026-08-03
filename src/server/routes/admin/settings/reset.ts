@@ -1,6 +1,4 @@
-import { ForbiddenError } from "../../../../features/settings/errors";
-import type { SettingScope } from "../../../../features/settings/types";
-import { resetNamespace } from "../../../../features/settings/write-service";
+import { ForbiddenError, type SettingScope, resetNamespace } from "../../../../features/settings";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
 import { resolveTargetWorkspaceId, toWriteServiceDeps } from "./shared";

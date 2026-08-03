@@ -6,9 +6,10 @@ import {
   PrincipalNotFoundError,
   ScopeNotAllowedError,
   ValueValidationFailedError,
-} from "../../../../features/settings/errors";
-import type { SettingScope } from "../../../../features/settings/types";
-import { deriveRequiredPermission, set } from "../../../../features/settings/write-service";
+  type SettingScope,
+  deriveRequiredPermission,
+  set,
+} from "../../../../features/settings";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
 import { resolveTargetWorkspaceId, toWriteServiceDeps } from "./shared";

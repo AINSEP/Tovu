@@ -15,14 +15,13 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { ForbiddenError } from "../../core/commands/command";
-import { ForbiddenError as SettingsForbiddenError } from "../../features/settings/errors";
+import { ForbiddenError as SettingsForbiddenError, InMemorySettingsRepo } from "../../features/settings";
 import { commentsAgentToolCatalog, type AgentToolDefinition } from "../../comments/agent-tools";
 import { InMemoryCommentRepo } from "../../comments/repo.memory";
 import { createCommentHookRegistry } from "../../comments/hooks";
 import { createCommentWriteService } from "../../comments/write-service";
 import { ensureCommentsSettingDefinitions } from "../../comments/settings";
 import type { CommentRecord } from "../../comments/types";
-import { InMemorySettingsRepo } from "../../features/settings/repo.memory";
 import { InMemoryPrincipalRepo } from "../../identity";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";

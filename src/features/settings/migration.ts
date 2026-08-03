@@ -1,10 +1,14 @@
 import type { ClockPort, IdGeneratorPort, UUID } from "../../core/ports";
 import type { PrincipalRepoPort } from "../../identity";
 import { ALLOWED_THEME_IDS, type PresentationSettingsRepoPort } from "../presentation";
-import type { SettingsRepoPort } from "./ports";
-import { resolveDefinitionRaw } from "./settings";
-import { SCOPE_BIT } from "./types";
-import { registerDefinitions, set, type AuthorizeFn } from "./write-service";
+import {
+  type SettingsRepoPort,
+  resolveDefinitionRaw,
+  SCOPE_BIT,
+  registerDefinitions,
+  set,
+  type AuthorizeFn,
+} from "@jini-ai/cms/settings";
 
 /**
  * @file One-time brownfield migration retiring `PresentationSettingsRepoPort`

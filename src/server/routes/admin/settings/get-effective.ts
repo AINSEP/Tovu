@@ -1,4 +1,4 @@
-import { getEffective } from "../../../../features/settings/settings";
+import { getEffective } from "../../../../features/settings";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
 import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget } from "./shared";

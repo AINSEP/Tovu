@@ -13,7 +13,7 @@
  * documented at its own handler.
  */
 import type { AuthorizeFn } from "../core/commands/command";
-import type { SettingsRepoPort } from "../features/settings/ports";
+import type { SettingsRepoPort } from "../features/settings";
 import type { PrincipalRepoPort } from "../identity";
 import {
   buildDomainRegistrations,

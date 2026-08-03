@@ -2,18 +2,17 @@ import type { JsonValue } from "../../../../core/ports";
 import {
   NON_REGISTER_DEFINITION_OPS,
   parseNonRegisterDefinitionOp,
-} from "../../../../features/settings/definitions-dispatch";
-import {
   AliasDepthExceededError,
   DefinitionInvalidError,
   DefinitionTombstonedError,
   ForbiddenError,
   RenameRetypeConflictError,
   SecretNotSupportedError,
-} from "../../../../features/settings/errors";
-import type { DefinitionInput } from "../../../../features/settings/settings";
-import type { SettingOwnerKind, SettingValueSchema } from "../../../../features/settings/types";
-import { registerDefinitions } from "../../../../features/settings/write-service";
+  type DefinitionInput,
+  type SettingOwnerKind,
+  type SettingValueSchema,
+  registerDefinitions,
+} from "../../../../features/settings";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps";
 import { toWriteServiceDeps } from "./shared";
