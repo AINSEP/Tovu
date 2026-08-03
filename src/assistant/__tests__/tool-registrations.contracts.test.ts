@@ -12,7 +12,7 @@ import { postAgentToolCatalog } from "../../features/post/agent-tools";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools";
 import { getSettingsAgentToolCatalog } from "../../features/settings";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools";
-import { getWorkspaceAgentToolCatalog } from "../../features/workspace/agent-tools";
+import { getWorkspaceAgentToolCatalog } from "../../features/workspace";
 import { formsAgentToolCatalog } from "../../forms/agent-tools";
 import { identityAgentToolCatalog } from "../../identity";
 import { getIntegrationsAgentToolCatalog } from "../../integrations/agent-tools";
