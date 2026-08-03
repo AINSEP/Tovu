@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ApiError, api, describeApiError, type AdminContentType, type AdminEntry } from "../lib/api";
 import { formatTimestamp } from "../lib/format-timestamp";
+import { DataTable } from "@jini-ai/admin/react";
 
 /**
  * @file Collections' entries list (design-spec.md §1.4) — the `/admin/collections/{typeKey}` route.
@@ -61,40 +62,33 @@ export function CollectionEntries(props: { contentTypeKey: string }) {
 
       {error ? <div className="notice error">{error}</div> : null}
 
-      {entries.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No entries yet in {label}.</p>
+      <DataTable
+        rows={entries}
+        rowKey={(entry) => entry.id}
+        empty={
+          <div className="card">
+            <div className="empty-state">
+              <p>No entries yet in {label}.</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="table-scroll">
-        <table className="list-table">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Slug</th>
-              <th>Status</th>
-              <th>Updated</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry) => (
-              <tr key={entry.id}>
-                <td>
-                  <a href={`/admin/collections/${props.contentTypeKey}/${entry.id}`}>{entry.title}</a>
-                </td>
-                <td>{entry.slug}</td>
-                <td>
-                  <span className={`status status-${entry.status}`}>{entry.status}</span>
-                </td>
-                <td>{formatTimestamp(entry.updatedAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      )}
+        }
+        columns={[
+          {
+            key: "title",
+            header: "Title",
+            cell: (entry) => (
+              <a href={`/admin/collections/${props.contentTypeKey}/${entry.id}`}>{entry.title}</a>
+            ),
+          },
+          { key: "slug", header: "Slug", cell: (entry) => entry.slug },
+          {
+            key: "status",
+            header: "Status",
+            cell: (entry) => <span className={`status status-${entry.status}`}>{entry.status}</span>,
+          },
+          { key: "updated", header: "Updated", cell: (entry) => formatTimestamp(entry.updatedAt) },
+        ]}
+      />
     </div>
   );
 }

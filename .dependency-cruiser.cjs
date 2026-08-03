@@ -15,7 +15,7 @@ module.exports = {
       severity: "warn",
       comment: "src/core/** may not import src/server/**, apps/**, feature modules, or concrete infrastructure adapters.",
       from: { path: "^src/core" },
-      to: { path: "^(src/server|apps|src/features|src/infra)" },
+      to: { path: "^(src/server|apps|src/features|src/db)" },
     },
     {
       name: "feature-no-express-or-admin-imports",
@@ -32,9 +32,9 @@ module.exports = {
       // index (`features/post/search-index.{sqlite,memory}.ts`) is the same category of file — a
       // concrete storage adapter behind a port — under a different name, because it backs
       // `PostSearchPort` rather than `PostRepoPort`. Exempted by name for the same reason `repo.*`
-      // is, not as a loosening: everything else under `src/features` still may not reach `src/infra`.
+      // is, not as a loosening: everything else under `src/features` still may not reach `src/db`.
       from: { path: "^src/features", pathNot: "^src/features/.*/(repo|search-index)\\.(sqlite|memory)\\.ts$" },
-      to: { path: "^src/infra" },
+      to: { path: "^src/db" },
     },
     {
       name: "site-dir-no-server-express-or-cli-imports",
@@ -46,9 +46,9 @@ module.exports = {
     {
       name: "cli-no-direct-drizzle-imports",
       severity: "warn",
-      comment: "SPEC-003 (ADR-PIPE-003) — src/cli/** dispatches to site-dir/server only; it never touches Drizzle or infra/db directly.",
+      comment: "SPEC-003 (ADR-PIPE-003) — src/cli/** dispatches to site-dir/server only; it never touches Drizzle or the schema module directly.",
       from: { path: "^src/cli" },
-      to: { path: "^(drizzle-orm|src/infra/db)" },
+      to: { path: "^(drizzle-orm|src/db/schema\\.ts)" },
     },
     {
       name: "plugin-loading-internals-confined-to-plugin-runtime",

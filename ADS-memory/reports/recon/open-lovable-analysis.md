@@ -21,10 +21,13 @@ CodeBase Analyzer agent. Dispatch marker `<<SUBAGENT_DISPATCH>>` present — ski
   mode `moderate`. Project `Users-la-Programming-OSS-Repos-open-lovable`. 1858 nodes / 3428 edges
   over 313 files (node_modules/.next/public/.git excluded automatically).
 - Graphify: **succeeded**. CLI `/Users/la/.local/bin/graphify` 0.8.50, `update --force`, code-only
-  (no LLM tokens spent). Output: `/Users/la/Programming/Tovu/AI-Dev-Shop/ADS-memory/reports/graphify-out/open-lovable-b92cb42c/`
-  (note: lands under `AI-Dev-Shop/ADS-memory/`, a nested copy — the freshness script resolved
-  `ADS_MEMORY_ROOT` there, not at `/Users/la/Programming/Tovu/ADS-memory/`; flagging as a minor
-  tooling quirk, not chasing further). 1157 nodes / 1729 edges / 119 communities, built from commit `d5d1c9a9`.
+  (no LLM tokens spent). Output: `/Users/la/Programming/Tovu/ADS-memory/reports/graphify-out/open-lovable-b92cb42c/`
+  (2026-08-01 update: the original run's copy nested under `AI-Dev-Shop/ADS-memory/` — the tooling
+  quirk flagged here — was destroyed by mistake during an unrelated stray-directory salvage pass and
+  had to be regenerated. The regenerate ran with `ADS_MEMORY_ROOT` explicitly set to the canonical
+  root, which resolved the nested-copy quirk; it now lives at the path above). 1157 nodes / 1729
+  edges / 118 communities, target repo unchanged at commit `69bd93bae7a9c97ef989eb70aabe6797fb3dac89`
+  (`target_dirty: false` in `.ads-graphify-status.json`).
 - Both backends used for architecture discovery below; all load-bearing claims validated against
   direct `Read`/`Bash wc -l` on source.
 

@@ -21,7 +21,12 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   // Deliberately NOT `!process.env.CI` — reusing a pre-existing (possibly stale-themed) server
   // would defeat the fresh-boot-per-run guarantee this VRT suite depends on. Always boot fresh.
-  reporter: "html",
+  // `outputFolder` is pinned rather than left to default: the html reporter's default resolves
+  // relative to the CWD (the repo root, where `npm run test:visual` is invoked), not to this
+  // config's own directory — so without it the report lands back at the repo root that this
+  // config was moved out of. `testDir` above needs no such treatment; that one IS resolved
+  // relative to this file.
+  reporter: [["html", { outputFolder: "playwright-report" }]],
   use: {
     baseURL: BASE_URL,
     trace: "retain-on-failure",

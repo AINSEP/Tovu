@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-ai/ui/chat";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
-import { Sidebar } from "./components/Sidebar";
+import { Sidebar, useSidebar } from "@jini-ai/admin/react";
 import { buildAdminAgentPages } from "./lib/agent-pages";
 import { installInternalLinkInterceptor, useRouteLocation } from "./lib/router";
 import { WORKSPACE_ID, api, type AdminUser } from "./lib/api";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
+import { getNav } from "./nav";
 import { Login } from "./sections/Login";
 import { Placeholder } from "./sections/Placeholder";
 import { ADMIN_PANELS } from "./panels";
@@ -30,6 +31,15 @@ interface Route extends AdminRoute {
 
 /** Panel id -> panel, for O(1) render dispatch. Built once; `ADMIN_PANELS` is a module constant. */
 const PANELS_BY_ID = new Map(ADMIN_PANELS.map((panel) => [panel.id, panel] as const));
+
+/**
+ * The `localStorage` key Tovu has always persisted the desktop sidebar rail collapse under.
+ * `@jini-ai/admin/react`'s `Sidebar` defaults `railStorageKey` to its own package key
+ * (`jini-admin-sidebar-rail-collapsed`) — letting that default stand here would strand every
+ * operator's saved rail preference behind a key nothing ever wrote to, springing every collapsed
+ * rail back open on the next deploy. Passed straight through to `Sidebar` below.
+ */
+const SIDEBAR_RAIL_STORAGE_KEY = "tovu-admin-sidebar-rail-collapsed";
 
 /**
  * Parses a *route path* (base already stripped by `router.ts`) into a `Route`.
@@ -110,6 +120,29 @@ function renderRoute(route: Route): ReactNode {
   }
   const panel = PANELS_BY_ID.get(route.panelId ?? "dashboard");
   return panel ? panel.render({ view: route.view, params: route.params, query: route.query }) : null;
+}
+
+/**
+ * Tovu's own log-out control, rendered inside `<Sidebar.Footer>`.
+ *
+ * `@jini-ai/admin/react`'s `Sidebar` no longer renders a log-out button itself — the compound
+ * component's whole premise is that "who logs out and how" is a host decision, not a package one
+ * (see the package's own file header). This is that decision: same markup, class names
+ * (`.cms-logout`, styled by `styles.css`, unchanged by this port), and icon the package used to
+ * render internally. `useSidebar().railTooltipProps` is what wires this button into the same
+ * rail-mode tooltip behavior every nav item gets — it must be called from inside a `<Sidebar>`,
+ * which is why this is a separate component rather than inline JSX in `App`.
+ */
+function SidebarLogoutButton(props: { onLogout: () => void }) {
+  const { railTooltipProps } = useSidebar();
+  return (
+    <button className="cms-logout" onClick={props.onLogout} {...railTooltipProps("Log out")}>
+      <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5}>
+        <path d="M7 15H4a1.5 1.5 0 01-1.5-1.5v-9A1.5 1.5 0 014 3h3M11.5 12L15 9l-3.5-3M15 9H7" />
+      </svg>
+      <span>Log out</span>
+    </button>
+  );
 }
 
 export function App() {
@@ -311,12 +344,14 @@ export function App() {
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
-      <Sidebar
-        activeId={currentPanelId(route)}
-        onLogout={logout}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+      <Sidebar activeId={currentPanelId(route)} open={sidebarOpen} railStorageKey={SIDEBAR_RAIL_STORAGE_KEY}>
+        <Sidebar.MobileHeader onClose={() => setSidebarOpen(false)} />
+        <Sidebar.Nav groups={getNav()} />
+        <Sidebar.Footer>
+          <Sidebar.RailToggle />
+          <SidebarLogoutButton onLogout={logout} />
+        </Sidebar.Footer>
+      </Sidebar>
       {/* Mobile-only backdrop behind the open drawer (`styles.css` hides `.cms-nav`'s off-canvas
           behavior above 900px, so this has nothing to sit behind there either — conditionally
           rendered rather than CSS-hidden since it would otherwise sit invisibly over the whole

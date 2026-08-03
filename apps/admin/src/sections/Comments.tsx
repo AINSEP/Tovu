@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { ApiError, api, describeApiError, type AdminComment, type CommentModerationAction, type CommentStatus, type CommentsSettings } from "../lib/api";
 import { formatTimestamp } from "../lib/format-timestamp";
 import { hasPermission } from "../lib/permissions";
-import { RowMenu, type RowMenuItem } from "../components/RowMenu";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
 
 /**
  * @file Comments admin screen (ADR-031, SPEC-033/035 backend; SPEC-036 this frontend).
@@ -202,34 +201,32 @@ function QueueSection(props: { permissions: string[] }) {
         </div>
       ) : (
         <>
-          <div className="table-scroll">
-          <table className="list-table">
-            <thead>
-              <tr>
-                <th>Author</th>
-                <th>Comment</th>
-                <th>Status</th>
-                <th>Depth</th>
-                <th>Created</th>
-                <th>More</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((comment) => {
-                const rs = stateFor(comment.id);
-                const menuItems = rowMenuItems(comment);
-                return (
-                  <tr key={comment.id}>
-                    <td>{comment.authorName}</td>
-                    <td>{truncate(comment.bodyText, 120)}</td>
-                    <td>
-                      <span className={`status status-${comment.status}`}>{comment.status}</span>
-                    </td>
-                    <td>{comment.depth}</td>
-                    <td>{formatTimestamp(comment.createdAt)}</td>
-                    <td>
+          <DataTable
+            rows={items}
+            rowKey={(comment) => comment.id}
+            columns={[
+              { key: "author", header: "Author", cell: (comment) => comment.authorName },
+              { key: "comment", header: "Comment", cell: (comment) => truncate(comment.bodyText, 120) },
+              {
+                key: "status",
+                header: "Status",
+                cell: (comment) => <span className={`status status-${comment.status}`}>{comment.status}</span>,
+              },
+              { key: "depth", header: "Depth", cell: (comment) => comment.depth },
+              { key: "created", header: "Created", cell: (comment) => formatTimestamp(comment.createdAt) },
+              {
+                key: "actions",
+                header: "More",
+                cell: (comment) => {
+                  const rs = stateFor(comment.id);
+                  const menuItems = rowMenuItems(comment);
+                  return (
+                    <>
                       {menuItems.length > 0 ? (
-                        <RowMenu triggerLabel={`Actions for the comment by "${comment.authorName}"`} items={menuItems} />
+                        <RowMenu
+                          triggerLabel={`Actions for the comment by "${comment.authorName}"`}
+                          items={menuItems}
+                        />
                       ) : (
                         <span className="muted-cell">—</span>
                       )}
@@ -238,13 +235,12 @@ function QueueSection(props: { permissions: string[] }) {
                           {rs.error}
                         </div>
                       ) : null}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          </div>
+                    </>
+                  );
+                },
+              },
+            ]}
+          />
           {nextCursor ? (
             <button type="button" className="btn-secondary" onClick={loadMore} disabled={loadingMore}>
               {loadingMore ? "Loading…" : "Load more"}

@@ -43,8 +43,6 @@ export default defineConfig({
   plugins: [redirectBareAdmin, react()],
   resolve: {
     alias: {
-      // Shared framework-agnostic shell metadata (see src/admin-shell INFO.md).
-      "@tovu/admin-shell": path.resolve(__dirname, "../../src/admin-shell"),
       "@tovu/headless": path.resolve(__dirname, "../../src/headless"),
     },
   },

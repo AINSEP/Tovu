@@ -8,7 +8,7 @@ import {
   type ContentTypeFieldDef,
   type ContentTypeFieldKind,
 } from "../lib/api";
-import { RowMenu, type RowMenuItem } from "../components/RowMenu";
+import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
 
 /**
  * @file Collections screen (design-spec.md §1, ADR-022/ADR-043) — the `/admin/collections`
@@ -527,51 +527,45 @@ export function Collections() {
       {error ? <div className="notice error">{error}</div> : null}
       {actionError ? <div className="notice error">{actionError}</div> : null}
 
-      {types.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No Collections yet.</p>
-            <p className="page-description">Create your first content type to start adding entries.</p>
+      <DataTable
+        rows={types}
+        rowKey={(ct) => ct.key}
+        empty={
+          <div className="card">
+            <div className="empty-state">
+              <p>No Collections yet.</p>
+              <p className="page-description">Create your first content type to start adding entries.</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="table-scroll">
-        <table className="list-table">
-          <thead>
-            <tr>
-              <th>Label</th>
-              <th>Key</th>
-              <th>Fields</th>
-              <th>Queryable fields</th>
-              <th>Status</th>
-              <th>Entries</th>
-              <th>More</th>
-            </tr>
-          </thead>
-          <tbody>
-            {types.map((ct) => (
-              <tr key={ct.key}>
-                <td>{ct.label}</td>
-                <td>
-                  <code>{ct.key}</code>
-                </td>
-                <td>{ct.fields.length}</td>
-                <td>{ct.fields.filter((f) => f.queryable).length}</td>
-                <td>
-                  <span className={`status status-${ct.status}`}>{ct.status}</span>
-                </td>
-                <td>
-                  <a href={`/admin/collections/${ct.key}`}>Manage entries</a>
-                </td>
-                <td>
-                  <RowMenu triggerLabel={`Actions for content type "${ct.label}"`} items={contentTypeMenuItems(ct)} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      )}
+        }
+        columns={[
+          { key: "label", header: "Label", cell: (ct) => ct.label },
+          { key: "key", header: "Key", cell: (ct) => <code>{ct.key}</code> },
+          { key: "fields", header: "Fields", cell: (ct) => ct.fields.length },
+          {
+            key: "queryable-fields",
+            header: "Queryable fields",
+            cell: (ct) => ct.fields.filter((f) => f.queryable).length,
+          },
+          {
+            key: "status",
+            header: "Status",
+            cell: (ct) => <span className={`status status-${ct.status}`}>{ct.status}</span>,
+          },
+          {
+            key: "entries",
+            header: "Entries",
+            cell: (ct) => <a href={`/admin/collections/${ct.key}`}>Manage entries</a>,
+          },
+          {
+            key: "actions",
+            header: "More",
+            cell: (ct) => (
+              <RowMenu triggerLabel={`Actions for content type "${ct.label}"`} items={contentTypeMenuItems(ct)} />
+            ),
+          },
+        ]}
+      />
 
       {showNewDialog ? (
         <NewContentTypeDialog

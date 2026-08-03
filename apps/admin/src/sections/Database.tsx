@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ApiError, api, describeApiError, type AdminLedgerRow, type AdminRestorePoint } from "../lib/api";
 import { navigate } from "../lib/router";
 import { formatTimestamp } from "../lib/format-timestamp";
+import { DataTable } from "@jini-ai/admin/react";
 
 /**
  * @file Database screen (design-spec.md §3, ADR-041) — the `/admin/database` route: the
@@ -135,38 +136,35 @@ function TimelineSection() {
         </div>
       ) : (
         <>
-          <div className="table-scroll">
-          <table className="list-table">
-            <thead>
-              <tr>
-                <th>Kind</th>
-                <th>Outcome</th>
-                <th>Restore point</th>
-                <th>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.kind}</td>
-                  <td>
-                    <span className={`status status-${row.outcome}`}>{row.outcome}</span>
-                  </td>
-                  <td>
-                    {row.restorePointId ? (
-                      <button type="button" className="database-restore-point-link" onClick={() => navigateToRecoveryWithDeepLink(row)}>
-                        View in Recovery →
-                      </button>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td>{formatTimestamp(row.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+          <DataTable
+            rows={rows}
+            rowKey={(row) => row.id}
+            columns={[
+              { key: "kind", header: "Kind", cell: (row) => row.kind },
+              {
+                key: "outcome",
+                header: "Outcome",
+                cell: (row) => <span className={`status status-${row.outcome}`}>{row.outcome}</span>,
+              },
+              {
+                key: "restore-point",
+                header: "Restore point",
+                cell: (row) =>
+                  row.restorePointId ? (
+                    <button
+                      type="button"
+                      className="database-restore-point-link"
+                      onClick={() => navigateToRecoveryWithDeepLink(row)}
+                    >
+                      View in Recovery →
+                    </button>
+                  ) : (
+                    "—"
+                  ),
+              },
+              { key: "time", header: "Time", cell: (row) => formatTimestamp(row.createdAt) },
+            ]}
+          />
           {nextCursor ? (
             <button type="button" className="btn-secondary" onClick={loadMore} disabled={loadingMore}>
               {loadingMore ? "Loading…" : "Load more"}
@@ -222,38 +220,27 @@ function RestorePointsSection() {
         </button>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
-      {points.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No restore points yet.</p>
+      <DataTable
+        rows={points}
+        rowKey={(p) => p.id}
+        empty={
+          <div className="card">
+            <div className="empty-state">
+              <p>No restore points yet.</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="table-scroll">
-        <table className="list-table">
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Trigger</th>
-              <th>Cost class</th>
-              <th>Kind</th>
-            </tr>
-          </thead>
-          <tbody>
-            {points.map((p) => (
-              <tr key={p.id}>
-                <td>{formatTimestamp(p.createdAt)}</td>
-                <td>{p.trigger}</td>
-                <td>
-                  <span className={`status status-${p.costClass}`}>{p.costClass}</span>
-                </td>
-                <td>{p.kind}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      )}
+        }
+        columns={[
+          { key: "timestamp", header: "Timestamp", cell: (p) => formatTimestamp(p.createdAt) },
+          { key: "trigger", header: "Trigger", cell: (p) => p.trigger },
+          {
+            key: "cost-class",
+            header: "Cost class",
+            cell: (p) => <span className={`status status-${p.costClass}`}>{p.costClass}</span>,
+          },
+          { key: "kind", header: "Kind", cell: (p) => p.kind },
+        ]}
+      />
     </div>
   );
 }

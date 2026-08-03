@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type AdminAnalyticsHit } from "../lib/api";
 import { formatTimestamp } from "../lib/format-timestamp";
+import { DataTable } from "@jini-ai/admin/react";
 
 /**
  * @file Admin "Analytics" screen (ADR-035 ingest half only).
@@ -42,42 +43,34 @@ export function Analytics() {
         later build.
       </div>
 
-      {hits.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No hits recorded yet.</p>
-            <p className="page-description">Once the site beacon starts sending traffic, recent hits will appear here.</p>
+      <DataTable
+        rows={hits}
+        rowKey={(hit, index) => `${hit.occurredAt}-${index}`}
+        empty={
+          <div className="card">
+            <div className="empty-state">
+              <p>No hits recorded yet.</p>
+              <p className="page-description">Once the site beacon starts sending traffic, recent hits will appear here.</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="table-scroll">
-        <table className="list-table">
-          <thead>
-            <tr>
-              <th>Path</th>
-              <th>Referrer</th>
-              <th>Device / Browser</th>
-              <th>Kind</th>
-              <th>Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            {hits.map((hit, index) => (
-              <tr key={`${hit.occurredAt}-${index}`}>
-                <td>{hit.path}</td>
-                <td>{hit.referrerHost ?? "(direct)"}</td>
-                <td>
-                  {hit.deviceClass}
-                  {hit.browserFamily ? ` / ${hit.browserFamily}` : ""}
-                </td>
-                <td>{hit.eventName ? `event: ${hit.eventName}` : hit.kind}</td>
-                <td>{formatTimestamp(hit.occurredAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      )}
+        }
+        columns={[
+          { key: "path", header: "Path", cell: (hit) => hit.path },
+          { key: "referrer", header: "Referrer", cell: (hit) => hit.referrerHost ?? "(direct)" },
+          {
+            key: "device",
+            header: "Device / Browser",
+            cell: (hit) => (
+              <>
+                {hit.deviceClass}
+                {hit.browserFamily ? ` / ${hit.browserFamily}` : ""}
+              </>
+            ),
+          },
+          { key: "kind", header: "Kind", cell: (hit) => (hit.eventName ? `event: ${hit.eventName}` : hit.kind) },
+          { key: "time", header: "Time", cell: (hit) => formatTimestamp(hit.occurredAt) },
+        ]}
+      />
     </div>
   );
 }

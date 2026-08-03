@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ApiError, api, describeApiError, type AdminWidgetRegionBinding } from "../lib/api";
 import { navigate } from "../lib/router";
+import { DataTable } from "@jini-ai/admin/react";
 
 /**
  * @file `WidgetRegionsScreen` (`ui.spec.md` §2.4/§3.6/§4.5/§9) — `/admin/widgets/regions`. Lists
@@ -64,40 +65,33 @@ export function WidgetRegions() {
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
-      {regions.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No regions bound yet.</p>
+      <DataTable
+        rows={regions}
+        rowKey={(region) => region.regionKey}
+        empty={
+          <div className="card">
+            <div className="empty-state">
+              <p>No regions bound yet.</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="table-scroll">
-        <table className="list-table">
-          <thead>
-            <tr>
-              <th>Region key</th>
-              <th>Placements</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {regions.map((region) => (
-              <tr key={region.regionKey}>
-                <td>
-                  <a href={`/admin/widgets/regions/${region.regionKey}`}>{region.regionKey}</a>
-                </td>
-                <td>{region.placementCount}</td>
-                <td>
-                  <a href={`/admin/widgets/regions/${region.regionKey}`}>
-                    <button>Manage</button>
-                  </a>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      )}
+        }
+        columns={[
+          {
+            key: "region-key",
+            header: "Region key",
+            cell: (region) => <a href={`/admin/widgets/regions/${region.regionKey}`}>{region.regionKey}</a>,
+          },
+          { key: "placements", header: "Placements", cell: (region) => region.placementCount },
+          {
+            key: "manage",
+            cell: (region) => (
+              <a href={`/admin/widgets/regions/${region.regionKey}`}>
+                <button>Manage</button>
+              </a>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

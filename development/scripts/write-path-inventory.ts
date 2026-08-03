@@ -4,7 +4,7 @@
  * Anchors on two complementary, cross-validating denominators (never text grep,
  * so it follows types rather than names):
  *
- *   1. The closed set of `sqliteTable` exports in `src/infra/db/schema.ts`.
+ *   1. The closed set of `sqliteTable` exports in `src/db/schema.ts`.
  *      For each table symbol, every project-wide reference is resolved via the
  *      TS language service and classified read vs. write by its enclosing
  *      Drizzle call (`.insert/.update/.delete` vs `.select/.from`).
@@ -34,7 +34,7 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 
 const ROOT = path.resolve(__dirname, "..");
-const SCHEMA_FILE = path.join(ROOT, "src/infra/db/schema.ts");
+const SCHEMA_FILE = path.join(ROOT, "src/db/schema.ts");
 const BASELINE_FILE = path.join(__dirname, "write-path-inventory.baseline.json");
 
 const READER_PREFIX = /^(find|get|list|count|exists|lookup)([A-Z]|$)/;

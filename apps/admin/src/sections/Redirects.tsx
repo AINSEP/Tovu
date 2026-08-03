@@ -8,8 +8,7 @@ import {
   type RedirectImportRule,
 } from "../lib/api";
 import { useFetchMutation, useFetchQuery, type QueryKey } from "../lib/fetch-query";
-import { RowMenu, type RowMenuItem } from "../components/RowMenu";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
 
 /**
  * @file Redirects admin screen (SPEC-009 ui.spec.md) — the `/admin/redirects` route.
@@ -329,29 +328,32 @@ export function Redirects() {
 
       <ImportRedirectsForm />
 
-      {redirects.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No redirect rules yet.</p>
+      <DataTable
+        rows={redirects}
+        rowKey={(rule) => rule.id}
+        empty={
+          <div className="card">
+            <div className="empty-state">
+              <p>No redirect rules yet.</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="table-scroll">
-        <table className="list-table">
-          <thead>
-            <tr>
-              <th>From</th>
-              <th>To</th>
-              <th>Type</th>
-              <th>Code</th>
-              <th>Source</th>
-              <th>Status</th>
-              <th>Hits</th>
-              <th>More</th>
-            </tr>
-          </thead>
-          <tbody>
-            {redirects.map((rule) => {
+        }
+        columns={[
+          { key: "from", header: "From", cell: (rule) => rule.fromPattern },
+          { key: "to", header: "To", cell: (rule) => rule.toTarget },
+          { key: "type", header: "Type", cell: (rule) => rule.matchType },
+          { key: "code", header: "Code", cell: (rule) => rule.statusCode },
+          { key: "source", header: "Source", cell: (rule) => rule.source },
+          {
+            key: "status",
+            header: "Status",
+            cell: (rule) => <span className={`status status-${rule.status}`}>{rule.status}</span>,
+          },
+          { key: "hits", header: "Hits", cell: (rule) => <HitCountCell redirectId={rule.id} /> },
+          {
+            key: "actions",
+            header: "More",
+            cell: (rule) => {
               // `disabled={saving}` on the old inline buttons guarded against a second write
               // firing while any of this table's writes (create/toggle/delete) is in flight —
               // `RowMenu`'s `items` has no per-item `disabled`, so that guard moved inside each
@@ -378,29 +380,11 @@ export function Redirects() {
                   },
                 },
               ];
-              return (
-                <tr key={rule.id}>
-                  <td>{rule.fromPattern}</td>
-                  <td>{rule.toTarget}</td>
-                  <td>{rule.matchType}</td>
-                  <td>{rule.statusCode}</td>
-                  <td>{rule.source}</td>
-                  <td>
-                    <span className={`status status-${rule.status}`}>{rule.status}</span>
-                  </td>
-                  <td>
-                    <HitCountCell redirectId={rule.id} />
-                  </td>
-                  <td>
-                    <RowMenu triggerLabel={`Actions for redirect rule from "${rule.fromPattern}"`} items={items} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        </div>
-      )}
+              return <RowMenu triggerLabel={`Actions for redirect rule from "${rule.fromPattern}"`} items={items} />;
+            },
+          },
+        ]}
+      />
       <ConfirmDialog
         open={pendingDelete !== null}
         title="Delete redirect rule?"

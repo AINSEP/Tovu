@@ -7,16 +7,16 @@ import { Placeholder } from "../Placeholder";
  * @file `Placeholder` — pins the fix for the audit's live-verified Newsletter bug
  * (`ADS-memory/reports/audits/20260801-admin-adversarial-ux-audit.md`, exec summary #3): a
  * `soon: true` `nav.ts` item must render an honest "coming soon" notice, never the "Unknown
- * section" error banner that previously came from a second, stale registry
- * (`src/admin-shell/navigation.ts`) missing the id. A genuinely bogus id (present in neither
- * registry) must still show the error — this is not a "never show an error" fix, only a "a real,
- * known-but-unbuilt section is not an error" fix.
+ * section" error banner that previously came from a second, stale registry (a shared,
+ * framework-agnostic admin-shell package, since removed as dead code) missing the id. A genuinely
+ * bogus id (present in neither registry) must still show the error — this is not a "never show an
+ * error" fix, only a "a real, known-but-unbuilt section is not an error" fix.
  */
 
 describe("a soon: true nav.ts item", () => {
   it("renders its own label and a coming-soon notice, not an error banner", () => {
     // "newsletter" is `soon: true` in nav.ts and was never added to the legacy admin-shell
-    // registry — the exact reproduction of the live bug.
+    // registry (since deleted) — the exact reproduction of the live bug.
     render(<Placeholder sectionId="newsletter" />);
 
     expect(screen.getByRole("heading", { name: "Newsletter" })).toBeInTheDocument();

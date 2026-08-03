@@ -86,8 +86,9 @@ export interface PanelRouteContext {
 export type PanelRenderer = (ctx: PanelRouteContext) => ReactNode;
 
 /**
- * Every admin section, in the order the sidebar groups them (see `nav.ts`, which derives `NAV`
- * from this array via `buildNav` — group and item order both come from here, not a second list).
+ * Every admin section, in the order the sidebar groups them (see `nav.ts`'s `getNav()`, which
+ * derives the nav model from this array via `buildNav` — group and item order both come from
+ * here, not a second list).
  */
 export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Ungrouped top row ---

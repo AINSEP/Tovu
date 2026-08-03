@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminMember } from "../lib/api";
-import { RowMenu, type RowMenuItem } from "../components/RowMenu";
-import { ConfirmDialog } from "../components/ConfirmDialog";
+import { RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
 import { formatTimestamp } from "../lib/format-timestamp";
 
 /**

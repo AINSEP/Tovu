@@ -45,7 +45,6 @@ export default defineConfig({
      */
     dedupe: ["react", "react-dom"],
     alias: {
-      "@tovu/admin-shell": path.resolve(__dirname, "../../src/admin-shell"),
       "@tovu/headless": path.resolve(__dirname, "../../src/headless"),
     },
   },

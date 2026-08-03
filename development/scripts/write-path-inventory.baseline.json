@@ -1585,7 +1585,7 @@
     "source": "table",
     "contractMethod": "workspaces via tx.insert",
     "caller": "(anonymous)",
-    "file": "src/infra/sqlite/content-db.ts",
+    "file": "src/db/sqlite/content-db.ts",
     "line": 75,
     "coverageClass": "none"
   },
@@ -1593,7 +1593,7 @@
     "source": "table",
     "contractMethod": "posts via tx.insert",
     "caller": "(anonymous)",
-    "file": "src/infra/sqlite/content-db.ts",
+    "file": "src/db/sqlite/content-db.ts",
     "line": 77,
     "coverageClass": "none"
   },
@@ -1601,7 +1601,7 @@
     "source": "table",
     "contractMethod": "presentationSettings via tx.insert",
     "caller": "(anonymous)",
-    "file": "src/infra/sqlite/content-db.ts",
+    "file": "src/db/sqlite/content-db.ts",
     "line": 81,
     "coverageClass": "none"
   },
