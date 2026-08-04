@@ -90,6 +90,7 @@ import { listAssistantAgents } from "./agents";
 import { createCustomInstructionsCache } from "./custom-instructions";
 import { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-auth";
 import { attachFederatedMcpTools } from "./mcp-federation/bootstrap";
+import { registerA2uiActionsRoute } from "./a2ui-actions-route";
 import { registerMcpUiToolCallsRoute } from "./mcp-ui-tool-calls-route";
 import { resolveMcpJsonInjection } from "./mcp-injection";
 import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership } from "./run-ownership";
@@ -520,6 +521,13 @@ registerDelegatedToolRoutes(app, { lifecycle, toolExecutor, resolvePrincipal }, 
 // `ToolExecutor`/`PendingConfirmationStore` a redemption actually needs) and
 // `src/server/modules/assistant.ts` for the proxy half.
 registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+// A2UI's own inbound channel (ADR-055 Decision 1, generalized) — a rendered surface's `action`/
+// `functionResponse`/`error` re-entering the process that holds the exchange it answers. Unlike
+// the MCP-UI route above, this never touches `toolExecutor` at all (there is no tool-call shape to
+// fall back to for A2UI) — see `a2ui-actions-route.ts`'s own module doc. Same non-exemption
+// reasoning: reached only through Tovu's session-authenticated proxy, which attaches the bearer
+// token like every other forwarded route.
+registerA2uiActionsRoute(app, { surfaceExchanges });
 // The browser half of the `page.*` channel: an SSE stream that carries invocations down to the
 // admin tab, and a POST that carries its answers back. Deliberately NOT added to the bearer gate's
 // `exemptPaths` — unlike `/api/delegated-tool-calls` (whose caller is a spawned `jini-mcp`

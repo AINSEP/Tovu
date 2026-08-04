@@ -31,6 +31,7 @@
  */
 import type { Express, NextFunction, Request, Response } from "express";
 
+import { A2UI_ACTIONS_PATH } from "../../assistant/a2ui-actions-route";
 import { AGENT_DAEMON_TOKEN_ENV_VAR } from "../../assistant/daemon-auth";
 import { isMcpUiToolCallAllowed } from "../../assistant/mcp-ui-tool-calls";
 import { MCP_UI_TOOL_CALLS_PATH } from "../../assistant/mcp-ui-tool-calls-route";
@@ -281,6 +282,17 @@ export function createAssistantModule(routeDeps: RouteDeps): ServerModuleHandle 
       app.use(MCP_UI_TOOL_CALLS_PATH, requireAdminSession(routeDeps));
       app.post(MCP_UI_TOOL_CALLS_PATH, (req: Request, res: Response, next: NextFunction) => {
         proxyMcpUiToolCall(req, res).catch(next);
+      });
+
+      // A2UI's own inbound endpoint (`a2ui-actions-route.ts`) — an ordinary forward, not
+      // `proxyMcpUiToolCall`'s dedicated function: there is no `toolName` on an A2UI action to
+      // pre-check against an allowlist (the daemon-side route has none either — see that file's own
+      // doc for why A2UI has no execution surface to allowlist in the first place), so
+      // `proxyPassthrough` is the correct, unmodified forward, same as `/api/frontend-sessions/*`
+      // just above.
+      app.use(A2UI_ACTIONS_PATH, requireAdminSession(routeDeps));
+      app.post(A2UI_ACTIONS_PATH, (req: Request, res: Response, next: NextFunction) => {
+        proxyPassthrough(req, res).catch(next);
       });
     },
   };

@@ -29,6 +29,7 @@ import {
   commentsDerivedRisk,
   type CommentsToolDeps,
 } from "../comments/tool-registrations";
+import { buildDemoA2uiRegistrations, demoA2uiDerivedRisk } from "./demo-a2ui-tool";
 import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "./surface-exchanges";
 
@@ -221,10 +222,13 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   { domain: "redirects", build: buildRedirectsRegistrations, risk: redirectsDerivedRisk },
   { domain: "integrations", build: buildIntegrationsRegistrations, risk: integrationsDerivedRisk },
   { domain: "themes", build: buildThemesRegistrations, risk: themesDerivedRisk },
-  // Last, and empty unless TOVU_ENABLE_DEMO_TOOLS is set — a development-only surface for
-  // exercising the grouped-choice MCP-UI controls in a real chat pane. See its own module doc for
-  // why it is a tool rather than a test page, and why the gate is an env var.
+  // Last, and empty unless TOVU_ENABLE_DEMO_TOOLS is set — development-only surfaces for
+  // exercising a transport in a real chat pane. See each one's own module doc for why it is a tool
+  // rather than a test page, and why the gate is an env var.
   { domain: "demo-choices", build: buildDemoChoicesRegistrations, risk: demoChoicesDerivedRisk },
+  // A2UI's multi-turn counterpart — `demo-choices` above proves the one-shot MCP-UI return path;
+  // this proves the shape A2UI exists for (`createSurface -> action -> updateComponents -> action`).
+  { domain: "demo-a2ui", build: buildDemoA2uiRegistrations, risk: demoA2uiDerivedRisk },
 ];
 
 /**
