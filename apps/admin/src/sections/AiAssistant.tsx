@@ -1,5 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { ApiError, api, describeApiError as describeApiErrorDefault, type PublicAssistantSettings } from "../lib/api";
+import {
+  getAssistantDockOpen,
+  requestAssistantDock,
+  subscribeToAssistantDock,
+} from "../lib/assistant-dock-bus";
 
 /**
  * @file "AI Assistant" admin screen — the `/admin/ai-assistant` route.
@@ -99,6 +104,48 @@ function RoadmapChecklist() {
   );
 }
 
+/**
+ * Opens or closes the admin's own assistant dock — the same thing the floating action button does.
+ *
+ * ## Why this exists when a FAB already does it
+ *
+ * The FAB is a single 56px circle pinned to the bottom-right corner, and it has a history of not
+ * being where the operator expects it. If it is ever off-screen, obscured, or simply not noticed,
+ * the admin assistant becomes unreachable with no other affordance anywhere in the product. This is
+ * the discoverable, keyboard-reachable fallback: a labelled control on the page that is *about* the
+ * assistant, which is where someone looking for it would go.
+ *
+ * Deliberately NOT a persisted setting, unlike the public-site switch directly above it. The admin
+ * assistant is always available to a signed-in administrator (see that switch's own copy) — there is
+ * nothing to enable. This reflects and drives panel visibility for the current session only, which
+ * is why it reads its value live rather than from `settings`.
+ *
+ * `useSyncExternalStore` rather than `useState` + an effect: the dock can be toggled by the FAB, by
+ * Escape, or by this control, and a local copy would drift out of date the moment one of the other
+ * two won. A checkbox that misreports whether the panel is open is worse than no checkbox.
+ */
+function AdminAssistantSwitch() {
+  const open = useSyncExternalStore(subscribeToAssistantDock, getAssistantDockOpen, () => false);
+
+  return (
+    <div className="notice assistant-switch">
+      <label>
+        <input type="checkbox" checked={open} onChange={(e) => requestAssistantDock(e.target.checked)} />
+        Enable the AI assistant on the admin site
+      </label>
+      <p className="muted-cell">
+        {open
+          ? "Open. The assistant panel is showing on the right."
+          : "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does."}
+      </p>
+      <p className="muted-cell">
+        Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating
+        button is ever off-screen or hard to find.
+      </p>
+    </div>
+  );
+}
+
 export function AiAssistant() {
   const [settings, setSettings] = useState<PublicAssistantSettings | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -160,6 +207,8 @@ export function AiAssistant() {
           This does not affect the assistant in this admin, which stays available to signed-in administrators either way.
         </p>
       </div>
+
+      <AdminAssistantSwitch />
 
       <RoadmapChecklist />
     </div>

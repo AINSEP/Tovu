@@ -147,10 +147,15 @@ describe("the not-yet-built roadmap accordion", () => {
 
   it("renders every roadmap item as an inert unchecked box — no fake toggles", async () => {
     serveSettings({ publicEnabled: false });
-    render(<AiAssistant />);
+    const { container } = render(<AiAssistant />);
     await waitFor(() => expect(theSwitch()).toBeInTheDocument());
 
-    const boxes = screen.getAllByRole("checkbox", { hidden: true }).filter((box) => box !== theSwitch());
+    // Scoped to `.assistant-roadmap`, the same way the summary-row test above is, rather than
+    // sweeping the document and subtracting the switches by identity. This assertion is about the
+    // ROADMAP's boxes being inert; a document-wide query made it accidentally also assert "no other
+    // real checkbox exists on this screen", which is a different claim and not one this test is
+    // named for. It broke the moment a genuine second control (the admin-dock switch) was added.
+    const boxes = [...container.querySelectorAll(".assistant-roadmap input[type='checkbox']")];
     expect(boxes).toHaveLength(EXPECTED.length);
     for (const box of boxes) {
       expect(box).not.toBeChecked();

@@ -7,6 +7,10 @@ import { buildAdminAgentPages } from "./lib/agent-pages";
 import { installInternalLinkInterceptor, useRouteLocation } from "./lib/router";
 import { WORKSPACE_ID, api, type AdminUser } from "./lib/api";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
+import {
+  publishAssistantDockState,
+  subscribeToAssistantDockRequests,
+} from "./lib/assistant-dock-bus";
 import { getNav } from "./nav";
 import { Login } from "./sections/Login";
 import { Placeholder } from "./sections/Placeholder";
@@ -208,6 +212,17 @@ export function App() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [chatOpen]);
 
+  /**
+   * The dock's half of `lib/assistant-dock-bus.ts` — a section that cannot reach `setChatOpen`
+   * (`renderRoute` passes no props) can still ask for the dock, and any control that mirrors its
+   * state stays honest when the FAB is what toggled it.
+   *
+   * Both directions are wired here, in the component that owns the boolean, so every open still
+   * runs the same focus/escape/sheet-sizing effects above rather than a second, divergent path.
+   */
+  useEffect(() => subscribeToAssistantDockRequests(setChatOpen), []);
+  useEffect(() => publishAssistantDockState(chatOpen), [chatOpen]);
+
   // Focus into the dock on open, back to the FAB on close (MSG-06). `tabIndex={-1}` on the
   // `<aside>` below makes it a valid programmatic focus target without adding it to the normal
   // Tab sequence. Keyed off the open/closed *transition*, not `chatOpen` alone, so this does not
@@ -236,6 +251,14 @@ export function App() {
    */
   const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
   const [agentBridge, setAgentBridge] = useState<FrontendSessionBridge | null>(null);
+
+  /**
+   * Read once per render rather than at each of the two `<Sidebar.Nav>` call sites below, so both
+   * slices are guaranteed to come from the same array instance. `getNav()` is memoized internally
+   * (see `nav.ts`), so this is about intent rather than cost: it makes "one nav model, split for
+   * layout" explicit instead of leaving two independent lookups to be kept in agreement by hand.
+   */
+  const navGroups = getNav();
 
   // Plain `<a href="/admin/...">` links stay plain anchors and become SPA navigations here — see
   // `installInternalLinkInterceptor` for why this is a document listener and not a <Link>.
@@ -344,11 +367,32 @@ export function App() {
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
-      <Sidebar activeId={currentPanelId(route)} open={sidebarOpen} railStorageKey={SIDEBAR_RAIL_STORAGE_KEY}>
+      {/* `railDefaultCollapsed`: Tovu's admin opens as an icon rail for a first-time operator, so
+          the 26-item nav does not claim 232px before anyone has asked it to. It is a DEFAULT, not a
+          forced state — anyone who toggles the rail has their choice persisted under
+          `SIDEBAR_RAIL_STORAGE_KEY` and that stored value wins on every later load. */}
+      <Sidebar
+        activeId={currentPanelId(route)}
+        open={sidebarOpen}
+        railStorageKey={SIDEBAR_RAIL_STORAGE_KEY}
+        railDefaultCollapsed
+      >
         <Sidebar.MobileHeader onClose={() => setSidebarOpen(false)} />
-        <Sidebar.Nav groups={getNav()} />
+        {/* The nav is rendered in two calls so the rail toggle can sit directly under "AI
+            Assistant" instead of down in the footer — the operator wants the collapse control
+            beside the sections it collapses, not adrift at the bottom of a 26-item list.
+            `getNav()[0]` is the ungrouped top row (Overview + AI Assistant; see `panels.tsx:108`),
+            and every later group is a labelled section starting with CONTENT.
+
+            Splitting is safe precisely because `Sidebar.Nav` renders a bare fragment of
+            `.cms-section` divs — no wrapper element, no ids, no internal indexing across groups —
+            so two calls produce exactly the DOM one call would, with the toggle spliced between.
+            Doing it here also keeps this a host-only layout choice: `@jini-ai/admin` is unchanged,
+            so no package rebuild is involved and no other host inherits Tovu's arrangement. */}
+        <Sidebar.Nav groups={navGroups.slice(0, 1)} />
+        <Sidebar.RailToggle />
+        <Sidebar.Nav groups={navGroups.slice(1)} />
         <Sidebar.Footer>
-          <Sidebar.RailToggle />
           <SidebarLogoutButton onLogout={logout} />
         </Sidebar.Footer>
       </Sidebar>
