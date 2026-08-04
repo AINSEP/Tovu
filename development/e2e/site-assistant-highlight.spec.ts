@@ -131,14 +131,24 @@ test.describe("SPEC-046 AC4 — reduced motion: no pulse, no smooth scroll, the 
   test("no pulse, no smooth scroll, still highlighted, and the fade runs on the same timeline", async ({ page }) => {
     test.setTimeout(60_000);
 
-    // `page.emulateMedia`, not `test.use({ reducedMotion: "reduce" })` — measured live in this exact
-    // Playwright/Chromium combination (1.61.1): the context-level `test.use` option threads correctly
-    // as far as the fixture itself (`reducedMotion` fixture reads back `"reduce"`), but the resulting
-    // page's own `window.matchMedia("(prefers-reduced-motion: reduce)").matches` stayed `false`
-    // regardless — reproduced in isolation against a bare `data:` URL with no app code involved, so
-    // this is an engine/harness quirk, not anything about this widget. Calling `emulateMedia`
-    // explicitly is the one mechanism that was confirmed to actually flip `matchMedia`, which is
-    // exactly why the assertion two lines below exists rather than trusting either API's contract.
+    // `page.emulateMedia`, not `test.use({ reducedMotion: "reduce" })`. Measured on this exact stack
+    // (Playwright 1.61.1 + bundled Chromium), in isolation against a bare `data:` URL with no app
+    // code involved — three forms, three results:
+    //
+    //   test.use({ reducedMotion: "reduce" })                  -> matchMedia .matches === false  ✗
+    //   test.use({ contextOptions: { reducedMotion: "reduce" }}) -> matchMedia .matches === true   ✓
+    //   page.emulateMedia({ reducedMotion: "reduce" })          -> matchMedia .matches === true   ✓
+    //
+    // So the top-level `reducedMotion` test option is the broken one specifically: it reads back as
+    // `"reduce"` on the fixture while never reaching the page. `contextOptions` works and would be a
+    // legitimate alternative here; `emulateMedia` is preferred only because it puts the emulation on
+    // the same line as the test that depends on it, where a reader cannot miss it. That is a
+    // readability preference, not a workaround for a second broken API — do not "fix" this by
+    // reaching for the top-level option, which is the one that silently does nothing.
+    //
+    // The assertion a few lines below exists regardless of which of these is used: AC4 passes
+    // vacuously under a context that never actually set the preference, which is precisely how the
+    // `e5a1dbd` bug survived until someone checked.
     await page.emulateMedia({ reducedMotion: "reduce" });
 
     // Records every `scrollIntoView` call's `behavior` before the widget bundle (or anything else on
