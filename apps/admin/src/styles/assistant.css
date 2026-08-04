@@ -307,7 +307,14 @@
   color: var(--fg);
 }
 
-.jini-message-list > [data-role="user"] .jini-message-content {
+/* `.jini-chat-pane` prefix is load-bearing, not decoration: the package's own equivalent rule
+   (`.jini-chat-pane .jini-message-user .jini-message-content`, see styles.ts) is 3 classes, and per
+   this file's header ("SECOND CORRECTION"), an equal-specificity collision goes to the package's
+   injected `<style>` tag because it lands after this stylesheet in the cascade. Matching the
+   package's selector shape one-for-one would just re-create that tie and stay dead like the
+   pre-fix `[data-role="user"]` version did (a class that MessageRow.tsx has never rendered). The
+   extra `.jini-chat-pane` ancestor class here makes this 4 classes, which wins outright. */
+.jini-chat-pane .jini-message-list > .jini-message-user .jini-message-content {
   background: var(--accent);
   color: var(--accent-ink);
   margin-left: auto;
