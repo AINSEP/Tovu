@@ -249,3 +249,49 @@ test("SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — different IPs have independent c
   assert.equal(limiter.check("1.1.1.1").allowed, false);
   assert.equal(limiter.check("2.2.2.2").allowed, true, "a different key starts with a fresh window");
 });
+
+/**
+ * @file SPEC-046 REQ-8 — bounding the map. The property under test is eviction actually removing
+ * stale entries, not merely "the limiter still works" (that would pass even if eviction were a
+ * no-op) — so every assertion here is on `.size()`, the count of distinct keys currently tracked.
+ */
+
+test("SPEC-046 REQ-8: expired windows are evicted once the sweep interval elapses, shrinking the store", () => {
+  const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
+  const limiter = createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock });
+  if (!limiter.size) throw new Error("expected the real createRateLimiter() to implement size()");
+
+  // 50 distinct attacker-controlled IPs, all seen inside the same window.
+  for (let i = 0; i < 50; i++) {
+    limiter.check(`203.0.113.${i}`);
+  }
+  assert.equal(limiter.size(), 50, "every distinct key seen so far is tracked");
+
+  // Advance past the window boundary. Eviction is sweep-on-write (amortized, not a background
+  // timer — see `createRateLimiter`'s doc), so nothing is swept until the next `check()` call.
+  advanceMs(SITE_ASSISTANT_PER_IP.windowSeconds * 1000);
+  assert.equal(limiter.size(), 50, "no sweep has run yet — no check() call has happened since the advance");
+
+  limiter.check("203.0.113.new");
+
+  // All 50 stale entries are gone; only the key that triggered (and itself survives) the sweep
+  // remains — proof eviction shrank the map, not just that later requests still resolve correctly.
+  assert.equal(limiter.size(), 1, "the sweep evicted every entry whose window had fully expired");
+});
+
+test("SPEC-046 REQ-8: eviction does not change the outcome for a key whose own window just expired", () => {
+  const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
+  const limiter = createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock });
+
+  for (let i = 0; i < SITE_ASSISTANT_PER_IP.max; i++) {
+    assert.equal(limiter.check("203.0.113.9").allowed, true);
+  }
+  assert.equal(limiter.check("203.0.113.9").allowed, false, "exhausted before the sweep boundary");
+
+  // Past the sweep interval: this call both triggers the sweep (evicting "203.0.113.9"'s now-stale
+  // entry) AND is itself the request for that same key — the eviction must not double-count or
+  // otherwise change what the caller experiences versus the pre-eviction behavior asserted in the
+  // "window resets correctly" test above.
+  advanceMs(SITE_ASSISTANT_PER_IP.windowSeconds * 1000);
+  assert.equal(limiter.check("203.0.113.9").allowed, true, "a fresh window starts exactly as before eviction existed");
+});
