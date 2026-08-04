@@ -95,6 +95,17 @@ async function runScenario(scenario) {
     runScripts: "outside-only",
   });
 
+  // jsdom does not implement real navigation — `location.assign`/`.href =` etc. all resolve to a
+  // `virtualConsole` "jsdomError" event ("Not implemented: navigation...") rather than silently
+  // no-op-ing or actually reloading. That is exactly the observable signal the
+  // "rehydrated auto-navigate must not re-fire" regression scenario below needs: one `eval` of the
+  // bundle is exactly one mount, so counting these is equivalent to asking "did THIS mount attempt to
+  // navigate," independent of whether jsdom could have carried the navigation out.
+  const navigationAttempts = [];
+  dom.virtualConsole.on("jsdomError", (error) => {
+    if (typeof error?.message === "string" && error.message.includes("navigation")) navigationAttempts.push(error.message);
+  });
+
   // See this file's header (SPEC-046 REQ-2/§4) for why these three are stubbed rather than left
   // absent: jsdom implements none of them, but every real browser does, so an absent stub would fail
   // scenarios that exercise real page-content DOM behavior for a jsdom limitation, not a real bug.
@@ -159,7 +170,7 @@ async function runScenario(scenario) {
     fail(`[${scenario.name}] #${MOUNT_ID} has no children after evaluating the bundle — React never mounted into it`);
   }
 
-  scenario.verify?.(dom.window.sessionStorage, dom.window.document);
+  scenario.verify?.(dom.window.sessionStorage, dom.window.document, navigationAttempts);
 
   console.log(
     `[check-bundle-mounts] OK [${scenario.name}] — bundle executed cleanly and mounted ${mountEl.children.length} child element(s) into #${MOUNT_ID}.`,
@@ -316,6 +327,59 @@ const scenarios = [
       if (storage.getItem(ACTION_QUEUE_STORAGE_KEY) !== null) fail("navigate action: the entry should still have been drained (deleted)");
       const heading = document.querySelector(".entry-title");
       if (heading?.classList.contains("tovu-site-assistant__highlight")) fail("navigate action: must never be executed as a highlight/scroll_to target");
+    },
+  },
+  {
+    // Regression test for a REAL infinite-navigation-loop bug found live during SPEC-046
+    // verification (2026-08-04), not a hypothetical: a persisted `TRANSCRIPT_STORAGE_KEY` whose LAST
+    // message is a settled assistant turn carrying an `auto: true` navigate `client_directive` (i.e.
+    // "take me there" already fired once) was replayed on EVERY subsequent mount, because
+    // `SiteAssistantWidget.tsx`'s `processedMessageIdsRef` started as an empty `Set` — `ChatPane`'s
+    // own `onMessagesChange` fires once on mount with the rehydrated `conversation.messages`
+    // (`useChatPane.hooks.ts`), so an empty ref treated that already-executed message as brand new
+    // and called `window.location.assign` again, landing back on a page whose persisted transcript
+    // STILL ends in that same message — an unbounded loop. Measured live in a real browser: 11
+    // navigations to the same destination in 6 seconds, uncapped. Fixed by seeding
+    // `processedMessageIdsRef` with every id already present in `initialState.messages` at
+    // construction (SiteAssistantWidget.tsx) — this scenario is what proves that fix and prevents a
+    // regression back to the empty-`Set` version.
+    //
+    // One `eval` of the bundle is exactly one mount, which is sufficient to reproduce/guard this:
+    // the bug is "does THIS mount re-fire an already-executed directive," not "does a second real
+    // navigation occur" — jsdom cannot carry out a real navigation anyway (see the
+    // `navigationAttempts`/`jsdomError` wiring above this function), so the guard is "zero navigation
+    // ATTEMPTS," which is exactly as strong a signal as "zero real navigations" would be here.
+    name: "a rehydrated message whose directive already executed must not re-fire navigation on mount (SPEC-046 regression)",
+    seed: (storage) =>
+      storage.setItem(
+        TRANSCRIPT_STORAGE_KEY,
+        JSON.stringify({
+          open: true,
+          messages: [
+            { id: "u1", role: "user", content: "take me to the about page" },
+            {
+              id: "a1",
+              role: "assistant",
+              content: "Here you go.",
+              runStatus: "succeeded",
+              events: [
+                {
+                  kind: "ext",
+                  name: "client_directive",
+                  data: { kind: "page_action", action: { type: "navigate", target: { slug: "about", title: "About", path: "/about" }, auto: true } },
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    verify: (_storage, _document, navigationAttempts) => {
+      if (navigationAttempts.length > 0) {
+        fail(
+          `rehydrated navigate directive re-fired on mount — ${navigationAttempts.length} navigation attempt(s) detected: ${JSON.stringify(navigationAttempts)}. ` +
+            "This is the exact shape of the live infinite-reload bug: an already-executed auto-navigate directive in the persisted transcript's last message must not run again just because a fresh component instance mounted.",
+        );
+      }
     },
   },
 ];
