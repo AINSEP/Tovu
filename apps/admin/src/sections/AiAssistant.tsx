@@ -319,6 +319,28 @@ function VisitorCredentialForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey, baseUrl, protocol, isPresetSuppliedEndpoint]);
 
+  /**
+   * The explicit "Test Key" press. Unlike the automatic effect above this runs against WHATEVER
+   * endpoint is in the field, preset or not — an operator pressing a button labelled "Test Key" has
+   * deliberately chosen to send this credential to the host they typed, which is precisely the
+   * explicit gate the keystroke-leak finding asks for. The difference between the two paths is
+   * consent, not capability.
+   */
+  async function runKeyTest() {
+    setDiscovery({ status: "loading" });
+    try {
+      const models = (await port.current.listModels?.(config)) ?? [];
+      setDiscovery({ status: "ok", models });
+      setConfig((current) =>
+        current.model.trim() || models.length === 0
+          ? current
+          : { ...current, model: models.find((m) => m === "gemini-flash-latest") ?? (models[0] as string) },
+      );
+    } catch (e) {
+      setDiscovery({ status: "error", message: e instanceof Error ? e.message : "Could not reach the provider with that key" });
+    }
+  }
+
   async function runTestConnection() {
     setConnectionTest({ status: "testing" });
     try {
@@ -389,6 +411,34 @@ function VisitorCredentialForm() {
         connectionTest={connectionTest}
         onTestConnection={() => void runTestConnection()}
       />
+
+      {/*
+        An explicit "Test Key" control, in addition to the debounced automatic discovery above.
+        Two reasons, and the second is the important one:
+
+        1. The automatic path only fires against a PRESET-supplied endpoint (see the security gate
+           above). For a custom or hand-typed base URL, this button is the only way to discover
+           models — and being an explicit, deliberate press is exactly what makes sending the
+           credential to an operator-chosen host acceptable there.
+        2. Even on a preset endpoint, "type a key and wait for a list to appear" is a weak
+           affordance: nothing tells the operator whether the key was accepted, rejected, or simply
+           not looked at yet. A button that reports a count answers the question they actually have,
+           which is "is this key any good?"
+      */}
+      <div className="notice">
+        <button type="button" onClick={() => void runKeyTest()} disabled={!config.apiKey.trim() || discovery.status === "loading"}>
+          {discovery.status === "loading" ? "Testing…" : "Test Key"}
+        </button>
+        {discovery.status === "ok" ? (
+          <p className="muted-cell">
+            Key works — <strong>{discovery.models.length}</strong> models available. Pick one in the Model field above.
+          </p>
+        ) : null}
+        {discovery.status === "error" ? <div className="save-error">{discovery.message}</div> : null}
+        {discovery.status === "idle" ? (
+          <p className="muted-cell">Checks the key against the provider and lists the models it can use.</p>
+        ) : null}
+      </div>
 
       <div className="notice">
         <button type="button" disabled>
@@ -483,8 +533,6 @@ export function AiAssistant() {
           </div>
 
           <VisitorCredentialForm />
-
-          <RoadmapChecklist />
         </>
       ),
     },
@@ -500,6 +548,32 @@ export function AiAssistant() {
         </TabIcon>
       ),
       panel: <AdminAssistantSwitch />,
+    },
+    {
+      id: "roadmap",
+      label: "Not built yet",
+      title: "Not built yet",
+      subtitle: "Operator controls that are planned but not implemented.",
+      icon: (
+        <TabIcon>
+          <path d="M9 2.5v6.5l4 2.2" />
+          <circle cx="9" cy="9" r="6.5" strokeDasharray="2.4 2.2" />
+        </TabIcon>
+      ),
+      /**
+       * Its own tab rather than a trailing accordion on the visitor tab.
+       *
+       * Worth stating why, because the original placement had a real argument behind it: the roadmap
+       * sat directly under the enable switch so that somebody about to turn the assistant on would
+       * read "no cost ceiling, no live spend view" in the same glance as the switch itself. That
+       * argument was sound when this screen was one column. It stops working once the visitor tab
+       * also carries a credential form — the gaps end up below a fold, after the thing an operator
+       * actually came to do, which is worse than a tab they can see the label of from the top.
+       *
+       * The label stays blunt ("Not built yet") specifically so the tab strip keeps doing the
+       * disclosure job the accordion used to do. A softer label like "Roadmap" would hide it.
+       */
+      panel: <RoadmapChecklist />,
     },
   ];
 
@@ -523,7 +597,18 @@ export function AiAssistant() {
         tech about the untranslated rest of the admin.
       */}
       <I18nProvider initialLocale="en" dictionaries={SETTINGS_DIALOG_DICTIONARIES} fallbackLocale="en" syncDocumentAttributes={false}>
-        <div className="settings-ui-section">
+        {/*
+          `data-theme="light"` is REQUIRED, not cosmetic. `SettingsUi.tsx` sets this from its own
+          "Dialog appearance" setting; with the attribute absent entirely the shell's stylesheet falls
+          through to its dark variant, which is why this panel rendered dark inside an otherwise-light
+          admin. Pinned to light rather than wired to a setting because this screen has no appearance
+          control of its own and the Tovu admin shell is light-only — a themable panel here would just
+          be a way to make one page disagree with every other one.
+
+          `--page-flow` opts out of `.settings-ui-section`'s full-height layout; see that modifier's
+          comment in styles.css for the nested-scroller trap it exists to avoid.
+        */}
+        <div className="settings-ui-section settings-ui-section--page-flow" data-theme="light">
           <SettingsDialogShell
             tabs={tabs}
             presentation="inline"
