@@ -1347,6 +1347,64 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * and Notifications, but only `ExecutionTab` ever emits `.jini-seg-meta`. */
 .settings-ui-section .jini-seg-meta { display: none; }
 
+/* --- Page-flow variant: the shell inside a NORMALLY SCROLLING admin page ----
+ *
+ * Used by `sections/AiAssistant.tsx`. The Settings screen owns its whole
+ * viewport, so `.settings-ui-section`'s `height: 100%` above and the shell's own
+ * `height: min(720px, 90vh)` (settings-dialog.css) cooperate: the panel becomes
+ * a fixed-height box whose `.jini-settings-dialog-content` scrolls internally.
+ *
+ * On a page that ALSO has its own header and scrolls normally, that same pair is
+ * a trap, and the symptom is specific and confusing: content taller than the box
+ * scrolls in a nested scroller while the page itself does not move, so the
+ * operator scrolls down, reaches the inner scroller's end, and cannot get back
+ * up because the wheel is captured by `overscroll-behavior: contain`. Reported
+ * as "I can't scroll back up on the tab" — it was never a scroll-position bug,
+ * it was two scroll containers where the page expected one.
+ *
+ * The fix is to give the shell no height of its own and let the page be the only
+ * scroller. `height: auto` on all three levels, `overflow: visible` on the
+ * content, and `max-height: none` so nothing reintroduces a clip.
+ *
+ * Deliberately a MODIFIER rather than a change to `.settings-ui-section`: the
+ * Settings screen genuinely wants the fixed-height behaviour, and the tab-strip
+ * rules below are all scoped to `.settings-ui-section`, so this screen needs
+ * that class for its chrome while opting out of its layout. */
+.settings-ui-section--page-flow,
+.settings-ui-section--page-flow .jini-settings-dialog,
+.settings-ui-section--page-flow .jini-settings-dialog-body {
+  height: auto;
+  max-height: none;
+}
+.settings-ui-section--page-flow .jini-settings-dialog {
+  width: auto;
+  overflow: visible;
+}
+.settings-ui-section--page-flow .jini-settings-dialog-content {
+  overflow: visible;
+  /* Released with the scroller itself. Left in place it would keep swallowing
+     wheel events at the boundary of an element that no longer scrolls. */
+  overscroll-behavior: auto;
+}
+
+/* The shell's own kicker/title/subtitle strip ("SETTINGS" / the active tab's
+ * title / its subtitle). Hidden in this variant because on a page that already
+ * has a `.page-header` it is a SECOND heading block saying roughly the same
+ * thing, and the tab strip immediately below it already names the active tab —
+ * so it read as three competing titles stacked above the actual controls.
+ *
+ * The Settings screen keeps it, and that asymmetry is deliberate rather than an
+ * oversight: `.settings-ui-section`'s own comment above records that that screen
+ * has NO page header precisely so this strip can be its heading. Two screens,
+ * two different owners of the same job.
+ *
+ * `tab.title`/`tab.subtitle` are still supplied in AiAssistant.tsx — they are
+ * part of the shell's contract and feed its accessible naming; this hides the
+ * visual duplicate, it does not strip the semantics. */
+.settings-ui-section--page-flow .jini-settings-dialog-head {
+  display: none;
+}
+
 /* --- Page mode: settings nav as a top tab strip, not a left sidebar --------
  *
  * `SettingsDialogShell` lays its body out as `grid-template-columns:
