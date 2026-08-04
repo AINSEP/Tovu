@@ -1,4 +1,17 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  ByokProviderForm,
+  DEFAULT_PROVIDER_PRESETS,
+  I18nProvider,
+  SETTINGS_DIALOG_DICTIONARIES,
+  SettingsDialogShell,
+  resolveSelectedPreset,
+  type ByokConfig,
+  type ConnectionTestState,
+  type ModelDiscoveryState,
+  type SettingsDialogTab,
+} from "@jini-ai/ui";
+import "@jini-ai/ui/settings-dialog.css";
 import { ApiError, api, describeApiError as describeApiErrorDefault, type PublicAssistantSettings } from "../lib/api";
 import {
   getAssistantDockOpen,
@@ -79,6 +92,18 @@ const ROADMAP: readonly RoadmapItem[] = [
   },
 ];
 
+/** Shared 16px icon frame, so a tab's glyph can be written as bare path data. Same helper, same
+ *  reason, as `sections/SettingsUi.tsx`'s — kept local rather than exported from there because that
+ *  file is a screen, not a component library, and importing a screen for one SVG wrapper would couple
+ *  two unrelated sections. If a third screen needs it, that is the point to promote it. */
+function TabIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
+      {children}
+    </svg>
+  );
+}
+
 function RoadmapChecklist() {
   return (
     <section className="assistant-roadmap">
@@ -145,6 +170,119 @@ function AdminAssistantSwitch() {
   );
 }
 
+/**
+ * The SITE's provider credential — the key that lets anonymous VISITORS chat on the deployed public
+ * site. Reuses `@jini-ai/ui`'s `ByokProviderForm` unmodified, the same component
+ * `sections/SettingsUi.tsx`'s Execution-mode tab renders, because this is deliberately the same
+ * credential-entry surface rather than a lookalike.
+ *
+ * ## The distinction this tab exists to make legible
+ *
+ * There are two API keys in this product and until now only one of them had a screen, which is why
+ * an operator could save a key, see it persisted, and still get nothing on their public site:
+ *
+ * - **Settings → Execution mode → BYOK** is the ADMIN's own key. `lib/execution-settings.ts` stores
+ *   it browser-local on purpose (its own comment: "the browser is the source of truth for `apiKey`
+ *   (the ledger never sees it)"). It powers the assistant dock in THIS browser. A deployed server
+ *   never sees it, and it cannot serve visitors.
+ * - **This tab** is the SITE's key. It must live server-side, because the thing consuming it is
+ *   `src/server/modules/site-assistant.ts` answering anonymous internet traffic on a machine the
+ *   admin's browser is not.
+ *
+ * That is why the copy below states it in plain language rather than relying on the tab title: the
+ * failure mode is silent, and an operator who assumes the Settings key covers this gets a visitor
+ * assistant that is enabled, mounted, and permanently unable to answer.
+ *
+ * ## Not yet wired, and deliberately honest about it
+ *
+ * The server-side encrypted credential store is in flight (its own ADR, per the owner's decision to
+ * encrypt at rest under a deploy-time master secret rather than put a secret in the ADR-028 settings
+ * ledger). Until its `PUT /api/admin/v1/workspaces/:id/assistant/site-credential` route exists, this
+ * form holds its values in local state only and Save is disabled with the reason shown on screen —
+ * NOT silently accepting a key it cannot persist, which would be the same class of quiet failure
+ * this tab was built to end.
+ */
+function VisitorCredentialForm() {
+  const [config, setConfig] = useState<ByokConfig>(() => ({
+    protocol: "google",
+    providerId: "google-gemini",
+    apiKey: "",
+    baseUrl: "https://generativelanguage.googleapis.com",
+    // Pre-filled with what the visitor assistant ACTUALLY uses today (`DEFAULT_MODEL` in
+    // `src/server/modules/site-assistant.ts`), not left blank. Blank rendered the required-field
+    // marker on a screen where the operator has no way to know the right answer, and it would also
+    // have implied this field is the thing choosing the model — it is not yet; that route reads
+    // `TOVU_SITE_ASSISTANT_MODEL` or falls back to this same alias. Showing the real current value
+    // is honest about the default rather than inviting a guess.
+    model: "gemini-flash-latest",
+  }));
+
+  const preset = useMemo(() => resolveSelectedPreset(DEFAULT_PROVIDER_PRESETS, config), [config]);
+
+  // Both `idle`: live model discovery and the connection probe both POST the key to an admin route,
+  // and the route this tab will use does not exist yet. Rendering a permanently-failing probe would
+  // teach the operator to ignore this card's error states before it has any real ones.
+  const modelDiscovery: ModelDiscoveryState = { status: "idle" };
+  const connectionTest: ConnectionTestState = { status: "idle" };
+
+  return (
+    <>
+      <div className="notice">
+        <p>
+          <strong>This key is for your visitors, not for you.</strong> It is what lets people reading your published
+          site ask questions and get answers. It is stored on the server and used for every visitor conversation.
+        </p>
+        <p className="muted-cell">
+          It is a different key from the one under <strong>Settings → Execution mode → BYOK</strong>. That one is your
+          own, it is saved only in this browser, and it powers the assistant in this admin. A deployed site can never
+          use it — which is why saving a key there does not switch on the visitor chat.
+        </p>
+        {/*
+          KNOWN COPY CONFLICT, stated here rather than papered over: the shared `ByokProviderForm`
+          below renders its own hint under the API-key field reading "Stored only by this host." That
+          string is correct for its original caller (Settings → Execution mode, where the key really
+          is browser-local) and WRONG here, where the whole point is that the key goes to the server.
+          Two host screens now need two different answers from one shared component.
+
+          Not fixed by hiding it with CSS and not fixed by forking the component — the standing
+          decision on this workstream is to reuse via `@jini-ai/ui` and push gaps UPSTREAM to Jini.
+          The correct fix is a prop on `ByokProviderForm` letting the host supply that hint, which is
+          a change in the Jini repo. Until that lands, this line is the compensating control: it
+          appears ABOVE the card so the operator reads the true statement first.
+        */}
+        <p className="muted-cell">
+          <strong>Ignore the “Stored only by this host” note below.</strong> It belongs to the shared form component and
+          is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.
+        </p>
+      </div>
+
+      <ByokProviderForm
+        config={config}
+        onConfigChange={setConfig}
+        preset={preset}
+        modelDiscovery={modelDiscovery}
+        connectionTest={connectionTest}
+        onTestConnection={() => {}}
+        // Hidden rather than disabled: the probe endpoint for THIS credential does not exist yet, and
+        // a visible control that cannot work is the thing `RoadmapChecklist` below already argues
+        // against ("a control that looks live but does nothing is worse than an honest 'not yet'").
+        canTestConnection={false}
+      />
+
+      <div className="notice">
+        <button type="button" disabled>
+          Save key
+        </button>
+        <p className="muted-cell">
+          Saving is not connected yet. The encrypted server-side store this writes to is still being built, and this
+          form will not pretend to accept a key it cannot actually persist. Until then, set{" "}
+          <code>GEMINI_API_KEY</code> in the server environment to switch on the visitor assistant.
+        </p>
+      </div>
+    </>
+  );
+}
+
 export function AiAssistant() {
   const [settings, setSettings] = useState<PublicAssistantSettings | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -176,6 +314,74 @@ export function AiAssistant() {
   if (loadError) return <div className="notice error">{loadError}</div>;
   if (!settings) return <div className="notice">Loading AI assistant settings…</div>;
 
+  /**
+   * Two tabs, split by WHOSE assistant each one configures — not by kind of control.
+   *
+   * Grouping by kind (all switches on one tab, all credentials on another) was the obvious
+   * alternative and is wrong here: the whole defect this screen is being restructured to fix is that
+   * an operator could not tell the visitor assistant and the admin assistant apart, so a layout that
+   * interleaves them would preserve exactly the confusion the copy is spending words undoing. The
+   * public on/off switch and the site's key belong together because they are two halves of one
+   * question ("can visitors use this, and with what"), and the roadmap sits with them because every
+   * gap it lists — cost caps, live spend — is about visitor traffic, not about the admin dock.
+   */
+  const tabs: SettingsDialogTab[] = [
+    {
+      id: "visitor",
+      label: "Visitor's AI Assistant",
+      title: "Visitor's AI Assistant",
+      subtitle: "The assistant your published site offers to readers.",
+      icon: (
+        <TabIcon>
+          <circle cx="9" cy="9" r="6.5" />
+          <path d="M2.5 9h13M9 2.5c1.8 2 2.7 4.2 2.7 6.5S10.8 15 9 15.5C7.2 15 6.3 11.3 6.3 9S7.2 4.5 9 2.5z" />
+        </TabIcon>
+      ),
+      panel: (
+        <>
+          <div className="notice assistant-switch">
+            {saveError ? <div className="save-error">{saveError}</div> : null}
+            <label>
+              <input
+                type="checkbox"
+                checked={settings.publicEnabled}
+                disabled={saving}
+                onChange={(e) => void setPublicEnabled(e.target.checked)}
+              />
+              Enable the AI assistant on the public site
+            </label>
+            <p className="muted-cell">
+              {settings.publicEnabled
+                ? "Visitors can chat with the assistant. It is served on every public page."
+                : "Off. The public site ships no assistant code and exposes no assistant endpoint — this is a full disable, not a hidden widget."}
+            </p>
+            <p className="muted-cell">
+              This does not affect the assistant in this admin, which stays available to signed-in administrators either
+              way.
+            </p>
+          </div>
+
+          <VisitorCredentialForm />
+
+          <RoadmapChecklist />
+        </>
+      ),
+    },
+    {
+      id: "admin",
+      label: "Admin AI Assistant",
+      title: "Admin AI Assistant",
+      subtitle: "The assistant in this admin, for signed-in administrators.",
+      icon: (
+        <TabIcon>
+          <rect x="3" y="5" width="12" height="9" rx="2.5" />
+          <path d="M9 5V2.5M6.5 9v.01M11.5 9v.01M7 12h4" />
+        </TabIcon>
+      ),
+      panel: <AdminAssistantSwitch />,
+    },
+  ];
+
   return (
     <div className="page">
       <div className="page-header">
@@ -186,30 +392,25 @@ export function AiAssistant() {
         </div>
       </div>
 
-      <div className="notice assistant-switch">
-        {saveError ? <div className="save-error">{saveError}</div> : null}
-        <label>
-          <input
-            type="checkbox"
-            checked={settings.publicEnabled}
-            disabled={saving}
-            onChange={(e) => void setPublicEnabled(e.target.checked)}
+      {/*
+        Same shell, same props, and the same `presentation="inline"` page mode `sections/SettingsUi.tsx`
+        already uses — so this screen inherits that tab chrome rather than growing a second, similar-
+        but-different one. `I18nProvider` is required, not decorative: `ByokProviderForm` and the shell
+        both call `useT()`, and without a provider above them their strings fall back to raw keys.
+        `syncDocumentAttributes={false}` for the identical reason SettingsUi documents — only this
+        panel's content is translated, so claiming a document-wide language would misinform assistive
+        tech about the untranslated rest of the admin.
+      */}
+      <I18nProvider initialLocale="en" dictionaries={SETTINGS_DIALOG_DICTIONARIES} fallbackLocale="en" syncDocumentAttributes={false}>
+        <div className="settings-ui-section">
+          <SettingsDialogShell
+            tabs={tabs}
+            presentation="inline"
+            className="jini-settings-dialog--inline"
+            fullscreenEnabled={false}
           />
-          Enable the AI assistant on the public site
-        </label>
-        <p className="muted-cell">
-          {settings.publicEnabled
-            ? "Visitors can chat with the assistant. It is served on every public page."
-            : "Off. The public site ships no assistant code and exposes no assistant endpoint — this is a full disable, not a hidden widget."}
-        </p>
-        <p className="muted-cell">
-          This does not affect the assistant in this admin, which stays available to signed-in administrators either way.
-        </p>
-      </div>
-
-      <AdminAssistantSwitch />
-
-      <RoadmapChecklist />
+        </div>
+      </I18nProvider>
     </div>
   );
 }
