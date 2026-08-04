@@ -15,6 +15,21 @@ const BASE_URL = `http://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: "./e2e",
+  /**
+   * Narrowed to this suite's own spec, deliberately. `e2e/` is no longer this config's private
+   * directory — it is now shared with `playwright.site-assistant.config.ts`'s four
+   * `site-assistant-*.spec.ts` files and `playwright.a2ui.config.ts`'s `a2ui-transport-contract.spec.ts`
+   * (and, as of this pass, several more: `login.spec.ts`, `byok-*.spec.ts`, `surface-abuse.spec.ts`),
+   * each of which needs its OWN server (different env, different ledger settings, some with the
+   * assistant/demo gates on, this one with them off). Without `testMatch`, this config's default
+   * `**\/*.spec.ts` collects every sibling that lands in `e2e/` — present or future — and runs it
+   * against THIS config's plain, assistant-disabled, demo-off server, producing failures that read
+   * like product bugs but are really "wrong suite, wrong server." Confirmed live 2026-08-04: with no
+   * `testMatch`, `--list` here enumerated 67 tests across 11 files, not the 4 `theme-visual.spec.ts`
+   * tests this config actually boots a matching server for. A new spec file landing in `e2e/` is
+   * SILENTLY adopted by every unscoped sibling config unless each one opts out like this.
+   */
+  testMatch: /theme-visual\.spec\.ts/,
   timeout: 30_000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
