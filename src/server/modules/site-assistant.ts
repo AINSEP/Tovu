@@ -59,10 +59,25 @@ const MAX_MESSAGE_CHARS = 2000;
 const DEFAULT_MODEL = "gemini-flash-latest";
 
 /**
- * `gemini-flash-latest` rather than a pinned version, and worth stating why: measured 2026-08-03 on
- * a live key, `gemini-2.5-flash`/`-lite` return **404** and `gemini-2.0-flash` reports quota
- * `limit: 0`. Pinning a 2.x model here would ship a route that is dead on arrival. Overridable so an
- * operator is never stuck waiting on a code change when Google moves the aliases again.
+ * `gemini-flash-latest` rather than a pinned version.
+ *
+ * The original justification here recorded that, measured 2026-08-03 on a live key,
+ * `gemini-2.5-flash`/`-lite` returned **404** and `gemini-2.0-flash` reported quota `limit: 0` — so
+ * pinning a 2.x model would ship a route dead on arrival. **Re-measured 2026-08-04 on a live key,
+ * that is no longer true**: `POST .../models/gemini-2.5-flash:generateContent` returns HTTP 200, and
+ * the model appears in the account's own catalogue (42 models via `listProviderModels`). Both
+ * statements were almost certainly correct on their own date — which is the actual finding here.
+ * Google moves these aliases underneath us, so a measurement of provider availability has a
+ * shelf life measured in days and must not be treated as a standing fact.
+ *
+ * The alias is therefore kept for the reason that does NOT expire: it tracks whatever Google
+ * currently considers current, so this route cannot go dead on a rename. It is no longer kept
+ * because 2.x is broken — do not re-derive that conclusion from the paragraph above. Overridable via
+ * `TOVU_SITE_ASSISTANT_MODEL` so an operator is never stuck waiting on a code change.
+ *
+ * NOTE, because it surprises people: this is the ONLY thing that decides the visitor assistant's
+ * model. The admin "Execution mode" screen's BYOK `model` field is a different setting for a
+ * different assistant and has no effect here.
  */
 function resolveModel(env: NodeJS.ProcessEnv): string {
   return env.TOVU_SITE_ASSISTANT_MODEL?.trim() || DEFAULT_MODEL;
