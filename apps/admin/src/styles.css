@@ -1405,6 +1405,60 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   display: none;
 }
 
+/* --- AI Assistant: flat, card-free panels ---------------------------------
+ *
+ * Once the tab strip exists, the cards inside a panel are redundant chrome: the
+ * tab already draws the boundary, so a second boxed surface inside it is a box
+ * within a box. Both surfaces are neutralised rather than restyled — the shell's
+ * own elevated panel and this screen's `.notice` blocks — so the panel reads as
+ * one continuous page in the same colour as everything around it.
+ *
+ * `background: transparent`, not a hardcoded colour: whatever the page behind it
+ * is, this matches by construction and cannot drift out of sync with it later. */
+.settings-ui-section--page-flow .jini-settings-dialog,
+.settings-ui-section--page-flow .jini-settings-dialog-content,
+.settings-ui-section--page-flow .assistant-roadmap,
+.settings-ui-section--page-flow .notice {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.settings-ui-section--page-flow .notice { padding-left: 0; padding-right: 0; }
+
+/* The visitor-key form: a plain stacked form, no card. */
+.visitor-key-form { display: flex; flex-direction: column; gap: 6px; max-width: 620px; }
+.visitor-key-label { font-size: 0.8rem; color: var(--fg-2); margin-top: 10px; }
+.visitor-key-input {
+  font: inherit; padding: 8px 11px; border: 1px solid var(--border);
+  border-radius: var(--r-sm); background: var(--bg); color: var(--fg); width: 100%;
+}
+.visitor-key-input:focus { outline: none; border-color: var(--border-strong); }
+
+/* Test Key sits immediately under the key input, so the control and the question
+ * it answers ("is this key any good?") are in one glance. */
+.visitor-key-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.visitor-key-test {
+  font: inherit; font-size: 0.8rem; padding: 6px 14px; cursor: pointer;
+  background: var(--primary); color: var(--primary-ink);
+  border: 1px solid transparent; border-radius: var(--r-pill);
+}
+.visitor-key-test:disabled { opacity: 0.5; cursor: default; }
+.visitor-key-status { font-size: 0.8rem; color: var(--muted); }
+.visitor-key-save-state { font-size: 0.78rem; color: var(--muted); margin: 10px 0 0; min-height: 1.1em; }
+
+/* `<details>` rather than a component: the explanation must stay available and
+ * reversible, but four paragraphs above one input made the input read as a
+ * footnote. The summary carries the sentence that actually prevents the mistake,
+ * so a reader who never expands still gets the load-bearing part. */
+.visitor-key-help { margin: 0 0 4px; font-size: 0.85rem; color: var(--fg-2); }
+.visitor-key-help > summary { cursor: pointer; list-style: none; }
+.visitor-key-help > summary::-webkit-details-marker { display: none; }
+.visitor-key-help > summary strong { font-weight: 600; }
+/* The affordance is on "See more" alone — underlining the whole summary would
+ * style the load-bearing sentence as if it were the link. */
+.visitor-key-help > summary::after { content: ""; }
+.visitor-key-help > p { margin: 8px 0 0; color: var(--muted); line-height: 1.5; }
+
 /* --- Page mode: settings nav as a top tab strip, not a left sidebar --------
  *
  * `SettingsDialogShell` lays its body out as `grid-template-columns:
