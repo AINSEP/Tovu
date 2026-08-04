@@ -662,10 +662,27 @@
 /* SPEC-046 §4: "no pulse, no smooth scroll; static outline, same duration and fade." The smooth-scroll
    half of that is `highlight.ts#scrollToElement`'s job (a JS `matchMedia` check, since CSS cannot
    express `scrollIntoView` behavior); this half removes the pulse animation only, leaving a static
-   outline that still fades out on the same ~20s timeline. */
+   outline that still fades out on the same ~20s timeline.
+ *
+ * `!important` is required here, and it is not decorative: this widget renders on an arbitrary
+ * themed page (SPEC-046 §4's own "arbitrary theme content" framing applies to the PAGE this rule
+ * lives on too), and the shipped `tovu-official` theme carries its own accessibility reset —
+ * `@media (prefers-reduced-motion: reduce) { * { animation: ... !important; ... } }` — a reasonable,
+ * common pattern that kills EVERY animation on the page under reduced motion. `!important` always
+ * outranks specificity in the CSS cascade regardless of selector weight, so without a matching
+ * `!important` here, that theme-level `*` reset silently wins over this class-scoped rule even though
+ * `.tovu-site-assistant__highlight` is far more specific than `*` — measured live: `animationName`
+ * computed as `"none"` and the outline never faded, staying at full opacity until `highlight.ts`'s
+ * `CLEANUP_FALLBACK_MS` JS timer eventually force-removed it ~21s later with a visible pop instead of
+ * the intended 2s fade. Once both sides carry `!important`, specificity is what decides, and this
+ * rule's class selector wins over the theme's `*` — restoring the actual fade under reduced motion,
+ * not just eventual (abrupt) removal. A different theme with an equally-`!important` reset scoped
+ * more narrowly than `*` could still win here; this fixes the shipped theme's actual pattern, not
+ * every theoretical one — see this file's header for why fighting an arbitrary host theme at all is
+ * an accepted tradeoff of shipping on every page. */
 @media (prefers-reduced-motion: reduce) {
   .tovu-site-assistant__highlight {
-    animation: tovu-site-assistant-highlight-fade 2s ease-in 18s forwards;
+    animation: tovu-site-assistant-highlight-fade 2s ease-in 18s forwards !important;
   }
 }
 
