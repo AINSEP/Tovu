@@ -166,4 +166,104 @@ describe("site assistant tools", () => {
       assert.ok(!("error" in result), "a slug outside the search cap must still resolve directly");
     });
   });
+
+  /**
+   * SPEC-046 REQ-4/REQ-6/REQ-8 — the three page-action tools. Same `fakePort`/`ROWS` as the
+   * read-only tools above, deliberately: `navigate_to_entry`/`scroll_to_entry`/`highlight_entry` must
+   * refuse a draft or trashed-but-`published` slug for the identical reason
+   * `get_published_entry` does — they resolve through the same `resolvePublicTarget`, which itself
+   * calls the same `listPublishedPosts` predicate.
+   */
+  describe("page-action tools (navigate/scroll_to/highlight)", () => {
+    it("navigate_to_entry resolves a published slug to a same-site path directive", async () => {
+      const tools = createSiteAssistantTools({ postRepo: fakePort().port as never, workspaceId: "ws" });
+      const { result, directive } = await tools.navigate_to_entry({ slug: "public-post" });
+      assert.ok(!("error" in (result as object)), "a real published slug must resolve");
+      assert.deepEqual(directive, {
+        kind: "page_action",
+        action: { type: "navigate", target: { slug: "public-post", title: "Public Post", path: "/public-post" }, auto: false },
+      });
+    });
+
+    it("navigate_to_entry's auto flag is false unless autoNavigateAllowed is explicitly true (SPEC-046 D-1)", async () => {
+      const port = fakePort().port as never;
+      const defaultDeps = await createSiteAssistantTools({ postRepo: port, workspaceId: "ws" }).navigate_to_entry({ slug: "public-post" });
+      const explicitFalse = await createSiteAssistantTools({ postRepo: port, workspaceId: "ws", autoNavigateAllowed: false }).navigate_to_entry({
+        slug: "public-post",
+      });
+      const explicitTrue = await createSiteAssistantTools({ postRepo: port, workspaceId: "ws", autoNavigateAllowed: true }).navigate_to_entry({
+        slug: "public-post",
+      });
+      assert.equal((defaultDeps.directive as { action: { auto: boolean } }).action.auto, false, "omitted defaults to the safer propose-only behavior");
+      assert.equal((explicitFalse.directive as { action: { auto: boolean } }).action.auto, false);
+      assert.equal((explicitTrue.directive as { action: { auto: boolean } }).action.auto, true);
+    });
+
+    for (const toolName of ["navigate_to_entry", "scroll_to_entry", "highlight_entry"] as const) {
+      it(`${toolName} refuses a draft slug and emits no directive`, async () => {
+        const tools = createSiteAssistantTools({ postRepo: fakePort().port as never, workspaceId: "ws" });
+        const { result, directive } = await tools[toolName]({ slug: "secret-draft" });
+        assert.ok("error" in (result as object), "a draft must never resolve to a target");
+        assert.equal(directive, undefined, "a refused target must never carry a client-facing directive");
+      });
+
+      it(`${toolName} refuses a trashed-but-published slug and emits no directive`, async () => {
+        // The REQ-6 regression this guards against: `deletedAt` is independent of `status`, so a
+        // hand-rolled `status === "published"` check here would leak this row. See `tools.ts`'s
+        // header and `client-directives.ts`'s `resolvePublicTarget` doc.
+        const tools = createSiteAssistantTools({ postRepo: fakePort().port as never, workspaceId: "ws" });
+        const { result, directive } = await tools[toolName]({ slug: "taken-down" });
+        assert.ok("error" in (result as object), "a trashed row reading status: published must still be refused");
+        assert.equal(directive, undefined);
+      });
+
+      it(`${toolName} refuses slugs that look like an off-site/admin/scheme injection attempt, by never matching a real row`, async () => {
+        // REQ-6's refusal list (off-site URLs, javascript:/data: schemes, admin paths) is not
+        // enumerated as separate cases in `resolvePublicTarget` — none of these strings can ever
+        // equal a real published slug, so they refuse by construction. Proven directly here rather
+        // than asserted only by code inspection.
+        const tools = createSiteAssistantTools({ postRepo: fakePort().port as never, workspaceId: "ws" });
+        const adversarialSlugs = [
+          "https://evil.example/public-post",
+          "//evil.example/public-post",
+          "javascript:alert(1)",
+          "data:text/html,<script>alert(1)</script>",
+          "admin",
+          "../admin/settings",
+        ];
+        for (const slug of adversarialSlugs) {
+          const { result, directive } = await tools[toolName]({ slug });
+          assert.ok("error" in (result as object), `"${slug}" must never resolve to a target`);
+          assert.equal(directive, undefined, `"${slug}" must never emit a directive`);
+        }
+      });
+
+      it(`${toolName} treats a missing or non-string slug as a refusal, not a lookup`, async () => {
+        const tools = createSiteAssistantTools({ postRepo: fakePort().port as never, workspaceId: "ws" });
+        for (const input of [{}, { slug: 42 }, { slug: "   " }]) {
+          const { result, directive } = await tools[toolName](input as never);
+          assert.ok("error" in (result as object), `input ${JSON.stringify(input)} must not resolve a target`);
+          assert.equal(directive, undefined);
+        }
+      });
+    }
+
+    it("scroll_to_entry's directive carries no auto/propose distinction — it always executes immediately client-side", async () => {
+      const tools = createSiteAssistantTools({ postRepo: fakePort().port as never, workspaceId: "ws" });
+      const { directive } = await tools.scroll_to_entry({ slug: "public-post" });
+      assert.deepEqual(directive, {
+        kind: "page_action",
+        action: { type: "scroll_to", target: { slug: "public-post", title: "Public Post", path: "/public-post" } },
+      });
+    });
+
+    it("highlight_entry resolves the same target shape as scroll_to_entry, tagged as a highlight action", async () => {
+      const tools = createSiteAssistantTools({ postRepo: fakePort().port as never, workspaceId: "ws" });
+      const { directive } = await tools.highlight_entry({ slug: "public-page" });
+      assert.deepEqual(directive, {
+        kind: "page_action",
+        action: { type: "highlight", target: { slug: "public-page", title: "Public Page", path: "/public-page" } },
+      });
+    });
+  });
 });
