@@ -10,14 +10,16 @@
  *   `GET /api/runs/:runId/events` — a persisted, reattachable run behind an admin-session daemon.
  * - This transport calls `POST /api/site-assistant/chat` exactly once per visitor turn. The whole
  *   reply streams back on that SAME request's response body (`text`/`error`/`end` SSE frames — see
- *   `site-assistant.ts`'s `sse()` helper), and nothing about the run is persisted server-side: there
- *   is no run id to reattach to, and no per-turn conversation memory (the route takes one
- *   `{ message: string }`, not a history). `startRun` below therefore sends only the latest user
- *   turn (`latestUserPromptFromHistory`), not a flattened transcript — `buildTranscript`'s "## user /
- *   ## assistant" replay format is built for a coding-agent transcript, not a natural-language
- *   question, and the system preamble server-side expects the latter (`Visitor: ${message}`).
- *   Follow-up questions therefore do not carry prior turns into the model today; fixing that is a
- *   server-side contract change (giving the route a history param) out of this slice's scope.
+ *   `site-assistant.ts`'s `sse()` helper), and nothing about the RUN is persisted server-side: there
+ *   is still no run id to reattach to (see `reattachRun` below). `startRun` sends the latest user
+ *   turn as `message` (`latestUserPromptFromHistory`) plus, as of SPEC-046 REQ-3, a bounded `history`
+ *   of the turns before it — not a flattened transcript string the way `buildTranscript`'s "## user /
+ *   ## assistant" replay format works (that is built for a coding-agent transcript, not a
+ *   natural-language question); the server keeps each turn's own `role` and feeds them to Gemini as
+ *   real multi-turn `Content` entries (`assistant/site/history.ts`). `boundHistoryForRequest` below
+ *   is a bandwidth/politeness courtesy only — the server treats whatever arrives as untrusted and
+ *   re-bounds/validates it independently, so this file's caps do not need to match the server's
+ *   exactly.
  *
  * Because a native `EventSource` cannot POST, the SSE body is parsed by hand off `fetch`'s
  * `ReadableStream`, matching the exact two-line `event:`/`data:` framing `sse()` writes server-side.
@@ -27,6 +29,44 @@ import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 
 const CHAT_URL = "/api/site-assistant/chat";
+/** Oldest-dropped-first turn cap and per-turn character cap for the `history` sent alongside a
+ *  message — matches `assistant/site/history.ts`'s server-side defaults in VALUE only (the server is
+ *  the actual enforcement point; see this file's header). */
+const MAX_HISTORY_MESSAGES = 12;
+const MAX_HISTORY_MESSAGE_CHARS = 2000;
+
+interface HistoryTurn {
+  readonly role: ChatMessage["role"];
+  readonly content: string;
+}
+
+/**
+ * `input.history`'s trailing entry is the message currently being sent — `useConversation.ts`'s
+ * `sendMessage` builds `history` as `[...priorMessages, userMessage]` before calling `run.start`, and
+ * `latestUserPromptFromHistory` extracts that same trailing user turn as `message`. This returns
+ * everything BEFORE it, scanning from the end (the same direction `latestUserPromptFromHistory` scans
+ * in) rather than assuming a fixed "drop the last element" so this stays correct even if a future
+ * caller's `history` does not end in the user turn.
+ */
+function priorTurnsBeforeLatestUserMessage(history: ChatMessage[]): ChatMessage[] {
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    if (history[i]?.role === "user") return history.slice(0, i);
+  }
+  return history;
+}
+
+/** Bounds the prior turns sent alongside a message. Not the security boundary (see file header) —
+ *  just keeps a long local conversation from ballooning every request's payload. */
+function boundHistoryForRequest(history: ChatMessage[]): HistoryTurn[] {
+  const prior = priorTurnsBeforeLatestUserMessage(history);
+  const recent = prior.length > MAX_HISTORY_MESSAGES ? prior.slice(prior.length - MAX_HISTORY_MESSAGES) : prior;
+  return recent
+    .filter((m) => m.content.trim().length > 0)
+    .map((m) => ({
+      role: m.role,
+      content: m.content.length > MAX_HISTORY_MESSAGE_CHARS ? m.content.slice(0, MAX_HISTORY_MESSAGE_CHARS) : m.content,
+    }));
+}
 
 interface ChatFrameText {
   readonly delta: string;
@@ -119,7 +159,7 @@ export function createSiteAssistantTransport(): ChatTransport {
             headers: { "Content-Type": "application/json" },
             // No credentials, no key: ADR-054 Decision 3 — the visitor never supplies or sees a
             // provider key, and this route requires no admin session either.
-            body: JSON.stringify({ message }),
+            body: JSON.stringify({ message, history: boundHistoryForRequest(input.history as ChatMessage[]) }),
             signal: controller.signal,
           });
 

@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import { runGoogleToolTurn, type GoogleToolCall, type GoogleToolResult } from "@jini-ai/agent-runtime";
 
 import { createSiteCapabilityRegistry } from "../../assistant/site/capability-registry";
+import { resolveBoundedHistory } from "../../assistant/site/history";
 import { resolveSiteAssistantMode } from "../../assistant/site/mode";
 import { isPublicAssistantEnabled } from "../../assistant/public-assistant-settings";
 import { resolveClientIp } from "../middleware/rate-limit";
@@ -135,7 +136,7 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
           return;
         }
 
-        const body = (req.body ?? {}) as { message?: unknown };
+        const body = (req.body ?? {}) as { message?: unknown; history?: unknown };
         const message = typeof body.message === "string" ? body.message.trim() : "";
         if (message.length === 0) {
           res.status(400).json({ error: "message must be a non-empty string", code: "VALIDATION" });
@@ -145,6 +146,12 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
           res.status(413).json({ error: `message exceeds ${MAX_MESSAGE_CHARS} characters`, code: "TOO_LARGE" });
           return;
         }
+        // SPEC-046 REQ-3: `body.history` is client-supplied and untrusted — it can be forged, so it
+        // is bounded and fail-soft (malformed shapes degrade to less context, never a 4xx) rather
+        // than validated-and-rejected the way `message` above is. See `assistant/site/history.ts`'s
+        // own doc for why that asymmetry is correct: `message` is the live turn the visitor is
+        // actively sending; `history` is passive background context they did not just author.
+        const priorTurns = resolveBoundedHistory(body.history);
 
         // SPEC-046 REQ-7: checked before any mode/config branch below, so a caller already over
         // budget never reaches the provider call (or its 501/503 config-error branches either) —
@@ -231,7 +238,13 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
         await runGoogleToolTurn({
           apiKey,
           model: resolveModel(env),
-          contents: [{ role: "user", parts: [{ text: `${SYSTEM_PREAMBLE}\n\nVisitor: ${message}` }] }],
+          system: SYSTEM_PREAMBLE,
+          // SPEC-046 REQ-3: bounded prior turns (if any) precede the live message as real multi-turn
+          // `Content` entries — Gemini's classic `generateContent` API accepts an ordered
+          // `contents: [{role, parts}]` array natively (`@jini-ai/agent-runtime`'s
+          // `GoogleTurnOptions.contents`), so this is not a flattened transcript string the way a
+          // coding-agent host's `buildTranscript` would build one; each turn keeps its own `role`.
+          contents: [...priorTurns, { role: "user", parts: [{ text: message }] }],
           tools: [{ functionDeclarations: capabilities.schemas as never }],
           executeTool,
           signal: abort.signal,
