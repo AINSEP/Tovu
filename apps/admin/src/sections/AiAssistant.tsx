@@ -237,6 +237,37 @@ function VisitorCredentialForm() {
   const { apiKey, baseUrl, protocol } = config;
 
   /**
+   * SECURITY GATE on automatic discovery — `true` only when the endpoint is one a PRESET supplied,
+   * never one the operator typed.
+   *
+   * This closes a confirmed credential-transmission bug rather than avoiding a hypothetical one. See
+   * `ADS-memory/reports/findings/2026-08-04-byok-discovery-keystroke-key-leak.md`: Jini's
+   * `ExecutionTab` lists `config.byok.baseUrl` as a discovery dependency and passes the whole
+   * `ByokConfig` — which carries `apiKey` — with no debounce. Consequence, measured live by another
+   * session: with a key already present, typing an endpoint transmits that live key to every
+   * intermediate prefix of the hostname. `https://api.example.com` sends it to `https://a`,
+   * `https://ap`, `https://api`, and so on — each prefix that resolves is a third party receiving a
+   * credential the operator never meant to give it. It composes badly with the SSRF guard's
+   * deliberate allowance of loopback on any port, which turns a typed `http://localhost:NNNN` into a
+   * key-bearing walk of local ports.
+   *
+   * A debounce alone does NOT fix this, which is why this gate exists in addition to one: debouncing
+   * cuts ~30 requests to a handful, but any pause mid-typing still fires, and a pause mid-typing is
+   * exactly when the URL is a partial hostname. The number of unintended recipients goes down; it
+   * does not go to zero.
+   *
+   * So the rule here is about the DESTINATION, not the timing: auto-discovery may only ever send the
+   * key somewhere a preset already vouched for. A custom or hand-typed endpoint still works — it just
+   * requires the operator to press "Test connection", which is an explicit, deliberate act of
+   * pointing a credential at a host they chose. That is the "gate the effect on a committed baseUrl"
+   * option the finding lists, tightened to "committed by an explicit action".
+   */
+  const isPresetSuppliedEndpoint = useMemo(
+    () => DEFAULT_PROVIDER_PRESETS.some((p) => !p.custom && p.baseUrl === baseUrl.trim()),
+    [baseUrl],
+  );
+
+  /**
    * Debounced, key-driven model discovery.
    *
    * Keyed on the credential itself (key + endpoint), unlike `ExecutionTab`'s own effect which is
@@ -246,7 +277,9 @@ function VisitorCredentialForm() {
    * finish typing it. The debounce is what makes keying on the key affordable.
    */
   useEffect(() => {
-    if (!apiKey.trim()) {
+    // Two conditions, and the second is the security gate above — NOT an optimization. Removing it
+    // reintroduces the prefix-walk credential leak; read that comment before touching this line.
+    if (!apiKey.trim() || !isPresetSuppliedEndpoint) {
       setDiscovery({ status: "idle" });
       return;
     }
@@ -280,11 +313,11 @@ function VisitorCredentialForm() {
       cancelled = true;
       clearTimeout(timer);
     };
-    // `config` is intentionally not a dependency — only the three credential fields above should
-    // re-trigger a provider call. Including it would fire discovery when the operator edits the
-    // model or max-tokens field, which cannot change the answer.
+    // `config` is intentionally not a dependency — only the credential fields above should re-trigger
+    // a provider call. Including it would fire discovery when the operator edits the model or
+    // max-tokens field, which cannot change the answer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, baseUrl, protocol]);
+  }, [apiKey, baseUrl, protocol, isPresetSuppliedEndpoint]);
 
   async function runTestConnection() {
     setConnectionTest({ status: "testing" });
