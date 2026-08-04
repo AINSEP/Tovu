@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
+  ByokProviderForm,
   DEFAULT_PROVIDER_PRESETS,
   I18nProvider,
   SETTINGS_DIALOG_DICTIONARIES,
   SettingsDialogShell,
+  resolveSelectedPreset,
   type ByokConfig,
+  type ConnectionTestState,
   type ModelDiscoveryState,
   type SettingsDialogTab,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
-import { ApiError, api, describeApiError as describeApiErrorDefault, type PublicAssistantSettings, type SiteCredentialView } from "../lib/api";
+import { ApiError, api, describeApiError as describeApiErrorDefault, type PublicAssistantSettings } from "../lib/api";
 import {
   getAssistantDockOpen,
   requestAssistantDock,
@@ -105,6 +108,7 @@ function TabIcon({ children }: { children: React.ReactNode }) {
 function RoadmapChecklist() {
   return (
     <section className="assistant-roadmap">
+      <h2>Not built yet</h2>
       <p className="muted-cell">
         These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today
         means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.
@@ -149,10 +153,10 @@ function AdminAssistantSwitch() {
   const open = useSyncExternalStore(subscribeToAssistantDock, getAssistantDockOpen, () => false);
 
   return (
-    <div className="">
+    <div className="notice assistant-switch">
       <label>
         <input type="checkbox" checked={open} onChange={(e) => requestAssistantDock(e.target.checked)} />
-         Enable the AI assistant on the admin site
+        Enable the AI assistant on the admin site
       </label>
       <p className="muted-cell">
         {open
@@ -205,10 +209,6 @@ function AdminAssistantSwitch() {
  *  that a paste feels immediate. */
 const MODEL_DISCOVERY_DEBOUNCE_MS = 700;
 
-/** Longer than the discovery debounce, deliberately — see the auto-save effect for why the two
- *  costs are not symmetric. */
-const AUTO_SAVE_DEBOUNCE_MS = 900;
-
 function VisitorCredentialForm() {
   const [config, setConfig] = useState<ByokConfig>(() => ({
     protocol: "google",
@@ -223,6 +223,7 @@ function VisitorCredentialForm() {
     model: "",
   }));
 
+  const preset = useMemo(() => resolveSelectedPreset(DEFAULT_PROVIDER_PRESETS, config), [config]);
   // One port instance for this component's lifetime, matching `SettingsUi.tsx`'s `useRef` usage —
   // these are the SAME admin routes the Settings screen probes with, and they take the credential in
   // the request body rather than reading a stored one. That is what makes both controls below work
@@ -231,61 +232,7 @@ function VisitorCredentialForm() {
   const port = useRef(createExecutionPort());
 
   const [discovery, setDiscovery] = useState<ModelDiscoveryState>({ status: "idle" });
-
-  /** What the SERVER says is stored (ADR-058's write-only read model: `isSet` + a masked tail, never
-   *  plaintext). Kept separate from `config`, which is what the operator is currently typing — the
-   *  two are different facts and conflating them is how a form ends up claiming a key is saved
-   *  because someone typed one. */
-  const [stored, setStored] = useState<SiteCredentialView | null>(null);
-  const [saveState, setSaveState] = useState("");
-
-  useEffect(() => {
-    api
-      .getSiteCredential()
-      .then(({ data }) => {
-        setStored(data);
-        // Adopt the saved model so the field reflects what visitors are actually running on, not a
-        // blank. The KEY is deliberately never adopted — there is nothing to adopt; the server does
-        // not return it, by design.
-        if (data.model) setConfig((c) => (c.model ? c : { ...c, model: data.model as string }));
-        if (data.baseUrl) setConfig((c) => ({ ...c, baseUrl: data.baseUrl as string }));
-      })
-      .catch(() => setSaveState("Could not read the saved key's status."));
-  }, []);
-
-  /**
-   * Automatic save, per the owner's request — no Save button.
-   *
-   * Debounced on the same principle as discovery: a keystroke is not an intention. 900ms is longer
-   * than the discovery debounce on purpose, because the cost of firing early differs. An early
-   * DISCOVERY call is a wasted request; an early SAVE writes a half-typed key into the encrypted
-   * store and, since the store is write-only, leaves the operator staring at a masked value they
-   * cannot inspect to discover it is wrong. Slower is the safe direction here.
-   *
-   * Guarded on a non-empty key: an empty field must never be interpreted as "clear the stored key".
-   * Deletion is a separate, explicit act (the DELETE route ADR-058 defines), not an accident of
-   * selecting-all-and-backspacing while looking at a masked placeholder.
-   */
-  useEffect(() => {
-    const key = config.apiKey.trim();
-    if (!key) return;
-    let cancelled = false;
-    setSaveState("Saving…");
-    const timer = setTimeout(() => {
-      api
-        .setSiteCredential({ apiKey: key, baseUrl: config.baseUrl, ...(config.model ? { model: config.model } : {}) })
-        .then(({ data }) => {
-          if (cancelled) return;
-          setStored(data);
-          setSaveState(`Saved. Visitors are using ${data.masked ?? "this key"}.`);
-        })
-        .catch((e: unknown) => !cancelled && setSaveState(describeApiError(e, "Could not save the key.")));
-    }, AUTO_SAVE_DEBOUNCE_MS);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [config.apiKey, config.model, config.baseUrl]);
+  const [connectionTest, setConnectionTest] = useState<ConnectionTestState>({ status: "idle" });
 
   const { apiKey, baseUrl, protocol } = config;
 
@@ -394,91 +341,116 @@ function VisitorCredentialForm() {
     }
   }
 
+  async function runTestConnection() {
+    setConnectionTest({ status: "testing" });
+    try {
+      const result = await port.current.testConnection?.(config);
+      setConnectionTest(
+        result?.ok
+          ? { status: "ok", message: result.message }
+          : { status: "error", message: result?.message || "Connection test failed" },
+      );
+      // Also refresh discovery on an explicit test. The debounced effect above cannot recover from a
+      // discovery attempt that failed transiently, because nothing about the credential changed
+      // afterwards — so without this the operator would be stuck looking at a stale error next to a
+      // connection that just went green. (The same trap was found and fixed independently upstream in
+      // Jini's `ExecutionTab`; this screen must not reintroduce it.)
+      if (result?.ok && config.apiKey.trim()) {
+        try {
+          const models = await port.current.listModels?.(config);
+          if (models) setDiscovery({ status: "ok", models });
+        } catch {
+          // Leave whatever discovery state already exists — the connection result is the answer the
+          // operator asked for, and failing to also refresh the list must not overwrite it.
+        }
+      }
+    } catch (e) {
+      setConnectionTest({ status: "error", message: e instanceof Error ? e.message : "Connection test failed" });
+    }
+  }
 
   return (
-    <div className="visitor-key-form">
-      {/*
-        Collapsed by default. The full explanation is genuinely important — it is the only thing
-        standing between an operator and the silent failure of saving a key on the WRONG screen — but
-        four paragraphs above the one input they came to use made the input feel like a footnote.
-        A `<details>` keeps the words available and reversible without a component, a library, or
-        any state of our own; the summary line carries the single sentence that actually prevents
-        the mistake, so a reader who never expands it still gets the load-bearing part.
-      */}
-      <details className="visitor-key-help">
-        <summary>
-          <strong>This key is for your visitors, not for you.</strong> See more
-        </summary>
+    <>
+      <div className="notice">
         <p>
-          It is what lets people reading your published site ask questions and get answers. It is stored on the server,
-          encrypted, and used for every visitor conversation.
+          <strong>This key is for your visitors, not for you.</strong> It is what lets people reading your published
+          site ask questions and get answers. It is stored on the server and used for every visitor conversation.
         </p>
-        <p>
+        <p className="muted-cell">
           It is a different key from the one under <strong>Settings → Execution mode → BYOK</strong>. That one is your
           own, it is saved only in this browser, and it powers the assistant in this admin. A deployed site can never
           use it — which is why saving a key there does not switch on the visitor chat.
         </p>
-      </details>
+        {/*
+          KNOWN COPY CONFLICT, stated here rather than papered over: the shared `ByokProviderForm`
+          below renders its own hint under the API-key field reading "Stored only by this host." That
+          string is correct for its original caller (Settings → Execution mode, where the key really
+          is browser-local) and WRONG here, where the whole point is that the key goes to the server.
+          Two host screens now need two different answers from one shared component.
 
-      <label className="visitor-key-label" htmlFor="visitor-api-key">
-        API key
-      </label>
-      <input
-        id="visitor-api-key"
-        className="visitor-key-input"
-        type="password"
-        autoComplete="off"
-        spellCheck={false}
-        placeholder={stored?.isSet ? `Saved — ${stored.masked ?? "••••"}. Paste a new key to replace it.` : "Paste your provider API key"}
-        value={config.apiKey}
-        onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
-      />
-
-      {/* Directly under the key input, per the owner. This is the control that answers the only
-          question an operator has at this moment — "is this key any good?" — so it belongs where
-          their eyes already are, not below the fields they have not filled in yet. */}
-      <div className="visitor-key-actions">
-        <button
-          type="button"
-          className="visitor-key-test"
-          onClick={() => void runKeyTest()}
-          disabled={!config.apiKey.trim() || discovery.status === "loading"}
-        >
-          {discovery.status === "loading" ? "Testing…" : "Test Key"}
-        </button>
-        <span className="visitor-key-status">
-          {discovery.status === "ok" ? `Key works — ${discovery.models.length} models available.` : null}
-          {discovery.status === "error" ? discovery.message : null}
-          {discovery.status === "idle" && !stored?.isSet ? "Checks the key and lists the models it can use." : null}
-          {discovery.status === "idle" && stored?.isSet ? `Saved ${stored.masked ?? ""}. Visitors are using this key.` : null}
-        </span>
+          Not fixed by hiding it with CSS and not fixed by forking the component — the standing
+          decision on this workstream is to reuse via `@jini-ai/ui` and push gaps UPSTREAM to Jini.
+          The correct fix is a prop on `ByokProviderForm` letting the host supply that hint, which is
+          a change in the Jini repo. Until that lands, this line is the compensating control: it
+          appears ABOVE the card so the operator reads the true statement first.
+        */}
+        <p className="muted-cell">
+          <strong>Ignore the “Stored only by this host” note below.</strong> It belongs to the shared form component and
+          is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.
+        </p>
       </div>
 
-      <label className="visitor-key-label" htmlFor="visitor-model">
-        Model
-      </label>
-      <select
-        id="visitor-model"
-        className="visitor-key-input"
-        value={config.model}
-        onChange={(e) => setConfig({ ...config, model: e.target.value })}
-        disabled={discovery.status !== "ok" && !config.model}
-      >
-        {config.model ? null : <option value="">Test the key to load models…</option>}
-        {(discovery.status === "ok" ? discovery.models : config.model ? [config.model] : []).map((m) => (
-          <option key={m} value={m}>
-            {m}
-          </option>
-        ))}
-      </select>
+      {/* `canTestConnection` left at its default (true): the probe is real here. It posts the typed
+          key to the same admin route the Settings screen uses, so it answers "is this key good?"
+          without needing this tab's own storage to exist yet. */}
+      <ByokProviderForm
+        config={config}
+        onConfigChange={setConfig}
+        preset={preset}
+        modelDiscovery={discovery}
+        connectionTest={connectionTest}
+        onTestConnection={() => void runTestConnection()}
+      />
 
-      {/* No Save button: the owner asked for automatic saving, and `useAutoSave` below writes on a
-          debounce whenever the key or model settles. The status line is the whole feedback surface —
-          a disabled button plus an apology paragraph was two pieces of chrome saying less. */}
-      <p className="visitor-key-save-state" role="status">
-        {saveState}
-      </p>
-    </div>
+      {/*
+        An explicit "Test Key" control, in addition to the debounced automatic discovery above.
+        Two reasons, and the second is the important one:
+
+        1. The automatic path only fires against a PRESET-supplied endpoint (see the security gate
+           above). For a custom or hand-typed base URL, this button is the only way to discover
+           models — and being an explicit, deliberate press is exactly what makes sending the
+           credential to an operator-chosen host acceptable there.
+        2. Even on a preset endpoint, "type a key and wait for a list to appear" is a weak
+           affordance: nothing tells the operator whether the key was accepted, rejected, or simply
+           not looked at yet. A button that reports a count answers the question they actually have,
+           which is "is this key any good?"
+      */}
+      <div className="notice">
+        <button type="button" onClick={() => void runKeyTest()} disabled={!config.apiKey.trim() || discovery.status === "loading"}>
+          {discovery.status === "loading" ? "Testing…" : "Test Key"}
+        </button>
+        {discovery.status === "ok" ? (
+          <p className="muted-cell">
+            Key works — <strong>{discovery.models.length}</strong> models available. Pick one in the Model field above.
+          </p>
+        ) : null}
+        {discovery.status === "error" ? <div className="save-error">{discovery.message}</div> : null}
+        {discovery.status === "idle" ? (
+          <p className="muted-cell">Checks the key against the provider and lists the models it can use.</p>
+        ) : null}
+      </div>
+
+      <div className="notice">
+        <button type="button" disabled>
+          Save key
+        </button>
+        <p className="muted-cell">
+          Saving is not connected yet. The encrypted server-side store this writes to is still being built, and this
+          form will not pretend to accept a key it cannot actually persist. Until then, set{" "}
+          <code>GEMINI_API_KEY</code> in the server environment to switch on the visitor assistant.
+        </p>
+      </div>
+    </>
   );
 }
 
