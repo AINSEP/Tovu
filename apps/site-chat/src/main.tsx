@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 
-import { drainQueuedAction } from "./action-queue";
+import { drainQueuedPageAction } from "./session-store";
 import { SiteAssistantWidget } from "./SiteAssistantWidget";
 import "./widget.css";
 
@@ -33,12 +33,12 @@ function mount(): void {
   }
   // SPEC-046 REQ-2: drained exactly once per real mount, before anything else runs — this is the one
   // call site that makes "drains on mount" true of the actual running bundle, not just of the
-  // `action-queue.ts` module in isolation. Discarded for now: no page-action kind exists yet to hand
+  // `session-store.ts` module in isolation. Discarded for now: no page-action kind exists yet to hand
   // it to (REQ-4 through REQ-8 are blocked on two unresolved owner decisions — see
-  // `action-queue.ts`'s header). The call's only real job today is deleting whatever was queued, so a
+  // `session-store.ts`'s header). The call's only real job today is deleting whatever was queued, so a
   // stray or half-written entry from an earlier session can never survive into a page load a future
   // handler will actually act on.
-  void drainQueuedAction(sessionStorage);
+  void drainQueuedPageAction();
   createRoot(el).render(<SiteAssistantWidget />);
 }
 
