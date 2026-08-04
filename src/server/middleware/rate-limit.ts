@@ -28,11 +28,22 @@ import type { ClockPort } from "@jini-ai/cms/core";
  *
  * Disclosed simplification:
  * Single-process, in-memory only (no Redis/distributed store) — acceptable
- * per REQ-14's note that this only needs to survive one process in v1. Stale
- * per-key windows are never evicted, so long-lived processes accumulate one
- * map entry per distinct key (IP) ever seen; acceptable for a walking
- * skeleton, called out as tech debt for a real deployment (see repo memory /
- * handoff notes) rather than fixed here to keep this slice minimal.
+ * per REQ-14's note that this only needs to survive one process in v1;
+ * multiple instances behind a load balancer each get their own budget
+ * (SPEC-046 §4 "Disclosed limitation" — noted, not fixed, fine for today's
+ * deployment).
+ *
+ * Stale per-key windows ARE evicted as of SPEC-046 REQ-8: `createRateLimiter`
+ * sweeps expired windows out of its map at most once per `windowSeconds`
+ * (amortized — see that function's doc for why this isn't a scan on every
+ * `check()` call), which bounds memory to roughly "distinct keys active
+ * within the trailing window" instead of "every distinct key ever seen."
+ * This was acceptable debt while every consumer was an authenticated login
+ * route (bounded, trusted key space); SPEC-046 wires this same primitive to
+ * an anonymous public endpoint (`SITE_ASSISTANT_PER_IP`), where key growth
+ * is attacker-controlled — a caller rotating source IPs would otherwise grow
+ * the map without bound, a real memory-exhaustion path rather than a
+ * cosmetic one.
  */
 
 /** A single rate-limit profile (api.spec §3): window, ceiling, and burst allowance. */
@@ -118,12 +129,23 @@ interface WindowState {
  * separate "commit" step — every checked request counts against the window,
  * matching AC-18's "11th attempt" framing).
  *
- * @complexity O(1) time and one map entry per distinct key ever seen (space);
- * no eviction (see file-level disclosed simplification).
+ * @complexity O(1) amortized time per `check()` call (an eviction sweep costs
+ * O(distinct keys) but runs at most once per `windowSeconds`, see
+ * `createRateLimiter`); space bounded to roughly one map entry per distinct
+ * key active within the trailing window (SPEC-046 REQ-8 — no longer "one
+ * entry per key ever seen").
  * @overallScore 100
  */
 export interface RateLimiter {
   check(key: string): RateLimitResult;
+  /**
+   * Number of distinct keys currently tracked. Optional so existing hand-written test doubles
+   * (e.g. `comments/__tests__/ingress.test.ts`'s `alwaysAllowRateLimiter`) that implement only
+   * `check` keep satisfying this interface unmodified — this exists purely so tests of the real
+   * `createRateLimiter` can observe eviction actually shrinking the store (SPEC-046 REQ-8), not as
+   * a capability any route or caller needs.
+   */
+  size?(): number;
 }
 
 /**
@@ -134,7 +156,19 @@ export interface RateLimiter {
  * (e.g. one per test's `createRouteDeps()`/`createApp()`) get that for free
  * by constructing a new instance rather than sharing a module-level singleton.
  *
- * @complexity O(1) per `check` call.
+ * Eviction (SPEC-046 REQ-8): a full scan-and-delete of expired windows runs
+ * at most once per `windowSeconds` of elapsed clock time, not on every call —
+ * scanning the whole map per `check()` would trade "unbounded map growth"
+ * for "O(n) latency on every request," which is not an improvement. Deleting
+ * an expired entry is behavior-neutral by construction: the check below
+ * already treats a missing key and an expired key identically
+ * (`!existing || nowMs - existing.windowStartMs >= windowMs`), so evicting a
+ * stale entry before that check can never change its outcome — this is what
+ * keeps every existing consumer (login, magic-link, forms) and their tests
+ * unmodified.
+ *
+ * @complexity O(1) amortized per `check` call; see the eviction note above
+ * for the worst-case sweep cost.
  * @overallScore 100
  */
 export function createRateLimiter(
@@ -146,9 +180,27 @@ export function createRateLimiter(
   const windowMs = profile.windowSeconds * 1000;
   const effectiveMax = profile.max + profile.burst;
 
+  /** Epoch ms of the last eviction sweep, or `null` before the first `check()` call. */
+  let lastSweepMs: number | null = null;
+
+  /** Deletes every window whose fixed period has fully elapsed as of `nowMs`. */
+  function evictExpiredWindows(nowMs: number): void {
+    for (const [key, state] of windows) {
+      if (nowMs - state.windowStartMs >= windowMs) windows.delete(key);
+    }
+  }
+
   return {
     check(key: string): RateLimitResult {
       const nowMs = new Date(clock.nowIso()).getTime();
+
+      if (lastSweepMs === null) {
+        lastSweepMs = nowMs;
+      } else if (nowMs - lastSweepMs >= windowMs) {
+        evictExpiredWindows(nowMs);
+        lastSweepMs = nowMs;
+      }
+
       const existing = windows.get(key);
 
       if (!existing || nowMs - existing.windowStartMs >= windowMs) {
@@ -164,6 +216,9 @@ export function createRateLimiter(
       const windowEndsMs = existing.windowStartMs + windowMs;
       const retryAfterSeconds = Math.max(1, Math.ceil((windowEndsMs - nowMs) / 1000));
       return { allowed: false, retryAfterSeconds };
+    },
+    size(): number {
+      return windows.size;
     },
   };
 }
