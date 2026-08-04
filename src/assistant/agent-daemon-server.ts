@@ -510,15 +510,16 @@ app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners 
 registerRunRoutes(app, { lifecycle, onStarted }, adapter);
 registerAgentRoutes(app, { listAgents: listAssistantAgents }, adapter);
 registerDelegatedToolRoutes(app, { lifecycle, toolExecutor, resolvePrincipal }, adapter);
-// The MCP-UI callback endpoint. Two shapes reach it: a park delivery, where a form's answer
-// resolves an agent tool call still waiting on it (ADR-055 Decision 1), and the legacy
-// confirmation redemption, where a human's confirmed click re-invokes `content_post_delete` a
-// second time with the token only the rendered dialog held (ADR-053 Decision 3).
+// The MCP-UI callback endpoint. Two shapes reach it: an exchange delivery, where a form's OR
+// content_post_delete's answer resolves an agent tool call still waiting on it (ADR-055 Decision 1
+// for forms, Decision 2 for the destructive delete), and the legacy confirmation redemption shape
+// (ADR-053 Decision 3), which no wired tool currently uses — `content_post_delete` was the only
+// tool that ever took it, and it moved to the exchange shape above.
 // Same non-exemption reasoning as `frontendControl.httpExtension` just below: the
 // browser reaches this through Tovu's session-authenticated proxy, which attaches the bearer token
 // like every other forwarded route, so no `exemptPaths` entry is needed or wanted. See
 // `mcp-ui-tool-calls-route.ts` for why this must live in THIS process (it is the one holding the
-// `ToolExecutor`/`PendingConfirmationStore` a redemption actually needs) and
+// `ToolExecutor`/`SurfaceExchangeStore` an exchange delivery actually needs) and
 // `src/server/modules/assistant.ts` for the proxy half.
 registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
 // A2UI's own inbound channel (ADR-055 Decision 1, generalized) — a rendered surface's `action`/

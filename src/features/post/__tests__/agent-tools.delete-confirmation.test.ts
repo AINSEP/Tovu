@@ -1,36 +1,44 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/mcp-ui";
-import { createPendingConfirmationStore, type PendingConfirmationStore } from "#src/assistant/pending-confirmations";
+import {
+  SURFACE_EXCHANGE_ID_PARAM,
+  createSurfaceExchangeStore,
+  type SurfaceExchangeStore,
+} from "#src/assistant/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/core/events/index";
 import type { RouteDeps } from "#src/server/routes/types";
 import { InMemoryPostRepo } from "../repo.memory";
 import { buildPostRegistrations } from "../tool-registrations";
-import { handleUIAction, renderUIResource } from "./fake-mcp-ui-host";
 
 /**
- * @file Certification of `content_post_delete`'s MCP-UI confirmation gate — the two-step protocol
- * itself, not just the delete underneath it.
+ * @file Certification of `content_post_delete`'s confirmation gate (ADR-055 Decision 2), which
+ * replaced the two-call token-redemption protocol this file used to certify (ADR-053 Decision 3,
+ * `assistant/pending-confirmations.ts`).
  *
- * The client side is faked (`fake-mcp-ui-host.ts`) because no live MCP host runs in this sandbox,
- * but the fake EXECUTES the dialog's real two inline scripts (protocol bridge + surface) against a
- * sandboxed DOM, drives a real `ui/initialize` → `ui/notifications/initialized` → `tools/call`
- * JSON-RPC handshake, and routes the captured call back into the real handler. So these tests fail
- * if the returned resource stops being valid MCP-UI, if the dialog stops speaking that handshake, or
- * if the token stops travelling only through the rendered UI.
+ * ## What changed, and why this file was rewritten rather than patched
  *
- * `renderUIResource` is async (the handshake genuinely takes a microtask or two to settle) and
- * `dialog.click(...)` now returns a flat `{requestId, toolName, params}` — the real MCP Apps
- * `tools/call` shape, not the legacy `@mcp-ui/client` `{type:'tool', messageId, payload}` dialect
- * this suite was written against before `delete-confirmation-ui.ts`'s 2026-08-03 protocol rewrite.
- * See `fake-mcp-ui-host.ts`'s own header for the full account of what changed and why.
+ * The old protocol was: call 1 mints a token and returns; the model's turn ends; a human click sends
+ * a SECOND, independent tool call carrying the token; that call performs the delete and reports the
+ * result — to the dialog, not the model (the bug ADR-055 exists to fix). The new protocol is one
+ * call that opens a `SurfaceExchangeStore` exchange, emits the dialog through it, and PARKS until the
+ * human answers (or times out, or the run ends) — the SAME call then returns the truthful outcome.
+ * There is no second tool call, so there is nothing left for a token to guard.
  *
- * The load-bearing assertion is `the confirmation token never appears anywhere the model can read`.
- * Everything else is a supporting property.
+ * ## The property this file is responsible for, restated for the new mechanism
+ *
+ * ADR-055's own words: "the replacement invariant is: the handler, not the model, performs the
+ * destructive act." Concretely: the ONLY way to make a pending `content_post_delete` call resolve
+ * with a decision is `surfaceExchanges.deliver(...)` — the in-process equivalent of a browser POST to
+ * `mcp-ui-tool-calls-route.ts`, a channel the model has no access to (see
+ * `delete-confirmation-ui.ts`'s header for the full chain). A model re-calling the tool, or fabricating
+ * `{decision:"confirm"}` as ordinary input, cannot resolve an existing pending call — the new schema
+ * (`agent-tools.ts`) does not even accept those fields as model input anymore, and this file asserts
+ * that directly rather than assuming it from reading the schema.
  */
 
 const WORKSPACE_ID = "ws-delete-tools";
@@ -38,8 +46,8 @@ const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-07-30T00:00:00.000Z";
 const EMPTY_DOC = { type: "doc", content: [] };
 
-function fakeRouteDeps(options: { allow?: boolean; confirmations?: PendingConfirmationStore } = {}) {
-  const allow = options.allow ?? true;
+function fakeRouteDeps(options: { allow?: boolean } = {}) {
+  let allow = options.allow ?? true;
   const postRepo = new InMemoryPostRepo();
   const changeSets = new InMemoryChangeSetRepo();
   const outbox = new InMemoryOutbox();
@@ -61,15 +69,21 @@ function fakeRouteDeps(options: { allow?: boolean; confirmations?: PendingConfir
     },
   } as unknown as RouteDeps;
 
-  const confirmations = options.confirmations ?? createPendingConfirmationStore();
-  const registrations = new Map<string, ToolRegistration>(
-    buildPostRegistrations(deps, { confirmations }).map((r) => [r.descriptor.id, r])
-  );
+  return {
+    deps,
+    postRepo,
+    changeSets,
+    outbox,
+    bus,
+    authorizeCalls,
+    setAllow: (value: boolean) => {
+      allow = value;
+    },
+  };
+}
 
-  const deleteTool = registrations.get("content_post_delete");
-  assert.ok(deleteTool, "content_post_delete must be wired");
-
-  return { deps, postRepo, changeSets, outbox, bus, authorizeCalls, confirmations, registrations, deleteTool };
+function buildRegistrations(deps: RouteDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
+  return new Map(buildPostRegistrations(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
 }
 
 /** Checked registry lookup — `registrations.get(id)!` would trip the repo's noNonNullAssertion rule. */
@@ -79,8 +93,22 @@ function tool(registrations: Map<string, ToolRegistration>, id: string): ToolReg
   return found;
 }
 
-function ctx(input: Record<string, unknown>): ToolExecutionContext {
-  return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
+interface CallOptions {
+  input?: unknown;
+  emitSurface?: SurfaceEmitter;
+  signal?: AbortSignal;
+}
+
+function call(registration: ToolRegistration, options: CallOptions = {}) {
+  const ctx: ToolExecutionContext = {
+    executionId: "exec-1",
+    principal: { id: PRINCIPAL_ID },
+    run: { id: "run-1" },
+    input: options.input ?? { id: "p1", kind: "post" },
+    signal: options.signal ?? new AbortController().signal,
+    ...(options.emitSurface ? { emitSurface: options.emitSurface } : {}),
+  };
+  return registration.handler(ctx);
 }
 
 async function seedPost(postRepo: InMemoryPostRepo, overrides: Record<string, unknown> = {}) {
@@ -100,329 +128,373 @@ async function seedPost(postRepo: InMemoryPostRepo, overrides: Record<string, un
   return row;
 }
 
-/** Narrows a step-1 result to its two halves: what the model reads, and what the human sees. */
-function splitResult(result: unknown): { modelText: string; ui: UIResource } {
-  const shaped = result as { content?: Array<{ type: string; text?: string; resource?: unknown }> };
-  assert.ok(Array.isArray(shaped.content), "an MCP-UI tool result must carry a content array");
-  assert.equal(shaped.content.length, 2, "expected [textBlock, uiResource]");
-  assert.equal(shaped.content[0].type, "text");
-  assert.equal(shaped.content[1].type, "resource");
-  return { modelText: String(shaped.content[0].text), ui: shaped.content[1] as unknown as UIResource };
+/** Pulls the exchange id out of the emitted mcp-ui surface's HTML — the way the rendered iframe would. */
+function exchangeIdFromSurface(surface: unknown): string {
+  const html = (surface as { payload: { resource: UIResource } }).payload.resource.resource.text;
+  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+  assert.ok(match, "the surface must carry its exchange id, or the human's answer has nothing to name");
+  return match[1]!;
+}
+
+/** Raises the dialog and returns everything a test needs to answer it. */
+async function raiseDialog(deleteTool: ToolRegistration, input: Record<string, unknown> = { id: "p1", kind: "post" }) {
+  const emitted: unknown[] = [];
+  const pending = call(deleteTool, { input, emitSurface: async (s) => void emitted.push(s) });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
+  const ui = (emitted[0] as { payload: { resource: UIResource } }).payload.resource;
+  const exchangeId = exchangeIdFromSurface(emitted[0]);
+  return { pending, ui, exchangeId };
 }
 
 // ---------------------------------------------------------------------------
-// 1. Step 1 returns a genuine MCP-UI resource and deletes NOTHING
+// 1. The call parks, the dialog names exactly what is about to be deleted, and nothing is written
 // ---------------------------------------------------------------------------
 
-test("step 1 returns an MCP-UI resource with a ui:// URI and the MCP Apps mime type — not a text answer", async () => {
-  const { postRepo, deleteTool } = fakeRouteDeps();
+test("the call stays open after the dialog is shown, and nothing is deleted while it is pending", async () => {
+  const { deps, postRepo, changeSets, outbox } = fakeRouteDeps();
   await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const registrations = buildRegistrations(deps, surfaceExchanges);
+  const deleteTool = tool(registrations, "content_post_delete");
 
-  const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
+  const { pending, ui, exchangeId } = await raiseDialog(deleteTool);
 
   assert.equal(ui.type, "resource");
   assert.match(ui.resource.uri, /^ui:\/\/tovu\/content-post-delete\/p1\/1$/);
   assert.equal(ui.resource.mimeType, MCP_UI_MIME_TYPE);
-  assert.equal(ui.resource.mimeType, "text/html;profile=mcp-app", "the spec's literal, not a paraphrase");
-  assert.ok(ui.resource.text.includes("<html"), "the resource must carry renderable HTML");
-  // `["420px","440px"]` was the OLD hand-rolled dialog's own value — legitimately obsolete since
-  // ADR-053 Decision 2's rewrite onto `buildConfirmationSurface`, which passes
-  // `preferredFrameSize: ["100%", "320px"]` (`delete-confirmation-ui.ts`). Updated to match the
-  // current, intentional value rather than the pre-rewrite one this assertion still pinned.
-  assert.deepEqual(ui.resource._meta, { "mcpui.dev/ui-preferred-frame-size": ["100%", "320px"] });
-});
-
-test("step 1 writes NOTHING — calling the tool is not deleting", async () => {
-  const { postRepo, changeSets, outbox, deleteTool } = fakeRouteDeps();
-  await seedPost(postRepo);
-
-  await deleteTool.handler(ctx({ id: "p1", kind: "post" }));
+  assert.equal(surfaceExchanges.size(), 1);
+  assert.equal(
+    await Promise.race([pending, Promise.resolve("still-waiting" as const)]),
+    "still-waiting",
+    "the agent's call must not return before the human answers",
+  );
 
   const row = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
-  assert.equal(row?.deletedAt ?? null, null, "the row must still be live after step 1");
-  assert.equal(row?.version, 1, "step 1 must not advance the version");
-  assert.equal((await changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID })).length, 0, "step 1 must record no change set");
-  assert.equal((await outbox.claimPending({ limit: 10, now: NOW })).length, 0, "step 1 must emit no event");
+  assert.equal(row?.deletedAt ?? null, null, "the row must still be live while the dialog is open");
+  assert.equal(row?.version, 1);
+  assert.equal((await changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID })).length, 0);
+  assert.equal((await outbox.claimPending({ limit: 10, now: NOW })).length, 0);
+
+  // Let the call resolve so the test does not leak a pending exchange.
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  await pending;
 });
 
 test("the dialog names exactly what is about to be deleted, so the consent is informed", async () => {
-  const { postRepo, deleteTool } = fakeRouteDeps();
+  const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo, { title: "Quarterly Report", slug: "quarterly-report", status: "published" });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
 
-  const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
+  const { ui, exchangeId, pending } = await raiseDialog(deleteTool);
 
   assert.match(ui.resource.text, /Quarterly Report/);
   assert.match(ui.resource.text, /quarterly-report/);
   assert.match(ui.resource.text, /published/);
-  // "soft delete" was the OLD hand-rolled dialog's own phrasing. ADR-053 Decision 2's rewrite onto
-  // `buildConfirmationSurface` says the same thing in plainer language — `delete-confirmation-ui.ts`'s
-  // `description: \`The ${noun} will be moved to the trash.\`` — which conveys recoverability just as
-  // clearly to the human reading it. Legitimately obsolete wording, updated rather than the property
-  // (informed, reversible-sounding consent) weakened.
   assert.match(ui.resource.text, /moved to the trash/i, "the human must be told it is recoverable");
+
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  await pending;
 });
 
 test("the dialog HTML-escapes the row's own fields — a title cannot inject markup into the dialog", async () => {
-  const { postRepo, deleteTool } = fakeRouteDeps();
+  const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo, { title: `<img src=x onerror="alert(1)">` });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
 
-  const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
+  const { ui, exchangeId, pending } = await raiseDialog(deleteTool);
 
   assert.equal(ui.resource.text.includes("<img src=x"), false, "the raw tag must not survive into the dialog");
   assert.match(ui.resource.text, /&lt;img src=x/);
+
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  await pending;
 });
 
 // ---------------------------------------------------------------------------
-// 2. THE security property: the token reaches the human, never the model
+// 2. THE security property: the model cannot complete the delete on its own
 // ---------------------------------------------------------------------------
 
-test("the confirmation token appears ONLY in the rendered UI, never in anything the model can read", async () => {
-  let minted = "";
-  const confirmations = createPendingConfirmationStore({
-    randomToken: () => {
-      minted = "SECRET-TOKEN-VALUE-0123456789";
-      return minted;
-    },
-  });
-  const { postRepo, deleteTool } = fakeRouteDeps({ confirmations });
+test("the model's own schema no longer accepts a decision/confirmation field at all", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
 
-  const raw = await deleteTool.handler(ctx({ id: "p1", kind: "post" }));
-  const { modelText, ui } = splitResult(raw);
+  const schema = deleteTool.descriptor.inputSchema as { properties: object; additionalProperties?: boolean };
+  assert.deepEqual(Object.keys(schema.properties), ["id", "kind"]);
+  assert.equal(schema.additionalProperties, false);
 
-  assert.ok(minted, "sanity: a token was minted");
-  assert.ok(ui.resource.text.includes(minted), "the rendered dialog must carry the token — it is the only copy");
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  await pending;
+});
 
-  // The whole gate rests on this: the model-visible half must not contain the secret, anywhere.
-  assert.equal(modelText.includes(minted), false, "the model-readable text block leaked the token");
-  assert.equal(ui.resource.uri.includes(minted), false, "the ui:// URI leaked the token (hosts may log URIs)");
-  assert.equal(JSON.stringify(ui.resource._meta ?? {}).includes(minted), false, "_meta leaked the token");
+test("re-calling the tool while a dialog is pending opens a SEPARATE dialog — it does not answer the first one", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
+
+  const first = await raiseDialog(deleteTool);
+  const second = await raiseDialog(deleteTool);
+
+  assert.notEqual(first.exchangeId, second.exchangeId);
+  assert.equal(surfaceExchanges.size(), 2);
   assert.equal(
-    JSON.stringify({ ...(raw as Record<string, unknown>), content: (raw as { content: unknown[] }).content.slice(0, 1) }).includes(minted),
-    false,
-    "the token must not survive stripping the UI resource — that is exactly what the model is left with",
+    await Promise.race([first.pending, Promise.resolve("still-waiting" as const)]),
+    "still-waiting",
+    "a fresh call must not resolve an earlier pending call",
   );
+
+  surfaceExchanges.deliver({ exchangeId: first.exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  surfaceExchanges.deliver({ exchangeId: second.exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  await Promise.all([first.pending, second.pending]);
 });
 
-test("the model-facing text tells the agent it cannot proceed on its own", async () => {
-  const { postRepo, deleteTool } = fakeRouteDeps();
+test("delivering to an unknown exchange id is refused and deletes nothing", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
 
-  const { modelText } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
 
-  assert.match(modelText, /NOTHING HAS BEEN DELETED/);
-  assert.match(modelText, /cannot complete this yourself/i);
+  const forged = surfaceExchanges.deliver({
+    exchangeId: "not-a-real-exchange-id",
+    toolId: "content_post_delete",
+    principalId: PRINCIPAL_ID,
+    params: { decision: "confirm" },
+  });
+  assert.deepEqual(forged, { ok: false, reason: "unknown-or-closed" });
+
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  await pending;
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
 });
 
-test("an agent that fabricates a confirmationToken is refused and nothing is deleted", async () => {
-  const { postRepo, deleteTool } = fakeRouteDeps();
+test("a redelivery to an already-closed exchange is refused — the confirmed delete cannot be replayed", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
 
-  await assert.rejects(
-    () => deleteTool.handler(ctx({ id: "p1", kind: "post", confirmationToken: "i-made-this-up", decision: "confirm" })),
-    /confirmation could not be redeemed \(unknown-or-expired\)/,
-  );
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  const result = (await pending) as { deleted: boolean };
+  assert.equal(result.deleted, true);
+
+  const replay = surfaceExchanges.deliver({
+    exchangeId,
+    toolId: "content_post_delete",
+    principalId: PRINCIPAL_ID,
+    params: { decision: "confirm" },
+  });
+  assert.deepEqual(replay, { ok: false, reason: "unknown-or-closed" }, "the exchange must not still be open after it resolved");
 
   const row = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
-  assert.equal(row?.deletedAt ?? null, null);
-});
-
-test("a token minted for one post cannot be replayed against another", async () => {
-  const { postRepo, deleteTool } = fakeRouteDeps();
-  await seedPost(postRepo, { id: "p1", slug: "one" });
-  await seedPost(postRepo, { id: "p2", slug: "two" });
-
-  const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const dialog = await renderUIResource(ui);
-  const action = dialog.click("confirm");
-  const token = action.params.confirmationToken;
-
-  await assert.rejects(
-    () => deleteTool.handler(ctx({ id: "p2", kind: "post", confirmationToken: token, decision: "confirm" })),
-    /binding-mismatch/,
-  );
-
-  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p2" }))?.deletedAt ?? null, null);
+  assert.equal(row?.version, 2, "the replay must not process a second delete");
 });
 
 // ---------------------------------------------------------------------------
-// 3. The full round trip through the faked host — this is the protocol working end to end
+// 3. Confirm, cancel, and the two no-answer outcomes (ADR-055 Decision 6)
 // ---------------------------------------------------------------------------
 
-test("full round trip: dialog renders, human clicks Delete, the host's follow-up call performs the soft delete", async () => {
-  const { postRepo, deleteTool, registrations } = fakeRouteDeps();
+test("confirm: the human's click performs the soft delete and the SAME call reports it to the agent", async () => {
+  const { deps, postRepo, bus } = fakeRouteDeps();
   await seedPost(postRepo, { status: "published" });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const registrations = buildRegistrations(deps, surfaceExchanges);
+  const deleteTool = tool(registrations, "content_post_delete");
 
-  // Step 1 — the agent's call.
-  const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
+  const seen: string[] = [];
+  await bus.subscribe("entry.unpublished", (event: { name?: string }) => seen.push(event.name ?? "entry.unpublished"));
 
-  // The host renders it (a real ui/initialize -> ui/notifications/initialized handshake) and a
-  // human clicks.
-  const dialog = await renderUIResource(ui);
-  const action = dialog.click("confirm");
-
-  // The action is a real MCP Apps tools/call request's {name, arguments}, flattened to
-  // {toolName, params} — see fake-mcp-ui-host.ts's DialogAction.
-  assert.equal(action.toolName, "content_post_delete");
-  assert.equal(action.params.id, "p1");
-  assert.equal(action.params.kind, "post");
-  assert.equal(action.params.decision, "confirm");
-  assert.equal(typeof action.params.confirmationToken, "string");
-
-  // Step 2 — the host routes it back as an ordinary tool call.
-  const routed = await handleUIAction(action, dialog, (toolId, input) => {
-    const registration = registrations.get(toolId);
-    assert.ok(registration, `host tried to call unknown tool '${toolId}'`);
-    return registration.handler(ctx(input)) as Promise<unknown>;
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  const delivered = surfaceExchanges.deliver({
+    exchangeId,
+    toolId: "content_post_delete",
+    principalId: PRINCIPAL_ID,
+    params: { decision: "confirm" },
   });
+  assert.deepEqual(delivered, { ok: true });
 
-  assert.equal(routed.error, undefined, `the confirmed delete failed: ${routed.error}`);
-  assert.deepEqual((routed.result as { deleted: boolean; cancelled: boolean }).deleted, true);
+  const result = await pending;
+  assert.deepEqual((result as { deleted: boolean; cancelled: boolean }).deleted, true);
+  assert.deepEqual((result as { deleted: boolean; cancelled: boolean }).cancelled, false);
 
-  // The row is trashed but retained.
   const row = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
   assert.ok(row, "a soft delete keeps the row");
   assert.equal(row.deletedAt, NOW);
   assert.equal(row.version, 2);
   assert.equal(row.title, "My Article", "no data was lost");
+  assert.equal(seen.length, 1, "a published row's delete must drain entry.unpublished to the bus");
 
-  // And it is gone from every read the agent has.
-  const listed = (await tool(registrations, "content_post_list").handler(ctx({ kind: "post" }))) as { posts: unknown[] };
+  const listed = (await tool(registrations, "content_post_list").handler({
+    executionId: "e", principal: { id: PRINCIPAL_ID }, run: { id: "r" }, input: { kind: "post" }, signal: new AbortController().signal,
+  })) as { posts: unknown[] };
   assert.deepEqual(listed.posts, []);
-  await assert.rejects(() => tool(registrations, "content_post_get").handler(ctx({ id: "p1", kind: "post" })), /was not found/);
-
-  // The dialog reported the outcome to the human by updating its own status region — a real
-  // tools/call response round trip, not a canned string.
-  assert.equal(dialog.textOf("mcpui-status"), "Done.");
 });
 
-test("full round trip: clicking Cancel deletes nothing and burns the token", async () => {
-  const { postRepo, deleteTool, registrations, confirmations } = fakeRouteDeps();
+test("cancel: nothing is deleted, and the SAME call reports the cancellation", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
 
-  const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  assert.equal(confirmations.size(), 1);
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
 
-  const dialog = await renderUIResource(ui);
-  const action = dialog.click("cancel");
-  assert.equal(action.params.decision, "cancel");
-
-  const routed = await handleUIAction(action, dialog, (toolId, input) =>
-    tool(registrations, toolId).handler(ctx(input)) as Promise<unknown>
-  );
-
-  assert.deepEqual(routed.result as Record<string, unknown>, {
+  assert.deepEqual(await pending, {
     deleted: false,
     cancelled: true,
     post: { id: "p1", kind: "post", title: "My Article", slug: "my-article", bodyJson: EMPTY_DOC, status: "published", updatedAt: NOW, version: 1 },
   });
-
-  const row = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
-  assert.equal(row?.deletedAt ?? null, null, "cancel must not delete");
-  assert.equal(confirmations.size(), 0, "cancel must burn the token, not leave it live");
-});
-
-test("the confirmed delete cannot be replayed — the second run of the same action is refused and changes nothing", async () => {
-  const { postRepo, deleteTool, registrations } = fakeRouteDeps();
-  await seedPost(postRepo);
-
-  const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const dialog = await renderUIResource(ui);
-
-  const call: Parameters<typeof handleUIAction>[2] = (toolId, input) =>
-    tool(registrations, toolId).handler(ctx(input)) as Promise<unknown>;
-
-  const first = await handleUIAction(dialog.click("confirm"), dialog, call);
-  assert.equal(first.error, undefined);
-  const afterFirst = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
-  assert.equal(afterFirst?.version, 2);
-
-  // A second, genuinely distinct click of the same (still-live, since this fake does not model the
-  // real UI's button-disable-on-click) button — a real second tools/call request with the same
-  // params (the token the dialog's own script closure still holds), not a replay of the first
-  // request's already-settled response. A real MCP Apps View drops a second response to an already-
-  // resolved request id, so re-delivering the FIRST response here would prove nothing new; a fresh
-  // click is what actually exercises the server-side replay guard end to end.
-  const second = await handleUIAction(dialog.click("confirm"), dialog, call);
-  // Two INDEPENDENT guards refuse this replay, and the outer one wins: `post.ts` treats an
-  // already-trashed row as not-found, so the handler rejects before it ever reaches the token
-  // store. (The store would refuse too — the token was burned on the first call — which the
-  // cancel-then-confirm test below exercises against a row that is still live.) Asserting the
-  // not-found message here pins the ORDER: target validity is checked before the token.
-  assert.match(String(second.error), /post 'p1' was not found/);
-  assert.equal(dialog.textOf("mcpui-status"), `Failed: ${second.error}`, "the human is told the replay failed");
-
-  const afterSecond = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
-  assert.equal(afterSecond?.version, 2, "the refused replay must not advance the version");
-  assert.equal(afterSecond?.deletedAt, NOW);
-});
-
-test("a token burned by Cancel cannot then be used to Confirm — the store refuses it while the row is still live", async () => {
-  const { postRepo, deleteTool } = fakeRouteDeps();
-  await seedPost(postRepo);
-
-  const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const action = (await renderUIResource(ui)).click("cancel");
-
-  // Cancel first — the row stays live, so the trashed-row guard cannot mask the store's refusal.
-  await deleteTool.handler(ctx(action.params));
-  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
-
-  await assert.rejects(
-    () => deleteTool.handler(ctx({ ...action.params, decision: "confirm" })),
-    /could not be redeemed \(unknown-or-expired\)/,
-  );
   assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
 });
+
+test("an unanswered dialog expires and reports 'expired', not a hang or a throw", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
+
+  const result = (await call(deleteTool, { emitSurface: async () => undefined })) as {
+    deleted: boolean;
+    cancelled: boolean;
+    reason: string;
+    note: string;
+  };
+
+  assert.equal(result.deleted, false);
+  assert.equal(result.cancelled, false);
+  assert.equal(result.reason, "expired");
+  assert.match(result.note, /did not respond/);
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
+});
+
+test("a cancelled run abandons the dialog and reports 'abandoned', not a hang or a throw", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
+  const controller = new AbortController();
+
+  const pending = call(deleteTool, { emitSurface: async () => undefined, signal: controller.signal });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(surfaceExchanges.size(), 1);
+
+  controller.abort();
+
+  const result = (await pending) as { deleted: boolean; cancelled: boolean; reason: string };
+  assert.equal(result.deleted, false);
+  assert.equal(result.cancelled, false);
+  assert.equal(result.reason, "abandoned");
+  assert.equal(surfaceExchanges.size(), 0);
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
+});
+
+// ---------------------------------------------------------------------------
+// 4. Staleness — the property the removed token used to carry
+// ---------------------------------------------------------------------------
 
 test("a delete confirmed against a stale version is refused — the row changed after the human was asked", async () => {
-  const { postRepo, deleteTool, registrations } = fakeRouteDeps();
+  const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const registrations = buildRegistrations(deps, surfaceExchanges);
+  const deleteTool = tool(registrations, "content_post_delete");
 
-  const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const dialog = await renderUIResource(ui);
-  const action = dialog.click("confirm");
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
 
   // Someone edits the post between the dialog rendering and the human clicking.
-  await tool(registrations, "content_post_update")
-    .handler(ctx({ id: "p1", kind: "post", title: "Rewritten", slug: "my-article", bodyJson: EMPTY_DOC, status: "draft" }));
+  await tool(registrations, "content_post_update").handler({
+    executionId: "e", principal: { id: PRINCIPAL_ID }, run: { id: "r" }, signal: new AbortController().signal,
+    input: { id: "p1", kind: "post", title: "Rewritten", slug: "my-article", bodyJson: EMPTY_DOC, status: "draft" },
+  });
 
-  const routed = await handleUIAction(action, dialog, (toolId, input) =>
-    tool(registrations, toolId).handler(ctx(input)) as Promise<unknown>
-  );
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  await assert.rejects(() => pending, /stale-entity-version/);
 
-  assert.match(String(routed.error), /stale-entity-version/);
+  const row = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
+  assert.equal(row?.deletedAt ?? null, null);
+  assert.equal(row?.title, "Rewritten", "the intervening edit must not be reverted by the refused delete");
+});
+
+// ---------------------------------------------------------------------------
+// 5. No emit seam: fail closed rather than degrade to an unguarded second call
+// ---------------------------------------------------------------------------
+
+test("with no emitSurface, the delete is refused outright — there is no token left to guard a fallback second call", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
+
+  await assert.rejects(() => call(deleteTool), /no interactive confirmation channel/);
+  assert.equal(surfaceExchanges.size(), 0, "no emit seam means no exchange was ever opened");
   assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
 });
 
 // ---------------------------------------------------------------------------
-// 4. Authorization, kind guard, and the lifecycle event
+// 6. Authorization and the kind guard — both checked before any dialog is raised
 // ---------------------------------------------------------------------------
 
-test("step 1 requires content.read, and a denied principal never even sees a dialog", async () => {
-  const { postRepo, deleteTool, authorizeCalls } = fakeRouteDeps();
+test("step requires content.read, and a denied principal never even sees a dialog", async () => {
+  const { deps, postRepo, authorizeCalls } = fakeRouteDeps();
   await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
   authorizeCalls.length = 0;
 
-  await deleteTool.handler(ctx({ id: "p1", kind: "post" }));
-  assert.equal(authorizeCalls[0].permission, "content.read");
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  assert.equal(authorizeCalls[0]?.permission, "content.read");
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+  await pending;
 
   const denied = fakeRouteDeps({ allow: false });
   await seedPost(denied.postRepo);
-  await assert.rejects(
-    () => denied.deleteTool.handler(ctx({ id: "p1", kind: "post" })),
-    /is not authorized for 'content\.read'/,
-  );
-  assert.equal(denied.confirmations.size(), 0, "a denied principal must not have a token minted for them");
+  const deniedSurfaces = createSurfaceExchangeStore();
+  const deniedTool = tool(buildRegistrations(denied.deps, deniedSurfaces), "content_post_delete");
+  await assert.rejects(() => call(deniedTool), /is not authorized for 'content\.read'/);
+  assert.equal(deniedSurfaces.size(), 0, "a denied principal must never get a dialog opened for them");
+});
+
+test("kind:'page' refuses a row whose actual kind is 'post', before any dialog is raised", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo, { kind: "post" });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
+
+  await assert.rejects(() => call(deleteTool, { input: { id: "p1", kind: "page" } }), /page 'p1' was not found/);
+  assert.equal(surfaceExchanges.size(), 0, "a refused target must never raise a dialog");
+});
+
+test("a trashed row cannot be deleted again — the second attempt does not even raise a dialog", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
+
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  await pending;
+
+  await assert.rejects(() => call(deleteTool), /post 'p1' was not found/);
+  assert.equal(surfaceExchanges.size(), 0, "a refused, already-trashed target must never raise a second dialog");
 });
 
 test("the confirmed delete goes through executeCommand's content.write gate, and records the human-approved summary", async () => {
-  const { postRepo, deleteTool, authorizeCalls, changeSets } = fakeRouteDeps();
+  const { deps, postRepo, authorizeCalls, changeSets } = fakeRouteDeps();
   await seedPost(postRepo, { title: "Quarterly Report" });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
 
-  const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const action = (await renderUIResource(ui)).click("confirm");
-  await deleteTool.handler(ctx(action.params));
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  await pending;
 
   const writeCall = authorizeCalls.find((c) => c.permission === "content.write");
   assert.ok(writeCall, "the confirmed delete must consult content.write");
@@ -430,64 +502,19 @@ test("the confirmed delete goes through executeCommand's content.write gate, and
 
   const [changeSet] = await changeSets.listByWorkspace({ workspaceId: WORKSPACE_ID });
   assert.ok(changeSet, "the confirmed delete must record a revertible change set");
-  assert.match(
-    changeSet.summary,
-    /human-confirmed.*Quarterly Report/,
-    "the audit trail must record what the human actually agreed to, not what the agent asked for",
-  );
+  assert.match(changeSet.summary, /human-confirmed.*Quarterly Report/);
 });
 
-test("a denied principal cannot complete the delete even holding a valid token", async () => {
-  const confirmations = createPendingConfirmationStore();
-  const allowed = fakeRouteDeps({ confirmations });
-  await seedPost(allowed.postRepo);
-  const { ui } = splitResult(await allowed.deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const action = (await renderUIResource(ui)).click("confirm");
-
-  // Same store, same seeded row, but authorize() now denies.
-  const denied = fakeRouteDeps({ allow: false, confirmations });
-  await seedPost(denied.postRepo);
-
-  await assert.rejects(
-    () => denied.deleteTool.handler(ctx(action.params)),
-    /is not authorized/,
-  );
-  assert.equal((await denied.postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
-});
-
-test("kind:'page' refuses a row whose actual kind is 'post', before any dialog is raised", async () => {
-  const { postRepo, deleteTool, confirmations } = fakeRouteDeps();
-  await seedPost(postRepo, { kind: "post" });
-
-  await assert.rejects(() => deleteTool.handler(ctx({ id: "p1", kind: "page" })), /page 'p1' was not found/);
-  assert.equal(confirmations.size(), 0, "a refused target must not mint a token");
-});
-
-test("deleting a published row drains entry.unpublished to the bus (SEO's sitemap-cache signal)", async () => {
-  const { postRepo, deleteTool, registrations, bus } = fakeRouteDeps();
-  await seedPost(postRepo, { status: "published" });
-
-  const seen: string[] = [];
-  await bus.subscribe("entry.unpublished", (event: { name?: string }) => {
-    seen.push(event.name ?? "entry.unpublished");
-  });
-
-  const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const action = (await renderUIResource(ui)).click("confirm");
-  await tool(registrations, "content_post_delete").handler(ctx(action.params));
-
-  assert.equal(seen.length, 1, "the confirmed delete of a published row must reach the bus");
-});
-
-test("a trashed row cannot be deleted again — the second attempt does not even raise a dialog", async () => {
-  const { postRepo, deleteTool, registrations, confirmations } = fakeRouteDeps();
+test("a permission revoked between the dialog opening and the click still refuses the delete", async () => {
+  const { deps, postRepo, setAllow } = fakeRouteDeps();
   await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
 
-  const { ui } = splitResult(await deleteTool.handler(ctx({ id: "p1", kind: "post" })));
-  const action = (await renderUIResource(ui)).click("confirm");
-  await tool(registrations, "content_post_delete").handler(ctx(action.params));
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  setAllow(false);
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
 
-  assert.equal(confirmations.size(), 0);
-  await assert.rejects(() => deleteTool.handler(ctx({ id: "p1", kind: "post" })), /post 'p1' was not found/);
-  assert.equal(confirmations.size(), 0, "a already-trashed target must not mint a token");
+  await assert.rejects(() => pending, /is not authorized/);
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
 });

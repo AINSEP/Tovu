@@ -1,8 +1,10 @@
 import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
+import { SURFACE_EXCHANGE_ID_PARAM } from "../../assistant/surface-exchanges";
+
 /**
  * @file The Posts/Pages half of the MCP-UI confirmation gate: the dialog `content_post_delete`
- * raises on its first call.
+ * raises on its (single, held-open) call.
  *
  * ## 2026-08-03: this file no longer writes HTML
  *
@@ -22,20 +24,29 @@ import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@
  * owns how a confirmation dialog *behaves*. Anything reusable belongs upstream in
  * `@jini-ai/ui`, not here.
  *
- * ## The security property, restated because it is easy to erode
+ * ## 2026-08-04: the confirmation token is gone (ADR-055 Decision 2/3)
  *
- * The confirmation token is interpolated into this surface and **nowhere else** — never into the
- * tool's `modelText`, its `_meta`, or an error message. Two independent mechanisms keep it from the
- * model, and both matter:
+ * This dialog used to carry a single-use secret (`assistant/pending-confirmations.ts`) that only the
+ * rendered HTML held, because the delete used to be a SECOND tool call the model could otherwise
+ * make itself, and the secret was what stood between "the model asks" and "the model completes it."
  *
- * - `@jini-ai/daemon`'s `delegated-tool-bridge.ts` splits UI blocks out of the tool result and emits
- *   them as `mcp-ui` run events, so the resource never reaches the value the model reads.
- * - Per MCP Apps' model, a Host renders the HTML for the human and does not feed it to the model.
+ * `content_post_delete` now holds its call open (`assistant/surface-exchanges.ts`) instead of
+ * returning and waiting for a second call. There is no second call to guard: the model's one call to
+ * this tool parks, and the ONLY way to make it resolve is a browser POST to
+ * `mcp-ui-tool-calls-route.ts`'s exchange-delivery path — a channel the model has no access to
+ * (that route sits behind the daemon's bearer gate plus the admin-session check one hop upstream in
+ * `server/modules/assistant.ts`, neither of which a model-issued tool call can satisfy). So this
+ * surface now carries an **exchange id** instead of a token — a correlation handle, not a secret
+ * (`surface-exchanges.ts`'s own header explains why the distinction is deliberate). It is still
+ * interpolated into this surface and **nowhere else** — never into the tool's `modelText`, its
+ * `_meta`, or an error message — but that placement now protects correctness (a human's answer
+ * reaching the right in-flight call), not secrecy: leaking an exchange id lets a caller *name* a
+ * pending call, not act on it, since only the browser can deliver to it.
  *
- * Before the first of those existed, this file's own doc claimed the second was sufficient. It was
- * not: `@jini-ai/mcp`'s `okResult()` JSON.stringifies a tool result into one text block, so the
- * token arrived as ordinary model-visible context and the model could approve its own deletion.
- * **Do not reintroduce a path that puts the token in the return value.**
+ * `pending-confirmations.ts`'s TTL/staleness property (a row edited between the dialog rendering and
+ * the click invalidates the confirmation) is NOT implied by this change and is not this module's
+ * job — `tool-registrations.ts`'s handler re-checks the entity's version explicitly, right before
+ * writing, now that there is no token binding to carry that check for it.
  */
 
 /** What the dialog needs to describe the row truthfully. */
@@ -68,15 +79,18 @@ export function deleteConfirmationUri(subject: DeleteConfirmationSubject): UIRes
  *
  * @param spec.subject - The row the human is being asked about. Every field is shown, because a
  * dialog that says "delete this?" without naming what "this" is provides no real consent.
- * @param spec.confirmationToken - The single-use secret. **This is the only place it may go.**
+ * @param spec.exchangeId - The held-open call's correlation handle (`SurfaceExchange.id`). **This is
+ * the only place it may go** — not because it is secret (it is not, see this file's header), but
+ * because a copy anywhere else would misleadingly suggest a second, independent path back to the
+ * call, and there is none.
  * @returns The `EmbeddedResource` the daemon splits out and renders for the human.
  * @complexity O(n) in the rendered field lengths.
  */
 export function buildDeleteConfirmationResource(spec: {
   subject: DeleteConfirmationSubject;
-  confirmationToken: string;
+  exchangeId: string;
 }): UIResource {
-  const { subject, confirmationToken } = spec;
+  const { subject, exchangeId } = spec;
   const noun = subject.kind === "page" ? "page" : "post";
 
   return buildConfirmationSurface({
@@ -97,15 +111,15 @@ export function buildDeleteConfirmationResource(spec: {
     confirm: {
       label: `Delete ${noun}`,
       toolName: CONTENT_POST_DELETE_TOOL_ID,
-      params: { id: subject.id, kind: subject.kind, confirmationToken, decision: "confirm" },
+      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
     },
-    // A tool action, not a bare dismiss: cancelling REDEEMS the token too, burning it server-side.
-    // A dialog that just closes leaves a live token behind for its whole TTL, so "cancel" would
-    // weaken the gate rather than close it.
+    // A tool action, not a bare dismiss: cancelling posts back and resolves the parked call
+    // immediately. A dialog that just closes would strand the agent's call open until the idle
+    // deadline instead of reporting the human's actual answer.
     cancel: {
       label: "Cancel",
       toolName: CONTENT_POST_DELETE_TOOL_ID,
-      params: { id: subject.id, kind: subject.kind, confirmationToken, decision: "cancel" },
+      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
     },
     app: { appName: "tovu-content-post-delete", appVersion: "1" },
     preferredFrameSize: ["100%", "320px"],

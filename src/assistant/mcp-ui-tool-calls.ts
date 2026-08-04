@@ -16,14 +16,18 @@
 import { demoToolsEnabled } from "./demo-choices-tool";
 
 /**
- * Tool ids the redemption endpoint is willing to execute at all. Every other `toolName` is refused
- * unconditionally, before any authorization or execution is attempted.
+ * Tool ids `mcp-ui-tool-calls-route.ts`'s callback endpoint is willing to reach at all — for either
+ * shape it speaks: an exchange delivery (ADR-055 Decisions 1/2) or the legacy token-redemption call
+ * (ADR-053 Decision 3). Every other `toolName` is refused unconditionally, before either shape's
+ * branch even runs.
  *
  * Being on this list is necessary but not sufficient for safety — it is not what MAKES a tool safe
- * to redeem this way, only a gate on which already-safe tools this endpoint will forward to. A tool
- * belongs here only if its own handler performs its own single-use, TTL-bound token redemption via
- * `pending-confirmations.ts` the way `content_post_delete` does (see
- * `features/post/tool-registrations.ts`); adding an id whose handler has no such redemption step
+ * to reach this way, only a gate on which already-safe tools this endpoint will forward to. A tool
+ * belongs here only if it holds up its end of ONE of the two shapes: either it opens a
+ * `SurfaceExchangeStore` exchange and parks on the answer the way `content_post_delete`
+ * (`features/post/tool-registrations.ts`, ADR-055 Decision 2) and the form tools do, or — for the
+ * legacy shape, currently unused by any wired tool — its own handler performs its own single-use,
+ * TTL-bound token redemption via `pending-confirmations.ts`. Adding an id whose handler does neither
  * would turn this into an unauthenticated remote-execution allowlist for that tool, model-callable
  * with no human in the loop.
  *

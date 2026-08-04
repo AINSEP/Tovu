@@ -17,14 +17,18 @@ import { SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "./surface-
  *
  * A callback arrives as either:
  *
- * 1. **An exchange delivery** (ADR-055 Decision 1) — the body names an open
+ * 1. **An exchange delivery** (ADR-055 Decisions 1 and 2) — the body names an open
  *    {@link SurfaceExchangeStore} exchange, and therefore an agent tool call still held open and
  *    waiting. Nothing is executed: the message reaches that call, and the agent — still alive —
- *    returns the answer as its own result. This is the path a form takes, and the path a multi-turn
- *    conversation takes for every one of its turns.
+ *    returns the answer as its own result. This is the path a form takes, the path
+ *    `content_post_delete` takes since Decision 2 (superseding ADR-053 Decision 3's token
+ *    redemption below), and the path a multi-turn conversation takes for every one of its turns.
  * 2. **A legacy redemption** (ADR-053 Decision 3) — no exchange id, so the answer is a second,
- *    ordinary tool call carrying the confirmation token only the rendered dialog held. This is the
- *    path `content_post_delete` takes, and it stays until ADR-055 Decision 2 replaces it.
+ *    ordinary tool call carrying a confirmation token only the rendered dialog held. No wired tool
+ *    takes this path today — `content_post_delete` was the only one, and it moved to shape 1 above.
+ *    Left in place as generic infrastructure for a future tool that genuinely needs a second,
+ *    independently-authorized call rather than a held-open one; `pending-confirmations.ts` and this
+ *    branch are what such a tool would still need.
  *
  * The discriminator is the exchange id's presence rather than the tool's identity, so a tool can move
  * from one shape to the other without this route learning its name.
@@ -48,17 +52,18 @@ import { SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "./surface-
  * ## Why it must live in this process
  *
  * Mounted inside `agent-daemon-server.ts` — the only process where the `ToolRegistry`/
- * `ToolExecutor`, the `content_post_delete` handler's `PendingConfirmationStore`, and the
- * `PendingSurfaceAnswerStore` holding live parked promises actually live
- * (`buildAssistantToolRegistrations` runs exactly once there, at boot). A route in Tovu's own
- * admin server cannot call `confirmations.redeem()` or the handler directly — different process,
- * different memory — and `@jini-ai/core`'s `ToolRegistry` deliberately never exposes a handler
- * outside `ToolExecutor.execute()` even to callers inside this same process (see that package's
- * `tool-registry.ts` module doc: "the only way to actually *run* a tool is through
- * `@jini-ai/daemon`'s `ToolExecutor`"). So this route's whole job is to be the one legal call site,
- * on this process, that turns a browser-authenticated redemption request into
- * `toolExecutor.execute(...)` — the exact same call a model-issued tool invocation makes, which is
- * what makes this "reuse the handler" rather than "reimplement its logic."
+ * `ToolExecutor`, the `SurfaceExchangeStore` every parked call (including `content_post_delete`,
+ * ADR-055 Decision 2) is waiting in, and any future Shape 2 tool's own `PendingConfirmationStore`
+ * actually live (`buildAssistantToolRegistrations` runs exactly once there, at boot). A route in
+ * Tovu's own admin server cannot call `surfaceExchanges.deliver()`, `confirmations.redeem()`, or a
+ * handler directly — different process, different memory — and `@jini-ai/core`'s `ToolRegistry`
+ * deliberately never exposes a handler outside `ToolExecutor.execute()` even to callers inside this
+ * same process (see that package's `tool-registry.ts` module doc: "the only way to actually *run* a
+ * tool is through `@jini-ai/daemon`'s `ToolExecutor`"). So this route's whole job is to be the one
+ * legal call site, on this process, that turns a browser-authenticated answer into either an
+ * exchange delivery or `toolExecutor.execute(...)` — for Shape 2, the exact same call a model-issued
+ * tool invocation makes, which is what makes THAT shape "reuse the handler" rather than "reimplement
+ * its logic." Shape 1 never calls the handler a second time at all — see below.
  *
  * Covered by the daemon's existing global bearer gate (`daemon-auth.ts`'s
  * `requireAgentDaemonToken`, mounted ahead of every route in `agent-daemon-server.ts`) — this
@@ -110,10 +115,14 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * `pending-confirmations.ts`'s header). So `'denied'`/`'confirmation-denied'` are handled for
  * completeness and to keep this switch exhaustive against `ToolExecutionStatus`, not because a live
  * path reaches them today. `'cancelled'` is similarly unreachable from this call site specifically —
- * nothing here holds the `executionId` an external `toolExecutor.cancel()` would need. `'failed'` is
- * the real second case: `content_post_delete`'s own thrown "confirmation could not be redeemed"
- * message (a stale/reused/wrong-binding token) surfaces here, and is reported as 400 — the caller
- * (a human who just clicked a dialog) can act on it, and it is not this server's fault.
+ * nothing here holds the `executionId` an external `toolExecutor.cancel()` would need. `'failed'`
+ * was, before ADR-055 Decision 2, `content_post_delete`'s own thrown "confirmation could not be
+ * redeemed" message (a stale/reused/wrong-binding token) surfacing here as a 400. That specific call
+ * site is dead now — `content_post_delete` takes Shape 1 below, whose own rejections (a stale
+ * version, an expired dialog, a redelivery to an unknown-or-closed exchange) surface as this
+ * function's separate 409 in the Shape 1 branch, or as an ordinary failed-tool-call result back
+ * through the run that made the original call, never through THIS function. `'failed'` is kept for
+ * exhaustiveness and for a future Shape 2 tool, whose thrown rejection would land here the same way.
  *
  * @complexity O(1).
  * @overallScore 100

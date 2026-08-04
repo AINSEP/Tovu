@@ -3,10 +3,9 @@ import test from "node:test";
 
 import express from "express";
 
-import { createToolRegistry } from "@jini-ai/core";
+import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
-import type { UIResource } from "#src/assistant/mcp-ui";
 import { InMemoryChangeSetRepo } from "#src/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/core/events/index";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
@@ -16,106 +15,56 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server";
 import { RUN_PRINCIPAL_HEADER } from "../run-ownership";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../surface-exchanges";
 
 /**
- * @file The real, non-mocked round trip through the MCP-UI redemption route, requested directly by
- * the Coordinator: `mcp-ui-tool-calls-route.test.ts` only ever exercises the route's OWN contract
- * against a fake `ToolExecutor`, which cannot catch a principal-binding mismatch between the mint
- * and redeem hops — a fake executor has no `PendingConfirmationStore` to disagree with.
+ * @file The real, non-mocked round trip through the MCP-UI callback route's Shape 1 (exchange
+ * delivery), requested directly by the Coordinator for the same reason the file this replaces was:
+ * `mcp-ui-tool-calls-route.test.ts` only ever exercises the route's OWN contract against a fake
+ * `ToolExecutor`/fake `SurfaceExchangeStore`, which cannot catch a principal-binding mismatch between
+ * the call that opens an exchange and the delivery that answers it.
+ *
+ * ## Why this file was rewritten rather than patched (ADR-055 Decision 2)
+ *
+ * The file this replaces certified Shape 2 — the legacy token-redemption call — end to end for
+ * `content_post_delete`, because that tool was Shape 2's only wired user. `content_post_delete` has
+ * moved to Shape 1 (a held-open exchange): the model's ONE call to `toolExecutor.execute` never
+ * returns until the human answers, and the human's answer arrives through THIS route as an exchange
+ * delivery, not a second `toolExecutor.execute` call. So the thing worth certifying end to end changed
+ * shape along with the tool, and Shape 2 currently has no wired caller to certify against (see
+ * `mcp-ui-tool-calls.ts` / `mcp-ui-tool-calls-route.ts` for where that legacy branch still lives).
  *
  * This file wires the REAL `ToolRegistry` + `createToolExecutor` (no `delegate`, matching
- * `agent-daemon-server.ts`'s own construction exactly) over `buildPostRegistrations`' REAL
- * `content_post_delete` handler and its REAL `PendingConfirmationStore`, then:
+ * `agent-daemon-server.ts`'s own construction exactly) over `buildPostRegistrations`'s REAL
+ * `content_post_delete` handler and a REAL `SurfaceExchangeStore` — the same store instance the route
+ * is mounted with, exactly as `agent-daemon-server.ts` requires — then:
  *
- *  1. "Mints" a confirmation exactly the way a model's tool call does — `toolExecutor.execute` with
- *     no `confirmationToken`, for some principal.
- *  2. Extracts the real token from the ACTUAL returned UI resource (see "Pre-existing finding" below
- *     for why not by simulating a click, which is the more obviously "real" technique and the one
- *     `agent-tools.delete-confirmation.test.ts` uses).
- *  3. Redeems it through THIS route (`registerMcpUiToolCallsRoute`, over real HTTP via
- *     `startTestServer`), for that SAME principal — and asserts the post is ACTUALLY trashed in the
- *     backing repo, not just that the HTTP response looked right.
+ *  1. Calls `toolExecutor.execute(...)` directly with a real `emitSurface`, exactly the way
+ *     `@jini-ai/daemon`'s `delegated-tool-bridge.ts` does for a real spawned-agent tool call. The call
+ *     does not resolve — it is parked on the exchange it just opened.
+ *  2. Extracts the real exchange id from the ACTUAL emitted MCP-UI resource's HTML (the same
+ *     regex-based extraction `demo-choices-tool.test.ts`/`agent-tools.delete-confirmation.test.ts` use
+ *     — simulating what the rendered iframe reads, not stubbing it).
+ *  3. Delivers the human's answer through THIS route (`registerMcpUiToolCallsRoute`, over real HTTP
+ *     via `startTestServer`), for that SAME principal — and asserts the post is ACTUALLY trashed in
+ *     the backing repo once the parked `execute()` call resolves, not just that the HTTP response
+ *     looked right.
  *  4. Repeats step 3 with a DIFFERENT principal in {@link RUN_PRINCIPAL_HEADER} and asserts the
- *     redemption is refused (`binding-mismatch`) and nothing is deleted — this is the actual
- *     security property `pending-confirmations.ts`'s `redeem` exists to enforce, and the property
- *     the Coordinator asked to see proven rather than assumed from reading.
+ *     delivery is refused (`binding-mismatch`) and nothing is delivered to the parked call.
  *
  * What this deliberately does NOT do: boot the full `agent-daemon-server.ts` process or a real
- * `RunLifecycle`/`/api/delegated-tool-calls` hop. That is unnecessary for what is under test here —
- * see this file's own findings on `ToolExecutor.execute`'s `run` argument below — and would turn a
- * focused test into an integration test of unrelated machinery (run start, attachment claiming,
- * custom-instructions refresh, …). The one thing that DOES need to be real, and is real here, is:
- * one `ToolRegistry`, one `toolExecutor` built from it with no `delegate` (matching production), and
- * therefore one closure-captured `PendingConfirmationStore` shared by both the mint call and the
- * redeem call that reaches it through this route — exactly the sharing the real daemon process
- * provides by running `buildAssistantToolRegistrations` exactly once at boot.
- *
- * ## Pre-existing finding, unrelated to this dispatch's scope: the click-simulation harness is broken
- *
- * `src/features/post/__tests__/fake-mcp-ui-host.ts`'s `renderUIResource(...).click("confirm")` was
- * the obvious way to extract a real token here (it is exactly what
- * `agent-tools.delete-confirmation.test.ts` already does), and this file used it in an earlier
- * revision. It fails — `Error: the dialog has no 'confirm' button` — and re-running
- * `agent-tools.delete-confirmation.test.ts` as-is on this branch confirms the SAME failure hits 8 of
- * its pre-existing, previously-certified cases. This is not something introduced by this dispatch:
- * `delete-confirmation-ui.ts` was already rewritten (ADR-053 Decision 2, landed before this task
- * started) to render via `@jini-ai/ui/mcp-ui/surfaces`'s `buildConfirmationSurface`, which speaks the
- * real MCP Apps protocol — buttons are found by `document.querySelectorAll('[data-mcpui-action]')`
- * and wired through a real `ui/initialize` → `tools/call` JSON-RPC bridge
- * (`packages/ui/src/features/mcp-ui/surfaces/document.ts`'s `SURFACE_SCRIPT_PRELUDE`), not by
- * `getElementById('confirm')`/a bare `postMessage({type:'tool',...})` the way the fake host and the
- * OLD hand-rolled dialog both assumed. The fake host was never updated for the new protocol, so
- * EVERY test using it against real `content_post_delete` output is currently failing — independent
- * of anything in this dispatch. Flagged to the Coordinator; fixing that harness (or replacing it
- * with a real MCP-Apps-speaking fake host) is its own task, not taken on here.
- *
- * Given that, this file extracts the token directly from the real rendered resource's embedded
- * click-plan instead of simulating a click: `renderConfirmationDocument` inlines `var PLAN =
- * <escapeJsValue(plan)>;` into the script (`packages/ui/src/features/mcp-ui/surfaces/confirmation.ts`),
- * and `escapeJsValue` is `JSON.stringify` plus a `<`→`<` substitution that is STILL valid JSON
- * (verified: `JSON.parse` round-trips it). This is real output from the real minting call — nothing
- * here fabricates a token or a params object — it just reads the plan out of the HTML by parsing
- * instead of by executing the script in a `vm` sandbox. It is not a substitute for
- * `agent-tools.delete-confirmation.test.ts`'s own click-protocol certification once that harness is
- * fixed; it only needs the params a click WOULD have sent, for this file's own purpose (principal
- * binding at the redemption route), and gets them honestly.
- *
- * ## Finding: what `ToolExecutor.execute`'s `run` argument is actually used for
- *
- * Traced through `@jini-ai/daemon`'s `tool-executor.ts` and `@jini-ai/core`'s `tool-registry.ts`
- * (`authorizeToolInvocation`), not assumed:
- *
- * - `authorizeToolInvocation` passes `run` into `policy.authorize({principal, run, tool, input})`
- *   and, only if authorization already resolved `'allow'`, into an optional
- *   `delegate.onAuthorize({...})`. Every domain tool (including `content_post_delete`) is registered
- *   through `registration-kit.ts`'s `buildDomainRegistrations` with `policy: {authorize: () =>
- *   "allow"}` — a pass-through that reads none of its arguments. `agent-daemon-server.ts` constructs
- *   `createToolExecutor({registry})` with no `delegate` option at all, so `onAuthorize` is never
- *   even called. `run` is therefore READ by authorization but never actually CONSULTED, in this
- *   codebase's real configuration.
- * - `ToolExecutor.execute` itself uses `run.id` in exactly one place: `openAudit` stamps it as the
- *   `runId` field of the executor's own in-memory audit record (and, via `withToolAttemptAudit`,
- *   into the durable `tool_attempts` sink). It is a plain string label — no lookup against
- *   `RunLifecycle`, no existence check, no foreign-key-shaped constraint.
- * - `content_post_delete`'s own `ToolHandler` (`features/post/tool-registrations.ts`) destructures
- *   `ctx.principal` and `ctx.input` and never reads `ctx.run` at all.
- * - `RunLifecycle`/the run's own event log (what the browser's SSE subscription watches) is an
- *   entirely separate object from `ToolExecutor` in `agent-daemon-server.ts` — the executor never
- *   touches it. A synthetic `run.id` therefore cannot emit an event anywhere a human or the model
- *   would see one; it also cannot fail, since nothing validates it against anything.
- *
- * Net: `mcp-ui-tool-calls-route.ts`'s synthetic `{id: 'mcp-ui-redemption:' + randomUUID()}` is inert
- * outside the audit trail, where it shows up as a distinct, clearly-labeled `runId` string
- * (recognizably not a real agent run) rather than colliding with or corrupting one.
+ * `RunLifecycle`/`/api/delegated-tool-calls` hop — unnecessary for what is under test here (the route's
+ * own delivery contract against a real store and a real parked handler), and it would turn a focused
+ * test into an integration test of unrelated machinery (run start, attachment claiming, ...).
  */
 
-const WORKSPACE_ID = "ws-mcp-ui-redemption-integration";
-const NOW = "2026-08-03T00:00:00.000Z";
+const WORKSPACE_ID = "ws-mcp-ui-exchange-integration";
+const NOW = "2026-08-04T00:00:00.000Z";
 const EMPTY_DOC = { type: "doc", content: [] };
 
 /** Builds the real tool surface: one registry, one production-shaped executor (no `delegate`, no
  * mocks), over an in-memory Posts repo so a real soft-delete can be asserted directly. */
-function buildRealPostToolExecutor() {
+function buildRealPostToolExecutor(surfaceExchanges: SurfaceExchangeStore) {
   const postRepo = new InMemoryPostRepo();
   const changeSets = new InMemoryChangeSetRepo();
   const outbox = new InMemoryOutbox();
@@ -133,7 +82,7 @@ function buildRealPostToolExecutor() {
   } as unknown as RouteDeps;
 
   const registry = createToolRegistry();
-  for (const registration of buildPostRegistrations(deps)) {
+  for (const registration of buildPostRegistrations(deps, { surfaceExchanges })) {
     registry.register(registration);
   }
   // Same construction as `agent-daemon-server.ts`'s own `createToolExecutor({ registry })` call —
@@ -158,142 +107,158 @@ async function seedPost(postRepo: InMemoryPostRepo) {
   return row;
 }
 
-/** Mints a confirmation through the REAL executor, exactly as a model's first tool call would. */
-async function mintRealConfirmation(
+/** Pulls the exchange id out of the emitted mcp-ui surface's HTML — the way the rendered iframe would. */
+function exchangeIdFromEmission(emission: SurfaceEmission): string {
+  const resource = (emission.payload as { resource?: { resource?: { text?: string } } }).resource;
+  const html = resource?.resource?.text ?? "";
+  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+  assert.ok(match, "the surface must carry its exchange id, or the human's answer has nothing to name");
+  return match[1]!;
+}
+
+/** Calls `content_post_delete` through the REAL executor, exactly as a spawned agent's first (and
+ * only) call would — including the `emitSurface` `delegated-tool-bridge.ts` always supplies. */
+async function openRealDialog(
   toolExecutor: ReturnType<typeof buildRealPostToolExecutor>["toolExecutor"],
-  mintPrincipalId: string,
-): Promise<UIResource> {
-  const result = await toolExecutor.execute({ id: mintPrincipalId }, { id: "run-mint-1" }, "content_post_delete", {
-    id: "p1",
-    kind: "post",
-  });
-  assert.equal(result.status, "completed", `mint call must succeed: ${JSON.stringify(result)}`);
-  const shaped = result.output as { content?: Array<{ type: string; resource?: unknown }> };
-  assert.ok(Array.isArray(shaped.content) && shaped.content.length === 2, "expected [textBlock, uiResource]");
-  return shaped.content[1] as unknown as UIResource;
+  principalId: string,
+): Promise<{ pending: ReturnType<typeof toolExecutor.execute>; exchangeId: string }> {
+  const emitted: SurfaceEmission[] = [];
+  const pending = toolExecutor.execute(
+    { id: principalId },
+    { id: "run-1" },
+    "content_post_delete",
+    { id: "p1", kind: "post" },
+    undefined,
+    async (emission: SurfaceEmission) => {
+      emitted.push(emission);
+    },
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
+  return { pending, exchangeId: exchangeIdFromEmission(emitted[0]) };
 }
 
-/**
- * Extracts the real `confirm` action's `{toolName, params}` — including the real, randomly-minted
- * token — from the resource's inline script, by parsing the SAME `var PLAN = <json>;` literal the
- * dialog's own click handler reads (`confirmation.ts`'s `renderConfirmationDocument`). See this
- * file's own header ("Pre-existing finding") for why this file does not click-simulate instead.
- *
- * @throws {Error} If the resource carries no recognizable `PLAN` literal — a signal this builder's
- * output shape changed and this extraction needs updating, not that a token is missing.
- */
-function extractConfirmParams(ui: UIResource): { toolName: string; params: Record<string, unknown> } {
-  if (ui.type !== "resource") throw new Error(`not an embedded resource: ${String(ui.type)}`);
-  const match = /var PLAN = (\{[\s\S]*?\});/.exec(ui.resource.text);
-  if (!match) throw new Error("could not find the confirmation dialog's embedded action plan");
-  // `escapeJsValue`'s only departure from plain `JSON.stringify` is escaping `<`/U+2028/U+2029 to
-  // `\uXXXX` sequences, which are valid JSON string escapes too — `JSON.parse` reverses them.
-  const plan = JSON.parse(match[1]) as { confirm: { toolName: string; params: Record<string, unknown> } };
-  return plan.confirm;
-}
-
-test("real round trip: a redemption from the SAME principal that minted it actually trashes the post", async (t) => {
-  const { toolExecutor, postRepo } = buildRealPostToolExecutor();
+test("real round trip: an exchange delivery from the SAME principal that opened it actually trashes the post", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const { toolExecutor, postRepo } = buildRealPostToolExecutor(surfaceExchanges);
   await seedPost(postRepo);
-  const MINT_AND_REDEEM_PRINCIPAL = "principal-admin-1";
+  const PRINCIPAL = "principal-admin-1";
 
-  // Step 1: mint (no mocking — the real handler, the real PendingConfirmationStore).
-  const ui = await mintRealConfirmation(toolExecutor, MINT_AND_REDEEM_PRINCIPAL);
+  const { pending, exchangeId } = await openRealDialog(toolExecutor, PRINCIPAL);
 
-  // Step 2: extract the real token from the real rendered resource.
-  const confirm = extractConfirmParams(ui);
-  assert.equal(confirm.toolName, "content_post_delete");
-  assert.equal(typeof confirm.params.confirmationToken, "string");
-  assert.ok((confirm.params.confirmationToken as string).length > 0);
-
-  // Step 3: redeem through THIS route, over real HTTP, as the SAME principal.
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor });
+  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST",
-    headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: MINT_AND_REDEEM_PRINCIPAL },
-    body: JSON.stringify({ toolName: confirm.toolName, params: confirm.params }),
+    headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
+    body: JSON.stringify({
+      toolName: "content_post_delete",
+      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
+    }),
   });
 
-  const body = (await res.json()) as { deleted: boolean; cancelled: boolean; error?: string };
-  assert.equal(res.status, 200, `expected the redemption to succeed: ${JSON.stringify(body)}`);
-  assert.equal(body.deleted, true);
-  assert.equal(body.cancelled, false);
+  const body = (await res.json()) as { delivered: boolean };
+  assert.equal(res.status, 202, `expected the delivery to be accepted: ${JSON.stringify(body)}`);
+  assert.equal(body.delivered, true);
 
-  // The load-bearing assertion: not just a 200, but the row is ACTUALLY trashed in the backing repo.
+  // Deliberately not the tool's own result — the route returns `{delivered:true}` because the
+  // outcome belongs to the AGENT's call, not this HTTP response. Assert that call resolves truthfully.
+  const executed = await pending;
+  assert.equal(executed.status, "completed", `mint call must resolve completed: ${JSON.stringify(executed)}`);
+  const output = executed.output as { deleted: boolean; cancelled: boolean };
+  assert.equal(output.deleted, true);
+  assert.equal(output.cancelled, false);
+
+  // The load-bearing assertion: not just a 202 and a completed status, but the row is ACTUALLY
+  // trashed in the backing repo.
   const row = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
   assert.ok(row, "a soft delete keeps the row");
   assert.equal(row.deletedAt, NOW, "the post must be genuinely trashed, not merely reported as deleted");
   assert.equal(row.version, 2);
 });
 
-test("SECURITY: a redemption from a DIFFERENT principal than the one that minted it is refused, and nothing is deleted", async (t) => {
-  const { toolExecutor, postRepo } = buildRealPostToolExecutor();
+test("SECURITY: a delivery from a DIFFERENT principal than the one that opened the exchange is refused, and nothing is delivered", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const { toolExecutor, postRepo } = buildRealPostToolExecutor(surfaceExchanges);
   await seedPost(postRepo);
 
-  // Mint as one principal (models the run that raised the dialog)...
-  const ui = await mintRealConfirmation(toolExecutor, "principal-who-ran-the-agent");
-  const confirm = extractConfirmParams(ui);
+  // Open as one principal (models the run that raised the dialog)...
+  const { pending, exchangeId } = await openRealDialog(toolExecutor, "principal-who-ran-the-agent");
 
-  // ...redeem as a DIFFERENT principal (models a session/run-principal mismatch — exactly the
-  // failure mode named in the dispatch: if the value RUN_PRINCIPAL_HEADER carries at redeem time
-  // ever disagreed with the value recorded at mint time, this is what it would look like).
+  // ...deliver as a DIFFERENT principal (models a session/run-principal mismatch — exactly the
+  // failure mode this route's binding check exists to catch: if the value RUN_PRINCIPAL_HEADER
+  // carries at delivery time ever disagreed with the value recorded when the exchange was opened,
+  // this is what it would look like).
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor });
+  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
     method: "POST",
     headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: "principal-someone-else" },
-    body: JSON.stringify({ toolName: confirm.toolName, params: confirm.params }),
+    body: JSON.stringify({
+      toolName: "content_post_delete",
+      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
+    }),
   });
 
-  assert.equal(res.status, 400);
-  const body = (await res.json()) as { error: string };
-  assert.match(body.error, /binding-mismatch/, "the redemption must fail on the binding check, not silently succeed");
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { reason: string };
+  assert.equal(body.reason, "binding-mismatch", "the delivery must fail on the binding check, not silently succeed");
 
   const row = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
-  assert.equal(row?.deletedAt ?? null, null, "a principal mismatch must not delete anything");
+  assert.equal(row?.deletedAt ?? null, null, "a principal mismatch must not deliver, let alone delete anything");
+
+  // Clean up the still-parked call so this test does not leak a pending exchange.
+  surfaceExchanges.deliver({
+    exchangeId,
+    toolId: "content_post_delete",
+    principalId: "principal-who-ran-the-agent",
+    params: { decision: "cancel" },
+  });
+  await pending;
 });
 
-test("a token cannot be redeemed twice through this route — the store's single-use guarantee holds end to end, not just at the handler level", async (t) => {
-  // The principal-mismatch test above proves the BINDING check; this proves the other half of
-  // "the real store, not a mock" is load-bearing here too — a route bug that somehow bypassed
-  // single-use (e.g. by not propagating the token exactly) would show up as a SECOND 200, not a 400.
-  const { toolExecutor, postRepo } = buildRealPostToolExecutor();
+test("a delivery cannot be replayed through this route — the exchange's single-use guarantee holds end to end, not just at the store level", async (t) => {
+  // The principal-mismatch test above proves the BINDING check; this proves the other half of "the
+  // real store, not a mock" is load-bearing here too — a route bug that somehow bypassed
+  // single-use would show up as a second 202, not a 409.
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const { toolExecutor, postRepo } = buildRealPostToolExecutor(surfaceExchanges);
   await seedPost(postRepo);
   const PRINCIPAL = "principal-admin-1";
 
-  const ui = await mintRealConfirmation(toolExecutor, PRINCIPAL);
-  const confirm = extractConfirmParams(ui);
+  const { pending, exchangeId } = await openRealDialog(toolExecutor, PRINCIPAL);
 
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor });
+  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
   const baseUrl = await startTestServer(app, t);
 
-  const redeemOnce = () =>
+  const deliverOnce = () =>
     fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
       method: "POST",
       headers: { "content-type": "application/json", [RUN_PRINCIPAL_HEADER]: PRINCIPAL },
-      body: JSON.stringify({ toolName: confirm.toolName, params: confirm.params }),
+      body: JSON.stringify({
+        toolName: "content_post_delete",
+        params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "confirm" },
+      }),
     });
 
-  const first = await redeemOnce();
-  assert.equal(first.status, 200, `expected the first redemption to succeed: ${await first.clone().text()}`);
-  const second = await redeemOnce();
-  assert.equal(second.status, 400);
-  const secondBody = (await second.json()) as { error: string };
-  assert.match(
-    secondBody.error,
-    /post 'p1' was not found/,
-    "the replay is refused by the trashed-row guard first, same ordering agent-tools.delete-confirmation.test.ts pins",
-  );
+  const first = await deliverOnce();
+  assert.equal(first.status, 202, `expected the first delivery to be accepted: ${await first.clone().text()}`);
+  await pending;
+
+  const second = await deliverOnce();
+  assert.equal(second.status, 409);
+  const secondBody = (await second.json()) as { reason: string };
+  assert.equal(secondBody.reason, "unknown-or-closed", "the exchange must already be gone once its call has resolved");
 
   const row = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" });
   assert.equal(row?.deletedAt, NOW, "still trashed exactly once, not double-processed");
+  assert.equal(row?.version, 2);
 });

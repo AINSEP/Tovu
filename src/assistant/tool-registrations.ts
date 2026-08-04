@@ -211,12 +211,10 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   { domain: "workspace", build: buildWorkspaceRegistrations, risk: workspaceDerivedRisk },
   { domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk },
   { domain: "entries", build: buildEntriesRegistrations, risk: entriesDerivedRisk },
-  // Wrapped rather than passed directly: `buildPostRegistrations`' own second parameter is its
-  // confirmation-store test seam, which occupies the same slot the slice contract uses for surface
-  // deps and means something entirely different. Dropping the argument here is the correct
-  // behaviour anyway — `content_post_delete` is still on ADR-053's two-call path and parks nothing.
-  // When ADR-055 Decision 2 lands, this becomes a real forward of `surfaces`.
-  { domain: "post", build: (routeDeps) => buildPostRegistrations(routeDeps), risk: postDerivedRisk },
+  // `buildPostRegistrations`' second parameter now IS the slice contract's own `surfaces` shape
+  // (ADR-055 Decision 2 — `content_post_delete` holds its call open through the same exchange store
+  // every other surface-raising domain uses), so this forwards directly rather than wrapping.
+  { domain: "post", build: buildPostRegistrations, risk: postDerivedRisk },
   { domain: "taxonomy", build: buildTaxonomyRegistrations, risk: taxonomyDerivedRisk },
   { domain: "seo", build: buildSeoRegistrations, risk: seoDerivedRisk },
   { domain: "redirects", build: buildRedirectsRegistrations, risk: redirectsDerivedRisk },
@@ -270,9 +268,13 @@ export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: Wirabl
  * @param surfaces - Assistant-transport machinery for surface-raising tools. Defaults to a fresh,
  * unshared store, which is right for the many tests that build the registration list only to inspect
  * descriptors and never execute a handler. A caller that also mounts
- * `registerMcpUiToolCallsRoute` must pass its own instance — see {@link AssistantSurfaceDeps}. The
- * default is safe rather than a trap only because every tool that parks is env-gated off by
- * default; if a shipped tool ever parks, this default should become a required argument.
+ * `registerMcpUiToolCallsRoute` must pass its own instance — see {@link AssistantSurfaceDeps}.
+ * `content_post_delete` (ADR-055 Decision 2) is now a shipped, non-env-gated tool that parks, so the
+ * "every parking tool is demo-only" reasoning this default used to lean on no longer holds in
+ * general. It stays a default rather than a required argument only because the one real production
+ * caller (`agent-daemon-server.ts`) already passes its own instance explicitly, mirrored into
+ * `registerMcpUiToolCallsRoute`; any test that actually EXECUTES a surface-raising handler — not
+ * merely inspects its descriptor — must do the same, or its exchange is unreachable.
  * @returns Every wired domain's registrations, concatenated in {@link DOMAIN_SLICES} order.
  * @throws {Error} If two domains register the same tool id, or if any domain's own build-time gates
  * refuse (unclassified risk, missing `inputSchema`, catalog drift, an entry neither wired nor
