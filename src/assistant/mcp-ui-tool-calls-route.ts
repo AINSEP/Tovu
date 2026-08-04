@@ -7,12 +7,49 @@ import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import { RUN_PRINCIPAL_HEADER } from "./run-ownership";
 import { isMcpUiToolCallAllowed } from "./mcp-ui-tool-calls";
+import { SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "./surface-exchanges";
 
 /**
- * @file The daemon-side half of the MCP-UI confirmation redemption endpoint (ADR-053 Decision 3).
+ * @file The daemon-side half of the MCP-UI callback endpoint — where a rendered surface's answer
+ * re-enters the server.
+ *
+ * ## Two shapes, one path
+ *
+ * A callback arrives as either:
+ *
+ * 1. **An exchange delivery** (ADR-055 Decision 1) — the body names an open
+ *    {@link SurfaceExchangeStore} exchange, and therefore an agent tool call still held open and
+ *    waiting. Nothing is executed: the message reaches that call, and the agent — still alive —
+ *    returns the answer as its own result. This is the path a form takes, and the path a multi-turn
+ *    conversation takes for every one of its turns.
+ * 2. **A legacy redemption** (ADR-053 Decision 3) — no exchange id, so the answer is a second,
+ *    ordinary tool call carrying the confirmation token only the rendered dialog held. This is the
+ *    path `content_post_delete` takes, and it stays until ADR-055 Decision 2 replaces it.
+ *
+ * The discriminator is the exchange id's presence rather than the tool's identity, so a tool can move
+ * from one shape to the other without this route learning its name.
+ *
+ * ## Not MCP-only, despite the path name
+ *
+ * Shape 1 accepts the exchange id either as a top-level `exchangeId` or inside the tool call's
+ * params. The params carrier exists for MCP-UI specifically — an mcp-ui surface can only answer by
+ * issuing a tool call, so its correlation has no other way home. Any channel that can name an
+ * exchange directly (A2UI, the run protocol's own `surface_response`, anything later) uses the
+ * top-level field and never touches the tool-call shape at all.
+ *
+ * ## Why an exchange delivery is not "the browser executing a tool"
+ *
+ * Shape 1 never calls `toolExecutor.execute`. That is the point, not an optimization: the held-open
+ * call already passed the registry's authorization gate when the agent made it, and re-running the
+ * gate here would authorize the human's *answer* as though it were a fresh invocation. The
+ * exchange's own binding (tool + principal) is the check that belongs at this hop, and it is a
+ * correctness check — a message must reach the call it answers — rather than an authorization one.
+ *
+ * ## Why it must live in this process
  *
  * Mounted inside `agent-daemon-server.ts` — the only process where the `ToolRegistry`/
- * `ToolExecutor` and the `content_post_delete` handler's `PendingConfirmationStore` actually live
+ * `ToolExecutor`, the `content_post_delete` handler's `PendingConfirmationStore`, and the
+ * `PendingSurfaceAnswerStore` holding live parked promises actually live
  * (`buildAssistantToolRegistrations` runs exactly once there, at boot). A route in Tovu's own
  * admin server cannot call `confirmations.redeem()` or the handler directly — different process,
  * different memory — and `@jini-ai/core`'s `ToolRegistry` deliberately never exposes a handler
@@ -46,6 +83,11 @@ export const MCP_UI_TOOL_CALLS_PATH = "/api/admin/v1/mcp-ui/tool-calls";
 
 export interface McpUiToolCallsRouteDeps {
   toolExecutor: ToolExecutor;
+  /**
+   * The SAME store `buildAssistantToolRegistrations` was given. A different instance would leave
+   * every exchange unreachable — deliveries would 409 while the agent waits out its deadline.
+   */
+  surfaceExchanges: SurfaceExchangeStore;
 }
 
 function readPrincipalId(req: Request): string | undefined {
@@ -120,7 +162,7 @@ export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRo
       return;
     }
 
-    const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown };
+    const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown; exchangeId?: unknown };
     const toolName = body.toolName;
     if (typeof toolName !== "string" || toolName.length === 0) {
       res.status(400).json({ error: "'toolName' must be a non-empty string", code: "VALIDATION_ERROR" });
@@ -136,6 +178,35 @@ export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRo
     }
     const params = isPlainObject(body.params) ? body.params : {};
 
+    // ---- Shape 1: an open exchange is waiting for this message. ----
+    // Read from a top-level `exchangeId` first, falling back to the callback param. The param is
+    // MCP-UI's carrier specifically — an mcp-ui surface can only answer by issuing a tool call, so
+    // its correlation has to ride inside that call's params. A channel that can name the exchange
+    // directly uses the top-level field and never touches the tool-call shape at all, which is what
+    // keeps this route from being MCP-only.
+    const exchangeId = typeof body.exchangeId === "string" ? body.exchangeId : params[SURFACE_EXCHANGE_ID_PARAM];
+    if (typeof exchangeId === "string" && exchangeId.length > 0) {
+      const delivered = deps.surfaceExchanges.deliver({ exchangeId, params, toolId: toolName, principalId });
+      if (!delivered.ok) {
+        // 409, not 404: from the browser's side both reasons mean "this dialog is no longer the
+        // one waiting on you" — a second click, a reload of stale scrollback, or an expired form.
+        // The distinction between them is not the human's to act on, and reporting it would only
+        // describe server state they cannot change.
+        res.status(409).json({
+          error: "that dialog is no longer waiting for an answer",
+          code: "SURFACE_NOT_PENDING",
+          reason: delivered.reason,
+        });
+        return;
+      }
+      // Deliberately not the tool's result. The agent's own call is what returns that, to the
+      // model, where it belongs — echoing it here would make this response a second copy of an
+      // answer the human already gave, and hand the iframe output it has no use for.
+      res.status(202).json({ delivered: true });
+      return;
+    }
+
+    // ---- Shape 2: legacy two-call redemption (ADR-053). ----
     const principal: Principal = { id: principalId };
     const run = { id: `mcp-ui-redemption:${randomUUID()}` };
 

@@ -36,7 +36,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import type { Principal, RunRef } from "@jini-ai/core";
+import type { Principal, RunRef, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import type { ToolAttemptAuditSink, ToolAttemptPhase } from "../features/tool-audit/types";
@@ -140,7 +140,17 @@ export function withToolAttemptAudit(inner: ToolExecutor, sink: ToolAttemptAudit
   };
 
   return {
-    execute: async (principal: Principal, run: RunRef, toolId: string, input: unknown, signal?: AbortSignal): Promise<ToolExecutionResult> => {
+    execute: async (
+      principal: Principal,
+      run: RunRef,
+      toolId: string,
+      input: unknown,
+      signal?: AbortSignal,
+      // Forwarded verbatim, and it must stay that way: a handler reads `ctx.emitSurface` to decide
+      // whether it may park on a human's answer. Dropping it here would not degrade to "no
+      // surface" — it would silently push every human-in-the-loop tool onto its fallback path.
+      emitSurface?: SurfaceEmitter,
+    ): Promise<ToolExecutionResult> => {
       const attemptId = newAttemptId();
       const base = { attemptId, workspaceId: options.workspaceId, runId: run.id, toolId, principalId: principal.id };
 
@@ -149,7 +159,7 @@ export function withToolAttemptAudit(inner: ToolExecutor, sink: ToolAttemptAudit
       await appendSafely({ ...base, executionId: null, phase: "requested", at: now(), detail: describeInput(input) });
 
       try {
-        const result = await inner.execute(principal, run, toolId, input, signal);
+        const result = await inner.execute(principal, run, toolId, input, signal, emitSurface);
         await appendSafely({ ...base, executionId: result.executionId, phase: phaseForStatus(result.status), at: now(), detail: result.truncated ? "output truncated" : null });
         return result;
       } catch (error) {

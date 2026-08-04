@@ -9,6 +9,12 @@ import {
 } from "@jini-ai/cms/core";
 
 import { buildUIToolResult } from "./mcp-ui";
+import {
+  SURFACE_DISMISSED_PARAM,
+  SURFACE_EXCHANGE_ID_PARAM,
+  askOnce,
+  type AssistantSurfaceDeps,
+} from "./surface-exchanges";
 
 /**
  * @file A development-only agent tool that renders a grouped-choice MCP-UI form, so the radio and
@@ -37,11 +43,27 @@ import { buildUIToolResult } from "./mcp-ui";
  *
  * ## It writes nothing, deliberately
  *
- * Both branches are pure. There is no state to corrupt by clicking Submit twice, and no confirmation
+ * Every branch is pure. There is no state to corrupt by clicking Submit twice, and no confirmation
  * token, because there is nothing to confirm — the interesting property here is that the controls
  * READ BACK correctly (a radio as one string, a checklist as an array), not that a gate holds.
  * Keeping it side-effect-free is also what makes `sideEffects: "none"` honest rather than a
  * classification someone has to re-audit later.
+ *
+ * ## One call, not two (ADR-055 Decision 1)
+ *
+ * This tool used to return the form and end its turn, leaving the human's submission to arrive as a
+ * SECOND tool call whose result went to the dialog and stopped there. The agent never received the
+ * selections. A form exists to collect input *for the agent*, so that was not a rough edge — the
+ * feature did not work.
+ *
+ * It now makes one call that blocks: emit the surface through `ctx.emitSurface`, park on the answer,
+ * and return the human's selections as the call's ordinary result. The emit-then-park order is
+ * mandatory and not a style choice — the daemon reads surfaces out of a *completed* result, so a
+ * handler that parked first would never show the form it is waiting on.
+ *
+ * The second-call branch is kept as a fallback for an executor that supplies no `emitSurface` (a
+ * synthetic or headless execution). Parking there would hang for the full TTL with nothing on screen
+ * to answer it, so the fallback returns the surface the old way instead.
  */
 
 /** The tool id, shared by the catalog, the handler, and the surface's own callback target. */
@@ -96,42 +118,69 @@ export const demoChoicesDerivedRisk: DerivedRiskByToolId = new Map<string, Agent
 const CATALOG_BY_ID = new Map(demoChoicesAgentToolCatalog.map((entry) => [entry.name, entry]));
 
 /**
+ * Shapes the human's selections into the tool's return value.
+ *
+ * Shared by both the parked path and the legacy second-call fallback so the agent sees an identical
+ * result either way — the return path is what changed, not the answer.
+ */
+function describeSelections(params: Record<string, unknown>): Record<string, unknown> {
+  const plan = typeof params["plan"] === "string" ? params["plan"] : undefined;
+  const extras = Array.isArray(params["extras"]) ? (params["extras"] as string[]) : [];
+  return {
+    submitted: true,
+    plan,
+    extras,
+    // Read back in the Playwright check: proves the array survived the DOM -> params ->
+    // JSON-RPC -> HTTP round trip as an array, not as a comma-joined string.
+    extrasCount: extras.length,
+  };
+}
+
+/**
  * Builds the demo registration, or none at all when the env gate is unset.
  *
+ * @param _routeDeps - Unused; this tool touches no domain dependency. Present because every domain
+ * builder shares one signature.
+ * @param surfaces - Supplies the exchange store. Must be the same instance
+ * `registerMcpUiToolCallsRoute` was mounted with, or a submitted form reaches nothing.
  * @returns A single registration, or an empty list — an empty slice is legal and is what keeps this
  * tool off the surface in a normal run.
  */
-export function buildDemoChoicesRegistrations(): ToolRegistration[] {
+export function buildDemoChoicesRegistrations(
+  _routeDeps: unknown,
+  surfaces: AssistantSurfaceDeps,
+): ToolRegistration[] {
   if (!demoToolsEnabled()) return [];
 
   const handlers: Record<string, ToolHandler> = {
     [DEMO_CHOICES_TOOL_ID]: async (ctx: Parameters<ToolHandler>[0]) => {
       const input = (ctx.input ?? {}) as Record<string, unknown>;
-      const plan = typeof input["plan"] === "string" ? input["plan"] : undefined;
-      const extras = Array.isArray(input["extras"]) ? (input["extras"] as string[]) : undefined;
 
-      // ---- Second call: the form posted the human's answers back. Echo them. ----
-      // `plan` is the discriminator rather than `extras`, because an empty checklist is a real
-      // answer ("none of them") and would be indistinguishable from "not submitted yet" if it
-      // decided this branch.
-      if (plan !== undefined) {
-        return {
-          submitted: true,
-          plan,
-          extras: extras ?? [],
-          // Read back in the Playwright check: proves the array survived the DOM -> params ->
-          // JSON-RPC -> HTTP round trip as an array, not as a comma-joined string.
-          extrasCount: (extras ?? []).length,
-        };
+      // ---- Fallback second call: no `emitSurface` was available, so the form went out the old
+      // way and the human's answers arrived as a fresh call. `plan` is the discriminator rather
+      // than `extras`, because an empty checklist is a real answer ("none of them") and would be
+      // indistinguishable from "not submitted yet" if it decided this branch.
+      if (typeof input["plan"] === "string") {
+        return describeSelections(input);
       }
 
-      // ---- First call: render the form. ----
+      // The exchange is opened BEFORE the surface is built, because the surface has to carry its id.
+      // `open` takes the emitter, so this is unreachable without one — the deadlock of waiting on a
+      // message that was never sent is not expressible here.
+      const exchange = ctx.emitSurface
+        ? surfaces.surfaceExchanges.open({ toolId: DEMO_CHOICES_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface)
+        : undefined;
+
       const ui = buildFormSurface({
         uri: `ui://tovu/demo-choices/${ctx.principal.id}` as UIResourceUri,
         title: "Which choice(s) do you want?",
         description: "A development sample exercising both grouped-choice controls.",
         submitLabel: "Submit choices",
         toolName: DEMO_CHOICES_TOOL_ID,
+        // The correlation handle that makes the submission reach THIS call rather than start a new
+        // one. Not a secret — see `surface-exchanges.ts` for why that distinction is the point
+        // rather than an oversight.
+        ...(exchange ? { baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id } } : {}),
         fields: [
           {
             kind: "enum",
@@ -157,18 +206,69 @@ export function buildDemoChoicesRegistrations(): ToolRegistration[] {
             ],
           },
         ],
-        cancel: { label: "Cancel" },
+        // Cancel posts back rather than just closing the dialog. With the call parked, a silent
+        // close would strand the agent for the full TTL staring at a form the human has already
+        // walked away from. `baseParams` is not merged into the cancel action's params by the
+        // surface builder, so the park id is repeated here deliberately.
+        cancel: exchange
+          ? {
+              label: "Cancel",
+              toolName: DEMO_CHOICES_TOOL_ID,
+              params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, [SURFACE_DISMISSED_PARAM]: true },
+            }
+          : { label: "Cancel" },
         app: { appName: "tovu-demo-choices", appVersion: "1" },
         preferredFrameSize: ["100%", "420px"],
       });
 
-      return buildUIToolResult({
-        modelText:
-          "A sample choice form has been shown to the user. NOTHING HAS BEEN SUBMITTED. The user's " +
-          "selections arrive only if they submit that form, which sends them itself. You cannot " +
-          "fill it in yourself: tell the user the form is open and wait.",
-        ui,
-      });
+      // ---- Fallback: no emit seam, so this call cannot wait for anybody. Return the surface the
+      // old way; the human's submission arrives as a second call and lands in the branch at the
+      // top of this handler. ----
+      if (!exchange) {
+        return buildUIToolResult({
+          modelText:
+            "A sample choice form has been shown to the user. NOTHING HAS BEEN SUBMITTED. The user's " +
+            "selections arrive only if they submit that form, which sends them itself. You cannot " +
+            "fill it in yourself: tell the user the form is open and wait.",
+          ui,
+        });
+      }
+
+      // ---- The real path: send it, then wait for the answer. ----
+      // One send and one receive, so `askOnce` says exactly that. A tool needing a follow-up turn
+      // (a validation error, an A2UI `updateComponents`) stops calling this and drives `send`/
+      // `receive` in a loop — same exchange, same store, same route, no transport change.
+      //
+      // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
+      // handler open until the deadline.
+      const closeOnAbort = () => exchange.close();
+      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
+      try {
+        const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+
+        // ADR-055 Decision 6: the no-answer path is a result, not an exception. The model is still
+        // alive to read this and say something sensible, which is the entire point of blocking.
+        if (answer.status !== "received") {
+          return {
+            submitted: false,
+            reason: answer.status,
+            note:
+              answer.status === "expired"
+                ? "The user did not respond to the form before it expired. Do not assume any selection."
+                : "The form was dismissed because the run ended. Do not assume any selection.",
+          };
+        }
+        if (answer.params[SURFACE_DISMISSED_PARAM] === true) {
+          return {
+            submitted: false,
+            reason: "cancelled",
+            note: "The user cancelled the form without choosing. Do not assume any selection.",
+          };
+        }
+        return describeSelections(answer.params);
+      } finally {
+        ctx.signal.removeEventListener("abort", closeOnAbort);
+      }
     },
   };
 

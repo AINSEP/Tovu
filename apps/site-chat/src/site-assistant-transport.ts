@@ -9,9 +9,10 @@
  * - The admin transport calls `POST /api/runs` (start) then opens a native `EventSource` against
  *   `GET /api/runs/:runId/events` — a persisted, reattachable run behind an admin-session daemon.
  * - This transport calls `POST /api/site-assistant/chat` exactly once per visitor turn. The whole
- *   reply streams back on that SAME request's response body (`text`/`error`/`end` SSE frames — see
- *   `site-assistant.ts`'s `sse()` helper), and nothing about the RUN is persisted server-side: there
- *   is still no run id to reattach to (see `reattachRun` below). `startRun` sends the latest user
+ *   reply streams back on that SAME request's response body (`text`/`error`/`end`/`client_directive`
+ *   SSE frames — see `site-assistant.ts`'s `sse()` helper), and nothing about the RUN is persisted
+ *   server-side: there is still no run id to reattach to (see `reattachRun` below). `startRun` sends
+ *   the latest user
  *   turn as `message` (`latestUserPromptFromHistory`) plus, as of SPEC-046 REQ-3, a bounded `history`
  *   of the turns before it — not a flattened transcript string the way `buildTranscript`'s "## user /
  *   ## assistant" replay format works (that is built for a coding-agent transcript, not a
@@ -77,6 +78,14 @@ interface ChatFrameError {
 interface ChatFrameEnd {
   readonly reason: string;
 }
+
+/** SPEC-046 REQ-4: the one new SSE event kind. Carried through `@jini-ai/chat/core`'s `AgentEvent`
+ *  via its `{ kind: 'ext', name, data }` escape hatch (`events.ts`'s own doc: "a host can carry its
+ *  own product-specific event kinds... through the same envelope without this package knowing about
+ *  them") — this is exactly that case, so no fork of chat-core's event union was needed. `data` is
+ *  passed through unvalidated at THIS layer; `client-directives.ts`'s `isPageActionDirective` is what
+ *  actually narrows it before anything acts on it (see `SiteAssistantWidget.tsx`). */
+const CLIENT_DIRECTIVE_EXT_NAME = "client_directive";
 
 /**
  * Parses one `fetch` response body as the `event:`/`data:` SSE framing `sse()` writes
@@ -180,6 +189,10 @@ export function createSiteAssistantTransport(): ChatTransport {
             } else if (event === "end") {
               void (data as ChatFrameEnd); // reason is server telemetry only; nothing here branches on it.
               finish();
+            } else if (event === "client_directive") {
+              const ev: AgentEvent = { kind: "ext", name: CLIENT_DIRECTIVE_EXT_NAME, data };
+              collected.push(ev);
+              handlers.onEvent(ev);
             }
           });
           // Stream ended without an explicit "end" frame (e.g. the connection just closed) —
