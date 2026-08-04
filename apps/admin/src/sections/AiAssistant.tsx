@@ -54,10 +54,15 @@ interface RoadmapItem {
 /**
  * The controls this screen deliberately does not have yet.
  *
- * Three distinct concerns, kept distinct rather than collapsed into one "limits" row, because they
- * fail differently: a cost cap bounds the bill, a rate limit bounds one abusive visitor, and a
- * status view is how you notice either is happening. Shipping only one of them would leave a real
- * hole that a combined label would hide.
+ * Two distinct concerns, kept distinct rather than collapsed into one "limits" row, because they
+ * fail differently: a cost cap bounds the bill, and a status view is how you notice a problem is
+ * happening. Shipping only one of them would leave a real hole that a combined label would hide.
+ *
+ * Per-visitor rate limiting used to be listed here and **shipped** in SPEC-046 REQ-7 — the public
+ * chat endpoint is now bounded at 10 requests / 5 min / IP (`SITE_ASSISTANT_PER_IP` in
+ * `server/middleware/rate-limit.ts`). It is deliberately not surfaced as a *control* yet: the window
+ * is a code constant, not an operator-editable setting, so a row here would imply a knob that does
+ * not exist. Move it into the settings surface above, not back into this list, if it becomes tunable.
  */
 const ROADMAP: readonly RoadmapItem[] = [
   {
@@ -65,12 +70,6 @@ const ROADMAP: readonly RoadmapItem[] = [
     label: "Token / cost budget caps",
     detail:
       "Per-day and per-conversation spend ceilings, with the assistant disabling itself when a ceiling is exhausted. Until this exists, the switch above is the only spending control.",
-  },
-  {
-    key: "rate-limit",
-    label: "Per-visitor rate limiting",
-    detail:
-      "A per-IP or per-session request window. Distinct from the budget caps above: this bounds what one abusive visitor can do, rather than what the site spends in aggregate.",
   },
   {
     key: "status",
