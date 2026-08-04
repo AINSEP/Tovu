@@ -186,9 +186,16 @@ function spawnAgentDaemon(workspaceId: string): void {
   const isCompiled = __filename.endsWith(".js");
   const daemonPath = path.join(__dirname, "assistant", isCompiled ? "agent-daemon-server.js" : "agent-daemon-server.ts");
   const env = { ...process.env, TOVU_WORKSPACE: workspaceId };
+  // `detached: true` puts the daemon in its OWN process group so it can be reaped as a group.
+  // This matters specifically in dev: the non-compiled branch is an `npx -> tsx -> node` chain, so
+  // `child.kill()` only ever killed `npx`. The real daemon — the `node` grandchild that binds
+  // JINI_AGENT_DAEMON_PORT and opens `infra/content.db` — survived, reparented to PID 1, and
+  // squatted both indefinitely. A later boot then collided with it, and because the collision
+  // surfaces as "the assistant is unavailable" rather than an error, it read as a mystery. Measured
+  // 2026-08-04: an orphan from 11:01 was still holding 4319 and the content DB hours later.
   const child = isCompiled
-    ? spawn(process.execPath, [daemonPath], { stdio: "inherit", env })
-    : spawn("npx", ["tsx", daemonPath], { stdio: "inherit", env });
+    ? spawn(process.execPath, [daemonPath], { stdio: "inherit", env, detached: true })
+    : spawn("npx", ["tsx", daemonPath], { stdio: "inherit", env, detached: true });
 
   child.on("error", (error) => {
     console.error("[index] failed to start the agent daemon — the assistant will be unavailable", error);
@@ -198,9 +205,31 @@ function spawnAgentDaemon(workspaceId: string): void {
       console.error(`[index] agent daemon exited unexpectedly (code ${code}, signal ${signal ?? "none"})`);
     }
   });
-  process.on("exit", () => {
-    if (!child.killed) child.kill();
-  });
+
+  /** Kill the daemon's whole process group, falling back to the direct child if the group is gone. */
+  const reap = () => {
+    if (child.exitCode !== null || child.signalCode !== null) return;
+    try {
+      process.kill(-child.pid, "SIGTERM");
+    } catch {
+      try {
+        child.kill("SIGTERM");
+      } catch {
+        /* already gone */
+      }
+    }
+  };
+
+  // `exit` alone was not enough: it does not run when this process is terminated by a signal, which
+  // is how a dev server actually dies (Ctrl-C, or `tsx watch` cycling on a file change — the latter
+  // otherwise leaks a fresh orphan on EVERY save).
+  process.on("exit", reap);
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+    process.on(signal, () => {
+      reap();
+      process.exit(0);
+    });
+  }
 }
 
 void main();

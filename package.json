@@ -17,7 +17,7 @@
     "#src/*": "./src/*.ts"
   },
   "scripts": {
-    "dev": "TOVU_ADMIN_DEV_PROXY_URL=http://localhost:5173 npm run dev:server & npm run admin:dev & wait",
+    "dev": "node development/scripts/dev.mjs",
     "dev:server": "tsx watch src/index.ts",
     "start": "node dist/src/index.js",
     "build": "tsc -p tsconfig.json && node development/scripts/emit-dist-package-json.mjs && mkdir -p dist/src/templates && cp -R src/templates/. dist/src/templates/ && mkdir -p dist/src/themes && cp -R src/themes/. dist/src/themes/ && mkdir -p dist/src/db/drizzle && cp -R src/db/drizzle/. dist/src/db/drizzle/ && mkdir -p dist/src/db/drizzle-database-journal && cp -R src/db/drizzle-database-journal/. dist/src/db/drizzle-database-journal/ && mkdir -p dist/src/public && cp -R src/public/. dist/src/public/",
