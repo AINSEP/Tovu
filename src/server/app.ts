@@ -33,6 +33,8 @@ import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../navigation"
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../integrations";
 import { InMemoryKeyring } from "../integrations/keyring.memory";
 import { createKeyringBackedSigner } from "../integrations/signing.keyring";
+import { AesGcmSecretSealer } from "../integrations/secret-sealer.aesgcm";
+import { InMemorySiteAssistantCredentialRepo } from "../assistant/site-credential-store.memory";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
@@ -352,6 +354,15 @@ export function createRouteDeps(): NewsletterRouteDeps {
   const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });
   const newsletterHooks = createHookRegistry();
 
+  // ADR-058: the SITE assistant credential store's OWN `KeyringPort` instance, deliberately not
+  // `newsletterKeyring` above — see `routes/types.ts`'s `siteAssistantSecretKeyring` doc and ADR-058
+  // §2 for why a separate instance matters in the real composition root (`server/deps.ts`). This
+  // hermetic root has no "fail closed on a missing env var" concern to preserve (there is no env var
+  // here at all), so a second `InMemoryKeyring` is just the same rule-of-two test double, kept
+  // distinct so this root's wiring shape matches `deps.ts`'s one-instance-per-purpose shape.
+  const siteAssistantSecretKeyring = new InMemoryKeyring();
+  const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
+
   return {
     workspaceId: seededWorkspace.id,
     workspaceRepo,
@@ -374,6 +385,9 @@ export function createRouteDeps(): NewsletterRouteDeps {
     settingsReady,
     seoReady,
     assistantSettingsReady,
+    siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
+    siteAssistantSecretSealer,
+    siteAssistantSecretKeyring,
     executionSettingsReady,
     settingsUiTabsReady,
     analyticsSettingsReady,

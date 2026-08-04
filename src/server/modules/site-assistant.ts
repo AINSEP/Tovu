@@ -7,6 +7,7 @@ import { detectsExplicitNavigationIntent } from "../../assistant/site/client-dir
 import { resolveBoundedHistory } from "../../assistant/site/history";
 import { resolveSiteAssistantMode } from "../../assistant/site/mode";
 import { isPublicAssistantEnabled } from "../../assistant/public-assistant-settings";
+import { resolveSiteAssistantApiKey } from "../../assistant/site-credential-store";
 import { resolveClientIp } from "../middleware/rate-limit";
 import type { RouteDeps } from "../routes/types";
 import type { ServerModuleHandle } from "./types";
@@ -214,12 +215,36 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
           return;
         }
 
-        const apiKey = env.GEMINI_API_KEY?.trim();
+        // ADR-058: the SITE credential store (admin's "Visitor's AI Assistant" tab) is tried FIRST,
+        // `env.GEMINI_API_KEY` second — additive over the pre-existing env-only path, never a
+        // replacement (existing deployments and the E2E suite that only set the env var are
+        // unaffected). `resolveSiteAssistantApiKey` never throws: a missing row, a missing master
+        // secret, or a corrupt/tampered ciphertext all resolve to `null` here, logged once as a
+        // warning, and this route falls straight through to the env var exactly as it did before
+        // ADR-058 existed. A misconfigured secret store degrades this route to its old behavior: it
+        // must never turn into a 500 for a visitor who did nothing wrong.
+        //
+        // This is a DIFFERENT key from the admin's own Execution-mode BYOK key
+        // (`apps/admin/src/lib/execution-settings.ts`, browser-local, powers the admin's own
+        // assistant dock only) — see ADR-058's "Distinction from BYOK". Only `apiKey` is consumed
+        // from the resolved credential; `resolveModel` below is unchanged by ADR-058 and remains, as
+        // its own doc says, the ONLY thing that decides this route's model.
+        const stored = await resolveSiteAssistantApiKey(
+          { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
+          { workspaceId: deps.workspaceId },
+          (error) =>
+            console.warn(
+              "[site-assistant] stored credential could not be opened, falling back to GEMINI_API_KEY",
+              error
+            )
+        );
+        const apiKey = stored?.apiKey ?? env.GEMINI_API_KEY?.trim();
         if (!apiKey) {
           // 503, not 500: the service is correctly built and unconfigured, which is an operator
           // action, and the message says exactly which one.
           res.status(503).json({
-            error: "site assistant is not configured — set GEMINI_API_KEY in the server environment",
+            error:
+              "site assistant is not configured — save a key on the Visitor's AI Assistant admin tab, or set GEMINI_API_KEY in the server environment",
             code: "NOT_CONFIGURED",
           });
           return;
