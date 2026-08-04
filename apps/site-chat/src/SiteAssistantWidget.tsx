@@ -57,7 +57,13 @@ import { applyHighlight, findTargetElement, scrollToElement } from "./highlight"
  * (`extractPageActions`) and acts on them exactly once — `processedMessageIdsRef` (a plain `Set`,
  * not state, since membership does not need to trigger a re-render) guards against re-processing the
  * same settled message on a later, unrelated `onMessagesChange` call (e.g. triggered by the
- * transcript-persistence effect below re-running for an unrelated reason).
+ * transcript-persistence effect below re-running for an unrelated reason) — AND, critically, against
+ * re-processing a message REHYDRATED from a prior page's persisted transcript: it is seeded at
+ * construction with every id already present in `initialState.messages` (see its own doc for the
+ * live infinite-navigation bug this fixed), not created empty. Without that seeding, `ChatPane`'s own
+ * mount-time `onMessagesChange` fire would replay the last rehydrated message's `auto: true` navigate
+ * directive on every single mount — this page arrives, replays it, navigates right back to itself,
+ * mounts again, replays again, forever.
  *
  * A `navigate` action with `auto: true` (D-1: the visitor explicitly asked) triggers
  * `window.location.assign` directly — same tab (D-2), after flushing the transcript synchronously
@@ -127,7 +133,23 @@ export function SiteAssistantWidget() {
   // SPEC-046 REQ-4: message ids whose client directives have already been acted on — a plain ref
   // (not state) because membership here must never itself trigger a re-render; see this file's
   // header for why a Set keyed by message id is the right guard.
-  const processedMessageIdsRef = useRef<Set<string>>(new Set());
+  //
+  // Seeded with every REHYDRATED message's id, not empty — this is a fix for a real infinite-reload
+  // bug found live (SPEC-046 verification, 2026-08-04): `ChatPane`'s own `onMessagesChange` fires
+  // once on MOUNT with `conversation.messages` initialized from `initialMessages`
+  // (`useChatPane.hooks.ts`: `useEffect(() => { options.onMessagesChange?.(conversation.messages) },
+  // [conversation.messages, ...])`, which runs after the first render same as any other effect). If
+  // the persisted transcript's LAST message is a settled assistant turn carrying an `auto: true`
+  // navigate directive (exactly what a successful "take me there" leaves behind), an empty ref here
+  // treats that REHYDRATED message as brand new on every single mount, calls
+  // `window.location.assign(navigate.target.path)` again, which re-mounts this component on the
+  // destination page with the SAME persisted last message — an infinite navigation loop. Measured
+  // live: 11 real navigations to the same destination in 6 seconds, uncapped. Seeding with the ids
+  // already present in `initialState.messages` means only a message that arrives AFTER this mount
+  // (a live reply to a message the visitor just sent) is ever treated as new — exactly the "already
+  // acted on" property this guard was always meant to express, extended to cover directives that
+  // were already acted on in a PRIOR page's component instance, not just earlier in this one.
+  const processedMessageIdsRef = useRef<Set<string>>(new Set(initialState.messages.map((message) => message.id)));
 
   // SPEC-046 REQ-1: writes on every change to either half of the persisted state, not just messages —
   // the pane's open/closed state must survive a page load too, "so the widget does not slam shut on
