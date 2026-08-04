@@ -42,6 +42,19 @@ export default defineConfig({
   },
   plugins: [redirectBareAdmin, react()],
   resolve: {
+    // The `@jini-ai/*` deps are `file:` links into a sibling Jini checkout, and four of them
+    // (`admin`, `chat`, `renderers-react`, `ui`) carry their OWN `node_modules/react`. Without
+    // dedupe the production build embeds one React module instance per copy — measured as five
+    // distinct `react.transitional.element` symbol registrations in `dist/assets/index-*.js` —
+    // and a component rendered by one instance calls hooks against another instance's null
+    // dispatcher: `Cannot read properties of null (reading 'useState')` at first paint.
+    //
+    // Dev did not show this (Vite's dep pre-bundling collapses them), which is why `/admin/` at
+    // :5173 works while the built bundle served at :3000/admin/ throws.
+    //
+    // Safe because every copy is the same version (19.2.7 across all five, verified) — dedupe
+    // picks one instance rather than reconciling different Reacts.
+    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
     alias: {
       "@tovu/headless": path.resolve(__dirname, "../../src/headless"),
     },
