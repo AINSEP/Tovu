@@ -126,7 +126,9 @@ describe("the public on/off switch", () => {
 });
 
 describe("the not-yet-built roadmap accordion", () => {
-  const EXPECTED = [/token \/ cost budget caps/i, /per-visitor rate limiting/i, /live status and recent activity/i];
+  // Per-visitor rate limiting was removed from this list when it shipped (SPEC-046 REQ-7); the row
+  // would otherwise advertise an unbuilt feature that now exists.
+  const EXPECTED = [/token \/ cost budget caps/i, /live status and recent activity/i];
 
   it("lists all three unbuilt controls, each marked as not implemented", async () => {
     serveSettings({ publicEnabled: false });
@@ -169,8 +171,10 @@ describe("the not-yet-built roadmap accordion", () => {
     await waitFor(() => expect(theSwitch()).toBeInTheDocument());
 
     expect(screen.getByText(/per-day and per-conversation spend ceilings/i)).toBeInTheDocument();
-    expect(screen.getByText(/per-ip or per-session request window/i)).toBeInTheDocument();
     expect(screen.getByText(/recent conversation counts, and spend to date/i)).toBeInTheDocument();
+    // The rate-limit row is gone on purpose (SPEC-046 REQ-7 shipped it). Asserted as an absence so
+    // this test fails if someone re-adds a row advertising a control that already exists.
+    expect(screen.queryByText(/per-ip or per-session request window/i)).not.toBeInTheDocument();
   });
 
   it("warns, before anyone flips the switch, that there is no cost ceiling yet", async () => {
