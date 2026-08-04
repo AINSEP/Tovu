@@ -276,7 +276,9 @@ export const SITE_ASSISTANT_TOOL_SCHEMAS = [
       "Send the visitor to a published entry's page, addressed by slug. By default this only proposes " +
       "the page as a clickable link for the visitor to choose — it only navigates automatically when the " +
       "visitor has explicitly asked to be taken there in their own words. Use this when the visitor asks " +
-      "to go to, see, or read a specific published entry.",
+      "to go to, see, or read a specific published entry. The client renders the clickable link (or " +
+      "performs the navigation) itself from this call — do not also write a markdown link in your reply; " +
+      "just acknowledge in plain prose.",
     parameters: {
       type: "object",
       properties: { slug: { type: "string", description: "The entry's URL slug." } },
@@ -285,7 +287,10 @@ export const SITE_ASSISTANT_TOOL_SCHEMAS = [
   },
   {
     name: "scroll_to_entry",
-    description: "Scroll the visitor's current page to a published entry's content, addressed by slug, without highlighting it.",
+    description:
+      "Scroll the visitor's current page to a published entry's content, addressed by slug, without " +
+      "highlighting it. The client performs the scroll itself from this call — do not also write a " +
+      "markdown link in your reply; just acknowledge in plain prose.",
     parameters: {
       type: "object",
       properties: { slug: { type: "string", description: "The entry's URL slug." } },
@@ -296,7 +301,8 @@ export const SITE_ASSISTANT_TOOL_SCHEMAS = [
     name: "highlight_entry",
     description:
       "Scroll to and visually highlight a published entry's content, addressed by slug, so the visitor can " +
-      "easily spot what you are referring to.",
+      "easily spot what you are referring to. The client performs the scroll and highlight itself from " +
+      "this call — do not also write a markdown link in your reply; just acknowledge in plain prose.",
     parameters: {
       type: "object",
       properties: { slug: { type: "string", description: "The entry's URL slug." } },
