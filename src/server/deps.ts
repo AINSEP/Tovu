@@ -50,6 +50,8 @@ import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../navigation/repo
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "../integrations";
 import { EnvOrFileKeyring } from "../integrations/keyring.env";
 import { createKeyringBackedSigner } from "../integrations/signing.keyring";
+import { AesGcmSecretSealer } from "../integrations/secret-sealer.aesgcm";
+import { SqliteSiteAssistantCredentialRepo } from "../db/sqlite/site-credential-repo.sqlite";
 import {
   LocalFsBlobStore,
   SharpImageTransformer,
@@ -499,6 +501,17 @@ export function createSqliteRouteDeps(
   const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });
   const newsletterHooks = createHookRegistry();
 
+  // ADR-058: the SITE assistant credential store's OWN `KeyringPort` instance — deliberately NOT
+  // `newsletterKeyring` above, even though both read the same `TOVU_INTEGRATIONS_ROOT_KEY` env var
+  // and (when it is set) derive from byte-identical root-key material. `allowFileFallback: false`
+  // here means a missing root key THROWS rather than silently minting
+  // `~/.tovu/integrations-root-key.hex` — correct for a store that will hold a real, paid, provider
+  // API key, and deliberately different from `newsletterKeyring`'s default (`true`), which is
+  // correct for cheaply-rotatable, derived-never-stored signing/token secrets. See ADR-058 §2 for
+  // the full reasoning — this asymmetry is intentional, not a bug to reconcile.
+  const siteAssistantSecretKeyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
+
   return {
     workspaceId: workspaceId,
     workspaceRepo: new SqliteWorkspaceRepo(db),
@@ -514,6 +527,9 @@ export function createSqliteRouteDeps(
     seoReady,
     settingsReady,
     assistantSettingsReady,
+    siteAssistantCredentialRepo: new SqliteSiteAssistantCredentialRepo(db),
+    siteAssistantSecretSealer,
+    siteAssistantSecretKeyring,
     executionSettingsReady,
     settingsUiTabsReady,
     analyticsSettingsReady,

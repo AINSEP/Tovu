@@ -31,8 +31,9 @@ import type {
 } from "../../members";
 import type { MailerPort } from "../../mail";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../navigation";
-import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../integrations";
+import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../integrations";
 import type { WebhookSigner } from "../../integrations/signing";
+import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
@@ -136,6 +137,26 @@ export interface RouteDeps {
    * SQLite root. The 2 admin assistant-settings routes await this before reading `settingsRepo`.
    */
   assistantSettingsReady: Promise<void>;
+  /**
+   * The SITE's encrypted provider credential store (ADR-058) — one row per workspace, backing the
+   * "Visitor's AI Assistant" admin tab and `server/modules/site-assistant.ts`'s runtime key
+   * resolution. Unlike `assistantSettingsReady` above, this needs no boot-time definition
+   * registration (it is a plain table, not a `core.execution.*` ledger namespace), so there is no
+   * matching `*Ready` promise — the repo is usable as soon as migrations have run.
+   */
+  siteAssistantCredentialRepo: SiteAssistantCredentialRepoPort;
+  /** Seals/opens the SITE credential above. See `integrations/secret-sealer.aesgcm.ts`'s header for
+   *  why this is one shared sealing capability, not one per workspace. */
+  siteAssistantSecretSealer: SecretSealerPort;
+  /**
+   * The `KeyringPort` `siteAssistantSecretSealer` derives its AES key from — exposed separately
+   * (not just baked into the sealer) because `setSiteAssistantCredential` also needs
+   * `keyring.activeKey()` directly, to know which root-key generation to stamp into a freshly-sealed
+   * row. Deliberately its OWN `EnvOrFileKeyring` instance in the real composition root
+   * (`server/deps.ts`), constructed `{allowFileFallback:false}`, independent of the shared instance
+   * webhook signing/newsletter tokens use — see ADR-058 §2 for why that asymmetry is intentional.
+   */
+  siteAssistantSecretKeyring: KeyringPort;
   /**
    * Resolves once the one-time `ensureExecutionSettingDefinitions()` boot call registers the 8
    * `core.execution.*` setting definitions backing the admin "Execution mode" tab (`@jini-ai/ui`'s

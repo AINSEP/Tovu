@@ -1,4 +1,5 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /**
  * @file Drizzle schema for the per-site content.db (code-first, ADR-006/ADR-012).
@@ -1215,6 +1216,54 @@ export const agentToolAttempts = sqliteTable(
   (table) => [
     index("idx_agent_tool_attempts_workspace_list").on(table.workspaceId, table.id),
     index("idx_agent_tool_attempts_attempt").on(table.workspaceId, table.attemptId),
+  ]
+);
+
+/**
+ * The SITE's provider credential for the public visitor assistant (ADR-058) — one row per
+ * workspace, single-row-per-workspace shape matching `originSettings`/`presentationSettings` above
+ * (`workspace_id` as the primary key, no surrogate id, upsert semantics).
+ *
+ * Deliberately NOT a `core.execution.*` settings-ledger row: ADR-028 §6 blocks `secret:true`
+ * registration outright, and a non-secret registration would put a live provider key in the
+ * append-only, exportable `setting_revisions` history with no redaction path. This table holds only
+ * ciphertext — the `sealed*` columns are `AesGcmSecretSealer`'s output (`SecretSealerPort`,
+ * `src/integrations/ports.ts`), never plaintext, and the write-only API (`site-credential.ts` routes)
+ * never reads them back out to a client. `masked` is the one exception: computed once from the
+ * plaintext at write time and stored as its own plain column, so a GET can answer "is a key set, and
+ * what does it end in" as a pure DB read with zero decrypt/crypto involvement (ADR-058 §3).
+ *
+ * The CHECK makes "half a sealed secret" unrepresentable — all five `sealed*`/`masked` columns are
+ * NULL together (no key stored) or non-NULL together (a key is stored), the same totality discipline
+ * ADR-028 applies to its own value shapes.
+ */
+export const siteAssistantCredentials = sqliteTable(
+  "site_assistant_credentials",
+  {
+    workspaceId: text("workspace_id").primaryKey(),
+    provider: text("provider").notNull().default("google"),
+    baseUrl: text("base_url"),
+    model: text("model"),
+    /** `SealedSecret.keyId` — names the root-key generation the value was wrapped under. */
+    sealedKeyId: text("sealed_key_id"),
+    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag`. */
+    sealedCiphertext: text("sealed_ciphertext"),
+    /** Base64 12-byte AES-GCM IV. */
+    sealedNonce: text("sealed_nonce"),
+    /** Always `'aes-256-gcm'` today; stored rather than hardcoded so a future algorithm change is
+     *  data, not a silent reinterpretation of old rows. */
+    sealedAlg: text("sealed_alg"),
+    /** `••••<last 4 chars>` — precomputed at write time, matching `@jini-ai/ui`'s existing
+     *  `maskedKeyLabel` convention (`features/media-providers/rules.js`). */
+    masked: text("masked"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    check(
+      "site_assistant_credentials_sealed_shape",
+      sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL AND ${table.masked} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL AND ${table.masked} IS NOT NULL)`
+    ),
   ]
 );
 
