@@ -1,3 +1,4 @@
+import os from "node:os";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
@@ -18,28 +19,45 @@ import { defineConfig, devices } from "@playwright/test";
  *    trap in the shared `playwright.config.ts` by `playwright.a2ui.config.ts`'s own header;
  *    sidestepped here the same way `a2ui` and `resilience` already do.
  *
- * `TOVU_DB=memory` (never `infra/content.db` — a prior session broke the owner's real admin login
- * by holding that file open across a hung server). Ports: app 4991, daemon 4990 — this dispatch's
- * assigned pair, chosen free of every port already reserved as of 2026-08-04 (4319 real daemon
- * default, 3999 VRT, 4976/4977/4992/4993 BYOK-adjacent, 4998/4999 a2ui, 5173 Vite default).
+ * ## Why `TOVU_CONTENT_DB=<fresh temp file>`, not `TOVU_DB=memory`
  *
- * ## A one-time crash, investigated and NOT found to be reproducible — recorded here so it isn't
- * re-discovered from scratch
+ * This app's `node --import tsx src/index.ts` boots TWO processes even from one command: the main
+ * server, and an agent-daemon subprocess it spawns (`spawnAgentDaemon()`) — confirmed by `lsof`
+ * showing two independent listeners (app port + `JINI_AGENT_DAEMON_PORT`) from one invocation. Each
+ * calls `createRouteDeps()` independently. With `TOVU_DB=memory`, in-memory SQLite is process-local,
+ * so each process seeds its OWN random admin-principal UUID — the daemon's `authorize()` then never
+ * finds the session's principal, and every `content.read`/`content.write`-gated agent-tool call
+ * 400s `principal_disabled`, 100% of the time (diagnosed by `adversarial-surface-resilience`,
+ * confirmed here). `login.spec.ts` never touches the daemon/tool-call path, so this was invisible
+ * there — it only bites `destructive-path.spec.ts`'s real tool calls. `TOVU_CONTENT_DB=<file>`
+ * fixes it: the main process seeds the file before the daemon spawns, the daemon opens the same
+ * non-empty file and skips reseeding, and both end up with the same principal id. The file is a
+ * fresh path under `os.tmpdir()`, generated once per config load — never `infra/content.db` (a
+ * prior session broke the owner's real admin login by holding that file open across a hung
+ * server), and never reused across runs (a stale file would already be seeded, so a fresh boot
+ * would skip seeding into it and silently diverge from what these tests assume is present).
+ *
+ * Ports: app 4991, daemon 4990 — this dispatch's assigned pair, chosen free of every port already
+ * reserved as of 2026-08-04 (4319 real daemon default, 3999 VRT, 4976/4977/4992/4993 BYOK-adjacent,
+ * 4998/4999 a2ui, 5173 Vite default).
+ *
+ * ## A one-time crash, investigated, found to have a real (now fixed) cause, but not reliably
+ * reproducible from this suite's own runs — recorded here so it isn't re-discovered from scratch
  *
  * On this suite's FIRST ever run, `login.spec.ts`'s "valid credentials" case hit an uncaught
  * `TypeError: Cannot read properties of null (reading 'useState')` inside React, thrown while
  * mounting the post-login admin shell — captured via a real `page.on("pageerror")` listener, not
  * inferred. Investigation (see `ADS-memory/.local-artifacts/reports/
- * 20260804-e2e-login-and-destructive-path.md` for the full trace) found a real, structurally
- * plausible cause — four `file:`-linked sibling packages (`@jini-ai/admin`, `@jini-ai/chat`,
- * `@jini-ai/ui`, `@jini-ai/renderers-react`) each carry their own nested `node_modules/react`,
- * separate from `apps/admin`'s own, which is the classic setup for a duplicate-React-instance hook
- * crash — but the SAME test then passed cleanly on the next 9 consecutive attempts, including full
- * fresh `webServer` boots identical to the first. That inconsistency means "duplicate React copies"
- * is not confirmed as *the* trigger, only as a real, latent hazard that happened to be live once.
- * Treat any recurrence of this exact error as expected, not surprising, and worth another look at
- * that dependency structure — but this config does not work around it, because it could not be
- * reliably triggered to work around.
+ * 20260804-e2e-login-and-destructive-path.md` for the full trace) found a real cause — four
+ * `file:`-linked sibling packages (`@jini-ai/admin`, `@jini-ai/chat`, `@jini-ai/ui`,
+ * `@jini-ai/renderers-react`) each carried their own nested `node_modules/react`, separate from
+ * `apps/admin`'s own, the classic setup for a duplicate-React-instance hook crash. The SAME test
+ * then passed cleanly on the next 9 consecutive attempts before any fix existed, so the causal link
+ * to this specific crash was never proven from this suite's evidence alone — but the hazard itself
+ * was confirmed independently (distinct `react.transitional.element` registrations in the built
+ * bundle measured 5 → 3, ~12KB smaller bundle) and fixed in `apps/admin/vite.config.ts`
+ * (`resolve.dedupe`, commit `d344758`). Rebuild (`npm --prefix apps/admin run build`) before running
+ * this config, or the fix does not reach it.
  *
  * `workers: 1`, not `fullyParallel`: every spec logs in through the REAL `LOGIN_STRICT` rate
  * limiter (`src/server/middleware/rate-limit.ts`, consulted by `dev-auth.ts`'s login route) — same
@@ -49,6 +67,7 @@ const PORT = 4991;
 const DAEMON_PORT = 4990;
 const BASE_URL = `http://localhost:${PORT}`;
 const REPO_ROOT = path.resolve(__dirname, "..");
+const CONTENT_DB_PATH = path.join(os.tmpdir(), `tovu-e2e-destructive-content-${Date.now()}-${process.pid}.db`);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -72,7 +91,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `PORT=${PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx src/index.ts`,
+    command: `PORT=${PORT} TOVU_CONTENT_DB=${CONTENT_DB_PATH} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx src/index.ts`,
     cwd: REPO_ROOT,
     url: BASE_URL,
     timeout: 30_000,
