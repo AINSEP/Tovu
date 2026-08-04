@@ -178,9 +178,11 @@ test.describe("destructive-path: content_post_delete false-transcript bug (ADR-0
       `Delete the post titled "${post.title}" (id: ${post.id}, kind: post). Use the content_post_delete tool.`
     );
 
-    // The dialog renders BEFORE the turn completes (that's the bug's first half) — wait for the
-    // dialog itself, not turn completion, or this would hang until the (already-finished) turn's
-    // terminal status, which already happened by the time the iframe exists.
+    // Wait for the DIALOG, not turn completion. Pre-fix this was because the turn had already
+    // finished by the time the iframe existed (the bug's first half). Post-fix it is because the
+    // opposite is true: `content_post_delete` now holds its call open on a `SurfaceExchange` until
+    // a human answers, so the turn is deliberately still running while the dialog is up and
+    // waiting for terminal status here would deadlock against our own unclicked dialog.
     const dialog = await waitForDeleteDialog(page, post.id, 300_000);
     const transcriptBeforeClick = await readTranscript(page);
     const lastMessageBeforeClick = transcriptBeforeClick.at(-1);
@@ -198,10 +200,15 @@ test.describe("destructive-path: content_post_delete false-transcript bug (ADR-0
       .toBe(404);
     expect(await getPublicSiteStatus(request, baseURL, post.slug), "post must be gone from the public site after deletion").toBe(404);
 
-    // Requirement 2 (ADR-055 Decision 2 — EXPECTED RED against current code): the persisted
-    // transcript must reflect the real outcome. Today it does not — the last assistant message is
-    // whatever the model said BEFORE the click (frequently reassuring/uncertain, never confirming
-    // deletion happened), because Shape 2's result only reaches the iframe.
+    // The click releases the held-open exchange, so the agent's turn RESUMES here and only then
+    // writes its closing message. Reading the transcript without waiting for terminal status races
+    // that resumption and reads a mid-stream preamble instead of the real answer — observed
+    // directly on 2026-08-04: the row and public site had already 404'd, yet the last message was
+    // still "I'll use the Jini tool catalog for this. Let me find and inspect the tool first.",
+    // and the DB held only the user message with no assistant row persisted at all.
+    await waitForTurnToFinish(page, { timeoutMs: 300_000 });
+
+    // Requirement 2 (ADR-055 Decision 2): the persisted transcript must reflect the real outcome.
     const transcriptAfterClick = await readTranscript(page);
     const lastMessageAfterClick = transcriptAfterClick.at(-1);
     expect(
