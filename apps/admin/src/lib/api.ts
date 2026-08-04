@@ -63,18 +63,6 @@ export interface AdminExecutionDetectedAgent {
  * assistant endpoint. It is NOT a client-side visibility flag, and nothing in this admin app should
  * ever treat it as one; see that module's header for the contract in full.
  */
-/** Mirrors `src/assistant/site-credential-store.ts`'s `SiteAssistantCredentialView` (ADR-058).
- *  `masked` is precomputed at write time and stored alongside the sealed value — reading it never
- *  decrypts anything, which is what makes the write-only contract hold end to end. */
-export interface SiteCredentialView {
-  isSet: boolean;
-  masked: string | null;
-  provider: string;
-  baseUrl: string | null;
-  model: string | null;
-  updatedAt: string | null;
-}
-
 export interface PublicAssistantSettings {
   publicEnabled: boolean;
 }
@@ -1172,18 +1160,6 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(patch),
     }),
-  /** ADR-058 — the SITE's provider credential, the one anonymous visitors' chat runs on. Distinct
-   *  from the admin's own browser-local BYOK key (`lib/execution-settings.ts`). Write-only by
-   *  design: the GET never returns plaintext, only `isSet` + a `masked` tail, so there is no
-   *  read-back path a caller could accidentally log or render. */
-  getSiteCredential: () => request<{ data: SiteCredentialView }>(`/workspaces/${WORKSPACE_ID}/assistant/site-credential`),
-  setSiteCredential: (patch: { apiKey?: string; provider?: string; baseUrl?: string; model?: string }) =>
-    request<{ data: SiteCredentialView }>(`/workspaces/${WORKSPACE_ID}/assistant/site-credential`, {
-      method: "PUT",
-      body: JSON.stringify(patch),
-    }),
-  clearSiteCredential: () =>
-    request<{ data: SiteCredentialView }>(`/workspaces/${WORKSPACE_ID}/assistant/site-credential`, { method: "DELETE" }),
   getSeoSettings: () => request<{ data: SeoSettings }>(`/workspaces/${WORKSPACE_ID}/seo/settings`),
   setSeoSettings: (options: Partial<SeoSettings> = {}) =>
     request<{ data: SeoSettings }>(`/workspaces/${WORKSPACE_ID}/seo/settings`, {
