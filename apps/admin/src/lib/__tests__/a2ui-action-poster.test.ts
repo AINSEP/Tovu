@@ -6,9 +6,10 @@ import { createA2uiActionPoster } from "../a2ui-action-poster";
  * @file The client half of A2UI's inbound transport — `createA2uiActionPoster` posting a rendered
  * surface's agent-directed action to `a2ui-actions-route.ts`.
  *
- * `onAgentAction` is a fire-and-forget `void`-returning callback (`A2uiSurfaceCardProps`'s own
- * shape), so these tests flush microtasks after calling the poster rather than awaiting a return
- * value — there is none to await, by design (see the module's own doc for why).
+ * `onAgentAction` resolves to `{ok: true} | {ok: false; reason: string}` (`A2uiSurfaceCardProps`'s
+ * response channel), so these tests `await` the poster's own return value directly rather than
+ * flushing microtasks blind — the returned promise settling is itself proof the request/response
+ * cycle (including the error-path `response.text()` hop) has finished.
  */
 
 const ACTION_MESSAGE = {
@@ -30,19 +31,13 @@ afterEach(() => {
   consoleErrorSpy.mockRestore();
 });
 
-async function flush(): Promise<void> {
-  // A few extra ticks beyond a bare microtask flush: the poster's async IIFE awaits `fetch`, then
-  // `response.text()` on the error path, each of which is its own microtask hop.
-  await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
 test("posts {exchangeId, message} to baseUrl + path, using the message's own action.surfaceId as the exchangeId", async () => {
   fetchMock.mockResolvedValue(new Response(JSON.stringify({ delivered: true }), { status: 202 }));
   const post = createA2uiActionPoster("", { path: "/api/admin/v1/a2ui/actions" });
 
-  post("run-1", ACTION_MESSAGE);
-  await flush();
+  const outcome = await post("run-1", ACTION_MESSAGE);
 
+  expect(outcome).toEqual({ ok: true });
   expect(fetchMock).toHaveBeenCalledTimes(1);
   const [endpoint, init] = fetchMock.mock.calls[0] as [string, RequestInit];
   expect(endpoint).toBe("/api/admin/v1/a2ui/actions");
@@ -55,42 +50,82 @@ test("ignores the chat runId for correlation — the message's own surfaceId is 
   fetchMock.mockResolvedValue(new Response(JSON.stringify({ delivered: true }), { status: 202 }));
   const post = createA2uiActionPoster("");
 
-  post(undefined, ACTION_MESSAGE);
-  await flush();
+  await post(undefined, ACTION_MESSAGE);
 
   const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
   expect(JSON.parse(String(init.body))).toEqual({ exchangeId: "ex-1", message: ACTION_MESSAGE });
 });
 
-test("a message with no surfaceId is never posted — reported to the console instead", async () => {
+test("a message with no surfaceId is never posted — reported to the console and returned as a failure", async () => {
   const post = createA2uiActionPoster("");
 
-  post("run-1", { version: "v1.0", functionResponse: { functionCallId: "c1", call: "greetUser", value: "hi" } });
-  await flush();
+  const outcome = await post("run-1", { version: "v1.0", functionResponse: { functionCallId: "c1", call: "greetUser", value: "hi" } });
 
   expect(fetchMock).not.toHaveBeenCalled();
   expect(consoleErrorSpy).toHaveBeenCalled();
+  expect(outcome).toEqual({ ok: false, reason: expect.any(String) });
 });
 
-test("a non-2xx response is reported to the console, not thrown at the caller", async () => {
+test("a non-2xx response is reported to the console and returned as a failure, not thrown", async () => {
   fetchMock.mockResolvedValue(new Response("that surface is no longer waiting for an answer", { status: 409 }));
   const post = createA2uiActionPoster("");
 
-  expect(() => post("run-1", ACTION_MESSAGE)).not.toThrow();
-  await flush();
+  const outcome = await post("run-1", ACTION_MESSAGE);
 
   expect(consoleErrorSpy).toHaveBeenCalledWith(
     expect.stringContaining("action delivery failed (409)"),
     expect.stringContaining("no longer waiting")
   );
+  // The route's raw body text ("that surface is no longer waiting for an answer") is what reaches
+  // the console; the outcome's `reason` is the poster's own human-facing wording, not an echo of the
+  // server's message — a 409 is the common case (the agent moved on), not a mistake the human made,
+  // so it must not read as one.
+  expect(outcome).toEqual({ ok: false, reason: expect.stringContaining("no longer waiting for a response") });
 });
 
-test("a network failure is caught and reported, not thrown", async () => {
+test("a 400 response maps to a reason distinct from a 409's, so the human isn't told the wrong story", async () => {
+  fetchMock.mockResolvedValue(new Response(JSON.stringify({ error: "bad envelope", code: "VALIDATION_ERROR" }), { status: 400 }));
+  const post = createA2uiActionPoster("");
+
+  const outcome = await post("run-1", ACTION_MESSAGE);
+
+  expect(outcome.ok).toBe(false);
+  expect(outcome).not.toEqual(expect.objectContaining({ reason: expect.stringContaining("no longer waiting") }));
+});
+
+test("a 401 response is mapped to its own reason, not the generic fallback", async () => {
+  fetchMock.mockResolvedValue(new Response(JSON.stringify({ error: "unauthenticated" }), { status: 401 }));
+  const post = createA2uiActionPoster("");
+
+  const outcome = await post("run-1", ACTION_MESSAGE);
+
+  expect(outcome).toEqual({ ok: false, reason: expect.stringContaining("session") });
+});
+
+test("a network failure is caught and reported as a failure outcome, not thrown", async () => {
   fetchMock.mockRejectedValue(new Error("network down"));
   const post = createA2uiActionPoster("");
 
-  post("run-1", ACTION_MESSAGE);
-  await flush();
+  const outcome = await post("run-1", ACTION_MESSAGE);
 
   expect(consoleErrorSpy).toHaveBeenCalled();
+  expect(outcome).toEqual({ ok: false, reason: expect.any(String) });
+});
+
+test("an abort (timeout) is distinguished from an ordinary network failure in the console log, and still returns a failure outcome", async () => {
+  fetchMock.mockImplementation((_url: string, init: RequestInit) =>
+    new Promise((_resolve, reject) => {
+      init.signal?.addEventListener("abort", () => {
+        const error = new Error("This operation was aborted");
+        error.name = "AbortError";
+        reject(error);
+      });
+    })
+  );
+  const post = createA2uiActionPoster("", { timeoutMs: 5 });
+
+  const outcome = await post("run-1", ACTION_MESSAGE);
+
+  expect(outcome).toEqual({ ok: false, reason: expect.any(String) });
+  expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("action delivery failed"), expect.stringContaining("timed out after 5ms"));
 });
