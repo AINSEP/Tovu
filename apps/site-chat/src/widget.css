@@ -294,8 +294,16 @@
   background: var(--surface-3);
 }
 
+/* `.jini-chat-pane__cancel` is included here purely for theming: it is the package's OWN
+ * pre-existing "Stop run" control (an in-flight run's cancel button), positioned by `ChatPane`'s
+ * injected default stylesheet (`styles.ts`: `position: absolute; right: 48px; bottom: 22px`), not
+ * by anything in this file. This rule only recolors it to match the site's tokens — it must NOT be
+ * reused as a class name for anything else in this widget, since any other element wearing it
+ * silently inherits that absolute positioning too. See `.tovu-site-assistant__reset-cancel` below
+ * for the class the New-thread confirm's Cancel button uses instead, for exactly that reason. */
 .tovu-site-assistant .jini-chat-pane__new-thread,
-.tovu-site-assistant .jini-chat-pane__cancel {
+.tovu-site-assistant .jini-chat-pane__cancel,
+.tovu-site-assistant .tovu-site-assistant__reset-cancel {
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--fg-2);
@@ -307,9 +315,8 @@
 }
 
 /* `SiteAssistantHeader.tsx`'s two-step "New thread" confirm — no equivalent in assistant.css, since
- * the admin dock's default header has no confirm step to lay out. Reuses the `__new-thread`/`__cancel`
- * button styling above unchanged; this only places the pair in a row where the single button used to
- * sit. */
+ * the admin dock's default header has no confirm step to lay out. This only places the pair in a
+ * row where the single button used to sit; the shared visual styling comes from the rule above. */
 .tovu-site-assistant .tovu-site-assistant__reset-confirm {
   display: flex;
   align-items: center;
