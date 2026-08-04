@@ -183,4 +183,25 @@ describe("dock-open bottom clearance", () => {
     // so the dock-open floor wins; the right offset is untouched by dockOpen.
     expect(result.current.style).toEqual({ right: FAB_EDGE_MARGIN, bottom: 320 });
   });
+
+  it("never lets a tall sheet push the FAB off the top edge — reported as the FAB going missing", () => {
+    // `avoidBottomPx` is the one input on this path that is NOT viewport-relative: it is a raw
+    // pixel measurement of another element. A sheet nearly as tall as the window used to win the
+    // Math.max outright and set `bottom` past the viewport, putting the FAB above the top edge
+    // where it cannot be seen or clicked. Every other position here is clamped; this one was not.
+    setViewport(1500, 800);
+    const { result } = renderHook(() => useFabPosition({ dockOpen: true, avoidBottomPx: 900 }));
+
+    const maxBottom = 800 - FAB_EDGE_MARGIN - FAB_SIZE_PX;
+    expect(result.current.style.bottom).toBe(maxBottom);
+    // The property that actually matters, stated as itself rather than as a number: the whole
+    // 56px box sits inside the window.
+    expect(result.current.style.bottom + FAB_SIZE_PX).toBeLessThanOrEqual(800);
+  });
+
+  it("keeps the margin as a floor when the sheet reports zero height", () => {
+    setViewport(1500, 800);
+    const { result } = renderHook(() => useFabPosition({ dockOpen: true, avoidBottomPx: 0 }));
+    expect(result.current.style.bottom).toBe(FAB_EDGE_MARGIN);
+  });
 });
