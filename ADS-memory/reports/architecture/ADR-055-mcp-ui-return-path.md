@@ -205,6 +205,29 @@ longer has: `content_post_delete`'s step 1 cannot be exercised over HTTP without
 anymore. Anything (a test suite, an ops script) that relied on the old bare-HTTP invocation needs to
 either drive a real agent call or accept the loss.
 
+**The stronger defence for the third row, stated explicitly:** that path is not merely absent in
+Tovu today — it is the *autonomous, no-human-in-the-loop* continuation shape, by its own module doc
+("a host pre-declaring which tools may auto-resolve without human involvement"). A human-gated
+destructive delete reaching that path and failing closed is not a limitation of this port; it is the
+semantically correct outcome at the one call site that could ever hit it, and it would remain correct
+even if Tovu wired continuation support tomorrow. **`content_post_delete` — or any other tool whose
+catalog entry declares `sideEffects: "deletes-durable-state"` — must never be added to a future
+`ContinuationOptions.autonomousToolNames` set.** Doing so would not merely reintroduce the missing-
+emitSurface failure; it would defeat the entire human-gating design this ADR exists to build, by
+routing a destructive action through the one path expressly reserved for tools that need no human
+answer at all.
+
+**Known limitation, stated plainly so it is not overread from the test counts alone.** The new test
+suite (18 tests in `agent-tools.delete-confirmation.test.ts`, 3 in
+`mcp-ui-tool-calls-route.integration.test.ts`, 902/902 assistant-domain regression) proves the
+HANDLER LOGIC is correct against a fake `emitSurface` and a real, in-process `SurfaceExchangeStore` —
+every test in this port runs inside one process, with no second daemon subprocess, no spawned agent
+CLI, and no browser. It does not, and was never run to, prove that a real agent process, a real daemon
+subprocess, and a real browser click together produce a truthful transcript end to end. That gap —
+between "the code is correct" and "the deployed system behaves correctly" — is exactly where the
+original bug this ADR exists to fix was hiding; closing it needs a live run, and is explicitly out of
+this port's scope (owned by `e2e-login-destructive` / `adversarial-surface-resilience`).
+
 **A pattern, now twice observed, worth naming rather than re-discovering a third time.** Amendment 1
 found Decision 1's own text ("ships first, independently") false — the code required Decisions 5 and 7
 first, on pain of an actual deadlock. This amendment finds Decision 3's text similarly overclaiming —
