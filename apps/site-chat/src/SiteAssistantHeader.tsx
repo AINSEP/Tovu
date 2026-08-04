@@ -19,6 +19,19 @@ import { useEffect, useState } from "react";
  * (the package's own default uses `<h1>`): this pane floats over an arbitrary themed page that
  * likely already has its own `<h1>`, and the admin dock hit this identical accessibility issue first
  * — see `AssistantDock.tsx`'s own header-tag comment for the full account.
+ *
+ * The Cancel button is deliberately NOT `jini-chat-pane__cancel` — that class name is already taken
+ * by the package's OWN injected default stylesheet (`styles.ts`), for a completely different button:
+ * the in-flight run's "Stop run" control, which it pins with `position: absolute; right: 48px;
+ * bottom: 22px` relative to `.jini-chat-pane__body`. Reusing that class here (as an earlier version
+ * of this file did) silently inherited that absolute positioning, tearing this Cancel button out of
+ * the header's flex row and rendering it near the composer footer instead — invisible behind other
+ * controls when idle, and literally unclickable (pointer-event-intercepted) whenever a run actually
+ * was in flight, since both buttons then occupy the exact same fixed screen position. Measured live:
+ * `getBoundingClientRect()` on the button put it at the pane's bottom-right, tens of pixels from the
+ * `.tovu-site-assistant__reset-confirm` container that logically contains it in the DOM. `.jini-chat-
+ * pane__new-thread` (used for both "New thread" and "Discard chat?") has no such rule and is safe to
+ * reuse — see `widget.css` for the local class that replaces `jini-chat-pane__cancel` here.
  */
 export interface SiteAssistantHeaderProps {
   readonly title: string;
@@ -69,7 +82,12 @@ export function SiteAssistantHeader({ title, hasMessages, onReset }: SiteAssista
            *  the confirm step appears must land on the SAFE choice, the same reason a native
            *  `confirm()` dialog defaults focus to Cancel/OK-is-not-assumed rather than the button
            *  that discards data. */}
-          <button type="button" className="jini-chat-pane__cancel" onClick={() => setConfirming(false)} autoFocus>
+          <button
+            type="button"
+            className="tovu-site-assistant__reset-cancel"
+            onClick={() => setConfirming(false)}
+            autoFocus
+          >
             Cancel
           </button>
           <button type="button" className="jini-chat-pane__new-thread" onClick={handleConfirmDiscard}>
