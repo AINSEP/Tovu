@@ -30,6 +30,9 @@ import {
   type CommentsToolDeps,
 } from "../comments/tool-registrations";
 import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "./surface-exchanges";
+
+export type { AssistantSurfaceDeps };
 import {
   buildContentTypesRegistrations,
   contentTypesDerivedRisk,
@@ -172,10 +175,15 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   SeoToolDeps &
   WidgetsToolDeps;
 
-/** One wired domain: its builder and the risk classification its own wiring file maintains. */
+/**
+ * One wired domain: its builder and the risk classification its own wiring file maintains.
+ *
+ * `build`'s second parameter is optional to implement, not optional to pass — every domain builder
+ * that ignores surfaces simply declares one parameter, which is assignable.
+ */
 interface DomainSlice {
   domain: string;
-  build: (routeDeps: AssistantToolRegistryDeps) => ToolRegistration[];
+  build: (routeDeps: AssistantToolRegistryDeps, surfaces: AssistantSurfaceDeps) => ToolRegistration[];
   risk: DerivedRiskByToolId;
 }
 
@@ -202,7 +210,12 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   { domain: "workspace", build: buildWorkspaceRegistrations, risk: workspaceDerivedRisk },
   { domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk },
   { domain: "entries", build: buildEntriesRegistrations, risk: entriesDerivedRisk },
-  { domain: "post", build: buildPostRegistrations, risk: postDerivedRisk },
+  // Wrapped rather than passed directly: `buildPostRegistrations`' own second parameter is its
+  // confirmation-store test seam, which occupies the same slot the slice contract uses for surface
+  // deps and means something entirely different. Dropping the argument here is the correct
+  // behaviour anyway — `content_post_delete` is still on ADR-053's two-call path and parks nothing.
+  // When ADR-055 Decision 2 lands, this becomes a real forward of `surfaces`.
+  { domain: "post", build: (routeDeps) => buildPostRegistrations(routeDeps), risk: postDerivedRisk },
   { domain: "taxonomy", build: buildTaxonomyRegistrations, risk: taxonomyDerivedRisk },
   { domain: "seo", build: buildSeoRegistrations, risk: seoDerivedRisk },
   { domain: "redirects", build: buildRedirectsRegistrations, risk: redirectsDerivedRisk },
@@ -250,6 +263,12 @@ export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: Wirabl
  * @param routeDeps - The same dependency bag the admin HTTP routes are built from (structurally —
  * see {@link AssistantToolRegistryDeps}), so a tool call and the equivalent human click reach
  * identical domain code.
+ * @param surfaces - Assistant-transport machinery for surface-raising tools. Defaults to a fresh,
+ * unshared store, which is right for the many tests that build the registration list only to inspect
+ * descriptors and never execute a handler. A caller that also mounts
+ * `registerMcpUiToolCallsRoute` must pass its own instance — see {@link AssistantSurfaceDeps}. The
+ * default is safe rather than a trap only because every tool that parks is env-gated off by
+ * default; if a shipped tool ever parks, this default should become a required argument.
  * @returns Every wired domain's registrations, concatenated in {@link DOMAIN_SLICES} order.
  * @throws {Error} If two domains register the same tool id, or if any domain's own build-time gates
  * refuse (unclassified risk, missing `inputSchema`, catalog drift, an entry neither wired nor
@@ -257,12 +276,15 @@ export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: Wirabl
  * @complexity O(t) in the total wired-tool count.
  * @overallScore 100
  */
-export function buildAssistantToolRegistrations(routeDeps: AssistantToolRegistryDeps): ToolRegistration[] {
+export function buildAssistantToolRegistrations(
+  routeDeps: AssistantToolRegistryDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
+): ToolRegistration[] {
   const registrations: ToolRegistration[] = [];
   const ownerByToolId = new Map<string, string>();
 
   for (const slice of DOMAIN_SLICES) {
-    for (const registration of slice.build(routeDeps)) {
+    for (const registration of slice.build(routeDeps, surfaces)) {
       const owner = ownerByToolId.get(registration.descriptor.id);
       if (owner) {
         // Unreachable while `DERIVED_RISK_BY_TOOL_ID`'s merge holds — a tool cannot be wired

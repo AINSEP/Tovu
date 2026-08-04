@@ -96,6 +96,7 @@ import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership 
 import { buildToolCatalogQuery } from "./tool-catalog-query";
 import { withToolAttemptAudit } from "./tool-executor-audit";
 import { buildAssistantToolRegistrations } from "./tool-registrations";
+import { createSurfaceExchangeStore } from "./surface-exchanges";
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;
@@ -180,8 +181,21 @@ lifecycle.rehydrate().catch((error: unknown) => {
 // removing it surfaced this, and this is the fix rather than a re-widening.
 const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
 
+/**
+ * The parked-call store backing the single-call MCP-UI return path (ADR-055 Decision 1).
+ *
+ * Created here, at the composition root, because exactly two things must share ONE instance and they
+ * are wired ~300 lines apart: the tool registrations below (whose handlers park) and
+ * `registerMcpUiToolCallsRoute` (which delivers the human's answer into a park). Two instances would
+ * not fail loudly — every delivery would 409 while the agent sat blocked until its TTL expired.
+ */
+const surfaceExchanges = createSurfaceExchangeStore();
+
 const registry = createToolRegistry();
-for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter })) {
+for (const registration of buildAssistantToolRegistrations(
+  { ...routeDeps, magicLinkPerEmailLimiter },
+  { surfaceExchanges },
+)) {
   registry.register(registration);
 }
 
@@ -495,15 +509,17 @@ app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners 
 registerRunRoutes(app, { lifecycle, onStarted }, adapter);
 registerAgentRoutes(app, { listAgents: listAssistantAgents }, adapter);
 registerDelegatedToolRoutes(app, { lifecycle, toolExecutor, resolvePrincipal }, adapter);
-// The MCP-UI confirmation redemption endpoint (ADR-053 Decision 3) — a human's confirmed click
-// re-invoking `content_post_delete` a second time, this time with the token only the rendered
-// dialog held. Same non-exemption reasoning as `frontendControl.httpExtension` just below: the
+// The MCP-UI callback endpoint. Two shapes reach it: a park delivery, where a form's answer
+// resolves an agent tool call still waiting on it (ADR-055 Decision 1), and the legacy
+// confirmation redemption, where a human's confirmed click re-invokes `content_post_delete` a
+// second time with the token only the rendered dialog held (ADR-053 Decision 3).
+// Same non-exemption reasoning as `frontendControl.httpExtension` just below: the
 // browser reaches this through Tovu's session-authenticated proxy, which attaches the bearer token
 // like every other forwarded route, so no `exemptPaths` entry is needed or wanted. See
 // `mcp-ui-tool-calls-route.ts` for why this must live in THIS process (it is the one holding the
 // `ToolExecutor`/`PendingConfirmationStore` a redemption actually needs) and
 // `src/server/modules/assistant.ts` for the proxy half.
-registerMcpUiToolCallsRoute(app, { toolExecutor });
+registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
 // The browser half of the `page.*` channel: an SSE stream that carries invocations down to the
 // admin tab, and a POST that carries its answers back. Deliberately NOT added to the bearer gate's
 // `exemptPaths` — unlike `/api/delegated-tool-calls` (whose caller is a spawned `jini-mcp`

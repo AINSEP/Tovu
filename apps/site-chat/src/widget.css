@@ -586,3 +586,112 @@
 .tovu-site-assistant .jini-runtime-check {
   color: var(--ok);
 }
+
+/* ---------------------------------------------------------------------------------------------
+ * 8. Highlight treatment (SPEC-046 §4) — applied to arbitrary PAGE content, not to anything inside
+ * `.tovu-site-assistant`, so this section is deliberately NOT ancestor-scoped like every rule above
+ * it. `--primary`'s value (`oklch(55.29% 0.1129 43.4)`, ~#A85A38) is repeated here as a literal
+ * rather than referenced, because a highlighted element lives OUTSIDE `.tovu-site-assistant` and so
+ * cannot inherit that scoped custom property — see this file's header on why the token block itself
+ * is scoped, not global.
+ *
+ * `outline` + `outline-offset` + `box-shadow` ONLY — never `border`. The target is arbitrary theme
+ * content this widget does not own; `border` would consume box-model space and reflow the page
+ * around it, exactly the failure `box-shadow`/`outline` (which paint outside the box without
+ * affecting layout) avoid. `box-shadow` alone would still clip under an `overflow: hidden` ancestor
+ * (a common theme card wrapper) — `outline` is the half that keeps working there, which is why both
+ * are present rather than either alone.
+ * --------------------------------------------------------------------------------------------- */
+
+@keyframes tovu-site-assistant-highlight-pulse {
+  0%,
+  100% {
+    outline-color: rgba(168, 90, 56, 0.95);
+    box-shadow: 0 0 0 4px rgba(168, 90, 56, 0.28);
+  }
+  50% {
+    outline-color: rgba(168, 90, 56, 0.45);
+    box-shadow: 0 0 0 4px rgba(168, 90, 56, 0.1);
+  }
+}
+
+@keyframes tovu-site-assistant-highlight-fade {
+  from {
+    outline-color: rgba(168, 90, 56, 0.95);
+    box-shadow: 0 0 0 4px rgba(168, 90, 56, 0.28);
+  }
+  to {
+    outline-color: rgba(168, 90, 56, 0);
+    box-shadow: 0 0 0 4px rgba(168, 90, 56, 0);
+  }
+}
+
+.tovu-site-assistant__highlight {
+  outline: 3px solid rgba(168, 90, 56, 0.95);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(168, 90, 56, 0.28);
+  /* Keeps a sticky theme header from covering the target once scrolled to (SPEC-046 §4) — a fixed
+     literal rather than a token, for the same scope reason as the colors above. */
+  scroll-margin-top: 96px;
+  /* Two animations on one element: a ~1.2s pulse (2 cycles of 0.6s) that runs once, then a fade
+     starting at the 18s mark and finishing at 20s — `highlight.ts`'s `FADE_ANIMATION_NAME` matches
+     the second by name so cleanup fires on THAT `animationend`, not the pulse's earlier one.
+     `animation-fill-mode: forwards` (via the trailing `forwards` on the fade) holds the fully-faded
+     end state rather than snapping back to the pulse's un-faded color once the animation completes. */
+  animation:
+    tovu-site-assistant-highlight-pulse 0.6s ease-in-out 2,
+    tovu-site-assistant-highlight-fade 2s ease-in 18s forwards;
+}
+
+/* SPEC-046 §4: "no pulse, no smooth scroll; static outline, same duration and fade." The smooth-scroll
+   half of that is `highlight.ts#scrollToElement`'s job (a JS `matchMedia` check, since CSS cannot
+   express `scrollIntoView` behavior); this half removes the pulse animation only, leaving a static
+   outline that still fades out on the same ~20s timeline. */
+@media (prefers-reduced-motion: reduce) {
+  .tovu-site-assistant__highlight {
+    animation: tovu-site-assistant-highlight-fade 2s ease-in 18s forwards;
+  }
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * 9. Navigation proposal bar (SPEC-046 D-1) — the clickable affordance rendered when
+ * `navigate_to_entry` resolves to a PROPOSED (non-auto) navigation. Sits below `ChatPane` inside the
+ * panel, not inside the message list — `ChatPane` is not forked to render it, see
+ * `SiteAssistantWidget.tsx`'s doc for why.
+ * --------------------------------------------------------------------------------------------- */
+
+.tovu-site-assistant__proposal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--fg-2);
+}
+
+.tovu-site-assistant__proposal-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tovu-site-assistant__proposal-go {
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  background: var(--primary);
+  color: var(--primary-ink);
+  border-radius: var(--r-pill);
+  padding: 6px 14px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tovu-site-assistant__proposal-go:hover {
+  opacity: 0.9;
+}
