@@ -47,7 +47,7 @@ conspicuous rather than merely incomplete:
 
 - `A2uiSurfaceCard.tsx:205-208` — a *refused* action (`buildAction` returns `!ok`) sets
   `refusalNotice`, which renders visibly.
-- `A2uiSurfaceCard.tsx:222` — when **no** `onAgentAction` handler is supplied at all, it sets
+- `A2uiSurfaceCard.tsx:223` — when **no** `onAgentAction` handler is supplied at all, it sets
   `pendingAgentAction` and shows the module doc's honest "nowhere to send this yet" notice, rather
   than dropping the action silently. That posture is deliberate; read the module doc at
   `A2uiSurfaceCard.tsx:25`.
