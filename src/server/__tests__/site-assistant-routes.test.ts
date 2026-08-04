@@ -160,3 +160,125 @@ test("POST /api/site-assistant/chat degrades a hostile/malformed history to no c
     );
   }
 });
+
+/**
+ * @file SPEC-046 REQ-4 route-level SSE framing — every test above hits `site-assistant.ts`'s
+ * `NOT_CONFIGURED` 503 branch (no `GEMINI_API_KEY` in this environment, by design — see the file
+ * header above), which never reaches `executeTool`/`sse(res, "client_directive", ...)` at all. This
+ * was the known test gap flagged against SPEC-046 Task 4: does the `client_directive` frame actually
+ * get written correctly on the wire, over the real HTTP route, not just asserted as a value inside
+ * `capability-registry.ts`'s own unit tests.
+ *
+ * `runGoogleToolTurn` (`@jini-ai/agent-runtime`) calls the global `fetch` directly with no injectable
+ * HTTP client (confirmed against that package's own test suite,
+ * `providers/__tests__/google-messages.test.ts`, which mocks the identical way: `global.fetch =`,
+ * fabricating a Gemini `streamGenerateContent` SSE body as an `AsyncIterable<string>` of
+ * `data: {...}\n\n` frames). This test does the same at the route level: seeds one published post,
+ * stubs `global.fetch` to return a `functionCall` for `navigate_to_entry` on the first request and a
+ * plain finishing text reply on the continuation request, then reads the RAW SSE bytes the route
+ * actually wrote and asserts the `client_directive` frame's shape and JSON payload byte-for-byte —
+ * not a parsed/re-interpreted value, since the standing rule for this workstream is that a value
+ * asserted in memory is not evidence for what a client reading the wire actually receives.
+ */
+test("POST /api/site-assistant/chat writes a well-formed client_directive SSE frame when a page-action tool resolves (SPEC-046 REQ-4)", async (t) => {
+  const deps = createRouteDeps();
+  await deps.analyticsSettingsReady;
+  await setPublicAssistantSettings(
+    { settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+    { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" },
+  );
+  await deps.postRepo.save({
+    id: "p-hello-world",
+    workspaceId: deps.workspaceId,
+    title: "Hello World",
+    slug: "hello-world",
+    bodyJson: { type: "doc", content: [] },
+    status: "published",
+    kind: "post",
+    updatedAt: "2026-08-04T00:00:00.000Z",
+    version: 1,
+  });
+
+  const originalApiKey = process.env.GEMINI_API_KEY;
+  const originalFetch = globalThis.fetch;
+  process.env.GEMINI_API_KEY = "test-fake-key-not-real";
+  t.after(() => {
+    if (originalApiKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = originalApiKey;
+    globalThis.fetch = originalFetch;
+  });
+
+  // Mirrors `google-messages.test.ts`'s own `chunk`/`sseBody`/`functionCallCandidate`/`textCandidate`
+  // helpers exactly — same wire shape `runGoogleToolTurn` actually parses (`decodeSseStream` over
+  // `data: {...}\n\n` frames), so a drift in either side's understanding of that shape would fail
+  // this test rather than pass vacuously against a shape nothing real produces.
+  function sseBody(...lines: string[]): { ok: true; status: 200; body: AsyncIterable<string>; text: () => Promise<string> } {
+    return {
+      ok: true,
+      status: 200,
+      body: { async *[Symbol.asyncIterator]() { for (const line of lines) yield line; } },
+      text: async () => "",
+    };
+  }
+  function chunk(payload: Record<string, unknown>): string {
+    return `data: ${JSON.stringify(payload)}\n\n`;
+  }
+  function functionCallCandidate(name: string, args: unknown, id: string): string {
+    return chunk({ candidates: [{ content: { role: "model", parts: [{ functionCall: { name, args, id } }] }, index: 0 }] });
+  }
+  function textCandidate(text: string, finishReason: string): string {
+    return chunk({ candidates: [{ content: { role: "model", parts: [{ text }] }, finishReason, index: 0 }] });
+  }
+
+  let fetchCallCount = 0;
+  globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
+    // Only the outbound call to Google's `streamGenerateContent` endpoint is mocked — the test's OWN
+    // request below (`postChatWithBody`, against the local test server started by `startTestServer`)
+    // must reach the real HTTP stack, or `res` here would be this mock's fake object instead of a
+    // real `Response` with real `.headers`/`.text()`. Routed by URL rather than by call order, since
+    // relying on order would silently break the moment `runGoogleToolTurn`'s own internal call
+    // sequencing changes.
+    const url = typeof args[0] === "string" ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] as Request).url;
+    if (!url.includes("generativelanguage.googleapis.com")) return originalFetch(...args);
+
+    fetchCallCount += 1;
+    if (fetchCallCount === 1) {
+      // First request: the model "calls" navigate_to_entry for the seeded slug. `message` below is
+      // "take me there" so `detectsExplicitNavigationIntent` sets `autoNavigateAllowed: true`
+      // (D-1) — this test exercises the auto-navigate directive shape specifically, since that is
+      // the branch a naive implementation is most likely to get wrong on the wire (an unresolved or
+      // unvalidated `auto: true` target would defeat D-1's whole security property).
+      return sseBody(functionCallCandidate("navigate_to_entry", { slug: "hello-world" }, "call_0")) as unknown as ReturnType<typeof fetch>;
+    }
+    // Continuation request, after `executeTool` ran: end the turn cleanly with no further tool calls.
+    return sseBody(textCandidate("Here's the page.", "STOP")) as unknown as ReturnType<typeof fetch>;
+  }) as typeof fetch;
+
+  const app = createApp(deps);
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await postChatWithBody(baseUrl, { message: "take me there" });
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-type") ?? "", /^text\/event-stream/);
+
+  const raw = await res.text();
+
+  // The exact wire shape `sse()` in site-assistant.ts writes (site-assistant.ts:82-84):
+  // `event: client_directive\ndata: {...}\n\n`. Extracted by regex rather than a full SSE parser —
+  // this test wants to prove the BYTES on the wire, not a client-side re-interpretation of them.
+  const match = raw.match(/event: client_directive\ndata: (.+)\n\n/);
+  assert.ok(match, `no client_directive frame found in the raw SSE response:\n${raw}`);
+
+  const directive = JSON.parse(match![1]) as {
+    kind: string;
+    action: { type: string; auto: boolean; target: { slug: string; title: string; path: string } };
+  };
+  assert.equal(directive.kind, "page_action");
+  assert.equal(directive.action.type, "navigate");
+  assert.equal(directive.action.auto, true, "D-1: an explicit 'take me there' message must resolve to auto: true on the wire");
+  // REQ-6: the target on the wire is the SERVER-resolved path, not anything the model supplied
+  // (the mocked model call above never sent a path — only a bare slug in its functionCall args).
+  assert.deepEqual(directive.action.target, { slug: "hello-world", title: "Hello World", path: "/hello-world" });
+
+  assert.equal(fetchCallCount, 2, "expected exactly one continuation request after the tool call resolved");
+});
