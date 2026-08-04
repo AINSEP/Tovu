@@ -124,7 +124,13 @@ import { createContentModule } from "./modules/content";
 import { createMembersModule } from "./modules/members";
 import type { MembersRouteDeps } from "./routes/admin/members/deps";
 import type { MemberPublicRouteDeps } from "./routes/members/deps";
-import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "./middleware/rate-limit";
+import {
+  createRateLimiter,
+  MAGIC_LINK_COMPLETE_ATTEMPT,
+  MAGIC_LINK_PER_EMAIL,
+  MAGIC_LINK_PER_IP,
+  SITE_ASSISTANT_PER_IP,
+} from "./middleware/rate-limit";
 import { createAnalyticsModule } from "./modules/analytics";
 import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status";
 import { createFormsAdminModule } from "./modules/forms-admin";
@@ -452,6 +458,9 @@ export function createRouteDeps(): NewsletterRouteDeps {
     formDefinitionRepo,
     formSubmissionRepo: new InMemoryFormSubmissionRepo(),
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
+    // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,
+    // matching `server/deps.ts`'s real composition's identical construction.
+    siteAssistantRateLimiter: createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock }),
     // ADR-041 §1/§2 (Database Timeline): in-memory ledger, same disclosed precedent as every other
     // feature's hermetic test/dev composition above. `server/deps.ts`'s real composition opens
     // the sidecar `ops/database-journal.db` and uses `SqliteDatabaseLedgerRepo` instead.
