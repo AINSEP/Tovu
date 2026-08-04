@@ -20,6 +20,64 @@ import { startTestServer } from "./helpers/http-test-server";
 
 const alwaysAllow = async () => ({ allowed: true, reason: "test" });
 
+/**
+ * Shared Gemini-`streamGenerateContent` SSE-response fabrication helpers, used by every
+ * `global.fetch`-stubbing test below (SPEC-046 Task 4/Task 2 AC5). Mirrors
+ * `@jini-ai/agent-runtime`'s own `providers/__tests__/google-messages.test.ts` `chunk`/`sseBody`/
+ * `functionCallCandidate`/`textCandidate` helpers exactly — same wire shape `runGoogleToolTurn`
+ * actually parses (`decodeSseStream` over `data: {...}\n\n` frames) — so a drift in either side's
+ * understanding of that shape fails these tests rather than passing vacuously against a shape
+ * nothing real produces.
+ */
+function sseBody(...lines: string[]): { ok: true; status: 200; body: AsyncIterable<string>; text: () => Promise<string> } {
+  return {
+    ok: true,
+    status: 200,
+    body: { async *[Symbol.asyncIterator]() { for (const line of lines) yield line; } },
+    text: async () => "",
+  };
+}
+function chunk(payload: Record<string, unknown>): string {
+  return `data: ${JSON.stringify(payload)}\n\n`;
+}
+function functionCallCandidate(name: string, args: unknown, id: string): string {
+  return chunk({ candidates: [{ content: { role: "model", parts: [{ functionCall: { name, args, id } }] }, index: 0 }] });
+}
+function textCandidate(text: string, finishReason: string): string {
+  return chunk({ candidates: [{ content: { role: "model", parts: [{ text }] }, finishReason, index: 0 }] });
+}
+
+/** Swaps `globalThis.fetch` for a mock that only intercepts calls to Google's endpoint — everything
+ *  else (the test's own request against the local `startTestServer` instance) reaches the real HTTP
+ *  stack. Registers its own `t.after` restoration of both the fetch override and `GEMINI_API_KEY`.
+ *  `respond` also receives the parsed outbound request body, so a caller can inspect what THIS
+ *  route sent back to "Google" on a continuation request — e.g. the `functionResponse.response`
+ *  content a refused tool call produces, which never reaches the client SSE stream at all (REQ-4's
+ *  privacy property) and so can only be observed here, not in the HTTP response text. */
+function stubGeminiFetch(
+  t: import("node:test").TestContext,
+  respond: (callCount: number, requestBody: Record<string, unknown>) => ReturnType<typeof sseBody>,
+): void {
+  const originalApiKey = process.env.GEMINI_API_KEY;
+  const originalFetch = globalThis.fetch;
+  process.env.GEMINI_API_KEY = "test-fake-key-not-real";
+  t.after(() => {
+    if (originalApiKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = originalApiKey;
+    globalThis.fetch = originalFetch;
+  });
+
+  let callCount = 0;
+  globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
+    const url = typeof args[0] === "string" ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] as Request).url;
+    if (!url.includes("generativelanguage.googleapis.com")) return originalFetch(...args);
+    callCount += 1;
+    const init = args[1] as RequestInit | undefined;
+    const requestBody = init?.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : {};
+    return respond(callCount, requestBody) as unknown as ReturnType<typeof fetch>;
+  }) as typeof fetch;
+}
+
 async function postChat(baseUrl: string): Promise<Response> {
   return fetch(`${baseUrl}/api/site-assistant/chat`, {
     method: "POST",
@@ -199,60 +257,20 @@ test("POST /api/site-assistant/chat writes a well-formed client_directive SSE fr
     version: 1,
   });
 
-  const originalApiKey = process.env.GEMINI_API_KEY;
-  const originalFetch = globalThis.fetch;
-  process.env.GEMINI_API_KEY = "test-fake-key-not-real";
-  t.after(() => {
-    if (originalApiKey === undefined) delete process.env.GEMINI_API_KEY;
-    else process.env.GEMINI_API_KEY = originalApiKey;
-    globalThis.fetch = originalFetch;
-  });
-
-  // Mirrors `google-messages.test.ts`'s own `chunk`/`sseBody`/`functionCallCandidate`/`textCandidate`
-  // helpers exactly — same wire shape `runGoogleToolTurn` actually parses (`decodeSseStream` over
-  // `data: {...}\n\n` frames), so a drift in either side's understanding of that shape would fail
-  // this test rather than pass vacuously against a shape nothing real produces.
-  function sseBody(...lines: string[]): { ok: true; status: 200; body: AsyncIterable<string>; text: () => Promise<string> } {
-    return {
-      ok: true,
-      status: 200,
-      body: { async *[Symbol.asyncIterator]() { for (const line of lines) yield line; } },
-      text: async () => "",
-    };
-  }
-  function chunk(payload: Record<string, unknown>): string {
-    return `data: ${JSON.stringify(payload)}\n\n`;
-  }
-  function functionCallCandidate(name: string, args: unknown, id: string): string {
-    return chunk({ candidates: [{ content: { role: "model", parts: [{ functionCall: { name, args, id } }] }, index: 0 }] });
-  }
-  function textCandidate(text: string, finishReason: string): string {
-    return chunk({ candidates: [{ content: { role: "model", parts: [{ text }] }, finishReason, index: 0 }] });
-  }
-
   let fetchCallCount = 0;
-  globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
-    // Only the outbound call to Google's `streamGenerateContent` endpoint is mocked — the test's OWN
-    // request below (`postChatWithBody`, against the local test server started by `startTestServer`)
-    // must reach the real HTTP stack, or `res` here would be this mock's fake object instead of a
-    // real `Response` with real `.headers`/`.text()`. Routed by URL rather than by call order, since
-    // relying on order would silently break the moment `runGoogleToolTurn`'s own internal call
-    // sequencing changes.
-    const url = typeof args[0] === "string" ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] as Request).url;
-    if (!url.includes("generativelanguage.googleapis.com")) return originalFetch(...args);
-
-    fetchCallCount += 1;
-    if (fetchCallCount === 1) {
+  stubGeminiFetch(t, (callCount, _requestBody) => {
+    fetchCallCount = callCount;
+    if (callCount === 1) {
       // First request: the model "calls" navigate_to_entry for the seeded slug. `message` below is
       // "take me there" so `detectsExplicitNavigationIntent` sets `autoNavigateAllowed: true`
       // (D-1) — this test exercises the auto-navigate directive shape specifically, since that is
       // the branch a naive implementation is most likely to get wrong on the wire (an unresolved or
       // unvalidated `auto: true` target would defeat D-1's whole security property).
-      return sseBody(functionCallCandidate("navigate_to_entry", { slug: "hello-world" }, "call_0")) as unknown as ReturnType<typeof fetch>;
+      return sseBody(functionCallCandidate("navigate_to_entry", { slug: "hello-world" }, "call_0"));
     }
     // Continuation request, after `executeTool` ran: end the turn cleanly with no further tool calls.
-    return sseBody(textCandidate("Here's the page.", "STOP")) as unknown as ReturnType<typeof fetch>;
-  }) as typeof fetch;
+    return sseBody(textCandidate("Here's the page.", "STOP"));
+  });
 
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
@@ -281,4 +299,112 @@ test("POST /api/site-assistant/chat writes a well-formed client_directive SSE fr
   assert.deepEqual(directive.action.target, { slug: "hello-world", title: "Hello World", path: "/hello-world" });
 
   assert.equal(fetchCallCount, 2, "expected exactly one continuation request after the tool call resolved");
+});
+
+/**
+ * SPEC-046 Task 2 AC5 — "crafted targets are refused server-side and never reach the client," proved
+ * over the real HTTP route with a real DB-backed `PostRepo`, not just `client-directives.test.ts`'s
+ * unit-level `resolvePublicTarget` coverage. The catching case named in the brief:
+ * trashed-but-`status: "published"` — `deletedAt` is independent of `status`, so a naive
+ * `status === "published"` check would leak it; `resolvePublicTarget` must go through
+ * `listPublishedPosts`, which excludes it.
+ *
+ * All three crafted slugs below are asked for in ONE conversation turn (three `functionCall`s in a
+ * single mocked response) to prove each independently refuses without spending a second Gemini call
+ * per case — the model's actual tool-selection behavior is not what this test is proving (that would
+ * need a live model turn; `test-plan`/handoff notes should say so explicitly if a live check is not
+ * also done); this proves that IF the model calls a page-action tool with any of these three slugs,
+ * none of them can ever produce a `client_directive` frame or a resolved target.
+ *
+ * Off-site URLs and `javascript:`/`data:` schemes are NOT exercised here because they are
+ * structurally unreachable, not merely rejected: `navigate_to_entry`/`scroll_to_entry`/
+ * `highlight_entry`'s tool schema (`tools.ts`'s `SITE_ASSISTANT_TOOL_SCHEMAS`) accepts only a bare
+ * `slug: string` — there is no parameter path through which the model could submit a URL or scheme
+ * at all. That is a stronger guarantee than a runtime check that could have a bug; asserting it here
+ * would just be re-asserting the schema shape already visible in `tools.ts`.
+ */
+test("POST /api/site-assistant/chat never emits a client_directive for a trashed-but-published, unpublished, or nonexistent slug (SPEC-046 Task 2 AC5)", async (t) => {
+  const deps = createRouteDeps();
+  await deps.analyticsSettingsReady;
+  await setPublicAssistantSettings(
+    { settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+    { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" },
+  );
+  // The catching case: status stays "published" after trashing — `PostRepoPort.softDelete` (and this
+  // hand-seeded equivalent) only stamps `deletedAt`, exactly the trap `client-directives.ts`'s own
+  // file header names.
+  await deps.postRepo.save({
+    id: "p-trashed",
+    workspaceId: deps.workspaceId,
+    title: "Trashed But Published",
+    slug: "trashed-but-published",
+    bodyJson: { type: "doc", content: [] },
+    status: "published",
+    kind: "post",
+    updatedAt: "2026-08-04T00:00:00.000Z",
+    version: 2,
+    deletedAt: "2026-08-04T00:00:01.000Z",
+  });
+  await deps.postRepo.save({
+    id: "p-draft",
+    workspaceId: deps.workspaceId,
+    title: "Still A Draft",
+    slug: "still-a-draft",
+    bodyJson: { type: "doc", content: [] },
+    status: "draft",
+    kind: "post",
+    updatedAt: "2026-08-04T00:00:00.000Z",
+    version: 1,
+  });
+  // "nonexistent-slug-xyz" is never saved at all — the third refusal case (slug simply not found).
+
+  let continuationRequestBody: Record<string, unknown> | null = null;
+  stubGeminiFetch(t, (callCount, requestBody) => {
+    if (callCount === 1) {
+      // One model turn, three simultaneous tool calls — Gemini's function-calling API legally
+      // returns multiple `functionCall` parts in one candidate's `content.parts`.
+      return sseBody(
+        chunk({
+          candidates: [
+            {
+              content: {
+                role: "model",
+                parts: [
+                  { functionCall: { name: "highlight_entry", args: { slug: "trashed-but-published" }, id: "call_0" } },
+                  { functionCall: { name: "highlight_entry", args: { slug: "still-a-draft" }, id: "call_1" } },
+                  { functionCall: { name: "highlight_entry", args: { slug: "nonexistent-slug-xyz" }, id: "call_2" } },
+                ],
+              },
+              index: 0,
+            },
+          ],
+        }),
+      );
+    }
+    // Continuation request: captured so this test can prove refusal actually happened server-side,
+    // not merely that nothing appeared client-side (which "the route crashed" would also produce).
+    continuationRequestBody = requestBody;
+    return sseBody(textCandidate("None of those are available.", "STOP"));
+  });
+
+  const app = createApp(deps);
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await postChatWithBody(baseUrl, { message: "highlight those three entries for me" });
+  assert.equal(res.status, 200);
+  const raw = await res.text();
+
+  assert.ok(
+    !raw.includes("event: client_directive"),
+    `a crafted/invalid slug must never produce a client_directive frame, but the raw SSE response contained one:\n${raw}`,
+  );
+
+  // Positive proof of refusal: `tools.ts`'s three page-action tools all return this exact error
+  // string on a `null` resolvePublicTarget() result, and `site-assistant.ts`'s `executeTool` maps a
+  // "refused"/successful-but-erroring outcome into `functionResponse.response.content` on the NEXT
+  // request sent back to "Google" — reported to the model as a tool error, never to the client
+  // (REQ-4's privacy property), so this is the only place it is observable at all.
+  const continuationJson = JSON.stringify(continuationRequestBody);
+  const refusalCount = (continuationJson.match(/no published entry with that slug/g) ?? []).length;
+  assert.equal(refusalCount, 3, `expected all 3 crafted slugs to be refused and reported back to the model as tool errors, got ${refusalCount} in:\n${continuationJson}`);
 });
