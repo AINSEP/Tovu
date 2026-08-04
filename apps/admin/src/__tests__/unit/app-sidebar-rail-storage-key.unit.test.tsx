@@ -62,12 +62,34 @@ it("persists the desktop rail collapse under Tovu's pre-existing localStorage ke
   await waitFor(() => expect(container.querySelector(".boot-screen")).toBeNull(), { timeout: 3000 });
 
   expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
+  // `App.tsx` passes `railDefaultCollapsed`, so a first-time operator starts on the rail and the
+  // control offers to EXPAND. Asserting the starting label explicitly means a future change to that
+  // default fails here with a readable message rather than as a confusing "button not found".
+  expect(container.querySelector(".cms-nav")).toHaveClass("is-rail");
+
+  // Both directions are exercised, because the key wiring is what this file exists to pin and a
+  // write in only one direction would leave half of it unproven.
+  await user.click(screen.getByRole("button", { name: "Expand sidebar" }));
+  expect(localStorage.getItem(LEGACY_KEY)).toBe("0");
 
   await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
-
   expect(localStorage.getItem(LEGACY_KEY)).toBe("1");
+
   // Never written under the package's own default key.
   expect(localStorage.getItem("jini-admin-sidebar-rail-collapsed")).toBeNull();
+});
+
+it("lets an operator's saved EXPANDED choice beat the collapsed-by-default wiring", async () => {
+  // The regression `railDefaultCollapsed` could easily have introduced. `useSidebarRail` used to
+  // read `getItem(key) === '1'`, which makes an absent key and a stored "0" indistinguishable —
+  // harmless under an expanded default, but under a collapsed one it would re-collapse the rail on
+  // every load for the one operator who deliberately opened it, with no way to make it stick.
+  localStorage.setItem(LEGACY_KEY, "0");
+  const { container } = render(<App />);
+
+  await waitFor(() => expect(container.querySelector(".boot-screen")).toBeNull(), { timeout: 3000 });
+
+  expect(container.querySelector(".cms-nav")).not.toHaveClass("is-rail");
 });
 
 it("reads a rail preference an operator already saved before this migration", async () => {
