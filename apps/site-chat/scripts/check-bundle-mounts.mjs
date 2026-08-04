@@ -20,18 +20,19 @@
  *
  * ## SPEC-046 REQ-1/REQ-2 — the poisoned-`sessionStorage` scenarios
  *
- * `transcript-storage.ts` and `action-queue.ts` both read real browser `sessionStorage` during the
- * widget's very first render/mount, and both promise a specific thing under corruption: a bad entry
- * clears itself and the widget still mounts. That promise is exactly the kind this file's header
- * warns can compile clean, typecheck clean, and still break in a real environment — so it gets the
- * same execute-and-assert treatment as the base "does it mount at all" case, not a unit test alone
- * (`../src/__tests__/transcript-storage.test.ts` and `action-queue.test.ts` already prove the pure
- * storage functions in isolation; this proves the WIRED widget survives the same poison).
+ * `session-store.ts` (formerly two files, `transcript-storage.ts` + `action-queue.ts`, collapsed per
+ * SPEC-046 Task 1) reads real browser `sessionStorage` during the widget's very first render/mount,
+ * and promises a specific thing under corruption: a bad entry clears itself and the widget still
+ * mounts. That promise is exactly the kind this file's header warns can compile clean, typecheck
+ * clean, and still break in a real environment — so it gets the same execute-and-assert treatment as
+ * the base "does it mount at all" case, not a unit test alone (`../src/__tests__/session-store.test.ts`
+ * already proves the pure storage functions in isolation; this proves the WIRED widget survives the
+ * same poison).
  *
  * `TRANSCRIPT_STORAGE_KEY`/`ACTION_QUEUE_STORAGE_KEY` below are literal strings duplicated from
- * `../src/transcript-storage.ts`/`../src/action-queue.ts` rather than imported — same tradeoff this
- * file's own `MOUNT_ID` already makes against `main.tsx`'s copy: this script runs the BUILT artifact,
- * not the TypeScript source, so there is no shared runtime module to import from either side.
+ * `../src/session-store.ts` rather than imported — same tradeoff this file's own `MOUNT_ID` already
+ * makes against `main.tsx`'s copy: this script runs the BUILT artifact, not the TypeScript source, so
+ * there is no shared runtime module to import from either side.
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -161,7 +162,7 @@ const scenarios = [
     seed: (storage) => storage.setItem(ACTION_QUEUE_STORAGE_KEY, JSON.stringify({ kind: "example" })),
     verify: (storage) => {
       if (storage.getItem(ACTION_QUEUE_STORAGE_KEY) !== null) {
-        fail("queued action: the entry should have been drained (deleted) by main.tsx's mount-time drainQueuedAction call");
+        fail("queued action: the entry should have been drained (deleted) by main.tsx's mount-time drainQueuedPageAction call");
       }
     },
   },

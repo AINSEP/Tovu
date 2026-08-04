@@ -4,7 +4,7 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 
 import { SiteAssistantHeader } from "./SiteAssistantHeader";
 import { createSiteAssistantTransport } from "./site-assistant-transport";
-import { clearPersistedState, loadPersistedState, savePersistedState } from "./transcript-storage";
+import { clearSiteAssistantState, loadSiteAssistantState, saveSiteAssistantState } from "./session-store";
 
 /**
  * @file The whole public-site chat widget (ADR-054 Task 2) — a floating action button that opens
@@ -38,10 +38,11 @@ import { clearPersistedState, loadPersistedState, savePersistedState } from "./t
  *
  * `initialMessages` (mount-time only) and `onMessagesChange` (fired on every change) are the two
  * halves of `ChatPane`'s own seam for exactly this, and no fork was needed to use them: transcript +
- * pane open/closed state are read once via `loadPersistedState` before the first render, fed into
- * `ChatPane` as `initialMessages`, and written back to `sessionStorage` via `savePersistedState`
- * whenever either changes. Because `initialMessages` is consumed once per `ChatPane` MOUNT (verified
- * against `useConversation.ts`'s `useState(options.initialMessages ?? [])` — a `useState` initializer
+ * pane open/closed state are read once via `loadSiteAssistantState` before the first render, fed into
+ * `ChatPane` as `initialMessages`, and written back to the browser session store via
+ * `saveSiteAssistantState` whenever either changes. Because `initialMessages` is consumed once per
+ * `ChatPane` MOUNT (verified against `useConversation.ts`'s `useState(options.initialMessages ?? [])`
+ * — a `useState` initializer
  * argument, read only on the instance's first render), the same `key={paneKey}` remount this file
  * already used for "New thread" is what makes a fresh empty transcript actually stick after a reset:
  * clearing `persistedMessages` to `[]` in the same handler that bumps `paneKey` means the NEXT
@@ -53,10 +54,10 @@ const PANE_TITLE = "Ask this site";
 
 export function SiteAssistantWidget() {
   // Read once, before the first render — `useState`'s initializer form runs exactly once per
-  // component instance, which is what keeps this a single `sessionStorage` read (and thus a single
-  // possible `clearPersistedState` side effect on a corrupt entry — see `transcript-storage.ts`)
-  // rather than one per field below.
-  const [initialState] = useState(() => loadPersistedState(sessionStorage));
+  // component instance, which is what keeps this a single session-store read (and thus a single
+  // possible clear-on-corrupt-entry side effect — see `session-store.ts`) rather than one per field
+  // below.
+  const [initialState] = useState(() => loadSiteAssistantState());
 
   const [open, setOpen] = useState(initialState.open);
   // Stable across renders for the same reason `AssistantDock`'s transport is memoized: rebuilding
@@ -81,7 +82,7 @@ export function SiteAssistantWidget() {
   // the pane's open/closed state must survive a page load too, "so the widget does not slam shut on
   // arrival at the page it just sent the visitor to."
   useEffect(() => {
-    savePersistedState(sessionStorage, { open, messages: persistedMessages });
+    saveSiteAssistantState({ open, messages: persistedMessages });
   }, [open, persistedMessages]);
 
   const resetConversation = useCallback(() => {
@@ -92,7 +93,7 @@ export function SiteAssistantWidget() {
     // Cleared directly here (not left to the effect above) so the guarantee holds even if a future
     // change ever batches or skips that effect.
     setPersistedMessages([]);
-    clearPersistedState(sessionStorage);
+    clearSiteAssistantState();
   }, []);
 
   const handleMessagesChange = useCallback((messages: ChatMessage[]) => {
