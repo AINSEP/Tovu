@@ -8,6 +8,7 @@ import {
   MAGIC_LINK_PER_EMAIL,
   MAGIC_LINK_PER_IP,
   resolveClientIp,
+  SITE_ASSISTANT_PER_IP,
   type RateLimitProfile,
 } from "../rate-limit";
 
@@ -197,4 +198,54 @@ test("T012: MAGIC_LINK_COMPLETE_ATTEMPT — the 26th attempt within 60s from one
 
   const twentySixth = limiter.check("203.0.113.9");
   assert.equal(twentySixth.allowed, false);
+});
+
+/**
+ * @file SPEC-046 REQ-7 — `SITE_ASSISTANT_PER_IP`, the public site assistant's own profile. Boundary
+ * behavior only, same shape as the `MAGIC_LINK_PER_IP`/`MAGIC_LINK_PER_EMAIL` coverage above:
+ * `createRateLimiter` already does all the real work, so these tests exist to pin the profile's own
+ * numbers (10 / 5 minutes / IP) rather than re-prove the algorithm.
+ */
+
+test("SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — the 11th request within the window for the same IP is denied with retryAfterSeconds", () => {
+  const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
+  const limiter = createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock });
+
+  for (let i = 0; i < SITE_ASSISTANT_PER_IP.max; i++) {
+    assert.equal(limiter.check("203.0.113.9").allowed, true, `request ${i + 1} should pass`);
+  }
+
+  const eleventh = limiter.check("203.0.113.9");
+  assert.equal(eleventh.allowed, false);
+  if (eleventh.allowed) throw new Error("unreachable");
+  assert.ok(Number.isInteger(eleventh.retryAfterSeconds));
+  assert.ok(eleventh.retryAfterSeconds > 0);
+  assert.ok(eleventh.retryAfterSeconds <= SITE_ASSISTANT_PER_IP.windowSeconds);
+});
+
+test("SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — the 5-minute window resets correctly", () => {
+  const { clock, advanceMs } = fakeClock("2026-01-01T00:00:00.000Z");
+  const limiter = createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock });
+
+  for (let i = 0; i < SITE_ASSISTANT_PER_IP.max; i++) {
+    assert.equal(limiter.check("203.0.113.9").allowed, true);
+  }
+  assert.equal(limiter.check("203.0.113.9").allowed, false);
+
+  advanceMs(SITE_ASSISTANT_PER_IP.windowSeconds * 1000 - 1);
+  assert.equal(limiter.check("203.0.113.9").allowed, false);
+
+  advanceMs(1);
+  assert.equal(limiter.check("203.0.113.9").allowed, true);
+});
+
+test("SPEC-046 REQ-7: SITE_ASSISTANT_PER_IP — different IPs have independent counters", () => {
+  const { clock } = fakeClock("2026-01-01T00:00:00.000Z");
+  const limiter = createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock });
+
+  for (let i = 0; i < SITE_ASSISTANT_PER_IP.max; i++) {
+    assert.equal(limiter.check("1.1.1.1").allowed, true);
+  }
+  assert.equal(limiter.check("1.1.1.1").allowed, false);
+  assert.equal(limiter.check("2.2.2.2").allowed, true, "a different key starts with a fresh window");
 });

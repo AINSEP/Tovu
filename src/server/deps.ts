@@ -57,7 +57,7 @@ import {
 import { createSqliteIdentityRouteDeps } from "../identity/wiring";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../forms/repo.sqlite";
 import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile";
-import { createRateLimiter } from "./middleware/rate-limit";
+import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "./middleware/rate-limit";
 import type { RouteDeps } from "./routes/types";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps";
 import { createVerifiedOrigin, OriginRegistry } from "../origin";
@@ -608,6 +608,9 @@ export function createSqliteRouteDeps(
     formDefinitionRepo,
     formSubmissionRepo: new SqliteFormSubmissionRepo(db),
     formsRateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
+    // SPEC-046 REQ-7 — same one-process-lifetime-counter-store shape as `formsRateLimiter` above,
+    // just above it so the two process-lifetime rate limiters stay visually paired.
+    siteAssistantRateLimiter: createRateLimiter({ profile: SITE_ASSISTANT_PER_IP, clock }),
     databaseLedgerRepo,
     // Real SQLite adapters (this dispatch, closing Session 5's disclosed "no SQLite adapter yet
     // for content-types/entries/taxonomy" gap — see `features/{content-types,entries,taxonomy}/

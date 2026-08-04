@@ -5,6 +5,7 @@ import { runGoogleToolTurn, type GoogleToolCall, type GoogleToolResult } from "@
 import { resolveSiteAssistantMode } from "../../assistant/site/mode";
 import { isPublicAssistantEnabled } from "../../assistant/public-assistant-settings";
 import { createSiteAssistantTools, SITE_ASSISTANT_TOOL_SCHEMAS } from "../../assistant/site/tools";
+import { resolveClientIp } from "../middleware/rate-limit";
 import type { RouteDeps } from "../routes/types";
 import type { ServerModuleHandle } from "./types";
 
@@ -33,9 +34,11 @@ import type { ServerModuleHandle } from "./types";
  *    that file's own header requires "no assistant endpoint" when disabled, not a hidden one, so a
  *    disabled workspace answers exactly as if this route were never registered.
  *
- * Not yet here, deliberately: **rate limiting**. An anonymous endpoint in front of a paid API is a
- * cost-attack surface, and this must not be exposed publicly without it. Tracked as an open item in
- * ADR-054 rather than silently assumed handled.
+ * 5. **Rate-limited by IP** (SPEC-046 REQ-7). `deps.siteAssistantRateLimiter` (`SITE_ASSISTANT_PER_IP`
+ *    — 10 requests / 5 minutes / IP, `server/middleware/rate-limit.ts`) is checked before any
+ *    mode/config branch below, so a caller over budget gets a cheap 429 without touching the model
+ *    provider. This closes what used to be an open item tracked against ADR-054: an anonymous
+ *    endpoint in front of a paid API is a cost-attack surface without it.
  */
 
 const CHAT_PATH = "/api/site-assistant/chat";
@@ -137,6 +140,22 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
         }
         if (message.length > MAX_MESSAGE_CHARS) {
           res.status(413).json({ error: `message exceeds ${MAX_MESSAGE_CHARS} characters`, code: "TOO_LARGE" });
+          return;
+        }
+
+        // SPEC-046 REQ-7: checked before any mode/config branch below, so a caller already over
+        // budget never reaches the provider call (or its 501/503 config-error branches either) —
+        // the 429 is the cheapest possible response to an excess request. A clean JSON error here
+        // (not an SSE frame — `beginStream` has not run yet) is what lets the widget's transport
+        // read `body.error` off a normal failed `fetch()` the same way it already does for 4xx/5xx.
+        const rateLimitResult = deps.siteAssistantRateLimiter.check(resolveClientIp(req));
+        if (!rateLimitResult.allowed) {
+          res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
+          res.status(429).json({
+            error: "too many messages from this address — please wait before trying again",
+            code: "RATE_LIMIT_EXCEEDED",
+            details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
+          });
           return;
         }
 

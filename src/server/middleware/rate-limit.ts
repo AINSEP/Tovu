@@ -86,6 +86,20 @@ export const MAGIC_LINK_COMPLETE_ATTEMPT: RateLimitProfile = {
   burst: 5,
 };
 
+/**
+ * SPEC-046 REQ-7 — `POST /api/site-assistant/chat` is anonymous, unauthenticated, and sits in
+ * front of a paid model API, so this is the only thing standing between an anonymous caller and
+ * unbounded provider spend. Keyed by `resolveClientIp(req)`, same per-IP shape as
+ * `MAGIC_LINK_PER_IP`. Starts strict per the spec's suggestion (10 requests / 5 minutes / IP) with
+ * the numbers isolated here, not inlined at the call site, so loosening this later is a one-line
+ * change.
+ */
+export const SITE_ASSISTANT_PER_IP: RateLimitProfile = {
+  windowSeconds: 300,
+  max: 10,
+  burst: 0,
+};
+
 /** Outcome of a single `checkRateLimit` call. */
 export type RateLimitResult =
   | { allowed: true }

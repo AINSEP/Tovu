@@ -288,6 +288,13 @@ export interface RouteDeps {
   formSubmissionRepo: FormSubmissionRepoPort;
   formsRateLimiter: RateLimiter;
   /**
+   * SPEC-046 REQ-7 — the public site assistant's own rate limiter, mirroring `formsRateLimiter`'s
+   * shape exactly: a single, process-lifetime `createRateLimiter({ profile: SITE_ASSISTANT_PER_IP,
+   * clock })` instance (not constructed per-request), keyed by `resolveClientIp(req)` in
+   * `modules/site-assistant.ts`.
+   */
+  siteAssistantRateLimiter: RateLimiter;
+  /**
    * ADR-041 §1/§2 — the Database Timeline's read port, backed by the sidecar
    * `ops/database-journal.db` (`db/sqlite/database-journal-repo.ts`'s `SqliteDatabaseLedgerRepo`
    * in `server/deps.ts`'s real composition; `features/database/repo.memory.ts`'s
