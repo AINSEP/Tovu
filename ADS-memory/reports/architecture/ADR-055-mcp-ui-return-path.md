@@ -217,16 +217,26 @@ emitSurface failure; it would defeat the entire human-gating design this ADR exi
 routing a destructive action through the one path expressly reserved for tools that need no human
 answer at all.
 
-**Known limitation, stated plainly so it is not overread from the test counts alone.** The new test
-suite (18 tests in `agent-tools.delete-confirmation.test.ts`, 3 in
-`mcp-ui-tool-calls-route.integration.test.ts`, 902/902 assistant-domain regression) proves the
-HANDLER LOGIC is correct against a fake `emitSurface` and a real, in-process `SurfaceExchangeStore` —
-every test in this port runs inside one process, with no second daemon subprocess, no spawned agent
-CLI, and no browser. It does not, and was never run to, prove that a real agent process, a real daemon
-subprocess, and a real browser click together produce a truthful transcript end to end. That gap —
-between "the code is correct" and "the deployed system behaves correctly" — is exactly where the
-original bug this ADR exists to fix was hiding; closing it needs a live run, and is explicitly out of
-this port's scope (owned by `e2e-login-destructive` / `adversarial-surface-resilience`).
+**Known limitation, stated plainly so it is not overread from the test counts alone.**
+
+> These tests run in-process against fakes. No test yet boots a second daemon process, drives a real
+> spawned agent, or exercises a browser. They prove the handler's logic is correct against a fake
+> emitter — they do NOT prove the real two-process path produces a truthful transcript end to end.
+
+The new test suite (18 tests in `agent-tools.delete-confirmation.test.ts`, 3 in
+`mcp-ui-tool-calls-route.integration.test.ts`, 902/902 assistant-domain regression) does not cross a
+process boundary anywhere. This is a sharper caveat than a generic "needs e2e coverage," because of
+what the ORIGINAL bug actually was: not a logic error. The old handler was also perfectly correct in
+isolation — step 1 genuinely minted a token and rendered a real dialog; step 2 genuinely redeemed it
+and performed a real soft delete. **What failed was the seam between processes** — the daemon process
+running step 2 never routed its result anywhere the model or the conversation could see — a wiring gap
+no single-process test, then or now, can see. That is exactly the seam this port's own suite does not
+cross either. This ADR's own Consequences section already warns about this failure mode once, for the
+retired token-grep ("that specific check retires... the old grep must not be left in place implying
+coverage it no longer provides"); this is the same mistake in a different shape — a green suite
+implying coverage it does not have — and it is worth naming as a SECOND time this workstream has hit
+it, not a first. Closing the actual gap needs a live run and is explicitly out of this port's scope
+(owned by `e2e-login-destructive` / `adversarial-surface-resilience`).
 
 **A pattern, now twice observed, worth naming rather than re-discovering a third time.** Amendment 1
 found Decision 1's own text ("ships first, independently") false — the code required Decisions 5 and 7
