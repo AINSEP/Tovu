@@ -203,6 +203,28 @@ const scenarios = [
   {
     name: "wrong-shaped transcript entry (valid JSON, invalid ChatMessage shape)",
     seed: (storage) => storage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify({ open: true, messages: [{ oops: "no id/role/content" }] })),
+    // Same drift guard as the poisoned-JSON scenario above: without asserting the seeded entry was
+    // consumed/replaced, a `TRANSCRIPT_STORAGE_KEY` version bump in `session-store.ts` left
+    // un-mirrored here would seed a key the running bundle never even reads, and this scenario would
+    // still pass on "still mounts" alone — vacuously, since the wrong-shaped entry it meant to
+    // exercise was never actually read by `loadPersistedState`.
+    verify: (storage) => {
+      const value = storage.getItem(TRANSCRIPT_STORAGE_KEY);
+      if (value === null) return; // effect has not (yet) re-persisted — also a valid post-clear state.
+      if (value.includes('"oops"')) {
+        fail("wrong-shaped transcript entry: the invalid ChatMessage entry must not survive verbatim");
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(value);
+      } catch {
+        fail(`wrong-shaped transcript entry: whatever replaced the invalid entry is not valid JSON: ${value}`);
+        return;
+      }
+      if (parsed.open !== false || !Array.isArray(parsed.messages) || parsed.messages.length !== 0) {
+        fail(`wrong-shaped transcript entry: replaced with an unexpected, non-empty value: ${value}`);
+      }
+    },
   },
   {
     name: "poisoned action-queue entry (REQ-2 drain must not throw)",
@@ -233,7 +255,7 @@ const scenarios = [
         ACTION_QUEUE_STORAGE_KEY,
         JSON.stringify({ type: "highlight", target: { slug: "example-published-post", title: "Example Published Post", path: "/example-published-post" } }),
       ),
-    verify: (_storage, document) => {
+    verify: (storage, document) => {
       const heading = document.querySelector(".entry-title");
       if (!heading) fail("highlight action: the seeded page heading is missing — the scenario fixture itself is broken");
       if (!heading.classList.contains("tovu-site-assistant__highlight")) {
@@ -241,6 +263,15 @@ const scenarios = [
       }
       if ((heading.__tovuScrollIntoViewCalls ?? 0) !== 1) {
         fail(`highlight action: expected exactly one scrollIntoView call, got ${heading.__tovuScrollIntoViewCalls ?? 0}`);
+      }
+      // Drift guard (SPEC-046 Task 3): this scenario's whole premise is that the seeded
+      // ACTION_QUEUE_STORAGE_KEY entry was actually read and drained by main.tsx's mount-time
+      // drainQueuedPageAction call — the DOM assertions above would still pass "by accident" if a
+      // key-version bump left this script seeding a key the running bundle no longer reads AND some
+      // other stale queued action from a prior scenario happened to resolve instead. Asserting
+      // consumption is what makes that drift fail loudly instead of silently.
+      if (storage.getItem(ACTION_QUEUE_STORAGE_KEY) !== null) {
+        fail("highlight action: the queued entry should have been drained (deleted) by main.tsx's mount-time drainQueuedPageAction call");
       }
     },
   },
@@ -254,13 +285,19 @@ const scenarios = [
         ACTION_QUEUE_STORAGE_KEY,
         JSON.stringify({ type: "scroll_to", target: { slug: "example-published-post", title: "Example Published Post", path: "/example-published-post" } }),
       ),
-    verify: (_storage, document) => {
+    verify: (storage, document) => {
       const heading = document.querySelector(".entry-title");
       if ((heading?.__tovuScrollIntoViewCalls ?? 0) !== 1) {
         fail(`scroll_to action: expected exactly one scrollIntoView call, got ${heading?.__tovuScrollIntoViewCalls ?? 0}`);
       }
       if (heading?.classList.contains("tovu-site-assistant__highlight")) {
         fail("scroll_to action: must never apply the highlight class — that is highlight_entry's job, not scroll_to_entry's");
+      }
+      // Drift guard (SPEC-046 Task 3) — see the identical comment on the highlight-action scenario
+      // above for why asserting consumption, not just the DOM effect, is what makes a stale
+      // ACTION_QUEUE_STORAGE_KEY literal fail loudly instead of passing vacuously.
+      if (storage.getItem(ACTION_QUEUE_STORAGE_KEY) !== null) {
+        fail("scroll_to action: the queued entry should have been drained (deleted) by main.tsx's mount-time drainQueuedPageAction call");
       }
     },
   },
