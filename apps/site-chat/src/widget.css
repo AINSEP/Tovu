@@ -1,12 +1,129 @@
 /**
- * Layout/position only — `ChatPane` injects its own complete theme as a <style> tag at mount
- * (see `apps/admin/src/components/AssistantDock.tsx`'s file header for the measured account of
- * that), so this file never sets colors or typography for anything ChatPane renders internally.
- * It exists to answer the one question the shared components deliberately leave to the host:
- * where does this widget sit on an arbitrary theme's page, and how big is it. Fully self-contained
- * literal values, not design tokens — this bundle ships to every theme, including ones that define
- * no CSS custom properties this widget could otherwise borrow.
+ * @file Makes the public site chat read as the same product as the admin assistant dock
+ * (`apps/admin/src/styles/assistant.css`, `apps/admin/src/components/AssistantDock.tsx`).
+ *
+ * ChatPane injects its own complete default theme as a runtime `<style>` tag at mount (a warm
+ * cream/terracotta palette scoped under `.jini-chat-pane`, appended LAST in the cascade — see
+ * `AssistantDock.tsx`'s file header for the fully measured account of why that beats source-order
+ * rules of equal specificity). Without this file the public pane renders in THAT default palette,
+ * not Tovu's — which is exactly the "visibly different" state the owner flagged.
+ *
+ * ## The token problem, and which of two options this file takes
+ *
+ * `assistant.css` is written entirely against the ADMIN app's own design tokens (`--primary`,
+ * `--surface`, `--fg`, `--r-pill`, `--font-ui`, …, defined in `apps/admin/src/styles.css`). The
+ * public site defines a DIFFERENT token set in its own theme (`--accent`, `--card`, `--rule`,
+ * `--font-display`/`--font-body`, …) — and `--surface` exists in BOTH with different meanings, which
+ * is the specific trap: mapping onto the site's tokens by name would silently pick up the wrong
+ * color under a name that looks right.
+ *
+ * Two ways to close that gap:
+ *   (a) Define the admin's own token VALUES locally, scoped under `.tovu-site-assistant`, so the
+ *       widget renders identically everywhere regardless of host theme.
+ *   (b) Map admin token NAMES onto the site theme's own tokens, so the widget adopts each theme's
+ *       colors.
+ * This file takes (a) — the ask was "read as the same product as the admin dock," which (b) cannot
+ * deliver by construction (a themed page with different --accent/--surface values would produce a
+ * chat pane that visibly differs FROM the admin dock, theme to theme, which is the opposite of what
+ * was requested). Every value below is copied verbatim from `apps/admin/src/styles.css`'s `:root`
+ * and `:root[data-theme="dark"]` blocks — not re-derived, so this cannot silently drift into a
+ * "close but not quite" color the way retyping oklch values by eye would.
+ *
+ * ## Scoping — the non-negotiable part
+ *
+ * This CSS ships on every page of a real site. Every rule below is scoped under `.tovu-site-assistant`
+ * — no bare tag selector, no `:root`, no global reset. The token block itself is also scoped rather
+ * than declared on `:root`: declaring these names globally would silently overwrite the SITE THEME's
+ * own `--surface`/`--bg`/etc for the rest of the page (exactly the `--surface`-means-two-things trap
+ * this file's header names), which is a leak into the host page, not styling of the widget.
+ *
+ * ## What is deliberately NOT ported, and why
+ *
+ * `assistant.css`'s conversation-switcher (`.jini-conv-*`) and attachment-tray (`.jini-attachment-*`)
+ * sections are omitted — not an oversight. This widget never renders `<ConversationList>` (no
+ * `header` prop supplies one) and never passes `uploadAttachments` (ADR-054: read-only, no per-visitor
+ * conversation persistence), so neither component ever mounts here; porting their CSS would be dead
+ * weight nobody could verify against a real render.
  */
+
+/* ---------------------------------------------------------------------------------------------
+ * 1. Local design tokens — copied verbatim from apps/admin/src/styles.css, scoped to this widget.
+ * --------------------------------------------------------------------------------------------- */
+
+.tovu-site-assistant {
+  --bg: #fff;
+  --surface: oklch(100% 0 0);
+  --surface-2: oklch(96.6% 0.006 250);
+  --surface-3: oklch(94% 0.008 250);
+  --fg: oklch(24% 0.022 262);
+  --fg-2: oklch(34% 0.02 262);
+  --muted: oklch(53% 0.016 258);
+  --faint: oklch(66% 0.012 258);
+  --border: oklch(91.5% 0.007 255);
+  --border-strong: oklch(86% 0.01 255);
+
+  --accent: oklch(22% 0.006 260);
+  --accent-ink: oklch(99% 0 0);
+  --accent-text: oklch(26% 0.006 260);
+
+  --primary: oklch(55.29% 0.1129 43.4); /* ~#A85A38 — 5.02:1 vs white */
+  --primary-ink: oklch(99% 0 0);
+
+  --link: oklch(45% 0.13 250);
+  --ok: oklch(48% 0.12 150);
+  --danger: oklch(52% 0.19 25);
+  --danger-bg: oklch(95% 0.04 25);
+
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-ui: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  --r-sm: 7px;
+  --r-md: 11px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+  --shadow-md: 0 4px 14px rgba(20, 28, 45, 0.07), 0 2px 5px rgba(20, 28, 45, 0.05);
+}
+
+/* Admin's `:root[data-theme="dark"]` is a manual toggle (an app preference, stored per admin).
+ * The public site has no such toggle to key off — `prefers-color-scheme` is this widget's own
+ * equivalent, respecting the visitor's OS/browser preference the same way `:root[data-theme="dark"]`
+ * respects the admin's chosen one. Values copied verbatim from that same block. */
+@media (prefers-color-scheme: dark) {
+  .tovu-site-assistant {
+    --bg: oklch(14% 0.018 255);
+    --surface: oklch(18.5% 0.018 255);
+    --surface-2: oklch(22% 0.016 255);
+    --surface-3: oklch(26% 0.015 255);
+    --fg: oklch(96% 0.004 250);
+    --fg-2: oklch(86% 0.006 250);
+    --muted: oklch(70% 0.012 250);
+    --faint: oklch(56% 0.012 250);
+    --border: oklch(100% 0 0 / 0.11);
+    --border-strong: oklch(100% 0 0 / 0.18);
+
+    --accent: oklch(97% 0 0);
+    --accent-ink: oklch(18% 0.006 260);
+    --accent-text: oklch(97% 0 0);
+
+    --primary: oklch(56% 0.1 44); /* ~#A56042 — 4.83:1 vs white */
+    --primary-ink: oklch(99% 0 0);
+
+    --link: oklch(74% 0.11 245);
+    --ok: oklch(74% 0.14 150);
+    --danger: oklch(74% 0.16 25);
+    --danger-bg: oklch(50% 0.12 25 / 0.22);
+  }
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * 2. Widget hosting shell — the FAB's fixed position and the pane's floating panel size. Has no
+ * equivalent in assistant.css: the admin dock is a permanently-visible in-flow <aside> in the app
+ * layout, never a floating overlay, so admin's own `.chat-fab` rule sets no position/right/bottom at
+ * all (its own `useFabPosition` wrapper hook always supplies one via inline style). This widget uses
+ * the shared package's plain `ChatFab`, whose own `useChatFabDrag` hook only sets an inline position
+ * AFTER a drag — so a CSS default is required here, unlike in admin.
+ * --------------------------------------------------------------------------------------------- */
 
 .tovu-site-assistant__panel {
   position: fixed;
@@ -16,8 +133,10 @@
   width: min(380px, calc(100vw - 32px));
   height: min(600px, calc(100vh - 140px));
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+  background: var(--surface);
+  border: 1px solid var(--border);
 }
 
 /* `[hidden]` already removes the panel from layout and the tab order (native attribute behavior) —
@@ -27,6 +146,10 @@
   display: none;
 }
 
+/* Same token repaint `assistant.css`'s `.chat-fab` comment documents: the FAB is a circular primary
+ * action button, so it takes `--primary`/`--primary-ink` rather than an assistant-specific color —
+ * matching admin exactly rather than inventing a second "assistant accent" this port would then have
+ * to keep in sync. */
 .tovu-site-assistant .chat-fab {
   position: fixed;
   right: 24px;
@@ -34,29 +157,29 @@
   z-index: 2147483000;
   width: 56px;
   height: 56px;
-  border-radius: 999px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: #1a1a1a;
-  color: #fff;
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  background: var(--primary);
+  color: var(--primary-ink);
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: var(--font-ui);
   font-size: 22px;
   line-height: 1;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-md);
   cursor: pointer;
   touch-action: none;
+  transition: opacity 0.14s;
 }
 
 .tovu-site-assistant .chat-fab:hover {
-  opacity: 0.92;
+  opacity: 0.9;
 }
 
-@media (prefers-color-scheme: dark) {
+@media (prefers-reduced-motion: reduce) {
   .tovu-site-assistant .chat-fab {
-    background: #f5f5f5;
-    color: #111;
-    border-color: rgba(255, 255, 255, 0.12);
+    transition: none;
   }
 }
 
@@ -71,4 +194,391 @@
     right: 12px;
     bottom: 12px;
   }
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * 3. ChatPane theme seam — ported from assistant.css's `.admin-chat-dock .jini-chat-pane` block,
+ * ancestor-scoped to `.tovu-site-assistant` instead of `.admin-chat-dock`. This is the mechanism
+ * that actually wins the cascade: `ChatPane`'s injected default theme defines these as overridable
+ * custom properties, appended last — an ancestor-scoped override here beats it on specificity
+ * regardless of source order (see this file's header for the full account).
+ * --------------------------------------------------------------------------------------------- */
+
+.tovu-site-assistant .jini-chat-pane {
+  --jini-chat-bg: var(--surface);
+  --jini-chat-panel: var(--surface);
+  --jini-chat-subtle: var(--surface-2);
+  --jini-chat-text: var(--fg);
+  --jini-chat-text-strong: var(--fg);
+  --jini-chat-muted: var(--muted);
+  --jini-chat-faint: var(--faint);
+  --jini-chat-border: var(--border);
+  --jini-chat-border-strong: var(--border-strong);
+  --jini-chat-border-soft: var(--border);
+  --jini-chat-accent: var(--accent-text);
+  --jini-chat-accent-soft: var(--surface-2);
+}
+
+/* Doubled class, scoped: beats the injected theme's plain `.jini-runtime-popover` on specificity
+ * without depending on this popover staying nested inside `.tovu-site-assistant` in the DOM (a
+ * portal escaping the panel's own `overflow: hidden` — see `assistant.css`'s identical rule and its
+ * comment for why the doubling exists at all). Kept ancestor-scoped, unlike admin's version: this
+ * widget renders on an arbitrary host page rather than inside a trusted app shell, so a bare doubled
+ * class would still be a real (if small) collision surface admin does not need to worry about. */
+.tovu-site-assistant .jini-runtime-popover.jini-runtime-popover {
+  --jini-chat-panel: var(--surface);
+  --jini-chat-text: var(--fg);
+  --jini-chat-text-strong: var(--fg);
+  --jini-chat-muted: var(--muted);
+  --jini-chat-faint: var(--faint);
+  --jini-chat-border: var(--border);
+  --jini-chat-border-soft: var(--border);
+  --jini-chat-subtle: var(--surface-2);
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * 4. Pane shell — header, status/error banners, suggestions. Ported from assistant.css verbatim
+ * except for the ancestor prefix (`.tovu-site-assistant` instead of implicit page-wide scope).
+ * --------------------------------------------------------------------------------------------- */
+
+.tovu-site-assistant .jini-chat-pane__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tovu-site-assistant .jini-chat-pane__eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+
+.tovu-site-assistant .jini-chat-pane__title,
+.tovu-site-assistant .jini-chat-pane__heading {
+  font-family: var(--font-display);
+  font-size: 15px;
+  margin: 0;
+}
+
+.tovu-site-assistant .jini-chat-pane__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tovu-site-assistant .jini-chat-pane__status {
+  padding: 6px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tovu-site-assistant .jini-chat-pane__error {
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.tovu-site-assistant .jini-chat-pane__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 10px;
+}
+
+.tovu-site-assistant .jini-chat-pane__suggestion {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  border-radius: var(--r-pill);
+  padding: 5px 12px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.tovu-site-assistant .jini-chat-pane__suggestion:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-3);
+}
+
+.tovu-site-assistant .jini-chat-pane__new-thread,
+.tovu-site-assistant .jini-chat-pane__cancel {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  border-radius: var(--r-sm);
+  padding: 5px 10px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * 5. Message list — bubbles, agent vs. user styling, pending/error/usage rows.
+ * --------------------------------------------------------------------------------------------- */
+
+.tovu-site-assistant .jini-message-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: var(--font-ui);
+}
+
+.tovu-site-assistant .jini-message-content {
+  border-radius: var(--r-md);
+  padding: 10px 13px;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  max-width: 80%;
+}
+
+.tovu-site-assistant .jini-message-agent .jini-message-content {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+
+.tovu-site-assistant .jini-message-list > [data-role='user'] .jini-message-content {
+  background: var(--accent);
+  color: var(--accent-ink);
+  margin-left: auto;
+}
+
+.tovu-site-assistant .jini-message-pending {
+  color: var(--faint);
+  font-style: italic;
+}
+
+.tovu-site-assistant .jini-message-error {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-radius: var(--r-sm);
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.tovu-site-assistant .jini-message-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.tovu-site-assistant .jini-message-usage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--faint);
+  font-size: 11.5px;
+}
+
+.tovu-site-assistant .jini-message-usage-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.tovu-site-assistant .jini-ext-event-error {
+  color: var(--danger);
+  font-size: 12px;
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * 6. Composer.
+ * --------------------------------------------------------------------------------------------- */
+
+.tovu-site-assistant .jini-chat-pane__drop-target {
+  flex: 1;
+  min-width: 0;
+}
+
+.tovu-site-assistant .jini-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+
+.tovu-site-assistant .jini-composer-leading,
+.tovu-site-assistant .jini-composer-attach,
+.tovu-site-assistant .jini-composer-send {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  border-radius: var(--r-sm);
+  height: 34px;
+  min-width: 34px;
+  cursor: pointer;
+}
+
+.tovu-site-assistant .jini-composer-send {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+  padding: 0 14px;
+}
+
+.tovu-site-assistant .jini-composer-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.tovu-site-assistant .jini-composer-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--fg);
+  resize: none;
+  min-height: 34px;
+  max-height: 160px;
+}
+
+.tovu-site-assistant .jini-composer-input:focus {
+  outline: none;
+  border-color: var(--border-strong);
+}
+
+.tovu-site-assistant .jini-composer-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tovu-site-assistant .jini-composer-plus-menu {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.tovu-site-assistant .jini-composer-plus-item {
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tovu-site-assistant .jini-composer-plus-item:hover {
+  background: var(--surface-2);
+}
+
+.tovu-site-assistant .jini-composer-file-input {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * 7. Runtime/agent picker — this widget's `ChatPane` always renders `AgentRuntimePicker` as a
+ * composer footer accessory regardless of agent count (`ChatPane.tsx` wires it in unconditionally),
+ * so this DOES render here even though the widget only ever offers one fixed agent
+ * (`SiteAssistantWidget.tsx`'s `SITE_ASSISTANT_AGENT`) — unlike the conversation switcher/attachment
+ * tray, this is not optional to style.
+ * --------------------------------------------------------------------------------------------- */
+
+.tovu-site-assistant .jini-runtime-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+  padding: 5px 10px 5px 6px;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  cursor: pointer;
+  color: var(--fg-2);
+}
+
+.tovu-site-assistant .jini-runtime-trigger__chevron {
+  color: var(--faint);
+  font-size: 10px;
+}
+
+.tovu-site-assistant .jini-runtime-popover {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  min-width: 220px;
+  font-family: var(--font-ui);
+}
+
+.tovu-site-assistant .jini-runtime-popover__head {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--faint);
+  border-bottom: 1px solid var(--border);
+}
+
+.tovu-site-assistant .jini-runtime-section-label {
+  padding: 6px 12px 2px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+
+.tovu-site-assistant .jini-runtime-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.tovu-site-assistant .jini-runtime-select:hover {
+  background: var(--surface-2);
+}
+
+.tovu-site-assistant .jini-runtime-agent__copy {
+  display: flex;
+  flex-direction: column;
+}
+
+.tovu-site-assistant .jini-runtime-agent__status {
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.tovu-site-assistant .jini-runtime-empty {
+  padding: 10px 12px;
+  font-size: 12.5px;
+  color: var(--faint);
+}
+
+.tovu-site-assistant .jini-runtime-rescan {
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--link);
+  padding: 8px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tovu-site-assistant .jini-runtime-check {
+  color: var(--ok);
 }
