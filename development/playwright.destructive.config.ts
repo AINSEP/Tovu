@@ -69,6 +69,19 @@ const BASE_URL = `http://localhost:${PORT}`;
 const REPO_ROOT = path.resolve(__dirname, "..");
 const CONTENT_DB_PATH = path.join(os.tmpdir(), `tovu-e2e-destructive-content-${Date.now()}-${process.pid}.db`);
 
+/**
+ * Published to the environment so `e2e/daemon-ready.ts` gates on the SAME port this config hands
+ * the webServer, instead of duplicating the literal. Worker processes are forked from this runner
+ * and inherit its env, so the value reaches the specs.
+ *
+ * The gate is necessary because `webServer.url` below proves only that the APP port answers — the
+ * daemon is spawned from inside `app.listen()`'s callback (`src/index.ts:148`), so it is reliably
+ * NOT yet listening when Playwright releases the first test. Measured 2026-08-04: first test failed
+ * in 1.1s with `ECONNREFUSED 127.0.0.1:4990`, with the daemon confirmed healthy on that port
+ * seconds later. See `daemon-ready.ts` for the full trace.
+ */
+process.env.E2E_AGENT_DAEMON_PORT = String(DAEMON_PORT);
+
 export default defineConfig({
   testDir: "./e2e",
   testMatch: /(login|destructive-path)\.spec\.ts/,

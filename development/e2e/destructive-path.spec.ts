@@ -1,5 +1,6 @@
 import { test, expect, type Page, type APIResponse } from "@playwright/test";
 import { loginAsAdmin } from "./auth-fixtures";
+import { waitForAgentDaemon } from "./daemon-ready";
 
 /**
  * @file MANDATE 2 — reproduces the false-transcript delete bug (ADR-055 Decision 2) end to end
@@ -59,16 +60,28 @@ async function createDraftPost(page: Page, title: string): Promise<CreatedPost> 
 }
 
 /** Publishes a draft so the public-site check below is a real before/after, not a no-op against a
- *  post nobody could see anyway. `update.ts` requires `title`/`slug` on every PUT (they're
- *  overwritten with whatever is sent, not merged), so both travel through unchanged. */
+ *  post nobody could see anyway.
+ *
+ *  `updatePost` (`src/features/post/post.ts`) validates `title`, `slug`, `bodyJson` AND `status` on
+ *  every PUT and MERGES NOTHING — each is overwritten with exactly what was sent. An earlier version
+ *  of this helper sent only `{title, slug, status}` and got a hard `400 bodyJson must be a JSON
+ *  object` (`post.ts:589`), failing the test in ~5s before any agent turn ran. So the body is
+ *  round-tripped from a real GET rather than reconstructed: the post is published with the content
+ *  it already had, which is what "publish this draft" is supposed to mean. */
 async function publishPost(page: Page, post: CreatedPost): Promise<void> {
   const result = await page.evaluate(
     async ({ url, id, title, slug }) => {
+      const current = await (await fetch(`${url}/${id}`, { credentials: "same-origin" })).json();
       const res = await fetch(`${url}/${id}`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ title, slug, status: "published" }),
+        body: JSON.stringify({
+          title,
+          slug,
+          status: "published",
+          bodyJson: current?.post?.bodyJson ?? { type: "doc", content: [] },
+        }),
       });
       return { status: res.status, body: await res.json() };
     },
@@ -142,6 +155,12 @@ async function waitForDeleteDialog(page: Page, postId: string, timeoutMs: number
 
 test.describe("destructive-path: content_post_delete false-transcript bug (ADR-055 Decision 2)", () => {
   test.beforeEach(async ({ page }) => {
+    // Gate on the daemon BEFORE logging in. Playwright's `webServer.url` readiness probe only
+    // proves the app port answers; the daemon is spawned from inside `app.listen()`'s callback
+    // (`src/index.ts:148`) and binds seconds later. Without this, every assistant message in that
+    // window fails with `ECONNREFUSED`, which looks like a broken daemon but is purely a race —
+    // see `daemon-ready.ts`. Memoized, so only the first test actually waits.
+    await waitForAgentDaemon();
     await loginAsAdmin(page);
   });
 
