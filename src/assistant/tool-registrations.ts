@@ -29,6 +29,7 @@ import {
   commentsDerivedRisk,
   type CommentsToolDeps,
 } from "../comments/tool-registrations";
+import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool";
 import {
   buildContentTypesRegistrations,
   contentTypesDerivedRisk,
@@ -207,6 +208,10 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   { domain: "redirects", build: buildRedirectsRegistrations, risk: redirectsDerivedRisk },
   { domain: "integrations", build: buildIntegrationsRegistrations, risk: integrationsDerivedRisk },
   { domain: "themes", build: buildThemesRegistrations, risk: themesDerivedRisk },
+  // Last, and empty unless TOVU_ENABLE_DEMO_TOOLS is set — a development-only surface for
+  // exercising the grouped-choice MCP-UI controls in a real chat pane. See its own module doc for
+  // why it is a tool rather than a test page, and why the gate is an env var.
+  { domain: "demo-choices", build: buildDemoChoicesRegistrations, risk: demoChoicesDerivedRisk },
 ];
 
 /**

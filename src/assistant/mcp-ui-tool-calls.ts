@@ -13,6 +13,7 @@
  * daemon-side execution route and Tovu's session-authenticated proxy in front of it — see
  * `mcp-ui-tool-calls-route.ts` and `server/modules/assistant.ts`) so the two cannot drift apart.
  */
+import { demoToolsEnabled } from "./demo-choices-tool";
 
 /**
  * Tool ids the redemption endpoint is willing to execute at all. Every other `toolName` is refused
@@ -29,7 +30,21 @@
  * Starts with exactly the one tool this whole mechanism was built for (ADR-053 Decision 6: start
  * narrow, widen only per-tool by deliberate choice).
  */
-export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set(["content_post_delete"]);
+export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
+  "content_post_delete",
+  // Development only, and admitted under a DIFFERENT justification than the rule above — worth
+  // stating plainly rather than letting it read as a precedent. `assistant_demo_choices`
+  // (`demo-choices-tool.ts`) performs no token redemption, because it has nothing to redeem: both
+  // its branches are pure, it touches no repo, no command gateway, no outbox and no bus, so there
+  // is no state a caller could reach through it. The rule above exists to stop this endpoint
+  // becoming remote execution for a tool that DOES something; a tool that does nothing is outside
+  // what that rule is protecting.
+  //
+  // Present only when `TOVU_ENABLE_DEMO_TOOLS` is set, so the production allowlist is unchanged --
+  // and gated on the same variable as the tool's own registration, so the two cannot disagree
+  // about whether it exists. Do not copy this exemption for a tool with side effects.
+  ...(demoToolsEnabled() ? ["assistant_demo_choices"] : []),
+]);
 
 /**
  * Whether `toolName` may be executed through the MCP-UI redemption endpoint.
