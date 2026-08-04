@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   ByokProviderForm,
   DEFAULT_PROVIDER_PRESETS,
@@ -18,6 +18,7 @@ import {
   requestAssistantDock,
   subscribeToAssistantDock,
 } from "../lib/assistant-dock-bus";
+import { createExecutionPort } from "../lib/execution-settings";
 
 /**
  * @file "AI Assistant" admin screen — the `/admin/ai-assistant` route.
@@ -202,28 +203,116 @@ function AdminAssistantSwitch() {
  * NOT silently accepting a key it cannot persist, which would be the same class of quiet failure
  * this tab was built to end.
  */
+/** How long the key field must be quiet before discovery fires. Long enough that typing or pasting a
+ *  key is one request rather than one per keystroke — the concern `ExecutionTab`'s own discovery
+ *  effect documents ("refetching on every keystroke would spam the provider") — and short enough
+ *  that a paste feels immediate. */
+const MODEL_DISCOVERY_DEBOUNCE_MS = 700;
+
 function VisitorCredentialForm() {
   const [config, setConfig] = useState<ByokConfig>(() => ({
     protocol: "google",
     providerId: "google-gemini",
     apiKey: "",
     baseUrl: "https://generativelanguage.googleapis.com",
-    // Pre-filled with what the visitor assistant ACTUALLY uses today (`DEFAULT_MODEL` in
-    // `src/server/modules/site-assistant.ts`), not left blank. Blank rendered the required-field
-    // marker on a screen where the operator has no way to know the right answer, and it would also
-    // have implied this field is the thing choosing the model — it is not yet; that route reads
-    // `TOVU_SITE_ASSISTANT_MODEL` or falls back to this same alias. Showing the real current value
-    // is honest about the default rather than inviting a guess.
-    model: "gemini-flash-latest",
+    // Empty, NOT pre-filled with the server's current default. An earlier revision hardcoded
+    // `gemini-flash-latest` here purely to avoid rendering a required-field marker, which was a
+    // cosmetic reason to state something the operator had not chosen — and worse, it invited them to
+    // keep a value this form had invented. The model list is a property OF THE KEY, so it stays
+    // empty until a key produces one. See `discovery` below.
+    model: "",
   }));
 
   const preset = useMemo(() => resolveSelectedPreset(DEFAULT_PROVIDER_PRESETS, config), [config]);
+  // One port instance for this component's lifetime, matching `SettingsUi.tsx`'s `useRef` usage —
+  // these are the SAME admin routes the Settings screen probes with, and they take the credential in
+  // the request body rather than reading a stored one. That is what makes both controls below work
+  // today, before this tab's own server-side store exists: they probe the key the operator just
+  // typed, which is exactly the question being asked ("is this key any good, and what can it run?").
+  const port = useRef(createExecutionPort());
 
-  // Both `idle`: live model discovery and the connection probe both POST the key to an admin route,
-  // and the route this tab will use does not exist yet. Rendering a permanently-failing probe would
-  // teach the operator to ignore this card's error states before it has any real ones.
-  const modelDiscovery: ModelDiscoveryState = { status: "idle" };
-  const connectionTest: ConnectionTestState = { status: "idle" };
+  const [discovery, setDiscovery] = useState<ModelDiscoveryState>({ status: "idle" });
+  const [connectionTest, setConnectionTest] = useState<ConnectionTestState>({ status: "idle" });
+
+  const { apiKey, baseUrl, protocol } = config;
+
+  /**
+   * Debounced, key-driven model discovery.
+   *
+   * Keyed on the credential itself (key + endpoint), unlike `ExecutionTab`'s own effect which is
+   * deliberately keyed only on the endpoint. That difference is the point of this screen: there, the
+   * key is already saved and the operator is switching providers; here, the operator is entering a
+   * key for the first time and the only useful moment to look up its models is right after they
+   * finish typing it. The debounce is what makes keying on the key affordable.
+   */
+  useEffect(() => {
+    if (!apiKey.trim()) {
+      setDiscovery({ status: "idle" });
+      return;
+    }
+    let cancelled = false;
+    setDiscovery({ status: "loading" });
+    const timer = setTimeout(() => {
+      port.current
+        .listModels?.({ ...config, apiKey, baseUrl, protocol })
+        // `cancelled` guards the classic out-of-order finish: a slow request for an earlier,
+        // half-typed key must never overwrite the result for the key currently in the field.
+        .then((models) => {
+          if (cancelled) return;
+          setDiscovery({ status: "ok", models });
+          // Seed the model field from the DISCOVERED list when it is still empty — never from a
+          // hardcoded constant, which is what an earlier revision did and what made the field state
+          // something this form had invented rather than something the key actually offers.
+          // Preferring the server's real default when the account has it keeps the UI agreeing with
+          // `site-assistant.ts`'s own `DEFAULT_MODEL`; otherwise the first entry is simply a valid
+          // starting point the operator can change. Without this the operator is stuck: `model` is a
+          // required field, so `Test connection` stays disabled until something fills it.
+          setConfig((current) => {
+            if (current.model.trim() || models.length === 0) return current;
+            return { ...current, model: models.find((m) => m === "gemini-flash-latest") ?? (models[0] as string) };
+          });
+        })
+        .catch((e: unknown) =>
+          !cancelled && setDiscovery({ status: "error", message: e instanceof Error ? e.message : "Model discovery failed" }),
+        );
+    }, MODEL_DISCOVERY_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // `config` is intentionally not a dependency — only the three credential fields above should
+    // re-trigger a provider call. Including it would fire discovery when the operator edits the
+    // model or max-tokens field, which cannot change the answer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiKey, baseUrl, protocol]);
+
+  async function runTestConnection() {
+    setConnectionTest({ status: "testing" });
+    try {
+      const result = await port.current.testConnection?.(config);
+      setConnectionTest(
+        result?.ok
+          ? { status: "ok", message: result.message }
+          : { status: "error", message: result?.message || "Connection test failed" },
+      );
+      // Also refresh discovery on an explicit test. The debounced effect above cannot recover from a
+      // discovery attempt that failed transiently, because nothing about the credential changed
+      // afterwards — so without this the operator would be stuck looking at a stale error next to a
+      // connection that just went green. (The same trap was found and fixed independently upstream in
+      // Jini's `ExecutionTab`; this screen must not reintroduce it.)
+      if (result?.ok && config.apiKey.trim()) {
+        try {
+          const models = await port.current.listModels?.(config);
+          if (models) setDiscovery({ status: "ok", models });
+        } catch {
+          // Leave whatever discovery state already exists — the connection result is the answer the
+          // operator asked for, and failing to also refresh the list must not overwrite it.
+        }
+      }
+    } catch (e) {
+      setConnectionTest({ status: "error", message: e instanceof Error ? e.message : "Connection test failed" });
+    }
+  }
 
   return (
     <>
@@ -256,17 +345,16 @@ function VisitorCredentialForm() {
         </p>
       </div>
 
+      {/* `canTestConnection` left at its default (true): the probe is real here. It posts the typed
+          key to the same admin route the Settings screen uses, so it answers "is this key good?"
+          without needing this tab's own storage to exist yet. */}
       <ByokProviderForm
         config={config}
         onConfigChange={setConfig}
         preset={preset}
-        modelDiscovery={modelDiscovery}
+        modelDiscovery={discovery}
         connectionTest={connectionTest}
-        onTestConnection={() => {}}
-        // Hidden rather than disabled: the probe endpoint for THIS credential does not exist yet, and
-        // a visible control that cannot work is the thing `RoadmapChecklist` below already argues
-        // against ("a control that looks live but does nothing is worse than an honest 'not yet'").
-        canTestConnection={false}
+        onTestConnection={() => void runTestConnection()}
       />
 
       <div className="notice">
