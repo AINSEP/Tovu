@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatFab, ChatPane, JiniChatProvider, type ChatPaneAgent } from "@jini-ai/chat/react";
-import type { ChatMessage } from "@jini-ai/chat/core";
+import { isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
 
 import { SiteAssistantHeader } from "./SiteAssistantHeader";
 import { createSiteAssistantTransport } from "./site-assistant-transport";
-import { clearSiteAssistantState, loadSiteAssistantState, saveSiteAssistantState } from "./session-store";
+import { clearSiteAssistantState, enqueuePageAction, loadSiteAssistantState, saveSiteAssistantState } from "./session-store";
+import { extractPageActions, splitPageActions, type NavigateAction, type NonNavigateAction } from "./client-directives";
+import { applyHighlight, findTargetElement, scrollToElement } from "./highlight";
 
 /**
  * @file The whole public-site chat widget (ADR-054 Task 2) — a floating action button that opens
@@ -47,10 +49,51 @@ import { clearSiteAssistantState, loadSiteAssistantState, saveSiteAssistantState
  * already used for "New thread" is what makes a fresh empty transcript actually stick after a reset:
  * clearing `persistedMessages` to `[]` in the same handler that bumps `paneKey` means the NEXT
  * `ChatPane` instance mounts with nothing to rehydrate, not a stale array from before the reset.
+ *
+ * ## SPEC-046 REQ-4/D-1 — acting on a settled reply's client directives
+ *
+ * `handleMessagesChange` also scans the LATEST message once it reaches a terminal `runStatus`
+ * (`isTerminalRunStatus`, `@jini-ai/chat/core`) for `client_directive` ext events
+ * (`extractPageActions`) and acts on them exactly once — `processedMessageIdsRef` (a plain `Set`,
+ * not state, since membership does not need to trigger a re-render) guards against re-processing the
+ * same settled message on a later, unrelated `onMessagesChange` call (e.g. triggered by the
+ * transcript-persistence effect below re-running for an unrelated reason).
+ *
+ * A `navigate` action with `auto: true` (D-1: the visitor explicitly asked) triggers
+ * `window.location.assign` directly — same tab (D-2), after flushing the transcript synchronously
+ * first (`saveSiteAssistantState`, not the effect, so the write is guaranteed to land before the
+ * browser tears this page down) and enqueuing any bundled highlight/scroll_to for the destination
+ * (`enqueuePageAction`, REQ-2). A `navigate` action with `auto: false` becomes `pendingProposal`
+ * instead — a clickable affordance rendered below `ChatPane` (see the proposal bar in this file's
+ * JSX) rather than executed. Either way, the PATH was already server-resolved (REQ-6): nothing here
+ * constructs or edits it.
+ *
+ * A standalone `scroll_to`/`highlight` action (no navigate in the same turn) is attempted
+ * immediately against the CURRENT page's DOM (`findTargetElement`) — the server has no notion of
+ * which page a visitor is currently on, so "does this target exist here" is a client-only question,
+ * and a miss degrades to silently doing nothing (see `highlight.ts`'s own doc on why that is a
+ * heuristic, not a guarantee).
  */
 const SITE_ASSISTANT_AGENT: ChatPaneAgent = { id: "site-assistant", name: "Site Assistant", available: true };
 
 const PANE_TITLE = "Ask this site";
+
+/** A resolved-but-not-yet-executed `navigate` proposal (D-1), plus any bundled highlight/scroll_to
+ *  action to enqueue for the destination once the visitor clicks through. */
+interface PendingProposal {
+  readonly navigate: NavigateAction;
+  readonly bundled: NonNavigateAction | null;
+}
+
+/** Best-effort immediate execution of a `scroll_to`/`highlight` action against the CURRENT page.
+ *  Silently does nothing on a miss — see this file's header and `highlight.ts`'s own doc for why a
+ *  missed target is never surfaced as an error. */
+function runNonNavigateAction(action: NonNavigateAction): void {
+  const element = findTargetElement(action.target.title);
+  if (!element) return;
+  scrollToElement(element);
+  if (action.type === "highlight") applyHighlight(element);
+}
 
 export function SiteAssistantWidget() {
   // Read once, before the first render — `useState`'s initializer form runs exactly once per
@@ -78,6 +121,14 @@ export function SiteAssistantWidget() {
   // instance's own lifetime — see this file's header for why that ordering is what it is.
   const [persistedMessages, setPersistedMessages] = useState<ChatMessage[]>(initialState.messages);
 
+  // SPEC-046 D-1: a resolved `navigate` proposal awaiting the visitor's own click. `null` when there
+  // is nothing to propose (the common case) or once acted on/superseded.
+  const [pendingProposal, setPendingProposal] = useState<PendingProposal | null>(null);
+  // SPEC-046 REQ-4: message ids whose client directives have already been acted on — a plain ref
+  // (not state) because membership here must never itself trigger a re-render; see this file's
+  // header for why a Set keyed by message id is the right guard.
+  const processedMessageIdsRef = useRef<Set<string>>(new Set());
+
   // SPEC-046 REQ-1: writes on every change to either half of the persisted state, not just messages —
   // the pane's open/closed state must survive a page load too, "so the widget does not slam shut on
   // arrival at the page it just sent the visitor to."
@@ -94,12 +145,58 @@ export function SiteAssistantWidget() {
     // change ever batches or skips that effect.
     setPersistedMessages([]);
     clearSiteAssistantState();
+    // A proposal from the discarded thread must not survive into the fresh one, and the fresh
+    // `ChatPane` instance will hand out its own new message ids regardless — clearing the guard set
+    // just avoids holding references to ids that can never recur.
+    setPendingProposal(null);
+    processedMessageIdsRef.current = new Set();
   }, []);
 
   const handleMessagesChange = useCallback((messages: ChatMessage[]) => {
     setHasMessages(messages.length > 0);
     setPersistedMessages(messages);
-  }, []);
+
+    // SPEC-046 REQ-4/D-1: act on the latest message's client directives exactly once, only once its
+    // run has actually settled — see this file's header for the full rationale.
+    const latest = messages.at(-1);
+    if (!latest || latest.role !== "assistant" || !isTerminalRunStatus(latest.runStatus)) return;
+    if (processedMessageIdsRef.current.has(latest.id)) return;
+    processedMessageIdsRef.current.add(latest.id);
+
+    const { navigate, other } = splitPageActions(extractPageActions(latest.events));
+    if (!navigate) {
+      if (other) runNonNavigateAction(other);
+      return;
+    }
+
+    if (navigate.auto) {
+      // D-1: the visitor explicitly asked ("take me there") — the server already decided this via
+      // `autoNavigateAllowed`, computed from the visitor's own message before any tool ran; this
+      // component just executes the already-validated result. Bundle any highlight/scroll_to for the
+      // destination BEFORE navigating, and flush the transcript synchronously (not via the effect
+      // above, which has not necessarily committed yet) — REQ-1/REQ-2 both depend on both writes
+      // landing before the browser tears this page down.
+      if (other) enqueuePageAction(other);
+      saveSiteAssistantState({ open, messages });
+      window.location.assign(navigate.target.path);
+      return;
+    }
+
+    // D-1 default: propose, do not navigate. Rendered below as a clickable affordance; `other` (if
+    // any) rides along so a click can enqueue it for the destination the same way the auto path does.
+    setPendingProposal({ navigate, bundled: other });
+  }, [open]);
+
+  const handleProposalClick = useCallback(() => {
+    if (!pendingProposal) return;
+    const { navigate, bundled } = pendingProposal;
+    setPendingProposal(null);
+    if (bundled) enqueuePageAction(bundled);
+    // Same flush-before-navigate reasoning as the auto path above — `persistedMessages` here is
+    // already the latest settled transcript (`handleMessagesChange` updates it on every change).
+    saveSiteAssistantState({ open, messages: persistedMessages });
+    window.location.assign(navigate.target.path);
+  }, [pendingProposal, open, persistedMessages]);
 
   return (
     <div className="tovu-site-assistant">
@@ -118,6 +215,17 @@ export function SiteAssistantWidget() {
             suggestions={["What is this site about?", "What have you published recently?"]}
             onMessagesChange={handleMessagesChange}
           />
+          {/* SPEC-046 D-1: rendered below ChatPane, not injected into its message list — ChatPane is
+              used unmodified (this file's own header), so a proposal is a sibling strip inside the
+              panel rather than a message-list entry. */}
+          {pendingProposal ? (
+            <div className="tovu-site-assistant__proposal">
+              <span className="tovu-site-assistant__proposal-label">Go to “{pendingProposal.navigate.target.title}”?</span>
+              <button type="button" className="tovu-site-assistant__proposal-go" onClick={handleProposalClick}>
+                Go there
+              </button>
+            </div>
+          ) : null}
         </div>
       </JiniChatProvider>
     </div>
