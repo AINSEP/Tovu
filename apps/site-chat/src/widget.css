@@ -85,36 +85,23 @@
   --shadow-md: 0 4px 14px rgba(20, 28, 45, 0.07), 0 2px 5px rgba(20, 28, 45, 0.05);
 }
 
-/* Admin's `:root[data-theme="dark"]` is a manual toggle (an app preference, stored per admin).
- * The public site has no such toggle to key off — `prefers-color-scheme` is this widget's own
- * equivalent, respecting the visitor's OS/browser preference the same way `:root[data-theme="dark"]`
- * respects the admin's chosen one. Values copied verbatim from that same block. */
-@media (prefers-color-scheme: dark) {
-  .tovu-site-assistant {
-    --bg: oklch(14% 0.018 255);
-    --surface: oklch(18.5% 0.018 255);
-    --surface-2: oklch(22% 0.016 255);
-    --surface-3: oklch(26% 0.015 255);
-    --fg: oklch(96% 0.004 250);
-    --fg-2: oklch(86% 0.006 250);
-    --muted: oklch(70% 0.012 250);
-    --faint: oklch(56% 0.012 250);
-    --border: oklch(100% 0 0 / 0.11);
-    --border-strong: oklch(100% 0 0 / 0.18);
-
-    --accent: oklch(97% 0 0);
-    --accent-ink: oklch(18% 0.006 260);
-    --accent-text: oklch(97% 0 0);
-
-    --primary: oklch(56% 0.1 44); /* ~#A56042 — 4.83:1 vs white */
-    --primary-ink: oklch(99% 0 0);
-
-    --link: oklch(74% 0.11 245);
-    --ok: oklch(74% 0.14 150);
-    --danger: oklch(74% 0.16 25);
-    --danger-bg: oklch(50% 0.12 25 / 0.22);
-  }
-}
+/**
+ * DELIBERATELY NO `prefers-color-scheme: dark` block here — a prior version of this file had one
+ * (copied from admin's `:root[data-theme="dark"]`), reasoning that the public site has no manual
+ * dark-mode toggle to key off. That reasoning was backwards, and it shipped a real bug: the public
+ * site's theme tokens (`pageShell()`'s inline `<style>`) are FIXED LIGHT with no
+ * `prefers-color-scheme` handling anywhere — `--bg: #FFFFFF`, `--ink: #212134`, etc., unconditional.
+ * A visitor whose OS is set to dark still gets a white page from Tovu, every time. Making this
+ * widget switch to dark under that same media query did not "adapt" to anything — it made the chat
+ * disagree with the page it sits on, going dark on a page that stays light.
+ *
+ * If the public site ever grows real dark-mode support (its own `prefers-color-scheme` handling in
+ * `pageShell()`, not just this widget), this file should follow that mechanism at that point — until
+ * then, DO NOT restore a dark variant here. It would not be "completing" this file; it would be
+ * reintroducing the exact bug this comment documents. Verified live in a real Chromium context with
+ * `colorScheme: "dark"` forced: the widget's computed background is identical to `colorScheme:
+ * "light"` (2026-08-03).
+ */
 
 /* ---------------------------------------------------------------------------------------------
  * 2. Widget hosting shell — the FAB's fixed position and the pane's floating panel size. Has no
@@ -317,6 +304,16 @@
   font-family: var(--font-ui);
   font-size: 12.5px;
   cursor: pointer;
+}
+
+/* `SiteAssistantHeader.tsx`'s two-step "New thread" confirm — no equivalent in assistant.css, since
+ * the admin dock's default header has no confirm step to lay out. Reuses the `__new-thread`/`__cancel`
+ * button styling above unchanged; this only places the pair in a row where the single button used to
+ * sit. */
+.tovu-site-assistant .tovu-site-assistant__reset-confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* ---------------------------------------------------------------------------------------------
