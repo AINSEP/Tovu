@@ -12,6 +12,13 @@
  * return." Every adapter (today: the SSE route) becomes a thin translator over `invoke()` — it never
  * touches `tools.ts` directly, and it never decides on its own whether a call is allowed.
  *
+ * SPEC-046 REQ-4/REQ-6 added three Tier A page-action capabilities (`navigate_to_entry`,
+ * `scroll_to_entry`, `highlight_entry`) alongside the original three read-only ones — six entries
+ * total now, all granted to `PUBLIC_READ_ONLY` (there is still only one real caller class). The
+ * authorization story above is unchanged by that: a page-action capability is authorized the same way
+ * a read-only one is, and its target resolution lives in `tools.ts`/`client-directives.ts`, not here
+ * — this file still only decides WHETHER a call reaches a capability, never what that capability does.
+ *
  * ## Default deny, preserved exactly
  *
  * ADR-054 chose the closed switch deliberately: "an unknown tool name cannot resolve to anything."
@@ -44,6 +51,7 @@
  * calls `invoke()` with the right `caller` value — it requires no change to `CAPABILITIES` at all,
  * which is REQ-0's success test.
  */
+import type { ClientDirective } from "./client-directives";
 import { createSiteAssistantTools, SITE_ASSISTANT_TOOL_SCHEMAS, type SiteAssistantToolDeps } from "./tools";
 
 /**
@@ -65,7 +73,18 @@ export interface SiteCapabilityInvocation {
 }
 
 export type SiteCapabilityOutcome =
-  | { readonly kind: "ok"; readonly result: unknown }
+  | {
+      readonly kind: "ok";
+      readonly result: unknown;
+      /** SPEC-046 REQ-4: present only for a capability that resolved a client-facing action (the
+       *  three page-action tools). `site-assistant.ts` emits this as the `client_directive` SSE
+       *  event — a side channel from `result`, which is what the MODEL sees. `result` and `directive`
+       *  can therefore differ in content; neither is derived from the other at this layer, so an
+       *  adapter cannot accidentally conflate "what the model was told" with "what the client was
+       *  told" — see this file's own header on why that split matters for the no-tool_use/tool_result
+       *  privacy property REQ-4 preserves. */
+      readonly directive?: ClientDirective;
+    }
   /** Unknown capability name OR a known capability not granted to `caller` — see file header for why
    *  both share this one outcome kind. */
   | { readonly kind: "refused"; readonly reason: string }
@@ -76,7 +95,7 @@ export type SiteCapabilityOutcome =
 interface SiteCapability {
   readonly name: string;
   readonly allowedCallers: ReadonlySet<SiteAssistantCallerClass>;
-  readonly execute: (input: unknown) => Promise<unknown>;
+  readonly execute: (input: unknown) => Promise<{ readonly result: unknown; readonly directive?: ClientDirective }>;
 }
 
 /** Granted to every capability below today — there is only one real caller class yet. Naming this
@@ -97,17 +116,35 @@ function buildCapabilities(tools: ReturnType<typeof createSiteAssistantTools>): 
     {
       name: "search_published_entries",
       allowedCallers: PUBLIC_READ_ONLY,
-      execute: (input) => tools.search_published_entries(input as { query?: unknown }),
+      // Wrapped in `{ result }` — these three read-only tools return the model-facing value
+      // directly, unlike the three page-action tools below, which already return `{ result,
+      // directive? }` themselves (they have a directive to carry; these never do).
+      execute: async (input) => ({ result: await tools.search_published_entries(input as { query?: unknown }) }),
     },
     {
       name: "get_published_entry",
       allowedCallers: PUBLIC_READ_ONLY,
-      execute: (input) => tools.get_published_entry(input as { slug?: unknown }),
+      execute: async (input) => ({ result: await tools.get_published_entry(input as { slug?: unknown }) }),
     },
     {
       name: "list_categories",
       allowedCallers: PUBLIC_READ_ONLY,
-      execute: () => tools.list_categories(),
+      execute: async () => ({ result: await tools.list_categories() }),
+    },
+    {
+      name: "navigate_to_entry",
+      allowedCallers: PUBLIC_READ_ONLY,
+      execute: (input) => tools.navigate_to_entry(input as { slug?: unknown }),
+    },
+    {
+      name: "scroll_to_entry",
+      allowedCallers: PUBLIC_READ_ONLY,
+      execute: (input) => tools.scroll_to_entry(input as { slug?: unknown }),
+    },
+    {
+      name: "highlight_entry",
+      allowedCallers: PUBLIC_READ_ONLY,
+      execute: (input) => tools.highlight_entry(input as { slug?: unknown }),
     },
   ];
   return new Map(entries.map((capability) => [capability.name, capability]));
@@ -126,7 +163,7 @@ export interface SiteCapabilityRegistry {
  * "anonymous-visitor"` for every tool call the model makes during that turn.
  *
  * @complexity O(1) per `invoke()` call beyond whatever the underlying capability itself costs (a
- *   `Map.get` plus a `Set.has`); construction is O(1) in the fixed, three-entry capability list.
+ *   `Map.get` plus a `Set.has`); construction is O(1) in the fixed, six-entry capability list.
  * @overallScore 100
  */
 export function createSiteCapabilityRegistry(deps: SiteAssistantToolDeps): SiteCapabilityRegistry {
@@ -148,8 +185,8 @@ export function createSiteCapabilityRegistry(deps: SiteAssistantToolDeps): SiteC
         };
       }
       try {
-        const result = await capability.execute(invocation.input);
-        return { kind: "ok", result };
+        const { result, directive } = await capability.execute(invocation.input);
+        return { kind: "ok", result, directive };
       } catch (error) {
         return { kind: "error", error };
       }

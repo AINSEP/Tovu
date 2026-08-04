@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import { runGoogleToolTurn, type GoogleToolCall, type GoogleToolResult } from "@jini-ai/agent-runtime";
 
 import { createSiteCapabilityRegistry } from "../../assistant/site/capability-registry";
+import { detectsExplicitNavigationIntent } from "../../assistant/site/client-directives";
 import { resolveBoundedHistory } from "../../assistant/site/history";
 import { resolveSiteAssistantMode } from "../../assistant/site/mode";
 import { isPublicAssistantEnabled } from "../../assistant/public-assistant-settings";
@@ -43,6 +44,12 @@ import type { ServerModuleHandle } from "./types";
  *    mode/config branch below, so a caller over budget gets a cheap 429 without touching the model
  *    provider. This closes what used to be an open item tracked against ADR-054: an anonymous
  *    endpoint in front of a paid API is a cost-attack surface without it.
+ * 6. **Client directives never carry a model-chosen path.** SPEC-046 REQ-4/REQ-6: a page-action
+ *    capability's `directive` is written to the stream as its own `client_directive` frame — see
+ *    `executeTool` below — and every target inside it was resolved by `client-directives.ts`'s
+ *    `resolvePublicTarget` against published content, never taken from the model's raw tool-call
+ *    arguments. REQ-5's Tier A rule ("worst case, given a fully hijacked model, is acceptable with no
+ *    human confirmation") holds because of that resolution, not because of anything this route does.
  */
 
 const CHAT_PATH = "/api/site-assistant/chat";
@@ -191,19 +198,36 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
           return;
         }
 
-        const capabilities = createSiteCapabilityRegistry({ postRepo: deps.postRepo, workspaceId: deps.workspaceId });
+        // SPEC-046 D-1: computed ONCE here, from the visitor's own live `message` — before any tool
+        // call runs — so `navigate_to_entry`'s auto/propose split (`tools.ts`'s
+        // `autoNavigateAllowed` doc) is decided from evidence the model (and anything it read, own
+        // injected post content included) cannot influence. See `client-directives.ts`'s own doc for
+        // why this specific input is what makes that security property hold.
+        const autoNavigateAllowed = detectsExplicitNavigationIntent(message);
+        const capabilities = createSiteCapabilityRegistry({
+          postRepo: deps.postRepo,
+          workspaceId: deps.workspaceId,
+          autoNavigateAllowed,
+        });
 
         /**
          * Translates a model tool call into one `capabilities.invoke()` call and back into the
          * `GoogleToolResult` shape `runGoogleToolTurn` expects. This route is now ONE adapter over
          * the registry (SPEC-046 REQ-0) — it makes no authorization decision itself, only maps
          * outcome kinds onto the wire shape the model-facing tool loop understands.
+         *
+         * SPEC-046 REQ-4: an `outcome.directive`, when present, is written to the stream as its own
+         * `client_directive` frame — a side channel from the `content` returned to the model on the
+         * very same line below. This is what keeps the "no tool_use/tool_result echoed" privacy
+         * property intact: the client never sees `call.name`, `call.input`, or the raw tool result,
+         * only the resolved directive a page-action capability chose to emit.
          */
         const executeTool = async (call: GoogleToolCall): Promise<GoogleToolResult> => {
           const input = (call.input ?? {}) as Record<string, unknown>;
           const outcome = await capabilities.invoke({ name: call.name, input, caller: "anonymous-visitor" });
           switch (outcome.kind) {
             case "ok":
+              if (outcome.directive) sse(res, "client_directive", outcome.directive);
               return { content: JSON.stringify(outcome.result) };
             case "refused":
               // Same wire shape default-deny always used: reported to the model as a tool error, not
@@ -251,6 +275,10 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
           onEvent: (event) => {
             // Only what a visitor's UI needs. Notably NOT `tool_use`/`tool_result` — echoing those
             // would disclose the site's internal tool names and raw lookup results to the public.
+            // `client_directive` (SPEC-046 REQ-4) is not one of `runGoogleToolTurn`'s event kinds —
+            // it is written directly from `executeTool` above, the moment a page-action capability
+            // resolves one, which is what keeps it a resolved-action-only channel rather than a
+            // fourth kind of tool echo.
             if (event.type === "text_delta") sse(res, "text", { delta: event.delta });
             else if (event.type === "error") sse(res, "error", { message: event.message });
             else if (event.type === "end") sse(res, "end", { reason: event.reason });
