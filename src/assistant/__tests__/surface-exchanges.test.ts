@@ -161,6 +161,35 @@ test("an unknown or closed exchange id is refused rather than silently accepted"
   });
 });
 
+test("a channel with no toolId to offer (e.g. A2UI, correlating by its own surfaceId) can still deliver by exchangeId + principalId alone", async () => {
+  const store = createSurfaceExchangeStore();
+  const exchange = store.open({ toolId: "assistant_demo_a2ui", principalId: "p" }, recordingEmitter().emit);
+
+  const delivered = store.deliver({ exchangeId: exchange.id, principalId: "p", params: { message: { action: {} } } });
+
+  assert.deepEqual(delivered, { ok: true });
+  assert.deepEqual(await exchange.receive(), { status: "received", params: { message: { action: {} } } });
+});
+
+test("omitting toolId does not relax the principal check — it is still the wrong human's answer", async () => {
+  const store = createSurfaceExchangeStore();
+  const exchange = store.open({ toolId: "assistant_demo_a2ui", principalId: "alice" }, recordingEmitter().emit);
+
+  const delivered = store.deliver({ exchangeId: exchange.id, principalId: "mallory", params: {} });
+
+  assert.deepEqual(delivered, { ok: false, reason: "binding-mismatch" });
+  assert.equal(store.size(), 1, "a mismatched delivery must not consume alice's still-open exchange");
+});
+
+test("a supplied toolId is still checked exactly, even though it is now optional to supply at all", async () => {
+  const store = createSurfaceExchangeStore();
+  const exchange = store.open({ toolId: "assistant_demo_a2ui", principalId: "p" }, recordingEmitter().emit);
+
+  const delivered = store.deliver({ exchangeId: exchange.id, toolId: "some_other_tool", principalId: "p", params: {} });
+
+  assert.deepEqual(delivered, { ok: false, reason: "binding-mismatch" });
+});
+
 test("two concurrent exchanges settle independently, each with its own messages", async () => {
   const store = createSurfaceExchangeStore();
   const a = store.open({ toolId: "t", principalId: "alice" }, recordingEmitter().emit);

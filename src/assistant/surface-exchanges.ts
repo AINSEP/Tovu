@@ -155,6 +155,26 @@ export interface SurfaceExchange {
   close(): void;
 }
 
+/**
+ * What a delivery must prove about itself. `principalId` is load-bearing for every channel — one
+ * human's answer must never land in another's call. `toolId` is load-bearing only for a channel
+ * whose correlation carrier is itself a tool call: MCP-UI's surface can only answer by issuing one,
+ * so it always has a real tool name to offer, and the store checks it.
+ *
+ * A channel that correlates directly by its own id — A2UI's `surfaceId`, the run protocol's own
+ * `surface_request`/`surface_response` — has no natural `toolId` to supply; the browser never
+ * learns which tool opened the exchange, only its id. Requiring one anyway would force such a
+ * channel to either lie (send a placeholder that means nothing) or grow a lookup this store does
+ * not expose. So `toolId` is optional here: when a caller supplies it, it must still match exactly
+ * (MCP-UI's behavior is unchanged, byte for byte); when omitted, only `principalId` and the
+ * exchange's own unguessable `randomUUID()` id gate the delivery. That pair is still sufficient —
+ * the id is not enumerable, and `principalId` is a server-verified session identity, never a value
+ * the browser chooses (see `run-ownership.ts`) — so relaxing the caller's OBLIGATION does not
+ * relax the exchange's own binding, which `open()` still records honestly as whatever tool actually
+ * opened it.
+ */
+type DeliverySpec = { exchangeId: string; params: Record<string, unknown>; principalId: string; toolId?: string };
+
 export interface SurfaceExchangeStore {
   /**
    * Opens an exchange bound to one in-flight tool call.
@@ -164,8 +184,12 @@ export interface SurfaceExchangeStore {
    * that state unrepresentable rather than merely discouraged.
    */
   open(binding: SurfaceExchangeBinding, emit: SurfaceEmitter): SurfaceExchange;
-  /** Routes one inbound message to the exchange it names, queueing it if nothing is waiting yet. */
-  deliver(spec: { exchangeId: string; params: Record<string, unknown> } & SurfaceExchangeBinding): DeliverResult;
+  /**
+   * Routes one inbound message to the exchange it names, queueing it if nothing is waiting yet.
+   * See {@link DeliverySpec} for why `toolId` is optional rather than part of
+   * {@link SurfaceExchangeBinding} here.
+   */
+  deliver(spec: DeliverySpec): DeliverResult;
   /** Open, unsettled count — for tests and diagnostics only. */
   size(): number;
 }
@@ -298,7 +322,11 @@ export function createSurfaceExchangeStore(
       // human whose dialog is no longer the one being waited on.
       if (!entry) return { ok: false, reason: "unknown-or-closed" };
 
-      if (entry.binding.toolId !== spec.toolId || entry.binding.principalId !== spec.principalId) {
+      // `toolId` is checked only when the caller supplied one — see `DeliverySpec`'s own doc for
+      // why a channel that correlates purely by exchange id (A2UI, `surface_response`) has none to
+      // offer, and why omitting the caller's obligation does not relax what `open()` recorded.
+      const toolMismatch = spec.toolId !== undefined && entry.binding.toolId !== spec.toolId;
+      if (toolMismatch || entry.binding.principalId !== spec.principalId) {
         // Deliberately leaves the exchange open. A mismatched delivery is evidence about the
         // DELIVERY, not about the exchange — consuming it would let a wrong-binding post disrupt a
         // conversation the right human is still having.

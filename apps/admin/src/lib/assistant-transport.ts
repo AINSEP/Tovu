@@ -46,8 +46,15 @@ function asString(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : JSON.stringify(v);
 }
 
-/** Reduces one wire-level `RunAgentPayload` into zero or one renderable `AgentEvent`s. */
-function translateRunAgentPayload(payload: RunAgentPayload): AgentEvent | null {
+/**
+ * Reduces one wire-level `RunAgentPayload` into zero or one renderable `AgentEvent`s.
+ *
+ * Exported (a pure function, so directly testable with no `EventSource`/`fetch` stub needed — see
+ * `assistant-transport.transcript.test.ts`'s own module doc for the same reasoning applied to
+ * `runPrompt`) so `assistant-transport.a2ui.test.ts` can assert the `"a2ui"` branch below in
+ * isolation.
+ */
+export function translateRunAgentPayload(payload: RunAgentPayload): AgentEvent | null {
   switch (payload.type) {
     case "status":
       return { kind: "status", label: asString(payload.label), detail: payload.detail ? asString(payload.detail) : undefined };
@@ -87,7 +94,18 @@ function translateRunAgentPayload(payload: RunAgentPayload): AgentEvent | null {
     // meet. `name` must stay `"mcp-ui"` to match `MCP_UI_EXT_EVENT_NAME`.
     case "mcp-ui":
       return { kind: "ext", name: "mcp-ui", data: payload.resource };
-    // thinking_start/stage_start/stage_end/surface_request/surface_response/a2ui: no dedicated
+    // A2UI's own agent->renderer envelope (`@jini-ai/core`'s `SurfaceEmission` with
+    // `channel: "a2ui"`, injected by `@jini-ai/daemon`'s `delegated-tool-bridge.ts` as
+    // `{type: "a2ui", message: <AgentToRendererMessage>}`). Unwrapped to the bare `.message` here,
+    // not left to the `default` branch below, for the same reason `mcp-ui` above is explicit:
+    // `@jini-ai/chat/react`'s `A2uiSurfaceCard` (registered against `'a2ui'` in
+    // `AssistantDock.tsx`) runs `extractSurfaceId`/`interpreter.applyAgentMessage` over each event's
+    // `data` directly, and both require a bare, spec-shaped envelope — not the `{type, message}`
+    // wire wrapper. Mirrors Jini's own reference host's identical `case "a2ui"` in
+    // `examples/reference-web/src/daemon-transport.ts`.
+    case "a2ui":
+      return { kind: "ext", name: "a2ui", data: payload.message };
+    // thinking_start/stage_start/stage_end/surface_request/surface_response: no dedicated
     // chat-core variant. Routed through the `ext` escape hatch rather than dropped, so a future
     // renderer can opt in without a transport change.
     case "thinking_start":

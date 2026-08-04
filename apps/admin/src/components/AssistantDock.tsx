@@ -1,17 +1,20 @@
 import { useCallback, useRef } from "react";
 import { useMemo } from "react";
 import {
+  A2uiSurfaceCard,
   ChatPane,
   ConversationList,
   JiniChatProvider,
   createDaemonAttachmentUploader,
   createMcpUiToolCaller,
+  registerExtEventRenderer,
   registerMcpUiSurfaceRenderer,
   type ChatPaneAgent,
   type FrontendSessionBridge,
 } from "@jini-ai/chat/react";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
+import { createA2uiActionPoster } from "../lib/a2ui-action-poster";
 import { createTovuAssistantTransport } from "../lib/assistant-transport";
 import { publishSettingsRefresh } from "../lib/settings-refresh-bus";
 import { useWiredAssistantChats, type UseAssistantChats } from "../hooks/use-assistant-chats.hooks";
@@ -48,6 +51,24 @@ import "../styles/assistant.css";
 registerMcpUiSurfaceRenderer({
   onToolCall: createMcpUiToolCaller("", { path: "/api/admin/v1/mcp-ui/tool-calls" }),
 });
+
+/**
+ * A2UI's counterpart to the MCP-UI wiring above — same module-scope-once posture, same "one line
+ * completes the loop" shape. `@jini-ai/chat/react`'s `A2uiSurfaceCard` renders any run event
+ * `assistant-transport.ts`'s `case "a2ui"` unwraps to a bare `AgentToRendererMessage`; when a
+ * rendered `Button`'s action is agent-directed (as opposed to a `local` client-side function call,
+ * which the card already resolves and displays itself), `onAgentAction` is what gives that action
+ * somewhere real to go — `createA2uiActionPoster` posts it to `a2ui-actions-route.ts` (proxied,
+ * same as every other assistant route), which delivers it into the held-open exchange
+ * `assistant_demo_a2ui` (or any future A2UI-opening tool) is waiting on.
+ *
+ * Without this line, `A2uiSurfaceCard` still renders correctly but falls back to its own honest
+ * "this host has not wired up a live agent-action relay yet" notice on every agent-directed click
+ * (see that component's own module doc) — exactly the gap `examples/reference-web/src/A2uiLab.tsx`
+ * leaves open deliberately, because a demo fixture has no real backend to relay to. Tovu does now.
+ */
+const postA2uiAction = createA2uiActionPoster("", { path: "/api/admin/v1/a2ui/actions" });
+registerExtEventRenderer("a2ui", (props) => <A2uiSurfaceCard {...props} onAgentAction={postA2uiAction} />);
 
 declare global {
   interface Window {
