@@ -368,7 +368,7 @@
   color: var(--fg);
 }
 
-.tovu-site-assistant .jini-message-list > [data-role='user'] .jini-message-content {
+.tovu-site-assistant .jini-message-list > .jini-message-user .jini-message-content {
   background: var(--accent);
   color: var(--accent-ink);
   margin-left: auto;
