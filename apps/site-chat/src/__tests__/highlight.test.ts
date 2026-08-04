@@ -6,7 +6,7 @@ import { applyHighlight, clearHighlight, findTargetElement, scrollToElement } fr
 
 /**
  * SPEC-046 §4. `highlight.ts` reads the bare globals `document`/`window`/`setTimeout` (the same way
- * `main.tsx`/`SiteAssistantWidget.tsx` read `sessionStorage` directly) rather than taking them as
+ * `main.tsx`/`SiteAssistantWidget.tsx` read the browser session store directly) rather than taking them as
  * parameters — it is a DOM side-effect module by nature, not a pure function. Each test installs a
  * fresh `JSDOM` onto `globalThis` and tears it down afterward, matching
  * `check-bundle-mounts.mjs`'s "fresh JSDOM per scenario" pattern for the same reason: `current`
@@ -17,6 +17,10 @@ import { applyHighlight, clearHighlight, findTargetElement, scrollToElement } fr
 let dom: JSDOM;
 const installedGlobals = ["window", "document", "Element", "Event", "getComputedStyle"] as const;
 const savedGlobals: Partial<Record<(typeof installedGlobals)[number], unknown>> = {};
+/** Untyped view of `globalThis` for this file's temporary jsdom installation only — see the
+ *  `describe` block's own doc for why this module patches bare globals rather than taking them as
+ *  parameters. */
+const untypedGlobal = globalThis as unknown as Record<string, unknown>;
 
 beforeEach(() => {
   dom = new JSDOM(
@@ -30,8 +34,8 @@ beforeEach(() => {
     { url: "http://localhost/hello-world" },
   );
   for (const key of installedGlobals) {
-    savedGlobals[key] = (globalThis as never)[key];
-    (globalThis as never)[key] = (dom.window as never)[key];
+    savedGlobals[key] = untypedGlobal[key];
+    untypedGlobal[key] = (dom.window as unknown as Record<string, unknown>)[key];
   }
   // jsdom implements neither `scrollIntoView` nor `matchMedia` — stubbed per SPEC-046's own
   // acceptance-criteria note that this is a layout-free DOM, not a real browser.
@@ -46,7 +50,7 @@ beforeEach(() => {
 
 afterEach(() => {
   clearHighlight();
-  for (const key of installedGlobals) (globalThis as never)[key] = savedGlobals[key];
+  for (const key of installedGlobals) untypedGlobal[key] = savedGlobals[key];
   dom.window.close();
 });
 

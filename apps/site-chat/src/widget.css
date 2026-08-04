@@ -124,6 +124,13 @@
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
   background: var(--surface);
   border: 1px solid var(--border);
+  /* SPEC-046 D-1: a flex column so the navigation-proposal bar (section 9 below) can sit as a
+     shrink-to-fit sibling BELOW `ChatPane` instead of being pushed past the panel's fixed height and
+     clipped by `overflow: hidden` above. `ChatPane`'s own root (`.jini-chat-pane`) ships `height:
+     100%`, written for a plain block parent — the `flex: 1 1 auto` override in section 3 below is
+     what makes it cooperate with this flex column rather than fight it for the panel's full height. */
+  display: flex;
+  flex-direction: column;
 }
 
 /* `[hidden]` already removes the panel from layout and the tab order (native attribute behavior) —
@@ -192,6 +199,15 @@
  * --------------------------------------------------------------------------------------------- */
 
 .tovu-site-assistant .jini-chat-pane {
+  /* SPEC-046 D-1: overrides the package's own `height: 100%` (written for a plain block parent) so
+     `ChatPane` shares `.tovu-site-assistant__panel`'s flex column with the proposal bar instead of
+     claiming the whole panel height regardless of what else is rendered beside it (section 2's own
+     comment). `min-height: 0` is required alongside `flex: 1 1 auto` — without it a flex item's
+     default `min-height: auto` can refuse to shrink below its content's natural height, which here
+     is `.jini-message-list`'s `overflow-y: auto` scroll area fighting for room instead of scrolling. */
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
   --jini-chat-bg: var(--surface);
   --jini-chat-panel: var(--surface);
   --jini-chat-subtle: var(--surface-2);
