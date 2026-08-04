@@ -2,9 +2,9 @@ import type { Express, Request, Response } from "express";
 
 import { runGoogleToolTurn, type GoogleToolCall, type GoogleToolResult } from "@jini-ai/agent-runtime";
 
+import { createSiteCapabilityRegistry } from "../../assistant/site/capability-registry";
 import { resolveSiteAssistantMode } from "../../assistant/site/mode";
 import { isPublicAssistantEnabled } from "../../assistant/public-assistant-settings";
-import { createSiteAssistantTools, SITE_ASSISTANT_TOOL_SCHEMAS } from "../../assistant/site/tools";
 import { resolveClientIp } from "../middleware/rate-limit";
 import type { RouteDeps } from "../routes/types";
 import type { ServerModuleHandle } from "./types";
@@ -27,8 +27,11 @@ import type { ServerModuleHandle } from "./types";
  * 2. **No process spawn by default.** `runGoogleToolTurn` is an in-process HTTP relay. The
  *    agent-CLI path spawns an OS process per run, so N visitors is N processes — available only
  *    under the demo gate in `assistant/site/mode.ts`, never by default.
- * 3. **No tool the allowlist did not name.** The executor below dispatches over a closed switch,
- *    not a registry lookup, so an unknown tool name is an error rather than a resolution attempt.
+ * 3. **No tool the allowlist did not name.** The executor below dispatches through
+ *    `assistant/site/capability-registry.ts`'s `invoke()` (SPEC-046 REQ-0) — a typed registry over a
+ *    fixed, literal capability list, not dynamic/config-driven registration, so an unknown tool name
+ *    still refuses before anything runs, same as the closed switch this replaced. The registry is
+ *    also where "who is asking" is checked: this route always passes `caller: "anonymous-visitor"`.
  * 4. **Off by default, and a 404 when off.** `assistant/public-assistant-settings.ts`'s
  *    `site.assistant.public_enabled` ledger value gates `handleChat` before anything else runs —
  *    that file's own header requires "no assistant endpoint" when disabled, not a hidden one, so a
@@ -181,27 +184,29 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
           return;
         }
 
-        const tools = createSiteAssistantTools({ postRepo: deps.postRepo, workspaceId: deps.workspaceId });
+        const capabilities = createSiteCapabilityRegistry({ postRepo: deps.postRepo, workspaceId: deps.workspaceId });
 
-        /** Closed switch, not a registry lookup — an unrecognized name cannot resolve to anything. */
+        /**
+         * Translates a model tool call into one `capabilities.invoke()` call and back into the
+         * `GoogleToolResult` shape `runGoogleToolTurn` expects. This route is now ONE adapter over
+         * the registry (SPEC-046 REQ-0) — it makes no authorization decision itself, only maps
+         * outcome kinds onto the wire shape the model-facing tool loop understands.
+         */
         const executeTool = async (call: GoogleToolCall): Promise<GoogleToolResult> => {
           const input = (call.input ?? {}) as Record<string, unknown>;
-          try {
-            switch (call.name) {
-              case "search_published_entries":
-                return { content: JSON.stringify(await tools.search_published_entries(input)) };
-              case "get_published_entry":
-                return { content: JSON.stringify(await tools.get_published_entry(input)) };
-              case "list_categories":
-                return { content: JSON.stringify(await tools.list_categories()) };
-              default:
-                return { content: `unknown tool: ${call.name}`, isError: true };
-            }
-          } catch (error) {
-            // A tool failure is reported back to the model as a tool error so it can respond to the
-            // visitor, rather than thrown, which would kill the whole stream over one bad lookup.
-            console.error(`[site-assistant] tool ${call.name} failed`, error);
-            return { content: `tool ${call.name} failed`, isError: true };
+          const outcome = await capabilities.invoke({ name: call.name, input, caller: "anonymous-visitor" });
+          switch (outcome.kind) {
+            case "ok":
+              return { content: JSON.stringify(outcome.result) };
+            case "refused":
+              // Same wire shape default-deny always used: reported to the model as a tool error, not
+              // thrown, so a bad/unauthorized call cannot resolve to anything nor kill the stream.
+              return { content: outcome.reason, isError: true };
+            case "error":
+              // A tool failure is reported back to the model as a tool error so it can respond to the
+              // visitor, rather than thrown, which would kill the whole stream over one bad lookup.
+              console.error(`[site-assistant] tool ${call.name} failed`, outcome.error);
+              return { content: `tool ${call.name} failed`, isError: true };
           }
         };
 
@@ -227,7 +232,7 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
           apiKey,
           model: resolveModel(env),
           contents: [{ role: "user", parts: [{ text: `${SYSTEM_PREAMBLE}\n\nVisitor: ${message}` }] }],
-          tools: [{ functionDeclarations: SITE_ASSISTANT_TOOL_SCHEMAS as never }],
+          tools: [{ functionDeclarations: capabilities.schemas as never }],
           executeTool,
           signal: abort.signal,
           onEvent: (event) => {
