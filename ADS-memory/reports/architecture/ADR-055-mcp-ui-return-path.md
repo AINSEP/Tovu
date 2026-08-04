@@ -159,6 +159,62 @@ renderer→agent HTTP route in any product package**, only in `examples/referenc
 A2A/A2UI surface still needs that transport built. The protocol's own channel-neutral
 `surface_request`/`surface_response` pair likewise still has no producer.
 
+## Amendment 3 — 2026-08-04, after implementing Decision 2
+
+`content_post_delete` ported to the exchange path this ADR describes
+(`src/features/post/tool-registrations.ts`). Two corrections to the Decision text itself, found
+during implementation rather than before writing it — recorded here rather than silently rewritten,
+matching this ADR's own convention.
+
+**Decision 3 was wrong about the token's job count.** Its text — "the parked-promise store's
+bookkeeping... `mint`/`redeem` lose their secret-bearing role" and "there is nothing to mint, redeem,
+leak, or replay" — describes the token as doing exactly one job (stopping the agent from completing
+the delete itself) and asserts that job transfers to the exchange for free. It does, but the token was
+doing a SECOND job the Decision text never named: `pending-confirmations.ts`'s `redeem()` also bound
+to the entity's `entityVersion`, refusing a confirmation if the row was edited between the dialog
+rendering and the human's click. `SurfaceExchangeBinding` (`{toolId, principalId}`) carries nothing
+about which version of the entity was on screen, and `deletePost` itself has no optimistic-concurrency
+check of its own — so implementing Decision 3 as literally written would have silently dropped
+staleness protection, not merely simplified its mechanism. The fix: the handler now re-reads the row
+and compares `version` itself, right after the human's answer arrives, in the same place `redeem()`
+used to run. This is a correction to the Decision, not an implementation detail worth footnoting — the
+Decision's stated reasoning was incomplete, and a future reader relying on "nothing to mint, redeem,
+leak, or replay" as a complete account of what the token did would ship the same gap again.
+
+**Decision 3 has a real, deliberate cost that was never written down: it removes a cheap HTTP-only
+test path along with the token.** Before this port, `POST /api/admin/v1/mcp-ui/tool-calls` with
+`{toolName:"content_post_delete", params:{id,kind}}` and no token was a legitimate way to exercise
+step 1 (mint + render) over bare HTTP, with no live spawned agent required — Shape 2's
+`toolExecutor.execute(principal, run, toolName, params)` call passed no `emitSurface`, and the old
+handler never needed one. After the port, that exact call now 400s ("no interactive confirmation
+channel") — a live agent call through `delegated-tool-bridge.ts` (the only path that supplies
+`emitSurface`) is the only way to raise the dialog at all. Confirmed against every real construction
+site of a `ToolExecutionContext` that can reach this handler:
+
+| Caller | Supplies `emitSurface`? | Live in Tovu today? |
+|---|---|---|
+| `delegated-tool-bridge.ts` (`registerDelegatedToolRoutes`, mounted in `agent-daemon-server.ts`) — the sole path a spawned agent's real tool calls take, per that module's own doc ("the ONLY execution path from here") | Yes, unconditionally | Yes — this is `content_post_delete`'s actual production entry point |
+| `mcp-ui-tool-calls-route.ts` Shape 2 (`toolExecutor.execute(principal, run, toolName, params)`, 4 args) | No | Yes, reachable behind the admin-session bearer gate — and now refuses `content_post_delete` specifically, which is the behavior change |
+| `agent-executor.ts`'s stdin-injection continuation (`handleTurnEnd`) | No | No — gated on a host-supplied `ContinuationOptions.autonomousToolNames` set Tovu never constructs (zero references anywhere in Tovu's source); the mechanism's own doc says a human-in-the-loop tool is "simply never added to this set" even where the feature IS wired |
+| `http-kit`'s `db-ops.ts`/`terminals.ts` `execute()` calls | N/A | No — always pass a different, fixed `toolId`; cannot reach this handler |
+
+Fail-closed on a missing `emitSurface` is the correct choice for a destructive tool with no token left
+to guard a fallback (confirmed independently, not just asserted this time) — but this table is the
+proof that choice was asked for, and the Shape 2 row is a real capability the product had and no
+longer has: `content_post_delete`'s step 1 cannot be exercised over HTTP without a live spawned agent
+anymore. Anything (a test suite, an ops script) that relied on the old bare-HTTP invocation needs to
+either drive a real agent call or accept the loss.
+
+**A pattern, now twice observed, worth naming rather than re-discovering a third time.** Amendment 1
+found Decision 1's own text ("ships first, independently") false — the code required Decisions 5 and 7
+first, on pain of an actual deadlock. This amendment finds Decision 3's text similarly overclaiming —
+not a deadlock this time, but an unstated second property quietly riding along with the one named.
+Both are the same shape: **this ADR states a Decision is self-contained, and the implementation finds
+a load-bearing dependency or side property the stated reasoning didn't account for.** Worth a standing
+suspicion for whoever implements Decisions 4/6 (already folded into Decision 2's own implementation
+here) or any future Decision this ADR describes as clean: read the Decision's reasoning for what it
+DOESN'T mention needing, not just what it says it needs.
+
 ## Open
 
 - ADR-053 remains **DRAFT**. This ADR builds on it and inherits that status. Accepting either is a human call.
