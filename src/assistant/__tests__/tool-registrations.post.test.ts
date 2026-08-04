@@ -146,7 +146,13 @@ test("the delete tool is a SOFT delete and says so — its description must not 
   const entry = catalogEntry("content_post_delete");
   assert.match(entry.description, /SOFT delete/);
   assert.match(entry.description, /restored by reverting/i);
-  assert.match(entry.description, /TWO-STEP AND HUMAN-GATED/);
+  assert.match(entry.description, /HUMAN-GATED/);
+});
+
+test("the delete tool's description tells the model the SAME call reports the outcome — not a stale 'wait for a second call' instruction (ADR-055 Decision 2)", () => {
+  const entry = catalogEntry("content_post_delete");
+  assert.match(entry.description, /THIS SAME CALL performs the deletion/);
+  assert.doesNotMatch(entry.description, /you cannot perform the second step yourself/i);
 });
 
 // ---------------------------------------------------------------------------

@@ -1,9 +1,15 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 /**
- * @file The server half of the MCP-UI two-step confirmation protocol: a short-lived, single-use,
- * tightly-bound token minted when a destructive tool renders its confirmation UI, and redeemed only
- * when a human acts on that UI.
+ * @file The server half of the MCP-UI two-step confirmation protocol (ADR-053 Decision 3): a
+ * short-lived, single-use, tightly-bound token minted when a destructive tool renders its
+ * confirmation UI, and redeemed only when a human acts on that UI.
+ *
+ * No wired tool currently uses this. `content_post_delete` — the tool this module was built for —
+ * moved to ADR-055 Decision 2's held-open exchange shape (`assistant/surface-exchanges.ts`), which
+ * needs no second call and therefore no token to guard one. This module is kept as infrastructure
+ * for a future tool that genuinely needs the two-call shape rather than a parked one; its own tests
+ * (`__tests__/pending-confirmations.test.ts`) exercise it directly, independent of any tool.
  *
  * ## Why a token at all, rather than `descriptor.requiresConfirmation`
  *
@@ -30,9 +36,11 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
  * that its caller embeds ONLY inside the UI resource's HTML — never in the tool result's text
  * block, never in `_meta`, never in an error message. The model sees "a confirmation dialog is
  * open"; the rendered dialog holds the only copy of the secret; and step 2 is unreachable without
- * it. That invariant is the caller's to keep, and
- * `src/features/post/__tests__/agent-tools.delete-confirmation.test.ts` asserts it directly by
- * scanning the model-visible half of the result for the token.
+ * it. That invariant is a caller's to keep for as long as it uses this module — see
+ * `src/assistant/__tests__/pending-confirmations.test.ts` for the store's own certification, and
+ * `src/features/post/__tests__/agent-tools.delete-confirmation.test.ts`'s header for how the same
+ * property (the agent cannot complete the delete itself) is now certified for `content_post_delete`
+ * without this module, since ADR-055 Decision 2 replaced its token with a held-open exchange.
  *
  * Defense in depth on top of that: tokens are random, stored hashed, single-use, TTL-bounded, and
  * bound to the exact tool + workspace + principal + entity + entity VERSION they were minted for.

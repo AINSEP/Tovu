@@ -457,13 +457,14 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "content_post_delete",
     description:
-      "Moves a post or page to the trash. TWO-STEP AND HUMAN-GATED — calling this tool does NOT delete anything by itself. " +
-      "Call it with just { id, kind }: it returns an interactive MCP-UI confirmation dialog that is rendered to the human, " +
-      "and returns WITHOUT deleting. The delete happens only if the human clicks Delete in that dialog, which causes the host " +
-      "to issue the second call for you. You cannot perform the second step yourself — it requires a secret that exists only " +
-      "inside the rendered dialog and is never shown to you — so do not attempt to guess, reconstruct, or retry it, and do not " +
-      "re-call the first step hoping for a different outcome. After the first call, simply tell the user a confirmation dialog " +
-      "is open and wait. " +
+      "Moves a post or page to the trash. HUMAN-GATED — call it with just { id, kind }. This one call shows an interactive " +
+      "confirmation dialog to the human and WAITS: it does not return until the human answers, or the dialog times out. " +
+      "There is no second call to make. If the human clicks Delete, THIS SAME CALL performs the deletion and returns " +
+      "{ deleted: true, cancelled: false, post }. If they click Cancel, it returns { deleted: false, cancelled: true, post } " +
+      "and nothing is deleted. If nobody answers in time (or the run ends first), it returns " +
+      "{ deleted: false, cancelled: false, reason: 'expired' | 'abandoned' } and nothing is deleted. Simply wait for the " +
+      "result and report the true outcome to the user — do not tell them a dialog is open and stop, and do not re-call this " +
+      "tool while it is already pending (a fresh call raises a second, separate dialog rather than answering the first). " +
       "The delete is a SOFT delete: the row is marked as trashed (it disappears from every posts/pages list, from get-by-id, " +
       "and from the public site) but is retained and can be restored by reverting the resulting change set. Rejected if the " +
       "row does not exist, is already trashed, or if kind:'page' is given for an actual kind:'post' row (the same disclosed " +
@@ -480,30 +481,22 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
     // NOTE the absence of `actorClassRule: "confirmer-must-equal-own-delegatedBy"`. That rule is on
     // the kit's `ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT` deny-list precisely because it
     // depends on `descriptor.requiresConfirmation`, which would park the execution forever with no
-    // `ExecutionDelegate` wired. This tool needs no such transport: its confirmation is an MCP-UI
-    // resource returned FROM the call, so the call returns normally and a second call completes the
-    // work. Declaring the rule would (correctly) fail the build for a mechanism this tool does not
-    // use — see `assistant/pending-confirmations.ts`'s header.
+    // `ExecutionDelegate` wired. This tool needs no such transport (ADR-055 Decision 2): its
+    // confirmation channel is the exchange machinery in `assistant/surface-exchanges.ts`
+    // (`ToolExecutionContext.emitSurface` + `SurfaceExchangeStore`), which parks THIS SAME call —
+    // still with no `ExecutionDelegate`/`resumeConfirmation` involved. Declaring the rule would
+    // (correctly) fail the build for a transport this tool does not use.
     inputSchema: {
       type: "object",
       additionalProperties: false,
       required: ["id", "kind"],
-      properties: {
-        id: POST_ID_SCHEMA,
-        kind: POST_KIND_SCHEMA,
-        confirmationToken: {
-          type: "string",
-          description:
-            "DO NOT SET THIS. Supplied automatically by the confirmation dialog when a human approves the deletion. " +
-            "It is a single-use secret that is never included in anything you can read; a call you construct with this " +
-            "field will be rejected.",
-        },
-        decision: {
-          type: "string",
-          enum: ["confirm", "cancel"],
-          description: "DO NOT SET THIS. Supplied automatically by the confirmation dialog alongside confirmationToken.",
-        },
-      },
+      // Deliberately just these two fields. The old two-call shape needed a model-visible
+      // `confirmationToken`/`decision` pair the model was told never to set (ADR-053). Now the
+      // model's call carries no such fields at all — the human's answer arrives on a completely
+      // separate channel (a browser POST the exchange store routes to THIS SAME held-open call,
+      // never a fresh call the model could construct), so there is nothing here to warn it away
+      // from; `additionalProperties: false` refuses the field outright rather than merely asking.
+      properties: { id: POST_ID_SCHEMA, kind: POST_KIND_SCHEMA },
     },
   },
 ];
