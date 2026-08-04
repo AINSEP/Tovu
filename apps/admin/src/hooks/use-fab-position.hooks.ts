@@ -302,7 +302,22 @@ export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: numb
     // is what `.chat-fab-dock-open`'s hard-coded `calc(380px + 20px)` used to do for exactly one
     // case (desktop, docked); `avoidBottomPx` generalizes it to whatever the caller's current
     // dock chrome actually measures.
-    const effectiveBottom = dockOpen ? Math.max(bottomPx, avoidBottomPx + FAB_EDGE_MARGIN) : bottomPx;
+    //
+    // Re-clamped against the viewport, and that clamp is load-bearing rather than defensive.
+    // `avoidBottomPx` is a raw PIXEL measurement of another element (`App.tsx` measures the sheet),
+    // so it is the one input here that is not viewport-relative by construction — everything else
+    // on this path is a 0-1 fraction re-derived against the current window. A sheet taller than
+    // `innerHeight - FAB_EDGE_MARGIN - FAB_SIZE_PX` therefore pushes the FAB clean off the top
+    // edge, where it is unreachable and looks simply missing. Reported by the operator as "hidden
+    // and not shown at the bottom" and identified by reading this expression — the specific
+    // viewport it reproduces at has NOT been pinned down, so treat the clamp as the fix and this
+    // sentence as the limit of what was confirmed. Bounded below by the margin too, so an
+    // unmeasured sheet reporting 0 cannot pin the FAB flush to the edge either.
+    const effectiveBottom = clamp(
+      dockOpen ? Math.max(bottomPx, avoidBottomPx + FAB_EDGE_MARGIN) : bottomPx,
+      FAB_EDGE_MARGIN,
+      Math.max(FAB_EDGE_MARGIN, window.innerHeight - FAB_EDGE_MARGIN - FAB_SIZE_PX),
+    );
     return { right: rightPx, bottom: effectiveBottom };
     // `renderTick`/`isDragging` are read only to force recomputation while dragging (their values
     // are not otherwise used in the body — the live position comes from `liveRef`/`draggingRef`
