@@ -384,7 +384,9 @@ const assistantPromptAugmenter: PromptAugmenter = {
       "not doing general development work on the Tovu codebase. Tovu exposes a purpose-built, " +
       "audited catalog of tools for every action that touches this site's actual content, users, " +
       "permissions, forms, database state, or configuration. For any such request: call " +
-      "search_tools with a keyword query FIRST, then describe_tool on the top 1-3 candidates, then " +
+      "search_tools FIRST — phrasing the query as a description of what the tool DOES, the way its " +
+      "own documentation would read (name the thing acted on plus the action, with likely synonyms), " +
+      "rather than as terse keywords — then describe_tool on the top 1-3 candidates, then " +
       "execute_delegated_tool to perform the action. Do this before reaching for Bash, curl, or " +
       "direct SQLite/database access — those bypass this site's authorization, risk-classification, " +
       "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
