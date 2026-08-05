@@ -2,6 +2,8 @@ import * as http from "node:http";
 import type { AddressInfo } from "node:net";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 
+import { setByokModel } from "./byok-model-field";
+
 /**
  * @file BYOK key-handling edge cases + leakage battery (2026-08-04 dispatch, Item 6).
  *
@@ -232,7 +234,7 @@ test.describe("byok key-handling edge cases", () => {
     await page.getByRole("tab", { name: "Anthropic", exact: true }).click();
 
     await page.locator('.jini-byok-card .jini-field-input-row input').fill("   \t\t   ");
-    await page.locator('input[list="jini-byok-model-options"]').fill("claude-sonnet-4-5");
+    await setByokModel(page, "claude-sonnet-4-5");
     // `missingRequiredFields` (`@jini-ai/ui/features/execution/rules.ts`) checks
     // `config.apiKey.trim()` — a whitespace-only key must read as "missing", same as empty.
     await expect(page.locator('button:has-text("Test connection")')).toBeDisabled();
@@ -468,10 +470,20 @@ test.describe("byok key-handling edge cases", () => {
       // Stubbed so mount-time model discovery (which fires automatically the instant BYOK mode is
       // selected — see `byok-model-discovery-self-heal.spec.ts`'s header) never reaches the real
       // anthropic.com/openai.com default endpoints before this test points the base URL at the
-      // deputy below. A non-empty list is deliberate: an EMPTY `models` array overrides the
-      // preset's own non-empty `preferredModels` fallback (`ByokProviderForm.tsx`'s `suggestions`),
-      // which strips the `list="jini-byok-model-options"` attribute this file's model-field
-      // selector depends on.
+      // deputy below.
+      //
+      // **The non-empty list used to be justified backwards here.** The previous comment claimed an
+      // EMPTY `models` array was the thing that "strips the `list=\"jini-byok-model-options\"`
+      // attribute this file's model-field selector depends on". As of `ByokProviderForm`'s
+      // `3b5d648d` refactor the opposite holds: `showModelPicker = liveModels.length > 0`, so a
+      // NON-empty list is what replaces the plain `list=`-bearing input with a `SearchableModelSelect`
+      // — and this stub is what produced it. That is what made this test spend 90s waiting on a field
+      // that was on screen the whole time. It also made the test FLAKY rather than reliably broken:
+      // before discovery resolves the plain input does render, so whichever side won the race decided
+      // the result, and it could go green while asserting against a UI shape that no longer exists.
+      //
+      // The stub stays non-empty (its real job is keeping the request off the public internet); the
+      // model field is now reached through `byok-model-field.ts`, which handles both shapes.
       await page.route("**/assistant/execution/models", (route) =>
         route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, models: ["stub-model"] }) }),
       );
@@ -485,7 +497,7 @@ test.describe("byok key-handling edge cases", () => {
 
       await fillApiKeyAndAwaitCommit(page, canaryKey);
       await page.locator('label:has-text("Base URL") input').fill(`http://127.0.0.1:${deputy.port}`);
-      await page.locator('input[list="jini-byok-model-options"]').fill("gpt-4o");
+      await setByokModel(page, "gpt-4o");
 
       const consoleMessages: string[] = [];
       page.on("console", (msg) => consoleMessages.push(msg.text()));

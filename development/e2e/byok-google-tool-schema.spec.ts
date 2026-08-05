@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { test, expect, type Page } from "@playwright/test";
 
 import { loginAsAdmin } from "./auth-fixtures";
+import { setByokModel } from "./byok-model-field";
 
 /**
  * @file Permanent regression guard for the Gemini BYOK tool-schema bug (2026-08-04 dispatch).
@@ -195,7 +196,7 @@ async function configureGoogleByokAgainstDeputy(page: Page, baseUrl: string): Pr
   // The two LEDGER-owned fields first, and let their autosave fully settle before the key is typed.
   // The ordering is load-bearing — see the note below.
   await page.locator('label:has-text("Base URL") input').fill(baseUrl);
-  await page.locator('input[list="jini-byok-model-options"]').fill("gemini-2.5-flash");
+  await setByokModel(page, "gemini-2.5-flash");
   await expect(page.locator(".settings-ui-save.is-saved")).toBeVisible({ timeout: 15_000 });
 
   /**
