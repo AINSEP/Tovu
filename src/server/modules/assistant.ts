@@ -400,7 +400,13 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
     // through and let the daemon answer authoritatively for its own exchanges.
   }
 
-  await forwardToAgentDaemon(req, res, req.body);
+  // `forwardToAgentDaemon` deliberately does NOT relay (see its doc comment) — each caller relays
+  // for itself. Without the two lines below this route fetches the daemon's answer and then never
+  // writes to `res`, so the fall-through above hangs the browser until it times out and the MCP-UI
+  // confirmation dialog never resolves.
+  const upstream = await forwardToAgentDaemon(req, res, req.body);
+  if (!upstream) return;
+  await relayResponse(upstream, req, res);
 }
 
 /**
