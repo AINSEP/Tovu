@@ -56,7 +56,23 @@ const AGENT_DAEMON_URL =
   process.env.JINI_AGENT_DAEMON_URL ?? `http://127.0.0.1:${Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319)}`;
 
 /** Streams `upstream`'s response back onto `res` as it arrives — required for the SSE run-events
- * endpoint, where buffering the whole body first would defeat live streaming entirely. */
+ * endpoint, where buffering the whole body first would defeat live streaming entirely.
+ *
+ * Cancels on `res`'s `"close"`, not `req`'s. Node's `IncomingMessage` ("`req`") emits `"close"` once
+ * its body has been fully consumed — for a request with a JSON body (e.g. `POST /api/runs`, whose
+ * body Express's global `express.json()` parser (`src/server/app.ts`) already reads in full before
+ * this function ever runs), that happens almost immediately, independent of the actual client
+ * connection. A listener attached here — necessarily AFTER the `await fetch(...)` to the daemon in
+ * `forwardToAgentDaemon`, itself after body-parsing — is registered too late to ever observe that
+ * emission, so `req.on("close", ...)` was silently inert for every proxied POST: measured directly
+ * (2026-08-05, isolated repro against this exact Express/Node version — see QA/E2E's report), an
+ * identical EARLY listener caught `"close"` ~1ms after body-parsing, ~200ms before the response was
+ * even sent, while a LATE listener at this function's real placement never fired at all. `res.on
+ * ("close")`, by contrast, ties to the response's own lifecycle (finishes normally, or the
+ * connection is torn down) — measured to fire correctly in both directions: never early on a
+ * healthy request (POST or a fully-read multi-chunk SSE stream), and immediately on a genuine
+ * mid-flight disconnect (POST or SSE). Same remedy `@jini-ai/daemon`'s http-kit commit `898303a5`
+ * documents for the identical failure. */
 async function relayResponse(upstream: globalThis.Response, req: Request, res: Response): Promise<void> {
   res.status(upstream.status);
   const contentType = upstream.headers.get("content-type");
@@ -66,7 +82,7 @@ async function relayResponse(upstream: globalThis.Response, req: Request, res: R
     return;
   }
   const reader = upstream.body.getReader();
-  req.on("close", () => {
+  res.on("close", () => {
     reader.cancel().catch(() => undefined);
   });
   try {
