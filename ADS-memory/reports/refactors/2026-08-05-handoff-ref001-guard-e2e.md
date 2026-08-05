@@ -11,7 +11,7 @@ Supersedes: `20260805-180000-handoff.md` — **all 5 of its "Next Steps" are now
 > and committed.** Do not re-investigate the `a7c0f8b5` coverage question; it is answered in
 > `Jini/ADS-memory/reports/findings/2026-08-05-confirmation-transport-gap.md`. Start at
 > `## Do This First`. The house rules that mattered all day: `git commit -F <msgfile> -- <explicit
-> paths>` (never `-A`), and **verify every claim against source — five premises were measured false
+> paths>` (never `-A`), and **verify every claim against source — SIX premises were measured false
 > this session, two from the previous handoff.**
 
 ## Do This First
@@ -30,15 +30,22 @@ bit us — do not relearn these:**
 **2. `packages/vibecoding/**`, `pnpm-lock.yaml`, and the untracked `packages/vibecoding/src/html/node/`
 in Jini belong to another session.** Untouched all session; keep it that way.
 
-**3. One task is mid-flight:** Refactor was asked for a **written proposal** (NOT an implementation)
-on R10's transitive-reach gap and `interleaveMessageBlocks`. If no proposal document exists, that
-task did not complete.
+**3. ~~One task is mid-flight~~ — CLOSED after this handoff's first draft.** The R10 transitive-reach
+question is answered and shipped; do not re-open it. Refactor traced every one- and two-hop import by
+hand and found **the entire live transitive gap was exactly one symbol**, `interleaveMessageBlocks` —
+every other second-hop name was already reachable through some barrel. It is now **exported**
+(`a266a4d9`), on the same argument §9.2 settled for `definedProps`/`useLatestOperation`. **Option A
+(accept the documented scope limit) is approved** — revisit only if a *second, independently-found*
+instance appears. Option B (real module-graph walk) was rejected as real cost for a gap tracing to
+zero remaining instances; Option C (relocate the reachable set) was rejected because it would reverse
+§2.3(b)'s locked composability guarantee. Reasoning is self-contained in §10/§10.5 of
+`Jini/ADS-memory/reports/refactor/2026-08-05-ref-001-steps-bcd-proposal.md`.
 
-## Current State — 16 commits, every one verified by the Coordinator against source
+## Current State — 17 commits, every one verified by the Coordinator against source
 
-**Jini (10):** `2fc2d1d1` Step D exports · `51e798ef` R10 enforcing · `2d852abe` REF-001 §9 ·
+**Jini (12):** `2fc2d1d1` Step D exports · `51e798ef` R10 enforcing · `2d852abe` REF-001 §9 ·
 `2185f0a1` **Step C** · `7460c750` 21 import fixes · `8557462c` **R11 rule** · `2da8d0c0` two R2
-exceptions · `017a0e35` + `925f0c03` two R5 fixes · `d5ad2a5b`+`eafadf4a` findings doc + correction
+exceptions · `017a0e35` + `925f0c03` two R5 fixes · `d5ad2a5b`+`eafadf4a`+`1e07b8bc` findings doc + 2 corrections · `1e29f8c7` §10 proposal · `a266a4d9` interleaveMessageBlocks export
 
 **Tovu (5):** `2c1519b` lockfile cruft · `986387e` destructive-path test correction · `4be2e87` SSE
 envelope fix · `95f4750` readiness-probe dedupe · `95a6886` 6 safe `chat.*` verbs wired
@@ -87,7 +94,7 @@ earlier (`Tovu/src/assistant/__tests__/tool-registrations.database-recovery.test
 
 | Item | State |
 |---|---|
-| **R10 transitive-reach + `interleaveMessageBlocks`** | Proposal requested from Refactor; **decision then belongs to the user** — needs a real module-graph walk or relocating the reachable set |
+| ~~**R10 transitive-reach + `interleaveMessageBlocks`**~~ | **CLOSED** — symbol exported (`a266a4d9`), Option A approved. See `## Do This First` item 3 |
 | **Tab-close does not cancel a run** | Verified real behavior, defensible either way. **User's product decision**, not an investigation |
 | **Confirmation transport** | Costed 3 ways in the findings doc. User chose the filtered-registration deferral; (a) engine-level and (b) Tovu `SurfaceExchange`→`ExecutionDelegate` bridge remain open |
 | **DOM-query Stage 1** | Blocked — its design names `packages/vibecoding/src/html/regions.ts`, another session's live tree |
@@ -121,9 +128,25 @@ earlier (`Tovu/src/assistant/__tests__/tool-registrations.database-recovery.test
   trustworthy; the confirmation-transport gap documented; 6 chat verbs shipped.
 - **Risks:** two other sessions active in both repos; the R10 proposal may be incomplete;
   `@jini-ai/protocol` wiring deliberately deferred.
-- **Five premises corrected by checking source** (2 from the prior handoff, 3 the Coordinator's own):
-  the `npm ci` break that wasn't; "can never fail" → **can never pass**; the 502 misattribution
-  (it's `503 AGENT_DAEMON_BOOT_FAILED` that signals a known boot failure); 23 → **21** imports;
-  3 → **1** blocked tool.
-- **Suggested next assignee:** user decision on R10 and tab-close; Programmer for `@jini-ai/protocol`
+- **SIX premises corrected by checking source** (2 inherited from the prior handoff, 4 the
+  Coordinator's own). This is the single most load-bearing pattern of the session — **no claim
+  survived here on authority, only on evidence:**
+  1. *"The dangling symlink will bite an `npm ci`"* (prior handoff) — **false**, exit 0 twice against
+     the unfixed lockfile in a scratch clone.
+  2. *"The SSE spec can never fail"* (prior handoff) — **wrong direction; it can never PASS.** The
+     sentinel strings it checks exist nowhere in the protocol.
+  3. *"The 502 is the new loud-failure path"* (Coordinator) — no; that path returns **`503
+     AGENT_DAEMON_BOOT_FAILED`**. Real cause: a readiness probe polling a route with no daemon
+     dependency at all.
+  4. *"23 extensionless imports"* (Coordinator) — **21**; `mcp`'s 2 were string-literal test data,
+     and a guard built on that same naive pattern would have flagged them forever.
+  5. *"3 CMS tools blocked"* (agent's own claim, relayed by Coordinator) — **one**. Caught by the
+     agent's own verified-vs-inferred flag, on its own document.
+  6. *"MSG #7 never reached you"* (Coordinator) — it did; I was reading a **stale guard run** from
+     before the agent's commit, and issued a duplicate assignment.
+- **Also corrected:** *"the `chat.*` verbs may have no server-side executor, so wiring may be
+  incoherent"* (Coordinator) — refuted; `page.*` is also browser-executed. That is the intended
+  architecture, and the correction is what turned a false dead end into a real user decision.
+- **Suggested next assignee:** user decision on tab-close and the confirmation transport; Programmer
+  for `@jini-ai/protocol`
   once quiet; Software Architect if the confirmation transport is taken up.
