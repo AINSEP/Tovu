@@ -58,6 +58,7 @@ import {
   LocalFsBlobStore,
   SharpImageTransformer,
 } from "../media";
+import { ensureCoreMediaTransform } from "../media/bootstrap";
 import { createSqliteIdentityRouteDeps } from "../identity/wiring";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../forms/repo.sqlite";
 import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile";
@@ -378,6 +379,31 @@ export function createSqliteRouteDeps(
       console.error(`installCommentsDataModule failed at boot: ${(err as Error).message}`);
     });
 
+  // ADR-027 §4 — the core "public" transform definition that lets the unauthenticated `/m/`
+  // rendition route serve ANY asset at all (`media/bootstrap.ts`'s file header has the full
+  // diagnosis: with zero rows in `transform_registry`, every `/m/` request 404s regardless of
+  // what media exists). Hoisted here (rather than down with the other media repos below) so this
+  // call and the returned `RouteDeps.transformDefinitionRepo` field share the SAME repo instance
+  // rather than two independent wrappers over the same table. Chained after `commentsReady`, not
+  // fired in parallel, for the identical single-SQLite-connection transaction hazard every `Ready`
+  // chain in this function documents; fire-and-forget and not exposed on `RouteDeps`, mirroring
+  // `menuBindingsReady`'s shape — nothing downstream needs to gate a request on this resolving,
+  // since `ensureCoreMediaTransform` is idempotent and the window between boot and its single
+  // insert completing is a few milliseconds.
+  const transformDefinitionRepo = new SqliteTransformDefinitionRepo(db);
+  const mediaTransformReady = commentsReady
+    .then(() =>
+      ensureCoreMediaTransform({
+        deps: { clock, idGen, transformRepo: transformDefinitionRepo },
+        input: { workspaceId: workspaceId },
+      })
+    )
+    .catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(`ensureCoreMediaTransform failed at boot: ${(err as Error).message}`);
+    });
+  void mediaTransformReady;
+
   // SPEC-009 (Redirects, ADR-PIPE-009) — FIRST-TIME composition-root wiring of `origin`'s
   // OriginRegistry and `routing`'s registration functions, mirroring `server/app.ts`'s identical
   // wiring. `redirects` DOES get its real `SqliteRedirectRepo` here (unlike the in-memory-only
@@ -609,7 +635,7 @@ export function createSqliteRouteDeps(
     // installed" note was flagged by the 2026-07-15 `/audit-work` batch (ADR-046 finding B-01)
     // and corrected here and in ADR-046 itself. See `src/media/image-transformer.sharp.ts`'s file
     // header for the still-real lazy-require rationale.
-    transformDefinitionRepo: new SqliteTransformDefinitionRepo(db),
+    transformDefinitionRepo,
     imageTransformer: new SharpImageTransformer(),
     // SPEC-011 (Newsletter): real SQLite adapters for all 6 repo ports (the campaign pair is
     // Drizzle-backed; the 5 `p_newsletter__*` tables are raw-SQL, `declareDataModule()`-created —

@@ -311,6 +311,99 @@ test("renderDocNode: an image node with no/non-string alt falls back to a generi
   assert.match(nonStringAlt, /media-ph__label">Image</);
 });
 
+// ---------------------------------------------------------------------------
+// ADR-027 §4 — ref-based `{assetId, transformName}` image nodes. Extends D7's
+// placeholder default with the ONE case that now emits a real `<img src>`:
+// a node whose `transformName` has a resolved entry in `mediaTransformVersions`
+// (the caller-supplied map straight off `transform_registry`, per `render.ts`'s
+// own `EMPTY_MEDIA_TRANSFORM_VERSIONS` doc). Every OTHER shape — legacy
+// `src`-only, an unregistered/unresolved `transformName`, or a malformed id —
+// must still degrade to the exact same D7 placeholder; that backward-compat
+// guarantee is asserted here as directly as the happy path, not assumed from
+// the happy-path test alone.
+// ---------------------------------------------------------------------------
+
+test("renderDocNode: a ref-based image node with a resolved transformName renders a real <img> against the public /m/ URL, never a placeholder", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: '<A> & "friend"' } }],
+  };
+  const html = renderDocNode(doc, undefined, new Map([["public", 3]]));
+  assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="&lt;A&gt; &amp; &quot;friend&quot;" loading="lazy">/);
+  assert.doesNotMatch(html, /media-ph/);
+});
+
+test("renderDocNode: a ref-based image node with NO entry for its transformName in mediaTransformVersions degrades to the placeholder (unregistered/not-yet-resolved), never a guessed or malformed URL", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "unknown-name", alt: "x" } }],
+  };
+  // Non-empty map, but no key for "unknown-name" — proves the branch checks the SPECIFIC name,
+  // not merely "is the map non-empty".
+  const html = renderDocNode(doc, undefined, new Map([["public", 3]]));
+  assert.match(html, /media-ph/);
+  assert.doesNotMatch(html, /<img/);
+});
+
+test("renderDocNode: a ref-based image node with an empty mediaTransformVersions map degrades to the placeholder (default param, every pre-existing caller)", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(doc); // no 3rd arg at all — exercises the default EMPTY_MEDIA_TRANSFORM_VERSIONS
+  assert.match(html, /media-ph/);
+  assert.doesNotMatch(html, /<img/);
+});
+
+test("renderDocNode: a malformed assetId/transformName (embedded '/', empty, or over-length) degrades to the placeholder even when the name would otherwise resolve — never a malformed /m/ URL", () => {
+  const resolved = new Map([["public", 1], ["", 1]]);
+  const cases: Array<{ assetId: string; transformName: string }> = [
+    { assetId: "asset/1", transformName: "public" }, // '/' in assetId would smuggle an extra path segment
+    { assetId: "asset 1", transformName: "public" }, // whitespace
+    { assetId: "asset-1", transformName: "" }, // empty transformName, even though "" is (adversarially) a map key
+    { assetId: "", transformName: "public" }, // empty assetId
+    { assetId: "a".repeat(201), transformName: "public" }, // over MAX_MEDIA_REF_ID_LENGTH
+  ];
+  for (const attrs of cases) {
+    const doc: JsonObject = { type: "doc", content: [{ type: "image", attrs: { ...attrs, alt: "x" } }] };
+    const html = renderDocNode(doc, undefined, resolved);
+    assert.match(html, /media-ph/, `expected placeholder for ${JSON.stringify(attrs)}`);
+    assert.doesNotMatch(html, /<img/, `expected no <img> for ${JSON.stringify(attrs)}`);
+  }
+});
+
+test("renderDocNode: a legacy src-only node still degrades to the placeholder even when mediaTransformVersions is non-empty — the ref path only activates on assetId+transformName, never on src", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { src: "https://evil.example/x.png", alt: "legacy" } }],
+  };
+  const html = renderDocNode(doc, undefined, new Map([["public", 1]]));
+  assert.match(html, /media-ph/);
+  assert.doesNotMatch(html, /<img/);
+  assert.doesNotMatch(html, /evil\.example/);
+});
+
+test("renderSite: a ref-based image node embedded in a real post body renders a real <img> end-to-end through the declarative slot path, when the caller resolves mediaTransformVersions", async () => {
+  const post = fakePost({
+    bodyJson: {
+      type: "doc",
+      content: [{ type: "image", attrs: { assetId: "asset-42", transformName: "public", alt: "Team photo" } }],
+    },
+  });
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  assert.equal(theme.status, "valid");
+  const html = await renderSite({
+    theme,
+    route: "post",
+    siteTitle: "Dispatch Demo",
+    posts: [post],
+    post,
+    mediaTransformVersions: new Map([["public", 5]]),
+  });
+  assert.match(html, /<img src="\/m\/asset-42\/public\.v5\/image\.jpg" alt="Team photo" loading="lazy">/);
+  assert.doesNotMatch(html, /media-ph/);
+});
+
 test("renderSite: an image node embedded in a real post body renders the placeholder end-to-end through both the declarative slot path and the shared Liquid/Handlebars `post.content` builder", async () => {
   const post = fakePost({
     bodyJson: {

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
 
 import { api, type AdminPost } from "../../../lib/api";
+import { MediaImage } from "../../../lib/media-image-extension";
 import { WidgetEmbed } from "../../../lib/widget-embed-extension";
 import { navigate } from "../../../lib/router";
 import { useDirtyGuard } from "../../../hooks/use-dirty-guard.hooks";
@@ -80,7 +80,7 @@ export function usePostEditor(postId: string): PostEditorController {
   const [deleting, setDeleting] = useState(false);
 
   const editor = useEditor({
-    extensions: [StarterKit, Image, WidgetEmbed],
+    extensions: [StarterKit, MediaImage, WidgetEmbed],
     content: "",
     editorProps: {
       handleDrop: (view, event, _slice, moved) => handleImageDrop(view, event, moved),

@@ -71,6 +71,15 @@ export interface SiteRenderContext {
   /** SPEC-043/ADR-047 REQ-21 — resolved inline `widgetEmbed` IR, keyed by `placementId`. */
   widgetInlineResolved: ReadonlyMap<string, WidgetRenderIR>;
   /**
+   * ADR-027 §4 — the latest registered version of each transform NAME referenced by this render,
+   * keyed by `transformName` (see {@link EMPTY_MEDIA_TRANSFORM_VERSIONS}'s doc for why this is
+   * name-keyed rather than per-asset). Populated by the route caller from the same
+   * `transform_registry` the public `/m/` route itself resolves against — `renderDocNode`'s `image`
+   * case degrades to the placeholder for any name absent here, so an empty map (every pre-existing
+   * caller/test of `renderSite`) is a non-breaking, fully backward-compatible default.
+   */
+  mediaTransformVersions: ReadonlyMap<string, number>;
+  /**
    * SPEC-047 Slice 2 — an `"html"`-format Page's resolved `data-widget-embed`/`data-form-embed`
    * targets (`resolver-service.ts`'s `resolveHtmlPageEmbeds`), consumed by {@link renderPostBody}.
    * `undefined` for every render this feature doesn't touch (a `"doc"` post/home route, or any
@@ -134,8 +143,36 @@ function renderMarks(text: string, marks: JsonValue[] | undefined): string {
 /** No-widgets default for every `renderDocNode`/`renderNodes` caller that doesn't pass one. */
 const EMPTY_INLINE_RESOLVED: ReadonlyMap<string, WidgetRenderIR> = new Map();
 
-function renderNodes(nodes: JsonValue[] | undefined, inlineResolved: ReadonlyMap<string, WidgetRenderIR>): string {
-  return (nodes ?? []).map((node) => renderDocNode(node, inlineResolved)).join("");
+/**
+ * No-transforms default for every `renderDocNode`/`renderNodes` caller that doesn't pass one —
+ * mirrors {@link EMPTY_INLINE_RESOLVED}'s exact "missing means degrade safely" convention. Keyed
+ * by transform NAME (not `assetId`): a registered transform's latest version is a property of
+ * `(workspaceId, transformName)` alone (`transform-registry.ts`), so one small map resolved once
+ * per render covers every image node in the document regardless of how many distinct assets it
+ * references — this is why media resolution needs nothing like `widgetInlineResolved`'s
+ * per-placement batch join.
+ */
+const EMPTY_MEDIA_TRANSFORM_VERSIONS: ReadonlyMap<string, number> = new Map();
+
+/** `assetId`/`transformName` become `/m/` URL path segments (`media-rendition.ts`), so — same
+ * discipline `html-embeds.ts`'s `MAX_EMBED_ID_LENGTH` applies to its own author-supplied ids —
+ * shape is checked before either value is trusted into a path: non-empty, bounded, and free of
+ * `/`/whitespace so an author-authored ref can never smuggle an extra path segment. An id that
+ * fails this is treated exactly like a name absent from `mediaTransformVersions`: safe
+ * placeholder degrade, never a malformed URL. */
+const MAX_MEDIA_REF_ID_LENGTH = 200;
+const PLAUSIBLE_MEDIA_REF_ID_PATTERN = /^[^\s/]+$/;
+
+function isPlausibleMediaRefId(value: string): boolean {
+  return value.length > 0 && value.length <= MAX_MEDIA_REF_ID_LENGTH && PLAUSIBLE_MEDIA_REF_ID_PATTERN.test(value);
+}
+
+function renderNodes(
+  nodes: JsonValue[] | undefined,
+  inlineResolved: ReadonlyMap<string, WidgetRenderIR>,
+  mediaTransformVersions: ReadonlyMap<string, number>
+): string {
+  return (nodes ?? []).map((node) => renderDocNode(node, inlineResolved, mediaTransformVersions)).join("");
 }
 
 /**
@@ -147,20 +184,28 @@ function renderNodes(nodes: JsonValue[] | undefined, inlineResolved: ReadonlyMap
  * only resolvable when the caller threads a real `resolvePageWidgets` result through, see
  * `renderSite`) degrades to the same public-safe placeholder REQ-28 requires, never a crash or a raw
  * dump of the node's attrs.
+ *
+ * `mediaTransformVersions` (ADR-027 §4) is the same "optional, defaults to empty, degrades to the
+ * placeholder" shape for the `image` case's `{assetId, transformName}` ref path — see that case's
+ * own comment for the full resolution rule and the legacy-`src` backward-compat guarantee.
  */
-export function renderDocNode(node: JsonValue, inlineResolved: ReadonlyMap<string, WidgetRenderIR> = EMPTY_INLINE_RESOLVED): string {
+export function renderDocNode(
+  node: JsonValue,
+  inlineResolved: ReadonlyMap<string, WidgetRenderIR> = EMPTY_INLINE_RESOLVED,
+  mediaTransformVersions: ReadonlyMap<string, number> = EMPTY_MEDIA_TRANSFORM_VERSIONS
+): string {
   if (!isObject(node)) return "";
   const content = Array.isArray(node.content) ? node.content : undefined;
 
   switch (node.type) {
     case "doc":
-      return renderNodes(content, inlineResolved);
+      return renderNodes(content, inlineResolved, mediaTransformVersions);
     case "paragraph":
-      return `<p>${renderNodes(content, inlineResolved)}</p>`;
+      return `<p>${renderNodes(content, inlineResolved, mediaTransformVersions)}</p>`;
     case "heading": {
       const level = isObject(node.attrs) && typeof node.attrs.level === "number" ? node.attrs.level : 2;
       const h = Math.min(Math.max(level, 1), 6);
-      return `<h${h}>${renderNodes(content, inlineResolved)}</h${h}>`;
+      return `<h${h}>${renderNodes(content, inlineResolved, mediaTransformVersions)}</h${h}>`;
     }
     case "text":
       return renderMarks(
@@ -168,32 +213,50 @@ export function renderDocNode(node: JsonValue, inlineResolved: ReadonlyMap<strin
         Array.isArray(node.marks) ? node.marks : undefined
       );
     case "bulletList":
-      return `<ul>${renderNodes(content, inlineResolved)}</ul>`;
+      return `<ul>${renderNodes(content, inlineResolved, mediaTransformVersions)}</ul>`;
     case "orderedList":
-      return `<ol>${renderNodes(content, inlineResolved)}</ol>`;
+      return `<ol>${renderNodes(content, inlineResolved, mediaTransformVersions)}</ol>`;
     case "listItem":
-      return `<li>${renderNodes(content, inlineResolved)}</li>`;
+      return `<li>${renderNodes(content, inlineResolved, mediaTransformVersions)}</li>`;
     case "blockquote":
-      return `<blockquote>${renderNodes(content, inlineResolved)}</blockquote>`;
+      return `<blockquote>${renderNodes(content, inlineResolved, mediaTransformVersions)}</blockquote>`;
     case "codeBlock":
-      return `<pre><code>${renderNodes(content, inlineResolved)}</code></pre>`;
+      return `<pre><code>${renderNodes(content, inlineResolved, mediaTransformVersions)}</code></pre>`;
     case "horizontalRule":
       return "<hr/>";
     case "image": {
-      // D7: TipTap image nodes are leaf/atom nodes with no `content`, so before this case existed
-      // they fell to `default` (renders `node.content`) and silently vanished — no placeholder, no
-      // error, content simply gone. Fixed by degrading to the same aspect-ratio placeholder
-      // convention `hero`/`section` media props already use (`mediaPlaceholder` below), NOT by
-      // emitting a real `<img src>`: there is no working asset pipeline yet (ADR-027's ref-based
-      // `{assetId,transformName}` design was never wired into the editor) — today `attrs.src` holds
-      // either an inlined `data:` blob, an arbitrary external URL, or the *authenticated* admin
-      // media-preview URL, none of which are safe or correct to embed unescaped on public,
-      // unauthenticated HTML. `src` and `title` are therefore never read here at all (nothing to
-      // escape or reject if it's never emitted); only `alt` — plain author-supplied text — reaches
-      // the output, escaped by `mediaPlaceholder` the same as every other untrusted string in this
-      // file.
+      // D7 (original), extended under ADR-027 §4 (this task): a TipTap image node reaches this
+      // renderer in one of two shapes. LEGACY nodes carry only `attrs.src`/`attrs.title` — some
+      // combination of an inlined `data:` blob, an arbitrary external URL, or the *authenticated*
+      // admin media-preview URL, none of which are safe or correct to embed unescaped on public,
+      // unauthenticated HTML. Those keep degrading to the same aspect-ratio placeholder
+      // (`mediaPlaceholder`) exactly as before this task — `src`/`title` are still never read here
+      // at all, which is precisely the property that made the original D7 fix safe and must not
+      // regress: a real running server was verified live (see `media/bootstrap.ts`'s file header)
+      // to have posts whose only image `src` values are exactly these unsafe kinds, so silently
+      // starting to trust `src` would be a public security regression, not a fix.
+      //
+      // REF nodes (new, ADR-027 §4's own stated `bodyJson` contract: "stores refs
+      // `{assetId, transformName}`, never URLs") carry `attrs.assetId`/`attrs.transformName`
+      // instead. Only THIS shape ever produces a real `<img src>`: the version is resolved against
+      // `mediaTransformVersions` (populated by the route caller from the SAME `transform_registry`
+      // row `/m/` itself reads — see `renderSite`'s doc), which is exactly the value the public
+      // `/m/{assetId}/{transformName}.v{version}/...` URL needs. An id that fails
+      // {@link isPlausibleMediaRefId}'s shape check, or a `transformName` with no entry in the map
+      // (never registered, or not yet resolved), degrades to the identical placeholder a legacy
+      // node gets — a ref node can be "wrong" but can never emit a malformed or unsafe URL.
       const attrs = isObject(node.attrs) ? node.attrs : {};
       const alt = typeof attrs.alt === "string" ? attrs.alt : "";
+      const assetId = typeof attrs.assetId === "string" ? attrs.assetId : undefined;
+      const transformName = typeof attrs.transformName === "string" ? attrs.transformName : undefined;
+      if (assetId && transformName && isPlausibleMediaRefId(assetId) && isPlausibleMediaRefId(transformName)) {
+        const version = mediaTransformVersions.get(transformName);
+        if (version !== undefined) {
+          const src = `/m/${encodeURIComponent(assetId)}/${encodeURIComponent(transformName)}.v${version}/image.jpg`;
+          const altAttr = escapeHtml(alt);
+          return `<img src="${escapeHtml(src)}" alt="${altAttr}" loading="lazy">`;
+        }
+      }
       return mediaPlaceholder({ label: alt || "Image" });
     }
     case "widgetEmbed": {
@@ -208,7 +271,7 @@ export function renderDocNode(node: JsonValue, inlineResolved: ReadonlyMap<strin
       return renderWidgetIr(ir ?? WIDGET_PLACEHOLDER_IR);
     }
     default:
-      return renderNodes(content, inlineResolved);
+      return renderNodes(content, inlineResolved, mediaTransformVersions);
   }
 }
 
@@ -287,7 +350,7 @@ function renderPostBody(ctx: SiteRenderContext): string {
   const post = ctx.post;
   if (!post) return "";
   if (post.bodyFormat === "html") return renderHtmlPageBody(post.bodyHtml ?? "", ctx.pageHtmlEmbeds);
-  return renderDocNode(post.bodyJson, ctx.widgetInlineResolved);
+  return renderDocNode(post.bodyJson, ctx.widgetInlineResolved, ctx.mediaTransformVersions);
 }
 
 function entryContent(ctx: SiteRenderContext): string {
@@ -804,7 +867,7 @@ function renderBlock(node: TemplateNode, ctx: SiteRenderContext): string {
   }
 
   // Anything else is content-doc vocabulary.
-  return renderDocNode(node, ctx.widgetInlineResolved);
+  return renderDocNode(node, ctx.widgetInlineResolved, ctx.mediaTransformVersions);
 }
 
 // ---------------------------------------------------------------------------
@@ -956,6 +1019,15 @@ export async function renderSite(required: {
    * for the safe-degrade behavior when it is missing.
    */
   pageHtmlEmbeds?: ResolveHtmlPageEmbedsResult;
+  /**
+   * ADR-027 §4 — the latest registered version of each transform NAME this render's image refs may
+   * use, threaded straight into `SiteRenderContext.mediaTransformVersions` (see that field's own
+   * doc). The caller (`routes/site/pages.ts`) resolves this from the SAME `transform_registry` the
+   * public `/m/` route reads, so a version this render embeds is guaranteed servable. Omitted by
+   * every caller/test that never renders a ref-based image node — degrades to an empty map, which
+   * `renderDocNode`'s `image` case already treats as "not resolvable" (placeholder), not a crash.
+   */
+  mediaTransformVersions?: ReadonlyMap<string, number>;
   /** SPEC-008 T049 — pre-serialized `page.head` fold output, threaded through to `pageShell`. */
   extraHead?: string;
   /**
@@ -979,6 +1051,7 @@ export async function renderSite(required: {
     themeName: theme.manifest.name,
     widgetRegions: required.widgets?.regions ?? {},
     widgetInlineResolved: required.widgets?.inlineResolved ?? EMPTY_INLINE_RESOLVED,
+    mediaTransformVersions: required.mediaTransformVersions ?? EMPTY_MEDIA_TRANSFORM_VERSIONS,
     pageHtmlEmbeds: required.pageHtmlEmbeds,
   };
 

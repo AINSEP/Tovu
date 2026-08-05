@@ -3,6 +3,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
+import { MediaImageInsertControl } from "../../lib/media-image-extension";
 import { siteUrl } from "../../lib/site-url";
 import { usePostEditor } from "./hooks/use-post-editor.hooks";
 
@@ -68,6 +69,15 @@ function Toolbar({ editor }: { editor: Editor }) {
         <button className="tb-btn" title="Redo (⌘⇧Z)" disabled={!s.canRedo} onClick={() => chain().redo().run()}>↻</button>
       </div>
       <div className="grp">
+        {/* Media-library insertion (ADR-027 §4) is the primary path — reuses the same asset table
+            `features/media/` manages and produces a `{assetId, transformName}` ref that actually
+            resolves on the public site (`media-image-extension.tsx`'s file header has the full
+            "why" chain). The old "Insert image by URL" prompt is KEPT, not replaced: it is still
+            the only way to embed an arbitrary external image (a source outside this workspace's own
+            Media library), and removing it would be a net capability loss for that case — a node it
+            produces still degrades to the safe placeholder on the public site exactly as before
+            this task (`render.ts`'s own backward-compat guarantee), so keeping it costs nothing. */}
+        <MediaImageInsertControl editor={editor} />
         <button
           className="tb-btn"
           title="Insert image by URL"
@@ -78,7 +88,7 @@ function Toolbar({ editor }: { editor: Editor }) {
             chain().setImage({ src, alt: alt || undefined }).run();
           }}
         >
-          Img
+          Img by URL
         </button>
       </div>
       {/* The "Insert widget" trigger + its widget-type `<select>` (`WidgetAddControl`, shared with
