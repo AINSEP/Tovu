@@ -28,12 +28,28 @@ import net from "node:net";
  * `attachmentStore` is still unset"). There is therefore no partially-ready window behind an open
  * port: if the port accepts, the daemon is fully wired.
  *
- * A bare TCP connect is also deliberately preferred over an HTTP probe. Every daemon HTTP route is
- * gated by `daemon-auth.ts`, which refuses any request lacking `TOVU_AGENT_DAEMON_TOKEN` — a token
- * the test-runner process does not have. An HTTP probe would need that secret; a connect does not.
- * This also sidesteps the trap recorded in `20260804-session-handoff-2.md`: a probe against an
- * allowlist-gated app route can return a decisive-looking status that is produced BEFORE the
- * request ever reaches the daemon, reporting "ready" with the daemon down.
+ * A bare TCP connect is also deliberately preferred over an HTTP probe of the DAEMON itself. Every
+ * daemon HTTP route is gated by `daemon-auth.ts`, which refuses any request lacking
+ * `TOVU_AGENT_DAEMON_TOKEN` — a token the test-runner process does not have. An HTTP probe of the
+ * daemon would need that secret; a connect does not. This also sidesteps the trap recorded in
+ * `20260804-session-handoff-2.md`: a probe against an allowlist-gated app route can return a
+ * decisive-looking status that is produced BEFORE the request ever reaches the daemon, reporting
+ * "ready" with the daemon down.
+ *
+ * ## Why a bare TCP connect is NOT sufficient on its own (degraded-boot defect fix)
+ *
+ * A connect proves *something* is listening on the port — it does not prove that something is the
+ * daemon THIS boot spawned. `src/index.ts`'s `spawnAgentDaemon()` can crash on `EADDRINUSE` if a
+ * leaked, orphaned daemon from a PREVIOUS run is still squatting the port (exactly the failure mode
+ * three prior e2e sessions in this repo's own history spent chasing); that stale process is still
+ * there, still accepting connections, and a bare connect cannot tell the difference. Before trusting
+ * a connect, this now polls the APP's own unauthenticated `/readyz` (published as `E2E_API_PORT` by
+ * `playwright.destructive.config.ts`, this file's only consumer) for `assistantDaemonKnownFailed` —
+ * a plain boolean `src/server/routes/ops/health.ts` sets once `index.ts`'s own spawn is confirmed
+ * dead, regardless of what (if anything) is still answering on the daemon's port. If it is `true`,
+ * this throws immediately instead of polling out the full timeout and reporting a generic
+ * "never accepted a connection" error that would be actively misleading (something DID connect —
+ * just not to a daemon we can trust).
  */
 
 /** Matches `playwright.destructive.config.ts`'s `DAEMON_PORT`; the config exports it through the
@@ -44,6 +60,37 @@ function resolveDaemonPort(): number {
   const raw = process.env.E2E_AGENT_DAEMON_PORT ?? process.env.JINI_AGENT_DAEMON_PORT;
   const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
   return Number.isInteger(parsed) ? parsed : DEFAULT_DAEMON_PORT;
+}
+
+/** No default: unlike the daemon port, there is no repo-wide convention for the app's own port
+ *  (it varies per config — 4991 here, 4992 in adversarial, etc.), and a wrong guess would silently
+ *  probe the WRONG process's `/readyz`. Absent means "the config didn't publish it" — callers treat
+ *  that as "skip the known-failure check", not as a fabricated port. */
+function resolveApiPort(): number | undefined {
+  const raw = process.env.E2E_API_PORT;
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
+  return Number.isInteger(parsed) ? parsed : undefined;
+}
+
+/**
+ * Polls `/readyz` for the plain-boolean `assistantDaemonKnownFailed` field (see this file's own
+ * module doc and `src/server/routes/ops/health.ts`'s doc for why that field exists and what it
+ * does — and does not — leak). Never throws: a `fetch` failure here means the APP port itself
+ * isn't answering yet, which is normal very early in boot and is not this function's question to
+ * answer — the caller's own TCP-connect polling already covers that case.
+ */
+/** Exported for `daemon-ready.unit.test.ts` only — `waitForAgentDaemon` below memoizes its own
+ *  promise per process (by design: "the daemon boots once per webServer"), which makes IT awkward
+ *  to unit-test in isolation without changing that memoization. This decision function has no such
+ *  state, so it is tested directly against a stand-in `/readyz` server instead. */
+export async function isDaemonKnownFailed(apiPort: number): Promise<boolean> {
+  try {
+    const res = await fetch(`http://127.0.0.1:${apiPort}/readyz`);
+    const body = (await res.json()) as { assistantDaemonKnownFailed?: boolean };
+    return body.assistantDaemonKnownFailed === true;
+  } catch {
+    return false;
+  }
 }
 
 function tryConnect(port: number, timeoutMs: number): Promise<boolean> {
@@ -61,15 +108,17 @@ function tryConnect(port: number, timeoutMs: number): Promise<boolean> {
 }
 
 /**
- * Resolves once the agent daemon accepts TCP connections, or throws with a diagnostic naming the
- * race rather than the symptom. Memoized per worker process: the daemon boots once per `webServer`,
- * so N tests must not each re-pay the poll.
+ * Resolves once the agent daemon accepts TCP connections FROM A BOOT THIS PROCESS KNOWS IS NOT A
+ * CONFIRMED FAILURE, or throws with a diagnostic naming the race (or the known failure) rather than
+ * the symptom. Memoized per worker process: the daemon boots once per `webServer`, so N tests must
+ * not each re-pay the poll.
  */
 let readyPromise: Promise<void> | undefined;
 
 export function waitForAgentDaemon(opts: { timeoutMs?: number; pollMs?: number } = {}): Promise<void> {
   if (readyPromise) return readyPromise;
   const port = resolveDaemonPort();
+  const apiPort = resolveApiPort();
   const timeoutMs = opts.timeoutMs ?? 120_000;
   const pollMs = opts.pollMs ?? 500;
 
@@ -78,6 +127,19 @@ export function waitForAgentDaemon(opts: { timeoutMs?: number; pollMs?: number }
     let attempts = 0;
     while (Date.now() < deadline) {
       attempts += 1;
+      // Checked BEFORE the connect attempt, every iteration: a connect succeeding against a
+      // known-failed boot would otherwise resolve this promise as "ready" one line below, exactly
+      // the silent-wrong-result shape this whole fix exists to close. `apiPort` is `undefined` only
+      // if some future config reuses this module without publishing `E2E_API_PORT` — degrades to
+      // the pre-fix bare-connect behavior rather than throwing on a config that never opted in.
+      if (apiPort !== undefined && (await isDaemonKnownFailed(apiPort))) {
+        throw new Error(
+          `the agent daemon this boot spawned is KNOWN to have failed (see the [WebServer] output ` +
+            `for the exact reason, or GET /readyz on 127.0.0.1:${apiPort}). Not retrying: whatever ` +
+            `may be answering on 127.0.0.1:${port} is not trustworthy — it can be an orphaned daemon ` +
+            `from a previous run still squatting the same port.`
+        );
+      }
       if (await tryConnect(port, 2_000)) return;
       await new Promise((r) => setTimeout(r, pollMs));
     }
