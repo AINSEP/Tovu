@@ -11,6 +11,7 @@ import {
   InMemoryTaxonomyRepo,
   InMemoryTaxonomyRevisionRepo,
   InMemoryTermRepo,
+  noopStampWatermark,
 } from "../../features/taxonomy/repo.memory";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
@@ -62,6 +63,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     taxonomyRevisionRepo,
     postRepo,
     authorize,
+    stampWatermark: noopStampWatermark,
     gatedMutations: { gatewayDeps: { clock, idGen, authorize, tokens: new InMemoryTokenStore() } },
   };
 

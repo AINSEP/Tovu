@@ -9,7 +9,7 @@ import {
   TermNotFoundError,
 } from "#src/features/taxonomy/validation-chain";
 import { createPostBackedContentLookup } from "#src/features/taxonomy/content-lookup";
-import { noopStampWatermark, toTaxonomyOutbox } from "#src/features/taxonomy/repo.memory";
+import { toTaxonomyOutbox } from "#src/features/taxonomy/repo.memory";
 import { createTerm } from "#src/features/taxonomy/write-service";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps";
@@ -51,7 +51,7 @@ export function registerAdminTaxonomyCreateTermRoute(app: Express, deps: Taxonom
           terms: deps.termRepo,
           entryTerms: deps.entryTermRepo,
           revisions: deps.taxonomyRevisionRepo,
-          stampWatermark: noopStampWatermark,
+          stampWatermark: deps.stampWatermark,
           outbox: toTaxonomyOutbox(deps),
           workspaceId: deps.workspaceId,
           contentLookup: createPostBackedContentLookup({ postRepo: deps.postRepo, workspaceId: deps.workspaceId }),

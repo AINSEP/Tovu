@@ -45,7 +45,7 @@ import { taxonomyAgentToolCatalog } from "./agent-tools";
 import { createPostBackedContentLookup } from "./content-lookup";
 import { listTaxonomiesWithTerms, type TaxonomyListPort, type TermListPort } from "./list";
 import { planMergeTerm } from "./merge-term";
-import { noopStampWatermark, toTaxonomyOutbox } from "./repo.memory";
+import { toTaxonomyOutbox } from "./repo.memory";
 import {
   assignTerms,
   createTaxonomy,
@@ -84,6 +84,10 @@ export interface TaxonomyToolDeps {
   outbox: OutboxPort;
   postRepo: PostRepoPort;
   gatedMutations: { gatewayDeps: GatewayDeps };
+  /** See `RouteDeps.stampWatermark`'s doc comment (`server/routes/types.ts`) — same field, this
+   * domain's tool-calling deps bag is structurally satisfied by the same composition-root object
+   * the admin HTTP routes use. */
+  stampWatermark: () => void;
 }
 
 /** Taxonomy catalog entries this pass does not wire, and why — see `agent-tools.ts`'s own header
@@ -131,7 +135,7 @@ function taxonomyDeps(routeDeps: TaxonomyToolDeps): WriteServiceDeps {
     terms: routeDeps.termRepo,
     entryTerms: routeDeps.entryTermRepo,
     revisions: routeDeps.taxonomyRevisionRepo,
-    stampWatermark: noopStampWatermark,
+    stampWatermark: routeDeps.stampWatermark,
     outbox: toTaxonomyOutbox(routeDeps),
     workspaceId: routeDeps.workspaceId,
     contentLookup: createPostBackedContentLookup({ postRepo: routeDeps.postRepo, workspaceId: routeDeps.workspaceId }),
