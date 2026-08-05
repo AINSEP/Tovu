@@ -408,6 +408,11 @@ export interface RouteDeps {
    * with `AssignmentCountEntryTermRepoPort` for the `deleteTaxonomy`/`deleteTerm` guard. */
   entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort & AssignmentCountEntryTermRepoPort;
   taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
+  /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real
+   * `sqliteStampWatermark(db)` in `server/deps.ts` (the certified `stampWatermarkTx`, see
+   * `core/gated-mutations/watermark.ts`); `noopStampWatermark` in `server/app.ts`'s in-memory
+   * composition, which has no watermark table to advance. */
+  stampWatermark: () => void;
   /** ADR-041 §2/§4 — the `restore_points` table's list + save side (`database/restore-points.ts`'s
    * new `RestorePointListPort`/`RestorePointSavePort`). Real `SqliteRestorePointsRepo` in
    * `server/deps.ts` (already built, previously unwired); in-memory in `server/app.ts`. */

@@ -105,7 +105,13 @@ import { ensureSettingsUiTabDefinitions } from "../features/settings";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../analytics/config.settings";
 import { SqliteCommentRepo } from "../comments/repo.sqlite";
 import { installCommentsDataModule } from "../comments/data-module-install";
-import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "../features/taxonomy/repo.sqlite";
+import {
+  SqliteEntryTermRepo,
+  SqliteTaxonomyRepo,
+  SqliteTaxonomyRevisionRepo,
+  SqliteTermRepo,
+  sqliteStampWatermark,
+} from "../features/taxonomy/repo.sqlite";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
 import { buildGatewayDeps } from "../core/gated-mutations/composition";
 import { resolveRuntimeMode } from "./runtime-mode";
@@ -678,6 +684,7 @@ export function createSqliteRouteDeps(
     termRepo: new SqliteTermRepo({ db, workspaceId: workspaceId }),
     entryTermRepo: new SqliteEntryTermRepo({ db, workspaceId: workspaceId }),
     taxonomyRevisionRepo: new SqliteTaxonomyRevisionRepo({ db, workspaceId: workspaceId }),
+    stampWatermark: sqliteStampWatermark(db),
     restorePointsRepo,
     dbOps,
     databaseIntrospection,

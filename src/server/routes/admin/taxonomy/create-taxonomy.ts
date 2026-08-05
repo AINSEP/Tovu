@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { createPostBackedContentLookup } from "#src/features/taxonomy/content-lookup";
-import { noopStampWatermark, toTaxonomyOutbox } from "#src/features/taxonomy/repo.memory";
+import { toTaxonomyOutbox } from "#src/features/taxonomy/repo.memory";
 import { createTaxonomy } from "#src/features/taxonomy/write-service";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps";
@@ -30,7 +30,7 @@ export function registerAdminTaxonomyCreateRoute(app: Express, deps: TaxonomyRou
           terms: deps.termRepo,
           entryTerms: deps.entryTermRepo,
           revisions: deps.taxonomyRevisionRepo,
-          stampWatermark: noopStampWatermark,
+          stampWatermark: deps.stampWatermark,
           outbox: toTaxonomyOutbox(deps),
           workspaceId: deps.workspaceId,
           contentLookup: createPostBackedContentLookup({ postRepo: deps.postRepo, workspaceId: deps.workspaceId }),

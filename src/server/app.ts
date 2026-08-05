@@ -93,7 +93,13 @@ import { ensureExecutionSettingDefinitions } from "../assistant/execution-mode-s
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../analytics/config.settings";
 import { InMemoryCommentRepo } from "../comments/repo.memory";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";
-import { InMemoryEntryTermRepo, InMemoryTaxonomyRepo, InMemoryTaxonomyRevisionRepo, InMemoryTermRepo } from "../features/taxonomy/repo.memory";
+import {
+  InMemoryEntryTermRepo,
+  InMemoryTaxonomyRepo,
+  InMemoryTaxonomyRevisionRepo,
+  InMemoryTermRepo,
+  noopStampWatermark,
+} from "../features/taxonomy/repo.memory";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
 import { buildGatewayDeps } from "../core/gated-mutations/composition";
 import { resolveRuntimeMode } from "./runtime-mode";
@@ -502,6 +508,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     termRepo: new InMemoryTermRepo(),
     entryTermRepo: new InMemoryEntryTermRepo(),
     taxonomyRevisionRepo: new InMemoryTaxonomyRevisionRepo(),
+    stampWatermark: noopStampWatermark,
     restorePointsRepo,
     dbOps: new InMemoryDbOpsAdapter(),
     databaseIntrospection: new InMemoryDatabaseIntrospectionAdapter(),

@@ -33,6 +33,7 @@ export type TaxonomyRouteDeps = Pick<
   | "entryTermRepo"
   | "taxonomyRevisionRepo"
   | "postRepo"
+  | "stampWatermark"
 >;
 
 export type TaxonomyRouteRegistrar = (app: Express, deps: TaxonomyRouteDeps) => void;
