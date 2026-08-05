@@ -20,6 +20,43 @@ The user decided: build that BYOK-shaped live call anyway, accepting the picker 
 "live when a key is available, static otherwise" behavior rather than staying uniformly static.
 This document is the design for that decision. It does not re-litigate either closed report.
 
+## 0.1 Independent verification received mid-design (Coordinator, two messages, both addressed below)
+
+**Msg #1 — pointed at Tovu's `development/e2e/byok-*.spec.ts` cluster** (`byok-model-discovery-
+self-heal`, `byok-ssrf-guard`, `byok-hostile-provider`, `byok-key-handling`,
+`byok-credential-persistence`, plus five more). Read all headers, one full spec
+(`byok-model-discovery-self-heal.spec.ts`), read-only, nothing under `development/e2e/` touched.
+**Finding: this cluster does not shrink the task to "wire the Local CLI picker through an
+already-connected path."** Every one of these specs targets the SAME thing: `@jini-ai/ui`'s
+`ExecutionTab` (the Settings dialog's BYOK tab) or `AssistantDock.tsx`'s `useByokRuntime`
+discovery effect, both hitting `.../assistant/execution/models` — i.e., the `byok` execution
+mode's OWN model dropdown, not the `local-cli` mode's. The Local CLI picker is not mentioned in
+any of these specs. What the cluster DOES establish, and what changes in this document below:
+`listProviderModels`/`.../execution/models` is not merely functionally correct, it is
+adversarially battle-tested — SSRF-guarded (`byok-ssrf-guard.spec.ts`: RFC1918, link-local,
+metadata, CGNAT, 0.0.0.0, DNS-rebinding all blocked; loopback allowed by documented design), and
+proven to hold against a real hostile provider (`byok-hostile-provider.spec.ts`: malformed/
+truncated JSON, 10k-model floods, XSS-shaped ids, hangs — "no bypass, everything held"). §3.1's
+design calls `listProviderModels` directly (not through the HTTP route), and that function is
+where both the SSRF guard (`validateBaseUrlResolved`) and the hostile-payload handling live —
+so this design inherits all of it for free, with no additional code. Confirmed explicitly, per
+the caution in msg #1: **a Max-subscription admin with no stored key sees exactly today's
+`CLAUDE_FALLBACK_MODELS` array, unchanged, `modelsSource: 'fallback'`, zero added latency** — the
+credential-resolution branch in §3.1 step 3 never attempts a network call when
+`resolveExecutionCredential` returns `null`, which is what happens by construction when no row
+exists.
+
+**Msg #2 — independently verified the SEC-001 claim and found one gap: principal mismatch.** The
+citation and phrasing corrections it flagged (SEC-001's code site being `Jini`'s
+`agent-executor.ts`, not Tovu's; `@anthropic-ai/sdk` being fetch-avoided, not "already wired" as a
+dependency) were already stated correctly in §3.4 and §4 of this document as first written — those
+were errors in the dispatch brief and my own chat summary, not in this file. The substantive
+finding, which this revision addresses in §3.1 and the new §3.5 below: **the admin's own BYOK API
+key and the locally-spawned `claude` CLI's OAuth session are two different auth principals against
+two different account entitlements.** A model the API key can list is not guaranteed to be one the
+OAuth-authenticated CLI process can actually run, and vice versa. See §3.5 for the resolution
+(union, not replace) and why it doesn't introduce a new class of failure.
+
 ## 1. Where the stale list actually comes from — traced past where the closed reports stopped
 
 Both closed reports examined `@jini-ai/agent-runtime`'s dispatcher (`detection.ts`) and
@@ -110,7 +147,8 @@ consistency, `POST /api/agents/rescan`):
    - A resolved credential with `protocol !== "anthropic"` → also leave it untouched (an admin who
      configured BYOK for e.g. `openai` has no bearing on Claude's own model list).
    - `protocol === "anthropic"` → call `listProviderModels({protocol: "anthropic", baseUrl: stored.baseUrl ?? "https://api.anthropic.com", apiKey: stored.apiKey})`.
-     - `ok: true` → rewrite that entry's `models: result.models` (already `{id,label}[]`),
+     - `ok: true` → **union** that entry's `models` with `def.fallbackModels` (dedupe by `id`,
+       fallback entries always kept — see §3.5 for why this is a union, not a replace),
        `modelsSource: "live"`.
      - `ok: false` (auth rejected, network error, timeout) → leave the daemon's `fallback` entry
        untouched. Same non-gating property — a bad/expired key degrades to exactly today's
@@ -132,6 +170,13 @@ admin action, not something that needs sub-minute staleness). This is new code, 
 `Map` with a timestamp check, not a new subsystem.
 
 ### 3.2 The credential-resolution delta in `list-models.ts` / `execution-deps.ts`
+
+**Recommended name for the new opt-in flag, since this was explicitly asked for: `useStoredAdminCredential`.**
+Not a second `useStoredCredential` overload and not a rename of the existing flag (that would be a
+breaking change to a route two other callers — the Settings tab and the AI Assistant tab — already
+depend on with the SITE-scoped meaning). `useStoredAdminCredential` names the scope explicitly in
+the flag itself, so a future reader never has to trace which store `useStoredCredential` meant on a
+given call site the way this session had to.
 
 Needed regardless of §3.1's exact shape, because it's the same gap either way: thread
 `adminExecutionCredentialRepo` (already on `RouteDeps`, confirmed at `routes/types.ts:185`,
@@ -177,6 +222,51 @@ verified fact, not asking for a call on it:
 
 So, contrary to the dispatch brief's framing that this call might need to be made and flagged for
 sign-off: it doesn't arise. There is no SEC-001 exception, deviation, or violation to record.
+
+### 3.5 Principal mismatch — resolved as UNION, not replace, and why that's not a new failure mode
+
+The admin's stored `admin_execution_credentials` row authenticates as an **Anthropic Developer API
+account** (metered, `x-api-key`). The spawned `claude` CLI the picker's selection actually drives
+authenticates separately, as a **claude.ai Max-subscription OAuth session**
+(`authMethod: "claude.ai"`, `apiProvider: "firstParty"` — verified directly against the installed
+binary in the closed discovery report). These are two different principals with potentially
+different entitlements: a model `GET /v1/models` reports for the API account is not guaranteed to
+be one the OAuth session's CLI process can run, and a model the CLI could run under its
+subscription might not appear in the API account's catalog at all (e.g. it may not be
+API-metered-billing-eligible under that plan).
+
+**Decision: the live result is UNIONED into the fallback list, never replaces it.**
+`def.fallbackModels` (the full `CLAUDE_FALLBACK_MODELS` array, including the bare `sonnet`/
+`opus`/`haiku` ALIASES) is always present in the response, unconditionally. Live-discovered ids
+not already in that set are appended, deduped by `id`. Rationale:
+
+- The bare aliases are resolved BY THE CLI ITSELF at spawn time, under whatever account is
+  actually authenticated — they are the one entry class in this whole system guaranteed to track
+  entitlement correctly and never go stale (confirmed: `claude.ts`'s `buildArgs` passes them
+  through unresolved; the CLI's own `--model sonnet` resolution is what maps the alias to a
+  concrete id at run time, not anything Tovu computes). A REPLACE strategy would risk dropping
+  these in favor of an API-account-scoped list that might not even contain them (aliases aren't
+  API catalog entries) — turning today's "slightly stale but always-correct" picker into a
+  "fresh-looking but sometimes-wrong" one. That is a strictly worse regression than the bug being
+  fixed.
+- A live-discovered pinned id that turns out not to be runnable under the CLI's OAuth account
+  fails at spawn/run time with a CLI-reported error — the SAME failure mode a stale pinned id in
+  today's static fallback already carries (nothing in the current design guarantees
+  `CLAUDE_FALLBACK_MODELS`'s pinned entries are valid for every account either). Union does not
+  introduce a new *class* of failure, only a marginal chance of one additional non-working pinned
+  entry appearing in the list — bounded, not open-ended, and no worse than the status quo's own
+  risk on its pinned entries.
+- This directly reframes constraint 1, per the Coordinator's own sharpening: **live discovery is
+  enrichment layered on top of a list that is already correct, not a corrected list arriving
+  late.** The no-key path isn't a degraded fallback case relative to the live path — for the
+  alias entries specifically, it may be the MORE reliable of the two, and union preserves that
+  property unconditionally rather than trading it away.
+
+`modelsSource` (the existing binary `'live' | 'fallback'` field) is set to `'live'` whenever the
+call succeeded and contributed at least one entry — even though fallback entries are still fully
+present, so this is not misleading, it signals "this response carries live-verified data in
+addition to the static set." No change to `@jini-ai/http-kit`'s type is needed either way; this is
+a semantic choice on Tovu's side, not a protocol change.
 
 ## 4. Rejected alternatives
 
@@ -234,14 +324,26 @@ live call — not re-litigated.
   the deliberate tradeoff constraint 1 required (never a gate, never a hard failure); flagging it
   as a known, accepted UX gap rather than a defect, since diagnosing it is exactly what "Test
   connection" (an existing, unrelated control) already does for the BYOK mode's own credential.
+- **Principal mismatch (§3.5).** Resolved by union, not left open — see that section for the full
+  reasoning. Residual risk after the union decision: a live-discovered pinned id could still be
+  unrunnable under the CLI's OAuth account and fail at spawn time. Bounded and not new in kind —
+  today's static pinned entries already carry this exact risk with no discovery step involved at
+  all.
+- **SSRF/hostile-provider surface, inherited not introduced.** `stored.baseUrl` flowing into
+  `listProviderModels` means the Local CLI enrichment call is now a second consumer of the same
+  loopback-allowed-by-design behavior `byok-ssrf-guard.spec.ts` documents (RFC1918/link-local/
+  metadata/CGNAT/0.0.0.0/DNS-rebinding blocked; loopback intentionally open for local LLM
+  servers). Not a new risk — verified via the e2e battery (§0.1) that this exact function already
+  holds against malformed/truncated/oversized/adversarial responses with "no bypass."
 
 ## 6. Item needing user sign-off
 
-None on SEC-001 (§3.4 resolves that by construction). One smaller item: **should
-`modelsSource: 'live'` be surfaced in the picker UI** (e.g., a small badge distinguishing "live"
-from "static fallback" models), or is silently swapping the array sufficient? The wire field
-already exists and this design populates it either way; whether the UI reads it is a product
-call, not an architecture one, and out of scope for this pass unless the user wants it folded in.
+None on SEC-001 (§3.4 resolves that by construction). None on the union-vs-replace question either
+(§3.5) — that has a defensible, made call: union, aliases always kept. One smaller item, genuinely
+a product rather than architecture call: **should `modelsSource: 'live'` be surfaced in the picker
+UI** (e.g., a small badge distinguishing which entries came from the live call), or is silently
+enriching the array sufficient? The wire field already exists and this design populates it either
+way; whether the UI reads it is out of scope for this pass unless the user wants it folded in.
 
 ## 7. Implementation task list
 
@@ -250,26 +352,36 @@ call, not an architecture one, and out of scope for this pass unless the user wa
 2. **New:** a small in-memory TTL cache module (e.g. `src/assistant/live-model-cache.ts`), keyed on
    `(workspaceId, principalId)`, wrapping one `listProviderModels` call. No new dependency.
 3. **`src/server/modules/assistant.ts`:** replace `proxyPassthrough` for `GET /api/agents` (and
-   `POST /api/agents/rescan`) with a new handler implementing §3.1 steps 1-4. Needs
+   `POST /api/agents/rescan`) with a new handler implementing §3.1 steps 1-4 and the §3.5 union
+   (dedupe-by-`id`, fallback entries always retained — a small pure helper is the cleanest unit to
+   test this in isolation, e.g. `unionModels(fallback, live): AgentModelSummary[]`). Needs
    `routeDeps.adminExecutionCredentialRepo` and a sealer — both already present on `RouteDeps`.
    **No `npm install` required** — `listProviderModels` is already exported from
-   `@jini-ai/agent-runtime`, already a Tovu dependency.
+   `@jini-ai/agent-runtime`, already a Tovu dependency, and does not use `@anthropic-ai/sdk` (it is
+   `fetch`-based — confirmed at `packages/agent-runtime/src/providers/model-catalog.ts:300`, and
+   `@anthropic-ai/sdk` is not a dependency of Tovu root, Tovu `apps/admin`, or Jini, checked
+   directly in every relevant `package.json`).
 4. Tests: a unit test for the new handler covering the four branches — no credential (untouched
    fallback), wrong protocol (untouched), live call `ok:false` (untouched), live call `ok:true`
-   (rewritten `models`/`modelsSource: 'live'`) — plus a cache-hit/TTL-expiry test. Mirror the
-   existing `execution-credential-repo.sqlite.test.ts` / `admin-assistant-execution-credential-
-   routes.test.ts` fixture style already in this codebase from 558d6a3.
+   (unioned `models`, aliases still present, `modelsSource: 'live'`) — plus the `unionModels` dedupe
+   helper's own table-driven test (overlapping ids, alias entries never dropped) and a
+   cache-hit/TTL-expiry test. Mirror the existing `execution-credential-repo.sqlite.test.ts` /
+   `admin-assistant-execution-credential-routes.test.ts` fixture style already in this codebase
+   from 558d6a3.
 5. `execution-deps.ts` / `list-models.ts` (§3.2) — optional, do only if a future caller needs the
    admin-credential-resolution capability over the existing HTTP route; not required for §3.1 to
-   work, since the new handler imports `resolveExecutionCredential` directly.
+   work, since the new handler imports `resolveExecutionCredential` directly. If done, name the new
+   flag `useStoredAdminCredential` (§3.2).
 6. No Jini changes. No `@anthropic-ai/sdk`. No `npm install` / `pnpm install` at any step.
 
 ## 8. Verification note
 
 `AGENT_DEFS`/`resolveAgentLaunch`/`AgentSummary`/`listProviderModels` signatures above were all
 read directly from source at the paths cited, not recalled — per this session's instruction to
-verify load-bearing claims in comments/prior reports rather than trust them. The one claim I did
-not independently re-verify against a live network call: whether `listProviderModels`'s
+verify load-bearing claims in comments/prior reports rather than trust them. Added mid-design:
+read the `development/e2e/byok-*.spec.ts` cluster (read-only, per explicit instruction not to
+touch anything under `development/e2e/`) — see §0.1 for what it did and did not change. The one
+claim I did not independently re-verify against a live network call: whether `listProviderModels`'s
 `extractAnthropicModels`-equivalent path in `model-catalog.ts` correctly parses a real
 `api.anthropic.com/v1/models` response shape today — that function already has its own test
 coverage (`providers/__tests__/model-catalog.test.ts`) from when 558d6a3 landed it, and re-deriving
