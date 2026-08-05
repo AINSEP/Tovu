@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+import { setByokModel } from "./byok-model-field";
+
 /**
  * @file BYOK credential-persistence / multi-tab / contamination battery (2026-08-04 dispatch,
  * Item 8).
@@ -172,7 +174,7 @@ test.describe("byok credential persistence, multi-tab, and cross-provider contam
     // Tab B edits an unrelated field and lets its own debounce flush — the exact trigger that used
     // to race tab A's save and silently wipe it. There is no key in localStorage left to wipe now,
     // so this is checking the same race produces the same (empty) outcome, not a different one.
-    await tabB.locator('input[list="jini-byok-model-options"]').fill("claude-sonnet-4-5");
+    await setByokModel(tabB, "claude-sonnet-4-5");
     await tabB.waitForTimeout(1_200);
 
     const afterTabBSave = await tabA.evaluate(
@@ -206,23 +208,40 @@ test.describe("byok credential persistence, multi-tab, and cross-provider contam
       await route.fulfill(jsonRoute({ ok: false, message: "stub — no real key present" }));
     });
 
+    const apiKeyField = page.locator(".jini-byok-card .jini-field-input-row input");
+
     await gotoByok(page);
-    await page.locator('.jini-byok-card .jini-field-input-row input').fill("sk-ant-SECRET-FOR-ANTHROPIC-ONLY");
-    await page.locator('input[list="jini-byok-model-options"]').fill("claude-sonnet-4-5");
+    await apiKeyField.fill("sk-ant-SECRET-FOR-ANTHROPIC-ONLY");
+    await setByokModel(page, "claude-sonnet-4-5");
 
     // OpenAI has never been configured in this session — `nextConfigForPresetSelect`
     // (`features/execution/rules.ts`) must load ITS OWN blank draft, never carry Anthropic's key
-    // forward as a default.
+    // forward as a default. This is the first of the two properties in this test's name.
     await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
-    await expect(page.locator('.jini-byok-card .jini-field-input-row input')).toHaveValue("");
+    await expect(apiKeyField).toHaveValue("");
 
-    await page.locator('input[list="jini-byok-model-options"]').fill("gpt-4o");
+    await setByokModel(page, "gpt-4o");
+    // OpenAI needs a key of ITS OWN before the request can be fired at all.
+    //
+    // The original form of this test typed no OpenAI key and asserted the captured request had
+    // `apiKey: ""`. That is unreachable, and always has been post-ADR-058: "Test connection" is
+    // `disabled={connectionTest.status === 'testing' || missing.size > 0}` (`ByokProviderForm.tsx`)
+    // and `missingRequiredFields` counts an empty `apiKey` for any preset with
+    // `presetRequiresApiKey` — relaxed only by `apiKeyStoredExternally`, which is false here
+    // because this hermetic run has never saved a key server-side. Measured 2026-08-05: the click
+    // spent the full 90s test timeout on `element is not enabled`. The test had never been run
+    // green (single commit `876b4fe`); the earlier Model-field failure masked this second one.
+    //
+    // Repaired rather than deleted, because the property in the title is real and this makes it
+    // STRICTER: an exact-equality assertion on OpenAI's own key cannot pass if Anthropic's key
+    // leaked into the request, whereas the old `toBe("")` only ever proved the field was empty.
+    await apiKeyField.fill("sk-openai-OWN-KEY-NOT-REAL");
     await page.locator('button:has-text("Test connection")').click();
     await expect.poll(() => capturedBody).not.toBeNull();
 
     const body = capturedBody as unknown as { protocol: string; apiKey: string };
     expect(body.protocol).toBe("openai");
-    expect(body.apiKey).toBe("");
+    expect(body.apiKey).toBe("sk-openai-OWN-KEY-NOT-REAL");
     expect(JSON.stringify(capturedBody)).not.toContain("SECRET-FOR-ANTHROPIC");
   });
 });
