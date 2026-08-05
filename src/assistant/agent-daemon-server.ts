@@ -95,6 +95,7 @@ import { registerA2uiActionsRoute } from "./a2ui-actions-route";
 import { registerMcpUiToolCallsRoute } from "./mcp-ui-tool-calls-route";
 import { resolveMcpJsonInjection } from "./mcp-injection";
 import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership } from "./run-ownership";
+import { parseRunStartContextRef } from "./run-start-context";
 import { buildToolCatalogQuery } from "./tool-catalog-query";
 import { withToolAttemptAudit } from "./tool-executor-audit";
 import { buildAssistantToolRegistrations } from "./tool-registrations";
@@ -435,24 +436,12 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   let prompt: string;
   let principal: Principal;
   let attachmentIds: readonly string[] = [];
+  let model: string | undefined;
   try {
     // `frontendBindToken` also rides in this envelope but is deliberately not read here —
     // `createFrontendControl`'s own `resolveBindToken` above owns that field, so there is exactly
     // one place that decides which tab a run may drive.
-    const parsed = JSON.parse(request.contextRef) as { prompt?: unknown; principalId?: unknown; attachmentIds?: unknown };
-    if (typeof parsed.prompt !== "string" || parsed.prompt.length === 0) {
-      throw new Error("contextRef did not decode to a non-empty 'prompt'");
-    }
-    if (typeof parsed.principalId !== "string" || parsed.principalId.length === 0) {
-      throw new Error("contextRef did not decode to a non-empty 'principalId'");
-    }
-    // Opaque `attachment:<uuid>` capability ids from `apps/admin/src/lib/assistant-transport.ts`
-    // — untrusted strings until `attachmentStore.claim()` re-validates them below. A malformed or
-    // absent field is silently treated as "no attachments" rather than failing the whole run: an
-    // attachment is optional, unlike `prompt`/`principalId` above.
-    if (Array.isArray(parsed.attachmentIds)) {
-      attachmentIds = parsed.attachmentIds.filter((id): id is string => typeof id === "string" && id.length > 0);
-    }
+    const decoded = parseRunStartContextRef(request.contextRef);
     // `<<SUBAGENT_DISPATCH>>` is AGENTS.md's own documented marker (Mandatory Startup section,
     // detection priority 1) for "skip the whole AI-Dev-Shop startup ceremony — this is a
     // dispatched subagent receiving a task prompt, not an interactive human session." Without it,
@@ -460,8 +449,10 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     // startup banner, offers to install slash commands) before touching the user's actual request
     // — confirmed live, burning real turns on a product-facing feature that has nothing to do with
     // this repo's own AI-Dev-Shop pipeline.
-    prompt = `<<SUBAGENT_DISPATCH>>\n\n${parsed.prompt}`;
-    principal = { id: parsed.principalId };
+    prompt = `<<SUBAGENT_DISPATCH>>\n\n${decoded.prompt}`;
+    principal = { id: decoded.principalId };
+    attachmentIds = decoded.attachmentIds;
+    model = decoded.model;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
@@ -552,6 +543,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         prompt,
         cwd: process.env.TOVU_AGENT_CWD ?? process.cwd(),
         permissionMode: resolvePermissionMode(),
+        ...(model !== undefined ? { model } : {}),
         ...attachmentRunFields,
       });
     })
