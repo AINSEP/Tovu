@@ -3,6 +3,7 @@ import type { AdminPanel } from "@jini-ai/admin/core";
 import { Appearance } from "./features/appearance";
 import { Dashboard } from "./features/dashboard";
 import { Placeholder } from "./components/Placeholder";
+import { PlaceholderTabs } from "./components/PlaceholderTabs";
 import { PostEditor, Posts } from "./features/posts";
 import { PageEditor, Pages } from "./features/pages";
 import { Members } from "./features/members";
@@ -304,6 +305,43 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     agentReachable: true,
   },
   {
+    id: "authentication",
+    // Sits directly after Users and above Roles & Permissions: it is a property of how an
+    // operator's identity gets INTO the system (sign-in method), which precedes and is distinct
+    // from Roles & Permissions (what they can do once in). Registration order is what places it
+    // here — this array's order IS `buildNav`'s tiebreak (see this file's own header and
+    // `AdminNavItem`'s doc comment in `@jini-ai/admin/core`), and neither entry sets `nav.order`,
+    // so the two rows keep the order they are declared in below. Pinned by
+    // `__tests__/unit/nav-wiring.unit.test.ts`'s "sits directly between users and roles" test,
+    // which fails the moment this stops being consecutive with them — confirmed by temporarily
+    // moving this block after `roles` and watching that test go red (mutation-proof per the
+    // owner's 2026-08-05 requirement), then restoring this exact position.
+    render: () => (
+      <PlaceholderTabs
+        sectionId="authentication"
+        tabs={[
+          { id: "home", label: "Home" },
+          { id: "google", label: "Google" },
+          { id: "facebook", label: "Facebook" },
+          { id: "linkedin", label: "LinkedIn" },
+        ]}
+      />
+    ),
+    nav: {
+      label: "Authentication",
+      group: "People",
+      soon: true,
+      soonPreviewable: true,
+      // A key, not a lock or a shield: `roles`'s icon below is already a card-with-rule-lines
+      // silhouette and `users`'s is a person-in-a-circle — a shield or padlock reads close to
+      // `roles`'s rounded rectangle at rail size, the exact collision `forms`'s icon comment above
+      // documents blocking the icon-only rail once already. A key is a different primitive
+      // (a shaft + teeth + a ring) from both neighbors' silhouettes.
+      icon: '<circle cx="6" cy="6" r="2.75"/><path d="M8 8l7 7M12 12l1.5-1.5M14 14l1.5-1.5"/>',
+    },
+    // Not agent-reachable: there is nothing built here yet for an agent to do.
+  },
+  {
     id: "roles",
     render: () => <Roles />,
     nav: {
@@ -330,11 +368,21 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // providers. If a storefront surfaces later (`p_store__orders` already exists as a table), this
     // and Orders likely move together into a Commerce group — that is a reshuffle worth doing once,
     // when there is something to group, rather than pre-creating a one-row section now.
-    render: () => <Placeholder sectionId="payments" />,
+    render: () => (
+      <PlaceholderTabs
+        sectionId="payments"
+        tabs={[
+          { id: "home", label: "Home" },
+          { id: "stripe", label: "Stripe" },
+          { id: "paypal", label: "PayPal" },
+        ]}
+      />
+    ),
     nav: {
       label: "Payments",
       group: "People",
       soon: true,
+      soonPreviewable: true,
       icon: '<rect x="2" y="4" width="14" height="10" rx="1.5"/><path d="M2 7.5h14"/><path d="M4.5 11h3"/>',
     },
   },
@@ -452,11 +500,21 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "deployment",
-    render: () => <Placeholder sectionId="deployment" />,
+    render: () => (
+      <PlaceholderTabs
+        sectionId="deployment"
+        tabs={[
+          { id: "home", label: "Home" },
+          { id: "github", label: "GitHub" },
+          { id: "aws", label: "AWS" },
+        ]}
+      />
+    ),
     nav: {
       label: "Deployment",
       group: "Operations",
       soon: true,
+      soonPreviewable: true,
       icon: '<path d="M9 2.5c2.6 1.8 4 4.4 4 7.2L9 13 5 9.7c0-2.8 1.4-5.4 4-7.2z"/><circle cx="9" cy="7.5" r="1.4"/><path d="M6.6 12.4L5 15.5l3-.9M11.4 12.4L13 15.5l-3-.9"/>',
     },
   },
