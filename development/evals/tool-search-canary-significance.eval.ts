@@ -23,6 +23,7 @@ import { buildAssistantToolRegistrations } from "../../src/assistant/tool-regist
 import type { RouteDeps } from "../../src/server/routes/types";
 import { DOC2QUERY } from "./tool-search-doc2query-blind-questions";
 import { HYDE_EXPANSIONS } from "./tool-search-hyde-blind-expansions";
+import { HYDE_PROMPT_EXPANSIONS } from "./tool-search-hyde-prompt-expansions";
 import Database from "better-sqlite3";
 import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
 
@@ -90,6 +91,19 @@ function top1Vector(hitFn: (c: EvalCase) => string | null): boolean[] {
   });
 }
 
+/**
+ * Same pairing, but on found@10 (recall@10) instead of top-1: did ANY acceptable id appear anywhere
+ * in the top 10? This is the dimension the original significance pass never tested, and it is the one
+ * that governs design: canary 3 established that a reranker can only reorder candidates BM25 already
+ * retrieved, so recall@10 — not top-1 — is the hard ceiling on the whole rerank strategy.
+ */
+function foundVector(rankFn: (c: EvalCase) => readonly string[]): boolean[] {
+  return HELD_OUT_CASES.map((c) => {
+    const acceptable = new Set<string>([c.expect, ...(c.alsoAcceptable ?? [])]);
+    return rankFn(c).some((id) => acceptable.has(id));
+  });
+}
+
 /** Normal-approx 95% CI half-width for a single proportion, n fixed at 20. */
 function ciHalfwidth(p: number, n: number): number {
   return 1.96 * Math.sqrt((p * (1 - p)) / n);
@@ -139,20 +153,30 @@ function run(): void {
   // HyDE on shipped index
   const hydeVec = top1Vector((c) => shipped.search(HYDE_EXPANSIONS[c.query] ?? c.query, 10)[0]?.id ?? null);
 
+  // HyDE via the PROMPT-CHANGE form (zero added LLM calls — the calling model writes the richer query
+  // itself, per the revised `search_tools` query description). Fails loudly rather than silently
+  // falling back to the raw query, since a silent fallback would score as "no change" and read as a
+  // null result instead of a missing-data bug.
+  for (const c of HELD_OUT_CASES) {
+    if (!(c.query in HYDE_PROMPT_EXPANSIONS)) throw new Error(`HYDE_PROMPT_EXPANSIONS missing case: "${c.query}"`);
+  }
+  const promptVec = top1Vector((c) => shipped.search(HYDE_PROMPT_EXPANSIONS[c.query]!, 10)[0]?.id ?? null);
+
   const n = HELD_OUT_CASES.length;
   const pBase = baselineVec.filter(Boolean).length / n;
   const pDoc2 = doc2Vec.filter(Boolean).length / n;
   const pHyde = hydeVec.filter(Boolean).length / n;
+  const pPrompt = promptVec.filter(Boolean).length / n;
 
   console.log(`\nSignificance read on the canaries, n=${n} held-out cases\n`);
   console.log(`  1. SINGLE-PROPORTION 95% CI (treats each canary as an independent sample):`);
-  for (const [label, p] of [["keywords baseline", pBase], ["doc2query (blind)", pDoc2], ["HyDE on shipped", pHyde]] as const) {
+  for (const [label, p] of [["keywords baseline", pBase], ["doc2query (blind)", pDoc2], ["HyDE on shipped", pHyde], ["HyDE via prompt", pPrompt]] as const) {
     const hw = ciHalfwidth(p, n) * 100;
     console.log(`     ${label.padEnd(20)} top-1 ${(p * 100).toFixed(0)}%   95% CI ±${hw.toFixed(1)}pp -> [${Math.max(0, p * 100 - hw).toFixed(0)}%, ${Math.min(100, p * 100 + hw).toFixed(0)}%]`);
   }
 
   console.log(`\n  2. PAIRED McNemar exact test vs. keywords baseline (same 20 cases, correct test for this design):`);
-  for (const [label, vec] of [["doc2query (blind)", doc2Vec], ["HyDE on shipped", hydeVec]] as const) {
+  for (const [label, vec] of [["doc2query (blind)", doc2Vec], ["HyDE on shipped", hydeVec], ["HyDE via prompt", promptVec]] as const) {
     let b = 0; // baseline hit, other miss
     let c = 0; // other hit, baseline miss
     let both = 0;
@@ -165,6 +189,31 @@ function run(): void {
     }
     const p = mcnemarExactP(b, c);
     console.log(`     ${label.padEnd(20)} both-hit=${both} baseline-only=${b} other-only=${c} both-miss=${neither}   exact p=${p.toFixed(4)}   ${p < 0.05 ? "SIGNIFICANT at .05" : "not significant at .05"}`);
+  }
+
+  // --- found@10 (recall@10): the dimension the first significance pass never tested ---
+  const baselineFound = foundVector((c) => shipped.search(c.query, 10).map((r) => r.id));
+  const doc2Found = foundVector((c) => searchToolCatalog(doc2Db, c.query, 10).map((r) => r.id));
+  const hydeFound = foundVector((c) => shipped.search(HYDE_EXPANSIONS[c.query] ?? c.query, 10).map((r) => r.id));
+  const promptFound = foundVector((c) => shipped.search(HYDE_PROMPT_EXPANSIONS[c.query]!, 10).map((r) => r.id));
+
+  console.log(`\n  3. PAIRED McNemar exact test on found@10 (recall@10) — the reranker's hard ceiling:`);
+  console.log(`     keywords baseline    found@10 ${baselineFound.filter(Boolean).length}/${n}`);
+  for (const [label, vec] of [["doc2query (blind)", doc2Found], ["HyDE on shipped", hydeFound], ["HyDE via prompt", promptFound]] as const) {
+    let b = 0;
+    let c = 0;
+    let both = 0;
+    let neither = 0;
+    for (let i = 0; i < n; i++) {
+      if (baselineFound[i] && !vec[i]) b++;
+      else if (!baselineFound[i] && vec[i]) c++;
+      else if (baselineFound[i] && vec[i]) both++;
+      else neither++;
+    }
+    const p = mcnemarExactP(b, c);
+    console.log(
+      `     ${label.padEnd(20)} found@10 ${vec.filter(Boolean).length}/${n}   both=${both} baseline-only=${b} other-only=${c} neither=${neither}   exact p=${p.toFixed(4)}   ${p < 0.05 ? "SIGNIFICANT at .05" : "not significant at .05"}`,
+    );
   }
 
   console.log(`\n  Reading: the single-proportion CIs are wide (±13-22pp) because they discard the pairing —`);

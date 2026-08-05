@@ -120,11 +120,15 @@ export const META_TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
   {
     id: "search_tools",
     description:
-      "Search this Tovu site's tool catalog by keyword. Returns ranked {id, description, source, score} candidates only — no input schemas, so this stays cheap to call broadly. Call describe_tool on the 1-3 candidates that look right before calling execute_delegated_tool.",
+      "Search this Tovu site's tool catalog. Returns ranked {id, description, source, score} candidates only — no input schemas, so this stays cheap to call broadly. Call describe_tool on the 1-3 candidates that look right before calling execute_delegated_tool.",
     inputSchema: {
       type: "object",
       properties: {
-        query: { type: "string", description: 'Keywords to search for, e.g. "publish post" or "list members". Required.' },
+        query: {
+          type: "string",
+          description:
+            "Describe what the tool you need DOES, the way its own documentation would describe it — a full phrase, not a keyword bag. Name the thing being acted on and the action, and include likely synonyms for both. Example: for an operator asking \"how many people visited last week\", write \"retrieve site traffic and visitor analytics counts for a date range\" rather than \"visitors last week\". Descriptive phrasing retrieves substantially better here than terse keywords, because the catalog is matched on tool descriptions. Required.",
+        },
         limit: {
           type: "integer",
           minimum: 1,
