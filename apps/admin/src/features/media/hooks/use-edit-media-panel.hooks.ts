@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { api, type AdminMedia } from "../../../lib/api";
-import { describeApiError, diffMediaMetadata, type MediaMetadataPatch } from "../rules";
+import { describeApiError, diffMediaMetadata, parseOptionalPixelSize, type MediaMetadataPatch } from "../rules";
 
 /**
  * @file Everything `EditMediaPanel` does, so the component in `Media.tsx` is only markup.
@@ -27,6 +27,11 @@ export interface EditMediaPanelController {
   setAlt: (value: string) => void;
   setCaption: (value: string) => void;
   setCredit: (value: string) => void;
+  /** `value` is the raw `<input type="number">` string; blank parses to `null` (native size) via
+   *  `parseOptionalPixelSize` — see that helper's own doc. */
+  setWidth: (value: string) => void;
+  setHeight: (value: string) => void;
+  setCssClass: (value: string) => void;
   saving: boolean;
   error: string | null;
   /** Feedback for the sha256 copy affordance below — resets on its own so a stale "Copied" label
@@ -51,6 +56,9 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps): EditMediaPane
     alt: item.alt,
     caption: item.caption,
     credit: item.credit,
+    width: item.width,
+    height: item.height,
+    cssClass: item.cssClass,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +88,15 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps): EditMediaPane
   }
   function setCredit(value: string) {
     setDraft((d) => ({ ...d, credit: value }));
+  }
+  function setWidth(value: string) {
+    setDraft((d) => ({ ...d, width: parseOptionalPixelSize(value) }));
+  }
+  function setHeight(value: string) {
+    setDraft((d) => ({ ...d, height: parseOptionalPixelSize(value) }));
+  }
+  function setCssClass(value: string) {
+    setDraft((d) => ({ ...d, cssClass: value.trim() === "" ? null : value }));
   }
 
   async function copyHash() {
@@ -123,5 +140,22 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps): EditMediaPane
     }
   }
 
-  return { draft, setTitle, setAlt, setCaption, setCredit, saving, error, hashCopied, urlCopied, originalUrl, copyHash, copyUrl, save };
+  return {
+    draft,
+    setTitle,
+    setAlt,
+    setCaption,
+    setCredit,
+    setWidth,
+    setHeight,
+    setCssClass,
+    saving,
+    error,
+    hashCopied,
+    urlCopied,
+    originalUrl,
+    copyHash,
+    copyUrl,
+    save,
+  };
 }

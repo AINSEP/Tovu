@@ -15,8 +15,19 @@ export function describeApiError(e: unknown, fallback: string): string {
 }
 
 /** Editable metadata fields `api.updateMedia` accepts — kept as its own type so the diffing
- * helper below stays exhaustive if the patch shape ever grows. */
-export type MediaMetadataPatch = { title?: string; alt?: string; caption?: string; credit?: string };
+ * helper below stays exhaustive if the patch shape ever grows.
+ *
+ * `width`/`height`/`cssClass` (owner-directed quick-and-dirty sizing fix): `null` means "not set" —
+ * both size fields are optional, blank-means-render-at-native-size, never defaulted/computed. */
+export type MediaMetadataPatch = {
+  title?: string;
+  alt?: string;
+  caption?: string;
+  credit?: string;
+  width?: number | null;
+  height?: number | null;
+  cssClass?: string | null;
+};
 
 /** Builds a partial patch containing only the fields whose draft value differs from `item`'s
  * current value — the backend's own contract is optional-field/partial-patch, so this never
@@ -31,7 +42,19 @@ export function diffMediaMetadata(required: {
   if (draft.alt !== item.alt) patch.alt = draft.alt;
   if (draft.caption !== item.caption) patch.caption = draft.caption;
   if (draft.credit !== item.credit) patch.credit = draft.credit;
+  if (draft.width !== item.width) patch.width = draft.width;
+  if (draft.height !== item.height) patch.height = draft.height;
+  if (draft.cssClass !== item.cssClass) patch.cssClass = draft.cssClass;
   return patch;
+}
+
+/** Parses a `<input type="number">`'s string value into the `number | null` shape
+ *  `MediaMetadataPatch.width`/`height` need: blank -> `null` (native size), otherwise `Number(...)`.
+ *  Not guarded against `NaN` here — the input's own `type="number"` keeps free-text out in
+ *  practice, and a stray `NaN` would fail `updateMediaMetadata`'s positive-integer check server-side
+ *  rather than silently save, matching this fix's "quick and dirty, not silently wrong" bar. */
+export function parseOptionalPixelSize(value: string): number | null {
+  return value.trim() === "" ? null : Number(value);
 }
 
 /** Reads a browser `File` into a base64 string (no data: URL prefix). */

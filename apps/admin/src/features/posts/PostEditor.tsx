@@ -2,8 +2,7 @@ import { EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 
-import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
-import { MediaImageInsertControl } from "../../lib/media-image-extension";
+import { EmbedInsertControl } from "../../lib/embed-insert-control";
 import { siteUrl } from "../../lib/site-url";
 import { usePostEditor } from "./hooks/use-post-editor.hooks";
 
@@ -69,15 +68,15 @@ function Toolbar({ editor }: { editor: Editor }) {
         <button className="tb-btn" title="Redo (⌘⇧Z)" disabled={!s.canRedo} onClick={() => chain().redo().run()}>↻</button>
       </div>
       <div className="grp">
-        {/* Media-library insertion (ADR-027 §4) is the primary path — reuses the same asset table
-            `features/media/` manages and produces a `{assetId, transformName}` ref that actually
-            resolves on the public site (`media-image-extension.tsx`'s file header has the full
-            "why" chain). The old "Insert image by URL" prompt is KEPT, not replaced: it is still
-            the only way to embed an arbitrary external image (a source outside this workspace's own
-            Media library), and removing it would be a net capability loss for that case — a node it
-            produces still degrades to the safe placeholder on the public site exactly as before
-            this task (`render.ts`'s own backward-compat guarantee), so keeping it costs nothing. */}
-        <MediaImageInsertControl editor={editor} />
+        {/* Single "Embed" control (quick-and-dirty pass, 2026-08-05 — owner explicitly skipped
+            formal spec/ADR process for this one) replacing the previously-separate "Media" and
+            "Insert widget" buttons: Form and Menu are just the `contact-form`/`menu` widget TYPES
+            (`WidgetConfigFields.tsx`), not separate mechanisms, so they used to be buried behind
+            "Insert widget"'s type dropdown. `EmbedInsertControl` (`lib/embed-insert-control.tsx`)
+            surfaces Media/Form/Menu as one-click shortcuts plus a "Widget…" choice for the rest,
+            composing the same `MediaPickerDialog`/`WidgetPickerDialog`/`WidgetAddControl` pieces
+            `CollectionEntryEditor.tsx`/`WidgetRegionEditor.tsx` still use directly and unchanged. */}
+        <EmbedInsertControl editor={editor} />
         <button
           className="tb-btn"
           title="Insert image by URL"
@@ -90,18 +89,6 @@ function Toolbar({ editor }: { editor: Editor }) {
         >
           Img by URL
         </button>
-      </div>
-      {/* The "Insert widget" trigger + its widget-type `<select>` (`WidgetAddControl`, shared with
-          `CollectionEntryEditor.tsx`/`WidgetRegionEditor.tsx` via `WidgetEmbedInsertControl`) had
-          no CSS of its own anywhere in the app, so the two sat flush together with zero gap (user
-          report: "put space between insert widget and the dropdown next to it"). First fixed here
-          as a scoped `.editor-toolbar .widget-add-control` rule in `styles/editor.css` (this pass
-          hadn't verified the other two callers' layouts); once all three were confirmed to want
-          the identical fix, that rule was promoted to a plain global `.widget-add-control` rule in
-          `styles.css` and the scoped one dropped — this comment only documents where the actual
-          rule lives now. */}
-      <div className="grp">
-        <WidgetEmbedInsertControl editor={editor} />
       </div>
     </div>
   );

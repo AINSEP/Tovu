@@ -214,8 +214,24 @@ interface EditMediaPanelProps {
  *  its siblings' cells. */
 function EditMediaPanel(props: EditMediaPanelProps) {
   const { item, onSaved, onCancel, useEditMediaPanelHook = useEditMediaPanel } = props;
-  const { draft, setTitle, setAlt, setCaption, setCredit, saving, error, hashCopied, urlCopied, originalUrl, copyHash, copyUrl, save } =
-    useEditMediaPanelHook({ item, onSaved, onCancel });
+  const {
+    draft,
+    setTitle,
+    setAlt,
+    setCaption,
+    setCredit,
+    setWidth,
+    setHeight,
+    setCssClass,
+    saving,
+    error,
+    hashCopied,
+    urlCopied,
+    originalUrl,
+    copyHash,
+    copyUrl,
+    save,
+  } = useEditMediaPanelHook({ item, onSaved, onCancel });
 
   return (
     <div className="card media-edit-panel">
@@ -269,6 +285,50 @@ function EditMediaPanel(props: EditMediaPanelProps) {
               onChange={(e) => setCredit(e.target.value)}
             />
           </div>
+        </div>
+        {/* Quick-and-dirty public-render sizing fields (owner-directed skip-the-ADR fix — images
+            inserted into post bodies were rendering at full native pixel width with no way to
+            control size). Both optional, pixel-size numeric inputs: leaving either (or both) blank
+            means "render at native/as-is size" — the public renderer omits the attribute entirely
+            rather than defaulting to a computed value. Own row directly under Caption/Credit, per
+            owner's explicit placement instruction. */}
+        <div className="field-row">
+          <div className="field">
+            <label className="field-label" htmlFor={`media-edit-width-${item.id}`}>
+              Width (px)
+            </label>
+            <input
+              id={`media-edit-width-${item.id}`}
+              type="number"
+              min={1}
+              placeholder="native"
+              value={draft.width ?? ""}
+              onChange={(e) => setWidth(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor={`media-edit-height-${item.id}`}>
+              Height (px)
+            </label>
+            <input
+              id={`media-edit-height-${item.id}`}
+              type="number"
+              min={1}
+              placeholder="native"
+              value={draft.height ?? ""}
+              onChange={(e) => setHeight(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor={`media-edit-css-class-${item.id}`}>
+            CSS class (optional)
+          </label>
+          <input
+            id={`media-edit-css-class-${item.id}`}
+            value={draft.cssClass ?? ""}
+            onChange={(e) => setCssClass(e.target.value)}
+          />
         </div>
         {/* User report: "where is the location of the asset? I dont see the location data" — there
             was no answer to that anywhere in this panel. Same read-only+Copy shape as the sha256
