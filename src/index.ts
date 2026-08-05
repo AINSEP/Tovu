@@ -205,9 +205,31 @@ function spawnAgentDaemon(workspaceId: string): void {
   // `development/playwright.admin.config.ts`, which makes Playwright send a real SIGTERM first —
   // that reaches this process normally (it isn't itself in a detached group), letting `reap()`
   // run and group-kill the daemon exactly as it does for every other termination path below.
+  //
+  // Defense in depth, 2026-08-05: `stdio` is deliberately NOT `"inherit"` here (it was, until this
+  // change). `"inherit"` means the daemon subtree shares this process's actual stdout/stderr file
+  // descriptors — under Playwright those ARE the pipe `launchProcess()` reads to detect readiness
+  // and to know when the webServer child has fully closed. If this process ever dies WITHOUT
+  // `reap()` having run first (confirmed reproducible: an external SIGTERM straight to
+  // Playwright's own top-level CLI process — not its webServer child — bypasses Playwright's
+  // `teardown()` entirely, so `gracefulShutdown` above never even gets a chance to apply), the
+  // orphaned daemon would keep holding that pipe's write end open indefinitely. Any FUTURE,
+  // unrelated process waiting on that same pipe to close would then hang too — not just this run.
+  // Piping explicitly and relaying ourselves means the daemon's own fd is never shared outside
+  // this process, so an orphaned daemon can no longer wedge anyone else's teardown, no matter what
+  // killed us or how. This does NOT stop the daemon from becoming an orphan in the first place —
+  // that still requires whatever killed this process to have gone through `reap()` — so the
+  // EADDRINUSE-on-next-boot leak from that same external-kill scenario is a real, separate,
+  // still-open gap (see the analysis doc for the write-up); this only stops that leak from also
+  // being able to hang an unrelated process's teardown the way the original bug did.
   const child = isCompiled
-    ? spawn(process.execPath, [daemonPath], { stdio: "inherit", env, detached: true })
-    : spawn("npx", ["tsx", daemonPath], { stdio: "inherit", env, detached: true });
+    ? spawn(process.execPath, [daemonPath], { stdio: ["ignore", "pipe", "pipe"], env, detached: true })
+    : spawn("npx", ["tsx", daemonPath], { stdio: ["ignore", "pipe", "pipe"], env, detached: true });
+  // Relay the daemon's own output through this process instead of inheriting its fds (see above) —
+  // preserves the existing `[agent-daemon] ...` log visibility during dev/test without sharing
+  // the pipe itself.
+  child.stdout?.pipe(process.stdout);
+  child.stderr?.pipe(process.stderr);
   // Captured once, right after spawn: `child.pid` is `number | undefined` only in the narrow
   // window where `spawn()` itself failed to allocate a process (surfaced via the `"error"`
   // handler below) — TS18048 was a real defect (not cosmetic), since `-child.pid` below would
