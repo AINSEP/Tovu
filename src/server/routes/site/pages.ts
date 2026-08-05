@@ -12,6 +12,8 @@ import {
   type ResolvePageWidgetsResult,
 } from "#src/widgets/resolver-service";
 import { runPostContentPhase, runPreContentPhase, urlFor } from "#src/routing/index";
+import { getLatestTransformDefinition } from "#src/media/index";
+import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/media/bootstrap";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head";
 import { renderSite } from "../../http/site/render";
 import type { RouteDeps, RouteRegistrar } from "../types";
@@ -133,6 +135,36 @@ async function resolveHtmlEmbedsForRender(deps: RouteDeps, post: PostRecord | un
 }
 
 /**
+ * ADR-027 §4 — resolves the latest registered version of the one core transform NAME a
+ * ref-based `{assetId, transformName}` image node can use today
+ * (`CORE_PUBLIC_TRANSFORM_NAME`, `media/bootstrap.ts`), ahead of `renderSite`. Mirrors
+ * `resolveWidgetsForRender`'s "route resolves, `render.ts` stays I/O-free" split — this is the
+ * ONE call site for media resolution, same shape as that function's own doc.
+ *
+ * Deliberately does NOT scan `post.bodyJson` for every distinct `transformName` an author's doc
+ * might reference (the way `resolveHtmlPageEmbeds` scans a Page's `body_html` for embed ids):
+ * `registerTransform` has exactly one caller anywhere in this codebase
+ * (`ensureCoreMediaTransform`, `server/deps.ts`'s boot chain), which only ever registers
+ * `CORE_PUBLIC_TRANSFORM_NAME` — there is no OTHER registered name a real ref could resolve
+ * against yet, so a single-name lookup is behavior-identical to a full scan at today's real
+ * scale. A second core-declared transform (`thumb`, `hero`, ...) would need this widened to a
+ * real scan, same as the widget/html-embed resolvers already do for their own multi-id case —
+ * disclosed here rather than silently assumed permanent.
+ *
+ * Returns an empty map (not a thrown error) when the transform is not yet registered (a
+ * mid-boot race, or a workspace this hasn't run for) — `renderDocNode`'s `image` case already
+ * treats a missing map entry as "not resolvable" and degrades to the placeholder, so this
+ * function never needs its own try/catch beyond the route handler's existing one.
+ */
+async function resolveMediaTransformVersionsForRender(deps: RouteDeps): Promise<ReadonlyMap<string, number>> {
+  const definition = await getLatestTransformDefinition({
+    deps: { transformRepo: deps.transformDefinitionRepo },
+    input: { workspaceId: deps.workspaceId, name: CORE_PUBLIC_TRANSFORM_NAME },
+  });
+  return definition ? new Map([[CORE_PUBLIC_TRANSFORM_NAME, definition.version]]) : new Map();
+}
+
+/**
  * Public site: server-rendered home and post pages through the active
  * declarative theme. Registered LAST — GET /:slug is a catch-all for
  * single-segment paths.
@@ -157,12 +189,13 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         return;
       }
 
-      const [widgets, extraHead] = await Promise.all([
+      const [widgets, mediaTransformVersions, extraHead] = await Promise.all([
         resolveWidgetsForRender(deps, theme),
+        resolveMediaTransformVersionsForRender(deps),
         buildExtraHead(deps, "home", SITE_TITLE, undefined),
       ]);
       res.type("html").send(
-        await renderSite({ theme, route: "home", siteTitle: SITE_TITLE, posts, widgets, extraHead, siteAssistantEnabled }),
+        await renderSite({ theme, route: "home", siteTitle: SITE_TITLE, posts, widgets, mediaTransformVersions, extraHead, siteAssistantEnabled }),
       );
     } catch {
       res.status(500).type("html").send("<h1>Site error</h1>");
@@ -193,13 +226,14 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         return;
       }
 
-      const [widgets, pageHtmlEmbeds, extraHead] = await Promise.all([
+      const [widgets, pageHtmlEmbeds, mediaTransformVersions, extraHead] = await Promise.all([
         resolveWidgetsForRender(deps, theme),
         resolveHtmlEmbedsForRender(deps, post),
+        resolveMediaTransformVersionsForRender(deps),
         buildExtraHead(deps, "post", SITE_TITLE, post),
       ]);
       res.type("html").send(
-        await renderSite({ theme, route: "post", siteTitle: SITE_TITLE, posts, post, widgets, pageHtmlEmbeds, extraHead, siteAssistantEnabled }),
+        await renderSite({ theme, route: "post", siteTitle: SITE_TITLE, posts, post, widgets, pageHtmlEmbeds, mediaTransformVersions, extraHead, siteAssistantEnabled }),
       );
     } catch (err) {
       if (err instanceof PostNotFoundError) {
