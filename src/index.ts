@@ -8,9 +8,10 @@ import { runProductionReadinessGate } from "./server/production-readiness-gate";
 import { resolveRuntimeMode } from "./server/runtime-mode";
 import { runBootLifecycle } from "./server/boot-lifecycle";
 import { buildBootModules } from "./server/bootstrap";
-import { setReadinessSnapshot } from "./server/readiness-state";
+import { clearAssistantDaemonFailure, recordAssistantDaemonFailure, setReadinessSnapshot } from "./server/readiness-state";
 import { registerPluginSdkResolver } from "./server/boot/plugin-sdk-resolver";
 import { ensureAgentDaemonToken } from "./assistant/daemon-auth";
+import { AGENT_DAEMON_EXIT_CODE } from "./assistant/daemon-exit-codes";
 
 /**
  * @file Process entrypoint.
@@ -344,6 +345,13 @@ async function main(): Promise<void> {
  * already lists every other inherited variable.
  */
 function spawnAgentDaemon(workspaceId: string): void {
+  // There is no retry path today (this function is called exactly once per process boot), so this
+  // is a no-op on a fresh boot — nothing has latched a failure yet. It exists for a FUTURE retry:
+  // each new spawn attempt must start from a clean slate, or a later successful attempt would stay
+  // stuck behind a stale 503 an earlier, unrelated attempt latched. See `clearAssistantDaemonFailure`'s
+  // own doc.
+  clearAssistantDaemonFailure();
+
   const isCompiled = __filename.endsWith(".js");
   const daemonPath = path.join(__dirname, "assistant", isCompiled ? "agent-daemon-server.js" : "agent-daemon-server.ts");
   // `TOVU_PARENT_PID` backs `agent-daemon-server.ts`'s own watchdog (see that file's
@@ -406,18 +414,45 @@ function spawnAgentDaemon(workspaceId: string): void {
   // is no process to reap.
   const pid = child.pid;
 
+  // Set ONLY by `reap()`, at the point it actually issues a kill — never inferred from the exit
+  // code itself. The degraded-boot defect this whole block exists to close was previously reading
+  // intent FROM the code (`code !== 0 && code !== null`), which silently treated a spontaneous
+  // clean exit (code 0, e.g. the daemon crashing during `start()`'s own async setup and resolving
+  // its process normally on the way down) as if it were fine. A clean code does not mean we asked
+  // for it — only this flag does. Left `false` (never flipped) when `reap()`'s own early-return
+  // fires because the child had ALREADY exited before we tried to shut it down — that path must
+  // still count as a failure, not a deliberate shutdown.
+  let shuttingDownDeliberately = false;
+
+  // Matches what `agent-daemon-server.ts` itself resolves the port from (`JINI_AGENT_DAEMON_PORT ??
+  // 4319`) — read again here, independently, so the parent's own failure message can name the exact
+  // port without needing the child to have survived long enough to report it back.
+  const daemonPort = process.env.JINI_AGENT_DAEMON_PORT ?? "4319";
+
   child.on("error", (error) => {
-    console.error("[index] failed to start the agent daemon — the assistant will be unavailable", error);
+    const message = error instanceof Error ? error.message : String(error);
+    const reasonCode = `failed to start the agent daemon — the assistant will be unavailable: ${message}`;
+    console.error(`[index] ${reasonCode}`);
+    recordAssistantDaemonFailure(reasonCode);
   });
   child.on("exit", (code, signal) => {
-    if (code !== 0 && code !== null) {
-      console.error(`[index] agent daemon exited unexpectedly (code ${code}, signal ${signal ?? "none"})`);
-    }
+    if (shuttingDownDeliberately) return;
+    // `AGENT_DAEMON_EXIT_CODE.PORT_IN_USE` is `agent-daemon-server.ts`'s own `server.on("error")`
+    // handler reporting EADDRINUSE specifically (`daemon-exit-codes.ts`) — naming the real reason
+    // here instead of the generic message below is the fix for the degraded-boot defect: a leaked
+    // port used to read as unexplained "exited unexpectedly (code 1)" flake.
+    const reasonCode =
+      code === AGENT_DAEMON_EXIT_CODE.PORT_IN_USE
+        ? `agent daemon could not bind 127.0.0.1:${daemonPort} — address already in use`
+        : `agent daemon exited unexpectedly (code ${code}, signal ${signal ?? "none"})`;
+    console.error(`[index] ${reasonCode}`);
+    recordAssistantDaemonFailure(reasonCode);
   });
 
   /** Kill the daemon's whole process group, falling back to the direct child if the group is gone. */
   const reap = () => {
     if (pid === undefined || child.exitCode !== null || child.signalCode !== null) return;
+    shuttingDownDeliberately = true;
     try {
       process.kill(-pid, "SIGTERM");
     } catch {
