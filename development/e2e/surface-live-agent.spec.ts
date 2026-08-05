@@ -58,18 +58,49 @@ async function waitForDaemonReady(request: APIRequestContext): Promise<void> {
   }
 }
 
-interface AgentSseEvent {
-  type: string;
-  toolUseId?: string;
-  resource?: { resource?: { text?: string } };
-  content?: unknown;
-  isError?: boolean;
+/**
+ * Mirrors the wire envelope `@jini-ai/protocol`'s `RunEvent<Name, Payload>` actually sends
+ * (`packages/protocol/src/events.ts` in Jini) — **not** a flat `{type, ...}` shape. `kind` is the
+ * envelope's own discriminant (`'start'|'agent'|'stdout'|'stderr'|'error'|'end'`); `payload` is only
+ * the `RunAgentPayload` union — discriminated by `payload.type`, e.g. `'mcp-ui'`/`'tool_result'` —
+ * when `kind === 'agent'`. For `kind === 'end'`, `payload.status` is `'succeeded'|'failed'|'canceled'`;
+ * there is no `'run_completed'`/`'run_failed'`/`'run_cancelled'` anywhere in the real protocol.
+ * `packages/http-kit/src/sse.ts`'s `defaultFormatEvent` writes this whole envelope via
+ * `JSON.stringify(event)` unflattened, and Tovu's own `assistant-transport.ts` (the production
+ * consumer of this exact route) confirms the same shape in its own module doc.
+ *
+ * Ideally this would import `RunProtocolEvent`/`RunAgentPayload` directly from `@jini-ai/protocol` so
+ * a future protocol change breaks this test at compile time instead of silently at runtime — that is
+ * the whole class of bug this rewrite fixes. Not done here because `@jini-ai/protocol` is not
+ * currently a resolvable dependency from Tovu's root `package.json`/`node_modules` (unlike
+ * `@jini-ai/chat`/`@jini-ai/daemon`/`@jini-ai/http-kit`, which are already wired) — adding it would
+ * mean editing root `package.json` + `package-lock.json` + installing a new symlink, outside this
+ * fix's one-file scope. Flagged as a follow-up: wire `@jini-ai/protocol` as a Tovu devDependency and
+ * replace this hand-mirrored shape with the real imported type.
+ */
+interface RunWireEvent {
+  kind: string;
+  payload?: {
+    type?: string;
+    toolUseId?: string;
+    resource?: { resource?: { text?: string } };
+    content?: unknown;
+    isError?: boolean;
+    status?: string;
+  };
+}
+
+/** Diagnostic label for one `RunWireEvent` — `agent:<payload.type>` when the envelope's own `kind` is
+ * `'agent'` (the interesting sub-discriminant lives in the payload there), otherwise just `kind`. Used
+ * only for `seenTypes` failure messages, never for control flow. */
+function describeEvent(event: RunWireEvent): string {
+  return event.kind === "agent" ? `agent:${event.payload?.type ?? "?"}` : event.kind;
 }
 
 /** Minimal SSE line parser for `GET /api/runs/:runId/events` — a native `EventSource`-compatible
  * stream (`assistant-transport.ts`'s own module doc). Node's `fetch` gives a readable byte stream;
  * this decodes it and yields parsed `data:` payloads as they arrive. */
-async function* streamRunEvents(request: APIRequestContext, baseURL: string, runId: string, cookieHeader: string): AsyncGenerator<AgentSseEvent> {
+async function* streamRunEvents(request: APIRequestContext, baseURL: string, runId: string, cookieHeader: string): AsyncGenerator<RunWireEvent> {
   const response = await fetch(`${baseURL}/api/runs/${runId}/events`, {
     headers: { accept: "text/event-stream", cookie: cookieHeader },
   });
@@ -92,7 +123,7 @@ async function* streamRunEvents(request: APIRequestContext, baseURL: string, run
           .map((line) => line.slice(5).trim());
         if (dataLines.length === 0) continue;
         try {
-          yield JSON.parse(dataLines.join("\n")) as AgentSseEvent;
+          yield JSON.parse(dataLines.join("\n")) as RunWireEvent;
         } catch {
           // Non-JSON control frames (e.g. a bare keep-alive comment) are not this stream's data
           // events — skip rather than fail the whole read on one unparseable frame.
@@ -146,7 +177,11 @@ test("LIVE AGENT: content_post_delete's real positive path — escaping, the nev
   const runRes = await request.post(RUNS_PATH, {
     data: { contextRef: JSON.stringify({ prompt }), agentId: "claude" },
   });
-  expect(runRes.status(), `run start should succeed: ${await runRes.text().catch(() => "")}`).toBe(200);
+  // `POST /api/runs` creates a run resource — `@jini-ai/http-kit`'s `registerRunRoutes` responds
+  // `successStatus: 201` (`runs.ts:172`), forwarded verbatim by Tovu's `proxyPassthrough`
+  // (`res.status(upstream.status)`, `assistant.ts:77`). `200` was never the real status; a real run
+  // against this assertion is proof, not inference.
+  expect(runRes.status(), `run start should succeed: ${await runRes.text().catch(() => "")}`).toBe(201);
   const runBody = await runRes.json();
   const runId: string = runBody.run.id;
 
@@ -157,17 +192,19 @@ test("LIVE AGENT: content_post_delete's real positive path — escaping, the nev
   const seenTypes: string[] = [];
 
   for await (const event of streamRunEvents(request, baseURL!, runId, cookieHeader)) {
-    seenTypes.push(event.type);
-    if (event.type === "mcp-ui" && event.resource?.resource?.text) {
-      resourceText = event.resource.resource.text;
-      toolUseId = event.toolUseId;
+    seenTypes.push(describeEvent(event));
+    if (event.kind === "agent" && event.payload?.type === "mcp-ui" && event.payload.resource?.resource?.text) {
+      resourceText = event.payload.resource.resource.text;
+      toolUseId = event.payload.toolUseId;
       const match = resourceText.match(new RegExp(`"${SURFACE_EXCHANGE_ID_PARAM}":"([^"]+)"`));
       exchangeId = match?.[1];
       break;
     }
-    // Stop waiting once the run has clearly finished without ever raising a surface — the agent
-    // may have called a different tool, refused, or errored; no point streaming past `run_completed`.
-    if (event.type === "run_completed" || event.type === "run_failed" || event.type === "run_cancelled") break;
+    // Stop waiting once the run has clearly finished without ever raising a surface — the agent may
+    // have called a different tool, refused, or errored; no point streaming past a terminal event.
+    // `kind === "end"` covers succeeded/failed/canceled (`payload.status`); `kind === "error"` is a
+    // separate top-level transport/protocol error, not folded into `end`.
+    if (event.kind === "end" || event.kind === "error") break;
   }
 
   expect(resourceText, `expected an mcp-ui surface; events seen: ${seenTypes.join(", ")}`).toBeTruthy();
@@ -201,12 +238,12 @@ test("LIVE AGENT: content_post_delete's real positive path — escaping, the nev
   // ---- Keep streaming for the tool's actual result — this is the model-visible content. ----
   let toolResultContent: unknown;
   for await (const event of streamRunEvents(request, baseURL!, runId, cookieHeader)) {
-    seenTypes.push(event.type);
-    if (event.type === "tool_result" && (toolUseId === undefined || event.toolUseId === toolUseId)) {
-      toolResultContent = event.content;
+    seenTypes.push(describeEvent(event));
+    if (event.kind === "agent" && event.payload?.type === "tool_result" && (toolUseId === undefined || event.payload.toolUseId === toolUseId)) {
+      toolResultContent = event.payload.content;
       break;
     }
-    if (event.type === "run_completed" || event.type === "run_failed" || event.type === "run_cancelled") break;
+    if (event.kind === "end" || event.kind === "error") break;
   }
 
   expect(toolResultContent, `expected a tool_result event; events seen: ${seenTypes.join(", ")}`).toBeTruthy();
