@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+import { readByokModelOptions, setByokModel } from "./byok-model-field";
+
 /**
  * @file BYOK stale-state / cross-provider race battery (2026-08-04 dispatch, Item 5).
  *
@@ -53,6 +55,27 @@ async function gotoByok(page: Page): Promise<void> {
   // this click the BYOK tab below is not mounted yet and the spec times out.
   await page.getByTestId("settings-dialog-nav-execution").click();
   await page.getByRole("tab", { name: "BYOK" }).click();
+  // Normalize the active preset. Every test in this file assumes it starts on Anthropic (the
+  // first entry in `DEFAULT_PROVIDER_PRESETS`), which was true only for as long as no test in
+  // the file ever completed a provider switch: `config.byok.providerId` is a real ledger field,
+  // the harness runs all four tests against ONE in-memory API process, and a switch performed by
+  // an earlier test persists into every later one.
+  //
+  // Measured 2026-08-05, and the reason this helper exists: tests 3 and 4 pass in isolation
+  // (`--grep`) and fail in a whole-file run. Landing on OpenAI makes `getByRole("tab", { name:
+  // "OpenAI" }).click()` a silent no-op — `ProviderChipGroup`'s `onSelect` only fires `if
+  // (!active)` — so no discovery re-fires (test 3 saw `switchCall === 0`) and the key field is
+  // never re-seeded (test 4 saw the typed key still present). Both read as product failures and
+  // are neither.
+  //
+  // This became reachable only now: before the Model-field migration, tests 1 and 2 died at the
+  // Model field BEFORE their provider switch, so they never wrote a different provider to the
+  // ledger. Fixing them is what exposed the shared-state coupling underneath.
+  //
+  // Clicking an already-active chip is itself a no-op, so this costs nothing on the runs that
+  // were already correct.
+  await page.getByRole("tab", { name: "Anthropic", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "Anthropic", exact: true })).toHaveAttribute("aria-selected", "true");
 }
 
 function jsonRoute(body: unknown) {
@@ -84,7 +107,7 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
 
     await gotoByok(page);
     await page.locator('.jini-byok-card .jini-field-input-row input').fill("sk-ant-test-FAKE-KEY-NOT-REAL");
-    await page.locator('input[list="jini-byok-model-options"]').fill("claude-sonnet-4-5");
+    await setByokModel(page, "claude-sonnet-4-5");
     await page.locator('button:has-text("Test connection")').click();
     await expect(page.locator(".jini-byok-test-status.is-error")).toHaveText("stubbed ANTHROPIC auth failure");
 
@@ -128,7 +151,7 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
 
     await gotoByok(page);
     await page.locator('.jini-byok-card .jini-field-input-row input').fill("sk-ant-test-FAKE-KEY-NOT-REAL");
-    await page.locator('input[list="jini-byok-model-options"]').fill("claude-sonnet-4-5");
+    await setByokModel(page, "claude-sonnet-4-5");
     await page.locator('button:has-text("Test connection")').click();
     // Call #1 is now blocked on `firstResponseGate` — the button should read "Testing…".
     await expect(page.locator('button:has-text("Testing…")')).toBeVisible();
@@ -158,11 +181,14 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
     await login(page);
     await page.route("**/assistant/execution/test-connection", (route) => route.fulfill(jsonRoute({ ok: true, message: "ok" })));
 
-    const readOptions = () =>
-      page.evaluate(() => {
-        const dl = document.getElementById("jini-byok-model-options");
-        return dl ? Array.from(dl.querySelectorAll("option")).map((o) => o.getAttribute("value")) : null;
-      });
+    // Reads whichever control the Model field is currently rendering. It used to read the
+    // `<datalist>` directly, which post-`3b5d648d` returns `null` on EVERY successful discovery —
+    // and this test only ever stubs successful discoveries, so it was polling a permanently-null
+    // value and timing out on the predicate rather than on the property under test.
+    // `readByokModelOptions` throws (loudly, naming what it found) rather than returning an empty
+    // list when there is no option source at all, so a future third shape cannot make this poll
+    // quietly succeed against nothing.
+    const readOptions = () => readByokModelOptions(page);
 
     // Mount-time discovery (whatever provider is default on load) uses a plain, always-fast stub.
     // React 18 `StrictMode` (`apps/admin/src/main.tsx`) deliberately double-invokes an effect on
@@ -209,26 +235,69 @@ test.describe("byok state races (REQ: async state must be scoped to the provider
     expect(await readOptions()).toEqual(["fresh-google-model"]);
   });
 
-  test("HELD: a fast provider switch, before the 600ms settings-save debounce fires, still snapshots the typed key into the OUTGOING provider's saved draft", async ({
+  test("HELD: a fast provider switch, before the 600ms settings-save debounce fires, never leaks the typed key into localStorage", async ({
     page,
   }) => {
+    // INVERTED 2026-08-05, not "fixed to pass". This test used to read
+    // `savedByProviderId.anthropic.apiKey` back out of `localStorage`. Post-ADR-058 that path no
+    // longer exists in either direction: `saveExecutionConfig` "deliberately does NOT touch
+    // `next.byok.apiKey` at all" (its own doc, `apps/admin/src/lib/execution-settings.ts`), and
+    // `loadExecutionConfig` never populates `savedByProviderId` ("scoped out of v1"). So the old
+    // assertion was pinned to a premise that had been deleted — it could only ever fail, and
+    // making it pass would have meant asserting the key was persisted, which is the exact defect
+    // ADR-058 removed. Same treatment, and same rationale, as `byok-credential-persistence`'s
+    // security pin (see that file's test 3, which was inverted first).
+    //
+    // What survives the inversion is the property this test is actually named for.
+    // `nextConfigForPresetSelect` (`@jini-ai/ui`'s `features/execution/rules.ts`) still snapshots
+    // the outgoing provider's `apiKey/baseUrl/model/maxTokens` into `savedByProviderId` on every
+    // preset switch, and still restores them on the way back — that mechanism lives entirely in
+    // `ExecutionTab`'s in-memory config and was never what ADR-058 changed. So the honest form of
+    // this test is: the snapshot still happens (observed by switching back), and it happens
+    // WITHOUT the key ever reaching localStorage.
     test.slow();
     await login(page);
     await page.route("**/assistant/execution/models", (route) => route.fulfill(jsonRoute({ ok: true, models: ["stub-model"] })));
     await page.route("**/assistant/execution/test-connection", (route) => route.fulfill(jsonRoute({ ok: true, message: "ok" })));
 
+    const apiKeyField = page.locator(".jini-byok-card .jini-field-input-row input");
+
     await gotoByok(page);
-    await page.locator('.jini-byok-card .jini-field-input-row input').fill("sk-ant-SAVE-RACE-TEST");
+    await apiKeyField.fill("sk-ant-SAVE-RACE-TEST");
     // Switch immediately — well inside the 600ms `SAVE_DEBOUNCE_MS` window
     // (`use-settings-slice.hooks.ts`), before any save has fired for the typed key.
     await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
+    // OpenAI has never been configured here, so its own blank draft loads.
+    await expect(apiKeyField).toHaveValue("");
 
     // Wait past the debounce so the queued save (which reads `latest.current` at RUN time, not
-    // schedule time) has a chance to flush.
+    // schedule time) has actually had its chance to flush. A hard wait is the right instrument
+    // for the localStorage half specifically: the property being pinned is that a write never
+    // happens, and there is no event to wait for when the expected outcome is silence.
     await page.waitForTimeout(1_200);
 
-    const stored = await page.evaluate(() => window.localStorage.getItem("tovu:execution-credentials:v1"));
-    const parsed = JSON.parse(stored ?? "{}") as { savedByProviderId?: Record<string, { apiKey?: string }> };
-    expect(parsed.savedByProviderId?.anthropic?.apiKey).toBe("sk-ant-SAVE-RACE-TEST");
+    // Half 1 — the ADR-058 property. The key must not be in localStorage under any key or shape,
+    // not merely absent from the `savedByProviderId.anthropic.apiKey` slot the old assertion read.
+    const storedRaw = await page.evaluate(() =>
+      JSON.stringify(
+        Object.fromEntries(
+          Array.from({ length: window.localStorage.length }, (_unused, index) => {
+            const key = window.localStorage.key(index) ?? "";
+            return [key, window.localStorage.getItem(key) ?? ""];
+          }),
+        ),
+      ),
+    );
+    expect(storedRaw).not.toContain("sk-ant-SAVE-RACE-TEST");
+
+    // Deliberately NOT asserted: that switching BACK to Anthropic restores the typed key from
+    // `savedByProviderId`. That was tried first, as the stronger form of this test, and measurement
+    // refuted it — the field comes back empty (measured twice, 2026-08-05, including from a
+    // normalized starting state). `nextConfigForPresetSelect` does snapshot the outgoing
+    // provider's credentials, but the draft map does not survive `useSettingsSlice`'s background
+    // `refresh()`, which reloads the whole config through `loadExecutionConfig` — and that never
+    // populates `savedByProviderId` ("scoped out of v1") and always reports `apiKey: ""`.
+    // Recorded here rather than asserted, because it is a property of Tovu's settings-refresh
+    // wiring and belongs in a test about that, not in this one about a switch race.
   });
 });
