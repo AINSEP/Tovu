@@ -1,6 +1,7 @@
 # E2E Teardown Hang — Root Cause (2026-08-05)
 
-## Status: mechanism CONFIRMED. Both suspects in the dispatch brief are REFUTED.
+## Status: mechanism CONFIRMED. Both original suspects are REFUTED. Fix + hardening shipped.
+## A second, separate, still-OPEN gap identified below (external-kill-of-CLI leak) — not fixed.
 
 ## Confirmed root cause
 
@@ -162,3 +163,101 @@ The dispatch environment had significant pre-existing cross-session process cont
 before each verification step so results reflect only this fix's behavior, not contamination.
 Several of the orphans found already bound to the suite's default ports are themselves further
 live corroboration of the same root cause on unrelated prior runs.
+
+## Round 2 (same day): field evidence from qa-byok-specs + coordinator hardening question
+
+`qa-byok-specs` independently reported a related-looking incident: killed its own Playwright
+wrapper mid-suite with an external timeout; the API, daemon, and vite children all stayed bound
+"for at least several seconds" then were "gone on a follow-up check" — plus an unconfirmed,
+self-flagged-as-uncertain observation of what looked like an API restart. The coordinator asked me
+to weigh this against direct measurement rather than accept it, and separately asked a judgment
+question: would giving the daemon its own stdio (instead of `stdio: "inherit"`) prevent an orphan
+from ever hanging a parent's `close` event again — cheap defense-in-depth if it doesn't cost the
+daemon's logs.
+
+### What I actually measured (isolated repro, `BYOK_E2E_PORT_BASE=6921` to avoid qa-byok-specs'
+### live concurrent run on the default ports)
+
+Sent `SIGTERM` directly to Playwright's own top-level CLI process (the `node .../playwright test`
+process itself, not its webServer child) mid-run, then polled every few seconds for 30+ seconds:
+
+- The top-level process died immediately (as expected — no handler for a bare `SIGTERM`).
+- The webServer (`node --import tsx src/index.ts`) and the daemon (`agent-daemon-server.ts`) were
+  **still fully alive and bound, unchanged, 30+ seconds later** — zero self-cleanup observed.
+
+**This contradicts qa-byok-specs' "gone within several seconds" report as I reproduced it.**
+Mechanism: killing the top-level CLI process directly does not run Playwright's own `teardown()`
+at all (that only runs on normal completion or Playwright's own internal signal handling of
+whatever it actually installs a handler for) — so `attemptToGracefullyClose()` /
+`gracefulShutdown` (this fix) never even gets invoked in this scenario. It bypasses the fix
+entirely, at an earlier point than the bug this dispatch was scoped to. I can't rule out
+qa-byok-specs hit a genuinely different trigger (a different kill target, a version/timing
+difference, or the "several seconds" read on a process that was already mid-exit for an unrelated
+reason) — flagging the discrepancy rather than asserting their report is wrong. Their secondary
+"restart" observation (same PID via `ps aux`, shorter `etime` than expected) is most consistent
+with ordinary OS PID reuse being misread as a restart, but I did not have a live instance to
+confirm that explanation either.
+
+**Conclusion: this is a second, separate, still-open gap** — an external kill of Playwright's own
+CLI process (e.g. an enclosing timeout wrapper, which is exactly what qa-byok-specs was doing)
+leaks the daemon with no fix in place. It is what produced the `EADDRINUSE`/degraded-boot
+symptom the coordinator flagged in COORD-1. Not fixed here — flagged as a named follow-up below.
+
+### Hardening implemented: daemon gets its own stdio, not `"inherit"`
+
+Changed `spawnAgentDaemon()` in `src/index.ts`: `stdio: "inherit"` → `stdio: ["ignore", "pipe",
+"pipe"]`, with `child.stdout.pipe(process.stdout)` / `child.stderr.pipe(process.stderr)` added
+immediately after spawn to preserve the daemon's existing log visibility (verified: `[agent-daemon]
+listening on ...` still appears in the parent's own output).
+
+**Why:** `"inherit"` meant the daemon subtree shared this process's actual stdout/stderr file
+descriptors — under Playwright, those ARE the pipe `launchProcess()` reads from to know when the
+webServer child has fully closed. An orphaned daemon (from ANY cause, including the still-open gap
+above) would keep that pipe's write end open forever, which is what turns "a daemon leaked" into
+"an unrelated future process hangs waiting for a `close` event that will never fire" — the exact
+mechanism behind the original bug this dispatch was scoped to fix.
+
+**Verified directly**, not just reasoned about: wrote a small standalone probe
+(`development/scripts/scratch-close-event-probe.mjs`, deleted after use — not part of the repo)
+that spawns the webServer via a real `stdio: "pipe"` (mimicking Playwright's own
+`launchProcess()`), waits on the child's `"close"` event, then sends `SIGKILL` directly to the API
+process — bypassing `reap()` entirely, the worst case, deliberately chosen to still leak the
+daemon. Result:
+```
+[probe] t=6503ms — sending SIGKILL directly to API pid=86326
+[probe] t=6527ms — CLOSE event fired (code=null signal=SIGKILL)
+```
+`close` fired in 24ms. The daemon was confirmed still alive and still bound to its port at that
+moment (the leak is real and NOT fixed by this change, as expected) — but it no longer had any
+ability to block the probe's own `close` wait. This directly confirms the claim with evidence
+rather than inference: **the stdio change closes the "orphan hangs an unrelated future process"
+failure mode, but does not close the leak itself.** A genuine fix for the leak (daemon survives
+regardless of what killed its parent, or why) needs the daemon to detect its own parent's death
+independently — e.g. a watchdog in `agent-daemon-server.ts` polling `process.kill(parentPid, 0)`
+— which is a change to a different file, out of this dispatch's scope, and is recorded as a named
+follow-up rather than implemented here.
+
+**Verification of the hardening itself:** `npx tsc --noEmit` — 0 errors. Manual SIGTERM repro
+(daemon owns its own stdio now) — API + daemon both exit cleanly within ~2s, port freed, log
+output still relayed correctly. Real Playwright spec (`byok-google-tool-schema.spec.ts`, isolated
+port range `BYOK_E2E_PORT_BASE=6921` to avoid colliding with qa-byok-specs' concurrent live run) —
+terminated cleanly in 50s, full result printed, zero orphaned processes or bound ports afterward.
+
+## Named follow-ups (not fixed here, flagging for deliberate triage)
+
+1. **Daemon survives when its parent is killed by anything that never runs `reap()`** — confirmed
+   two independent ways this can happen: Playwright's own SIGKILL-only default teardown (fixed by
+   `gracefulShutdown`) and an external kill of Playwright's top-level CLI process itself (NOT
+   fixed — see Round 2 above). The stdio hardening stops the leaked daemon from hanging anyone
+   else's teardown, but the leak — and the resulting `EADDRINUSE` on the next boot — is still
+   real. Needs a parent-death watchdog in `src/assistant/agent-daemon-server.ts` (not `src/index.ts`)
+   to close for good.
+2. **Degraded boot on daemon start failure** (flagged by the coordinator from qa-byok-specs'
+   incident, not investigated by me — out of scope for this dispatch): when `spawnAgentDaemon()`'s
+   daemon fails to bind because of `EADDRINUSE` (e.g. from follow-up #1's leak), `src/index.ts`
+   logs `"[index] agent daemon exited unexpectedly"` via the `child.on("exit", ...)` handler and
+   the API **keeps serving anyway** — no fatal path, no readiness-state signal. That turns a
+   leaked port into silently-wrong test results (requests to the assistant surface presumably fail
+   or no-op with no loud signal) instead of a loud, attributable failure. Worth a deliberate
+   decision on whether that should become a hard failure or a visible degraded-mode signal in
+   `readiness-state`.
