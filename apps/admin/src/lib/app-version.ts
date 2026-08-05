@@ -1,5 +1,5 @@
 /**
- * @file Build-time version string for the About tab (`sections/SettingsUi.tsx`).
+ * @file Build-time version string for the About tab (`features/settings/SettingsUi.tsx`).
  *
  * Sourced from `apps/admin/package.json` via `vite.config.ts`'s `define` (see
  * `__TOVU_ADMIN_VERSION__` in `vite-env.d.ts`), not a server endpoint: Tovu

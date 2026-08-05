@@ -1,5 +1,6 @@
 import { listProviderModels } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/public-assistant-settings";
+import { resolveSiteAssistantApiKey } from "#src/assistant/site-credential-store";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { AssistantExecutionRouteRegistrar } from "./execution-deps";
 
@@ -10,6 +11,8 @@ interface ListModelsRequestBody {
   baseUrl?: unknown;
   apiKey?: unknown;
   apiVersion?: unknown;
+  /** Opt in to probing with the workspace's STORED site credential instead of a key in this body. */
+  useStoredCredential?: unknown;
 }
 
 /**
@@ -51,8 +54,36 @@ export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegis
       const body = (req.body ?? {}) as ListModelsRequestBody;
       const protocol = typeof body.protocol === "string" ? body.protocol : "";
       const baseUrl = typeof body.baseUrl === "string" ? body.baseUrl : "";
-      const apiKey = typeof body.apiKey === "string" ? body.apiKey : "";
       const apiVersion = typeof body.apiVersion === "string" ? body.apiVersion : undefined;
+
+      /**
+       * Which key probes the provider.
+       *
+       * A typed key always wins. Otherwise, and ONLY when the caller explicitly opted in, fall back
+       * to the workspace's stored site credential.
+       *
+       * The opt-in is the load-bearing part and must not be softened into "empty key ⇒ use the
+       * stored one". This route is shared: Settings → Execution mode calls it with the ADMIN's own
+       * browser-local key, and the AI Assistant tab calls it for the SITE's key. An implicit
+       * fallback would mean an operator on the Settings screen with an empty field silently probes
+       * — and discovers models for — the visitor credential, quietly crossing the exact boundary
+       * ADR-058 §5 exists to make structural. Two keys stay two keys, including here.
+       *
+       * The key still never reaches the browser: the stored credential is decrypted, used for one
+       * outbound call, and only model IDs come back.
+       */
+      const typedKey = typeof body.apiKey === "string" ? body.apiKey : "";
+      let apiKey = typedKey;
+      if (!apiKey.trim() && body.useStoredCredential === true) {
+        const stored = await resolveSiteAssistantApiKey(
+          { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
+          { workspaceId: deps.workspaceId }
+        );
+        // `resolveSiteAssistantApiKey` never throws — a missing row, a missing master secret, and a
+        // corrupt ciphertext all arrive as `null`. Falling through with an empty key lets the
+        // provider return its own auth error, which is a truer message than a synthesized one.
+        apiKey = stored?.apiKey ?? "";
+      }
 
       if (!SUPPORTED_PROTOCOLS.includes(protocol as (typeof SUPPORTED_PROTOCOLS)[number])) {
         res.status(400).json({

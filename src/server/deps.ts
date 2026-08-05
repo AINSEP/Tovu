@@ -52,6 +52,7 @@ import { EnvOrFileKeyring } from "../integrations/keyring.env";
 import { createKeyringBackedSigner } from "../integrations/signing.keyring";
 import { AesGcmSecretSealer } from "../integrations/secret-sealer.aesgcm";
 import { SqliteSiteAssistantCredentialRepo } from "../db/sqlite/site-credential-repo.sqlite";
+import { SqliteAdminExecutionCredentialRepo } from "../db/sqlite/execution-credential-repo.sqlite";
 import {
   LocalFsBlobStore,
   SharpImageTransformer,
@@ -530,6 +531,10 @@ export function createSqliteRouteDeps(
     siteAssistantCredentialRepo: new SqliteSiteAssistantCredentialRepo(db),
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,
+    // The ADMIN's own BYOK credential store — reuses the SAME sealer/keyring instances just above
+    // (see `routes/types.ts`'s `adminExecutionCredentialRepo` doc for why one shared sealing
+    // capability is correct here rather than a third `EnvOrFileKeyring` instance).
+    adminExecutionCredentialRepo: new SqliteAdminExecutionCredentialRepo(db),
     executionSettingsReady,
     settingsUiTabsReady,
     analyticsSettingsReady,

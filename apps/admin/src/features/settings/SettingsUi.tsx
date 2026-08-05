@@ -1,7 +1,7 @@
 /**
- * @file Admin "Settings (New)" screen — the Open Design settings-dialog port.
+ * @file Admin "Settings (New)" screen — the Open Design settings-dialog port. Markup only.
  *
- * Ships *beside* the SPEC-007 raw ledger browser (`sections/Settings.tsx`),
+ * Ships *beside* the SPEC-007 raw ledger browser (`features/settings-raw/Settings.tsx`),
  * which is deliberately untouched: the curated tabbed surface and the raw
  * namespace/key inspector are two views of the same `content.db` store, and
  * the decision on record is that both stay available.
@@ -30,9 +30,15 @@
  * treats `onClose` as the modal/inline switch (omit it and the shell renders
  * inline with no close affordance), so the page view and the modal view are
  * the same component with one prop different.
+ *
+ * State, effects, and API/port setup live in `hooks/use-settings-ui.hooks.ts` (the six
+ * `useSettingsSlice` mounts, the fake ports/dependencies, and the merged save status) and
+ * `hooks/use-settings-locale-sync.hooks.ts` (the `I18nProvider` locale bridge). Pure computation —
+ * the loading gate, the first load error, the save-status label, and the dialog theme mapping —
+ * lives in `rules.ts`. What stays here is the 13-tab `SettingsDialogTab[]` array (JSX per tab) and
+ * the shell mounts.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AppearanceTab,
   ConnectorsBrowser,
@@ -49,10 +55,6 @@ import {
   SETTINGS_DIALOG_DICTIONARIES,
   SettingsDialogShell,
   SkillsTab,
-  createFakeMediaProvidersPort,
-  createFakeSkillsPort,
-  createFakeSourceConfigDependencies,
-  useI18n,
   type ExecutionConfig,
   type MediaProviderOption,
   type MemoryConfigFlagKey,
@@ -62,42 +64,16 @@ import {
   type NotificationsPreferences,
   type PrivacyConsentState,
   type SettingsDialogTab,
-  type SourceConfigItem,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
-import {
-  DEFAULT_EXECUTION_CONFIG,
-  EXECUTION_NAMESPACE,
-  createExecutionPort,
-  loadExecutionConfig,
-  saveExecutionConfig,
-} from "../lib/execution-settings";
-import {
-  ADMIN_LOCALES,
-  APPEARANCE_NAMESPACE,
-  DEFAULT_APPEARANCE,
-  DEFAULT_INSTRUCTIONS,
-  DEFAULT_LOCALE,
-  DEFAULT_NOTIFICATIONS,
-  DEFAULT_PRIVACY,
-  INSTRUCTIONS_NAMESPACE,
-  LANGUAGE_NAMESPACE,
-  NOTIFICATIONS_NAMESPACE,
-  PRIVACY_NAMESPACE,
-  loadAppearance,
-  loadInstructions,
-  loadLanguage,
-  loadNotifications,
-  loadPrivacy,
-  saveAppearance,
-  saveInstructions,
-  saveLanguage,
-  saveNotifications,
-  savePrivacy,
-  type AppearanceConfig,
-} from "../lib/settings-tabs";
-import { mergeSaveStates, useSettingsSlice } from "../hooks/use-settings-slice.hooks";
-import { TOVU_ADMIN_VERSION } from "../lib/app-version";
+import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS, type AppearanceConfig } from "../../lib/settings-tabs";
+import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
+import { describeSaveStatus, resolveDialogDataTheme } from "./rules";
+import { useSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
+import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
+import { useAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
+import { AdminByokKeyFooter, AdminByokMigrationPrompt } from "../../components/AdminByokKeyPanel";
+import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
 
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data. */
 function TabIcon({ children }: { children: React.ReactNode }) {
@@ -181,106 +157,45 @@ function AboutPanel() {
 }
 
 /**
- * Bridges the `core.language.locale` setting (loaded/persisted by the
- * `language` slice below, via Tovu's own `content.db`) to the mounted
- * `I18nProvider`'s active locale.
- *
- * `I18nProvider` has no *controlled* `locale` prop — only `initialLocale`,
- * read once at mount via a lazy `useState` initializer — so a locale picked
- * in `LanguageTab` (which calls `onSelectLocale` → the `language` slice's
- * `onChange`, not `useI18n().setLocale`) would otherwise only take effect on
- * the next full remount, not immediately. This renders nothing; it exists
- * only to keep the two locale sources of truth in sync after the first
- * render, so Tovu's own persistence stays the one real source and the
- * provider's internal state just follows it.
+ * Bridges the `core.language.locale` setting to the mounted `I18nProvider`'s active locale.
+ * Renders nothing; see `hooks/use-settings-locale-sync.hooks.ts` for the full rationale (an
+ * uncontrolled `initialLocale` prop that only applies at mount).
  *
  * @complexity O(1) — one equality check per render, no iteration.
  * @overallScore 100
  */
-function SettingsLocaleSync({ locale }: { locale: string }) {
-  const { locale: activeLocale, setLocale } = useI18n();
-  useEffect(() => {
-    if (activeLocale !== locale) setLocale(locale);
-  }, [locale, activeLocale, setLocale]);
+function SettingsLocaleSync({
+  locale,
+  useSettingsLocaleSyncHook = useSettingsLocaleSync,
+}: {
+  locale: string;
+  /** Dependency injection seam for tests — same convention as `PostsProps.usePostsHook`. */
+  useSettingsLocaleSyncHook?: typeof useSettingsLocaleSync;
+}) {
+  useSettingsLocaleSyncHook({ locale });
   return null;
 }
 
-export function SettingsUi() {
-  const [modalOpen, setModalOpen] = useState(false);
-  const port = useRef(createExecutionPort());
-  // Fresh, empty in-memory ports for the three inert-wrapped backend-less
-  // tabs below (Media providers, Skills) — `useRef` so each mounts once, not
-  // once per render. `{ skills: [] }` overrides `createFakeSkillsPort`'s own
-  // sample-data default; without it the tab would show skills that don't
-  // exist in this Tovu install, which is exactly the fabricated-data problem
-  // these ports otherwise avoid.
-  const mediaProvidersPort = useRef(createFakeMediaProvidersPort());
-  const skillsPort = useRef(createFakeSkillsPort({ skills: [] }));
-  // Empty in-memory dependencies for the inert-wrapped `ExternalMcpTab` mount
-  // below. `createSource` only has to satisfy the type — `inert` means the
-  // add form can never actually submit, so this is never called in practice.
-  const externalMcpDependencies = useRef(
-    createFakeSourceConfigDependencies<SourceConfigItem>({
-      createSource: (input) => ({ id: input.fields.id?.trim() || `mcp-${Date.now()}`, fields: input.fields }),
-    }),
-  );
-  // Which segment of the inert-wrapped `MemorySettingsPanel` mount below is
-  // showing. Local view state only — nothing here persists, matching every
-  // other prop this tab's `inert` control feeds.
-  const [memoryTopTab, setMemoryTopTab] = useState<MemoryTopTab>("memories");
+export interface SettingsUiProps {
+  /** Dependency injection seam for tests — same convention as `PostsProps.usePostsHook`. */
+  useSettingsUiHook?: typeof useSettingsUi;
+}
 
-  const execution = useSettingsSlice<ExecutionConfig>({
-    load: loadExecutionConfig,
-    save: saveExecutionConfig,
-    defaultValue: DEFAULT_EXECUTION_CONFIG,
-    namespaces: [EXECUTION_NAMESPACE],
-  });
-  const instructions = useSettingsSlice<string>({
-    load: loadInstructions,
-    save: saveInstructions,
-    defaultValue: DEFAULT_INSTRUCTIONS,
-    namespaces: [INSTRUCTIONS_NAMESPACE],
-  });
-  const notifications = useSettingsSlice<NotificationsPreferences>({
-    load: loadNotifications,
-    save: saveNotifications,
-    defaultValue: DEFAULT_NOTIFICATIONS,
-    namespaces: [NOTIFICATIONS_NAMESPACE],
-  });
-  const privacy = useSettingsSlice<PrivacyConsentState>({
-    load: loadPrivacy,
-    save: savePrivacy,
-    defaultValue: DEFAULT_PRIVACY,
-    namespaces: [PRIVACY_NAMESPACE],
-  });
-  const appearance = useSettingsSlice<AppearanceConfig>({
-    load: loadAppearance,
-    save: saveAppearance,
-    defaultValue: DEFAULT_APPEARANCE,
-    namespaces: [APPEARANCE_NAMESPACE],
-  });
-  const language = useSettingsSlice<string>({
-    load: loadLanguage,
-    save: saveLanguage,
-    defaultValue: DEFAULT_LOCALE,
-    namespaces: [LANGUAGE_NAMESPACE],
-  });
+export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProps = {}) {
+  const s: SettingsUiController = useSettingsUiHook();
 
-  const slices = [execution, instructions, notifications, privacy, appearance, language];
-  const save = useMemo(
-    () => mergeSaveStates(slices.map((slice) => slice.saveState)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    slices.map((slice) => slice.saveState),
-  );
-
-  /** First load error across the four namespaces. One banner is enough — they
-   *  all mean the same thing to the operator (this screen is showing defaults),
-   *  and four stacked banners would push the tabs off the fold. */
-  const loadError = slices.find((slice) => slice.loadError !== null)?.loadError ?? null;
+  // Called unconditionally, ahead of the loading gate below (rules of hooks) — falls back to
+  // `DEFAULT_EXECUTION_CONFIG.byok` while `s.execution.value` is still `null`, which is harmless:
+  // the credential hook's own effects don't read `byok` until an explicit Save/migrate press, and
+  // the tab this feeds isn't rendered until past the gate anyway.
+  const adminCredential = useAdminExecutionCredential({
+    byok: (s.execution.value as ExecutionConfig | null)?.byok ?? DEFAULT_EXECUTION_CONFIG.byok,
+    onByokChange: (byok) => s.execution.onChange({ ...(s.execution.value as ExecutionConfig), byok }),
+  });
 
   // Every slice starts `null` and settles independently. Gate on the whole set
   // so tabs don't pop in one at a time as their namespaces resolve.
-  if (slices.some((slice) => slice.value === null)) {
+  if (s.loading) {
     return (
       <div className="settings-ui-section">
         <p className="muted">Loading settings…</p>
@@ -303,16 +218,27 @@ export function SettingsUi() {
         </TabIcon>
       ),
       panel: (
-        <ExecutionTab
-          config={execution.value as ExecutionConfig}
-          onConfigChange={execution.onChange}
-          port={port.current}
-          // Detection runs wherever the Tovu SERVER runs, not on the browser's
-          // machine. For a deployed CMS those are different computers, so the
-          // component's own default ("on this machine") would be a false claim
-          // about whose CLIs these are.
-          localCliScopeLabel="Detected on the Tovu server, not on your own computer."
-        />
+        <>
+          <AdminByokMigrationPrompt controller={adminCredential} />
+          <ExecutionTab
+            config={s.execution.value as ExecutionConfig}
+            onConfigChange={s.execution.onChange}
+            port={s.port}
+            // Detection runs wherever the Tovu SERVER runs, not on the browser's
+            // machine. For a deployed CMS those are different computers, so the
+            // component's own default ("on this machine") would be a false claim
+            // about whose CLIs these are.
+            localCliScopeLabel="Detected on the Tovu server, not on your own computer."
+            // The admin's own BYOK credential is encrypted server-side and write-only
+            // (2026-08-05) — these three keep the shared `ByokProviderForm` honest about
+            // that: an empty key field is not a missing value when one is already stored,
+            // the masked placeholder answers "which key", and the footer is the ONLY
+            // control that can persist it. See `hooks/use-admin-execution-credential.hooks.ts`.
+            apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
+            apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
+            apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} />}
+          />
+        </>
       ),
     },
     {
@@ -328,10 +254,10 @@ export function SettingsUi() {
       ),
       panel: (
         <InstructionsTab
-          value={instructions.value as string}
+          value={s.instructions.value as string}
           // The tab reports an all-empty textarea as `undefined` rather than
           // `''`; the slice is typed on the stored shape, which is a string.
-          onChange={(next) => instructions.onChange(next ?? DEFAULT_INSTRUCTIONS)}
+          onChange={(next) => s.instructions.onChange(next ?? DEFAULT_INSTRUCTIONS)}
           description="Extra instructions applied to every conversation in this workspace, in addition to any per-request instructions."
         />
       ),
@@ -349,13 +275,13 @@ export function SettingsUi() {
       ),
       panel: (
         <NotificationsTab
-          preferences={notifications.value as NotificationsPreferences}
+          preferences={s.notifications.value as NotificationsPreferences}
           // This tab emits a PATCH, not a whole object (unlike `PrivacyTab`
           // next door, which emits full state). Merging here rather than
           // teaching the slice about patches keeps the slice's diff base and
           // the stored shape the same type.
           onChange={(patch) =>
-            notifications.onChange({ ...(notifications.value as NotificationsPreferences), ...patch })
+            s.notifications.onChange({ ...(s.notifications.value as NotificationsPreferences), ...patch })
           }
         />
       ),
@@ -402,7 +328,7 @@ export function SettingsUi() {
             real collection path exists.
           </p>
           <div className="settings-ui-inert-control" inert>
-            <PrivacyTab state={privacy.value as PrivacyConsentState} onChange={privacy.onChange} />
+            <PrivacyTab state={s.privacy.value as PrivacyConsentState} onChange={s.privacy.onChange} />
           </div>
         </div>
       ),
@@ -424,11 +350,11 @@ export function SettingsUi() {
       ),
       panel: (
         <AppearanceTab
-          theme={(appearance.value as AppearanceConfig).theme}
-          onThemeChange={(theme) => appearance.onChange({ ...(appearance.value as AppearanceConfig), theme })}
-          accentColor={(appearance.value as AppearanceConfig).accentColor}
+          theme={(s.appearance.value as AppearanceConfig).theme}
+          onThemeChange={(theme) => s.appearance.onChange({ ...(s.appearance.value as AppearanceConfig), theme })}
+          accentColor={(s.appearance.value as AppearanceConfig).accentColor}
           onAccentColorChange={(accentColor) =>
-            appearance.onChange({ ...(appearance.value as AppearanceConfig), accentColor })
+            s.appearance.onChange({ ...(s.appearance.value as AppearanceConfig), accentColor })
           }
           // OFF deliberately. The tab's default writes the picked theme onto
           // `document.documentElement`, which would re-theme the ENTIRE admin
@@ -458,8 +384,8 @@ export function SettingsUi() {
       panel: (
         <LanguageTab
           locales={ADMIN_LOCALES}
-          selectedLocale={language.value as string}
-          onSelectLocale={language.onChange}
+          selectedLocale={s.language.value as string}
+          onSelectLocale={s.language.onChange}
         />
       ),
     },
@@ -508,7 +434,7 @@ export function SettingsUi() {
             reference and disabled until one exists.
           </p>
           <div className="settings-ui-inert-control" inert>
-            <MediaProvidersTab port={mediaProvidersPort.current} catalog={EMPTY_MEDIA_PROVIDER_CATALOG} />
+            <MediaProvidersTab port={s.mediaProvidersPort} catalog={EMPTY_MEDIA_PROVIDER_CATALOG} />
           </div>
         </div>
       ),
@@ -600,8 +526,8 @@ export function SettingsUi() {
             <MemorySettingsPanel
               enabled
               onToggleEnabled={() => {}}
-              topTab={memoryTopTab}
-              onTopTabChange={setMemoryTopTab}
+              topTab={s.memoryTopTab}
+              onTopTabChange={s.setMemoryTopTab}
               savedMemory={{
                 entries: EMPTY_MEMORY_ENTRIES,
                 filtered: EMPTY_MEMORY_ENTRIES,
@@ -660,7 +586,7 @@ export function SettingsUi() {
           </p>
           <div className="settings-ui-inert-control" inert>
             <ExternalMcpTab
-              dependencies={externalMcpDependencies.current}
+              dependencies={s.externalMcpDependencies}
               connectionError="No MCP config store to connect to yet."
               saveStatusLabel="All changes saved"
               configPath=".od/mcp-config.json"
@@ -698,7 +624,7 @@ export function SettingsUi() {
           </p>
           <div className="settings-ui-inert-control" inert>
             <SkillsTab
-              port={skillsPort.current}
+              port={s.skillsPort}
               disabledSkillIds={EMPTY_DISABLED_SKILL_IDS}
               onToggleEnabled={() => {}}
             />
@@ -729,16 +655,10 @@ export function SettingsUi() {
    */
   const saveStatus = (
     <span
-      className={`settings-ui-save is-${save.status}`}
-      role={save.status === "error" ? "alert" : "status"}
+      className={`settings-ui-save is-${s.save.status}`}
+      role={s.save.status === "error" ? "alert" : "status"}
     >
-      {save.status === "saving"
-        ? "Saving…"
-        : save.status === "saved"
-          ? "Saved"
-          : save.status === "error"
-            ? save.message
-            : ""}
+      {describeSaveStatus(s.save)}
     </span>
   );
 
@@ -747,7 +667,7 @@ export function SettingsUi() {
   const pageChrome = (
     <>
       {saveStatus}
-      <button type="button" className="settings-ui-dialog-btn" onClick={() => setModalOpen(true)}>
+      <button type="button" className="settings-ui-dialog-btn" onClick={() => s.setModalOpen(true)}>
         Open as dialog
       </button>
     </>
@@ -759,9 +679,8 @@ export function SettingsUi() {
    *
    * `settings-dialog.css` resolves its `--jini-*` tokens from a `data-theme`
    * attribute on ANY ancestor, falling back to `@media (prefers-color-scheme)`
-   * when none is set. `"system"` means "match the OS", which this dialog
-   * already does natively via that same media query — so `"system"` maps to
-   * `undefined` here rather than a literal string data-theme has no value for.
+   * when none is set — see `rules.ts`'s `resolveDialogDataTheme` for the
+   * `"system"` → `undefined` mapping this relies on.
    *
    * This used to be pinned to a literal `"light"` unconditionally, because the
    * stored default for `core.appearance.theme` could get stuck on `"system"`
@@ -778,8 +697,7 @@ export function SettingsUi() {
    * a dark OS renders a dark settings panel inside an otherwise-light admin.
    * That is the intended scope of a "Dialog appearance" control, not a bug.
    */
-  const dialogTheme = (appearance.value as AppearanceConfig).theme;
-  const dialogDataTheme = dialogTheme === "system" ? undefined : dialogTheme;
+  const dialogDataTheme = resolveDialogDataTheme((s.appearance.value as AppearanceConfig).theme);
 
   return (
     /**
@@ -800,16 +718,16 @@ export function SettingsUi() {
      * misinform assistive tech about the untranslated majority of the page.
      */
     <I18nProvider
-      initialLocale={language.value as string}
+      initialLocale={s.language.value as string}
       dictionaries={SETTINGS_DIALOG_DICTIONARIES}
       fallbackLocale="en"
       syncDocumentAttributes={false}
     >
-      <SettingsLocaleSync locale={language.value as string} />
+      <SettingsLocaleSync locale={s.language.value as string} />
       <div className="settings-ui-section" data-theme={dialogDataTheme}>
-        {loadError ? (
+        {s.loadError ? (
           <p className="settings-ui-load-error" role="alert">
-            Could not load saved settings ({loadError}). Showing defaults — edits will still save.
+            Could not load saved settings ({s.loadError}). Showing defaults — edits will still save.
           </p>
         ) : null}
 
@@ -824,10 +742,10 @@ export function SettingsUi() {
         />
 
         {/* Modal mode: same component, same tabs, one different prop. */}
-        {modalOpen ? (
+        {s.modalOpen ? (
           <SettingsDialogShell
             tabs={tabs}
-            onClose={() => setModalOpen(false)}
+            onClose={() => s.setModalOpen(false)}
             chromeExtra={saveStatus}
           />
         ) : null}

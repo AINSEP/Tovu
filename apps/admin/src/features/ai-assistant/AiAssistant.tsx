@@ -1,29 +1,32 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   ByokProviderForm,
   DEFAULT_PROVIDER_PRESETS,
+  ExecutionTab,
   I18nProvider,
+  ProviderChipGroup,
   SETTINGS_DIALOG_DICTIONARIES,
   SettingsDialogShell,
-  resolveSelectedPreset,
-  type ByokConfig,
-  type ConnectionTestState,
-  type ModelDiscoveryState,
+  groupPresets,
   type SettingsDialogTab,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
-import { ApiError, api, describeApiError as describeApiErrorDefault, type PublicAssistantSettings } from "../lib/api";
-import {
-  getAssistantDockOpen,
-  requestAssistantDock,
-  subscribeToAssistantDock,
-} from "../lib/assistant-dock-bus";
-import { createExecutionPort } from "../lib/execution-settings";
+import { SeeMore } from "../../components/SeeMore";
+import { AdminByokKeyFooter, AdminByokMigrationPrompt } from "../../components/AdminByokKeyPanel";
+import { useAdminAssistantSwitch } from "./hooks/use-admin-assistant-switch.hooks";
+import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
+import { useAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
+import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
+import { useAiAssistant } from "./hooks/use-ai-assistant.hooks";
+import { useVisitorCredentialForm } from "./hooks/use-visitor-credential-form.hooks";
 
 /**
- * @file "AI Assistant" admin screen — the `/admin/ai-assistant` route.
+ * @file "AI Assistant" admin screen — the `/admin/ai-assistant` route. Markup only.
  *
- * Two things, and deliberately only two.
+ * State and API calls for each stateful piece live in their own `hooks/use-<thing>.hooks.ts` file
+ * (one per component, per this feature's convention — see `features/integrations/hooks/` for the
+ * same split applied to a smaller feature); pure derivations live in `rules.ts`.
+ *
+ * Three things.
  *
  * 1. The master on/off switch for the VISITOR-FACING assistant. Off is the default and off is a
  *    hard off: the server ships no assistant bundle and exposes no assistant endpoint when this is
@@ -39,23 +42,19 @@ import { createExecutionPort } from "../lib/execution-settings";
  *    somebody about to turn this on needs to know that there is currently no cost ceiling, no
  *    per-visitor rate limit, and no live spend view, and the place to learn that is the screen where
  *    they flip the switch — not a backlog. Rendered as inert unchecked items with no toggles, per
- *    the same reasoning `sections/Workspace.tsx` uses for its always-disabled delete control: a
+ *    the same reasoning `features/workspace/Workspace.tsx` uses for its always-disabled delete control: a
  *    control that looks live but does nothing is worse than an honest "not yet".
  *
- * Mirrors `sections/Workspace.tsx`'s fetch/loading/error shape and `sections/Comments.tsx`'s
- * settings-form conventions; no new CSS is introduced beyond the two classes below.
+ * 3. Execution mode for the ADMIN's own assistant — a second mount of the same `ExecutionTab` over
+ *    the same `core.execution` ledger namespace that Settings → Execution mode uses. See
+ *    {@link AdminExecutionMode} for why it is copied here rather than moved, and for the one prop
+ *    the two mounts must never disagree about.
+ *
+ * Mirrors `features/workspace/Workspace.tsx`'s fetch/loading/error shape and `features/comments/Comments.tsx`'s
+ * settings-form conventions. Its CSS lives with the other `--page-flow` rules in `styles.css`,
+ * scoped to `.settings-ui-section--page-flow` so nothing here can reach the Settings screen, which
+ * renders the same shell and the same `ByokProviderForm` and deliberately keeps its card look.
  */
-
-/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`) — this screen's
- *  `FORBIDDEN` copy names the specific setting, unlike the generic "You do not have permission to
- *  do that." most other screens use for the same code (audit cross-cutting finding #2). */
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) {
-    if (e.code === "FORBIDDEN") return "You do not have permission to change the AI assistant's settings.";
-    if (e.code === "ASSISTANT_SETTINGS_VALIDATION_ERROR") return e.message || "That value was rejected.";
-  }
-  return describeApiErrorDefault(e, fallback);
-}
 
 /** One not-yet-built control. `detail` is the operator-facing "what would this do for me", not an
  * implementation note — the point of surfacing these is that the gaps are decision-relevant. */
@@ -94,7 +93,7 @@ const ROADMAP: readonly RoadmapItem[] = [
 ];
 
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data. Same helper, same
- *  reason, as `sections/SettingsUi.tsx`'s — kept local rather than exported from there because that
+ *  reason, as `features/settings/SettingsUi.tsx`'s — kept local rather than exported from there because that
  *  file is a screen, not a component library, and importing a screen for one SVG wrapper would couple
  *  two unrelated sections. If a third screen needs it, that is the point to promote it. */
 function TabIcon({ children }: { children: React.ReactNode }) {
@@ -143,19 +142,27 @@ function RoadmapChecklist() {
  * Deliberately NOT a persisted setting, unlike the public-site switch directly above it. The admin
  * assistant is always available to a signed-in administrator (see that switch's own copy) — there is
  * nothing to enable. This reflects and drives panel visibility for the current session only, which
- * is why it reads its value live rather than from `settings`.
- *
- * `useSyncExternalStore` rather than `useState` + an effect: the dock can be toggled by the FAB, by
- * Escape, or by this control, and a local copy would drift out of date the moment one of the other
- * two won. A checkbox that misreports whether the panel is open is worse than no checkbox.
+ * is why it reads its value live rather than from `settings`. State lives in
+ * `hooks/use-admin-assistant-switch.hooks.ts`.
  */
-function AdminAssistantSwitch() {
-  const open = useSyncExternalStore(subscribeToAssistantDock, getAssistantDockOpen, () => false);
+interface AdminAssistantSwitchProps {
+  /**
+   * Dependency injection seam for tests — the same convention `features/posts/Posts.tsx`'s
+   * `usePostsHook` uses. Defaulted to the real hook, so production callers pass nothing.
+   */
+  useAdminAssistantSwitchHook?: typeof useAdminAssistantSwitch;
+}
 
+function AdminAssistantSwitch({ useAdminAssistantSwitchHook = useAdminAssistantSwitch }: AdminAssistantSwitchProps = {}) {
+  const { open, setOpen } = useAdminAssistantSwitchHook();
+
+  // No `.notice` wrapper, matching the Visitor tab's switch: this screen's `--page-flow` block
+  // flattens the shell's card chrome so each panel reads as one form on the page's own background,
+  // and a boxed switch here was the last thing still drawing a card outline.
   return (
-    <div className="notice assistant-switch">
+    <div className="assistant-switch">
       <label>
-        <input type="checkbox" checked={open} onChange={(e) => requestAssistantDock(e.target.checked)} />
+        <input type="checkbox" checked={open} onChange={(e) => setOpen(e.target.checked)} />
         Enable the AI assistant on the admin site
       </label>
       <p className="muted-cell">
@@ -172,9 +179,97 @@ function AdminAssistantSwitch() {
 }
 
 /**
+ * Execution mode for the ADMIN's own assistant — the Local CLI / BYOK segmented control and the
+ * detected-CLI grid, mounted here directly under {@link AdminAssistantSwitch}.
+ *
+ * ## Copied, not moved
+ *
+ * `features/settings/SettingsUi.tsx`'s "Execution mode" tab still exists and still renders the same
+ * `ExecutionTab` against the same ledger namespace. This is a second mount of one component over one
+ * store, not a fork and not a relocation: both screens read and write `core.execution`, so a change
+ * made here is visible there and vice versa. That is the intended behaviour — the setting has one
+ * home in the ledger and two places an operator might look for it — but it does mean the two mounts
+ * cannot be allowed to drift in their props. If one gains a prop that changes what gets stored, the
+ * other needs it too.
+ *
+ * ## Why this belongs on the Admin tab
+ *
+ * This is the tab about the assistant in THIS admin, and execution mode is the single setting that
+ * decides what actually answers it: a CLI detected on the Tovu server, or a BYOK key held in this
+ * browser. The switch above only shows and hides the panel. Everything that determines whether the
+ * panel can do anything is here.
+ *
+ * ## The port, and the one thing it must not do
+ *
+ * `createExecutionPort()` with NO arguments, deliberately — the same call `SettingsUi.tsx` makes.
+ * The `useStoredCredential: true` opt-in that {@link VisitorCredentialForm} passes must never appear
+ * here: that flag makes the probe routes fall back to the SITE's server-side visitor credential, and
+ * this screen is about the admin's own browser-local key. Opting in would silently test a different
+ * key than the one this tab configures. See `lib/execution-settings.ts`'s comment on the flag's
+ * default for the full reasoning. State lives in `hooks/use-admin-execution-mode.hooks.ts`.
+ */
+interface AdminExecutionModeProps {
+  useAdminExecutionModeHook?: typeof useAdminExecutionMode;
+}
+
+function AdminExecutionMode({ useAdminExecutionModeHook = useAdminExecutionMode }: AdminExecutionModeProps = {}) {
+  const { port, execution } = useAdminExecutionModeHook();
+
+  // Called unconditionally, ahead of the `execution.value === null` gate below (rules of hooks) —
+  // same reasoning `SettingsUi.tsx`'s identical call documents: the credential hook's own effects
+  // don't read `byok` until an explicit Save/migrate press, and the panel this feeds isn't rendered
+  // until past the gate anyway.
+  const adminCredential = useAdminExecutionCredential({
+    byok: execution.value?.byok ?? DEFAULT_EXECUTION_CONFIG.byok,
+    onByokChange: (byok) => execution.onChange({ ...(execution.value ?? DEFAULT_EXECUTION_CONFIG), byok }),
+  });
+
+  // `null` until the initial ledger read settles. Rendering `ExecutionTab` against the default config
+  // in the meantime would show "Local CLI" selected for a workspace that has BYOK stored, and the
+  // first edit would then diff against a base that was never what was persisted.
+  if (execution.value === null) return <p className="muted-cell">Loading execution settings…</p>;
+
+  return (
+    <section className="assistant-execution">
+      {execution.loadError ? <div className="save-error">{execution.loadError}</div> : null}
+      <AdminByokMigrationPrompt controller={adminCredential} />
+      <ExecutionTab
+        config={execution.value}
+        onConfigChange={execution.onChange}
+        port={port.current}
+        // Detection runs wherever the Tovu SERVER runs, not on the browser's machine. For a deployed
+        // CMS those are different computers, so the component's own default ("on this machine") would
+        // be a false claim about whose CLIs these are. Same string as the Settings mount — if one
+        // changes, both must.
+        localCliScopeLabel="Detected on the Tovu server, not on your own computer."
+        // The admin's own BYOK credential is encrypted server-side and write-only (2026-08-05) —
+        // same three pass-through props `SettingsUi.tsx`'s mount sets, and for the same "must never
+        // disagree" reason this file's own header already documents for `useStoredCredential`. See
+        // `hooks/use-admin-execution-credential.hooks.ts`.
+        apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
+        apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
+        apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} />}
+      />
+      {/*
+        Save feedback, which `SettingsUi.tsx` gets from its page chrome (`mergeSaveStates` across six
+        slices) and this screen has no equivalent of. Without a line here the debounced write is
+        completely silent: an operator switches to BYOK, sees nothing acknowledge it, and has no way
+        to tell a saved setting from a dropped one. Not the shared indicator, because there is only
+        one slice on this tab and merging over a set of one would be ceremony.
+      */}
+      <p className="assistant-save-line" role="status">
+        {execution.saveState.status === "saving" ? "Saving…" : null}
+        {execution.saveState.status === "saved" ? "Saved." : null}
+      </p>
+      {execution.saveState.status === "error" ? <div className="save-error">{execution.saveState.message}</div> : null}
+    </section>
+  );
+}
+
+/**
  * The SITE's provider credential — the key that lets anonymous VISITORS chat on the deployed public
  * site. Reuses `@jini-ai/ui`'s `ByokProviderForm` unmodified, the same component
- * `sections/SettingsUi.tsx`'s Execution-mode tab renders, because this is deliberately the same
+ * `features/settings/SettingsUi.tsx`'s Execution-mode tab renders, because this is deliberately the same
  * credential-entry surface rather than a lookalike.
  *
  * ## The distinction this tab exists to make legible
@@ -194,192 +289,90 @@ function AdminAssistantSwitch() {
  * failure mode is silent, and an operator who assumes the Settings key covers this gets a visitor
  * assistant that is enabled, mounted, and permanently unable to answer.
  *
- * ## Not yet wired, and deliberately honest about it
+ * ## Saving
  *
- * The server-side encrypted credential store is in flight (its own ADR, per the owner's decision to
- * encrypt at rest under a deploy-time master secret rather than put a secret in the ADR-028 settings
- * ledger). Until its `PUT /api/admin/v1/workspaces/:id/assistant/site-credential` route exists, this
- * form holds its values in local state only and Save is disabled with the reason shown on screen —
- * NOT silently accepting a key it cannot persist, which would be the same class of quiet failure
- * this tab was built to end.
+ * Wired to ADR-058's encrypted server-side store (`GET`/`PUT`/`DELETE
+ * /api/admin/v1/workspaces/:id/assistant/site-credential`), which encrypts at rest under a
+ * deploy-time master secret rather than putting a secret in the ADR-028 settings ledger.
+ *
+ * Writing is an explicit Save press — see `hooks/use-visitor-credential-form.hooks.ts`'s
+ * `saveCredential` for why the earlier debounced auto-save was removed (it made every keystroke in a
+ * credential field a write, and destroyed a live key during development), and `dirty` for why a mount
+ * or a hydration can never trigger one.
+ *
+ * ⚠️ Operationally required: the server must have `TOVU_INTEGRATIONS_ROOT_KEY` (hex) set, or every
+ * save answers `503 SECRET_STORE_UNCONFIGURED`. That is ADR-058 failing CLOSED on purpose — a
+ * missing master secret must not silently mint a key file — not a bug in this screen. `rules.ts`'s
+ * `describeApiError` translates it into copy that tells the operator their key is fine and the
+ * server is not.
  */
-/** How long the key field must be quiet before discovery fires. Long enough that typing or pasting a
- *  key is one request rather than one per keystroke — the concern `ExecutionTab`'s own discovery
- *  effect documents ("refetching on every keystroke would spam the provider") — and short enough
- *  that a paste feels immediate. */
-const MODEL_DISCOVERY_DEBOUNCE_MS = 700;
+interface VisitorCredentialFormProps {
+  useVisitorCredentialFormHook?: typeof useVisitorCredentialForm;
+}
 
-function VisitorCredentialForm() {
-  const [config, setConfig] = useState<ByokConfig>(() => ({
-    protocol: "google",
-    providerId: "google-gemini",
-    apiKey: "",
-    baseUrl: "https://generativelanguage.googleapis.com",
-    // Empty, NOT pre-filled with the server's current default. An earlier revision hardcoded
-    // `gemini-flash-latest` here purely to avoid rendering a required-field marker, which was a
-    // cosmetic reason to state something the operator had not chosen — and worse, it invited them to
-    // keep a value this form had invented. The model list is a property OF THE KEY, so it stays
-    // empty until a key produces one. See `discovery` below.
-    model: "",
-  }));
-
-  const preset = useMemo(() => resolveSelectedPreset(DEFAULT_PROVIDER_PRESETS, config), [config]);
-  // One port instance for this component's lifetime, matching `SettingsUi.tsx`'s `useRef` usage —
-  // these are the SAME admin routes the Settings screen probes with, and they take the credential in
-  // the request body rather than reading a stored one. That is what makes both controls below work
-  // today, before this tab's own server-side store exists: they probe the key the operator just
-  // typed, which is exactly the question being asked ("is this key any good, and what can it run?").
-  const port = useRef(createExecutionPort());
-
-  const [discovery, setDiscovery] = useState<ModelDiscoveryState>({ status: "idle" });
-  const [connectionTest, setConnectionTest] = useState<ConnectionTestState>({ status: "idle" });
-
-  const { apiKey, baseUrl, protocol } = config;
+function VisitorCredentialForm({ 
+  useVisitorCredentialFormHook = useVisitorCredentialForm 
+}: VisitorCredentialFormProps = {}) {
+  const {
+    config,
+    editConfig,
+    preset,
+    discovery,
+    connectionTest,
+    stored,
+    saveState,
+    dirty,
+    hasUsableKey,
+    hasStoredKey,
+    configuredPresetIds,
+    selectPreset,
+    saveCredential,
+    runKeyTest,
+    runTestConnection,
+  } = useVisitorCredentialFormHook();
 
   /**
-   * SECURITY GATE on automatic discovery — `true` only when the endpoint is one a PRESET supplied,
-   * never one the operator typed.
+   * The provider picker — the two chip rows ("Protocols" / "Gateways") that let an operator choose
+   * Anthropic, OpenAI, Azure OpenAI, Google Gemini, OpenRouter, or Ollama.
    *
-   * This closes a confirmed credential-transmission bug rather than avoiding a hypothetical one. See
-   * `ADS-memory/reports/findings/2026-08-04-byok-discovery-keystroke-key-leak.md`: Jini's
-   * `ExecutionTab` lists `config.byok.baseUrl` as a discovery dependency and passes the whole
-   * `ByokConfig` — which carries `apiKey` — with no debounce. Consequence, measured live by another
-   * session: with a key already present, typing an endpoint transmits that live key to every
-   * intermediate prefix of the hostname. `https://api.example.com` sends it to `https://a`,
-   * `https://ap`, `https://api`, and so on — each prefix that resolves is a third party receiving a
-   * credential the operator never meant to give it. It composes badly with the SSRF guard's
-   * deliberate allowance of loopback on any port, which turns a typed `http://localhost:NNNN` into a
-   * key-bearing walk of local ports.
-   *
-   * A debounce alone does NOT fix this, which is why this gate exists in addition to one: debouncing
-   * cuts ~30 requests to a handful, but any pause mid-typing still fires, and a pause mid-typing is
-   * exactly when the URL is a partial hostname. The number of unintended recipients goes down; it
-   * does not go to zero.
-   *
-   * So the rule here is about the DESTINATION, not the timing: auto-discovery may only ever send the
-   * key somewhere a preset already vouched for. A custom or hand-typed endpoint still works — it just
-   * requires the operator to press "Test connection", which is an explicit, deliberate act of
-   * pointing a credential at a host they chose. That is the "gate the effect on a committed baseUrl"
-   * option the finding lists, tightened to "committed by an explicit action".
+   * Structure and wiring lifted verbatim from `ExecutionTab`'s own BYOK section in `@jini-ai/ui`
+   * (`groupPresets` → two `ProviderChipGroup`s → `ByokProviderForm`), which is what the Settings →
+   * Execution mode screen renders. See `hooks/use-visitor-credential-form.hooks.ts`'s `selectPreset`
+   * for the non-obvious snapshotting behaviour behind switching providers, and `rules.ts`'s
+   * `configuredPresetIds` for what a chip's filled dot actually claims.
    */
-  const isPresetSuppliedEndpoint = useMemo(
-    () => DEFAULT_PROVIDER_PRESETS.some((p) => !p.custom && p.baseUrl === baseUrl.trim()),
-    [baseUrl],
-  );
-
-  /**
-   * Debounced, key-driven model discovery.
-   *
-   * Keyed on the credential itself (key + endpoint), unlike `ExecutionTab`'s own effect which is
-   * deliberately keyed only on the endpoint. That difference is the point of this screen: there, the
-   * key is already saved and the operator is switching providers; here, the operator is entering a
-   * key for the first time and the only useful moment to look up its models is right after they
-   * finish typing it. The debounce is what makes keying on the key affordable.
-   */
-  useEffect(() => {
-    // Two conditions, and the second is the security gate above — NOT an optimization. Removing it
-    // reintroduces the prefix-walk credential leak; read that comment before touching this line.
-    if (!apiKey.trim() || !isPresetSuppliedEndpoint) {
-      setDiscovery({ status: "idle" });
-      return;
-    }
-    let cancelled = false;
-    setDiscovery({ status: "loading" });
-    const timer = setTimeout(() => {
-      port.current
-        .listModels?.({ ...config, apiKey, baseUrl, protocol })
-        // `cancelled` guards the classic out-of-order finish: a slow request for an earlier,
-        // half-typed key must never overwrite the result for the key currently in the field.
-        .then((models) => {
-          if (cancelled) return;
-          setDiscovery({ status: "ok", models });
-          // Seed the model field from the DISCOVERED list when it is still empty — never from a
-          // hardcoded constant, which is what an earlier revision did and what made the field state
-          // something this form had invented rather than something the key actually offers.
-          // Preferring the server's real default when the account has it keeps the UI agreeing with
-          // `site-assistant.ts`'s own `DEFAULT_MODEL`; otherwise the first entry is simply a valid
-          // starting point the operator can change. Without this the operator is stuck: `model` is a
-          // required field, so `Test connection` stays disabled until something fills it.
-          setConfig((current) => {
-            if (current.model.trim() || models.length === 0) return current;
-            return { ...current, model: models.find((m) => m === "gemini-flash-latest") ?? (models[0] as string) };
-          });
-        })
-        .catch((e: unknown) =>
-          !cancelled && setDiscovery({ status: "error", message: e instanceof Error ? e.message : "Model discovery failed" }),
-        );
-    }, MODEL_DISCOVERY_DEBOUNCE_MS);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-    // `config` is intentionally not a dependency — only the credential fields above should re-trigger
-    // a provider call. Including it would fire discovery when the operator edits the model or
-    // max-tokens field, which cannot change the answer.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, baseUrl, protocol, isPresetSuppliedEndpoint]);
-
-  /**
-   * The explicit "Test Key" press. Unlike the automatic effect above this runs against WHATEVER
-   * endpoint is in the field, preset or not — an operator pressing a button labelled "Test Key" has
-   * deliberately chosen to send this credential to the host they typed, which is precisely the
-   * explicit gate the keystroke-leak finding asks for. The difference between the two paths is
-   * consent, not capability.
-   */
-  async function runKeyTest() {
-    setDiscovery({ status: "loading" });
-    try {
-      const models = (await port.current.listModels?.(config)) ?? [];
-      setDiscovery({ status: "ok", models });
-      setConfig((current) =>
-        current.model.trim() || models.length === 0
-          ? current
-          : { ...current, model: models.find((m) => m === "gemini-flash-latest") ?? (models[0] as string) },
-      );
-    } catch (e) {
-      setDiscovery({ status: "error", message: e instanceof Error ? e.message : "Could not reach the provider with that key" });
-    }
-  }
-
-  async function runTestConnection() {
-    setConnectionTest({ status: "testing" });
-    try {
-      const result = await port.current.testConnection?.(config);
-      setConnectionTest(
-        result?.ok
-          ? { status: "ok", message: result.message }
-          : { status: "error", message: result?.message || "Connection test failed" },
-      );
-      // Also refresh discovery on an explicit test. The debounced effect above cannot recover from a
-      // discovery attempt that failed transiently, because nothing about the credential changed
-      // afterwards — so without this the operator would be stuck looking at a stale error next to a
-      // connection that just went green. (The same trap was found and fixed independently upstream in
-      // Jini's `ExecutionTab`; this screen must not reintroduce it.)
-      if (result?.ok && config.apiKey.trim()) {
-        try {
-          const models = await port.current.listModels?.(config);
-          if (models) setDiscovery({ status: "ok", models });
-        } catch {
-          // Leave whatever discovery state already exists — the connection result is the answer the
-          // operator asked for, and failing to also refresh the list must not overwrite it.
-        }
-      }
-    } catch (e) {
-      setConnectionTest({ status: "error", message: e instanceof Error ? e.message : "Connection test failed" });
-    }
-  }
+  const { protocols, gateways } = groupPresets(DEFAULT_PROVIDER_PRESETS);
 
   return (
     <>
-      <div className="notice">
+      {/*
+        Clamped to 3 lines behind `SeeMore` rather than shortened. Every sentence below is load-bearing
+        — this screen exists because an operator could not tell the two API keys apart — but all of it
+        at once is a wall of explanation standing between the operator and the one field they came to
+        fill in. Clamping keeps the full text in the DOM (findable by in-page search and by a screen
+        reader walking the region; see `components/SeeMore.tsx`'s header) while letting the form be the
+        first thing on the screen.
+
+        3 lines, not the component's default 2, so the first paragraph's point — "this key is for your
+        visitors, not for you" — is complete before the fold. A 2-line clamp cuts it mid-sentence.
+      */}
+      {/*
+        No `<strong>` anywhere below, and no `.muted-cell`. Every emphasis here was competing with
+        every other one — three bolded lead-ins down one column reads as three headings rather than
+        as three sentences, and it made the copy shout next to a form whose own labels are a quiet
+        12px. The only bold thing on this tab is now the enable switch's label, which is the one
+        control the whole tab is about. Weight is a hierarchy signal and it only works while it is
+        scarce.
+      */}
+      <SeeMore lines={3} textClassName="assistant-intro" toggleAriaLabel="See more about the visitor key">
         <p>
-          <strong>This key is for your visitors, not for you.</strong> It is what lets people reading your published
-          site ask questions and get answers. It is stored on the server and used for every visitor conversation.
+          This key is for your visitors, not for you. It is what lets people reading your published site ask questions
+          and get answers. It is stored on the server and used for every visitor conversation.
         </p>
-        <p className="muted-cell">
-          It is a different key from the one under <strong>Settings → Execution mode → BYOK</strong>. That one is your
-          own, it is saved only in this browser, and it powers the assistant in this admin. A deployed site can never
-          use it — which is why saving a key there does not switch on the visitor chat.
+        <p>
+          It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is saved
+          only in this browser, and it powers the assistant in this admin. A deployed site can never use it — which is
+          why saving a key there does not switch on the visitor chat.
         </p>
         {/*
           KNOWN COPY CONFLICT, stated here rather than papered over: the shared `ByokProviderForm`
@@ -394,93 +387,173 @@ function VisitorCredentialForm() {
           a change in the Jini repo. Until that lands, this line is the compensating control: it
           appears ABOVE the card so the operator reads the true statement first.
         */}
-        <p className="muted-cell">
-          <strong>Ignore the “Stored only by this host” note below.</strong> It belongs to the shared form component and
-          is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.
+        <p>
+          Ignore the “Stored only by this host” note below. It belongs to the shared form component and is accurate on
+          the Settings screen, not here. This key will be stored on the server, encrypted.
         </p>
-      </div>
+      </SeeMore>
+
+      {/* Same `jini-settings-byok` section wrapper `ExecutionTab` puts around this exact trio, so the
+          chip rows inherit the spacing the shared stylesheet already defines for them rather than
+          needing a second set of rules here. */}
+      <section className="jini-settings-section jini-settings-byok">
+        <ProviderChipGroup
+          label="Protocols"
+          presets={protocols}
+          selectedPresetId={preset?.id ?? null}
+          configuredPresetIds={configuredPresetIds}
+          onSelect={selectPreset}
+          configuredLabel="Configured"
+          unsetLabel="Not configured"
+        />
+        <ProviderChipGroup
+          label="Gateways"
+          presets={gateways}
+          selectedPresetId={preset?.id ?? null}
+          configuredPresetIds={configuredPresetIds}
+          onSelect={selectPreset}
+          configuredLabel="Configured"
+          unsetLabel="Not configured"
+        />
 
       {/* `canTestConnection` left at its default (true): the probe is real here. It posts the typed
           key to the same admin route the Settings screen uses, so it answers "is this key good?"
-          without needing this tab's own storage to exist yet. */}
+
+          `apiKeyFooter` is a slot added UPSTREAM in `@jini-ai/ui` for this screen rather than a fork
+          of the component — the standing decision on this workstream. It puts the three things that
+          are about the KEY (test it, see what it allows, know it saved) directly under the key field,
+          which is where the operator is looking when they have those questions. */}
       <ByokProviderForm
         config={config}
-        onConfigChange={setConfig}
+        onConfigChange={editConfig}
         preset={preset}
         modelDiscovery={discovery}
         connectionTest={connectionTest}
         onTestConnection={() => void runTestConnection()}
-      />
+        // Tells the shared form that the empty key field is not a missing required field, so
+        // "Test connection" stops being permanently disabled on a screen whose key lives on the
+        // server. Only affects the emptiness check for `apiKey`; base URL and model still validate.
+        apiKeyStoredExternally={stored?.isSet === true}
+        apiKeyPlaceholder={
+          /* The server's `••••<last 4>` shown IN the field — which key is stored, answered where the
+             operator is already looking, instead of in a sentence underneath.
 
-      {/*
-        An explicit "Test Key" control, in addition to the debounced automatic discovery above.
-        Two reasons, and the second is the important one:
+             Safe precisely BECAUSE it is a placeholder: `config.apiKey` stays empty, so `saveCredential`
+             omits `apiKey` entirely and the stored key is left alone. A pre-filled value here would be
+             a real value the save path would persist AS the key. */
+          stored?.isSet ? (stored.masked ?? undefined) : undefined
+        }
+        apiKeyFooter={
+          <div className="assistant-key-footer">
+            <div className="assistant-key-actions">
+              {/* The ONLY control that writes a credential on this screen. Disabled until something
+                  actually changed, so it never offers to re-write the values the server just sent. */}
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => void saveCredential()}
+                disabled={!dirty || saveState.status === "saving" || (!config.apiKey.trim() && !hasStoredKey)}
+              >
+                {saveState.status === "saving" ? "Saving…" : "Save"}
+              </button>
+              {/*
+                An explicit "Test Key" control, in addition to the debounced automatic discovery
+                above. Two reasons, and the second is the important one:
 
-        1. The automatic path only fires against a PRESET-supplied endpoint (see the security gate
-           above). For a custom or hand-typed base URL, this button is the only way to discover
-           models — and being an explicit, deliberate press is exactly what makes sending the
-           credential to an operator-chosen host acceptable there.
-        2. Even on a preset endpoint, "type a key and wait for a list to appear" is a weak
-           affordance: nothing tells the operator whether the key was accepted, rejected, or simply
-           not looked at yet. A button that reports a count answers the question they actually have,
-           which is "is this key any good?"
-      */}
-      <div className="notice">
-        <button type="button" onClick={() => void runKeyTest()} disabled={!config.apiKey.trim() || discovery.status === "loading"}>
-          {discovery.status === "loading" ? "Testing…" : "Test Key"}
-        </button>
-        {discovery.status === "ok" ? (
-          <p className="muted-cell">
-            Key works — <strong>{discovery.models.length}</strong> models available. Pick one in the Model field above.
-          </p>
-        ) : null}
-        {discovery.status === "error" ? <div className="save-error">{discovery.message}</div> : null}
-        {discovery.status === "idle" ? (
-          <p className="muted-cell">Checks the key against the provider and lists the models it can use.</p>
-        ) : null}
-      </div>
+                1. The automatic path only fires against a PRESET-supplied endpoint (see the security
+                   gate above). For a custom or hand-typed base URL, this button is the only way to
+                   discover models — and being an explicit, deliberate press is exactly what makes
+                   sending the credential to an operator-chosen host acceptable there.
+                2. Even on a preset endpoint, "type a key and wait for a list to appear" is a weak
+                   affordance: nothing tells the operator whether the key was accepted, rejected, or
+                   simply not looked at yet. A button that reports a count answers the question they
+                   actually have, which is "is this key any good?"
+              */}
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => void runKeyTest()}
+                // `hasUsableKey`, not `config.apiKey.trim()`. A stored key is a perfectly testable
+                // key — the server has it even though this field is empty — and disabling the
+                // control told the operator their working credential could not be checked.
+                disabled={!hasUsableKey || discovery.status === "loading"}
+              >
+                {discovery.status === "loading" ? "Testing…" : "Test Key"}
+              </button>
+              <span className="assistant-key-status" role="status">
+                {discovery.status === "ok" ? `Key works — ${discovery.models.length} models available.` : null}
+                {discovery.status === "idle" ? "Checks the key against the provider and lists the models it can use." : null}
+                {discovery.status === "loading" ? "Asking the provider which models this key allows…" : null}
+              </span>
+            </div>
 
-      <div className="notice">
-        <button type="button" disabled>
-          Save key
-        </button>
-        <p className="muted-cell">
-          Saving is not connected yet. The encrypted server-side store this writes to is still being built, and this
-          form will not pretend to accept a key it cannot actually persist. Until then, set{" "}
-          <code>GEMINI_API_KEY</code> in the server environment to switch on the visitor assistant.
-        </p>
-      </div>
+            {discovery.status === "error" ? <div className="save-error">{discovery.message}</div> : null}
+
+            {/*
+              No model picker here any more, deliberately.
+
+              This slot briefly carried a "Model for visitors" select listing the discovered models,
+              because the shared form's Model field was a text input backed by a `<datalist>` — and a
+              datalist stays invisible until the operator types, so a successful 42-model discovery
+              showed them an empty box. That worked, but it put a SECOND control for `config.model`
+              on the screen: the same value, editable in two places, four fields apart.
+
+              Fixed upstream instead. `ByokProviderForm`'s own Model field now renders a real
+              searchable picker whenever live discovery returns models (falling back to the text
+              input + datalist when it does not), so there is one model control again — and the
+              Settings screen gained the same fix rather than only this one.
+            */}
+
+            {/*
+              Save's status line — whether the last edit reached the server, and nothing else.
+
+              The "WHICH key is stored" question moved into the field's own masked placeholder, which
+              is where an operator looks for it. That mask went through a full round trip of being
+              removed and restored during design, so the conclusion is worth recording: it is a
+              deliberate, bounded disclosure. Without it the field is blank and cannot distinguish
+              "nothing was ever saved" from "a key is saved and working" — an ambiguity worse than
+              four characters.
+
+              And the mask is a PLACEHOLDER, never a value. `config.apiKey` stays empty, so a save
+              omits `apiKey` and leaves the stored key alone; a pre-filled value would be a real
+              value the save path would persist AS the key.
+            */}
+            <p className="assistant-save-line">
+              {saveState.status === "saving" ? "Saving…" : null}
+              {saveState.status === "saved" ? "Saved to the server, encrypted." : null}
+              {saveState.status === "idle" && dirty ? "Not saved yet — press Save." : null}
+              {saveState.status === "idle" && !dirty && stored?.isSet
+                ? "Stored on the server, encrypted. Paste a new key to replace it."
+                : null}
+              {saveState.status === "idle" && !dirty && !stored?.isSet
+                ? "Paste your key, check it with Show, then press Save."
+                : null}
+            </p>
+            {saveState.status === "error" ? <div className="save-error">{saveState.message}</div> : null}
+          </div>
+        }
+        />
+      </section>
     </>
   );
 }
 
-export function AiAssistant() {
-  const [settings, setSettings] = useState<PublicAssistantSettings | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+export interface AiAssistantProps {
+  /**
+   * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   * for `useCustomSelect`, and `features/posts/Posts.tsx`'s `usePostsHook`.
+   *
+   * Defaulted to the real hook, so production callers (`panels.tsx`) pass nothing and behave
+   * exactly as before. A test supplies a stub and drives the visitor on/off switch through any
+   * state without module mocking or a fake `fetch`. The three sub-components below (`AdminAssistantSwitch`,
+   * `AdminExecutionMode`, `VisitorCredentialForm`) take the same seam over their own hooks, for the
+   * same reason — this is the screen with the most independent state in the app.
+   */
+  useAiAssistantHook?: typeof useAiAssistant;
+}
 
-  useEffect(() => {
-    api
-      .getAssistantSettings()
-      .then((r) => setSettings(r.data))
-      .catch((e) => setLoadError(describeApiError(e, "failed to load AI assistant settings")));
-  }, []);
-
-  async function setPublicEnabled(publicEnabled: boolean) {
-    setSaving(true);
-    setSaveError(null);
-    try {
-      // The response, not `publicEnabled` — the server is the authority on what is now true, and a
-      // rejected or partially-applied write must not leave this screen lying about it.
-      const { data } = await api.setAssistantSettings({ publicEnabled });
-      setSettings(data);
-    } catch (e) {
-      setSaveError(describeApiError(e, "failed to save AI assistant settings"));
-    } finally {
-      setSaving(false);
-    }
-  }
+export function AiAssistant({ useAiAssistantHook = useAiAssistant }: AiAssistantProps = {}) {
+  const { settings, loadError, saveError, saving, setPublicEnabled } = useAiAssistantHook();
 
   if (loadError) return <div className="notice error">{loadError}</div>;
   if (!settings) return <div className="notice">Loading AI assistant settings…</div>;
@@ -510,7 +583,10 @@ export function AiAssistant() {
       ),
       panel: (
         <>
-          <div className="notice assistant-switch">
+          {/* No `.notice` here, unlike the Admin tab's equivalent below: this tab is deliberately
+              card-free (see `styles.css`'s `--page-flow` flattening block) so the panel reads as one
+              form on the page's own background rather than a stack of boxes. */}
+          <div className="assistant-switch">
             {saveError ? <div className="save-error">{saveError}</div> : null}
             <label>
               <input
@@ -521,14 +597,14 @@ export function AiAssistant() {
               />
               Enable the AI assistant on the public site
             </label>
-            <p className="muted-cell">
+            {/* `.muted-cell` dropped along with the intro's: it is an admin-table class (0.85rem,
+                `--faint`) that made this tab's body copy a third size next to the Jini form's own
+                12px labels and hints. Typography for both now comes from one scoped rule in
+                `styles.css`. */}
+            <p>
               {settings.publicEnabled
                 ? "Visitors can chat with the assistant. It is served on every public page."
                 : "Off. The public site ships no assistant code and exposes no assistant endpoint — this is a full disable, not a hidden widget."}
-            </p>
-            <p className="muted-cell">
-              This does not affect the assistant in this admin, which stays available to signed-in administrators either
-              way.
             </p>
           </div>
 
@@ -547,7 +623,12 @@ export function AiAssistant() {
           <path d="M9 5V2.5M6.5 9v.01M11.5 9v.01M7 12h4" />
         </TabIcon>
       ),
-      panel: <AdminAssistantSwitch />,
+      panel: (
+        <>
+          <AdminAssistantSwitch />
+          <AdminExecutionMode />
+        </>
+      ),
     },
     {
       id: "roadmap",
@@ -588,7 +669,7 @@ export function AiAssistant() {
       </div>
 
       {/*
-        Same shell, same props, and the same `presentation="inline"` page mode `sections/SettingsUi.tsx`
+        Same shell, same props, and the same `presentation="inline"` page mode `features/settings/SettingsUi.tsx`
         already uses — so this screen inherits that tab chrome rather than growing a second, similar-
         but-different one. `I18nProvider` is required, not decorative: `ByokProviderForm` and the shell
         both call `useT()`, and without a provider above them their strings fall back to raw keys.

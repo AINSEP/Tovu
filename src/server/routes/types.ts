@@ -34,6 +34,7 @@ import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../navigation"
 import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../integrations";
 import type { WebhookSigner } from "../../integrations/signing";
 import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store";
+import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
@@ -157,6 +158,18 @@ export interface RouteDeps {
    * webhook signing/newsletter tokens use — see ADR-058 §2 for why that asymmetry is intentional.
    */
   siteAssistantSecretKeyring: KeyringPort;
+  /**
+   * The ADMIN's own encrypted BYOK credential store — one row per `(workspaceId, principalId)`,
+   * backing `modules/assistant-byok.ts`'s `createStoredExecutionCredentialPort` and the
+   * GET/PUT/DELETE `.../assistant/execution-credential` routes. NOT `siteAssistantCredentialRepo`
+   * above (that one is per-workspace and backs the public visitor assistant). Sealed via the SAME
+   * `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — see
+   * `db/schema.ts`'s `adminExecutionCredentials` header for why one shared sealing capability is
+   * correct here rather than a third `KeyringPort` instance. No matching `*Ready` promise, for the
+   * same reason `siteAssistantCredentialRepo` has none: a plain table, usable as soon as migrations
+   * have run.
+   */
+  adminExecutionCredentialRepo: AdminExecutionCredentialRepoPort;
   /**
    * Resolves once the one-time `ensureExecutionSettingDefinitions()` boot call registers the 8
    * `core.execution.*` setting definitions backing the admin "Execution mode" tab (`@jini-ai/ui`'s
