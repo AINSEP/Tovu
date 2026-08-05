@@ -212,9 +212,30 @@ re-expression as the security property itself:
   credential ever leaves) **and at least one strict-prefix request carried the canary** (the leak reaches
   unintended hosts)
 
-Strictly stronger on MSG-1's actual subject — a *different* key going out would fail, which the current
-form cannot distinguish — and immune to unrelated traffic. Not applied yet: deferred until the product
-fix lands, so it is not written twice.
+**This is a ROBUSTNESS change, not a correctness one — do not read it as a weakening.** Both KNOWN-BAD
+properties survive intact and still flip the instant MSG-1 is genuinely fixed: "no debounce" (#1) and
+"prefix hosts receive the live key" (#3). The replaced clause gets *stronger* on the thing MSG-1 is
+about, because a **different** credential going out would now fail, which the census form cannot
+distinguish — it only ever asked "was this the canary", never "did some other key leak".
+
+Approved by the Coordinator. Not applied yet: deferred until the product fix lands, so it is not
+written twice.
+
+### The one thing this gives up, and who covers it
+
+The new form lets an empty-key request pass silently, so **test 8 will no longer catch a regression of
+the wipe itself.** That is the correct division of labour — test 8's subject is a key *leak*, not key
+*data loss* — but it only holds if the wipe is pinned elsewhere.
+
+`programmer-autosave` is required to ship a test that fails against today's code. I have asked it
+directly and explicitly to confirm that its test pins **"a typed key survives a settings-slice refresh
+that returns no key"**, and told it that if it does not, or pins something narrower (e.g. only the one
+publisher it happens to find), I will keep a wipe assertion in my file instead. Recorded here so the
+hand-off cannot quietly leave a hole through both sides assuming the other covered it.
+
+Two pointers passed along to make that test cheap: `loadExecutionConfig()` already returns
+`byok.apiKey: ""` unconditionally (no mock needed), and `publishSettingsRefresh(["core.execution"])` can
+drive `refresh()` directly — no SSE, no browser, milliseconds.
 
 
 ---
