@@ -70,6 +70,14 @@ const REPO_ROOT = path.resolve(__dirname, "..");
 const CONTENT_DB_PATH = path.join(os.tmpdir(), `tovu-e2e-destructive-content-${Date.now()}-${process.pid}.db`);
 
 /**
+ * Published alongside `E2E_AGENT_DAEMON_PORT` below so `e2e/daemon-ready.ts` can poll THIS config's
+ * own API port's `/readyz` — not just bare-TCP-connect the daemon's port — before trusting a
+ * connect as proof the daemon we just spawned (not a leaked orphan from a previous run still
+ * squatting the same port) is actually up. See that file's own doc for the full rationale.
+ */
+process.env.E2E_API_PORT = String(PORT);
+
+/**
  * Published to the environment so `e2e/daemon-ready.ts` gates on the SAME port this config hands
  * the webServer, instead of duplicating the literal. Worker processes are forked from this runner
  * and inherit its env, so the value reaches the specs.
