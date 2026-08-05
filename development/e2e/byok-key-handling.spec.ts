@@ -71,8 +71,13 @@ async function startDeputy(
 /**
  * Same shape as `startDeputy`, but on a CALLER-CHOSEN fixed port rather than an OS-assigned one.
  * Only the MSG-1 battery below needs this: proving a "prefix" host actually exists requires two
- * ports where one's decimal string is a literal prefix of the other's (e.g. `6000` / `60000`) —
+ * ports where one's decimal string is a literal prefix of the other's (e.g. `3600` / `36000`) —
  * an OS-assigned ephemeral port can't be arranged to have that relationship.
+ *
+ * **Choosing those ports is not free — see `assertPortIsDialable` below.** The original pair here
+ * was `6000`/`60000`, and `6000` is on the WHATWG Fetch "bad port" list, which Node's global
+ * `fetch` enforces. That made the prefix-port test structurally incapable of observing the thing
+ * it is named for, for months, while looking like an ordinary assertion failure.
  */
 async function startFixedDeputy(
   port: number,
@@ -95,6 +100,41 @@ async function startFixedDeputy(
     hits: () => hitCount,
     lastHeaders: () => lastHeaders,
   };
+}
+
+/**
+ * Preflight: prove a fixed port is actually dialable by a Node `fetch` before asking the PRODUCT
+ * to dial it.
+ *
+ * Root-caused 2026-08-05. This exists because of a specific, non-obvious failure mode that cost a
+ * session: the model-discovery path in `@jini-ai/agent-runtime` (`model-catalog.ts`, `await fetch(url, …)`)
+ * uses Node's GLOBAL `fetch`, not the same package's `pinnedFetch` (which dials via `node:http.request`
+ * and is unaffected). Global `fetch` implements the WHATWG Fetch spec's "bad port" blocking: a request
+ * to a port on that list becomes a network error BEFORE ANY SOCKET IS OPENED. Measured — deputy bound
+ * on `127.0.0.1` in every case:
+ *
+ *     6000  -> fetch ERROR "bad port"   deputy hits = 0     (6000 is X11, on the list)
+ *     60000 -> fetch 200                deputy hits = 1
+ *     6100  -> fetch 200                deputy hits = 1
+ *
+ * A blocked port therefore presents EXACTLY as "the deputy received nothing" — indistinguishable at a
+ * glance from "the guard blocked it", which is the conclusion a security test like the prefix-port case
+ * below is most likely to be misread as having proved. This check converts that into a self-describing
+ * failure naming the real cause. Other list members to avoid: 6566, 6665-6669, 6679, 6697, 10080.
+ */
+async function assertPortIsDialable(port: number): Promise<void> {
+  const outcome = await fetch(`http://localhost:${port}/__preflight`)
+    .then(() => "dialable")
+    .catch((error: unknown) => {
+      const cause = (error as { cause?: { message?: string } }).cause?.message;
+      return `NOT dialable: ${cause ?? (error as Error).message}`;
+    });
+  expect(
+    outcome,
+    `Port ${port} could not be dialed by Node's global fetch, so this test cannot observe the `
+      + `product reaching it — the result would be a meaningless zero. If this says "bad port", the `
+      + `port is on the WHATWG Fetch blocked list; pick a different one.`,
+  ).toBe("dialable");
 }
 
 test.describe("byok key-handling edge cases", () => {
@@ -158,21 +198,73 @@ test.describe("byok key-handling edge cases", () => {
     });
 
     try {
-      // `openai`'s header path (`providerModelsHeaders`: `authorization: Bearer ${apiKey}`) is the
-      // most direct read of what actually left the server: HTTP header VALUES may carry leading/
-      // trailing spaces without being folded, so this is legible on the wire without any encoding
-      // to account for (unlike the Google query-string cases above).
       const untrimmedKey = "  sk-test-PADDED-KEY-FAKE-NOT-REAL  ";
+
+      /**
+       * Channel 1 — Google's query-string path, which is the ONLY one of the two that can carry
+       * the padding intact.
+       *
+       * This test originally asserted the whole padded key on `openai`'s `authorization` header,
+       * on the stated premise that "HTTP header VALUES may carry leading/trailing spaces without
+       * being folded". **That premise is false** (root-caused 2026-08-05). RFC 7230 requires a
+       * RECIPIENT to strip leading and trailing optional whitespace from a header field value, and
+       * Node's llhttp does exactly that, so a `node:http` deputy can never see the trailing spaces
+       * no matter what the product sent. Measured against a bare `node:http` server, Tovu not
+       * involved at all:
+       *
+       *     SENT  authorization = "Bearer   sk-test-PADDED-KEY-FAKE-NOT-REAL  "
+       *     RECVD authorization = "Bearer   sk-test-PADDED-KEY-FAKE-NOT-REAL"
+       *     RECVD x-api-key     = "sk-test-PADDED-KEY-FAKE-NOT-REAL"
+       *
+       * (Note `x-api-key`: with the padded key as the WHOLE field value, both ends are stripped.
+       * On `authorization` the leading spaces survive only because `Bearer ` precedes them, which
+       * makes them interior bytes rather than leading OWS.)
+       *
+       * `googleProviderModelsUrl` percent-encodes the key into the URL via
+       * `url.searchParams.set('key', apiKey)`, and the padding survives that round trip exactly —
+       * the same machinery the `&`/`#`/`?`/`%`/`+`/newline case above already proves. So the
+       * byte-for-byte property is asserted here, where it is genuinely observable.
+       */
+      const googleDeputy = await startDeputy((_req, res) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ models: [] }));
+      });
+      try {
+        const googleRes = await request.post(MODELS_PATH, {
+          data: {
+            protocol: "google",
+            baseUrl: `http://127.0.0.1:${googleDeputy.port}`,
+            apiKey: untrimmedKey,
+          },
+        });
+        expect(googleRes.status()).toBe(200);
+        expect(googleDeputy.hits()).toBe(1);
+        // Documents an observed footgun, not a security hole: an operator who pastes a key with
+        // accidental whitespace gets a byte-for-byte broken credential rather than a silently
+        // corrected one — `missingRequiredFields`'s `.trim()` check only decides whether the field
+        // counts as "filled", it never trims the value that is actually SENT. Same for the server:
+        // `list-models.ts`'s `.trim()` appears only in a presence test, never assigned back.
+        const receivedUrl = new URL(`http://x${googleDeputy.lastUrl()}`);
+        expect(receivedUrl.searchParams.get("key")).toBe(untrimmedKey);
+      } finally {
+        await googleDeputy.close();
+      }
+
+      /**
+       * Channel 2 — `openai`'s header path (`providerModelsHeaders`: `authorization: Bearer ${apiKey}`)
+       * is a genuinely different code path, so it is still worth pinning; it is just asserted to
+       * the limit of what the channel can actually show. The trailing OWS is stripped by the
+       * receiving parser (above), so it is excluded here EXPLICITLY rather than silently — and the
+       * leading padding, which does survive as interior bytes, is asserted in full. If the product
+       * ever starts trimming, those leading spaces disappear and this fails.
+       */
       const res = await request.post(MODELS_PATH, {
         data: { protocol: "openai", baseUrl: `http://127.0.0.1:${deputy.port}`, apiKey: untrimmedKey },
       });
       expect(res.status()).toBe(200);
       expect(deputy.hits()).toBe(1);
-      // Documents an observed footgun, not a security hole: an operator who pastes a key with
-      // accidental whitespace gets a byte-for-byte broken credential rather than a silently
-      // corrected one — `missingRequiredFields`'s `.trim()` check only decides whether the field
-      // counts as "filled", it never trims the value that is actually SENT.
-      expect(deputy.lastHeaders()?.authorization).toBe(`Bearer ${untrimmedKey}`);
+      const trailingStrippedByHttpFraming = untrimmedKey.replace(/\s+$/, "");
+      expect(deputy.lastHeaders()?.authorization).toBe(`Bearer ${trailingStrippedByHttpFraming}`);
     } finally {
       await deputy.close();
     }
@@ -428,16 +520,28 @@ test.describe("KNOWN-BAD, pinned not fixed: baseUrl edits re-send the saved API 
   }) => {
     test.slow();
     // Fixed (not OS-assigned) ports, chosen so one's decimal string is a literal prefix of the
-    // other's — `6000` sits inside `60000` — mirroring an operator pausing partway through typing
+    // other's — `3600` sits inside `36000` — mirroring an operator pausing partway through typing
     // a port number and briefly landing on a DIFFERENT real local service.
+    //
+    // The pair is `3600`/`36000` and NOT the more obvious `6000`/`60000` because 6000 (X11) is on
+    // the WHATWG Fetch blocked-port list — see `assertPortIsDialable`. Both of these are off that
+    // list AND below macOS's ephemeral range (49152+), so neither can be transiently squatted by an
+    // outbound connection from an unrelated process mid-run.
+    const PREFIX_PORT = 3600;
+    const FINAL_PORT = 36000;
     const echoAuth = (req: http.IncomingMessage, res: http.ServerResponse) => {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ data: [] }));
     };
-    const deputyPrefix = await startFixedDeputy(6000, echoAuth);
-    const deputyFinal = await startFixedDeputy(60000, echoAuth);
+    const deputyPrefix = await startFixedDeputy(PREFIX_PORT, echoAuth);
+    const deputyFinal = await startFixedDeputy(FINAL_PORT, echoAuth);
 
     try {
+      // Before trusting a "the deputy received nothing" reading, prove the deputy is reachable at
+      // all. Without this, an unusable port and a genuinely blocked request are the same observation.
+      await assertPortIsDialable(PREFIX_PORT);
+      await assertPortIsDialable(FINAL_PORT);
+
       await pageLogin(page);
       await page.goto(`${ADMIN_ORIGIN_PATH}settings`, { waitUntil: "domcontentloaded" });
       // The Execution section is reached through the settings dialog's own left nav (a plain
@@ -450,17 +554,23 @@ test.describe("KNOWN-BAD, pinned not fixed: baseUrl edits re-send the saved API 
       await page.locator('.jini-byok-card .jini-field-input-row input').fill(canaryKey);
 
       const baseUrlInput = page.locator('label:has-text("Base URL") input');
-      await baseUrlInput.fill("http://localhost:6000");
-      await expect.poll(() => deputyPrefix.hits()).toBeGreaterThanOrEqual(1);
 
-      await baseUrlInput.fill("http://localhost:60000");
-      await expect.poll(() => deputyFinal.hits()).toBeGreaterThanOrEqual(1);
-
-      // KNOWN-BAD: the port-6000 listener — never the operator's intended endpoint, just a value
-      // the field held for a moment — genuinely received the real key over the wire (Anthropic's
+      // KNOWN-BAD: the prefix-port listener — never the operator's intended endpoint, just a value
+      // the field held for a moment — genuinely receives the real key over the wire (Anthropic's
       // header shape: `x-api-key`, `providerModelsHeaders` in `model-catalog.ts`).
-      expect(deputyPrefix.lastHeaders()?.["x-api-key"]).toBe(canaryKey);
-      expect(deputyFinal.lastHeaders()?.["x-api-key"]).toBe(canaryKey);
+      //
+      // Polling the RECEIVED KEY rather than a hit COUNT is deliberate and load-bearing. A count is
+      // satisfied by any request at all — including this file's own `assertPortIsDialable` preflight
+      // — so it can go non-zero without the leak having happened. The header value can only become
+      // `canaryKey` if the product actually shipped the live key to a host the operator never meant
+      // to contact, which IS the property this test exists to pin. It is also the assertion that
+      // flips the moment MSG-1 is fixed (debounce, or `apiKey` dropped from the discovery payload),
+      // which is the "come re-evaluate this pin" signal the describe block's header describes.
+      await baseUrlInput.fill(`http://localhost:${PREFIX_PORT}`);
+      await expect.poll(() => deputyPrefix.lastHeaders()?.["x-api-key"]).toBe(canaryKey);
+
+      await baseUrlInput.fill(`http://localhost:${FINAL_PORT}`);
+      await expect.poll(() => deputyFinal.lastHeaders()?.["x-api-key"]).toBe(canaryKey);
     } finally {
       await deputyPrefix.close();
       await deputyFinal.close();
