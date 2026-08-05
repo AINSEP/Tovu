@@ -18,13 +18,28 @@ docs elsewhere say 131; it grew by 2 between when those were written and this ru
 expects the catalog to grow with plugins, payments, and new features and wanted the **shape** of
 degradation and whether the five approaches' **ranking** stays stable, before committing to one.
 
+## Headline finding
+
+**doc2query's real advantage over the alternatives is not "generally better retrieval" — it
+specifically blunts the failure mode that catalog growth actually produces.** Under the current
+production config (shipped keywords), a new tool that deliberately shares vocabulary with an
+existing domain (a `notifications_` feature landing next to `newsletter_`, an admin-dashboard
+`widgets_`-adjacent feature next to the real `widgets_` domain) is **~6x more likely, per tool, to
+steal a top-1 slot than a generic new-domain tool** (9.0%/tool vs 1.5%/tool at catalog size 1000).
+Under doc2query, that gap collapses to **~1.9x** (3.0%/tool vs 1.6%/tool) — doc2query's synthetic
+per-tool questions specifically neutralize the near-neighbor lexical-competition mechanism, not
+just overall catalog dilution. This is a mechanism-level argument for doc2query, not a scoreboard
+one: it says WHY it holds up as the catalog grows, and predicts it will keep holding up
+specifically against the kind of growth (adjacent, vocabulary-overlapping features) that's most
+likely to actually happen. Full evidence in "Addition 2" below.
+
 ## Distractor policy (summary — full policy lives in `tool-search-distractors.ts`'s module header)
 
 - **Blind authoring, enforced by order of operations.** The distractor fixture was generated
   and committed BEFORE this report's author read the scorer or the held-out query file, per
   `AI-Dev-Shop/harness-engineering/agent-evals/eval-design-playbook.md`. Style was calibrated by
-  reading all 131 real tools' verbatim ids/descriptions from the actual registration source
-  files — never the eval files.
+  reading all real tools' verbatim ids/descriptions (131 at the time of that read, now 133 — see
+  "Labeling note") from the actual registration source files — never the eval files.
 - **Generation mechanism:** deterministic template engine (phrase bank × real domain vocabulary,
   seeded per-tool-id PRNG), not bespoke prose per tool — judged not worth the effort at the scale
   needed (869 tools for size 1000).
@@ -43,7 +58,7 @@ degradation and whether the five approaches' **ranking** stays stable, before co
   snapshots.
 - **doc2query for distractors:** every distractor also got 5 templated synthetic questions
   (`MASTER_DISTRACTOR_DOC2QUERY`), because scoring doc2query fairly requires the WHOLE padded
-  catalog to have enriched descriptions — a catalog where only the real 131 got doc2query would
+  catalog to have enriched descriptions — a catalog where only the real tools got doc2query would
   rig the comparison in doc2query's favor.
 
 ### Sample (reviewed and approved by team-lead before full-scale generation)
@@ -59,7 +74,7 @@ discounts_create — "Creates a coupon from the supplied fields; code must be un
 
 ## Addition 1 (BLOCKING per review) — doc2query calibration at size 250
 
-**Concern:** the distractors' doc2query was templated while the real 131 tools' doc2query was
+**Concern:** the distractors' doc2query was templated while the real tools' doc2query was
 model-generated and lexically richer. That asymmetry gives distractors artificially weak
 competition against doc2query specifically — the approach under active consideration for
 adoption — which would flatter it in exactly the wrong direction.
@@ -164,36 +179,111 @@ possible answer to the crossover question the brief flagged as most decision-rel
 one, in the measured range — but see the gap-compression trend above, which is the leading
 indicator of where a crossover would eventually happen if growth continues.
 
-## Rerank ceiling decomposition (shipped keywords, per size)
+## Rerank ceiling decomposition — recomputed over the config that would actually ship (per review)
+
+Milestone 2 originally reported this ceiling over "shipped keywords" (today's production config).
+Per review: nobody would adopt a reranker on top of a baseline nobody would ship, so the
+decision-relevant number is the ceiling over **doc2query+HyDE prompt** — the best-performing,
+most growth-resistant config from the sections above. Both are reported; the gap between them is
+itself an important finding.
+
+**doc2query + HyDE prompt (the config anyone would actually adopt):**
 
 | size | already #1 | addressable (reranker could fix) | unreachable (not even in top-10) | ceiling |
 |---|---|---|---|---|
-| 131 | 24% | 40pp | 36% | 64% |
-| 250 | 25% | 37pp | 38% | 62% |
-| 500 | 22% | 35pp | 44% | 56% |
-| 1000 | 18% | 33pp | 48% | 52% |
+| 131 | 77.7% | 20.8pp | 1.5% | **98.5%** |
+| 250 | 77.7% | 19.2pp | 3.1% | **96.9%** |
+| 500 | 76.2% | 21.5pp | 2.3% | **97.7%** |
+| 1000 | 74.6% | 23.1pp | 2.3% | **97.7%** |
 
-**The unreachable band grows steadily (36%→48%) — a reranker becomes a WEAKER mitigation, not a
-stronger one, as the catalog grows**, because retrieval increasingly fails to even surface the
-gold tool among the top 10 candidates a reranker would see. The addressable band actually shrinks
-in absolute terms too (40pp→33pp). Any plan that treats "we'll add a reranker later" as sufficient
-insurance against catalog growth should account for this: the ceiling a reranker could ever reach
-drops from 64% to 52% over this range, independent of reranker quality.
+**This reverses the earlier conclusion. Under the config that would actually ship, the ceiling
+stays consistently near 97-98% across the entire range — it does NOT meaningfully erode as the
+catalog grows to 1000 tools.** The already-#1 rate declines mildly (77.7%→74.6%, tracking the
+top-1 numbers above), but the addressable band GROWS slightly (20.8pp→23.1pp) to compensate, and
+the unreachable band stays consistently tiny (1.5-3.1%, essentially noise at n=130). **A reranker
+built on top of doc2query+HyDE would remain a highly viable mitigation all the way to 1000 tools**
+— the opposite of what the shipped-keywords-only view suggested.
 
-## Caveat on direction (correction from milestone 1, per review)
+**shipped keywords (today's production config, kept for contrast):**
 
-Milestone 1 stated the templating makes every number a clean optimistic bound. **That was
-overclaiming a direction and has been corrected.** The bias is likely optimistic on net but is
-**not unidirectional**: shared boilerplate phrases across many distractors ("Read-only.", "Call
-this to find an id before calling X") lower BM25's global IDF for those same phrases WHEN THEY
-APPEAR IN REAL TOOLS TOO, which can inflate apparent degradation for reasons unrelated to genuine
-distractor content — pushing the other way. Addition 2's miss decomposition is what actually
-separates these two effects (distractor-caused vs real-tool-vs-real-tool misses), and shows both
-are present: distractor competition is real and grows with catalog size (7%→26% of misses), but
-the majority of degradation even at size 1000 is still real-tool-vs-real-tool churn, consistent
-with an IDF-shift component alongside genuine competition. Treat every absolute number in this
-report as approximate in an UNKNOWN net direction, not a clean bound in either direction — the
-decompositions above are the actual evidence, not this paragraph's framing.
+| size | already #1 | addressable (reranker could fix) | unreachable (not even in top-10) | ceiling |
+|---|---|---|---|---|
+| 131 | 23.8% | 40.0pp | 36.2% | 63.8% |
+| 250 | 24.6% | 36.9pp | 38.5% | 61.5% |
+| 500 | 21.5% | 34.6pp | 43.8% | 56.2% |
+| 1000 | 18.5% | 33.1pp | 48.5% | 51.5% |
+
+This row DOES erode substantially (ceiling 63.8%→51.5%, unreachable band 36.2%→48.5%) — but that
+is a property of shipped keywords specifically, not of retrieval-plus-reranking in general. **The
+practical implication is the opposite of the milestone-2 framing: the choice of retrieval config
+determines whether a reranker keeps paying off as the catalog grows, far more than catalog growth
+itself erodes reranking's value.** Adopting doc2query+HyDE now would make a future reranker
+decision essentially insensitive to further catalog growth in this range; staying on shipped
+keywords would not.
+
+## Bias verdict — tested, not just named (per review)
+
+Milestone 1 claimed a clean optimistic bound; milestone 2's correction backed off to "likely
+optimistic but not unidirectional" without adjudicating. Per review, that's a true statement that
+leaves the owner unable to act, so here is a tested verdict.
+
+**The specific mechanism under test:** distractors reuse this fixture's own boilerplate phrases
+("Read-only.", "Call this to find an id before calling X"). If those phrases ALSO appear in real
+tool descriptions, adding hundreds of distractor documents lowers BM25's global IDF for those
+phrases, which could shuffle the ranking among the ORIGINAL real tools for reasons that have
+nothing to do with genuine new competition — a template artifact that would make this curve
+OVERSTATE true degradation (pessimistic bias, opposite of milestone 1's claim).
+
+**Discriminator 1 (the one specified in review): the "no keywords" row's degradation slope.**
+Raw, unaugmented real descriptions are the row most exposed to this mechanism (real tools get no
+extra vocabulary to fall back on, so they compete on the same boilerplate-heavy terms as
+distractors) and least protected by anything. If the artifact dominates, this row should degrade
+disproportionately. It does not: relative top-1 decline from size 131→1000 is 18.2% for "no
+keywords" (11%→9%) versus **25.0% for shipped keywords** (24%→18%) and 13.9% for HyDE — "no
+keywords" sits in the middle, not at the top. The row keyword augmentation is supposed to protect
+(shipped keywords) degrades MORE, not less, than the unprotected row. That runs counter to the
+artifact-dominates prediction. (Confound, stated plainly: shipped keywords' extra decline is also
+explained by near-neighbor distractors being deliberately designed to compete with exactly the
+domains that have keyword entries — a genuine-competition explanation, not an artifact one — so
+this discriminator alone is suggestive, not conclusive.)
+
+**Discriminator 2 (found in addition to the requested one): new-domain distractors' direct win
+rate versus their share of injected volume.** New-domain distractors carry the SAME boilerplate
+phrases as near-domain ones but have no deliberate content overlap with any real domain — they are
+the cleanest available proxy for "boilerplate-sharing alone, without genuine competition." At size
+1000 they are 670 of 869 injected tools (77% of the boilerplate-sharing volume) but directly cause
+only 10 of 106 shipped-keywords misses (9.4%). If bulk boilerplate-sharing volume alone were a
+powerful ranking-shifting force, the dominant-by-volume category should show a much larger
+footprint than 9.4% of misses. It doesn't.
+
+**Discriminator 3 (a magnitude bound, not a direction test): the boilerplate was already common
+in the real catalog before any distractor existed.** At least 18 of the real tool descriptions
+(≥14% of 133, confirmed by grep against the actual source: `src/media/agent-tools.ts`,
+`src/forms/agent-tools.ts`, and others) already contain the literal phrase "Read-only." — this is
+a pre-existing house convention this fixture extended, not something invented by templating.
+BM25's IDF is logarithmic in document frequency: a term that was ALREADY common (already low IDF,
+already contributing little to any score) has much less room to be pushed further down than a term
+that started rare. Diluting an already-low-discriminative-power term produces a comparatively
+small marginal score change, bounding how much damage this specific mechanism can do regardless of
+direction.
+
+**Verdict: net optimistic, but only mildly so — not the clean bound milestone 1 claimed, and not
+"genuinely indeterminate" either.** The newly-tested pessimism mechanism (boilerplate IDF dilution)
+is real in direction — addition 2 shows distractor-caused misses are a genuine and growing share of
+degradation (7%→26%) — but bounded in magnitude by discriminators 1-3 above: the row most exposed
+to it doesn't degrade disproportionately, the category that carries it without genuine competition
+has weak direct effect despite dominating injected volume, and the shared phrases were already
+low-IDF before this experiment existed. The ORIGINAL optimism source from milestone 1 — real,
+independently-authored future tools would carry genuinely varied prose from different engineers
+over time, almost certainly MORE lexically distinct from each other and from the real catalog than
+936 tools drawn from one finite phrase bank — remains completely untested here and is plausibly
+larger in magnitude than anything measured in this section. That untested, larger factor is why
+the verdict leans optimistic rather than landing on "indeterminate": there is a real, unmeasured
+reason to expect true degradation to be WORSE than this curve shows, and no comparably strong
+untested reason to expect it to be better. Treat every absolute number in this report as a
+plausible **understatement** of true degradation, by an amount this experiment cannot bound
+further without a bespoke-prose distractor set — which was judged not worth the effort at this
+scale (see Distractor policy).
 
 ## Labeling note
 
@@ -206,27 +296,36 @@ tables are all labeled with the nominal (rounder) size for readability.
 
 ## Bottom line for the owner
 
-1. **No crossover risk in the range tested (up to 1000 tools).** The current ranking of the 5
-   approaches is safe to act on without worrying it inverts as the catalog grows to plausible
-   near-term sizes.
-2. **doc2query+HyDE is both the best performer AND the most growth-resistant** (78%→75% top-1,
-   −3pp over 7.5x catalog growth, and almost immune to distractor-caused misses specifically).
-   Plain HyDE degrades roughly 3x faster in absolute terms and is the approach most vulnerable to
-   targeted lexical competition (near-neighbor distractors) specifically, because it never touches
-   the competing documents' own vocabulary.
-3. **A future reranker is a weaker safety net at scale, not a stronger one** — the ceiling it could
-   ever deliver drops from 64% to 52% over this range because retrieval itself increasingly fails
-   to surface the gold tool in the first 10 results.
-4. **Most degradation is IDF/ranking churn among existing tools, not new tools stealing top spots**
-   — even at 1000 tools, only ~26% of misses are directly caused by a distractor winning. This
-   means "ship fewer/more distinct new tools" would help only partially; the existing 133-tool
-   catalog's own internal ranking also erodes from sheer volume.
-5. **Near-neighbor competition (tools that share vocabulary with an existing domain) is far more
-   dangerous per tool than generic new-domain growth** (~6x higher miss rate under shipped
-   keywords) — worth extra design care whenever a new domain is genuinely adjacent to an existing
-   one (e.g., a future in-app notifications feature sitting next to the existing newsletter
-   domain).
-6. **Every number above should be read as approximate**, per the corrected caveat: templating
-   likely inflates doc2query slightly (measured +3.1pp at size 250, unmeasured beyond that), and
-   shared-boilerplate IDF shift likely inflates apparent degradation somewhat in the other
-   direction. The decompositions, not the point estimates, are the load-bearing evidence.
+1. **doc2query's advantage is mechanistic, not just scoreboard.** It specifically blunts
+   near-neighbor lexical competition — the failure mode most likely to actually occur as the
+   product grows into adjacent features — collapsing the near-vs-new danger-rate gap from ~6x
+   (shipped keywords) to ~1.9x (doc2query). See "Headline finding."
+2. **No crossover risk in the range tested (up to 1000 tools).** The ranking of the 5 approaches
+   is stable throughout; doc2query+HyDE is safe to adopt without worrying the ranking inverts as
+   the catalog grows to plausible near-term sizes.
+3. **doc2query+HyDE is both the best performer AND the most growth-resistant** (78%→75% top-1,
+   −3pp over 7.5x catalog growth, almost immune to distractor-caused misses specifically). Plain
+   HyDE degrades roughly 3x faster and is the approach most vulnerable to near-neighbor
+   competition, because it only transforms the query and never touches competing documents' own
+   vocabulary.
+4. **A future reranker remains highly viable IF built on doc2query+HyDE — the config choice
+   matters more than catalog growth itself.** Recomputing the rerank ceiling over doc2query+HyDE
+   (the config that would actually ship) instead of shipped keywords reverses the earlier
+   conclusion: the ceiling stays at 97-98% throughout, not 64%→52%. That erosion is a property of
+   staying on shipped keywords, not an inherent cost of catalog growth.
+5. **Most degradation is IDF/ranking churn among existing tools, not new tools stealing top spots**
+   — even at 1000 tools, only ~26% of shipped-keywords misses are directly caused by a distractor
+   winning. "Ship fewer/more distinct new tools" would help only partially; the existing catalog's
+   own internal ranking also erodes from sheer volume, under approaches that don't enrich the
+   corpus.
+6. **Near-neighbor competition is far more dangerous per tool than generic new-domain growth**
+   under shipped keywords (~6x higher miss rate) — worth extra design care whenever a new domain is
+   genuinely adjacent to an existing one, UNLESS doc2query-style per-tool enrichment is adopted,
+   which blunts most of that gap.
+7. **Read every absolute number here as a likely UNDERSTATEMENT, not an overstatement, of true
+   degradation.** Tested and verdicted, not just flagged (see "Bias verdict"): the mechanism that
+   could make this curve overstate degradation (shared boilerplate lowering IDF for real tools too)
+   is real in direction but small in measured magnitude; the mechanism that would make it
+   understate degradation (real future tools being written by different engineers with genuinely
+   more varied prose than 936 tools drawn from one phrase bank, and therefore harder for the real
+   world to out-compete than these distractors are) was not tested here and is plausibly larger.

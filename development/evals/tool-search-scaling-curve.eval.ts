@@ -241,13 +241,18 @@ function run(): void {
 
     acrossSizes.push({ size, configs: configs.map((c) => ({ name: c.name, vecs: c.vecs })) });
 
-    // --- Rerank ceiling decomposition for the best config (shipped keywords) at this size ---
-    const best = configs.find((c) => c.name === "shipped keywords")!;
-    const t1 = best.vecs[1].filter(Boolean).length;
-    const f10 = best.vecs[10].filter(Boolean).length;
-    console.log(
-      `\n  Rerank ceiling (shipped keywords) — already #1: ${t1}/${n} (${((t1 / n) * 100).toFixed(0)}%)  addressable: ${f10 - t1} (${(((f10 - t1) / n) * 100).toFixed(0)}pp)  unreachable: ${n - f10} (${(((n - f10) / n) * 100).toFixed(0)}%)  ceiling: ${((f10 / n) * 100).toFixed(0)}%`,
-    );
+    // --- Rerank ceiling decomposition. Reported over BOTH configs: "doc2query + HyDE prompt" is
+    // --- the decision-relevant one (nobody would adopt a reranker on top of a baseline nobody
+    // --- would ship) and is the PRIMARY number; "shipped keywords" (today's production config) is
+    // --- kept for contrast, since the gap between the two is itself an informative finding. ---
+    for (const configName of ["doc2query + HyDE prompt", "shipped keywords"] as const) {
+      const cfg = configs.find((c) => c.name === configName)!;
+      const t1 = cfg.vecs[1].filter(Boolean).length;
+      const f10 = cfg.vecs[10].filter(Boolean).length;
+      console.log(
+        `\n  Rerank ceiling (${configName}) — already #1: ${t1}/${n} (${((t1 / n) * 100).toFixed(1)}%)  addressable: ${f10 - t1} (${(((f10 - t1) / n) * 100).toFixed(1)}pp)  unreachable: ${n - f10} (${(((n - f10) / n) * 100).toFixed(1)}%)  ceiling: ${((f10 / n) * 100).toFixed(1)}%`,
+      );
+    }
 
     // --- BLOCKING calibration: at size 250 only, re-score doc2query configs against the
     // --- model-generated (non-templated) distractor doc2query set and report the delta. ---
