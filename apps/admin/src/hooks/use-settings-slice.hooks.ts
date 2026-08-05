@@ -60,6 +60,26 @@ export interface SettingsSliceOptions<T> {
    * the exact bug this feature exists to remove.
    */
   namespaces?: readonly string[];
+  /**
+   * Reconciles a freshly loaded value against the operator's current in-memory value before
+   * {@link SettingsSlice.refresh} lets it replace `value`/`persisted`/`latest`. Defaults to "the
+   * loaded value wins outright" — correct for every field this slice actually round-trips through
+   * `save`/`load`.
+   *
+   * Provide this when `T` carries a field `save`/`load` deliberately never touch (see
+   * `execution-settings.ts`'s `reconcileExecutionConfigRefresh` for `byok.apiKey`, which `save`
+   * never writes and `load` always returns empty). Without it, an external refresh — a same-tab
+   * echo of this slice's OWN write arriving over the settings-changed SSE feed, another tab,
+   * another operator — carries that field back at its "nothing here" default and silently
+   * overwrites an operator's typed-but-unsaved edit to it. `runSave` cannot leak this on its own:
+   * it never calls `setValue`. This path can, because replacing `value` with server truth is its
+   * entire job.
+   *
+   * @param current - `latest.current` at the moment the reload settled — the newest value the
+   *   operator has produced, saved or not.
+   * @param loaded - What `load()` just returned — true server state for every field it manages.
+   */
+  reconcileRefresh?: (current: T, loaded: T) => T;
 }
 
 export interface SettingsSlice<T> {
@@ -299,9 +319,14 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
     }
     if (!mounted.current || timer.current || hasUnsavedEdits.current) return;
     if (commits.current !== seenCommits) return;
+    // `persisted` tracks what `load`/`save` actually manage, so it takes the RAW reload — a
+    // reconciled field like a never-persisted API key has no business in the diff base `save` will
+    // next diff against. `latest`/`value` are what the operator sees and edits next, so THEY take
+    // the reconciled result.
+    const reconciled = io.current.reconcileRefresh ? io.current.reconcileRefresh(latest.current, loaded) : loaded;
     persisted.current = loaded;
-    latest.current = loaded;
-    setValue(loaded);
+    latest.current = reconciled;
+    setValue(reconciled);
   }, []);
 
   /**

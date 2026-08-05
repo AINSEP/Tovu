@@ -591,6 +591,152 @@ describe("hasUnsavedEdits — unmount flushes a pending debounced edit instead o
   });
 });
 
+describe("refresh — external notification re-reads the persisted value", () => {
+  /**
+   * @file Pins the mechanism behind the 2026-08-05 autosave key-wipe defect: `refresh()` fires on
+   * ANY out-of-band notification (`subscribeToSettingsRefresh` — a same-tab echo of this slice's OWN
+   * write over the settings-changed SSE feed, another tab, another operator), and by default it
+   * REPLACES `value` outright with whatever `load()` returns. That is correct for every field
+   * `save()`/`load()` actually round-trip, and wrong for a field they deliberately never touch (the
+   * Execution slice's `byok.apiKey` — see `execution-settings.ts`'s `reconcileExecutionConfigRefresh`):
+   * a same-tab echo of the slice's OWN save arrives to find no pending timer and no unsaved edit
+   * (the save already settled), passes every guard, and overwrites a typed-but-not-yet-explicitly-
+   * saved value with the reload's empty one. `reconcileRefresh` is the fix; the last two cases below
+   * demonstrate the bug it closes and the fix closing it, side by side, against the identical
+   * sequence of edits.
+   */
+  it("replaces value with the reload by default when no reconcileRefresh is supplied", async () => {
+    const load = vi.fn(async () => "v0");
+    const { result } = renderHook(() => useSettingsSlice({ load, save: vi.fn(), defaultValue: "default" }));
+    await settle();
+    expect(result.current.value).toBe("v0");
+
+    load.mockResolvedValueOnce("v0-from-elsewhere");
+    await act(async () => {
+      await result.current.refresh();
+    });
+    expect(result.current.value).toBe("v0-from-elsewhere");
+  });
+
+  it("refuses to refresh while an edit is unsaved, matching the doc's data-loss guard", async () => {
+    vi.useFakeTimers();
+    const load = vi.fn(async () => "v0");
+    const save = vi.fn(async () => ["k"]);
+    const { result } = renderHook(() => useSettingsSlice({ load, save, defaultValue: "default" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    act(() => result.current.onChange("typed but not yet saved"));
+    load.mockResolvedValueOnce("v0-from-elsewhere");
+    await act(async () => {
+      await result.current.refresh();
+    });
+    expect(result.current.value).toBe("typed but not yet saved");
+  });
+
+  it("without reconcileRefresh, a reload arriving right after a settled save WIPES a field save() never persists — the bug reconcileRefresh exists to close", async () => {
+    vi.useFakeTimers();
+    type Form = { field: string; secret: string };
+    // `load` never returns `secret` — the write-only-server-store shape `loadExecutionConfig` has
+    // for `byok.apiKey`.
+    const load = vi.fn(async (): Promise<Form> => ({ field: "server-field", secret: "" }));
+    const save = vi.fn(async () => ["field"]);
+
+    const { result } = renderHook(() => useSettingsSlice<Form>({ load, save, defaultValue: { field: "", secret: "" } }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    // Operator types a secret AND changes `field` inside the same debounce window — mirrors typing
+    // an API key alongside a model change on the real Execution tab.
+    act(() => result.current.onChange({ field: "operator-field", secret: "typed-secret" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SAVE_DEBOUNCE_MS);
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+
+    // The settled edit is fully saved and nothing is pending, so refresh()'s unsaved-edit guards do
+    // not block it — exactly the state a same-tab SSE echo of the save above arrives to find.
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(result.current.value).toEqual({ field: "server-field", secret: "" });
+  });
+
+  it("with reconcileRefresh supplied, the identical sequence preserves the operator's unsaved secret instead of wiping it", async () => {
+    vi.useFakeTimers();
+    type Form = { field: string; secret: string };
+    const load = vi.fn(async (): Promise<Form> => ({ field: "server-field", secret: "" }));
+    const save = vi.fn(async () => ["field"]);
+    const reconcileRefresh = vi.fn((current: Form, loaded: Form): Form => ({ ...loaded, secret: current.secret }));
+
+    const { result } = renderHook(() =>
+      useSettingsSlice<Form>({ load, save, defaultValue: { field: "", secret: "" }, reconcileRefresh }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    act(() => result.current.onChange({ field: "operator-field", secret: "typed-secret" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SAVE_DEBOUNCE_MS);
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(reconcileRefresh).toHaveBeenCalledWith(
+      { field: "operator-field", secret: "typed-secret" },
+      { field: "server-field", secret: "" },
+    );
+    // The reload's own field wins (server truth for everything reconcileRefresh doesn't override) —
+    // only the never-round-tripped secret survives instead of being wiped to "".
+    expect(result.current.value).toEqual({ field: "server-field", secret: "typed-secret" });
+  });
+
+  it("does not let a stale-commit reload through reconcileRefresh either — the existing commits guard still applies", async () => {
+    vi.useFakeTimers();
+    type Form = { field: string; secret: string };
+    let resolveLoad: ((v: Form) => void) | undefined;
+    const load = vi
+      .fn()
+      .mockResolvedValueOnce({ field: "v0", secret: "" })
+      .mockImplementationOnce(() => new Promise<Form>((resolve) => (resolveLoad = resolve)));
+    const save = vi.fn(async () => ["field"]);
+    const reconcileRefresh = vi.fn((current: Form, loaded: Form): Form => ({ ...loaded, secret: current.secret }));
+
+    const { result } = renderHook(() =>
+      useSettingsSlice<Form>({ load, save, defaultValue: { field: "", secret: "" }, reconcileRefresh }),
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    const refreshPromise = result.current.refresh();
+
+    // A save commits WHILE the refresh's own load() is in flight.
+    act(() => result.current.onChange({ field: "v1", secret: "typed-secret" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SAVE_DEBOUNCE_MS);
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveLoad?.({ field: "stale-reload", secret: "" });
+      await refreshPromise;
+    });
+
+    // The stale reload must be discarded entirely — reconcileRefresh must not even be consulted for
+    // a response that predates a write that landed while it was in flight.
+    expect(reconcileRefresh).not.toHaveBeenCalled();
+    expect(result.current.value).toEqual({ field: "v1", secret: "typed-secret" });
+  });
+});
+
 describe("mergeSaveStates", () => {
   const idle: SaveState = { status: "idle" };
   const saving: SaveState = { status: "saving" };
