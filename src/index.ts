@@ -185,7 +185,13 @@ async function main(): Promise<void> {
 function spawnAgentDaemon(workspaceId: string): void {
   const isCompiled = __filename.endsWith(".js");
   const daemonPath = path.join(__dirname, "assistant", isCompiled ? "agent-daemon-server.js" : "agent-daemon-server.ts");
-  const env = { ...process.env, TOVU_WORKSPACE: workspaceId };
+  // `TOVU_PARENT_PID` backs `agent-daemon-server.ts`'s own watchdog (see that file's
+  // `startParentWatchdog()` for the full rationale) — it is NOT redundant with the OS's own
+  // `ppid`. In dev mode this spawn is a 3-hop `npx -> tsx -> node` chain where none of the three
+  // exec-replaces itself (confirmed live via `ps`: all three stay alive for the run's whole
+  // lifetime), so the daemon's actual `process.ppid` resolves to the middle `tsx` hop, not to
+  // THIS process. `process.pid`, read here, is captured fresh for this exact spawn call/instance.
+  const env = { ...process.env, TOVU_WORKSPACE: workspaceId, TOVU_PARENT_PID: String(process.pid) };
   // `detached: true` puts the daemon in its OWN process group so it can be reaped as a group.
   // This matters specifically in dev: the non-compiled branch is an `npx -> tsx -> node` chain, so
   // `child.kill()` only ever killed `npx`. The real daemon — the `node` grandchild that binds

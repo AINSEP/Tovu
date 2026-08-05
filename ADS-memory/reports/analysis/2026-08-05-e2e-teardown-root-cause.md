@@ -1,7 +1,7 @@
 # E2E Teardown Hang — Root Cause (2026-08-05)
 
-## Status: mechanism CONFIRMED. Both original suspects are REFUTED. Fix + hardening shipped.
-## A second, separate, still-OPEN gap identified below (external-kill-of-CLI leak) — not fixed.
+## Status: mechanism CONFIRMED. Both original suspects are REFUTED. Fix + hardening + watchdog shipped.
+## The SIGTERM-to-Playwright-CLI gap (Round 2) is UNCHANGED by the watchdog — see Round 3, with evidence.
 
 ## Confirmed root cause
 
@@ -261,3 +261,86 @@ terminated cleanly in 50s, full result printed, zero orphaned processes or bound
    or no-op with no loud signal) instead of a loud, attributable failure. Worth a deliberate
    decision on whether that should become a hard failure or a visible degraded-mode signal in
    `readiness-state`.
+
+## Round 3 (same day): the parent-death watchdog (follow-up #1 above, now implemented)
+
+Assigned as the natural completion of follow-up #1: the stdio hardening (Round 2) stops an
+orphaned daemon from hanging anyone ELSE's teardown, but does not stop the daemon from becoming an
+orphan in the first place. Implemented that closing piece in `src/assistant/agent-daemon-server.ts`.
+
+### Design
+
+`startParentWatchdog()` polls `process.kill(parentPid, 0)` every 3s; on confirmed death (`ESRCH`
+specifically — any other error, e.g. a transient `EPERM`, is treated as inconclusive and skipped,
+to avoid a false-positive self-kill on a parent that is actually still alive) it logs and calls
+`process.exit(1)`.
+
+`parentPid` comes from a new `TOVU_PARENT_PID` env var, set by `spawnAgentDaemon()` in
+`src/index.ts` to its own `process.pid`. This is deliberately NOT the OS's own `process.ppid`:
+confirmed live via `ps` that the dev-mode spawn is a 3-hop `npx -> tsx -> node` chain where none
+of the three processes exec-replaces itself — all three stay alive for the whole run (e.g. a real
+sample: `npm exec tsx ...` pid 80894 -> `node .../tsx ...` pid 80928 -> the actual daemon pid
+80952, all three concurrently alive). This process's real `ppid` therefore resolves to the middle
+`tsx` hop, not to `src/index.ts` — watching `ppid` would watch the wrong ancestor entirely.
+
+Opt-in by construction, not a flag: `TOVU_PARENT_PID` is set by exactly one caller. Checked before
+implementing — `grep -rln "agent-daemon-server"` across `src/` and `development/` and filtered to
+actual spawn sites confirms `src/index.ts` is the only process that ever spawns
+`agent-daemon-server.ts` as a child process (every other hit is an import, a comment, or a doc
+reference). A manual/standalone boot of this file (local debugging, or a test that imports/runs it
+directly) therefore gets no watchdog at all, unchanged from before this existed.
+
+### Legitimate long-lived case, checked before choosing the interval (as required before coding)
+
+`npm run dev`'s `tsx watch src/index.ts` (`development/scripts/dev.mjs`) intentionally kills and
+restarts the API process on every source save, and a fresh daemon is spawned for the fresh process
+each time — confirmed this is the only place in the repo that repeatedly restarts `src/index.ts`,
+and it is real, observed live throughout this dispatch (the ambient dev server auto-restarted
+several times while editing these very files). On a NORMAL restart the OLD `index.ts` process
+receives a real, catchable signal and its own `reap()` already kills the OLD daemon directly, well
+under the watchdog's 3s poll window — the watchdog is redundant on that path, not in conflict with
+it; a process already mid-exit tolerates an overlapping second kill/self-exit with no ill effect.
+The watchdog only ever does something on the path `reap()` cannot reach: when it never runs at all.
+
+### Verification — direct process-level probes, replicated, not reasoning
+
+**Worst case (bypasses `reap()` entirely), replicated twice:** spawned API + daemon, sent
+`SIGKILL` straight to the API process (never touches `reap()`, the same worst case chosen for the
+Round 2 stdio probe). Both times the daemon process was confirmed gone and port 6823 confirmed
+free within the same 3s poll window already in progress:
+```
+Run 1: t=1s daemon_alive=GONE port6823=FREE   (already gone by the first check)
+Run 2: SIGKILL sent at t=0 ... t=2s: daemon process gone
+```
+(The daemon's own `console.error` line for this event didn't reach the log file in these runs —
+expected, not a bug: Round 2's stdio hardening relays the daemon's output THROUGH the parent
+process, which is the very process this test just killed, so there is nothing left to relay
+through by the time the daemon writes it. `ps`/`lsof` are the authoritative, independent checks
+used throughout this whole investigation and were used here too.)
+
+**Normal path unaffected:** `SIGTERM` to the API (the ordinary `reap()` path) still cleans up both
+processes and frees the port in ~2s, same as before the watchdog existed.
+
+**`npx tsc --noEmit`: 0 errors**, both before and after.
+
+**Real payoff, isolated this time on both axes** (learning from the `test-results/` collision
+mistake in Round 2): `BYOK_E2E_PORT_BASE=7521` (confirmed free, distinct from `qa-byok-specs`'
+`7421`) and `--output` pointed at this session's own scratchpad directory, not the shared
+`test-results/`. `byok-google-tool-schema.spec.ts` terminated cleanly in ~50s with a full result
+(same pre-existing, out-of-scope product assertion failure as every prior run of this spec) and
+zero orphaned processes or bound ports afterward.
+
+### Does the watchdog close the Round 2 gap (external SIGTERM to Playwright's own CLI) for free?
+
+**No — composed from two independently-measured facts, not re-tested as a full scenario a third
+time; flagging that distinction rather than presenting it as freshly verified.** Round 2 measured
+directly that in that scenario the API process itself is never touched — still fully alive,
+unchanged, 30+ seconds after the CLI died, zero self-cleanup. This round measured directly that
+the watchdog's only trigger is confirmed death (`ESRCH`) of the specific pid in `TOVU_PARENT_PID`.
+Composing those: since the API never dies in the CLI-SIGTERM scenario, the watchdog's one
+precondition never becomes true, so it stays dormant and that gap is unchanged by this commit. A
+real fix for that gap is a different problem — it would need to tie the webServer's own lifecycle
+to whatever is supposed to be driving it (Playwright's CLI), not the daemon's lifecycle to the
+webServer — and remains open, named as follow-up #1 above (now partially addressed: the LEAK from
+that scenario, once and if it also kills the API by some other means, is closed; the case where
+the API survives orphaned-but-untouched is not).
