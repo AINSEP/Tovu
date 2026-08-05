@@ -53,6 +53,24 @@ function baseController(overrides: Partial<TaxonomyController> = {}): TaxonomyCo
     setSelectedTermId: vi.fn(),
     selected: null,
     load: vi.fn(),
+    formOpen: false,
+    setFormOpen: vi.fn(),
+    // Explicit `null`/`false` defaults matter here, not just `undefined` — both `ConfirmDialog`s
+    // gate `open` on `pending… !== null` (see `Taxonomy.tsx`), and `undefined !== null` is `true`,
+    // so an omitted field here would render BOTH delete-confirm dialogs open by default in every
+    // test using this helper (caught live: it turned a single `getByRole("button", {name:
+    // /cancel/i})` query into a "found 3 elements" failure across the whole suite, not just the
+    // one test that asserts on it).
+    pendingDeleteTerm: null,
+    requestDeleteTerm: vi.fn(),
+    deleteTermBusy: false,
+    deleteTermBlocked: null,
+    confirmDeleteTerm: vi.fn(),
+    pendingDeleteTaxonomy: null,
+    requestDeleteTaxonomy: vi.fn(),
+    deleteTaxonomyBusy: false,
+    deleteTaxonomyBlocked: null,
+    confirmDeleteTaxonomy: vi.fn(),
     ...overrides,
   };
 }
@@ -224,17 +242,211 @@ describe("merge section visibility (otherMergeTargets)", () => {
   });
 });
 
-describe("new-term form's hierarchical parent select", () => {
-  it("omits the parent select for a flat taxonomy", () => {
+describe("new-term form's collapsed resting state (web-design pass, 2026-08-05)", () => {
+  it("starts collapsed behind an 'Add term' trigger, not the form itself", () => {
     const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ hierarchical: false }), terms: [] };
     renderTaxonomy({ taxonomies: [group] });
+    expect(screen.getByRole("button", { name: /\+ add term/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/new term in/i)).not.toBeInTheDocument();
+  });
+
+  it("opens the real form on click — real useNewTermForm state, not the stubbed top-level controller", async () => {
+    const user = userEvent.setup();
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ hierarchical: false }), terms: [] };
+    renderTaxonomy({ taxonomies: [group] });
+
+    await user.click(screen.getByRole("button", { name: /\+ add term/i }));
+
+    expect(screen.getByLabelText(/new term in/i)).toBeInTheDocument();
+  });
+});
+
+describe("new-term form's hierarchical parent select", () => {
+  it("omits the parent select for a flat taxonomy", async () => {
+    const user = userEvent.setup();
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ hierarchical: false }), terms: [] };
+    renderTaxonomy({ taxonomies: [group] });
+    await user.click(screen.getByRole("button", { name: /\+ add term/i }));
     expect(screen.queryByLabelText(/parent term/i)).not.toBeInTheDocument();
   });
 
-  it("shows a parent select for a hierarchical taxonomy", () => {
+  it("shows a parent select for a hierarchical taxonomy", async () => {
+    const user = userEvent.setup();
     const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ hierarchical: true }), terms: [term()] };
     renderTaxonomy({ taxonomies: [group] });
+    await user.click(screen.getByRole("button", { name: /\+ add term/i }));
     expect(screen.getByLabelText(/parent term/i)).toBeInTheDocument();
+  });
+});
+
+describe("new-taxonomy form's collapsed resting state (web-design pass, 2026-08-05)", () => {
+  it("starts collapsed behind a 'New taxonomy' page-actions button, not the form itself", () => {
+    renderTaxonomy({ taxonomies: [] });
+    expect(screen.getByRole("button", { name: /^new taxonomy$/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^new taxonomy$/i)).not.toBeInTheDocument();
+  });
+
+  it("clicking the header button calls the stubbed controller's setFormOpen (real toggle covered by use-taxonomy.unit.test.ts)", async () => {
+    const user = userEvent.setup();
+    const controller = renderTaxonomy({ taxonomies: [] });
+    await user.click(screen.getByRole("button", { name: /^new taxonomy$/i }));
+    expect(controller.setFormOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the form and a 'Cancel' header button once formOpen is true", () => {
+    renderTaxonomy({ taxonomies: [], formOpen: true });
+    expect(screen.getByLabelText(/^new taxonomy$/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^cancel$/i })).toBeInTheDocument();
+  });
+});
+
+describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", () => {
+  it("a term row's RowMenu offers exactly 'Delete term', which calls requestDeleteTerm with that term", async () => {
+    const user = userEvent.setup();
+    const t = term({ id: "t1", name: "Breakfast" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
+    const controller = renderTaxonomy({ taxonomies: [group] });
+
+    await user.click(screen.getByRole("button", { name: /actions for term "breakfast"/i }));
+    expect(screen.getByRole("menuitem", { name: "Delete term" })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Delete term" }));
+
+    expect(controller.requestDeleteTerm).toHaveBeenCalledWith(t);
+  });
+
+  it("opening a term's RowMenu and picking its action does NOT also select the row (stopPropagation)", async () => {
+    // Regression test for the exact bug this screen is the first in the app to risk: a `RowMenu`
+    // nested inside a click-to-select `<li>`. Without the wrapping `stopPropagation`, opening the
+    // menu — or picking an item from it — would ALSO fire the row's own `onClick` and select it.
+    const user = userEvent.setup();
+    const t = term({ id: "t1", name: "Breakfast" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
+    const controller = renderTaxonomy({ taxonomies: [group] });
+
+    await user.click(screen.getByRole("button", { name: /actions for term "breakfast"/i }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete term" }));
+
+    expect(controller.setSelectedTermId).not.toHaveBeenCalled();
+  });
+
+  it("a taxonomy group's RowMenu offers exactly 'Delete taxonomy', which calls requestDeleteTaxonomy with that taxonomy", async () => {
+    const user = userEvent.setup();
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ name: "Category" }), terms: [] };
+    const controller = renderTaxonomy({ taxonomies: [group] });
+
+    await user.click(screen.getByRole("button", { name: /actions for taxonomy "category"/i }));
+    expect(screen.getByRole("menuitem", { name: "Delete taxonomy" })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Delete taxonomy" }));
+
+    expect(controller.requestDeleteTaxonomy).toHaveBeenCalledWith(group.taxonomy);
+  });
+
+  it("the term ConfirmDialog is closed by default and opens (naming the term) once pendingDeleteTerm is set", () => {
+    const t = term({ name: "Breakfast" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
+    const { rerender } = render(<Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group] })} />);
+    const closedDialog = screen.getByText("Delete term?").closest("dialog")!;
+    expect(closedDialog.hasAttribute("open")).toBe(false);
+
+    rerender(<Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group], pendingDeleteTerm: t })} />);
+    const openDialog = screen.getByText("Delete term?").closest("dialog")!;
+    expect(openDialog.hasAttribute("open")).toBe(true);
+    expect(within(openDialog).getByText(/delete term "breakfast".*cannot be undone/i)).toBeInTheDocument();
+  });
+
+  it("confirming the term dialog calls confirmDeleteTerm; canceling calls requestDeleteTerm(null)", async () => {
+    const user = userEvent.setup();
+    const t = term({ name: "Breakfast" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
+    const controller = renderTaxonomy({ taxonomies: [group], pendingDeleteTerm: t });
+
+    const dialog = screen.getByText("Delete term?").closest("dialog")!;
+    await user.click(within(dialog).getByRole("button", { name: /^delete term$/i }));
+    expect(controller.confirmDeleteTerm).toHaveBeenCalledTimes(1);
+
+    await user.click(within(dialog).getByRole("button", { name: /^cancel$/i }));
+    expect(controller.requestDeleteTerm).toHaveBeenCalledWith(null);
+  });
+
+  it("the taxonomy ConfirmDialog is closed by default and opens (naming the taxonomy) once pendingDeleteTaxonomy is set", () => {
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ name: "Category" }), terms: [] };
+    const { rerender } = render(<Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group] })} />);
+    const closedDialog = screen.getByText("Delete taxonomy?").closest("dialog")!;
+    expect(closedDialog.hasAttribute("open")).toBe(false);
+
+    rerender(
+      <Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group], pendingDeleteTaxonomy: group.taxonomy })} />
+    );
+    const openDialog = screen.getByText("Delete taxonomy?").closest("dialog")!;
+    expect(openDialog.hasAttribute("open")).toBe(true);
+    expect(within(openDialog).getByText(/delete taxonomy "category".*cannot be undone/i)).toBeInTheDocument();
+  });
+
+  it("confirming the taxonomy dialog calls confirmDeleteTaxonomy; canceling calls requestDeleteTaxonomy(null)", async () => {
+    const user = userEvent.setup();
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ name: "Category" }), terms: [] };
+    const controller = renderTaxonomy({ taxonomies: [group], pendingDeleteTaxonomy: group.taxonomy });
+
+    const dialog = screen.getByText("Delete taxonomy?").closest("dialog")!;
+    await user.click(within(dialog).getByRole("button", { name: /^delete taxonomy$/i }));
+    expect(controller.confirmDeleteTaxonomy).toHaveBeenCalledTimes(1);
+
+    await user.click(within(dialog).getByRole("button", { name: /^cancel$/i }));
+    expect(controller.requestDeleteTaxonomy).toHaveBeenCalledWith(null);
+  });
+
+  it("both delete confirm buttons disable while their own busy flag is set (in-flight guard against a double submit)", () => {
+    const t = term({ name: "Breakfast" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
+    renderTaxonomy({ taxonomies: [group], pendingDeleteTerm: t, deleteTermBusy: true });
+
+    const dialog = screen.getByText("Delete term?").closest("dialog")!;
+    expect(within(dialog).getByRole("button", { name: /^delete term$/i })).toBeDisabled();
+  });
+
+  it("shows the blocked-delete reason for the specific term that was refused, naming the remedy — not a silent disabled control", () => {
+    const t = term({ id: "t1", name: "Breakfast" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
+    renderTaxonomy({
+      taxonomies: [group],
+      deleteTermBlocked: {
+        termId: "t1",
+        state: { code: "TERM_HAS_ASSIGNMENTS", count: 2, message: "Still assigned to 2 content items. Unassign it first." },
+      },
+    });
+
+    expect(
+      screen.getByText(/can't delete "breakfast": still assigned to 2 content items\. unassign it first\./i)
+    ).toBeInTheDocument();
+  });
+
+  it("does not show a blocked-delete notice for a group whose term was NOT the one refused", () => {
+    const t1 = term({ id: "t1", name: "Breakfast" });
+    const t2 = term({ id: "t2", name: "Lunch" });
+    const groupA: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax1", name: "Category" }), terms: [t1] };
+    const groupB: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax2", name: "Tag" }), terms: [t2] };
+    renderTaxonomy({
+      taxonomies: [groupA, groupB],
+      deleteTermBlocked: { termId: "t2", state: { code: "TERM_HAS_ASSIGNMENTS", count: 1, message: "blocked" } },
+    });
+
+    expect(screen.queryByText(/can't delete "breakfast"/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/can't delete "lunch"/i)).toBeInTheDocument();
+  });
+
+  it("shows the blocked-delete reason for a refused taxonomy delete", () => {
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax1", name: "Category" }), terms: [] };
+    renderTaxonomy({
+      taxonomies: [group],
+      deleteTaxonomyBlocked: {
+        taxonomyId: "tax1",
+        state: { code: "TAXONOMY_HAS_ASSIGNMENTS", count: 1, message: "A term is still assigned. Unassign it first." },
+      },
+    });
+
+    expect(
+      screen.getByText(/can't delete "category": a term is still assigned\. unassign it first\./i)
+    ).toBeInTheDocument();
   });
 });
 
@@ -245,14 +457,107 @@ describe("creating a taxonomy end to end (real hook, mocked fetch)", () => {
       jsonResponse({ taxonomy: taxonomyMeta({ id: "new", name: "New Taxonomy" }) })
     );
     const load = vi.fn();
-    renderTaxonomy({ taxonomies: [], load });
+    // `formOpen: true` — the stubbed top-level controller isn't stateful, so the header toggle
+    // button's own click (see the "collapsed resting state" tests above) can't reveal the form
+    // here; starting it open is how every other test in this file exercises a form whose
+    // visibility is driven by the (stubbed) top-level controller rather than a real hook.
+    renderTaxonomy({ taxonomies: [], load, formOpen: true });
 
-    await user.type(screen.getByLabelText(/new taxonomy/i), "New Taxonomy");
+    await user.type(screen.getByLabelText(/^new taxonomy$/i), "New Taxonomy");
     await user.click(screen.getByRole("button", { name: /^create taxonomy$/i }));
 
     await screen.findByRole("button", { name: /^create taxonomy$/i });
     expect(load).toHaveBeenCalledTimes(1);
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(body).toEqual({ name: "New Taxonomy", hierarchical: false });
+  });
+});
+
+// Delete term/taxonomy (web-design pass, 2026-08-05) — markup-only assertions: `confirmDeleteTerm`/
+// `confirmDeleteTaxonomy`'s own branches (success/blocked/failure) are covered against the real
+// hook in `use-taxonomy.unit.test.ts`; what's asserted here is that the row/group menu items reach
+// the right `request…` call, that opening a row's menu does not ALSO select the row (the
+// `stopPropagation` this file's header comment calls out), and that a blocked reason renders
+// scoped to the right group.
+describe("delete term via RowMenu + ConfirmDialog", () => {
+  it("picking 'Delete term' from a row's menu calls requestDeleteTerm with that term, not setSelectedTermId", async () => {
+    const user = userEvent.setup();
+    const t = term({ id: "t1", name: "Doomed Term" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
+    const controller = renderTaxonomy({ taxonomies: [group] });
+
+    await user.click(screen.getByRole("button", { name: /actions for term "doomed term"/i }));
+    await user.click(screen.getByRole("menuitem", { name: /^delete term$/i }));
+
+    expect(controller.requestDeleteTerm).toHaveBeenCalledWith(t);
+    // The regression this file's header comment names: without `stopPropagation` on the trigger's
+    // wrapper, opening/using the row menu also bubbles to the `<li>`'s own click-to-select handler.
+    expect(controller.setSelectedTermId).not.toHaveBeenCalled();
+  });
+
+  it("renders the confirm dialog open, wired to confirmDeleteTerm/requestDeleteTerm(null), once pendingDeleteTerm is set", async () => {
+    const user = userEvent.setup();
+    const t = term({ id: "t1", name: "Doomed Term" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
+    const controller = renderTaxonomy({ taxonomies: [group], pendingDeleteTerm: t });
+
+    expect(screen.getByRole("heading", { name: /^delete term\?$/i })).toBeInTheDocument();
+    expect(screen.getByText(/delete term "doomed term"\? this cannot be undone\./i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^delete term$/i }));
+    expect(controller.confirmDeleteTerm).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getAllByRole("button", { name: /^cancel$/i })[0]);
+    expect(controller.requestDeleteTerm).toHaveBeenCalledWith(null);
+  });
+
+  it("shows the blocked-delete reason scoped to the group whose term was refused, naming the remedy and count", () => {
+    const t = term({ id: "t1", name: "Blocked Term" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax1", name: "Category" }), terms: [t] };
+    const other: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax2", name: "Topic" }), terms: [] };
+    renderTaxonomy({
+      taxonomies: [group, other],
+      deleteTermBlocked: {
+        termId: "t1",
+        state: { code: "TERM_HAS_ASSIGNMENTS", count: 2, message: "Still assigned to 2 content items. Unassign it, or merge it into another term, before deleting." },
+      },
+    });
+
+    const notice = screen.getByText(/still assigned to 2 content items/i);
+    expect(notice.closest(".settings-namespace-group")).toHaveTextContent("Category");
+    // Never a silent disabled control — the message names the count and the remedy.
+    expect(notice).toHaveTextContent("2");
+    expect(notice).toHaveTextContent(/unassign/i);
+  });
+});
+
+describe("delete taxonomy via RowMenu + ConfirmDialog", () => {
+  it("picking 'Delete taxonomy' from the group's menu calls requestDeleteTaxonomy with that taxonomy", async () => {
+    const user = userEvent.setup();
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax1", name: "Category" }), terms: [] };
+    const controller = renderTaxonomy({ taxonomies: [group] });
+
+    await user.click(screen.getByRole("button", { name: /actions for taxonomy "category"/i }));
+    await user.click(screen.getByRole("menuitem", { name: /^delete taxonomy$/i }));
+
+    expect(controller.requestDeleteTaxonomy).toHaveBeenCalledWith(group.taxonomy);
+  });
+
+  it("shows the blocked-delete reason scoped to the refused taxonomy's own group, not a page-level banner", () => {
+    const blockedGroup: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax1", name: "Category" }), terms: [] };
+    const unrelatedGroup: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax2", name: "Topic" }), terms: [] };
+    renderTaxonomy({
+      taxonomies: [blockedGroup, unrelatedGroup],
+      deleteTaxonomyBlocked: {
+        taxonomyId: "tax1",
+        state: { code: "TAXONOMY_HAS_ASSIGNMENTS", count: 1, message: "A term in this taxonomy is still assigned to 1 content item. Unassign or merge that term before deleting the taxonomy." },
+      },
+    });
+
+    const notice = screen.getByText(/still assigned to 1 content item/i);
+    expect(notice.closest(".settings-namespace-group")).toHaveTextContent("Category");
+    // The unrelated group must not show a reason it was never given.
+    const topicGroup = screen.getByRole("heading", { name: "Topic" }).closest(".settings-namespace-group");
+    expect(within(topicGroup as HTMLElement).queryByText(/still assigned/i)).not.toBeInTheDocument();
   });
 });

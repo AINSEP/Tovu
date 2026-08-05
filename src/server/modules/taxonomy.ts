@@ -1,6 +1,8 @@
 import { registerAdminTaxonomyAssignTermsRoute } from "../routes/admin/taxonomy/assign-terms";
 import { registerAdminTaxonomyCreateRoute } from "../routes/admin/taxonomy/create-taxonomy";
 import { registerAdminTaxonomyCreateTermRoute } from "../routes/admin/taxonomy/create-term";
+import { registerAdminTaxonomyDeleteRoute } from "../routes/admin/taxonomy/delete-taxonomy";
+import { registerAdminTaxonomyDeleteTermRoute } from "../routes/admin/taxonomy/delete-term";
 import type { TaxonomyRouteDeps } from "../routes/admin/taxonomy/deps";
 import { registerAdminTaxonomyListRoute } from "../routes/admin/taxonomy/list";
 import { registerAdminTaxonomyRenameTermRoute } from "../routes/admin/taxonomy/rename-term";
@@ -9,9 +11,10 @@ import type { ServerModuleHandle } from "./types";
 /**
  * @file ADR-046 Phase 3 (SPEC-034) — the `taxonomy` server module (ADR-044 Categories & Tags).
  *
- * Owns the 5 plain taxonomy routes (list/create-taxonomy/create-term/rename-term/assign-terms) —
- * moved here verbatim from `app.ts`'s `createApp()`, same registrar function bodies, no behavior
- * change.
+ * Owns the 7 plain taxonomy routes (list/create-taxonomy/create-term/rename-term/assign-terms/
+ * delete-taxonomy/delete-term). The first 5 moved here verbatim from `app.ts`'s `createApp()`,
+ * same registrar function bodies, no behavior change; `delete-taxonomy`/`delete-term` are new
+ * (guarded-delete backend-gap closure, this dispatch — see those two route files' headers).
  *
  * Deliberately NOT moved: `registerAdminTaxonomyMergeTermRoutes` (ADR-044's one gated-mutation
  * ceremony, `/terms/:id/merge/{plan,confirm,execute}`). It stays inline in `app.ts`, registered
@@ -29,6 +32,8 @@ export function createTaxonomyModule(deps: TaxonomyRouteDeps): ServerModuleHandl
       registerAdminTaxonomyCreateTermRoute(app, deps);
       registerAdminTaxonomyRenameTermRoute(app, deps);
       registerAdminTaxonomyAssignTermsRoute(app, deps);
+      registerAdminTaxonomyDeleteRoute(app, deps);
+      registerAdminTaxonomyDeleteTermRoute(app, deps);
     },
   };
 }

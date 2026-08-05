@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "../../../lib/api";
-import { termDepth, otherMergeTargets, findSelectedTerm } from "../rules";
+import { ApiError, type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "../../../lib/api";
+import { termDepth, otherMergeTargets, findSelectedTerm, describeDeleteBlocked } from "../rules";
 
 /**
  * @file Pure logic for `features/taxonomy/rules.ts`.
@@ -131,5 +131,85 @@ describe("findSelectedTerm", () => {
 
   it("returns null for an empty taxonomies array", () => {
     expect(findSelectedTerm([], "t1")).toBeNull();
+  });
+});
+
+describe("describeDeleteBlocked", () => {
+  it("returns null for a plain Error (network failure, etc.) — not an ApiError at all", () => {
+    expect(describeDeleteBlocked(new Error("network down"))).toBeNull();
+  });
+
+  it("returns null for a non-Error thrown value", () => {
+    expect(describeDeleteBlocked("boom")).toBeNull();
+  });
+
+  it("returns null for an ApiError whose code isn't one of the three known blocked-delete codes", () => {
+    expect(describeDeleteBlocked(new ApiError("not found", 404, "TERM_NOT_FOUND", {}))).toBeNull();
+  });
+
+  it("returns null for an ApiError with no code at all", () => {
+    expect(describeDeleteBlocked(new ApiError("server exploded", 500))).toBeNull();
+  });
+
+  it("TERM_HAS_ASSIGNMENTS: reads assignedCount and pluralizes for count > 1", () => {
+    const e = new ApiError("blocked", 409, "TERM_HAS_ASSIGNMENTS", { assignedCount: 3 });
+    expect(describeDeleteBlocked(e)).toEqual({
+      code: "TERM_HAS_ASSIGNMENTS",
+      count: 3,
+      message: "Still assigned to 3 content items. Unassign it, or merge it into another term, before deleting.",
+    });
+  });
+
+  it("TERM_HAS_ASSIGNMENTS: singular count reads 'item', not 'items'", () => {
+    const e = new ApiError("blocked", 409, "TERM_HAS_ASSIGNMENTS", { assignedCount: 1 });
+    expect(describeDeleteBlocked(e)?.message).toBe(
+      "Still assigned to 1 content item. Unassign it, or merge it into another term, before deleting."
+    );
+  });
+
+  it("TAXONOMY_HAS_ASSIGNMENTS: reads assignedCount and names the taxonomy-level remedy", () => {
+    const e = new ApiError("blocked", 409, "TAXONOMY_HAS_ASSIGNMENTS", { assignedCount: 2 });
+    expect(describeDeleteBlocked(e)).toEqual({
+      code: "TAXONOMY_HAS_ASSIGNMENTS",
+      count: 2,
+      message:
+        "A term in this taxonomy is still assigned to 2 content items. Unassign or merge that term before deleting the taxonomy.",
+    });
+  });
+
+  it("TAXONOMY_HAS_ASSIGNMENTS: singular count reads 'item', not 'items'", () => {
+    const e = new ApiError("blocked", 409, "TAXONOMY_HAS_ASSIGNMENTS", { assignedCount: 1 });
+    expect(describeDeleteBlocked(e)?.message).toBe(
+      "A term in this taxonomy is still assigned to 1 content item. Unassign or merge that term before deleting the taxonomy."
+    );
+  });
+
+  it("TERM_HAS_CHILDREN: reads childCount and names the reparent-first remedy", () => {
+    const e = new ApiError("blocked", 409, "TERM_HAS_CHILDREN", { childCount: 4 });
+    expect(describeDeleteBlocked(e)).toEqual({
+      code: "TERM_HAS_CHILDREN",
+      count: 4,
+      message: "Has 4 child terms under it. Delete or move them first.",
+    });
+  });
+
+  it("TERM_HAS_CHILDREN: singular count reads 'term', not 'terms'", () => {
+    const e = new ApiError("blocked", 409, "TERM_HAS_CHILDREN", { childCount: 1 });
+    expect(describeDeleteBlocked(e)?.message).toBe("Has 1 child term under it. Delete or move them first.");
+  });
+
+  it("defaults count to 0 (not a crash) when the 409 body omits its count field", () => {
+    const e = new ApiError("blocked", 409, "TERM_HAS_ASSIGNMENTS", {});
+    expect(describeDeleteBlocked(e)?.count).toBe(0);
+  });
+
+  it("defaults count to 0 when the body is entirely absent", () => {
+    const e = new ApiError("blocked", 409, "TERM_HAS_ASSIGNMENTS");
+    expect(describeDeleteBlocked(e)?.count).toBe(0);
+  });
+
+  it("ignores a non-number count value rather than interpolating it raw", () => {
+    const e = new ApiError("blocked", 409, "TERM_HAS_ASSIGNMENTS", { assignedCount: "many" });
+    expect(describeDeleteBlocked(e)?.count).toBe(0);
   });
 });

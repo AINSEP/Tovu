@@ -18,6 +18,12 @@ import { useWorkspace } from "./hooks/use-workspace.hooks";
  *
  * State, the fetch, and save live in `hooks/use-workspace.hooks.ts`; the error-code overrides and
  * the dirty-form derivation live in `rules.ts`.
+ *
+ * Web-design pass (2026-08-05): the id/createdAt pair below used to render as a full bordered
+ * `.list-table` with exactly two rows — sparse next to every real multi-row `.list-table` elsewhere
+ * in this app, and reading as "table for table's sake" for a two-field read-only summary. Swapped
+ * for `.settings-layer-grid`/`.settings-layer-cell` — the same compact key/value chip idiom
+ * `Taxonomy.tsx`'s `TermDetailPanel` already uses for its own small Status/Parent/Version set.
  */
 export interface WorkspaceProps {
   /**
@@ -61,19 +67,15 @@ export function Workspace({ useWorkspaceHook = useWorkspace }: WorkspaceProps = 
         </button>
       </form>
 
-      <div className="table-scroll">
-      <table className="list-table">
-        <tbody>
-          <tr>
-            <th>Workspace ID</th>
-            <td>{workspace.id}</td>
-          </tr>
-          <tr>
-            <th>Created</th>
-            <td>{workspace.createdAt}</td>
-          </tr>
-        </tbody>
-      </table>
+      <div className="settings-layer-grid">
+        <div className="settings-layer-cell">
+          <span className="settings-layer-label">Workspace ID</span>
+          <span>{workspace.id}</span>
+        </div>
+        <div className="settings-layer-cell">
+          <span className="settings-layer-label">Created</span>
+          <span>{workspace.createdAt}</span>
+        </div>
       </div>
 
       <h2>Delete workspace</h2>

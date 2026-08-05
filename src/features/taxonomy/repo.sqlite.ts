@@ -1,3 +1,4 @@
+import type Database from "better-sqlite3";
 import { and, eq } from "drizzle-orm";
 
 import { stampWatermarkTx, type ContentDbTransaction } from "../../core/gated-mutations/watermark";
@@ -89,6 +90,52 @@ export class SqliteTaxonomyRepo implements TaxonomyRepoPort, TaxonomyListPort {
     const rows = this.deps.db.select().from(taxonomies).where(eq(taxonomies.workspaceId, this.deps.workspaceId)).all();
     return rows.map(toTaxonomy);
   }
+
+  /** `DeletableTaxonomyRepoPort` (`@jini-ai/cms/taxonomy`) — additive capability behind
+   * `deleteTaxonomy`, workspace-scoped like every other method on this class. */
+  async delete(id: string): Promise<void> {
+    this.deps.db.delete(taxonomies).where(and(eq(taxonomies.workspaceId, this.deps.workspaceId), eq(taxonomies.id, id))).run();
+  }
+
+  /**
+   * `TransactionalRepoPort` (`@jini-ai/cms/taxonomy`) — backs `deleteTerm`/`deleteTaxonomy`'s
+   * guard-and-cascade atomicity (coordinator review hazards #1/#2: no FK/CASCADE exists at the
+   * schema level, so an application-level transaction is the only thing that can undo a
+   * mid-cascade failure, and it must wrap the guard reads too or they go stale the instant they
+   * return). Manual `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` against the raw better-sqlite3 handle
+   * rather than Drizzle's `db.transaction((tx) => ...)` wrapper — that wrapper requires a
+   * *synchronous* callback (better-sqlite3 itself is synchronous), but `fn` here does `await`ed
+   * repo calls. Exact same precedent and safety argument as `SqliteSettingsRepo.transaction`/
+   * `SqliteNewsletterCampaignRepo`'s: manual BEGIN/COMMIT is safe because better-sqlite3 has no
+   * real async I/O — every call resolves on the same microtask tick, so no other statement can
+   * interleave on this single connection between awaits. `terms`/`entryTerms`/`taxonomyRevisions`/
+   * the outbox all share this SAME `db` handle (constructed together in `server/deps.ts`), so
+   * every write any of them makes while `fn` is running lands inside this one transaction too —
+   * not just the calls made directly through this class.
+   *
+   * **Deliberately NOT reentrant** — same rationale as `SqliteSettingsRepo.transaction`'s own doc
+   * comment (an instance-level depth counter cannot distinguish legitimate nesting from a second,
+   * unrelated concurrent transaction; merging them is worse than the non-atomicity it would fix).
+   * `deleteTerm`/`deleteTaxonomy` are each written to call this exactly once per invocation, at
+   * the outermost level of their own body — never from within an already-open transaction.
+   *
+   * @complexity O(1) fixed overhead plus whatever `fn` itself costs.
+   * @overallScore 100
+   */
+  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+    // `$client` — see `SqliteSettingsRepo.transaction`'s identical comment for why this cast is
+    // necessary and safe (a known drizzle-orm typing gap, not an unsound cast).
+    const client = (this.deps.db as unknown as { $client: Database.Database }).$client;
+    client.exec("BEGIN IMMEDIATE");
+    try {
+      const result = await fn();
+      client.exec("COMMIT");
+      return result;
+    } catch (error) {
+      client.exec("ROLLBACK");
+      throw error;
+    }
+  }
 }
 
 export class SqliteTermRepo implements TermRepoPort, TermListPort {
@@ -149,6 +196,23 @@ export class SqliteTermRepo implements TermRepoPort, TermListPort {
   getParentId(termId: string): string | null {
     const row = findOneBy(this.deps.db, terms, [eq(terms.workspaceId, this.deps.workspaceId), eq(terms.id, termId)], (r) => r.parentId);
     return row ?? null;
+  }
+
+  /** `DeletableTermRepoPort` (`@jini-ai/cms/taxonomy`) — additive capability behind `deleteTerm`. */
+  async delete(id: string): Promise<void> {
+    this.deps.db.delete(terms).where(and(eq(terms.workspaceId, this.deps.workspaceId), eq(terms.id, id))).run();
+  }
+
+  /** `DeletableTermRepoPort.countChildren` — direct children only (one level), workspace-scoped;
+   * see `write-service.ts`'s `DeletableTermRepoPort` doc comment for why `deleteTerm` doesn't
+   * recurse past this. */
+  async countChildren(params: { parentId: string }): Promise<number> {
+    const rows = this.deps.db
+      .select({ id: terms.id })
+      .from(terms)
+      .where(and(eq(terms.workspaceId, this.deps.workspaceId), eq(terms.parentId, params.parentId)))
+      .all();
+    return rows.length;
   }
 }
 
@@ -238,6 +302,24 @@ export class SqliteEntryTermRepo implements EntryTermRepoPort {
       .where(and(eq(entryTerms.workspaceId, this.deps.workspaceId), eq(entryTerms.termId, params.fromTermId)))
       .run();
     return { repointedCount: fromRows.length };
+  }
+
+  /**
+   * `AssignmentCountEntryTermRepoPort` (`@jini-ai/cms/taxonomy`) — the guard `deleteTerm`/
+   * `deleteTaxonomy` use to refuse destroying a live content assignment. Mirrors
+   * `countOverlap`'s bounded-by-taxonomy's-own-low-volume-assumption rationale (ADR-044) — no cap
+   * needed.
+   *
+   * @complexity O(n) in the number of `entry_terms` rows currently assigned to `termId`.
+   * @overallScore 100
+   */
+  async countByTerm(params: { termId: string }): Promise<number> {
+    const rows = this.deps.db
+      .select({ id: entryTerms.id })
+      .from(entryTerms)
+      .where(and(eq(entryTerms.workspaceId, this.deps.workspaceId), eq(entryTerms.termId, params.termId)))
+      .all();
+    return rows.length;
   }
 }
 
