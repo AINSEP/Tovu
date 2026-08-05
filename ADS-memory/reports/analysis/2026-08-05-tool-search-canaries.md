@@ -22,6 +22,39 @@ All four canaries below score against this SAME held-out set (`HELD_OUT_CASES` i
 `tool-search-quality.eval.ts`) — no new eval cases were authored to score against. See the "real
 operator query search" section for what was and wasn't found as an independent corpus.
 
+## Statistical caveats — read this before trusting any percentage below
+
+Added after team-lead review flagged it, and the flag was correct. n=20 means one case is worth 5pp,
+and the 95% CI half-width on a single proportion is **~13-22pp** depending on where p sits (verified
+numerically, not just cited): 45% ± 21.8pp, 20% ± 17.5pp, 65% ± 20.9pp. **Point-estimate deltas under
+roughly 15-20pp between canaries are not distinguishable from noise if you treat each canary as an
+independent sample of the true query distribution.**
+
+But the canaries are NOT independent samples — every one of them scores the identical 20 cases under
+a different configuration, which is a paired design and should be tested as one.
+`development/evals/tool-search-canary-significance.eval.ts` (new, committed) runs a paired McNemar
+exact test against the shipped-keywords baseline for the two candidates whose point estimates moved
+most (doc2query, HyDE):
+
+| comparison vs. keywords baseline | both-hit | baseline-only | other-only | both-miss | McNemar exact p |
+|---|---|---|---|---|---|
+| doc2query (blind) | 2 | 7 | 2 | 9 | p=0.180 — not significant |
+| HyDE on shipped | 5 | 4 | 8 | 3 | p=0.388 — not significant |
+
+**Neither headline delta clears conventional significance at n=20, including HyDE's.** The paired
+test is more informative than the marginal-proportion CI (it isolates which specific cases flipped
+rather than comparing two noisy rates), and it still can't confirm either effect at this sample size.
+Read "not significant" as **"cannot confirm," not "disproven."** The doc2query discordant pairs lean
+7-2 against it (suggestive, not confirmed); HyDE's lean 8-4 in its favor (suggestive, not confirmed).
+Every GO/NO-GO verdict below has been re-worded to reflect this — treat them as directional
+recommendations backed by point estimates plus a plausible mechanism, not as proven effects.
+
+**One number in this file is NOT subject to this caveat: the 30%-unreachable / 70%-recall@10 finding
+in canary 3.** That's an exact count of how many of these 20 specific cases BM25 retrieves at all —
+not a sampling estimate of a population, a deterministic fact about this exact case set. It's still
+only as generalizable as the held-out set itself (the separate, unresolved "no real operator queries"
+problem below), but it isn't fighting sampling noise the way a percentage comparison is.
+
 ## Real operator query search — result: NOTHING USABLE FOUND
 
 Searched `ADS-memory/sessions/`, `ADS-memory/.local-artifacts/` (handoffs, agent-reports,
@@ -104,12 +137,16 @@ respectively and keep winning by accident — e.g. "the footer needs a recent po
 match by coincidence, and the domain-level query loses the sharp single-tool phrase match that made
 the flat index work in the first place.
 
-**Verdict: NO-GO, and cheaply so — exactly what a canary should do.** The whole premise of the
-two-stage design (shrink 131 candidates to ~6 before ranking matters) requires stage one to be
-reliable; at 40% it is less reliable than just searching flat. This was the FREE version (existing
-text, no new authoring); a hand-curated one-line-per-domain blurb might route better, but that is a
-different, non-free experiment outside this canary's mandate — worth flagging as a possible follow-up
-if hierarchical search is ever reconsidered, but not worth building against these numbers as-is.
+**Verdict: NO-GO, on structural grounds more than the point estimate.** 40% vs. the flat baseline's
+45% is a 5pp gap — well inside the noise floor on its own, not a confirmed regression (this
+comparison wasn't run through the paired McNemar test above since domain-level and tool-level top-1
+aren't the same unit). The case against hierarchical search doesn't rest on that 5pp gap; it rests on
+the structural argument stated above: a two-stage design's ceiling IS its first stage, and there's no
+evidence here that stage one clears the bar needed to justify the added complexity — best case
+measured, it merely matches doing nothing. This was the FREE version (existing text, no new
+authoring); a hand-curated one-line-per-domain blurb might route better, but that is a different,
+non-free experiment outside this canary's mandate — worth flagging as a possible follow-up if
+hierarchical search is ever reconsidered, but not worth building against these numbers as-is.
 
 ---
 
@@ -167,11 +204,17 @@ between tools, and BM25's length normalization works against the now much longer
 hand-written keywords file is short, topical, and deliberately excludes stopword-shaped filler; that
 compactness appears to matter more than the systematic generation process helps.
 
-**Verdict: NO-GO as tested.** Doc2query in this form costs a model call per tool and underperforms
-the already-shipped, zero-marginal-cost keywords file. A version that filtered the generated
-questions down to their distinctive open-class terms (i.e., converged toward what the keywords file
-already does by hand) might close the gap, but that is a different, unbuilt technique — not what
-"generate questions, index them" as specified in the brief measures.
+**Verdict: NO-GO as tested, but hold it loosely — the paired McNemar test (see "Statistical caveats"
+above) puts this at p=0.180, not significant at n=20.** The discordant pairs lean 7-2 against
+doc2query (7 cases the keywords baseline got right that doc2query missed, vs. 2 the reverse), which
+is suggestive in the same direction as the point estimate, but "suggestive" is the honest ceiling
+this sample size supports — it is not proof doc2query is worse, only that it did not demonstrate
+being better, and the mechanism argument (filler-word dilution, BM25 length normalization) is doing
+real work in this verdict alongside the numbers. Doc2query in this form costs a model call per tool
+and did not demonstrate beating the already-shipped, zero-marginal-cost keywords file. A version that
+filtered the generated questions down to their distinctive open-class terms (i.e., converged toward
+what the keywords file already does by hand) might close the gap, but that is a different, unbuilt
+technique — not what "generate questions, index them" as specified in the brief measures.
 
 ---
 
@@ -212,29 +255,62 @@ and keywords are BUILD-TIME costs: pay once, free at query time forever. HyDE is
 extra LLM call on every single `search_tools` invocation, adding real latency and per-call spend to
 every search, forever. That is a materially different tradeoff than "generate this once."
 
-**Verdict: GO, but scope the decision correctly** — this is a per-query runtime cost, not a
-build-time investment like the other three. Worth prototyping given the size of the win, with the
-runtime cost measured explicitly (latency added to `search_tools`, cost of the cheap model used for
-expansion) before committing, and ideally paired with the existing keywords file rather than
-replacing it, since the combination outperforms either alone.
+**Verdict: GO to prototype, but the point estimate is NOT statistically confirmed at n=20 — say this
+plainly rather than let the biggest number in the file overstate its own certainty.** The paired
+McNemar test (see "Statistical caveats" above) puts the shipped-index comparison at p=0.388; the
+discordant pairs lean 8-4 in HyDE's favor, which is the most favorable lean of anything measured in
+this file, but it does not clear conventional significance at this sample size either. What justifies
+"GO to prototype" instead of "inconclusive, do nothing" is the combination of: the most favorable
+point estimate and discordant-pair lean of all four candidates, a plausible and independently
+checkable mechanism (expansion adds vocabulary exactly where the original findings report already
+proved vocabulary is the bottleneck), and a genuinely blind measurement process with no contamination
+risk. That combination is a reasonable basis for spending prototype effort — it is not a basis for
+claiming the win is proven. This is also a per-query RUNTIME cost, not a build-time investment like
+the other three: worth prototyping with the runtime cost measured explicitly (latency added to
+`search_tools`, cost of the cheap model used for expansion) before committing, and ideally paired with
+the existing keywords file rather than replacing it, since the combination outperforms either alone
+in this measurement.
 
 ---
 
 ## Summary — verdict table
 
-| # | approach | headline number | cost | verdict |
-|---|---|---|---|---|
-| 3 | rerank top-K | recall@10 ceiling 70% (25pp addressable, 30% unreachable) | small, per-search | CONDITIONAL GO — sequence after retrieval fixes |
-| 2 | hierarchical (domain routing) | domain top-1 40% (below flat 45%) | free (reused index) | **NO-GO** |
-| 1 | doc2query | held-out top-1 20% (blind) — below keywords' 45% | 1 subagent call, ~82k tokens, one-time | **NO-GO as tested** |
-| 4 | HyDE query expansion | held-out top-1 65% on shipped index (55% even with NO keywords) | 1 LLM call PER search, every turn, forever | **GO**, but it's a runtime cost, not build-time |
+| # | approach | headline number | paired significance vs. baseline | cost | verdict |
+|---|---|---|---|---|---|
+| 3 | rerank top-K | recall@10 ceiling 70% (25pp addressable, 30% unreachable) | n/a — exact count, not a sampled comparison | small, per-search | CONDITIONAL GO — sequence after retrieval fixes |
+| 2 | hierarchical (domain routing) | domain top-1 40% (below flat 45%) | not tested (different unit); 5pp gap alone is noise | free (reused index) | **NO-GO** (structural argument, not the point estimate) |
+| 1 | doc2query | held-out top-1 20% (blind) — below keywords' 45% | McNemar p=0.180, discordant 7-2 against | 1 subagent call, ~82k tokens, one-time | **NO-GO as tested, not disproven** |
+| 4 | HyDE query expansion | held-out top-1 65% on shipped index (55% even with NO keywords) | McNemar p=0.388, discordant 8-4 in favor | 1 LLM call PER search, every turn, forever | **GO to prototype, not statistically confirmed** |
 
 Read together: the two "index more text at build time" ideas (doc2query, and implicitly the
-hierarchical domain-grouping) did NOT beat the already-shipped hand-written keywords file. The two
-ideas that touch the QUERY side (reranking, HyDE) both show real headroom, and HyDE's blind number is
-the best single result measured across all four candidates and the existing keywords fix combined.
-If forced to pick one thing to prototype next, it's HyDE — with the caveat that it's the only
-candidate here whose cost recurs on every turn rather than being paid once.
+hierarchical domain-grouping) did NOT beat the already-shipped hand-written keywords file, though
+neither loss is statistically proven at n=20 either — both rest partly on plausible mechanism, not
+pure numbers. The two ideas that touch the QUERY side (reranking, HyDE) both show the most promising
+signal, and HyDE's is the best single result measured across all four candidates and the existing
+keywords fix combined — but "best measured" and "statistically confirmed" are different claims, and
+only the former is true here. If forced to pick one thing to prototype next, it's HyDE — with the
+caveat that it's the only candidate here whose cost recurs on every turn rather than being paid once,
+and its win is a promising lean, not a proven effect.
+
+## Recommendation: instrument real `search_tools` queries — do not implement, this is the owner's call
+
+Every number in this file, and every number in the original findings report, is measured against
+cases an agent authored. That ceiling cannot be raised by trying harder to search for existing real
+queries (already attempted, nothing found) or by writing more careful synthetic cases (the
+contamination in canary 1 shows how easily "careful" fails). The only fix is to stop relying on
+authored cases and start capturing real ones as a by-product of ordinary use.
+
+**What this would look like:** log every `search_tools` invocation's query text and the tool id the
+operator's turn ultimately called (or a `describe_tool` follow-up, or neither, all three are
+signal). That's enough to build an honest eval set organically — real phrasing, real distribution of
+easy vs. hard cases, no author bias.
+
+**What must NOT be logged:** tool call arguments (may carry site content, PII, or credentials),
+response payloads, anything from `execute_delegated_tool`'s actual execution — only the search
+query string and which tool id (if any) was ultimately selected. This is a narrower, lower-risk
+surface than general request logging, but it is still new persistent capture of operator-typed text,
+which is a privacy-posture decision, not an engineering one. **Not implemented here** — flagging it
+as the highest-leverage next step and leaving the call to the owner.
 
 ## Process note for whoever picks this up next
 
