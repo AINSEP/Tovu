@@ -344,3 +344,51 @@ to whatever is supposed to be driving it (Playwright's CLI), not the daemon's li
 webServer — and remains open, named as follow-up #1 above (now partially addressed: the LEAK from
 that scenario, once and if it also kills the API by some other means, is closed; the case where
 the API survives orphaned-but-untouched is not).
+
+## Round 4: third independent reproduction, on the post-`beb6586` tree, by a different agent
+
+`qa-byok-specs` independently ran an isolated experiment (`BYOK_E2E_PORT_BASE=7521`, dedicated
+`--output`) and killed its own Playwright process at the end. Result: three webServer children
+orphaned on ports 7521-7523, on the tree that already had the stdio hardening (`beb6586`) applied,
+which it had to kill manually. Same mechanism as Round 2/3's own measurements: an external kill of
+Playwright's own CLI process bypasses `teardown()` entirely, so `gracefulShutdown` never gets a
+chance to apply.
+
+This is the third independent reproduction of the same gap, via three different triggers, from two
+different agents: this dispatch's own direct `SIGTERM`-to-CLI repro (Round 2), this dispatch's own
+30-second-still-bound measurement (Round 2), and now `qa-byok-specs` hitting it live on the fixed
+tree (Round 4). `gracefulShutdown` structurally cannot cover an externally-killed run — it only
+ever applies once Playwright's own `teardown()` runs, and an external kill bypasses that code path
+entirely, by construction, regardless of what `gracefulShutdown` is set to. Agents killing their
+own runs — timeouts, resource caps, a mistaken hang diagnosis — is routine in this environment, not
+an edge case. That routineness is the argument for putting detection in the daemon itself (this
+dispatch's watchdog, Round 3) rather than in any one caller: the daemon is the one thing present in
+every variant of this failure, no matter which process did the killing or why.
+
+## Two things recorded per COORD-12, neither blocking, neither built here
+
+1. **PID reuse is the watchdog's one blind spot.** `process.kill(pid, 0)` answers "does a process
+   with this pid exist," not "is my parent alive." If the API dies and the OS recycles its pid
+   within the 3s poll window, the check succeeds against an unrelated process and the watchdog
+   never fires for that cycle (and, if the impostor process happens to live long enough, potentially
+   never fires at all). Low probability on a normal machine, non-zero on a busy one — this same
+   dispatch independently observed PID churn/reuse-shaped confusion multiple times today at the
+   shell level (see the attribution back-and-forth). Unfixable with the pid alone; a start-time
+   comparison (record the parent's process start time at spawn, alongside its pid, and check both)
+   would close it. Documented as a known limit, not fixed — deliberately out of scope for this
+   dispatch.
+
+2. **The symmetric fix is the natural closer for the still-open second gap (external kill of
+   Playwright's CLI) and is a named follow-up, NOT built here** (restart imminent; it needs its own
+   verification pass, same as everything else in this doc). In that scenario, `src/index.ts` itself
+   is the orphan — it survives with the thing that was supposed to be driving it (Playwright's CLI)
+   gone, which is exactly the condition this dispatch's daemon watchdog detects, one level down the
+   tree. The same pattern applied one level up — `src/index.ts` watching ITS OWN parent (whatever
+   process the CLI's teardown depends on being alive to invoke `teardown()` in the first place) —
+   would close the gap that `gracefulShutdown` cannot structurally cover. Concretely: `src/index.ts`
+   would need to know its own logical "driver" pid (analogous to `TOVU_PARENT_PID`, but there is no
+   existing spawner in this codebase to source it from the way `spawnAgentDaemon()` sources the
+   daemon's — Playwright's own launcher does not currently hand `index.ts` a pid to watch, so this
+   is not a drop-in copy of the Round 3 pattern; establishing what that pid even IS in every real
+   launch context (Playwright webServer, `npm run dev`, a production boot with no supervisor at all)
+   is the first open question for whoever picks this up, not an implementation detail).
