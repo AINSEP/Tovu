@@ -35,3 +35,26 @@ describe("REQ-17/AC-25: the plugins NavItem is an active link, not disabled/soon
     expect(navSource).not.toMatch(/BLOCKED pending an owner decision/);
   });
 });
+
+describe("'authentication' sits directly between 'users' and 'roles' in the People group", () => {
+  it("has no gap: authentication is immediately after users and immediately before roles", () => {
+    // This is array-order-dependent, not driven by an explicit `nav.order` on any of the three
+    // entries (see `panels.tsx`'s own comment on the `authentication` panel) — `buildNav`'s
+    // documented tiebreak for equal/absent `order` is registration order in `ADMIN_PANELS`. That
+    // makes this a silent-drift hazard: nothing stops a future edit from reordering the array and
+    // moving `authentication` without anyone noticing, since TypeScript enforces none of it. This
+    // test is the guard against that — it fails the moment the three stop being consecutive in
+    // this exact sequence, not just "somewhere in People".
+    const people = getNav().find((group) => group.label === "People");
+    expect(people).toBeDefined();
+
+    const ids = people!.items.map((item) => item.id);
+    const usersIndex = ids.indexOf("users");
+    const authIndex = ids.indexOf("authentication");
+    const rolesIndex = ids.indexOf("roles");
+
+    expect(usersIndex).toBeGreaterThanOrEqual(0);
+    expect(authIndex).toBe(usersIndex + 1);
+    expect(rolesIndex).toBe(authIndex + 1);
+  });
+});
