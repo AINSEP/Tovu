@@ -16,9 +16,115 @@ Status: **COMPLETE** for the assigned scope. Commits `e77b50f`, `8cb4545`, `4634
 | `byok-key-handling` 8 | ✘ | ✘ | **still failing** — out of scope, see below |
 | `byok-google-tool-schema` | ✘ | ✓ | test gap, not the product bug it was filed as |
 
-`npx tsc --noEmit`: **0 errors** at the end of this dispatch. (Mid-dispatch it reported one error in
-`src/server/app.ts` — `pagesHtmlStore` missing from `NewsletterRouteDeps` — which was not mine and has
-since been fixed by concurrent work.)
+`npx tsc --noEmit`: **0 errors** at the end of this dispatch.
+
+Mid-dispatch it reported one error surfacing at `src/server/app.ts(368,3)` — `pagesHtmlStore` missing
+from `NewsletterRouteDeps`. I flagged it as possibly introduced by concurrent work; the Coordinator
+verified otherwise and the correction is recorded here: **`app.ts` is committed and clean and was not
+modified this session.** The error originated in the *uncommitted* `src/server/deps.ts` (the Pages HTML
+workstream), one of the ~299 pre-existing dirty paths. It is a **tree condition, not a regression** —
+no commit from this session touches it, and a clean `tsc` depends on the state of an unrelated
+workstream's working copy.
+
+---
+
+# CORRECTION — a false mechanism I published, now retracted
+
+An earlier version of this report, and the doc comment on `fillApiKeyAndAwaitCommit`, stated that
+`ExecutionTab.tsx`'s discovery effect *"lists only `config.byok.baseUrl` as a dependency"* and therefore
+*"never re-fires for that URL"*. **That was inference presented as observation, and it is false.** The
+Coordinator caught it; I then read the committed source and confirmed the correction.
+
+The actual dependency array (`ExecutionTab.tsx`, the `useEffect` following the `hasApiKey` derivation):
+
+```
+[config.mode, port, loadModels, config.byok.protocol, config.byok.baseUrl, config.byok.providerId, hasApiKey]
+```
+
+`hasApiKey` is in it deliberately. Its own doc says it is keyed on the boolean *"specifically so the
+effect below re-runs exactly once on the `false -> true` transition — a saved key hydrating from storage
+after first paint, or an operator finishing entry — and NOT once per character."* The effect's own
+comment calls `hasApiKey` *"what makes this effect self-healing"* and describes the exact bug it fixed.
+
+**What was actually measured, and remains true:** an edit made before React commits the typed key fires
+a discovery request carrying an empty `apiKey` (observed on the wire twice), and the server
+short-circuits an empty key before any outbound call. The fix — waiting on a React-derived enabled
+state — is correct either way. Only the explanation was wrong.
+
+This is recorded rather than quietly edited because it is precisely the defect class this report
+catalogues three times over, committed by me. The commit message of `8cb4545` contains the same false
+claim and cannot be rewritten; this section is the correction of record.
+
+---
+
+# FINDING — the SSRF guard's strength depends on which code path you enter
+
+Answering the Coordinator's bounded question: **`pinnedFetch` is about DNS-rebinding TOCTOU, not
+connection reuse.** Its own doc in `connection-guard.ts` is explicit:
+
+> *"A validator that only checks and returns pass/fail has a gap: `fetch` (or any transport) then
+> resolves the hostname AGAIN, independently, when it dials. Between those two resolutions the answer
+> can change — a DNS rebinding attacker returns a public address to this check and a private one to the
+> connection. No amount of re-checking closes that on its own; the request has to dial the exact address
+> that was approved."*
+
+`validateBaseUrlResolved` resolves once and returns the approved address as `pinnedAddress`, to be fed
+to `pinnedFetch`, which dials it directly.
+
+**Six call sites resolve. Four pin. Two discard the pin.**
+
+| path | validates | transport | pinned? |
+|---|---|---|---|
+| `anthropic-messages.ts` (turn) | yes | `pinnedFetch` | **yes** |
+| `google-messages.ts` (turn) | yes | `pinnedFetch` | **yes** |
+| `openai-chat.ts` (turn) | yes | `pinnedFetch` | **yes** |
+| `ollama-chat.ts` (turn) | yes | `pinnedFetch` | **yes** |
+| `azure-chat.ts` (turn) | yes | forwards `pinnedAddress` on to the OpenAI runner | **yes** |
+| **`model-catalog.ts` (model discovery)** | yes | global `fetch` | **NO** |
+| **`connection-test.ts` (Test connection)** | yes | global `fetch` | **NO** |
+
+Verified that the discard is real and not indirection: neither `model-catalog.ts` nor
+`connection-test.ts` references `validated.pinnedAddress` anywhere — both read only `.error`,
+`.forbidden`, `.parsed`. So both call the resolving validator, receive the approved address, throw it
+away, and let undici re-resolve at dial time. That is exactly the window `pinnedFetch` exists to close.
+
+**Severity: Low-to-Medium, defence-in-depth — not Critical, and the guard's own doc says why.** `baseUrl`
+here is operator-configured provider config, not attacker-supplied input, and the doc states plainly
+that *"pinning is defence-in-depth rather than the primary trust boundary."* The redirect half of the
+surface is also closed on the discovery path — `model-catalog.ts:387` does pass `redirect: 'error'`.
+
+**Why it is still worth recording:** the same `validateBaseUrlResolved` call gives two different security
+postures depending on which function you entered, with nothing at either call site marking the
+difference. Someone reading "the SSRF guard runs on this path" — as `list-models.ts`'s own header
+comment says — will reasonably assume the guard behaves identically everywhere. It does not.
+
+Not fixed: it is Jini product code, outside this dispatch, and would need an owner decision plus a
+`@jini-ai/ui` rebuild.
+
+---
+
+# FINDING — the BYOK panel makes a live third-party request at mount, and the config's "hermetic" claim is false
+
+Observed during instrumentation, not sought: `RES {"ok":false,"models":[],"message":"invalid x-api-key"}`
+— a real response from **api.anthropic.com**, reached during a run of the suite whose config header
+describes it as *"hermetic"* and *"never a real provider."*
+
+**Mechanism (product, not test):** `ExecutionTab`'s discovery effect fires as soon as BYOK mode is
+selected, against the preset's *default* provider endpoint, before any base URL is typed and before any
+credential exists. The empty-`apiKey` discovery call documented above and this outbound request are the
+same event seen from two sides.
+
+So **an admin merely opening the Execution panel emits a request to a third-party provider.** In this
+suite it carries a canary key and is harmless. In production it is an unsolicited outbound call to
+Anthropic triggered by opening a settings screen. Not urgent, not this dispatch's to fix, but far
+cheaper to notice now than to discover later.
+
+**The config's own header comment is now false as written.** `development/playwright.admin.config.ts`
+describes the harness as *"hermetic, two-process boot"* and *"never a real provider or the shared dev
+server."* The first half is true; the claim about never reaching a real provider is not. Same defect
+class as the three stale comments this report already catalogues.
+
+---
 
 ## Residual: `byok-key-handling` test 8, NOT fixed, not in scope
 
@@ -267,12 +373,18 @@ It surfaced as `page.waitForSelector: waiting for locator('.login-card') to be d
 which looks nothing like a rate limit — precisely the shape this suite has historically written off
 as infra flake.
 
-### Fix, and one rejected approach
+### Fix, and one rejected approach — **the rejected half is the more useful result**
 
-**Rejected: session reuse across the browser tests.** Capturing the first login's cookies and
-replaying them fixed test 11 but **destabilised tests 7, 8 and 9** (run 11: 3 failed, incl. test 9
-which had been green 4/4). Those tests' mount-time discovery races are sensitive to how long the page
-takes to become interactive, and skipping the form made it faster. Reverted.
+**REJECTED: session reuse across the browser tests. Record this before the fix that was kept.**
+Capturing the first login's cookies and replaying them into later contexts is the obvious fix, and it
+is a trap. It fixed test 11 and **destabilised tests 7, 8 and 9** — run 11 went from 1 failure to 3,
+including test 9, which had been green 4/4 immediately before. Skipping the login form makes the page
+interactive sooner, which feeds the mount-time discovery races. **It traded one deterministic failure
+for three flaky ones**, so it was reverted rather than shipped.
+
+The generalisable point: in this suite, *making a test faster is not a neutral change.* Two separate
+defects here (this one, and the `LOGIN_STRICT` breach itself) were caused or exposed purely by removing
+latency.
 
 **Adopted: one shared authenticated `APIRequestContext` for the five API tests.** That is the half of
 the budget that collapses with **zero browser-side timing change** — the six UI logins are untouched.
@@ -345,9 +457,19 @@ first → wait for `.settings-ui-save.is-saved` → **then** the key → press S
 window. Once the save lands, `stored.isSet` is true and a later wipe is harmless because the
 credential lives server-side.
 
-**Result: the spec passes (17.6s, reconfirmed 18.7s).** Its real assertions — the recursive
-Gemini-schema violation scan and the exact meta-tool set — had almost certainly never executed before,
-because the turn had never reached the provider.
+**Result: the spec passes (17.6s, reconfirmed 18.7s, 13.4s).**
+
+### The headline is not the fix — it is that this test had never exercised its subject
+
+Its real assertions — the recursive Gemini-schema violation scan (`collectGoogleSchemaViolations`, the
+whole reason the file exists) and the exact meta-tool set — **had never executed**, because the turn was
+rejected at the credential gate before any provider call. Everything downstream of
+`expect.poll(() => deputy.streamRequests().length).toBeGreaterThan(0)` was unreachable.
+
+**A test can be failing for months and still never have run its own subject.** This one is the proof.
+The failure was even attributed to the thing the test guards — "the deputy never receives a request" was
+read as evidence about the turn path — when it was evidence that the turn path was never entered. A red
+test invites the assumption that its assertions ran and one of them lost; here none of them ran at all.
 
 Verified the assertions are live by breaking the product and watching one fail, then restoring
 (`git diff` on `assistant-byok.ts` confirms zero net change): `tools: toolSurface.metaTools.slice(0, 2)`
