@@ -296,7 +296,21 @@ async function respondWithEnrichedAgentList(req: Request, res: Response, routeDe
     res.send(rawText);
     return;
   }
-  if (!upstream.ok || !payload || !Array.isArray(payload.agents)) {
+  if (!upstream.ok || !payload) {
+    // A non-2xx status or an empty body is an ordinary daemon-side error — the daemon itself is
+    // the right place for that to be logged (or not), not this proxy hop.
+    res.send(rawText);
+    return;
+  }
+  if (!Array.isArray(payload.agents)) {
+    // A 2xx response that isn't the `{agents: [...]}` shape this handler expects is NOT an
+    // ordinary error — it means enrichment silently stops happening (indistinguishable from "the
+    // admin has no API key" from the browser's side) with no other signal anywhere. Worth an
+    // operator seeing; everything else in this function is deliberately quiet by design (see the
+    // header on `getLiveClaudeModels` for the same reasoning applied to the credential branch).
+    console.warn(
+      `[assistant] ${req.method} ${req.originalUrl} — daemon responded 2xx without an 'agents' array; relaying unmodified, live model enrichment skipped for this response`,
+    );
     res.send(rawText);
     return;
   }

@@ -234,6 +234,115 @@ test("a call after the TTL has expired re-issues the live call", async () => {
   }
 });
 
+test("cache entries for two tenants never collide, even when their ids would join to the same string under a delimiter-joined key", async () => {
+  // A `${workspaceId}:${principalId}` string key would put these two DISTINCT tenants on the SAME
+  // slot: "ws:1" + ":" + "2" === "ws" + ":" + "1:2" === "ws:1:2". Tovu is intentionally
+  // multi-workspace, so this is a real configuration, not a contrived edge case.
+  resetLiveModelCacheForTesting();
+  const { deps: depsA, repo: repoA, sealer: sealerA } = makeDeps();
+  const { deps: depsB, repo: repoB, sealer: sealerB } = makeDeps();
+  const providerA = await startProviderServer(() => ({
+    status: 200,
+    body: { data: [{ id: "model-a", display_name: "Model A" }] },
+  }));
+  const providerB = await startProviderServer(() => ({
+    status: 200,
+    body: { data: [{ id: "model-b", display_name: "Model B" }] },
+  }));
+  try {
+    await setExecutionCredential(depsA, {
+      workspaceId: "ws:1",
+      principalId: "2",
+      apiKey: "key-a",
+      protocol: "anthropic",
+      baseUrl: providerA.baseUrl,
+    });
+    await setExecutionCredential(depsB, {
+      workspaceId: "ws",
+      principalId: "1:2",
+      apiKey: "key-b",
+      protocol: "anthropic",
+      baseUrl: providerB.baseUrl,
+    });
+
+    const resultA = await getLiveClaudeModels({ repo: repoA, sealer: sealerA }, { workspaceId: "ws:1", principalId: "2" });
+    const resultB = await getLiveClaudeModels({ repo: repoB, sealer: sealerB }, { workspaceId: "ws", principalId: "1:2" });
+
+    assert.deepEqual(resultA, [{ id: "model-a", label: "Model A" }]);
+    assert.deepEqual(
+      resultB,
+      [{ id: "model-b", label: "Model B" }],
+      "a colliding string key would have served A's cached result here instead of B's own live call",
+    );
+    assert.equal(providerB.requestCount(), 1, "B's own provider must have been hit, not skipped via a cache collision with A");
+  } finally {
+    await new Promise((resolve) => providerA.server.close(() => resolve(undefined)));
+    await new Promise((resolve) => providerB.server.close(() => resolve(undefined)));
+  }
+});
+
+// ---------------------------------------------------------------------------
+// getLiveClaudeModels — silent-failure logging
+// ---------------------------------------------------------------------------
+
+/** Swaps `console.warn` for a recorder for the duration of `run`, then restores it. */
+async function captureWarnings<T>(run: () => Promise<T>): Promise<{ result: T; warnings: unknown[][] }> {
+  const original = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
+  try {
+    const result = await run();
+    return { result, warnings };
+  } finally {
+    console.warn = original;
+  }
+}
+
+test("a failed live call logs one warning naming the failure kind — the case an operator needs to see", async () => {
+  resetLiveModelCacheForTesting();
+  const { deps, repo, sealer } = makeDeps();
+  const provider = await startProviderServer(() => ({ status: 500, body: { error: "internal error" } }));
+  try {
+    await setExecutionCredential(deps, {
+      workspaceId: WORKSPACE,
+      principalId: ADMIN_A,
+      apiKey: "sk-ant-test-key",
+      protocol: "anthropic",
+      baseUrl: provider.baseUrl,
+    });
+
+    const { warnings } = await captureWarnings(() =>
+      getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A }),
+    );
+
+    assert.equal(warnings.length, 1, "a failed live call must log exactly one warning");
+    assert.match(String(warnings[0][0]), /live Claude model discovery failed/);
+    assert.match(String(warnings[0][0]), /upstream_unavailable/, "the warning must name the failure kind, not just 'it failed'");
+  } finally {
+    await new Promise((resolve) => provider.server.close(() => resolve(undefined)));
+  }
+});
+
+test("the quiet paths (no credential, wrong protocol) log nothing — only an attempted-and-failed live call is worth an operator's attention", async () => {
+  resetLiveModelCacheForTesting();
+  const { deps, repo, sealer } = makeDeps();
+  await setExecutionCredential(deps, {
+    workspaceId: WORKSPACE,
+    principalId: "principal-openai",
+    apiKey: "sk-openai-test-key",
+    protocol: "openai",
+  });
+
+  const { warnings } = await captureWarnings(async () => {
+    await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A }); // no credential
+    await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: "principal-openai" }); // wrong protocol
+  });
+
+  assert.equal(warnings.length, 0);
+});
+
 // ---------------------------------------------------------------------------
 // unionModels — design §3.5's union-not-replace merge policy
 // ---------------------------------------------------------------------------
