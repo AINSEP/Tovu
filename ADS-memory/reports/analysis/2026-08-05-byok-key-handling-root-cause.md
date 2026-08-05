@@ -58,6 +58,33 @@ workstream), one of the ~299 pre-existing dirty paths. It is a **tree condition,
 no commit from this session touches it, and a clean `tsc` depends on the state of an unrelated
 workstream's working copy.
 
+## OPEN ITEMS AT SESSION END — read this if you are picking the work up
+
+Nothing here is blocked on understanding the rest of this report; each item says where to go.
+
+| # | item | state | where |
+|---|---|---|---|
+| 1 | **`byok-key-handling` test 8** — the only failing test in either owned file | Cause **confirmed** (the autosave key-wipe). Fix deliberately **not** applied: it was gated on a product change that did not land this session. | "test 8" section — includes a **ready-to-apply** change spec |
+| 2 | **DO NOT invert test 8's pin.** | Settled conclusion, contested and resolved. Its current assertion should pass **unmodified** once the wipe fix lands — verify that before touching it. | same section, "CONCLUSION" |
+| 3 | **The autosave key-wipe** (operator-visible data loss: type a key, pause ~600ms, it vanishes) | Product defect, measured. A separate `programmer-autosave` agent was dispatched to fix it; **outcome unknown at session end.** | Item 2 section, PROBE-A/B/C/D evidence |
+| 4 | **Is the wipe pinned by any test?** | **UNCONFIRMED — assume not.** Asked the Programmer explicitly; no answer received. If no product-side test exists, keep a wipe assertion in `byok-key-handling.spec.ts`. | "OPEN HOLE" subsection |
+| 5 | **SSRF pin discarded on 2 of 7 paths** | Real finding, severity calibrated Low-to-Medium. Routed to the owner as a **Jini** decision; not made. | "FINDING — the SSRF guard's strength…" |
+| 6 | **BYOK panel calls api.anthropic.com at mount**; the admin config's "hermetic" claim is false as written | Recorded, not fixed, not urgent | "FINDING — the BYOK panel makes a live third-party request…" |
+| 7 | Which of 4 `publishSettingsRefresh` call sites triggers the wipe | **Unverified.** Not a loose end — never traced, and deliberately not guessed. | "Why the 26th request exists" |
+
+**Owned files (the only ones this agent may edit):** `development/e2e/byok-key-handling.spec.ts`,
+`development/e2e/byok-google-tool-schema.spec.ts`. Both are committed and byte-clean. **No product code
+was modified** — product files were edited only to demonstrate that assertions detect regressions, and
+every one was restored (`git diff` verified empty each time).
+
+**Commits, in order:** `e77b50f`, `8cb4545`, `4634e08`, `667e357`, `809a51f`, `b1f26e0`, `fbabcf3`,
+`b1207e1`.
+
+**Run discipline used, for anyone reproducing:** `BYOK_E2E_PORT_BASE=7661` only, a unique
+`--output=test-results/a2-<spec>-<n>` on every run, one spec per run, config
+`development/playwright.admin.config.ts`. 24 runs, `lsof` clean on 766x before and after each, zero
+orphans throughout.
+
 ---
 
 # CORRECTION — a false mechanism I published, now retracted
@@ -130,8 +157,11 @@ postures depending on which function you entered, with nothing at either call si
 difference. Someone reading "the SSRF guard runs on this path" — as `list-models.ts`'s own header
 comment says — will reasonably assume the guard behaves identically everywhere. It does not.
 
-Not fixed: it is Jini product code, outside this dispatch, and would need an owner decision plus a
-`@jini-ai/ui` rebuild.
+**Not fixed. Status: routed to the owner as a Jini decision, not yet made.** All files referenced in this
+section live in a *different repo* from this report: `/Users/la/Programming/Jini/packages/agent-runtime/
+src/providers/` (`connection-guard.ts`, `model-catalog.ts`, `connection-test.ts`, and the five provider
+adapters). Changing them also requires a `@jini-ai/ui` / agent-runtime rebuild before Tovu sees any
+effect, since Tovu consumes these packages via `dist`.
 
 ---
 
@@ -194,48 +224,68 @@ Order-dependence follows: in isolation there is no wipe, hence no 26th request, 
 refresh (two in `AssistantDock.tsx`, two in `settings-events.ts`). Reproduction pins the wipe, not the
 publisher.
 
-### The pin should NOT be inverted — the shared premise was wrong
+### CONCLUSION: DO NOT INVERT THIS TEST
 
-"Premise-stale" would mean the product's security behaviour changed such that the pin asserts something
-untrue of the real system. **It did not.** The leak is unchanged: all 25 keystroke requests carry the
-live key to every intermediate host, strict prefixes included. What changed is that a *separate defect,
-currently being fixed*, injects one unrelated request. **Once the fix lands, test 8's existing assertion
-should pass unmodified**, and inverting it now would pin behaviour that is about to be deleted.
+Stated as a conclusion because it was contested and settled, and because the next agent will otherwise
+re-derive the wrong answer from the phrase "premise-stale" in the older notes.
 
-What is worth changing, for an unrelated reason: `for (const call of captured) expect(call.apiKey)
-.toBe(canaryKey)` is a census over *every* request in the window, so any unrelated one fails it. Proposed
-re-expression as the security property itself:
+"Premise-stale" would mean the product's real security behaviour changed, so the assertion is now untrue
+of the system. **That is not what happened, and the test must not be inverted.** The leak is unchanged:
+all 25 keystroke requests carry the live key to every intermediate host, genuine strict prefixes
+included. What changed is that a *separate defect* — the autosave key-wipe, being fixed independently —
+injects one unrelated 26th request.
 
-- keep #1 (`captured.length > 1` — no debounce)
-- keep #3 (at least one genuine strict-prefix baseUrl)
-- replace #2 with: **every request carrying a non-empty key carried exactly the canary** (no other
-  credential ever leaves) **and at least one strict-prefix request carried the canary** (the leak reaches
-  unintended hosts)
+**Once the wipe fix lands, test 8's existing assertion should pass UNMODIFIED.** Verify that before
+changing anything. Inverting it would pin behaviour that is about to be deleted.
 
-**This is a ROBUSTNESS change, not a correctness one — do not read it as a weakening.** Both KNOWN-BAD
-properties survive intact and still flip the instant MSG-1 is genuinely fixed: "no debounce" (#1) and
-"prefix hosts receive the live key" (#3). The replaced clause gets *stronger* on the thing MSG-1 is
-about, because a **different** credential going out would now fail, which the census form cannot
-distinguish — it only ever asked "was this the canary", never "did some other key leak".
+(Reviewed and adopted by the Coordinator, who had originally proposed inverting it.)
 
-Approved by the Coordinator. Not applied yet: deferred until the product fix lands, so it is not
-written twice.
+### READY-TO-APPLY CHANGE (specified, deliberately not applied)
 
-### The one thing this gives up, and who covers it
+Not applied because it was gated on the product fix, which did not land in this session. Apply it
+**after** the wipe fix, and only after confirming the test passes unmodified first.
 
-The new form lets an empty-key request pass silently, so **test 8 will no longer catch a regression of
-the wipe itself.** That is the correct division of labour — test 8's subject is a key *leak*, not key
-*data loss* — but it only holds if the wipe is pinned elsewhere.
+**File:** `development/e2e/byok-key-handling.spec.ts`, the test at the `mechanism: typing into Base URL
+re-sends the real saved API key…` case (test 8, inside the MSG-1 `KNOWN-BAD` describe).
 
-`programmer-autosave` is required to ship a test that fails against today's code. I have asked it
-directly and explicitly to confirm that its test pins **"a typed key survives a settings-slice refresh
-that returns no key"**, and told it that if it does not, or pins something narrower (e.g. only the one
-publisher it happens to find), I will keep a wipe assertion in my file instead. Recorded here so the
-hand-off cannot quietly leave a hole through both sides assuming the other covered it.
+**Keep unchanged:**
+- KNOWN-BAD #1 — `expect(captured.length).toBeGreaterThan(1)` (no debounce)
+- KNOWN-BAD #3 — the `hasGenuinePrefix` assertion (at least one strict-prefix baseUrl)
 
-Two pointers passed along to make that test cheap: `loadExecutionConfig()` already returns
-`byok.apiKey: ""` unconditionally (no mock needed), and `publishSettingsRefresh(["core.execution"])` can
-drive `refresh()` directly — no SSE, no browser, milliseconds.
+**Replace KNOWN-BAD #2** — currently `for (const call of captured) expect(call.apiKey).toBe(canaryKey)` —
+with these two clauses:
+
+1. **Every request carrying a non-empty key carried exactly the canary.** No credential other than the
+   expected one ever leaves. (Filter `captured` to `c.apiKey !== ""`, assert each equals `canaryKey`.)
+2. **At least one strict-prefix request carried the canary.** The leak genuinely reaches hosts the
+   operator never intended. (The intersection of the #3 prefix predicate and `apiKey === canaryKey`.)
+
+**Why — this is a ROBUSTNESS change, not a weakening.** Both KNOWN-BAD properties survive intact and
+still flip the instant MSG-1 is really fixed. The replaced clause is *stronger* on MSG-1's actual
+subject: a **different** credential leaving would now fail, which the census form could never
+distinguish — it only ever asked "was this the canary", never "did some other key leak". What it drops
+is a census over unrelated traffic, which is what made the test fail for a reason that had nothing to do
+with its subject.
+
+### OPEN HOLE — the wipe may be pinned by nobody. NOT confirmed.
+
+The replacement lets an empty-key request pass silently, so **test 8 will no longer catch a regression of
+the autosave key-wipe.** That is the right division of labour — test 8's subject is a key *leak*, not key
+*data loss* — but only if the wipe is pinned on the product side.
+
+**I asked `programmer-autosave` directly and explicitly whether its regression test pins "a typed key
+survives a settings-slice refresh that returns no key", and I never received an answer before the session
+ended. Treat this as UNCONFIRMED, not as covered.**
+
+**Action for whoever picks this up:** before applying the change above, verify that a test exists which
+fails against pre-fix code for the wipe specifically. If it does not, keep a wipe assertion in
+`byok-key-handling.spec.ts` instead — the commitment made to the Coordinator was that this file retains
+one if the product side does not.
+
+Two pointers already passed to the Programmer, repeated here so they are not lost: `loadExecutionConfig()`
+(`apps/admin/src/lib/execution-settings.ts:229`) already returns `byok.apiKey: ""` unconditionally, so no
+mock is needed; and `publishSettingsRefresh(["core.execution"])` drives `refresh()` directly — no SSE, no
+browser, milliseconds.
 
 
 ---
