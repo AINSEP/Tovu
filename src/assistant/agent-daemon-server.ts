@@ -59,7 +59,6 @@ import path from "node:path";
 
 import express from "express";
 
-import { PAGE_CAPABILITIES } from "@jini-ai/agentic";
 import { createToolRegistry } from "@jini-ai/core";
 import type { Principal } from "@jini-ai/core";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
@@ -90,6 +89,7 @@ import { listAssistantAgents } from "./agents";
 import { createCustomInstructionsCache } from "./custom-instructions";
 import { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-auth";
 import { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes";
+import { FRONTEND_CONTROL_CAPABILITIES } from "./frontend-control-capabilities";
 import { attachFederatedMcpTools } from "./mcp-federation/bootstrap";
 import { registerA2uiActionsRoute } from "./a2ui-actions-route";
 import { registerMcpUiToolCallsRoute } from "./mcp-ui-tool-calls-route";
@@ -283,8 +283,10 @@ for (const registration of buildAssistantToolRegistrations(
 }
 
 /**
- * Agent-driven control of the admin's own browser tab — `page.navigate`, `page.scroll_to`,
- * `page.find_elements` and the rest of `@jini-ai/agentic`'s {@link PAGE_CAPABILITIES}.
+ * Agent-driven control of the admin's own browser tab and chat pane — `page.navigate`,
+ * `page.scroll_to`, `page.find_elements`, `chat.send_message`, and the rest of
+ * {@link FRONTEND_CONTROL_CAPABILITIES} (`page.*` plus six of `chat.*`'s seven verbs;
+ * `chat.reset_conversation` is deliberately excluded — see that module's own doc for why).
  *
  * `createFrontendControl` assembles the three parts (session registry, gated tool registrations,
  * the stream/response routes) and deliberately never hands back the registry — its `invoke`
@@ -292,12 +294,12 @@ for (const registration of buildAssistantToolRegistrations(
  * audit record, and is safe only because the one thing that can reach it is a `ToolHandler`
  * `ToolExecutor` has already gated.
  *
- * `PAGE_CAPABILITIES` is imported rather than restated so the manifest the daemon gates and the
- * manifest `apps/admin` executes are the same array — the two cannot drift into a state where an
- * agent is offered a verb the page does not implement, or vice versa.
+ * `FRONTEND_CONTROL_CAPABILITIES` is imported rather than restated so the manifest the daemon
+ * gates and the manifest `apps/admin` executes are the same array — the two cannot drift into a
+ * state where an agent is offered a verb the page/chat pane does not implement, or vice versa.
  */
 const frontendControl = createFrontendControl({
-  capabilities: PAGE_CAPABILITIES,
+  capabilities: FRONTEND_CONTROL_CAPABILITIES,
   /**
    * Which tab this run may drive. Tovu's own `contextRef` envelope carries it, put there by the
    * admin's `FrontendSessionBridge` (`apps/admin/src/lib/assistant-transport.ts`) and passed
