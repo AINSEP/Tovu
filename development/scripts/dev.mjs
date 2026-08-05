@@ -145,6 +145,15 @@ start("api server", "npx", ["tsx", "watch", "src/index.ts"], {
   // and :5173/admin/ agree in dev.
   TOVU_ADMIN_DEV_PROXY_URL: `http://localhost:${VITE_PORT}`,
   PORT: String(API_PORT),
+  // Backs `src/index.ts`'s own parent watchdog (see that file's `startOwnParentWatchdog()` for the
+  // full rationale). Deliberately this process's own pid, not left for the child to infer via its
+  // OS `ppid`: `tsx watch` is a Node-based wrapper that does not exec-replace, so the API's real
+  // ppid resolves to the `tsx watch` supervisor two hops below THIS process, and that supervisor
+  // survives even if this process dies — confirmed live (`ADS-memory/reports/analysis/
+  // 2026-08-05-symmetric-watchdog.md`): killing only this process left the API and its own spawned
+  // agent daemon fully alive and bound, unchanged, 2s later. This env var closes that gap the same
+  // way `TOVU_PARENT_PID` already closes the analogous one for the agent daemon.
+  TOVU_DEV_SUPERVISOR_PID: String(process.pid),
 });
 start("admin vite", "npm", ["--prefix", "apps/admin", "run", "dev"], {});
 
