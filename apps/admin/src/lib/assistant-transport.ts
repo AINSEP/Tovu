@@ -499,6 +499,19 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       }
 
       /**
+       * The Local CLI picker's live model selection, from `ChatPane`'s `runContext` prop
+       * (`AssistantDock.tsx`'s `resolveRunContext`). Same "read by name, not spread" reasoning as
+       * `frontendBindToken` above, and the same "omit when absent" convention. Forwarded as an
+       * opaque string — `agent-daemon-server.ts` forwards it the same way, and
+       * `AgentExecutor.run()`'s def-level `buildArgs` is what decides what an absent or `'default'`
+       * value means for a given CLI (`@jini-ai/agent-runtime`'s `models.ts`/`resolveModelForAgent`).
+       */
+      const model = input.context?.["model"];
+      if (typeof model === "string" && model.length > 0) {
+        contextRef.model = model;
+      }
+
+      /**
        * Opaque `attachment:<uuid>` capability ids (`ChatAttachment.path` — never a real filesystem
        * path this early; see `@jini-ai/http-kit`'s `attachments.ts` trust-model doc), not the
        * attachments themselves — `contextRef` is the one channel `prompt`/`frontendBindToken`

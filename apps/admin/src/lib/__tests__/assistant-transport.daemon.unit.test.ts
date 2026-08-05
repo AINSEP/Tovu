@@ -124,6 +124,48 @@ describe("startRun — guard and request shape", () => {
     expect("frontendBindToken" in JSON.parse(body.contextRef)).toBe(false);
   });
 
+  test("carries the model through context when present as a non-empty string", async () => {
+    fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "run-1" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport();
+
+    await transport.startRun(
+      { history: HISTORY, context: { model: "claude-sonnet-5" }, signal: new AbortController().signal },
+      handlers(),
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse((init.body as string)) as { contextRef: string };
+    expect(JSON.parse(body.contextRef).model).toBe("claude-sonnet-5");
+  });
+
+  test("omits model entirely when absent — not sent as an empty or undefined key", async () => {
+    fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "run-1" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport();
+
+    await transport.startRun({ history: HISTORY, signal: new AbortController().signal }, handlers());
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse((init.body as string)) as { contextRef: string };
+    expect("model" in JSON.parse(body.contextRef)).toBe(false);
+  });
+
+  test("a non-string model (shape mismatch) is not forwarded", async () => {
+    fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "run-1" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport();
+
+    await transport.startRun(
+      { history: HISTORY, context: { model: 42 }, signal: new AbortController().signal },
+      handlers(),
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse((init.body as string)) as { contextRef: string };
+    expect("model" in JSON.parse(body.contextRef)).toBe(false);
+  });
+
   test("attachment capability ids are forwarded as attachmentIds, not the attachment objects themselves", async () => {
     fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "run-1" } }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
