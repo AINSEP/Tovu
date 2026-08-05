@@ -107,7 +107,7 @@ regression in Tovu. It is evidence of test/dependency drift against an uncommitt
 UI refactor in `@jini-ai/ui`. Recommend flagging to whoever owns that Jini work (visible,
 in-progress, not hidden) rather than silently working around it from the Tovu side.
 
-## Task B (Next Steps #3) — the fourth hang — DOES NOT REPRODUCE; settled by Task A's root cause
+## Task B (Next Steps #3) — the fourth hang — DOES NOT REPRODUCE; original mechanism NOT identified (revised, see below)
 
 **Verdict: the previously reported 16-18 minute stall / "Playwright's own timeout did not fire"
 does not reproduce on the current tree.** Test 3 ("SECURITY PIN...") now fails cleanly and
@@ -145,33 +145,52 @@ full duration: `child_count=1` (the daemon, nothing else) at every sample from t
 t=86s, then `PORT_7621_FREE` immediately after — clean exit, no orphans, no subprocess spike, no
 stall past the timeout boundary.
 
-### Why this settles the question, and what it does NOT prove
+### Revised disposition (per Coordinator review): DOES NOT REPRODUCE; original mechanism NOT identified
 
-This is the same root cause as Task A: `stubExecutionRoutes()` makes model discovery succeed for
-both tabs, `ByokProviderForm.tsx`'s uncommitted combobox refactor removes the `list` attribute
-once discovery succeeds, and `.fill('input[list="jini-byok-model-options"]')` waits — correctly,
-and boundedly — for a locator that will never appear. Playwright's own timeout fired cleanly both
-times, at exactly the configured value. There is no "worker stuck" behavior on the current tree.
+The Coordinator correctly rejected my first-pass explanation ("an intermediate state of a moving
+component that is no longer inspectable") as unfalsifiable, and proposed a specific, checkable
+alternative: that the historical 16-18 minute stall was actually the already-diagnosed
+stdio-inherit orphan mechanism from `3987ee2`/`beb6586`/`59d8c16` (an orphaned daemon holding the
+webServer's stdout/stderr pipe open, so the `close` event something is awaiting never fires) —
+asking me to check whether that observation predates those fixes.
 
-**What this does NOT prove:** that the earlier agent's 16-18 minute observation was mistaken. The
-Jini `ByokProviderForm.tsx` change is uncommitted and has no history — it may have been in a
-different, genuinely hang-inducing intermediate state at the time of that report, and has since
-moved on (the same repo, the same file, still being actively edited — confirmed uncommitted,
-+137/-9 lines as of this session). That state is not recoverable to re-test against. What can be
-said with confidence: **on the tree as it exists right now, this specific hang does not
-reproduce**, the `detectLocalAgents`-concurrency hypothesis has no measured support here, and no
-fix should be built to chase a stall that isn't currently occurring. The actionable next step for
-this test is identical to Task A's: once the upstream combobox refactor lands/stabilizes, update
-the Model-field locator to match its real DOM (combobox `data-testid="jini-byok-model-select"` +
-"Custom…" selection, or its stable successor) — not before.
+**I checked. The timeline does not support that alternative either — it points the other way.**
+Exact commit timestamps:
+```
+3987ee2  2026-08-05 08:48:40 -0700  gracefulShutdown fix
+beb6586  2026-08-05 08:58:19 -0700  stdio hardening (daemon gets its own stdio)
+59d8c16  2026-08-05 09:15:46 -0700  daemon watchdog
+```
+`2026-08-05-e2e-teardown-root-cause.md`'s own "Round 4" section states directly — not inferred —
+that the specific reproduction matching the 16-18 minute stall (`BYOK_E2E_PORT_BASE=7521`, ending
+in the run's own Playwright process being killed and orphaning 3 webServer children on
+7521-7523 — the exact same port base and ending action `byok-e2e-spec-results.md` records for the
+stall) happened **"on the tree that already had the stdio hardening (`beb6586`) applied."** That is
+a first-hand, explicit statement in the session record, not my own inference. So the fix that
+specifically closes "an orphan holds the pipe open, blocking a `close`-event wait" had *already
+landed* by the time this stall was observed — it cannot be the explanation for a hang that occurred
+after it was fixed.
 
-**Pushback, stated plainly:** the "fourth hang" as described in the handoff is not a distinct,
-unsettled mystery requiring a `TOVU_PARENT_PID`-style architectural fix. It was two instances of
-the same Task A locator-staleness bug, observed at two different moments in an evolving,
-uncommitted upstream component — one of which (the earlier one) apparently manifested as a worse
-symptom (timeout-defeating stall) that the current component state no longer produces. Recommend
-closing Next Steps #3 as "settled — same root cause as #2, not independently actionable" rather
-than carrying it forward as an open architectural question.
+Independent of the timeline, the **mechanisms don't match** either: `3987ee2`/`beb6586` fix a
+post-run *teardown* hang — Playwright's top-level process awaiting the webServer child's stdio
+`close` event after all tests finish. The reported symptom was a *mid-test* stall — test 3's own
+90s per-test timeout (a timer inside the *worker* process, running while the test is still active,
+unrelated to the webServer child's stdio pipes) failing to fire while the test was still in
+progress. These are two different layers of the system; the stdio fix has no established causal
+path to a worker's own timeout timer not firing mid-test.
+
+**Corrected verdict: DOES NOT REPRODUCE on the current tree; the original mechanism is NOT
+identified.** Not "settled by #2," and not the Coordinator's proposed stdio-orphan mechanism either
+— both are ruled out by the record, one by unfalsifiability, the other by timeline plus mechanism
+mismatch. Leaving this open per the Coordinator's own instruction: do not close a bug family that
+has already cost three sessions by reading "does not reproduce" as "resolved." What IS established
+with confidence: `detectLocalAgents`-concurrency has no measured support (Run 1/Run 2 above); the
+current failure mode is a clean, correctly-enforced timeout via the Task A locator; and whatever
+caused the original 16-18 minute, timeout-defeating stall remains unexplained. Recommend this stay
+flagged as an open item — if it recurs once the upstream Jini component stabilizes and Task A's
+locator fix lands, it will be immediately obvious the two are NOT the same bug, and it should get
+its own dedicated repro attempt (ideally with `--trace on` captured live during an actual stall,
+which no session has yet obtained).
 
 ## Task C (Next Steps #5) — the real 40-test BYOK number
 
