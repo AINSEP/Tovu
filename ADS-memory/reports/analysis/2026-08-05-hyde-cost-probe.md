@@ -145,6 +145,56 @@ proxy data, so ecological validity is exactly as unresolved as before. The 85% h
 single-proportion interval → [69%, 100%]. What is now established is a large, significant, paired
 improvement on this case set at no recurring cost — not a production number.
 
+## RE-MEASURED ON AN INDEPENDENT n=130 BLIND SET — the 85% above is SUPERSEDED
+
+Everything above this section was scored on the original n=20 held-out set. **That set is contaminated**: it
+was authored by the same agent that wrote `src/assistant/tool-search-keywords.ts`, so the keyword fix was
+graded on cases written by its own author. An independent blind set (`development/evals/tool-search-heldout-v2.ts`,
+n=130, 0 overlap with the original 20, 0 unresolvable ids, 0 intra-set duplicates, 130 distinct tools, all 21
+domains — all verified programmatically, not asserted) prices the shipped keywords at **25% top-1, not 45%.**
+About 20pp of invisible inflation. Read the n=20 numbers above as a first pass on bad data.
+
+Re-run of the identical configuration on the honest set (`npx tsx development/evals/tool-search-heldout-v2.eval.ts`):
+
+| configuration | top-1 | top-3 | top-5 | found@10 |
+|---|---|---|---|---|
+| no keywords (pre-fix index) | 12% | 25% | 35% | 48% |
+| shipped keywords (raw query) | 25% | 42% | 53% | 65% |
+| **+ HyDE via prompt (free)** | **72%** | **83%** | **89%** | **96%** |
+
+Paired McNemar exact, prompt-form vs. shipped keywords, same 130 cases:
+
+| cutoff | both | baseline-only | prompt-only | neither | exact p |
+|---|---|---|---|---|---|
+| top-1 | 31 | 2 | **63** | 34 | **1.16e-16** |
+| top-3 | 52 | 3 | 56 | 19 | 1.19e-13 |
+| top-5 | 68 | 1 | 48 | 13 | 1.78e-13 |
+| found@10 | 84 | 1 | 41 | 4 | 1.96e-11 |
+
+**The 85% headline was inflated — the honest figure is 72%. But the effect is LARGER, not smaller, and its
+significance is no longer marginal.** The baseline fell further than the treatment did, so the gain goes from
++40pp on the contaminated set to **+47pp** on the clean one, at p≈1e-16 with discordant pairs 63-2. Two cases
+out of 130 regressed at top-1; one at top-5 and one at found@10.
+
+This is now the strongest and best-evidenced result in the workstream, and it costs nothing recurring. It also
+retires the sample-size objection: at n=130 the 95% half-widths are ±3 to ±8pp, so these configurations are
+genuinely rankable rather than indistinguishable.
+
+**Reranking, re-sequenced.** found@10 is 96% under prompt-form expansion (up from 65%), so the rerank ceiling
+is 96% and its addressable band is the 24pp between 72% and 96% — a much better investment than the 25pp band
+measured against the old 70% ceiling, and no longer blocked behind "raise recall first," because expansion
+already raised it. 4 cases (3%) remain unretrievable at 10 even with expansion; those are genuine
+concept mismatches, not phrasing problems, and no reranker will reach them.
+
+**What is still NOT established, unchanged by any of this:**
+1. **Compliance is measured at its ceiling.** Both expansion passes came from focused subagents whose only job
+   was writing queries. A real model mid-conversation, juggling other objectives, will comply less. Nothing
+   here measures production compliance — that needs a live turn.
+2. **Ecological validity.** All 130 cases are still agent-authored proxy data. The set's own author flagged,
+   unprompted, that its register is suspiciously uniform because it is one author's model of how
+   administrators speak, which no real population would produce that consistently. A bigger set bought
+   precision; it did not buy validity. Only captured real usage does.
+
 ## Next experiment (designed, not run)
 
 Change the two description strings, then measure the prompt-change configuration honestly:
