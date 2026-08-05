@@ -136,6 +136,33 @@ it("renders every stat card's real value and the merged, sorted activity panel w
   await waitFor(() => expect(activityTitles(container)).toEqual(MERGED_TITLES));
 });
 
+/**
+ * The panel merges posts AND pages and labels each row with its own `kind`, but every row used to
+ * href `/admin/posts/:id` — so a row plainly labelled "page" opened the post editor with a page id,
+ * which the kind-guarded detail route 404s on. Pages point at the Pages list rather than a page
+ * editor because `panels.tsx` gives the `pages` panel no detail view; see `activityRowHref`.
+ */
+it("links post rows to the post editor and page rows to the Pages list, not to a post editor that would 404", async () => {
+  fetchMock.mockImplementation(routeFetch(successRoutes()));
+
+  const { container } = render(<Dashboard />);
+  await waitFor(() => expect(activityTitles(container)).toEqual(MERGED_TITLES));
+
+  const hrefFor = (title: string) =>
+    Array.from(container.querySelectorAll<HTMLAnchorElement>(".dash-activity-title"))
+      .find((el) => el.textContent === title)
+      ?.getAttribute("href");
+
+  expect(hrefFor("Post One")).toBe("/admin/posts/post-1");
+  expect(hrefFor("Page One")).toBe("/admin/pages");
+  expect(hrefFor("Page Two")).toBe("/admin/pages");
+  // No page id may appear under /admin/posts/ — that is the exact shape of the original defect.
+  const hrefs = Array.from(container.querySelectorAll<HTMLAnchorElement>(".dash-activity-title")).map((el) =>
+    el.getAttribute("href"),
+  );
+  expect(hrefs.some((href) => href?.startsWith("/admin/posts/page-"))).toBe(false);
+});
+
 it("shows 'nothing to review' instead of 'awaiting moderation' when the comments queue is empty", async () => {
   fetchMock.mockImplementation(
     routeFetch({ ...successRoutes(), "/comments/queue": () => Promise.resolve(jsonResponse(COMMENTS_RESPONSE_EMPTY)) })
