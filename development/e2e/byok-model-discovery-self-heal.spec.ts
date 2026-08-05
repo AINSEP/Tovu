@@ -1,15 +1,24 @@
 import { test, expect, type Page } from "@playwright/test";
 
+import { readByokModelOptions, setByokModel } from "./byok-model-field";
+
 /**
  * @file BYOK model-discovery self-heal regression (2026-08-04 dispatch, Item 1).
  *
  * Encodes the actual bug the owner reported: `ExecutionTab`'s model-discovery `useEffect`
- * deliberately excludes `apiKey` from its trigger deps (only protocol/baseUrl/providerId
- * re-fire it), so the FIRST discovery failure for a preset left a red "Could not load live
- * models" error on screen permanently — typing a key, saving it, even a green "Test
- * connection" never cleared it, because nothing re-triggered discovery. The fix
+ * excluded `apiKey` from its trigger deps (only protocol/baseUrl/providerId re-fired it), so
+ * the FIRST discovery failure for a preset left a red "Could not load live models" error on
+ * screen permanently — typing a key, saving it, even a green "Test connection" never cleared
+ * it, because nothing re-triggered discovery. The fix
  * (`Jini/packages/ui/src/features/execution/react/components/ExecutionTab.tsx`) makes
  * `onTestConnection` also call `loadModels(config.byok)`.
+ *
+ * UPDATED 2026-08-05: that effect is now ALSO keyed on a derived `hasApiKey` boolean (Jini
+ * `3b5d648d`), so the reported bug is fixed a second, better way — typing a key re-fires
+ * discovery on its own, without anyone clicking Test connection. That does not retire this
+ * spec, but it does mean the old "the total is exactly 2" assertion is gone: see the assertion
+ * near the end of this test for how the Test-connection re-fire is still isolated from the
+ * key-entry re-fire (and from a third, unkeyed re-fire caused by a settings-refresh defect).
  *
  * `page.route` interception is deliberate here, not a weaker substitute for a real call: it
  * lets this spec assert the actual causal mechanism (the SECOND `models` request firing, not
@@ -45,8 +54,13 @@ test.describe("byok model-discovery self-heal (REQ: Test Connection re-fires sta
     await login(page);
 
     let modelsCallCount = 0;
+    // Whether each discovery request actually carried the operator's key. This is what makes the
+    // causal claim below measurable at all — see its own comment.
+    const keyedCalls: boolean[] = [];
     await page.route("**/assistant/execution/models", async (route) => {
       modelsCallCount++;
+      const requestBody = route.request().postDataJSON() as { apiKey?: string } | null;
+      keyedCalls.push(Boolean(requestBody?.apiKey));
       // First call simulates the exact bug scenario: discovery ran before any key existed
       // (or on any earlier transient failure) and produced a raw error.
       const body =
@@ -87,24 +101,48 @@ test.describe("byok model-discovery self-heal (REQ: Test Connection re-fires sta
     await page.locator('.jini-byok-card .jini-field-input-row input').fill("sk-ant-test-FAKE-KEY-NOT-REAL");
     // Not `label:has-text("Model")`: the Max Tokens field's OWN hint text ("use the model
     // default") contains "model" as a case-insensitive substring, so that selector matches
-    // two elements. `list="jini-byok-model-options"` is the Model field's unique attribute.
-    await page.locator('input[list="jini-byok-model-options"]').fill("claude-sonnet-4-5");
+    // two elements. `list="jini-byok-model-options"` was this field's unique attribute until
+    // `3b5d648d`, which made it conditional on discovery having FAILED — at this point in the
+    // test discovery has failed (call #1), so it happens to be present here, but it is gone by
+    // the end of the test and it is not a stable identity for the field. `setByokModel` anchors
+    // on the field label's own exact text instead.
+    await setByokModel(page, "claude-sonnet-4-5");
     const testBtn = page.locator('button:has-text("Test connection")');
     await expect(testBtn).toBeEnabled();
+    const keyedBeforeClick = keyedCalls.filter(Boolean).length;
     await testBtn.click();
 
-    // The measured property that proves causality, not just an eventual visual state: a SECOND
+    // The measured property that proves causality, not just an eventual visual state: a fresh
     // `models` request actually fired as a direct result of clicking Test Connection.
-    await expect.poll(() => modelsCallCount).toBe(2);
+    //
+    // Counted as "one more request CARRYING THE KEY", not as `modelsCallCount === 2`, and the
+    // change is forced by two things that both landed in `3b5d648d`/this build:
+    //
+    //  - `ExecutionTab`'s discovery effect is now keyed on `hasApiKey` as well, so simply typing
+    //    a key re-fires discovery. The absolute total is no longer 2 and never will be again.
+    //  - A second, unkeyed request follows shortly after, because ~600ms after any edit the
+    //    settings slice's debounced save completes and its background `refresh()` reloads the
+    //    config through `loadExecutionConfig`, which is contractually always `apiKey: ""`. That
+    //    wipes the live key, flips `hasApiKey` back to false and re-fires discovery a third time.
+    //    Measured 2026-08-05: the click produced a delta of 2, not 1.
+    //
+    // A plain "at least one more request" assertion would therefore be satisfied by that wipe
+    // alone, and would keep passing even if `onTestConnection` stopped calling `loadModels`
+    // entirely — the regression this test exists to catch. Discriminating on the request body
+    // fixes that: only the click's own `loadModels(config.byok)` can produce a discovery request
+    // that still carries the key, because the wipe's request by definition does not.
+    await expect.poll(() => keyedCalls.filter(Boolean).length).toBe(keyedBeforeClick + 1);
     expect(testConnCallCount).toBe(1);
 
     // The stale error is gone and the model list is populated from the fresh call.
     await expect(page.locator(".jini-field-hint.is-error[role='status']")).toHaveCount(0);
     await expect(page.locator(".jini-byok-test-status")).toHaveText("stubbed connection ok");
-    const options = await page.evaluate(() => {
-      const dl = document.getElementById("jini-byok-model-options");
-      return dl ? Array.from(dl.querySelectorAll("option")).map((o) => o.getAttribute("value")) : null;
-    });
+    // Read through the helper rather than off the `<datalist>` directly: the second discovery
+    // SUCCEEDS, and a successful discovery is exactly when `ByokProviderForm.tsx` stops
+    // rendering a datalist and renders the picker instead. The old direct read returned `null`
+    // here — a silent `null`, which `toEqual` then reported as an ordinary value mismatch
+    // rather than as "you are reading a control that no longer exists".
+    const options = await readByokModelOptions(page);
     expect(options).toEqual(["stub-model-a", "stub-model-b"]);
   });
 });
