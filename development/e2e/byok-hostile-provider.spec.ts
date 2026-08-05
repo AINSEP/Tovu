@@ -313,12 +313,33 @@ test.describe("the real operator path in the browser: does the UI hang, stay usa
   });
 });
 
-test.describe("10,000 models handled in the real browser: no hang", () => {
-  test("a 10,000-model catalog reaches the form inside a bounded time and the page stays interactive", async ({
+test.describe("10,000 models rendered in the real browser: no hang", () => {
+  test("the model picker renders all 10,000 options and the page stays interactive", async ({
     page,
   }) => {
     test.setTimeout(45_000);
     await loginPage(page);
+
+    // Isolate the settings CHANGE FEED, and only that. This test is about the model catalog under
+    // a hostile provider; it is not about cross-tab settings propagation, and leaving that
+    // subsystem in makes the control under test disappear mid-assertion.
+    //
+    // The chain, measured 2026-08-05: editing Base URL writes a ledger field, the server emits a
+    // `settings-changed` SSE frame on this endpoint, `settings-events.ts` calls
+    // `publishSettingsRefresh`, and `useSettingsSlice.refresh()` reloads the whole config through
+    // `loadExecutionConfig` — which is contractually always `apiKey: ""` (write-only server store,
+    // ADR-058). The live key is wiped, `hasApiKey` flips false, discovery re-fires and is refused
+    // with "No API key", `showModelPicker` goes false, and the picker UNMOUNTS with its portalled
+    // menu. Three measured attempts without this line all failed on that: a one-shot read returned
+    // `[]` (menu detached mid-read), a plain poll returned `4` (the preset's static
+    // `preferredModels`, i.e. the datalist fallback), and a poll that re-typed the key each
+    // iteration never landed 10,000 inside 30s.
+    //
+    // What this does NOT do is paper over the wipe. The wipe is by design — "Save key" is the only
+    // control that persists the credential (`AdminByokKeyPanel.tsx`) — and it is unrelated to the
+    // property under test here. Blocking the feed removes an unrelated subsystem; it does not
+    // change how the catalog is fetched, parsed, or rendered.
+    await page.route("**/settings/events", (route) => route.abort());
 
     const many = Array.from({ length: 10_000 }, (_, i) => ({ id: `flood-model-${i}`, object: "model" }));
     const flood = await startDeputy((_req, res) => {
@@ -339,7 +360,6 @@ test.describe("10,000 models handled in the real browser: no hang", () => {
       // the moment it was run under `--grep` on its own.
       const apiKeyInput = page.locator(".jini-byok-card .jini-field-input-row input");
       await apiKeyInput.fill("sk-openai-test-FAKE-KEY-NOT-REAL");
-      const start = Date.now();
       await page.locator('label:has-text("Base URL") input').fill(flood.baseUrl);
 
       // The picker only exists when `liveModels.length > 0` (`ByokProviderForm.tsx`'s
@@ -348,35 +368,18 @@ test.describe("10,000 models handled in the real browser: no hang", () => {
       // assertion on `list="jini-byok-model-options"`, which post-`3b5d648d` is the marker of
       // discovery having FAILED — the exact inverse of what this test needs to observe.
       await expect(byokModelPicker(page)).toBeVisible({ timeout: 20_000 });
-      const elapsedMs = Date.now() - start;
-      expect(elapsedMs).toBeLessThan(20_000);
 
-      // WITHHELD, DELIBERATELY, AND NOT QUIETLY: the "all 10,000 options are RENDERED" half of
-      // this test is not observable in the browser on the current build, and asserting it here
-      // would be shipping a flaky test rather than a passing one.
+      // Every one of the 10,000 options is really in the document. These nodes, unlike the old
+      // `<datalist>`'s, are built only when the menu opens, so opening it and reading every label
+      // is what pins "10,000 options RENDER in a real browser" rather than "10,000 arrived".
       //
-      // Pre-`3b5d648d` the options lived in a `<datalist>` that rendered eagerly and stayed put,
-      // so a single read was safe. They are now option nodes inside a portalled menu that exists
-      // only while `showModelPicker` is true, i.e. only while `modelDiscovery.status === 'ok'`.
-      // And that status does not survive: measured 2026-08-05, roughly 600ms after the key is
-      // typed the settings slice's debounced save completes and its background `refresh()`
-      // reloads the whole config through `loadExecutionConfig` — which is contractually always
-      // `apiKey: ""` (write-only server store, ADR-058). The typed key is wiped out of the live
-      // config, `hasApiKey` flips back to false, the discovery effect re-fires, and the provider
-      // answers "No API key — model discovery needs the key from this browser". The picker
-      // unmounts and the 4-entry static datalist takes its place.
-      //
-      // Three attempts, all measured, none reliable: a one-shot read returned `[]` (menu detached
-      // mid-read), a plain poll returned `4` (the preset's `preferredModels`, i.e. the fallback),
-      // and a poll that re-typed the key each iteration to re-arm discovery still did not land a
-      // 10,000 reading inside 30s. The blocker is a Tovu settings-refresh defect, not this test.
-      //
-      // What is NOT lost: the API-level test in this same file ("a multi-MB body and a
-      // 10,000-model catalog are both accepted and forwarded whole") still pins the uncapped
-      // 10,000 end to end, and it passes. What this browser test still pins is the part that IS
-      // stable — that the 10,000-model response was processed and reached the form inside the
-      // time bound, and that the page stays responsive afterwards. Restore the option-count
-      // assertion once the key wipe is fixed; `readByokModelOptions` is ready for it.
+      // Untimed on purpose. An earlier revision wrapped this in a 20s wall-clock bound; most of
+      // that budget was Playwright traversing 10,000 nodes, so the assertion's numerator was the
+      // harness rather than the product and a loaded machine would have failed it and blamed this
+      // migration. The hang guard is the `test.setTimeout` above — which is what a test timeout is
+      // for — and the product-side bound is the locator timeout on the picker appearing.
+      const options = await readByokModelOptions(page);
+      expect(options).toHaveLength(10_000); // uncapped — see the API-level test's own flag on this
 
       // The page is still responsive after handling a 10,000-model response — proves "doesn't
       // hang", not just "eventually finishes": a real keystroke into an unrelated field still
@@ -395,6 +398,13 @@ test.describe("XSS in model ids — highest severity item in this file", () => {
     page,
   }) => {
     await loginPage(page);
+
+    // Same change-feed isolation, and for the same reason, as the 10,000-model test above: a
+    // settings write triggers an SSE frame whose refresh wipes the live key and unmounts the
+    // picker. This test currently reads fast enough to win that race, which is exactly why it is
+    // pinned rather than left to luck — a security test that passes because it got there first is
+    // one slow CI machine away from inspecting an empty menu and reporting green.
+    await page.route("**/settings/events", (route) => route.abort());
 
     let dialogFired = false;
     page.on("dialog", async (dialog) => {

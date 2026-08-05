@@ -136,6 +136,14 @@ async function requireModelField(page: Page, timeout: number, action: string): P
  * does not: every caller in this suite types a specific model id, and an id the provider did
  * not list (which is the norm against these stubs) is only reachable through free text.
  * `chooseByokModelFromPicker` is the counterpart for a test whose subject IS the picker.
+ *
+ * Retried once on a shape change, because the field can change shape WHILE it is being driven,
+ * not merely before. Mount-time discovery is in flight when a spec arrives at this field: until
+ * the stubbed response lands `liveModels` is empty and the plain input renders, and the moment it
+ * lands `showModelPicker` flips and `SearchableModelSelect` replaces it. A locator is re-resolved
+ * on every use so there is no stale element reference to latch, but the BRANCH taken here can
+ * still go stale between deciding and acting. One re-decide covers it; the flip happens once, on
+ * the first discovery response, not repeatedly.
  */
 export async function setByokModel(
   page: Page,
@@ -145,6 +153,20 @@ export async function setByokModel(
   const timeout = options.timeout ?? 15_000;
   await requireModelField(page, timeout, `set the Model field to "${model}"`);
 
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await setByokModelOnce(page, model, timeout);
+      return;
+    } catch (error) {
+      if (attempt === 2) throw error;
+      // Only a shape change is worth retrying. Anything else (a genuinely missing field, a
+      // picker with no escape hatch) is re-thrown on the second pass with its own message.
+      await requireModelField(page, timeout, `set the Model field to "${model}" (retry after a shape change)`);
+    }
+  }
+}
+
+async function setByokModelOnce(page: Page, model: string, timeout: number): Promise<void> {
   const text = byokModelTextInput(page);
   if ((await text.count()) === 0) {
     // Picker-only: `config.model` is in the live list, so the free-text box is not rendered.
