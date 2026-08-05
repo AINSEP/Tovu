@@ -107,3 +107,69 @@ regression in Tovu. It is evidence of test/dependency drift against an uncommitt
 UI refactor in `@jini-ai/ui`. Recommend flagging to whoever owns that Jini work (visible,
 in-progress, not hidden) rather than silently working around it from the Tovu side.
 
+## Task B (Next Steps #3) — the fourth hang — DOES NOT REPRODUCE; settled by Task A's root cause
+
+**Verdict: the previously reported 16-18 minute stall / "Playwright's own timeout did not fire"
+does not reproduce on the current tree.** Test 3 ("SECURITY PIN...") now fails cleanly and
+quickly, at exactly the configured per-test timeout, via the **identical** stale-locator cause
+found in Task A. The assigned experiment (`--trace on --timeout=20000` with live `ps` during the
+stall, watching for `detectLocalAgents` subprocess accumulation) was run as designed; the
+subprocess-accumulation hypothesis found **no supporting evidence** and the phenomenon under test
+(a stall past the timeout) never occurred to observe.
+
+### What was measured — two isolated runs, `BYOK_E2E_PORT_BASE=7621`, dedicated `--output` each
+
+**Run 1** (`--grep "SECURITY PIN" --timeout=20000 --trace on`, `--output=test-results/qa-taskB-1`):
+failed at **exactly 60.0s** (`test.slow()` × 20000ms), at the same locator as Task A:
+```
+Test timeout of 60000ms exceeded.
+Error: locator.fill: Test timeout of 60000ms exceeded.
+  - waiting for locator('input[list="jini-byok-model-options"]')
+> 175 | await tabB.locator('input[list="jini-byok-model-options"]').fill("claude-sonnet-4-5");
+```
+Live monitoring throughout (`ps` on the webServer API pid's direct children, sampled every 15s,
+plus `lsof -p <api_pid>` FD counts) showed **no CLI-probe subprocess spike at any point** — only
+the one expected `agent-daemon-server.ts` child. FD count stayed in the 40s range, then dropped to
+0 the moment the process exited. Zero evidence of the hypothesized 24-subprocess (or 48, two-tab)
+`detectLocalAgents` sweep accumulating.
+
+**Run 2, confirmatory** (default timeout, i.e. the exact configuration the original 16-18 minute
+report used — `--output=test-results/qa-taskB-2`, no `--timeout` override): failed at **exactly
+90.0s** (`test.slow()` × the config's 30000ms default), same locator, same line:
+```
+Test timeout of 90000ms exceeded.
+  - waiting for locator('input[list="jini-byok-model-options"]')
+```
+A parallel `Monitor` polling loop sampled the webServer's child-process count every 15s for the
+full duration: `child_count=1` (the daemon, nothing else) at every sample from t=15s through
+t=86s, then `PORT_7621_FREE` immediately after — clean exit, no orphans, no subprocess spike, no
+stall past the timeout boundary.
+
+### Why this settles the question, and what it does NOT prove
+
+This is the same root cause as Task A: `stubExecutionRoutes()` makes model discovery succeed for
+both tabs, `ByokProviderForm.tsx`'s uncommitted combobox refactor removes the `list` attribute
+once discovery succeeds, and `.fill('input[list="jini-byok-model-options"]')` waits — correctly,
+and boundedly — for a locator that will never appear. Playwright's own timeout fired cleanly both
+times, at exactly the configured value. There is no "worker stuck" behavior on the current tree.
+
+**What this does NOT prove:** that the earlier agent's 16-18 minute observation was mistaken. The
+Jini `ByokProviderForm.tsx` change is uncommitted and has no history — it may have been in a
+different, genuinely hang-inducing intermediate state at the time of that report, and has since
+moved on (the same repo, the same file, still being actively edited — confirmed uncommitted,
++137/-9 lines as of this session). That state is not recoverable to re-test against. What can be
+said with confidence: **on the tree as it exists right now, this specific hang does not
+reproduce**, the `detectLocalAgents`-concurrency hypothesis has no measured support here, and no
+fix should be built to chase a stall that isn't currently occurring. The actionable next step for
+this test is identical to Task A's: once the upstream combobox refactor lands/stabilizes, update
+the Model-field locator to match its real DOM (combobox `data-testid="jini-byok-model-select"` +
+"Custom…" selection, or its stable successor) — not before.
+
+**Pushback, stated plainly:** the "fourth hang" as described in the handoff is not a distinct,
+unsettled mystery requiring a `TOVU_PARENT_PID`-style architectural fix. It was two instances of
+the same Task A locator-staleness bug, observed at two different moments in an evolving,
+uncommitted upstream component — one of which (the earlier one) apparently manifested as a worse
+symptom (timeout-defeating stall) that the current component state no longer produces. Recommend
+closing Next Steps #3 as "settled — same root cause as #2, not independently actionable" rather
+than carrying it forward as an open architectural question.
+
