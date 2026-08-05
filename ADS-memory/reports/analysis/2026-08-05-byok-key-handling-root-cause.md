@@ -273,7 +273,50 @@ product fails to send it.
 If confirmed, this reclassifies the item from **product bug** to **test gap**, and the fix is a
 spec-file change rather than product code.
 
-**Caveat, deliberately preserved:** the 400 has not been observed yet. This repo has a documented
-five-session pattern of inference recorded as observation, so this stays a hypothesis until a probe on
-`POST /api/admin/v1/assistant/byok-turn` shows the actual status. Instrumentation is in place; run
-pending.
+### CONFIRMED by observation — reclassified from product bug to test gap
+
+`POST /api/admin/v1/assistant/byok-turn`:
+
+```
+status=400 {"error":"no usable BYOK credential — supply 'byok' with a supported protocol,
+            a non-empty apiKey, and a model, or save one first in Settings",
+            "code":"VALIDATION_ERROR"}
+```
+
+`runByokProviderTurn` is never called, so the deputy cannot receive anything. **This is not a bug in
+the turn path — the turn path was never reached.**
+
+### A real product finding surfaced while fixing it
+
+Adding the "Save key" click was not sufficient: the button was **disabled**. Measured in one run:
+
+```
+PROBE-A enabled-right-after-key-fill   = true
+PROBE-B enabled-after-model-fill       = true
+PROBE-C enabled-after-ledger-autosave  = false
+PROBE-D key-field-value                = ""
+```
+
+**The ledger autosave's round trip wipes a typed-but-unsaved API key out of the form.** The save
+replaces the settings slice with the server's stored value, which by ADR-058's design carries no
+`apiKey`, so the typed key is discarded and "Save key" (gated on `hasUsableAdminKey`) goes disabled.
+
+This is an operator-visible defect, not only a test artifact: **type a key, pause ~600ms, and the key
+silently vanishes before you can press Save.** Whether that is acceptable is an owner call — flagging,
+not fixing, since it lives in `SettingsUi.tsx`/`use-admin-execution-credential.hooks.ts` and is well
+outside this dispatch.
+
+### Fix and verification
+
+Ordering in `configureGoogleByokAgainstDeputy` changed to: ledger-owned fields (Base URL, Model)
+first → wait for `.settings-ui-save.is-saved` → **then** the key → press Save key inside the debounce
+window. Once the save lands, `stored.isSet` is true and a later wipe is harmless because the
+credential lives server-side.
+
+**Result: the spec passes (17.6s, reconfirmed 18.7s).** Its real assertions — the recursive
+Gemini-schema violation scan and the exact meta-tool set — had almost certainly never executed before,
+because the turn had never reached the provider.
+
+Verified the assertions are live by breaking the product and watching one fail, then restoring
+(`git diff` on `assistant-byok.ts` confirms zero net change): `tools: toolSurface.metaTools.slice(0, 2)`
+→ fails at `byok-google-tool-schema.spec.ts:292`, the exact-meta-tool-set assertion.
