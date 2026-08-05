@@ -3,7 +3,39 @@
 Agent: QA/E2E (Execution). Repo `/Users/la/Programming/Tovu`, branch `refactor/jini-admin-extraction`, HEAD `d4d8f5b`.
 Run discipline: `BYOK_E2E_PORT_BASE=7661`, unique `--output` per run, `workers:1`, no orphans before/after.
 
-Status: **COMPLETE** for the assigned scope. Commits `e77b50f`, `8cb4545`, `4634e08`, `667e357`.
+Status: **COMPLETE** for the assigned scope. Commits `e77b50f`, `8cb4545`, `4634e08`, `667e357`, `809a51f`.
+
+---
+
+# THE HEADLINE: every premise this dispatch was given was wrong
+
+Six fixes landed, but they are not the finding. **The finding is that this suite's failure *descriptions*
+have been less reliable than its failures.** Every characterisation handed to this dispatch — each one
+carried across one or more prior sessions — turned out to be false on contact with the actual error:
+
+| what the brief said | what was true |
+|---|---|
+| test 9: a security test observing nothing; the SSRF guard may be failing | The guard was never reached. Node's global `fetch` refuses port 6000 outright (WHATWG bad-port list). The leak it names is real and was being demonstrated by tests 10 and 11 the whole time. |
+| test 3: a byte-for-byte key-trim assertion, possible real product regression | No product trim exists. RFC 7230 recipients strip OWS and Node's llhttp does, so the channel physically cannot observe the property. |
+| test 7: the "Test connection" button stays disabled for 90s | The button is never reached. It times out on the Model field, two steps earlier. |
+| test 7: a deterministic failure | A *race*. It passed unmodified in 3 of 8 runs — worse than a hard failure, because it can go green while asserting against a UI shape that no longer exists. |
+| `byok-google-tool-schema`: a real, known, pre-existing **product** bug | A test gap. HTTP 400 at the credential gate; the turn path was never entered, so the bug "in the turn path" could not have been observed. |
+| test 9 has a cause | It had **two**, stacked and independent — a blocked port, and cross-test provider leakage. Fixing the first exposed the second. |
+
+Two further defects were not in any brief at all and were only exposed by *fixing* the above: the
+`LOGIN_STRICT` budget breach, and the autosave key-wipe.
+
+**The transferable lesson:** in this suite, reading the actual error before theorising is not a
+nicety — it inverted or materially corrected the conclusion in every row of the table above, without
+exception. A failure description that has survived
+several handoffs is evidence about the handoffs, not about the failure. And one symptom ("the listener
+saw nothing") was reachable by at least three unrelated routes here, so matching a symptom to a
+remembered cause is close to worthless.
+
+This dispatch also produced **one false claim of its own** — see the retraction section — which is the
+same defect class, committed by the agent cataloguing it. That is included deliberately.
+
+---
 
 ## Final state
 
@@ -13,7 +45,7 @@ Status: **COMPLETE** for the assigned scope. Commits `e77b50f`, `8cb4545`, `4634
 | `byok-key-handling` 7 | ✘ (flaky) | ✓ | model-picker refactor; adopted the shared `byok-model-field.ts` helper |
 | `byok-key-handling` 9 | ✘ | ✓ | WHATWG bad-port list, then cross-test provider leakage |
 | `byok-key-handling` 11 | ✘ | ✓ | `LOGIN_STRICT` budget breach (out of scope, fixed as fallout) |
-| `byok-key-handling` 8 | ✘ | ✘ | **still failing** — out of scope, see below |
+| `byok-key-handling` 8 | ✘ | ✘ | **cause CONFIRMED** — the autosave key-wipe; fix deferred pending the product change |
 | `byok-google-tool-schema` | ✘ | ✓ | test gap, not the product bug it was filed as |
 
 `npx tsc --noEmit`: **0 errors** at the end of this dispatch.
@@ -71,7 +103,7 @@ connection reuse.** Its own doc in `connection-guard.ts` is explicit:
 `validateBaseUrlResolved` resolves once and returns the approved address as `pinnedAddress`, to be fed
 to `pinnedFetch`, which dials it directly.
 
-**Six call sites resolve. Four pin. Two discard the pin.**
+**Seven call sites resolve. Five pin. Two discard the pin.**
 
 | path | validates | transport | pinned? |
 |---|---|---|---|
@@ -126,21 +158,63 @@ class as the three stale comments this report already catalogues.
 
 ---
 
-## Residual: `byok-key-handling` test 8, NOT fixed, not in scope
+## `byok-key-handling` test 8 — CONFIRMED cause, fix deferred pending the product change
 
-Fails in a full-file run with one captured request carrying `apiKey: ""`; **passes in isolation**, where
-all 25 keystroke requests carry the real key (verified). So it is order-dependent, not a plain race.
+Owner ruled this in scope after the initial report. Diagnosis is now **observed, not inferred**.
 
-The strongest candidate is the autosave wipe documented under Item 2 below — the ledger round trip
-replaces the settings slice with the server's stored value, which carries no `apiKey`. Test 8 types for
-~2.7s against a 600ms debounce, so a wipe landing mid-typing would produce exactly the observed empty
-key. **This is NOT confirmed**: the isolation run did not reproduce it, so the trigger in full-file
-order is unpinned.
+### Reproduced minimally: tests 7 → 8 alone
 
-If that mechanism is right, the KNOWN-BAD pin's assertion — *"EVERY one of them carried the real key"* —
-has become **premise-stale**, because the product now sometimes drops the key mid-edit. Per this
-workstream's own rule that a premise-stale test should be inverted rather than made to pass, re-pinning
-it is a judgment call about a security pin and belongs to the owner, not to this dispatch.
+Instrumenting test 8's key field and every captured discovery request:
+
+```
+keyFieldAtEnd=""
+""                                -> apiKey="sk-ant-KEYSTROKE-LEAK-CANARY"
+"h" … "http://ab.cd.ef.example"   -> apiKey="sk-ant-KEYSTROKE-LEAK-CANARY"   (25 requests, all keyed)
+"http://ab.cd.ef.example"         -> apiKey=""            <-- a 26th, for the SAME url
+```
+
+Two facts settle it:
+
+1. **`keyFieldAtEnd=""` — the key field is genuinely wiped during test 8**, the same defect measured
+   under Item 2.
+2. **A 26th request fires for the same final URL carrying an empty key.** That is what fails the pin.
+   None of the 25 keystroke requests does — every one carries the live key, so the MSG-1 leak is intact
+   and still fully demonstrated.
+
+### Why the 26th request exists — and why it vindicates the retraction above
+
+The wipe flips `hasApiKey` from `true` to `false`. `hasApiKey` **is** in the discovery effect's
+dependency array, so the effect re-runs and fires once more, now with no key. The earlier (retracted)
+claim that the key was not a dependency would have predicted no such request. The correction is what
+makes this observable behaviour explicable.
+
+Order-dependence follows: in isolation there is no wipe, hence no 26th request, hence the pin holds.
+
+**Still unverified, held as such:** which of the four `publishSettingsRefresh` call sites fires the
+refresh (two in `AssistantDock.tsx`, two in `settings-events.ts`). Reproduction pins the wipe, not the
+publisher.
+
+### The pin should NOT be inverted — the shared premise was wrong
+
+"Premise-stale" would mean the product's security behaviour changed such that the pin asserts something
+untrue of the real system. **It did not.** The leak is unchanged: all 25 keystroke requests carry the
+live key to every intermediate host, strict prefixes included. What changed is that a *separate defect,
+currently being fixed*, injects one unrelated request. **Once the fix lands, test 8's existing assertion
+should pass unmodified**, and inverting it now would pin behaviour that is about to be deleted.
+
+What is worth changing, for an unrelated reason: `for (const call of captured) expect(call.apiKey)
+.toBe(canaryKey)` is a census over *every* request in the window, so any unrelated one fails it. Proposed
+re-expression as the security property itself:
+
+- keep #1 (`captured.length > 1` — no debounce)
+- keep #3 (at least one genuine strict-prefix baseUrl)
+- replace #2 with: **every request carrying a non-empty key carried exactly the canary** (no other
+  credential ever leaves) **and at least one strict-prefix request carried the canary** (the leak reaches
+  unintended hosts)
+
+Strictly stronger on MSG-1's actual subject — a *different* key going out would fail, which the current
+form cannot distinguish — and immune to unrelated traffic. Not applied yet: deferred until the product
+fix lands, so it is not written twice.
 
 
 ---
