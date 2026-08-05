@@ -155,9 +155,33 @@ async function waitForDeleteDialog(page: Page, postId: string, timeoutMs: number
 
 /**
  * Helpers for the "stop while parked on a pending confirmation" test below (mcp-ui-cancel dispatch,
- * 2026-08-05). Guards `a7c0f8b5` (`@jini-ai/daemon`'s `ToolExecutor` observing an abort/cancel signal
- * through a pending confirmation) and the `delegated-tool-bridge.ts`/http-kit wiring that feeds it,
- * driven through Tovu's REAL Stop-run control and SSE plumbing rather than a direct API call.
+ * 2026-08-05).
+ *
+ * CORRECTED 2026-08-05 (QA/E2E negative-verification pass): this test does **not** guard `a7c0f8b5`
+ * (`@jini-ai/daemon`'s `ToolExecutor` observing an abort/cancel signal through a pending
+ * *`requiresConfirmation`-gate* confirmation — `tool-executor.ts`'s `pendingConfirmations` map). It
+ * was written believing it did; a negative-verification revert of `a7c0f8b5` proved that belief
+ * false — the test stayed green with the fix reverted (rebuild confirmed via
+ * `grep -c cancelledConfirmations dist/tool-executor.js`: 0). Root cause, traced against source:
+ * `content_post_delete` never sets `descriptor.requiresConfirmation` (see
+ * `src/features/post/agent-tools.ts`'s own comment on that tool, and
+ * `src/assistant/pending-confirmations.ts:16`'s "exists and is deliberately never set"), so it never
+ * reaches the `ToolExecutor` gate `a7c0f8b5` changed. Its actual confirmation-pending state is
+ * Tovu's own `SurfaceExchange` (`src/assistant/surface-exchanges.ts`), parked *inside the handler
+ * itself* (`src/features/post/tool-registrations.ts`'s `content_post_delete` handler), which closes
+ * its own exchange via `ctx.signal.addEventListener("abort", closeOnAbort, { once: true })` — a path
+ * that predates `a7c0f8b5` and was never broken by it.
+ *
+ * What this test actually, genuinely guards: that Tovu's real Stop-run control
+ * (`ChatPane.tsx`'s `conversation.cancel`) reaches `content_post_delete`'s handler-level
+ * `ctx.signal` and resolves its parked `SurfaceExchange` server-side — i.e. the delete's own
+ * cancellation plumbing, driven end-to-end through the real UI and SSE replay rather than a direct
+ * API call. That is real, valuable coverage; it is just not `a7c0f8b5`'s coverage. If `a7c0f8b5`'s
+ * `requiresConfirmation`-gate path needs an E2E guard, it needs a tool descriptor that actually sets
+ * `requiresConfirmation: true` — as of this writing, chat's `frontend-capability-tools.ts` projects
+ * `Capability.requiresConfirmation` onto exactly that field for capabilities like
+ * `chat.reset_conversation` (`packages/chat/src/core/agentic/chat-capabilities.ts`), so that family
+ * is the candidate — not `content_post_delete` or any other CMS tool.
  */
 
 /** Pulls the current run id off the same debug transcript mirror `readTranscript` reads
@@ -464,7 +488,7 @@ test.describe("destructive-path: content_post_delete false-transcript bug (ADR-0
     }
   });
 
-  test("stopping the run while the confirmation dialog is pending actually resolves the pending tool call server-side (a7c0f8b5), not just the browser's own view of it", async ({ page, baseURL }) => {
+  test("stopping the run while the confirmation dialog is pending actually resolves the pending tool call server-side, not just the browser's own view of it", async ({ page, baseURL }) => {
     test.setTimeout(360_000);
 
     const post = await createDraftPost(page, `E2E mcp-ui-cancel target ${test.info().testId}`);
@@ -481,12 +505,12 @@ test.describe("destructive-path: content_post_delete false-transcript bug (ADR-0
 
     const runId = await currentRunId(page);
     expect(runId, "expected a server-side run id on the transcript before stopping it").toBeTruthy();
-    // Pins this test to the DAEMON run path — `a7c0f8b5`'s actual target — rather than the
-    // client-only BYOK cancel branch. `apps/admin/src/lib/assistant-transport.ts:558-571`'s
-    // `stopRun` has two branches: a BYOK-run id (prefixed `"byok:"`, `assistant-transport.ts:296`'s
-    // `mintByokRunId`) is cancelled by aborting a LOCAL `fetch` `AbortController` and never reaches
-    // the server at all — that branch would make this test pass (or hang) for reasons unrelated to
-    // `a7c0f8b5` entirely (team lead's finding, 2026-08-05). `DEFAULT_EXECUTION_CONFIG.mode` is
+    // Pins this test to the DAEMON run path rather than the client-only BYOK cancel branch.
+    // `apps/admin/src/lib/assistant-transport.ts:558-571`'s `stopRun` has two branches: a BYOK-run id
+    // (prefixed `"byok:"`, `assistant-transport.ts:296`'s `mintByokRunId`) is cancelled by aborting a
+    // LOCAL `fetch` `AbortController` and never reaches the server at all — that branch would make
+    // this test pass (or hang) for reasons unrelated to the server-side cancellation plumbing this
+    // test exists to check (team lead's finding, 2026-08-05). `DEFAULT_EXECUTION_CONFIG.mode` is
     // `"local-cli"` (`execution-settings.ts:204-214`), which is what this suite's helpers already
     // drive unmodified — asserted here so a future default change fails this test loudly instead of
     // silently testing the wrong path.
@@ -499,27 +523,31 @@ test.describe("destructive-path: content_post_delete false-transcript bug (ADR-0
     // `conversation.isStreaming` is true, which it still is here (the confirmation gate is what
     // holds the turn open). Its `onClick` is `pane.conversation.cancel` (`useRunStream.ts`), which
     // does two things in the SAME synchronous call: POSTs `/api/runs/:runId/cancel` (reaching
-    // `lifecycle.cancel()` -> `onCancelRequested`, `a7c0f8b5`'s target) AND tears down the browser's
-    // own SSE subscription (`teardownSubscription()`) — so nothing observed from `page` after this
-    // click can be trusted as evidence the tool actually stopped; only the two independent,
-    // server-side checks below can.
+    // `lifecycle.cancel()` -> `onCancelRequested`, which aborts the same signal
+    // `delegated-tool-bridge.ts` hands to `ToolExecutor.execute()` and, for THIS tool, ultimately
+    // reaches `content_post_delete`'s own `ctx.signal` abort listener — see this file's corrected
+    // header comment above for why that is a different mechanism than `a7c0f8b5`) AND tears down the
+    // browser's own SSE subscription (`teardownSubscription()`) — so nothing observed from `page`
+    // after this click can be trusted as evidence the tool actually stopped; only the two
+    // independent, server-side checks below can.
     await page.getByRole("button", { name: /stop run/i }).click();
 
     // `agent-executor.ts`'s OWN `onCancelRequested` listener (`agent-executor.ts:1598-1601`) fires
     // from the SAME `lifecycle.cancel()` call and independently SIGTERM/SIGKILLs the spawned `claude`
     // CLI's process tree — which eventually finishes the run (`agent-executor.ts`'s `child.on('close'
-    // , ...)` -> `lifecycle.finish()`) REGARDLESS of whether `ToolExecutor.execute()` ever itself
-    // settles. That means simply polling `GET /api/runs/:runId` for a terminal `state` would pass
-    // whether or not `a7c0f8b5` is applied — the run goes terminal via process death either way, so
-    // that alone is exactly the kind of proxy this test must not trust (mcp-ui-cancel dispatch brief:
-    // "not merely that the tab closed or the SSE stream ended... those are proxies"). The
-    // discriminating signal is whether `delegated-tool-bridge.ts`'s `execute()` (which AWAITS
-    // `ToolExecutor.execute()` before emitting `tool_result` — `delegated-tool-bridge.ts:189-231`)
-    // ever actually settles and records that outcome into the run's own persisted event log. Pre-fix,
-    // a signal arriving while parked on `requestConfirmation()` has no listener at all, so
-    // `execute()` never settles and no `tool_result` is ever recorded — independent of the process
-    // kill, which lives in a different process (the daemon itself is not killed, only its spawned
-    // CLI child) and cannot unblock an in-memory Promise it never touches.
+    // , ...)` -> `lifecycle.finish()`) REGARDLESS of whether the parked delete's own confirmation
+    // exchange ever resolves. That means simply polling `GET /api/runs/:runId` for a terminal `state`
+    // would pass whether or not the delete's own cancellation actually ran — the run goes terminal
+    // via process death either way, so that alone is exactly the kind of proxy this test must not
+    // trust (mcp-ui-cancel dispatch brief: "not merely that the tab closed or the SSE stream
+    // ended... those are proxies"). The discriminating signal is whether `delegated-tool-bridge.ts`'s
+    // `execute()` (which AWAITS `ToolExecutor.execute()` before emitting `tool_result` —
+    // `delegated-tool-bridge.ts:189-231`) ever actually settles and records that outcome into the
+    // run's own persisted event log. If `content_post_delete`'s handler never observed the abort (its
+    // own `ctx.signal` listener never wired, or its `SurfaceExchange.close()` never called), its
+    // `askOnce` await would simply hang until the exchange's own idle deadline — independent of the
+    // process kill, which lives in a different process (the daemon itself is not killed, only its
+    // spawned CLI child) and cannot unblock that in-memory wait on its own.
     const cookieHeader = await cookieHeaderForRawFetch(baseURL!);
     const outcome = await waitForToolCallOutcome(baseURL!, runId!, cookieHeader, 60_000);
 
@@ -529,8 +557,7 @@ test.describe("destructive-path: content_post_delete false-transcript bug (ADR-0
         `after Stop; run-level event kinds seen instead: [${outcome.seenTypes.join(", ")}]` +
         (outcome.httpStatus !== undefined ? ` (SSE fetch itself returned HTTP ${outcome.httpStatus} — check auth/run-ownership before blaming ToolExecutor)` : "") +
         `. If this is empty or ends only in an 'end' event with no matching 'agent:tool_result', the ` +
-        `confirmation was left dangling and only the unrelated process-tree kill ended the run — exactly ` +
-        `the pre-a7c0f8b5 bug.`
+        `confirmation was left dangling and only the unrelated process-tree kill ended the run.`
     ).toBe(true);
     expect(outcome.toolResultContent, "the recorded tool_result content must reflect a genuine cancellation, not a hang or a false completion").toMatch(/cancel/i);
 
