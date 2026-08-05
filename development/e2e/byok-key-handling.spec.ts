@@ -23,22 +23,76 @@ import { test, expect, type APIRequestContext, type Page } from "@playwright/tes
  * server.
  *
  * One login per `test()`, not per case within a battery, for the same `LOGIN_STRICT` rate-limiter
- * reason `byok-ssrf-guard.spec.ts`'s header documents.
+ * reason `byok-ssrf-guard.spec.ts`'s header documents — and, since 2026-08-05, one shared login for
+ * the five API tests rather than one each. **See the login-budget note on `pageLogin`**: at 11
+ * `test()`s this file sits close enough to the 10-per-60s ceiling that the count is a real
+ * constraint, not a nicety.
  */
 
 const A2UI_LOGIN = { username: "admin", password: "tovu-dev" };
-async function apiLogin(request: APIRequestContext): Promise<void> {
-  const res = await request.post("/api/admin/v1/auth/login", { data: A2UI_LOGIN });
-  expect(res.status()).toBe(200);
-}
+
+/**
+ * ONE authenticated API context for every non-browser test in this file, replacing what used to be a
+ * per-test `apiLogin(request)` against Playwright's own per-test `request` fixture. See the login
+ * budget note on `pageLogin` for why the count matters. The five API tests only ever needed *an*
+ * authenticated caller, never a distinct session each, so nothing observable is lost.
+ */
+let sharedApi: APIRequestContext;
+
+test.beforeAll(async ({ playwright }, testInfo) => {
+  const baseURL = testInfo.project.use.baseURL;
+  sharedApi = await playwright.request.newContext({ ...(baseURL ? { baseURL } : {}) });
+  const res = await sharedApi.post("/api/admin/v1/auth/login", { data: A2UI_LOGIN });
+  expect(
+    res.status(),
+    `shared API login returned ${res.status()}; 429 means this file exceeded LOGIN_STRICT (10/60s).`,
+  ).toBe(200);
+});
+
+test.afterAll(async () => {
+  await sharedApi?.dispose();
+});
 
 const ADMIN_ORIGIN_PATH = "/admin/";
+
+/**
+ * ## This file's login budget — read before adding a `test()`
+ *
+ * `LOGIN_STRICT` is **10 logins / 60s per client IP** (`dev-auth.ts:140-144`). This file has 11
+ * `test()`s, and it used to perform **11 logins**: one `pageLogin` in each of the six browser tests,
+ * plus one `apiLogin` in each of the five API tests. That fit only because the file was slow enough
+ * for the 60s window to roll mid-run — tests 3, 7 and 9 were failing, and test 7's failure alone
+ * burned a 90-second timeout.
+ *
+ * Fixing those three on 2026-08-05 dropped the run from 2.2 min to ~55s. All 11 logins then landed
+ * inside one window and the 11th got a **429**, which surfaced as test 11 timing out in `pageLogin`
+ * waiting for `.login-card` to detach — a symptom that looks nothing like a rate limit, and exactly
+ * the kind this suite has historically written off as infra flake. Observed directly rather than
+ * inferred: a probe on every login response printed `200` for logins 1-10 and `429` for the 11th.
+ *
+ * The five API logins are now a single shared context (`sharedApi` below), because that is the half
+ * of the budget that can be collapsed **without changing any browser-side timing** — the six UI
+ * logins are left exactly as they were. Session reuse across the browser tests was tried first and
+ * rejected: it fixed test 11 but destabilised tests 7, 8 and 9, whose mount-time model-discovery
+ * races are sensitive to how long the page takes to become interactive.
+ *
+ * **Budget now: 6 UI + 1 API = 7 of 10.** Adding three more logging-in tests will breach it again.
+ */
 async function pageLogin(page: Page): Promise<void> {
   await page.goto(ADMIN_ORIGIN_PATH, { waitUntil: "domcontentloaded" });
   await page.waitForSelector(".login-card", { timeout: 15_000 });
   await page.fill('.login-card label:has-text("Username") input', "admin");
   await page.fill('.login-card label:has-text("Password") input', "tovu-dev");
+  const loginResponse = page.waitForResponse((r) => r.url().includes("/auth/login"));
   await page.click('.login-card button:has-text("Sign in")');
+  // Asserted explicitly so a rate-limited login can never again present as a mystery selector
+  // timeout 15 seconds later.
+  const status = (await loginResponse).status();
+  expect(
+    status,
+    `login returned ${status}; 429 means this file has exceeded LOGIN_STRICT (10 logins / 60s) — `
+      + `see the login-budget note above.`,
+  ).toBe(200);
   await page.waitForSelector(".login-card", { state: "detached", timeout: 15_000 });
 }
 
@@ -122,6 +176,32 @@ async function startFixedDeputy(
  * below is most likely to be misread as having proved. This check converts that into a self-describing
  * failure naming the real cause. Other list members to avoid: 6566, 6665-6669, 6679, 6697, 10080.
  */
+/**
+ * Fill the BYOK API-key field and **wait for the form's own state to have committed it** before the
+ * caller edits anything else.
+ *
+ * Root-caused 2026-08-05. `ExecutionTab.tsx`'s model-discovery effect lists only `config.byok.baseUrl`
+ * as a dependency but reads `apiKey` FRESH at fire time (this is the MSG-1 mechanism the KNOWN-BAD
+ * battery below pins). The consequence for a test: a Base URL edit that beats React's commit of the
+ * key fires exactly one discovery request carrying an **empty** key — and then never re-fires for
+ * that URL, because the key is not a dependency. The server short-circuits an empty key before any
+ * outbound call (`model-catalog.ts:337`, `PROTOCOLS_REQUIRING_API_KEY`), so the deputy is never
+ * dialed and the test reads as "the listener saw nothing".
+ *
+ * Observed twice, both on runs where an earlier test had timed out and slowed the page: test 9 failed
+ * with `x-api-key: undefined`, and test 8 with `apiKey: ""` captured on the wire.
+ *
+ * The readiness signal is the "Save key" button's enabled state, which `AdminByokKeyPanel.tsx` derives
+ * from `canSaveKey` — i.e. from React state, not from the DOM value `fill()` just wrote. That makes
+ * this a real condition to wait on rather than a hard wait.
+ */
+async function fillApiKeyAndAwaitCommit(page: Page, key: string): Promise<void> {
+  await page.locator(".jini-byok-card .jini-field-input-row input").fill(key);
+  await expect(page.locator('.assistant-key-footer button:has-text("Save key")')).toBeEnabled({
+    timeout: 15_000,
+  });
+}
+
 async function assertPortIsDialable(port: number): Promise<void> {
   const outcome = await fetch(`http://localhost:${port}/__preflight`)
     .then(() => "dialable")
@@ -149,6 +229,7 @@ test.describe("byok key-handling edge cases", () => {
     // this click the BYOK tab below is not mounted yet and the spec times out.
     await page.getByTestId("settings-dialog-nav-execution").click();
     await page.getByRole("tab", { name: "BYOK" }).click();
+    await page.getByRole("tab", { name: "Anthropic", exact: true }).click();
 
     await page.locator('.jini-byok-card .jini-field-input-row input').fill("   \t\t   ");
     await page.locator('input[list="jini-byok-model-options"]').fill("claude-sonnet-4-5");
@@ -157,10 +238,7 @@ test.describe("byok key-handling edge cases", () => {
     await expect(page.locator('button:has-text("Test connection")')).toBeDisabled();
   });
 
-  test("a Gemini key containing &, #, ?, %, +, and a raw newline never injects a second query parameter — it round-trips as one encoded value", async ({
-    request,
-  }) => {
-    await apiLogin(request);
+  test("a Gemini key containing &, #, ?, %, +, and a raw newline never injects a second query parameter — it round-trips as one encoded value", async () => {
     const deputy = await startDeputy((_req, res) => {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ models: [] }));
@@ -168,7 +246,7 @@ test.describe("byok key-handling edge cases", () => {
 
     try {
       const nastyKey = "realkey&malicious=1&admin=true#frag?q=1%25encoded+plus\nnewline";
-      const res = await request.post(MODELS_PATH, {
+      const res = await sharedApi.post(MODELS_PATH, {
         data: { protocol: "google", baseUrl: `http://127.0.0.1:${deputy.port}`, apiKey: nastyKey },
       });
       expect(res.status()).toBe(200);
@@ -188,10 +266,7 @@ test.describe("byok key-handling edge cases", () => {
     }
   });
 
-  test("an API key with leading/trailing whitespace is sent to the provider BYTE-FOR-BYTE — no client or server-side trim", async ({
-    request,
-  }) => {
-    await apiLogin(request);
+  test("an API key with leading/trailing whitespace is sent to the provider BYTE-FOR-BYTE — no client or server-side trim", async () => {
     const deputy = await startDeputy((_req, res) => {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ data: [] }));
@@ -230,7 +305,7 @@ test.describe("byok key-handling edge cases", () => {
         res.end(JSON.stringify({ models: [] }));
       });
       try {
-        const googleRes = await request.post(MODELS_PATH, {
+        const googleRes = await sharedApi.post(MODELS_PATH, {
           data: {
             protocol: "google",
             baseUrl: `http://127.0.0.1:${googleDeputy.port}`,
@@ -258,7 +333,7 @@ test.describe("byok key-handling edge cases", () => {
        * leading padding, which does survive as interior bytes, is asserted in full. If the product
        * ever starts trimming, those leading spaces disappear and this fails.
        */
-      const res = await request.post(MODELS_PATH, {
+      const res = await sharedApi.post(MODELS_PATH, {
         data: { protocol: "openai", baseUrl: `http://127.0.0.1:${deputy.port}`, apiKey: untrimmedKey },
       });
       expect(res.status()).toBe(200);
@@ -270,10 +345,7 @@ test.describe("byok key-handling edge cases", () => {
     }
   });
 
-  test("a key containing CRLF never achieves header injection, and the route degrades to ok:false rather than a 500", async ({
-    request,
-  }) => {
-    await apiLogin(request);
+  test("a key containing CRLF never achieves header injection, and the route degrades to ok:false rather than a 500", async () => {
     const deputy = await startDeputy((_req, res) => {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ data: [] }));
@@ -281,7 +353,7 @@ test.describe("byok key-handling edge cases", () => {
 
     try {
       const crlfKey = "sk-test-CRLF-FAKE\r\nX-Injected-Header: evil\r\nSecond-Line: also-evil";
-      const res = await request.post(MODELS_PATH, {
+      const res = await sharedApi.post(MODELS_PATH, {
         data: { protocol: "openai", baseUrl: `http://127.0.0.1:${deputy.port}`, apiKey: crlfKey },
       });
       // Whatever happened underneath (fetch/undici rejecting the malformed header value outright,
@@ -304,8 +376,7 @@ test.describe("byok key-handling edge cases", () => {
     }
   });
 
-  test("a 10,000-character API key does not hang or crash discovery or test-connection", async ({ request }) => {
-    await apiLogin(request);
+  test("a 10,000-character API key does not hang or crash discovery or test-connection", async () => {
     const deputy = await startDeputy((_req, res) => {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ data: [{ id: "deputy-model", object: "model" }] }));
@@ -314,7 +385,7 @@ test.describe("byok key-handling edge cases", () => {
     try {
       const hugeKey = "k".repeat(10_000);
       const start = Date.now();
-      const res = await request.post(MODELS_PATH, {
+      const res = await sharedApi.post(MODELS_PATH, {
         data: { protocol: "openai", baseUrl: `http://127.0.0.1:${deputy.port}`, apiKey: hugeKey },
       });
       const elapsedMs = Date.now() - start;
@@ -332,10 +403,7 @@ test.describe("byok key-handling edge cases", () => {
     }
   });
 
-  test("redactSecrets scrubs the real API key out of an upstream error that echoes it back — both the non-2xx and the 2xx-bad-reply branches", async ({
-    request,
-  }) => {
-    await apiLogin(request);
+  test("redactSecrets scrubs the real API key out of an upstream error that echoes it back — both the non-2xx and the 2xx-bad-reply branches", async () => {
     const canaryKey = "sk-test-ECHO-CANARY-9f3a7c";
 
     // Branch 1: model-catalog.ts's `!response.ok` path — a misbehaving/hostile endpoint reflects
@@ -345,7 +413,7 @@ test.describe("byok key-handling edge cases", () => {
       res.end(JSON.stringify({ error: { message: `Invalid credentials: ${req.headers.authorization}` } }));
     });
     try {
-      const res = await request.post(MODELS_PATH, {
+      const res = await sharedApi.post(MODELS_PATH, {
         data: { protocol: "openai", baseUrl: `http://127.0.0.1:${deputy401.port}`, apiKey: canaryKey },
       });
       const body = await res.json();
@@ -369,7 +437,7 @@ test.describe("byok key-handling edge cases", () => {
       );
     });
     try {
-      const res = await request.post(TEST_CONN_PATH, {
+      const res = await sharedApi.post(TEST_CONN_PATH, {
         data: {
           protocol: "openai",
           baseUrl: `http://127.0.0.1:${deputy200Echo.port}`,
@@ -415,7 +483,7 @@ test.describe("byok key-handling edge cases", () => {
       await page.getByRole("tab", { name: "BYOK" }).click();
       await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
 
-      await page.locator('.jini-byok-card .jini-field-input-row input').fill(canaryKey);
+      await fillApiKeyAndAwaitCommit(page, canaryKey);
       await page.locator('label:has-text("Base URL") input').fill(`http://127.0.0.1:${deputy.port}`);
       await page.locator('input[list="jini-byok-model-options"]').fill("gpt-4o");
 
@@ -469,6 +537,28 @@ test.describe("byok key-handling edge cases", () => {
  * bug — plain green, no pin semantics needed. The fourth (no cancellation) is the same
  * current-value-pin shape as the first two.
  */
+/**
+ * **Every browser test in this file pins its provider tab explicitly, and that is load-bearing.**
+ *
+ * Root-caused 2026-08-05 after test 9 failed in perfect correlation with test 7 across eleven runs —
+ * test 9 failed on exactly the runs where test 7 timed out, and passed on exactly the runs where it
+ * did not. The link is **cross-test state leakage through the SERVER-SIDE settings ledger**, not a
+ * race: test 7 selects the OpenAI provider tab, and `useSettingsSlice`'s 600ms autosave persists that
+ * choice for the workspace. Every later test that clicks only the "BYOK" tab then inherits OpenAI.
+ * Test 7 timing out at 90s is simply what guarantees the debounce has time to land.
+ *
+ * The consequence was subtle enough to be worth spelling out: test 9's deputy WAS reached, and it DID
+ * receive the live key — as `authorization: Bearer sk-ant-PORT-WALK-CANARY`, OpenAI's header shape,
+ * so the `x-api-key` assertion read `undefined`. Observed directly:
+ *
+ *     REQ {"protocol":"openai","baseUrl":"http://localhost:3600","apiKey":"sk-ant-PORT-WALK-CANARY"}
+ *     DEPUTY-PREFIX-HEADERS {... "authorization":"Bearer sk-ant-PORT-WALK-CANARY" ...}
+ *
+ * So the security property was TRUE and demonstrated the whole time; only the header NAME under
+ * assertion was wrong for the inherited provider. Pinning the tab makes each test assert against the
+ * provider it was actually written for — every canary in this battery is `sk-ant-…` — and restores
+ * `e2e-test-architecture`'s "tests must pass in any order" property.
+ */
 test.describe("KNOWN-BAD, pinned not fixed: baseUrl edits re-send the saved API key to every intermediate host (MSG-1)", () => {
   test("mechanism: typing into Base URL re-sends the real saved API key on every intermediate keystroke value, not just the one the operator finishes on", async ({
     page,
@@ -481,9 +571,10 @@ test.describe("KNOWN-BAD, pinned not fixed: baseUrl edits re-send the saved API 
     // this click the BYOK tab below is not mounted yet and the spec times out.
     await page.getByTestId("settings-dialog-nav-execution").click();
     await page.getByRole("tab", { name: "BYOK" }).click();
+    await page.getByRole("tab", { name: "Anthropic", exact: true }).click();
 
     const canaryKey = "sk-ant-KEYSTROKE-LEAK-CANARY";
-    await page.locator('.jini-byok-card .jini-field-input-row input').fill(canaryKey);
+    await fillApiKeyAndAwaitCommit(page, canaryKey);
 
     const captured: Array<{ baseUrl: string; apiKey: string }> = [];
     page.on("request", (req) => {
@@ -549,9 +640,10 @@ test.describe("KNOWN-BAD, pinned not fixed: baseUrl edits re-send the saved API 
       // this click the BYOK tab below is not mounted yet and the spec times out.
       await page.getByTestId("settings-dialog-nav-execution").click();
       await page.getByRole("tab", { name: "BYOK" }).click();
+      await page.getByRole("tab", { name: "Anthropic", exact: true }).click();
 
       const canaryKey = "sk-ant-PORT-WALK-CANARY";
-      await page.locator('.jini-byok-card .jini-field-input-row input').fill(canaryKey);
+      await fillApiKeyAndAwaitCommit(page, canaryKey);
 
       const baseUrlInput = page.locator('label:has-text("Base URL") input');
 
@@ -595,8 +687,9 @@ test.describe("KNOWN-BAD, pinned not fixed: baseUrl edits re-send the saved API 
       // this click the BYOK tab below is not mounted yet and the spec times out.
       await page.getByTestId("settings-dialog-nav-execution").click();
       await page.getByRole("tab", { name: "BYOK" }).click();
+      await page.getByRole("tab", { name: "Anthropic", exact: true }).click();
 
-      await page.locator('.jini-byok-card .jini-field-input-row input').fill(canaryKey);
+      await fillApiKeyAndAwaitCommit(page, canaryKey);
       await page.locator('label:has-text("Base URL") input').fill("http://localhost:6100");
 
       // ANSWER: yes — `listProviderModels`'s `!response.ok` branch redacts before this ever
@@ -630,7 +723,8 @@ test.describe("KNOWN-BAD, pinned not fixed: baseUrl edits re-send the saved API 
       // this click the BYOK tab below is not mounted yet and the spec times out.
       await page.getByTestId("settings-dialog-nav-execution").click();
       await page.getByRole("tab", { name: "BYOK" }).click();
-      await page.locator('.jini-byok-card .jini-field-input-row input').fill("sk-ant-RACE-CANARY");
+      await page.getByRole("tab", { name: "Anthropic", exact: true }).click();
+      await fillApiKeyAndAwaitCommit(page, "sk-ant-RACE-CANARY");
 
       const baseUrlInput = page.locator('label:has-text("Base URL") input');
       // Three distinct edits in quick succession — only the last is the field's final value, but
