@@ -173,3 +173,123 @@ symptom (timeout-defeating stall) that the current component state no longer pro
 closing Next Steps #3 as "settled — same root cause as #2, not independently actionable" rather
 than carrying it forward as an open architectural question.
 
+## Task C (Next Steps #5) — the real 40-test BYOK number
+
+**The real number: 26 passed, 14 failed, out of 40.** This is substantially more than the "two
+known pre-existing failures" the handoff anticipated — 12 of the 14 failures were previously
+undocumented. Reported here in full, categorized by cause, with confidence level stated per
+category. This is the first time this suite's real, uncontaminated result has been obtained (see
+handoff: every prior attempt was corrupted by stray processes, port collisions, a log-buffering
+misread, or a moving `src/index.ts`).
+
+### Method
+
+10 files match `byok-*.spec.ts` (not 6 — the handoff's "6-file" count is stale; 40 tests total,
+confirmed by both a source grep and the run totals below). Given the config's `workers: 1` (forced
+single-worker — deliberate, documented in the config as a rate-limit avoidance for the shared login
+route) and the expectation that several tests would now hit the 90s per-test timeout because of the
+Task A/B root cause, each file was run as its own isolated invocation
+(`BYOK_E2E_PORT_BASE=7621`, a distinct `--output=test-results/qa-taskC-<file>` per file) rather than
+one combined run — this keeps any single file's runtime and blast radius bounded, and gives a clean
+per-file breakdown, at the cost of ~10 extra login/boot cycles. Ports verified clear via `lsof`
+before every invocation; zero collisions, zero orphans across all 10 runs.
+
+### Per-file results
+
+| File | Pass | Fail | Notes |
+|---|---|---|---|
+| `byok-azure-path.spec.ts` | 6 | 0 | clean |
+| `byok-credential-persistence.spec.ts` | 2 | 2 | tests 3, 4 — Task A/B root cause |
+| `byok-empty-key-guard.spec.ts` | 2 | 0 | clean |
+| `byok-google-live-smoke.spec.ts` | 0 | 1 | NEW — see below |
+| `byok-google-tool-schema.spec.ts` | 0 | 1 | KNOWN pre-existing (deputy not receiving a request) — matches the brief exactly |
+| `byok-hostile-provider.spec.ts` | 5 | 2 | NEW — see below |
+| `byok-key-handling.spec.ts` | 8 | 3 | NEW, uncertain — see below |
+| `byok-model-discovery-self-heal.spec.ts` | 0 | 1 | NEW — see below |
+| `byok-ssrf-guard.spec.ts` | 3 | 0 | clean |
+| `byok-state-races.spec.ts` | 0 | 4 | NEW — see below |
+| **Total** | **26** | **14** | |
+
+### Category 1 — the Task A/B combobox-refactor family (9 of the 14 failures)
+
+Confirmed root cause: the same uncommitted `ByokProviderForm.tsx` refactor from Tasks A and B. All
+of these read/fill the Model field in a state where `showModelPicker` is true, so the plain
+`<input list="jini-byok-model-options">`/`<datalist>` this code was written against does not exist:
+
+- `byok-credential-persistence.spec.ts` tests 3, 4 (already diagnosed in Task A/B).
+- `byok-state-races.spec.ts` tests 1, 2 — same `.fill('input[list="jini-byok-model-options"]')`
+  90s-timeout shape as Task A.
+- `byok-state-races.spec.ts` test 3 ("HELD: an in-flight model-discovery response for OpenAI...")
+  — **confirmed by reading the test** (`development/e2e/byok-state-races.spec.ts:161-176`):
+  `readOptions()` does `document.getElementById("jini-byok-model-options")`, which is `null` the
+  moment `showModelPicker` is true (no datalist renders at all), so `expect.poll(readOptions)`
+  gets `null` instead of the stubbed model list — same cause, different manifestation (immediate
+  `null` via `getElementById` rather than a `.fill()` timeout).
+- `byok-google-live-smoke.spec.ts` (1 test): `label:has-text("Model") input` — a **different**
+  selector than Task A/B's, but the error itself names the same combobox: strict-mode violation,
+  2 elements matched, one of which is `getByRole('combobox', { name: 'Model' })` — the new
+  `SearchableModelSelect`. Not root-caused to the same line-level precision as the others, but the
+  combobox's presence in the match set is direct evidence of the same family.
+- `byok-hostile-provider.spec.ts` tests 6, 7 (10,000-model datalist render; XSS-payload-in-datalist):
+  both expect a specific, large/injected content in `#jini-byok-model-options`'s `<option>`s and
+  instead get a small, generic 4-item list. Consistent with the same refactor changing which
+  component/state renders model options, but **the exact mechanism (why 4 static items instead of
+  the stubbed list) was not traced to a specific line within this dispatch's time budget** — flagged
+  as same-family by symptom, not fully confirmed by source reading like the others above.
+- `byok-model-discovery-self-heal.spec.ts` (1 test): expected `modelsCallCount` of 2, got 4 — double
+  the expected discovery-fire count. Plausibly an extra effect/re-render introduced by the new
+  `SearchableModelSelect`/`customModelActive` state, but **not confirmed by source reading** — same
+  caveat as above.
+
+**Disposition: do not patch any of these yet**, for the same reason as Task A — the upstream
+component is uncommitted and still moving. Once it lands, all of Category 1 needs the same fix
+sweep: update Model-field locators/assertions to the new combobox contract.
+
+### Category 2 — ADR-058 staleness, a second file never updated (1 of the 14)
+
+`byok-state-races.spec.ts` test 4 ("a fast provider switch... still snapshots the typed key into
+the OUTGOING provider's saved draft") — **confirmed by reading the test**
+(`development/e2e/byok-state-races.spec.ts:230-232`): asserts
+`parsed.savedByProviderId?.anthropic?.apiKey` read back from `localStorage`'s
+`tovu:execution-credentials:v1` key. This is the **exact same "never populated" mechanism** already
+diagnosed and fixed (by inversion, not deletion) in `byok-credential-persistence.spec.ts` in the
+prior session (per `execution-settings.ts`'s own header, item 2: `savedByProviderId` is scoped out
+of v1 and never populated). That fix pass evidently touched only `byok-credential-persistence.spec.ts`
+— this file has the identical pre-ADR-058 assumption, never updated. Same disposition as the
+credential-persistence precedent: don't delete, invert into whatever it can honestly still prove
+(most likely: the key never reaches this localStorage path at all, matching that file's test 3).
+Recommend the same owner who did that inversion apply it here too, rather than re-deriving it.
+
+### Category 3 — three newly-surfaced failures, NOT root-caused here (3 of the 14)
+
+`byok-key-handling.spec.ts`:
+- **Test 3** ("byte-for-byte, no client or server-side trim"): expects
+  `Bearer   sk-test-PADDED-KEY-FAKE-NOT-REAL  ` (with the padding preserved), receives it trimmed.
+  This reads as a **possible real behavior change** (something now trims the key that didn't
+  before) — distinct in shape from the Category 1/2 families (no model-field/localStorage
+  involvement at all). Not investigated further; flagged for dedicated triage.
+- **Test 7** ("an endpoint that echoes the API key... never shows the raw key"): 90s timeout with
+  the "Test connection" button stuck `disabled` for the entire wait (`element is not enabled`,
+  repeated ~100+ times in the retry log). Could plausibly be gated by the same model-discovery
+  state Category 1 disturbs (button enablement often depends on discovery/model state in this
+  form), but this is speculation, not confirmed — flagged, not diagnosed.
+- **Test 9** ("composed with the loopback SSRF carve-out"): expects `deputyPrefix.hits() >= 1`
+  within 5s, gets 0. Could be a timing/debounce change or a genuine regression in the
+  base-URL-edit-resend behavior this file is explicitly pinning as `KNOWN-BAD, not fixed`. Not
+  diagnosed.
+
+**Recommend a dedicated, focused follow-up on `byok-key-handling.spec.ts` alone** — these three
+don't share an obvious single cause the way Categories 1 and 2 do, and deserve their own root-cause
+pass rather than being bundled into this dispatch's already-broad scope.
+
+### Bottom line for Next Steps #5
+
+The clean number is **26/40 passing**. Of the 14 failures: 1 is the previously-known
+`byok-google-tool-schema.spec.ts` deputy issue (unchanged, out of scope, matches the brief); 9 trace
+to the same uncommitted Jini `ByokProviderForm.tsx` refactor already diagnosed in Tasks A/B (fix
+deferred until that component stabilizes); 1 is a second, previously-missed instance of the
+already-solved ADR-058 staleness pattern (mechanical fix, same as the existing precedent); 3 are
+genuinely new and not yet root-caused, recommended for separate triage. **None of the 14 are newly
+introduced by anything in this dispatch** — all are pre-existing relative to this session's own
+work, surfaced only because this is the first clean, uncontaminated run this suite has ever gotten.
+
