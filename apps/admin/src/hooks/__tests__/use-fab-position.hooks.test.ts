@@ -103,7 +103,10 @@ describe("free-form drag (no edge-snap)", () => {
     expect(result.current.consumeDragFlag()).toBe(true);
 
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-    expect(stored).toEqual({ rightFraction: 0.42, bottomFraction: 0.4625 });
+    // `pinnedByUser: true` — this was an actual drag-and-drop, not the untouched default; see
+    // that field's own doc on `StoredFabPosition` for what it unlocks (respecting a drop onto the
+    // open dock instead of the dock-avoidance clamp vetoing it).
+    expect(stored).toEqual({ rightFraction: 0.42, bottomFraction: 0.4625, pinnedByUser: true });
   });
 });
 
@@ -242,5 +245,61 @@ describe("avoidRightPx — holding clear of the desktop dock", () => {
     // The resting right (FAB_EDGE_MARGIN) vs. the required clearance (10 + margin): the larger wins,
     // so clearance can only ever move the FAB further from the dock, never toward it.
     expect(result.current.style.right).toBe(10 + FAB_EDGE_MARGIN);
+  });
+});
+
+/**
+ * `pinnedByUser` (2026-08-05 follow-up): `avoidRightPx` above stops the FAB's UNTOUCHED default
+ * spot from landing on the composer send button, but it was gating on `dockOpen` alone — which
+ * also vetoed a position the operator explicitly dropped inside the dock's width, snapping it
+ * back onto the page on every release. Reported as "still draggable anywhere, but I can't drag it
+ * onto the chat pane — it just resets outside of the chat pane." This suite pins the fix:
+ * dock-avoidance now only applies to an un-pinned (untouched or migrated-legacy) position.
+ */
+describe("pinnedByUser — a deliberate drop onto the open dock is respected", () => {
+  const rect = { left: 924, top: 724, right: 980, bottom: 780 };
+
+  it("a drag dropped inside the dock's avoidance band stays there instead of snapping back onto the page", () => {
+    const { result } = renderHook(() => useFabPosition({ dockOpen: true, avoidBottomPx: 0, avoidRightPx: 380 }));
+
+    // Drags from the default resting spot (right=20) to right=200 — well inside the dock's
+    // avoidance band (right < 380 + FAB_EDGE_MARGIN = 400) — and releases there.
+    act(() => result.current.onPointerDown(pointerDown(952, 752, rect)));
+    act(() => pointerMove(772, 752));
+    act(() => pointerUp(772, 752));
+
+    // Before this fix, the release-time recompute would have pushed this back out to right: 400 —
+    // exactly the reported regression.
+    expect(result.current.style.right).toBe(200);
+    expect(result.current.consumeDragFlag()).toBe(true);
+  });
+
+  it("stays pinned across a dock close/reopen, not just for the render immediately after the drop", () => {
+    const { result, rerender } = renderHook(
+      ({ dockOpen }: { dockOpen: boolean }) => useFabPosition({ dockOpen, avoidBottomPx: 0, avoidRightPx: 380 }),
+      { initialProps: { dockOpen: true } },
+    );
+    act(() => result.current.onPointerDown(pointerDown(952, 752, rect)));
+    act(() => pointerMove(772, 752));
+    act(() => pointerUp(772, 752));
+    expect(result.current.style.right).toBe(200);
+
+    rerender({ dockOpen: false });
+    expect(result.current.style.right).toBe(200);
+    rerender({ dockOpen: true });
+    expect(result.current.style.right).toBe(200);
+  });
+
+  it("the untouched default position still avoids the dock — preserves the composer click-eating fix", () => {
+    const { result } = renderHook(() => useFabPosition({ dockOpen: true, avoidBottomPx: 0, avoidRightPx: 380 }));
+    // No drag at all — contrasts directly with the pinned-drop case above: same options, opposite
+    // outcome, because nothing has been dropped yet.
+    expect(result.current.style.right).toBe(380 + FAB_EDGE_MARGIN);
+  });
+
+  it("a migrated legacy position still avoids the dock — no unearned pass for a pre-free-drag value", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ side: "right", bottomFraction: 0.3 }));
+    const { result } = renderHook(() => useFabPosition({ dockOpen: true, avoidBottomPx: 0, avoidRightPx: 380 }));
+    expect(result.current.style.right).toBe(380 + FAB_EDGE_MARGIN);
   });
 });
