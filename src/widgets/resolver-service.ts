@@ -52,7 +52,17 @@ type WidgetInstanceResolutionDeps = Pick<ResolvePageWidgetsDeps, "entryRepo">;
 
 export interface ResolvePageWidgetsInput {
   readonly workspaceId: UUID;
-  readonly pageEntryId?: UUID;
+  /**
+   * The already-fetched host document's `bodyJson`, when the caller has one to scan for inline
+   * `widgetEmbed` nodes (REQ-21) — e.g. a `PostRecord.bodyJson` on the `home`/`post` site routes.
+   * Passed as content rather than an id-to-fetch (unlike the old `pageEntryId` this replaces)
+   * because the only real callers already hold the document: `PostRecord` (`features/post`) is a
+   * separate, pre-ADR-022 table an `EntryRepoPort.findById` call can never resolve, which is why
+   * `pageEntryId` had no real caller and every `widgetEmbed` node in a post body rendered the
+   * REQ-28 placeholder forever, never real content. `undefined` when there is no host document
+   * (the home route) or nothing to scan.
+   */
+  readonly pageBodyJson?: unknown;
   /** Region keys the current theme/template declares for this page. */
   readonly resolvedRegions: readonly WidgetRegionKey[];
 }
@@ -182,12 +192,9 @@ export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): 
     }
   }
 
-  // 2. Inline embeds from the page entry's bodyJson (REQ-21/23).
-  let inlineEmbeds: InlineEmbedRef[] = [];
-  if (input.pageEntryId) {
-    const pageEntry = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.pageEntryId });
-    if (pageEntry) collectWidgetEmbeds(pageEntry.bodyJson, inlineEmbeds);
-  }
+  // 2. Inline embeds from the host document's bodyJson (REQ-21/23).
+  const inlineEmbeds: InlineEmbedRef[] = [];
+  if (input.pageBodyJson !== undefined) collectWidgetEmbeds(input.pageBodyJson, inlineEmbeds);
 
   // 3. One batched widget-instance load for every distinct widget referenced on the page (REQ-24 —
   // see this file's header for why `listByWorkspace` stands in for a literal `WHERE id IN (...)`).

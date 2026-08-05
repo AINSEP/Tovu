@@ -23,6 +23,9 @@ export interface AdminMediaResponse {
   createdAt: string;
   updatedAt: string;
   version: number;
+  width: number | null;
+  height: number | null;
+  cssClass: string | null;
 }
 
 export interface AdminMediaEnvelope {
@@ -50,6 +53,9 @@ export function toAdminMediaResponse(media: MediaRecord): AdminMediaResponse {
     createdAt: media.createdAt,
     updatedAt: media.updatedAt,
     version: media.version,
+    width: media.width,
+    height: media.height,
+    cssClass: media.cssClass,
   };
 }
 

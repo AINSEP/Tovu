@@ -117,6 +117,68 @@ test("ADR-027 §4: a published post's ref-based image node renders a real <img> 
   assert.equal(body.error, "rendition not found");
 });
 
+test("owner-directed quick-and-dirty sizing fix: a real uploaded asset with width/height/cssClass set through the admin PATCH route renders those attrs on the public <img> end-to-end", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const { definition } = await registerTransform({
+    deps: { clock: deps.clock, idGen: deps.idGen, transformRepo: deps.transformDefinitionRepo },
+    input: { workspaceId: WORKSPACE_ID, name: CORE_PUBLIC_TRANSFORM_NAME, params: { format: "webp" }, owner: "core" },
+  });
+
+  // 1x1 transparent PNG — bytes don't matter for this test, only that upload succeeds.
+  const onePixelPngBase64 =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+
+  const uploadRes = await fetch(`${baseUrl}${BASE}/media`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ filename: "sized.png", contentType: "image/png", dataBase64: onePixelPngBase64 }),
+  });
+  assert.equal(uploadRes.status, 201);
+  const { media } = (await uploadRes.json()) as { media: { id: string } };
+
+  // Same PATCH route/shape the admin edit panel's new Width/Height/CSS-class fields use.
+  const patchRes = await fetch(`${baseUrl}${BASE}/media/${media.id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ width: 640, height: 480, cssClass: "post-image" }),
+  });
+  assert.equal(patchRes.status, 200);
+
+  const createRes = await fetch(`${baseUrl}${BASE}/posts`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Sized image post", slug: "sized-image-post", kind: "post" }),
+  });
+  const { post } = (await createRes.json()) as { post: { id: string } };
+
+  await fetch(`${baseUrl}${BASE}/posts/${post.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      title: "Sized image post",
+      slug: "sized-image-post",
+      status: "published",
+      version: 1,
+      bodyJson: {
+        type: "doc",
+        content: [{ type: "image", attrs: { assetId: media.id, transformName: CORE_PUBLIC_TRANSFORM_NAME, alt: "sized" } }],
+      },
+    }),
+  });
+
+  const siteRes = await fetch(`${baseUrl}/sized-image-post`);
+  assert.equal(siteRes.status, 200);
+  const html = await siteRes.text();
+
+  const expectedSrc = `/m/${media.id}/${CORE_PUBLIC_TRANSFORM_NAME}.v${definition.version}/image.jpg`;
+  assert.match(
+    html,
+    new RegExp(`<img src="${expectedSrc.replace(/\//g, "\\/")}" alt="sized" width="640" height="480" class="post-image" loading="lazy">`)
+  );
+});
+
 test("ADR-027 §4: a published post with a legacy src-only image node still renders the placeholder on a real GET /:slug — no backward-compat regression through the real HTTP path", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

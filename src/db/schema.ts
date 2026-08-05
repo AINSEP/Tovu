@@ -1108,6 +1108,14 @@ export const media = sqliteTable("media", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
   version: integer("version").notNull(),
+  /** Quick-and-dirty public-render sizing fields (owner-directed skip-the-ADR fix, 2026-08-05):
+   * an operator-set width/height/CSS class for THIS asset, threaded through to the public `<img>`
+   * tag by `render.ts`'s `image` node case so an inserted image no longer renders at full native
+   * pixel width with nothing constraining it. All three are nullable — `null` means "no override
+   * set", which the renderer treats as "omit the attribute entirely", not "render 0×0". */
+  width: integer("width"),
+  height: integer("height"),
+  cssClass: text("css_class"),
 });
 
 /** `asset_blobs` sidecar (ADR-027 §2) — one row per unique blob (content-addressed by sha256,

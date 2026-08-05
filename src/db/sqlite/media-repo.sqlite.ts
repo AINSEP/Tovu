@@ -48,6 +48,9 @@ function toMediaRecord(row: typeof media.$inferSelect): MediaRecord {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     version: row.version,
+    width: row.width,
+    height: row.height,
+    cssClass: row.cssClass,
   };
 }
 
@@ -76,6 +79,9 @@ export class SqliteMediaRepo implements MediaRepoPort {
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       version: record.version,
+      width: record.width,
+      height: record.height,
+      cssClass: record.cssClass,
     };
     if (existing) {
       this.db.update(media).set(values).where(and(eq(media.workspaceId, record.workspaceId), eq(media.id, record.id))).run();
