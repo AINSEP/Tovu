@@ -192,11 +192,54 @@ async function configureGoogleByokAgainstDeputy(page: Page, baseUrl: string): Pr
   // and Model are plain `.jini-field` labels with no such wrapper), so it stays unique across the
   // whole suite regardless of reveal state. Standardized across every `byok-*.spec.ts` file
   // 2026-08-05.
+  // The two LEDGER-owned fields first, and let their autosave fully settle before the key is typed.
+  // The ordering is load-bearing — see the note below.
   await page.locator('label:has-text("Base URL") input').fill(baseUrl);
-  await page.locator('.jini-byok-card .jini-field-input-row input').fill(FAKE_GEMINI_KEY);
   await page.locator('input[list="jini-byok-model-options"]').fill("gemini-2.5-flash");
-
   await expect(page.locator(".settings-ui-save.is-saved")).toBeVisible({ timeout: 15_000 });
+
+  /**
+   * **The explicit "Save key" press — without it this whole spec cannot reach the provider.**
+   *
+   * Root-caused 2026-08-05. This spec had been failing with "the deputy never receives a request",
+   * carried for several sessions as a pre-existing PRODUCT bug in the turn path. It is not one — the
+   * turn path was never reached. Post-ADR-058 the admin's API key is deliberately NOT persisted by the
+   * ledger autosave: `AdminByokKeyPanel.tsx` calls this control *"the ONLY control on either screen
+   * that writes the admin's own credential"* and *"Never fires automatically"*, and `api.ts`'s wrapper
+   * agrees — *"explicit save only — never called from the debounced ledger-slice auto-save path a
+   * typed key would otherwise ride along with."* So the key never reached the server,
+   * `createStoredExecutionCredentialPort.resolve()` found no usable row, and the route rejected the
+   * request before `runByokProviderTurn` was ever called. Observed on `POST .../assistant/byok-turn`:
+   *
+   *     status=400 {"error":"no usable BYOK credential — supply 'byok' with a supported protocol,
+   *                 a non-empty apiKey, and a model, or save one first in Settings",
+   *                 "code":"VALIDATION_ERROR"}
+   *
+   * **Why the key is typed LAST and saved immediately.** Measured, in this order, in one run:
+   *
+   *     PROBE-A enabled-right-after-key-fill      = true
+   *     PROBE-B enabled-after-model-fill          = true
+   *     PROBE-C enabled-after-ledger-autosave     = false
+   *     PROBE-D key-field-value                   = ""
+   *
+   * The ledger autosave's round trip replaces the settings slice with the server's saved value, which
+   * by ADR-058's design carries no `apiKey` — so a typed-but-not-yet-saved key is **wiped from the
+   * form**, and "Save key" (gated on `hasUsableAdminKey`) goes disabled. Filling the key before
+   * waiting on `.settings-ui-save.is-saved`, as this helper used to, therefore destroys the key it is
+   * about to try to save. Typing it after that wait, and pressing Save inside the 600ms debounce
+   * window, avoids the wipe; once the save lands, `stored.isSet` is true and a later wipe is harmless
+   * because the credential now lives server-side.
+   *
+   * Pressed after the model field is filled, deliberately: `saveKey` sends the current
+   * protocol/providerId/baseUrl/model alongside the key, and a stored row with no model is treated as
+   * unusable (`byok-credential.ts`), which would reproduce the identical 400.
+   */
+  await page.locator(".jini-byok-card .jini-field-input-row input").fill(FAKE_GEMINI_KEY);
+  await page.locator('.assistant-key-footer button:has-text("Save key")').click();
+  await expect(page.locator(".assistant-key-footer .assistant-save-line")).toContainText(
+    "Saved to the server, encrypted.",
+    { timeout: 15_000 },
+  );
 }
 
 test("BYOK Gemini: the real outbound tool schema is Gemini-clean at every depth, and the turn renders a reply", async ({
