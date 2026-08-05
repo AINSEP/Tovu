@@ -104,6 +104,87 @@ const daemonUrl = `http://127.0.0.1:${port}`;
 const DEFAULT_AGENT_ID = "claude";
 
 /**
+ * Self-termination watchdog, 2026-08-05 (`ADS-memory/reports/analysis/2026-08-05-e2e-teardown-root-cause.md`).
+ *
+ * `src/index.ts`'s `spawnAgentDaemon()` puts this process in its own detached process group
+ * specifically so it CAN be reaped independently (see that function's own comment) — but that
+ * only works if `src/index.ts` gets a chance to run its `reap()`. Confirmed live, twice, two
+ * different ways: Playwright's default `webServer` teardown skips straight to an uncatchable
+ * `SIGKILL` unless opted out of (fixed at that source, `development/playwright.admin.config.ts`'s
+ * `gracefulShutdown`), and — separately, still unfixed at its own source — an external `SIGTERM`
+ * sent straight to Playwright's own top-level CLI process never invokes `teardown()` at all,
+ * bypassing `gracefulShutdown` too. Direct repro of the second case: the daemon was still fully
+ * alive and bound to its port, completely unchanged, 30+ seconds after that kill, with zero
+ * self-cleanup. Any such case — including a plain `kill -9` of `src/index.ts`, or a CI/agent
+ * timeout wrapper killing it outside its own signal handlers — leaves this process orphaned with
+ * nothing left to reap it. This watchdog is the last line of defense: detect that independently,
+ * from inside this process, rather than depending on anything outside it to notice.
+ *
+ * Why the OS's own `process.ppid` cannot be that signal: `spawnAgentDaemon()`'s dev-mode spawn is
+ * a 3-hop `npx -> tsx -> node` chain, and confirmed live via `ps` that none of those three
+ * exec-replaces itself — all three stay alive for the whole run. This process's actual `ppid`
+ * therefore resolves to the middle `tsx` hop, not to `src/index.ts`'s own process, so watching
+ * `ppid` would watch the wrong ancestor. `spawnAgentDaemon()` instead passes the true one
+ * explicitly via `TOVU_PARENT_PID`.
+ *
+ * Opt-in by construction, not by a feature flag: `TOVU_PARENT_PID` is set by exactly one caller
+ * (`spawnAgentDaemon()` — confirmed the only spawner of this file). A manual/standalone boot of
+ * this file (local debugging, or any test that spawns it directly without that env var) gets no
+ * watchdog at all, unchanged from before this existed — there is no ambient "parent" to watch in
+ * that case, and none is invented.
+ *
+ * Does not fight the legitimate long-lived case it might look like it conflicts with: `npm run
+ * dev`'s `tsx watch src/index.ts` intentionally kills and restarts the API process on every source
+ * change, and a fresh daemon is spawned fresh for the fresh process each time. On a NORMAL
+ * restart, the OLD `index.ts` process receives a real, catchable signal, and ITS `reap()` already
+ * kills this process directly — this watchdog is redundant on that path, not in conflict with it;
+ * a process already mid-exit tolerates an overlapping second kill/self-exit with no ill effect.
+ * This function only ever does something on the path `reap()` cannot reach: when it never runs.
+ */
+function startParentWatchdog(): void {
+  const raw = process.env.TOVU_PARENT_PID;
+  if (raw === undefined) return;
+  const parentPid = Number(raw);
+  if (!Number.isInteger(parentPid) || parentPid <= 0) {
+    console.error(`[agent-daemon] TOVU_PARENT_PID="${raw}" is not a valid pid — parent watchdog disabled`);
+    return;
+  }
+
+  // 3s: fast enough that a leaked port closes long before it could collide with a LATER boot
+  // attempt (the EADDRINUSE/degraded-boot failure mode this exists to prevent — see this file's
+  // module doc), slow enough that a background liveness poll costs nothing meaningful against a
+  // process that spends most of its time idle between real requests. Not `.unref()`'d: unlike
+  // `development/scripts/dev.mjs`'s own shutdown timer (which legitimately wants to stop blocking
+  // an exit already in progress), this interval's entire job is to keep this process alive and
+  // watching for as long as its parent is — letting it fall out of the event loop on its own would
+  // undermine the one thing it exists to do.
+  const POLL_INTERVAL_MS = 3_000;
+  setInterval(() => {
+    try {
+      // Signal `0` sends nothing; it is the standard Node/POSIX idiom for "does this pid still
+      // exist", with no side effect on the target process either way.
+      process.kill(parentPid, 0);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "ESRCH") {
+        // Anything other than "no such process" (e.g. a transient EPERM) is inconclusive, not a
+        // confirmed death — skip this poll rather than risk a false-positive self-kill on a parent
+        // that is actually still alive.
+        return;
+      }
+      console.error(
+        `[agent-daemon] parent process ${parentPid} is gone and reap() never reached this process — self-terminating`,
+      );
+      process.exit(1);
+    }
+  }, POLL_INTERVAL_MS);
+}
+// Armed as early as possible — before any of the slower boot work below (SQLite open, MCP
+// federation, `createDiskAttachmentStore`) — so a parent death during THIS process's own boot is
+// caught too, not only once it has reached steady state.
+startParentWatchdog();
+
+/**
  * Root directory the chat composer's staged image/file uploads land in before a run claims them
  * (`@jini-ai/http-kit`'s `createDiskAttachmentStore`) — deliberately NOT `process.cwd()`.
  *
@@ -113,8 +194,8 @@ const DEFAULT_AGENT_ID = "claude";
  * deliberately NOT anchored the way `mediaUploadsDir()` is (`server/deps.ts` — `TOVU_MEDIA_UPLOADS_DIR
  * ?? join(process.cwd(), "infra", "uploads")`): that fallback is itself `process.cwd()`-relative
  * and this process's own `process.cwd()` is not provably the site install dir (this daemon is a
- * `spawn(..., {stdio:"inherit"})` child of `src/index.ts`, inheriting whatever cwd THAT process
- * happened to have — see that file's module doc). Anchoring to `dirname(defaultContentDbPath())`
+ * `spawn()` child of `src/index.ts`, inheriting whatever cwd THAT process happened to have — see
+ * that file's module doc). Anchoring to `dirname(defaultContentDbPath())`
  * instead ties this to the SAME directory the daemon's own `content.db` connection already resolves
  * against, which is the strongest "the daemon process agrees this is the site's home" signal
  * available here without adding a new resolution path this process doesn't already have.
