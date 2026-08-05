@@ -2,6 +2,8 @@ import * as http from "node:http";
 import type { AddressInfo } from "node:net";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 
+import { byokModelTextInput } from "./byok-model-field";
+
 /**
  * @file BYOK Azure "incompletely supported" path (2026-08-04 dispatch, item #9).
  *
@@ -195,12 +197,16 @@ async function gotoByok(page: Page): Promise<void> {
 /** The Model field's input has no stable attribute selector when discovery has produced no
  *  suggestions (its `list` attribute is only set when `suggestions.length > 0` — see
  *  `ByokProviderForm.tsx`), which is ALWAYS true for azure (its preset ships zero
- *  `preferredModels` and discovery never succeeds). It's the last `.jini-field` in the card —
- *  the same structural fact `byok-model-discovery-self-heal.spec.ts`'s header documents
- *  working around for the opposite reason (that spec's Model field DOES get a `list`, so it
- *  uses that instead; this one can't). */
+ *  `preferredModels` and discovery never succeeds).
+ *
+ *  This used to be `.jini-byok-card .jini-field` `.last()`, which is positional: it is only the
+ *  Model field for as long as Model stays the last field in the card, and it silently becomes a
+ *  different field the day one is appended. Now delegated to the shared helper, which anchors on
+ *  the field's own label text and fails with a message naming what it found. Azure's tests
+ *  passed before and after this change (measured both ways, 2026-08-05) — this is removing a
+ *  latent trap, not fixing a failure. */
 function azureModelInput(page: Page) {
-  return page.locator(".jini-byok-card .jini-field").last().locator("input");
+  return byokModelTextInput(page);
 }
 
 test.describe("the real operator path in the browser: exact messages shown, in order", () => {

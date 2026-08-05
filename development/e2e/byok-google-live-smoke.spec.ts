@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { test, expect } from "@playwright/test";
 
 import { loginAsAdmin } from "./auth-fixtures";
+import { setByokModel } from "./byok-model-field";
 
 /**
  * @file The real thing, once: an actual chat turn against the real Google Gemini API through
@@ -98,7 +99,16 @@ test("real Gemini BYOK turn: the admin chat actually completes and renders a rep
   // mid-test — see `ExecutionTab.tsx`'s own comment on why discovery is not re-keyed on the API key.
   // Filling the plain text field directly keeps this test's DOM shape identical to
   // `byok-google-tool-schema.spec.ts`'s.
-  await page.locator('label:has-text("Model") input').fill(LIVE_MODEL);
+  //
+  // NOT `label:has-text("Model") input`. Measured 2026-08-05: that resolved to TWO elements and
+  // threw on strict mode — Playwright's `:has-text()` is a case-insensitive SUBSTRING match, and
+  // the Max-tokens field's own hint reads "Leave blank to use the model default", so its
+  // `<input type="number">` matched too. This failure is independent of the `SearchableModelSelect`
+  // refactor (the run that measured it showed this field still rendering as a plain input carrying
+  // `list="jini-byok-model-options"`, because discovery is not re-keyed on the API key and had
+  // already failed with no key present). `setByokModel` anchors on the field label's own exact text
+  // and handles whichever shape the field is in.
+  await setByokModel(page, LIVE_MODEL);
 
   await expect(page.locator(".settings-ui-save.is-saved")).toBeVisible({ timeout: 15_000 });
 
