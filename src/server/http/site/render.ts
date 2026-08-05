@@ -87,6 +87,27 @@ export interface SiteRenderContext {
    * embeds resolved", degrading every placeholder to the REQ-28 marker rather than crashing.
    */
   pageHtmlEmbeds?: ResolveHtmlPageEmbedsResult;
+  /**
+   * Quick-and-dirty public-render sizing fix (owner-directed skip-the-ADR fix, 2026-08-05): each
+   * resolved image ref's `MediaRecord.width`/`height`/`cssClass` override, keyed by `assetId` —
+   * mirrors `mediaTransformVersions`'s own "small resolved lookup map, populated once per render by
+   * the route caller" shape (see that field's doc), but keyed by ASSET id rather than transform
+   * name since these are per-asset values, not per-transform-name ones. Populated by
+   * `resolveMediaAssetMetadataForRender` (`routes/site/pages.ts`). An assetId absent from this map
+   * (never uploaded, deleted, or simply a render/test that never threads this through) degrades to
+   * "no override" — the `image` case omits `width`/`height`/`class` entirely rather than emitting a
+   * malformed or zeroed attribute, same non-breaking-default convention every other resolved map on
+   * this context follows.
+   */
+  mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta>;
+}
+
+/** One resolved asset's public-render sizing override — see `SiteRenderContext.mediaAssetMetadata`'s
+ * own doc. `null` on any field means "not set", not "zero"/"empty string". */
+export interface MediaAssetRenderMeta {
+  width: number | null;
+  height: number | null;
+  cssClass: string | null;
 }
 
 function isObject(value: unknown): value is JsonObject {
@@ -154,6 +175,11 @@ const EMPTY_INLINE_RESOLVED: ReadonlyMap<string, WidgetRenderIR> = new Map();
  */
 const EMPTY_MEDIA_TRANSFORM_VERSIONS: ReadonlyMap<string, number> = new Map();
 
+/** No-overrides default for every `renderDocNode`/`renderNodes` caller that doesn't pass one —
+ * same "optional, defaults to empty, degrades to no attribute" convention as
+ * {@link EMPTY_MEDIA_TRANSFORM_VERSIONS} immediately above. */
+const EMPTY_MEDIA_ASSET_METADATA: ReadonlyMap<string, MediaAssetRenderMeta> = new Map();
+
 /** `assetId`/`transformName` become `/m/` URL path segments (`media-rendition.ts`), so — same
  * discipline `html-embeds.ts`'s `MAX_EMBED_ID_LENGTH` applies to its own author-supplied ids —
  * shape is checked before either value is trusted into a path: non-empty, bounded, and free of
@@ -170,9 +196,12 @@ function isPlausibleMediaRefId(value: string): boolean {
 function renderNodes(
   nodes: JsonValue[] | undefined,
   inlineResolved: ReadonlyMap<string, WidgetRenderIR>,
-  mediaTransformVersions: ReadonlyMap<string, number>
+  mediaTransformVersions: ReadonlyMap<string, number>,
+  mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta>
 ): string {
-  return (nodes ?? []).map((node) => renderDocNode(node, inlineResolved, mediaTransformVersions)).join("");
+  return (nodes ?? [])
+    .map((node) => renderDocNode(node, inlineResolved, mediaTransformVersions, mediaAssetMetadata))
+    .join("");
 }
 
 /**
@@ -188,24 +217,29 @@ function renderNodes(
  * `mediaTransformVersions` (ADR-027 §4) is the same "optional, defaults to empty, degrades to the
  * placeholder" shape for the `image` case's `{assetId, transformName}` ref path — see that case's
  * own comment for the full resolution rule and the legacy-`src` backward-compat guarantee.
+ *
+ * `mediaAssetMetadata` (owner-directed quick-and-dirty sizing fix) is the same optional/defaults-
+ * to-empty shape, keyed by `assetId` instead of `transformName` — see
+ * `SiteRenderContext.mediaAssetMetadata`'s own doc.
  */
 export function renderDocNode(
   node: JsonValue,
   inlineResolved: ReadonlyMap<string, WidgetRenderIR> = EMPTY_INLINE_RESOLVED,
-  mediaTransformVersions: ReadonlyMap<string, number> = EMPTY_MEDIA_TRANSFORM_VERSIONS
+  mediaTransformVersions: ReadonlyMap<string, number> = EMPTY_MEDIA_TRANSFORM_VERSIONS,
+  mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta> = EMPTY_MEDIA_ASSET_METADATA
 ): string {
   if (!isObject(node)) return "";
   const content = Array.isArray(node.content) ? node.content : undefined;
 
   switch (node.type) {
     case "doc":
-      return renderNodes(content, inlineResolved, mediaTransformVersions);
+      return renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata);
     case "paragraph":
-      return `<p>${renderNodes(content, inlineResolved, mediaTransformVersions)}</p>`;
+      return `<p>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</p>`;
     case "heading": {
       const level = isObject(node.attrs) && typeof node.attrs.level === "number" ? node.attrs.level : 2;
       const h = Math.min(Math.max(level, 1), 6);
-      return `<h${h}>${renderNodes(content, inlineResolved, mediaTransformVersions)}</h${h}>`;
+      return `<h${h}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</h${h}>`;
     }
     case "text":
       return renderMarks(
@@ -213,28 +247,29 @@ export function renderDocNode(
         Array.isArray(node.marks) ? node.marks : undefined
       );
     case "bulletList":
-      return `<ul>${renderNodes(content, inlineResolved, mediaTransformVersions)}</ul>`;
+      return `<ul>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</ul>`;
     case "orderedList":
-      return `<ol>${renderNodes(content, inlineResolved, mediaTransformVersions)}</ol>`;
+      return `<ol>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</ol>`;
     case "listItem":
-      return `<li>${renderNodes(content, inlineResolved, mediaTransformVersions)}</li>`;
+      return `<li>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</li>`;
     case "blockquote":
-      return `<blockquote>${renderNodes(content, inlineResolved, mediaTransformVersions)}</blockquote>`;
+      return `<blockquote>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</blockquote>`;
     case "codeBlock":
-      return `<pre><code>${renderNodes(content, inlineResolved, mediaTransformVersions)}</code></pre>`;
+      return `<pre><code>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</code></pre>`;
     case "horizontalRule":
       return "<hr/>";
     case "image": {
-      // D7 (original), extended under ADR-027 §4 (this task): a TipTap image node reaches this
-      // renderer in one of two shapes. LEGACY nodes carry only `attrs.src`/`attrs.title` — some
-      // combination of an inlined `data:` blob, an arbitrary external URL, or the *authenticated*
-      // admin media-preview URL, none of which are safe or correct to embed unescaped on public,
-      // unauthenticated HTML. Those keep degrading to the same aspect-ratio placeholder
-      // (`mediaPlaceholder`) exactly as before this task — `src`/`title` are still never read here
-      // at all, which is precisely the property that made the original D7 fix safe and must not
-      // regress: a real running server was verified live (see `media/bootstrap.ts`'s file header)
-      // to have posts whose only image `src` values are exactly these unsafe kinds, so silently
-      // starting to trust `src` would be a public security regression, not a fix.
+      // D7 (original), extended under ADR-027 §4 and this task's quick-and-dirty sizing fix: a
+      // TipTap image node reaches this renderer in one of two shapes. LEGACY nodes carry only
+      // `attrs.src`/`attrs.title` — some combination of an inlined `data:` blob, an arbitrary
+      // external URL, or the *authenticated* admin media-preview URL, none of which are safe or
+      // correct to embed unescaped on public, unauthenticated HTML. Those keep degrading to the
+      // same aspect-ratio placeholder (`mediaPlaceholder`) exactly as before this task —
+      // `src`/`title` are still never read here at all, which is precisely the property that made
+      // the original D7 fix safe and must not regress: a real running server was verified live (see
+      // `media/bootstrap.ts`'s file header) to have posts whose only image `src` values are exactly
+      // these unsafe kinds, so silently starting to trust `src` would be a public security
+      // regression, not a fix.
       //
       // REF nodes (new, ADR-027 §4's own stated `bodyJson` contract: "stores refs
       // `{assetId, transformName}`, never URLs") carry `attrs.assetId`/`attrs.transformName`
@@ -245,6 +280,15 @@ export function renderDocNode(
       // {@link isPlausibleMediaRefId}'s shape check, or a `transformName` with no entry in the map
       // (never registered, or not yet resolved), degrades to the identical placeholder a legacy
       // node gets — a ref node can be "wrong" but can never emit a malformed or unsafe URL.
+      //
+      // width/height/class (this task): looked up from `mediaAssetMetadata` by `assetId` ALONE
+      // (never gated on whether the src itself resolved to a placeholder-vs-real image — an
+      // unresolved ref already returns early via `mediaPlaceholder` below, so this lookup only ever
+      // runs once a real `<img src>` is about to be emitted). Each attribute is emitted
+      // independently and only when its value is non-null — an asset with only `width` set gets
+      // `width="…"` alone, never a `height="0"` or empty `class=""`. Owner's explicit instruction:
+      // width/height are BOTH optional; leaving either (or both) unset renders at native size, never
+      // a computed/defaulted value.
       const attrs = isObject(node.attrs) ? node.attrs : {};
       const alt = typeof attrs.alt === "string" ? attrs.alt : "";
       const assetId = typeof attrs.assetId === "string" ? attrs.assetId : undefined;
@@ -254,7 +298,11 @@ export function renderDocNode(
         if (version !== undefined) {
           const src = `/m/${encodeURIComponent(assetId)}/${encodeURIComponent(transformName)}.v${version}/image.jpg`;
           const altAttr = escapeHtml(alt);
-          return `<img src="${escapeHtml(src)}" alt="${altAttr}" loading="lazy">`;
+          const meta = mediaAssetMetadata.get(assetId);
+          const widthAttr = meta?.width != null ? ` width="${meta.width}"` : "";
+          const heightAttr = meta?.height != null ? ` height="${meta.height}"` : "";
+          const classAttr = meta?.cssClass ? ` class="${escapeHtml(meta.cssClass)}"` : "";
+          return `<img src="${escapeHtml(src)}" alt="${altAttr}"${widthAttr}${heightAttr}${classAttr} loading="lazy">`;
         }
       }
       return mediaPlaceholder({ label: alt || "Image" });
@@ -271,7 +319,7 @@ export function renderDocNode(
       return renderWidgetIr(ir ?? WIDGET_PLACEHOLDER_IR);
     }
     default:
-      return renderNodes(content, inlineResolved, mediaTransformVersions);
+      return renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata);
   }
 }
 
@@ -350,7 +398,7 @@ function renderPostBody(ctx: SiteRenderContext): string {
   const post = ctx.post;
   if (!post) return "";
   if (post.bodyFormat === "html") return renderHtmlPageBody(post.bodyHtml ?? "", ctx.pageHtmlEmbeds);
-  return renderDocNode(post.bodyJson, ctx.widgetInlineResolved, ctx.mediaTransformVersions);
+  return renderDocNode(post.bodyJson, ctx.widgetInlineResolved, ctx.mediaTransformVersions, ctx.mediaAssetMetadata);
 }
 
 function entryContent(ctx: SiteRenderContext): string {
@@ -867,7 +915,7 @@ function renderBlock(node: TemplateNode, ctx: SiteRenderContext): string {
   }
 
   // Anything else is content-doc vocabulary.
-  return renderDocNode(node, ctx.widgetInlineResolved, ctx.mediaTransformVersions);
+  return renderDocNode(node, ctx.widgetInlineResolved, ctx.mediaTransformVersions, ctx.mediaAssetMetadata);
 }
 
 // ---------------------------------------------------------------------------
@@ -1028,6 +1076,16 @@ export async function renderSite(required: {
    * `renderDocNode`'s `image` case already treats as "not resolvable" (placeholder), not a crash.
    */
   mediaTransformVersions?: ReadonlyMap<string, number>;
+  /**
+   * Quick-and-dirty public-render sizing fix (owner-directed skip-the-ADR fix) — each resolved
+   * image ref's width/height/CSS-class override, keyed by `assetId`, threaded straight into
+   * `SiteRenderContext.mediaAssetMetadata` (see that field's own doc). The caller
+   * (`routes/site/pages.ts`'s `resolveMediaAssetMetadataForRender`) resolves this from the same
+   * `mediaRepo` the admin edit panel writes through. Omitted by every caller/test that never
+   * renders an image ref — degrades to an empty map, which the `image` case already treats as "no
+   * override" (omit the attribute), not a crash.
+   */
+  mediaAssetMetadata?: ReadonlyMap<string, MediaAssetRenderMeta>;
   /** SPEC-008 T049 — pre-serialized `page.head` fold output, threaded through to `pageShell`. */
   extraHead?: string;
   /**
@@ -1052,6 +1110,7 @@ export async function renderSite(required: {
     widgetRegions: required.widgets?.regions ?? {},
     widgetInlineResolved: required.widgets?.inlineResolved ?? EMPTY_INLINE_RESOLVED,
     mediaTransformVersions: required.mediaTransformVersions ?? EMPTY_MEDIA_TRANSFORM_VERSIONS,
+    mediaAssetMetadata: required.mediaAssetMetadata ?? EMPTY_MEDIA_ASSET_METADATA,
     pageHtmlEmbeds: required.pageHtmlEmbeds,
   };
 

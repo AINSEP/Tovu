@@ -15,7 +15,7 @@ import { runPostContentPhase, runPreContentPhase, urlFor } from "#src/routing/in
 import { getLatestTransformDefinition } from "#src/media/index";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/media/bootstrap";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head";
-import { renderSite } from "../../http/site/render";
+import { renderSite, type MediaAssetRenderMeta } from "../../http/site/render";
 import type { RouteDeps, RouteRegistrar } from "../types";
 
 /**
@@ -98,24 +98,24 @@ function resolveActiveTheme(deps: RouteDeps, activeThemeId: string): DiscoveredT
 
 /**
  * SPEC-043/ADR-047 W-004 — resolves every widget placed in one of `theme.manifest.regions` (REQ-13)
- * ahead of `renderSite`, per REQ-23. `render.ts` stays a pure "resolved data -> HTML" renderer (it
- * receives `posts`/`post` pre-resolved the exact same way); this is the one call site, mirroring
- * the outline's Wiring Map row W-004. `resolvePageWidgets` itself never throws (REQ-27) — no extra
- * try/catch needed beyond the route handler's own existing one.
+ * ahead of `renderSite`, per REQ-23, PLUS (2026-08-05 fix) any inline `widgetEmbed` node in `post`'s
+ * own `bodyJson` when rendering a real post. `render.ts` stays a pure "resolved data -> HTML"
+ * renderer (it receives `posts`/`post` pre-resolved the exact same way); this is the one call site,
+ * mirroring the outline's Wiring Map row W-004. `resolvePageWidgets` itself never throws (REQ-27) —
+ * no extra try/catch needed beyond the route handler's own existing one.
  *
- * `pageEntryId` is always omitted here: `PostRecord` (`features/post`) is a separate, pre-ADR-022
- * table, not an `entries` row `EntryRepoPort.findById` can resolve — so inline `widgetEmbed`
- * resolution (REQ-21) has no reachable target on the live `home`/`post` routes yet. A
- * `widgetEmbed` node authored into a post's body today (the TipTap extension has no per-content-type
- * gate) still renders safely — `renderDocNode`'s `widgetEmbed` case degrades any unresolved
- * reference to the REQ-28 public-safe placeholder, never a crash or a raw attrs dump — but does not
- * resolve to real content until a generic `entries`-backed site route exists to supply a real
- * `pageEntryId`. Disclosed, not silently assumed away (implementation-outline-addendum.md Finding 1b).
+ * Was previously always omitted: `resolvePageWidgets` took a `pageEntryId` to fetch via
+ * `EntryRepoPort.findById`, but `PostRecord` (`features/post`) is a separate, pre-ADR-022 table no
+ * `entries` lookup can ever resolve, so no real caller ever supplied one and every `widgetEmbed`
+ * node authored into a post's body rendered the REQ-28 placeholder forever (implementation-outline-
+ * addendum.md Finding 1b). Fixed by having `resolvePageWidgets` accept the already-fetched
+ * `post.bodyJson` directly (`pageBodyJson`) instead of an id to re-fetch — this route already holds
+ * `post` by the time it calls this, so no extra lookup is needed either way.
  */
-async function resolveWidgetsForRender(deps: RouteDeps, theme: DiscoveredTheme): Promise<ResolvePageWidgetsResult> {
+async function resolveWidgetsForRender(deps: RouteDeps, theme: DiscoveredTheme, post?: PostRecord): Promise<ResolvePageWidgetsResult> {
   return resolvePageWidgets({
     deps: { bindingRepo: deps.widgetBindingRepo, entryRepo: deps.entryRepo },
-    input: { workspaceId: deps.workspaceId, resolvedRegions: theme.manifest.regions ?? [] },
+    input: { workspaceId: deps.workspaceId, pageBodyJson: post?.bodyJson, resolvedRegions: theme.manifest.regions ?? [] },
   });
 }
 
@@ -162,6 +162,72 @@ async function resolveMediaTransformVersionsForRender(deps: RouteDeps): Promise<
     input: { workspaceId: deps.workspaceId, name: CORE_PUBLIC_TRANSFORM_NAME },
   });
   return definition ? new Map([[CORE_PUBLIC_TRANSFORM_NAME, definition.version]]) : new Map();
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Walks a TipTap-shaped `bodyJson` tree collecting every ref-based `image` node's `assetId`
+ * (ADR-027 §4's `{assetId, transformName}` shape) — same walk shape as `resolver-service.ts`'s
+ * `collectWidgetEmbeds`, kept as a separate local copy since this module has no dependency on
+ * that one. A legacy `image` node (only `attrs.src`/`attrs.title`, no `assetId`) is simply never
+ * added — `render.ts`'s `image` case never reads `src`/`title` at all (see that case's own
+ * comment), so there is nothing for a sizing override to key off for that shape anyway. */
+function collectImageAssetIds(node: unknown, out: Set<string>): void {
+  if (Array.isArray(node)) {
+    for (const child of node) collectImageAssetIds(child, out);
+    return;
+  }
+  if (!isPlainObject(node)) return;
+  if (node.type === "image" && isPlainObject(node.attrs) && typeof node.attrs.assetId === "string") {
+    out.add(node.attrs.assetId);
+  }
+  if (Array.isArray(node.content)) collectImageAssetIds(node.content, out);
+}
+
+/**
+ * Quick-and-dirty public-render sizing fix (owner-directed skip-the-ADR fix, 2026-08-05) —
+ * resolves each ref-based image node's `MediaRecord.width`/`height`/`cssClass` override ahead of
+ * `renderSite`, mirroring `resolveWidgetsForRender`/`resolveMediaTransformVersionsForRender`'s own
+ * "route resolves, `render.ts` stays I/O-free" split (this is the one call site for this
+ * resolution, same shape as those functions' own doc).
+ *
+ * Unlike `resolveMediaTransformVersionsForRender`, there is no single-name shortcut available here
+ * — width/height/class are genuinely PER-ASSET values, not a property of `(workspaceId,
+ * transformName)` alone — so this scans `post.bodyJson` for every distinct `assetId` a ref-based
+ * `image` node references (mirroring `resolveHtmlPageEmbeds`'s own per-id scan for a Page's
+ * `body_html`), then batch-fetches each one. `MediaRepoPort` (`@jini-ai/cms/media`) has no
+ * `findByIds`/batch-by-id primitive — only `findById` — the same frozen-contract situation
+ * `resolvePageWidgets`'s own file header discloses for `EntryRepoPort`; one `findById` per
+ * distinct `assetId`, run concurrently, is the available primitive at today's real scale (a post
+ * body with dozens of distinct images would need this widened to a real batch query, same as the
+ * widget/html-embed resolvers already disclose for their own multi-id case).
+ *
+ * Never throws — a lookup that resolves to `null` (deleted, wrong workspace, or an id that was
+ * never a real asset) is skipped, not thrown; the caller's `image` case already treats an
+ * `assetId` absent from the returned map as "no override" (omit the attribute), never a crash.
+ *
+ * @complexity O(a) over the distinct `assetId`s referenced, each behind one `findById` call
+ * (run concurrently via `Promise.all`, not serially).
+ */
+async function resolveMediaAssetMetadataForRender(
+  deps: RouteDeps,
+  post: PostRecord | undefined
+): Promise<ReadonlyMap<string, MediaAssetRenderMeta>> {
+  if (!post) return new Map();
+  const assetIds = new Set<string>();
+  collectImageAssetIds(post.bodyJson, assetIds);
+  if (assetIds.size === 0) return new Map();
+
+  const entries = await Promise.all(
+    Array.from(assetIds).map(async (assetId): Promise<readonly [string, MediaAssetRenderMeta] | undefined> => {
+      const record = await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: assetId });
+      if (!record) return undefined;
+      return [assetId, { width: record.width, height: record.height, cssClass: record.cssClass }] as const;
+    })
+  );
+  return new Map(entries.filter((entry): entry is readonly [string, MediaAssetRenderMeta] => entry !== undefined));
 }
 
 /**
@@ -226,14 +292,27 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         return;
       }
 
-      const [widgets, pageHtmlEmbeds, mediaTransformVersions, extraHead] = await Promise.all([
-        resolveWidgetsForRender(deps, theme),
+      const [widgets, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata, extraHead] = await Promise.all([
+        resolveWidgetsForRender(deps, theme, post),
         resolveHtmlEmbedsForRender(deps, post),
         resolveMediaTransformVersionsForRender(deps),
+        resolveMediaAssetMetadataForRender(deps, post),
         buildExtraHead(deps, "post", SITE_TITLE, post),
       ]);
       res.type("html").send(
-        await renderSite({ theme, route: "post", siteTitle: SITE_TITLE, posts, post, widgets, pageHtmlEmbeds, mediaTransformVersions, extraHead, siteAssistantEnabled }),
+        await renderSite({
+          theme,
+          route: "post",
+          siteTitle: SITE_TITLE,
+          posts,
+          post,
+          widgets,
+          pageHtmlEmbeds,
+          mediaTransformVersions,
+          mediaAssetMetadata,
+          extraHead,
+          siteAssistantEnabled,
+        }),
       );
     } catch (err) {
       if (err instanceof PostNotFoundError) {

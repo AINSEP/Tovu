@@ -49,6 +49,11 @@ function makeMedia(overrides: Partial<MediaRecord> = {}): MediaRecord {
     createdAt: "2026-07-16T00:00:00.000Z",
     updatedAt: "2026-07-16T00:00:00.000Z",
     version: 1,
+    // Quick-and-dirty public-render sizing fields (owner-directed skip-the-ADR fix) — `null` by
+    // default (no override set), matching `uploadMedia`'s own default.
+    width: null,
+    height: null,
+    cssClass: null,
     ...overrides,
   };
 }

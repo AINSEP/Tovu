@@ -355,6 +355,60 @@ test("renderDocNode: a ref-based image node with an empty mediaTransformVersions
   assert.doesNotMatch(html, /<img/);
 });
 
+test("renderDocNode: a ref-based image node with a resolved mediaAssetMetadata entry emits width/height/class on the <img> — owner-directed quick-and-dirty sizing fix", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    new Map([["public", 3]]),
+    new Map([["asset-1", { width: 800, height: 600, cssClass: "rounded" }]])
+  );
+  assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="x" width="800" height="600" class="rounded" loading="lazy">/);
+});
+
+test("renderDocNode: a resolved image with only width set omits height/class entirely — both are independently optional, neither defaults to a computed value", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    new Map([["public", 3]]),
+    new Map([["asset-1", { width: 800, height: null, cssClass: null }]])
+  );
+  assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="x" width="800" loading="lazy">/);
+  assert.doesNotMatch(html, /height=/);
+  assert.doesNotMatch(html, /class=/);
+});
+
+test("renderDocNode: an asset absent from mediaAssetMetadata (never uploaded through the sizing UI, or the default empty map) renders without width/height/class — no regression on the pre-existing <img> shape", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(doc, undefined, new Map([["public", 3]])); // no 4th arg — default EMPTY_MEDIA_ASSET_METADATA
+  assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
+});
+
+test("renderDocNode: a hostile stored cssClass is HTML-escaped, same as alt — public HTML never trusts a stored string raw", () => {
+  const doc: JsonObject = {
+    type: "doc",
+    content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
+  };
+  const html = renderDocNode(
+    doc,
+    undefined,
+    new Map([["public", 3]]),
+    new Map([["asset-1", { width: null, height: null, cssClass: '"><script>alert(1)</script>' }]])
+  );
+  assert.doesNotMatch(html, /<script>/);
+  assert.match(html, /class="&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;"/);
+});
+
 test("renderDocNode: a malformed assetId/transformName (embedded '/', empty, or over-length) degrades to the placeholder even when the name would otherwise resolve — never a malformed /m/ URL", () => {
   const resolved = new Map([["public", 1], ["", 1]]);
   const cases: Array<{ assetId: string; transformName: string }> = [

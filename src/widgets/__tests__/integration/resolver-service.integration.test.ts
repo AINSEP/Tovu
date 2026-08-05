@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEntryRepo } from "#src/features/entries/repo.memory";
+import { buildWidgetInstanceFieldsJson } from "../../entry-payload";
 import { CORE_RESOLVERS, resolveWidgetType } from "../../resolvers/index";
 import { resolvePageWidgets } from "../../resolver-service";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory";
@@ -140,13 +141,46 @@ test("AC-16/REQ-23: resolvePageWidgets assembles resolved IR for every declared 
     deps: { bindingRepo: new InMemoryWidgetRegionBindingRepo(), entryRepo: new InMemoryEntryRepo() },
     input: {
       workspaceId: WORKSPACE_ID,
-      pageEntryId: "page-home",
+      // No `pageBodyJson` — this test only asserts per-region key structure, not inline-embed
+      // resolution (see the dedicated 2026-08-05-fix test below for that).
       resolvedRegions: ["footer", "sidebar"],
     },
   });
 
   assert.ok("footer" in regions);
   assert.ok("sidebar" in regions);
+});
+
+test("2026-08-05 fix: a widgetEmbed node in a real page's pageBodyJson resolves to the widget's real IR, not the REQ-28 placeholder forever (the pageEntryId->EntryRepoPort.findById path this replaces could never reach a PostRecord's bodyJson)", async () => {
+  const bindingRepo = new InMemoryWidgetRegionBindingRepo();
+  const entryRepo = new InMemoryEntryRepo();
+
+  await entryRepo.save({
+    id: "text-widget-1",
+    workspaceId: WORKSPACE_ID,
+    type: WIDGET_CONTENT_TYPE,
+    slug: "text-widget-1",
+    status: "published",
+    title: "Inline text widget",
+    bodyJson: null,
+    fieldsJson: buildWidgetInstanceFieldsJson({ widgetType: "text", config: { text: "Hello from inline widget" }, status: "active" }),
+    publishedAt: "2026-08-05T00:00:00.000Z",
+    createdAt: "2026-08-05T00:00:00.000Z",
+    updatedAt: "2026-08-05T00:00:00.000Z",
+    version: 1,
+  });
+
+  const pageBodyJson = {
+    type: "doc",
+    content: [{ type: "widgetEmbed", attrs: { placementId: "p1", widgetEntryId: "text-widget-1" } }],
+  };
+
+  const { inlineResolved } = await resolvePageWidgets({
+    deps: { bindingRepo, entryRepo },
+    input: { workspaceId: WORKSPACE_ID, pageBodyJson, resolvedRegions: [] },
+  });
+
+  assert.deepEqual(inlineResolved.get("p1"), { componentId: "text", props: { text: "Hello from inline widget" } });
 });
 
 test("Fable adversarial-review fix (2026-07-21, Finding B): a malformed widget_area payload degrades that region to empty, resolvePageWidgets never throws (REQ-27)", async () => {
