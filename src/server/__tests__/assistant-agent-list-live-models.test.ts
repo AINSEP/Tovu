@@ -57,6 +57,13 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
   const server = createServer((req, res) => {
     daemonRequestCount += 1;
     res.writeHead(200, { "content-type": "application/json" });
+    // `?shapeMismatch=1` is a test-only escape hatch (real `@jini-ai/http-kit` routes never answer
+    // this shape) for the "2xx but no agents array" test below — everything else always gets the
+    // normal shape.
+    if ((req.url ?? "").includes("shapeMismatch=1")) {
+      res.end(JSON.stringify({ unexpected: "shape", note: "not an agents array" }));
+      return;
+    }
     res.end(JSON.stringify({ agents: [CLAUDE_AGENT, CODEX_AGENT] }));
   });
   server.listen(0, "127.0.0.1");
@@ -197,4 +204,25 @@ test("POST /api/agents/rescan gets the same enrichment as GET /api/agents", asyn
 
   const claude = body.agents.find((agent) => agent.id === "claude");
   assert.equal(claude?.modelsSource, "live", "rescan must go through the same enrichment as the GET route");
+});
+
+test("a 2xx daemon response missing the agents array is relayed unmodified and logs a warning — the dangerous silent-degradation path", async (t) => {
+  resetLiveModelCacheForTesting();
+  const { baseUrl, cookie } = await bootProxy(t);
+  const originalWarn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
+
+  try {
+    const res = await fetch(`${baseUrl}/api/agents?shapeMismatch=1`, { headers: { cookie } });
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { unexpected: "shape", note: "not an agents array" }, "the daemon's raw body must still reach the browser");
+    assert.equal(warnings.length, 1, "an unexpected 2xx shape must log exactly one warning — this is the case an operator has no other way to see");
+    assert.match(String(warnings[0][0]), /without an 'agents' array/);
+  } finally {
+    console.warn = originalWarn;
+  }
 });

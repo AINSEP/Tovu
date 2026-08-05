@@ -40,9 +40,13 @@ interface CacheEntry {
   value: Promise<readonly ProviderModelOption[] | null>;
 }
 
-/** Module-scope, process-lifetime cache. Not per-request: the entire point is to survive across
- *  separate `/api/agents` requests from the same admin. */
-const cache = new Map<string, CacheEntry>();
+/** Module-scope, process-lifetime cache, nested by workspace then principal — not a single
+ *  delimiter-joined string key. Tovu is intentionally multi-workspace, not a hypothetical edge
+ *  case, so a `${workspaceId}:${principalId}` string key would collide two DIFFERENT tenants'
+ *  entries if either id ever contained the `:` delimiter, handing one admin another admin's live
+ *  model list. Nesting removes that possibility structurally instead of relying on an unenforced
+ *  id-charset assumption. */
+const cache = new Map<string, Map<string, CacheEntry>>();
 
 /** Test-only reset — the module-scope `cache` above would otherwise leak state across test files
  *  that both exercise {@link getLiveClaudeModels} for the same `(workspaceId, principalId)` pair. */
@@ -50,8 +54,17 @@ export function resetLiveModelCacheForTesting(): void {
   cache.clear();
 }
 
-function cacheKey(workspaceId: string, principalId: string): string {
-  return `${workspaceId}:${principalId}`;
+function getCacheEntry(workspaceId: string, principalId: string): CacheEntry | undefined {
+  return cache.get(workspaceId)?.get(principalId);
+}
+
+function setCacheEntry(workspaceId: string, principalId: string, entry: CacheEntry): void {
+  let byPrincipal = cache.get(workspaceId);
+  if (!byPrincipal) {
+    byPrincipal = new Map();
+    cache.set(workspaceId, byPrincipal);
+  }
+  byPrincipal.set(principalId, entry);
 }
 
 /**
@@ -61,13 +74,27 @@ function cacheKey(workspaceId: string, principalId: string): string {
  * rejects either; a rejection here would poison the cache slot above for the rest of the TTL
  * window, which is exactly the failure this delegation avoids by construction.
  *
+ * Logs on `!result.ok` — deliberately the ONLY log line in this module. A live call only reaches
+ * this function once {@link getLiveClaudeModels} has already resolved a real `anthropic`
+ * credential, so a failure here means an admin who set up BYOK for Claude is silently getting the
+ * static fallback list instead of the live one they configured — worth an operator seeing, unlike
+ * the no-credential/wrong-protocol paths (expected, quiet by design). One line, not a stack: the
+ * `listProviderModels` result already redacts the key (`redactSecrets`), so `result.detail` is
+ * safe to log as-is.
+ *
  * @complexity O(1) local work; one outbound HTTPS call bounded by `listProviderModels`'s own
  *   12s timeout.
  * @overallScore 100
  */
 async function fetchLiveClaudeModels(apiKey: string, baseUrl: string): Promise<readonly ProviderModelOption[] | null> {
   const result = await listProviderModels({ protocol: "anthropic", baseUrl, apiKey });
-  return result.ok ? (result.models ?? null) : null;
+  if (!result.ok) {
+    console.warn(
+      `[assistant] live Claude model discovery failed (${result.kind}${result.detail ? `: ${result.detail}` : ""}) — falling back to the static model list`,
+    );
+    return null;
+  }
+  return result.models ?? null;
 }
 
 /**
@@ -96,12 +123,11 @@ export async function getLiveClaudeModels(
   const stored = await resolveExecutionCredential(deps, key);
   if (!stored || stored.protocol !== "anthropic") return null;
 
-  const mapKey = cacheKey(key.workspaceId, key.principalId);
-  const cached = cache.get(mapKey);
+  const cached = getCacheEntry(key.workspaceId, key.principalId);
   if (cached && cached.expiresAt > now()) return cached.value;
 
   const value = fetchLiveClaudeModels(stored.apiKey, stored.baseUrl ?? "https://api.anthropic.com");
-  cache.set(mapKey, { expiresAt: now() + LIVE_MODEL_CACHE_TTL_MS, value });
+  setCacheEntry(key.workspaceId, key.principalId, { expiresAt: now() + LIVE_MODEL_CACHE_TTL_MS, value });
   return value;
 }
 
