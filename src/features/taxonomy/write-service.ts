@@ -19,10 +19,15 @@ export {
   TaxonomyRecordNotFoundError,
   TermRecordNotFoundError,
   ContentRecordNotFoundError,
+  TermHasAssignedContentError,
+  TermHasChildTermsError,
+  TaxonomyHasAssignedContentError,
   createTaxonomy,
   createTerm,
   renameTerm,
   assignTerms,
+  deleteTerm,
+  deleteTaxonomy,
   onContentDeleted,
 } from "@jini-ai/cms/taxonomy";
 
@@ -43,6 +48,12 @@ export type {
   CreateTermRequired,
   RenameTermRequired,
   AssignTermsRequired,
+  DeleteTermRequired,
+  DeleteTaxonomyRequired,
+  DeletableTaxonomyRepoPort,
+  DeletableTermRepoPort,
+  AssignmentCountEntryTermRepoPort,
+  TransactionalRepoPort,
   EntryTermsCleanupPort,
   OnContentDeletedRequired,
 } from "@jini-ai/cms/taxonomy";

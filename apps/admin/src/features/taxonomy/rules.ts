@@ -1,4 +1,4 @@
-import type { AdminTaxonomyWithTerms, AdminTerm } from "../../lib/api";
+import { ApiError, type AdminTaxonomyWithTerms, type AdminTerm } from "../../lib/api";
 
 /**
  * @file Pure logic for the `taxonomy` feature — everything that computes a value rather than
@@ -8,6 +8,13 @@ import type { AdminTaxonomyWithTerms, AdminTerm } from "../../lib/api";
  * a module-level helper in `Taxonomy.tsx`; `otherMergeTargets` and `findSelectedTerm` were inline
  * derivations (a `.filter()` call, a `useMemo` body) that compute a value from their inputs, so per
  * that convention they move here too.
+ *
+ * `describeDeleteBlocked` (web-design pass, 2026-08-05, backend contract from `taxonomy-delete-api`
+ * dispatch): the delete-term/delete-taxonomy route pair refuses with a 409 rather than a plain
+ * failure when content or children still reference what's being deleted. The owner's own complaint
+ * that started this pass was a UI mistake — no delete affordance at all — so a blocked state that
+ * just greys out a button with no explanation would be the same mistake in a new shape. This turns
+ * the route's `code`/`assignedCount`/`childCount` into copy that names the remedy.
  */
 
 /** Depth of `term` within its taxonomy's `parentId` chain, bounded against cycles by a visited
@@ -57,4 +64,62 @@ export function findSelectedTerm(
     if (term) return { taxonomy: group, term };
   }
   return null;
+}
+
+export interface DeleteBlockedState {
+  code: "TERM_HAS_ASSIGNMENTS" | "TAXONOMY_HAS_ASSIGNMENTS" | "TERM_HAS_CHILDREN";
+  /** `assignedCount` or `childCount` from the route's 409 body, whichever `code` implies. Defaults
+   *  to 0 (rather than throwing) if the server ever sends a refusal without its count field — an
+   *  honest "some" beats a crash, though the route contract always includes it today. */
+  count: number;
+  message: string;
+}
+
+/** Turns a delete route's 409 refusal into operator copy naming both the count and the remedy — see
+ *  `api.ts`'s `deleteTerm`/`deleteTaxonomy` doc comment for the route contract this reads. Returns
+ *  `null` for anything that isn't one of the three known blocked-delete codes (a 404, a 403, a
+ *  network failure, an unrelated `ApiError`, ...) so the caller falls through to its own generic
+ *  error handling for those — this function only owns the "delete was REFUSED because content or
+ *  children still reference it" case, not delete failure in general.
+ *
+ * @complexity O(1) — one `instanceof` check plus a fixed 3-way switch, no iteration.
+ */
+export function describeDeleteBlocked(e: unknown): DeleteBlockedState | null {
+  if (!(e instanceof ApiError)) return null;
+  // Captured as a local rather than read as `e.body` inside `countOf` below — TypeScript does not
+  // retain the `instanceof` narrowing of `e` across a nested function's closure boundary, since it
+  // cannot prove `e` isn't reassigned to something else before `countOf` is called.
+  const body = e.body;
+  function countOf(key: string): number {
+    const raw = body?.[key];
+    return typeof raw === "number" ? raw : 0;
+  }
+  switch (e.code) {
+    case "TERM_HAS_ASSIGNMENTS": {
+      const count = countOf("assignedCount");
+      return {
+        code: e.code,
+        count,
+        message: `Still assigned to ${count} content item${count === 1 ? "" : "s"}. Unassign it, or merge it into another term, before deleting.`,
+      };
+    }
+    case "TAXONOMY_HAS_ASSIGNMENTS": {
+      const count = countOf("assignedCount");
+      return {
+        code: e.code,
+        count,
+        message: `A term in this taxonomy is still assigned to ${count} content item${count === 1 ? "" : "s"}. Unassign or merge that term before deleting the taxonomy.`,
+      };
+    }
+    case "TERM_HAS_CHILDREN": {
+      const count = countOf("childCount");
+      return {
+        code: e.code,
+        count,
+        message: `Has ${count} child term${count === 1 ? "" : "s"} under it. Delete or move them first.`,
+      };
+    }
+    default:
+      return null;
+  }
 }

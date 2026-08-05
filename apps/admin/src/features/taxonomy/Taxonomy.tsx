@@ -1,5 +1,6 @@
-import type { AdminTaxonomyWithTerms, AdminTerm } from "../../lib/api";
-import { termDepth, otherMergeTargets } from "./rules";
+import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "../../lib/api";
+import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
+import { termDepth, otherMergeTargets, type DeleteBlockedState } from "./rules";
 import { useNewTermForm } from "./hooks/use-new-term-form.hooks";
 import { useNewTaxonomyForm } from "./hooks/use-new-taxonomy-form.hooks";
 import { useMergeTermSection } from "./hooks/use-merge-term-section.hooks";
@@ -16,9 +17,23 @@ import { useTaxonomy } from "./hooks/use-taxonomy.hooks";
  * `termDepth`, `otherMergeTargets`, and `findSelectedTerm` (used inside `use-taxonomy.hooks.ts`)
  * live in `rules.ts`.
  *
- * Structural reference: `Settings.tsx`'s two-pane namespace-list + detail-panel layout
- * (design-spec.md §0.3/§2.2) — reuses `.settings-body`/`.settings-row`/`.settings-namespace-*`
- * verbatim rather than inventing new list/detail classes.
+ * Structural reference, CORRECTED (web-design pass, 2026-08-05): the original comment here named
+ * `Settings.tsx`'s two-pane namespace-list + detail-panel layout as the structural reference. That
+ * was wrong on inspection — `panels.tsx` routes `/admin/settings` to `SettingsUi.tsx` (the Open
+ * Design dialog-shell port), not to `Settings.tsx`, which is `features/settings-raw`'s SPEC-007 raw
+ * namespace/key ledger inspector, a debug tool for engineers to browse `content.db` layer-by-layer.
+ * This screen DOES still borrow that debug tool's `.settings-body`/`.settings-row`/
+ * `.settings-namespace-*` classes (true, unlike the old comment's framing of them as a deliberate
+ * parity choice) — and that borrowing is exactly why the owner flagged this screen as looking worse
+ * than `Posts.tsx`/`Media.tsx`/`Menus.tsx`: `.settings-body`'s grid permanently reserves a detail
+ * column even with no term selected (a dead void `Posts.tsx`'s full-width `DataTable` never has),
+ * `.settings-namespace-group`'s padding is tighter than `.card`'s, and `.settings-row-key`/
+ * `.settings-detail-panel h2` render term/taxonomy names in `--font-mono` — correct for the ledger's
+ * `namespace.key` strings, wrong for ordinary content names. Fixed below with three additive,
+ * taxonomy-scoped overrides in `styles.css` (`taxonomy-namespace-group`/`taxonomy-term-list`/
+ * `taxonomy-term-detail`) plus one JSX change (the detail column only renders once a term is
+ * selected) — `settings-raw/Settings.tsx` keeps the base `.settings-*` rules untouched, since the
+ * ledger tool's own two-pane layout and monospace keys are correct for what IT shows.
  *
  * Scope note (disclosed): list/create-taxonomy/create-term/rename-term/assign-terms/merge-term are
  * backed by real routes; merge-term (ADR-044, SPEC-018 C-207) is wired to the real
@@ -32,6 +47,28 @@ import { useTaxonomy } from "./hooks/use-taxonomy.hooks";
  *
  * SPEC-037 REQ-02: `NewTaxonomyForm` wires the previously-unused `api.createTaxonomy` — a plain
  * name + hierarchical-toggle form above the taxonomy list, reusing `NewTermForm`'s shape.
+ *
+ * Web-design pass (2026-08-05): both create forms used to render permanently open, which is why
+ * this screen read as heavier/different from every sibling list screen (`Media.tsx`,
+ * `Comments.tsx`, `Menus.tsx`, `Integrations.tsx`) — those default to a compact list with the
+ * create form collapsed behind a `.page-actions` header button (`Integrations.tsx`'s `formOpen`
+ * idiom, reused verbatim here) or a small inline trigger. `NewTaxonomyForm` now follows that same
+ * toggle idiom via `useTaxonomy`'s `formOpen`; each group's `NewTermForm` gets its own collapsed
+ * trigger via `useNewTermForm`'s `open` (see that hook's own comment) since a taxonomy group has no
+ * header slot to put a page-level toggle in. No new classes were introduced — this reuses
+ * `.page-actions`/`.btn-secondary`/`.btn-ghost` exactly as `Integrations.tsx` does.
+ *
+ * Delete term/taxonomy (web-design pass, 2026-08-05): the owner's other complaint — dummy
+ * categories/tags created to test creation, with no way to remove them — closes here, against the
+ * `taxonomy-delete-api` dispatch's real, tested `DELETE /taxonomy/terms/:id` and
+ * `DELETE /taxonomy/:id` routes (see `api.ts`'s `deleteTerm`/`deleteTaxonomy`). Both use the same
+ * `RowMenu`("Delete …") → `ConfirmDialog` idiom `Media.tsx`/`Comments.tsx`/`Menus.tsx` already use
+ * for their own destructive actions — no new interaction pattern introduced. State (the pending
+ * row, the busy flag, and the *blocked* outcome) lives in `useTaxonomy`; see that hook's own comment
+ * for why a 409 refusal is a distinct state from a hard failure. `deleteTermBlocked`/
+ * `deleteTaxonomyBlocked` render as a scoped `.notice.error` inside the specific group whose term or
+ * taxonomy was refused, naming the remedy (`rules.ts`'s `describeDeleteBlocked`) — never a silent
+ * disabled control.
  */
 
 export interface NewTermFormProps {
@@ -43,7 +80,22 @@ export interface NewTermFormProps {
 }
 
 function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useNewTermForm }: NewTermFormProps) {
-  const { name, setName, parentId, setParentId, error, saving, submit } = useNewTermFormHook({ taxonomy, onCreated });
+  const { open, setOpen, name, setName, parentId, setParentId, error, saving, submit } = useNewTermFormHook({
+    taxonomy,
+    onCreated,
+  });
+
+  // Collapsed resting state — see this hook's own comment for why every group's form now starts
+  // closed instead of permanently open. `.btn-ghost` (not `.btn-secondary`): this trigger sits
+  // inline in the group's own flow, not in a `.page-actions` header slot, so it reads as a quiet
+  // "add a row" affordance rather than a page-level action.
+  if (!open) {
+    return (
+      <button type="button" className="btn-ghost taxonomy-add-term-trigger" onClick={() => setOpen(true)}>
+        + Add term
+      </button>
+    );
+  }
 
   return (
     <form className="notice taxonomy-new-term-form" onSubmit={submit}>
@@ -54,6 +106,7 @@ function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useNewTermForm 
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Term name"
+          autoFocus
         />
         {taxonomy.taxonomy.hierarchical ? (
           <select aria-label="Parent term" value={parentId} onChange={(e) => setParentId(e.target.value)}>
@@ -69,6 +122,9 @@ function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useNewTermForm 
             ("Create taxonomy" above owns that). */}
         <button type="submit" className="btn-secondary" disabled={saving}>
           {saving ? "Saving…" : "Add term"}
+        </button>
+        <button type="button" className="btn-ghost" onClick={() => setOpen(false)} disabled={saving}>
+          Cancel
         </button>
       </span>
       {error ? (
@@ -198,7 +254,7 @@ function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, useTermDetailPan
   const { newName, setNewName, saving, message, error, rename } = useTermDetailPanelHook({ term, onRenamed });
 
   return (
-    <div className="settings-detail-panel">
+    <div className="settings-detail-panel taxonomy-term-detail">
       <h2>{term.name}</h2>
       <p className="muted-cell">{taxonomy.taxonomy.name}</p>
       <div className="settings-layer-grid">
@@ -239,7 +295,27 @@ export interface TaxonomyProps {
 }
 
 export function Taxonomy({ useTaxonomyHook = useTaxonomy }: TaxonomyProps = {}) {
-  const { taxonomies, error, selectedTermId, setSelectedTermId, selected, load } = useTaxonomyHook();
+  const {
+    taxonomies,
+    error,
+    selectedTermId,
+    setSelectedTermId,
+    selected,
+    load,
+    formOpen,
+    setFormOpen,
+    pendingDeleteTerm,
+    requestDeleteTerm,
+    deleteTermBusy,
+    deleteTermBlocked,
+    confirmDeleteTerm,
+    pendingDeleteTaxonomy,
+    requestDeleteTaxonomy,
+    deleteTaxonomyBusy,
+    deleteTaxonomyBlocked,
+    confirmDeleteTaxonomy,
+  } = useTaxonomyHook();
+  const deleteState = { requestDeleteTerm, deleteTermBlocked, requestDeleteTaxonomy, deleteTaxonomyBlocked };
 
   if (error && !taxonomies) return <div className="notice error">{error}</div>;
   if (!taxonomies) return <div className="notice">Loading taxonomies…</div>;
@@ -252,65 +328,35 @@ export function Taxonomy({ useTaxonomyHook = useTaxonomy }: TaxonomyProps = {}) 
           <h1 className="page-title">Categories &amp; Tags</h1>
           <p className="page-description">Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.</p>
         </div>
+        {/* Same `formOpen` toggle idiom as `Integrations.tsx`'s "Add webhook" button — see
+            `useTaxonomy`'s own comment for why this replaced the old always-open form. */}
+        <div className="page-actions">
+          <button className={formOpen ? "btn-secondary" : undefined} onClick={() => setFormOpen((v) => !v)}>
+            {formOpen ? "Cancel" : "New taxonomy"}
+          </button>
+        </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
 
-      <NewTaxonomyForm onCreated={load} />
+      {formOpen ? (
+        <NewTaxonomyForm
+          onCreated={() => {
+            load();
+            setFormOpen(false);
+          }}
+        />
+      ) : null}
 
-      <div className="settings-body">
-        <div className="settings-namespace-list">
-          {taxonomies.map((group) => {
-            const byId = new Map(group.terms.map((t) => [t.id, t]));
-            return (
-              <section key={group.taxonomy.id} className="settings-namespace-group">
-                <h2>{group.taxonomy.name}</h2>
-                {group.terms.length === 0 ? (
-                  <p className="muted-cell">No terms yet.</p>
-                ) : (
-                  <ul role="list" className="settings-row-list">
-                    {group.terms.map((term) => {
-                      const depth = group.taxonomy.hierarchical ? termDepth({ term, byId }) : 0;
-                      // Gated on `hierarchical` for the same reason `depth` is: a term's
-                      // `parentId` can still be set on a taxonomy that has since been switched to
-                      // flat (or seeded with one before hierarchical mode existed), and this row
-                      // renders with zero indentation either way. Without this gate the
-                      // `aria-label` below announced a "subcategory of" relationship a
-                      // screen-reader user could not corroborate from the (unindented) visual
-                      // layout — an accessibility mismatch between the two channels describing the
-                      // same row.
-                      const parentName =
-                        group.taxonomy.hierarchical && term.parentId ? byId.get(term.parentId)?.name : undefined;
-                      return (
-                        <li
-                          key={term.id}
-                          role="listitem"
-                          className={`settings-row${selectedTermId === term.id ? " is-selected" : ""}`}
-                          style={depth > 0 ? { marginLeft: `${depth * 1.1}rem` } : undefined}
-                          aria-label={parentName ? `${term.name}, subcategory of ${parentName}` : undefined}
-                          onClick={() => setSelectedTermId(term.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              setSelectedTermId(term.id);
-                            }
-                          }}
-                          tabIndex={0}
-                          aria-selected={selectedTermId === term.id}
-                        >
-                          <span className="settings-row-key">{term.name}</span>
-                          <span className={`status status-${term.status}`}>{term.status}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-                <NewTermForm taxonomy={group} onCreated={load} />
-              </section>
-            );
-          })}
-        </div>
-
-        {selected ? (
+      {/* Web-design pass (2026-08-05): `.settings-body` is the raw ledger's permanent two-column
+          grid (`minmax(16rem,1.1fr) minmax(20rem,1.4fr)`) — reserving that second column even with
+          no `selected` term left a large dead void on this screen (the concrete defect the owner
+          was seeing). Only wrapping in `.settings-body` once a term IS selected means the list
+          renders full-width the rest of the time, matching every reference page's full-width
+          content instead of a permanently-split master/detail pane. See this file's own header
+          comment for the fuller diagnosis. */}
+      {selected ? (
+        <div className="settings-body">
+          {namespaceList(taxonomies, selectedTermId, setSelectedTermId, load, deleteState)}
           <TermDetailPanel
             taxonomy={selected.taxonomy}
             term={selected.term}
@@ -320,8 +366,162 @@ export function Taxonomy({ useTaxonomyHook = useTaxonomy }: TaxonomyProps = {}) 
               load();
             }}
           />
-        ) : null}
-      </div>
+        </div>
+      ) : (
+        namespaceList(taxonomies, selectedTermId, setSelectedTermId, load, deleteState)
+      )}
+
+      <ConfirmDialog
+        open={pendingDeleteTerm !== null}
+        title="Delete term?"
+        body={
+          pendingDeleteTerm ? (
+            <p>
+              Delete term &quot;{pendingDeleteTerm.name}&quot;? This cannot be undone.
+            </p>
+          ) : null
+        }
+        confirmLabel="Delete term"
+        destructive
+        pending={deleteTermBusy}
+        onConfirm={confirmDeleteTerm}
+        onCancel={() => requestDeleteTerm(null)}
+      />
+      <ConfirmDialog
+        open={pendingDeleteTaxonomy !== null}
+        title="Delete taxonomy?"
+        body={
+          pendingDeleteTaxonomy ? (
+            <p>
+              Delete taxonomy &quot;{pendingDeleteTaxonomy.name}&quot;, and every unassigned term in it?
+              This cannot be undone.
+            </p>
+          ) : null
+        }
+        confirmLabel="Delete taxonomy"
+        destructive
+        pending={deleteTaxonomyBusy}
+        onConfirm={confirmDeleteTaxonomy}
+        onCancel={() => requestDeleteTaxonomy(null)}
+      />
+    </div>
+  );
+}
+
+/** Extracted so both branches above (two-column with a detail panel, or full-width alone) render
+ *  the exact same list markup — see the `selected ? … : …` comment for why there are two branches
+ *  at all. `taxonomy-namespace-group`/`taxonomy-term-list` are additive classes (see `styles.css`'s
+ *  own comment on that block) that converge this list's padding and type on the reference idiom
+ *  without touching the shared `.settings-*` rules `settings-raw/Settings.tsx` still needs as-is.
+ *
+ * `deleteState` (web-design pass, 2026-08-05): bundles the five `useTaxonomy` fields this list needs
+ * to offer "Delete taxonomy"/"Delete term" and show a blocked-delete reason — passed as one object
+ * rather than five more positional params now that this function's signature already has four. */
+function namespaceList(
+  taxonomies: AdminTaxonomyWithTerms[],
+  selectedTermId: string | null,
+  setSelectedTermId: (id: string) => void,
+  load: () => void,
+  deleteState: {
+    requestDeleteTerm: (term: AdminTerm | null) => void;
+    deleteTermBlocked: { termId: string; state: DeleteBlockedState } | null;
+    requestDeleteTaxonomy: (taxonomy: AdminTaxonomy | null) => void;
+    deleteTaxonomyBlocked: { taxonomyId: string; state: DeleteBlockedState } | null;
+  }
+) {
+  return (
+    <div className="settings-namespace-list">
+      {taxonomies.map((group) => {
+        const byId = new Map(group.terms.map((t) => [t.id, t]));
+        return (
+          <section key={group.taxonomy.id} className="settings-namespace-group taxonomy-namespace-group">
+            <div className="taxonomy-namespace-group-header">
+              <h2>{group.taxonomy.name}</h2>
+              <RowMenu
+                triggerLabel={`Actions for taxonomy "${group.taxonomy.name}"`}
+                items={[
+                  {
+                    key: "delete",
+                    label: "Delete taxonomy",
+                    destructive: true,
+                    onSelect: () => deleteState.requestDeleteTaxonomy(group.taxonomy),
+                  },
+                ]}
+              />
+            </div>
+            {deleteState.deleteTaxonomyBlocked?.taxonomyId === group.taxonomy.id ? (
+              <p className="notice error" role="alert">
+                Can&apos;t delete &quot;{group.taxonomy.name}&quot;: {deleteState.deleteTaxonomyBlocked.state.message}
+              </p>
+            ) : null}
+            {group.terms.length === 0 ? (
+              <p className="muted-cell">No terms yet.</p>
+            ) : (
+              <ul role="list" className="settings-row-list taxonomy-term-list">
+                {group.terms.map((term) => {
+                  const depth = group.taxonomy.hierarchical ? termDepth({ term, byId }) : 0;
+                  // Gated on `hierarchical` for the same reason `depth` is: a term's `parentId` can
+                  // still be set on a taxonomy that has since been switched to flat (or seeded with
+                  // one before hierarchical mode existed), and this row renders with zero
+                  // indentation either way. Without this gate the `aria-label` below announced a
+                  // "subcategory of" relationship a screen-reader user could not corroborate from
+                  // the (unindented) visual layout — an accessibility mismatch between the two
+                  // channels describing the same row.
+                  const parentName =
+                    group.taxonomy.hierarchical && term.parentId ? byId.get(term.parentId)?.name : undefined;
+                  return (
+                    <li
+                      key={term.id}
+                      role="listitem"
+                      className={`settings-row${selectedTermId === term.id ? " is-selected" : ""}`}
+                      style={depth > 0 ? { marginLeft: `${depth * 1.1}rem` } : undefined}
+                      aria-label={parentName ? `${term.name}, subcategory of ${parentName}` : undefined}
+                      onClick={() => setSelectedTermId(term.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedTermId(term.id);
+                        }
+                      }}
+                      tabIndex={0}
+                      aria-selected={selectedTermId === term.id}
+                    >
+                      <span className="settings-row-key">{term.name}</span>
+                      <span className={`status status-${term.status}`}>{term.status}</span>
+                      {/* Stops the click before it reaches the `<li>`'s own `onClick` above — without
+                          this, opening the row menu (or picking an item in it) would ALSO select the
+                          row and pop the detail panel open behind the menu, since this trigger sits
+                          inside a listitem that is itself a click target. No other screen in this app
+                          combines a `RowMenu` with a click-to-select row, so there was no existing
+                          precedent to follow here. */}
+                      <span onClick={(e) => e.stopPropagation()}>
+                        <RowMenu
+                          triggerLabel={`Actions for term "${term.name}"`}
+                          items={[
+                            {
+                              key: "delete",
+                              label: "Delete term",
+                              destructive: true,
+                              onSelect: () => deleteState.requestDeleteTerm(term),
+                            },
+                          ]}
+                        />
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {deleteState.deleteTermBlocked && byId.has(deleteState.deleteTermBlocked.termId) ? (
+              <p className="notice error" role="alert">
+                Can&apos;t delete &quot;{byId.get(deleteState.deleteTermBlocked.termId)?.name}&quot;:{" "}
+                {deleteState.deleteTermBlocked.state.message}
+              </p>
+            ) : null}
+            <NewTermForm taxonomy={group} onCreated={load} />
+          </section>
+        );
+      })}
     </div>
   );
 }

@@ -118,13 +118,14 @@ describe("hierarchical parentId handling", () => {
 });
 
 describe("success and failure", () => {
-  it("clears name/parentId and calls onCreated on success", async () => {
+  it("clears name/parentId, closes the form, and calls onCreated on success", async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ term: { id: "t1", taxonomyId: "tax1", parentId: null, name: "Child", status: "active", updatedAt: "x", version: 1 } })
     );
     const onCreated = vi.fn();
     const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(true), onCreated }));
     act(() => {
+      result.current.setOpen(true);
       result.current.setName("Child");
       result.current.setParentId("p1");
     });
@@ -135,15 +136,19 @@ describe("success and failure", () => {
 
     expect(result.current.name).toBe("");
     expect(result.current.parentId).toBe("");
+    expect(result.current.open).toBe(false);
     expect(result.current.saving).toBe(false);
     expect(onCreated).toHaveBeenCalledTimes(1);
   });
 
-  it("sets error and stops saving without calling onCreated on failure", async () => {
+  it("sets error, stops saving, and leaves the form open without calling onCreated on failure", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "duplicate name" }, 409));
     const onCreated = vi.fn();
     const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(false), onCreated }));
-    act(() => result.current.setName("Dup"));
+    act(() => {
+      result.current.setOpen(true);
+      result.current.setName("Dup");
+    });
 
     await act(async () => {
       await result.current.submit(formEvent());
@@ -151,6 +156,24 @@ describe("success and failure", () => {
 
     expect(result.current.error).toBe("duplicate name");
     expect(result.current.saving).toBe(false);
+    expect(result.current.open).toBe(true);
     expect(onCreated).not.toHaveBeenCalled();
+  });
+});
+
+describe("open", () => {
+  // Web-design pass (2026-08-05): every group's "New term" form starts collapsed behind a small
+  // trigger instead of permanently open — see this hook's own comment.
+  it("starts closed", () => {
+    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }));
+    expect(result.current.open).toBe(false);
+  });
+
+  it("opens and closes via setOpen", () => {
+    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }));
+    act(() => result.current.setOpen(true));
+    expect(result.current.open).toBe(true);
+    act(() => result.current.setOpen(false));
+    expect(result.current.open).toBe(false);
   });
 });

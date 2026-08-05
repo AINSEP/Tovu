@@ -68,10 +68,14 @@ import type { ContentTypeListPort } from "../../features/content-types";
 import type { EntryRepoPort } from "../../features/entries";
 import type { EntryListPort } from "../../features/entries";
 import type {
+  AssignmentCountEntryTermRepoPort,
+  DeletableTaxonomyRepoPort,
+  DeletableTermRepoPort,
   EntryTermRepoPort,
   TaxonomyRepoPort,
   TaxonomyRevisionRepoPort,
   TermRepoPort,
+  TransactionalRepoPort,
 } from "../../features/taxonomy/write-service";
 import type { TaxonomyListPort, TermListPort } from "../../features/taxonomy/list";
 import type { DisclosureWatermarkSourcePort } from "../../features/recovery/disclosure";
@@ -389,11 +393,20 @@ export interface RouteDeps {
    * `taxonomyRepo`/`termRepo` widened with this dispatch's new `TaxonomyListPort`/`TermListPort`
    * (`features/taxonomy/list.ts`). `mergeTerm`'s plan/confirm/execute ceremony is NOT wired this
    * pass (needs `core/gated-mutations`'s gateway, not composed into any composition root yet). */
-  taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort;
-  termRepo: TermRepoPort & TermListPort;
+  /** Widened again for the `deleteTaxonomy`/`deleteTerm` guarded-delete routes with
+   * `DeletableTaxonomyRepoPort`/`DeletableTermRepoPort` (`@jini-ai/cms/taxonomy`'s additive
+   * delete capability — see that package's `write-service.ts` for why these are additive
+   * interfaces rather than folded into the certified `TaxonomyRepoPort`/`TermRepoPort`).
+   * `taxonomyRepo` widened once more with `TransactionalRepoPort` (coordinator review, hazards
+   * #1/#2): the same guard-and-cascade atomicity `deleteTerm`/`deleteTaxonomy` need, sourced from
+   * whichever one repo instance the route wires up as `deps.transaction` — `taxonomyRepo` is the
+   * one both delete flows always have, so it is the canonical source. */
+  taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort & DeletableTaxonomyRepoPort & TransactionalRepoPort;
+  termRepo: TermRepoPort & TermListPort & DeletableTermRepoPort;
   /** Widened this dispatch with `MergeableEntryTermRepoPort` (the `mergeTerm` gated-mutation
-   * ceremony's by-term enumeration need — see `features/taxonomy/gated-hooks.ts`). */
-  entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort;
+   * ceremony's by-term enumeration need — see `features/taxonomy/gated-hooks.ts`). Widened again
+   * with `AssignmentCountEntryTermRepoPort` for the `deleteTaxonomy`/`deleteTerm` guard. */
+  entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort & AssignmentCountEntryTermRepoPort;
   taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
   /** ADR-041 §2/§4 — the `restore_points` table's list + save side (`database/restore-points.ts`'s
    * new `RestorePointListPort`/`RestorePointSavePort`). Real `SqliteRestorePointsRepo` in

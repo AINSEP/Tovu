@@ -5,6 +5,14 @@ import { api, describeApiError, type AdminTaxonomyWithTerms } from "../../../lib
  * @file Everything `NewTermForm` does, so it can stay markup only.
  *
  * Extracted verbatim — same state, same validation guard, same effect, same error string.
+ *
+ * `open`/`setOpen` (web-design pass, 2026-08-05): every taxonomy group used to render its own
+ * "New term" form open at all times, so an N-group taxonomy list showed N always-visible boxed
+ * forms interleaved with the term rows — no sibling list screen (Media, Comments, Menus,
+ * Integrations) keeps a create form permanently open like that. `NewTermForm` now starts collapsed
+ * behind a small trigger and only mounts the real form once opened; `submit` closes it again on
+ * success (mirrors the reset-on-success it already does for `name`/`parentId`), so a completed add
+ * returns the group to its compact resting state instead of leaving an empty form sitting open.
  */
 
 export interface NewTermFormOptions {
@@ -13,6 +21,8 @@ export interface NewTermFormOptions {
 }
 
 export interface NewTermFormController {
+  open: boolean;
+  setOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
   name: string;
   setName: (name: string) => void;
   parentId: string;
@@ -23,6 +33,7 @@ export interface NewTermFormController {
 }
 
 export function useNewTermForm(options: NewTermFormOptions): NewTermFormController {
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [parentId, setParentId] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +54,7 @@ export function useNewTermForm(options: NewTermFormOptions): NewTermFormControll
       );
       setName("");
       setParentId("");
+      setOpen(false);
       options.onCreated();
     } catch (e) {
       setError(describeApiError(e, "Failed to create term"));
@@ -51,5 +63,5 @@ export function useNewTermForm(options: NewTermFormOptions): NewTermFormControll
     }
   }
 
-  return { name, setName, parentId, setParentId, error, saving, submit };
+  return { open, setOpen, name, setName, parentId, setParentId, error, saving, submit };
 }

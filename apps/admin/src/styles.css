@@ -1258,6 +1258,26 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .term-picker-actions { margin-top: var(--space-5); }
 
 .taxonomy-new-term-form { margin-top: 0.7rem; }
+/* Collapsed resting state of the same form (web-design pass, 2026-08-05) — same top margin as the
+   form it replaces at rest, so opening/closing it doesn't shift the group card's height budget. */
+.taxonomy-add-term-trigger { margin-top: 0.7rem; }
+
+/* Web-design pass (2026-08-05), visual-parity fix: Taxonomy.tsx reuses `settings-raw/Settings.tsx`'s
+   SPEC-007 raw-ledger classes (`.settings-namespace-group`/`.settings-row-key`/`.settings-detail-
+   panel h2`) for what is a content-management screen, not that debug tool — see Taxonomy.tsx's own
+   header comment for the full diagnosis. These three rules are additive overrides on top of those
+   shared classes (same specificity, later in the cascade wins), scoped to taxonomy's own extra
+   classes so `settings-raw/Settings.tsx` keeps its own padding/monospace exactly as before — that
+   ledger tool's two-pane layout and `namespace.key`-style monospace type are correct for what IT
+   shows, just not for ordinary term/taxonomy names. */
+.taxonomy-namespace-group { padding: var(--space-5) var(--space-6); } /* was 1rem 1.1rem — `.card`'s roomier padding, matching every other content-list wrapper's weight */
+.taxonomy-term-list .settings-row-key { font-family: var(--font-ui); font-size: var(--text-sm); } /* was --font-mono, right for a namespace.key string, wrong for a term name */
+.taxonomy-term-detail h2 { font-family: var(--font-display); } /* was --font-mono via `.settings-detail-panel h2`; matches every other page's h1/h2 display font */
+
+/* Delete UI (web-design pass, 2026-08-05): the group's own `<h2>` now shares its row with a
+   `RowMenu` ("Delete taxonomy") — `.settings-namespace-group h2`'s own margin-bottom rule still
+   applies (descendant selector, unaffected by this wrapper), so this only adds the row layout. */
+.taxonomy-namespace-group-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 
 /* Redirects — bulk-import affordance (SPEC-037 REQ-04) */
 .redirects-import { margin: 1rem 0; }
