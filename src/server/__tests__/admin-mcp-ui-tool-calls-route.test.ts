@@ -70,6 +70,7 @@ function harness() {
     const { createRouteDeps } = await import("../app");
     const { createAssistantModule } = await import("../modules/assistant");
     const { registerAuthRoutes } = await import("../middleware/dev-auth");
+    const { createSurfaceExchangeStore } = await import("../../assistant/surface-exchanges");
 
     return {
       daemon: server,
@@ -78,7 +79,10 @@ function harness() {
         const app = express();
         app.use(express.json());
         registerAuthRoutes(app, deps);
-        createAssistantModule(deps).registerRoutes(app);
+        // A fresh, empty store: none of this file's request bodies carry an exchangeId (top-level or
+        // in `params`), so the new local-delivery branch never triggers and every request still
+        // reaches the stand-in daemon exactly as before these tests were written.
+        createAssistantModule(deps, createSurfaceExchangeStore()).registerRoutes(app);
         return app;
       },
     };

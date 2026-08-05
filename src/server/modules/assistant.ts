@@ -28,6 +28,16 @@
  * (`@jini-ai/http-kit`'s `requestedAfterCursor`) reads exactly that header to resume a stream after
  * a cursor; dropping it made a browser tab's automatic `EventSource` reconnect replay the run's
  * entire event history from the start, duplicating every message already shown in the chat pane.
+ *
+ * MCP-UI redemption is no longer a pure passthrough. `proxyMcpUiToolCall` now tries LOCAL delivery
+ * first, against `byokSurfaceExchanges` — the same `SurfaceExchangeStore` reference
+ * `modules/assistant-byok.ts` composed its tool surface with, passed in by `app.ts` at boot (not
+ * rebuilt here; a second instance would leave every BYOK-mode exchange unreachable). Only when that
+ * store reports `unknown-or-closed` — meaning the exchange isn't one of this process's own BYOK
+ * parks — does the request fall through to the daemon, on the theory that it belongs to a Local CLI
+ * run instead. A `binding-mismatch` is answered locally without forwarding: that reason means the
+ * exchange WAS found here, just not for this caller, and forwarding an id the daemon has never seen
+ * would only spend a wasted round trip discovering the same 409 the local store already knows.
  */
 import type { Express, NextFunction, Request, Response } from "express";
 
@@ -36,6 +46,7 @@ import { AGENT_DAEMON_TOKEN_ENV_VAR } from "../../assistant/daemon-auth";
 import { isMcpUiToolCallAllowed } from "../../assistant/mcp-ui-tool-calls";
 import { MCP_UI_TOOL_CALLS_PATH } from "../../assistant/mcp-ui-tool-calls-route";
 import { RUN_PRINCIPAL_HEADER } from "../../assistant/run-ownership";
+import { SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "../../assistant/surface-exchanges";
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth";
 import type { RouteDeps } from "../routes/types";
 import type { ServerModuleHandle } from "./types";
@@ -97,20 +108,78 @@ function outboundHeaders(req: Request, res: Response): Record<string, string> {
   return headers;
 }
 
+/**
+ * How long a proxied request will keep retrying a refused connection before giving up.
+ *
+ * Sized for the boot window, not for an outage. `src/index.ts` spawns the daemon from INSIDE
+ * `app.listen()`'s callback, so this server accepts requests several seconds before :4319 exists —
+ * and the admin dock starts polling the moment the page loads. Every one of those polls used to
+ * answer 502 and print a full `TypeError: fetch failed` stack, which read like a crash and was
+ * really "not finished starting".
+ *
+ * Retrying makes those requests SUCCEED once the daemon arrives, rather than merely failing quietly.
+ * Bounded so a genuinely dead daemon still fails fast enough to be visible.
+ */
+const DAEMON_CONNECT_RETRY_MS = 8_000;
+const DAEMON_CONNECT_RETRY_INTERVAL_MS = 250;
+
+/** True for a JSON object body, false for an array/null/primitive — same guard
+ *  `mcp-ui-tool-calls-route.ts` uses for the identical `body.params` shape on the daemon side. */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** True for the "nothing is listening on that port yet" shape specifically — NOT for a daemon that
+ *  answered with an error, which is a real failure and must not be retried. */
+function isConnectionRefused(error: unknown): boolean {
+  const cause = (error as { cause?: { code?: unknown } } | undefined)?.cause;
+  return cause?.code === "ECONNREFUSED" || cause?.code === "ECONNRESET";
+}
+
+/** Set while a retry loop is in progress, so a page's worth of concurrent polls logs ONE line
+ *  between them instead of one per request. Reset on the first success. */
+let daemonUnreachableSince: number | null = null;
+
 async function forwardToAgentDaemon(req: Request, res: Response, body?: unknown): Promise<void> {
   const target = `${AGENT_DAEMON_URL}${req.originalUrl}`;
+  const deadline = Date.now() + DAEMON_CONNECT_RETRY_MS;
   let upstream: globalThis.Response;
-  try {
-    upstream = await fetch(target, {
-      method: req.method,
-      headers: outboundHeaders(req, res),
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  } catch (error) {
-    console.error(`[assistant] agent daemon unreachable at ${AGENT_DAEMON_URL}`, error);
-    res.status(502).json({ error: "assistant is unavailable", code: "BAD_GATEWAY" });
-    return;
+
+  for (;;) {
+    try {
+      upstream = await fetch(target, {
+        method: req.method,
+        headers: outboundHeaders(req, res),
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      if (daemonUnreachableSince !== null) {
+        console.log(
+          `[assistant] agent daemon reachable after ${Math.round((Date.now() - daemonUnreachableSince) / 100) / 10}s`
+        );
+        daemonUnreachableSince = null;
+      }
+      break;
+    } catch (error) {
+      // Only "nothing is listening yet" is worth waiting out. Anything else — DNS, TLS, an abort, a
+      // daemon that answered badly — is a real failure and retrying would just delay the report.
+      if (isConnectionRefused(error) && Date.now() < deadline) {
+        if (daemonUnreachableSince === null) {
+          daemonUnreachableSince = Date.now();
+          // ONE concise line, not a stack. During boot this is expected, and a 10-line
+          // `TypeError: fetch failed` per poll buried the real startup output.
+          console.log(`[assistant] waiting for the agent daemon at ${AGENT_DAEMON_URL}…`);
+        }
+        await new Promise((r) => setTimeout(r, DAEMON_CONNECT_RETRY_INTERVAL_MS));
+        continue;
+      }
+      // Genuinely unreachable. The full error is kept here — this one IS a fault worth a stack.
+      console.error(`[assistant] agent daemon unreachable at ${AGENT_DAEMON_URL}`, error);
+      daemonUnreachableSince = null;
+      res.status(502).json({ error: "assistant is unavailable", code: "BAD_GATEWAY" });
+      return;
+    }
   }
+
   await relayResponse(upstream, req, res);
 }
 
@@ -141,24 +210,33 @@ async function proxyPassthrough(req: Request, res: Response): Promise<void> {
 }
 
 /**
- * `POST /api/admin/v1/mcp-ui/tool-calls` (ADR-053 Decision 3) — the redemption half of the MCP-UI
- * confirmation pattern: a human clicked a rendered dialog (`McpUiSurfaceCard` /
- * `useMcpUiHost`), and `@jini-ai/chat`'s `createMcpUiToolCaller` posted `{toolName, params}` here.
+ * `POST /api/admin/v1/mcp-ui/tool-calls` (ADR-053 Decision 3, extended for BYOK below) — the
+ * redemption half of the MCP-UI confirmation pattern: a human clicked a rendered dialog
+ * (`McpUiSurfaceCard` / `useMcpUiHost`), and `@jini-ai/chat`'s `createMcpUiToolCaller` posted
+ * `{toolName, params}` here.
  *
  * Not `proxyPassthrough`: that client deliberately validates neither field (its own module doc says
  * so — a View's HTML is untrusted, so a client-side check would be a check the attacker writes both
  * sides of), which makes the allowlist check below load-bearing rather than decorative. Checked
- * again, authoritatively, by `mcp-ui-tool-calls-route.ts` on the daemon side — that route, not this
- * one, is the actual call site that can reach `ToolExecutor.execute`, so THIS check exists only to
- * fail fast and keep an obviously-bad request off the wire to the daemon at all; removing it would
- * not reopen the hole, but would turn a cheap 403 into a wasted round trip.
+ * again, authoritatively, by `mcp-ui-tool-calls-route.ts` on the daemon side and, for a locally-held
+ * exchange, by `SurfaceExchangeStore.deliver`'s own binding check below — either way, THIS check
+ * exists only to fail fast and keep an obviously-bad request off the wire at all; removing it would
+ * not reopen a hole, but would turn a cheap 403 into wasted work.
  *
- * Otherwise an ordinary forward: `forwardToAgentDaemon` attaches the daemon bearer token and
- * {@link RUN_PRINCIPAL_HEADER} exactly like every other route in this module, and the daemon-side
- * route trusts both the same way `run-ownership.ts`'s routes do.
+ * Two possible destinations now, tried in order:
+ * 1. **Local delivery**, against `byokSurfaceExchanges` — reachable because this route and
+ *    `modules/assistant-byok.ts`'s tool surface share ONE process and were handed the SAME store
+ *    reference by `app.ts` at boot. Tried first because it costs one in-memory map lookup, vs. an
+ *    HTTP round trip for the daemon fallback. A `binding-mismatch` is answered here, not forwarded —
+ *    see this file's own header for why that reason specifically must not fall through.
+ * 2. **Forward to the daemon** — the pre-existing behavior, unchanged, for anything the local store
+ *    reports `unknown-or-closed` (including every request with no `exchangeId` at all, which never
+ *    reaches the local branch below): `forwardToAgentDaemon` attaches the daemon bearer token and
+ *    {@link RUN_PRINCIPAL_HEADER} exactly like every other route in this module, and the daemon-side
+ *    route trusts both the same way `run-ownership.ts`'s routes do.
  */
-async function proxyMcpUiToolCall(req: Request, res: Response): Promise<void> {
-  const body = (req.body ?? {}) as { toolName?: unknown };
+async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore): Promise<void> {
+  const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown; exchangeId?: unknown };
   const toolName = body.toolName;
   if (typeof toolName !== "string" || toolName.length === 0) {
     res.status(400).json({ error: "'toolName' must be a non-empty string", code: "VALIDATION_ERROR" });
@@ -168,6 +246,37 @@ async function proxyMcpUiToolCall(req: Request, res: Response): Promise<void> {
     res.status(403).json({ error: `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
     return;
   }
+
+  // Same extraction `mcp-ui-tool-calls-route.ts` uses on the daemon side: a top-level `exchangeId`
+  // for a channel that can name one directly, falling back to the MCP-UI-specific callback param
+  // (an mcp-ui surface can only answer by issuing a tool call, so its correlation has to ride inside
+  // that call's own params — see `surface-exchanges.ts`'s doc on `SURFACE_EXCHANGE_ID_PARAM`).
+  const params = isPlainObject(body.params) ? body.params : {};
+  const exchangeId = typeof body.exchangeId === "string" ? body.exchangeId : params[SURFACE_EXCHANGE_ID_PARAM];
+  if (typeof exchangeId === "string" && exchangeId.length > 0) {
+    const principalId = getAuthedPrincipal(res).id;
+    const delivered = byokSurfaceExchanges.deliver({ exchangeId, params, toolId: toolName, principalId });
+    if (delivered.ok) {
+      // Deliberately not the tool's result — same reasoning as the daemon-side route's identical
+      // 202: the agent's own held-open call is what returns that, to the model, where it belongs.
+      res.status(202).json({ delivered: true });
+      return;
+    }
+    if (delivered.reason === "binding-mismatch") {
+      // Found locally, just not for this caller/tool — a real rejection, not "try elsewhere". Same
+      // 409 shape `mcp-ui-tool-calls-route.ts` uses for its own version of this same check.
+      res.status(409).json({
+        error: "that dialog is no longer waiting for an answer",
+        code: "SURFACE_NOT_PENDING",
+        reason: delivered.reason,
+      });
+      return;
+    }
+    // `delivered.reason === "unknown-or-closed"`: not necessarily wrong here — this exchange id may
+    // belong to the DAEMON's own store (a Local CLI run), which this process cannot see. Fall
+    // through and let the daemon answer authoritatively for its own exchanges.
+  }
+
   await forwardToAgentDaemon(req, res, req.body);
 }
 
@@ -223,7 +332,14 @@ async function forwardAttachmentUpload(req: Request, res: Response): Promise<voi
   await relayResponse(upstream, req, res);
 }
 
-export function createAssistantModule(routeDeps: RouteDeps): ServerModuleHandle {
+/**
+ * @param byokSurfaceExchanges - The SAME `SurfaceExchangeStore` `modules/assistant-byok.ts`'s tool
+ * surface was composed with (`ByokToolSurface.surfaceExchanges`), built once by `app.ts` and passed
+ * to both modules. Required, not defaulted: a locally-constructed fallback here would silently
+ * diverge from the BYOK module's own store the first time someone forgot to thread it through, and
+ * every confirmation would 404/409 against an exchange this store never opened.
+ */
+export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges: SurfaceExchangeStore): ServerModuleHandle {
   return {
     name: "assistant",
     registerRoutes: (app: Express) => {
@@ -281,7 +397,7 @@ export function createAssistantModule(routeDeps: RouteDeps): ServerModuleHandle 
       // this file's header) and whose trust boundary this endpoint does not reuse or widen.
       app.use(MCP_UI_TOOL_CALLS_PATH, requireAdminSession(routeDeps));
       app.post(MCP_UI_TOOL_CALLS_PATH, (req: Request, res: Response, next: NextFunction) => {
-        proxyMcpUiToolCall(req, res).catch(next);
+        proxyMcpUiToolCall(req, res, byokSurfaceExchanges).catch(next);
       });
 
       // A2UI's own inbound endpoint (`a2ui-actions-route.ts`) — an ordinary forward, not
