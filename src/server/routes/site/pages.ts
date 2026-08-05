@@ -5,7 +5,12 @@ import { getPresentationSettings } from "#src/features/presentation/index";
 import { getPublishedPostBySlug, listPublishedPosts, PostNotFoundError } from "#src/features/post/index";
 import { isPublicAssistantEnabled } from "#src/assistant/public-assistant-settings";
 import { findTheme, type DiscoveredTheme } from "#src/features/theme/index";
-import { resolvePageWidgets, type ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
+import {
+  resolveHtmlPageEmbeds,
+  resolvePageWidgets,
+  type ResolveHtmlPageEmbedsResult,
+  type ResolvePageWidgetsResult,
+} from "#src/widgets/resolver-service";
 import { runPostContentPhase, runPreContentPhase, urlFor } from "#src/routing/index";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head";
 import { renderSite } from "../../http/site/render";
@@ -113,6 +118,21 @@ async function resolveWidgetsForRender(deps: RouteDeps, theme: DiscoveredTheme):
 }
 
 /**
+ * SPEC-047 Slice 2 — resolves an `"html"`-format Page's `data-widget-embed`/`data-form-embed`
+ * placeholders ahead of `renderSite`, mirroring `resolveWidgetsForRender`'s own "route resolves,
+ * `render.ts` stays I/O-free" split immediately above. `undefined` for a `"doc"` post (nothing to
+ * resolve — `renderSite`'s `pageHtmlEmbeds` param is optional for exactly this case) so this is a
+ * no-op call on every route/render that isn't an html Page.
+ */
+async function resolveHtmlEmbedsForRender(deps: RouteDeps, post: PostRecord | undefined): Promise<ResolveHtmlPageEmbedsResult | undefined> {
+  if (!post || post.bodyFormat !== "html") return undefined;
+  return resolveHtmlPageEmbeds({
+    deps: { entryRepo: deps.entryRepo },
+    input: { workspaceId: deps.workspaceId, html: post.bodyHtml ?? "" },
+  });
+}
+
+/**
  * Public site: server-rendered home and post pages through the active
  * declarative theme. Registered LAST — GET /:slug is a catch-all for
  * single-segment paths.
@@ -173,12 +193,13 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         return;
       }
 
-      const [widgets, extraHead] = await Promise.all([
+      const [widgets, pageHtmlEmbeds, extraHead] = await Promise.all([
         resolveWidgetsForRender(deps, theme),
+        resolveHtmlEmbedsForRender(deps, post),
         buildExtraHead(deps, "post", SITE_TITLE, post),
       ]);
       res.type("html").send(
-        await renderSite({ theme, route: "post", siteTitle: SITE_TITLE, posts, post, widgets, extraHead, siteAssistantEnabled }),
+        await renderSite({ theme, route: "post", siteTitle: SITE_TITLE, posts, post, widgets, pageHtmlEmbeds, extraHead, siteAssistantEnabled }),
       );
     } catch (err) {
       if (err instanceof PostNotFoundError) {

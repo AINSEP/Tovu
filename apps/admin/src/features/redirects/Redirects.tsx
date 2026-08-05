@@ -1,14 +1,10 @@
-import { useState } from "react";
-import {
-  ApiError,
-  api,
-  describeApiError,
-  type AdminRedirect,
-  type AdminRedirectImportResponse,
-  type RedirectImportRule,
-} from "../lib/api";
-import { useFetchMutation, useFetchQuery, type QueryKey } from "../lib/fetch-query";
 import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
+
+import { describeApiError } from "../../lib/api";
+import { redirectRowMenuItems } from "./rules";
+import { useRedirects } from "./hooks/use-redirects.hooks";
+import { useHitCountCell } from "./hooks/use-hit-count-cell.hooks";
+import { useImportRedirectsForm } from "./hooks/use-import-redirects-form.hooks";
 
 /**
  * @file Redirects admin screen (SPEC-009 ui.spec.md) — the `/admin/redirects` route.
@@ -35,98 +31,50 @@ import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/ad
  * away: `status` stays `'success'` while `isFetching` is true, so the old
  * `if (!redirects) return <Loading/>` full-screen flash after every write is
  * gone.
+ *
+ * ## Markup only
+ *
+ * All state, effects, and `api.*` calls now live in `hooks/use-redirects.hooks.ts`,
+ * `hooks/use-hit-count-cell.hooks.ts`, and `hooks/use-import-redirects-form.hooks.ts` — one hook
+ * per component in this file. Pure logic (cache keys, payload shaping, the row-menu builder, the
+ * import textarea's parse check) lives in `rules.ts`. What stays here is what actually renders.
  */
 
-/** One cache identity per resource, defined once so a write's `invalidates`
- *  and a read's `key` cannot drift apart — the failure mode being an
- *  invalidation that silently matches nothing and a list that never refreshes. */
-const KEYS = {
-  list: ["redirects"] as QueryKey,
-  hits: (redirectId: string): QueryKey => ["redirects", redirectId, "hits"],
-};
+export interface HitCountCellProps {
+  redirectId: string;
+  /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
+  useHitCountCellHook?: typeof useHitCountCell;
+}
 
 /** Lazy hit-count cell (REQ-03) — fetches on first click rather than on mount, so a list of many
  * rows never fires a synchronous burst of `/hits` requests. A rule with zero recorded hits still
  * renders `0` (not blank), matching `hits.ts`'s own "still 200s with hitCount: 0" contract. */
-function HitCountCell(props: { redirectId: string }) {
-  // `enabled` is what keeps this lazy: the query is declared for every row but
-  // runs for none of them until its own button is pressed, preserving the
-  // no-N+1-burst property without a manual imperative fetch.
-  const [requested, setRequested] = useState(false);
-  const hits = useFetchQuery({
-    key: KEYS.hits(props.redirectId),
-    fetch: () => api.getRedirectHits(props.redirectId),
-    enabled: requested,
-  });
+function HitCountCell({ redirectId, useHitCountCellHook = useHitCountCell }: HitCountCellProps) {
+  const { error, data, isFetching, request } = useHitCountCellHook({ redirectId });
 
-  if (hits.error) return <span className="save-error">{describeApiError(hits.error, "failed")}</span>;
+  if (error) return <span className="save-error">{describeApiError(error, "failed")}</span>;
   // A rule with zero recorded hits still renders `0` (not blank), matching
   // `hits.ts`'s own "still 200s with hitCount: 0" contract — so this branches
   // on the request having completed, never on the count's truthiness.
-  if (hits.data) return <span>{hits.data.data.hitCount}</span>;
+  if (data) return <span>{data.data.hitCount}</span>;
   return (
-    <button type="button" onClick={() => setRequested(true)} disabled={hits.isFetching}>
-      {hits.isFetching ? "Loading…" : "Load hits"}
+    <button type="button" onClick={request} disabled={isFetching}>
+      {isFetching ? "Loading…" : "Load hits"}
     </button>
   );
+}
+
+export interface ImportRedirectsFormProps {
+  /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
+  useImportRedirectsFormHook?: typeof useImportRedirectsForm;
 }
 
 /** Bulk-import affordance (REQ-04) — paste a JSON array of rule objects, submit through
  * `api.importRedirects`, and surface the `207` per-item created/failed breakdown directly
  * (never collapsed into a single pass/fail toast — a partial-batch failure is the route's own
  * designed behavior, not an edge case). */
-function ImportRedirectsForm() {
-  const [raw, setRaw] = useState("");
-  // Client-side validation only — the JSON never reached the server, so this
-  // is not a request failure and does not belong in the mutation's `error`.
-  const [parseError, setParseError] = useState<string | null>(null);
-  const [result, setResult] = useState<AdminRedirectImportResponse | null>(null);
-
-  const importRules = useFetchMutation({
-    // Typed as the route's own shape, but the value is operator-pasted JSON
-    // that has only been checked for "is an array" — see the cast at the call
-    // site. The server is the validator here and reports per-item failures in
-    // its `207`; duplicating that schema client-side would be a second source
-    // of truth for it.
-    run: (rules: RedirectImportRule[]) => api.importRedirects(rules),
-    // Replaces the `onImported` callback the parent used to thread down purely
-    // so this form could refresh a list it does not own.
-    invalidates: [KEYS.list],
-  });
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setParseError(null);
-    setResult(null);
-    importRules.reset();
-
-    let rules: unknown;
-    try {
-      rules = JSON.parse(raw);
-    } catch {
-      setParseError("Not valid JSON.");
-      return;
-    }
-    if (!Array.isArray(rules)) {
-      setParseError("Must be a JSON array of rule objects.");
-      return;
-    }
-
-    // A partial batch (the route's `207`) RESOLVES — it is a result to render,
-    // not a failure — so only a transport/route error lands in `catch`, where
-    // the mutation's own `error` already holds the message.
-    try {
-      // Unchecked by design (see `run` above). The previous version reached the
-      // same place implicitly — `Array.isArray` narrows `unknown` to `any[]`,
-      // which the parameter accepted silently; this states it instead.
-      setResult(await importRules.mutate(rules as RedirectImportRule[]));
-    } catch {
-      /* surfaced via `importRules.error` below */
-    }
-  }
-
-  const error = parseError ?? (importRules.error ? describeApiError(importRules.error, "Import failed") : null);
-  const importing = importRules.status === "pending";
+function ImportRedirectsForm({ useImportRedirectsFormHook = useImportRedirectsForm }: ImportRedirectsFormProps = {}) {
+  const { raw, setRaw, error, result, importing, submit } = useImportRedirectsFormHook();
 
   return (
     <details className="notice redirects-import">
@@ -187,83 +135,36 @@ function ImportRedirectsForm() {
   );
 }
 
-export function Redirects() {
-  const list = useFetchQuery({ key: KEYS.list, fetch: () => api.listRedirects() });
-
-  // Each write names the cache it affects rather than calling a loader; the
-  // list refetches because it is mounted under that key, not because this
-  // component remembered to ask it to.
-  const createRule = useFetchMutation({
-    run: (form: FormData) =>
-      api.createRedirect({
-        matchType: String(form.get("matchType") ?? "exact"),
-        fromPattern: String(form.get("fromPattern") ?? ""),
-        toTarget: String(form.get("toTarget") ?? ""),
-        statusCode: Number(form.get("statusCode") ?? 301),
-      }),
-    invalidates: [KEYS.list],
-  });
-
-  const toggleStatus = useFetchMutation({
-    run: (rule: AdminRedirect) =>
-      api.updateRedirect({ id: rule.id }, { status: rule.status === "active" ? "disabled" : "active" }),
-    invalidates: [KEYS.list],
-  });
-
-  const removeRule = useFetchMutation({
-    run: (rule: AdminRedirect) => api.tombstoneRedirect(rule.id),
-    invalidates: [KEYS.list],
-  });
-
-  // The rule a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
-  // closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on why);
-  // this is what drives its `open` prop. Row action moved off the in-place two-click
-  // `ConfirmButton` control (MSG-03 rollout) — see `Roles.tsx`'s `onDeleteRole` comment for why a
-  // `RowMenu` item needs `ConfirmDialog`, not `ConfirmButton`, to hold the confirm step.
-  const [pendingDelete, setPendingDelete] = useState<AdminRedirect | null>(null);
-
-  function confirmDelete() {
-    if (!pendingDelete) return;
-    const rule = pendingDelete;
-    clearOtherWriteErrors(removeRule);
-    void removeRule.mutate(rule).finally(() => setPendingDelete(null));
-  }
-
-  const writes = [createRule, toggleStatus, removeRule];
-  const saving = writes.some((write) => write.status === "pending");
-  const writeError = writes.find((write) => write.error)?.error ?? null;
-  // A failed background list refresh keeps `list.error` set while the table
-  // still shows its last good data. Rendered unconditionally, that error became
-  // the banner the operator sees the instant they click Disable — reading as
-  // "your Disable failed" when the write is merely in flight and the stale
-  // message belongs to an earlier refresh. Suppressed while a write is running,
-  // for the same reason the pre-migration handlers each opened with
-  // `setError(null)`. It returns afterwards if the list is genuinely still
-  // failing, which is honest rather than hidden.
-  const error = writeError ?? (saving ? null : list.error);
-
+export interface RedirectsProps {
   /**
-   * Clears the OTHER writes' failures before starting one.
-   *
-   * The pre-migration code kept a single shared `error` and each handler opened
-   * with `setError(null)`, so any new write wiped the previous one's message.
-   * Three independent mutations do not inherit that: each keeps its own error
-   * until reset, and `find` above returns creation order rather than recency —
-   * so a failed Create would keep its banner on screen after a later, entirely
-   * successful Disable, blaming an operation that worked. `mutate` already
-   * clears the active mutation's own error, so only its siblings need this.
+   * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   * nothing and behave exactly as before. See `PostsProps.usePostsHook` for the full rationale.
    */
-  function clearOtherWriteErrors(active: { reset: () => void }) {
-    for (const write of writes) if (write !== active) write.reset();
-  }
+  useRedirectsHook?: typeof useRedirects;
+}
 
-  const redirects = list.data?.data;
+export function Redirects({ useRedirectsHook = useRedirects }: RedirectsProps = {}) {
+  const {
+    redirects,
+    listStatus,
+    listError,
+    error,
+    saving,
+    pendingDelete,
+    setPendingDelete,
+    confirmDelete,
+    deletePending,
+    createRedirect,
+    onToggleStatus,
+    onRequestDelete,
+  } = useRedirectsHook();
 
   // Only a FIRST load blocks the screen. A refetch triggered by a write keeps
   // the table on screen (`status` stays `'success'`), where the old
   // `if (!redirects)` guard blanked the whole page after every single edit.
-  if (list.status === "error" && !redirects) {
-    return <div className="notice error">{describeApiError(list.error, "failed to load redirects")}</div>;
+  if (listStatus === "error" && !redirects) {
+    return <div className="notice error">{describeApiError(listError, "failed to load redirects")}</div>;
   }
   if (!redirects) return <div className="notice">Loading redirects…</div>;
 
@@ -285,8 +186,7 @@ export function Redirects() {
         className="card"
         onSubmit={(e) => {
           e.preventDefault();
-          clearOtherWriteErrors(createRule);
-          void createRule.mutate(new FormData(e.currentTarget));
+          createRedirect(new FormData(e.currentTarget));
           e.currentTarget.reset();
         }}
       >
@@ -354,32 +254,7 @@ export function Redirects() {
             key: "actions",
             header: "More",
             cell: (rule) => {
-              // `disabled={saving}` on the old inline buttons guarded against a second write
-              // firing while any of this table's writes (create/toggle/delete) is in flight —
-              // `RowMenu`'s `items` has no per-item `disabled`, so that guard moved inside each
-              // `onSelect` instead. Functionally identical (no double-submission); the only loss
-              // is the greyed-out visual cue while `saving` is true, a presentation detail, not a
-              // dropped confirmation or destructive/warning classification.
-              const items: RowMenuItem[] = [
-                {
-                  key: "toggle",
-                  label: rule.status === "active" ? "Disable" : "Enable",
-                  onSelect: () => {
-                    if (saving) return;
-                    clearOtherWriteErrors(toggleStatus);
-                    void toggleStatus.mutate(rule);
-                  },
-                },
-                {
-                  key: "delete",
-                  label: "Delete",
-                  destructive: true,
-                  onSelect: () => {
-                    if (saving) return;
-                    setPendingDelete(rule);
-                  },
-                },
-              ];
+              const items: RowMenuItem[] = redirectRowMenuItems(rule, { onToggleStatus, onRequestDelete });
               return <RowMenu triggerLabel={`Actions for redirect rule from "${rule.fromPattern}"`} items={items} />;
             },
           },
@@ -391,7 +266,7 @@ export function Redirects() {
         body={pendingDelete ? <p>Delete the redirect rule from &quot;{pendingDelete.fromPattern}&quot;?</p> : null}
         confirmLabel="Delete"
         destructive
-        pending={removeRule.status === "pending"}
+        pending={deletePending}
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
       />

@@ -12,8 +12,8 @@ import {
   subscribeToAssistantDockRequests,
 } from "./lib/assistant-dock-bus";
 import { getNav } from "./nav";
-import { Login } from "./sections/Login";
-import { Placeholder } from "./sections/Placeholder";
+import { Login } from "./features/auth";
+import { Placeholder } from "./components/Placeholder";
 import { ADMIN_PANELS } from "./panels";
 import { AssistantDock } from "./components/AssistantDock";
 import { ChatFab } from "./components/ChatFab";
@@ -195,6 +195,28 @@ export function App() {
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) setSheetHeightPx(entry.contentRect.height);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isSheetMode, chatOpen]);
+
+  // The desktop counterpart: measures the docked panel's actual rendered WIDTH, for the same
+  // reason and by the same means. The FAB offsets from the right edge and the desktop dock is
+  // pinned to the right edge, so with the dock open the FAB landed squarely on the composer's send
+  // button and swallowed its clicks — Playwright caught it as "chat-fab intercepts pointer
+  // events". Measured rather than hard-coded to the dock's 380px, so a future width change (or a
+  // themed/resized dock) cannot silently re-open the same overlap.
+  const [dockWidthPx, setDockWidthPx] = useState(0);
+  useEffect(() => {
+    if (isSheetMode || !chatOpen) {
+      setDockWidthPx(0);
+      return;
+    }
+    const el = chatDockRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setDockWidthPx(entry.contentRect.width);
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -443,8 +465,26 @@ export function App() {
           focus target (the open-focus effect above) without adding it to the normal Tab order —
           the sheet's own close button and the assistant's composer are what Tab should reach,
           not the `<aside>` wrapper itself. */}
+      {/*
+        `data-theme="light"` is REQUIRED, not cosmetic, for the same reason `features/settings/SettingsUi.tsx`
+        and `features/ai-assistant/AiAssistant.tsx` pin it — and it must live on THIS element, not on a wrapper
+        inside `<AssistantDock>`.
+
+        The runtime picker's BYOK model dropdown is `@jini-ai/ui`'s `CustomSelect`, which portals its
+        menu to `document.body` and so escapes any ancestor's theme. It compensates by copying the
+        theme from its trigger's nearest `[data-theme]` ancestor. The dock had none, so the menu fell
+        through to the stylesheet's dark variant and opened dark inside an all-light admin.
+
+        A `display: contents` wrapper inside `AssistantDock` looks like the tidier place for this and
+        is a trap: it generates no box, so `assistant.css`'s `.admin-chat-dock > * { flex: 1 }`
+        matched the wrapper and applied to nothing, while `ChatPane` — a grandchild in the DOM, which
+        is what child combinators read — stopped matching it at all and collapsed to content width.
+        Measured: the dock rendered at roughly half its width. Putting the attribute here adds no
+        element and cannot affect layout.
+      */}
       <aside
         ref={chatDockRef}
+        data-theme="light"
         className={`admin-chat-dock${chatOpen ? " is-open" : ""}${sheetExpanded ? " is-expanded" : ""}`}
         hidden={!chatOpen}
         inert={!chatOpen}
@@ -492,6 +532,7 @@ export function App() {
         onToggle={() => setChatOpen((current) => !current)}
         label="assistant"
         avoidBottomPx={isSheetMode && chatOpen ? sheetHeightPx : 0}
+        avoidRightPx={!isSheetMode && chatOpen ? dockWidthPx : 0}
       />
     </div>
   );

@@ -1,0 +1,89 @@
+/*
+ * The Pages editor — the preview/HTML surface that replaces Tiptap for `kind: "page"` entries.
+ *
+ * Its own file rather than an addition to `editor.css`, because Pages and Posts are separate
+ * features and `editor.css` is the Post editor's. The header chrome classes this screen reuses
+ * (`.editor-title`, `.editor-slug`) still live there and are deliberately NOT copied here — one
+ * definition, shared, rather than two that drift.
+ */
+
+.page-editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 1rem 0 0.75rem;
+}
+
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid var(--border, #e2e0dc);
+  border-radius: 8px;
+  background: var(--surface-muted, #f6f5f3);
+}
+
+.segmented button {
+  border: 0;
+  background: transparent;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--text-muted, #5f5b55);
+}
+
+.segmented button.is-active {
+  background: var(--surface, #fff);
+  color: var(--text-strong, #1b1b1b);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
+}
+
+.page-editor-width {
+  padding: 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-muted, #5f5b55);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The preview renders at a FIXED viewport width and is scaled down to fit — see
+ * `use-page-editor.hooks.ts`'s `PAGE_PREVIEW_WIDTHS`. `overflow: hidden` on the frame is what keeps
+ * the scaled box from spilling past the pane, and `transform-origin` at the top-left is what makes
+ * the scale shrink toward the corner instead of the centre (which would crop both sides).
+ */
+.page-preview-frame {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border, #e2e0dc);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.page-preview-scaler {
+  transform-origin: top left;
+}
+
+.page-preview-iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.page-html-source {
+  width: 100%;
+  min-height: 32rem;
+  padding: 1rem;
+  border: 1px solid var(--border, #e2e0dc);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  tab-size: 2;
+  resize: vertical;
+}

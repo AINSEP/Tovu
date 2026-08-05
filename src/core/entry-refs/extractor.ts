@@ -147,3 +147,83 @@ export function extractEntryRefs(input: ExtractEntryRefsInput): readonly EntryRe
 
   return refs;
 }
+
+// ---------------------------------------------------------------------------
+// SPEC-047 Slice 3 — `"html"`-format Page bodies (`body_html`, a plain string, not a `bodyJson`
+// tree). A sibling entry point to `extractEntryRefs` above, not a mode of it: an html Page is
+// written through `features/pages/html-document-store.ts`'s `PagesHtmlDocumentStore`, a completely
+// separate write path from the `entries` chokepoint `extractEntryRefs` is called from (ADR-056
+// CIC-3 — Pages bypass that chokepoint entirely), so it needs its own call site, not a widened
+// `ExtractEntryRefsInput`.
+// ---------------------------------------------------------------------------
+
+/**
+ * `widgets/html-embeds.ts`'s `data-widget-embed`/`data-form-embed` pattern, duplicated here
+ * deliberately rather than imported — the SAME tradeoff {@link collectWidgetEmbedRefs} above already
+ * makes for the TipTap `widgetEmbed` case (this file takes no injected widgets dependency, so
+ * `core/` stays importable by `widgets/` and never the reverse — see this file's own header on why
+ * `core` is beneath `widgets` in this codebase's layering). Correctness drift between the two copies
+ * — "what entry_refs indexes" silently disagreeing with "what render.ts actually embeds" — is guarded
+ * by `__tests__/integration/html-entry-refs-consistency.integration.test.ts`, which asserts both
+ * scanners agree on the same fixture HTML, rather than by a shared import.
+ */
+const HTML_EMBED_PATTERN_SOURCE = String.raw`<div\b[^>]*?\bdata-(widget|form)-embed\s*=\s*"([^"]*)"[^>]*?>\s*<\/div>`;
+
+/** Mirrors `widgets/html-embeds.ts`'s `MAX_HTML_EMBEDS_PER_PAGE` — the index must never grow past
+ * what a render can actually resolve, so the same resource bound applies here too. */
+const MAX_HTML_PAGE_EMBED_REFS = 50;
+
+/** Mirrors `widgets/html-embeds.ts`'s id sanity bound. */
+const MAX_HTML_EMBED_REF_ID_LENGTH = 200;
+
+/**
+ * REQ-30-style — extracts one `entry_refs` row per `data-widget-embed`/`data-form-embed`
+ * placeholder found in `html`, up to {@link MAX_HTML_PAGE_EMBED_REFS}. `targetKind` is always
+ * `"entry"` — mirrors `MENU_REGISTRATION`'s `menuRef`/`CONTACT_FORM_REGISTRATION`'s
+ * `formDefinitionId` both being extracted as `"entry"`-target refs elsewhere in this codebase even
+ * though neither a menu nor a Forms definition is a literal `entries`-table row; `targetKind` marks
+ * "a durable content object", not literal table membership. Pure, never throws, matching
+ * `extractEntryRefs`'s own contract.
+ *
+ * **Indexes REFERENCES, never RESOLUTIONS — by construction, not by discipline.** This function
+ * takes no repo/resolver dependency (only a plain `html` string), so it has no way to check whether
+ * a placeholder's target currently exists, let alone resolves. A `data-widget-embed` pointing at a
+ * deleted widget produces a row here exactly like one pointing at a live widget does. This is
+ * required, not incidental: `entry_refs`' whole purpose is catching "deleting a widget silently
+ * breaks a page" (SPEC-043 REQ-34/REQ-42's safe-delete/where-used check), and that is precisely the
+ * page whose reference has stopped resolving — indexing only what currently resolves would make the
+ * one broken page the one page the integrity check silently ignores. `resolver-service.ts`'s
+ * `resolveHtmlPageEmbeds` (a completely separate function, called from the render path, never from
+ * here) is where "does this currently resolve" is answered — this function never asks.
+ *
+ * @complexity O(n) over `html`'s length for the regex scan.
+ * @overallScore 100
+ */
+export function extractHtmlEntryRefs(input: {
+  readonly workspaceId: UUID;
+  readonly sourceEntryId: UUID;
+  readonly html: string;
+}): readonly EntryRefRow[] {
+  const refs: EntryRefRow[] = [];
+  let occurrence = 0;
+  const pattern = new RegExp(HTML_EMBED_PATTERN_SOURCE, "gi");
+
+  for (const match of input.html.matchAll(pattern)) {
+    occurrence += 1;
+    const kindToken = match[1]?.toLowerCase();
+    const id = match[2];
+    if (!id || id.length === 0 || id.length > MAX_HTML_EMBED_REF_ID_LENGTH) continue;
+
+    refs.push({
+      workspaceId: input.workspaceId,
+      sourceEntryId: input.sourceEntryId,
+      sourceKind: "page-html-embed",
+      fieldPath: `bodyHtml[data-${kindToken}-embed#${occurrence}]`,
+      targetKind: "entry",
+      targetId: id,
+    });
+    if (refs.length >= MAX_HTML_PAGE_EMBED_REFS) break;
+  }
+
+  return refs;
+}

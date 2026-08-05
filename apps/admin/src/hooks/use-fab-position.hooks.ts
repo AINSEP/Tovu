@@ -149,11 +149,33 @@ export interface FabPositionResult {
  * @param options.avoidBottomPx Extra clearance to hold above the bottom edge while `dockOpen` —
  *   the caller passes the mobile sheet's current height here (0 at desktop, where the dock sits
  *   to the *side*, not below, so no bottom clearance is needed there — see `App.tsx`).
+ * @param options.avoidRightPx Extra clearance to hold left of the right edge while `dockOpen` —
+ *   the caller passes the DESKTOP dock's current width here (0 in sheet mode, where the sheet
+ *   spans the full width and `avoidBottomPx` is the axis that matters).
+ *
+ *   This axis was missing until 2026-08-05, and its absence was a live defect rather than a
+ *   theoretical gap: the FAB is `position: fixed` and offset from the RIGHT edge, and the desktop
+ *   dock is also pinned to the right edge, so with the dock open the 56px FAB sat directly on top
+ *   of the dock's own composer send button and swallowed its clicks. Playwright caught it as
+ *   `<button class="chat-fab chat-fab-dock-open"> intercepts pointer events` while trying to send
+ *   a message — i.e. the assistant could not be used with a mouse at the default FAB position.
+ *
+ *   How it got lost is worth recording, because the code confidently said otherwise: the old
+ *   `.chat-fab-dock-open { right: calc(380px + 20px) }` rule moved the FAB SIDEWAYS. When this
+ *   hook replaced it, only the vertical axis was carried over, while the comment on
+ *   `effectiveBottom` below claimed `avoidBottomPx` "generalizes" what that rule did — it does
+ *   not, it generalizes a different axis, and desktop passes `avoidBottomPx: 0`, so on desktop
+ *   nothing displaced the FAB at all. The `.chat-fab-dock-open` class is still applied by
+ *   `ChatFab.tsx` and has had no CSS rule behind it since.
+ *
+ *   Measured by the caller rather than hard-coded back to 380px, for the same
+ *   resolution-independence reason this whole hook exists (see the module doc).
  *
  * @complexity O(1) per pointer event — no work scales with anything caller-controlled.
  */
-export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: number }): FabPositionResult {
+export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: number; avoidRightPx?: number }): FabPositionResult {
   const { dockOpen, avoidBottomPx } = options;
+  const avoidRightPx = options.avoidRightPx ?? 0;
   const [persisted, setPersisted] = useState<StoredFabPosition>(() => readPersisted() ?? DEFAULT_POSITION);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -298,10 +320,17 @@ export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: numb
       FAB_EDGE_MARGIN,
       window.innerHeight - FAB_EDGE_MARGIN - FAB_SIZE_PX,
     );
-    // While the dock/sheet is open, hold above it regardless of the dragged resting spot — this
-    // is what `.chat-fab-dock-open`'s hard-coded `calc(380px + 20px)` used to do for exactly one
-    // case (desktop, docked); `avoidBottomPx` generalizes it to whatever the caller's current
-    // dock chrome actually measures.
+    // While the dock/sheet is open, hold clear of it regardless of the dragged resting spot.
+    // TWO axes, because the dock occupies a different edge depending on mode, and getting this
+    // wrong is not cosmetic — a FAB overlapping the composer's send button eats the click:
+    //   - sheet mode (mobile): the sheet spans the full width along the BOTTOM, so `avoidBottomPx`
+    //     (its measured height) is the axis that matters.
+    //   - docked mode (desktop): the dock is pinned to the RIGHT edge, which is the same edge the
+    //     FAB offsets from, so `avoidRightPx` (its measured width) is the axis that matters.
+    // The old `.chat-fab-dock-open { right: calc(380px + 20px) }` rule covered only the second of
+    // those, and only at one hard-coded width; an earlier version of this comment claimed
+    // `avoidBottomPx` generalized it, which was wrong — different axis. See the `avoidRightPx`
+    // param doc for what that cost.
     //
     // Re-clamped against the viewport, and that clamp is load-bearing rather than defensive.
     // `avoidBottomPx` is a raw PIXEL measurement of another element (`App.tsx` measures the sheet),
@@ -318,12 +347,20 @@ export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: numb
       FAB_EDGE_MARGIN,
       Math.max(FAB_EDGE_MARGIN, window.innerHeight - FAB_EDGE_MARGIN - FAB_SIZE_PX),
     );
-    return { right: rightPx, bottom: effectiveBottom };
+    // Same shape, same clamp, and the clamp is load-bearing for the same reason: `avoidRightPx` is
+    // a raw pixel measurement of another element, so a dock wider than the viewport allows would
+    // otherwise push the FAB off the left edge where it looks simply missing.
+    const effectiveRight = clamp(
+      dockOpen ? Math.max(rightPx, avoidRightPx + FAB_EDGE_MARGIN) : rightPx,
+      FAB_EDGE_MARGIN,
+      Math.max(FAB_EDGE_MARGIN, window.innerWidth - FAB_EDGE_MARGIN - FAB_SIZE_PX),
+    );
+    return { right: effectiveRight, bottom: effectiveBottom };
     // `renderTick`/`isDragging` are read only to force recomputation while dragging (their values
     // are not otherwise used in the body — the live position comes from `liveRef`/`draggingRef`
     // directly, per the staleness note above) — expected extra deps, not a lint miss.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [persisted, dockOpen, avoidBottomPx, renderTick, isDragging]);
+  }, [persisted, dockOpen, avoidBottomPx, avoidRightPx, renderTick, isDragging]);
 
   return { style, onPointerDown, consumeDragFlag, isDragging };
 }

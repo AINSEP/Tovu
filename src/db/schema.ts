@@ -37,10 +37,36 @@ export const posts = sqliteTable(
     workspaceId: text("workspace_id").notNull(),
     title: text("title").notNull(),
     slug: text("slug").notNull(),
-    bodyJson: text("body_json").notNull(),
+    /**
+     * SPEC-047/ADR-056 Decision 3 — nullable as of this migration (widened from the original
+     * `NOT NULL`). An `"html"`-format row (see `bodyFormat` below) has no TipTap document at all,
+     * so it carries `NULL` here instead of a dummy empty doc. This is the one non-purely-additive
+     * change in this migration: it WIDENS what is allowed (a pre-existing `NOT NULL` is relaxed),
+     * never narrows it, so every pre-existing row — which already has a non-null `body_json` —
+     * satisfies the loosened constraint unchanged and needs no backfill. See `posts_body_format_shape`
+     * below for the constraint that keeps this column's nullability tied to `bodyFormat`.
+     */
+    bodyJson: text("body_json"),
     status: text("status").notNull(),
     /** Discriminates the `post` vs `page` admin lens over this one table (see `features/post/post.ts`). */
     kind: text("kind").notNull().default("post"),
+    /**
+     * SPEC-047/ADR-056 Decision 3 — discriminates which of `bodyJson`/`bodyHtml` this row actually
+     * carries. Additive: `NOT NULL DEFAULT 'doc'` means every pre-existing row (Post and Page alike)
+     * backfills to `"doc"` with zero migration script, matching what every pre-existing row already
+     * is in practice (a TipTap document, never bespoke HTML). `"html"` is Pages-vibecoding's new
+     * v1 shape (SPEC-047) — a Post can never carry `"html"` (enforced at the write chokepoint in
+     * `features/post/post.ts`, not just here); `"doc"` stays valid for a future non-generated Page
+     * (v1 never creates one, but the column keeps that door open with no future migration). See
+     * `posts_body_format_shape` below for the DB-level enforcement of "exactly one body populated".
+     */
+    bodyFormat: text("body_format").notNull().default("doc"),
+    /**
+     * SPEC-047/ADR-056 Decision 3 — the bespoke HTML body for an `"html"`-format Page (Pages
+     * vibecoding, `PagesHtmlDocumentStore`). Nullable, additive: every pre-existing row is `"doc"`
+     * format and has no reason to carry one, so this backfills to `NULL` with zero migration script.
+     */
+    bodyHtml: text("body_html"),
     updatedAt: text("updated_at").notNull(),
     version: integer("version").notNull(),
     /**
@@ -74,6 +100,19 @@ export const posts = sqliteTable(
   (table) => [
     uniqueIndex("posts_workspace_slug_unique").on(table.workspaceId, table.slug),
     index("idx_posts_workspace").on(table.workspaceId),
+    /**
+     * SPEC-047/ADR-056 Decision 3 — "exactly one body column populated per format", expressed with
+     * Drizzle's own `check()` table-constraint builder (`drizzle-orm/sqlite-core`, confirmed present
+     * in the pinned `drizzle-orm@0.44.7`) rather than hand-written SQL. Unlike the FTS5 virtual table
+     * in `drizzle/0022_posts_fts_search_index.sql` — which genuinely has no Drizzle builder at any
+     * version — a CHECK on an ordinary table is exactly what this builder exists for, so
+     * `drizzle-kit generate` emits it automatically and this file stays the single source of truth
+     * for the constraint (see this file's own header for why 0022 is hand-written and this is not).
+     */
+    check(
+      "posts_body_format_shape",
+      sql`(${table.bodyFormat} = 'doc' AND ${table.bodyJson} IS NOT NULL AND ${table.bodyHtml} IS NULL) OR (${table.bodyFormat} = 'html' AND ${table.bodyHtml} IS NOT NULL AND ${table.bodyJson} IS NULL)`
+    ),
   ]
 );
 

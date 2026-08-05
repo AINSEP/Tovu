@@ -81,3 +81,41 @@ test("an empty registry seeds an empty, non-throwing catalog", () => {
   assert.deepEqual(catalog.search("anything"), []);
   assert.equal(catalog.describe("anything"), null);
 });
+
+/**
+ * The fold/strip split. Keywords exist to be RANKED on, never to be READ — a tool's description is a
+ * contract the model reasons about, so padding it with synonyms to fix search would trade one
+ * problem for a worse one. `identity_user_create` is used below because it carries an entry in
+ * `TOOL_SEARCH_KEYWORDS` while its authored description ("Creates a new human operator user.")
+ * contains none of that vocabulary.
+ */
+test("search vocabulary makes a tool findable by a word its authored description never contains", () => {
+  const catalog = buildToolCatalogQuery(fakeRegistry());
+  // "invite" and "staff" appear nowhere in the authored description above.
+  for (const term of ["invite", "staff", "account"]) {
+    const hits = catalog.search(term, 10).map((hit) => hit.id);
+    assert.ok(hits.includes("identity_user_create"), `expected identity_user_create to rank for "${term}"; got ${hits.join(", ") || "(none)"}`);
+  }
+});
+
+test("no caller ever sees the folded vocabulary — describe and search both return the AUTHORED description", () => {
+  const catalog = buildToolCatalogQuery(fakeRegistry());
+  const authored = "Creates a new human operator user.";
+
+  assert.equal(catalog.describe("identity_user_create")?.description, authored, "describe must return authored text, not indexed text");
+  for (const hit of catalog.search("invite", 10)) {
+    assert.doesNotMatch(hit.description, /also known as:/, `${hit.id}'s search hit leaked its search vocabulary`);
+  }
+});
+
+test("a tool with no keyword entry is untouched, and the seam can disable folding entirely", () => {
+  const withKeywords = buildToolCatalogQuery(fakeRegistry());
+  const without = buildToolCatalogQuery(fakeRegistry(), { includeSearchKeywords: false });
+
+  // `forms_update_definition` has no entry in TOOL_SEARCH_KEYWORDS — identical either way.
+  assert.equal(withKeywords.describe("forms_update_definition")?.description, without.describe("forms_update_definition")?.description);
+
+  // And with folding off, the keyword-bearing tool is no longer findable by its vocabulary — which
+  // is what proves the earlier assertions are measuring the fold rather than a coincidence.
+  assert.equal(without.search("invite", 10).length, 0);
+});

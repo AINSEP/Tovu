@@ -11,6 +11,15 @@ export type PostStatus = "draft" | "published";
  */
 export type PostKind = "post" | "page";
 
+/**
+ * SPEC-047/ADR-056 Decision 3 — discriminates which body column a record actually carries.
+ * `"doc"` (the only value this chokepoint ever writes in v1, see {@link resolveBodyFields}) is a
+ * TipTap/ProseMirror document in `bodyJson`; `"html"` is a bespoke-HTML Page written only through
+ * `PagesHtmlDocumentStore` (`features/pages/html-document-store.ts`), a separate adapter that never calls
+ * `createPost`/`updatePost` — this chokepoint can construct only `"doc"` records, by design (CIC-3).
+ */
+export type PostBodyFormat = "doc" | "html";
+
 export interface PostRecord {
   id: UUID;
   workspaceId: UUID;
@@ -19,6 +28,19 @@ export interface PostRecord {
   bodyJson: JsonObject;
   status: PostStatus;
   kind: PostKind;
+  /**
+   * SPEC-047/ADR-056 Decision 3 / CIC-3 — always `"doc"` for a record built by
+   * `createPost`/`updatePost` (this chokepoint never accepts a caller-supplied value for this
+   * field — see {@link resolveBodyFields}). An `"html"`-format Page is a real, distinct row this
+   * same `posts` table can hold, but one only `PagesHtmlDocumentStore` ever writes.
+   */
+  bodyFormat: PostBodyFormat;
+  /**
+   * SPEC-047/ADR-056 Decision 3 — the bespoke-HTML body for an `"html"`-format Page. Always `null`
+   * on a record built by `createPost`/`updatePost` (see {@link bodyFormat}'s doc); populated only by
+   * `PagesHtmlDocumentStore`'s own direct write path.
+   */
+  bodyHtml: string | null;
   updatedAt: string;
   version: number;
   /**
@@ -300,8 +322,14 @@ export class PostConflictError extends Error {}
 /**
  * SPEC-002 api.spec.md `POST_CREATE`/`PAGE_CREATE` §4 documented `bodyJson` default —
  * an empty TipTap doc, not `{}` (the pre-fix behavior asserted the wrong shape).
+ *
+ * Exported (SPEC-047/ADR-056) so `repo.sqlite.ts`'s `toRecord` has one shared placeholder to fill
+ * `PostRecord.bodyJson` with for an `"html"`-format row's `NULL` `body_json` column, rather than a
+ * second, driftable empty-doc literal — see that file's own comment for why a placeholder is
+ * correct there (an `"html"` row's `bodyJson` is never read by anything that branches on
+ * `bodyFormat` correctly).
  */
-const DEFAULT_BODY_JSON: JsonObject = { type: "doc", content: [] };
+export const DEFAULT_BODY_JSON: JsonObject = { type: "doc", content: [] };
 
 /**
  * SPEC-005 CIC U-004-B1/F1 — runs the optional `content.entry.beforeSave` hook and resolves to the
@@ -377,6 +405,73 @@ interface ResolvedCreateFields {
   explicitSlug: string | undefined;
   bodyJson: JsonObject;
   status: PostStatus;
+  bodyFormat: PostBodyFormat;
+  bodyHtml: string | null;
+}
+
+/**
+ * SPEC-047/ADR-056 Decision 3 / CIC-3 — the `kind` -> `bodyFormat` write-chokepoint gate,
+ * shared by `resolveCreateFields` and `updatePost`. Deliberately takes NO input: neither
+ * `CreatePostInput` nor `UpdatePostInput` has a `bodyFormat`/`bodyHtml` field at all, so there is
+ * nothing to read, let alone trust, from a caller — `createPost`/`updatePost` can produce only
+ * `(bodyFormat: "doc", bodyHtml: null)`, by construction, not by rejecting a bad value after the
+ * fact. AC-1 ("a Post can never carry body_format: 'html'") holds even against a caller that
+ * smuggles those properties onto the input object past the type system (a raw JS caller, or one
+ * forwarding untyped `req.body`) — this function never looks at `input` in the first place.
+ *
+ * `bodyFormat: "html"` is a real, valid `PostRecord` shape (a Page written by
+ * `PagesHtmlDocumentStore`, `features/pages/html-document-store.ts`), but that adapter writes directly to
+ * the `posts` row and never calls `createPost`/`updatePost` — see `PostRecord.bodyFormat`'s doc.
+ *
+ * @complexity O(1).
+ * @overallScore 100
+ */
+function resolveBodyFields(): { bodyFormat: PostBodyFormat; bodyHtml: string | null } {
+  return { bodyFormat: "doc", bodyHtml: null };
+}
+
+/**
+ * `updatePost`'s body resolution — **preserves** the row's existing format instead of asserting
+ * `"doc"` the way {@link resolveBodyFields} does for a create.
+ *
+ * ## The bug this exists to fix
+ *
+ * `updatePost` used to spread `resolveBodyFields()` directly, forcing `(bodyFormat: "doc",
+ * bodyHtml: null)` onto every update. The reasoning recorded at the call site was sound as far as
+ * it went — the *body* of an html Page is written only by `PagesHtmlDocumentStore` — but it did not
+ * account for the fact that an html Page's **title, slug and status** have nowhere else to be
+ * edited. `pages/update.ts` is the only route that can change them, and it goes through here. The
+ * result: saving a title on a bespoke-HTML Page silently reverted it to `doc` format and discarded
+ * `body_html` entirely — the whole generated page, gone, with a 200 response and no warning.
+ *
+ * It was unreachable until a Page could become `"html"` in the first place
+ * (`PagesHtmlDocumentStore.ensureHtmlFormat`), which is why it had never fired.
+ *
+ * ## What it does instead
+ *
+ * - A `"doc"` row updates exactly as before — `resolveBodyFields()`'s guarantee is unchanged, and a
+ *   Post (always `"doc"`, since nothing can make one `"html"`) is untouched by this function's
+ *   existence. AC-1 still holds by construction.
+ * - An `"html"` row keeps its format and its `body_html`, and ignores `input.bodyJson` — an html
+ *   Page has no Tiptap document, and accepting one here is how the two body columns would end up
+ *   populated at once. The carried-over `bodyJson` is the placeholder `repo.sqlite.ts`'s `toRecord`
+ *   substitutes for the null column; `save()` maps it back to null on the way down, so the pair
+ *   stays inverse and the table's CHECK constraint holds.
+ *
+ * Neither branch reads a caller-supplied `bodyFormat`/`bodyHtml` — `UpdatePostInput` still has no
+ * such field, so a caller still cannot convert a row's format through this path. Conversion remains
+ * `PagesHtmlDocumentStore.ensureHtmlFormat`'s alone.
+ *
+ * @complexity O(1).
+ */
+function resolveUpdateBodyFields(
+  existing: PostRecord,
+  inputBodyJson: JsonObject
+): { bodyFormat: PostBodyFormat; bodyHtml: string | null; bodyJson: JsonObject } {
+  if (existing.bodyFormat === "html") {
+    return { bodyFormat: "html", bodyHtml: existing.bodyHtml, bodyJson: existing.bodyJson };
+  }
+  return { ...resolveBodyFields(), bodyJson: inputBodyJson };
 }
 
 /**
@@ -429,7 +524,7 @@ function resolveCreateFields(input: CreatePostInput): ResolvedCreateFields {
   }
   const status = input.status !== undefined ? input.status : "draft";
 
-  return { title, explicitSlug, bodyJson, status };
+  return { title, explicitSlug, bodyJson, status, ...resolveBodyFields() };
 }
 
 /**
@@ -458,7 +553,7 @@ export async function createPost(
   _optional: CreatePostOptional = {}
 ): Promise<{ post: PostRecord }> {
   const { deps, input } = required;
-  const { title, explicitSlug, bodyJson, status } = resolveCreateFields(input);
+  const { title, explicitSlug, bodyJson, status, bodyFormat, bodyHtml } = resolveCreateFields(input);
 
   let slug: string;
   if (explicitSlug !== undefined) {
@@ -496,6 +591,8 @@ export async function createPost(
     title,
     slug,
     bodyJson,
+    bodyFormat,
+    bodyHtml,
     status,
     kind: input.kind ?? "post",
     updatedAt: deps.clock.nowIso(),
@@ -533,7 +630,13 @@ export async function updatePost(
   if (!isValidSlugFormat(slug)) {
     throw new PostValidationError("slug must use lowercase letters, numbers, and dashes");
   }
-  if (!isJsonObject(input.bodyJson)) {
+  // Required for a `"doc"` row, meaningless for an `"html"` one. A bespoke-HTML Page has no Tiptap
+  // document at all, so demanding one here would make its title, slug and status permanently
+  // un-editable — the only way to change them is this function, and the caller has no Tiptap body
+  // to send. `resolveUpdateBodyFields` ignores `input.bodyJson` on that branch anyway; this check
+  // is what lets a caller legitimately omit it rather than inventing a dummy document to get past
+  // a validation that does not apply to its content type.
+  if (existing.bodyFormat !== "html" && !isJsonObject(input.bodyJson)) {
     throw new PostValidationError("bodyJson must be a JSON object");
   }
   if (!isValidPostStatus(input.status)) {
@@ -554,7 +657,10 @@ export async function updatePost(
     title,
     slug,
     status: input.status,
-    bodyJson: input.bodyJson,
+    // The body the save will actually persist, not the one the caller sent — on an html Page those
+    // differ, and a plugin filter reasoning about an entry it is about to see saved must be shown
+    // the former.
+    bodyJson: existing.bodyFormat === "html" ? existing.bodyJson : input.bodyJson,
     ext: (existing.ext ?? {}) as Readonly<Record<string, Readonly<Record<string, unknown>>>>,
   });
   const ext = mergeExt(existing.ext, extPatch);
@@ -567,7 +673,12 @@ export async function updatePost(
     ...carriedOver,
     title,
     slug,
-    bodyJson: input.bodyJson,
+    // SPEC-047/ADR-056 CIC-3 — forced explicitly rather than left to `...carriedOver`, for the same
+    // reason `createPost` forces it: `UpdatePostInput` has no `bodyFormat`/`bodyHtml` field to even
+    // read, so no caller can convert a row's format through this path. What it does NOT do any more
+    // is flatten an html Page back to `doc` on a title edit — see `resolveUpdateBodyFields`'s doc
+    // for the data-loss bug that behavior caused once html Pages became reachable.
+    ...resolveUpdateBodyFields(existing, input.bodyJson),
     status: input.status,
     updatedAt: deps.clock.nowIso(),
     version: existing.version + 1,

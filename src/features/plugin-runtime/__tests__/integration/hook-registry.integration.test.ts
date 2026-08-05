@@ -163,6 +163,49 @@ test("ADR-024 §3: a synchronous (non-async) filter function is honored exactly 
   assert.deepEqual(result, { "sync-plugin": { count: 1 } });
 });
 
+// --- ADR-057 Decision 3: the additive third TB-01 rank ("glue", after "built-in" and "site"). ---
+// Added 2026-08-04 alongside Site Glue's content-lifecycle attachment point; every test above this
+// point is the pre-existing, unmodified SPEC-005 certified suite.
+
+test("ADR-057 Decision 3: a 'glue'-sourced attachment composes AFTER built-in and site, id-ascending among themselves, regardless of attach order", async () => {
+  const registry = createHookRegistry();
+  const callOrder: string[] = [];
+
+  const makeFilter = (id: string) => async () => {
+    callOrder.push(id);
+    return { marker: id };
+  };
+
+  // Attach in a deliberately scrambled order, across all three ranks.
+  registry.attach("zeta-glue", "glue", makeFilter("zeta-glue"), [{ path: "ext.zeta-glue.marker", type: "string" }]);
+  registry.attach("zeta-site", "site", makeFilter("zeta-site"), [{ path: "ext.zeta-site.marker", type: "string" }]);
+  registry.attach("z-built-in", "built-in", makeFilter("z-built-in"), [{ path: "ext.z-built-in.marker", type: "string" }]);
+  registry.attach("alpha-glue", "glue", makeFilter("alpha-glue"), [{ path: "ext.alpha-glue.marker", type: "string" }]);
+  registry.attach("alpha-site", "site", makeFilter("alpha-site"), [{ path: "ext.alpha-site.marker", type: "string" }]);
+  registry.attach("a-built-in", "built-in", makeFilter("a-built-in"), [{ path: "ext.a-built-in.marker", type: "string" }]);
+
+  await registry.runBeforeSave(draft());
+
+  assert.deepEqual(callOrder, [
+    "a-built-in",
+    "z-built-in",
+    "alpha-site",
+    "zeta-site",
+    "alpha-glue",
+    "zeta-glue",
+  ]);
+});
+
+test("ADR-057 Decision 3: a glue-sourced filter's returned patch merges into ext.{moduleId} exactly like a built-in/site plugin's", async () => {
+  const registry = createHookRegistry();
+  registry.attach("site-glue-example", "glue", async () => ({ count: 7 }), [
+    { path: "ext.site-glue-example.count", type: "integer" },
+  ]);
+
+  const result = await registry.runBeforeSave(draft());
+  assert.deepEqual(result, { "site-glue-example": { count: 7 } });
+});
+
 test("BR-04: a later-composed plugin's filter observes the earlier plugin's already-merged ext on the entry snapshot it receives", async () => {
   const registry = createHookRegistry();
   let secondFilterSawFirstPluginsExt: unknown;

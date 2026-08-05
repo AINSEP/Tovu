@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "../core/events";
 import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex } from "../features/post";
+import { PagesHtmlDocumentStore } from "../features/pages";
 import { createChatStoreFactory } from "../assistant/persistence/store-factory";
 import { SqlitePresentationSettingsRepo } from "../features/presentation";
 import { SqliteSettingsRepo } from "../features/settings/repo.sqlite";
@@ -518,6 +519,11 @@ export function createSqliteRouteDeps(
     workspaceRepo: new SqliteWorkspaceRepo(db),
     postRepo: new SqlitePostRepo(db),
     postSearch: new SqlitePostSearchIndex(db),
+    // SPEC-047/ADR-056 — the db handle and clock are closed over here so no route ever holds one;
+    // a route supplies only the `(workspaceId, postId)` scope. See `RouteDeps.pagesHtmlStore`.
+    // `entryRefsRepo` (SPEC-047 Slice 3) is the same instance `RouteDeps.entryRefsRepo` below
+    // exposes — one shared index, not a second writer.
+    pagesHtmlStore: (scope) => new PagesHtmlDocumentStore(scope, { db, clock, entryRefsRepo }),
     // `$client` is the raw better-sqlite3 handle under Drizzle. Passed through because
     // `@jini-ai/sqlite`'s chat-history adapter takes a handle and never opens a database — the
     // property that keeps it writing into `content.db` rather than its own `app.sqlite`. The

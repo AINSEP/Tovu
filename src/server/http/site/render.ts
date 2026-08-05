@@ -6,8 +6,9 @@ import {
   resolveLiquidTemplateId,
   resolveHandlebarsTemplateId,
 } from "#src/features/theme/index";
-import type { ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
+import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
 import type { WidgetRenderIR } from "#src/widgets/types";
+import { substituteHtmlEmbeds } from "#src/widgets/html-embeds";
 import { ATTRIBUTE_NAME_PATTERN } from "#src/forms/forms";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox";
 import { renderLiquidInSandbox } from "./liquid-sandbox";
@@ -69,6 +70,14 @@ export interface SiteRenderContext {
   widgetRegions: Record<string, readonly WidgetRenderIR[]>;
   /** SPEC-043/ADR-047 REQ-21 — resolved inline `widgetEmbed` IR, keyed by `placementId`. */
   widgetInlineResolved: ReadonlyMap<string, WidgetRenderIR>;
+  /**
+   * SPEC-047 Slice 2 — an `"html"`-format Page's resolved `data-widget-embed`/`data-form-embed`
+   * targets (`resolver-service.ts`'s `resolveHtmlPageEmbeds`), consumed by {@link renderPostBody}.
+   * `undefined` for every render this feature doesn't touch (a `"doc"` post/home route, or any
+   * pre-existing caller/test of `renderSite`) — `renderHtmlPageBody` treats that identically to "no
+   * embeds resolved", degrading every placeholder to the REQ-28 marker rather than crashing.
+   */
+  pageHtmlEmbeds?: ResolveHtmlPageEmbedsResult;
 }
 
 function isObject(value: unknown): value is JsonObject {
@@ -230,9 +239,60 @@ function entryList(ctx: SiteRenderContext, props: JsonObject): string {
   return `<section class="entry-list entry-list--${escapeHtml(layout)}"><div class="wrap"><ol class="entries">${body}</ol></div></section>`;
 }
 
+/** REQ-28-shaped default for an embed reference this render never resolved (never attempted, beyond
+ * `MAX_HTML_EMBEDS_PER_PAGE`, or a genuine resolution failure) — see `html-embeds.ts`'s
+ * `substituteHtmlEmbeds` doc for why no caller needs to distinguish those cases. */
+const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeholder", props: {} };
+
+/**
+ * Substitutes every `data-widget-embed`/`data-form-embed` placeholder in an `"html"`-format Page's
+ * `bodyHtml` with its resolved markup (SPEC-047 Slice 2). Pure — `resolved` is the already-batch-
+ * loaded result of `resolver-service.ts`'s `resolveHtmlPageEmbeds`, computed by the caller (a route
+ * handler) ahead of `renderSite`, the same "resolved data in, HTML out" discipline this file's own
+ * header states for every other widget-shaped render path here. `resolved` being `undefined` (no
+ * pre-existing caller of `renderSite` passes `pageHtmlEmbeds`) degrades every placeholder in `html`
+ * to the public-safe REQ-28 marker, never a crash and never the literal, unresolved `<div
+ * data-widget-embed="…">` markup reaching a visitor.
+ *
+ * @complexity O(n) over `html`'s length (one regex substitution pass); O(1) additional work per
+ * embed occurrence (a map lookup plus `renderWidgetIr`'s own O(1) dispatch).
+ * @overallScore 100
+ */
+function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbedsResult | undefined): string {
+  return substituteHtmlEmbeds(html, (ref) => {
+    const ir =
+      (ref.kind === "widget" ? resolved?.widgetResolved.get(ref.id) : resolved?.formResolved.get(ref.id)) ??
+      HTML_EMBED_PLACEHOLDER_IR;
+    return renderWidgetIr(ir);
+  });
+}
+
+/**
+ * Renders `ctx.post`'s body to HTML, branching on `bodyFormat` (SPEC-047 Slice 1). A `"doc"` post
+ * walks its TipTap `bodyJson` exactly as before; an `"html"` Page's `bodyHtml` is bespoke,
+ * pre-authored markup — there is no tree to walk, so its `data-widget-embed`/`data-form-embed`
+ * placeholders are substituted by {@link renderHtmlPageBody} (Slice 2) and the result emitted as-is.
+ *
+ * `body_html` is never HTML-escaped here: SPEC-047/ADR-056's own disclosure (`update-html.ts`'s file
+ * header) is that a Page's stored markup carries the same trust level the theme layer already has —
+ * escaping it would not make this safer, it would just break the feature (the whole point of an
+ * "html" Page is that its body IS HTML, not text describing HTML).
+ *
+ * @complexity O(1) for a `"doc"` post (delegates to `renderDocNode`'s own O(n)); O(n) over
+ * `bodyHtml`'s length for an `"html"` Page (delegates to `renderHtmlPageBody`'s own single
+ * substitution pass — this function never re-scans).
+ * @overallScore 100
+ */
+function renderPostBody(ctx: SiteRenderContext): string {
+  const post = ctx.post;
+  if (!post) return "";
+  if (post.bodyFormat === "html") return renderHtmlPageBody(post.bodyHtml ?? "", ctx.pageHtmlEmbeds);
+  return renderDocNode(post.bodyJson, ctx.widgetInlineResolved);
+}
+
 function entryContent(ctx: SiteRenderContext): string {
   if (!ctx.post) return "";
-  return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(shortDate(ctx.post.updatedAt))}</p><div class="prose">${renderDocNode(ctx.post.bodyJson, ctx.widgetInlineResolved)}</div></article></div>`;
+  return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(shortDate(ctx.post.updatedAt))}</p><div class="prose">${renderPostBody(ctx)}</div></article></div>`;
 }
 
 function siteFooter(ctx: SiteRenderContext): string {
@@ -540,8 +600,13 @@ function renderWidgetPlaceholder(): string {
  * resolver shape this renderer doesn't yet know, or the REQ-27 failure taxonomy reaching here some
  * other way) degrades to the same public-safe placeholder REQ-28 requires, not a crash or an
  * unescaped dump of unknown props.
+ *
+ * Exported for {@link renderHtmlPageBody} (SPEC-047 Slice 2) — an `"html"`-format Page's
+ * `data-widget-embed`/`data-form-embed` targets resolve to the exact same `WidgetRenderIR` shape a
+ * region or a TipTap `widgetEmbed` does, so they render through this same function rather than a
+ * second implementation.
  */
-function renderWidgetIr(ir: WidgetRenderIR): string {
+export function renderWidgetIr(ir: WidgetRenderIR): string {
   switch (ir.componentId) {
     case "text":
       return `<div class="widget widget-text">${escapeHtml(str(ir.props.body)).replaceAll("\n", "<br/>")}</div>`;
@@ -653,7 +718,7 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
           slug: ctx.post.slug,
           date: ctx.post.updatedAt,
           dateShort: shortDate(ctx.post.updatedAt),
-          content: renderDocNode(ctx.post.bodyJson, ctx.widgetInlineResolved),
+          content: renderPostBody(ctx),
         }
       : null,
     // `price` stays in cents — themes format it themselves; `priceFormatted` is precomputed here so
@@ -699,7 +764,7 @@ function renderSlot(name: string, ctx: SiteRenderContext): string {
     case "title":
       return `<h1 class="slot-title">${escapeHtml(ctx.route === "post" && ctx.post ? ctx.post.title : ctx.siteTitle)}</h1>`;
     case "content":
-      return ctx.post ? `<div class="prose">${renderDocNode(ctx.post.bodyJson, ctx.widgetInlineResolved)}</div>` : "";
+      return ctx.post ? `<div class="prose">${renderPostBody(ctx)}</div>` : "";
     case "entry-list":
       return entryList(ctx, {});
     default:
@@ -883,6 +948,14 @@ export async function renderSite(required: {
    * declared, no inline embeds resolved" — not a breaking change.
    */
   widgets?: ResolvePageWidgetsResult;
+  /**
+   * SPEC-047 Slice 2 — an `"html"`-format Page's pre-resolved `data-widget-embed`/`data-form-embed`
+   * targets (`resolver-service.ts`'s `resolveHtmlPageEmbeds`), threaded straight into
+   * `SiteRenderContext.pageHtmlEmbeds`. Omitted by every caller/test that never renders a Page with
+   * embeds (including a `"doc"` post, which has no use for this at all) — see that field's own doc
+   * for the safe-degrade behavior when it is missing.
+   */
+  pageHtmlEmbeds?: ResolveHtmlPageEmbedsResult;
   /** SPEC-008 T049 — pre-serialized `page.head` fold output, threaded through to `pageShell`. */
   extraHead?: string;
   /**
@@ -906,6 +979,7 @@ export async function renderSite(required: {
     themeName: theme.manifest.name,
     widgetRegions: required.widgets?.regions ?? {},
     widgetInlineResolved: required.widgets?.inlineResolved ?? EMPTY_INLINE_RESOLVED,
+    pageHtmlEmbeds: required.pageHtmlEmbeds,
   };
 
   // `products`/`product` have no dedicated fallback component (no theme built so far lacks them,

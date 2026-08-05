@@ -1,87 +1,28 @@
-import { useEffect, useState } from "react";
-import { ApiError, api, describeApiError, type AdminWidgetArea, type AdminWidgetPlacement } from "../lib/api";
-import { WidgetAddControl } from "../components/WidgetPickerDialog";
+import { WidgetAddControl } from "../../components/WidgetPickerDialog";
+import { useWidgetRegionEditor } from "./hooks/use-widget-region-editor.hooks";
 
 /**
  * @file `RegionPlacementEditorScreen` + `RegionPlacementList` (`ui.spec.md` §2.5/§2.6/§3.7/§3.8/
- * §4.6/§4.7) — `/admin/widgets/regions/{regionKey}`. Flat ordered list, ↑/↓ move controls, mirrors
- * `MenuEditor.tsx`'s `ItemRow`/`moveAtPath` reorder UX exactly, without the nesting a menu tree
- * has (a region's placement list has no parent/child structure, REQ-15).
+ * §4.6/§4.7) — `/admin/widgets/regions/{regionKey}` — markup only. Flat ordered list, ↑/↓ move
+ * controls, mirrors `MenuEditor.tsx`'s `ItemRow`/`moveAtPath` reorder UX exactly, without the
+ * nesting a menu tree has (a region's placement list has no parent/child structure, REQ-15).
+ *
+ * State, the fetch, and save live in `hooks/use-widget-region-editor.hooks.ts`; the reorder swap
+ * and the draft-placement builder live in `rules.ts`.
  */
-
-const STALE_VERSION_MESSAGE = "This region changed since you loaded it, refresh and try again.";
-
-function move<T>(items: T[], index: number, direction: -1 | 1): T[] {
-  const target = index + direction;
-  if (target < 0 || target >= items.length) return items;
-  const next = [...items];
-  [next[index], next[target]] = [next[target], next[index]];
-  return next;
+export interface WidgetRegionEditorProps {
+  regionKey: string;
+  /**
+   * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
+   * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
+   */
+  useWidgetRegionEditorHook?: typeof useWidgetRegionEditor;
 }
 
-export function WidgetRegionEditor(props: { regionKey: string }) {
-  const [area, setArea] = useState<AdminWidgetArea | null>(null);
-  const [placements, setPlacements] = useState<AdminWidgetPlacement[]>([]);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  function load() {
-    setLoading(true);
-    setError(null);
-    api
-      .getWidgetRegion(props.regionKey)
-      .then((r) => {
-        setArea(r.area);
-        setPlacements(r.placements);
-      })
-      .catch((e) => setError(describeApiError(e, "failed to load region")))
-      .finally(() => setLoading(false));
-  }
-
-  useEffect(load, [props.regionKey]);
-
-  function removeAt(placementId: string) {
-    setPlacements((prev) => prev.filter((p) => p.placementId !== placementId));
-  }
-  function moveAt(index: number, direction: -1 | 1) {
-    setPlacements((prev) => move(prev, index, direction));
-  }
-  function toggleEnabled(placementId: string) {
-    setPlacements((prev) => prev.map((p) => (p.placementId === placementId ? { ...p, enabled: !p.enabled } : p)));
-  }
-  function addPlacement(widgetInstanceId: string) {
-    setPlacements((prev) => [
-      ...prev,
-      { placementId: globalThis.crypto?.randomUUID?.() ?? `p-${Date.now()}`, widgetEntryId: widgetInstanceId, enabled: true, widgetTitle: null, widgetType: null, broken: false },
-    ]);
-  }
-
-  async function save() {
-    if (!area) return;
-    setSaving(true);
-    setMessage(null);
-    setError(null);
-    try {
-      const { area: saved } = await api.mutateWidgetRegionPlacements({
-        regionKey: props.regionKey,
-        baseVersion: area.version,
-        placements: placements.map((p) => ({ placementId: p.placementId, widgetEntryId: p.widgetEntryId, enabled: p.enabled })),
-      });
-      setArea(saved);
-      setMessage(`Saved · version ${saved.version}`);
-      load();
-    } catch (e) {
-      if (e instanceof ApiError && e.code === "WIDGETS_AREA_CONFLICT") {
-        setError(STALE_VERSION_MESSAGE);
-      } else {
-        setError(describeApiError(e, "save failed"));
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
+export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
+  const { regionKey, useWidgetRegionEditorHook = useWidgetRegionEditor } = props;
+  const { area, placements, message, error, loading, saving, removeAt, moveAt, toggleEnabled, addPlacement, save } =
+    useWidgetRegionEditorHook(regionKey);
 
   if (error && !area) return <div className="notice error">{error}</div>;
   if (loading) return <div className="notice">Loading region…</div>;
@@ -92,7 +33,7 @@ export function WidgetRegionEditor(props: { regionKey: string }) {
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">Content</p>
-          <h1 className="page-title">Region: {props.regionKey}</h1>
+          <h1 className="page-title">Region: {regionKey}</h1>
           <p className="page-description">Manage which widgets appear in this region and their order.</p>
         </div>
         <div className="page-actions">

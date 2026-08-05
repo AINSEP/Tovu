@@ -175,6 +175,44 @@ test("test-connection surfaces the real SSRF guard as ok:false for an internal b
   assert.match(body.message, /forbidden|internal/i);
 });
 
+test("test-connection surfaces the real local empty-api-key guard as ok:false, not a raw upstream call", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // Reproduces the reported bug's underlying gap: this route validates
+  // `baseUrl`/`model` but never `apiKey`, so an empty key used to sail
+  // straight through to the provider and come back as a confusing upstream
+  // error ("Method doesn't allow unregistered callers" for Google). This
+  // proves the fix's local guard (`@jini-ai/agent-runtime`'s
+  // `testProviderConnection`) is actually reached through this route.
+  const res = await post(baseUrl, TEST_CONNECTION_PATH, cookie, {
+    protocol: "google",
+    baseUrl: "https://generativelanguage.googleapis.com",
+    apiKey: "",
+    model: "gemini-2.5-flash",
+  });
+  assert.equal(res.status, 200, await res.clone().text());
+  const body = (await res.json()) as { ok: boolean; message: string };
+  assert.equal(body.ok, false);
+  assert.match(body.message, /no api key/i);
+});
+
+test("list-models surfaces the real local empty-api-key guard as ok:false, not a raw upstream call", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await post(baseUrl, LIST_MODELS_PATH, cookie, {
+    protocol: "google",
+    baseUrl: "https://generativelanguage.googleapis.com",
+    apiKey: "",
+  });
+  assert.equal(res.status, 200, await res.clone().text());
+  const body = (await res.json()) as { ok: boolean; models: string[]; message?: string };
+  assert.equal(body.ok, false);
+  assert.deepEqual(body.models, []);
+  assert.match(body.message ?? "", /no api key/i);
+});
+
 test("list-models rejects an unsupported protocol with 400 before any network access", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

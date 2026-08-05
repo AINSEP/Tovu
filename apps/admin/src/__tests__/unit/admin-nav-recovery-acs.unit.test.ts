@@ -29,7 +29,7 @@ import { ADMIN_PANELS } from "../../panels";
  * `AdminPanel`/`AdminNavEntry` has no equivalent of (`panels.tsx` has zero `description` fields;
  * `AdminNavEntry` is exactly `label`/`icon?`/`group?`/`order?`/`soon?`) — a lookalike check against
  * `panels.tsx`'s own source comments would target *developer* comments, never shown to a user, and
- * could not fail in any way the original AC cared about. `sections/Recovery.tsx` does carry a real,
+ * could not fail in any way the original AC cared about. `features/recovery/Recovery.tsx` does carry a real,
  * rendered equivalent, though: the `<Recovery />` screen's own `page-description` copy (its actual
  * `/admin/recovery` page-header text) is the live analog of the deleted field. Ported AC-32 against
  * that string instead, as a source-text check (same pattern `nav-wiring.unit.test.ts`'s `RT-008`
@@ -70,7 +70,7 @@ describe("REQ-01/REQ-22/REQ-27: recovery and database stay distinct, single, raw
   });
 
   it("AC-32: the Recovery screen's own rendered page-description copy carries no raw row-edit/SQL-console language", () => {
-    const recoverySource = readFileSync(path.resolve(__dirname, "../../sections/Recovery.tsx"), "utf8");
+    const recoverySource = readFileSync(path.resolve(__dirname, "../../features/recovery/Recovery.tsx"), "utf8");
 
     const match = recoverySource.match(/className="page-description">([^<]*)</);
     expect(match).not.toBeNull();

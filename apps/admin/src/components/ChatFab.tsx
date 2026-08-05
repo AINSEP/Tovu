@@ -11,6 +11,13 @@ interface ChatFabProps {
    * measures the actual sheet element rather than assuming a fixed height.
    */
   avoidBottomPx: number;
+  /**
+   * Right clearance (px) to hold left of while `open` — the DESKTOP dock's current rendered width,
+   * or `0` in sheet mode where the sheet spans the full width and `avoidBottomPx` is the axis that
+   * matters. Without this the FAB sits on top of the dock's own composer send button and eats its
+   * clicks; see `useFabPosition`'s `avoidRightPx` doc for the full history.
+   */
+  avoidRightPx: number;
   ref?: React.Ref<HTMLButtonElement>;
 }
 
@@ -26,8 +33,8 @@ interface ChatFabProps {
  * release does not also fire a toggle (see that function's own doc for why a plain `isDragging`
  * check at this call site would be timing-unsafe).
  */
-export function ChatFab({ open, onToggle, label = "assistant", avoidBottomPx, ref }: ChatFabProps) {
-  const fab = useFabPosition({ dockOpen: open, avoidBottomPx });
+export function ChatFab({ open, onToggle, label = "assistant", avoidBottomPx, avoidRightPx, ref }: ChatFabProps) {
+  const fab = useFabPosition({ dockOpen: open, avoidBottomPx, avoidRightPx });
 
   return (
     <button

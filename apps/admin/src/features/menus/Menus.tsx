@@ -1,78 +1,28 @@
-import { useEffect, useState } from "react";
-import { api, type AdminMenu } from "../lib/api";
 import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
+import { useMenus } from "./hooks/use-menus.hooks";
 
 /**
  * @file Menus admin screens: list view (this file) + tree editor
  * (`MenuEditor.tsx`), wiring the ADR-029 `navigation` backend into the admin
  * UI.
+ *
+ * Every piece of state and every API call for this list lives in `hooks/use-menus.hooks.ts`; see
+ * that file's header for why. What stays here is presentation only: columns, empty state, and the
+ * confirm copy.
  */
-
 export function Menus() {
-  const [menus, setMenus] = useState<AdminMenu[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [locationDrafts, setLocationDrafts] = useState<Record<string, string>>({});
-  // The already-trashed menu a force-delete click is asking to confirm — `null` when the dialog
-  // is closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on
-  // why); this is what drives its `open` prop.
-  const [pendingForceDelete, setPendingForceDelete] = useState<AdminMenu | null>(null);
-  const [forceDeleting, setForceDeleting] = useState(false);
-
-  function load() {
-    api
-      .listMenus()
-      .then((r) => setMenus(r.menus))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load menus"));
-  }
-
-  useEffect(load, []);
-
-  async function assign(menuId: string) {
-    const locationKey = (locationDrafts[menuId] ?? "").trim();
-    if (!locationKey) return;
-    setError(null);
-    try {
-      await api.assignMenuLocation({ id: menuId, locationKey });
-      setLocationDrafts((prev) => ({ ...prev, [menuId]: "" }));
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "assign failed");
-    }
-  }
-
-  /** Trashing an active menu still needs no confirmation (unchanged). Permanently deleting an
-   *  already-trashed one now gates via a `ConfirmDialog` modal (`setPendingForceDelete` below)
-   *  rather than `window.confirm` — same upgrade `Posts.tsx`/`Pages.tsx` already made for their
-   *  own Delete. Copy is the exact previous sentence, unchanged. */
-  async function trashOrPurge(menu: AdminMenu) {
-    setError(null);
-    if (menu.status === "trash") {
-      setPendingForceDelete(menu);
-      return;
-    }
-    try {
-      await api.deleteMenu({ id: menu.id }, { force: false });
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "delete failed");
-    }
-  }
-
-  async function confirmForceDelete() {
-    if (!pendingForceDelete) return;
-    const menu = pendingForceDelete;
-    setForceDeleting(true);
-    setError(null);
-    try {
-      await api.deleteMenu({ id: menu.id }, { force: true });
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "delete failed");
-    } finally {
-      setForceDeleting(false);
-      setPendingForceDelete(null);
-    }
-  }
+  const {
+    menus,
+    error,
+    locationDrafts,
+    setLocationDrafts,
+    pendingForceDelete,
+    setPendingForceDelete,
+    forceDeleting,
+    assign,
+    trashOrPurge,
+    confirmForceDelete,
+  } = useMenus();
 
   if (error && !menus) return <div className="notice error">{error}</div>;
   if (!menus) return <div className="notice">Loading menus…</div>;

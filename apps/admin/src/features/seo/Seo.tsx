@@ -1,19 +1,20 @@
-import { useEffect, useState } from "react";
 import { agentHandle } from "@jini-ai/agentic";
-import {
-  ApiError,
-  api,
-  describeApiError,
-  type AdminPost,
-  type SeoEntryAnalysis,
-  type SeoEntryMeta,
-  type SeoEntryOverridesPatch,
-  type SeoSettings,
-} from "../lib/api";
+
+import { sortIssuesBySeverity } from "./rules";
+import { useEntryPicker } from "./hooks/use-entry-picker.hooks";
+import { useSeoEntryPanel } from "./hooks/use-seo-entry-panel.hooks";
+import { useSeoEntrySection } from "./hooks/use-seo-entry-section.hooks";
+import { useSeo } from "./hooks/use-seo.hooks";
+import type { SeoEntryAnalysis } from "../../lib/api";
 
 /**
  * `SeoSettingsScreen` (SPEC-008 ui.spec.md §2.4) — the site-wide `seo.*` settings form +
  * `SitemapRegenerateButton` (§2.6). Coordinator-authored 2026-07-13, post-session-limit resume.
+ * Markup only.
+ *
+ * State and API calls live in one hook per component: `hooks/use-seo.hooks.ts` (top-level
+ * defaults form + sitemap button), `hooks/use-entry-picker.hooks.ts`, `hooks/use-seo-entry-panel
+ * .hooks.ts`, `hooks/use-seo-entry-section.hooks.ts`. The issue-severity sort lives in `rules.ts`.
  *
  * SPEC-037 REQ-06/07/08: `SeoEntryPanel` closes the deferred per-entry gap this file's own header
  * used to disclose — a standalone entry picker (dropdown over `listPosts`/`listPages`, cheaper
@@ -22,19 +23,18 @@ import {
  * still a minimal textarea-per-rule form (unchanged from the original disclosed scope note).
  */
 
+export interface EntryPickerProps {
+  entryId: string;
+  onChange: (entryId: string) => void;
+  /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   *  for `useCustomSelect`. */
+  useEntryPickerHook?: typeof useEntryPicker;
+}
+
 /** Dropdown over every post + page, sourced from the already-existing `listPosts`/`listPages`
  * routes — cheapest entry-selection UX available given what's already built (REQ-06). */
-function EntryPicker(props: { entryId: string; onChange: (entryId: string) => void }) {
-  const [entries, setEntries] = useState<AdminPost[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    Promise.all([api.listPosts(), api.listPages()])
-      .then(([posts, pages]) =>
-        setEntries([...posts.posts.map((p) => p.post), ...pages.posts.map((p) => p.post)])
-      )
-      .catch((e) => setError(describeApiError(e, "failed to load entries")));
-  }, []);
+function EntryPicker({ entryId, onChange, useEntryPickerHook = useEntryPicker }: EntryPickerProps) {
+  const { entries, error } = useEntryPickerHook();
 
   if (error) return <div className="notice error">{error}</div>;
   if (!entries) return <div className="notice">Loading entries…</div>;
@@ -42,7 +42,7 @@ function EntryPicker(props: { entryId: string; onChange: (entryId: string) => vo
   return (
     <label>
       Entry
-      <select value={props.entryId} onChange={(e) => props.onChange(e.target.value)}>
+      <select value={entryId} onChange={(e) => onChange(e.target.value)}>
         <option value="">Choose an entry…</option>
         {entries.map((entry) => (
           <option key={entry.id} value={entry.id}>
@@ -54,14 +54,11 @@ function EntryPicker(props: { entryId: string; onChange: (entryId: string) => vo
   );
 }
 
-const SEVERITY_ORDER: Record<string, number> = { error: 0, warning: 1, info: 2 };
-
 /** Read-only score + issues view (REQ-07) — exact field names read off `SeoAnalysis`/`SeoIssue`
- * (`src/seo/types.ts`), not guessed. */
+ * (`src/seo/types.ts`), not guessed. No state of its own — only the severity sort, which lives in
+ * `rules.ts` as `sortIssuesBySeverity`. */
 function AnalyzePanel(props: { analysis: SeoEntryAnalysis }) {
-  const sortedIssues = [...props.analysis.issues].sort(
-    (a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9)
-  );
+  const sortedIssues = sortIssuesBySeverity(props.analysis.issues);
 
   return (
     <div className="notice seo-analyze-panel">
@@ -88,66 +85,17 @@ function AnalyzePanel(props: { analysis: SeoEntryAnalysis }) {
   );
 }
 
+export interface SeoEntryPanelProps {
+  entryId: string;
+  useSeoEntryPanelHook?: typeof useSeoEntryPanel;
+}
+
 /** Per-entry overrides edit form (REQ-06). Pre-fills from `getSeoEntry`'s resolved meta, but
  * tracks which fields the user actually touched so `putSeoEntry` only ever sends a genuine
  * partial patch — matching the resolved-vs-override distinction `SeoExtFields` implies (an
  * untouched field must not turn into a persisted override equal to today's resolved default). */
-function SeoEntryPanel(props: { entryId: string }) {
-  const [resolved, setResolved] = useState<SeoEntryMeta | null>(null);
-  const [analysis, setAnalysis] = useState<SeoEntryAnalysis | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [touched, setTouched] = useState<SeoEntryOverridesPatch>({});
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  function load() {
-    setLoadError(null);
-    setResolved(null);
-    setAnalysis(null);
-    setTouched({});
-    setSaveError(null);
-    setNotice(null);
-    Promise.all([api.getSeoEntry(props.entryId), api.getSeoEntryAnalyze(props.entryId)])
-      .then(([metaRes, analyzeRes]) => {
-        setResolved(metaRes.data);
-        setAnalysis(analyzeRes.data);
-      })
-      .catch((e) => setLoadError(describeApiError(e, "failed to load entry SEO data")));
-  }
-
-  useEffect(load, [props.entryId]);
-
-  function fieldValue<K extends keyof SeoEntryOverridesPatch>(key: K, resolvedValue: SeoEntryOverridesPatch[K]): SeoEntryOverridesPatch[K] {
-    return key in touched ? touched[key] : resolvedValue;
-  }
-
-  function setField<K extends keyof SeoEntryOverridesPatch>(key: K, value: SeoEntryOverridesPatch[K]) {
-    setTouched((current) => ({ ...current, [key]: value }));
-  }
-
-  async function save() {
-    if (Object.keys(touched).length === 0) return;
-    setSaving(true);
-    setSaveError(null);
-    setNotice(null);
-    try {
-      const r = await api.putSeoEntry({ entryId: props.entryId }, touched);
-      setResolved(r.data);
-      setTouched({});
-      setNotice("Saved.");
-      api
-        .getSeoEntryAnalyze(props.entryId)
-        .then((analyzeRes) => setAnalysis(analyzeRes.data))
-        .catch(() => {
-          /* analyze refresh is best-effort; the save itself already succeeded */
-        });
-    } catch (e) {
-      setSaveError(describeApiError(e, "failed to save SEO overrides"));
-    } finally {
-      setSaving(false);
-    }
-  }
+function SeoEntryPanel({ entryId, useSeoEntryPanelHook = useSeoEntryPanel }: SeoEntryPanelProps) {
+  const { resolved, analysis, loadError, saving, saveError, notice, fieldValue, setField, save, touched } = useSeoEntryPanelHook({ entryId });
 
   if (loadError) return <div className="notice error">{loadError}</div>;
   if (!resolved) return <div className="notice">Loading entry SEO…</div>;
@@ -254,9 +202,13 @@ function SeoEntryPanel(props: { entryId: string }) {
   );
 }
 
+export interface SeoEntrySectionProps {
+  useSeoEntrySectionHook?: typeof useSeoEntrySection;
+}
+
 /** Section wrapper (REQ-06/07) — entry picker over the per-entry edit + analyze panels. */
-function SeoEntrySection() {
-  const [entryId, setEntryId] = useState("");
+function SeoEntrySection({ useSeoEntrySectionHook = useSeoEntrySection }: SeoEntrySectionProps = {}) {
+  const { entryId, setEntryId } = useSeoEntrySectionHook();
 
   return (
     <div
@@ -272,47 +224,16 @@ function SeoEntrySection() {
     </div>
   );
 }
-export function Seo() {
-  const [settings, setSettings] = useState<SeoSettings | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
 
-  useEffect(() => {
-    api
-      .getSeoSettings()
-      .then((r) => setSettings(r.data))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load SEO settings"));
-  }, []);
+export interface SeoProps {
+  /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   *  for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   *  nothing and behave exactly as before. */
+  useSeoHook?: typeof useSeo;
+}
 
-  async function save(patch: Partial<SeoSettings>) {
-    setSaving(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const r = await api.setSeoSettings(patch);
-      setSettings(r.data);
-      setNotice("Saved.");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to save SEO settings");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function regenerateSitemap() {
-    setSaving(true);
-    setError(null);
-    setNotice(null);
-    try {
-      await api.regenerateSitemap();
-      setNotice("Sitemap regeneration accepted.");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to regenerate sitemap");
-    } finally {
-      setSaving(false);
-    }
-  }
+export function Seo({ useSeoHook = useSeo }: SeoProps = {}) {
+  const { settings, error, saving, notice, save, regenerateSitemap } = useSeoHook();
 
   if (error && !settings) return <div className="notice error">{error}</div>;
   if (!settings) return <div className="notice">Loading SEO settings…</div>;

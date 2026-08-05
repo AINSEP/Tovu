@@ -23,6 +23,7 @@ import type { JsonObject, UUID } from "@jini-ai/cms/core";
 import type { EntryListPort } from "../features/entries/list";
 import type { EntryRepoPort } from "../features/entries/write-service";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload";
+import { scanHtmlEmbeds } from "./html-embeds";
 import type { WidgetRegionBindingRepoPort } from "./ports";
 import { resolveWidgetType } from "./resolvers/index";
 import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "./types";
@@ -40,6 +41,14 @@ export interface ResolvePageWidgetsDeps {
   bindingRepo: WidgetRegionBindingRepoPort;
   entryRepo: EntryRepoPort & EntryListPort;
 }
+
+/**
+ * The narrower dependency slice widget-instance resolution alone needs — `resolveWidgetInstances`
+ * and `resolveHtmlPageEmbeds` (below) never touch `bindingRepo` (that repo only backs region
+ * placements, which an `"html"`-format Page has no concept of). `ResolvePageWidgetsDeps` remains a
+ * structural supertype of this, so `resolvePageWidgets` passes its own full deps through unchanged.
+ */
+type WidgetInstanceResolutionDeps = Pick<ResolvePageWidgetsDeps, "entryRepo">;
 
 export interface ResolvePageWidgetsInput {
   readonly workspaceId: UUID;
@@ -86,6 +95,57 @@ function collectWidgetEmbeds(node: unknown, out: InlineEmbedRef[]): void {
     out.push({ placementId: node.attrs.placementId, widgetEntryId: node.attrs.widgetEntryId });
   }
   if (Array.isArray(node.content)) collectWidgetEmbeds(node.content, out);
+}
+
+/**
+ * Batch-loads and resolves every widget instance in `referencedIds` (REQ-24's "one batched query,
+ * at most one `resolveWidgetType` call per type" guarantee) into a `widgetEntryId ->
+ * WidgetResolveResult` map. Extracted so this exact batching contract has ONE implementation rather
+ * than two that could silently diverge (SPEC-047 Slice 2 inline refactor beat) — `resolvePageWidgets`
+ * (below, region + TipTap-inline-embed callers) and `resolveHtmlPageEmbeds` (an `"html"`-format
+ * Page's `data-widget-embed` callers) both call this.
+ *
+ * Never throws (REQ-27's contract, unchanged by this extraction) — a malformed widget-instance
+ * payload is skipped, not thrown; the caller's own placeholder-degradation step (REQ-28) handles a
+ * ref that never made it into the returned map.
+ *
+ * @complexity O(1) plus one batched `listByWorkspace` query plus at most one `resolveWidgetType`
+ * call per distinct widget type present among `referencedIds` (REQ-24).
+ * @overallScore 100
+ */
+async function resolveWidgetInstances(
+  deps: WidgetInstanceResolutionDeps,
+  workspaceId: UUID,
+  referencedIds: ReadonlySet<UUID>,
+  context: WidgetResolveContext
+): Promise<ReadonlyMap<UUID, WidgetResolveResult>> {
+  const widgetRows =
+    referencedIds.size > 0 ? await deps.entryRepo.listByWorkspace({ workspaceId, type: WIDGET_CONTENT_TYPE }) : [];
+
+  const byType = new Map<WidgetTypeKey, WidgetInstanceView[]>();
+  for (const row of widgetRows) {
+    if (!referencedIds.has(row.id)) continue;
+    let payload: ReturnType<typeof parseWidgetInstancePayload>;
+    try {
+      payload = parseWidgetInstancePayload(row.fieldsJson);
+    } catch {
+      // REQ-27: a malformed widget-instance payload is skipped, not thrown — the reference that
+      // pointed at it simply has no resolved result, so the caller degrades it to the REQ-28
+      // placeholder like any other unresolved reference.
+      continue;
+    }
+    if (payload.status === "trash" || payload.status === "purged") continue;
+    const list = byType.get(payload.widgetType) ?? [];
+    list.push({ id: row.id, widgetType: payload.widgetType, config: payload.config as JsonObject });
+    byType.set(payload.widgetType, list);
+  }
+
+  const resolvedById = new Map<UUID, WidgetResolveResult>();
+  for (const [typeKey, instances] of byType) {
+    const results = await resolveWidgetType({ typeKey, instances, context });
+    for (const [id, result] of results) resolvedById.set(id, result);
+  }
+  return resolvedById;
 }
 
 /**
@@ -137,36 +197,11 @@ export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): 
   }
   for (const embed of inlineEmbeds) referencedIds.add(embed.widgetEntryId);
 
-  const widgetRows =
-    referencedIds.size > 0 ? await deps.entryRepo.listByWorkspace({ workspaceId: input.workspaceId, type: WIDGET_CONTENT_TYPE }) : [];
-
-  // 4. Build WidgetInstanceView list (skipping missing/trashed/purged targets — REQ-27's failure
-  // taxonomy handles them as "unresolved", not a crash), grouped by type.
-  const byType = new Map<WidgetTypeKey, WidgetInstanceView[]>();
-  for (const row of widgetRows) {
-    if (!referencedIds.has(row.id)) continue;
-    let payload: ReturnType<typeof parseWidgetInstancePayload>;
-    try {
-      payload = parseWidgetInstancePayload(row.fieldsJson);
-    } catch {
-      // REQ-27: a malformed widget-instance payload is skipped, not thrown — the placement that
-      // referenced it simply has no resolved result, so step 6 below degrades it to the REQ-28
-      // placeholder like any other unresolved reference (Fable adversarial-review fix, 2026-07-21,
-      // Finding B).
-      continue;
-    }
-    if (payload.status === "trash" || payload.status === "purged") continue;
-    const list = byType.get(payload.widgetType) ?? [];
-    list.push({ id: row.id, widgetType: payload.widgetType, config: payload.config as JsonObject });
-    byType.set(payload.widgetType, list);
-  }
-
-  // 5. At most one resolveWidgetType (=> at most one resolveMany) call per distinct type (REQ-24).
-  const resolvedById = new Map<UUID, WidgetResolveResult>();
-  for (const [typeKey, instances] of byType) {
-    const results = await resolveWidgetType({ typeKey, instances, context });
-    for (const [id, result] of results) resolvedById.set(id, result);
-  }
+  // 4/5. Batch-load + resolve (skipping missing/trashed/purged targets — REQ-27's failure taxonomy
+  // handles them as "unresolved", not a crash), at most one `resolveWidgetType` call per distinct
+  // type present (REQ-24) — see `resolveWidgetInstances`'s own doc for why this is shared rather
+  // than inlined here.
+  const resolvedById = await resolveWidgetInstances(deps, input.workspaceId, referencedIds, context);
 
   // 6. Assemble region -> IR[] (missing/failed placements degrade to the REQ-28 placeholder).
   const regions: Record<WidgetRegionKey, WidgetRenderIR[]> = {};
@@ -181,4 +216,98 @@ export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): 
   }
 
   return { regions, inlineResolved };
+}
+
+// ---------------------------------------------------------------------------
+// HTML Page embeds (SPEC-047 Slice 2) — resolves `html-embeds.ts`'s `data-widget-embed`/
+// `data-form-embed` placeholder convention. A parallel entry point to `resolvePageWidgets` above,
+// not a mode of it: an `"html"`-format Page has no `bodyJson` tree and is not an `entries` row
+// `pageEntryId` could resolve (see `routes/site/pages.ts`'s `resolveWidgetsForRender`, which
+// documents that same gap for the TipTap inline-embed path on the live `home`/`post` routes) — its
+// references live in a plain HTML string instead, so they need their own scan step, not a `bodyJson`
+// walk. Everything downstream of "which ids are referenced" is shared with `resolvePageWidgets`
+// (`resolveWidgetInstances`, `resolveWidgetType`, the REQ-27/28 failure taxonomy).
+// ---------------------------------------------------------------------------
+
+export interface ResolveHtmlPageEmbedsResult {
+  /**
+   * `data-widget-embed` targets, keyed by the referenced `widgetEntryId`. A genuinely nonexistent
+   * id is ABSENT from this map (never found in the batched load, so never entered `resolvedById` —
+   * see {@link resolveWidgetInstances}); a widget that WAS found but whose own resolution failed
+   * (unknown type, resolver error, etc.) is PRESENT, with a placeholder IR value. Both render
+   * identically via `render.ts`'s `renderHtmlPageBody` (absent and placeholder-valued both fall
+   * through to the same REQ-28 marker), so this is not a behavior bug.
+   *
+   * **Reviewed and intentionally left as-is (2026-08-05) — do not "fix" this to be uniform.** It is
+   * inherited from `resolvePageWidgets`'s own identical convention, not introduced here; making the
+   * two embed kinds agree with each other would only make them disagree with the TipTap path they
+   * both already match. An inconsistency shared with its sibling is cheaper than a local tidiness
+   * that makes the two paths diverge.
+   */
+  readonly widgetResolved: ReadonlyMap<UUID, WidgetRenderIR>;
+  /** `data-form-embed` targets, keyed by the referenced `formDefinitionId` — see
+   * {@link widgetResolved}'s doc for the identical present-with-placeholder-vs-absent convention and
+   * why it stays as-is. */
+  readonly formResolved: ReadonlyMap<UUID, WidgetRenderIR>;
+}
+
+/**
+ * Resolves every `data-widget-embed`/`data-form-embed` placeholder (`html-embeds.ts`'s
+ * `scanHtmlEmbeds`) found in an `"html"`-format Page's `body_html`.
+ *
+ * `data-widget-embed="{widgetEntryId}"` batches through the same {@link resolveWidgetInstances}
+ * `resolvePageWidgets` uses — any widget type, any placement context; no `data-widget-embed`-
+ * specific resolver exists or is needed. `data-form-embed="{formDefinitionId}"` is sugar over the
+ * SAME `contact-form` resolver a real `contact-form` widget instance would use, via a synthetic,
+ * never-persisted {@link WidgetInstanceView} whose `config.formDefinitionId` is the id captured from
+ * the placeholder — a page author (human or the AI writing `pages_write_html`) never has to create a
+ * throwaway widget instance in the widgets admin surface just to embed a form; they name the Forms
+ * definition directly. This is the reuse the SPEC-047 dispatch asked for: no second render path, no
+ * duplicated form-rendering logic — `render.ts`'s existing `renderWidgetIr` `"contact-form"` case
+ * renders whatever this returns exactly as it already renders a real widget instance's resolution.
+ *
+ * Never throws (REQ-27's contract, carried over unchanged): a malformed, missing, disabled, wrong-
+ * type, or duplicate-beyond-{@link MAX_HTML_EMBEDS_PER_PAGE} reference degrades to the REQ-28
+ * placeholder exactly the way every other widget-resolution failure already does — the caller
+ * (`render.ts`'s `renderHtmlPageBody`) never special-cases "this ref failed to resolve" versus "this
+ * ref does not exist" versus "this ref was never attempted".
+ *
+ * @complexity O(e) over the page's embed-reference count (capped at `MAX_HTML_EMBEDS_PER_PAGE`) for
+ * the scan, plus one batched widget-listing query plus at most one `resolveWidgetType` call per
+ * distinct widget type present (widget path), plus one more `resolveWidgetType` call for the
+ * synthetic `contact-form` batch (form path, only when at least one form embed is present) — the
+ * same O(1)-typed cost shape `resolvePageWidgets` already carries, REQ-24 in spirit.
+ * @overallScore 100
+ */
+export async function resolveHtmlPageEmbeds(required: {
+  deps: WidgetInstanceResolutionDeps;
+  input: { readonly workspaceId: UUID; readonly html: string };
+}): Promise<ResolveHtmlPageEmbedsResult> {
+  const { deps, input } = required;
+  const context: WidgetResolveContext = { workspaceId: input.workspaceId, preview: false };
+  const refs = scanHtmlEmbeds(input.html);
+
+  const widgetIds = new Set<UUID>();
+  const formIds = new Set<UUID>();
+  for (const ref of refs) (ref.kind === "widget" ? widgetIds : formIds).add(ref.id);
+
+  const widgetResolvedRaw = await resolveWidgetInstances(deps, input.workspaceId, widgetIds, context);
+  const widgetResolved = new Map<UUID, WidgetRenderIR>();
+  for (const [id, result] of widgetResolvedRaw) widgetResolved.set(id, toRenderIr(result));
+
+  // Synthetic contact-form instances (see this function's own doc) — never written anywhere, never
+  // a real `widget`-type entries row; only `formDefinitionId` in `config` is real.
+  const formInstances: WidgetInstanceView[] = [...formIds].map((formDefinitionId) => ({
+    id: formDefinitionId,
+    widgetType: "contact-form",
+    config: { formDefinitionId },
+  }));
+  const formResolvedRaw =
+    formInstances.length > 0
+      ? await resolveWidgetType({ typeKey: "contact-form", instances: formInstances, context })
+      : new Map<UUID, WidgetResolveResult>();
+  const formResolved = new Map<UUID, WidgetRenderIR>();
+  for (const [id, result] of formResolvedRaw) formResolved.set(id, toRenderIr(result));
+
+  return { widgetResolved, formResolved };
 }

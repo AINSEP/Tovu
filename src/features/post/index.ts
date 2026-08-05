@@ -9,6 +9,7 @@ export {
   listAdminPosts,
   listPublishedPosts,
   updatePost,
+  DEFAULT_BODY_JSON,
   MAX_SLUG_LENGTH,
   MAX_TITLE_LENGTH,
   SLUG_FORMAT_PATTERN,
@@ -17,9 +18,13 @@ export {
   PostValidationError,
   type PostRecord,
   type PostRepoPort,
+  type PostBodyFormat,
   type PostKind,
   type PostStatus,
 } from "./post";
+// Pages live in `features/pages`, not here. A Page is a bespoke HTML document and a Post is a
+// Tiptap one; they are separate features that happen to share a table. Nothing Pages-specific
+// should be re-exported from this barrel.
 export {
   extractPostPlainText,
   searchAdminPosts,

@@ -1,24 +1,40 @@
 /**
  * Tovu's implementation of `@jini-ai/chat-react`'s `ChatTransport` port (ADR-049).
  *
- * Binds it to the real `@jini-ai/http` run surface `src/server/modules/assistant.ts` mounts:
- * `POST /api/runs` to start, `GET /api/runs/:runId/events` (native `EventSource`, not a hand-rolled
- * SSE reader — the route supports the standard `id:`/`event:`/`data:` framing) to stream,
- * `GET /api/runs/:runId` for status, `POST /api/runs/:runId/cancel` to stop.
+ * TWO run paths live here, selected per-turn by `getExecutionConfig()` (see
+ * `createTovuAssistantTransport`'s own doc):
  *
- * Every SSE frame's `data` is a full `@jini-ai/protocol` `RunProtocolEvent` (`{kind, payload,
- * ...}`), not chat-core's own `AgentEvent` — chat-core's own module doc is explicit that this
- * reduction is a transport concern ("a host's transport adapter is responsible for reducing wire
- * deltas... into the persisted/renderable AgentEvent items"), so `translateRunAgentPayload` below
- * does that translation. `text_delta`/`thinking_delta` are forwarded as their own small `AgentEvent`
- * per delta (not accumulated here) — chat-core's own `ChatMessage.events` array is what
- * concatenates them into one growing message, so accumulating twice would double the text.
+ * 1. **Local CLI** (the original, unchanged path): binds to the real `@jini-ai/http` run surface
+ *    `src/server/modules/assistant.ts` mounts — `POST /api/runs` to start, `GET
+ *    /api/runs/:runId/events` (native `EventSource`) to stream, `GET /api/runs/:runId` for status,
+ *    `POST /api/runs/:runId/cancel` to stop. Every SSE frame's `data` is a full `@jini-ai/protocol`
+ *    `RunProtocolEvent` (`{kind, payload, ...}`), not chat-core's own `AgentEvent` — chat-core's own
+ *    module doc is explicit that this reduction is a transport concern ("a host's transport adapter
+ *    is responsible for reducing wire deltas... into the persisted/renderable AgentEvent items"), so
+ *    `translateRunAgentPayload` below does that translation.
+ * 2. **API · BYOK** (2026-08-04, ADR-049's picker): binds to `src/server/modules/assistant-byok.ts`'s
+ *    `POST /api/admin/v1/assistant/byok-turn` — one request/response holding the WHOLE turn open,
+ *    no separate `EventSource`/reattach/cancel-by-runId (see that route's own header for why, and
+ *    what it costs). Its SSE frames carry the SAME `payload.type` vocabulary
+ *    (`status`/`text_delta`/`tool_use`/`tool_result`/`usage`/`error`) `translateRunAgentPayload`
+ *    already parses for path 1 — deliberately, so this path reuses that exact function rather than
+ *    duplicating the translation switch.
+ *
+ * `text_delta`/`thinking_delta` are forwarded as their own small `AgentEvent` per delta (not
+ * accumulated here) — chat-core's own `ChatMessage.events` array is what concatenates them into one
+ * growing message, so accumulating twice would double the text.
  */
 import { buildTranscript, latestUserPromptFromHistory } from "@jini-ai/chat/core";
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
+import type { ExecutionConfig } from "@jini-ai/ui";
 
 const RUNS_URL = "/api/runs";
+const BYOK_TURN_URL = "/api/admin/v1/assistant/byok-turn";
+/** Distinguishes a BYOK-run id (client-minted, no server-side run record) from a daemon-run id
+ *  (server-minted, reattachable) wherever a bare `runId` string is all a `ChatTransport` method
+ *  receives — see `stopRun`/`fetchRunStatus`/`reattachRun` below for why the distinction matters. */
+const BYOK_RUN_ID_PREFIX = "byok:";
 
 /**
  * How many trailing messages of a conversation go to the agent.
@@ -112,6 +128,47 @@ export function translateRunAgentPayload(payload: RunAgentPayload): AgentEvent |
       return null;
     default:
       return { kind: "ext", name: payload.type, data: payload };
+  }
+}
+
+/**
+ * Turns a terminal stream `reason` into the one renderable event a human needs to see, or `null`
+ * when the reason speaks for itself.
+ *
+ * Only `max_tool_turns` qualifies today, and it qualifies for a specific reason: it is the one
+ * terminal reason that is INDISTINGUISHABLE from success in the pane. `stop`/`end_turn` mean the
+ * assistant finished; an `error` reason already renders as an error. A turn that hit the tool-step
+ * ceiling just stops — mid-task, with whatever partial text it had, and nothing on screen saying
+ * the work was cut short rather than completed. That is the failure this exists to close: the
+ * server now reports the loop's real reason (`byok-provider-turn.ts`'s `normalizeTurnResult`
+ * captures it instead of echoing the provider's last raw stop code), and until this, the browser
+ * received that reason and dropped it.
+ *
+ * Rendered as a `status` event rather than an `error`, deliberately: nothing failed. The turn did
+ * real work and stopped at a budget, and the useful next action is "ask it to continue", which is
+ * what the detail says.
+ */
+export function terminalReasonNotice(reason: string): AgentEvent | null {
+  if (reason !== "max_tool_turns") return null;
+  return {
+    kind: "status",
+    label: "Stopped early — tool-step limit reached",
+    detail: "This turn used all the tool steps allowed for one message, so it may be unfinished. Ask it to continue to pick up where it left off.",
+  };
+}
+
+/** Reads a terminal frame's `reason` from either stream shape without letting a malformed or absent
+ *  body prevent the turn from ending: the daemon path wraps it in a `RunProtocolEventWire.payload`,
+ *  the BYOK path sends a bare `{reason}`, and `subscribeToRun`'s `end` event may carry no data at
+ *  all. A notice is a nicety; finishing the run is not. */
+function readTerminalReason(raw: string | undefined, wrapped: boolean): string {
+  if (!raw) return "";
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const source = wrapped ? ((parsed.payload ?? {}) as Record<string, unknown>) : parsed;
+    return asString(source.reason);
+  } catch {
+    return "";
   }
 }
 
@@ -210,20 +267,216 @@ function subscribeToRun(runId: string, handlers: RunHandlers, signal?: AbortSign
     handlers.onError(new Error("assistant stream connection error"));
   });
 
-  source.addEventListener("end", () => {
+  source.addEventListener("end", (event) => {
+    const notice = terminalReasonNotice(readTerminalReason((event as MessageEvent<string>).data, true));
+    if (notice) {
+      collected.push(notice);
+      handlers.onEvent(notice);
+    }
     finish();
   });
 }
 
-export function createTovuAssistantTransport(): ChatTransport {
+/** Client-minted, not server-minted — see module doc's path-2 section: a BYOK run has no server-side
+ *  run record to name it. Prefixed so `stopRun`/`fetchRunStatus`/`reattachRun` below can tell a
+ *  BYOK-run id apart from a daemon-run id without any other context. */
+function mintByokRunId(): string {
+  const random =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `${BYOK_RUN_ID_PREFIX}${random}`;
+}
+
+/** In-flight BYOK turns' abort controllers, keyed by the client-minted runId — the ONLY way
+ *  `stopRun` can cancel a BYOK turn: unlike the daemon path, there is no server-side run record to
+ *  `POST .../cancel` against, so cancellation has to reach back into THIS tab's own in-flight
+ *  `fetch`. Entries are removed as soon as a turn settles (normally, on error, or on abort) so a
+ *  stale id can never resurrect a finished controller. */
+const byokAbortControllers = new Map<string, AbortController>();
+
+/**
+ * Splits a `text/event-stream` response body into `{event, data}` frames.
+ *
+ * A hand-rolled reader rather than `EventSource`: `EventSource` only ever issues a GET with no
+ * request body, and this path's whole point (see module doc's path-2 section) is one POST holding
+ * the turn open on the SAME connection the browser used to send it — there is no separate URL an
+ * `EventSource` could subscribe to. Frames are blank-line-delimited per the SSE spec; only the
+ * `event:`/`data:` fields `assistant-byok.ts` ever sends are parsed (no `id:`/`retry:` support — that
+ * route sends neither).
+ *
+ * @complexity O(n) in response body bytes; O(1) additional buffering per chunk beyond the
+ * not-yet-terminated tail of the current frame.
+ * @overallScore 100
+ */
+async function* readSseFrames(body: ReadableStream<Uint8Array>): AsyncGenerator<{ event: string; data: string }> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary !== -1) {
+      const rawFrame = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      let event = "message";
+      const dataLines: string[] = [];
+      for (const line of rawFrame.split("\n")) {
+        if (line.startsWith("event:")) event = line.slice(6).trim();
+        else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+      }
+      if (dataLines.length > 0) yield { event, data: dataLines.join("\n") };
+      boundary = buffer.indexOf("\n\n");
+    }
+  }
+}
+
+/**
+ * The BYOK run path (2026-08-04) — one held-open `POST` to `assistant-byok.ts`, no separate
+ * `EventSource`/reattach. See module doc's path-2 section for why this shape differs from
+ * `subscribeToRun`'s daemon-path pattern, and what it costs (no reattach after a reload; `stopRun`
+ * works via the abort-controller map above instead of a server-side cancel endpoint).
+ *
+ * @complexity Dominated by the network/stream cost of the turn itself; per-frame parsing is O(1).
+ * @overallScore 100
+ */
+async function startByokRun(
+  input: StartRunInput,
+  handlers: RunHandlers,
+  byok: ExecutionConfig["byok"],
+): Promise<{ runId: string }> {
+  const runId = mintByokRunId();
+  const controller = new AbortController();
+  byokAbortControllers.set(runId, controller);
+  input.signal?.addEventListener("abort", () => controller.abort());
+
+  const messages = (input.history as ChatMessage[])
+    .filter((message) => message.content.trim().length > 0)
+    .map((message) => ({ role: message.role, content: message.content }));
+
+  let response: Response;
+  try {
+    response = await fetch(BYOK_TURN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        messages,
+        byok: {
+          protocol: byok.protocol,
+          apiKey: byok.apiKey,
+          ...(byok.baseUrl ? { baseUrl: byok.baseUrl } : {}),
+          model: byok.model,
+          ...(byok.maxTokens !== undefined ? { maxTokens: byok.maxTokens } : {}),
+        },
+      }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    byokAbortControllers.delete(runId);
+    throw error instanceof Error ? error : new Error(String(error));
+  }
+
+  if (!response.ok || !response.body) {
+    byokAbortControllers.delete(runId);
+    const detail = await response.text().catch(() => "");
+    throw new Error(`BYOK turn failed to start (${response.status})${detail ? `: ${detail.slice(0, 300)}` : ""}`);
+  }
+
+  const collected: AgentEvent[] = [];
+  let settled = false;
+  const finish = () => {
+    if (settled) return;
+    settled = true;
+    byokAbortControllers.delete(runId);
+    handlers.onDone(collected);
+  };
+
+  // Deliberately not awaited: `startRun`'s contract (matching the daemon path immediately above)
+  // is to resolve `{runId}` once the turn has STARTED, not once it has finished — the response
+  // headers (hence this function reaching this point at all) arrive as soon as
+  // `assistant-byok.ts` calls `beginStream`, well before generation completes.
+  void (async () => {
+    try {
+      for await (const frame of readSseFrames(response.body!)) {
+        if (frame.event === "agent") {
+          const payload = JSON.parse(frame.data) as RunAgentPayload;
+          const translated = translateRunAgentPayload(payload);
+          if (translated) {
+            collected.push(translated);
+            handlers.onEvent(translated);
+          }
+        } else if (frame.event === "error") {
+          const payload = JSON.parse(frame.data) as { message?: unknown };
+          handlers.onError(new Error(asString(payload.message) || "BYOK turn failed"));
+        } else if (frame.event === "end") {
+          const notice = terminalReasonNotice(readTerminalReason(frame.data, false));
+          if (notice) {
+            collected.push(notice);
+            handlers.onEvent(notice);
+          }
+          finish();
+        }
+      }
+      finish();
+    } catch (error) {
+      byokAbortControllers.delete(runId);
+      if (controller.signal.aborted) {
+        // Cancelled via `stopRun` or the composer's own signal — an expected exit, not a
+        // reportable failure. `subscribeToRun`'s `EventSource` has no equivalent branch because
+        // `.close()` doesn't reject a promise the way an aborted `fetch`'s body reader does; this
+        // mirrors what a cancelled daemon run already looks like to the rest of the pane: silence,
+        // not an error toast.
+        finish();
+        return;
+      }
+      handlers.onError(error instanceof Error ? error : new Error(String(error)));
+    }
+  })();
+
+  return { runId };
+}
+
+export interface CreateTovuAssistantTransportOptions {
+  /**
+   * Read fresh on every `startRun` call, never captured once — matching `AssistantDock.tsx`'s own
+   * `runContext` convention (see that file's doc on why `frontendBindToken` is read the same way):
+   * the operator can flip the runtime picker's mode mid-session, and a captured value would keep
+   * routing every later turn through whichever mode was selected when the transport was first
+   * built (`AssistantDock.tsx` memoizes the transport once, for the reason its own comment gives —
+   * rebuilding it would drop in-flight runs).
+   */
+  getExecutionConfig?: () => ExecutionConfig;
+}
+
+export function createTovuAssistantTransport(options: CreateTovuAssistantTransportOptions = {}): ChatTransport {
   return {
     async startRun(input: StartRunInput, handlers: RunHandlers): Promise<{ runId: string }> {
       // Guard on the newest USER turn, not on the assembled transcript: a history containing only
       // assistant messages would still produce a non-empty transcript, and sending that as a
-      // prompt asks the agent to reply to itself.
+      // prompt asks the agent to reply to itself. Shared by both paths below.
       if (!latestUserPromptFromHistory(input.history as ChatMessage[])) {
         throw new Error("no user message to send");
       }
+
+      const executionConfig = options.getExecutionConfig?.();
+      // Dispatches on MODE alone, not on whether a key is typed in this browser right now
+      // (2026-08-05). `executionConfig.byok.apiKey` is write-only server-side — it is empty on
+      // every fresh load even when a credential IS stored — so gating on it here would make BYOK
+      // mode permanently unable to dispatch for exactly the case the server-side store exists to
+      // support. `assistant-byok.ts`'s route already resolves the credential correctly either way
+      // (a locally-typed key wins when present; an empty/omitted one falls back to this admin's own
+      // stored row), so an empty `byok.apiKey` is a legitimate turn, not a reason to fall through to
+      // the Local CLI path. A turn with genuinely no usable credential anywhere still fails, just one
+      // level down — the route's own 400 `"no usable BYOK credential..."` — which is a real,
+      // actionable answer instead of the mode picker silently refusing to try.
+      if (executionConfig?.mode === "byok") {
+        return startByokRun(input, handlers, executionConfig.byok);
+      }
+
+      // Local CLI path (unchanged) below.
       const prompt = runPrompt(input.history);
 
       /**
@@ -279,10 +532,23 @@ export function createTovuAssistantTransport(): ChatTransport {
     },
 
     async reattachRun(runId: string, handlers: RunHandlers): Promise<void> {
+      // A BYOK run has no server-side record to reattach to (module doc's path-2 section) — the
+      // stream lived entirely on the original `fetch()`'s response body, which a reload has already
+      // discarded. Reporting the run as simply over (an empty `onDone`) is the honest answer: there
+      // is no way to resume it, and pretending otherwise would hang the pane waiting for events that
+      // can never arrive.
+      if (runId.startsWith(BYOK_RUN_ID_PREFIX)) {
+        handlers.onDone([]);
+        return;
+      }
       subscribeToRun(runId, handlers);
     },
 
     async fetchRunStatus(runId: string) {
+      // Same reasoning as `reattachRun` above — no server-side run record exists for a BYOK run id,
+      // so there is no status to fetch. `null` is this port's existing "unknown/not trackable"
+      // value (see the daemon branch below's own `!response.ok` case), not a new state.
+      if (runId.startsWith(BYOK_RUN_ID_PREFIX)) return null;
       const response = await fetch(`${RUNS_URL}/${encodeURIComponent(runId)}`, { credentials: "same-origin" });
       if (!response.ok) return null;
       const { run } = (await response.json()) as { run: { state: string } };
@@ -290,6 +556,12 @@ export function createTovuAssistantTransport(): ChatTransport {
     },
 
     async stopRun(runId: string): Promise<void> {
+      // A BYOK run's only cancellation handle is the abort controller `startByokRun` registered for
+      // this exact id — there is no server-side run to `POST .../cancel` against.
+      if (runId.startsWith(BYOK_RUN_ID_PREFIX)) {
+        byokAbortControllers.get(runId)?.abort();
+        return;
+      }
       await fetch(`${RUNS_URL}/${encodeURIComponent(runId)}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

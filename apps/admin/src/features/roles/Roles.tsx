@@ -1,10 +1,15 @@
-import { Fragment, useEffect, useState } from "react";
-import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminPolicy, type AdminRole } from "../lib/api";
-import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
+import { Fragment } from "react";
+import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+
+import { roleMenuItems, policyMenuItems } from "./rules";
+import { useRoles } from "./hooks/use-roles.hooks";
 
 /**
  * @file "Roles & Permissions" screen (SPEC-006 + 0.6.0 CRUD-completion amendment) — the
- * `/admin/roles` route.
+ * `/admin/roles` route. Markup only.
+ *
+ * State and API calls live in `hooks/use-roles.hooks.ts`; the row-menu logic and the
+ * `RESOURCE_CONFLICT`-etc. error copy live in `rules.ts`.
  *
  * Lists roles and policies, creates new ones (`CREATE_ROLE`/`CREATE_POLICY`), and (0.6.0) renames
  * (`UPDATE_ROLE`/`UPDATE_POLICY`), deletes (`DELETE_ROLE`/`DELETE_POLICY`), and — for policies —
@@ -20,224 +25,69 @@ import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/ad
  * transition (OQ-10, `feature.spec.md`) — the only way to shrink a policy's permission set is
  * delete (only when unused) + recreate.
  */
-
-/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`) — this screen's
- *  `RESOURCE_CONFLICT` means "still referenced by an assignment/attachment", a different meaning
- *  than `Workspace.tsx`'s "slug already taken" or `Users.tsx`'s "username already in use" for the
- *  same code (audit cross-cutting finding #2 — deliberately not unified into one table). */
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) {
-    if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
-    if (e.code === "RESOURCE_CONFLICT") return "It is still in use — remove that assignment/attachment first.";
-    if (e.code === "PERMISSION_UNKNOWN") return "That permission is not recognized.";
-    if (e.code === "GRANT_EXCEEDS_ISSUER") return "You cannot grant a permission you do not hold.";
-    if (e.code === "VALIDATION_ERROR") return e.message || "Please correct the highlighted fields.";
-  }
-  return describeApiErrorDefault(e, fallback);
+export interface RolesProps {
+  /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   *  for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   *  nothing and behave exactly as before. This screen has no unit test today (see `README.md`); a
+   *  test can supply a stub and drive it through any state without module mocking. */
+  useRolesHook?: typeof useRoles;
 }
 
-export function Roles() {
-  const [roles, setRoles] = useState<AdminRole[] | null>(null);
-  const [policies, setPolicies] = useState<AdminPolicy[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [rowError, setRowError] = useState<string | null>(null);
+export function Roles({ useRolesHook = useRoles }: RolesProps = {}) {
+  const {
+    roles,
+    policies,
+    error,
+    rowError,
 
-  const [roleName, setRoleName] = useState("");
-  const [roleSaving, setRoleSaving] = useState(false);
-  const [roleError, setRoleError] = useState<string | null>(null);
+    roleName,
+    setRoleName,
+    roleSaving,
+    roleError,
+    onCreateRole,
 
-  const [policyName, setPolicyName] = useState("");
-  const [policyDescription, setPolicyDescription] = useState("");
-  const [policySaving, setPolicySaving] = useState(false);
-  const [policyError, setPolicyError] = useState<string | null>(null);
+    policyName,
+    setPolicyName,
+    policyDescription,
+    setPolicyDescription,
+    policySaving,
+    policyError,
+    onCreatePolicy,
 
-  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
-  const [editingRoleName, setEditingRoleName] = useState("");
-  const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
-  const [editingPolicyName, setEditingPolicyName] = useState("");
-  const [editingPolicyDescription, setEditingPolicyDescription] = useState("");
-  const [rowSavingId, setRowSavingId] = useState<string | null>(null);
+    editingRoleId,
+    setEditingRoleId,
+    editingRoleName,
+    setEditingRoleName,
+    startEditRole,
+    onSaveRole,
 
-  const [permissionPolicyId, setPermissionPolicyId] = useState<string | null>(null);
-  const [permissionInput, setPermissionInput] = useState("");
-  const [resourceTypeInput, setResourceTypeInput] = useState("");
+    editingPolicyId,
+    setEditingPolicyId,
+    editingPolicyName,
+    setEditingPolicyName,
+    editingPolicyDescription,
+    setEditingPolicyDescription,
+    startEditPolicy,
+    onSavePolicy,
 
-  // The row a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
-  // closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on why);
-  // this is what drives its `open` prop. Separate state per table since a role and a policy delete
-  // are independent operations with their own copy, not because anything shares data between them.
-  const [pendingRoleDelete, setPendingRoleDelete] = useState<AdminRole | null>(null);
-  const [pendingPolicyDelete, setPendingPolicyDelete] = useState<AdminPolicy | null>(null);
+    rowSavingId,
 
-  function reload(): Promise<void> {
-    return Promise.all([api.listRoles(), api.listPolicies()])
-      .then(([r, p]) => {
-        setRoles(r.roles);
-        setPolicies(p.policies);
-      })
-      .catch((e) => setError(describeApiError(e, "failed to load roles/policies")));
-  }
+    permissionPolicyId,
+    permissionInput,
+    setPermissionInput,
+    resourceTypeInput,
+    setResourceTypeInput,
+    togglePermissionForm,
+    onWritePermission,
 
-  useEffect(() => {
-    void reload();
-  }, []);
+    pendingRoleDelete,
+    setPendingRoleDelete,
+    onDeleteRole,
 
-  async function onCreateRole(e: React.FormEvent) {
-    e.preventDefault();
-    setRoleSaving(true);
-    setRoleError(null);
-    try {
-      await api.createRole(roleName);
-      setRoleName("");
-      await reload();
-    } catch (e) {
-      setRoleError(describeApiError(e, "failed to create role"));
-    } finally {
-      setRoleSaving(false);
-    }
-  }
-
-  async function onCreatePolicy(e: React.FormEvent) {
-    e.preventDefault();
-    setPolicySaving(true);
-    setPolicyError(null);
-    try {
-      await api.createPolicy({ name: policyName }, { description: policyDescription || undefined });
-      setPolicyName("");
-      setPolicyDescription("");
-      await reload();
-    } catch (e) {
-      setPolicyError(describeApiError(e, "failed to create policy"));
-    } finally {
-      setPolicySaving(false);
-    }
-  }
-
-  function startEditRole(role: AdminRole) {
-    setRowError(null);
-    setEditingRoleId(role.id);
-    setEditingRoleName(role.name);
-  }
-
-  async function onSaveRole(roleId: string) {
-    setRowSavingId(roleId);
-    setRowError(null);
-    try {
-      await api.updateRole({ roleId, name: editingRoleName });
-      setEditingRoleId(null);
-      await reload();
-    } catch (e) {
-      setRowError(describeApiError(e, "failed to rename role"));
-    } finally {
-      setRowSavingId(null);
-    }
-  }
-
-  /** Confirmation now gates via a `ConfirmDialog` modal, reached through `RowMenu`'s "Delete" item
-   *  (`setPendingRoleDelete` below) — this row action moved off the in-place two-click
-   *  `ConfirmButton` control (MSG-03 rollout) because a `RowMenu` item fires once and the menu
-   *  closes immediately (`selectItem` in `RowMenu.tsx`), so there is no "stay open for a second
-   *  confirm click" state for `ConfirmButton` to hold; `ConfirmDialog` is the mechanism that
-   *  survives the menu closing, same as `Posts.tsx`/`Pages.tsx`'s own Delete. */
-  async function onDeleteRole() {
-    if (!pendingRoleDelete) return;
-    const role = pendingRoleDelete;
-    setRowSavingId(role.id);
-    setRowError(null);
-    try {
-      await api.deleteRole(role.id);
-      await reload();
-    } catch (e) {
-      setRowError(describeApiError(e, "failed to delete role"));
-    } finally {
-      setRowSavingId(null);
-      setPendingRoleDelete(null);
-    }
-  }
-
-  function startEditPolicy(policy: AdminPolicy) {
-    setRowError(null);
-    setEditingPolicyId(policy.id);
-    setEditingPolicyName(policy.name);
-    setEditingPolicyDescription(policy.description ?? "");
-  }
-
-  async function onSavePolicy(policyId: string) {
-    setRowSavingId(policyId);
-    setRowError(null);
-    try {
-      await api.updatePolicy({ policyId }, { name: editingPolicyName, description: editingPolicyDescription });
-      setEditingPolicyId(null);
-      await reload();
-    } catch (e) {
-      setRowError(describeApiError(e, "failed to update policy"));
-    } finally {
-      setRowSavingId(null);
-    }
-  }
-
-  /** Same `ConfirmDialog`-via-`RowMenu` swap as `onDeleteRole` above — see that function's comment. */
-  async function onDeletePolicy() {
-    if (!pendingPolicyDelete) return;
-    const policy = pendingPolicyDelete;
-    setRowSavingId(policy.id);
-    setRowError(null);
-    try {
-      await api.deletePolicy(policy.id);
-      await reload();
-    } catch (e) {
-      setRowError(describeApiError(e, "failed to delete policy"));
-    } finally {
-      setRowSavingId(null);
-      setPendingPolicyDelete(null);
-    }
-  }
-
-  function togglePermissionForm(policyId: string) {
-    setRowError(null);
-    setPermissionInput("");
-    setResourceTypeInput("");
-    setPermissionPolicyId((current) => (current === policyId ? null : policyId));
-  }
-
-  /** At-rest row actions (built-in rows and an actively-editing row never reach these — see the
-   *  table JSX below, which renders `—` or the Save/Cancel pair for those instead). */
-  function roleMenuItems(role: AdminRole): RowMenuItem[] {
-    return [
-      { key: "rename", label: "Rename", onSelect: () => startEditRole(role) },
-      { key: "delete", label: "Delete", destructive: true, onSelect: () => setPendingRoleDelete(role) },
-    ];
-  }
-
-  /** Same shape as `roleMenuItems`, plus the "Add permission"/"Close" toggle — its label still
-   *  flips based on `permissionPolicyId` exactly as the inline button it replaces did; only where
-   *  that toggle now lives (a `RowMenu` item instead of a bare button) changed. */
-  function policyMenuItems(policy: AdminPolicy): RowMenuItem[] {
-    return [
-      { key: "rename", label: "Rename", onSelect: () => startEditPolicy(policy) },
-      {
-        key: "permission",
-        label: permissionPolicyId === policy.id ? "Close" : "Add permission",
-        onSelect: () => togglePermissionForm(policy.id),
-      },
-      { key: "delete", label: "Delete", destructive: true, onSelect: () => setPendingPolicyDelete(policy) },
-    ];
-  }
-
-  async function onWritePermission(policyId: string) {
-    if (!permissionInput) return;
-    setRowSavingId(policyId);
-    setRowError(null);
-    try {
-      await api.writePolicyPermission({ policyId, permission: permissionInput }, { resourceType: resourceTypeInput || undefined });
-      setPermissionInput("");
-      setResourceTypeInput("");
-    } catch (e) {
-      setRowError(describeApiError(e, "failed to add permission"));
-    } finally {
-      setRowSavingId(null);
-    }
-  }
+    pendingPolicyDelete,
+    setPendingPolicyDelete,
+    onDeletePolicy,
+  } = useRolesHook();
 
   if (error) return <div className="notice error">{error}</div>;
   if (!roles || !policies) return <div className="notice">Loading roles & permissions…</div>;
@@ -305,7 +155,10 @@ export function Roles() {
                   </button>
                 </span>
               ) : (
-                <RowMenu triggerLabel={`Actions for role "${role.name}"`} items={roleMenuItems(role)} />
+                <RowMenu
+                  triggerLabel={`Actions for role "${role.name}"`}
+                  items={roleMenuItems(role, { onRename: startEditRole, onDelete: setPendingRoleDelete })}
+                />
               ),
           },
         ]}
@@ -385,7 +238,14 @@ export function Roles() {
                         </button>
                       </span>
                     ) : (
-                      <RowMenu triggerLabel={`Actions for policy "${policy.name}"`} items={policyMenuItems(policy)} />
+                      <RowMenu
+                        triggerLabel={`Actions for policy "${policy.name}"`}
+                        items={policyMenuItems(policy, permissionPolicyId, {
+                          onRename: startEditPolicy,
+                          onTogglePermissionForm: togglePermissionForm,
+                          onDelete: setPendingPolicyDelete,
+                        })}
+                      />
                     )}
                   </td>
                 </tr>

@@ -1,11 +1,16 @@
-import { useEffect, useState } from "react";
-import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminPlugin } from "../lib/api";
 import { DataTable } from "@jini-ai/admin/react";
+
+import { pluginToggleControl } from "./rules";
+import { usePlugins } from "./hooks/use-plugins.hooks";
 
 /**
  * @file `Plugins` — the admin plugins list + enable/disable screen (SPEC-005 REQ-12..18,
- * ui.spec.md). Route `/admin/plugins`; consumes REQ-10's `PLUGINS_LIST`/`PLUGIN_SET_ENABLED`
- * HTTP contract (`api.listPlugins()`/`api.setPluginEnabled()`) as a black box.
+ * ui.spec.md) — markup only.
+ *
+ * State and API calls live in `hooks/use-plugins.hooks.ts`; the server-error-message override and
+ * the toggle-cell visibility/label decision live in `rules.ts`. Route `/admin/plugins`; consumes
+ * REQ-10's `PLUGINS_LIST`/`PLUGIN_SET_ENABLED` HTTP contract (`api.listPlugins()`/
+ * `api.setPluginEnabled()`) as a black box.
  *
  * Mirrors `Roles.tsx`/`Redirects.tsx`'s conventions exactly (ui.spec.md §0): `<table
  * className="list-table">`, `<div className="notice">`/`<div className="notice error">`
@@ -17,67 +22,24 @@ import { DataTable } from "@jini-ai/admin/react";
  * There is no create/upload affordance: REQ-02 installs a plugin by placing its files under the
  * site install dir, and `api.spec.md` §1 exposes no endpoint an "add plugin" control could call.
  */
-
-/** Maps this screen's two calls' error codes to `errors.spec.md`'s operator-facing guidance text
- * (ui.spec.md §8), falling back to the server's own message.
- *
- * @complexity O(1).
- * @overallScore 100
- */
-/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`). */
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) {
-    if (e.code === "PLUGIN_NOT_FOUND") return "No plugin with that id is installed.";
-    if (e.code === "PLUGIN_INVALID") return "This plugin failed validation and cannot be enabled.";
-    if (e.code === "PLUGIN_INCOMPATIBLE") return "This plugin requires a different SDK version.";
-  }
-  return describeApiErrorDefault(e, fallback);
+export interface PluginsProps {
+  /**
+   * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   * nothing and behave exactly as before.
+   */
+  usePluginsHook?: typeof usePlugins;
 }
 
 /**
- * Lists every discovered plugin in the order `PLUGINS_LIST` returns it (TB-01 — never re-sorted
- * client-side) and toggles one plugin's activation at a time.
+ * Renders every discovered plugin in the order `PLUGINS_LIST` returns it (TB-01 — never re-sorted
+ * client-side). Loading and toggling live in `usePlugins` (see its own `@complexity`/`@tradeoffs`).
  *
- * @complexity O(n) render in the number of discovered plugins; one GET on mount plus one PATCH +
- * one re-fetch GET per successful toggle.
- * @tradeoffs In-flight state is a single `rowSavingId` (ui.spec.md §0 mandates mirroring
- * `Roles.tsx`), so toggling a second row while the first is still in flight re-enables the first
- * row's button — EC-11's single-flight guarantee is per-row-at-a-time, not per-row-concurrent. A
- * `Set` of in-flight ids would close that, at the cost of diverging from the mandated convention.
- * @overallScore 92
+ * @complexity O(n) render in the number of discovered plugins.
+ * @overallScore 100
  */
-export function Plugins() {
-  const [plugins, setPlugins] = useState<AdminPlugin[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [rowError, setRowError] = useState<string | null>(null);
-  const [rowSavingId, setRowSavingId] = useState<string | null>(null);
-
-  function reload(): Promise<void> {
-    return api
-      .listPlugins()
-      .then((r) => setPlugins(r.plugins))
-      .catch((e) => setError(describeApiError(e, "failed to load plugins")));
-  }
-
-  useEffect(() => {
-    void reload();
-  }, []);
-
-  async function onToggleEnabled(plugin: AdminPlugin) {
-    // EC-11: a second activation of this row's own toggle while its request is outstanding is a
-    // no-op — the client-side single-flight discipline is the guard, no `Idempotency-Key` is sent.
-    if (rowSavingId === plugin.id) return;
-    setRowSavingId(plugin.id);
-    setRowError(null);
-    try {
-      await api.setPluginEnabled(plugin.id, { enabled: !plugin.enabled });
-      await reload();
-    } catch (e) {
-      setRowError(describeApiError(e, "failed to update plugin"));
-    } finally {
-      setRowSavingId(null);
-    }
-  }
+export function Plugins({ usePluginsHook = usePlugins }: PluginsProps = {}) {
+  const { plugins, error, rowError, rowSavingId, onToggleEnabled } = usePluginsHook();
 
   if (error) return <div className="notice error">{error}</div>;
   if (!plugins) return <div className="notice">Loading plugins…</div>;
@@ -86,7 +48,7 @@ export function Plugins() {
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Design & System</p>
+          <p className="page-kicker">Studio</p>
           <h1 className="page-title">Plugins</h1>
           <p className="page-description">
             Enable or disable plugins discovered in this site's plugin install directory.
@@ -134,16 +96,18 @@ export function Plugins() {
           {
             key: "enabled",
             headerLabel: "Enabled",
-            cell: (plugin) =>
-              plugin.enabled || plugin.status === "valid" ? (
-                <button type="button" disabled={rowSavingId === plugin.id} onClick={() => onToggleEnabled(plugin)}>
-                  {rowSavingId === plugin.id ? "…" : plugin.enabled ? "Disable" : "Enable"}
+            cell: (plugin) => {
+              const control = pluginToggleControl(plugin, rowSavingId);
+              return control.visible ? (
+                <button type="button" disabled={control.disabled} onClick={() => onToggleEnabled(plugin)}>
+                  {control.label}
                 </button>
               ) : (
                 // AC-21: enabling this row is already known to 422, so no enable-capable
                 // control is offered at all (`Roles.tsx`'s built-in-row `—` idiom).
                 <span className="muted-cell">—</span>
-              ),
+              );
+            },
           },
           {
             key: "errors",

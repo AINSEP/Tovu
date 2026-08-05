@@ -1,12 +1,18 @@
-import { Fragment, useEffect, useState } from "react";
-import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminMember } from "../lib/api";
-import { RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
-import { formatTimestamp } from "../lib/format-timestamp";
+import { Fragment } from "react";
+import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { formatTimestamp } from "../../lib/format-timestamp";
+
+import { memberRowMenuItems } from "./rules";
+import { useMembers } from "./hooks/use-members.hooks";
 
 /**
- * @file Admin "Members" screen (ADR-030, ADR-PIPE-013 Decision §7).
+ * @file Admin "Members" screen (ADR-030, ADR-PIPE-013 Decision §7) — markup only.
  *
- * Mirrors `sections/Posts.tsx`'s fetch/loading/error/table shape. Adds the
+ * State and API calls live in `hooks/use-members.hooks.ts`; the row-menu logic, per-row action
+ * state shape, and the server-error-message override live in `rules.ts`. What stays here is what
+ * actually renders: the table and the confirm dialog.
+ *
+ * Mirrors `features/posts/Posts.tsx`'s fetch/loading/error/table shape. Adds the
  * three row-level actions this remediation wires up (T039): disable, resend
  * sign-in link, and a click-to-expand detail panel — all calling the 3
  * already-existing, already-unused `apps/admin/src/lib/api.ts` client methods
@@ -19,137 +25,30 @@ import { formatTimestamp } from "../lib/format-timestamp";
  * (inline per row for actions; a full-width banner for the initial load).
  * Stays a single flat file, matching every other admin section's convention.
  */
-
-interface RowActionState {
-  disabling: boolean;
-  resending: boolean;
-  error: string | null;
-  notice: string | null;
+export interface MembersProps {
+  /**
+   * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   * nothing and behave exactly as before.
+   */
+  useMembersHook?: typeof useMembers;
 }
 
-/** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`). */
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError && e.code === "FORBIDDEN") return "You do not have permission to do that.";
-  return describeApiErrorDefault(e, fallback);
-}
-
-function emptyRowState(): RowActionState {
-  return { disabling: false, resending: false, error: null, notice: null };
-}
-
-export function Members() {
-  const [members, setMembers] = useState<AdminMember[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [rowState, setRowState] = useState<Record<string, RowActionState>>({});
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [detailById, setDetailById] = useState<Record<string, AdminMember>>({});
-  const [detailError, setDetailError] = useState<string | null>(null);
-  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
-
-  // Disable now confirms via a `RowMenu` item -> `ConfirmDialog` modal (replacing the in-place
-  // two-click `ConfirmButton`, which has no menu-item equivalent — same migration Posts.tsx/
-  // Redirects.tsx/Users.tsx already made). `null` when the dialog is closed.
-  const [confirmingDisable, setConfirmingDisable] = useState<AdminMember | null>(null);
-
-  function load() {
-    api
-      .listMembers()
-      .then((r) => setMembers(r.members))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load members"));
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  function stateFor(id: string): RowActionState {
-    return rowState[id] ?? emptyRowState();
-  }
-
-  function patchRowState(id: string, patch: Partial<RowActionState>) {
-    setRowState((current) => ({ ...current, [id]: { ...emptyRowState(), ...current[id], ...patch } }));
-  }
-
-  async function onDisable(member: AdminMember) {
-    if (stateFor(member.id).disabling) return;
-    patchRowState(member.id, { disabling: true, error: null, notice: null });
-    try {
-      const result = await api.disableMember(member.id);
-      setMembers((current) => (current ? current.map((m) => (m.id === member.id ? result.member : m)) : current));
-      patchRowState(member.id, { disabling: false, notice: "Member disabled." });
-    } catch (e) {
-      patchRowState(member.id, { disabling: false, error: describeApiError(e, "Failed to disable member.") });
-    }
-  }
-
-  async function onResendSignInLink(member: AdminMember) {
-    if (stateFor(member.id).resending) return;
-    patchRowState(member.id, { resending: true, error: null, notice: null });
-    try {
-      await api.requestMemberMagicLink({ email: member.email });
-      patchRowState(member.id, { resending: false, notice: "Sign-in link sent." });
-    } catch (e) {
-      patchRowState(member.id, { resending: false, error: describeApiError(e, "Failed to send sign-in link.") });
-    }
-  }
-
-  /** Confirms the Disable that `RowMenu`'s "Disable" item asked about. Closes the dialog either
-   *  way (matching Posts.tsx/Redirects.tsx/Users.tsx's own Disable/Delete `ConfirmDialog`
-   *  convention) — a failure surfaces via the row's own `rs.error`, not by leaving the modal open. */
-  async function confirmDisable() {
-    if (!confirmingDisable) return;
-    await onDisable(confirmingDisable);
-    setConfirmingDisable(null);
-  }
-
-  /** `RowMenu` items for one member row. "Disable" is omitted once the member is already disabled
-   *  — `RowMenu` has no per-item `disabled`, and Posts.tsx's own precedent (RowMenu's own
-   *  precedent in `Posts.tsx`, which omits "Disable" entirely for an already-draft row rather than
-   *  showing it disabled) is to omit an inapplicable action rather than show it as a no-op. */
-  function rowMenuItems(member: AdminMember, rs: RowActionState): RowMenuItem[] {
-    const items: RowMenuItem[] = [
-      {
-        key: "resend",
-        label: "Resend sign-in link",
-        onSelect: () => {
-          if (rs.resending) return;
-          void onResendSignInLink(member);
-        },
-      },
-    ];
-    if (member.status !== "disabled") {
-      items.push({
-        key: "disable",
-        label: "Disable",
-        tone: "warning",
-        onSelect: () => {
-          if (rs.disabling) return;
-          setConfirmingDisable(member);
-        },
-      });
-    }
-    return items;
-  }
-
-  async function onToggleDetail(member: AdminMember) {
-    if (expandedId === member.id) {
-      setExpandedId(null);
-      return;
-    }
-    setExpandedId(member.id);
-    setDetailError(null);
-    if (detailById[member.id]) return;
-
-    setDetailLoadingId(member.id);
-    try {
-      const result = await api.getMember(member.id);
-      setDetailById((current) => ({ ...current, [member.id]: result.member }));
-    } catch (e) {
-      setDetailError(describeApiError(e, "Failed to load member detail."));
-    } finally {
-      setDetailLoadingId(null);
-    }
-  }
+export function Members({ useMembersHook = useMembers }: MembersProps = {}) {
+  const {
+    members,
+    error,
+    stateFor,
+    onResendSignInLink,
+    expandedId,
+    detailById,
+    detailError,
+    detailLoadingId,
+    onToggleDetail,
+    confirmingDisable,
+    setConfirmingDisable,
+    confirmDisable,
+  } = useMembersHook();
 
   if (error) return <div className="notice error">{error}</div>;
   if (!members) return <div className="notice">Loading members…</div>;
@@ -207,7 +106,13 @@ export function Members() {
                   </td>
                   <td>{formatTimestamp(member.createdAt)}</td>
                   <td>
-                    <RowMenu triggerLabel={`Actions for member "${member.email}"`} items={rowMenuItems(member, rs)} />
+                    <RowMenu
+                      triggerLabel={`Actions for member "${member.email}"`}
+                      items={memberRowMenuItems(member, rs, {
+                        onResendSignInLink: (m) => void onResendSignInLink(m),
+                        onRequestDisable: setConfirmingDisable,
+                      })}
+                    />
                     {rs.error ? (
                       <div className="notice error" role="alert">
                         {rs.error}

@@ -57,7 +57,7 @@ const ESTIMATED_PANEL_HEIGHT = 280;
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-function focusableInDomOrder(exclude: HTMLElement | null): HTMLElement[] {
+export function focusableInDomOrder(exclude: HTMLElement | null): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
     (el) => !exclude || !exclude.contains(el)
   );
@@ -77,7 +77,7 @@ interface PanelPosition {
  * there isn't `ESTIMATED_PANEL_HEIGHT` of room below AND there's more room above than below;
  * either way the returned `maxHeight` is the ACTUAL remaining space in that direction, not the
  * estimate, so the panel's own scroll (not the viewport edge) is what ever clips it. */
-function computePosition(trigger: HTMLElement): PanelPosition {
+export function computePosition(trigger: HTMLElement): PanelPosition {
   const rect = trigger.getBoundingClientRect();
   const gap = 4;
   const viewportHeight = window.innerHeight;
@@ -90,11 +90,42 @@ function computePosition(trigger: HTMLElement): PanelPosition {
   return { top: rect.bottom + gap, left: rect.left, width: rect.width, maxHeight: Math.max(120, spaceBelow - gap * 2) };
 }
 
-export function Select(props: SelectProps) {
-  const { value, onChange, options, placeholder, id, disabled } = props;
-  const ariaLabel = props["aria-label"];
-  const ariaLabelledBy = props["aria-labelledby"];
+/** Builds a listbox option's DOM `id`, shared between the `<li>` itself and the trigger's
+ * `aria-activedescendant` — a small pure function pulled out of the hook below so the id scheme is
+ * directly assertable without rendering anything. */
+export function buildOptionId(listboxId: string, index: number): string {
+  return `${listboxId}-option-${index}`;
+}
 
+/**
+ * Owns every piece of `Select`'s open/search/highlight/position state, its outside-click,
+ * scroll/resize, and keyboard-driven effects, and the handlers the trigger/panel JSX wires up to —
+ * everything except the inert rendering itself. Split out so the branch combinations below (search
+ * visibility, highlight wraparound, upward/downward placement, the outside-viewport auto-close)
+ * are exercisable directly with `renderHook`, not only by driving the full portaled DOM tree.
+ *
+ * @param input.value - The currently selected option's value (may not match any option).
+ * @param input.onChange - Called with the newly selected option's value.
+ * @param input.options - The full option list; `filtered` narrows this by the live search query.
+ * @param input.disabled - When true, `openPanel` and the trigger's own key handler both no-op.
+ * @returns Everything `Select`'s JSX reads or calls: open/search/highlight state and their
+ *   setters, the trigger/panel/search-input/option refs, `listboxId`, `showSearch`, `filtered`,
+ *   `selectedOption`, the `openPanel`/`closePanel`/`selectOption` actions, the trigger/panel
+ *   keydown handlers, and `optionId` (bound to this hook's own `listboxId`).
+ * @example
+ * const { open, filtered, handleTriggerKeyDown } = useSelectDropdown({ value, onChange, options });
+ */
+export function useSelectDropdown({
+  value,
+  onChange,
+  options,
+  disabled,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: SelectOption[];
+  disabled?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -321,7 +352,59 @@ export function Select(props: SelectProps) {
     }
   }
 
-  const optionId = (index: number) => `${listboxId}-option-${index}`;
+  const optionId = (index: number) => buildOptionId(listboxId, index);
+
+  return {
+    open,
+    query,
+    setQuery,
+    highlightedIndex,
+    setHighlightedIndex,
+    position,
+    triggerRef,
+    panelRef,
+    searchInputRef,
+    optionRefs,
+    listboxId,
+    showSearch,
+    filtered,
+    selectedOption,
+    openPanel,
+    closePanel,
+    selectOption,
+    handleTriggerKeyDown,
+    handlePanelKeyDown,
+    optionId,
+  };
+}
+
+export function Select(props: SelectProps) {
+  const { value, onChange, options, placeholder, id, disabled } = props;
+  const ariaLabel = props["aria-label"];
+  const ariaLabelledBy = props["aria-labelledby"];
+
+  const {
+    open,
+    query,
+    setQuery,
+    highlightedIndex,
+    setHighlightedIndex,
+    position,
+    triggerRef,
+    panelRef,
+    searchInputRef,
+    optionRefs,
+    listboxId,
+    showSearch,
+    filtered,
+    selectedOption,
+    openPanel,
+    closePanel,
+    selectOption,
+    handleTriggerKeyDown,
+    handlePanelKeyDown,
+    optionId,
+  } = useSelectDropdown({ value, onChange, options, disabled });
 
   return (
     <>

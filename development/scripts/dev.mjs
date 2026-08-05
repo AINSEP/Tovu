@@ -24,10 +24,36 @@
  * stdio. If a child dies, we tear down and exit non-zero so the failure is visible.
  */
 import { spawn, spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+
+/**
+ * Load `.env` from the repo root, if one exists, before anything reads `process.env`.
+ *
+ * `.gitignore` has ignored `.env` and `.env.*` since long before this file existed, so the repo has
+ * always LOOKED like it reads one — but nothing did. Every local secret therefore had to be
+ * exported by hand in the shell that ran `npm run dev`, and the failure mode was silent: a missing
+ * `TOVU_INTEGRATIONS_ROOT_KEY` surfaces much later as a `503 SECRET_STORE_UNCONFIGURED` on the AI
+ * Assistant screen's save, which reads as a broken feature rather than as unset config.
+ *
+ * `process.loadEnvFile` is Node's own (v20.12+, no dependency). It runs HERE rather than in
+ * `src/index.ts` on purpose: this is the developer-machine entry point, and a `.env` that silently
+ * overrode real environment variables on a production boot is a different and much worse thing.
+ * Deployments set real env vars; `npm start` is untouched.
+ *
+ * Anything already exported in the shell is deliberately re-read from the file — Node's own
+ * semantics — so a value here is the one source of truth for a dev boot rather than a value that
+ * mysteriously depends on which terminal you used.
+ */
+const ENV_FILE = path.join(REPO_ROOT, ".env");
+if (existsSync(ENV_FILE)) {
+  process.loadEnvFile(ENV_FILE);
+  console.log("tovu dev: loaded .env");
+}
 
 const API_PORT = Number(process.env.PORT ?? 3000);
 const VITE_PORT = Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173);
@@ -110,6 +136,37 @@ function shutdown(code) {
   }, 1500).unref();
 }
 
+/**
+ * Resolve once something is accepting TCP connections on `port`, or after `timeoutMs`.
+ *
+ * Exists to order Vite AFTER the API, which is the whole of the first boot race. Vite is ready in
+ * ~240ms; the API takes 5-10s because `tsx` compiles TypeScript on the way up. Any browser tab
+ * already open on :5173 starts polling `/api/*` immediately, and Vite's proxy answers every one with
+ * a multi-line `AggregateError [ECONNREFUSED]` — pages of alarming output describing nothing wrong.
+ *
+ * Resolves rather than rejects on timeout: a slow API should still get a Vite, so a bad guess here
+ * degrades to today's behaviour instead of refusing to start the admin at all.
+ */
+function waitForPort(port, timeoutMs = 30_000) {
+  return new Promise((resolve) => {
+    const deadline = Date.now() + timeoutMs;
+    const attempt = () => {
+      const socket = net.connect({ port, host: "127.0.0.1" });
+      // `once` on all three: a socket that errors AND closes must not resolve twice.
+      socket.once("connect", () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.once("error", () => {
+        socket.destroy();
+        if (Date.now() > deadline) return resolve(false);
+        setTimeout(attempt, 200);
+      });
+    };
+    attempt();
+  });
+}
+
 function start(name, command, args, env) {
   const child = spawn(command, args, {
     cwd: REPO_ROOT,
@@ -136,8 +193,9 @@ function start(name, command, args, env) {
 preflight();
 
 console.log(
-  `tovu dev: API on http://localhost:${API_PORT}, admin on http://localhost:${VITE_PORT}/admin/\n` +
-    `tovu dev: open http://localhost:${VITE_PORT}/admin/ — Ctrl-C stops everything.\n`
+  `tovu dev: starting API on http://localhost:${API_PORT} (compiling TypeScript, ~5-10s)…\n` +
+    `tovu dev: admin will open on http://localhost:${VITE_PORT}/admin/ once the API is up.\n` +
+    `tovu dev: Ctrl-C stops everything.\n`
 );
 
 start("api server", "npx", ["tsx", "watch", "src/index.ts"], {
@@ -155,7 +213,36 @@ start("api server", "npx", ["tsx", "watch", "src/index.ts"], {
   // way `TOVU_PARENT_PID` already closes the analogous one for the agent daemon.
   TOVU_DEV_SUPERVISOR_PID: String(process.pid),
 });
-start("admin vite", "npm", ["--prefix", "apps/admin", "run", "dev"], {});
+
+/**
+ * Vite starts only once the API is accepting connections.
+ *
+ * Both used to start together, which meant Vite was serving ~9 seconds before anything could answer
+ * the requests it proxies. A browser tab already open on :5173 would reconnect the moment Vite came
+ * up and immediately fire `/api/agents`, `/api/admin/v1/.../settings/events` and the frontend-session
+ * SSE stream — each answered with a multi-line `AggregateError [ECONNREFUSED]` stack. Pages of
+ * alarming output for a stack that was simply still booting, and indistinguishable at a glance from
+ * the real "the API died" failure this script exists to make obvious.
+ *
+ * Ordering them removes the window rather than muting the symptom. The cost is that :5173 is not
+ * live for the first few seconds — which is honest, because until the API is up the admin cannot do
+ * anything anyway.
+ *
+ * NOTE: this closes the Vite→API race only. A second, narrower one remains by design: `src/index.ts`
+ * spawns the agent daemon from INSIDE `app.listen()`'s callback, so the API accepts requests a few
+ * seconds before the daemon binds :4319. That one is handled where it belongs, in
+ * `server/modules/assistant.ts`'s proxy — see its retry note.
+ */
+if (!(await waitForPort(API_PORT))) {
+  console.warn(
+    `\ntovu dev: API did not come up within 30s — starting the admin anyway.\n` +
+      `tovu dev: expect proxy errors on :${VITE_PORT} until it does.\n`
+  );
+}
+if (!shuttingDown) {
+  console.log(`tovu dev: API is up. Open http://localhost:${VITE_PORT}/admin/\n`);
+  start("admin vite", "npm", ["--prefix", "apps/admin", "run", "dev"], {});
+}
 
 for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
   process.on(sig, () => {

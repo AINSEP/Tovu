@@ -1,46 +1,26 @@
-import { useEffect, useState } from "react";
-import { ApiError, api, describeApiError, type AdminWidgetRegionBinding } from "../lib/api";
-import { navigate } from "../lib/router";
 import { DataTable } from "@jini-ai/admin/react";
+import { useWidgetRegions } from "./hooks/use-widget-regions.hooks";
 
 /**
- * @file `WidgetRegionsScreen` (`ui.spec.md` §2.4/§3.6/§4.5/§9) — `/admin/widgets/regions`. Lists
- * currently-bound regions; the bind-new-region control is a free-text `regionKey` input, mirroring
- * `Menus.tsx`'s location-assign control exactly (no "theme declares regions" list API exists to
- * source a dropdown from — `ThemeManifest.regions` is read server-side at render time, not exposed
- * as an admin-listable registry; see `ui.spec.md` §9's disclosed dependency-gap note).
+ * @file `WidgetRegionsScreen` (`ui.spec.md` §2.4/§3.6/§4.5/§9) — `/admin/widgets/regions` — markup
+ * only. Lists currently-bound regions; the bind-new-region control is a free-text `regionKey`
+ * input, mirroring `Menus.tsx`'s location-assign control exactly (no "theme declares regions" list
+ * API exists to source a dropdown from — `ThemeManifest.regions` is read server-side at render
+ * time, not exposed as an admin-listable registry; see `ui.spec.md` §9's disclosed dependency-gap
+ * note).
+ *
+ * State, the fetch, and bind live in `hooks/use-widget-regions.hooks.ts`.
  */
+export interface WidgetRegionsProps {
+  /**
+   * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
+   * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
+   */
+  useWidgetRegionsHook?: typeof useWidgetRegions;
+}
 
-export function WidgetRegions() {
-  const [regions, setRegions] = useState<AdminWidgetRegionBinding[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [newRegionKey, setNewRegionKey] = useState("");
-  const [binding, setBinding] = useState(false);
-
-  function load() {
-    api
-      .listWidgetRegions()
-      .then((r) => setRegions(r.regions))
-      .catch((e) => setError(describeApiError(e, "failed to load regions")));
-  }
-
-  useEffect(load, []);
-
-  async function bind() {
-    const regionKey = newRegionKey.trim();
-    if (!regionKey) return;
-    setBinding(true);
-    setError(null);
-    try {
-      await api.bindWidgetRegion(regionKey);
-      setNewRegionKey("");
-      navigate(`/widgets/regions/${regionKey}`);
-    } catch (e) {
-      setError(describeApiError(e, "bind failed"));
-    } finally {
-      setBinding(false);
-    }
-  }
+export function WidgetRegions({ useWidgetRegionsHook = useWidgetRegions }: WidgetRegionsProps = {}) {
+  const { regions, error, newRegionKey, setNewRegionKey, binding, bind } = useWidgetRegionsHook();
 
   if (error && !regions) return <div className="notice error">{error}</div>;
   if (!regions) return <div className="notice">Loading regions…</div>;

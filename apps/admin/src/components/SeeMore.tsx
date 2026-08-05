@@ -51,18 +51,26 @@ const DEFAULT_LINES = 2;
  * overflow check exists to prevent in the first place. */
 const OVERFLOW_TOLERANCE_PX = 1;
 
-export function SeeMore(props: SeeMoreProps) {
-  const {
-    children,
-    lines = DEFAULT_LINES,
-    moreLabel = "See more",
-    lessLabel = "See less",
-    className,
-    textClassName,
-    toggleClassName,
-    toggleAriaLabel,
-  } = props;
-
+/**
+ * Owns `SeeMore`'s collapse/expand state and overflow detection: whether the clamped text actually
+ * overflows its `lines` limit (and so needs a toggle at all), kept in sync via a layout-effect
+ * measurement on every render plus a `ResizeObserver` for width-driven reflow. Split out from the
+ * component so the measurement effects can be driven directly with `renderHook` against a mocked
+ * `textRef.current`, rather than only indirectly through a full DOM render.
+ *
+ * @param input.lines - Rounded/floored to the same `lineCount` the clamp CSS uses (see call site).
+ * @param input.children - Passed through only to sit in the layout effect's dependency array, so a
+ *   content change is measured like a genuine resize — see the effect's own comment.
+ * @returns `expanded`/`setExpanded` (collapsed by default, per the request that created this
+ *   component), `overflows` (whether the toggle should render), `textRef` (attach to the clamped
+ *   element), `regionId` (stable id for `aria-controls`), and `lineCount`.
+ * @example
+ * const { expanded, setExpanded, overflows, textRef, regionId, lineCount } = useSeeMoreClamp({
+ *   lines: 2,
+ *   children,
+ * });
+ */
+export function useSeeMoreClamp({ lines, children }: { lines: number; children: React.ReactNode }) {
   // Collapsed by default, per the request that created this component.
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
@@ -111,6 +119,23 @@ export function SeeMore(props: SeeMoreProps) {
     observer.observe(el);
     return () => observer.disconnect();
   }, [expanded, measure]);
+
+  return { expanded, setExpanded, overflows, textRef, regionId, lineCount };
+}
+
+export function SeeMore(props: SeeMoreProps) {
+  const {
+    children,
+    lines = DEFAULT_LINES,
+    moreLabel = "See more",
+    lessLabel = "See less",
+    className,
+    textClassName,
+    toggleClassName,
+    toggleAriaLabel,
+  } = props;
+
+  const { expanded, setExpanded, overflows, textRef, regionId, lineCount } = useSeeMoreClamp({ lines, children });
 
   return (
     <div className={className ? `see-more ${className}` : "see-more"}>

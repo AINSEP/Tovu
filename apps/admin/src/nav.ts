@@ -17,7 +17,7 @@ import { ADMIN_PANELS } from "./panels";
  *   `icon: string`, dropped `order`); that reshaping is gone now that `Sidebar.Nav` itself takes
  *   `AdminNavGroup[]` and handles an absent icon (`item.icon ?? ''`) — one less place for the two
  *   shapes to drift apart. `getNav()` returns exactly `buildNav(ADMIN_PANELS)`, computed once and
- *   cached here so `App.tsx` and `sections/Placeholder.tsx` share one nav model instead of each
+ *   cached here so `App.tsx` and `components/Placeholder.tsx` share one nav model instead of each
  *   calling `buildNav` itself.
  * - `href` is a **route path**, not a URL: `/settings`, not `/admin/settings`. Sidebar applies the
  *   `/admin` base via `@jini-ai/admin/core`'s `adminHref`, so this file stays base-agnostic and the
@@ -31,7 +31,7 @@ import { ADMIN_PANELS } from "./panels";
  *
  * ## Why `getNav()` and not a plain `NAV` constant
  *
- * This file sits in a genuine import cycle: `panels.tsx` imports `sections/Placeholder.tsx`, which
+ * This file sits in a genuine import cycle: `panels.tsx` imports `components/Placeholder.tsx`, which
  * imports this file for its own nav lookup, and this file imports `ADMIN_PANELS` back from
  * `panels.tsx`. Computing `buildNav(ADMIN_PANELS)` eagerly at this module's own top level (the
  * first version of this file did exactly that) raced that cycle: depending on which module the
@@ -51,7 +51,7 @@ export type { AdminNavGroup, AdminNavItem };
 let cachedNav: readonly AdminNavGroup[] | undefined;
 
 /**
- * The nav model shared by `App.tsx` (passed to `Sidebar`) and `sections/Placeholder.tsx` (its own
+ * The nav model shared by `App.tsx` (passed to `Sidebar`) and `components/Placeholder.tsx` (its own
  * lookup). See the file header for why this is a lazy, memoized function rather than a module-level
  * constant.
  *

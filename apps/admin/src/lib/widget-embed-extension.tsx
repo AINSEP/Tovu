@@ -37,7 +37,10 @@ function newPlacementId(): string {
  * authoring-surface contract: `widgetInstanceId`, resolved `widgetTitle`/`widgetType`, `isBroken`,
  * `onRemove`, `onChangeInstance`).
  */
-function WidgetEmbedNodeView(props: NodeViewProps) {
+/** Exported (a plain React component once given `NodeViewProps`) so this file's own test suite can
+ *  drive its loading/broken/success/change/remove states directly, the same reasoning
+ *  `assistant-transport.ts`'s `translateRunAgentPayload` export documents for itself. */
+export function WidgetEmbedNodeView(props: NodeViewProps) {
   const widgetEntryId = String(props.node.attrs.widgetEntryId ?? "");
   const placementId = String(props.node.attrs.placementId ?? "");
   const [widget, setWidget] = useState<AdminWidget | null | undefined>(undefined);

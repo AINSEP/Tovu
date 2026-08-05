@@ -2,10 +2,18 @@ node_modules/
 dist/
 apps/admin/dist/
 development/coverage/
+# `apps/admin` writes its own coverage output here (vitest's default `coverage/` dir, ~1.5MB of
+# `coverage-final.json` alone). Same rationale as `development/coverage/` above — build output, not
+# source. Added after an audit run left it untracked-but-not-ignored, where a wide `git add` would
+# have swept it into a commit.
+apps/admin/coverage/
 *.log
 .DS_Store
 .env
 .env.*
+# The template is the one .env file that MUST be tracked — it is how a fresh clone learns which
+# variables a local boot needs. `development/scripts/dev.mjs` loads `.env` (never this file).
+!.env.example
 # infra/ is the site's runtime data folder: content.db + WAL sidecars, uploads/, the ADR-041 ops
 # journals, plugin snapshots, restore points. None of it is source. README.md stays tracked so the
 # directory exists in a fresh clone -- openContentDb does not create the parent, so an absent
@@ -21,6 +29,10 @@ AI-Dev-Shop/
 # Playwright VRT (AW-2) — local run artifacts only; baseline screenshots under
 # development/e2e/**/*-snapshots/ ARE committed (checked baselines, not artifacts).
 test-results/
+# Playwright's per-config output dirs (`development/playwright.*.config.ts` each set their own
+# `outputDir`), ~27MB of traces/screenshots across the two that exist today. Same class as
+# `test-results/` above, which only matched the bare name.
+development/test-results-*/
 development/playwright-report/
 blob-report/
 

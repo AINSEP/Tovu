@@ -6,6 +6,7 @@ import { redirectLegacyHashUrl } from "./lib/router";
 import "./styles.css";
 import "./styles/forms.css";
 import "./styles/editor.css";
+import "./styles/pages.css";
 import "./styles/media.css";
 
 // Before the first render, so `App` never parses a URL that is about to change under it: an

@@ -1,0 +1,103 @@
+import { useEffect, useState } from "react";
+import { api, describeApiError, type AdminLedgerRow } from "../../../lib/api";
+import { navigate } from "../../../lib/router";
+
+/**
+ * @file Everything `TimelineSection` (the Database screen's ledger browser) does, so
+ * `Database.tsx` is only markup.
+ *
+ * Extracted verbatim — same state, same declaration order, same effect, same error strings.
+ * `Database.tsx` has no unit test today (see the feature's `README.md`); a hook is reachable from
+ * `renderHook` with no `DataTable` and no cursor-driven pagination UI to drive by hand.
+ *
+ * `navigateToRecoveryWithDeepLink` moved here rather than to `rules.ts`: it performs I/O
+ * (`sessionStorage.setItem`, `navigate`) rather than computing a value, so it is an effect, not a
+ * pure rule, even though it needs no component state and is exported as a plain function rather
+ * than folded into the hook's return.
+ */
+
+/** Stashes a client-constructed `DatabaseContextEnvelope` for `Recovery.tsx` to re-resolve
+ * server-side on arrival (ADR-041 §7/ADR-045 §5, INV-04) — this admin app's router has no
+ * per-navigation state mechanism, so `sessionStorage` carries the envelope across the navigation the
+ * same way route state would in a router that supported it. A query string would technically work
+ * now that routing is path-based, but this is transient handoff state: putting it in the URL would
+ * make it bookmarkable and shareable, which is exactly what it must not be. The envelope itself
+ * carries display continuity only; `resolveDeepLinkContext` never trusts it as authoritative. */
+export function navigateToRecoveryWithDeepLink(row: AdminLedgerRow) {
+  if (!row.restorePointId) return;
+  const envelope = {
+    v: 1,
+    correlationId: `database-timeline-${row.id}`,
+    siteId: "workspace-local",
+    ledgerEventId: row.id,
+    restorePointId: row.restorePointId,
+    drift: row.kind,
+    intent: "view",
+    issuedAt: new Date().toISOString(),
+  };
+  sessionStorage.setItem("recovery-deep-link-envelope", JSON.stringify(envelope));
+  navigate("/recovery");
+}
+
+export interface TimelineSectionController {
+  rows: AdminLedgerRow[] | null;
+  nextCursor: string | null;
+  error: string | null;
+  kind: string;
+  setKind: (kind: string) => void;
+  outcome: string;
+  setOutcome: (outcome: string) => void;
+  fromDate: string;
+  setFromDate: (fromDate: string) => void;
+  toDate: string;
+  setToDate: (toDate: string) => void;
+  loadingMore: boolean;
+  applyFilters: (e: React.FormEvent) => void;
+  loadMore: () => void;
+}
+
+export function useTimelineSection(): TimelineSectionController {
+  const [rows, setRows] = useState<AdminLedgerRow[] | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [kind, setKind] = useState("");
+  const [outcome, setOutcome] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  function load(reset: boolean) {
+    setError(null);
+    api
+      .getDatabaseTimeline({
+        kind: kind || undefined,
+        outcome: outcome || undefined,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
+        cursor: reset ? undefined : nextCursor ?? undefined,
+      })
+      .then((r) => {
+        setRows((current) => (reset || !current ? r.items : [...current, ...r.items]));
+        setNextCursor(r.nextCursor);
+      })
+      .catch((e) => setError(describeApiError(e, "failed to load the Database Timeline")))
+      .finally(() => setLoadingMore(false));
+  }
+
+  useEffect(() => {
+    load(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function applyFilters(e: React.FormEvent) {
+    e.preventDefault();
+    load(true);
+  }
+
+  function loadMore() {
+    setLoadingMore(true);
+    load(false);
+  }
+
+  return { rows, nextCursor, error, kind, setKind, outcome, setOutcome, fromDate, setFromDate, toDate, setToDate, loadingMore, applyFilters, loadMore };
+}

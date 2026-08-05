@@ -1,12 +1,19 @@
-import { Fragment, useEffect, useState } from "react";
-import { ApiError, api, describeApiError as describeApiErrorDefault, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "../lib/api";
-import { RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
+import { Fragment } from "react";
+import type { AdminIdentityUser, AdminPolicy, AdminRole } from "../../lib/api";
+import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+
+import { formatGrantLabel, userRowMenuItems } from "./rules";
+import { useUsers } from "./hooks/use-users.hooks";
 
 /**
  * @file Admin "Users" screen (SPEC-006 §3 human grant-writing transitions + 0.6.0 CRUD-completion
- * amendment).
+ * amendment) — markup only.
  *
- * Mirrors `sections/Integrations.tsx`'s fetch/loading/error/form/table shape.
+ * State and API calls live in `hooks/use-users.hooks.ts`; the row-menu logic and the
+ * server-error-message overrides live in `rules.ts`. What stays here is what actually renders: the
+ * form, the table, and the two dialogs.
+ *
+ * Mirrors `features/integrations/Integrations.tsx`'s fetch/loading/error/form/table shape.
  * Lists operator users, creates new ones (`CREATE_USER`), and grants roles/
  * policies to an existing user (`ASSIGN_ROLE`/`ATTACH_POLICY`) via an
  * inline expandable "Manage" row. Role/policy *creation* is out of
@@ -24,253 +31,76 @@ import { RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
  * (`src/server/routes/admin/users/` has create/disable/enable/update/reset-password plus
  * role/policy grants, nothing else) — adding one is a product decision outside this pass.
  */
-
-/** Server error `code` -> a plain-language prefix (SPEC-006 errors.spec.md §2), layered on the
- *  shared default (`lib/api.ts`'s `describeApiError`) — this screen's `RESOURCE_CONFLICT` means
- *  "username already in use", a different meaning than `Roles.tsx`'s "still referenced" or
- *  `Workspace.tsx`'s "slug already taken" for the same code (audit cross-cutting finding #2 —
- *  deliberately not unified into one table). */
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) {
-    if (e.code === "GRANT_EXCEEDS_ISSUER") return "You cannot grant a permission you do not hold.";
-    if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
-    if (e.code === "RESOURCE_CONFLICT") return "That username is already in use.";
-    if (e.code === "OWNER_REQUIRED") return "The workspace must keep at least one active owner.";
-    if (e.code === "VALIDATION_ERROR") return e.message || "Please correct the highlighted fields.";
-  }
-  return describeApiErrorDefault(e, fallback);
+export interface UsersProps {
+  /**
+   * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   * nothing and behave exactly as before.
+   */
+  useUsersHook?: typeof useUsers;
 }
 
-export function Users() {
-  const [users, setUsers] = useState<AdminIdentityUser[] | null>(null);
-  const [roles, setRoles] = useState<AdminRole[] | null>(null);
-  const [policies, setPolicies] = useState<AdminPolicy[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+export function Users({ useUsersHook = useUsers }: UsersProps = {}) {
+  const {
+    users,
+    roles,
+    policies,
+    error,
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+    formOpen,
+    setFormOpen,
+    username,
+    setUsername,
+    email,
+    setEmail,
+    password,
+    setPassword,
+    saving,
+    formError,
+    onCreate,
 
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [pendingRoleId, setPendingRoleId] = useState("");
-  const [pendingPolicyId, setPendingPolicyId] = useState("");
-  const [grantSaving, setGrantSaving] = useState(false);
-  const [grantError, setGrantError] = useState<string | null>(null);
+    expandedId,
+    toggleExpanded,
+    pendingRoleId,
+    setPendingRoleId,
+    pendingPolicyId,
+    setPendingPolicyId,
+    grantSaving,
+    grantError,
+    onAssignRole,
+    onAttachPolicy,
 
-  const [editEmail, setEditEmail] = useState("");
-  const [emailSaving, setEmailSaving] = useState(false);
-  const [toggleSavingId, setToggleSavingId] = useState<string | null>(null);
-  const [toggleError, setToggleError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+    editEmail,
+    setEditEmail,
+    emailSaving,
+    onSaveEmail,
 
-  // Disable now confirms via a `RowMenu` item -> `ConfirmDialog` modal (replacing the in-place
-  // two-click `ConfirmButton`, which has no menu-item equivalent — same migration Posts.tsx/
-  // Redirects.tsx already made). `null` when the dialog is closed.
-  const [confirmingDisable, setConfirmingDisable] = useState<AdminIdentityUser | null>(null);
+    toggleSavingId,
+    toggleError,
+    notice,
 
-  // Reset password moved out of the expanded "Manage" panel into its own `RowMenu` item, which
-  // opens this dialog (it needs a text field, so it's a `ConfirmDialog` with an input in the body,
-  // not a plain confirm). Kept open on failure (unlike the delete-style dialogs above, which close
-  // either way) so a failed attempt doesn't discard the password the operator just typed.
-  const [resetPasswordFor, setResetPasswordFor] = useState<AdminIdentityUser | null>(null);
-  const [newPassword, setNewPassword] = useState("");
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
+    confirmingDisable,
+    setConfirmingDisable,
+    requestDisable,
+    confirmDisable,
+    onToggleStatus,
 
-  function reload(): Promise<void> {
-    return Promise.all([api.listUsers(), api.listRoles(), api.listPolicies()])
-      .then(([u, r, p]) => {
-        setUsers(u.users);
-        setRoles(r.roles);
-        setPolicies(p.policies);
-      })
-      .catch((e) => setError(describeApiError(e, "failed to load users")));
-  }
-
-  useEffect(() => {
-    void reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function onCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setFormError(null);
-    try {
-      await api.createUser({ username, password }, { email: email || undefined });
-      setUsername("");
-      setEmail("");
-      setPassword("");
-      setFormOpen(false);
-      await reload();
-    } catch (e) {
-      setFormError(describeApiError(e, "failed to create user"));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function toggleExpanded(user: AdminIdentityUser) {
-    setGrantError(null);
-    setPendingRoleId("");
-    setPendingPolicyId("");
-    setEditEmail(user.email ?? "");
-    setExpandedId((current) => (current === user.principalId ? null : user.principalId));
-  }
-
-  async function onAssignRole(principalId: string) {
-    if (!pendingRoleId) return;
-    setGrantSaving(true);
-    setGrantError(null);
-    try {
-      await api.assignRole({ principalId, roleId: pendingRoleId });
-      setPendingRoleId("");
-      await reload();
-    } catch (e) {
-      setGrantError(describeApiError(e, "failed to assign role"));
-    } finally {
-      setGrantSaving(false);
-    }
-  }
-
-  async function onAttachPolicy(principalId: string) {
-    if (!pendingPolicyId) return;
-    setGrantSaving(true);
-    setGrantError(null);
-    try {
-      await api.attachPolicy({ principalId, policyId: pendingPolicyId });
-      setPendingPolicyId("");
-      await reload();
-    } catch (e) {
-      setGrantError(describeApiError(e, "failed to attach policy"));
-    } finally {
-      setGrantSaving(false);
-    }
-  }
-
-  async function onSaveEmail(principalId: string) {
-    setEmailSaving(true);
-    setGrantError(null);
-    try {
-      await api.updateUser({ principalId }, { email: editEmail });
-      await reload();
-    } catch (e) {
-      setGrantError(describeApiError(e, "failed to update email"));
-    } finally {
-      setEmailSaving(false);
-    }
-  }
-
-  /** Opens the reset-password dialog for `user` — the `RowMenu` item's `onSelect`. Guards against
-   *  opening a second one while a toggle or a previous reset is still in flight, same discipline
-   *  Redirects.tsx uses for its own `RowMenu` items (no per-item `disabled` on `RowMenu` itself). */
-  function openResetPassword(user: AdminIdentityUser) {
-    if (toggleSavingId || passwordSaving) return;
-    setPasswordError(null);
-    setNewPassword("");
-    setResetPasswordFor(user);
-  }
-
-  async function confirmResetPassword() {
-    if (!resetPasswordFor || !newPassword) return;
-    setPasswordSaving(true);
-    setPasswordError(null);
-    try {
-      await api.resetUserPassword({ principalId: resetPasswordFor.principalId, password: newPassword });
-      setNotice(`Password reset for "${resetPasswordFor.username}" — every active session for this user was revoked.`);
-      setResetPasswordFor(null);
-      setNewPassword("");
-    } catch (e) {
-      // Dialog stays open on failure (unlike the Disable/Delete-style dialogs elsewhere in this
-      // app, which close either way) — closing would discard the password the operator just typed
-      // for no reason; there's nothing sensitive left on screen once they retry or cancel.
-      setPasswordError(describeApiError(e, "failed to reset password"));
-    } finally {
-      setPasswordSaving(false);
-    }
-  }
-
-  async function onToggleStatus(user: AdminIdentityUser) {
-    setToggleSavingId(user.principalId);
-    setToggleError(null);
-    try {
-      if (user.status === "active") {
-        await api.disableUser(user.principalId);
-      } else {
-        await api.enableUser(user.principalId);
-      }
-      await reload();
-    } catch (e) {
-      setToggleError(describeApiError(e, "failed to change status"));
-    } finally {
-      setToggleSavingId(null);
-    }
-  }
-
-  /** Confirms the Disable that `RowMenu`'s "Disable" item asked about. Closes the dialog either
-   *  way (matching Posts.tsx/Redirects.tsx's own Disable/Delete `ConfirmDialog` convention) — a
-   *  failure surfaces via `toggleError` above the table, not by leaving the modal open. */
-  async function confirmDisable() {
-    if (!confirmingDisable) return;
-    await onToggleStatus(confirmingDisable);
-    setConfirmingDisable(null);
-  }
-
-  /** `RowMenu` items for one user row — matches `Posts.tsx`/`Pages.tsx`'s three-dot menu shape,
-   *  per the corrected spec: Disable/Enable, Manage, Reset password (no Delete — there is no
-   *  server-side delete route for a user principal; `src/server/routes/admin/users/` has
-   *  `create`/`disable`/`enable`/`update`/`reset-password` plus role/policy grants, nothing else).
-   *
-   *  Disable/Enable share a single "toggle" item (label follows status, same shape as
-   *  `Redirects.tsx`'s own toggle item) — Disable confirms via the modal below; Enable fires
-   *  immediately, matching this screen's existing behavior (Enable was never confirm-gated).
-   *
-   *  "Manage" always reads "Manage", never "Close": the item still toggles the expanded panel
-   *  (`toggleExpanded` — closing it again by selecting "Manage" a second time still works exactly
-   *  as it did as a standalone button), but a `RowMenu` item disappears the instant it is
-   *  selected, so a label that flips to "Close" is never actually visible mid-interaction — it
-   *  would only ever describe a state the operator cannot see while the menu that shows it is
-   *  open. A static label sidesteps that without losing any capability. The username cell's own
-   *  button calls the same `toggleExpanded` for the identical toggle behavior via a second
-   *  affordance, rather than this item being the only door into the panel. */
-  function rowMenuItems(user: AdminIdentityUser): RowMenuItem[] {
-    return [
-      {
-        key: "toggle",
-        label: user.status === "active" ? "Disable" : "Enable",
-        tone: user.status === "active" ? "warning" : "default",
-        onSelect: () => {
-          if (toggleSavingId) return;
-          if (user.status === "active") {
-            setToggleError(null);
-            setConfirmingDisable(user);
-          } else {
-            void onToggleStatus(user);
-          }
-        },
-      },
-      {
-        key: "manage",
-        label: "Manage",
-        onSelect: () => toggleExpanded(user),
-      },
-      {
-        key: "reset-password",
-        label: "Reset password",
-        tone: "warning",
-        onSelect: () => openResetPassword(user),
-      },
-    ];
-  }
+    resetPasswordFor,
+    setResetPasswordFor,
+    newPassword,
+    setNewPassword,
+    passwordSaving,
+    passwordError,
+    setPasswordError,
+    openResetPassword,
+    confirmResetPassword,
+  } = useUsersHook();
 
   if (error) return <div className="notice error">{error}</div>;
   if (!users || !roles || !policies) return <div className="notice">Loading users…</div>;
 
-  const roleById = new Map(roles.map((role) => [role.id, role]));
-  const policyById = new Map(policies.map((policy) => [policy.id, policy]));
+  const roleById = new Map<string, AdminRole>(roles.map((role) => [role.id, role]));
+  const policyById = new Map<string, AdminPolicy>(policies.map((policy) => [policy.id, policy]));
 
   return (
     <div className="page">
@@ -341,7 +171,10 @@ export function Users() {
           </tr>
         </thead>
         <tbody>
-          {users.map((user) => (
+          {users.map((user) => {
+            const roleLabel = formatGrantLabel(user.roleIds, roleById);
+            const policyLabel = formatGrantLabel(user.policyIds, policyById);
+            return (
             <Fragment key={user.principalId}>
               <tr>
                 <td>
@@ -367,22 +200,22 @@ export function Users() {
                 <td>
                   <span className={`status status-${user.status}`}>{user.status}</span>
                 </td>
-                <td>
-                  {user.roleIds.length > 0
-                    ? user.roleIds.map((id) => roleById.get(id)?.name ?? id).join(", ")
-                    : <span className="muted-cell">none</span>}
-                </td>
-                <td>
-                  {user.policyIds.length > 0
-                    ? user.policyIds.map((id) => policyById.get(id)?.name ?? id).join(", ")
-                    : <span className="muted-cell">none</span>}
-                </td>
+                <td>{roleLabel !== null ? roleLabel : <span className="muted-cell">none</span>}</td>
+                <td>{policyLabel !== null ? policyLabel : <span className="muted-cell">none</span>}</td>
                 <td>
                   {/* Matches Posts.tsx/Pages.tsx's three-dot RowMenu shape — Disable/Enable,
                       Manage, and Reset password all live in the menu; there is no standalone
-                      button left in this column. See `rowMenuItems`'s own doc comment for why
-                      "Manage" keeps a static label instead of alternating with "Close". */}
-                  <RowMenu triggerLabel={`Actions for user "${user.username}"`} items={rowMenuItems(user)} />
+                      button left in this column. See `rules.ts`'s `userRowMenuItems` doc comment
+                      for why "Manage" keeps a static label instead of alternating with "Close". */}
+                  <RowMenu
+                    triggerLabel={`Actions for user "${user.username}"`}
+                    items={userRowMenuItems(user, toggleSavingId === user.principalId, {
+                      onRequestDisable: requestDisable,
+                      onEnable: (u) => void onToggleStatus(u),
+                      onManage: toggleExpanded,
+                      onResetPassword: openResetPassword,
+                    })}
+                  />
                 </td>
               </tr>
               {expandedId === user.principalId ? (
@@ -451,7 +284,8 @@ export function Users() {
                 </tr>
               ) : null}
             </Fragment>
-          ))}
+            );
+          })}
         </tbody>
       </table>
       </div>

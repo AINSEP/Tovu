@@ -7,6 +7,7 @@ import { registerAdminPageListRoute } from "../routes/admin/pages/list";
 import { registerAdminPageCreateRoute } from "../routes/admin/pages/create";
 import { registerAdminPageGetRoute } from "../routes/admin/pages/get-by-id";
 import { registerAdminPageUpdateRoute } from "../routes/admin/pages/update";
+import { registerAdminPageUpdateHtmlRoute } from "../routes/admin/pages/update-html";
 import { registerAdminPageDeleteRoute } from "../routes/admin/pages/delete";
 import { registerAdminChangeSetListRoute } from "../routes/admin/change-sets/list";
 import { registerAdminChangeSetGetRoute } from "../routes/admin/change-sets/get";
@@ -53,6 +54,11 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       registerAdminPageCreateRoute(app, deps);
       registerAdminPageGetRoute(app, deps);
       registerAdminPageUpdateRoute(app, deps);
+      // Registered after the metadata PUT so the more specific `/pages/:pageId/html` path is not
+      // shadowed — Express matches in registration order, and `/pages/:pageId` would otherwise never
+      // reach this one. (It would not today, since that route has no trailing segment, but the
+      // ordering is the guarantee, not the current path shapes.)
+      registerAdminPageUpdateHtmlRoute(app, deps);
       registerAdminPageDeleteRoute(app, deps);
       registerAdminChangeSetListRoute(app, deps);
       registerAdminChangeSetGetRoute(app, deps);

@@ -47,6 +47,8 @@ async function seedPost(repo: PostRepoPort, overrides: Partial<PostRecord> = {})
     title: "Hello",
     slug: "hello",
     bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "one two three four five" }] }] },
+    bodyFormat: "doc",
+    bodyHtml: null,
     status: "draft",
     kind: "post",
     updatedAt: "2026-07-27T00:00:00.000Z",

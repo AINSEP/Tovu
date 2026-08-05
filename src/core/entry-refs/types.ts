@@ -22,8 +22,14 @@ import type { UUID } from "@jini-ai/cms/core";
  * entry's `bodyJson`), and `config-field` (a `ref`-typed field inside a
  * widget instance's own `fields.ext.widget.*` config, e.g. Contact Form's
  * `formDefinitionId`).
+ *
+ * `page-html-embed` (SPEC-047 Slice 3) — a `data-widget-embed`/`data-form-embed` placeholder
+ * (`widgets/html-embeds.ts`'s convention) inside an `"html"`-format Page's `body_html`. A distinct
+ * kind from `widget-embed` on purpose: the source location is a plain HTML string, not a `bodyJson`
+ * TipTap node, and it is populated by `features/pages/html-document-store.ts`'s write path, not the
+ * `entries` chokepoint every other kind above comes from.
  */
-export type EntryRefSourceKind = "widget-area-placement" | "widget-embed" | "config-field";
+export type EntryRefSourceKind = "widget-area-placement" | "widget-embed" | "config-field" | "page-html-embed";
 
 /** What kind of thing a reference *targets*. Term-target coverage is narrower than entry-target (SPEC-043 REQ-32). */
 export type EntryRefTargetKind = "entry" | "term";

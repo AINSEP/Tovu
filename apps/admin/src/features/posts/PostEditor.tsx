@@ -1,58 +1,24 @@
-import { useEffect, useState } from "react";
-import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
-import type { EditorView } from "@tiptap/pm/view";
-import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
+import { EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { api, type AdminPost } from "../lib/api";
-import { WidgetEmbed, WidgetEmbedInsertControl } from "../lib/widget-embed-extension";
-import { siteUrl } from "../lib/site-url";
-import { navigate } from "../lib/router";
-import { useDirtyGuard } from "../hooks/use-dirty-guard.hooks";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 
-/** Reads a browser `File` into a full `data:` URL (mirrors Media.tsx's upload helper, but keeps the prefix). */
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error ?? new Error("failed to read file"));
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.readAsDataURL(file);
-  });
-}
+import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
+import { siteUrl } from "../../lib/site-url";
+import { usePostEditor } from "./hooks/use-post-editor.hooks";
 
 /**
- * Drag-and-drop image support: a dropped local file is inlined as a `data:` URL (no media-library
- * serving route exists yet to reference instead — see PostEditor's file header note); a dropped
- * image URL (e.g. dragged from another browser tab) is inserted directly.
+ * @file The post/page editor screen — markup only.
+ *
+ * State, the TipTap instance, the load effect, save, delete, and the dirty guard all live in
+ * `hooks/use-post-editor.hooks.ts`. The drop handler and the `data:` URL reader moved to `rules.ts`
+ * as pure functions, where they can be driven with a fake `EditorView` instead of a real editor and
+ * a real drag gesture.
+ *
+ * What stays: `Toolbar`, which is a genuinely inert render of editor commands, and the page markup.
+ *
+ * Shared between posts and pages via the same `/admin/posts/{id}` route — see `Pages.tsx`'s file
+ * header. `post.kind` drives the display copy and the back-link target only.
  */
-function handleImageDrop(view: EditorView, event: DragEvent, moved: boolean): boolean {
-  if (moved) return false; // internal content reorder, not an external drop
-  const insertAt = () => view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
-
-  const files = Array.from(event.dataTransfer?.files ?? []).filter((f) => f.type.startsWith("image/"));
-  if (files.length > 0) {
-    event.preventDefault();
-    const pos = insertAt();
-    for (const file of files) {
-      readFileAsDataUrl(file).then((src) => {
-        const node = view.state.schema.nodes.image.create({ src, alt: file.name });
-        view.dispatch(view.state.tr.insert(pos, node));
-      });
-    }
-    return true;
-  }
-
-  const uri = (event.dataTransfer?.getData("text/uri-list") || event.dataTransfer?.getData("text/plain") || "").trim();
-  if (/^https?:\/\//i.test(uri)) {
-    event.preventDefault();
-    const node = view.state.schema.nodes.image.create({ src: uri });
-    view.dispatch(view.state.tr.insert(insertAt(), node));
-    return true;
-  }
-
-  return false;
-}
 
 /** Formatting toolbar wired to the live editor. Active state stays in sync via useEditorState. */
 function Toolbar({ editor }: { editor: Editor }) {
@@ -131,147 +97,38 @@ function Toolbar({ editor }: { editor: Editor }) {
   );
 }
 
-/** What `useDirtyGuard` compares — every field this editor lets an operator change. `bodyJson` is
- *  typed loosely (not TipTap's `JSONContent`) since the guard only ever serializes it for
- *  comparison, never reads its shape. */
-interface PostFormState {
-  title: string;
-  slug: string;
-  status: "draft" | "published";
-  bodyJson: unknown;
+export interface PostEditorProps {
+  postId: string;
+  /**
+   * Dependency injection seam for tests — same convention as `Posts.tsx`'s `usePostsHook` and
+   * `@jini-ai/ui`'s `useCustomSelect`.
+   *
+   * Defaulted to the real hook, so `panels.tsx` passes nothing. A stub lets a test render the
+   * header, the status select, the Publish/Save branch and the confirm dialog without mounting
+   * TipTap or serving a post — the existing suite currently has to stand up both.
+   */
+  usePostEditorHook?: typeof usePostEditor;
 }
 
-export function PostEditor(props: { postId: string }) {
-  const [post, setPost] = useState<AdminPost | null>(null);
-  const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
-  const [status, setStatus] = useState<"draft" | "published">("draft");
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  // TipTap's content lives in the editor's own imperative state, not React state, so nothing here
-  // re-renders when the body changes on its own — `onUpdate` below exists solely to force one, so
-  // `current.bodyJson` (read fresh via `editor.getJSON()` every render) actually gets re-evaluated
-  // after a keystroke. The counter's value itself is never read.
-  const [, setBodyVersion] = useState(0);
-  // Snapshot of the last loaded-or-saved state for `useDirtyGuard` to diff against (audit finding:
-  // no editor screen tracks this at all today — confirmed live losing an edit on this exact
-  // screen). `null` until the post has loaded AND the editor has actually applied that content —
-  // see the load effect below for why both conditions matter.
-  const [original, setOriginal] = useState<PostFormState | null>(null);
-  // Drives `ConfirmDialog`'s `open` prop for the Delete action — replaces the previous
-  // `window.confirm` gate. `deleting` is the dialog's `pending` (in-flight) flag, separate from
-  // `confirmingDelete` itself so the dialog can stay open, disabled, mid-request rather than
-  // closing before the request resolves.
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  const editor = useEditor({
-    extensions: [StarterKit, Image, WidgetEmbed],
-    content: "",
-    editorProps: {
-      handleDrop: (view, event, _slice, moved) => handleImageDrop(view, event, moved),
-    },
-    onUpdate: () => setBodyVersion((v) => v + 1),
-  });
-
-  useEffect(() => {
-    setPost(null);
-    setError(null);
-    api
-      .getPost(props.postId)
-      .then(({ post }) => {
-        setPost(post);
-        setTitle(post.title);
-        setSlug(post.slug);
-        setStatus(post.status);
-        if (editor) {
-          editor.commands.setContent(post.bodyJson as never);
-          // Captured via `editor.getJSON()` right after `setContent`, not `post.bodyJson` as
-          // loaded — both sides of the later dirty comparison are then produced by the exact same
-          // serialization, so a schema-normalization difference between the server's stored JSON
-          // and TipTap's own round-trip can never register as a false "unsaved change" on a
-          // freshly-opened, untouched post.
-          setOriginal({ title: post.title, slug: post.slug, status: post.status, bodyJson: editor.getJSON() });
-        }
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load post"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.postId, editor === null]);
-
-  const { confirmLeave } = useDirtyGuard<PostFormState>(
-    { title, slug, status, bodyJson: editor?.getJSON() ?? null },
-    original
-  );
-
-  /**
-   * Persists title/slug/body, optionally forcing `status` to a specific value first —
-   * `statusOverride` is omitted for the plain Save button (keeps whatever the status select is
-   * currently set to) and passed `"published"` by the new Publish button below, so publishing is
-   * one click ("save this draft and put it live") instead of "flip the dropdown to Published, then
-   * remember to also click Save" — two actions an operator can do out of order or forget the
-   * second half of. Re-baselines `original` either way, so a publish also clears the dirty guard,
-   * same as an ordinary save.
-   */
-  async function save(statusOverride?: "draft" | "published") {
-    if (!editor) return;
-    setMessage(null);
-    setError(null);
-    const nextStatus = statusOverride ?? status;
-    try {
-      const bodyJson = editor.getJSON() as Record<string, unknown>;
-      const { post: saved } = await api.updatePost({ id: props.postId }, { title, slug, status: nextStatus, bodyJson });
-      setPost(saved);
-      setStatus(nextStatus);
-      setMessage(`${statusOverride === "published" ? "Published" : "Saved"} · version ${saved.version}`);
-      setOriginal({ title, slug, status: nextStatus, bodyJson });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : statusOverride === "published" ? "publish failed" : "save failed");
-    }
-  }
-
-  /**
-   * Soft delete — distinct from the Draft/Published status select above, and the copy below says
-   * so explicitly: the select changes `status` (unpublish — content stays, drops off the site,
-   * still editable here); this moves the whole row to the trash (server/routes/admin/posts/
-   * delete.ts's soft-delete route).
-   *
-   * The `ConfirmDialog` body below and the `post-delete` agentHandle label state only the
-   * observable consequence and deliberately do NOT claim the delete is "recoverable" or "not
-   * permanent", even though the server route genuinely is a soft, revertible delete. There is no
-   * restore path an operator can reach from this product today: no change-set-revert UI, no
-   * `api.ts` method for it, and `Recovery.tsx` is a different, much heavier whole-database
-   * snapshot restore (not a per-row undo). Promising a recovery the operator cannot perform would
-   * be worse than promising nothing. Equally, do not swap it for "permanently delete" / "cannot be
-   * undone" — that overcorrects into the opposite lie, since the row genuinely is recoverable
-   * server-side, just not from here. Do not add either claim back in without first building/
-   * removing the corresponding capability.
-   *
-   * Calls `api.deletePost` (kind-blind), not `api.deletePage`, matching every other call this
-   * editor already makes (`getPost`/`updatePost`) — this component is shared between posts and
-   * pages via the same `/admin/posts/{id}` route (Pages.tsx's own file header), so it deletes
-   * whatever row `props.postId` names rather than assuming its kind. `post.kind` (loaded from the
-   * server response) is used only for display copy and for choosing which list to return to.
-   *
-   * Confirmation now gates via the shared `ConfirmDialog` modal (Delete below only opens it — see
-   * `confirmingDelete`) rather than `window.confirm`: it cannot carry destructive styling, blocks
-   * the whole tab, and reads as a browser artifact. Only `deleting`/`confirmingDelete` are reset on
-   * failure, not success — a successful delete navigates away, and the original code never touched
-   * post-navigation state either.
-   */
-  async function remove() {
-    if (!post) return;
-    setMessage(null);
-    setError(null);
-    setDeleting(true);
-    try {
-      await api.deletePost(props.postId);
-      navigate(post.kind === "page" ? "/pages" : "/posts");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "delete failed");
-      setDeleting(false);
-      setConfirmingDelete(false);
-    }
-  }
+export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEditorProps) {
+  const {
+    post,
+    editor,
+    title,
+    setTitle,
+    slug,
+    setSlug,
+    status,
+    setStatus,
+    message,
+    error,
+    confirmingDelete,
+    setConfirmingDelete,
+    deleting,
+    confirmLeave,
+    save,
+    remove,
+  } = usePostEditorHook(postId);
 
   if (error && !post) return <div className="notice error">{error}</div>;
   if (!post) return <div className="notice">Loading editor…</div>;
