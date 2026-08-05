@@ -20,6 +20,8 @@ const seedPost: PostRecord = {
   title: "Hello World",
   slug: "hello-world",
   bodyJson: { type: "doc", content: [] },
+  bodyFormat: "doc",
+  bodyHtml: null,
   status: "published",
   updatedAt: "2026-04-06T00:00:00.000Z",
   version: 3,
@@ -49,7 +51,11 @@ test("admin and content serializers stay aligned with shared headless contracts"
       kind: "post",
       title: "Hello World",
       slug: "hello-world",
+      // SPEC-047/ADR-056 REQ-3 — AdminPost is now a discriminated union; a "doc"-format post's
+      // response carries bodyFormat/bodyHtml alongside the pre-existing fields.
+      bodyFormat: "doc",
       bodyJson: { type: "doc", content: [] },
+      bodyHtml: null,
       status: "published",
       updatedAt: "2026-04-06T00:00:00.000Z",
       version: 3,

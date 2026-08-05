@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { extractEntryRefs } from "../../extractor";
+import { extractEntryRefs, extractHtmlEntryRefs } from "../../extractor";
 
 /**
  * @file C-009 `extractEntryRefs` — SPEC-043 REQ-29..32, AC-21/22, INV-06.
@@ -104,4 +104,69 @@ test("REQ-29: extracting a widget instance with no references produces an empty 
   });
 
   assert.deepEqual(refs, []);
+});
+
+// ---------------------------------------------------------------------------
+// SPEC-047 Slice 3 — extractHtmlEntryRefs, the "html"-format Page sibling.
+// ---------------------------------------------------------------------------
+
+test("extractHtmlEntryRefs: a data-widget-embed placeholder produces a page-html-embed ref row targeting the widget entry", () => {
+  const refs = extractHtmlEntryRefs({
+    workspaceId: "ws-1",
+    sourceEntryId: "page-1",
+    html: '<section><div data-widget-embed="widget-social"></div></section>',
+  });
+
+  assert.equal(refs.length, 1);
+  assert.equal(refs[0]?.sourceKind, "page-html-embed");
+  assert.equal(refs[0]?.targetKind, "entry");
+  assert.equal(refs[0]?.targetId, "widget-social");
+});
+
+test("extractHtmlEntryRefs: a data-form-embed placeholder also produces an entry-target page-html-embed row — same targetKind convention as menuRef/formDefinitionId elsewhere", () => {
+  const refs = extractHtmlEntryRefs({
+    workspaceId: "ws-1",
+    sourceEntryId: "page-1",
+    html: '<div data-form-embed="form-contact-us"></div>',
+  });
+
+  assert.equal(refs.length, 1);
+  assert.equal(refs[0]?.sourceKind, "page-html-embed");
+  assert.equal(refs[0]?.targetKind, "entry");
+  assert.equal(refs[0]?.targetId, "form-contact-us");
+});
+
+test("extractHtmlEntryRefs: a page with both kinds of embed and plain content extracts exactly the embed refs, none for the plain content", () => {
+  const refs = extractHtmlEntryRefs({
+    workspaceId: "ws-1",
+    sourceEntryId: "page-1",
+    html:
+      "<h1>Welcome</h1><p>Some copy.</p>" +
+      '<div data-widget-embed="w1"></div>' +
+      '<div data-form-embed="f1"></div>',
+  });
+
+  assert.equal(refs.length, 2);
+  assert.deepEqual(refs.map((r) => r.targetId).sort(), ["f1", "w1"]);
+});
+
+test("extractHtmlEntryRefs: a page with no embeds produces an empty ref set, not an error (REQ-29's spirit, carried over)", () => {
+  const refs = extractHtmlEntryRefs({ workspaceId: "ws-1", sourceEntryId: "page-1", html: "<h1>No embeds here</h1>" });
+  assert.deepEqual(refs, []);
+});
+
+test("extractHtmlEntryRefs: idempotent — re-extracting unchanged html produces the identical ref set (pure function of its input, matching extractEntryRefs' own INV-06 discipline)", () => {
+  const input = { workspaceId: "ws-1", sourceEntryId: "page-1", html: '<div data-widget-embed="w1"></div>' };
+  assert.deepEqual(extractHtmlEntryRefs(input), extractHtmlEntryRefs(input));
+});
+
+test("extractHtmlEntryRefs: a placeholder referencing a deleted/nonexistent widget is STILL indexed — indexing depends only on the placeholder's presence in html, never on whether the target currently resolves (this function takes no repo dependency at all, so it structurally cannot filter on resolution status; this is the exact case entry_refs exists to catch: a page whose reference silently stopped working)", () => {
+  const refs = extractHtmlEntryRefs({
+    workspaceId: "ws-1",
+    sourceEntryId: "page-1",
+    html: '<div data-widget-embed="widget-that-was-deleted"></div>',
+  });
+
+  assert.equal(refs.length, 1, "a dangling reference must still produce an entry_refs row — that is the row REQ-34/REQ-42's safe-delete check needs to find");
+  assert.equal(refs[0]?.targetId, "widget-that-was-deleted");
 });

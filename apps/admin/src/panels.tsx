@@ -1,40 +1,31 @@
 import type { ReactNode } from "react";
 import type { AdminPanel } from "@jini-ai/admin/core";
-import { Appearance } from "./sections/Appearance";
-import { Dashboard } from "./sections/Dashboard";
-import { PostEditor } from "./sections/PostEditor";
-import { Placeholder } from "./sections/Placeholder";
-import { Posts } from "./sections/Posts";
-import { Pages } from "./sections/Pages";
-import { Members } from "./sections/Members";
-import { Comments } from "./sections/Comments";
-import { Analytics } from "./sections/Analytics";
-import { Media } from "./sections/Media";
-import { Menus } from "./sections/Menus";
-import { MenuEditor } from "./sections/MenuEditor";
-import { Integrations } from "./sections/Integrations";
-import { IntegrationDeliveries } from "./sections/IntegrationDeliveries";
-import { Users } from "./sections/Users";
-import { Roles } from "./sections/Roles";
-import { Settings } from "./sections/Settings";
-import { SettingsUi } from "./sections/SettingsUi";
-import { Seo } from "./sections/Seo";
-import { Redirects } from "./sections/Redirects";
-import { Plugins } from "./sections/Plugins";
-import { FormsList } from "./sections/FormsList";
-import { FormEditor } from "./sections/FormEditor";
-import { Collections } from "./sections/Collections";
-import { CollectionEntries } from "./sections/CollectionEntries";
-import { CollectionEntryEditor } from "./sections/CollectionEntryEditor";
-import { Taxonomy } from "./sections/Taxonomy";
-import { Database } from "./sections/Database";
-import { Recovery } from "./sections/Recovery";
-import { WidgetsLibrary } from "./sections/WidgetsLibrary";
-import { WidgetInstanceEditor } from "./sections/WidgetInstanceEditor";
-import { WidgetRegions } from "./sections/WidgetRegions";
-import { WidgetRegionEditor } from "./sections/WidgetRegionEditor";
-import { Workspace } from "./sections/Workspace";
-import { AiAssistant } from "./sections/AiAssistant";
+import { Appearance } from "./features/appearance";
+import { Dashboard } from "./features/dashboard";
+import { Placeholder } from "./components/Placeholder";
+import { PostEditor, Posts } from "./features/posts";
+import { PageEditor, Pages } from "./features/pages";
+import { Members } from "./features/members";
+import { Comments } from "./features/comments";
+import { Analytics } from "./features/analytics";
+import { Media } from "./features/media";
+import { Menus, MenuEditor } from "./features/menus";
+import { Integrations, IntegrationDeliveries } from "./features/integrations";
+import { Users } from "./features/users";
+import { Roles } from "./features/roles";
+import { Settings } from "./features/settings-raw";
+import { SettingsUi } from "./features/settings";
+import { Seo } from "./features/seo";
+import { Redirects } from "./features/redirects";
+import { Plugins } from "./features/plugins";
+import { FormsList, FormEditor } from "./features/forms";
+import { Collections, CollectionEntries, CollectionEntryEditor } from "./features/collections";
+import { Taxonomy } from "./features/taxonomy";
+import { Database } from "./features/database";
+import { Recovery } from "./features/recovery";
+import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "./features/widgets";
+import { Workspace } from "./features/workspace";
+import { AiAssistant } from "./features/ai-assistant";
 
 /**
  * @file The single declaration of every Tovu admin section — one `AdminPanel` per screen, in one
@@ -121,7 +112,16 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Content ---
   {
     id: "pages",
-    render: () => <Pages />,
+    render: (ctx) => {
+      switch (ctx.view) {
+        case "page-editor":
+          // Guaranteed present: this view only fires when `/:pageId` matched.
+          return <PageEditor pageId={ctx.params.pageId} />;
+        default:
+          return <Pages />;
+      }
+    },
+    routes: [{ pattern: "/:pageId", view: "page-editor" }],
     nav: {
       label: "Pages",
       group: "Content",
@@ -324,6 +324,21 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     agentReachable: true,
   },
   {
+    id: "payments",
+    // Sits in People, next to Members, because that is what it actually bills: the payment
+    // machinery that exists today is `member_tiers`/`member_subscriptions` plus the `lipay` plugin's
+    // providers. If a storefront surfaces later (`p_store__orders` already exists as a table), this
+    // and Orders likely move together into a Commerce group — that is a reshuffle worth doing once,
+    // when there is something to group, rather than pre-creating a one-row section now.
+    render: () => <Placeholder sectionId="payments" />,
+    nav: {
+      label: "Payments",
+      group: "People",
+      soon: true,
+      icon: '<rect x="2" y="4" width="14" height="10" rx="1.5"/><path d="M2 7.5h14"/><path d="M4.5 11h3"/>',
+    },
+  },
+  {
     id: "comments",
     render: () => <Comments />,
     nav: {
@@ -334,7 +349,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     agentReachable: true,
   },
 
-  // --- Design & System ---
+  // --- Studio ---
   {
     id: "themes",
     // `themes` and `appearance` below both render `Appearance`: two accepted spellings, one
@@ -344,7 +359,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     render: () => <Appearance />,
     nav: {
       label: "Themes",
-      group: "Design & System",
+      group: "Studio",
       icon: '<circle cx="6.2" cy="7" r="3.4"/><circle cx="11.8" cy="7" r="3.4"/><circle cx="9" cy="11.6" r="3.4"/>',
     },
     agentReachable: true,
@@ -357,11 +372,39 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       // then add this thin admin UI), so this entry links to the real `Plugins` screen instead of
       // being marked `soon`.
       label: "Plugins",
-      group: "Design & System",
+      group: "Studio",
       icon: '<path d="M7 2v3H4v9h10V5h-3V2H7z"/>',
     },
     agentReachable: true,
   },
+  {
+    id: "skills",
+    // No screen yet — `soon: true` + `Placeholder`, the same shape `newsletter` below already uses
+    // for a genuinely unbuilt-but-real nav entry. Deliberately NOT a bespoke "coming soon"
+    // component: this repo has one idiom for this, and a second would be a second thing to maintain.
+    render: () => <Placeholder sectionId="skills" />,
+    nav: {
+      label: "Skills",
+      group: "Studio",
+      soon: true,
+      icon: '<path d="M9 2.5l1.9 4 4.4.6-3.2 3.1.8 4.3L9 12.5l-3.9 2 .8-4.3L2.7 7.1l4.4-.6z"/>',
+    },
+    // Not agent-reachable: there is nothing built here yet for an agent to do.
+  },
+  {
+    id: "design-system",
+    render: () => <Placeholder sectionId="design-system" />,
+    nav: {
+      label: "Design System",
+      group: "Studio",
+      soon: true,
+      // Four tiles, two square and two round — a token/primitive set, distinct from `widgets`'
+      // four-equal-squares icon at a glance in the icon-only rail.
+      icon: '<rect x="2.5" y="2.5" width="6" height="6" rx="1"/><rect x="9.5" y="2.5" width="6" height="6" rx="3"/><rect x="2.5" y="9.5" width="6" height="6" rx="3"/><rect x="9.5" y="9.5" width="6" height="6" rx="1"/>',
+    },
+  },
+
+  // --- Operations ---
   {
     id: "database",
     render: () => <Database />,
@@ -371,7 +414,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       // section is the ADR-041 read-first ledger of migrations/snapshots/index changes/template
       // upgrades, now called Database.
       label: "Database",
-      group: "Design & System",
+      group: "Operations",
       icon: '<ellipse cx="9" cy="4.5" rx="6" ry="2.2"/><path d="M3 4.5v9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2v-9"/><path d="M3 9c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2"/>',
     },
     agentReachable: true,
@@ -389,7 +432,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     },
     nav: {
       label: "Integrations & API",
-      group: "Design & System",
+      group: "Operations",
       icon: '<path d="M6 6l-3 3 3 3M12 6l3 3-3 3M10 4l-2 10"/>',
     },
     agentReachable: true,
@@ -402,17 +445,29 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       // Renamed from "backups" — ADR-045: Recovery supersedes Backups as a concept, there is no
       // separate Backups screen (see Recovery.tsx's own header comment).
       label: "Recovery",
-      group: "Design & System",
+      group: "Operations",
       icon: '<path d="M9 2a7 7 0 107 7"/><path d="M9 5v4l2.5 1.5"/>',
     },
     agentReachable: true,
   },
   {
+    id: "deployment",
+    render: () => <Placeholder sectionId="deployment" />,
+    nav: {
+      label: "Deployment",
+      group: "Operations",
+      soon: true,
+      icon: '<path d="M9 2.5c2.6 1.8 4 4.4 4 7.2L9 13 5 9.7c0-2.8 1.4-5.4 4-7.2z"/><circle cx="9" cy="7.5" r="1.4"/><path d="M6.6 12.4L5 15.5l3-.9M11.4 12.4L13 15.5l-3-.9"/>',
+    },
+  },
+
+  // --- Administration ---
+  {
     id: "settings",
     render: () => <SettingsUi />,
     nav: {
       label: "Settings",
-      group: "Design & System",
+      group: "Administration",
       icon: '<circle cx="9" cy="9" r="2.5"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.2 4.2l1.4 1.4M12.4 12.4l1.4 1.4M4.2 13.8l1.4-1.4M12.4 5.6l1.4-1.4"/>',
     },
     agentReachable: true,
@@ -435,7 +490,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       // resolved by the owner): a standalone nav entry near Settings, its closest sibling concept
       // — could instead become a Settings tab; either satisfies every REQ/AC unchanged.
       label: "Workspace",
-      group: "Design & System",
+      group: "Administration",
       icon: '<rect x="2.5" y="2.5" width="13" height="13" rx="2"/><path d="M2.5 7h13"/>',
     },
     agentReachable: true,

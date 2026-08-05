@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { adminHref, currentRoutePath, navigate, redirectLegacyHashUrl } from "../router";
+import { adminHref, currentRoutePath, navigate, redirectLegacyHashUrl, useRouteLocation } from "../router";
 
 /**
  * @file `lib/router.ts` — the cases two rounds of external audit turned up, each of which was a real
@@ -109,5 +110,32 @@ describe("route path vs URL", () => {
     expect(currentRoutePath()).toBe("/");
     at("/admin/posts/abc");
     expect(currentRoutePath()).toBe("/posts/abc");
+  });
+});
+
+describe("useRouteLocation", () => {
+  it("reads the current route path (plus query) as its initial snapshot", () => {
+    at("/admin/settings?tab=general");
+    const { result } = renderHook(() => useRouteLocation());
+    expect(result.current).toBe("/settings?tab=general");
+  });
+
+  it("re-renders with the new route once navigate() fires — subscribeToRoute's own event, not just popstate", () => {
+    at("/admin/settings");
+    const { result } = renderHook(() => useRouteLocation());
+    expect(result.current).toBe("/settings");
+
+    act(() => navigate("/posts/abc"));
+
+    expect(result.current).toBe("/posts/abc");
+  });
+
+  it("also re-renders on a real back/forward navigation (popstate)", () => {
+    at("/admin/settings");
+    const { result } = renderHook(() => useRouteLocation());
+    at("/admin/posts/abc"); // simulates the browser having already updated location for Back
+    act(() => window.dispatchEvent(new PopStateEvent("popstate")));
+
+    expect(result.current).toBe("/posts/abc");
   });
 });

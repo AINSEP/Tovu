@@ -95,6 +95,10 @@ function seededPost(id: string, title: string, slug: string, body: JsonObject): 
     title,
     slug,
     bodyJson: body,
+    // SPEC-047/ADR-056 Decision 3 — every seeded row is a TipTap document, matching what every
+    // pre-feature row already was; seed data has no reason to exercise the "html" branch.
+    bodyFormat: "doc",
+    bodyHtml: null,
     status: "published",
     kind: "post",
     updatedAt: "2026-07-07T00:00:00.000Z",

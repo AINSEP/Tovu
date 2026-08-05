@@ -1,8 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
-import { ApiError, api, describeApiError, type AdminTaxonomyWithTerms, type AdminTerm } from "../lib/api";
+import type { AdminTaxonomyWithTerms, AdminTerm } from "../../lib/api";
+import { termDepth, otherMergeTargets } from "./rules";
+import { useNewTermForm } from "./hooks/use-new-term-form.hooks";
+import { useNewTaxonomyForm } from "./hooks/use-new-taxonomy-form.hooks";
+import { useMergeTermSection } from "./hooks/use-merge-term-section.hooks";
+import { useTermDetailPanel } from "./hooks/use-term-detail-panel.hooks";
+import { useTaxonomy } from "./hooks/use-taxonomy.hooks";
 
 /**
  * @file Categories & Tags screen (design-spec.md §2, ADR-044) — the `/admin/taxonomy` route.
+ * Markup only.
+ *
+ * State and API calls live in one hook per component: `hooks/use-new-term-form.hooks.ts`,
+ * `hooks/use-new-taxonomy-form.hooks.ts`, `hooks/use-merge-term-section.hooks.ts`,
+ * `hooks/use-term-detail-panel.hooks.ts`, `hooks/use-taxonomy.hooks.ts` (the top-level screen).
+ * `termDepth`, `otherMergeTargets`, and `findSelectedTerm` (used inside `use-taxonomy.hooks.ts`)
+ * live in `rules.ts`.
  *
  * Structural reference: `Settings.tsx`'s two-pane namespace-list + detail-panel layout
  * (design-spec.md §0.3/§2.2) — reuses `.settings-body`/`.settings-row`/`.settings-namespace-*`
@@ -22,69 +34,31 @@ import { ApiError, api, describeApiError, type AdminTaxonomyWithTerms, type Admi
  * name + hierarchical-toggle form above the taxonomy list, reusing `NewTermForm`'s shape.
  */
 
-/** Depth of `term` within its taxonomy's `parentId` chain, bounded against cycles by a visited
- * set (server-side cycle detection should prevent one, but this render helper never trusts that
- * blindly). */
-function termDepth(required: { term: AdminTerm; byId: Map<string, AdminTerm> }): number {
-  const { term, byId } = required;
-  let depth = 0;
-  let current: AdminTerm | undefined = term;
-  const visited = new Set<string>();
-  while (current?.parentId && !visited.has(current.id)) {
-    visited.add(current.id);
-    current = byId.get(current.parentId);
-    depth += 1;
-    if (depth > 32) break; // defensive bound, not an expected real depth
-  }
-  return depth;
-}
-
-function NewTermForm(props: {
+export interface NewTermFormProps {
   taxonomy: AdminTaxonomyWithTerms;
   onCreated: () => void;
-}) {
-  const [name, setName] = useState("");
-  const [parentId, setParentId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   *  for `useCustomSelect`. */
+  useNewTermFormHook?: typeof useNewTermForm;
+}
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) {
-      setError("Name is required.");
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      await api.createTerm(
-        { taxonomyId: props.taxonomy.taxonomy.id, name: name.trim() },
-        { parentId: props.taxonomy.taxonomy.hierarchical && parentId ? parentId : null }
-      );
-      setName("");
-      setParentId("");
-      props.onCreated();
-    } catch (e) {
-      setError(describeApiError(e, "Failed to create term"));
-    } finally {
-      setSaving(false);
-    }
-  }
+function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useNewTermForm }: NewTermFormProps) {
+  const { name, setName, parentId, setParentId, error, saving, submit } = useNewTermFormHook({ taxonomy, onCreated });
 
   return (
     <form className="notice taxonomy-new-term-form" onSubmit={submit}>
-      <label htmlFor={`new-term-name-${props.taxonomy.taxonomy.id}`}>New term in {props.taxonomy.taxonomy.name}</label>
+      <label htmlFor={`new-term-name-${taxonomy.taxonomy.id}`}>New term in {taxonomy.taxonomy.name}</label>
       <span className="editor-actions">
         <input
-          id={`new-term-name-${props.taxonomy.taxonomy.id}`}
+          id={`new-term-name-${taxonomy.taxonomy.id}`}
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Term name"
         />
-        {props.taxonomy.taxonomy.hierarchical ? (
+        {taxonomy.taxonomy.hierarchical ? (
           <select aria-label="Parent term" value={parentId} onChange={(e) => setParentId(e.target.value)}>
             <option value="">(top level)</option>
-            {props.taxonomy.terms.map((t) => (
+            {taxonomy.terms.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
               </option>
@@ -106,33 +80,15 @@ function NewTermForm(props: {
   );
 }
 
+export interface NewTaxonomyFormProps {
+  onCreated: () => void;
+  useNewTaxonomyFormHook?: typeof useNewTaxonomyForm;
+}
+
 /** New-taxonomy form (REQ-02) — name + hierarchical toggle, calling `api.createTaxonomy`. Mirrors
  * `NewTermForm`'s local-state/submit/error shape. */
-function NewTaxonomyForm(props: { onCreated: () => void }) {
-  const [name, setName] = useState("");
-  const [hierarchical, setHierarchical] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) {
-      setError("Name is required.");
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      await api.createTaxonomy({ name: name.trim(), hierarchical });
-      setName("");
-      setHierarchical(false);
-      props.onCreated();
-    } catch (e) {
-      setError(describeApiError(e, "Failed to create taxonomy"));
-    } finally {
-      setSaving(false);
-    }
-  }
+function NewTaxonomyForm({ onCreated, useNewTaxonomyFormHook = useNewTaxonomyForm }: NewTaxonomyFormProps) {
+  const { name, setName, hierarchical, setHierarchical, error, saving, submit } = useNewTaxonomyFormHook({ onCreated });
 
   return (
     <form className="notice taxonomy-new-term-form" onSubmit={submit}>
@@ -164,70 +120,21 @@ function NewTaxonomyForm(props: { onCreated: () => void }) {
   );
 }
 
-type MergeStep = "idle" | "planned" | "confirmed";
+export interface MergeTermSectionProps {
+  taxonomy: AdminTaxonomyWithTerms;
+  term: AdminTerm;
+  onMerged: () => void;
+  useMergeTermSectionHook?: typeof useMergeTermSection;
+}
 
-function MergeTermSection(props: { taxonomy: AdminTaxonomyWithTerms; term: AdminTerm; onMerged: () => void }) {
-  const otherTerms = props.taxonomy.terms.filter((t) => t.id !== props.term.id);
-  const [intoTermId, setIntoTermId] = useState("");
-  const [step, setStep] = useState<MergeStep>("idle");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [plan, setPlan] = useState<{ planId: string; planHash: string; overlappingContentCount: number } | null>(null);
-  const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    setIntoTermId("");
-    setStep("idle");
-    setError(null);
-    setPlan(null);
-    setConfirmationToken(null);
-  }, [props.term.id]);
+function MergeTermSection({ taxonomy, term, onMerged, useMergeTermSectionHook = useMergeTermSection }: MergeTermSectionProps) {
+  const otherTerms = otherMergeTargets(taxonomy, term.id);
+  const { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute } = useMergeTermSectionHook({
+    term,
+    onMerged,
+  });
 
   if (otherTerms.length === 0) return null;
-
-  async function startPlan() {
-    if (!intoTermId) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const r = await api.planMergeTerm({ fromTermId: props.term.id, intoTermId });
-      setPlan({ planId: r.planId, planHash: r.planHash, overlappingContentCount: r.details.overlappingContentCount });
-      setStep("planned");
-    } catch (e) {
-      setError(describeApiError(e, "Failed to plan the merge"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function doConfirm() {
-    if (!plan) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const r = await api.confirmMergeTerm({ fromTermId: props.term.id, planId: plan.planId, planHash: plan.planHash });
-      setConfirmationToken(r.confirmationToken);
-      setStep("confirmed");
-    } catch (e) {
-      setError(describeApiError(e, "Failed to confirm the merge"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function doExecute() {
-    if (!confirmationToken) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await api.executeMergeTerm({ fromTermId: props.term.id, intoTermId, confirmationToken });
-      props.onMerged();
-    } catch (e) {
-      setError(describeApiError(e, "Failed to execute the merge"));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <div className="notice taxonomy-merge-section">
@@ -257,7 +164,7 @@ function MergeTermSection(props: { taxonomy: AdminTaxonomyWithTerms; term: Admin
         <div>
           <p>
             This will move {plan.overlappingContentCount} overlapping content assignment(s) onto the target
-            term and merge <strong>{props.term.name}</strong> away. Confirming issues a one-time execution
+            term and merge <strong>{term.name}</strong> away. Confirming issues a one-time execution
             token — nothing is merged yet.
           </p>
           <button type="button" className="btn-secondary" onClick={doConfirm} disabled={busy}>
@@ -279,56 +186,33 @@ function MergeTermSection(props: { taxonomy: AdminTaxonomyWithTerms; term: Admin
   );
 }
 
-function TermDetailPanel(props: {
+export interface TermDetailPanelProps {
   taxonomy: AdminTaxonomyWithTerms;
   term: AdminTerm;
   onRenamed: () => void;
   onMerged: () => void;
-}) {
-  const [newName, setNewName] = useState(props.term.name);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  useTermDetailPanelHook?: typeof useTermDetailPanel;
+}
 
-  useEffect(() => {
-    setNewName(props.term.name);
-    setMessage(null);
-    setError(null);
-  }, [props.term.id, props.term.name]);
-
-  async function rename(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newName.trim() || newName.trim() === props.term.name) return;
-    setSaving(true);
-    setError(null);
-    setMessage(null);
-    try {
-      await api.renameTerm({ termId: props.term.id, newName: newName.trim() });
-      setMessage("Renamed.");
-      props.onRenamed();
-    } catch (e) {
-      setError(describeApiError(e, "Failed to rename term"));
-    } finally {
-      setSaving(false);
-    }
-  }
+function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, useTermDetailPanelHook = useTermDetailPanel }: TermDetailPanelProps) {
+  const { newName, setNewName, saving, message, error, rename } = useTermDetailPanelHook({ term, onRenamed });
 
   return (
     <div className="settings-detail-panel">
-      <h2>{props.term.name}</h2>
-      <p className="muted-cell">{props.taxonomy.taxonomy.name}</p>
+      <h2>{term.name}</h2>
+      <p className="muted-cell">{taxonomy.taxonomy.name}</p>
       <div className="settings-layer-grid">
         <div className="settings-layer-cell">
           <span className="settings-layer-label">Status</span>
-          <span className={`status status-${props.term.status}`}>{props.term.status}</span>
+          <span className={`status status-${term.status}`}>{term.status}</span>
         </div>
         <div className="settings-layer-cell">
           <span className="settings-layer-label">Parent</span>
-          <span>{props.term.parentId ? props.taxonomy.terms.find((t) => t.id === props.term.parentId)?.name ?? props.term.parentId : "—"}</span>
+          <span>{term.parentId ? taxonomy.terms.find((t) => t.id === term.parentId)?.name ?? term.parentId : "—"}</span>
         </div>
         <div className="settings-layer-cell">
           <span className="settings-layer-label">Version</span>
-          <span>{props.term.version}</span>
+          <span>{term.version}</span>
         </div>
       </div>
       <form onSubmit={rename} className="collections-field-row">
@@ -342,33 +226,20 @@ function TermDetailPanel(props: {
           {error ? <span className="save-error">{error}</span> : null}
         </span>
       </form>
-      <MergeTermSection taxonomy={props.taxonomy} term={props.term} onMerged={props.onMerged} />
+      <MergeTermSection taxonomy={taxonomy} term={term} onMerged={onMerged} />
     </div>
   );
 }
 
-export function Taxonomy() {
-  const [taxonomies, setTaxonomies] = useState<AdminTaxonomyWithTerms[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
+export interface TaxonomyProps {
+  /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   *  for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   *  nothing and behave exactly as before. */
+  useTaxonomyHook?: typeof useTaxonomy;
+}
 
-  function load() {
-    api
-      .listTaxonomies()
-      .then((r) => setTaxonomies(r.items))
-      .catch((e) => setError(describeApiError(e, "failed to load taxonomies")));
-  }
-
-  useEffect(load, []);
-
-  const selected = useMemo(() => {
-    if (!taxonomies || !selectedTermId) return null;
-    for (const group of taxonomies) {
-      const term = group.terms.find((t) => t.id === selectedTermId);
-      if (term) return { taxonomy: group, term };
-    }
-    return null;
-  }, [taxonomies, selectedTermId]);
+export function Taxonomy({ useTaxonomyHook = useTaxonomy }: TaxonomyProps = {}) {
+  const { taxonomies, error, selectedTermId, setSelectedTermId, selected, load } = useTaxonomyHook();
 
   if (error && !taxonomies) return <div className="notice error">{error}</div>;
   if (!taxonomies) return <div className="notice">Loading taxonomies…</div>;
@@ -399,7 +270,16 @@ export function Taxonomy() {
                   <ul role="list" className="settings-row-list">
                     {group.terms.map((term) => {
                       const depth = group.taxonomy.hierarchical ? termDepth({ term, byId }) : 0;
-                      const parentName = term.parentId ? byId.get(term.parentId)?.name : undefined;
+                      // Gated on `hierarchical` for the same reason `depth` is: a term's
+                      // `parentId` can still be set on a taxonomy that has since been switched to
+                      // flat (or seeded with one before hierarchical mode existed), and this row
+                      // renders with zero indentation either way. Without this gate the
+                      // `aria-label` below announced a "subcategory of" relationship a
+                      // screen-reader user could not corroborate from the (unindented) visual
+                      // layout — an accessibility mismatch between the two channels describing the
+                      // same row.
+                      const parentName =
+                        group.taxonomy.hierarchical && term.parentId ? byId.get(term.parentId)?.name : undefined;
                       return (
                         <li
                           key={term.id}

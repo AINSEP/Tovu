@@ -1,11 +1,22 @@
-import { useEffect, useState } from "react";
-import { ApiError, api, describeApiError, type AdminComment, type CommentModerationAction, type CommentStatus, type CommentsSettings } from "../lib/api";
-import { formatTimestamp } from "../lib/format-timestamp";
-import { hasPermission } from "../lib/permissions";
-import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
+import type { CommentStatus } from "../../lib/api";
+import { hasPermission } from "../../lib/permissions";
+import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+
+import { commentRowMenuItems, truncate } from "./rules";
+import { formatTimestamp } from "../../lib/format-timestamp";
+import { useComments } from "./hooks/use-comments.hooks";
+import { useCommentQueue } from "./hooks/use-comment-queue.hooks";
+import { useCommentSettings } from "./hooks/use-comment-settings.hooks";
 
 /**
- * @file Comments admin screen (ADR-031, SPEC-033/035 backend; SPEC-036 this frontend).
+ * @file Comments admin screen (ADR-031, SPEC-033/035 backend; SPEC-036 this frontend) — markup
+ * only.
+ *
+ * State and API calls live in `hooks/use-comments.hooks.ts` (permissions),
+ * `hooks/use-comment-queue.hooks.ts` (`QueueSection`), and `hooks/use-comment-settings.hooks.ts`
+ * (`SettingsSection`). The row-menu logic, error-message overrides, and the settings patch
+ * builder/validator live in `rules.ts`. See `hooks/use-comments.hooks.ts` for why only the
+ * exported `Comments` gets the DI-seam prop, not its two private sub-components.
  *
  * Closes the gap the SPEC-036 sweep found: the moderation-queue/moderate/settings backend
  * routes were built and audit-clean but nothing in `apps/admin/` called any of them, so the
@@ -25,146 +36,21 @@ import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/ad
 
 const STATUS_OPTIONS: readonly CommentStatus[] = ["pending", "approved", "spam", "trash"];
 
-interface RowActionState {
-  busy: boolean;
-  error: string | null;
-}
-
-function emptyRowState(): RowActionState {
-  return { busy: false, error: null };
-}
-
-/** REQ-07: a 409 (stale `expectedVersion`) gets its own message instead of the generic fallback,
- * using the route's own `{error, currentVersion}` body when present. */
-function describeModerationError(e: unknown): string {
-  if (e instanceof ApiError && e.status === 409) {
-    const currentVersion = typeof e.body?.currentVersion === "number" ? e.body.currentVersion : undefined;
-    return `This comment changed since you loaded it${
-      currentVersion !== undefined ? ` (current version ${currentVersion})` : ""
-    } — refresh and try again.`;
-  }
-  return describeApiError(e, "Failed to update comment.");
-}
-
-function truncate(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max)}…` : text;
-}
-
 function QueueSection(props: { permissions: string[] }) {
-  const has = (permission: string) => hasPermission(props.permissions, permission);
-  const canModerate = has("comments.moderate");
-  const canDelete = has("comments.delete");
-  const canForceDelete = has("comments.delete.force");
-
-  const [status, setStatus] = useState<CommentStatus>("pending");
-  const [items, setItems] = useState<AdminComment[] | null>(null);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [rowState, setRowState] = useState<Record<string, RowActionState>>({});
-  // The comment a `RowMenu` "Purge" selection is asking to confirm — `null` when the dialog is
-  // closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on why);
-  // this is what drives its `open` prop. Row actions moved into `RowMenu` below (MSG-03 rollout);
-  // Purge is the one that needed a real confirm step, so it's the one that gained this state — the
-  // others (Approve/Spam/Trash/Restore) were never gated by anything and still aren't.
-  const [pendingPurge, setPendingPurge] = useState<AdminComment | null>(null);
-
-  function stateFor(id: string): RowActionState {
-    return rowState[id] ?? emptyRowState();
-  }
-
-  function patchRowState(id: string, patch: Partial<RowActionState>) {
-    setRowState((current) => ({ ...current, [id]: { ...emptyRowState(), ...current[id], ...patch } }));
-  }
-
-  function load(reset: boolean, forStatus: CommentStatus, cursor: string | null) {
-    setError(null);
-    api
-      .listCommentsQueue({ status: forStatus, cursor: cursor ?? undefined })
-      .then((r) => {
-        setItems((current) => (reset || !current ? r.items : [...current, ...r.items]));
-        setNextCursor(r.nextCursor);
-      })
-      .catch((e) => setError(describeApiError(e, "failed to load the moderation queue")))
-      .finally(() => setLoadingMore(false));
-  }
-
-  useEffect(() => {
-    setItems(null);
-    load(true, status, null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
-
-  function loadMore() {
-    setLoadingMore(true);
-    load(false, status, nextCursor);
-  }
-
-  /** Reloads page 1 of the current filter — the simplest correct way to reflect a moderation
-   * action's effect (REQ-05's "refetching the row's queue page on success"): every action always
-   * moves the comment to a different status than whatever the current filter is showing it under,
-   * so a fresh first page is always the right post-action view. */
-  function reloadFirstPage() {
-    load(true, status, null);
-  }
-
-  async function onModerate(comment: AdminComment, action: CommentModerationAction) {
-    if (stateFor(comment.id).busy) return;
-    patchRowState(comment.id, { busy: true, error: null });
-    try {
-      await api.moderateComment({ commentId: comment.id, action, expectedVersion: comment.version });
-      reloadFirstPage();
-    } catch (e) {
-      patchRowState(comment.id, { busy: false, error: describeModerationError(e) });
-    }
-  }
-
-  /** Confirmation now gates via a `ConfirmDialog` modal, reached through `RowMenu`'s "Purge" item
-   *  (`setPendingPurge` below), rather than `window.confirm` — same upgrade `Posts.tsx`/`Pages.tsx`
-   *  already made for their own Delete. Copy is the exact previous sentence, unchanged: states the
-   *  consequence ("permanently delete") and explicitly "this cannot be undone" because, unlike
-   *  Trash (a status this same menu can restore from), a purge genuinely has no way back. Dialog
-   *  always closes on settle (success or failure) — a failure surfaces via this row's own existing
-   *  `rs.error` mechanism, same place every other moderation action's failure already shows up. */
-  async function onPurge() {
-    if (!pendingPurge) return;
-    const comment = pendingPurge;
-    if (stateFor(comment.id).busy) return;
-    patchRowState(comment.id, { busy: true, error: null });
-    try {
-      await api.purgeComment({ commentId: comment.id });
-      reloadFirstPage();
-    } catch (e) {
-      patchRowState(comment.id, { busy: false, error: describeApiError(e, "Failed to purge comment.") });
-    } finally {
-      setPendingPurge(null);
-    }
-  }
-
-  /** At-rest row actions for `RowMenu` — every condition here is copied verbatim from the inline
-   *  buttons this replaces, so a permission/status combination that used to hide a button still
-   *  omits the matching menu item rather than rendering a guaranteed-failing click. */
-  function rowMenuItems(comment: AdminComment): RowMenuItem[] {
-    const items: RowMenuItem[] = [];
-    if (comment.status !== "approved" && canModerate) {
-      items.push({ key: "approve", label: "Approve", onSelect: () => void onModerate(comment, "approve") });
-    }
-    if (comment.status !== "spam" && canModerate) {
-      items.push({ key: "spam", label: "Spam", onSelect: () => void onModerate(comment, "spam") });
-    }
-    if (comment.status !== "trash" && canDelete) {
-      items.push({ key: "trash", label: "Trash", onSelect: () => void onModerate(comment, "trash") });
-    }
-    if ((comment.status === "spam" || comment.status === "trash") && canModerate) {
-      items.push({ key: "restore", label: "Restore", onSelect: () => void onModerate(comment, "restore") });
-    }
-    // REQ-06: purge only ever surfaces from the trash filter view. Genuinely destructive (its own
-    // confirm copy: "cannot be undone") — `destructive: true`, unlike the reversible actions above.
-    if (status === "trash" && comment.status === "trash" && canForceDelete) {
-      items.push({ key: "purge", label: "Purge", destructive: true, onSelect: () => setPendingPurge(comment) });
-    }
-    return items;
-  }
+  const {
+    status,
+    setStatus,
+    items,
+    nextCursor,
+    error,
+    loadingMore,
+    loadMore,
+    stateFor,
+    onModerate,
+    pendingPurge,
+    setPendingPurge,
+    onPurge,
+  } = useCommentQueue();
 
   if (error && !items) return <div className="notice error">{error}</div>;
 
@@ -219,7 +105,14 @@ function QueueSection(props: { permissions: string[] }) {
                 header: "More",
                 cell: (comment) => {
                   const rs = stateFor(comment.id);
-                  const menuItems = rowMenuItems(comment);
+                  const menuItems = commentRowMenuItems(
+                    comment,
+                    { permissions: props.permissions, currentFilterStatus: status },
+                    {
+                      onModerate: (c, action) => void onModerate(c, action),
+                      onRequestPurge: setPendingPurge,
+                    },
+                  );
                   return (
                     <>
                       {menuItems.length > 0 ? (
@@ -268,93 +161,10 @@ function QueueSection(props: { permissions: string[] }) {
   );
 }
 
-/** REQ-08/09/10: builds a partial patch containing only the fields the operator actually changed
- * (the backend's `setCommentsSettings` is a partial-patch contract — REQ-08 asks the client to
- * mirror that instead of always sending the full object, as `Seo.tsx`'s form does). */
-function buildSettingsPatch(required: { form: FormData; current: CommentsSettings }): Partial<CommentsSettings> {
-  const { form, current } = required;
-  const patch: Partial<CommentsSettings> = {};
-
-  const enabled = form.get("enabled") === "on";
-  if (enabled !== current.enabled) patch.enabled = enabled;
-
-  const requireModeration = form.get("requireModeration") === "on";
-  if (requireModeration !== current.requireModeration) patch.requireModeration = requireModeration;
-
-  const maxDepthRaw = String(form.get("maxDepth") ?? "");
-  const maxDepth = Number(maxDepthRaw);
-  if (maxDepthRaw !== "" && Number.isFinite(maxDepth) && maxDepth !== current.maxDepth) patch.maxDepth = maxDepth;
-
-  // REQ-10: blank means "never closes" -> null on the wire; the UI never sends the backend's
-  // own -1 sentinel, only null or a positive number.
-  const closeAfterDaysRaw = String(form.get("closeAfterDays") ?? "").trim();
-  const closeAfterDaysNum = Number(closeAfterDaysRaw);
-  const closeAfterDays =
-    closeAfterDaysRaw === "" ? null : Number.isFinite(closeAfterDaysNum) ? closeAfterDaysNum : undefined;
-  if (closeAfterDays !== undefined && closeAfterDays !== current.closeAfterDays) {
-    patch.closeAfterDays = closeAfterDays;
-  }
-
-  const spamAutoRejectScoreRaw = String(form.get("spamAutoRejectScore") ?? "");
-  const spamAutoRejectScore = Number(spamAutoRejectScoreRaw);
-  if (spamAutoRejectScoreRaw !== "" && Number.isFinite(spamAutoRejectScore) && spamAutoRejectScore !== current.spamAutoRejectScore) {
-    patch.spamAutoRejectScore = spamAutoRejectScore;
-  }
-
-  const maxPerIpPerHourRaw = String(form.get("maxPerIpPerHour") ?? "");
-  const maxPerIpPerHour = Number(maxPerIpPerHourRaw);
-  if (maxPerIpPerHourRaw !== "" && Number.isFinite(maxPerIpPerHour) && maxPerIpPerHour !== current.maxPerIpPerHour) {
-    patch.maxPerIpPerHour = maxPerIpPerHour;
-  }
-
-  return patch;
-}
-
 function SettingsSection(props: { canConfigure: boolean }) {
-  const [settings, setSettings] = useState<CommentsSettings | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  useEffect(() => {
-    // AC-10: the GET route itself is `comments.configure`-gated (get-settings.ts), so a
-    // principal without that grant can't even read settings today — skip the doomed fetch and
-    // hide the section entirely rather than surfacing a 403 error banner for a screen this
-    // principal was never going to be able to use.
-    if (!props.canConfigure) return;
-    api
-      .getCommentsSettings()
-      .then((r) => setSettings(r.data))
-      .catch((e) => setError(describeApiError(e, "failed to load Comments settings")));
-  }, [props.canConfigure]);
+  const { settings, error, saving, notice, save } = useCommentSettings(props.canConfigure);
 
   if (!props.canConfigure) return null;
-
-  async function save(form: FormData) {
-    if (!settings) return;
-    setError(null);
-    setNotice(null);
-
-    const patch = buildSettingsPatch({ form, current: settings });
-
-    // REQ-09: client-side validate spamAutoRejectScore before the network call — mirrors the
-    // backend's own `validateCommentsSettingsPatch` bound (`src/comments/settings.ts`).
-    if (patch.spamAutoRejectScore !== undefined && (patch.spamAutoRejectScore < 0 || patch.spamAutoRejectScore > 1)) {
-      setError("Spam auto-reject score must be between 0 and 1.");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const r = await api.putCommentsSettings(patch);
-      setSettings(r.data);
-      setNotice("Saved.");
-    } catch (e) {
-      setError(describeApiError(e, "failed to save Comments settings"));
-    } finally {
-      setSaving(false);
-    }
-  }
 
   if (error && !settings) return <div className="notice error">{error}</div>;
   if (!settings) return <div className="notice">Loading Comments settings…</div>;
@@ -455,16 +265,17 @@ function SettingsSection(props: { canConfigure: boolean }) {
   );
 }
 
-export function Comments() {
-  const [permissions, setPermissions] = useState<string[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+export interface CommentsProps {
+  /**
+   * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   * nothing and behave exactly as before.
+   */
+  useCommentsHook?: typeof useComments;
+}
 
-  useEffect(() => {
-    api
-      .me()
-      .then((r) => setPermissions(r.effectivePermissions ?? []))
-      .catch((e) => setError(describeApiError(e, "failed to load permissions")));
-  }, []);
+export function Comments({ useCommentsHook = useComments }: CommentsProps = {}) {
+  const { permissions, error } = useCommentsHook();
 
   if (error) return <div className="notice error">{error}</div>;
   if (!permissions) return <div className="notice">Loading Comments…</div>;

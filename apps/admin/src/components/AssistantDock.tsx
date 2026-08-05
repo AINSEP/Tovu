@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMemo } from "react";
 import {
   A2uiSurfaceCard,
@@ -12,13 +12,45 @@ import {
   type ChatPaneAgent,
   type FrontendSessionBridge,
 } from "@jini-ai/chat/react";
-import type { ChatMessage } from "@jini-ai/chat/core";
+import { isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
+import { DEFAULT_PROVIDER_PRESETS, resolveSelectedPreset, type ExecutionConfig } from "@jini-ai/ui";
 
 import { createA2uiActionPoster } from "../lib/a2ui-action-poster";
 import { createTovuAssistantTransport } from "../lib/assistant-transport";
 import { publishSettingsRefresh } from "../lib/settings-refresh-bus";
+import {
+  DEFAULT_EXECUTION_CONFIG,
+  EXECUTION_NAMESPACE,
+  createExecutionPort,
+  hasUsableAdminKey,
+  loadAdminExecutionCredential,
+  loadExecutionConfig,
+  saveExecutionConfig,
+} from "../lib/execution-settings";
 import { useWiredAssistantChats, type UseAssistantChats } from "../hooks/use-assistant-chats.hooks";
 import "../styles/assistant.css";
+// The runtime picker's BYOK model row renders `@jini-ai/ui`'s `SearchableModelSelect`, whose
+// styles (including the body-portaled `.jini-select-menu`) live in this sheet. The settings
+// screens import it too, but the dock is mounted on every admin route — relying on a screen the
+// operator may never open would leave the dropdown unstyled exactly when it is used most.
+import "@jini-ai/ui/settings-dialog.css";
+
+/**
+ * Brand mark for a BYOK provider, keyed by `ProviderPreset.id`, resolved against the artwork this
+ * host actually ships in `src/public/agent-icons/`.
+ *
+ * Maps to CLI-agent icon ids because that is the asset set `AgentIcon` reads and the marks are the
+ * vendors' own — `gemini.svg` is Google's logo whether a Gemini CLI or a Gemini API key is what
+ * runs. A preset absent from this table (Azure OpenAI, OpenRouter, Ollama — no artwork on disk)
+ * deliberately yields nothing, and the picker shows a generic API glyph. That is honest; pointing
+ * `AgentIcon` at an id with no file would render a broken image or an unrelated initial-letter
+ * badge, and inventing a nearby vendor's logo would be worse than showing none.
+ */
+const BYOK_PRESET_ICON_IDS: Readonly<Record<string, string>> = {
+  anthropic: "claude",
+  openai: "codex",
+  "google-gemini": "gemini",
+};
 
 /**
  * Renders the MCP-UI surfaces the daemon withholds from tool results, and wires the dialog's
@@ -120,6 +152,339 @@ async function fetchAgents(): Promise<ChatPaneAgent[]> {
   return agents;
 }
 
+export interface UseExecutionConfig {
+  executionConfig: ExecutionConfig;
+  /** Same object as `executionConfig`, mirrored into a ref — see the field's own doc below for why. */
+  executionConfigRef: React.MutableRefObject<ExecutionConfig>;
+  setExecutionConfig: React.Dispatch<React.SetStateAction<ExecutionConfig>>;
+  handleExecutionModeChange: (mode: "local" | "api") => void;
+  /**
+   * Whether this admin has a BYOK credential saved server-side (2026-08-05) — `null` until the
+   * initial GET settles, then `true`/`false`. See {@link AssistantDock}'s `apiModeAvailable` for why
+   * this exists: `executionConfig.byok.apiKey` alone is no longer enough to answer "is BYOK
+   * usable", because the key is write-only and empty on every fresh load even when one is stored.
+   */
+  hasStoredAdminKey: boolean | null;
+}
+
+/**
+ * Owns the runtime picker's Local CLI / API · BYOK state (ADR-049's picker, 2026-08-04 wiring) and
+ * the mode-switch write-back. Split out of `AssistantDock` so the config-load failure path (the
+ * `.catch()` below) and the mode-switch persistence path can be driven directly with `renderHook`
+ * against a mocked `execution-settings.ts`, rather than only indirectly through a full dock mount.
+ *
+ * @returns `executionConfig` (the live value), `executionConfigRef` (read-fresh mirror for
+ *   consumers that must not capture a stale closure), `setExecutionConfig`, and
+ *   `handleExecutionModeChange` (persists a mode switch back through the ADR-028 chokepoint).
+ * @example
+ * const { executionConfig, handleExecutionModeChange } = useExecutionConfig();
+ */
+export function useExecutionConfig(): UseExecutionConfig {
+  /**
+   * Loaded once from `execution-settings.ts`'s ledger+localStorage-backed store — the SAME source
+   * the Execution-mode settings tab reads/writes — so a mode chosen there is reflected here without
+   * a page reload, and a mode picked directly from this dock persists back the same way.
+   *
+   * Held in a ref (kept in sync below) rather than read directly by the memoized `transport`: the
+   * transport is built once (see its own comment) and reads this via `getExecutionConfig()` on every
+   * `startRun` call, so a mode change mid-session takes effect on the NEXT message without forcing a
+   * new transport instance — the same "read fresh, don't capture" pattern `runContext`'s
+   * `frontendBindToken` already uses a few lines down.
+   */
+  const [executionConfig, setExecutionConfigState] = useState<ExecutionConfig>(DEFAULT_EXECUTION_CONFIG);
+  const executionConfigRef = useRef(executionConfig);
+  executionConfigRef.current = executionConfig;
+
+  /**
+   * True once THIS mount has made its own local write — a mode switch from
+   * `handleExecutionModeChange` below, or (through the wrapped `setExecutionConfig` this hook
+   * exposes) a BYOK model pick from `useByokRuntime`'s `handleByokModelChange`. Guards the
+   * mount-load effect just below: without it, an operator who switches modes before the initial
+   * `loadExecutionConfig()` resolves would see the switch silently revert. The load starts on
+   * mount and reads whatever the server held BEFORE the switch's own `saveExecutionConfig` call;
+   * if it resolves after the switch (a real race — both are ordinary network calls with no
+   * ordering guarantee), applying it unconditionally overwrites the operator's just-made,
+   * already-persisted choice with the stale pre-switch value. That leaves the UI showing a
+   * different mode than the server holds — exactly the disagreement
+   * `handleExecutionModeChange`'s own doc comment says the ADR-028 chokepoint exists to prevent.
+   *
+   * A ref, not state: flipping it must not itself trigger a render, and it needs to be readable
+   * synchronously inside the functional `setExecutionConfigState` updater below.
+   */
+  const localWriteRef = useRef(false);
+
+  /**
+   * The `Dispatch` this hook exposes — to its own `handleExecutionModeChange` below, and to
+   * `useByokRuntime`'s `handleByokModelChange` (passed `executionConfig`/`setExecutionConfig` as
+   * an input pair). Wraps the raw state setter so any update that actually changes the value
+   * marks {@link localWriteRef}.
+   *
+   * Relies on the "return `previous` unchanged to bail out" convention every updater passed
+   * through here already follows (`handleExecutionModeChange`'s and `handleByokModelChange`'s own
+   * `if (previous.… === next) return previous;` guards) rather than re-deriving no-op-ness itself:
+   * comparing the updater's result to `previous` by reference is enough to tell a genuine write
+   * apart from a no-op, so an operator re-picking the mode/model already active does not
+   * permanently block a legitimate mount-load from applying.
+   *
+   * Note: React 18 Strict Mode invokes a functional state updater twice to surface impure
+   * updaters. Setting a boolean ref to `true` twice is idempotent, so that double-invoke is safe
+   * here — it would only matter if the ref were toggled off anywhere, which it never is.
+   */
+  const setExecutionConfig = useCallback<React.Dispatch<React.SetStateAction<ExecutionConfig>>>((action) => {
+    setExecutionConfigState((previous) => {
+      const next = typeof action === "function"
+        ? (action as (current: ExecutionConfig) => ExecutionConfig)(previous)
+        : action;
+      if (next !== previous) localWriteRef.current = true;
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadExecutionConfig()
+      .then((config) => {
+        // Goes through the raw setter, not the wrapped `setExecutionConfig` above: applying a
+        // load must never itself count as a "local write" (see `localWriteRef`'s doc) — only an
+        // operator action should. Skipped once a local write has landed — see that doc for why.
+        if (!cancelled && !localWriteRef.current) setExecutionConfigState(config);
+      })
+      // The dock is mounted on EVERY admin route, so an unhandled rejection here is not a
+      // localized failure — it fires on any page load where the settings read fails (server
+      // down, a 5xx, a body without `data`). `DEFAULT_EXECUTION_CONFIG` is already this
+      // state's initial value, so swallowing to a log leaves the picker on Local CLI rather
+      // than blanking the dock. Same shape as `handleExecutionModeChange`'s save catch below.
+      .catch((error: unknown) => {
+        console.error("[AssistantDock] failed to load execution config", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /**
+   * Whether a BYOK credential is stored server-side for this admin — see {@link UseExecutionConfig.hasStoredAdminKey}'s
+   * own doc for why `apiModeAvailable` cannot be answered from `executionConfig.byok.apiKey` alone
+   * any more. Read-only and independent of the ledger load above: a failed GET here leaves this
+   * `null`/`false` (picker reads as "not configured"), which is the same fail-soft posture the
+   * ledger load's own `.catch` takes — never blocks the dock, only degrades one affordance.
+   */
+  const [hasStoredAdminKey, setHasStoredAdminKey] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void loadAdminExecutionCredential()
+      .then((view) => {
+        if (!cancelled) setHasStoredAdminKey(view.isSet);
+      })
+      .catch((error: unknown) => {
+        console.error("[AssistantDock] failed to load stored BYOK credential state", error);
+        if (!cancelled) setHasStoredAdminKey(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /**
+   * Persists a mode switch made from THIS dock's own picker back through the same
+   * `saveExecutionConfig` chokepoint the Execution-mode settings tab uses (ADR-028's single write
+   * chokepoint), so the two surfaces can never disagree about which mode is active. Functional
+   * `setExecutionConfig` update (not `executionConfigRef.current`) to avoid a stale-closure write
+   * racing a config the settings tab saved in another tab in the same instant.
+   */
+  const handleExecutionModeChange = useCallback((mode: "local" | "api") => {
+    const nextMode: ExecutionConfig["mode"] = mode === "api" ? "byok" : "local-cli";
+    setExecutionConfig((previous) => {
+      if (previous.mode === nextMode) return previous;
+      const next: ExecutionConfig = { ...previous, mode: nextMode };
+      void saveExecutionConfig(next, previous).catch((error: unknown) => {
+        console.error("[AssistantDock] failed to save execution mode", error);
+      });
+      return next;
+    });
+  }, []);
+
+  return { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey };
+}
+
+export interface UseByokRuntime {
+  byokRuntime: {
+    providerLabel?: string;
+    iconId?: string;
+    model: string;
+    models: readonly { id: string; label: string }[];
+  };
+  handleByokModelChange: (model: string) => void;
+}
+
+/**
+ * Owns the BYOK model-discovery state and the composer's write-back for a model chosen there. Split
+ * out of `AssistantDock` so the discovery-failure path (models stay empty rather than throwing into
+ * the composer) is directly assertable via `renderHook`.
+ *
+ * @param input.executionConfig - The live execution config; only `executionConfig.byok` and
+ *   `executionConfig.mode` are read.
+ * @param input.setExecutionConfig - The setter {@link useExecutionConfig} returns, so a model
+ *   picked here writes back through the same state.
+ * @returns `byokRuntime` (provider identity, model, and discovered options for the picker) and
+ *   `handleByokModelChange`.
+ * @example
+ * const { byokRuntime, handleByokModelChange } = useByokRuntime({ executionConfig, setExecutionConfig });
+ */
+export function useByokRuntime(
+  {
+    executionConfig,
+    setExecutionConfig,
+  }: {
+    executionConfig: ExecutionConfig;
+    setExecutionConfig: React.Dispatch<React.SetStateAction<ExecutionConfig>>;
+  },
+): UseByokRuntime {
+  /**
+   * Models the saved BYOK credential can actually run — the same list `features/ai-assistant/AiAssistant.tsx`'s
+   * and `features/settings/SettingsUi.tsx`'s Model fields show, discovered through the same
+   * `createExecutionPort().listModels` call.
+   *
+   * Discovered here rather than passed down because the dock outlives any settings screen: a
+   * picker whose options only existed while the settings tab was open would be empty in the case
+   * that matters. Empty on failure, which downgrades the picker's model row to read-only text
+   * rather than offering an empty dropdown.
+   *
+   * SAFE with respect to the keystroke-leak finding
+   * (`ADS-memory/reports/findings/2026-08-04-byok-discovery-keystroke-key-leak.md`): the endpoint
+   * here comes from SAVED config, which an operator committed with an explicit Save, never from a
+   * field being typed into. There is no partial-hostname state for this effect to walk.
+   */
+  const executionPort = useRef(createExecutionPort());
+  const [byokModels, setByokModels] = useState<readonly { id: string; label: string }[]>([]);
+  const { apiKey: byokApiKey, baseUrl: byokBaseUrl, protocol: byokProtocol } = executionConfig.byok;
+
+  useEffect(() => {
+    if (executionConfig.mode !== "byok" || !byokApiKey.trim()) {
+      setByokModels([]);
+      return;
+    }
+    let cancelled = false;
+    executionPort.current
+      .listModels?.(executionConfig.byok)
+      .then((models) => {
+        if (!cancelled) setByokModels(models.map((id) => ({ id, label: id })));
+      })
+      // Silent: a failed discovery must not put an error in a chat composer. The visible
+      // consequence is only that the model row stays a plain value instead of a picker.
+      .catch(() => {
+        if (!cancelled) setByokModels([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Keyed on the credential and endpoint only — editing `model` must not re-ask the provider
+    // which models exist, and would loop against the write-back below if it did.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [executionConfig.mode, byokApiKey, byokBaseUrl, byokProtocol]);
+
+  /**
+   * The provider identity, model, and option list the runtime picker shows while BYOK is active.
+   *
+   * `resolveSelectedPreset` rather than a protocol-to-name map: the same protocol backs several
+   * presets (OpenRouter and Ollama are both `openai`-protocol gateways), so keying off `protocol`
+   * alone would label a gateway with the wrong vendor's name. A hand-typed custom endpoint matches
+   * no preset and correctly yields no label and no icon, which the picker renders as a generic mode
+   * name and glyph rather than inventing a vendor.
+   */
+  const byokRuntime = useMemo(
+    () => {
+      const preset = resolveSelectedPreset(DEFAULT_PROVIDER_PRESETS, executionConfig.byok);
+      const iconId = preset ? BYOK_PRESET_ICON_IDS[preset.id] : undefined;
+      return {
+        ...(preset ? { providerLabel: preset.title } : {}),
+        ...(iconId ? { iconId } : {}),
+        model: executionConfig.byok.model,
+        models: byokModels,
+      };
+    },
+    [executionConfig.byok, byokModels],
+  );
+
+  /**
+   * Write-back for a model chosen in the composer's picker — the "stay in sync" half.
+   *
+   * Goes through `saveExecutionConfig`, the same ADR-028 chokepoint the settings screens and
+   * {@link useExecutionConfig}'s `handleExecutionModeChange` use, so the composer and both settings
+   * surfaces are three views of one stored value rather than three copies of it. `publishSettingsRefresh`
+   * then tells an already-open settings tab to re-read, which is what stops it from sitting on the
+   * model the operator just changed. Namespace-scoped so unrelated slices do not refetch.
+   *
+   * Functional update for the same stale-closure reason `handleExecutionModeChange` documents.
+   */
+  const handleByokModelChange = useCallback(
+    (model: string) => {
+      setExecutionConfig((previous) => {
+        if (previous.byok.model === model) return previous;
+        const next: ExecutionConfig = { ...previous, byok: { ...previous.byok, model } };
+        void saveExecutionConfig(next, previous)
+          .then(() => publishSettingsRefresh([EXECUTION_NAMESPACE]))
+          .catch((error: unknown) => {
+            console.error("[AssistantDock] failed to save BYOK model", error);
+          });
+        return next;
+      });
+    },
+    [setExecutionConfig],
+  );
+
+  return { byokRuntime, handleByokModelChange };
+}
+
+/**
+ * Whether a completed run's messages-change delta should trigger `publishSettingsRefresh()`, and
+ * what the next `settledRunMessageId` marker should be. Pulled out of `handleMessagesChange` so the
+ * "fire once per finished run, not once per streaming delta" dedup logic is directly assertable
+ * without a live `ChatPane`.
+ *
+ * Deliberately triggered by RUN COMPLETION rather than by inspecting the transcript for a settings
+ * tool call. Matching tool names here would put a list of them in the admin shell, where it would
+ * fall out of date the first time the catalog grows — and the whole cost of being wrong is a few
+ * sub-millisecond SQLite reads per run. Ignorance is cheaper than coupling.
+ *
+ * @param input.messages - The full transcript as of this `onMessagesChange` event.
+ * @param input.settledRunMessageId - The last message id already published for, or `null`.
+ * @returns `publish` (whether to call `publishSettingsRefresh()` now) and `nextSettledRunMessageId`
+ *   (what the caller's ref should hold next — unchanged when `publish` is `false`).
+ * @example
+ * const { publish, nextSettledRunMessageId } = shouldPublishOnMessagesChange({
+ *   messages,
+ *   settledRunMessageId: settledRunMessageId.current,
+ * });
+ */
+export function shouldPublishOnMessagesChange(
+  { messages, settledRunMessageId }: { messages: ChatMessage[]; settledRunMessageId: string | null },
+): { publish: boolean; nextSettledRunMessageId: string | null } {
+  const last = messages[messages.length - 1];
+  if (!last || last.role !== "assistant") {
+    return { publish: false, nextSettledRunMessageId: settledRunMessageId };
+  }
+  if (!isTerminalRunStatus(last.runStatus) || settledRunMessageId === last.id) {
+    return { publish: false, nextSettledRunMessageId: settledRunMessageId };
+  }
+  return { publish: true, nextSettledRunMessageId: last.id };
+}
+
+/**
+ * Builds the per-call run context the daemon reads `frontendBindToken` out of
+ * (`assistant-transport.ts`'s `contextRef` wiring). Omits the key entirely when no bind token
+ * exists yet, rather than sending `frontendBindToken: undefined`, matching the daemon's own
+ * "absent means no bound frontend" contract.
+ *
+ * @param input.bindToken - The current tab's page-control bind token, or `undefined` if unbound.
+ * @returns The context object to merge into a run's `contextRef`.
+ * @example
+ * const context = resolveRunContext({ bindToken: agentBridge?.bindToken() });
+ */
+export function resolveRunContext({ bindToken }: { bindToken: string | undefined }): { frontendBindToken?: string } {
+  return bindToken === undefined ? {} : { frontendBindToken: bindToken };
+}
+
 export interface AssistantDockProps {
   /**
    * This tab's page-control connection, owned by `App.tsx` (it outlives this pane, which unmounts
@@ -138,8 +503,14 @@ export interface AssistantDockProps {
 }
 
 export function AssistantDock({ agentBridge = null, useChats = useWiredAssistantChats }: AssistantDockProps) {
+  const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey } = useExecutionConfig();
+  const { byokRuntime, handleByokModelChange } = useByokRuntime({ executionConfig, setExecutionConfig });
+
   // The transport holds no per-render state; rebuilding it each render would drop in-flight runs.
-  const transport = useMemo(() => createTovuAssistantTransport(), []);
+  const transport = useMemo(
+    () => createTovuAssistantTransport({ getExecutionConfig: () => executionConfigRef.current }),
+    [],
+  );
   /**
    * `''` baseUrl: `createDaemonAttachmentUploader` builds `${baseUrl}/api/attachments`, so an
    * empty string resolves to the same bare `/api/attachments` relative path `AGENTS_URL`/`RUNS_URL`
@@ -197,12 +568,12 @@ export function AssistantDock({ agentBridge = null, useChats = useWiredAssistant
        * `undefined` scope (rather than a namespace list) for the same reason: this publisher does
        * not know what changed, and saying so is more honest than guessing.
        */
-      const last = messages[messages.length - 1];
-      if (!last || last.role !== "assistant") return;
-      const terminal = last.runStatus === "succeeded" || last.runStatus === "failed" || last.runStatus === "canceled";
-      if (!terminal || settledRunMessageId.current === last.id) return;
-      settledRunMessageId.current = last.id;
-      publishSettingsRefresh();
+      const { publish, nextSettledRunMessageId } = shouldPublishOnMessagesChange({
+        messages,
+        settledRunMessageId: settledRunMessageId.current,
+      });
+      settledRunMessageId.current = nextSettledRunMessageId;
+      if (publish) publishSettingsRefresh();
     },
     [chats],
   );
@@ -222,10 +593,7 @@ export function AssistantDock({ agentBridge = null, useChats = useWiredAssistant
    * the tab's lifetime, so this rebuilds only when page control genuinely appears or goes away.
    */
   const runContext = useMemo(
-    () => () => {
-      const bindToken = agentBridge?.bindToken();
-      return bindToken === undefined ? {} : { frontendBindToken: bindToken };
-    },
+    () => () => resolveRunContext({ bindToken: agentBridge?.bindToken() }),
     [agentBridge],
   );
 
@@ -243,6 +611,32 @@ export function AssistantDock({ agentBridge = null, useChats = useWiredAssistant
         initialSelection={{ agentId: "claude" }}
         {...(chats.activeId ? { conversationId: chats.activeId } : {})}
         initialMessages={chats.initialMessages}
+        // The Local CLI / API · BYOK row (`AgentRuntimePicker`, `@jini-ai/chat`) — previously
+        // hardcoded to `executionMode: 'local'` / `apiModeAvailable: false` (never passed at all),
+        // which made "API · BYOK" permanently disabled with a "not configured" label that was
+        // literally true: nothing wired it. `apiModeAvailable` is now a real fact — not a hardcoded
+        // default — and selecting the row genuinely changes where a message goes
+        // (`assistant-transport.ts`'s `startRun` branches on this same `executionConfig`).
+        //
+        // `hasUsableAdminKey`, not `executionConfig.byok.apiKey.trim().length > 0` alone (2026-08-05):
+        // the admin's own BYOK credential is encrypted server-side and write-only now
+        // (`execution-settings.ts`'s header), so `byok.apiKey` is empty on every fresh load even
+        // when a credential IS stored — gating on it alone would make this row permanently disabled
+        // for exactly the case the server-side store exists to support. `hasStoredAdminKey` is
+        // `null` until its own GET settles, which `hasUsableAdminKey` treats as "nothing confirmed
+        // stored yet" (same as `false`) — a brief false-negative on first paint, never a
+        // false-positive, and it corrects itself the moment the GET resolves.
+        executionMode={executionConfig.mode === "byok" ? "api" : "local"}
+        apiModeAvailable={hasUsableAdminKey(executionConfig.byok.apiKey, { isSet: hasStoredAdminKey === true })}
+        onExecutionModeChange={handleExecutionModeChange}
+        // What the picker names as the runtime while BYOK is the active mode. Without it the
+        // popover described the DETECTED CLI in both modes — an agent list with one row marked
+        // "selected", a model reading "Default (CLI config)", and a Rescan PATH button — none of
+        // which has any bearing on an API turn, and all of which named the wrong provider. The
+        // model is the one `assistant-transport.ts` will actually send (`byok.model`), read from
+        // the same config object that decides the branch, so the two cannot disagree.
+        byokRuntime={byokRuntime}
+        onByokModelChange={handleByokModelChange}
         /**
          * Replaces `ChatPane`'s default header, which is not merely a styling preference.
          *

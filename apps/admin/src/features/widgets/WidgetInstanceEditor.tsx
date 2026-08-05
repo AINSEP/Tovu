@@ -1,27 +1,17 @@
-import { useEffect, useState } from "react";
-import { ApiError, api, describeApiError, type AdminWidget, type AdminWidgetType, type AdminWidgetWhereUsed } from "../lib/api";
-import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields";
-import { navigate } from "../lib/router";
+import { WidgetConfigFields } from "../../components/WidgetConfigFields";
+import { isKnownWidgetType, widgetTypeLabel } from "./rules";
+import { useWidgetInstanceEditor } from "./hooks/use-widget-instance-editor.hooks";
+import type { AdminWidgetWhereUsed } from "../../lib/api";
 
 /**
  * @file `WidgetInstanceEditorScreen` (`ui.spec.md` §2.2/§3.3/§4.3) — create/edit one widget
- * instance, `/admin/widgets/new?type=X` and `/admin/widgets/{id}`. Mirrors `MenuEditor.tsx`'s editor-shell
- * shape; config editing delegates to the shared `WidgetConfigFields` (§3.4).
+ * instance, `/admin/widgets/new?type=X` and `/admin/widgets/{id}` — markup only. Mirrors
+ * `MenuEditor.tsx`'s editor-shell shape; config editing delegates to the shared
+ * `WidgetConfigFields` (§3.4).
+ *
+ * State, the fetch, and save live in `hooks/use-widget-instance-editor.hooks.ts`; the field-error
+ * extraction, the known-type check, and the type label live in `rules.ts`.
  */
-
-const STALE_VERSION_MESSAGE = "This widget changed since you loaded it, refresh and try again.";
-
-/** The five closed v1 widget types (`WIDGET_TYPE_OPTIONS`, REQ-09) as a lookup set — used to catch
- *  a garbage `?type=` query param on `/widgets/new` before it reaches a live editor shell. */
-const KNOWN_WIDGET_TYPES = new Set<string>(WIDGET_TYPE_OPTIONS.map((o) => o.value));
-
-function fieldErrorsOf(e: unknown): Array<{ field: string; reason: string }> {
-  if (e instanceof ApiError && e.code === "WIDGETS_CONFIG_VALIDATION_ERROR") {
-    const details = e.body?.details as { fieldErrors?: Array<{ field: string; reason: string }> } | undefined;
-    return details?.fieldErrors ?? [];
-  }
-  return [];
-}
 
 /** REQ-34/`ui.spec.md` §3.5 — rendered only when `references.length > 0`, before the config form. */
 function WhereUsedBanner(props: { whereUsed: AdminWidgetWhereUsed }) {
@@ -40,74 +30,20 @@ function WhereUsedBanner(props: { whereUsed: AdminWidgetWhereUsed }) {
   );
 }
 
-export function WidgetInstanceEditor(props: { widgetId: string | null; widgetType: string | null }) {
-  const isNew = props.widgetId === null;
-  const [widget, setWidget] = useState<AdminWidget | null>(null);
-  const [whereUsed, setWhereUsed] = useState<AdminWidgetWhereUsed>({ count: 0, references: [] });
-  const [title, setTitle] = useState("");
-  const [config, setConfig] = useState<Record<string, unknown>>({});
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Array<{ field: string; reason: string }>>([]);
-  const [loading, setLoading] = useState(!isNew);
-  const [saving, setSaving] = useState(false);
+export interface WidgetInstanceEditorProps {
+  widgetId: string | null;
+  widgetType: string | null;
+  /**
+   * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
+   * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
+   */
+  useWidgetInstanceEditorHook?: typeof useWidgetInstanceEditor;
+}
 
-  const widgetType = (isNew ? props.widgetType : widget?.widgetType) as AdminWidgetType | null;
-
-  useEffect(() => {
-    if (isNew) {
-      setWidget(null);
-      setTitle("");
-      setConfig(defaultWidgetConfig((props.widgetType as AdminWidgetType) ?? "text"));
-      setWhereUsed({ count: 0, references: [] });
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    api
-      .getWidget(props.widgetId as string)
-      .then((r) => {
-        setWidget(r.widget);
-        setTitle(r.widget.title);
-        setConfig(r.widget.config);
-        setWhereUsed(r.whereUsed);
-      })
-      .catch((e) => setError(describeApiError(e, "failed to load widget")))
-      .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.widgetId, props.widgetType, isNew]);
-
-  async function save() {
-    if (!widgetType) return;
-    setSaving(true);
-    setMessage(null);
-    setError(null);
-    setFieldErrors([]);
-    try {
-      if (isNew) {
-        const { widget: created } = await api.createWidget({ widgetType, title, config });
-        navigate(`/widgets/${created.id}`);
-        return;
-      }
-      if (!widget) return;
-      const { widget: saved } = await api.updateWidget({ id: widget.id, baseVersion: widget.version, config });
-      setWidget(saved);
-      setConfig(saved.config);
-      setMessage(`Saved · version ${saved.version}`);
-    } catch (e) {
-      if (e instanceof ApiError && e.code === "WIDGETS_VERSION_CONFLICT") {
-        setError(STALE_VERSION_MESSAGE);
-      } else if (e instanceof ApiError && e.code === "WIDGETS_CONFIG_VALIDATION_ERROR") {
-        setFieldErrors(fieldErrorsOf(e));
-        setError(describeApiError(e, "save failed"));
-      } else {
-        setError(describeApiError(e, "save failed"));
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
+export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
+  const { widgetId, widgetType: queryWidgetType, useWidgetInstanceEditorHook = useWidgetInstanceEditor } = props;
+  const { isNew, widget, whereUsed, title, setTitle, config, setConfig, message, error, fieldErrors, loading, saving, widgetType, save } =
+    useWidgetInstanceEditorHook({ widgetId, widgetType: queryWidgetType });
 
   if (error && !isNew && !widget) return <div className="notice error">{error}</div>;
   if (loading) return <div className="notice">Loading widget…</div>;
@@ -119,7 +55,7 @@ export function WidgetInstanceEditor(props: { widgetId: string | null; widgetTyp
   // `return null`). Scoped to `isNew` only: an already-saved widget's type was validated server-side
   // at creation, so this guards the one confirmed-reachable path (a hand-typed or bookmarked
   // `?type=` value) rather than second-guessing already-loaded data.
-  if (isNew && !KNOWN_WIDGET_TYPES.has(widgetType)) {
+  if (isNew && !isKnownWidgetType(widgetType)) {
     return <div className="notice error">Unknown widget type "{widgetType}".</div>;
   }
 
@@ -157,7 +93,7 @@ export function WidgetInstanceEditor(props: { widgetId: string | null; widgetTyp
         <span className="visually-hidden">Widget title</span>
         <input className="editor-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Widget title" />
       </label>
-      <p className="muted-cell">Type: {WIDGET_TYPE_OPTIONS.find((o) => o.value === widgetType)?.label ?? widgetType}</p>
+      <p className="muted-cell">Type: {widgetTypeLabel(widgetType)}</p>
 
       <div className="widget-config-form">
         <WidgetConfigFields widgetType={widgetType} config={config} onChange={setConfig} />

@@ -3,6 +3,8 @@ import type { ToolRegistry } from "@jini-ai/core";
 import type { ToolCatalogQuery } from "@jini-ai/http-kit";
 import { ensureToolCatalogTables, getToolCatalogEntry, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
 
+import { indexedDescriptionFor, stripSearchKeywords } from "./tool-search-keywords";
+
 /**
  * @file Backs `@jini-ai/http-kit`'s `GET /api/tools/search` / `GET /api/tools/:id` with Tovu's own
  * `ToolRegistry` — the same registry `buildAssistantToolRegistrations` populates and
@@ -22,7 +24,9 @@ import { ensureToolCatalogTables, getToolCatalogEntry, reseedToolCatalog, search
  * frequent score ties on ambiguous queries (e.g. "notification email" scored
  * `forms_update_definition` and `identity_user_update_email` identically), while BM25 correctly
  * separates them by term-frequency/length-normalized relevance. That gap widens, not narrows, as
- * the catalog grows past today's 18 tools.
+ * the catalog grows. (That 2026-07-30 benchmark ran against an 18-tool registry; the wired catalog
+ * is 131 tools as of 2026-08-05, so the quality gap the swap was made for is wider now than the
+ * numbers in that note imply, not narrower.)
  */
 
 /** The tool id's own naming convention (`forms_create_definition` -> `forms`) doubles as its
@@ -48,25 +52,43 @@ function sourceForToolId(id: string): string {
  * FTS5/index cost, not this function's.
  * @overallScore 100
  */
-export function buildToolCatalogQuery(registry: Pick<ToolRegistry, "list">): ToolCatalogQuery {
+export function buildToolCatalogQuery(
+  registry: Pick<ToolRegistry, "list">,
+  /** Test seam. `false` seeds the raw descriptions with no operator vocabulary folded in — the ONLY
+   *  caller is `tool-search-quality.eval.ts`, which needs a true before/after on the same case set to
+   *  make its improvement attributable rather than asserted. Production always wants the default. */
+  options: { readonly includeSearchKeywords?: boolean } = {},
+): ToolCatalogQuery {
+  const includeSearchKeywords = options.includeSearchKeywords ?? true;
   const db = new Database(":memory:");
   ensureToolCatalogTables(db);
   reseedToolCatalog(
     db,
     registry.list().map((descriptor) => ({
       id: descriptor.id,
-      description: descriptor.description ?? "",
+      // Indexed text, not the raw description — see `tool-search-keywords.ts` for why. Short
+      // version: BM25 can only rank words that are in the index, and this catalog's descriptions
+      // are written in the codebase's nouns while operators search in theirs. Measured at 40%
+      // top-1 before this.
+      description: includeSearchKeywords
+        ? indexedDescriptionFor(descriptor.id, descriptor.description ?? "")
+        : (descriptor.description ?? ""),
       inputSchema: descriptor.inputSchema,
       source: sourceForToolId(descriptor.id),
     })),
   );
 
+  // Both accessors strip the folded search vocabulary back off. The keywords exist to be RANKED on,
+  // never to be read: a tool's description is a contract the model reasons about, and padding it
+  // with synonyms to game the index would degrade that in order to fix search. Stripping here keeps
+  // the two concerns separate — the index sees the vocabulary, every caller sees the authored text.
   return {
     search(query, limit = 10) {
-      return searchToolCatalog(db, query, limit);
+      return searchToolCatalog(db, query, limit).map((hit) => ({ ...hit, description: stripSearchKeywords(hit.description) }));
     },
     describe(id) {
-      return getToolCatalogEntry(db, id);
+      const entry = getToolCatalogEntry(db, id);
+      return entry === null ? null : { ...entry, description: stripSearchKeywords(entry.description) };
     },
   };
 }

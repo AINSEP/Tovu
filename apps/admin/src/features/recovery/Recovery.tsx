@@ -1,15 +1,10 @@
-import { useEffect, useState } from "react";
-import {
-  ApiError,
-  api,
-  describeApiError,
-  type AdminDisclosureResult,
-  type AdminRecoveryStatus,
-  type AdminRestorePoint,
-  type DatabaseContextEnvelope,
-} from "../lib/api";
-import { formatTimestamp } from "../lib/format-timestamp";
 import { DataTable } from "@jini-ai/admin/react";
+
+import { formatTimestamp } from "../../lib/format-timestamp";
+import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "../../lib/api";
+import { categoryLabel, isAssertiveRecoveryBanner } from "./rules";
+import { useRecovery } from "./hooks/use-recovery.hooks";
+import { useRestoreFlow } from "./hooks/use-restore-flow.hooks";
 
 /**
  * @file Recovery screen (design-spec.md §4, ADR-045) — the `/admin/recovery` route.
@@ -25,16 +20,20 @@ import { DataTable } from "@jini-ai/admin/react";
  * design, not a live hot-swap: the already-running process keeps its own open file handle to the
  * pre-restore data until an operator restarts it — `restartRequired: true` on the response is
  * that signal, surfaced below rather than silently implied.
+ *
+ * ## Markup only
+ *
+ * `Recovery`'s own list/status state lives in `hooks/use-recovery.hooks.ts`; `RestoreFlow`'s
+ * ceremony state lives in `hooks/use-restore-flow.hooks.ts` — independent state with its own
+ * lifecycle, keyed to whichever restore point is selected. `DegradedBannerView`,
+ * `RestorePointsList`, and `DisclosurePanel` hold no state of their own and stay as plain,
+ * props-driven presentation with no hook. Pure logic (category labels, the banner urgency check,
+ * the deep-link envelope parse) lives in `rules.ts`.
+ *
+ * `src/__tests__/unit/admin-nav-recovery-acs.unit.test.ts` reads this file's source directly
+ * (`readFileSync`) to assert AC-32 against the `page-description` copy below — keep that
+ * `className="page-description">...</p>` line intact if editing the header copy.
  */
-
-const CATEGORY_LABELS: Record<string, string> = {
-  posts_pages: "posts/pages writes",
-  plugin_table: "plugin-table rows",
-};
-
-function categoryLabel(category: string): string {
-  return CATEGORY_LABELS[category] ?? `${category} writes`;
-}
 
 function DegradedBannerView(props: { status: AdminRecoveryStatus }) {
   const banner = props.status.banner;
@@ -43,7 +42,7 @@ function DegradedBannerView(props: { status: AdminRecoveryStatus }) {
   // AC-27/EC-06/INV-07: `pending-migration`'s action always deep-links to Database's own
   // migration ceremony, never a Recovery restore action — restoring to an older snapshot does not
   // resolve schema drift against the current runtime.
-  const assertive = banner.kind === "migration-interrupted" || banner.kind === "pending-migration";
+  const assertive = isAssertiveRecoveryBanner(banner);
 
   return (
     <div className={`notice error recovery-degraded-banner`} role={assertive ? "alert" : undefined} aria-live={assertive ? "assertive" : "polite"}>
@@ -156,110 +155,60 @@ function DisclosurePanel(props: {
   );
 }
 
-type CeremonyStep = "idle" | "planned" | "confirmed" | "done";
+export interface RestoreFlowProps {
+  point: AdminRestorePoint;
+  onBack: () => void;
+  /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
+  useRestoreFlowHook?: typeof useRestoreFlow;
+}
 
-function RestoreFlow(props: { point: AdminRestorePoint; onBack: () => void }) {
-  const [disclosure, setDisclosure] = useState<AdminDisclosureResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [acknowledged, setAcknowledged] = useState(false);
-
-  const [step, setStep] = useState<CeremonyStep>("idle");
-  const [busy, setBusy] = useState(false);
-  const [ceremonyError, setCeremonyError] = useState<string | null>(null);
-  const [plan, setPlan] = useState<{ planId: string; planHash: string } | null>(null);
-  const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
-  const [result, setResult] = useState<{ restoreRunId: string; state: string; restartRequired?: boolean } | null>(null);
-
-  useEffect(() => {
-    setDisclosure(null);
-    setAcknowledged(false);
-    setError(null);
-    setStep("idle");
-    setBusy(false);
-    setCeremonyError(null);
-    setPlan(null);
-    setConfirmationToken(null);
-    setResult(null);
-    api
-      .computeRecoveryDisclosure(props.point.id)
-      .then(setDisclosure)
-      .catch((e) => setError(describeApiError(e, "Failed to compute the discarded-write-window disclosure")));
-  }, [props.point.id]);
-
-  async function startPlan() {
-    setBusy(true);
-    setCeremonyError(null);
-    try {
-      const r = await api.planRestore(props.point.id);
-      setPlan({ planId: r.planId, planHash: r.planHash });
-      setStep("planned");
-    } catch (e) {
-      setCeremonyError(describeApiError(e, "Failed to plan the restore"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function doConfirm() {
-    if (!plan) return;
-    setBusy(true);
-    setCeremonyError(null);
-    try {
-      const r = await api.confirmRestore({
-        planId: plan.planId,
-        planHash: plan.planHash,
-        disclosureAcknowledged: acknowledged,
-      });
-      setConfirmationToken(r.confirmationToken);
-      setStep("confirmed");
-    } catch (e) {
-      setCeremonyError(describeApiError(e, "Failed to confirm the restore"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function doExecute() {
-    if (!confirmationToken) return;
-    setBusy(true);
-    setCeremonyError(null);
-    try {
-      const r = await api.executeRestore({ confirmationToken, restorePointId: props.point.id });
-      setResult({ restoreRunId: r.restoreRunId, state: r.state, restartRequired: r.restartRequired });
-      setStep("done");
-    } catch (e) {
-      setCeremonyError(describeApiError(e, "Failed to execute the restore"));
-    } finally {
-      setBusy(false);
-    }
-  }
+function RestoreFlow({ 
+  point, 
+  onBack, 
+  useRestoreFlowHook = useRestoreFlow 
+}: RestoreFlowProps) {
+  const {
+    disclosure,
+    error,
+    acknowledged,
+    setAcknowledged,
+    step,
+    busy,
+    ceremonyError,
+    plan,
+    confirmationToken,
+    result,
+    startPlan,
+    doConfirm,
+    doExecute,
+  } = useRestoreFlowHook({ point });
 
   return (
     <div>
-      <button type="button" className="btn-ghost" onClick={props.onBack}>
+      <button type="button" className="btn-ghost" onClick={onBack}>
         ← Restore points
       </button>
-      <h2>Restore to {formatTimestamp(props.point.createdAt)}</h2>
+      <h2>Restore to {formatTimestamp(point.createdAt)}</h2>
 
       <div className="settings-layer-grid">
         <div className="settings-layer-cell">
           <span className="settings-layer-label">Trigger</span>
-          <span>{props.point.trigger}</span>
+          <span>{point.trigger}</span>
         </div>
         <div className="settings-layer-cell">
           <span className="settings-layer-label">Cost class</span>
-          <span className={`status status-${props.point.costClass}`}>{props.point.costClass}</span>
+          <span className={`status status-${point.costClass}`}>{point.costClass}</span>
         </div>
         <div className="settings-layer-cell">
           <span className="settings-layer-label">Kind</span>
-          <span>{props.point.kind}</span>
+          <span>{point.kind}</span>
         </div>
       </div>
 
       {error ? <div className="notice error">{error}</div> : null}
       {!disclosure && !error ? <div className="notice">Computing the discarded-write-window disclosure…</div> : null}
       {disclosure ? (
-        <DisclosurePanel point={props.point} disclosure={disclosure} acknowledged={acknowledged} onAcknowledgeChange={setAcknowledged} />
+        <DisclosurePanel point={point} disclosure={disclosure} acknowledged={acknowledged} onAcknowledgeChange={setAcknowledged} />
       ) : null}
 
       {ceremonyError ? <div className="notice error">{ceremonyError}</div> : null}
@@ -319,48 +268,17 @@ function RestoreFlow(props: { point: AdminRestorePoint; onBack: () => void }) {
   );
 }
 
-export function Recovery() {
-  const [status, setStatus] = useState<AdminRecoveryStatus | null>(null);
-  const [points, setPoints] = useState<AdminRestorePoint[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<AdminRestorePoint | null>(null);
+export interface RecoveryProps {
+  /**
+   * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   * nothing and behave exactly as before. See `PostsProps.usePostsHook` for the full rationale.
+   */
+  useRecoveryHook?: typeof useRecovery;
+}
 
-  function load() {
-    setError(null);
-    Promise.all([api.getRecoveryStatus(), api.listRecoveryRestorePoints()])
-      .then(([statusResult, pointsResult]) => {
-        setStatus(statusResult);
-        setPoints(pointsResult.items);
-      })
-      .catch((e) => setError(describeApiError(e, "failed to load Recovery")));
-  }
-
-  useEffect(load, []);
-
-  // Deep-link arrival (design-spec.md §4.5, ADR-041 §7/ADR-045 §5, INV-04): re-resolve any
-  // envelope `Database.tsx` stashed before navigating here. A stale/forged/pruned envelope
-  // resolves to `found: false` — an expected, non-exceptional case, not an error toast.
-  useEffect(() => {
-    if (!points) return;
-    const raw = sessionStorage.getItem("recovery-deep-link-envelope");
-    if (!raw) return;
-    sessionStorage.removeItem("recovery-deep-link-envelope");
-    let envelope: DatabaseContextEnvelope;
-    try {
-      envelope = JSON.parse(raw);
-    } catch {
-      return;
-    }
-    api
-      .resolveRecoveryDeepLink(envelope)
-      .then((result) => {
-        if (result.found && result.restorePoint) {
-          const match = points.find((p) => p.id === result.restorePoint!.restorePointId);
-          if (match) setSelected(match);
-        }
-      })
-      .catch(() => undefined); // a failed re-verification falls back to the plain list, no alarm
-  }, [points]);
+export function Recovery({ useRecoveryHook = useRecovery }: RecoveryProps = {}) {
+  const { status, points, error, selected, setSelected } = useRecoveryHook();
 
   if (error && !points) return <div className="notice error">{error}</div>;
   if (!points || !status) return <div className="notice">Loading restore points…</div>;
@@ -369,7 +287,7 @@ export function Recovery() {
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Design & System</p>
+          <p className="page-kicker">Operations</p>
           <h1 className="page-title">Recovery</h1>
           <p className="page-description">Restore this site to a previous point in time using a captured restore point.</p>
         </div>

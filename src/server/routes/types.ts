@@ -16,6 +16,7 @@ import type {
 } from "@jini-ai/cms/identity";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin";
 import type { PostRepoPort, PostSearchPort } from "../../features/post";
+import type { PagesHtmlDocumentStoreFactory } from "../../features/pages";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope";
 import type { PresentationSettingsRepoPort } from "../../features/presentation";
 import type { SettingsRepoPort } from "../../features/settings";
@@ -97,6 +98,18 @@ export interface RouteDeps {
    * workspace/kind/status/trash stay query-time filters on the live row.
    */
   postSearch: PostSearchPort;
+  /**
+   * SPEC-047/ADR-056 — builds the bespoke-HTML body store for one Page.
+   *
+   * A sibling of `postRepo`, never a method on it, and deliberately not reachable through the
+   * ordinary Post/Page CRUD path: this is the ONLY writer of `body_format: "html"` rows anywhere
+   * (CIC-3), and `createPost`/`updatePost` are structurally incapable of producing that shape. The
+   * separation is the invariant, not a layering preference — see `features/pages/html-document-store.ts`.
+   *
+   * A factory for the same reason `chatHistory` is one: composition closes over the `content.db`
+   * handle so no route holds it, and every instance is bound to one `(workspaceId, postId)` pair.
+   */
+  pagesHtmlStore: PagesHtmlDocumentStoreFactory;
   /**
    * Durable AI chat history, obtained per-principal.
    *

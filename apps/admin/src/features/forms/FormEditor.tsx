@@ -1,9 +1,14 @@
-import { useEffect, useRef, useState } from "react";
-import { api, type AdminFormDefinition, type AdminFormField, type AdminFormNotify, type AdminFormSubmission } from "../lib/api";
-import { navigate } from "../lib/router";
 import { DataTable } from "@jini-ai/admin/react";
-import { SeeMore } from "../components/SeeMore";
-import "../styles/form-field-attrs.css";
+import { SeeMore } from "../../components/SeeMore";
+import "../../styles/form-field-attrs.css";
+
+import type { AdminFormField } from "../../lib/api";
+import { ATTRIBUTE_NAME_SUGGESTIONS, FIELD_TYPES, FORM_TABS, fieldDisplayName } from "./rules";
+import { useFieldAttributesDialog } from "./hooks/use-field-attributes-dialog.hooks";
+import { useFormFieldsEditor } from "./hooks/use-form-fields-editor.hooks";
+import { useFormSubmissionDetail } from "./hooks/use-form-submission-detail.hooks";
+import { useFormSubmissions } from "./hooks/use-form-submissions.hooks";
+import { useFormEditor } from "./hooks/use-form-editor.hooks";
 
 /**
  * @file Form editor screen (SPEC-010 ui.spec.md §2.2-2.5/§3.2-3.5) — the `/admin/forms/:formId` route.
@@ -41,159 +46,45 @@ import "../styles/form-field-attrs.css";
  * The security-relevant half of this lives server-side, not here: `forms.ts`'s
  * `validateFieldDescriptors` is the real gate on attribute NAMES (a closed allowlist —
  * `ATTRIBUTE_NAME_PATTERN`), enforced identically for this admin UI and for `agent-tools.ts`'s
- * agent-facing schema. This file's own `ATTRIBUTE_NAME_PATTERN` constant below is a disclosed
- * duplicate for a fast, pre-save error message only (same pattern `Collections.tsx`'s
+ * agent-facing schema. This file's own `ATTRIBUTE_NAME_PATTERN` constant (now in `rules.ts`) is a
+ * disclosed duplicate for a fast, pre-save error message only (same pattern `Collections.tsx`'s
  * `validateFieldName`/`KEY_GRAMMAR` already uses) — it is never the authoritative check.
+ *
+ * ## Markup only
+ *
+ * Every component's state now lives in its own `hooks/use-<thing>.hooks.ts`; pure logic (field-list
+ * transforms, tab-index math, the attribute allowlist check, recipients parsing) lives in
+ * `rules.ts`.
  */
-
-const FIELD_TYPES = ["text", "email", "textarea", "checkbox"] as const;
-
-/** The two tab-panel views on an existing form's editor (`formId !== "new"`). */
-const FORM_TABS = [
-  { id: "fields", label: "Fields" },
-  { id: "submissions", label: "Submissions" },
-] as const;
-
-/**
- * Roving-tabindex arrow-key step for the Fields/Submissions tablist — ArrowLeft/ArrowRight cycle
- * between the two tabs, Home/End jump to the first/last. Split out from the `onKeyDown` handler so
- * the index math carries no dependency on the DOM/React event type; the JSX handler that calls
- * this stays a small inline function, same convention as `Taxonomy.tsx`'s row `onKeyDown`.
- * @complexity O(1) — `FORM_TABS` is a fixed 2-item array.
- */
-function nextTabIndex(key: string, currentIndex: number): number | null {
-  if (key === "ArrowRight") return (currentIndex + 1) % FORM_TABS.length;
-  if (key === "ArrowLeft") return (currentIndex - 1 + FORM_TABS.length) % FORM_TABS.length;
-  if (key === "Home") return 0;
-  if (key === "End") return FORM_TABS.length - 1;
-  return null;
-}
-
-function blankField(): AdminFormField {
-  return { id: "", label: "", type: "text", required: false };
-}
-
-/** Shared "what do we call this field in a title/label" fallback — a blank draft field has neither
- *  a label nor an id yet, so both the kebab's `aria-label` and the modal's own `<h2>` need the same
- *  `label -> id -> "Field N"` chain rather than risking the two drifting apart. */
-function fieldDisplayName(field: AdminFormField, index: number): string {
-  return field.label || field.id || `Field ${index + 1}`;
-}
 
 // ---------------------------------------------------------------------------
 // Field attributes modal (per-field CSS classes + HTML attributes)
 // ---------------------------------------------------------------------------
 
-/** Mirrors `forms.ts`'s `ATTRIBUTE_NAME_PATTERN` exactly — see this file's own header comment for
- *  why this is a fast-reject-only duplicate, not the authoritative check. Keep in sync by hand if
- *  the server allowlist changes. */
-const ATTRIBUTE_NAME_PATTERN =
-  /^(aria-[a-z0-9-]+|data-[a-z0-9-]+|placeholder|autocomplete|inputmode|pattern|title|min|max|step|minlength|spellcheck|readonly)$/;
-
-/** Same bounds as `forms.ts`'s `MAX_CLASS_NAME_LENGTH`/`MAX_ATTRIBUTES_PER_FIELD` — client-side
- *  early-reject only, not enforcement (see `ATTRIBUTE_NAME_PATTERN` above). */
-const MAX_CLASS_NAME_LENGTH = 300;
-const MAX_ATTRIBUTES_PER_FIELD = 12;
-
-/** A handful of the allowlisted names as real, pickable suggestions (the modal's own "here's what
- *  you can do" surface — an operator has no other way to discover the allowlist) rather than every
- *  one: `aria-*`/`data-*` are open namespaces, so `aria-label`/`data-testid` stand in for the whole
- *  prefix family instead of listing every field-specific `aria-*` name that doesn't exist yet. */
-const ATTRIBUTE_NAME_SUGGESTIONS = [
-  "aria-label",
-  "aria-describedby",
-  "data-testid",
-  "placeholder",
-  "autocomplete",
-  "inputmode",
-  "pattern",
-  "title",
-  "min",
-  "max",
-  "step",
-  "minlength",
-  "spellcheck",
-  "readonly",
-];
-
-/** Local-only row key for the modal's attribute list, so React can key a row before it has a
- *  stable identity — same `_rowId`/module-counter pattern `Collections.tsx`'s `EditFieldsDialog`
- *  uses for its own draft field rows. */
-let nextAttrRowId = 0;
-
-interface AttrRow {
-  _rowId: number;
-  name: string;
-  value: string;
-}
-
-function attrRowsFromField(field: AdminFormField): AttrRow[] {
-  return Object.entries(field.attributes ?? {}).map(([name, value]) => ({ _rowId: nextAttrRowId++, name, value }));
-}
-
-function FieldAttributesDialog(props: {
+export interface FieldAttributesDialogProps {
   field: AdminFormField;
   fieldIndex: number;
   onSave: (patch: Partial<AdminFormField>) => void;
   onCancel: () => void;
-}) {
-  const { field } = props;
-  const [className, setClassName] = useState(field.className ?? "");
-  const [rows, setRows] = useState<AttrRow[]>(() => attrRowsFromField(field));
-  const [error, setError] = useState<string | null>(null);
+  /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
+  useFieldAttributesDialogHook?: typeof useFieldAttributesDialog;
+}
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") props.onCancel();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function updateRow(rowId: number, patch: Partial<AttrRow>) {
-    setRows((current) => current.map((r) => (r._rowId === rowId ? { ...r, ...patch } : r)));
-  }
-  function removeRow(rowId: number) {
-    setRows((current) => current.filter((r) => r._rowId !== rowId));
-  }
-  function addRow() {
-    setRows((current) => [...current, { _rowId: nextAttrRowId++, name: "", value: "" }]);
-  }
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
-    const trimmedClassName = className.trim();
-    if (trimmedClassName.length > MAX_CLASS_NAME_LENGTH) {
-      setError(`CSS classes must be at most ${MAX_CLASS_NAME_LENGTH} characters.`);
-      return;
-    }
-
-    const attributes: Record<string, string> = {};
-    for (const row of rows) {
-      const name = row.name.trim();
-      if (!name) continue;
-      if (!ATTRIBUTE_NAME_PATTERN.test(name)) {
-        setError(`Attribute "${name}" isn't allowed. Use aria-*, data-*, or one of the suggested names.`);
-        return;
-      }
-      attributes[name] = row.value;
-    }
-    if (Object.keys(attributes).length > MAX_ATTRIBUTES_PER_FIELD) {
-      setError(`At most ${MAX_ATTRIBUTES_PER_FIELD} attributes are allowed per field.`);
-      return;
-    }
-
-    props.onSave({
-      className: trimmedClassName || undefined,
-      attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
-    });
-  }
+function FieldAttributesDialog({
+  field,
+  fieldIndex,
+  onSave,
+  onCancel,
+  useFieldAttributesDialogHook = useFieldAttributesDialog,
+}: FieldAttributesDialogProps) {
+  const { className, setClassName, rows, updateRow, removeRow, addRow, error, submit } = useFieldAttributesDialogHook({
+    field,
+    onSave,
+    onCancel,
+  });
 
   return (
-    <div className="settings-dialog-backdrop" onClick={props.onCancel}>
+    <div className="settings-dialog-backdrop" onClick={onCancel}>
       <form
         className="settings-dialog field-attrs-dialog"
         role="dialog"
@@ -203,7 +94,7 @@ function FieldAttributesDialog(props: {
         onSubmit={submit}
       >
         <h2 id="field-attrs-title">
-          Field attributes — {fieldDisplayName(field, props.fieldIndex)}
+          Field attributes — {fieldDisplayName(field, fieldIndex)}
         </h2>
         {/* Clamped to two lines rather than shortened. Measured in a real browser at this dialog's
             461px content width: the full text is 5 lines / 98px and the dialog 389px tall;
@@ -285,7 +176,7 @@ function FieldAttributesDialog(props: {
 
         <span className="editor-actions">
           <button type="submit">Save</button>
-          <button type="button" className="btn-secondary" onClick={props.onCancel}>
+          <button type="button" className="btn-secondary" onClick={onCancel}>
             Cancel
           </button>
         </span>
@@ -294,37 +185,22 @@ function FieldAttributesDialog(props: {
   );
 }
 
-function FormFieldsEditor(props: {
+export interface FormFieldsEditorProps {
   fields: AdminFormField[];
   existingFieldIds?: string[];
   onChange: (fields: AdminFormField[]) => void;
-}) {
-  const { fields, existingFieldIds = [], onChange } = props;
-  // Which field's `FieldAttributesDialog` is open, by index — `null` when none is. Only one can be
-  // open at a time (opening a second replaces the first, same single-modal-at-a-time discipline
-  // every other dialog in this admin follows).
-  const [editingAttrsIndex, setEditingAttrsIndex] = useState<number | null>(null);
-  // Per-row kebab triggers, indexed the same as `fields` — so focus can return to the trigger that
-  // opened the dialog once it closes (WCAG 2.1 AA "focus returns to trigger element when modal
-  // closes"; neither `Collections.tsx`'s `EditFieldsDialog` nor this file's other dialog do this
-  // today, so this is a small net-new improvement rather than matched-to-precedent behavior).
-  const kebabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
+  useFormFieldsEditorHook?: typeof useFormFieldsEditor;
+}
 
-  function closeAttrsDialog() {
-    const index = editingAttrsIndex;
-    setEditingAttrsIndex(null);
-    if (index !== null) kebabRefs.current[index]?.focus();
-  }
-
-  function updateField(index: number, patch: Partial<AdminFormField>) {
-    onChange(fields.map((f, i) => (i === index ? { ...f, ...patch } : f)));
-  }
-  function addField() {
-    onChange([...fields, blankField()]);
-  }
-  function removeField(index: number) {
-    onChange(fields.filter((_, i) => i !== index));
-  }
+function FormFieldsEditor({
+  fields,
+  existingFieldIds = [],
+  onChange,
+  useFormFieldsEditorHook = useFormFieldsEditor,
+}: FormFieldsEditorProps) {
+  const { editingAttrsIndex, openAttrsDialog, closeAttrsDialog, kebabRefs, updateField, addField, removeField } =
+    useFormFieldsEditorHook({ fields, onChange });
 
   return (
     <>
@@ -440,7 +316,7 @@ function FormFieldsEditor(props: {
                     type="button"
                     className="row-menu-trigger"
                     aria-label={`Attributes for field "${fieldDisplayName(field, index)}"`}
-                    onClick={() => setEditingAttrsIndex(index)}
+                    onClick={() => openAttrsDialog(index)}
                   >
                     <svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
                       <circle cx="9" cy="4.5" r="1.5" />
@@ -488,46 +364,34 @@ function FormFieldsEditor(props: {
   );
 }
 
-function FormSubmissionDetail(props: {
+export interface FormSubmissionDetailProps {
   formId: string;
   submissionId: string;
   onBack: () => void;
   onDeleted: () => void;
-}) {
-  const [submission, setSubmission] = useState<AdminFormSubmission | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
+  useFormSubmissionDetailHook?: typeof useFormSubmissionDetail;
+}
 
-  useEffect(() => {
-    api
-      .getFormSubmission({ formId: props.formId, submissionId: props.submissionId })
-      .then((r) => setSubmission(r.data))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load submission"));
-  }, [props.formId, props.submissionId]);
-
-  async function handleDelete() {
-    if (!confirming) {
-      setConfirming(true);
-      return;
-    }
-    setDeleting(true);
-    setError(null);
-    try {
-      await api.deleteFormSubmission({ formId: props.formId, submissionId: props.submissionId });
-      props.onDeleted();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "delete failed");
-      setDeleting(false);
-    }
-  }
+function FormSubmissionDetail({
+  formId,
+  submissionId,
+  onBack,
+  onDeleted,
+  useFormSubmissionDetailHook = useFormSubmissionDetail,
+}: FormSubmissionDetailProps) {
+  const { submission, error, confirming, deleting, handleDelete } = useFormSubmissionDetailHook({
+    formId,
+    submissionId,
+    onDeleted,
+  });
 
   if (error && !submission) return <div className="notice error">{error}</div>;
   if (!submission) return <div className="notice">Loading submission…</div>;
 
   return (
     <div>
-      <button type="button" className="btn-secondary" onClick={props.onBack}>
+      <button type="button" className="btn-secondary" onClick={onBack}>
         &larr; Back to submissions
       </button>
       {error ? <div className="notice error">{error}</div> : null}
@@ -558,28 +422,19 @@ function FormSubmissionDetail(props: {
   );
 }
 
-function FormSubmissions(props: { formId: string }) {
-  const [submissions, setSubmissions] = useState<AdminFormSubmission[] | null>(null);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+export interface FormSubmissionsProps {
+  formId: string;
+  /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
+  useFormSubmissionsHook?: typeof useFormSubmissions;
+}
 
-  function load(cursor?: string) {
-    api
-      .listFormSubmissions({ formId: props.formId }, cursor ? { cursor } : {})
-      .then((r) => {
-        setSubmissions((prev) => (cursor ? [...(prev ?? []), ...r.data] : r.data));
-        setNextCursor(r.nextCursor);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load submissions"));
-  }
-
-  useEffect(() => load(), [props.formId]);
+function FormSubmissions({ formId, useFormSubmissionsHook = useFormSubmissions }: FormSubmissionsProps) {
+  const { submissions, nextCursor, error, selectedId, setSelectedId, load } = useFormSubmissionsHook({ formId });
 
   if (selectedId) {
     return (
       <FormSubmissionDetail
-        formId={props.formId}
+        formId={formId}
         submissionId={selectedId}
         onBack={() => setSelectedId(null)}
         onDeleted={() => {
@@ -622,74 +477,37 @@ function FormSubmissions(props: { formId: string }) {
   );
 }
 
-export function FormEditor(props: { formId: string }) {
-  const isNew = props.formId === "new";
-  const [form, setForm] = useState<AdminFormDefinition | null>(null);
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [fields, setFields] = useState<AdminFormField[]>([blankField()]);
-  const [notify, setNotify] = useState<AdminFormNotify>({ enabled: false, recipients: [] });
-  const [recipientsText, setRecipientsText] = useState("");
-  const [tab, setTab] = useState<"fields" | "submissions">("fields");
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  // Roving-tabindex focus targets for the tab strip below, indexed the same as `FORM_TABS` — see
-  // `nextTabIndex`'s doc comment for why the index math itself lives outside the component.
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+export interface FormEditorProps {
+  formId: string;
+  /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
+  useFormEditorHook?: typeof useFormEditor;
+}
 
-  function load() {
-    if (isNew) return;
-    api
-      .getForm(props.formId)
-      .then((r) => {
-        setForm(r.data);
-        setName(r.data.name);
-        setSlug(r.data.slug);
-        setFields(r.data.fields);
-        setNotify(r.data.notify);
-        setRecipientsText(r.data.notify.recipients.join(", "));
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load form"));
-  }
-
-  useEffect(load, [props.formId]);
-
-  async function handleSave() {
-    setSaving(true);
-    setError(null);
-    const recipients = recipientsText
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const notifyPayload = { ...notify, recipients };
-    try {
-      if (isNew) {
-        const created = await api.createForm({ name, slug, fields }, { notify: notifyPayload });
-        navigate(`/forms/${created.data.id}`);
-      } else {
-        await api.updateForm({ id: props.formId }, { name, fields, notify: notifyPayload });
-        load();
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "save failed");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleStatusToggle() {
-    if (!form) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await api.updateForm({ id: form.id }, { status: form.status === "active" ? "disabled" : "active" });
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "status update failed");
-    } finally {
-      setSaving(false);
-    }
-  }
+export function FormEditor({ formId, useFormEditorHook = useFormEditor }: FormEditorProps) {
+  const {
+    isNew,
+    form,
+    name,
+    setName,
+    slug,
+    setSlug,
+    fields,
+    setFields,
+    notify,
+    setNotify,
+    recipientsText,
+    setRecipientsText,
+    tab,
+    setTab,
+    error,
+    saving,
+    existingFieldIds,
+    showTabs,
+    tabRefs,
+    onTabsKeyDown,
+    handleSave,
+    handleStatusToggle,
+  } = useFormEditorHook({ formId });
 
   if (!isNew && !form && !error) return <div className="notice">Loading form…</div>;
   // Previously this was the ONLY guard, and it only covers the pre-error case — once the load
@@ -704,9 +522,6 @@ export function FormEditor(props: { formId: string }) {
   // guard — see `CollectionEntryEditor.tsx`'s sequential loading → not-found guards for the
   // reference shape this now matches).
   if (!isNew && !form && error) return <div className="notice error">{error}</div>;
-
-  const existingFieldIds = form ? form.fields.map((f) => f.id) : [];
-  const showTabs = !isNew && form !== null;
 
   // Shared between the "new form" (no tabs, always visible) and "existing form, Fields tab"
   // views — kept as one JSX value instead of two copies so the two paths can't drift.
@@ -806,19 +621,7 @@ export function FormEditor(props: { formId: string }) {
       {error ? <div className="notice error">{error}</div> : null}
 
       {showTabs ? (
-        <div
-          className="form-tabs"
-          role="tablist"
-          aria-label="Form sections"
-          onKeyDown={(e) => {
-            const currentIndex = FORM_TABS.findIndex((t) => t.id === tab);
-            const index = nextTabIndex(e.key, currentIndex);
-            if (index === null) return;
-            e.preventDefault();
-            setTab(FORM_TABS[index].id);
-            tabRefs.current[index]?.focus();
-          }}
-        >
+        <div className="form-tabs" role="tablist" aria-label="Form sections" onKeyDown={onTabsKeyDown}>
           {FORM_TABS.map((t, index) => (
             <button
               key={t.id}
@@ -848,7 +651,7 @@ export function FormEditor(props: { formId: string }) {
         </div>
       ) : (
         <div className="card" role="tabpanel" id="form-panel-submissions" aria-labelledby="form-tab-submissions">
-          <FormSubmissions formId={props.formId} />
+          <FormSubmissions formId={formId} />
         </div>
       )}
     </div>

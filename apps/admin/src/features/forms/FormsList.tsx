@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { api, type AdminFormDefinition } from "../lib/api";
-import { navigate } from "../lib/router";
+import { type AdminFormDefinition } from "../../lib/api";
+import { navigate } from "../../lib/router";
 import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
+import { useFormsList } from "./hooks/use-forms-list.hooks";
 
 /**
  * @file Forms list screen (SPEC-010 ui.spec.md §2.1/§3.1) — the `/admin/forms` route.
@@ -19,38 +19,25 @@ import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
  * confirm step there either), so this list doesn't invent a heavier gate the editor itself doesn't
  * have. `.btn-warning`'s tone applies only going active -> disabled, same asymmetry as
  * `FormEditor.tsx`'s "Re-enabling is the safe direction" comment.
+ *
+ * ## Markup only
+ *
+ * State, the load effect, and the `api.*` calls live in `hooks/use-forms-list.hooks.ts`. That hook
+ * was written during the hooks extraction but never wired — this component kept a byte-identical
+ * inline copy of the same logic, so the hook was dead code and this screen was never actually
+ * markup-only. Wired here; the duplicate is gone. The two copies had NOT drifted, so this is a
+ * pure de-duplication with no behaviour change.
  */
-export function FormsList() {
-  const [forms, setForms] = useState<AdminFormDefinition[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  // In-flight row action (status toggle) — one at a time, same `rowSavingId` convention
-  // `Posts.tsx`/`Pages.tsx` use for their own row actions.
-  const [rowSavingId, setRowSavingId] = useState<string | null>(null);
+export interface FormsListProps {
+  /**
+   * Dependency injection seam for tests — see `RedirectsProps.useRedirectsHook` for the
+   * convention. Defaulted to the real hook, so `panels.tsx` passes nothing.
+   */
+  useFormsListHook?: typeof useFormsList;
+}
 
-  function load() {
-    api
-      .listForms()
-      .then((r) => setForms(r.data))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load forms"));
-  }
-
-  useEffect(load, []);
-
-  async function toggleStatus(form: AdminFormDefinition) {
-    setRowSavingId(form.id);
-    setError(null);
-    try {
-      const { data: updated } = await api.updateForm(
-        { id: form.id },
-        { status: form.status === "active" ? "disabled" : "active" }
-      );
-      setForms((prev) => (prev ? prev.map((f) => (f.id === updated.id ? updated : f)) : prev));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to update form status");
-    } finally {
-      setRowSavingId(null);
-    }
-  }
+export function FormsList({ useFormsListHook = useFormsList }: FormsListProps = {}) {
+  const { forms, error, rowSavingId, toggleStatus } = useFormsListHook();
 
   // `RowMenu` has no per-item `disabled` — the in-flight guard lives inside `onSelect` instead,
   // same shape as `Redirects.tsx`'s `if (saving) return;`.

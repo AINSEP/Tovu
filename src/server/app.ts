@@ -6,6 +6,7 @@ import { InMemoryChangeSetRepo } from "../core/commands";
 import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../seo";
 import { registerPageHeadContributor } from "./http/site/page-head";
 import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../features/post";
+import { InMemoryPagesHtmlDocumentStore } from "../features/pages";
 import { createInMemoryChatStoreFactory } from "../assistant/persistence/store-factory";
 import { InMemoryPresentationSettingsRepo } from "../features/presentation";
 import { InMemorySettingsRepo, ensureSettingsUiTabDefinitions } from "../features/settings";
@@ -374,6 +375,12 @@ export function createRouteDeps(): NewsletterRouteDeps {
     // `deps.ts`'s. Constructed eagerly, but its scratch database is not opened until the first
     // search, so the many tests that call `createRouteDeps()` without searching pay nothing.
     postSearch: new InMemoryPostSearchIndex(postRepo),
+    // Backed by `postRepo` above, NOT by a throwaway `:memory:` ContentDb — this root's posts do
+    // not live in any SQLite database, so a real-adapter-over-scratch-db would edit rows nothing
+    // else in this root can see. See `features/pages/html-document-store.memory.ts`'s header.
+    // `entryRefsRepo` (SPEC-047 Slice 3) is the same instance `RouteDeps.entryRefsRepo` below
+    // exposes — one shared index, mirroring `server/deps.ts`'s identical wiring.
+    pagesHtmlStore: (scope) => new InMemoryPagesHtmlDocumentStore(scope, { repo: postRepo, clock, entryRefsRepo }),
     // No in-memory *reimplementation* of the chat store: this root gets the real adapter over a
     // throwaway `:memory:` database. `search-index.memory.ts` earns a hand-written double because
     // it mirrors `postRepo` rather than maintaining an index; chat history has no such alternate

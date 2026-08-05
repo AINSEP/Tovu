@@ -1308,7 +1308,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 
 /* --- Settings (ported Open Design settings dialog) ------------------------
  * Layout only. The dialog's own look ships as `@jini-ai/ui`'s opt-in
- * `settings-dialog.css`, imported by `sections/SettingsUi.tsx`; everything
+ * `settings-dialog.css`, imported by `features/settings/SettingsUi.tsx`; everything
  * there resolves through `--jini-*` custom properties, so an override belongs
  * in a `:root` block here rather than in an edit to the package's rules.
  *
@@ -1349,7 +1349,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 
 /* --- Page-flow variant: the shell inside a NORMALLY SCROLLING admin page ----
  *
- * Used by `sections/AiAssistant.tsx`. The Settings screen owns its whole
+ * Used by `features/ai-assistant/AiAssistant.tsx`. The Settings screen owns its whole
  * viewport, so `.settings-ui-section`'s `height: 100%` above and the shell's own
  * `height: min(720px, 90vh)` (settings-dialog.css) cooperate: the panel becomes
  * a fixed-height box whose `.jini-settings-dialog-content` scrolls internally.
@@ -1404,6 +1404,144 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .settings-ui-section--page-flow .jini-settings-dialog-head {
   display: none;
 }
+
+/* --- Flat variant: the AI Assistant tab reads as page, not as a floating panel ---
+ *
+ * `settings-dialog.css` styles `.jini-settings-dialog` as a MODAL: its own
+ * elevated background (`--jini-bg-elevated`, #fffefc), a border, a large
+ * radius, and `--jini-shadow-lg`. That is right for the surface it was built
+ * for — a dialog floating over a dimmed page. Rendered inline inside an admin
+ * page that already has its own header and its own background, the same
+ * treatment paints a near-white card on a white page: a visible seam, a shadow
+ * with nothing to lift the panel off, and a second nested container around
+ * content that is already inside the admin's content column.
+ *
+ * So the chrome is removed rather than recolored. `transparent`, not
+ * `var(--bg)`, on purpose — whatever the page is standing on shows through,
+ * including the dark-theme `--bg` at :root line 105, so this needs no second
+ * rule per theme.
+ *
+ * Scoped to `--page-flow`, which only `features/ai-assistant/AiAssistant.tsx` sets. The
+ * Settings screen renders the identical shell and keeps the panel look, which
+ * is correct there: it owns its whole viewport and the panel IS the page.
+ *
+ * Upstream note: the shell has no `flat`/`chromeless` prop, so this is CSS
+ * rather than a `@jini-ai/ui` change — same reasoning as the tab-strip block
+ * below, and the same "delete to revert" property. */
+.settings-ui-section--page-flow .jini-settings-dialog {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* The modal's horizontal padding indents content from a dialog edge that no
+   longer exists, which left the form and the tab strip hanging ~24px inside
+   the page title above them. Zeroed so both align to the page's own column. */
+.settings-ui-section--page-flow .jini-settings-dialog-content,
+.settings-ui-section--page-flow .jini-settings-dialog--inline .jini-settings-dialog-sidebar {
+  padding-inline: 0;
+}
+
+/* Measure. The card used to bound this form; with its box gone the inputs
+   inherited the full admin content column — ~1140px of text field for an API
+   key, with the label at the far left and the "Show" button 1100px away from
+   it. A line length nobody reads and a pointer distance nobody wants.
+   Restores the constraint the card was incidentally providing, without
+   restoring the card. Sibling of `.assistant-switch`'s own `max-width: 68ch`,
+   set in the same spirit. */
+.settings-ui-section--page-flow .jini-settings-dialog-content { max-width: 46rem; }
+
+/* Vertical separation between the tab's three blocks (switch → intro → form).
+   The card and `.notice` boxes were carrying this implicitly through their own
+   padding and borders; flattened, everything butted together into one
+   undifferentiated column of text. Explicit now, because it is real structure
+   and not a side effect of boxes. */
+.settings-ui-section--page-flow .see-more { margin-top: 1.15rem; }
+.settings-ui-section--page-flow .jini-settings-byok { margin-top: 1.5rem; }
+
+/* --- Card-free credential form -------------------------------------------
+ *
+ * `.jini-byok-card` is a bordered, filled, 16px-padded box. On this tab it was
+ * the third nested container in a row (page → panel → card) around a form that
+ * is the only thing on the tab, so it framed content that had nothing to be
+ * separated from. Its flex column and 14px field rhythm are what actually do
+ * the layout work, and those are kept — only the box is dropped.
+ *
+ * `.jini-byok-card-head` (the provider name, "Google Gemini") is deliberately
+ * LEFT ALONE. It looks like card chrome and is not: with the box gone it is the
+ * only thing on the tab that names which provider the key below belongs to. */
+.settings-ui-section--page-flow .jini-byok-card {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+/* --- The API-key footer slot (`apiKeyFooter` on `ByokProviderForm`) --------
+ * Test the key, see what it allows, know it saved — all directly under the key
+ * field, because that is where the operator is looking when they have those
+ * three questions. */
+.assistant-key-footer { display: flex; flex-direction: column; gap: 8px; }
+
+.assistant-key-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.assistant-key-status { font-size: 12px; color: var(--jini-text-muted); }
+
+.assistant-save-line { margin: 0; font-size: 12px; color: var(--jini-text-muted); }
+
+/* --- The admin's own BYOK migration prompt (`AdminByokKeyPanel.tsx`) ------
+ * A `.notice` (global) with its own action row — reused rather than styled from scratch since the
+ * two callers (Settings' modal presentation and the Admin tab's page-flow presentation) already
+ * agree on what a `.notice` looks like in each context. */
+.admin-byok-migration p { margin: 0 0 0.6rem; }
+.admin-byok-migration-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* --- One type scale for the whole tab -------------------------------------
+ *
+ * This tab renders two typographic systems side by side: Tovu admin copy
+ * (`rem`-based, `--fg`/`--faint`) and the Jini form (`px`-based, `--jini-text`
+ * tokens, 12px labels and hints). Left alone they disagree on size, color AND
+ * family — the switch label at 0.95rem sat above `.muted-cell` at 0.85rem sat
+ * above a 12px `.jini-field-label`, three sizes in three consecutive blocks,
+ * none of them matching. It read as unfinished rather than as hierarchy.
+ *
+ * The Jini scale wins here because the form is the majority of the tab and the
+ * one part whose sizing is not Tovu's to choose. Everything below simply joins
+ * it: 12px muted body copy, 13px for the one label that is a control.
+ *
+ * Scoped to `--page-flow` so the Settings screen, which renders the same
+ * `ExecutionTab`/`ByokProviderForm` inside its own type scale, is untouched.
+ *
+ * `see-more.css` deliberately sets no typography of its own (only clamp
+ * mechanics), which is exactly why `.assistant-intro` can own it here. */
+.settings-ui-section--page-flow .assistant-intro > p,
+.settings-ui-section--page-flow .assistant-switch p {
+  margin: 0 0 0.4rem;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--jini-text-muted);
+}
+.settings-ui-section--page-flow .assistant-intro > p:last-child,
+.settings-ui-section--page-flow .assistant-switch p:last-child { margin-bottom: 0; }
+
+/* The one bold thing on the tab. `600` and `--jini-text-strong` make it the
+   single emphasis point now that the body copy carries no `<strong>` at all. */
+.settings-ui-section--page-flow .assistant-switch > label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--jini-text-strong);
+}
+
+/* Breathing room between the admin switch's last line of copy and the
+   Local CLI / BYOK segmented control that now follows it. Set as a margin on
+   the execution block rather than on `.assistant-switch p:last-child`, because
+   that paragraph rule is shared with the Visitor tab, where the spacing below
+   the switch is already right and does not want changing. */
+.settings-ui-section--page-flow .assistant-execution { margin-top: 1.25rem; }
+
+/* Matches `.jini-field-hint`, so the toggle reads as part of the form's own
+   quiet layer rather than as a link competing with the copy above it. */
+.settings-ui-section--page-flow .see-more-toggle { font-size: 12px; }
 
 /* --- Page mode: settings nav as a top tab strip, not a left sidebar --------
  *

@@ -205,3 +205,42 @@ describe("dock-open bottom clearance", () => {
     expect(result.current.style.bottom).toBe(FAB_EDGE_MARGIN);
   });
 });
+
+/**
+ * The desktop axis. This is a REGRESSION suite, not a feature suite: the FAB offsets from the
+ * right edge and the desktop dock is pinned to the right edge, so before `avoidRightPx` existed
+ * the 56px FAB sat directly on the dock's composer send button and swallowed its clicks. Playwright
+ * caught it as `chat-fab ... intercepts pointer events` while trying to send a message — the
+ * assistant was unusable with a mouse at the default FAB position.
+ */
+describe("avoidRightPx — holding clear of the desktop dock", () => {
+  it("with the dock open, the FAB is pushed left of the dock's measured width plus the edge margin", () => {
+    const { result } = renderHook(() => useFabPosition({ dockOpen: true, avoidBottomPx: 0, avoidRightPx: 380 }));
+    expect(result.current.style.right).toBe(380 + FAB_EDGE_MARGIN);
+  });
+
+  it("with the dock CLOSED the same clearance is ignored — the FAB returns to its resting spot", () => {
+    const { result } = renderHook(() => useFabPosition({ dockOpen: false, avoidBottomPx: 0, avoidRightPx: 380 }));
+    expect(result.current.style.right).toBe(FAB_EDGE_MARGIN);
+  });
+
+  it("a dock wider than the viewport cannot push the FAB off the left edge, where it would look simply missing", () => {
+    const { result } = renderHook(() =>
+      useFabPosition({ dockOpen: true, avoidBottomPx: 0, avoidRightPx: window.innerWidth * 4 }),
+    );
+    expect(result.current.style.right).toBeLessThanOrEqual(window.innerWidth - FAB_EDGE_MARGIN);
+    expect(result.current.style.right).toBeGreaterThanOrEqual(FAB_EDGE_MARGIN);
+  });
+
+  it("omitting avoidRightPx entirely behaves exactly as before — the option is additive", () => {
+    const { result } = renderHook(() => useFabPosition({ dockOpen: true, avoidBottomPx: 0 }));
+    expect(result.current.style.right).toBe(FAB_EDGE_MARGIN);
+  });
+
+  it("never REDUCES a dragged resting offset that already clears the dock", () => {
+    const { result } = renderHook(() => useFabPosition({ dockOpen: true, avoidBottomPx: 0, avoidRightPx: 10 }));
+    // The resting right (FAB_EDGE_MARGIN) vs. the required clearance (10 + margin): the larger wins,
+    // so clearance can only ever move the FAB further from the dock, never toward it.
+    expect(result.current.style.right).toBe(10 + FAB_EDGE_MARGIN);
+  });
+});

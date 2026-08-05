@@ -1,29 +1,28 @@
-import { useEffect, useState } from "react";
-import { api, type AdminAnalyticsHit } from "../lib/api";
-import { formatTimestamp } from "../lib/format-timestamp";
+import { formatTimestamp } from "../../lib/format-timestamp";
 import { DataTable } from "@jini-ai/admin/react";
+import { useAnalytics } from "./hooks/use-analytics.hooks";
 
 /**
- * @file Admin "Analytics" screen (ADR-035 ingest half only).
+ * @file Admin "Analytics" screen (ADR-035 ingest half only) — markup only.
  *
  * IMPORTANT — honesty note: this is a raw recent-hits list read straight off the in-memory ingest
  * buffer (`LocalBufferSink`), NOT a dashboard. There is no rollup/aggregation/time-series layer
  * built yet (that's a later Tier-3 build per the ADR) — so there are no totals, charts, or
  * breakdowns here on purpose. Do not read the absence of aggregates as a bug in this screen.
  *
- * Mirrors `sections/Posts.tsx`'s fetch/loading/error/empty-state shape.
+ * Mirrors `features/posts/Posts.tsx`'s fetch/loading/error/empty-state shape. State and the fetch
+ * live in `hooks/use-analytics.hooks.ts`.
  */
+export interface AnalyticsProps {
+  /**
+   * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
+   * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
+   */
+  useAnalyticsHook?: typeof useAnalytics;
+}
 
-export function Analytics() {
-  const [hits, setHits] = useState<AdminAnalyticsHit[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api
-      .listRecentAnalyticsHits()
-      .then((r) => setHits(r.hits))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load recent hits"));
-  }, []);
+export function Analytics({ useAnalyticsHook = useAnalytics }: AnalyticsProps = {}) {
+  const { hits, error } = useAnalyticsHook();
 
   if (error) return <div className="notice error">{error}</div>;
   if (!hits) return <div className="notice">Loading recent hits…</div>;

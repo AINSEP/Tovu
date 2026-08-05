@@ -163,7 +163,7 @@ function AdminAssistantSwitch({ useAdminAssistantSwitchHook = useAdminAssistantS
     <div className="assistant-switch">
       <label>
         <input type="checkbox" checked={open} onChange={(e) => setOpen(e.target.checked)} />
-        Enable the AI assistant on the admin site
+        Show the AI assistant on the admin site
       </label>
       <p className="muted-cell">
         {open
@@ -595,7 +595,7 @@ export function AiAssistant({ useAiAssistantHook = useAiAssistant }: AiAssistant
                 disabled={saving}
                 onChange={(e) => void setPublicEnabled(e.target.checked)}
               />
-              Enable the AI assistant on the public site
+              Enable the AI assistant on the public site. *API Key needed*
             </label>
             {/* `.muted-cell` dropped along with the intro's: it is an admin-table class (0.85rem,
                 `--faint`) that made this tab's body copy a third size next to the Jini form's own

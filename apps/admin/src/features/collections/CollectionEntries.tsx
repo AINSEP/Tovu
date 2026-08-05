@@ -1,29 +1,17 @@
-import { useEffect, useState } from "react";
-import { ApiError, api, describeApiError, type AdminContentType, type AdminEntry } from "../lib/api";
-import { formatTimestamp } from "../lib/format-timestamp";
+import { formatTimestamp } from "../../lib/format-timestamp";
 import { DataTable } from "@jini-ai/admin/react";
+import { useCollectionEntries } from "./hooks/use-collection-entries.hooks";
 
 /**
  * @file Collections' entries list (design-spec.md §1.4) — the `/admin/collections/{typeKey}` route.
  * Same `.list-table` shape as `FormsList.tsx`/`Posts.tsx`.
+ *
+ * Every piece of state and every API call lives in `hooks/use-collection-entries.hooks.ts`; see
+ * that file's header for why. What stays here is presentation only.
  */
 
 export function CollectionEntries(props: { contentTypeKey: string }) {
-  const [contentType, setContentType] = useState<AdminContentType | null | undefined>(undefined);
-  const [entries, setEntries] = useState<AdminEntry[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  function load() {
-    setError(null);
-    Promise.all([api.listContentTypes(), api.listEntries({ type: props.contentTypeKey })])
-      .then(([typesResult, entriesResult]) => {
-        setContentType(typesResult.items.find((t) => t.key === props.contentTypeKey) ?? null);
-        setEntries(entriesResult.items);
-      })
-      .catch((e) => setError(describeApiError(e, "failed to load entries")));
-  }
-
-  useEffect(load, [props.contentTypeKey]);
+  const { contentType, entries, error } = useCollectionEntries({ contentTypeKey: props.contentTypeKey });
 
   if (error && !entries) return <div className="notice error">{error}</div>;
   if (!entries || contentType === undefined) return <div className="notice">Loading entries…</div>;

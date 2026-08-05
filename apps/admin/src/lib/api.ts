@@ -230,6 +230,20 @@ export interface AdminPost {
   title: string;
   slug: string;
   bodyJson: Record<string, unknown>;
+  /**
+   * SPEC-047 — which body column this entry actually carries. `"doc"` is a Tiptap document in
+   * `bodyJson`; `"html"` is a bespoke, AI-generated Page whose real content is `bodyHtml`.
+   *
+   * Optional here only as prototype debt. The server already returns a proper discriminated union
+   * (`headless/contracts.ts`, `server/http/shared/post.ts`), and REQ-3 wants this type to mirror it
+   * so that constructing Tiptap's props from an html-format entry is a COMPILE error rather than a
+   * runtime branch. Widening this shared interface into a union touches every existing `AdminPost`
+   * consumer, so for now `features/pages` narrows on `bodyFormat` explicitly and the compile-time
+   * guarantee is owed, not delivered.
+   */
+  bodyFormat?: "doc" | "html";
+  /** The bespoke HTML body — present only when `bodyFormat === "html"`. */
+  bodyHtml?: string | null;
   status: "draft" | "published";
   updatedAt: string;
   version: number;
@@ -886,6 +900,21 @@ export const api = {
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/pages`, {
       method: "POST",
       body: JSON.stringify({ title }),
+    }),
+  // Kind-guarded read: 404s if the id's row is not actually `kind: "page"`. `features/pages` uses
+  // this rather than `getPost` so the Pages editor can never silently open a Post — Pages and Posts
+  // are separate features with separate editors, and the id in the URL is the only thing standing
+  // between them.
+  getPage: (id: string) =>
+    request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/pages/${id}`),
+  // SPEC-047 — writes the bespoke-HTML body, and births the html row on first call. A DIFFERENT
+  // endpoint from `updatePost` on purpose: the body and the title/slug/status go through two
+  // separate server-side write paths, and only this one offers compare-and-set (a 409 rather than a
+  // silent overwrite when someone else edited the page since this editor loaded it).
+  updatePageHtml: (id: string, html: string) =>
+    request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/pages/${id}/html`, {
+      method: "PUT",
+      body: JSON.stringify({ html }),
     }),
   // Soft delete (server/routes/admin/pages/delete.ts): same trash marker as deletePost, but
   // kind-guarded — 404s if the id's row is not actually kind:"page" (indistinguishable from

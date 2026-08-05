@@ -1,14 +1,10 @@
-import { useEffect, useState } from "react";
-import {
-  ApiError,
-  api,
-  describeApiError,
-  CONTENT_TYPE_FIELD_KINDS,
-  type AdminContentType,
-  type ContentTypeFieldDef,
-  type ContentTypeFieldKind,
-} from "../lib/api";
-import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
+import { CONTENT_TYPE_FIELD_KINDS, type AdminContentType, type ContentTypeFieldKind } from "../../lib/api";
+import { DataTable, RowMenu } from "@jini-ai/admin/react";
+import { contentTypeMenuItems } from "./rules";
+import { useCollections } from "./hooks/use-collections.hooks";
+import { useNewContentTypeDialog } from "./hooks/use-new-content-type-dialog.hooks";
+import { useEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";
+import { useLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.hooks";
 
 /**
  * @file Collections screen (design-spec.md §1, ADR-022/ADR-043) — the `/admin/collections`
@@ -29,105 +25,36 @@ import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
  * optimistic-concurrency via `expectedVersion`. A `409` (stale version — another edit landed since
  * this dialog loaded) surfaces a dedicated "refresh and try again" message rather than silently
  * applying the stale write or falling through to the generic error banner.
+ *
+ * ## Markup only
+ *
+ * Every dialog's state now lives in its own `hooks/use-<thing>.hooks.ts`; the shared
+ * Escape-to-cancel listener the three dialogs used to duplicate lives in
+ * `hooks/use-escape-to-cancel.hooks.ts`. Validation, draft-field-list transforms, error-message
+ * formatting, and the row-menu builder all moved to `rules.ts`.
  */
-
-const KEY_GRAMMAR = /^[a-z][a-z0-9_]{0,63}$/;
-const RESERVED_KEYS = new Set(["post", "page"]);
-
-function validateKey(key: string): string | null {
-  if (!KEY_GRAMMAR.test(key)) {
-    return "Key must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 chars).";
-  }
-  if (RESERVED_KEYS.has(key)) {
-    return `"${key}" is a reserved key (built-in content already uses it).`;
-  }
-  return null;
-}
-
-function validateFieldName(name: string): string | null {
-  if (!KEY_GRAMMAR.test(name)) {
-    return "Field name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.";
-  }
-  return null;
-}
 
 // ---------------------------------------------------------------------------
 // New content type modal (design-spec.md §1.3 — recommended modal, applied here per §6)
 // ---------------------------------------------------------------------------
 
-interface DraftField extends ContentTypeFieldDef {
-  /** Local-only row key so React can key rows before they have a stable identity. */
-  _rowId: number;
+export interface NewContentTypeDialogProps {
+  onCreated: () => void;
+  onCancel: () => void;
+  /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
+  useNewContentTypeDialogHook?: typeof useNewContentTypeDialog;
 }
 
-let nextRowId = 1;
-
-function emptyField(): DraftField {
-  return { _rowId: nextRowId++, name: "", kind: "text", required: false, queryable: false };
-}
-
-function NewContentTypeDialog(props: { onCreated: () => void; onCancel: () => void }) {
-  const [label, setLabel] = useState("");
-  const [key, setKey] = useState("");
-  const [fields, setFields] = useState<DraftField[]>([emptyField()]);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") props.onCancel();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function updateField(rowId: number, patch: Partial<DraftField>) {
-    setFields((current) => current.map((f) => (f._rowId === rowId ? { ...f, ...patch } : f)));
-  }
-
-  function removeField(rowId: number) {
-    setFields((current) => current.filter((f) => f._rowId !== rowId));
-  }
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
-    const keyError = validateKey(key.trim());
-    if (keyError) {
-      setError(keyError);
-      return;
-    }
-    if (!label.trim()) {
-      setError("Label is required.");
-      return;
-    }
-    for (const f of fields) {
-      const fieldError = validateFieldName(f.name.trim());
-      if (fieldError) {
-        setError(`Field "${f.name || "(unnamed)"}": ${fieldError}`);
-        return;
-      }
-    }
-
-    setSaving(true);
-    try {
-      await api.createContentType({
-        key: key.trim(),
-        label: label.trim(),
-        fields: fields.map(({ _rowId: _unused, ...f }) => f),
-      });
-      props.onCreated();
-    } catch (e) {
-      setError(describeApiError(e, "Failed to create content type"));
-    } finally {
-      setSaving(false);
-    }
-  }
+function NewContentTypeDialog({
+  onCreated,
+  onCancel,
+  useNewContentTypeDialogHook = useNewContentTypeDialog,
+}: NewContentTypeDialogProps) {
+  const { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit } =
+    useNewContentTypeDialogHook({ onCreated, onCancel });
 
   return (
-    <div className="settings-dialog-backdrop" onClick={props.onCancel}>
+    <div className="settings-dialog-backdrop" onClick={onCancel}>
       <form
         className="settings-dialog collections-type-dialog"
         role="dialog"
@@ -199,7 +126,7 @@ function NewContentTypeDialog(props: { onCreated: () => void; onCancel: () => vo
               ) : null}
             </fieldset>
           ))}
-          <button type="button" className="btn-secondary" onClick={() => setFields((current) => [...current, emptyField()])}>
+          <button type="button" className="btn-secondary" onClick={addField}>
             Add field
           </button>
         </div>
@@ -214,7 +141,7 @@ function NewContentTypeDialog(props: { onCreated: () => void; onCancel: () => vo
           <button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Create content type"}
           </button>
-          <button type="button" className="btn-secondary" onClick={props.onCancel}>
+          <button type="button" className="btn-secondary" onClick={onCancel}>
             Cancel
           </button>
         </span>
@@ -227,73 +154,28 @@ function NewContentTypeDialog(props: { onCreated: () => void; onCancel: () => vo
 // Edit fields dialog (REQ-05 — post-creation field-schema editing)
 // ---------------------------------------------------------------------------
 
-/** `409 VERSION_CONFLICT` copy — reuses the same "refresh and try again" shape SPEC-036's
- * comment-moderation 409 handling established for stale-`expectedVersion` writes, rather than
- * inventing a new wording for this screen. */
-const STALE_VERSION_MESSAGE =
-  "This content type changed since you loaded it, refresh and try again.";
+export interface EditFieldsDialogProps {
+  contentType: AdminContentType;
+  onSaved: () => void;
+  onCancel: () => void;
+  /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
+  useEditFieldsDialogHook?: typeof useEditFieldsDialog;
+}
 
-function EditFieldsDialog(props: { contentType: AdminContentType; onSaved: () => void; onCancel: () => void }) {
-  const [fields, setFields] = useState<DraftField[]>(
-    () => props.contentType.fields.map((f) => ({ ...f, _rowId: nextRowId++ }))
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") props.onCancel();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function updateField(rowId: number, patch: Partial<DraftField>) {
-    setFields((current) => current.map((f) => (f._rowId === rowId ? { ...f, ...patch } : f)));
-  }
-
-  function removeField(rowId: number) {
-    setFields((current) => current.filter((f) => f._rowId !== rowId));
-  }
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
-    if (fields.length === 0) {
-      setError("At least one field is required.");
-      return;
-    }
-    for (const f of fields) {
-      const fieldError = validateFieldName(f.name.trim());
-      if (fieldError) {
-        setError(`Field "${f.name || "(unnamed)"}": ${fieldError}`);
-        return;
-      }
-    }
-
-    setSaving(true);
-    try {
-      await api.updateContentTypeFields({
-        key: props.contentType.key,
-        fields: fields.map(({ _rowId: _unused, ...f }) => f),
-        expectedVersion: props.contentType.version,
-      });
-      props.onSaved();
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 409) {
-        setError(STALE_VERSION_MESSAGE);
-      } else {
-        setError(describeApiError(e, "Failed to update fields"));
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
+function EditFieldsDialog({
+  contentType,
+  onSaved,
+  onCancel,
+  useEditFieldsDialogHook = useEditFieldsDialog,
+}: EditFieldsDialogProps) {
+  const { fields, updateField, removeField, addField, error, saving, submit } = useEditFieldsDialogHook({
+    contentType,
+    onSaved,
+    onCancel,
+  });
 
   return (
-    <div className="settings-dialog-backdrop" onClick={props.onCancel}>
+    <div className="settings-dialog-backdrop" onClick={onCancel}>
       <form
         className="settings-dialog collections-type-dialog"
         role="dialog"
@@ -302,7 +184,7 @@ function EditFieldsDialog(props: { contentType: AdminContentType; onSaved: () =>
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
       >
-        <h2 id="edit-fields-title">Edit fields — {props.contentType.label}</h2>
+        <h2 id="edit-fields-title">Edit fields — {contentType.label}</h2>
 
         <div>
           {fields.map((f, index) => (
@@ -352,7 +234,7 @@ function EditFieldsDialog(props: { contentType: AdminContentType; onSaved: () =>
               </button>
             </fieldset>
           ))}
-          <button type="button" className="btn-secondary" onClick={() => setFields((current) => [...current, emptyField()])}>
+          <button type="button" className="btn-secondary" onClick={addField}>
             Add field
           </button>
         </div>
@@ -367,7 +249,7 @@ function EditFieldsDialog(props: { contentType: AdminContentType; onSaved: () =>
           <button type="submit" disabled={saving}>
             {saving ? "Saving…" : "Save fields"}
           </button>
-          <button type="button" className="btn-secondary" onClick={props.onCancel}>
+          <button type="button" className="btn-secondary" onClick={onCancel}>
             Cancel
           </button>
         </span>
@@ -380,40 +262,26 @@ function EditFieldsDialog(props: { contentType: AdminContentType; onSaved: () =>
 // Lifecycle confirm dialog (Deprecate / Reactivate / Tombstone — design-spec.md §1.3/§1.8)
 // ---------------------------------------------------------------------------
 
-const LIFECYCLE_COPY: Record<"deprecate" | "tombstone", { title: string; body: string }> = {
-  deprecate: {
-    title: "Deprecate content type",
-    body: "Existing entries stay readable; no new entries can be created.",
-  },
-  tombstone: {
-    title: "Tombstone content type",
-    body: "Entries stop being served publicly. This is not reversible from this screen.",
-  },
-};
-
-function LifecycleConfirmDialog(props: {
+export interface LifecycleConfirmDialogProps {
   op: "deprecate" | "tombstone";
   contentType: AdminContentType;
   onConfirm: () => void;
   onCancel: () => void;
-}) {
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") props.onCancel();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
+  useLifecycleConfirmDialogHook?: typeof useLifecycleConfirmDialog;
+}
 
-  const copy = LIFECYCLE_COPY[props.op];
-  // Tombstone is heavier/less-reversible than an ordinary reset, so — unlike
-  // `ResetNamespaceDialog`'s "autoFocus the confirm button" default — focus starts on Cancel
-  // (design-spec.md §1.8's deliberate deviation).
-  const autoFocusCancel = props.op === "tombstone";
+function LifecycleConfirmDialog({
+  op,
+  contentType,
+  onConfirm,
+  onCancel,
+  useLifecycleConfirmDialogHook = useLifecycleConfirmDialog,
+}: LifecycleConfirmDialogProps) {
+  const { copy, autoFocusCancel } = useLifecycleConfirmDialogHook({ op, onCancel });
 
   return (
-    <div className="settings-dialog-backdrop" onClick={props.onCancel}>
+    <div className="settings-dialog-backdrop" onClick={onCancel}>
       <div
         className="settings-dialog"
         role="dialog"
@@ -423,7 +291,7 @@ function LifecycleConfirmDialog(props: {
       >
         <h2 id="lifecycle-dialog-title">{copy.title}</h2>
         <p>
-          {copy.body} (<strong>{props.contentType.label}</strong>)
+          {copy.body} (<strong>{contentType.label}</strong>)
         </p>
         <span className="editor-actions">
           {/* Deprecate is reversible (Reactivate exists) but access-affecting — `.btn-warning`,
@@ -432,13 +300,13 @@ function LifecycleConfirmDialog(props: {
               existing destructive-delete convention. */}
           <button
             type="button"
-            className={props.op === "deprecate" ? "btn-warning" : "btn-danger"}
+            className={op === "deprecate" ? "btn-warning" : "btn-danger"}
             autoFocus={!autoFocusCancel}
-            onClick={props.onConfirm}
+            onClick={onConfirm}
           >
-            {props.op === "deprecate" ? "Deprecate" : "Tombstone"}
+            {op === "deprecate" ? "Deprecate" : "Tombstone"}
           </button>
-          <button type="button" className="btn-secondary" autoFocus={autoFocusCancel} onClick={props.onCancel}>
+          <button type="button" className="btn-secondary" autoFocus={autoFocusCancel} onClick={onCancel}>
             Cancel
           </button>
         </span>
@@ -451,62 +319,29 @@ function LifecycleConfirmDialog(props: {
 // Collections — content-type list
 // ---------------------------------------------------------------------------
 
-export function Collections() {
-  const [types, setTypes] = useState<AdminContentType[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [showNewDialog, setShowNewDialog] = useState(false);
-  const [pendingLifecycle, setPendingLifecycle] = useState<{ op: "deprecate" | "tombstone"; contentType: AdminContentType } | null>(null);
-  const [editingFieldsFor, setEditingFieldsFor] = useState<AdminContentType | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+export interface CollectionsProps {
+  /**
+   * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   * nothing and behave exactly as before. See `PostsProps.usePostsHook` for the full rationale.
+   */
+  useCollectionsHook?: typeof useCollections;
+}
 
-  function load() {
-    api
-      .listContentTypes()
-      .then((r) => setTypes(r.items))
-      .catch((e) => setError(describeApiError(e, "failed to load content types")));
-  }
-
-  useEffect(load, []);
-
-  async function runLifecycle(contentType: AdminContentType, op: "deprecate" | "reactivate" | "tombstone") {
-    setActionError(null);
-    try {
-      await api.contentTypeLifecycle({ key: contentType.key, op, expectedVersion: contentType.version });
-      load();
-    } catch (e) {
-      setActionError(describeApiError(e, `Failed to ${op} "${contentType.label}"`));
-    }
-  }
-
-  /** At-rest row actions — every row-level trigger here was already a plain, unclassed button (the
-   *  warning-vs-danger distinction lives entirely in `LifecycleConfirmDialog`, opened via
-   *  `setPendingLifecycle` and left untouched below), so moving them into a `RowMenu` drops
-   *  nothing. Tombstone is marked `destructive` here even though its row trigger never carried
-   *  `.btn-danger` — its own dialog copy already says "not reversible from this screen", the exact
-   *  case `RowMenuItem.destructive` exists for; Deprecate stays plain, since it is reversible
-   *  (Reactivate undoes it). */
-  function contentTypeMenuItems(ct: AdminContentType): RowMenuItem[] {
-    const items: RowMenuItem[] = [{ key: "edit-fields", label: "Edit fields", onSelect: () => setEditingFieldsFor(ct) }];
-    if (ct.status === "active") {
-      items.push({
-        key: "deprecate",
-        label: "Deprecate",
-        onSelect: () => setPendingLifecycle({ op: "deprecate", contentType: ct }),
-      });
-    }
-    if (ct.status === "deprecated") {
-      items.push({ key: "reactivate", label: "Reactivate", onSelect: () => runLifecycle(ct, "reactivate") });
-    }
-    if (ct.status !== "tombstone") {
-      items.push({
-        key: "tombstone",
-        label: "Tombstone",
-        destructive: true,
-        onSelect: () => setPendingLifecycle({ op: "tombstone", contentType: ct }),
-      });
-    }
-    return items;
-  }
+export function Collections({ useCollectionsHook = useCollections }: CollectionsProps = {}) {
+  const {
+    types,
+    error,
+    showNewDialog,
+    setShowNewDialog,
+    pendingLifecycle,
+    setPendingLifecycle,
+    editingFieldsFor,
+    setEditingFieldsFor,
+    actionError,
+    load,
+    runLifecycle,
+  } = useCollectionsHook();
 
   if (error && !types) return <div className="notice error">{error}</div>;
   if (!types) return <div className="notice">Loading content types…</div>;
@@ -561,7 +396,15 @@ export function Collections() {
             key: "actions",
             header: "More",
             cell: (ct) => (
-              <RowMenu triggerLabel={`Actions for content type "${ct.label}"`} items={contentTypeMenuItems(ct)} />
+              <RowMenu
+                triggerLabel={`Actions for content type "${ct.label}"`}
+                items={contentTypeMenuItems(ct, {
+                  onEditFields: setEditingFieldsFor,
+                  onDeprecate: (contentType) => setPendingLifecycle({ op: "deprecate", contentType }),
+                  onReactivate: (contentType) => void runLifecycle(contentType, "reactivate"),
+                  onTombstone: (contentType) => setPendingLifecycle({ op: "tombstone", contentType }),
+                })}
+              />
             ),
           },
         ]}

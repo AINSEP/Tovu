@@ -17,6 +17,9 @@ import type { RouteDeps } from "../../types";
  * - `workspaceId`/`authorize`/`clock`/`idGen`: every one of the 11 registrars.
  * - `postRepo`: posts list/create/get/update, pages list/create, and `change-sets/revert.ts`'s
  *   `reverterDeps.postRepo` (the post-entity reverter needs the same repo).
+ * - `pagesHtmlStore`: `pages/update-html.ts` only (SPEC-047/ADR-056). Deliberately NOT read by
+ *   `pages/update.ts` — the bespoke-HTML body and the title/slug/status metadata are written
+ *   through two different chokepoints, and that separation is the CIC-3 invariant.
  * - `changeSets`: posts create/update, pages create (the SPEC-001 command gateway's audit trail),
  *   plus `change-sets/list.ts`/`get.ts`/`revert.ts` themselves.
  * - `outbox`: posts create/update, pages create (command-gateway side-effect queue), plus
@@ -38,6 +41,7 @@ export type ContentRouteDeps = Pick<
   | "clock"
   | "idGen"
   | "postRepo"
+  | "pagesHtmlStore"
   | "changeSets"
   | "outbox"
   | "bus"

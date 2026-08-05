@@ -16,14 +16,22 @@ export type HeadlessThemeId = string;
  */
 export type HeadlessEntryKind = "post" | "page";
 
-export interface AdminPost {
+/**
+ * SPEC-047/ADR-056 Decision 3 — discriminates which body an `AdminPost` actually carries. Declared
+ * locally rather than importing `features/post`'s `PostBodyFormat`, for the same reason
+ * `HeadlessEntryKind` is declared locally just above: `headless` is the wire-contract layer and
+ * stays decoupled from feature internals; `toHeadlessPost` is the only place the two are kept in
+ * lockstep.
+ */
+export type HeadlessBodyFormat = "doc" | "html";
+
+interface AdminPostFields {
   id: string;
   workspaceId: string;
   /** SPEC-002 api.spec.md §5 — NEW field, additive (no existing field removed/renamed). */
   kind: HeadlessEntryKind;
   title: string;
   slug: string;
-  bodyJson: Record<string, unknown>;
   status: "draft" | "published";
   updatedAt: string;
   version: number;
@@ -35,6 +43,19 @@ export interface AdminPost {
    */
   ext?: Record<string, Record<string, unknown>>;
 }
+
+/**
+ * SPEC-047/ADR-056 Decision 3 / REQ-3 — a discriminated union, not one loose type with two optional
+ * body fields. The trap this closes: TipTap silently discards markup outside its node vocabulary and
+ * saves the loss with no error, so "never build a TipTap editor's props from an `html`-format row"
+ * cannot be left to a runtime `if` a future refactor can quietly delete. Narrowing on `bodyFormat`
+ * (e.g. `if (post.bodyFormat === "doc")`) is the only way to reach a non-null `bodyJson` — a caller
+ * that does not narrow, or narrows on the wrong field, gets a type error, not a runtime surprise. See
+ * `admin-post-response.type.test.ts` for the compile-time proof.
+ */
+export type AdminPost =
+  | (AdminPostFields & { bodyFormat: "doc"; bodyJson: Record<string, unknown>; bodyHtml: null })
+  | (AdminPostFields & { bodyFormat: "html"; bodyJson: null; bodyHtml: string });
 
 export interface AdminPostEnvelope {
   post: AdminPost;

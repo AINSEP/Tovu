@@ -5,7 +5,7 @@ import test from "node:test";
 import type { JsonObject } from "@jini-ai/cms/core";
 import type { PostRecord } from "#src/features/post/index";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
-import type { ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
+import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
 import type { WidgetRenderIR } from "#src/widgets/types";
 import { renderDocNode, renderSite } from "../render";
 
@@ -472,4 +472,97 @@ test("contact-form widget: a non-allowlisted attribute name (e.g. an 'onclick' t
   });
   assert.doesNotMatch(html, /onclick=/);
   assert.doesNotMatch(html, /style=/);
+});
+
+// ---------------------------------------------------------------------------
+// SPEC-047 Slice 1/2 — "html"-format Page rendering, and `data-widget-embed`/`data-form-embed`
+// ---------------------------------------------------------------------------
+
+function htmlPage(overrides: Partial<PostRecord> = {}): PostRecord {
+  return fakePost({
+    kind: "page",
+    bodyFormat: "html",
+    bodyHtml: "<p>hello</p>",
+    ...overrides,
+  });
+}
+
+function emptyHtmlEmbeds(overrides: Partial<ResolveHtmlPageEmbedsResult> = {}): ResolveHtmlPageEmbedsResult {
+  return { widgetResolved: new Map(), formResolved: new Map(), ...overrides };
+}
+
+test("renderSite (Slice 1): an 'html'-format post's body_html renders raw through the live dispatch theme's post.content — its bodyJson is never walked", async () => {
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  assert.equal(theme.status, "valid");
+
+  const post = htmlPage({
+    bodyHtml: '<section class="hero"><h1>Bespoke</h1></section>',
+    bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "SHOULD NOT APPEAR" }] }] },
+  });
+  const html = await renderSite({ theme, route: "post", siteTitle: "Dispatch Demo", posts: [post], post });
+
+  assert.match(html, /<section class="hero"><h1>Bespoke<\/h1><\/section>/);
+  assert.doesNotMatch(html, /SHOULD NOT APPEAR/);
+});
+
+test("renderSite (Slice 1, declarative tier): the 'content' slot renders an html Page's bodyHtml raw", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: "<p>Slice 1 via slot</p>" });
+
+  const html = await renderSite({ theme, route: "post", siteTitle: "T", posts: [post], post });
+  assert.match(html, /<div class="prose"><p>Slice 1 via slot<\/p><\/div>/);
+});
+
+test("renderSite (Slice 2): data-widget-embed substitutes to its resolved widget IR; an id with no matching entry in the resolved map degrades to the REQ-28 placeholder", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({
+    bodyHtml: '<div data-widget-embed="widget-1"></div><div data-widget-embed="widget-missing"></div>',
+  });
+
+  const html = await renderSite({
+    theme,
+    route: "post",
+    siteTitle: "T",
+    posts: [post],
+    post,
+    pageHtmlEmbeds: emptyHtmlEmbeds({
+      widgetResolved: new Map([["widget-1", { componentId: "text", props: { body: "Embedded!" } }]]),
+    }),
+  });
+
+  assert.match(html, /widget-text">Embedded!/);
+  assert.equal((html.match(/widget-placeholder/g) ?? []).length, 1, "only the unresolved id degrades to the placeholder");
+});
+
+test("renderSite (Slice 2): data-form-embed substitutes to its resolved contact-form IR — the same renderer a real contact-form widget instance uses", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: '<div data-form-embed="form-1"></div>' });
+
+  const html = await renderSite({
+    theme,
+    route: "post",
+    siteTitle: "T",
+    posts: [post],
+    post,
+    pageHtmlEmbeds: emptyHtmlEmbeds({
+      formResolved: new Map([["form-1", { componentId: "contact-form", props: { slug: "contact-us", fields: [], successMessage: null } }]]),
+    }),
+  });
+
+  assert.match(html, /widget-contact-form/);
+  assert.match(html, /action="\/forms\/contact-us\/submit"/);
+});
+
+test("renderSite (Slice 2): an html Page's embed placeholders degrade safely when pageHtmlEmbeds is omitted entirely — never leaks the raw data-widget-embed markup", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: '<div data-widget-embed="widget-1"></div>' });
+
+  const html = await renderSite({ theme, route: "post", siteTitle: "T", posts: [post], post });
+
+  assert.doesNotMatch(html, /data-widget-embed/);
+  assert.match(html, /widget-placeholder/);
 });

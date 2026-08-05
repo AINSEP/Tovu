@@ -4,7 +4,7 @@ import type { JsonObject } from "@jini-ai/cms/core";
 import { posts } from "../../db/schema";
 import type { ContentDb } from "../../db/sqlite/content-db";
 import { findOneBy } from "../../db/sqlite/repo-helpers";
-import type { PostKind, PostRecord, PostRepoPort, PostStatus } from "./post";
+import { DEFAULT_BODY_JSON, type PostBodyFormat, type PostKind, type PostRecord, type PostRepoPort, type PostStatus } from "./post";
 import { toPostSearchDocument } from "./search";
 import { indexPostSearchDocument } from "./search-index.sqlite";
 
@@ -36,6 +36,17 @@ function parseExt(rawExt: string): JsonObject | undefined {
   return Object.keys(parsed).length > 0 ? parsed : undefined;
 }
 
+/**
+ * SPEC-047/ADR-056 Decision 3 — `body_json` is `NULL` for an `"html"`-format row (Pages
+ * vibecoding, written by `PagesHtmlDocumentStore`, never by this repo's own `save()`).
+ * `PostRecord.bodyJson` stays a required `JsonObject` (unwidened) so the ~15 existing consumers of
+ * `PostRecord` (search indexing, SEO excerpting, widget embeds, site rendering, `entry_refs`
+ * extraction) do not all need null-handling added in this pass — none of them are reachable for an
+ * `"html"` row yet (nothing routes one through `listAdminPosts`/`getPublishedPostBySlug`/etc. until
+ * REQ-5's generation tool ships), so `DEFAULT_BODY_JSON` here is an inert placeholder, not a value
+ * anything currently reads. `toHeadlessPost` (SPEC-047 REQ-3's discriminated union) is what actually
+ * branches on `bodyFormat` and must never surface this placeholder as if it were real content.
+ */
 function toRecord(row: PostRow): PostRecord {
   const ext = parseExt(row.ext);
   return {
@@ -43,7 +54,9 @@ function toRecord(row: PostRow): PostRecord {
     workspaceId: row.workspaceId,
     title: row.title,
     slug: row.slug,
-    bodyJson: JSON.parse(row.bodyJson) as JsonObject,
+    bodyJson: row.bodyJson === null ? DEFAULT_BODY_JSON : (JSON.parse(row.bodyJson) as JsonObject),
+    bodyFormat: row.bodyFormat as PostBodyFormat,
+    bodyHtml: row.bodyHtml ?? null,
     status: row.status as PostStatus,
     kind: row.kind as PostKind,
     updatedAt: row.updatedAt,
@@ -83,7 +96,17 @@ export class SqlitePostRepo implements PostRepoPort {
   async save(record: PostRecord): Promise<void> {
     const row = {
       ...record,
-      bodyJson: JSON.stringify(record.bodyJson),
+      // The exact inverse of `toRecord`'s `row.bodyJson === null ? DEFAULT_BODY_JSON : parse(...)`
+      // substitution, and it has to be, or the pair is not a round trip. `toRecord` hands an
+      // `"html"` row a placeholder `bodyJson` (the domain type keeps `bodyJson` a required
+      // `JsonObject` — see this file's header for why it stays unwidened), so writing that
+      // placeholder back down would populate both body columns at once and the table's CHECK
+      // constraint would reject the write outright.
+      bodyJson: record.bodyFormat === "html" ? null : JSON.stringify(record.bodyJson),
+      // Same guard from the other side: a `"doc"` record must not carry stray html, whatever a
+      // caller assembled. The CHECK constraint enforces exactly one populated body column per
+      // format; these two lines are what keep every `save()` on the legal side of it.
+      bodyHtml: record.bodyFormat === "html" ? record.bodyHtml : null,
       seoExtJson: record.seoExtJson ?? null,
       // Persisted from the record like any other field, so `postDeleteReverter`'s restore — which
       // writes a record with `deletedAt: null` through `save()` — actually clears the marker.
@@ -101,6 +124,8 @@ export class SqlitePostRepo implements PostRepoPort {
           title: row.title,
           slug: row.slug,
           bodyJson: row.bodyJson,
+          bodyFormat: row.bodyFormat,
+          bodyHtml: row.bodyHtml,
           status: row.status,
           kind: row.kind,
           updatedAt: row.updatedAt,

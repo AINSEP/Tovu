@@ -66,6 +66,42 @@ test("a message with no surfaceId is never posted — reported to the console an
   expect(outcome).toEqual({ ok: false, reason: expect.any(String) });
 });
 
+test("a message that isn't an object at all (not just missing surfaceId) is still handled, not thrown on", async () => {
+  const post = createA2uiActionPoster("");
+
+  const outcome = await post("run-1", "not an object");
+
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(outcome).toEqual({ ok: false, reason: expect.any(String) });
+});
+
+test("a surfaceId-less message with no runId logs 'unknown' rather than the literal 'undefined'", async () => {
+  const post = createA2uiActionPoster("");
+
+  await post(undefined, { version: "v1.0" });
+
+  expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("(run unknown)"), expect.anything());
+});
+
+test("an unmapped status code (not 409/400/401) falls through to the generic reason, carrying the status", async () => {
+  fetchMock.mockResolvedValue(new Response("oops", { status: 500 }));
+  const post = createA2uiActionPoster("");
+
+  const outcome = await post("run-1", ACTION_MESSAGE);
+
+  expect(outcome).toEqual({ ok: false, reason: "The action couldn't be delivered (server returned 500)." });
+});
+
+test("a non-ok response whose body can't be read (.text() rejects) still returns a failure outcome", async () => {
+  const fakeResponse = { ok: false, status: 503, text: async () => { throw new Error("body stream errored"); } } as unknown as Response;
+  fetchMock.mockResolvedValue(fakeResponse);
+  const post = createA2uiActionPoster("");
+
+  const outcome = await post("run-1", ACTION_MESSAGE);
+
+  expect(outcome).toEqual({ ok: false, reason: "The action couldn't be delivered (server returned 503)." });
+});
+
 test("a non-2xx response is reported to the console and returned as a failure, not thrown", async () => {
   fetchMock.mockResolvedValue(new Response("that surface is no longer waiting for an answer", { status: 409 }));
   const post = createA2uiActionPoster("");

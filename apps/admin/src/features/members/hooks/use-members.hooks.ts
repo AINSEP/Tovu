@@ -1,0 +1,147 @@
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+
+import { api, type AdminMember } from "../../../lib/api";
+import { describeApiError, emptyRowState, type RowActionState } from "../rules";
+
+/**
+ * @file Everything the Members screen does, so `Members.tsx` is only markup.
+ *
+ * Extracted verbatim — same state, same declaration order, same effect bodies, same error strings.
+ * `RowActionState`/`emptyRowState`/`describeApiError` moved to `rules.ts` (they were already
+ * module-scope free functions in the original, just private and untested); this hook imports them
+ * back for `stateFor` and its own async handlers.
+ *
+ * Naming follows `hooks/use-settings-slice.hooks.ts` and `posts/hooks/use-posts.hooks.ts`:
+ * `use-<thing>.hooks.ts`. Feature-local because nothing outside `features/members` needs it.
+ */
+
+export interface MembersController {
+  /** `null` until the initial load settles — the caller renders a loading state. */
+  members: AdminMember[] | null;
+  error: string | null;
+
+  /** Per-row action state (Disable/Resend in-flight, error, notice), falling back to the empty
+   *  state for a row with no action taken yet. */
+  stateFor: (id: string) => RowActionState;
+  onResendSignInLink: (member: AdminMember) => Promise<void>;
+
+  /** The row whose detail panel is expanded — `null` when every row is collapsed. */
+  expandedId: string | null;
+  /** Detail already fetched for an expanded row, keyed by member id — a cache so re-expanding a
+   *  row already visited this session doesn't re-fetch. */
+  detailById: Record<string, AdminMember>;
+  detailError: string | null;
+  detailLoadingId: string | null;
+  onToggleDetail: (member: AdminMember) => Promise<void>;
+
+  /** The member a `RowMenu` "Disable" selection is asking to confirm; `null` when the dialog is
+   *  shut. `ConfirmDialog` stays mounted unconditionally in the view (see its own doc comment on
+   *  why); this is what drives its `open` prop. */
+  confirmingDisable: AdminMember | null;
+  setConfirmingDisable: Dispatch<SetStateAction<AdminMember | null>>;
+  confirmDisable: () => Promise<void>;
+}
+
+export function useMembers(): MembersController {
+  const [members, setMembers] = useState<AdminMember[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [rowState, setRowState] = useState<Record<string, RowActionState>>({});
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [detailById, setDetailById] = useState<Record<string, AdminMember>>({});
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+
+  // Disable now confirms via a `RowMenu` item -> `ConfirmDialog` modal (replacing the in-place
+  // two-click `ConfirmButton`, which has no menu-item equivalent — same migration Posts.tsx/
+  // Redirects.tsx/Users.tsx already made). `null` when the dialog is closed.
+  const [confirmingDisable, setConfirmingDisable] = useState<AdminMember | null>(null);
+
+  function load() {
+    api
+      .listMembers()
+      .then((r) => setMembers(r.members))
+      .catch((e) => setError(e instanceof Error ? e.message : "failed to load members"));
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  function stateFor(id: string): RowActionState {
+    return rowState[id] ?? emptyRowState();
+  }
+
+  function patchRowState(id: string, patch: Partial<RowActionState>) {
+    setRowState((current) => ({ ...current, [id]: { ...emptyRowState(), ...current[id], ...patch } }));
+  }
+
+  async function onDisable(member: AdminMember) {
+    if (stateFor(member.id).disabling) return;
+    patchRowState(member.id, { disabling: true, error: null, notice: null });
+    try {
+      const result = await api.disableMember(member.id);
+      setMembers((current) => (current ? current.map((m) => (m.id === member.id ? result.member : m)) : current));
+      patchRowState(member.id, { disabling: false, notice: "Member disabled." });
+    } catch (e) {
+      patchRowState(member.id, { disabling: false, error: describeApiError(e, "Failed to disable member.") });
+    }
+  }
+
+  async function onResendSignInLink(member: AdminMember) {
+    if (stateFor(member.id).resending) return;
+    patchRowState(member.id, { resending: true, error: null, notice: null });
+    try {
+      await api.requestMemberMagicLink({ email: member.email });
+      patchRowState(member.id, { resending: false, notice: "Sign-in link sent." });
+    } catch (e) {
+      patchRowState(member.id, { resending: false, error: describeApiError(e, "Failed to send sign-in link.") });
+    }
+  }
+
+  /** Confirms the Disable that `RowMenu`'s "Disable" item asked about. Closes the dialog either
+   *  way (matching Posts.tsx/Redirects.tsx/Users.tsx's own Disable/Delete `ConfirmDialog`
+   *  convention) — a failure surfaces via the row's own `rs.error`, not by leaving the modal open. */
+  async function confirmDisable() {
+    if (!confirmingDisable) return;
+    await onDisable(confirmingDisable);
+    setConfirmingDisable(null);
+  }
+
+  async function onToggleDetail(member: AdminMember) {
+    if (expandedId === member.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(member.id);
+    setDetailError(null);
+    if (detailById[member.id]) return;
+
+    setDetailLoadingId(member.id);
+    try {
+      const result = await api.getMember(member.id);
+      setDetailById((current) => ({ ...current, [member.id]: result.member }));
+    } catch (e) {
+      setDetailError(describeApiError(e, "Failed to load member detail."));
+    } finally {
+      setDetailLoadingId(null);
+    }
+  }
+
+  return {
+    members,
+    error,
+
+    stateFor,
+    onResendSignInLink,
+
+    expandedId,
+    detailById,
+    detailError,
+    detailLoadingId,
+    onToggleDetail,
+
+    confirmingDisable,
+    setConfirmingDisable,
+    confirmDisable,
+  };
+}

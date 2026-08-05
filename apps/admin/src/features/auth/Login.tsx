@@ -1,25 +1,24 @@
-import { useState } from "react";
-import { api, type AdminUser } from "../lib/api";
+import type { AdminUser } from "../../lib/api";
+import { useLogin } from "./hooks/use-login.hooks";
 
-export function Login(props: { onLogin: (user: AdminUser) => void }) {
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+/**
+ * @file The Login screen — markup only.
+ *
+ * State and the submit handler live in `hooks/use-login.hooks.ts`. Nothing here computes a value
+ * (no derivations, no branchy formatting), so this feature has no `rules.ts`.
+ */
+export interface LoginProps {
+  onLogin: (user: AdminUser) => void;
+  /**
+   * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` and
+   * `@jini-ai/ui`'s `useCustomSelect` use. Defaulted to the real hook, so production callers pass
+   * nothing and behave exactly as before.
+   */
+  useLoginHook?: typeof useLogin;
+}
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const { user } = await api.login({ username, password });
-      props.onLogin(user);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "login failed");
-    } finally {
-      setBusy(false);
-    }
-  }
+export function Login({ onLogin, useLoginHook = useLogin }: LoginProps) {
+  const { username, setUsername, password, setPassword, error, busy, submit } = useLoginHook(onLogin);
 
   return (
     <div className="login-screen">

@@ -1,0 +1,237 @@
+import { ConfirmDialog } from "@jini-ai/admin/react";
+import { SrcDocSandbox } from "@jini-ai/renderers-react";
+
+import { siteUrl } from "../../lib/site-url";
+import { navigate } from "../../lib/router";
+import {
+  PAGE_PREVIEW_WIDTHS,
+  usePageEditor,
+  type PagePreviewDevice,
+  type PageEditorView,
+} from "./hooks/use-page-editor.hooks";
+
+/**
+ * @file The Pages editor — markup only. State lives in `hooks/use-page-editor.hooks.ts`.
+ *
+ * **There is no Tiptap here, and there never will be.** A Page is a bespoke HTML document; the
+ * editing surface is the rendered preview plus the raw HTML behind it. Posts keep Tiptap in
+ * `features/posts/PostEditor.tsx`, which this screen replaces for `kind: "page"` entries — that
+ * screen was previously reached for Pages too, differing only by a `kindLabel === "page"` ternary on
+ * its heading while still mounting the Tiptap toolbar over a document Tiptap would silently
+ * mangle.
+ *
+ * The chat that drives generation is NOT in this component. It is the workspace assistant dock,
+ * which `App.tsx` renders outside the route switch and ADR-049 pins to never unmount — so it is the
+ * same conversation whether the operator is on the Pages list or in here, and an agent can navigate
+ * between them mid-turn without losing the thread. Building a second chat pane into this screen
+ * would fork that conversation for no gain.
+ */
+export interface PageEditorProps {
+  pageId: string;
+  /** DI seam for tests — same convention as `Pages.tsx`'s `usePagesHook`. */
+  usePageEditorHook?: typeof usePageEditor;
+}
+
+const DEVICES: ReadonlyArray<{ key: PagePreviewDevice; label: string }> = [
+  { key: "desktop", label: "Desktop" },
+  { key: "tablet", label: "Tablet" },
+  { key: "mobile", label: "Mobile" },
+];
+
+const VIEWS: ReadonlyArray<{ key: PageEditorView; label: string }> = [
+  { key: "preview", label: "Preview" },
+  { key: "html", label: "HTML" },
+];
+
+export function PageEditor({ pageId, usePageEditorHook = usePageEditor }: PageEditorProps) {
+  const {
+    page,
+    error,
+    message,
+    title,
+    setTitle,
+    slug,
+    setSlug,
+    status,
+    setStatus,
+    html,
+    setHtml,
+    view,
+    setView,
+    device,
+    setDevice,
+    saving,
+    dirty,
+    save,
+    remove,
+    confirmingDelete,
+    setConfirmingDelete,
+    deleting,
+  } = usePageEditorHook(pageId);
+
+  if (error && !page) return <div className="notice error">{error}</div>;
+  if (!page) return <div className="notice">Loading editor…</div>;
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div className="page-header-text">
+          <p className="page-kicker">Content</p>
+          <h1 className="page-title">Edit page</h1>
+          <p className="page-description">
+            Ask the assistant to build this page, or edit the HTML directly.
+          </p>
+        </div>
+        <div className="page-actions">
+          {/* Guards an in-app navigation away from unsaved work — the same protection the agent's
+              own navigation gate is meant to apply, applied here to a human click. */}
+          <a
+            href="/admin/pages"
+            onClick={(e) => {
+              if (dirty && !window.confirm("This page has unsaved changes. Leave anyway?")) {
+                e.preventDefault();
+              }
+            }}
+          >
+            <button type="button" className="btn-secondary">
+              ← Pages
+            </button>
+          </a>
+          {message ? <span className="save-ok">{message}</span> : null}
+          {error ? <span className="save-error">{error}</span> : null}
+          <select value={status} onChange={(e) => setStatus(e.target.value as "draft" | "published")}>
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+          </select>
+          {status === "draft" ? (
+            <button type="button" onClick={() => save("published")} disabled={saving}>
+              Publish
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={status === "draft" ? "btn-secondary" : undefined}
+            onClick={() => save()}
+            disabled={saving}
+          >
+            {saving ? "Saving…" : dirty ? "Save •" : "Save"}
+          </button>
+          <button type="button" className="btn-danger" onClick={() => setConfirmingDelete(true)}>
+            Delete
+          </button>
+        </div>
+      </div>
+
+      {/* `editor-title`/`editor-slug` are the existing editor chrome from `styles/editor.css`,
+          reused verbatim so a Page's header looks and behaves exactly like the screen it replaces.
+          The chrome was never the problem — the Tiptap body under it was. */}
+      <label className="a11y-label-wrap">
+        <span className="visually-hidden">Page title</span>
+        <input
+          className="editor-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Untitled"
+        />
+      </label>
+
+      <div className="editor-slug">
+        <span>/</span>
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">URL slug</span>
+          <input value={slug} onChange={(e) => setSlug(e.target.value)} />
+        </label>
+        <a href={siteUrl(`/${slug}`)} target="_blank" rel="noreferrer">
+          view ↗
+        </a>
+      </div>
+
+      <div className="page-editor-toolbar">
+        <div className="segmented" role="tablist" aria-label="Editor view">
+          {VIEWS.map((entry) => (
+            <button
+              key={entry.key}
+              type="button"
+              role="tab"
+              aria-selected={view === entry.key}
+              className={view === entry.key ? "is-active" : undefined}
+              onClick={() => setView(entry.key)}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+        {view === "preview" ? (
+          <div className="segmented" role="group" aria-label="Preview width">
+            {DEVICES.map((entry) => (
+              <button
+                key={entry.key}
+                type="button"
+                aria-pressed={device === entry.key}
+                className={device === entry.key ? "is-active" : undefined}
+                onClick={() => setDevice(entry.key)}
+              >
+                {entry.label}
+              </button>
+            ))}
+            <span className="page-editor-width">{PAGE_PREVIEW_WIDTHS[device]}px</span>
+          </div>
+        ) : null}
+      </div>
+
+      {view === "preview" ? (
+        <PagePreview html={html} width={PAGE_PREVIEW_WIDTHS[device]} />
+      ) : (
+        <textarea
+          className="page-html-source"
+          value={html}
+          onChange={(e) => setHtml(e.target.value)}
+          spellCheck={false}
+          aria-label="Page HTML"
+          placeholder="This page has no HTML yet. Ask the assistant to build it, or write some here."
+        />
+      )}
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Move to trash?"
+        body={<p>Move &quot;{title}&quot; to trash? It will disappear from the site and from this list.</p>}
+        confirmLabel="Move to trash"
+        destructive
+        pending={deleting}
+        onConfirm={remove}
+        onCancel={() => setConfirmingDelete(false)}
+      />
+    </div>
+  );
+}
+
+/**
+ * Renders the page at a fixed viewport width and scales the whole thing down to fit the pane.
+ *
+ * The scale is a CSS transform on a fixed-width box, not a responsive iframe, and that difference is
+ * the entire point — see `PAGE_PREVIEW_WIDTHS`. The wrapper's height is scaled to match so the
+ * transformed content does not leave a gap or overflow underneath it.
+ *
+ * `SrcDocSandbox` (`@jini-ai/renderers-react`) gives the document an opaque origin: its `sandbox`
+ * attribute omits `allow-same-origin`, which is asserted by that component's own regression test, so
+ * generated markup cannot reach the admin's cookies, storage or DOM even though scripts run in it.
+ */
+function PagePreview({ html, width }: { html: string; width: number }) {
+  // The pane is roughly this wide once the assistant dock is open; scaling against a fixed
+  // reference keeps the preview stable as the window resizes rather than reflowing under the
+  // operator mid-edit. A real measurement (ResizeObserver) is the follow-up, not the prototype.
+  const paneWidth = 880;
+  const scale = Math.min(1, paneWidth / width);
+
+  return (
+    <div className="page-preview-frame" style={{ height: `${900 * scale}px` }}>
+      <div
+        className="page-preview-scaler"
+        style={{ width: `${width}px`, height: "900px", transform: `scale(${scale})` }}
+      >
+        <SrcDocSandbox html={html} title="Page preview" className="page-preview-iframe" />
+      </div>
+    </div>
+  );
+}

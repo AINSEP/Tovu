@@ -1,0 +1,178 @@
+import { useCallback, useEffect, useState } from "react";
+
+import { api, type AdminPost } from "../../../lib/api";
+import { navigate } from "../../../lib/router";
+
+/**
+ * @file Everything the Pages EDITOR does, so `PageEditor.tsx` is only markup.
+ *
+ * Same `use-<thing>.hooks.ts` convention as `use-pages.hooks.ts` beside it. Deliberately NOT shared
+ * with `features/posts`' `usePostEditor`: a Post is a Tiptap document and a Page is a bespoke HTML
+ * one, they are edited through different endpoints with different concurrency semantics, and the
+ * only thing the two screens have in common is the header chrome.
+ */
+
+/** The two things the editor's main pane can show. Preview is the default — the HTML source is for
+ *  when the operator wants to see or hand-edit what the assistant produced. */
+export type PageEditorView = "preview" | "html";
+
+/**
+ * Viewport widths the preview renders AT, independent of how much room the pane actually has.
+ *
+ * This is the point of the whole preview mechanism, not a nice-to-have. With the assistant dock
+ * open the editor pane is well under half the window, so a preview rendered at its container's real
+ * width would show a layout at ~900px that ships at 1280+ — the operator would be judging, and
+ * asking the model to fix, breakpoints nobody will ever see. The document is rendered at the chosen
+ * width and scaled down to fit instead.
+ */
+export const PAGE_PREVIEW_WIDTHS = { desktop: 1280, tablet: 834, mobile: 390 } as const;
+
+export type PagePreviewDevice = keyof typeof PAGE_PREVIEW_WIDTHS;
+
+export interface PageEditorController {
+  /** `null` until the initial load settles. */
+  page: AdminPost | null;
+  error: string | null;
+  message: string | null;
+  title: string;
+  setTitle: (value: string) => void;
+  slug: string;
+  setSlug: (value: string) => void;
+  status: "draft" | "published";
+  setStatus: (value: "draft" | "published") => void;
+  /** The working copy of the page's HTML — what the preview renders and what Save persists. */
+  html: string;
+  setHtml: (value: string) => void;
+  view: PageEditorView;
+  setView: (value: PageEditorView) => void;
+  device: PagePreviewDevice;
+  setDevice: (value: PagePreviewDevice) => void;
+  saving: boolean;
+  /**
+   * Whether the working copy differs from what was last loaded or saved.
+   *
+   * Read by more than the Save button: this is the "in the middle of a task" signal the agent's
+   * `pages.open_editor` capability is meant to gate navigation on, so that being pulled to another
+   * page mid-edit asks first instead of discarding work.
+   */
+  dirty: boolean;
+  save: (nextStatus?: "draft" | "published") => Promise<void>;
+  remove: () => Promise<void>;
+  confirmingDelete: boolean;
+  setConfirmingDelete: (value: boolean) => void;
+  deleting: boolean;
+}
+
+export function usePageEditor(pageId: string): PageEditorController {
+  const [page, setPage] = useState<AdminPost | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [slug, setSlug] = useState("");
+  const [status, setStatus] = useState<"draft" | "published">("draft");
+  const [html, setHtml] = useState("");
+  const [savedHtml, setSavedHtml] = useState("");
+  const [view, setView] = useState<PageEditorView>("preview");
+  const [device, setDevice] = useState<PagePreviewDevice>("desktop");
+  const [saving, setSaving] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getPage(pageId)
+      .then(({ post }) => {
+        if (cancelled) return;
+        setPage(post);
+        setTitle(post.title);
+        setSlug(post.slug);
+        setStatus(post.status);
+        // A Page that has never been opened in this editor is still `doc`-format and has no
+        // `bodyHtml` yet — the server births the html row on the first save. Starting from an empty
+        // string (rather than seeding a skeleton client-side) keeps the skeleton defined in exactly
+        // one place, server-side, where the region vocabulary lives.
+        const body = post.bodyFormat === "html" ? (post.bodyHtml ?? "") : "";
+        setHtml(body);
+        setSavedHtml(body);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : "failed to load page");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pageId]);
+
+  const save = useCallback(
+    async (nextStatus?: "draft" | "published") => {
+      setSaving(true);
+      setError(null);
+      setMessage(null);
+      const statusToWrite = nextStatus ?? status;
+      try {
+        // Two writes, in this order, because they are two different server-side paths and only the
+        // second one can create the html row. Body first: if the metadata write fails on a slug
+        // conflict, the operator's actual content is already safe.
+        await api.updatePageHtml(pageId, html);
+        // No `bodyJson` — a bespoke-HTML Page has no Tiptap document, and the server no longer
+        // demands one for an html-format row (it used to, which made such a Page's title
+        // permanently un-editable). Sending a dummy empty doc to satisfy a validation that does not
+        // apply would be the wrong fix.
+        const { post: updated } = await api.updatePost(
+          { id: pageId },
+          { title, slug, status: statusToWrite }
+        );
+        setPage(updated);
+        setSlug(updated.slug);
+        setStatus(updated.status);
+        setSavedHtml(html);
+        if (nextStatus) setStatus(nextStatus);
+        setMessage("Saved");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "failed to save page");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [pageId, html, title, slug, status]
+  );
+
+  const remove = useCallback(async () => {
+    setDeleting(true);
+    setError(null);
+    try {
+      await api.deletePage(pageId);
+      navigate("/pages");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to delete page");
+      setDeleting(false);
+      setConfirmingDelete(false);
+    }
+  }, [pageId]);
+
+  return {
+    page,
+    error,
+    message,
+    title,
+    setTitle,
+    slug,
+    setSlug,
+    status,
+    setStatus,
+    html,
+    setHtml,
+    view,
+    setView,
+    device,
+    setDevice,
+    saving,
+    dirty: html !== savedHtml,
+    save,
+    remove,
+    confirmingDelete,
+    setConfirmingDelete,
+    deleting,
+  };
+}

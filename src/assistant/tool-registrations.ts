@@ -10,13 +10,21 @@
  * assistant rather than any one domain — which domains are wired at all, and the two cross-domain
  * invariants that only a file seeing all of them can check.
  *
- * Wired domains and their catalogs (21 domains, 142 catalog entries, 124 wired tools):
- *   content-types (6 of 8)   forms (5)         identity (15)      comments (7)
- *   members (4)              newsletter (14)   media (4)          widgets (12)
- *   menus (5)                database (4 of 9) recovery (5 of 7)  plugins (2)
- *   workspace (2 of 4)       settings (3 of 7) entries (5 of 5)   taxonomy (6 of 7)
- *   seo (6)                  redirects (6 of 7) integrations (5)  post (6 of 6)
+ * Wired domains and their catalogs (21 domains, 145 catalog entries, 131 wired tools — measured
+ * 2026-08-05 by building the real registrations and attributing each id to its declaring catalog,
+ * not carried forward from the previous edit; the counts below had drifted in six places):
+ *   content-types (6 of 8)   forms (6 of 6)      identity (15 of 15)  comments (7 of 7)
+ *   members (4 of 4)         newsletter (14/14)  media (4 of 4)       widgets (12 of 12)
+ *   menus (5 of 5)           database (7 of 9)   recovery (5 of 7)    plugins (2 of 2)
+ *   workspace (2 of 4)       settings (4 of 8)   entries (5 of 5)     taxonomy (6 of 7)
+ *   seo (6 of 6)             redirects (6 of 7)  integrations (5/5)   post (6 of 6)
  *   themes (4 of 4)
+ * Recovery counts 5, not 6: `backup_create_restore_point` appears in both its catalog and
+ * Database's, and Recovery is the one that declares it unwired (see {@link DERIVED_RISK_BY_TOOL_ID}
+ * for why that collision has to resolve exactly this way). Counting it on both sides is what makes
+ * a naive per-domain sum read 132 against a registry that holds 131.
+ * The two demo domains below wire nothing unless `TOVU_ENABLE_DEMO_TOOLS` is set, so they are
+ * outside every number here.
  * Each domain's own file records which of its entries are deliberately unwired and why; the kit's
  * `buildDomainRegistrations` fails the build on any catalog entry that is neither.
  *
@@ -59,6 +67,11 @@ import {
   postDerivedRisk,
   type PostToolDeps,
 } from "../features/post/tool-registrations";
+import {
+  buildPagesRegistrations,
+  pagesDerivedRisk,
+  type PagesToolDeps,
+} from "../features/pages/tool-registrations";
 import {
   buildRecoveryRegistrations,
   recoveryDerivedRisk,
@@ -160,6 +173,7 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   EntriesToolDeps &
   PluginsToolDeps &
   PostToolDeps &
+  PagesToolDeps &
   RecoveryToolDeps &
   SettingsToolDeps &
   TaxonomyToolDeps &
@@ -215,6 +229,9 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // (ADR-055 Decision 2 — `content_post_delete` holds its call open through the same exchange store
   // every other surface-raising domain uses), so this forwards directly rather than wrapping.
   { domain: "post", build: buildPostRegistrations, risk: postDerivedRisk },
+  // Its own domain, not part of "post": a Page's body is bespoke HTML and a Post's is a Tiptap
+  // document, and `content_post_update` cannot write the former. See `features/pages/agent-tools.ts`.
+  { domain: "pages", build: buildPagesRegistrations, risk: pagesDerivedRisk },
   { domain: "taxonomy", build: buildTaxonomyRegistrations, risk: taxonomyDerivedRisk },
   { domain: "seo", build: buildSeoRegistrations, risk: seoDerivedRisk },
   { domain: "redirects", build: buildRedirectsRegistrations, risk: redirectsDerivedRisk },

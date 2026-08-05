@@ -25,7 +25,17 @@ export interface WidgetPickerDialogProps {
   onCancel: () => void;
 }
 
-function useExistingInstances(widgetType: AdminWidgetType) {
+/**
+ * Fetches the widget type's existing instances for the "use existing" section, once per
+ * `widgetType`.
+ *
+ * @param widgetType - The widget type to list instances for.
+ * @returns `instances` (`null` while the fetch is in flight, otherwise the loaded list) and
+ *   `error` (a describable failure message, or `null`).
+ * @example
+ * const { instances, error } = useExistingInstances("text");
+ */
+export function useExistingInstances(widgetType: AdminWidgetType) {
   const [instances, setInstances] = useState<AdminWidget[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -38,7 +48,20 @@ function useExistingInstances(widgetType: AdminWidgetType) {
   return { instances, error };
 }
 
-export function WidgetPickerDialog(props: WidgetPickerDialogProps) {
+/**
+ * Owns `WidgetPickerDialog`'s own state on top of `useExistingInstances`: the existing-instance
+ * selection, the new-widget draft fields, the shared submit error, the Escape-to-cancel listener,
+ * and the defer-until-resolved new-title autofocus.
+ *
+ * @param props - The dialog's own props (`widgetType`, `onUseExisting`, `onCreateNew`, `onCancel`)
+ *   — the hook reads and forwards these exactly as the component previously did inline.
+ * @returns Everything the dialog's JSX renders from: loaded instances/`loadError`, the "use
+ *   existing" and "create new" form state plus their submit handlers, the three `useId()` values,
+ *   the new-title input ref, the resolved type label, and `hasExisting`.
+ * @example
+ * const { instances, hasExisting, submitCreateNew } = useWidgetPickerDialog(props);
+ */
+export function useWidgetPickerDialog(props: WidgetPickerDialogProps) {
   const { instances, error: loadError } = useExistingInstances(props.widgetType);
   const [selectedExistingId, setSelectedExistingId] = useState("");
   const [newTitle, setNewTitle] = useState("");
@@ -103,6 +126,48 @@ export function WidgetPickerDialog(props: WidgetPickerDialogProps) {
     }
     props.onCreateNew(newTitle.trim(), newConfig);
   }
+
+  return {
+    instances,
+    loadError,
+    selectedExistingId,
+    setSelectedExistingId,
+    newTitle,
+    setNewTitle,
+    newConfig,
+    setNewConfig,
+    error,
+    titleId,
+    existingSelectId,
+    newTitleInputId,
+    newTitleInputRef,
+    typeLabel,
+    hasExisting,
+    submitUseExisting,
+    submitCreateNew,
+  };
+}
+
+export function WidgetPickerDialog(props: WidgetPickerDialogProps) {
+  const {
+    instances,
+    loadError,
+    selectedExistingId,
+    setSelectedExistingId,
+    newTitle,
+    setNewTitle,
+    newConfig,
+    setNewConfig,
+    error,
+    titleId,
+    existingSelectId,
+    newTitleInputId,
+    newTitleInputRef,
+    typeLabel,
+    hasExisting,
+    submitUseExisting,
+    submitCreateNew,
+  } = useWidgetPickerDialog(props);
 
   return (
     <div className="settings-dialog-backdrop" onClick={props.onCancel}>
@@ -174,10 +239,24 @@ export function WidgetPickerDialog(props: WidgetPickerDialogProps) {
  * TipTap toolbar's "Insert widget" button — avoids two independent implementations of the same
  * type-choice step.
  */
-export function WidgetAddControl(props: {
+export interface WidgetAddControlProps {
   triggerLabel: string;
   onResolved: (widgetInstanceId: string) => void | Promise<void>;
-}) {
+}
+
+/**
+ * Owns `WidgetAddControl`'s two-step flow: the pending type choice (`selectedType`), whether the
+ * picker dialog is open (`pickerType`, `null` when closed), and the two resolution handlers that
+ * create-or-reuse a widget and then call back into `props.onResolved`.
+ *
+ * @param props - `triggerLabel` (unused by the hook itself, kept for parity with the component's
+ *   props) and `onResolved`, invoked once a widget instance id is settled.
+ * @returns `pickerType`/`setPickerType`, `selectedType`/`setSelectedType`, the create/use-existing
+ *   `error` message (or `null`), and the `handleCreateNew`/`handleUseExisting` submit handlers.
+ * @example
+ * const { pickerType, handleCreateNew } = useWidgetAddControl({ triggerLabel: "+ Add widget", onResolved });
+ */
+export function useWidgetAddControl(props: WidgetAddControlProps) {
   const [pickerType, setPickerType] = useState<AdminWidgetType | null>(null);
   const [selectedType, setSelectedType] = useState<AdminWidgetType>("text");
   const [error, setError] = useState<string | null>(null);
@@ -197,6 +276,13 @@ export function WidgetAddControl(props: {
     setPickerType(null);
     await props.onResolved(widgetInstanceId);
   }
+
+  return { pickerType, setPickerType, selectedType, setSelectedType, error, handleCreateNew, handleUseExisting };
+}
+
+export function WidgetAddControl(props: WidgetAddControlProps) {
+  const { pickerType, setPickerType, selectedType, setSelectedType, error, handleCreateNew, handleUseExisting } =
+    useWidgetAddControl(props);
 
   return (
     <span className="widget-add-control">

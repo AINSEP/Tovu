@@ -1,86 +1,48 @@
-import { useEffect, useState } from "react";
-import { api, type AdminWebhookSubscription } from "../lib/api";
-import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
+import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 
-/** Parses the comma-separated topics field into a trimmed, blank-free list. */
-function parseTopics(raw: string): string[] {
-  return raw
-    .split(",")
-    .map((topic) => topic.trim())
-    .filter(Boolean);
+import { integrationRowMenuItems } from "./rules";
+import { useIntegrations } from "./hooks/use-integrations.hooks";
+
+/**
+ * @file The Integrations list screen — markup only.
+ *
+ * State and API calls live in `hooks/use-integrations.hooks.ts`; the row-menu logic lives in
+ * `rules.ts`. What stays here is what actually renders: the create form, column definitions, and
+ * the confirm copy.
+ */
+export interface IntegrationsProps {
+  /**
+   * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   * for `useCustomSelect`, and `features/posts/Posts.tsx`'s `usePostsHook`.
+   *
+   * Defaulted to the real hook, so production callers (`panels.tsx`) pass nothing and behave
+   * exactly as before. A test supplies a stub and drives this component through any state without
+   * module mocking or a fake `fetch`.
+   */
+  useIntegrationsHook?: typeof useIntegrations;
 }
 
-export function Integrations() {
-  const [subscriptions, setSubscriptions] = useState<AdminWebhookSubscription[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
-  const [label, setLabel] = useState("");
-  const [targetUrl, setTargetUrl] = useState("");
-  const [topics, setTopics] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  // The subscription a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog
-  // is closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on
-  // why); this is what drives its `open` prop.
-  const [pendingDelete, setPendingDelete] = useState<AdminWebhookSubscription | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  function reload(): Promise<void> {
-    return api.listIntegrationSubscriptions()
-      .then((r) => setSubscriptions(r.subscriptions))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load integrations"));
-  }
-
-  useEffect(() => {
-    void reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function onCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setFormError(null);
-    try {
-      await api.createIntegrationSubscription({ label, targetUrl, topics: parseTopics(topics) });
-      setLabel("");
-      setTargetUrl("");
-      setTopics("");
-      setFormOpen(false);
-      await reload();
-    } catch (e) {
-      setFormError(e instanceof Error ? e.message : "failed to create subscription");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function onTogglePause(subscription: AdminWebhookSubscription) {
-    try {
-      await api.pauseIntegrationSubscription({ id: subscription.id, paused: subscription.status !== "paused" });
-      await reload();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to update subscription");
-    }
-  }
-
-  /** Confirmation now gates via a `ConfirmDialog` modal, reached through `RowMenu`'s "Delete" item
-   *  (`setPendingDelete` below), rather than `window.confirm` — see `Roles.tsx`'s `onDeleteRole`
-   *  comment for why a `RowMenu` item needs `ConfirmDialog`, not a blocking browser prompt, to hold
-   *  the confirm step. Copy is the exact previous sentence, unchanged. */
-  async function onDelete() {
-    if (!pendingDelete) return;
-    const subscription = pendingDelete;
-    setDeleting(true);
-    try {
-      await api.deleteIntegrationSubscription(subscription.id);
-      await reload();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to delete subscription");
-    } finally {
-      setDeleting(false);
-      setPendingDelete(null);
-    }
-  }
+export function Integrations({ useIntegrationsHook = useIntegrations }: IntegrationsProps = {}) {
+  const {
+    subscriptions,
+    error,
+    formOpen,
+    setFormOpen,
+    label,
+    setLabel,
+    targetUrl,
+    setTargetUrl,
+    topics,
+    setTopics,
+    saving,
+    formError,
+    pendingDelete,
+    setPendingDelete,
+    deleting,
+    onCreate,
+    onTogglePause,
+    onDelete,
+  } = useIntegrationsHook();
 
   if (error) return <div className="notice error">{error}</div>;
   if (!subscriptions) return <div className="notice">Loading integrations…</div>;
@@ -89,7 +51,7 @@ export function Integrations() {
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Design & System</p>
+          <p className="page-kicker">Operations</p>
           <h1 className="page-title">Integrations</h1>
           <p className="page-description">
             Send webhook notifications to external services when content on this site changes.
@@ -178,19 +140,10 @@ export function Integrations() {
               ) : (
                 <RowMenu
                   triggerLabel={`Actions for webhook "${subscription.label}"`}
-                  items={[
-                    {
-                      key: "pause",
-                      label: subscription.status === "paused" ? "Resume" : "Pause",
-                      onSelect: () => onTogglePause(subscription),
-                    },
-                    {
-                      key: "delete",
-                      label: "Delete",
-                      destructive: true,
-                      onSelect: () => setPendingDelete(subscription),
-                    },
-                  ]}
+                  items={integrationRowMenuItems(subscription, {
+                    onTogglePause,
+                    onDelete: setPendingDelete,
+                  })}
                 />
               ),
           },

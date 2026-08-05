@@ -1,25 +1,29 @@
-import { useEffect, useState } from "react";
-import { api, type AdminWebhookDelivery } from "../lib/api";
-import { formatTimestamp } from "../lib/format-timestamp";
 import { DataTable } from "@jini-ai/admin/react";
 
-/** Best available timestamp for the log's "Timestamp" column: delivered time, else created time. */
-function displayTimestamp(delivery: AdminWebhookDelivery): string {
-  return formatTimestamp(delivery.deliveredAt ?? delivery.createdAt);
+import { displayTimestamp } from "./rules";
+import { useIntegrationDeliveries } from "./hooks/use-integration-deliveries.hooks";
+
+/**
+ * @file The webhook delivery-log screen — markup only.
+ *
+ * State and API calls live in `hooks/use-integration-deliveries.hooks.ts`; the timestamp
+ * derivation lives in `rules.ts`. What stays here is what actually renders: column definitions
+ * and the empty state.
+ */
+export interface IntegrationDeliveriesProps {
+  subscriptionId: string;
+  /**
+   * Dependency injection seam for tests — see `Integrations.tsx`'s `useIntegrationsHook` for the
+   * house convention this follows.
+   */
+  useIntegrationDeliveriesHook?: typeof useIntegrationDeliveries;
 }
 
-export function IntegrationDeliveries(props: { subscriptionId: string }) {
-  const [deliveries, setDeliveries] = useState<AdminWebhookDelivery[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setDeliveries(null);
-    setError(null);
-    api
-      .listIntegrationDeliveries(props.subscriptionId)
-      .then((r) => setDeliveries(r.deliveries))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load deliveries"));
-  }, [props.subscriptionId]);
+export function IntegrationDeliveries({
+  subscriptionId,
+  useIntegrationDeliveriesHook = useIntegrationDeliveries,
+}: IntegrationDeliveriesProps) {
+  const { deliveries, error } = useIntegrationDeliveriesHook(subscriptionId);
 
   if (error) return <div className="notice error">{error}</div>;
   if (!deliveries) return <div className="notice">Loading delivery log…</div>;
@@ -29,7 +33,7 @@ export function IntegrationDeliveries(props: { subscriptionId: string }) {
       <a href="/admin/integrations">← Integrations</a>
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Design & System</p>
+          <p className="page-kicker">Operations</p>
           <h1 className="page-title">Delivery log</h1>
           <p className="page-description">Every delivery attempt logged for this webhook subscription.</p>
         </div>
