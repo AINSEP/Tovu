@@ -193,9 +193,29 @@ function spawnAgentDaemon(workspaceId: string): void {
   // squatted both indefinitely. A later boot then collided with it, and because the collision
   // surfaces as "the assistant is unavailable" rather than an error, it read as a mystery. Measured
   // 2026-08-04: an orphan from 11:01 was still holding 4319 and the content DB hours later.
+  //
+  // This separate process group has a real cost: it also shields the daemon from anything that
+  // kills THIS process by process-group signal instead of by delivering us a catchable one.
+  // Confirmed 2026-08-05: Playwright's default `webServer` teardown does exactly that — no
+  // catchable signal at all, straight to `process.kill(-webServerPid, "SIGKILL")` on ITS OWN
+  // group, which (by construction, per this comment) never reaches the daemon's group. `reap()`
+  // below never gets a chance to run, so the orphaned daemon keeps Playwright's inherited
+  // stdout/stderr pipe open and Playwright's own teardown hangs forever waiting for it to close.
+  // Fixed at the source by opting in to `webServer.gracefulShutdown` in
+  // `development/playwright.admin.config.ts`, which makes Playwright send a real SIGTERM first —
+  // that reaches this process normally (it isn't itself in a detached group), letting `reap()`
+  // run and group-kill the daemon exactly as it does for every other termination path below.
   const child = isCompiled
     ? spawn(process.execPath, [daemonPath], { stdio: "inherit", env, detached: true })
     : spawn("npx", ["tsx", daemonPath], { stdio: "inherit", env, detached: true });
+  // Captured once, right after spawn: `child.pid` is `number | undefined` only in the narrow
+  // window where `spawn()` itself failed to allocate a process (surfaced via the `"error"`
+  // handler below) — TS18048 was a real defect (not cosmetic), since `-child.pid` below would
+  // have computed `-undefined` = `NaN` and thrown inside `reap()`'s `try`, silently falling
+  // through to the single-process `child.kill()` fallback instead of the group kill. Narrowing
+  // once here (rather than casting) makes `reap()` correctly no-op instead in that case — there
+  // is no process to reap.
+  const pid = child.pid;
 
   child.on("error", (error) => {
     console.error("[index] failed to start the agent daemon — the assistant will be unavailable", error);
@@ -208,9 +228,9 @@ function spawnAgentDaemon(workspaceId: string): void {
 
   /** Kill the daemon's whole process group, falling back to the direct child if the group is gone. */
   const reap = () => {
-    if (child.exitCode !== null || child.signalCode !== null) return;
+    if (pid === undefined || child.exitCode !== null || child.signalCode !== null) return;
     try {
-      process.kill(-child.pid, "SIGTERM");
+      process.kill(-pid, "SIGTERM");
     } catch {
       try {
         child.kill("SIGTERM");
