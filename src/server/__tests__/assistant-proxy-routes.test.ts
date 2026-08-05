@@ -68,6 +68,20 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
         body: Buffer.concat(chunks).toString("utf8"),
       });
 
+      // A distinct run id, checked BEFORE the generic `/events` branch below (whose URL it would
+      // also match): two SSE chunks written with a real delay between them, for the "is this
+      // actually streamed, not buffered" test — see that test's own doc for why the generic
+      // `/events` stand-in above can't answer this question (it flushes its whole body in one
+      // `res.end()` call, so it can't distinguish incremental relay from full buffering).
+      if ((req.url ?? "").includes("/runs/run-stream/events")) {
+        res.writeHead(200, { "content-type": "text/event-stream" });
+        res.write(`id: chunk-1\ndata: {"kind":"first"}\n\n`);
+        setTimeout(() => {
+          res.write(`id: chunk-2\ndata: {"kind":"second"}\n\n`);
+          res.end();
+        }, 200);
+        return;
+      }
       if ((req.url ?? "").includes("/events")) {
         res.writeHead(200, { "content-type": "text/event-stream" });
         res.end(`id: cursor-7\ndata: {"kind":"end"}\n\n`);
@@ -182,6 +196,54 @@ test("Last-Event-ID is omitted (not sent empty) when the browser did not supply 
   await fetch(`${baseUrl}/api/runs/run-1/events`, { headers: { cookie } });
 
   assert.equal(recorded[0].headers["last-event-id"], undefined);
+});
+
+/**
+ * `forwardToAgentDaemon` was refactored to return the upstream `Response` instead of relaying it
+ * internally — `proxyPassthrough` now calls `relayResponse` itself. That refactor is shared by
+ * EVERY proxied route, including this one, which carries live chat over SSE — a regression here
+ * would freeze or drop a user's chat mid-stream, not just show a stale model list. None of the
+ * assertions above actually distinguish "streamed incrementally" from "buffered whole, then
+ * flushed" — the stand-in daemon's normal `/events` branch answers its entire body in one
+ * `res.end()` call, so every existing assertion (status, headers, final body content) would pass
+ * identically either way. This test is the one that would fail if the refactor had accidentally
+ * introduced buffering: the stand-in daemon writes two SSE chunks 200ms apart, and a genuinely
+ * relayed response must deliver data to the client with a real gap in between, not all at once
+ * when the connection finally closes.
+ */
+test("a streamed multi-chunk SSE response is relayed incrementally as it arrives, not buffered until the connection closes", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+
+  const res = await fetch(`${baseUrl}/api/runs/run-stream/events`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  assert.ok(res.body, "expected a readable stream body");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  const start = Date.now();
+  let combined = "";
+  let firstChunkAt: number | null = null;
+  let lastChunkAt = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const elapsed = Date.now() - start;
+    if (firstChunkAt === null) firstChunkAt = elapsed;
+    lastChunkAt = elapsed;
+    combined += decoder.decode(value, { stream: true });
+  }
+
+  assert.match(combined, /chunk-1/);
+  assert.match(combined, /chunk-2/);
+  assert.ok(combined.indexOf("chunk-1") < combined.indexOf("chunk-2"), "chunk-1 must arrive before chunk-2 in the combined body");
+  assert.ok(
+    firstChunkAt !== null && firstChunkAt < 100,
+    `expected the first chunk to reach the client quickly, not held back until the daemon closed the connection; got ${firstChunkAt}ms`,
+  );
+  assert.ok(
+    lastChunkAt - (firstChunkAt ?? 0) >= 150,
+    `expected a real gap between the first and last chunk arriving — a buffer-then-flush-once relay would deliver both together; got ${lastChunkAt - (firstChunkAt ?? 0)}ms`,
+  );
 });
 
 test("every proxied request carries the daemon bearer token", async (t) => {
