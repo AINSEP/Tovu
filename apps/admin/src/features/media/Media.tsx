@@ -1,10 +1,17 @@
-import { useEffect, useId, useRef, useState } from "react";
-import { ApiError, api, type AdminMedia } from "../lib/api";
-import { RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
+import type { AdminMedia } from "../../lib/api";
+import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { mediaRowMenuItems } from "./rules";
+import { useMedia } from "./hooks/use-media.hooks";
+import { useMediaPreview } from "./hooks/use-media-preview.hooks";
+import { useEditMediaPanel } from "./hooks/use-edit-media-panel.hooks";
+import { useMediaLightbox } from "./hooks/use-media-lightbox.hooks";
 
 /**
  * @file Media admin screen — list + upload + trash/purge ladder, wiring the `media` backend into
- * the admin UI.
+ * the admin UI. Markup only: state, effects, and API calls for all four components in this file
+ * (`Media`, `MediaPreview`, `EditMediaPanel`, `MediaLightbox`) live in their own `hooks/use-<thing>
+ * .hooks.ts`; computed values (alt-text fallback, the row-menu builder, the editing-item lookup,
+ * the lightbox index math) live in `rules.ts`.
  *
  * MSG-05: rewritten from a `.list-table` of filenames into a preview grid (image/video on top,
  * title underneath) now that a byte-serving route exists —
@@ -55,31 +62,6 @@ import { RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
  * second `MediaLightbox` elsewhere should not have to rediscover that the hard way.
  */
 
-function describeApiError(e: unknown, fallback: string): string {
-  if (e instanceof ApiError) return e.message || fallback;
-  return e instanceof Error ? e.message : fallback;
-}
-
-/** Editable metadata fields `api.updateMedia` accepts — kept as its own type so the diffing
- * helper below stays exhaustive if the patch shape ever grows. */
-type MediaMetadataPatch = { title?: string; alt?: string; caption?: string; credit?: string };
-
-/** Builds a partial patch containing only the fields whose draft value differs from `item`'s
- * current value — the backend's own contract is optional-field/partial-patch, so this never
- * sends an unchanged field (AC-01's "field left unchanged is not overwritten" proof). */
-function diffMediaMetadata(required: {
-  item: AdminMedia;
-  draft: Required<MediaMetadataPatch>;
-}): MediaMetadataPatch {
-  const { item, draft } = required;
-  const patch: MediaMetadataPatch = {};
-  if (draft.title !== item.title) patch.title = draft.title;
-  if (draft.alt !== item.alt) patch.alt = draft.alt;
-  if (draft.caption !== item.caption) patch.caption = draft.caption;
-  if (draft.credit !== item.credit) patch.credit = draft.credit;
-  return patch;
-}
-
 /** Generic "file" glyph for an asset that fails both the image and video probe — stroke-based,
  *  matching `nav.ts`'s icon convention elsewhere in this app (viewBox 0 0 18 18, currentColor). */
 function PlaceholderIcon() {
@@ -128,10 +110,18 @@ function ChevronIcon(props: { flip?: boolean }) {
   );
 }
 
-type PreviewStage = "image" | "video" | "unsupported";
+interface MediaPreviewProps {
+  item: AdminMedia;
+  onExpand?: () => void;
+  /**
+   * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
+   * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
+   */
+  useMediaPreviewHook?: typeof useMediaPreview;
+}
 
 /** Resolves whether an asset previews as an image, a video, or neither — see this file's header
- *  comment for why this is a client-side fallback chain rather than a server content-type read.
+ * comment for why this is a client-side fallback chain rather than a server content-type read.
  *
  * `onExpand`, when passed, overlays a small "view larger" icon button on the preview that calls it
  * (used by the grid card to open `MediaLightbox`; omitted when `MediaLightbox` itself reuses this
@@ -144,10 +134,9 @@ type PreviewStage = "image" | "video" | "unsupported";
  * so the interaction model doesn't change per asset type. Omitted entirely for `"unsupported"` —
  * that stage already renders a "Download original" link, and the lightbox would show nothing more
  * than the exact same placeholder, just bigger. */
-function MediaPreview(props: { item: AdminMedia; onExpand?: () => void }) {
-  const [stage, setStage] = useState<PreviewStage>("image");
-  const src = api.mediaOriginalUrl(props.item.id);
-  const altText = props.item.alt || props.item.title || "Untitled asset";
+function MediaPreview(props: MediaPreviewProps) {
+  const { useMediaPreviewHook = useMediaPreview } = props;
+  const { stage, src, altText, handleImageError, handleVideoError } = useMediaPreviewHook(props.item);
 
   if (stage === "unsupported") {
     // Not a bare icon: a non-previewable asset (most often the server's own defused HTML/SVG
@@ -187,7 +176,7 @@ function MediaPreview(props: { item: AdminMedia; onExpand?: () => void }) {
           controls
           preload="metadata"
           aria-label={altText}
-          onError={() => setStage("unsupported")}
+          onError={handleVideoError}
         />
         {expandButton}
       </>
@@ -201,86 +190,32 @@ function MediaPreview(props: { item: AdminMedia; onExpand?: () => void }) {
         src={src}
         alt={altText}
         loading="lazy"
-        onError={() => setStage("video")}
+        onError={handleImageError}
       />
       {expandButton}
     </>
   );
 }
 
+interface EditMediaPanelProps {
+  item: AdminMedia;
+  onSaved: () => void;
+  onCancel: () => void;
+  /**
+   * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
+   * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
+   */
+  useEditMediaPanelHook?: typeof useEditMediaPanel;
+}
+
 /** Inline edit panel for one media item's title/alt/caption/credit (REQ-01). No longer a table
  *  row (this screen is a card grid) — rendered as its own full-width `.card` above the grid so an
  *  in-progress edit is never squeezed into one grid cell's width, and expanding it never reflows
  *  its siblings' cells. */
-function EditMediaPanel(props: { item: AdminMedia; onSaved: () => void; onCancel: () => void }) {
-  const { item } = props;
-  const [draft, setDraft] = useState<Required<MediaMetadataPatch>>({
-    title: item.title,
-    alt: item.alt,
-    caption: item.caption,
-    credit: item.credit,
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  /** Feedback for the sha256 copy affordance below — resets on its own so a stale "Copied" label
-   *  never survives past the moment it's true, without needing the caller to clear it. */
-  const [hashCopied, setHashCopied] = useState(false);
-  /** Same pattern as `hashCopied`, for the asset URL field below. Separate state because the two
-   *  copy buttons can be clicked independently and each needs its own "Copied" label lifetime. */
-  const [urlCopied, setUrlCopied] = useState(false);
-
-  /** `MediaRecord` (`@jini-ai/cms/media`) carries no filename/path/URL field at all — only
-   *  `title`/`alt`/`caption`/`credit`/`source.sha256` (see that type's own doc comment: media is
-   *  a bespoke editorial record, not yet the generic `entries` model ADR-022 describes, and even
-   *  that model wouldn't store a filesystem path — the physical bytes live in the separate
-   *  `asset_blobs` sidecar, keyed by `(workspaceId, sha256)` for dedup, not by this media record).
-   *  So "where is this asset" has no stored answer to surface — the correct one to show is the
-   *  same authenticated byte-serving URL `MediaPreview` already uses as this exact item's `<img>`/
-   *  `<video>` `src` (`api.mediaOriginalUrl`, REQ from MSG-05's rewrite): it is the one thing that
-   *  reliably, uniquely resolves to THIS media record's bytes regardless of dedup (two records can
-   *  share one blob's `storageKey`, which is why that internal key is not what's shown here). */
-  const originalUrl = api.mediaOriginalUrl(item.id);
-
-  async function copyHash() {
-    try {
-      await navigator.clipboard.writeText(item.sha256);
-      setHashCopied(true);
-      setTimeout(() => setHashCopied(false), 1500);
-    } catch {
-      // Clipboard access can be denied (permissions, insecure context) — the full hash is still
-      // visible and selectable in the field itself, so a failed copy degrades to "select manually"
-      // rather than losing the value.
-    }
-  }
-
-  async function copyUrl() {
-    try {
-      await navigator.clipboard.writeText(originalUrl);
-      setUrlCopied(true);
-      setTimeout(() => setUrlCopied(false), 1500);
-    } catch {
-      // Same degrade-to-select-manually reasoning as `copyHash` above — the link itself is still
-      // there to click or select even if the clipboard write is denied.
-    }
-  }
-
-  async function save() {
-    const patch = diffMediaMetadata({ item, draft });
-    if (Object.keys(patch).length === 0) {
-      props.onCancel();
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      await api.updateMedia({ id: item.id }, patch);
-      props.onSaved();
-    } catch (e) {
-      setError(describeApiError(e, "failed to save media metadata"));
-    } finally {
-      setSaving(false);
-    }
-  }
+function EditMediaPanel(props: EditMediaPanelProps) {
+  const { item, onSaved, onCancel, useEditMediaPanelHook = useEditMediaPanel } = props;
+  const { draft, setTitle, setAlt, setCaption, setCredit, saving, error, hashCopied, urlCopied, originalUrl, copyHash, copyUrl, save } =
+    useEditMediaPanelHook({ item, onSaved, onCancel });
 
   return (
     <div className="card media-edit-panel">
@@ -299,7 +234,7 @@ function EditMediaPanel(props: { item: AdminMedia; onSaved: () => void; onCancel
             <input
               id={`media-edit-title-${item.id}`}
               value={draft.title}
-              onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+              onChange={(e) => setTitle(e.target.value)}
             />
           </div>
           <div className="field">
@@ -309,7 +244,7 @@ function EditMediaPanel(props: { item: AdminMedia; onSaved: () => void; onCancel
             <input
               id={`media-edit-alt-${item.id}`}
               value={draft.alt}
-              onChange={(e) => setDraft((d) => ({ ...d, alt: e.target.value }))}
+              onChange={(e) => setAlt(e.target.value)}
             />
           </div>
         </div>
@@ -321,7 +256,7 @@ function EditMediaPanel(props: { item: AdminMedia; onSaved: () => void; onCancel
             <input
               id={`media-edit-caption-${item.id}`}
               value={draft.caption}
-              onChange={(e) => setDraft((d) => ({ ...d, caption: e.target.value }))}
+              onChange={(e) => setCaption(e.target.value)}
             />
           </div>
           <div className="field">
@@ -331,7 +266,7 @@ function EditMediaPanel(props: { item: AdminMedia; onSaved: () => void; onCancel
             <input
               id={`media-edit-credit-${item.id}`}
               value={draft.credit}
-              onChange={(e) => setDraft((d) => ({ ...d, credit: e.target.value }))}
+              onChange={(e) => setCredit(e.target.value)}
             />
           </div>
         </div>
@@ -373,7 +308,7 @@ function EditMediaPanel(props: { item: AdminMedia; onSaved: () => void; onCancel
           <button type="button" onClick={save} disabled={saving}>
             {saving ? "Saving…" : "Save"}
           </button>
-          <button type="button" className="btn-secondary" onClick={props.onCancel} disabled={saving}>
+          <button type="button" className="btn-secondary" onClick={onCancel} disabled={saving}>
             Cancel
           </button>
         </span>
@@ -387,32 +322,20 @@ function EditMediaPanel(props: { item: AdminMedia; onSaved: () => void; onCancel
   );
 }
 
-/** Reads a browser `File` into a base64 string (no data: URL prefix). */
-function readFileAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error ?? new Error("failed to read file"));
-    reader.onload = () => {
-      const result = String(reader.result ?? "");
-      const commaIndex = result.indexOf(",");
-      resolve(commaIndex >= 0 ? result.slice(commaIndex + 1) : result);
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
 interface MediaLightboxProps {
-  /** The full grid list, not just the open item — kept as the whole array (rather than the
-   *  caller resolving `items[activeIndex]` itself) so this component can compute prev/next
-   *  boundaries for arrow-key nav from the same data its caller already has in scope. */
+  /** The full grid list, not just the open item — see `use-media-lightbox.hooks.ts`'s
+   *  `MediaLightboxHookProps` for why this is the whole array rather than a resolved item. */
   items: AdminMedia[];
-  /** Index into `items` that is open, or `null` when closed. An index rather than the item
-   *  itself so navigating just moves this number — the caller (`Media()`) doesn't need a second
-   *  piece of state to track "which one," and this component doesn't need to search `items` to
-   *  find "where am I" when deciding whether prev/next exist. */
+  /** Index into `items` that is open, or `null` when closed — see the hook props' own comment for
+   *  why an index rather than the item itself. */
   activeIndex: number | null;
   onNavigate: (index: number) => void;
   onClose: () => void;
+  /**
+   * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
+   * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
+   */
+  useMediaLightboxHook?: typeof useMediaLightbox;
 }
 
 /**
@@ -429,96 +352,11 @@ interface MediaLightboxProps {
  * presentation purely in CSS, so the fallback logic itself (and the property that a defused
  * octet-stream asset lands on the placeholder with zero special-casing) is defined in exactly one
  * place.
- *
- * @complexity O(1) per open/close/navigate — one `showModal`/`close` call per open/close
- * transition, one array index bounds check per arrow-key or arrow-button press.
  */
 function MediaLightbox(props: MediaLightboxProps) {
-  const { items, activeIndex, onNavigate, onClose } = props;
-  // See `ConfirmDialog`'s own `titleId` comment: `useId()` here is the standing rule for any
-  // dialog heading id in this codebase, not a defense against a collision this specific shared
-  // instance can actually hit today (only one `MediaLightbox` is ever mounted by `Media()`).
-  const titleId = useId();
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  // Captured at the moment `activeIndex` flips from `null`, before focus moves into the dialog —
-  // the element that had focus then is, by construction, whichever card's expand button opened
-  // this lightbox. Restored on close, same mechanism as `ConfirmDialog.triggerRef`.
-  const triggerRef = useRef<Element | null>(null);
-  const isOpen = activeIndex !== null;
-  const item = activeIndex !== null ? items[activeIndex] : null;
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (isOpen) {
-      triggerRef.current = document.activeElement;
-      if (typeof dialog.showModal === "function") {
-        if (!dialog.open) dialog.showModal();
-      } else {
-        dialog.setAttribute("open", "");
-      }
-      // Focus the close action, not whichever nav arrow happens to render first — a single-item
-      // grid has no nav arrows at all, and the close button is the one control guaranteed to
-      // exist regardless of position in the list, so it's a stable, always-available focus target
-      // (same reasoning as `ConfirmDialog` explicitly choosing Cancel over letting the browser's
-      // showModal() default land wherever it likes).
-      closeRef.current?.focus();
-    } else {
-      if (typeof dialog.close === "function") {
-        if (dialog.open) dialog.close();
-      } else {
-        dialog.removeAttribute("open");
-      }
-      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
-    }
-    // Deliberately keyed on `isOpen`, not `activeIndex` — navigating to a different item while
-    // already open changes `activeIndex` without an open/close transition, and re-running
-    // `showModal()` on an already-open dialog would throw (`InvalidStateError`) in real browsers.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
-
-  function handleNativeCancel(e: React.SyntheticEvent<HTMLDialogElement>) {
-    // Same reasoning as `ConfirmDialog.handleNativeCancel`: always prevented so the effect above
-    // stays the single source of truth for open/closed, with Escape routed through `onClose` so
-    // the caller's own state update is what actually calls `dialog.close()`.
-    e.preventDefault();
-    onClose();
-  }
-
-  function handleBackdropClick(e: React.MouseEvent<HTMLDialogElement>) {
-    // Same box-vs-content-box reasoning as `ConfirmDialog.handleBackdropClick`.
-    if (e.target === dialogRef.current) onClose();
-  }
-
-  function goTo(nextIndex: number) {
-    // Clamps rather than wrapping past either end — a "next" press on the last asset staying on
-    // the last asset (not silently looping back to the first) is the less surprising default for
-    // an operator navigating a specific set of uploads, not a slideshow.
-    if (nextIndex < 0 || nextIndex >= items.length) return;
-    onNavigate(nextIndex);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLDialogElement>) {
-    if (activeIndex === null) return;
-    // Known limitation, not fixed here: when the currently-focused element is a `<video controls>`
-    // (the "video" stage's own native control surface), a real browser's built-in seek behavior
-    // for ArrowLeft/ArrowRight fires independently of this handler, so pressing an arrow key while
-    // the video itself has focus both seeks the video AND navigates the lightbox. Narrowing this
-    // would need knowing the active item's resolved preview stage, which is private state inside
-    // `MediaPreview` (by design — see that component's own doc comment on why `Media()` doesn't
-    // track content-type itself). Flagged rather than worked around silently.
-    if (e.key === "ArrowRight") {
-      e.preventDefault();
-      goTo(activeIndex + 1);
-    } else if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      goTo(activeIndex - 1);
-    }
-  }
-
-  const hasPrev = activeIndex !== null && activeIndex > 0;
-  const hasNext = activeIndex !== null && activeIndex < items.length - 1;
+  const { items, activeIndex, onNavigate, onClose, useMediaLightboxHook = useMediaLightbox } = props;
+  const { titleId, dialogRef, closeRef, item, hasPrev, hasNext, handleNativeCancel, handleBackdropClick, handleKeyDown, goToPrev, goToNext } =
+    useMediaLightboxHook({ items, activeIndex, onNavigate, onClose });
 
   return (
     <dialog
@@ -550,20 +388,26 @@ function MediaLightbox(props: MediaLightboxProps) {
                 type="button"
                 className="media-lightbox-nav media-lightbox-nav-prev"
                 aria-label="Previous asset"
-                onClick={() => goTo(activeIndex! - 1)}
+                onClick={goToPrev}
               >
                 <ChevronIcon />
               </button>
             ) : null}
             <div className="media-lightbox-media">
-              <MediaPreview item={item} />
+              {/* `key` is load-bearing, not a list-reconciliation habit: `useMediaPreview`'s `stage`
+                  is component state with no reset-on-`item` effect, and this ONE shared lightbox
+                  instance sits at a fixed tree position across prev/next. Without a changing key
+                  React keeps the instance, so a PDF that fell all the way through to `"unsupported"`
+                  leaves the next asset stuck on the placeholder even when it is a perfectly good
+                  image. The grid cards never hit this — each card owns its own instance. */}
+              <MediaPreview key={item.id} item={item} />
             </div>
             {hasNext ? (
               <button
                 type="button"
                 className="media-lightbox-nav media-lightbox-nav-next"
                 aria-label="Next asset"
-                onClick={() => goTo(activeIndex! + 1)}
+                onClick={goToNext}
               >
                 <ChevronIcon flip />
               </button>
@@ -575,103 +419,39 @@ function MediaLightbox(props: MediaLightboxProps) {
   );
 }
 
-export function Media() {
-  const [media, setMedia] = useState<AdminMedia[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [altDraft, setAltDraft] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  // Purge (permanent delete) confirmation — mirrors `Posts.tsx`'s `pendingDelete`/`rowSavingId`
-  // pair exactly. Trashing (the reversible first rung of the ladder) has no confirm step, matching
-  // the original `window.confirm` call's own scope: it only ever guarded the permanent-delete path.
-  const [pendingPurge, setPendingPurge] = useState<AdminMedia | null>(null);
-  const [rowSavingId, setRowSavingId] = useState<string | null>(null);
-  // Lightbox — an index into `media`, not the item itself, so `MediaLightbox`'s own arrow-key/nav-
-  // button navigation can move this number directly without this component re-deriving "what's
-  // next" from an item reference. `null` is closed, mirroring `pendingPurge`'s own null-is-closed
-  // convention for the other dialog already driven from this component.
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+export interface MediaProps {
+  /**
+   * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
+   * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
+   */
+  useMediaHook?: typeof useMedia;
+}
 
-  function load() {
-    api
-      .listMedia()
-      .then((r) => setMedia(r.media))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load media"));
-  }
-
-  useEffect(load, []);
-
-  async function upload() {
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setError(null);
-    try {
-      const dataBase64 = await readFileAsBase64(file);
-      await api.uploadMedia(
-        { filename: file.name, contentType: file.type, dataBase64 },
-        { alt: altDraft.trim() || undefined }
-      );
-      setAltDraft("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "upload failed");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function trash(item: AdminMedia) {
-    setError(null);
-    setRowSavingId(item.id);
-    try {
-      await api.trashMedia(item.id);
-      load();
-    } catch (e) {
-      setError(describeApiError(e, "delete failed"));
-    } finally {
-      setRowSavingId(null);
-    }
-  }
-
-  async function purge() {
-    if (!pendingPurge) return;
-    const item = pendingPurge;
-    setRowSavingId(item.id);
-    setError(null);
-    try {
-      await api.deleteMedia(item.id);
-      load();
-    } catch (e) {
-      setError(describeApiError(e, "delete failed"));
-    } finally {
-      setRowSavingId(null);
-      setPendingPurge(null);
-    }
-  }
-
-  function rowMenuItems(item: AdminMedia): RowMenuItem[] {
-    const items: RowMenuItem[] = [
-      {
-        key: "edit",
-        label: editingId === item.id ? "Close editing" : "Edit metadata",
-        onSelect: () => setEditingId((id) => (id === item.id ? null : item.id)),
-      },
-    ];
-    if (item.status === "trashed") {
-      items.push({ key: "purge", label: "Delete permanently", destructive: true, onSelect: () => setPendingPurge(item) });
-    } else {
-      items.push({ key: "trash", label: "Trash", onSelect: () => trash(item) });
-    }
-    return items;
-  }
+export function Media({ useMediaHook = useMedia }: MediaProps = {}) {
+  const {
+    media,
+    error,
+    uploading,
+    altDraft,
+    setAltDraft,
+    fileInputRef,
+    upload,
+    editingId,
+    editingItem,
+    toggleEditing,
+    onMetadataSaved,
+    setEditingId,
+    trash,
+    pendingPurge,
+    setPendingPurge,
+    rowSavingId,
+    purge,
+    lightboxIndex,
+    setLightboxIndex,
+  } = useMediaHook();
 
   if (error && !media) return <div className="notice error">{error}</div>;
   if (!media) return <div className="notice">Loading media…</div>;
-
-  const editingItem = media.find((m) => m.id === editingId) ?? null;
 
   return (
     <div className="page">
@@ -703,10 +483,7 @@ export function Media() {
       {editingItem ? (
         <EditMediaPanel
           item={editingItem}
-          onSaved={() => {
-            setEditingId(null);
-            load();
-          }}
+          onSaved={onMetadataSaved}
           onCancel={() => setEditingId(null)}
         />
       ) : null}
@@ -731,7 +508,14 @@ export function Media() {
                 </p>
                 <div className="media-card-meta">
                   <span className={`status status-${item.status}`}>{item.status}</span>
-                  <RowMenu triggerLabel={`Actions for "${item.title}"`} items={rowMenuItems(item)} />
+                  <RowMenu
+                    triggerLabel={`Actions for "${item.title}"`}
+                    items={mediaRowMenuItems(item, editingId, {
+                      onToggleEdit: toggleEditing,
+                      onTrash: trash,
+                      onRequestPurge: setPendingPurge,
+                    })}
+                  />
                 </div>
               </div>
             </div>

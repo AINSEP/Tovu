@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Media } from "../Media";
-import { api } from "../../lib/api";
+import { api } from "../../../lib/api";
 
 /**
  * @file `Media` — MSG-05's preview-grid rewrite. Pins the two behaviors the dispatch called out as
@@ -220,6 +220,37 @@ describe("lightbox", () => {
         api.mediaOriginalUrl("media-1")
       );
     });
+  });
+
+  /**
+   * Regression: the lightbox is ONE shared `MediaPreview` instance at a fixed tree position, and
+   * `useMediaPreview`'s `stage` is component state with no reset-on-`item` effect. Without a
+   * changing `key`, navigating from an asset that fell through to `"unsupported"` to a perfectly
+   * good image kept the placeholder — the previous asset's fallback verdict applied to the next
+   * one. Grid cards never showed this because each card owns its own instance.
+   */
+  it("resets the image/video/placeholder fallback chain when navigating to the next asset, instead of carrying the previous asset's verdict across", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const { container } = render(<Media />);
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+    await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
+
+    const dialog = document.querySelector("dialog.media-lightbox")! as HTMLElement;
+    await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
+
+    // Drive asset 1 all the way down the chain: image fails, then video fails.
+    fireEvent.error(dialog.querySelector(".media-lightbox-media img")!);
+    await waitFor(() => expect(dialog.querySelector(".media-lightbox-media video")).not.toBeNull());
+    fireEvent.error(dialog.querySelector(".media-lightbox-media video")!);
+    await waitFor(() => expect(dialog.querySelector(".media-lightbox-media .media-card-placeholder")).not.toBeNull());
+
+    fireEvent.keyDown(dialog, { key: "ArrowRight" });
+
+    await waitFor(() => {
+      expect(dialog.querySelector(".media-lightbox-media img")).toHaveAttribute("src", api.mediaOriginalUrl("media-2"));
+    });
+    expect(dialog.querySelector(".media-lightbox-media .media-card-placeholder")).toBeNull();
   });
 
   it("the native cancel event (what a real browser fires on Escape) closes the dialog and returns focus to the card's expand trigger", async () => {

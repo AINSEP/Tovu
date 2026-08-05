@@ -1,92 +1,30 @@
-import { useEffect, useState } from "react";
-import { api, type AdminPost } from "../lib/api";
-import { describeApiError } from "../lib/api";
-import { siteUrl } from "../lib/site-url";
-import { formatTimestamp } from "../lib/format-timestamp";
+import { siteUrl } from "../../lib/site-url";
+import { formatTimestamp } from "../../lib/format-timestamp";
+import { useDashboard, type StatState } from "./hooks/use-dashboard.hooks";
+import { activityRowHref } from "./rules";
 
 /**
- * @file Admin landing screen.
+ * @file Admin landing screen — markup only.
  *
- * Error handling: every fetch owns its own error slot rather than sharing one, because these are
- * independent data sources and a failed comment count should not blank a post count that loaded
- * fine (audit finding, `ADS-memory/reports/audits/20260801-admin-adversarial-ux-audit.md`, exec
- * summary #5 — the original had no `.catch()` at all, so any rejection left the cards showing "…"
- * forever with no indication anything was wrong). A failed stat renders an em-dash plus the reason
- * in its own card, at the same size the healthy card occupies; see `.dash-stat-*.is-error`.
- *
- * @tradeoffs Five GETs on the landing screen instead of the previous two. Accepted because each is
- * a list this admin already serves elsewhere, they run concurrently, and none blocks render — the
- * screen paints its full layout immediately and each value fills in independently. The alternative
- * (a single aggregate `/dashboard` endpoint) would be one round trip but needs a new server route
- * and a new response contract to maintain; that is worth doing if this screen grows, and is not
- * worth it for five reads that already exist.
- *
- * Counts are `list().length`, not a server-side count, so they are bounded by whatever page size
- * those endpoints return. Correct for the scale this admin targets today; if any list grows past a
- * single page the count silently becomes "items on the first page" and would need a real count
- * endpoint. Flagged rather than pre-solved.
+ * State and the five concurrent fetches live in `hooks/use-dashboard.hooks.ts`; the activity-list
+ * merge lives in `rules.ts`. What stays here is what actually renders: the stat cards, the
+ * activity panel, and the appearance panel.
  */
 
 /** Rows shown in the activity panel. Small enough to stay glanceable, large enough that a normal
  *  editing session shows more than the single post someone just touched. */
 const ACTIVITY_LIMIT = 6;
 
-interface StatState {
-  value: number | null;
-  error: string | null;
+export interface DashboardProps {
+  /**
+   * Dependency injection seam for tests — see `features/posts/Posts.tsx`'s `usePostsHook` for the
+   * house convention this follows.
+   */
+  useDashboardHook?: typeof useDashboard;
 }
 
-const PENDING: StatState = { value: null, error: null };
-
-export function Dashboard() {
-  const [posts, setPosts] = useState<StatState>(PENDING);
-  const [published, setPublished] = useState<number | null>(null);
-  const [pages, setPages] = useState<StatState>(PENDING);
-  const [drafts, setDrafts] = useState<number | null>(null);
-  const [media, setMedia] = useState<StatState>(PENDING);
-  const [comments, setComments] = useState<StatState>(PENDING);
-  const [themeId, setThemeId] = useState<string | null>(null);
-  const [themeError, setThemeError] = useState<string | null>(null);
-  const [recent, setRecent] = useState<AdminPost[] | null>(null);
-
-  useEffect(() => {
-    // Posts and pages each feed both a stat card and the merged activity list, so their handlers
-    // do double duty rather than fetching the same list twice.
-    api
-      .listPosts()
-      .then((r) => {
-        const rows = r.posts.map((entry) => entry.post);
-        setPosts({ value: rows.length, error: null });
-        setPublished(rows.filter((p) => p.status === "published").length);
-        setRecent((prev) => mergeRecent(prev, rows));
-      })
-      .catch((e) => setPosts({ value: null, error: describeApiError(e, "failed to load posts") }));
-
-    api
-      .listPages()
-      .then((r) => {
-        const rows = r.posts.map((entry) => entry.post);
-        setPages({ value: rows.length, error: null });
-        setDrafts(rows.filter((p) => p.status === "draft").length);
-        setRecent((prev) => mergeRecent(prev, rows));
-      })
-      .catch((e) => setPages({ value: null, error: describeApiError(e, "failed to load pages") }));
-
-    api
-      .listMedia()
-      .then((r) => setMedia({ value: r.media.filter((m) => m.status === "active").length, error: null }))
-      .catch((e) => setMedia({ value: null, error: describeApiError(e, "failed to load media") }));
-
-    api
-      .listCommentsQueue({ status: "pending" })
-      .then((r) => setComments({ value: r.items.length, error: null }))
-      .catch((e) => setComments({ value: null, error: describeApiError(e, "failed to load comments") }));
-
-    api
-      .getPresentation()
-      .then((r) => setThemeId(r.settings.activeThemeId))
-      .catch((e) => setThemeError(describeApiError(e, "failed to load the active theme")));
-  }, []);
+export function Dashboard({ useDashboardHook = useDashboard }: DashboardProps = {}) {
+  const { posts, published, pages, drafts, media, comments, themeId, themeError, recent } = useDashboardHook();
 
   return (
     <div className="page">
@@ -149,7 +87,7 @@ export function Dashboard() {
             <div className="dash-activity">
               {recent.slice(0, ACTIVITY_LIMIT).map((row) => (
                 <div className="dash-activity-row" key={row.id}>
-                  <a className="dash-activity-title" href={`/admin/posts/${row.id}`}>
+                  <a className="dash-activity-title" href={activityRowHref(row)}>
                     {row.title || "Untitled"}
                   </a>
                   <span className="dash-kind">{row.kind}</span>
@@ -185,16 +123,6 @@ export function Dashboard() {
       </div>
     </div>
   );
-}
-
-/** Merges one list into whatever the other fetch has already delivered and re-sorts, so the panel
- *  is correct whichever request lands first — the two are concurrent and neither can assume it is
- *  the one holding the existing state. Dedupes on id because a row is a post OR a page but the two
- *  endpoints are independent, and a future overlap should not double-render a row. */
-function mergeRecent(prev: AdminPost[] | null, incoming: AdminPost[]): AdminPost[] {
-  const byId = new Map((prev ?? []).map((row) => [row.id, row]));
-  for (const row of incoming) byId.set(row.id, row);
-  return [...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 function Stat(props: { href: string; label: string; state: StatState; meta: string }) {

@@ -2,9 +2,14 @@ import { createRoot } from "react-dom/client";
 
 import { isQueuedPageAction } from "./client-directives";
 import { applyHighlight, findTargetElement, scrollToElement } from "./highlight";
+import { installRemixIconOverride } from "./remixicon-override";
 import { drainQueuedPageAction } from "./session-store";
 import { SiteAssistantWidget } from "./SiteAssistantWidget";
 import "./widget.css";
+
+// Must run before `SiteAssistantWidget` ever renders a `RemixIcon` — see `remixicon-override.ts`'s
+// header for why the package's own default icon-font loader is dead in this bundle's `iife` build.
+installRemixIconOverride();
 
 /**
  * @file Self-mounting entry point for the public site chat bundle (ADR-054 Task 2/3).
