@@ -7,6 +7,7 @@ import test from "node:test";
 import express from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR } from "../../assistant/daemon-auth";
+import { MCP_UI_TOOL_CALLS_PATH } from "../../assistant/mcp-ui-tool-calls-route";
 import { RUN_PRINCIPAL_HEADER } from "../../assistant/run-ownership";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../readiness-state";
 import type { RouteDeps } from "../routes/types";
@@ -244,6 +245,54 @@ test("a streamed multi-chunk SSE response is relayed incrementally as it arrives
     lastChunkAt - (firstChunkAt ?? 0) >= 150,
     `expected a real gap between the first and last chunk arriving — a buffer-then-flush-once relay would deliver both together; got ${lastChunkAt - (firstChunkAt ?? 0)}ms`,
   );
+});
+
+/**
+ * Regression test for `proxyMcpUiToolCall`'s fall-through branch (`server/modules/assistant.ts`,
+ * the route ending around line 403-409). `forwardToAgentDaemon` was refactored to return
+ * `Response | null` instead of relaying internally, and this one call site was not migrated: it
+ * fetched the daemon's answer and never wrote to `res`, hanging the browser until timeout so the
+ * MCP-UI confirmation dialog never resolved. Fixed in `7b5ae83`. The bug shipped past a green
+ * 33/33 suite because nothing drove this path — found by a manual call-site audit, not a test.
+ *
+ * The path: an `exchangeId` NOT present in `byokSurfaceExchanges` (this harness's store is always
+ * fresh and empty — see {@link harness}), so local `deliver()` returns `unknown-or-closed` and
+ * control falls through to the daemon. That is a legitimate case, not an error one: the exchange
+ * may belong to a Local CLI run's daemon-side store, which this process cannot see (see
+ * `assistant.ts:398-400`'s own comment). The daemon must still get to answer, and that answer must
+ * still reach the client.
+ *
+ * The pre-fix failure mode is a HANG, not a mismatched assertion — an unbounded `fetch` here would
+ * make a broken re-test of this file hang forever instead of failing. `AbortSignal.timeout` bounds
+ * the client-side wait so a regression fails loudly instead of freezing the run.
+ */
+test("an MCP-UI tool call for an exchangeId the daemon owns falls through, and the daemon's answer reaches the client", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+
+  const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({
+      toolName: "content_post_delete",
+      exchangeId: "exchange-owned-by-a-local-cli-daemon-run",
+      params: {},
+    }),
+    signal: AbortSignal.timeout(2000),
+  });
+
+  assert.equal(res.status, 200, "the daemon's status must reach the client, not hang until the browser times out");
+  assert.deepEqual(
+    await res.json(),
+    { runs: [{ id: "run-1" }] },
+    "the daemon's body must be relayed verbatim, not silently dropped"
+  );
+  assert.equal(
+    recorded.length,
+    1,
+    "the local store found nothing for this exchangeId, so exactly one request should have fallen through to the stand-in daemon"
+  );
+  assert.equal(recorded[0].method, "POST");
+  assert.equal(recorded[0].url, MCP_UI_TOOL_CALLS_PATH);
 });
 
 test("every proxied request carries the daemon bearer token", async (t) => {
