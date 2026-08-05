@@ -191,6 +191,89 @@ competing helper.
 
 ---
 
+---
+
+## The file is nondeterministic, and fixing 3 and 9 exposed a second latent defect
+
+### Stability across five full runs of the same commit
+
+`ByokProviderForm.js` mtime was unchanged (10:52) throughout, so the shared Jini bundle never moved
+under these runs.
+
+| run | duration | 3 | 7 | 8 | 9 | 11 |
+|---|---|---|---|---|---|---|
+| baseline | 2.2m | ✘ | ✘ | ✓ | ✘ | ✓ |
+| confirm (post-fix) | 1.0m | ✓ | ✓ | ✘ | ✓ | ✘ |
+| stability 8 | 51.8s | ✓ | ✓ | ✓ | ✓ | ✘ |
+| stability 9 | 56.4s | ✓ | ✓ | ✓ | ✓ | ✘ |
+| login probe | 58.6s | ✓ | ✓ | ✘ | ✓ | ✘ |
+
+**Tests 3 and 9 were the only deterministic failures, and both are fixed (4/4 since).** Tests 7 and 8
+are races; test 11 is the login defect below.
+
+Test 7 in particular is a race, not the deterministic break it was reported as: at mount, before
+discovery resolves, `liveModels` is empty so the plain `list=` input renders; once the stubbed
+response lands, `showModelPicker` flips and `SearchableModelSelect` replaces it. Whether `fill()`
+wins that race decides the outcome. **That is worse than a hard failure** — it can go green while
+asserting against a UI shape that no longer exists. It still needs the locator migration.
+
+### Test 11: `LOGIN_STRICT` — exposed by the speedup, not caused by it
+
+`dev-auth.ts:140-144` — **10 logins / 60s per client IP.** This file performed **11**: six `pageLogin`
+plus five `apiLogin`. That fit only while the file was slow enough for the 60s window to roll —
+test 7's failure alone burned a 90s timeout. Fixing 3, 7 and 9 dropped the run to ~55s, all 11 logins
+landed in one window, and the 11th was rejected.
+
+**Observed, not inferred.** A probe printing every login response status:
+
+```
+PROBE-LOGIN status=200   (logins 1-10)
+PROBE-LOGIN status=429   (login 11 — test 11)
+```
+
+It surfaced as `page.waitForSelector: waiting for locator('.login-card') to be detached` after 15s,
+which looks nothing like a rate limit — precisely the shape this suite has historically written off
+as infra flake.
+
+### Fix, and one rejected approach
+
+**Rejected: session reuse across the browser tests.** Capturing the first login's cookies and
+replaying them fixed test 11 but **destabilised tests 7, 8 and 9** (run 11: 3 failed, incl. test 9
+which had been green 4/4). Those tests' mount-time discovery races are sensitive to how long the page
+takes to become interactive, and skipping the form made it faster. Reverted.
+
+**Adopted: one shared authenticated `APIRequestContext` for the five API tests.** That is the half of
+the budget that collapses with **zero browser-side timing change** — the six UI logins are untouched.
+Budget: **6 UI + 1 API = 7 of 10.**
+
+Also added: `pageLogin` now asserts the login response is 200, so a future 429 names itself instead of
+presenting as a mystery selector timeout 15 seconds later.
+
+---
+
 ## Item 2 — `byok-google-tool-schema`
 
-Not yet started.
+### Hypothesis from code (NOT yet observed — see caveat)
+
+The deputy likely never receives a request because **the spec never saves the key**, not because the
+product fails to send it.
+
+- `AdminByokKeyPanel.tsx:58-60` — the explicit "Save key" control is *"the **ONLY** control on either
+  screen that writes the admin's own credential"*, and *"Never fires automatically."*
+- `api.ts:1261` from the other side — *"explicit save only — never called from the debounced
+  ledger-slice auto-save path a typed key would otherwise ride along with."*
+- `SettingsUi.tsx:239` confirms `AdminByokKeyFooter` is mounted in the Execution tab, so the control
+  is present and clickable.
+
+`configureGoogleByokAgainstDeputy` fills Base URL / API key / Model and waits for
+`.settings-ui-save.is-saved` — the ledger autosave, which by design excludes the key. It never clicks
+"Save key". So `credentialPort.resolve()` finds no stored row and `assistant-byok.ts:229` returns
+**400 "no usable BYOK credential"** before `runByokProviderTurn` is ever called.
+
+If confirmed, this reclassifies the item from **product bug** to **test gap**, and the fix is a
+spec-file change rather than product code.
+
+**Caveat, deliberately preserved:** the 400 has not been observed yet. This repo has a documented
+five-session pattern of inference recorded as observation, so this stays a hypothesis until a probe on
+`POST /api/admin/v1/assistant/byok-turn` shows the actual status. Instrumentation is in place; run
+pending.
