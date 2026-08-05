@@ -39,10 +39,12 @@
  * exchange WAS found here, just not for this caller, and forwarding an id the daemon has never seen
  * would only spend a wasted round trip discovering the same 409 the local store already knows.
  */
+import type { AgentSummary } from "@jini-ai/http-kit";
 import type { Express, NextFunction, Request, Response } from "express";
 
 import { A2UI_ACTIONS_PATH } from "../../assistant/a2ui-actions-route";
 import { AGENT_DAEMON_TOKEN_ENV_VAR } from "../../assistant/daemon-auth";
+import { getLiveClaudeModels, unionModels } from "../../assistant/live-model-cache";
 import { isMcpUiToolCallAllowed } from "../../assistant/mcp-ui-tool-calls";
 import { MCP_UI_TOOL_CALLS_PATH } from "../../assistant/mcp-ui-tool-calls-route";
 import { RUN_PRINCIPAL_HEADER } from "../../assistant/run-ownership";
@@ -175,15 +177,25 @@ function respondIfDaemonKnownFailed(res: Response): boolean {
   return true;
 }
 
-async function forwardToAgentDaemon(req: Request, res: Response, body?: unknown): Promise<void> {
-  if (respondIfDaemonKnownFailed(res)) return;
+/**
+ * Fetches from the daemon with the boot-window retry described above, but does NOT relay the
+ * response itself — every caller decides that: `proxyPassthrough`/`proxyRunStart` stream it
+ * unmodified via {@link relayResponse}, while `respondWithEnrichedAgentList` needs the parsed body
+ * to rewrite before it reaches the browser. Splitting the fetch from the relay is what makes that
+ * second caller possible without duplicating the retry/known-failed/token-header logic below.
+ *
+ * @returns the upstream response, or `null` once this function has already written a response of
+ *   its own (503 known-failed, or 502 genuinely unreachable) — the caller's contract is to return
+ *   immediately on `null` without touching `res` again.
+ */
+async function forwardToAgentDaemon(req: Request, res: Response, body?: unknown): Promise<globalThis.Response | null> {
+  if (respondIfDaemonKnownFailed(res)) return null;
   const target = `${AGENT_DAEMON_URL}${req.originalUrl}`;
   const deadline = Date.now() + DAEMON_CONNECT_RETRY_MS;
-  let upstream: globalThis.Response;
 
   for (;;) {
     try {
-      upstream = await fetch(target, {
+      const upstream = await fetch(target, {
         method: req.method,
         headers: outboundHeaders(req, res),
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -194,7 +206,7 @@ async function forwardToAgentDaemon(req: Request, res: Response, body?: unknown)
         );
         daemonUnreachableSince = null;
       }
-      break;
+      return upstream;
     } catch (error) {
       // Only "nothing is listening yet" is worth waiting out. Anything else — DNS, TLS, an abort, a
       // daemon that answered badly — is a real failure and retrying would just delay the report.
@@ -212,11 +224,9 @@ async function forwardToAgentDaemon(req: Request, res: Response, body?: unknown)
       console.error(`[assistant] agent daemon unreachable at ${AGENT_DAEMON_URL}`, error);
       daemonUnreachableSince = null;
       res.status(502).json({ error: "assistant is unavailable", code: "BAD_GATEWAY" });
-      return;
+      return null;
     }
   }
-
-  await relayResponse(upstream, req, res);
 }
 
 /** The one route that needs its body rewritten before forwarding: stamps the session-authenticated
@@ -235,14 +245,77 @@ async function proxyRunStart(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  await forwardToAgentDaemon(req, res, {
+  const upstream = await forwardToAgentDaemon(req, res, {
     ...body,
     contextRef: JSON.stringify({ ...decoded, principalId: principal.id }),
   });
+  if (!upstream) return;
+  await relayResponse(upstream, req, res);
 }
 
 async function proxyPassthrough(req: Request, res: Response): Promise<void> {
-  await forwardToAgentDaemon(req, res, req.method === "GET" || req.method === "HEAD" ? undefined : req.body);
+  const upstream = await forwardToAgentDaemon(req, res, req.method === "GET" || req.method === "HEAD" ? undefined : req.body);
+  if (!upstream) return;
+  await relayResponse(upstream, req, res);
+}
+
+/**
+ * `GET /api/agents` / `POST /api/agents/rescan`'s dedicated handler — the one route pair that
+ * needs the daemon's JSON body parsed and rewritten rather than streamed through unmodified.
+ * Design: `ADS-memory/reports/local-cli-live-model-discovery-design-2026-08-05.md` §3.1.
+ *
+ * Both routes answer the identical `{agents: AgentSummary[]}` shape (`@jini-ai/http-kit`'s
+ * `agentListRoute`/`rescanAgentsRoute`, both `ok({agents: await ...()})`), so one handler serves
+ * both. For the one entry with `id === "claude"`, enriches `models`/`modelsSource` with a live
+ * discovery call against the ADMIN's own stored `anthropic` execution credential (never the SITE's
+ * — see `live-model-cache.ts`'s header) — UNIONED into the static fallback list, never replacing
+ * it (design §3.5: the bare `sonnet`/`opus`/`haiku` aliases are resolved by the CLI itself at spawn
+ * time and must never be at risk of being dropped by an API-account-scoped live list that doesn't
+ * contain them). `modelsSource` is only overwritten to `"live"` when the live call actually
+ * contributed at least one entry — a `null`/empty result leaves the daemon's own
+ * `models`/`modelsSource: "fallback"` byte-identical, which is what makes the credential branch a
+ * pure enrichment step rather than something the picker can be gated or degraded by.
+ *
+ * Falls back to relaying the daemon's raw body/status unmodified whenever the response isn't the
+ * `{agents: [...]}` shape this handler expects (non-2xx, a parse failure, or simply no `agents`
+ * key) — this handler must never turn a daemon-side error into a worse one by discarding it.
+ */
+async function respondWithEnrichedAgentList(req: Request, res: Response, routeDeps: RouteDeps): Promise<void> {
+  const upstream = await forwardToAgentDaemon(req, res, req.method === "GET" || req.method === "HEAD" ? undefined : req.body);
+  if (!upstream) return;
+
+  const rawText = await upstream.text();
+  res.status(upstream.status);
+  const contentType = upstream.headers.get("content-type");
+  if (contentType) res.setHeader("Content-Type", contentType);
+
+  let payload: { agents?: unknown } | undefined;
+  try {
+    payload = rawText ? (JSON.parse(rawText) as { agents?: unknown }) : undefined;
+  } catch {
+    res.send(rawText);
+    return;
+  }
+  if (!upstream.ok || !payload || !Array.isArray(payload.agents)) {
+    res.send(rawText);
+    return;
+  }
+
+  const agents = payload.agents as AgentSummary[];
+  const principal = getAuthedPrincipal(res);
+  const enriched = await Promise.all(
+    agents.map(async (agent): Promise<AgentSummary> => {
+      if (agent.id !== "claude") return agent;
+      const live = await getLiveClaudeModels(
+        { repo: routeDeps.adminExecutionCredentialRepo, sealer: routeDeps.siteAssistantSecretSealer },
+        { workspaceId: routeDeps.workspaceId, principalId: principal.id }
+      );
+      if (!live || live.length === 0) return agent;
+      return { ...agent, models: unionModels(agent.models ?? [], live), modelsSource: "live" };
+    })
+  );
+
+  res.json({ ...payload, agents: enriched });
 }
 
 /**
@@ -396,8 +469,8 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       app.post("/api/runs/:runId/cancel", (req, res, next) => proxyPassthrough(req, res).catch(next));
 
       app.use("/api/agents", requireAdminSession(routeDeps));
-      app.get("/api/agents", (req, res, next) => proxyPassthrough(req, res).catch(next));
-      app.post("/api/agents/rescan", (req, res, next) => proxyPassthrough(req, res).catch(next));
+      app.get("/api/agents", (req, res, next) => respondWithEnrichedAgentList(req, res, routeDeps).catch(next));
+      app.post("/api/agents/rescan", (req, res, next) => respondWithEnrichedAgentList(req, res, routeDeps).catch(next));
 
       // Agent-driven control of the admin's own tab (`page.navigate`, `page.scroll_to`, …). The
       // stream carries invocations down to the browser and the response route carries answers
