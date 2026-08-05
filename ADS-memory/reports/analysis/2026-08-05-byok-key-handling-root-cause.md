@@ -3,7 +3,39 @@
 Agent: QA/E2E (Execution). Repo `/Users/la/Programming/Tovu`, branch `refactor/jini-admin-extraction`, HEAD `d4d8f5b`.
 Run discipline: `BYOK_E2E_PORT_BASE=7661`, unique `--output` per run, `workers:1`, no orphans before/after.
 
-Status: **IN PROGRESS** — written incrementally.
+Status: **COMPLETE** for the assigned scope. Commits `e77b50f`, `8cb4545`, `4634e08`, `667e357`.
+
+## Final state
+
+| test | before | after | verdict |
+|---|---|---|---|
+| `byok-key-handling` 3 | ✘ | ✓ | test-premise error — unobservable channel, not a product regression |
+| `byok-key-handling` 7 | ✘ (flaky) | ✓ | model-picker refactor; adopted the shared `byok-model-field.ts` helper |
+| `byok-key-handling` 9 | ✘ | ✓ | WHATWG bad-port list, then cross-test provider leakage |
+| `byok-key-handling` 11 | ✘ | ✓ | `LOGIN_STRICT` budget breach (out of scope, fixed as fallout) |
+| `byok-key-handling` 8 | ✘ | ✘ | **still failing** — out of scope, see below |
+| `byok-google-tool-schema` | ✘ | ✓ | test gap, not the product bug it was filed as |
+
+`npx tsc --noEmit`: **0 errors** at the end of this dispatch. (Mid-dispatch it reported one error in
+`src/server/app.ts` — `pagesHtmlStore` missing from `NewsletterRouteDeps` — which was not mine and has
+since been fixed by concurrent work.)
+
+## Residual: `byok-key-handling` test 8, NOT fixed, not in scope
+
+Fails in a full-file run with one captured request carrying `apiKey: ""`; **passes in isolation**, where
+all 25 keystroke requests carry the real key (verified). So it is order-dependent, not a plain race.
+
+The strongest candidate is the autosave wipe documented under Item 2 below — the ledger round trip
+replaces the settings slice with the server's stored value, which carries no `apiKey`. Test 8 types for
+~2.7s against a 600ms debounce, so a wipe landing mid-typing would produce exactly the observed empty
+key. **This is NOT confirmed**: the isolation run did not reproduce it, so the trigger in full-file
+order is unpinned.
+
+If that mechanism is right, the KNOWN-BAD pin's assertion — *"EVERY one of them carried the real key"* —
+has become **premise-stale**, because the product now sometimes drops the key mid-edit. Per this
+workstream's own rule that a premise-stale test should be inverted rather than made to pass, re-pinning
+it is a judgment call about a security pin and belongs to the owner, not to this dispatch.
+
 
 ---
 
