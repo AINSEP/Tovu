@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { test, expect } from "@playwright/test";
 import { loginAsAdmin } from "./auth-fixtures";
 
@@ -56,6 +57,11 @@ test.describe("admin chat FAB does not intercept the composer's send button (Bug
     const sendBox = await sendButton.boundingBox();
     expect(fabBox, "FAB bounding box must be measurable").not.toBeNull();
     expect(sendBox, "send button bounding box must be measurable").not.toBeNull();
+    // `expect().not.toBeNull()` above is a runtime-only check — it doesn't narrow TypeScript's
+    // `BoundingBox | null` type for the reads below. These `assert()`s are redundant at runtime
+    // (the `expect()`s already threw if either was null) but give the compiler the narrowing.
+    assert(fabBox, "FAB bounding box must be measurable");
+    assert(sendBox, "send button bounding box must be measurable");
 
     // --- Check 1: no rectangle overlap between the FAB and the send button. ---
     // Standard axis-aligned-bounding-box separation test: two boxes overlap only if they overlap on
