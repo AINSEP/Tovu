@@ -35,6 +35,7 @@ import { InMemoryKeyring } from "../integrations/keyring.memory";
 import { createKeyringBackedSigner } from "../integrations/signing.keyring";
 import { AesGcmSecretSealer } from "../integrations/secret-sealer.aesgcm";
 import { InMemorySiteAssistantCredentialRepo } from "../assistant/site-credential-store.memory";
+import { InMemoryAdminExecutionCredentialRepo } from "../assistant/execution-credential-store.memory";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
@@ -146,6 +147,7 @@ import { createSiteAssistantModule } from "./modules/site-assistant";
 import { createAssistantChatsModule } from "./modules/assistant-chats";
 import { createAssistantSettingsModule } from "./modules/assistant-settings";
 import { createAssistantExecutionModule } from "./modules/assistant-execution";
+import { createAssistantByokModule } from "./modules/assistant-byok";
 import type { RouteDeps } from "./routes/types";
 
 /**
@@ -388,6 +390,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,
+    adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     executionSettingsReady,
     settingsUiTabsReady,
     analyticsSettingsReady,
@@ -718,9 +721,21 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // (the 2 gated-mutation ceremonies) stay inline below, unchanged non-goal since SPEC-031.
   createDatabaseRecoveryModule(routeDeps).registerRoutes?.(app);
 
+  // Built ONCE, by calling `createAssistantByokModule` here (rather than at its original position
+  // below) so its returned `.toolSurface` can be handed to `createAssistantModule` immediately after
+  // — never folded into `routeDeps` (that bag already carries 53 back-edges into this file, a
+  // tracked architectural metric; see `npm run check:architecture`). Deliberately NOT
+  // `createByokToolSurface(routeDeps)` called directly here: that would add a new edge from this
+  // file straight to `byok-tool-surface.ts`, and measuring with `check:architecture` showed that one
+  // edge alone regresses the "core size" metric (it flips ~17 files into the core classification,
+  // both fan-in and fan-out above the graph median) — this file already transitively reaches that
+  // module THROUGH `createAssistantByokModule`, so reading the value off its return object is free.
+  // See `AssistantByokModuleHandle`'s own doc for the full trace.
+  const byokAssistantModule = createAssistantByokModule(routeDeps);
+
   // ADR-049: the admin assistant's tool-execution/run surface, composed from the published
   // `@jini-ai/core` + `@jini-ai/daemon` + `@jini-ai/node-host` kernel — see `src/assistant/`.
-  createAssistantModule(routeDeps).registerRoutes?.(app);
+  createAssistantModule(routeDeps, byokAssistantModule.toolSurface.surfaceExchanges).registerRoutes?.(app);
 
   // Durable transcripts for that same assistant, in `content.db` rather than the daemon. Separate
   // module because nothing here is proxied: run execution belongs to the daemon (that is where run
@@ -737,6 +752,14 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // test/model discovery. Separate module from the settings pair above for the reason
   // `modules/assistant-execution.ts`'s header gives (stateless egress probes, not settings CRUD).
   createAssistantExecutionModule(routeDeps).registerRoutes?.(app);
+  // 2026-08-04: the admin dock's "API · BYOK" execution mode — a second, provider-direct run path
+  // alongside `createAssistantModule`'s daemon proxy above. Composes its own registry/executor over
+  // the SAME `buildAssistantToolRegistrations` catalog the daemon uses (see `modules/assistant-byok.ts`'s
+  // header for the full trace and disclosed gaps). Reuses this SAME `routeDeps` — the whole reason
+  // this can be a second, independent composition rather than a daemon-process change. Routes only —
+  // the module itself (and its `toolSurface`) was already built above, so
+  // `createAssistantModule`'s redemption proxy shares the exact same confirmation store.
+  byokAssistantModule.registerRoutes?.(app);
 
   // ADR-046 Phase 3 (SPEC-042, final slice): the `content-types` server module (ADR-043
   // Collections backend) — all 8 registrations (content-types' list/register/update-fields/
