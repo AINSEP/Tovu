@@ -48,6 +48,18 @@ interface StoredFabPosition {
   rightFraction: number;
   /** Fraction of `window.innerHeight`, measured from the bottom edge, in `[0, 1]`. */
   bottomFraction: number;
+  /**
+   * Whether this position came from an actual drag-and-drop, as opposed to the untouched
+   * `DEFAULT_POSITION` or a migrated legacy value. Gates the dock-avoidance clamps in `style`
+   * below (2026-08-05 fix): the avoidance exists to stop the FAB's DEFAULT bottom-right spot from
+   * landing on the dock's composer send button and eating its clicks (see `avoidRightPx`'s own
+   * doc for that bug's history) — it was never meant to veto a position the operator chose on
+   * purpose, including one on top of the open dock. `false` for migrated legacy values on
+   * purpose, not just by omission: an old `{ side, bottomFraction }` entry predates free-drag
+   * entirely and carries no evidence the operator ever placed it deliberately relative to the
+   * dock, so it gets the same protection as the default rather than an unearned pass.
+   */
+  pinnedByUser: boolean;
 }
 
 /** The pre-free-drag shape: an edge plus a vertical fraction only, no horizontal offset at all
@@ -76,6 +88,10 @@ function readPersisted(): StoredFabPosition | null {
       return {
         rightFraction: clamp(parsed.rightFraction, 0, 1),
         bottomFraction: clamp(parsed.bottomFraction, 0, 1),
+        // Absent on any value written before the `pinnedByUser` field existed — treated as `false`
+        // (same protection as the default spot) rather than assumed `true`, since a pre-existing
+        // stored drop is exactly the case `pinnedByUser`'s own doc calls out as unearned evidence.
+        pinnedByUser: parsed.pinnedByUser === true,
       };
     }
 
@@ -87,7 +103,11 @@ function readPersisted(): StoredFabPosition | null {
         parsed.side === "right"
           ? FAB_EDGE_MARGIN / window.innerWidth
           : (window.innerWidth - FAB_EDGE_MARGIN - FAB_SIZE_PX) / window.innerWidth;
-      return { rightFraction: clamp(rightFraction, 0, 1), bottomFraction: clamp(parsed.bottomFraction, 0, 1) };
+      return {
+        rightFraction: clamp(rightFraction, 0, 1),
+        bottomFraction: clamp(parsed.bottomFraction, 0, 1),
+        pinnedByUser: false,
+      };
     }
 
     // Unrecognized shape (corrupted value, a future format, hand-edited localStorage) — fall back
@@ -111,7 +131,7 @@ function writePersisted(position: StoredFabPosition): void {
  *  hard-coded `right: 20px; bottom: 20px`. Both fractions are `0` ("flush against the edge"),
  *  not "off-screen at the corner" — `style` below clamps them up to `FAB_EDGE_MARGIN` regardless
  *  of viewport size. */
-const DEFAULT_POSITION: StoredFabPosition = { rightFraction: 0, bottomFraction: 0 };
+const DEFAULT_POSITION: StoredFabPosition = { rightFraction: 0, bottomFraction: 0, pinnedByUser: false };
 
 export interface FabPositionResult {
   /** Inline `style` for the FAB button — `right` and `bottom`, in px, always resolved against
@@ -142,10 +162,13 @@ export interface FabPositionResult {
 }
 
 /**
- * @param options.dockOpen When the assistant dock/sheet is open, the FAB has to move off its
- *   dragged resting spot so it never sits over the dock's own composer/close controls — this
- *   mirrors what the old hard-coded `.chat-fab-dock-open` rule did for the desktop-docked panel,
- *   generalized to the dragged position and to the mobile sheet's own (viewport-fraction) height.
+ * @param options.dockOpen When the assistant dock/sheet is open, an UNTOUCHED or migrated-legacy
+ *   resting spot moves off it so it never sits over the dock's own composer/close controls by
+ *   accident — this mirrors what the old hard-coded `.chat-fab-dock-open` rule did for the
+ *   desktop-docked panel, generalized to the dragged position and to the mobile sheet's own
+ *   (viewport-fraction) height. A spot the operator explicitly dragged onto the dock is left alone
+ *   (see `pinnedByUser`'s own doc on `StoredFabPosition`) — this option only guards against an
+ *   unintentional overlap, not against a deliberate one.
  * @param options.avoidBottomPx Extra clearance to hold above the bottom edge while `dockOpen` —
  *   the caller passes the mobile sheet's current height here (0 at desktop, where the dock sits
  *   to the *side*, not below, so no bottom clearance is needed there — see `App.tsx`).
@@ -263,6 +286,9 @@ export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: numb
       const next: StoredFabPosition = {
         rightFraction: clamp(live.right / window.innerWidth, 0, 1),
         bottomFraction: clamp(live.bottom / window.innerHeight, 0, 1),
+        // A completed drag-and-drop is exactly the deliberate placement `pinnedByUser` exists to
+        // recognize — see its own doc for what this unlocks in `style` below.
+        pinnedByUser: true,
       };
       setPersisted(next);
       writePersisted(next);
@@ -320,7 +346,13 @@ export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: numb
       FAB_EDGE_MARGIN,
       window.innerHeight - FAB_EDGE_MARGIN - FAB_SIZE_PX,
     );
-    // While the dock/sheet is open, hold clear of it regardless of the dragged resting spot.
+    // While the dock/sheet is open, hold clear of it — but only at the UNTOUCHED default spot or a
+    // migrated legacy one (`!persisted.pinnedByUser`); an operator who explicitly dragged the FAB
+    // somewhere, including onto the open dock, gets that placement respected instead of vetoed (see
+    // `pinnedByUser`'s own doc for the 2026-08-05 bug this distinction fixes: the avoidance below
+    // was pushing ANY drop inside the dock's width back out onto the page on every release, because
+    // it did not yet know a drop was deliberate).
+    //
     // TWO axes, because the dock occupies a different edge depending on mode, and getting this
     // wrong is not cosmetic — a FAB overlapping the composer's send button eats the click:
     //   - sheet mode (mobile): the sheet spans the full width along the BOTTOM, so `avoidBottomPx`
@@ -342,8 +374,9 @@ export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: numb
     // viewport it reproduces at has NOT been pinned down, so treat the clamp as the fix and this
     // sentence as the limit of what was confirmed. Bounded below by the margin too, so an
     // unmeasured sheet reporting 0 cannot pin the FAB flush to the edge either.
+    const avoidDock = dockOpen && !persisted.pinnedByUser;
     const effectiveBottom = clamp(
-      dockOpen ? Math.max(bottomPx, avoidBottomPx + FAB_EDGE_MARGIN) : bottomPx,
+      avoidDock ? Math.max(bottomPx, avoidBottomPx + FAB_EDGE_MARGIN) : bottomPx,
       FAB_EDGE_MARGIN,
       Math.max(FAB_EDGE_MARGIN, window.innerHeight - FAB_EDGE_MARGIN - FAB_SIZE_PX),
     );
@@ -351,7 +384,7 @@ export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: numb
     // a raw pixel measurement of another element, so a dock wider than the viewport allows would
     // otherwise push the FAB off the left edge where it looks simply missing.
     const effectiveRight = clamp(
-      dockOpen ? Math.max(rightPx, avoidRightPx + FAB_EDGE_MARGIN) : rightPx,
+      avoidDock ? Math.max(rightPx, avoidRightPx + FAB_EDGE_MARGIN) : rightPx,
       FAB_EDGE_MARGIN,
       Math.max(FAB_EDGE_MARGIN, window.innerWidth - FAB_EDGE_MARGIN - FAB_SIZE_PX),
     );
