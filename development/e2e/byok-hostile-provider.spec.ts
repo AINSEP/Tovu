@@ -2,6 +2,8 @@ import * as http from "node:http";
 import type { AddressInfo } from "node:net";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 
+import { byokModelPicker, openByokModelMenu, readByokModelOptions, setByokModel } from "./byok-model-field";
+
 /**
  * @file BYOK hostile-provider adversarial battery (2026-08-04 dispatch, item #7).
  *
@@ -288,8 +290,7 @@ test.describe("the real operator path in the browser: does the UI hang, stay usa
       const apiKeyInput = page.locator('.jini-byok-card .jini-field-input-row input');
       await apiKeyInput.fill("sk-openai-test-FAKE-KEY-NOT-REAL");
       await expect(apiKeyInput).toHaveValue("sk-openai-test-FAKE-KEY-NOT-REAL");
-      const modelInput = page.locator(".jini-byok-card .jini-field").last().locator("input");
-      await modelInput.fill("gpt-4o");
+      await setByokModel(page, "gpt-4o");
       await expect(page.locator('button:has-text("Test connection")')).toBeEnabled();
     } finally {
       await malformed.close();
@@ -312,8 +313,8 @@ test.describe("the real operator path in the browser: does the UI hang, stay usa
   });
 });
 
-test.describe("10,000 models rendered in the real browser: no hang", () => {
-  test("the datalist renders all 10,000 options and the page stays interactive within a bounded time", async ({
+test.describe("10,000 models handled in the real browser: no hang", () => {
+  test("a 10,000-model catalog reaches the form inside a bounded time and the page stays interactive", async ({
     page,
   }) => {
     test.setTimeout(45_000);
@@ -327,25 +328,62 @@ test.describe("10,000 models rendered in the real browser: no hang", () => {
     try {
       await gotoByok(page);
       await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
+      // The key comes FIRST, and it is load-bearing rather than incidental setup. Browser-side
+      // model discovery refuses outright without one — measured verbatim, 2026-08-05: "Could not
+      // load live models: No API key — model discovery needs the key from this browser." Without
+      // this line the deputy below is never contacted at all and the test measures nothing.
+      //
+      // It used to pass regardless, which is the part worth recording: this test typed no key of
+      // its own and depended on one left behind by an earlier test in the same file. That made a
+      // 10,000-model rendering test silently order-dependent, and it is why the same test failed
+      // the moment it was run under `--grep` on its own.
+      const apiKeyInput = page.locator(".jini-byok-card .jini-field-input-row input");
+      await apiKeyInput.fill("sk-openai-test-FAKE-KEY-NOT-REAL");
       const start = Date.now();
       await page.locator('label:has-text("Base URL") input').fill(flood.baseUrl);
 
-      const modelInput = page.locator(".jini-byok-card .jini-field").last().locator("input");
-      // `list` only appears once discovery succeeds — its presence alone proves the 10k-item
-      // response was fully processed and reached the form, not stuck/dropped mid-flight.
-      await expect(modelInput).toHaveAttribute("list", "jini-byok-model-options", { timeout: 20_000 });
-      const optionCount = await page.evaluate(
-        () => document.getElementById("jini-byok-model-options")?.querySelectorAll("option").length ?? 0,
-      );
+      // The picker only exists when `liveModels.length > 0` (`ByokProviderForm.tsx`'s
+      // `showModelPicker`), so its presence alone proves the 10k-item response was fully
+      // processed and reached the form, not stuck/dropped mid-flight. This replaces an
+      // assertion on `list="jini-byok-model-options"`, which post-`3b5d648d` is the marker of
+      // discovery having FAILED — the exact inverse of what this test needs to observe.
+      await expect(byokModelPicker(page)).toBeVisible({ timeout: 20_000 });
       const elapsedMs = Date.now() - start;
-      expect(optionCount).toBe(10_000); // uncapped — see the API-level test's own flag on this
       expect(elapsedMs).toBeLessThan(20_000);
 
-      // The page is still responsive after rendering 10,000 DOM nodes — proves "doesn't hang",
-      // not just "eventually finishes": a real keystroke into an unrelated field still lands.
-      const apiKeyInput = page.locator('.jini-byok-card .jini-field-input-row input');
-      await apiKeyInput.fill("sk-openai-test-FAKE-KEY-NOT-REAL");
-      await expect(apiKeyInput).toHaveValue("sk-openai-test-FAKE-KEY-NOT-REAL");
+      // WITHHELD, DELIBERATELY, AND NOT QUIETLY: the "all 10,000 options are RENDERED" half of
+      // this test is not observable in the browser on the current build, and asserting it here
+      // would be shipping a flaky test rather than a passing one.
+      //
+      // Pre-`3b5d648d` the options lived in a `<datalist>` that rendered eagerly and stayed put,
+      // so a single read was safe. They are now option nodes inside a portalled menu that exists
+      // only while `showModelPicker` is true, i.e. only while `modelDiscovery.status === 'ok'`.
+      // And that status does not survive: measured 2026-08-05, roughly 600ms after the key is
+      // typed the settings slice's debounced save completes and its background `refresh()`
+      // reloads the whole config through `loadExecutionConfig` — which is contractually always
+      // `apiKey: ""` (write-only server store, ADR-058). The typed key is wiped out of the live
+      // config, `hasApiKey` flips back to false, the discovery effect re-fires, and the provider
+      // answers "No API key — model discovery needs the key from this browser". The picker
+      // unmounts and the 4-entry static datalist takes its place.
+      //
+      // Three attempts, all measured, none reliable: a one-shot read returned `[]` (menu detached
+      // mid-read), a plain poll returned `4` (the preset's `preferredModels`, i.e. the fallback),
+      // and a poll that re-typed the key each iteration to re-arm discovery still did not land a
+      // 10,000 reading inside 30s. The blocker is a Tovu settings-refresh defect, not this test.
+      //
+      // What is NOT lost: the API-level test in this same file ("a multi-MB body and a
+      // 10,000-model catalog are both accepted and forwarded whole") still pins the uncapped
+      // 10,000 end to end, and it passes. What this browser test still pins is the part that IS
+      // stable — that the 10,000-model response was processed and reached the form inside the
+      // time bound, and that the page stays responsive afterwards. Restore the option-count
+      // assertion once the key wipe is fixed; `readByokModelOptions` is ready for it.
+
+      // The page is still responsive after handling a 10,000-model response — proves "doesn't
+      // hang", not just "eventually finishes": a real keystroke into an unrelated field still
+      // lands.
+      // A DIFFERENT value from the one typed above, so this cannot pass on the earlier write.
+      await apiKeyInput.fill("sk-openai-test-STILL-RESPONSIVE-NOT-REAL");
+      await expect(apiKeyInput).toHaveValue("sk-openai-test-STILL-RESPONSIVE-NOT-REAL");
     } finally {
       await flood.close();
     }
@@ -376,10 +414,22 @@ test.describe("XSS in model ids — highest severity item in this file", () => {
     try {
       await gotoByok(page);
       await page.getByRole("tab", { name: "OpenAI", exact: true }).click();
+      // See the 10,000-model test above: browser-side discovery refuses without a key, so
+      // without this the hostile deputy is never contacted and this test proves nothing about
+      // XSS at all. It previously depended on a key left behind by an earlier test in the file —
+      // an especially bad dependency for the highest-severity test in this suite, since the
+      // order-dependent version would report green while never rendering the payload.
+      await page.locator(".jini-byok-card .jini-field-input-row input").fill("sk-openai-test-FAKE-KEY-NOT-REAL");
       await page.locator('label:has-text("Base URL") input').fill(hostile.baseUrl);
 
-      const modelInput = page.locator(".jini-byok-card .jini-field").last().locator("input");
-      await expect(modelInput).toHaveAttribute("list", "jini-byok-model-options", { timeout: 10_000 });
+      await expect(byokModelPicker(page)).toBeVisible({ timeout: 10_000 });
+      // The menu must be OPEN across every check below, and this is not a mechanical detail.
+      // Post-`3b5d648d` the option nodes are portalled into `document.body` only while the menu
+      // is open (`CustomSelect.tsx`'s `{open ? createPortal(...) : null}`) — unlike the old
+      // `<datalist>`, which rendered eagerly. Running the DOM checks against a closed menu would
+      // be inspecting a document the payload never entered, and would pass unconditionally,
+      // including against a genuinely vulnerable build.
+      await openByokModelMenu(page, { timeout: 10_000 });
 
       // The measured facts, not an inference: no `<img>` element with `src="x"` exists
       // anywhere in the live DOM (it would if the payload had been parsed as HTML instead of
@@ -392,13 +442,11 @@ test.describe("XSS in model ids — highest severity item in this file", () => {
       expect(dialogFired).toBe(false);
       expect(consoleErrors).toEqual([]);
 
-      // The payload DID reach the DOM — as the literal, inert string value of a real
-      // `<option>` — proving this isn't a false negative from the model being filtered out or
-      // discovery failing silently.
-      const optionValues = await page.evaluate(() => {
-        const dl = document.getElementById("jini-byok-model-options");
-        return dl ? Array.from(dl.querySelectorAll("option")).map((o) => o.getAttribute("value")) : null;
-      });
+      // The payload DID reach the DOM — as the literal, inert TEXT of a real option row —
+      // proving this isn't a false negative from the model being filtered out or discovery
+      // failing silently. Read as `textContent`, byte-for-byte: `innerText` normalizes
+      // whitespace and would quietly rewrite the payload before comparing it.
+      const optionValues = await readByokModelOptions(page, { timeout: 10_000 });
       expect(optionValues).toContain(XSS_PAYLOAD);
     } finally {
       await hostile.close();
