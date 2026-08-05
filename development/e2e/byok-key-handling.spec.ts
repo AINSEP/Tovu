@@ -182,16 +182,24 @@ async function startFixedDeputy(
  * Fill the BYOK API-key field and **wait for the form's own state to have committed it** before the
  * caller edits anything else.
  *
- * Root-caused 2026-08-05. `ExecutionTab.tsx`'s model-discovery effect lists only `config.byok.baseUrl`
- * as a dependency but reads `apiKey` FRESH at fire time (this is the MSG-1 mechanism the KNOWN-BAD
- * battery below pins). The consequence for a test: a Base URL edit that beats React's commit of the
- * key fires exactly one discovery request carrying an **empty** key — and then never re-fires for
- * that URL, because the key is not a dependency. The server short-circuits an empty key before any
- * outbound call (`model-catalog.ts:337`, `PROTOCOLS_REQUIRING_API_KEY`), so the deputy is never
- * dialed and the test reads as "the listener saw nothing".
+ * Root-caused 2026-08-05. **What was measured:** an edit made before React has committed the typed key
+ * fires a model-discovery request carrying an **empty** `apiKey`. Observed twice on the wire — test 8
+ * captured `apiKey: ""` among its requests, and a separate instrumented run captured
+ * `REQ {…,"apiKey":""}` directly. The server short-circuits an empty key before any outbound call
+ * (`model-catalog.ts:337`, `PROTOCOLS_REQUIRING_API_KEY`), so no deputy is dialed for that request.
  *
- * Observed twice, both on runs where an earlier test had timed out and slowed the page: test 9 failed
- * with `x-api-key: undefined`, and test 8 with `apiKey: ""` captured on the wire.
+ * **An earlier version of this comment claimed the discovery effect "lists only `config.byok.baseUrl`
+ * as a dependency" and therefore "never re-fires for that URL". That was inference, and it is FALSE.**
+ * `ExecutionTab.tsx`'s dependency array is
+ * `[config.mode, port, loadModels, config.byok.protocol, config.byok.baseUrl, config.byok.providerId,
+ * hasApiKey]` — `hasApiKey` is a deliberate boolean presence flag whose own comment says it exists so
+ * the effect re-runs exactly once on the `false -> true` transition, keyed on presence rather than
+ * value so it does not refire per keystroke. So the effect DOES re-fire when the key commits. The
+ * correction is recorded rather than quietly deleted because this file's whole subject is comments
+ * that encoded inference as observation, and this one was mine.
+ *
+ * The wait is still worth having: it removes the empty-key request from the window the tests measure,
+ * which is what they assert over.
  *
  * The readiness signal is the "Save key" button's enabled state, which `AdminByokKeyPanel.tsx` derives
  * from `canSaveKey` — i.e. from React state, not from the DOM value `fill()` just wrote. That makes
