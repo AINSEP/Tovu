@@ -39,6 +39,9 @@ const ACTIVE_ITEM = {
   createdAt: "2026-07-01T09:00:00.000Z",
   updatedAt: "2026-07-01T09:00:00.000Z",
   version: 1,
+  width: null,
+  height: null,
+  cssClass: null,
 };
 const TRASHED_ITEM = {
   id: "media-2",
@@ -52,6 +55,9 @@ const TRASHED_ITEM = {
   createdAt: "2026-07-02T09:00:00.000Z",
   updatedAt: "2026-07-02T09:00:00.000Z",
   version: 1,
+  width: null,
+  height: null,
+  cssClass: null,
 };
 const MEDIA_RESPONSE = { media: [ACTIVE_ITEM, TRASHED_ITEM] };
 
@@ -487,6 +493,38 @@ describe("metadata edit stays a partial patch", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(patchBody).toEqual({ alt: "Updated alt text" }));
+  });
+
+  it("setting width/height sends {width, height} as numbers; leaving them blank sends nothing (native size)", async () => {
+    const user = userEvent.setup();
+    let patchBody: unknown = null;
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "PATCH" && url.includes("/media/media-1")) {
+        patchBody = JSON.parse(String(init?.body));
+        return Promise.resolve(jsonResponse({ media: ACTIVE_ITEM }));
+      }
+      if (url.includes("/media")) return Promise.resolve(jsonResponse(MEDIA_RESPONSE));
+      return Promise.reject(new Error(`unexpected ${method} ${url}`));
+    });
+
+    const { container } = render(<Media />);
+    const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
+
+    await user.click(within(card).getByRole("button", { name: /actions for "sunset photo"/i }));
+    await user.click(screen.getByRole("menuitem", { name: /edit metadata/i }));
+
+    const widthInput = await screen.findByLabelText("Width (px)");
+    const heightInput = await screen.findByLabelText("Height (px)");
+    // Both start blank (ACTIVE_ITEM.width/height are `null`, the "native size" default).
+    expect(widthInput).toHaveValue(null);
+    expect(heightInput).toHaveValue(null);
+
+    await user.type(widthInput, "800");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(patchBody).toEqual({ width: 800 }));
   });
 });
 

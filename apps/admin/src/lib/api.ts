@@ -371,6 +371,12 @@ export interface AdminMedia {
   createdAt: string;
   updatedAt: string;
   version: number;
+  /** Quick-and-dirty public-render sizing override (owner-directed skip-the-ADR fix). `null` means
+   *  "not set" — the public renderer omits the corresponding `<img>` attribute entirely rather than
+   *  rendering `0` or a computed default. */
+  width: number | null;
+  height: number | null;
+  cssClass: string | null;
 }
 
 export interface AdminWebhookDeliverySummary {
@@ -1031,7 +1037,15 @@ export const api = {
     }),
   updateMedia: (
     { id }: { id: string },
-    options: { title?: string; alt?: string; caption?: string; credit?: string } = {}
+    options: {
+      title?: string;
+      alt?: string;
+      caption?: string;
+      credit?: string;
+      width?: number | null;
+      height?: number | null;
+      cssClass?: string | null;
+    } = {}
   ) =>
     request<{ media: AdminMedia }>(`/workspaces/${WORKSPACE_ID}/media/${id}`, {
       method: "PATCH",

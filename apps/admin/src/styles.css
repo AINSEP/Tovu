@@ -1071,6 +1071,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    widest label ("Recent Entries") selected; scoped to this control only, so every other `<Select>`
    in the app (built to fill its container) keeps `width: 100%`. */
 .widget-add-control .select-trigger { width: auto; }
+/* `EmbedInsertControl` (`lib/embed-insert-control.tsx`, quick-and-dirty pass 2026-08-05) — the
+   "Embed" button's inline choice row (Media / Form / Menu / Widget…) and the "Widget…" branch's
+   nested `.widget-add-control`, both rendered inline right after the trigger rather than as an
+   absolutely-positioned popover, matching this pass's "get it working" scope. Same gap treatment
+   as `.widget-add-control` above so it doesn't sit flush against the "Embed" button. */
+.embed-insert-control { display: inline-flex; align-items: center; }
+.embed-insert-menu { display: inline-flex; align-items: center; gap: var(--space-2); margin-left: var(--space-2); }
 .editor-body { background: var(--surface); padding: 1.5rem 2rem; min-height: 22rem; }
 .editor-body .tiptap { outline: none; min-height: 20rem; }
 .editor-body .tiptap p { line-height: 1.6; }
