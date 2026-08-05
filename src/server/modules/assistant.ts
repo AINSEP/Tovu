@@ -48,6 +48,7 @@ import { MCP_UI_TOOL_CALLS_PATH } from "../../assistant/mcp-ui-tool-calls-route"
 import { RUN_PRINCIPAL_HEADER } from "../../assistant/run-ownership";
 import { SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "../../assistant/surface-exchanges";
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth";
+import { isAssistantDaemonKnownFailed } from "../readiness-state";
 import type { RouteDeps } from "../routes/types";
 import type { ServerModuleHandle } from "./types";
 
@@ -140,7 +141,26 @@ function isConnectionRefused(error: unknown): boolean {
  *  between them instead of one per request. Reset on the first success. */
 let daemonUnreachableSince: number | null = null;
 
+/**
+ * Checked FIRST, before any `fetch` is attempted, by every function below that talks to the
+ * daemon. `isAssistantDaemonKnownFailed()` is `true` only once `index.ts`'s own spawn of the
+ * daemon has confirmed-crashed — a much stronger signal than "the request failed to connect",
+ * because "something answered on the daemon's port" is not proof of health: a leaked port can
+ * still be squatted by an orphaned daemon from a PREVIOUS run, which would otherwise go on
+ * answering requests as if it were the daemon this boot just spawned. Once we know our own spawn
+ * is dead, we stop trusting the port at all and fail immediately instead of racing a `fetch`
+ * against whatever (if anything) is actually listening there.
+ *
+ * @returns `true` if a 503 was already sent (caller must return without proceeding).
+ */
+function respondIfDaemonKnownFailed(res: Response): boolean {
+  if (!isAssistantDaemonKnownFailed()) return false;
+  res.status(503).json({ error: "the agent daemon failed to start for this boot", code: "AGENT_DAEMON_BOOT_FAILED" });
+  return true;
+}
+
 async function forwardToAgentDaemon(req: Request, res: Response, body?: unknown): Promise<void> {
+  if (respondIfDaemonKnownFailed(res)) return;
   const target = `${AGENT_DAEMON_URL}${req.originalUrl}`;
   const deadline = Date.now() + DAEMON_CONNECT_RETRY_MS;
   let upstream: globalThis.Response;
@@ -306,6 +326,7 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
  * process) — see `daemon-auth.ts`.
  */
 async function forwardAttachmentUpload(req: Request, res: Response): Promise<void> {
+  if (respondIfDaemonKnownFailed(res)) return;
   const target = `${AGENT_DAEMON_URL}${req.originalUrl}`;
   const headers: Record<string, string> = {
     "content-type": req.get("content-type") ?? "application/octet-stream",

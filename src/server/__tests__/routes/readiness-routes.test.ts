@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../app";
-import { setReadinessSnapshot } from "../../readiness-state";
+import { clearAssistantDaemonFailure, recordAssistantDaemonFailure, setReadinessSnapshot } from "../../readiness-state";
 import { startTestServer } from "../helpers/http-test-server";
 import type { BootResult } from "../../boot-lifecycle";
 
@@ -64,4 +64,27 @@ test("/readyz defaults to 200 when no snapshot was ever set (hermetic test app)"
 
   const res = await fetch(`${baseUrl}/readyz`);
   assert.equal(res.status, 200);
+});
+
+test("/readyz stays 200 (ready:true) when the agent daemon is known-failed, but names it as a plain boolean — degraded-boot defect fix", async (t) => {
+  setReadinessSnapshot({ ok: true, modules: [] });
+  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  t.after(() => clearAssistantDaemonFailure());
+  const app = createApp(createRouteDeps());
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/readyz`);
+
+  assert.equal(res.status, 200, "an optional daemon failure must not make the rest of the app read as not-ready");
+  assert.deepEqual(await res.json(), { ready: true, assistantDaemonKnownFailed: true });
+});
+
+test("/readyz omits assistantDaemonKnownFailed entirely when nothing has latched — no new key for existing consumers to ignore", async (t) => {
+  setReadinessSnapshot({ ok: true, modules: [] });
+  const app = createApp(createRouteDeps());
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/readyz`);
+
+  assert.deepEqual(await res.json(), { ready: true });
 });

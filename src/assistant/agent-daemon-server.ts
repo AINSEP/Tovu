@@ -89,6 +89,7 @@ import { resolveRuntimeMode } from "../server/runtime-mode";
 import { listAssistantAgents } from "./agents";
 import { createCustomInstructionsCache } from "./custom-instructions";
 import { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-auth";
+import { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes";
 import { attachFederatedMcpTools } from "./mcp-federation/bootstrap";
 import { registerA2uiActionsRoute } from "./a2ui-actions-route";
 import { registerMcpUiToolCallsRoute } from "./mcp-ui-tool-calls-route";
@@ -671,8 +672,32 @@ async function start(): Promise<void> {
   // `application/octet-stream` POST survives `express.json()` regardless of registration order).
   registerAttachmentRoutes(app, { store: attachmentStore }, adapter);
 
-  app.listen(port, "127.0.0.1", () => {
+  const server = app.listen(port, "127.0.0.1", () => {
     console.log(`[agent-daemon] listening on ${daemonUrl}`);
+  });
+
+  /**
+   * Without this, a bind failure is an UNHANDLED `error` event on the `http.Server` `app.listen()`
+   * returns — Node has no default listener for that, so it rethrows as an uncaught exception: the
+   * process still crashes, but with a generic stack trace and Node's default exit code `1`, giving
+   * `index.ts`'s `child.on("exit", ...)` nothing to report beyond "exited unexpectedly (code 1)".
+   * That is exactly the "reads like unexplained flake" shape this repo's own e2e history spent
+   * three sessions chasing (`ADS-memory/reports/analysis/2026-08-05-symmetric-watchdog.md`).
+   *
+   * `EADDRINUSE` gets its own distinct exit code (`AGENT_DAEMON_EXIT_CODE.PORT_IN_USE`, shared with
+   * `index.ts` via `daemon-exit-codes.ts`) specifically so the parent can report the real reason —
+   * "address already in use" — instead of a number it has to guess at. Any OTHER bind error (e.g. a
+   * permissions failure on a privileged port) still exits non-zero, just without the specific code,
+   * since it is not the failure mode this repo has actually hit.
+   */
+  server.on("error", (error) => {
+    if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {
+      console.error(`[agent-daemon] could not bind 127.0.0.1:${port} — address already in use`);
+      process.exit(AGENT_DAEMON_EXIT_CODE.PORT_IN_USE);
+      return;
+    }
+    console.error(`[agent-daemon] failed to bind 127.0.0.1:${port}`, error);
+    process.exit(1);
   });
 }
 

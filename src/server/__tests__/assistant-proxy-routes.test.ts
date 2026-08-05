@@ -8,6 +8,7 @@ import express from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR } from "../../assistant/daemon-auth";
 import { RUN_PRINCIPAL_HEADER } from "../../assistant/run-ownership";
+import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../readiness-state";
 import type { RouteDeps } from "../routes/types";
 import { startTestServer, loginAsOwner } from "./helpers/http-test-server";
 
@@ -31,6 +32,12 @@ import { startTestServer, loginAsOwner } from "./helpers/http-test-server";
  *    telling the daemon which admin a request speaks for; the daemon's own ownership enforcement
  *    (`assistant/run-ownership.ts`) is worth nothing if the proxy forgets it or forwards a
  *    browser-supplied one.
+ * 5. the degraded-boot defect fix: once `readiness-state.ts`'s `recordAssistantDaemonFailure` has
+ *    latched (which `index.ts`'s `spawnAgentDaemon()` does when its own child crashes), every
+ *    proxied route must short-circuit to an immediate 503 WITHOUT ever calling `fetch` — proven by
+ *    asserting the stand-in daemon recorded zero requests, not merely by the response code, because
+ *    a wrong-but-plausible fix could still 503 while leaking the request to the (stand-in, healthy)
+ *    daemon first.
  *
  * `assistant.ts` resolves the daemon origin ONCE at module scope (`AGENT_DAEMON_URL`), so the
  * stand-in daemon is started and the module imported exactly once per test process — see
@@ -255,4 +262,72 @@ test("the run-start body rewrite still stamps the session principal into context
   assert.ok(contextRef.principalId.length > 0, "the daemon has no cookie of its own — the proxy must stamp the principal");
   assert.equal(recorded[0].headers.authorization, `Bearer ${TOKEN}`);
   assert.equal(recorded[0].headers["last-event-id"], "cursor-3", "header forwarding applies to every route, not just the SSE one");
+});
+
+test("a known-failed daemon short-circuits every proxied route to an immediate 503, never reaching the daemon's port", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  // Simulates what `index.ts`'s `spawnAgentDaemon()` does on a real EADDRINUSE crash. The stand-in
+  // daemon in this harness is fully healthy and listening — that is the point: today's code (before
+  // this fix) would happily reach it and get a 200, exactly like the ordinary passing tests above.
+  // A leaked port in production is squatted by a DIFFERENT (orphaned) process, not by nothing, so
+  // "the daemon answered" must stop being trusted once we know OUR OWN spawn is dead.
+  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  t.after(() => clearAssistantDaemonFailure());
+
+  const res = await fetch(`${baseUrl}/api/runs`, { headers: { cookie } });
+
+  assert.equal(res.status, 503);
+  assert.deepEqual(await res.json(), {
+    error: "the agent daemon failed to start for this boot",
+    code: "AGENT_DAEMON_BOOT_FAILED",
+  });
+  assert.equal(
+    recorded.length,
+    0,
+    "the stand-in daemon is healthy and would have answered 200 — reaching it at all means the short-circuit didn't fire before the fetch"
+  );
+});
+
+test("a known-failed daemon also short-circuits the SSE run-events route", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  t.after(() => clearAssistantDaemonFailure());
+
+  const res = await fetch(`${baseUrl}/api/runs/run-1/events`, { headers: { cookie } });
+
+  assert.equal(res.status, 503);
+  assert.equal(recorded.length, 0);
+});
+
+test("a known-failed daemon short-circuits the dedicated attachment-upload proxy too, which has its own fetch path", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  t.after(() => clearAssistantDaemonFailure());
+
+  const res = await fetch(`${baseUrl}/api/attachments`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/octet-stream" },
+    body: Buffer.from("file bytes"),
+  });
+
+  assert.equal(res.status, 503);
+  assert.deepEqual(await res.json(), {
+    error: "the agent daemon failed to start for this boot",
+    code: "AGENT_DAEMON_BOOT_FAILED",
+  });
+  assert.equal(recorded.length, 0);
+});
+
+test("clearing the failure (the future-retry hook) restores normal proxying", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+
+  const failed = await fetch(`${baseUrl}/api/runs`, { headers: { cookie } });
+  assert.equal(failed.status, 503);
+
+  clearAssistantDaemonFailure();
+  const recovered = await fetch(`${baseUrl}/api/runs`, { headers: { cookie } });
+
+  assert.equal(recovered.status, 200, "clearing the latch must let the very next request reach the daemon again");
+  assert.equal(recorded.length, 1);
 });
