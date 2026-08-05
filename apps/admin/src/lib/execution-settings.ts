@@ -299,8 +299,14 @@ export async function loadExecutionConfig(): Promise<ExecutionConfig> {
 /** The model of whichever agent is currently selected — the one value the
  *  ledger persists out of `LocalCliConfig.modelByAgentId`. Returns `""` when
  *  no agent is picked or that agent has no explicit model, which is exactly
- *  the registered default. */
-function selectedLocalCliModel(config: ExecutionConfig): string {
+ *  the registered default.
+ *
+ *  Exported (2026-08-05) so `AssistantDock.tsx`'s `useLocalCliSelection` can
+ *  derive the SAME value when hydrating the picker's initial selection from
+ *  this ledger — re-deriving the per-agent lookup a second time in the
+ *  component would be a second copy of `LocalCliConfig.modelByAgentId`'s
+ *  "keyed by the selected agent" contract to keep in sync with this one. */
+export function selectedLocalCliModel(config: ExecutionConfig): string {
   const agentId = config.localCli.agentId;
   if (!agentId) return "";
   return config.localCli.modelByAgentId?.[agentId] ?? "";

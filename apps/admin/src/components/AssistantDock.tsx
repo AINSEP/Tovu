@@ -10,6 +10,7 @@ import {
   registerExtEventRenderer,
   registerMcpUiSurfaceRenderer,
   type ChatPaneAgent,
+  type ChatPaneAgentSelection,
   type FrontendSessionBridge,
 } from "@jini-ai/chat/react";
 import { isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
@@ -26,6 +27,7 @@ import {
   loadAdminExecutionCredential,
   loadExecutionConfig,
   saveExecutionConfig,
+  selectedLocalCliModel,
 } from "../lib/execution-settings";
 import { useWiredAssistantChats, type UseAssistantChats } from "../hooks/use-assistant-chats.hooks";
 import "../styles/assistant.css";
@@ -165,6 +167,17 @@ export interface UseExecutionConfig {
    * usable", because the key is write-only and empty on every fresh load even when one is stored.
    */
   hasStoredAdminKey: boolean | null;
+  /**
+   * True once the initial ledger GET (`loadExecutionConfig()`) has settled — resolved OR
+   * rejected — false only during that first in-flight load. Added (2026-08-05) for
+   * {@link useLocalCliSelection}'s one-time hydration: `executionConfig.localCli.agentId` starts
+   * `null` in `DEFAULT_EXECUTION_CONFIG`, and a load that resolves to "nothing was ever saved"
+   * ALSO leaves it `null` — those two states are indistinguishable from `executionConfig` alone,
+   * so a separate "has the GET settled at all" signal is what lets that hook's hydration effect
+   * fire exactly once instead of never (waiting on a non-null `agentId` that may never arrive) or
+   * too early (before the load has had any chance to run).
+   */
+  configLoaded: boolean;
 }
 
 /**
@@ -213,6 +226,9 @@ export function useExecutionConfig(): UseExecutionConfig {
    */
   const localWriteRef = useRef(false);
 
+  /** Backs {@link UseExecutionConfig.configLoaded} — see that field's own doc. */
+  const [configLoaded, setConfigLoaded] = useState(false);
+
   /**
    * The `Dispatch` this hook exposes — to its own `handleExecutionModeChange` below, and to
    * `useByokRuntime`'s `handleByokModelChange` (passed `executionConfig`/`setExecutionConfig` as
@@ -256,6 +272,13 @@ export function useExecutionConfig(): UseExecutionConfig {
       // than blanking the dock. Same shape as `handleExecutionModeChange`'s save catch below.
       .catch((error: unknown) => {
         console.error("[AssistantDock] failed to load execution config", error);
+      })
+      // Runs regardless of resolve/reject — `configLoaded` means "the GET settled", not "it
+      // succeeded"; a failed load still leaves `useLocalCliSelection` free to hydrate off
+      // whatever `executionConfig` ends up holding (the `DEFAULT_EXECUTION_CONFIG` this state
+      // already initialized to) rather than waiting forever for a load that already gave up.
+      .finally(() => {
+        if (!cancelled) setConfigLoaded(true);
       });
     return () => {
       cancelled = true;
@@ -304,7 +327,14 @@ export function useExecutionConfig(): UseExecutionConfig {
     });
   }, []);
 
-  return { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey };
+  return {
+    executionConfig,
+    executionConfigRef,
+    setExecutionConfig,
+    handleExecutionModeChange,
+    hasStoredAdminKey,
+    configLoaded,
+  };
 }
 
 export interface UseByokRuntime {
@@ -436,6 +466,122 @@ export function useByokRuntime(
   return { byokRuntime, handleByokModelChange };
 }
 
+export interface UseLocalCliSelection {
+  /** The Local CLI picker's current agent+model choice — fully controlled, fed straight into
+   *  `<ChatPane selection={...}>` (see {@link AssistantDock}'s JSX). */
+  localCliSelection: ChatPaneAgentSelection;
+  handleLocalCliSelectionChange: (selection: ChatPaneAgentSelection) => void;
+}
+
+/**
+ * Owns the Local CLI picker's agent+model choice as a fully controlled `ChatPane` selection,
+ * persisted through the same ADR-028 `saveExecutionConfig` chokepoint `useByokRuntime`'s
+ * `handleByokModelChange` already uses — so a pick here survives a reload the same way BYOK's
+ * model and the mode switch already do (`executionConfig.localCli.agentId`/`.modelByAgentId`,
+ * `execution-settings.ts`'s `loadExecutionConfig`/`selectedLocalCliModel` — real, persisted state
+ * that nothing read the run-start path from until this hook existed, 2026-08-05).
+ *
+ * Split out of `AssistantDock` for the same reason `useByokRuntime` is: the hydration-once and
+ * write-back paths are directly assertable via `renderHook`, without mounting a full dock or a
+ * real `ChatPane`.
+ *
+ * `ChatPane` accepts `selection`/`onSelectionChange` as a genuinely controlled pair (confirmed in
+ * `@jini-ai/chat`'s `useChatPane.hooks.ts`: `requestedSelection = options.selection ?? internalSelection`,
+ * and its `setSelection`/`AgentRuntimePicker`-driven change handler always calls
+ * `options.onSelectionChange` even when controlled) — chosen over the dock's previously-hardcoded
+ * `initialSelection` prop because that prop is read exactly once, inside `useChatPane`'s own
+ * `useState` initializer, at `ChatPane`'s first mount. The ledger load is an async GET
+ * (`loadExecutionConfig`'s `api.getSettingsEffective` call) that resolves AFTER that first
+ * render — a value hydrated from it into `initialSelection` would arrive too late to ever take
+ * effect without a synthetic remount. A fully controlled `selection` has no such one-shot window:
+ * it is read on every render, so the transition from the hardcoded default to the hydrated value
+ * flows straight through like any other prop update.
+ *
+ * @param input.executionConfig - The live execution config; only `.localCli` is read.
+ * @param input.setExecutionConfig - The setter {@link useExecutionConfig} returns, so a pick made
+ *   here writes back through the same state (and the same `localWriteRef` race guard)
+ *   `useByokRuntime` already shares it with.
+ * @param input.configLoaded - {@link UseExecutionConfig.configLoaded} — gates the one-time
+ *   hydration below so it fires exactly once, after the ledger's first GET has settled, never
+ *   before and never twice.
+ * @returns `localCliSelection` (the controlled value) and `handleLocalCliSelectionChange`
+ *   (`ChatPane`'s `onSelectionChange`).
+ * @example
+ * const { localCliSelection, handleLocalCliSelectionChange } =
+ *   useLocalCliSelection({ executionConfig, setExecutionConfig, configLoaded });
+ */
+export function useLocalCliSelection(
+  { executionConfig, setExecutionConfig, configLoaded }: {
+    executionConfig: ExecutionConfig;
+    setExecutionConfig: React.Dispatch<React.SetStateAction<ExecutionConfig>>;
+    configLoaded: boolean;
+  },
+): UseLocalCliSelection {
+  /**
+   * Same hardcoded starting point the dock always used (`{ agentId: "claude" }`) before this hook
+   * existed — now just the value shown for the brief window before the ledger's GET settles, or
+   * permanently for an operator who has never picked anything.
+   */
+  const [localCliSelection, setLocalCliSelection] = useState<ChatPaneAgentSelection>({ agentId: "claude" });
+
+  /**
+   * Guards the one-time hydration effect below against the same two races `useExecutionConfig`'s
+   * own `localWriteRef` documents for `executionConfig` itself: `hydratedRef` stops it from
+   * re-applying on every later `executionConfig` change (it must apply the ledger's value at most
+   * once, not resync on an unrelated BYOK/mode write); `touchedRef` stops it from silently
+   * overwriting a selection the operator already picked with their own hand before the ledger's
+   * GET happened to resolve — the load and a fast first pick are both in-flight/interactive with
+   * no ordering guarantee between them.
+   */
+  const hydratedRef = useRef(false);
+  const touchedRef = useRef(false);
+
+  useEffect(() => {
+    if (!configLoaded || hydratedRef.current || touchedRef.current) return;
+    hydratedRef.current = true;
+    const agentId = executionConfig.localCli.agentId ?? "claude";
+    const model = selectedLocalCliModel(executionConfig);
+    setLocalCliSelection({ agentId, ...(model ? { model } : {}) });
+  }, [configLoaded, executionConfig]);
+
+  /**
+   * `ChatPane`'s `onSelectionChange` — fires only for a genuine change (`useChatPane`'s own dedup,
+   * see this hook's own doc above). Updates the controlled value immediately, so the picker
+   * reflects the pick without waiting on a round trip, and persists through the same ADR-028
+   * chokepoint `handleByokModelChange` uses, so a Local CLI pick and a BYOK model pick can never
+   * disagree about which write path is authoritative.
+   *
+   * Writes `selection.model ?? ""` for the picked agent specifically (not a conditional spread)
+   * so reverting a model choice back to "default" persists that reversion — an omitted key would
+   * leave a stale non-default value from an earlier pick sitting in the ledger for this agent,
+   * silently un-reverting on the next reload.
+   */
+  const handleLocalCliSelectionChange = useCallback((selection: ChatPaneAgentSelection) => {
+    touchedRef.current = true;
+    setLocalCliSelection(selection);
+    setExecutionConfig((previous) => {
+      const nextAgentId = selection.agentId || null;
+      const next: ExecutionConfig = {
+        ...previous,
+        localCli: {
+          agentId: nextAgentId,
+          modelByAgentId: nextAgentId
+            ? { ...previous.localCli.modelByAgentId, [nextAgentId]: selection.model ?? "" }
+            : previous.localCli.modelByAgentId,
+        },
+      };
+      void saveExecutionConfig(next, previous)
+        .then(() => publishSettingsRefresh([EXECUTION_NAMESPACE]))
+        .catch((error: unknown) => {
+          console.error("[AssistantDock] failed to save Local CLI selection", error);
+        });
+      return next;
+    });
+  }, [setExecutionConfig]);
+
+  return { localCliSelection, handleLocalCliSelectionChange };
+}
+
 /**
  * Whether a completed run's messages-change delta should trigger `publishSettingsRefresh()`, and
  * what the next `settledRunMessageId` marker should be. Pulled out of `handleMessagesChange` so the
@@ -471,18 +617,32 @@ export function shouldPublishOnMessagesChange(
 }
 
 /**
- * Builds the per-call run context the daemon reads `frontendBindToken` out of
- * (`assistant-transport.ts`'s `contextRef` wiring). Omits the key entirely when no bind token
- * exists yet, rather than sending `frontendBindToken: undefined`, matching the daemon's own
- * "absent means no bound frontend" contract.
+ * Builds the per-call run context the daemon reads `frontendBindToken`/`model` out of
+ * (`assistant-transport.ts`'s `contextRef` wiring). Omits each key entirely when absent, rather
+ * than sending it as `undefined` or an empty string, matching the daemon's own "absent means
+ * default" contract for both fields.
+ *
+ * `model` is forwarded opaque and unfiltered — including the `'default'` sentinel
+ * (`DEFAULT_MODEL_OPTION.id`, `@jini-ai/agent-runtime`) that `ChatPane`'s own selection resolution
+ * falls back to when nothing else is picked. Every agent def's `buildArgs` (and
+ * `resolveModelForAgent`) already treats `'default'`/absent identically as "omit `--model`, defer
+ * to the CLI's own config" — that is the one place this decision is made; duplicating the check
+ * here would only be a second copy of it to keep in sync.
  *
  * @param input.bindToken - The current tab's page-control bind token, or `undefined` if unbound.
+ * @param input.model - The Local CLI picker's live model selection, or `undefined` before a
+ *   selection has resolved (e.g. no agents detected yet).
  * @returns The context object to merge into a run's `contextRef`.
  * @example
- * const context = resolveRunContext({ bindToken: agentBridge?.bindToken() });
+ * const context = resolveRunContext({ bindToken: agentBridge?.bindToken(), model: selection.model });
  */
-export function resolveRunContext({ bindToken }: { bindToken: string | undefined }): { frontendBindToken?: string } {
-  return bindToken === undefined ? {} : { frontendBindToken: bindToken };
+export function resolveRunContext(
+  { bindToken, model }: { bindToken: string | undefined; model?: string },
+): { frontendBindToken?: string; model?: string } {
+  return {
+    ...(bindToken === undefined ? {} : { frontendBindToken: bindToken }),
+    ...(typeof model === "string" && model.length > 0 ? { model } : {}),
+  };
 }
 
 export interface AssistantDockProps {
@@ -503,8 +663,13 @@ export interface AssistantDockProps {
 }
 
 export function AssistantDock({ agentBridge = null, useChats = useWiredAssistantChats }: AssistantDockProps) {
-  const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey } = useExecutionConfig();
+  const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded } = useExecutionConfig();
   const { byokRuntime, handleByokModelChange } = useByokRuntime({ executionConfig, setExecutionConfig });
+  const { localCliSelection, handleLocalCliSelectionChange } = useLocalCliSelection({
+    executionConfig,
+    setExecutionConfig,
+    configLoaded,
+  });
 
   // The transport holds no per-render state; rebuilding it each render would drop in-flight runs.
   const transport = useMemo(
@@ -591,10 +756,14 @@ export function AssistantDock({ agentBridge = null, useChats = useWiredAssistant
    *
    * Depends on `agentBridge` identity rather than reading a ref: the bridge object is stable for
    * the tab's lifetime, so this rebuilds only when page control genuinely appears or goes away.
+   * Also depends on `localCliSelection.model` (not the whole `localCliSelection` object, which
+   * would rebuild on every keystroke-equivalent picker interaction that leaves the model alone)
+   * so a run started right after a model pick carries it — `useLocalCliSelection` owns the
+   * picker's live value, and this is the one place that value needs to leave React state.
    */
   const runContext = useMemo(
-    () => () => resolveRunContext({ bindToken: agentBridge?.bindToken() }),
-    [agentBridge],
+    () => () => resolveRunContext({ bindToken: agentBridge?.bindToken(), model: localCliSelection.model }),
+    [agentBridge, localCliSelection.model],
   );
 
   return (
@@ -608,7 +777,12 @@ export function AssistantDock({ agentBridge = null, useChats = useWiredAssistant
         key={chats.paneKey}
         transport={transport}
         runtimeAccess={runtimeAccess}
-        initialSelection={{ agentId: "claude" }}
+        // Fully controlled (`selection`/`onSelectionChange`), not `initialSelection` — see
+        // `useLocalCliSelection`'s own doc for why an uncontrolled prop can't be hydrated from
+        // the ledger's async load. `useLocalCliSelection` starts at the same `{agentId: "claude"}`
+        // this literal used to hardcode, then hydrates once the ledger settles.
+        selection={localCliSelection}
+        onSelectionChange={handleLocalCliSelectionChange}
         {...(chats.activeId ? { conversationId: chats.activeId } : {})}
         initialMessages={chats.initialMessages}
         // The Local CLI / API · BYOK row (`AgentRuntimePicker`, `@jini-ai/chat`) — previously

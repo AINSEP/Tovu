@@ -28,6 +28,9 @@ vi.mock("@jini-ai/chat/react", () => ({
     byokRuntime: { model: string; providerLabel?: string };
     onExecutionModeChange: (mode: "local" | "api") => void;
     onByokModelChange: (model: string) => void;
+    selection?: { agentId: string; model?: string };
+    onSelectionChange?: (selection: { agentId: string; model?: string }) => void;
+    runContext?: () => { model?: string; frontendBindToken?: string };
   }) => {
     chatPaneSpy(props);
     return (
@@ -37,6 +40,12 @@ vi.mock("@jini-ai/chat/react", () => ({
         </button>
         <button type="button" onClick={() => props.onByokModelChange("gpt-5")}>
           pick-model
+        </button>
+        <button
+          type="button"
+          onClick={() => props.onSelectionChange?.({ agentId: "claude", model: "claude-sonnet-5" })}
+        >
+          pick-local-model
         </button>
       </div>
     );
@@ -68,6 +77,7 @@ import {
   shouldPublishOnMessagesChange,
   useByokRuntime,
   useExecutionConfig,
+  useLocalCliSelection,
 } from "../AssistantDock";
 import {
   DEFAULT_EXECUTION_CONFIG,
@@ -96,6 +106,13 @@ function byokConfig(overrides: Partial<ExecutionConfig["byok"]> = {}): Execution
     ...DEFAULT_EXECUTION_CONFIG,
     mode: "byok",
     byok: { ...DEFAULT_EXECUTION_CONFIG.byok, apiKey: "sk-test", ...overrides },
+  };
+}
+
+function localCliConfig(overrides: Partial<ExecutionConfig["localCli"]> = {}): ExecutionConfig {
+  return {
+    ...DEFAULT_EXECUTION_CONFIG,
+    localCli: { ...DEFAULT_EXECUTION_CONFIG.localCli, ...overrides },
   };
 }
 
@@ -249,6 +266,31 @@ describe("useExecutionConfig", () => {
     ));
     // The optimistic switch itself is not rolled back on a save failure.
     expect(result.current.executionConfig.mode).toBe("byok");
+  });
+
+  it("configLoaded starts false and flips true once the mount-load settles successfully", async () => {
+    const { result } = renderHook(() => useExecutionConfig());
+    expect(result.current.configLoaded).toBe(false);
+
+    await waitFor(() => expect(result.current.configLoaded).toBe(true));
+  });
+
+  it("configLoaded still flips true when the mount-load rejects — settled, not succeeded", async () => {
+    mockLoadExecutionConfig.mockRejectedValue(new Error("server down"));
+    const { result } = renderHook(() => useExecutionConfig());
+
+    await waitFor(() => expect(result.current.configLoaded).toBe(true));
+  });
+
+  it("configLoaded stays false while the load is still in flight", async () => {
+    mockLoadExecutionConfig.mockReturnValue(new Promise(() => {})); // never resolves
+    const { result } = renderHook(() => useExecutionConfig());
+
+    // Give any microtask queue a chance to run before asserting the negative.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(result.current.configLoaded).toBe(false);
   });
 });
 
@@ -422,6 +464,134 @@ describe("useByokRuntime", () => {
   });
 });
 
+describe("useLocalCliSelection", () => {
+  it("starts at the hardcoded { agentId: 'claude' } default before the ledger has settled", () => {
+    const { result } = renderHook(() =>
+      useLocalCliSelection({
+        executionConfig: DEFAULT_EXECUTION_CONFIG,
+        setExecutionConfig: vi.fn(),
+        configLoaded: false,
+      }),
+    );
+
+    expect(result.current.localCliSelection).toEqual({ agentId: "claude" });
+  });
+
+  it("hydrates once configLoaded flips true, from executionConfig.localCli", () => {
+    const config = localCliConfig({ agentId: "codex", modelByAgentId: { codex: "o3" } });
+    const { result, rerender } = renderHook(
+      ({ configLoaded }) => useLocalCliSelection({ executionConfig: config, setExecutionConfig: vi.fn(), configLoaded }),
+      { initialProps: { configLoaded: false } },
+    );
+    expect(result.current.localCliSelection).toEqual({ agentId: "claude" });
+
+    rerender({ configLoaded: true });
+
+    expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "o3" });
+  });
+
+  it("hydrates to the hardcoded default when the ledger has nothing saved (agentId null)", () => {
+    const { result, rerender } = renderHook(
+      ({ configLoaded }) =>
+        useLocalCliSelection({ executionConfig: DEFAULT_EXECUTION_CONFIG, setExecutionConfig: vi.fn(), configLoaded }),
+      { initialProps: { configLoaded: false } },
+    );
+
+    rerender({ configLoaded: true });
+
+    expect(result.current.localCliSelection).toEqual({ agentId: "claude" });
+  });
+
+  it("does not re-hydrate on a later, unrelated executionConfig change — applies the ledger value at most once", () => {
+    const first = localCliConfig({ agentId: "codex", modelByAgentId: { codex: "o3" } });
+    const { result, rerender } = renderHook(
+      ({ executionConfig }) =>
+        useLocalCliSelection({ executionConfig, setExecutionConfig: vi.fn(), configLoaded: true }),
+      { initialProps: { executionConfig: first } },
+    );
+    expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "o3" });
+
+    // A later, unrelated write (e.g. a BYOK model change) changes `executionConfig` identity but
+    // leaves `localCli` alone — this must not re-run the hydration and stomp an operator's own
+    // subsequent pick (not exercised directly here, but the guard is what protects it).
+    const second = { ...first, byok: { ...first.byok, model: "gpt-5" } };
+    rerender({ executionConfig: second });
+
+    expect(result.current.localCliSelection).toEqual({ agentId: "codex", model: "o3" });
+  });
+
+  it("does not overwrite an operator's own pick made before the ledger's GET settles", () => {
+    const { result, rerender } = renderHook(
+      ({ configLoaded }) =>
+        useLocalCliSelection({ executionConfig: DEFAULT_EXECUTION_CONFIG, setExecutionConfig: vi.fn(), configLoaded }),
+      { initialProps: { configLoaded: false } },
+    );
+
+    act(() => result.current.handleLocalCliSelectionChange({ agentId: "gemini", model: "gemini-2.5-pro" }));
+    expect(result.current.localCliSelection).toEqual({ agentId: "gemini", model: "gemini-2.5-pro" });
+
+    // The GET resolves late, with a DIFFERENT saved selection — must not silently revert the pick
+    // the operator already made, same race `useExecutionConfig`'s own `localWriteRef` guards.
+    rerender({ configLoaded: true });
+
+    expect(result.current.localCliSelection).toEqual({ agentId: "gemini", model: "gemini-2.5-pro" });
+  });
+
+  it("persists a pick through saveExecutionConfig, keyed by the newly selected agent", () => {
+    const config = DEFAULT_EXECUTION_CONFIG;
+    const setExecutionConfig = stubSetExecutionConfig(config);
+    const { result } = renderHook(() =>
+      useLocalCliSelection({ executionConfig: config, setExecutionConfig, configLoaded: true }),
+    );
+
+    act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "claude-sonnet-5" }));
+
+    expect(result.current.localCliSelection).toEqual({ agentId: "claude", model: "claude-sonnet-5" });
+    expect(mockSaveExecutionConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        localCli: { agentId: "claude", modelByAgentId: { claude: "claude-sonnet-5" } },
+      }),
+      config,
+    );
+  });
+
+  it("reverting to no explicit model (undefined) persists an empty string for that agent, not a dropped key", () => {
+    const config = localCliConfig({ agentId: "claude", modelByAgentId: { claude: "claude-sonnet-5" } });
+    const setExecutionConfig = stubSetExecutionConfig(config);
+    const { result } = renderHook(() =>
+      useLocalCliSelection({ executionConfig: config, setExecutionConfig, configLoaded: true }),
+    );
+
+    act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude" }));
+
+    expect(mockSaveExecutionConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ localCli: { agentId: "claude", modelByAgentId: { claude: "" } } }),
+      config,
+    );
+  });
+
+  it("logs rather than throwing when the selection-change save rejects", async () => {
+    mockSaveExecutionConfig.mockRejectedValue(new Error("write failed"));
+    const config = DEFAULT_EXECUTION_CONFIG;
+    const setExecutionConfig = stubSetExecutionConfig(config);
+    const { result } = renderHook(() =>
+      useLocalCliSelection({ executionConfig: config, setExecutionConfig, configLoaded: true }),
+    );
+
+    act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "claude-sonnet-5" }));
+
+    await waitFor(() =>
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "[AssistantDock] failed to save Local CLI selection",
+        expect.any(Error),
+      ),
+    );
+    // The optimistic UI pick itself is not rolled back on a save failure — same posture as
+    // `useByokRuntime`'s equivalent test.
+    expect(result.current.localCliSelection).toEqual({ agentId: "claude", model: "claude-sonnet-5" });
+  });
+});
+
 describe("shouldPublishOnMessagesChange", () => {
   it("does not publish on an empty transcript", () => {
     expect(shouldPublishOnMessagesChange({ messages: [], settledRunMessageId: null })).toEqual({
@@ -477,6 +647,22 @@ describe("resolveRunContext", () => {
 
   it("carries the bind token through when one exists", () => {
     expect(resolveRunContext({ bindToken: "tok-123" })).toEqual({ frontendBindToken: "tok-123" });
+  });
+
+  it("carries the live model selection through when one exists", () => {
+    expect(resolveRunContext({ bindToken: undefined, model: "sonnet" })).toEqual({ model: "sonnet" });
+  });
+
+  it("omits model entirely when absent — including the empty-string case", () => {
+    expect(resolveRunContext({ bindToken: undefined, model: undefined })).toEqual({});
+    expect(resolveRunContext({ bindToken: undefined, model: "" })).toEqual({});
+  });
+
+  it("carries bindToken and model together without either shadowing the other", () => {
+    expect(resolveRunContext({ bindToken: "tok-123", model: "opus" })).toEqual({
+      frontendBindToken: "tok-123",
+      model: "opus",
+    });
   });
 });
 
@@ -538,5 +724,53 @@ describe("AssistantDock", () => {
       expect(chatPaneSpy).toHaveBeenLastCalledWith(expect.objectContaining({ executionMode: "api" })),
     );
     expect(mockSaveExecutionConfig).toHaveBeenCalled();
+  });
+
+  it("a Local CLI model pick round-trips into the next run's context — the dropdown actually works", async () => {
+    const user = userEvent.setup();
+    render(<AssistantDock useChats={() => fakeChats()} />);
+    await waitFor(() => expect(chatPaneSpy).toHaveBeenCalled());
+
+    await user.click(screen.getByRole("button", { name: "pick-local-model" }));
+
+    await waitFor(() => {
+      const lastProps = chatPaneSpy.mock.calls.at(-1)?.[0] as { runContext: () => { model?: string } };
+      expect(lastProps.runContext()).toEqual(expect.objectContaining({ model: "claude-sonnet-5" }));
+    });
+  });
+
+  it("a Local CLI model pick from the rendered picker also persists through saveExecutionConfig", async () => {
+    const user = userEvent.setup();
+    render(<AssistantDock useChats={() => fakeChats()} />);
+    await waitFor(() => expect(chatPaneSpy).toHaveBeenCalled());
+
+    await user.click(screen.getByRole("button", { name: "pick-local-model" }));
+
+    await waitFor(() =>
+      expect(mockSaveExecutionConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          localCli: expect.objectContaining({ agentId: "claude", modelByAgentId: { claude: "claude-sonnet-5" } }),
+        }),
+        expect.anything(),
+      ),
+    );
+  });
+
+  it("hydrates ChatPane's controlled selection from the ledger once the config load resolves — survives a reload", async () => {
+    mockLoadExecutionConfig.mockResolvedValue(
+      localCliConfig({ agentId: "codex", modelByAgentId: { codex: "o3" } }),
+    );
+    render(<AssistantDock useChats={() => fakeChats()} />);
+
+    // Before the ledger settles: the dock still shows the hardcoded starting point, not a blank
+    // or undefined selection — matches `useLocalCliSelection`'s own "no synthetic loading gate"
+    // design (a fully controlled prop, not `initialSelection`).
+    expect(chatPaneSpy).toHaveBeenCalledWith(expect.objectContaining({ selection: { agentId: "claude" } }));
+
+    await waitFor(() =>
+      expect(chatPaneSpy).toHaveBeenLastCalledWith(
+        expect.objectContaining({ selection: { agentId: "codex", model: "o3" } }),
+      ),
+    );
   });
 });
