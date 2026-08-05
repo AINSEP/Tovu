@@ -1,13 +1,37 @@
-# search_tools real-caller compliance — trace + method design (milestone 1 of 2)
+# search_tools real-caller compliance — final state (session ended 2026-08-05)
 
 Session: 2026-08-05, TestRunner (Execution), dispatched by team-lead (Coordinator, Claude Opus 5).
 Task origin: measure REAL compliance with commit `0f397a4`'s "descriptive query, not keywords"
 instruction, for both live callers of `search_tools`, and re-derive retrieval numbers at the real
 rate — not the ceiling numbers the commit shipped with (blind caller-simulator, ~100% compliance
-by construction).
+by construction). Written to be readable with no other context from this session.
 
-**Status: caller trace complete. Zero live calls spent so far, per the brief's gate.** This is the
-required check-in before spending any of them.
+## Executive summary
+
+- **Caller 2 (spawned local CLI): n=25 complete.** 24/25 cases (96%, 95% CI ±7.7pp → [88%, 100%])
+  called `search_tools` at least once. Of the 35 total calls made, 35/35 (100%) used descriptive
+  phrasing under the mechanical criterion below (rule-of-three 95% upper bound on the true
+  non-compliance rate: ≤8.6%). **1/25 cases never called `search_tools` at all** — a failure mode
+  invisible to every prior measurement in this workstream. Retrieval scored on the real captured
+  queries: **top-1 56%, top-3 84%, top-5 88%, found@10 92%** (n=25) — see the side-by-side table
+  below against the reported ceiling (72/83/89/96, a DIFFERENT n=130 blind-simulator set; not
+  directly comparable statistically, but the closest available reference).
+- **Caller 1 (BYOK/Gemini): n=0. Not started.** Approved by the Coordinator (`gemini-2.5-flash`)
+  but the session ended before it began; per explicit instruction, no live spend was started this
+  late. Method is fully designed (below) and ready to run in a future session.
+- **Three things to hold onto, not just read once:**
+  1. Caller 2's shipped fix (`0f397a4`) was incomplete on its own: the spawned CLI carried a live
+     contradiction between its system-overlay instruction (descriptive) and the separate
+     `@jini-ai/mcp` package's tool schema (still "by keyword"). The owner fixed the schema
+     mid-session (`Jini` repo commit `eeb71733`).
+  2. **The n=25 coherent-state number above was measured AFTER `eeb71733`.** Do not compare it
+     against any pre-fix figure — no valid pre-fix number exists in this report or anywhere else
+     this session produced.
+  3. **"Which instruction wins" was never actually tested.** Every run in this session's history
+     landed on the coherent side of the fix's timing boundary by chance of when the harness
+     happened to execute, not by design. The few-shot-beats-prose hypothesis (that the schema's
+     "navigate page"/"fill form" examples would out-pull the system overlay's prose) is therefore
+     **untested, not disproven** — do not cite this session as evidence either way.
 
 ## Headline finding: caller 2's fix is incomplete — the model sees two conflicting instructions
 
@@ -249,3 +273,67 @@ not a blocker for sequential execution.)
 
 Raw output: `ADS-memory/.local-artifacts/caller2-pilot/run-output.log`. Harness:
 `ADS-memory/.local-artifacts/caller2-pilot/pilot-harness.ts`.
+
+## Milestone 3: caller-2 n=25, COHERENT state, complete
+
+**All 25 cases measured after commit `eeb71733` (schema fix), on 2026-08-05, 12:01-12:31 PDT.**
+Naming this explicitly per your Action 3 — do not compare this number against any pre-fix figure as
+though conditions matched; there is no valid pre-fix (conflicted-state) number in this report, only
+the withdrawn n=3 framing above.
+
+Batch 1 (3 cases, from the pilot, retroactively confirmed coherent-state) + batch 2 (22 new cases,
+run with the live-field freshness check passing first) = 25 total. Same harness both batches
+(`pilot-harness.ts`), same real components (real tool registry, real `jini-mcp` subprocess spawned
+fresh per run — confirmed serving the live fixed schema via `import()`, not raw-text grep — real
+local `claude` CLI, real system-overlay text). Sequential, as agreed (17-minute estimate held: actual
+16.2 minutes across both batches). Batch 2 raw output:
+`ADS-memory/.local-artifacts/caller2-pilot/run-output-batch2.log`.
+
+### Headline numbers
+
+- **24/25 cases (96%) called `search_tools` at least once.**
+- **1/25 cases (4%) never called `search_tools` at all** — `content-update` ("rewrite the whole
+  about page here's the new text"), 4.7s, zero tool calls, run reported `succeeded`. This is
+  failure mode #4 from your brief ("did not call search_tools at all," invisible to every prior
+  measurement). Plausible read: the request supplies no actual replacement text ("here's the new
+  text" with nothing after it), so the model likely responded by asking what the new text should
+  be rather than searching for a tool — the harness doesn't capture the model's own text output,
+  only tool calls, so this is a plausible read, not a confirmed one. Flagging as exactly the kind
+  of case worth a follow-up that DOES capture the text response, not asserting the explanation.
+- **35 total `search_tools` calls across the 24 calling cases** (mean 1.46 calls/case; several
+  cases called it 2-3 times — a self-refinement pattern, not a failure).
+- **35/35 calls (100%) used descriptive phrasing.** Zero used keyword-style phrasing matching the
+  old schema's "navigate page"/"fill form" register. Every captured query names an object + action
+  with synonyms, in documentation-style prose (e.g. "list saved site backups or snapshots that were
+  previously created, showing their timestamps and contents").
+
+### Reading this number correctly
+
+This is **not** a measurement of "does the model resist a bad instruction" — the bad instruction is
+gone. It is a measurement of "given the current (coherent, single-instruction) production setup,
+does a real locally-spawned CLI comply with the descriptive-phrasing ask, mid-task, with a real
+user request competing for its attention." On that question: yes, at 100% of calls made, with a 96%
+call rate overall (i.e., compliance is high both on whether it searches at all and on how it
+phrases the query when it does).
+
+**Caveat on generality:** this is one CLI def (`claude`), one model (whatever the local `claude`
+binary defaults to — not pinned or recorded by this harness, which is a gap worth naming: a
+follow-up should capture the resolved model id), and 25 single-turn, single-request cases with no
+prior conversation history. Real chat sessions carry more competing context (prior turns, other
+instructions) than a fresh run does, so this may still be an optimistic estimate of steady-state
+production compliance rather than a true floor.
+
+### Open question this run cannot answer
+
+The owner's own fix commit (`eeb71733`, source comment at
+`Jini/packages/mcp/src/server/tools/tool-catalog-tools.ts:44-48`) states as justification: *"a
+two-word example is a stronger signal than any prose instruction, [and] it also silently overrode
+the descriptive guidance a host server may inject upstream (a host's agent-daemon systemOverlay did
+exactly that, and lost)."* That is a direct claim that, under the CONFLICTED state, the keyword
+schema beat the system overlay. I have no data of my own to confirm or refute that — the fix landed
+before any of my runs, so I never captured a genuine conflicted-state measurement (see the boundary
+check above). Recording this as an open discrepancy rather than silently letting the owner's claim
+stand unexamined or silently letting my own withdrawn "system overlay won" framing linger — neither
+is verified. If reproducing the conflicted state is ever wanted again (e.g., for a postmortem), it
+would require deliberately checking out the pre-`eeb71733` state of the `Jini` repo, which is a
+repo-history operation the owner would need to authorize.
