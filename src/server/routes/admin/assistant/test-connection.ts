@@ -1,5 +1,6 @@
 import { testProviderConnection, type ConnectionTestResponse } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/public-assistant-settings";
+import { resolveSiteAssistantApiKey } from "#src/assistant/site-credential-store";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { AssistantExecutionRouteRegistrar } from "./execution-deps";
 
@@ -11,6 +12,8 @@ interface TestConnectionRequestBody {
   apiKey?: unknown;
   model?: unknown;
   apiVersion?: unknown;
+  /** Opt in to testing with the workspace's STORED site credential instead of a key in this body. */
+  useStoredCredential?: unknown;
 }
 
 function renderMessage(result: ConnectionTestResponse): string {
@@ -62,7 +65,6 @@ export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteR
       const body = (req.body ?? {}) as TestConnectionRequestBody;
       const protocol = typeof body.protocol === "string" ? body.protocol : "";
       const baseUrl = typeof body.baseUrl === "string" ? body.baseUrl : "";
-      const apiKey = typeof body.apiKey === "string" ? body.apiKey : "";
       const model = typeof body.model === "string" ? body.model : "";
       const apiVersion = typeof body.apiVersion === "string" ? body.apiVersion : undefined;
 
@@ -76,6 +78,20 @@ export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteR
       if (!baseUrl.trim() || !model.trim()) {
         res.status(400).json({ error: "baseUrl and model are required", code: "VALIDATION_ERROR" });
         return;
+      }
+
+      // A typed key wins; otherwise, only on explicit opt-in, use the workspace's stored site
+      // credential. See `list-models.ts`'s note on why this must stay opt-in rather than "empty key
+      // ⇒ use the stored one" — this route is shared with Settings → Execution mode, whose key is a
+      // DIFFERENT credential, and an implicit fallback would cross that boundary silently.
+      const typedKey = typeof body.apiKey === "string" ? body.apiKey : "";
+      let apiKey = typedKey;
+      if (!apiKey.trim() && body.useStoredCredential === true) {
+        const stored = await resolveSiteAssistantApiKey(
+          { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
+          { workspaceId: deps.workspaceId }
+        );
+        apiKey = stored?.apiKey ?? "";
       }
 
       const result = await testProviderConnection({

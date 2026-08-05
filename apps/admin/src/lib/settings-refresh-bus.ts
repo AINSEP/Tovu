@@ -8,7 +8,7 @@
  * the tree:
  *
  * 1. `components/AssistantDock.tsx` — an assistant run finished, and it may have called
- *    `settings_set_ui_preference`. The dock and `sections/SettingsUi.tsx` are siblings under
+ *    `settings_set_ui_preference`. The dock and `features/settings/SettingsUi.tsx` are siblings under
  *    `App.tsx` with no shared state between them.
  * 2. `lib/settings-events.ts` — the server pushed a change over SSE, which is how a write made in
  *    ANOTHER tab, by another operator, or by a background process arrives.

@@ -20,6 +20,14 @@ import type { RouteDeps } from "../../types";
  * `siteAssistantSecretKeyring`) need no matching `*Ready` promise — see their own doc comments on
  * `RouteDeps` for why.
  *
+ * The admin-BYOK-keystore design (`ADS-memory/reports/analysis/2026-08-05-admin-byok-keystore-
+ * design.md`, owner-approved) folds its own 3 registrars (`get-execution-credential.ts`,
+ * `put-execution-credential.ts`, `delete-execution-credential.ts`) in here too, for the identical
+ * reason. Those 3 routes need no `authorize()`/`ADMIN_ASSISTANT_PERMISSION` check — the row is
+ * scoped to `(workspaceId, getAuthedPrincipal(res).id)`, so there is no OTHER admin's data a session
+ * could reach even without an extra permission gate — but they still need `adminExecutionCredentialRepo`
+ * for the same reason the site-credential trio needs `siteAssistantCredentialRepo`.
+ *
  * Deliberately NOT folded into `server/modules/assistant.ts`. That module is the session-gated
  * reverse proxy in front of the agent-daemon process and shares none of these dependencies — it
  * holds no repo at all. Sharing a module would couple a settings CRUD pair to a streaming proxy's
@@ -37,6 +45,7 @@ export type AssistantSettingsRouteDeps = Pick<
   | "siteAssistantCredentialRepo"
   | "siteAssistantSecretSealer"
   | "siteAssistantSecretKeyring"
+  | "adminExecutionCredentialRepo"
 >;
 
 export type AssistantSettingsRouteRegistrar = (app: Express, deps: AssistantSettingsRouteDeps) => void;

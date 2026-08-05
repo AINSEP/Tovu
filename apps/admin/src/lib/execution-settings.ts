@@ -11,24 +11,50 @@
  *    ADR-028 single write chokepoint). `src/assistant/execution-mode-
  *    settings.ts` registers these definitions at server boot.
  *
- * 2. **Credential storage (the ADR-028 §6 gate).** ADR-028 §6 is normative:
- *    `registerDefinitions` REJECTS any `secret:true` definition until the
- *    Integrations/secret-store ADR lands, and registering the raw API key as
- *    a plain (non-secret) string definition would be worse — it would sit in
- *    plaintext in the ledger's append-only `setting_revisions` table
- *    forever, with no redaction path. So the API key — for the active
- *    selection AND every OTHER provider's saved draft
- *    (`ByokConfig.savedByProviderId`) — lives in this browser's own
- *    `localStorage` instead, and is never sent to Tovu's settings routes.
- *    This mirrors Open Design's OWN real security model exactly (trace §1:
- *    `state/config.ts`'s `STORAGE_KEY = 'open-design:config'`, a plaintext
- *    localStorage blob the daemon never persists server-side) rather than
- *    inventing a new server-side secret store. The key still leaves the
- *    browser on every connection test / model-discovery / real-dispatch
- *    call — that is unavoidable for a BYOK feature — but it goes straight
- *    into a per-request POST body to `src/server/modules/assistant-
- *    execution.ts`'s routes, which use it for exactly one outbound call and
- *    write it nowhere.
+ * 2. **Credential storage — now server-side, write-only (2026-08-05).**
+ *    Superseded design note, kept because the reasoning still explains why
+ *    the key is NOT a `core.execution` ledger field: ADR-028 §6 rejects any
+ *    `secret:true` definition, and a plain-string definition would sit in
+ *    the ledger's append-only `setting_revisions` table in plaintext
+ *    forever. That gap is why the key used to live in this browser's own
+ *    `localStorage`. It no longer does — `admin_execution_credentials`
+ *    (design: `ADS-memory/reports/analysis/2026-08-05-admin-byok-keystore-
+ *    design.md`, owner-approved) is a real, encrypted, write-only
+ *    server-side store, one row per `(workspace, this admin)`, reusing
+ *    ADR-058's sealer. `apps/admin/src/lib/api.ts`'s `getAdminExecutionCredential`/
+ *    `setAdminExecutionCredential` are the routes; {@link loadAdminExecutionCredential}/
+ *    {@link saveAdminExecutionCredential} below are the wrappers.
+ *
+ *    The move changes two things this file has to account for:
+ *    - **Write-only means no read-back.** `loadExecutionConfig`'s `byok.apiKey`
+ *      is now ALWAYS `""` — the server never returns key material, so there is
+ *      nothing to hydrate it with. A caller that needs to know "is a key
+ *      already stored" reads {@link loadAdminExecutionCredential}'s `isSet`
+ *      separately; it is not merged into `ExecutionConfig`.
+ *    - **The key must not ride the debounced ledger auto-save.** `saveExecutionConfig`
+ *      below no longer persists `apiKey` anywhere — see that function's own
+ *      doc for why. A destructive incident already happened once from
+ *      exactly this shape (a 900ms-debounced auto-save on the VISITOR key
+ *      screen encrypted a half-typed stub over a live production key,
+ *      `ADS-memory/reports/refactors/2026-08-04-handoff-admin-byok-and-
+ *      visitor-key-ui.md`'s "Two mistakes I made" §1). The fix there was an
+ *      explicit Save button; the fix here is structural — this file's
+ *      generic save path physically cannot write the key, so there is
+ *      nothing for a debounce to accidentally trigger. Only an explicit
+ *      caller of {@link saveAdminExecutionCredential} (the "Save key" control
+ *      both `SettingsUi.tsx` and `AiAssistant.tsx`'s `AdminExecutionMode`
+ *      render) can persist it.
+ *    - **The key must survive a RELOAD, not just avoid being sent by one.** Excluding `apiKey`
+ *      from the debounced write is not sufficient on its own: `useSettingsSlice`'s `refresh()` — an
+ *      out-of-band re-read triggered by the settings-changed SSE feed, including a same-tab echo of
+ *      this slice's OWN write — replaces the WHOLE in-memory value with whatever `loadExecutionConfig`
+ *      returns, and that is always `apiKey: ""`. {@link reconcileExecutionConfigRefresh} closes that
+ *      second hole; see its own doc for the exact sequence that used to wipe a typed key out from
+ *      under the operator mid-edit.
+ *
+ *    `readLegacyLocalCredential`/`clearLegacyLocalCredential` below exist
+ *    ONLY for the one-time rollout prompt migrating an admin's pre-existing
+ *    `localStorage` key to the server — see their own docs.
  *
  * 3. **The port.** `ExecutionPort` is the tab's async edge (agent detection,
  *    connection test, model discovery). All three methods now call real
@@ -36,8 +62,8 @@
  *    `createExecutionPort` below.
  */
 
-import { api, ApiError, type SettingScope } from "./api";
-import type { ByokConfig, ByokProviderCredentials, ExecutionConfig, ExecutionPort } from "@jini-ai/ui";
+import { api, ApiError, type AdminExecutionCredential, type AdminExecutionCredentialPatch, type SettingScope } from "./api";
+import type { ByokConfig, ExecutionConfig, ExecutionPort } from "@jini-ai/ui";
 
 /** SPEC-007 namespace holding every NON-SECRET execution-mode key. No
  *  `byok.apiKey` here — see this file's header, item 2. */
@@ -69,63 +95,117 @@ const MAX_TOKENS_UNSET_SENTINEL = 0;
  *  choice doesn't silently become every workspace's. */
 const SCOPE: SettingScope = "workspace";
 
-/** `localStorage` key for the credential half (API keys only) — deliberately
- *  named/shaped so it is obvious on inspection that this is BYOK credential
- *  material living client-side by design, not an accidental leak. */
-const CREDENTIALS_STORAGE_KEY = "tovu:execution-credentials:v1";
+/** The PRE-server-store `localStorage` key this admin's browser may still hold — read-only from
+ *  here on. Same literal key `readStoredCredentials`/`writeStoredCredentials` used before the
+ *  server-side store shipped, kept unchanged so an admin's existing browser data is still found.
+ *  Never written to again by this file; see {@link readLegacyLocalCredential}. */
+const LEGACY_CREDENTIALS_STORAGE_KEY = "tovu:execution-credentials:v1";
 
-interface StoredCredentials {
-  /** The active selection's API key. */
-  apiKey: string;
-  /** Every OTHER provider's last-saved credentials, keyed by preset id —
-   *  mirrors `ByokConfig.savedByProviderId`, but this copy is the source of
-   *  truth for `apiKey` (the ledger never sees it); `baseUrl`/`model`/
-   *  `maxTokens` here are a convenience cache of the same non-secret values
-   *  the ledger could in principle hold per-provider, kept alongside the key
-   *  so a provider's draft round-trips as one unit instead of split across
-   *  two stores.
-   */
-  savedByProviderId: Record<string, ByokProviderCredentials>;
-}
-
-const EMPTY_STORED_CREDENTIALS: StoredCredentials = { apiKey: "", savedByProviderId: {} };
-
-function readStoredCredentials(): StoredCredentials {
+/**
+ * One-time migration read: does this browser still hold a pre-server-store API key?
+ *
+ * Read-only and side-effect-free — callers use this ONLY to decide whether to show the "we found a
+ * saved key in this browser — save it to your account?" prompt (owner-approved rollout, design
+ * doc §6). Deliberately does NOT clear or upload anything itself: the two failure modes the design
+ * explicitly rules out are auto-upload (sending a secret the admin never took an in-the-moment
+ * action to send) and auto-clear (silently breaking BYOK for an admin who hasn't opened the
+ * screen). Both are avoided by construction here — this function only ever reads.
+ *
+ * `savedByProviderId` (other providers' drafts) is deliberately not read or migrated — scoped out
+ * of v1 per the design doc's owner-flagged item; only the ACTIVE key is worth a migration prompt.
+ *
+ * @returns The stored `apiKey`, trimmed, or `null` when there is nothing to migrate (absent,
+ *   malformed, or blank). `null` is also what a browser that has already migrated (or never had a
+ *   local key) returns — the caller cannot and does not need to distinguish those cases.
+ * @complexity O(1) — one `localStorage` read plus a JSON parse.
+ * @overallScore 100
+ */
+export function readLegacyLocalCredential(): string | null {
   try {
-    const raw = window.localStorage.getItem(CREDENTIALS_STORAGE_KEY);
-    if (!raw) return EMPTY_STORED_CREDENTIALS;
-    const parsed = JSON.parse(raw) as Partial<StoredCredentials>;
-    return {
-      apiKey: typeof parsed.apiKey === "string" ? parsed.apiKey : "",
-      savedByProviderId:
-        parsed.savedByProviderId && typeof parsed.savedByProviderId === "object" ? parsed.savedByProviderId : {},
-    };
+    const raw = window.localStorage.getItem(LEGACY_CREDENTIALS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { apiKey?: unknown };
+    const apiKey = typeof parsed.apiKey === "string" ? parsed.apiKey.trim() : "";
+    return apiKey.length > 0 ? apiKey : null;
   } catch {
-    // Malformed/absent localStorage (private-browsing quota errors, a hand-edited value, a
-    // pre-this-feature empty profile) all fall back to "no credentials yet" rather than throwing —
-    // the same defensive posture `loadExecutionConfig` takes for a cold-start ledger namespace.
-    return EMPTY_STORED_CREDENTIALS;
+    // Malformed/inaccessible localStorage (private-browsing quota errors, a hand-edited value)
+    // reads as "nothing to migrate" rather than throwing — the prompt is a convenience, not a
+    // guarantee, and a parse failure here must not block the rest of the screen from rendering.
+    return null;
   }
 }
 
 /**
- * PROPAGATES on failure (error-reporting contract §1/§4) — a quota-exceeded or
- * disabled-storage write must never look like a successful save. This is the
- * ONE place an operator's just-typed API key can be lost, so it is not
- * absorbed: `saveExecutionConfig` lets this throw straight through to its own
- * caller, which is `SettingsUi.tsx`'s existing `.catch(...)` into the
- * save-status indicator's `{status:'error'}` state — the same path a failed
- * ledger write already reports through.
+ * Clears the pre-server-store `localStorage` entry.
+ *
+ * Callers MUST only invoke this after a confirmed successful {@link saveAdminExecutionCredential}
+ * call for the SAME key — never speculatively, never on a failed save (design doc §6: "only after
+ * that PUT succeeds does the code clear the localStorage entry"). This function itself has no way
+ * to enforce that ordering; it is a plain, unconditional clear, and the caller's sequencing is what
+ * makes it safe. See the migration-prompt component for the enforced order.
+ *
+ * @complexity O(1).
+ * @overallScore 100
  */
-function writeStoredCredentials(next: StoredCredentials): void {
+export function clearLegacyLocalCredential(): void {
   try {
-    window.localStorage.setItem(CREDENTIALS_STORAGE_KEY, JSON.stringify(next));
-  } catch (error) {
-    throw new Error(
-      `Could not save the API key to this browser's storage (${error instanceof Error ? error.message : String(error)}). ` +
-        "It was NOT saved — private-browsing mode or a full storage quota can cause this. Try again or use a different browser profile.",
-    );
+    window.localStorage.removeItem(LEGACY_CREDENTIALS_STORAGE_KEY);
+  } catch {
+    // Best-effort. A browser that cannot clear localStorage could not have written it moments ago
+    // either — this is not a new failure mode, and swallowing it here matches
+    // `readLegacyLocalCredential`'s own defensive posture rather than surfacing a confusing error
+    // after the part the admin actually cares about (the server save) already succeeded.
   }
+}
+
+/**
+ * Reads the calling admin's OWN stored BYOK credential view — `isSet`/`masked`/the non-secret
+ * fields, never the key. Thin wrapper so callers do not reach into `api.ts` directly; mirrors
+ * `loadExecutionConfig`'s role for the ledger half.
+ *
+ * Deliberately NOT merged into `ExecutionConfig`/`loadExecutionConfig`: the ledger's
+ * `byok.protocol`/`baseUrl`/`model`/`maxTokens` are the live, currently-selected values an
+ * operator sees and edits every time they open Execution mode, while this store's copy of those
+ * same fields is a snapshot from whenever the key was last explicitly saved — used server-side
+ * only as the turn-execution fallback for a browser with an empty key field. Merging the two would
+ * let a stale snapshot silently overwrite a live ledger value the admin has not saved yet.
+ *
+ * @complexity O(1) — one GET.
+ * @overallScore 100
+ */
+export async function loadAdminExecutionCredential(): Promise<AdminExecutionCredential> {
+  return (await api.getAdminExecutionCredential()).data;
+}
+
+/**
+ * Explicit-only save for the admin's own BYOK credential. NEVER called from
+ * {@link saveExecutionConfig}'s debounced ledger path — see this file's header, item 2, for why
+ * that separation exists. Every caller of this function must be a deliberate operator action (a
+ * "Save key" button press), not a side effect of editing an unrelated field.
+ *
+ * `apiKey` omitted leaves the stored key untouched (the server's own contract); an empty string is
+ * rejected server-side (400) rather than silently ignored, matching `SiteAssistantCredentialPatch`.
+ *
+ * @complexity O(1) — one PUT.
+ * @overallScore 100
+ */
+export async function saveAdminExecutionCredential(
+  patch: AdminExecutionCredentialPatch,
+): Promise<AdminExecutionCredential> {
+  return (await api.setAdminExecutionCredential(patch)).data;
+}
+
+/** A key exists — either just typed in this form, or already stored on the server. Both make the
+ *  BYOK runtime picker and the probe controls meaningful, which is the only thing they need to
+ *  decide. Mirrors `features/ai-assistant/rules.ts`'s identical `hasUsableKey`, generalized over
+ *  just the one field every caller here actually has (`isSet`) since `AdminExecutionCredential`
+ *  and `SiteAssistantCredential` are otherwise differently shaped.
+ *
+ * @complexity O(1).
+ * @overallScore 100
+ */
+export function hasUsableAdminKey(apiKey: string, stored: { isSet: boolean } | null): boolean {
+  return Boolean(apiKey.trim()) || stored?.isSet === true;
 }
 
 export const DEFAULT_EXECUTION_CONFIG: ExecutionConfig = {
@@ -145,11 +225,13 @@ function asString(value: unknown, fallback: string): string {
 }
 
 /**
- * Reads the non-secret ledger namespace plus the localStorage credential
- * half, and merges them into one `ExecutionConfig`. Unknown/missing ledger
- * keys fall back to `DEFAULT_EXECUTION_CONFIG` field by field, so a
- * partially written namespace still yields a usable config instead of
- * throwing.
+ * Reads the non-secret ledger namespace and returns it as an `ExecutionConfig`. Unknown/missing
+ * ledger keys fall back to `DEFAULT_EXECUTION_CONFIG` field by field, so a partially written
+ * namespace still yields a usable config instead of throwing.
+ *
+ * `byok.apiKey` is ALWAYS `""` — the key is write-only server-side (this file's header, item 2),
+ * so there is nothing to hydrate it with. A caller that needs to know whether a credential is
+ * already stored must call {@link loadAdminExecutionCredential} separately and read its `isSet`.
  */
 export async function loadExecutionConfig(): Promise<ExecutionConfig> {
   let rows: Awaited<ReturnType<typeof api.getSettingsEffective>>["data"];
@@ -170,7 +252,6 @@ export async function loadExecutionConfig(): Promise<ExecutionConfig> {
   const rawProtocol = byKey.get(KEYS.protocol);
   const rawLocalCliAgentId = asString(byKey.get(KEYS.localCliAgentId), "").trim();
   const rawLocalCliModel = asString(byKey.get(KEYS.localCliModel), "").trim();
-  const credentials = readStoredCredentials();
 
   return {
     mode: rawMode === "local-cli" || rawMode === "byok" ? rawMode : defaults.mode,
@@ -190,15 +271,16 @@ export async function loadExecutionConfig(): Promise<ExecutionConfig> {
           : typeof rawProviderId === "string"
             ? rawProviderId
             : defaults.byok.providerId,
-      apiKey: credentials.apiKey,
+      // Write-only — see this function's own doc. Never anything but "", regardless of whether a
+      // credential is stored server-side.
+      apiKey: "",
       baseUrl: asString(byKey.get(KEYS.baseUrl), defaults.byok.baseUrl),
       model: asString(byKey.get(KEYS.model), defaults.byok.model),
       ...(typeof rawMaxTokens === "number" && rawMaxTokens !== MAX_TOKENS_UNSET_SENTINEL
         ? { maxTokens: rawMaxTokens }
         : {}),
-      ...(Object.keys(credentials.savedByProviderId).length > 0
-        ? { savedByProviderId: credentials.savedByProviderId }
-        : {}),
+      // `savedByProviderId` (other providers' drafts) is scoped out of v1 — see this file's
+      // header. Never populated; a host storing it would need its own per-provider server rows.
     },
     localCli: {
       // `""` is the ledger's "nothing picked yet" (a non-null default is
@@ -260,18 +342,18 @@ function changedLedgerEntries(
   return pairs.filter((pair) => pair.changed).map(({ key, valueJson }) => ({ key, valueJson }));
 }
 
-function credentialsEqual(a: StoredCredentials, b: StoredCredentials): boolean {
-  return a.apiKey === b.apiKey && JSON.stringify(a.savedByProviderId) === JSON.stringify(b.savedByProviderId);
-}
-
 /**
- * Writes only the non-secret ledger fields that actually changed, and
- * refreshes the localStorage credential half whenever the API key or any
- * saved-provider draft changed. Returns the LEDGER keys written (for "saved"
- * UI feedback) — a credential-only change (e.g. just typing an API key with
- * no other field touched) is reported as saved too, even though it wrote no
- * ledger revision, since from the operator's point of view something was
- * persisted either way.
+ * Writes only the non-secret ledger fields that actually changed. Returns the ledger keys written,
+ * for "saved" UI feedback.
+ *
+ * Deliberately does NOT touch `next.byok.apiKey` at all, in either direction — no read, no write,
+ * no comparison against `previous`. This is the function `useSettingsSlice`'s 600ms debounce calls
+ * on every settled edit (`use-settings-slice.hooks.ts`), including a keystroke in the API-key
+ * field that changed nothing else — see this file's header, item 2, for why the key must never be
+ * reachable from that path. The practical effect: typing into the key field alone produces an
+ * empty `changed` list here and writes nothing, which is the SAFE no-op this function's silence on
+ * `apiKey` is meant to guarantee, not an oversight. Persisting the key is
+ * {@link saveAdminExecutionCredential}'s job, called only from an explicit "Save key" action.
  */
 export async function saveExecutionConfig(
   next: ExecutionConfig,
@@ -281,26 +363,40 @@ export async function saveExecutionConfig(
   for (const { key, valueJson } of changed) {
     await api.setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: SCOPE, valueJson });
   }
+  return changed.map((entry) => entry.key);
+}
 
-  const nextCredentials: StoredCredentials = {
-    apiKey: next.byok.apiKey,
-    savedByProviderId: (next.byok.savedByProviderId as Record<string, ByokProviderCredentials> | undefined) ?? {},
-  };
-  const previousCredentials: StoredCredentials = {
-    apiKey: previous.byok.apiKey,
-    savedByProviderId: (previous.byok.savedByProviderId as Record<string, ByokProviderCredentials> | undefined) ?? {},
-  };
-  const credentialsChanged = !credentialsEqual(nextCredentials, previousCredentials);
-  if (credentialsChanged) {
-    writeStoredCredentials(nextCredentials);
-  }
-
-  const writtenKeys = changed.map((entry) => entry.key);
-  // Not a real ledger key — a synthetic marker so callers see "something was
-  // saved" when only the browser-local credential half changed (e.g. typing
-  // an API key with every other field untouched), without implying a ledger
-  // revision was written for it.
-  return credentialsChanged ? [...writtenKeys, "byok.apiKey (browser-local)"] : writtenKeys;
+/**
+ * `useSettingsSlice`'s `reconcileRefresh` option for the Execution slice — preserves the operator's
+ * in-memory, typed-but-not-yet-explicitly-saved `byok.apiKey` across a `refresh()`-triggered reload.
+ *
+ * `loadExecutionConfig` always returns `byok.apiKey: ""` (this file's header, item 2 — the server
+ * never returns key material), and `refresh()` fires on ANY out-of-band notification — including a
+ * same-tab echo of THIS SLICE'S OWN debounced write arriving back over the settings-changed SSE feed
+ * (`settings-events.ts`; `src/server/routes/admin/settings/events.ts` broadcasts to every open
+ * connection for the workspace on a ~1s poll, the writer's own tab included, with no self-exclusion).
+ *
+ * The failure this prevents: an operator types a key, then edits a ledger field (baseUrl, model,
+ * ...) in the same 600ms window. The settled debounce calls {@link saveExecutionConfig}, which
+ * persists the ledger field and correctly ignores `apiKey`. `refresh()`'s own guards
+ * (`use-settings-slice.hooks.ts`) see no pending timer and no unsaved edit once that save resolves —
+ * by design, since the edit WAS saved, just not the key half of it — so when the SSE echo of that
+ * same write arrives moments later, `refresh()` proceeds and would otherwise overwrite `value` with
+ * the reload's `apiKey: ""`, silently discarding the typed key before the operator can reach the
+ * explicit "Save key" control. Measured as: type a key, wait ~600ms, and the field goes empty and
+ * "Save key" disables itself with no operator action in between.
+ *
+ * Preserving the in-memory key across every reload is correct precisely because
+ * {@link saveExecutionConfig} never persists it in the first place (this file's header, item 2) — a
+ * reload can never be "more current" about a field it never wrote or read, so `loaded`'s empty value
+ * carries no information worth keeping. Every OTHER `byok`/`localCli`/`mode` field still takes the
+ * reload's value unconditionally, same as a slice with no reconciler at all.
+ *
+ * @complexity O(1).
+ * @overallScore 100
+ */
+export function reconcileExecutionConfigRefresh(current: ExecutionConfig, loaded: ExecutionConfig): ExecutionConfig {
+  return { ...loaded, byok: { ...loaded.byok, apiKey: current.byok.apiKey } };
 }
 
 /**
@@ -373,7 +469,29 @@ export function resetLocalAgentDetectionCache(): void {
   cachedDetection = null;
 }
 
-export function createExecutionPort(): ExecutionPort {
+export interface CreateExecutionPortOptions {
+  /**
+   * When `true`, probes that receive no typed API key ask the server to use the workspace's STORED
+   * site credential instead.
+   *
+   * For the AI Assistant tab, whose key is encrypted server-side and write-only: the operator
+   * returns to a screen with a saved, working key and an EMPTY field, so "Test connection" and model
+   * discovery had nothing to send and sat permanently disabled next to a credential that works.
+   *
+   * Left `false` for Settings → Execution mode, and that default is the safety property, not an
+   * oversight: that screen probes the ADMIN's own credential (server-side since 2026-08-05, but
+   * still a DIFFERENT stored row from the site's), a different purpose from this flag entirely. If
+   * it opted in, an empty field there would silently probe — and report results for — the visitor
+   * key, crossing the boundary ADR-058 §5 makes structural. (The admin's OWN stored fallback for a
+   * BYOK *turn* is unconditional and happens entirely server-side in `assistant-byok.ts` — this
+   * flag only ever concerns the SITE credential these `test-connection`/`list-models` probes can
+   * optionally fall back to.)
+   */
+  useStoredCredential?: boolean;
+}
+
+export function createExecutionPort(options: CreateExecutionPortOptions = {}): ExecutionPort {
+  const { useStoredCredential = false } = options;
   return {
     async detectLocalAgents() {
       return cachedDetection ?? cacheDetection(requestAgentDetection());
@@ -389,6 +507,7 @@ export function createExecutionPort(): ExecutionPort {
         baseUrl: config.baseUrl,
         apiKey: config.apiKey,
         model: config.model,
+        ...(useStoredCredential ? { useStoredCredential: true } : {}),
       });
     },
     async testAgent(agentId: string, model?: string | undefined) {
@@ -403,6 +522,7 @@ export function createExecutionPort(): ExecutionPort {
         protocol: config.protocol,
         baseUrl: config.baseUrl,
         apiKey: config.apiKey,
+        ...(useStoredCredential ? { useStoredCredential: true } : {}),
       });
       // `result.ok === false` here is ALWAYS "discovery could not reach/read the
       // provider" (auth failure, timeout, blocked base URL, unsupported protocol)

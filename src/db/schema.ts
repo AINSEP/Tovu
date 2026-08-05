@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /**
  * @file Drizzle schema for the per-site content.db (code-first, ADR-006/ADR-012).
@@ -1262,6 +1262,69 @@ export const siteAssistantCredentials = sqliteTable(
   (table) => [
     check(
       "site_assistant_credentials_sealed_shape",
+      sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL AND ${table.masked} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL AND ${table.masked} IS NOT NULL)`
+    ),
+  ]
+);
+
+/**
+ * The ADMIN's own BYOK credential (design: `ADS-memory/reports/analysis/2026-08-05-admin-byok-
+ * keystore-design.md`, owner-approved) — one row per `(workspace_id, principal_id)`, powering the
+ * admin assistant dock's "API · BYOK" execution mode (ADR-049, `server/modules/assistant-byok.ts`).
+ * NOT `siteAssistantCredentials` above — that one is per-WORKSPACE and backs the PUBLIC visitor
+ * assistant; this one is per-admin and backs that admin's own dock. Different scope, different
+ * consumer, on purpose — see that table's own header for why the two must never merge.
+ *
+ * Scoped to `(workspace_id, principal_id)` rather than `workspace_id` alone because the credential
+ * it replaces (`apps/admin/src/lib/execution-settings.ts`'s browser-`localStorage` key) is
+ * per-BROWSER today: two admins on the same install already carry independent keys, and collapsing
+ * to one shared workspace key would let one admin's save silently overwrite another's. The
+ * `(workspaceId, principalId)` composite-key shape mirrors `settingValuesUser` above — the existing
+ * precedent for "belongs to one admin, in one workspace" data — minus a `settingId` column, since
+ * (like `siteAssistantCredentials`) this is a single-row-per-scope shape, not a per-key ledger.
+ *
+ * Unlike `settingValuesUser`'s `principal_id` (whose comment says identity has no SQL table to
+ * reference), `principals` below IS a real SQL table with a real adapter today — that comment
+ * predates it — so `principal_id` here carries a genuine FK.
+ *
+ * Sealed via the SAME `AesGcmSecretSealer`/`KeyringPort` instances ADR-058 wires (reused, not
+ * re-derived — `SecretSealerPort` is a generic seal/open primitive; it does not need a second
+ * domain-separation boundary per table). Sealed-shape CHECK copied verbatim from
+ * `site_assistant_credentials_sealed_shape`.
+ */
+export const adminExecutionCredentials = sqliteTable(
+  "admin_execution_credentials",
+  {
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principals.id, { onDelete: "cascade" }),
+    /** "anthropic" | "openai" | "azure" | "google" — matches `ResolvedByokCredential.protocol`. */
+    protocol: text("protocol").notNull().default("anthropic"),
+    /** Preset id (e.g. `"anthropic"`); NULL = a custom endpoint. Mirrors `ByokConfig.providerId`. */
+    providerId: text("provider_id"),
+    baseUrl: text("base_url"),
+    model: text("model"),
+    maxTokens: integer("max_tokens"),
+    /** `SealedSecret.keyId`; NULL iff no key stored. */
+    sealedKeyId: text("sealed_key_id"),
+    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag`. */
+    sealedCiphertext: text("sealed_ciphertext"),
+    /** Base64 12-byte AES-GCM IV. */
+    sealedNonce: text("sealed_nonce"),
+    /** Always `'aes-256-gcm'` today. */
+    sealedAlg: text("sealed_alg"),
+    /** `••••<last 4 chars>`, precomputed at write time — same convention as ADR-058 §3. */
+    masked: text("masked"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.principalId] }),
+    check(
+      "admin_execution_credentials_sealed_shape",
       sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL AND ${table.masked} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL AND ${table.masked} IS NOT NULL)`
     ),
   ]

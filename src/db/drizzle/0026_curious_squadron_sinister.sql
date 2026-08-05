@@ -1,0 +1,20 @@
+CREATE TABLE `admin_execution_credentials` (
+	`workspace_id` text NOT NULL,
+	`principal_id` text NOT NULL,
+	`protocol` text DEFAULT 'anthropic' NOT NULL,
+	`provider_id` text,
+	`base_url` text,
+	`model` text,
+	`max_tokens` integer,
+	`sealed_key_id` text,
+	`sealed_ciphertext` text,
+	`sealed_nonce` text,
+	`sealed_alg` text,
+	`masked` text,
+	`created_at` text NOT NULL,
+	`updated_at` text NOT NULL,
+	PRIMARY KEY(`workspace_id`, `principal_id`),
+	FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`principal_id`) REFERENCES `principals`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "admin_execution_credentials_sealed_shape" CHECK(("admin_execution_credentials"."sealed_key_id" IS NULL AND "admin_execution_credentials"."sealed_ciphertext" IS NULL AND "admin_execution_credentials"."sealed_nonce" IS NULL AND "admin_execution_credentials"."sealed_alg" IS NULL AND "admin_execution_credentials"."masked" IS NULL) OR ("admin_execution_credentials"."sealed_key_id" IS NOT NULL AND "admin_execution_credentials"."sealed_ciphertext" IS NOT NULL AND "admin_execution_credentials"."sealed_nonce" IS NOT NULL AND "admin_execution_credentials"."sealed_alg" IS NOT NULL AND "admin_execution_credentials"."masked" IS NOT NULL))
+);

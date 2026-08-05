@@ -67,6 +67,68 @@ export interface PublicAssistantSettings {
   publicEnabled: boolean;
 }
 
+/**
+ * Mirrors `src/assistant/site-credential-store.ts`'s `SiteAssistantCredentialView` (ADR-058) — the
+ * SITE's provider credential, the one a DEPLOYED server uses to answer anonymous visitors.
+ *
+ * Write-only by design: there is no field here that could carry key material back to the browser,
+ * and that is the point rather than an omission. `isSet` answers "is a key stored", `masked` answers
+ * "which one" (last 4 characters behind `••••`), and neither is reversible. If a future route ever
+ * needs to return the key itself, it needs its own type — do not widen this one.
+ */
+export interface SiteAssistantCredential {
+  isSet: boolean;
+  masked: string | null;
+  provider: string;
+  baseUrl: string | null;
+  model: string | null;
+  updatedAt: string | null;
+}
+
+/** PUT body for the site credential. Every field is optional and OMITTED MEANS "leave alone" — an
+ *  absent `apiKey` preserves the stored key, which is what lets a caller persist a model or base-URL
+ *  change without re-sending the secret. An empty-string `apiKey` is REJECTED by the server (400);
+ *  clearing the key is `deleteAssistantSiteCredential`, not an empty PUT. */
+export interface SiteAssistantCredentialPatch {
+  apiKey?: string;
+  provider?: string;
+  baseUrl?: string;
+  model?: string;
+}
+
+/**
+ * Mirrors `src/assistant/execution-credential-store.ts`'s `AdminExecutionCredentialView` — the
+ * ADMIN's OWN BYOK credential, scoped to `(workspace, this admin)`. A DIFFERENT credential from
+ * {@link SiteAssistantCredential} (that one is per-workspace and answers anonymous visitors; this
+ * one is per-admin and only ever powers this admin's own dock/Execution-mode BYOK). See
+ * `execution-credential-store.ts`'s file header for why the two must never merge.
+ *
+ * Write-only by design, same as `SiteAssistantCredential`: no field here can carry key material
+ * back to the browser. `protocol`/`providerId`/`baseUrl`/`model`/`maxTokens` mirror `ByokConfig`
+ * (minus `apiKey`/`savedByProviderId`) so the stored view maps onto the form with no translation.
+ */
+export interface AdminExecutionCredential {
+  isSet: boolean;
+  masked: string | null;
+  protocol: string;
+  providerId: string | null;
+  baseUrl: string | null;
+  model: string | null;
+  maxTokens: number | null;
+  updatedAt: string | null;
+}
+
+/** PUT body for the admin's own execution credential. Same "omitted means leave alone, empty
+ *  `apiKey` is rejected" contract as {@link SiteAssistantCredentialPatch} — see that type's doc. */
+export interface AdminExecutionCredentialPatch {
+  apiKey?: string;
+  protocol?: string;
+  providerId?: string | null;
+  baseUrl?: string;
+  model?: string;
+  maxTokens?: number;
+}
+
 /** Mirrors `src/seo/types.ts`'s `SeoSettings`/`RobotsRule` (SPEC-008). */
 export interface RobotsRule {
   userAgent: string;
@@ -1095,7 +1157,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify({}),
     }),
-  testExecutionConnection: (input: { protocol: string; baseUrl: string; apiKey: string; model: string; apiVersion?: string }) =>
+  // `useStoredCredential` opts a probe into the workspace's encrypted server-side site credential
+  // when `apiKey` is empty — for the AI Assistant tab, whose key is write-only and so genuinely
+  // absent from the browser. Opt-in per request, never implicit: Settings → Execution mode sends a
+  // DIFFERENT (browser-local) key and must never fall through to the site's.
+  testExecutionConnection: (input: {
+    protocol: string;
+    baseUrl: string;
+    apiKey: string;
+    model: string;
+    apiVersion?: string;
+    useStoredCredential?: boolean;
+  }) =>
     request<{ ok: boolean; message: string }>(`/workspaces/${WORKSPACE_ID}/assistant/execution/test-connection`, {
       method: "POST",
       body: JSON.stringify(input),
@@ -1105,7 +1178,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  listExecutionModels: (input: { protocol: string; baseUrl: string; apiKey: string; apiVersion?: string }) =>
+  listExecutionModels: (input: {
+    protocol: string;
+    baseUrl: string;
+    apiKey: string;
+    apiVersion?: string;
+    useStoredCredential?: boolean;
+  }) =>
     request<{ ok: boolean; models: string[]; message?: string }>(`/workspaces/${WORKSPACE_ID}/assistant/execution/models`, {
       method: "POST",
       body: JSON.stringify(input),
@@ -1159,6 +1238,39 @@ export const api = {
     request<{ data: PublicAssistantSettings }>(`/workspaces/${WORKSPACE_ID}/assistant/settings`, {
       method: "PUT",
       body: JSON.stringify(patch),
+    }),
+  // The SITE's encrypted provider credential (ADR-058) — a DIFFERENT key from the browser-local one
+  // `lib/execution-settings.ts` keeps for this admin's own assistant, and the whole reason these three
+  // routes exist. All three return the same write-only `{ data: SiteAssistantCredential }` view;
+  // none of them can return key material. `PUT` additionally answers `503 SECRET_STORE_UNCONFIGURED`
+  // when the server has no `TOVU_INTEGRATIONS_ROOT_KEY` — a fail-closed operator error, not a bug,
+  // and one screens must translate rather than show raw (see `features/ai-assistant/AiAssistant.tsx`).
+  getAssistantSiteCredential: () =>
+    request<{ data: SiteAssistantCredential }>(`/workspaces/${WORKSPACE_ID}/assistant/site-credential`),
+  setAssistantSiteCredential: (patch: SiteAssistantCredentialPatch) =>
+    request<{ data: SiteAssistantCredential }>(`/workspaces/${WORKSPACE_ID}/assistant/site-credential`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    }),
+  deleteAssistantSiteCredential: () =>
+    request<{ data: SiteAssistantCredential }>(`/workspaces/${WORKSPACE_ID}/assistant/site-credential`, {
+      method: "DELETE",
+    }),
+  // The ADMIN's own encrypted provider credential — a DIFFERENT key from the site one directly
+  // above, scoped to this admin rather than the workspace. Same write-only `{ data }` envelope and
+  // the same `503 SECRET_STORE_UNCONFIGURED` PUT failure mode. See `lib/execution-settings.ts` for
+  // the caller-facing wrapper (explicit save only — never called from the debounced ledger-slice
+  // auto-save path a typed key would otherwise ride along with).
+  getAdminExecutionCredential: () =>
+    request<{ data: AdminExecutionCredential }>(`/workspaces/${WORKSPACE_ID}/assistant/execution-credential`),
+  setAdminExecutionCredential: (patch: AdminExecutionCredentialPatch) =>
+    request<{ data: AdminExecutionCredential }>(`/workspaces/${WORKSPACE_ID}/assistant/execution-credential`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    }),
+  deleteAdminExecutionCredential: () =>
+    request<{ data: AdminExecutionCredential }>(`/workspaces/${WORKSPACE_ID}/assistant/execution-credential`, {
+      method: "DELETE",
     }),
   getSeoSettings: () => request<{ data: SeoSettings }>(`/workspaces/${WORKSPACE_ID}/seo/settings`),
   setSeoSettings: (options: Partial<SeoSettings> = {}) =>
