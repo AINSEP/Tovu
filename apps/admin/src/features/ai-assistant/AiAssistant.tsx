@@ -17,7 +17,7 @@ import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
 import { useAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { useAiAssistant } from "./hooks/use-ai-assistant.hooks";
-import { useVisitorCredentialForm } from "./hooks/use-visitor-credential-form.hooks";
+import { useVisitorCredentialForm, type VisitorCredentialFormController } from "./hooks/use-visitor-credential-form.hooks";
 
 /**
  * @file "AI Assistant" admin screen — the `/admin/ai-assistant` route. Markup only.
@@ -306,11 +306,147 @@ function AdminExecutionMode({ useAdminExecutionModeHook = useAdminExecutionMode 
  * `describeApiError` translates it into copy that tells the operator their key is fine and the
  * server is not.
  */
+/** The "test it, see what it allows, know it saved" trio directly under the key field — the Save
+ *  button, the Test Key button, and the discovery/save status lines. Split out of
+ *  `VisitorCredentialForm` per the complexity-pass extraction rule: this block alone accounted for
+ *  nearly all of the parent's branches (the Save/Test-Key `disabled` conditions, the three
+ *  discovery-status lines, the five save-state lines), so pulling it into its own top-level
+ *  component — mirroring `AdminExecutionMode`'s own `AdminByokKeyFooter` split immediately above in
+ *  this same file — is what actually moved the parent's score, not just its ESLint per-closure one. */
+type VisitorCredentialKeyFooterProps = Pick<
+  VisitorCredentialFormController,
+  "config" | "dirty" | "saveState" | "stored" | "hasStoredKey" | "hasUsableKey" | "discovery" | "saveCredential" | "runKeyTest"
+>;
+
+/** The status span next to the Save/Test Key buttons — one of three mutually exclusive messages
+ *  keyed on `discovery.status`. Pulled to a top-level pure function, same reasoning as
+ *  `visitorCredentialApiKeyPlaceholder` above: it was three sibling ternaries in the footer's JSX,
+ *  now one independently testable decision. */
+export function visitorCredentialKeyStatusMessage(discovery: VisitorCredentialFormController["discovery"]): string | null {
+  if (discovery.status === "ok") return `Key works — ${discovery.models.length} models available.`;
+  if (discovery.status === "idle") return "Checks the key against the provider and lists the models it can use.";
+  if (discovery.status === "loading") return "Asking the provider which models this key allows…";
+  return null;
+}
+
+/** Save's status line — whether the last edit reached the server, and nothing else. One of five
+ *  mutually exclusive messages keyed on `saveState.status` (plus `dirty`/`stored` for the three
+ *  "idle" variants), pulled to a top-level pure function for the same reason as
+ *  {@link visitorCredentialKeyStatusMessage} above.
+ *
+ *  The "WHICH key is stored" question lives in the field's own masked placeholder
+ *  ({@link visitorCredentialApiKeyPlaceholder}), which is where an operator looks for it. That mask
+ *  went through a full round trip of being removed and restored during design, so the conclusion is
+ *  worth recording here too: it is a deliberate, bounded disclosure — without it the field is blank
+ *  and cannot distinguish "nothing was ever saved" from "a key is saved and working", an ambiguity
+ *  worse than four characters. */
+export function visitorCredentialSaveStatusMessage(
+  saveState: VisitorCredentialFormController["saveState"],
+  dirty: boolean,
+  stored: VisitorCredentialFormController["stored"],
+): string | null {
+  if (saveState.status === "saving") return "Saving…";
+  if (saveState.status === "saved") return "Saved to the server, encrypted.";
+  if (saveState.status !== "idle") return null;
+  if (dirty) return "Not saved yet — press Save.";
+  if (stored?.isSet) return "Stored on the server, encrypted. Paste a new key to replace it.";
+  return "Paste your key, check it with Show, then press Save.";
+}
+
+export function VisitorCredentialKeyFooter({
+  config,
+  dirty,
+  saveState,
+  stored,
+  hasStoredKey,
+  hasUsableKey,
+  discovery,
+  saveCredential,
+  runKeyTest,
+}: VisitorCredentialKeyFooterProps) {
+  return (
+    <div className="assistant-key-footer">
+      <div className="assistant-key-actions">
+        {/* The ONLY control that writes a credential on this screen. Disabled until something
+            actually changed, so it never offers to re-write the values the server just sent. */}
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => void saveCredential()}
+          disabled={!dirty || saveState.status === "saving" || (!config.apiKey.trim() && !hasStoredKey)}
+        >
+          {saveState.status === "saving" ? "Saving…" : "Save"}
+        </button>
+        {/*
+          An explicit "Test Key" control, in addition to the debounced automatic discovery
+          above. Two reasons, and the second is the important one:
+
+          1. The automatic path only fires against a PRESET-supplied endpoint (see the security
+             gate above). For a custom or hand-typed base URL, this button is the only way to
+             discover models — and being an explicit, deliberate press is exactly what makes
+             sending the credential to an operator-chosen host acceptable there.
+          2. Even on a preset endpoint, "type a key and wait for a list to appear" is a weak
+             affordance: nothing tells the operator whether the key was accepted, rejected, or
+             simply not looked at yet. A button that reports a count answers the question they
+             actually have, which is "is this key any good?"
+        */}
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => void runKeyTest()}
+          // `hasUsableKey`, not `config.apiKey.trim()`. A stored key is a perfectly testable
+          // key — the server has it even though this field is empty — and disabling the
+          // control told the operator their working credential could not be checked.
+          disabled={!hasUsableKey || discovery.status === "loading"}
+        >
+          {discovery.status === "loading" ? "Testing…" : "Test Key"}
+        </button>
+        <span className="assistant-key-status" role="status">{visitorCredentialKeyStatusMessage(discovery)}</span>
+      </div>
+
+      {discovery.status === "error" ? <div className="save-error">{discovery.message}</div> : null}
+
+      {/*
+        No model picker here any more, deliberately.
+
+        This slot briefly carried a "Model for visitors" select listing the discovered models,
+        because the shared form's Model field was a text input backed by a `<datalist>` — and a
+        datalist stays invisible until the operator types, so a successful 42-model discovery
+        showed them an empty box. That worked, but it put a SECOND control for `config.model`
+        on the screen: the same value, editable in two places, four fields apart.
+
+        Fixed upstream instead. `ByokProviderForm`'s own Model field now renders a real
+        searchable picker whenever live discovery returns models (falling back to the text
+        input + datalist when it does not), so there is one model control again — and the
+        Settings screen gained the same fix rather than only this one.
+      */}
+
+      {/* Save's status line — see `visitorCredentialSaveStatusMessage`'s own doc comment above for
+          the mask/placeholder reasoning. */}
+      <p className="assistant-save-line">{visitorCredentialSaveStatusMessage(saveState, dirty, stored)}</p>
+      {saveState.status === "error" ? <div className="save-error">{saveState.message}</div> : null}
+    </div>
+  );
+}
+
+/** The server's `••••<last 4>` shown IN the key field — which key is stored, answered where the
+ *  operator is already looking, instead of in a sentence underneath. `undefined` (no placeholder)
+ *  whenever nothing is stored or the server didn't send a mask.
+ *
+ *  Safe precisely BECAUSE it is a placeholder: `config.apiKey` stays empty, so `saveCredential`
+ *  omits `apiKey` entirely and the stored key is left alone. A pre-filled value here would be a
+ *  real value the save path would persist AS the key. Pulled to a top-level pure function per the
+ *  complexity-pass extraction rule — one of the few remaining branch points in
+ *  `VisitorCredentialForm` itself once {@link VisitorCredentialKeyFooter} moved out. */
+export function visitorCredentialApiKeyPlaceholder(stored: VisitorCredentialFormController["stored"]): string | undefined {
+  return stored?.isSet ? (stored.masked ?? undefined) : undefined;
+}
+
 interface VisitorCredentialFormProps {
   useVisitorCredentialFormHook?: typeof useVisitorCredentialForm;
 }
 
-function VisitorCredentialForm({ 
+export function VisitorCredentialForm({ 
   useVisitorCredentialFormHook = useVisitorCredentialForm 
 }: VisitorCredentialFormProps = {}) {
   const {
@@ -434,103 +570,19 @@ function VisitorCredentialForm({
         // "Test connection" stops being permanently disabled on a screen whose key lives on the
         // server. Only affects the emptiness check for `apiKey`; base URL and model still validate.
         apiKeyStoredExternally={stored?.isSet === true}
-        apiKeyPlaceholder={
-          /* The server's `••••<last 4>` shown IN the field — which key is stored, answered where the
-             operator is already looking, instead of in a sentence underneath.
-
-             Safe precisely BECAUSE it is a placeholder: `config.apiKey` stays empty, so `saveCredential`
-             omits `apiKey` entirely and the stored key is left alone. A pre-filled value here would be
-             a real value the save path would persist AS the key. */
-          stored?.isSet ? (stored.masked ?? undefined) : undefined
-        }
+        apiKeyPlaceholder={visitorCredentialApiKeyPlaceholder(stored)}
         apiKeyFooter={
-          <div className="assistant-key-footer">
-            <div className="assistant-key-actions">
-              {/* The ONLY control that writes a credential on this screen. Disabled until something
-                  actually changed, so it never offers to re-write the values the server just sent. */}
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => void saveCredential()}
-                disabled={!dirty || saveState.status === "saving" || (!config.apiKey.trim() && !hasStoredKey)}
-              >
-                {saveState.status === "saving" ? "Saving…" : "Save"}
-              </button>
-              {/*
-                An explicit "Test Key" control, in addition to the debounced automatic discovery
-                above. Two reasons, and the second is the important one:
-
-                1. The automatic path only fires against a PRESET-supplied endpoint (see the security
-                   gate above). For a custom or hand-typed base URL, this button is the only way to
-                   discover models — and being an explicit, deliberate press is exactly what makes
-                   sending the credential to an operator-chosen host acceptable there.
-                2. Even on a preset endpoint, "type a key and wait for a list to appear" is a weak
-                   affordance: nothing tells the operator whether the key was accepted, rejected, or
-                   simply not looked at yet. A button that reports a count answers the question they
-                   actually have, which is "is this key any good?"
-              */}
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => void runKeyTest()}
-                // `hasUsableKey`, not `config.apiKey.trim()`. A stored key is a perfectly testable
-                // key — the server has it even though this field is empty — and disabling the
-                // control told the operator their working credential could not be checked.
-                disabled={!hasUsableKey || discovery.status === "loading"}
-              >
-                {discovery.status === "loading" ? "Testing…" : "Test Key"}
-              </button>
-              <span className="assistant-key-status" role="status">
-                {discovery.status === "ok" ? `Key works — ${discovery.models.length} models available.` : null}
-                {discovery.status === "idle" ? "Checks the key against the provider and lists the models it can use." : null}
-                {discovery.status === "loading" ? "Asking the provider which models this key allows…" : null}
-              </span>
-            </div>
-
-            {discovery.status === "error" ? <div className="save-error">{discovery.message}</div> : null}
-
-            {/*
-              No model picker here any more, deliberately.
-
-              This slot briefly carried a "Model for visitors" select listing the discovered models,
-              because the shared form's Model field was a text input backed by a `<datalist>` — and a
-              datalist stays invisible until the operator types, so a successful 42-model discovery
-              showed them an empty box. That worked, but it put a SECOND control for `config.model`
-              on the screen: the same value, editable in two places, four fields apart.
-
-              Fixed upstream instead. `ByokProviderForm`'s own Model field now renders a real
-              searchable picker whenever live discovery returns models (falling back to the text
-              input + datalist when it does not), so there is one model control again — and the
-              Settings screen gained the same fix rather than only this one.
-            */}
-
-            {/*
-              Save's status line — whether the last edit reached the server, and nothing else.
-
-              The "WHICH key is stored" question moved into the field's own masked placeholder, which
-              is where an operator looks for it. That mask went through a full round trip of being
-              removed and restored during design, so the conclusion is worth recording: it is a
-              deliberate, bounded disclosure. Without it the field is blank and cannot distinguish
-              "nothing was ever saved" from "a key is saved and working" — an ambiguity worse than
-              four characters.
-
-              And the mask is a PLACEHOLDER, never a value. `config.apiKey` stays empty, so a save
-              omits `apiKey` and leaves the stored key alone; a pre-filled value would be a real
-              value the save path would persist AS the key.
-            */}
-            <p className="assistant-save-line">
-              {saveState.status === "saving" ? "Saving…" : null}
-              {saveState.status === "saved" ? "Saved to the server, encrypted." : null}
-              {saveState.status === "idle" && dirty ? "Not saved yet — press Save." : null}
-              {saveState.status === "idle" && !dirty && stored?.isSet
-                ? "Stored on the server, encrypted. Paste a new key to replace it."
-                : null}
-              {saveState.status === "idle" && !dirty && !stored?.isSet
-                ? "Paste your key, check it with Show, then press Save."
-                : null}
-            </p>
-            {saveState.status === "error" ? <div className="save-error">{saveState.message}</div> : null}
-          </div>
+          <VisitorCredentialKeyFooter
+            config={config}
+            dirty={dirty}
+            saveState={saveState}
+            stored={stored}
+            hasStoredKey={hasStoredKey}
+            hasUsableKey={hasUsableKey}
+            discovery={discovery}
+            saveCredential={saveCredential}
+            runKeyTest={runKeyTest}
+          />
         }
         />
       </section>
