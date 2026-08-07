@@ -6,7 +6,7 @@ import type { NodeViewProps } from "@tiptap/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../api";
-import { WidgetEmbed, WidgetEmbedInsertControl, WidgetEmbedNodeView } from "../widget-embed-extension";
+import { WidgetEmbed, WidgetEmbedInsertControl, WidgetEmbedNodeView, WidgetEmbedStatus, widgetTypeLabel } from "../widget-embed-extension";
 
 /**
  * @file First test file for `widget-embed-extension.tsx` (18.6% before this pass, no dedicated test
@@ -240,6 +240,50 @@ describe("WidgetEmbedNodeView", () => {
 
     const hidden = container.querySelector('input[type="hidden"]');
     expect(hidden).toHaveValue("placement-xyz");
+  });
+});
+
+// Direct tests for the two units pulled out of `WidgetEmbedNodeView` in the complexity pass
+// (cyc 12/cog 10 -> 6/3) — extracted to top-level so they're testable on their own, not just
+// through the parent's existing coverage above.
+describe("widgetTypeLabel", () => {
+  it("returns '' for null or undefined widget (still loading, or unresolvable)", () => {
+    expect(widgetTypeLabel(null)).toBe("");
+    expect(widgetTypeLabel(undefined)).toBe("");
+  });
+
+  it("resolves the WIDGET_TYPE_OPTIONS label for a known widgetType", () => {
+    expect(widgetTypeLabel(ACTIVE_WIDGET)).toBe("Text");
+  });
+
+  it("falls back to the raw widgetType string when it isn't in WIDGET_TYPE_OPTIONS", () => {
+    expect(widgetTypeLabel({ ...ACTIVE_WIDGET, widgetType: "retired-type" as unknown as typeof ACTIVE_WIDGET.widgetType })).toBe(
+      "retired-type",
+    );
+  });
+});
+
+describe("WidgetEmbedStatus", () => {
+  it("renders the loading notice when widget is undefined", () => {
+    render(<WidgetEmbedStatus widget={undefined} isBroken={false} typeLabel="" />);
+    expect(screen.getByText("Loading widget…")).toBeInTheDocument();
+  });
+
+  it("renders the broken label, with the last-known title if one resolved before breaking", () => {
+    render(<WidgetEmbedStatus widget={ACTIVE_WIDGET} isBroken={true} typeLabel="Text" />);
+    expect(screen.getByText(/Widget unavailable \(Hero text\)/)).toBeInTheDocument();
+  });
+
+  it("renders the broken label with no title suffix when widget is null", () => {
+    render(<WidgetEmbedStatus widget={null} isBroken={true} typeLabel="" />);
+    const label = screen.getByRole("img", { name: "Broken widget reference" });
+    expect(label).toHaveTextContent(/^⚠ Widget unavailable$/);
+  });
+
+  it("renders the resolved title and type label when not broken", () => {
+    render(<WidgetEmbedStatus widget={ACTIVE_WIDGET} isBroken={false} typeLabel="Text" />);
+    expect(screen.getByText("Hero text")).toBeInTheDocument();
+    expect(screen.getByText("(Text)")).toBeInTheDocument();
   });
 });
 
