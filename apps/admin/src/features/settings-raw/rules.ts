@@ -273,19 +273,32 @@ export function parseJsonInput(raw: string): { ok: true; value: unknown } | { ok
   }
 }
 
+/** Server error `code` -> a plain-language message, for every code on this screen whose message is
+ *  a fixed string. Same flat-lookup shape as `users/rules.ts` / `roles/rules.ts`'s
+ *  `describeApiError` (see their comments for why a table doesn't lose exhaustiveness here) — a
+ *  closed set of literal `code` strings, not a discriminated union, so there is no TypeScript
+ *  exhaustiveness to lose (contrast `translateRunAgentPayload`'s `switch`, which stays a `switch`
+ *  for exactly that reason). */
+const STATIC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  FORBIDDEN: "You do not have permission to do that.",
+  PRINCIPAL_NOT_FOUND: "That principal was not found in this workspace.",
+  SCOPE_NOT_ALLOWED: "This setting cannot be edited at that scope.",
+  DEFINITION_TOMBSTONED: "This setting has been retired.",
+  DEFINITION_NOT_FOUND: "This setting definition no longer exists.",
+};
+
 /** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`) — see that
  *  function's header for why per-screen codes stay local rather than one shared table.
+ *  `VALUE_VALIDATION_FAILED` stays its own branch rather than joining the table above: its message
+ *  comes from the error itself (`e.message`), not a fixed string a lookup table can hold.
  *
  * @complexity Time/space: O(1).
  */
 export function describeApiError(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
-    if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
-    if (e.code === "PRINCIPAL_NOT_FOUND") return "That principal was not found in this workspace.";
-    if (e.code === "SCOPE_NOT_ALLOWED") return "This setting cannot be edited at that scope.";
     if (e.code === "VALUE_VALIDATION_FAILED") return e.message || "That value did not validate.";
-    if (e.code === "DEFINITION_TOMBSTONED") return "This setting has been retired.";
-    if (e.code === "DEFINITION_NOT_FOUND") return "This setting definition no longer exists.";
+    const staticMessage = STATIC_ERROR_MESSAGES[e.code];
+    if (staticMessage) return staticMessage;
   }
   return describeApiErrorDefault(e, fallback);
 }
