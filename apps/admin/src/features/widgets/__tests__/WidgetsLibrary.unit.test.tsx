@@ -91,3 +91,35 @@ it("never opens the dialog when the first purge attempt succeeds outright", asyn
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   expect(screen.queryByText(/still used in/i)).not.toBeInTheDocument();
 });
+
+it("drops a purged row from the list once the reload comes back (server still includes purged rows under includeInactive)", async () => {
+  // `GET .../widgets?includeInactive=true` intentionally returns BOTH `trash` and `purged` rows
+  // (see src/server/routes/admin/widgets/list.ts's doc comment) — purge never hard-deletes the
+  // row (ADR-047 Amendment 4: "never deleted, only active⇄disabled"). So the reload triggered by
+  // a successful purge comes back still carrying the now-`purged` widget; the admin UI is
+  // responsible for not rendering rows in a terminal `purged` state.
+  const user = userEvent.setup();
+  fetchMock
+    .mockResolvedValueOnce(jsonResponse({ widgets: [WIDGET] }))
+    .mockResolvedValueOnce(jsonResponse({ widget: { ...WIDGET, status: "purged" } }))
+    .mockResolvedValueOnce(jsonResponse({ widgets: [{ ...WIDGET, status: "purged" }] }));
+
+  render(<WidgetsLibrary />);
+
+  await user.click(await screen.findByRole("button", { name: /delete permanently/i }));
+
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+  await waitFor(() => expect(screen.queryByText("Hero banner")).not.toBeInTheDocument());
+  expect(screen.getByText(/no widgets yet/i)).toBeInTheDocument();
+});
+
+it("keeps trash rows visible — only purged is filtered", async () => {
+  fetchMock.mockResolvedValueOnce(
+    jsonResponse({ widgets: [WIDGET, { ...WIDGET, id: "w2", title: "Purged one", status: "purged" as const }] })
+  );
+
+  render(<WidgetsLibrary />);
+
+  expect(await screen.findByText("Hero banner")).toBeInTheDocument();
+  expect(screen.queryByText("Purged one")).not.toBeInTheDocument();
+});
