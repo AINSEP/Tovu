@@ -1,9 +1,9 @@
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buildOptionId, computePosition, focusableInDomOrder, Select, useSelectDropdown, type SelectOption } from "../Select";
+import { Select, type SelectOption } from "../Select/Select";
 
 /**
  * @file `Select` — the custom searchable dropdown built to replace `WidgetPickerDialog.tsx`'s two
@@ -12,6 +12,10 @@ import { buildOptionId, computePosition, focusableInDomOrder, Select, useSelectD
  * filtering, full keyboard path, click-outside, and the two regressions a portaled floating panel
  * specifically risks — Escape bubbling to a host's own modal-cancel listener, and Tab landing
  * wherever the portal happens to sit in the DOM instead of wherever the trigger visually is.
+ *
+ * `buildOptionId`/`computePosition`/`focusableInDomOrder` and the `useSelectDropdown` hook's own
+ * state-shape tests moved to `Select.hooks.unit.test.tsx` when `Select.tsx` split into
+ * `Select.tsx`/`Select.hooks.tsx` — this file keeps only the tests that render the actual component.
  */
 
 const FEW_OPTIONS: SelectOption[] = [
@@ -452,158 +456,55 @@ describe("Select", () => {
   });
 });
 
-describe("buildOptionId", () => {
-  it("joins the listbox id and index with the component's fixed suffix", () => {
-    expect(buildOptionId("listbox-1", 3)).toBe("listbox-1-option-3");
-  });
-});
+describe("Select dropdown-hook injection", () => {
+  it("renders purely off an injected fake, proving useSelectDropdown is not hardcoded", () => {
+    // A fake that never opens a real portal or touches any of the real hook's DOM effects — if
+    // `Select` rendered off anything other than what this hook returns (e.g. called the real
+    // `useSelectDropdown` itself somewhere internally), the listbox below would never appear, since
+    // the real hook's `position` starts `null` until a `useLayoutEffect` measures the trigger.
+    const fakeOpenPanel = vi.fn();
+    const fakeClosePanel = vi.fn();
+    function useFakeDropdown() {
+      const triggerRef = useRef<HTMLButtonElement | null>(null);
+      const panelRef = useRef<HTMLDivElement | null>(null);
+      const searchInputRef = useRef<HTMLInputElement | null>(null);
+      const optionRefs = useRef<Map<number, HTMLLIElement>>(new Map());
+      return {
+        open: true,
+        query: "",
+        setQuery: vi.fn(),
+        highlightedIndex: -1,
+        setHighlightedIndex: vi.fn(),
+        position: { top: 0, left: 0, width: 100, maxHeight: 200 },
+        triggerRef,
+        panelRef,
+        searchInputRef,
+        optionRefs,
+        listboxId: "fake-listbox",
+        showSearch: false,
+        filtered: FEW_OPTIONS,
+        selectedOption: null,
+        openPanel: fakeOpenPanel,
+        closePanel: fakeClosePanel,
+        selectOption: vi.fn(),
+        handleTriggerKeyDown: vi.fn(),
+        handlePanelKeyDown: vi.fn(),
+        optionId: (index: number) => `fake-option-${index}`,
+      };
+    }
 
-/** A stand-in trigger element with a stubbed `getBoundingClientRect()` — `computePosition` reads
- * nothing else off it. */
-function fakeTrigger(rect: Partial<DOMRect>): HTMLElement {
-  const el = document.createElement("button");
-  vi.spyOn(el, "getBoundingClientRect").mockReturnValue({
-    top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0, toJSON() {}, ...rect,
-  } as DOMRect);
-  return el;
-}
+    render(<Select value="" onChange={vi.fn()} options={FEW_OPTIONS} aria-label="Pick one" useDropdown={useFakeDropdown} />);
 
-function withInnerHeight(height: number, run: () => void) {
-  const original = window.innerHeight;
-  Object.defineProperty(window, "innerHeight", { value: height, configurable: true });
-  try {
-    run();
-  } finally {
-    Object.defineProperty(window, "innerHeight", { value: original, configurable: true });
-  }
-}
+    // The fake reports `open: true` unconditionally, with no click needed — a real `useSelectDropdown`
+    // would never show the listbox without the trigger being clicked (or a keyboard key) first.
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    expect(screen.getByRole("listbox")).toHaveAttribute("id", "fake-listbox");
 
-describe("computePosition", () => {
-  it("opens downward, anchored just below the trigger, when there is room below", () => {
-    withInnerHeight(800, () => {
-      const trigger = fakeTrigger({ top: 100, bottom: 130, left: 20, width: 200 });
-      const position = computePosition(trigger);
-      expect(position.top).toBe(134); // rect.bottom + the 4px gap
-      expect(position.bottom).toBeUndefined();
-      expect(position.left).toBe(20);
-      expect(position.width).toBe(200);
-    });
-  });
-
-  it("opens upward, anchored just above the trigger, when there isn't room below but there is above", () => {
-    withInnerHeight(400, () => {
-      // spaceBelow = 400 - 380 = 20 (< the 280px estimate); spaceAbove = 350 (> spaceBelow) -> upward.
-      const trigger = fakeTrigger({ top: 350, bottom: 380, left: 0, width: 100 });
-      const position = computePosition(trigger);
-      expect(position.bottom).toBe(400 - 350 + 4); // viewportHeight - rect.top + the 4px gap
-      expect(position.top).toBeUndefined();
-      expect(position.maxHeight).toBe(Math.max(120, 350 - 8));
-    });
-  });
-
-  it("floors maxHeight at 120 even when the actual available space is smaller", () => {
-    withInnerHeight(100, () => {
-      // spaceBelow = 100 - 20 = 80 (< 280 estimate), but spaceAbove (10) is not > spaceBelow (80),
-      // so this still opens downward — the branch under test is the maxHeight floor, not direction.
-      const trigger = fakeTrigger({ top: 10, bottom: 20, left: 0, width: 50 });
-      const position = computePosition(trigger);
-      expect(position.top).toBeDefined();
-      expect(position.maxHeight).toBe(120);
-    });
-  });
-});
-
-describe("focusableInDomOrder", () => {
-  afterEach(() => {
-    document.body.innerHTML = "";
-  });
-
-  it("returns focusable elements in DOM order, skipping disabled ones and anything inside `exclude`", () => {
-    document.body.innerHTML = `
-      <button id="btn1">one</button>
-      <div id="host"><input id="inp1" /><button id="btn2" disabled>two</button></div>
-      <a id="link1" href="#">three</a>
-    `;
-    const host = document.getElementById("host") as HTMLElement;
-    const ids = focusableInDomOrder(host).map((el) => el.id);
-    // `inp1`/`btn2` are inside `host` (excluded); `btn2` would be skipped anyway (disabled).
-    expect(ids).toEqual(["btn1", "link1"]);
-  });
-
-  it("returns every focusable element when exclude is null", () => {
-    document.body.innerHTML = `<button id="only">x</button>`;
-    expect(focusableInDomOrder(null).map((el) => el.id)).toEqual(["only"]);
-  });
-});
-
-describe("useSelectDropdown", () => {
-  function hookProps(overrides: Partial<{ value: string; options: SelectOption[]; disabled: boolean }> = {}) {
-    return {
-      value: overrides.value ?? "",
-      onChange: vi.fn(),
-      options: overrides.options ?? FEW_OPTIONS,
-      disabled: overrides.disabled,
-    };
-  }
-
-  // These three pin `openPanel`'s initial-highlight branches (`ui.spec.md`'s keyboard-nav contract
-  // begins from wherever this lands) — reachable only by driving the full portaled dialog before,
-  // now asserted directly against the hook's own state.
-  it("openPanel highlights the current value's row when it matches an option", () => {
-    const { result } = renderHook(() => useSelectDropdown(hookProps({ value: "b" })));
-    act(() => result.current.openPanel());
-    expect(result.current.open).toBe(true);
-    expect(result.current.highlightedIndex).toBe(1); // FEW_OPTIONS[1] is "b"
-  });
-
-  it("openPanel highlights the first row when the value matches no option", () => {
-    const { result } = renderHook(() => useSelectDropdown(hookProps({ value: "does-not-exist" })));
-    act(() => result.current.openPanel());
-    expect(result.current.highlightedIndex).toBe(0);
-  });
-
-  it("openPanel highlights nothing when there are no options at all", () => {
-    const { result } = renderHook(() => useSelectDropdown(hookProps({ options: [] })));
-    act(() => result.current.openPanel());
-    expect(result.current.highlightedIndex).toBe(-1);
-  });
-
-  it("openPanel is a no-op while disabled", () => {
-    const { result } = renderHook(() => useSelectDropdown(hookProps({ disabled: true })));
-    act(() => result.current.openPanel());
-    expect(result.current.open).toBe(false);
-  });
-
-  // `handleTriggerKeyDown`'s own guard (`if (disabled || open) return`) is unreachable through real
-  // keyboard interaction for the `open` half: once the panel opens, focus always moves off the
-  // trigger (into the search input or the panel itself — see the layout effect's own comment), so
-  // no real keydown ever reaches the trigger's handler while `open` is true. Calling the hook's
-  // returned function directly is the honest way to pin that half of the guard rather than
-  // fabricating a DOM sequence the component can't actually produce.
-  it("handleTriggerKeyDown no-ops once the panel is already open, mirroring the disabled no-op", () => {
-    const onChange = vi.fn();
-    const { result } = renderHook(() => useSelectDropdown(hookProps({ options: FEW_OPTIONS })));
-    act(() => result.current.openPanel());
-    expect(result.current.open).toBe(true);
-    const highlightBefore = result.current.highlightedIndex;
-
-    act(() => {
-      result.current.handleTriggerKeyDown({
-        key: "Enter",
-        preventDefault: vi.fn(),
-      } as unknown as React.KeyboardEvent<HTMLButtonElement>);
-    });
-
-    expect(result.current.open).toBe(true); // unchanged
-    expect(result.current.highlightedIndex).toBe(highlightBefore); // openPanel was not re-invoked
-    expect(onChange).not.toHaveBeenCalled();
-  });
-
-  it("closePanel resets position to null, forcing the measure-then-focus sequence to redo on the next open", () => {
-    const { result } = renderHook(() => useSelectDropdown(hookProps()));
-    act(() => result.current.openPanel());
-    act(() => result.current.closePanel({ refocusTrigger: false }));
-    expect(result.current.open).toBe(false);
-    expect(result.current.position).toBeNull();
+    // `Select`'s trigger onClick is `open ? closePanel(...) : openPanel()` — the fake's `open: true`
+    // means this must route to the fake's `closePanel`, never `openPanel`, and never anything from a
+    // real `useSelectDropdown` (which is never invoked at all here).
+    fireEvent.click(screen.getByRole("combobox", { name: "Pick one" }));
+    expect(fakeClosePanel).toHaveBeenCalledWith({ refocusTrigger: false });
+    expect(fakeOpenPanel).not.toHaveBeenCalled();
   });
 });

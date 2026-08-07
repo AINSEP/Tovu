@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { api, type AdminFormDefinition, type AdminMenu, type AdminWidgetType } from "../lib/api";
+import { api, type AdminFormDefinition, type AdminMenu, type AdminWidgetType } from "../../lib/api";
+import { useFetchedOptions } from "./WidgetConfigFields.hooks";
 
 /**
  * @file Per-widget-type config sub-forms (`ui.spec.md` §2/§3.4) — one component per v1 widget type,
@@ -11,6 +11,17 @@ import { api, type AdminFormDefinition, type AdminMenu, type AdminWidgetType } f
  * Client-side constraints here (maxItems range, links cap) are UX guidance only — the real
  * validator is server-side (REQ-02); a `WidgetConfigValidationError` must still be handled by the
  * caller even when these constraints appear satisfied (`ui.spec.md` §5/§8).
+ *
+ * Split into this file (the JSX per widget type) and `WidgetConfigFields.hooks.tsx` (the
+ * data-fetching state `MenuConfigFields`/`ContactFormConfigFields` need), per the `@jini-ai/admin`
+ * `<Name>.tsx`/`<Name>.hooks.tsx` extraction pattern. Unlike `Select`/`WidgetPickerDialog`, there is
+ * no single hook this whole exported `WidgetConfigFields` switch renders off of — it dispatches to
+ * five independent, unexported per-type sub-components, and only two of them (`MenuConfigFields`,
+ * `ContactFormConfigFields`) touch IO at all. The `useFetchedOptions` seam below is threaded through
+ * `WidgetConfigFields`'s own props down to those two sub-components (the same
+ * `{ useFetchedOptions: useOptions = useFetchedOptions, ...props }` destructure-and-rename shape
+ * `RowMenu.tsx` uses for its own `useRowMenu` prop in `@jini-ai/admin`) rather than living on a
+ * component-level hook the way `Select`'s `useDropdown`/`WidgetPickerDialog`'s `useDialog` do.
  */
 
 function textValue(config: Record<string, unknown>, key: string): string {
@@ -112,18 +123,20 @@ function RecentEntriesConfigFields(props: { config: Record<string, unknown>; onC
   );
 }
 
+interface FetchedOptionsSeam {
+  /** Injectable seam for this sub-component's data-fetching hook. Defaults to the real
+   *  {@link useFetchedOptions}; a test can pass a fake here to exercise rendering without the real
+   *  `api.listMenus`/`api.listForms` fetch. */
+  useFetchedOptions?: typeof useFetchedOptions;
+}
+
 /** `menu` (MENU_REGISTRATION: `{ menuRef: string }`) — dropdown over `api.listMenus()`, mirrors
  * `Seo.tsx`'s `EntryPicker` exactly. */
-function MenuConfigFields(props: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void }) {
-  const [menus, setMenus] = useState<AdminMenu[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api
-      .listMenus()
-      .then((r) => setMenus(r.menus))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load menus"));
-  }, []);
+function MenuConfigFields({
+  useFetchedOptions: useOptions = useFetchedOptions,
+  ...props
+}: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void } & FetchedOptionsSeam) {
+  const { items: menus, error } = useOptions<AdminMenu>(() => api.listMenus().then((r) => r.menus), "failed to load menus");
 
   if (error) return <div className="notice error">{error}</div>;
   if (!menus) return <div className="notice">Loading menus…</div>;
@@ -150,16 +163,14 @@ function MenuConfigFields(props: { config: Record<string, unknown>; onChange: (c
 /** `contact-form` (CONTACT_FORM_REGISTRATION: `{ formDefinitionId: string, successMessage? }`) —
  * dropdown over `api.listForms()`; each option discloses `status` inline (REQ-38 — an operator
  * shouldn't be surprised later by the disabled-form placeholder render). */
-function ContactFormConfigFields(props: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void }) {
-  const [forms, setForms] = useState<AdminFormDefinition[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api
-      .listForms()
-      .then((r) => setForms(r.data))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load forms"));
-  }, []);
+function ContactFormConfigFields({
+  useFetchedOptions: useOptions = useFetchedOptions,
+  ...props
+}: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void } & FetchedOptionsSeam) {
+  const { items: forms, error } = useOptions<AdminFormDefinition>(
+    () => api.listForms().then((r) => r.data),
+    "failed to load forms"
+  );
 
   if (error) return <div className="notice error">{error}</div>;
   if (!forms) return <div className="notice">Loading forms…</div>;
@@ -189,11 +200,13 @@ function ContactFormConfigFields(props: { config: Record<string, unknown>; onCha
   );
 }
 
-export function WidgetConfigFields(props: {
-  widgetType: AdminWidgetType;
-  config: Record<string, unknown>;
-  onChange: (config: Record<string, unknown>) => void;
-}) {
+export function WidgetConfigFields(
+  props: {
+    widgetType: AdminWidgetType;
+    config: Record<string, unknown>;
+    onChange: (config: Record<string, unknown>) => void;
+  } & FetchedOptionsSeam
+) {
   switch (props.widgetType) {
     case "text":
       return <TextConfigFields config={props.config} onChange={props.onChange} />;
@@ -202,9 +215,9 @@ export function WidgetConfigFields(props: {
     case "recent-entries":
       return <RecentEntriesConfigFields config={props.config} onChange={props.onChange} />;
     case "menu":
-      return <MenuConfigFields config={props.config} onChange={props.onChange} />;
+      return <MenuConfigFields config={props.config} onChange={props.onChange} useFetchedOptions={props.useFetchedOptions} />;
     case "contact-form":
-      return <ContactFormConfigFields config={props.config} onChange={props.onChange} />;
+      return <ContactFormConfigFields config={props.config} onChange={props.onChange} useFetchedOptions={props.useFetchedOptions} />;
     default:
       return null;
   }

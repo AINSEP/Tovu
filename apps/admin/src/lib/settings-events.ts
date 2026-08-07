@@ -6,7 +6,7 @@
  *
  * ## How this differs from the run-completion trigger
  *
- * `components/AssistantDock.tsx` already refreshes when an assistant run finishes in THIS tab.
+ * `components/AssistantDock/AssistantDock.tsx` already refreshes when an assistant run finishes in THIS tab.
  * That covers the common case immediately and needs no server support, but it is blind by
  * construction: it only knows about runs it hosted. This feed covers everything else, and the two
  * are deliberately independent — the dock keeps working if the feed is unavailable, and the feed

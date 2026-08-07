@@ -1,4 +1,4 @@
-import { useFabPosition } from "../hooks/use-fab-position.hooks";
+import { useFabPosition } from "./ChatFab.hooks";
 
 interface ChatFabProps {
   open: boolean;
@@ -19,6 +19,17 @@ interface ChatFabProps {
    */
   avoidRightPx: number;
   ref?: React.Ref<HTMLButtonElement>;
+  /**
+   * Injectable seam for the drag/position hook. Defaults to the real {@link useFabPosition}
+   * (MSG-01, 2026-08-06, owner directive — `useFabPosition` was named as the strongest case in the
+   * pass): that hook attaches document-level `pointermove`/`pointerup`/`pointercancel` listeners,
+   * calls `setPointerCapture`, reads/writes `localStorage`, and reads `window.innerWidth`/
+   * `innerHeight` on every render. A test can pass a fake here to assert this component's markup/
+   * aria/class-name behavior without driving any of that — the drag physics themselves stay
+   * covered by `ChatFab.hooks.unit.test.tsx` against the real hook. Named `useFab`, shortening
+   * `useFabPosition` the same way Jini's `ConfirmDialog` shortens `useConfirmDialog` to `useDialog`.
+   */
+  useFab?: typeof useFabPosition;
 }
 
 /**
@@ -28,13 +39,14 @@ interface ChatFabProps {
  * button that opens/closes the docked chat pane without ever unmounting it — see
  * `AssistantDock.tsx`'s module doc for why the dock itself uses `hidden`, not conditional render.
  *
- * The drag itself is `useFabPosition`'s job entirely; this component only wires its `style`/
- * `onPointerDown` onto the button and guards `onClick` with `consumeDragFlag()` so a drag's
- * release does not also fire a toggle (see that function's own doc for why a plain `isDragging`
- * check at this call site would be timing-unsafe).
+ * The drag itself is `useFabPosition`'s job entirely (injectable via the `useFab` prop, defaulted
+ * to the real implementation); this component only wires its `style`/`onPointerDown` onto the
+ * button and guards `onClick` with `consumeDragFlag()` so a drag's release does not also fire a
+ * toggle (see that function's own doc for why a plain `isDragging` check at this call site would
+ * be timing-unsafe).
  */
-export function ChatFab({ open, onToggle, label = "assistant", avoidBottomPx, avoidRightPx, ref }: ChatFabProps) {
-  const fab = useFabPosition({ dockOpen: open, avoidBottomPx, avoidRightPx });
+export function ChatFab({ open, onToggle, label = "assistant", avoidBottomPx, avoidRightPx, ref, useFab = useFabPosition }: ChatFabProps) {
+  const fab = useFab({ dockOpen: open, avoidBottomPx, avoidRightPx });
 
   return (
     <button

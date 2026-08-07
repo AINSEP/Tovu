@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { mergeAttributes, Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
 import { api, ApiError, describeApiError, type AdminWidget } from "./api";
-import { WidgetAddControl, WidgetPickerDialog } from "../components/WidgetPickerDialog";
-import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields";
+import { WidgetAddControl, WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
+import { WIDGET_TYPE_OPTIONS } from "../components/WidgetConfigFields/WidgetConfigFields";
 
 /**
  * @file The shared TipTap `widgetEmbed` node extension (SPEC-043 REQ-18, `ui.spec.md` §3.10/§4.9) —

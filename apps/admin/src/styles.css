@@ -1017,7 +1017,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .tb-btn:disabled { opacity: 0.38; cursor: default; }
 .tb-btn i { font-style: italic; } .tb-btn s { text-decoration: line-through; }
 /* `WidgetAddControl`'s `<span className="widget-add-control">` (its widget-type `<select>` plus
-   the "Insert widget"/"+ Add widget" trigger button, `components/WidgetPickerDialog.tsx`) had
+   the "Insert widget"/"+ Add widget" trigger button, `components/WidgetPickerDialog/WidgetPickerDialog.tsx`) had
    never had any CSS anywhere in the app — the two controls sat flush with zero gap between them.
    First fixed scoped (`.editor-toolbar .widget-add-control` in `styles/editor.css`) because that
    pass didn't own this file and hadn't verified this span's other two call sites. Promoted to a
@@ -1032,7 +1032,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    file. */
 .widget-add-control { display: inline-flex; align-items: center; gap: var(--space-2); }
 /* User report: "insert widget button should be one line" — `WidgetAddControl`'s trigger button
-   (`components/WidgetPickerDialog.tsx`) wrapped to two lines ("Insert" / "widget"). NOT the
+   (`components/WidgetPickerDialog/WidgetPickerDialog.tsx`) wrapped to two lines ("Insert" / "widget"). NOT the
    `.menu-tree > .btn-secondary` / `.settings-scope-editor .btn-danger` / `.field-attrs-rows >
    .btn-secondary` species (a flex-COLUMN's `align-items: stretch` blowing a button edge-to-edge) —
    measured and ruled out: `.widget-add-control` is `inline-flex` row with `align-items: center`,
@@ -1058,7 +1058,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    fix does make the overflow disappear, but only by reintroducing the two-line "Insert widget"
    label it was written to stop, and adding `flex-shrink: 0`/`min-width: 0` to `.grp` or to
    `.widget-add-control` itself does NOT fix the overflow band either — ruled out live).
-   Root cause, isolated by bisecting `.widget-add-control`'s two children: `components/Select.tsx`'s
+   Root cause, isolated by bisecting `.widget-add-control`'s two children: `components/Select/Select.tsx`'s
    trigger (`styles/select.css`'s `.select-trigger`) is `width: 100%`, correct for its normal home
    (a form field filling a container with a real defined width) but meaningless here — this span is
    `inline-flex` with no explicit width of its own, so the trigger's 100% has no resolvable basis.
@@ -1071,7 +1071,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    widest label ("Recent Entries") selected; scoped to this control only, so every other `<Select>`
    in the app (built to fill its container) keeps `width: 100%`. */
 .widget-add-control .select-trigger { width: auto; }
-/* `EmbedInsertControl` (`lib/embed-insert-control.tsx`, quick-and-dirty pass 2026-08-05) — the
+/* `EmbedInsertControl` (`components/EmbedInsertControl/EmbedInsertControl.tsx`, quick-and-dirty pass 2026-08-05) — the
    "Embed" button's inline choice row (Media / Form / Menu / Widget…) and the "Widget…" branch's
    nested `.widget-add-control`, both rendered inline right after the trigger rather than as an
    absolutely-positioned popover, matching this pass's "get it working" scope. Same gap treatment

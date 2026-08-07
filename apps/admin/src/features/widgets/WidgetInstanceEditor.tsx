@@ -1,4 +1,4 @@
-import { WidgetConfigFields } from "../../components/WidgetConfigFields";
+import { WidgetConfigFields } from "../../components/WidgetConfigFields/WidgetConfigFields";
 import { isKnownWidgetType, widgetTypeLabel } from "./rules";
 import { useWidgetInstanceEditor } from "./hooks/use-widget-instance-editor.hooks";
 import type { AdminWidgetWhereUsed } from "../../lib/api";

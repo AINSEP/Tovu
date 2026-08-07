@@ -1,5 +1,5 @@
 import { ApiError, type AdminWidget, type AdminWidgetPlacement, type AdminWidgetType } from "../../lib/api";
-import { WIDGET_TYPE_OPTIONS } from "../../components/WidgetConfigFields";
+import { WIDGET_TYPE_OPTIONS } from "../../components/WidgetConfigFields/WidgetConfigFields";
 
 /**
  * @file Pure logic shared by the four `widgets` feature screens (`WidgetsLibrary`,

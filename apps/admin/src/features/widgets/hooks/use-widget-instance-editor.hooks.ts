@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { ApiError, api, describeApiError, type AdminWidget, type AdminWidgetType, type AdminWidgetWhereUsed } from "../../../lib/api";
 import { navigate } from "../../../lib/router";
-import { defaultWidgetConfig } from "../../../components/WidgetConfigFields";
+import { defaultWidgetConfig } from "../../../components/WidgetConfigFields/WidgetConfigFields";
 import { resolveEditorWidgetType, widgetConfigFieldErrors } from "../rules";
 
 /**

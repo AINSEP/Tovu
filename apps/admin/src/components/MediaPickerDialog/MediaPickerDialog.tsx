@@ -1,5 +1,6 @@
-import { useEffect, useId, useState } from "react";
-import { api, describeApiError, type AdminMedia } from "../lib/api";
+import { useId } from "react";
+import { api, type AdminMedia } from "../../lib/api";
+import { useMediaPickerDialog } from "./MediaPickerDialog.hooks";
 
 /**
  * @file `MediaPickerDialog` — lets an operator choose an EXISTING asset from the Media library
@@ -21,54 +22,25 @@ import { api, describeApiError, type AdminMedia } from "../lib/api";
  * (`use-media-preview.hooks.ts`): this picker only ever inserts an `image` node, so a thumbnail
  * grid needs just the image case, not the video/`<video>`/download-link branches a general asset
  * preview does. `active` assets only — a trashed asset is not a legal choice for new content.
+ *
+ * State/effects — the once-per-mount media fetch and the Escape-to-cancel listener — live in
+ * `MediaPickerDialog.hooks.tsx`, split out the same way `ConfirmDialog`/`ConfirmDialog.hooks.tsx`
+ * does in `@jini-ai/admin`: this file stays props-and-JSX only, and the `useDialog` prop below lets
+ * a test render this JSX against a fake hook — no real `api.listMedia()` call and no real
+ * `document`-level keydown listener required.
  */
 
 export interface MediaPickerDialogProps {
   onSelect: (item: AdminMedia) => void;
   onCancel: () => void;
+  /** Injectable seam for the dialog's data-fetch and Escape-to-cancel hook. Defaults to the real
+   *  {@link useMediaPickerDialog}; a test can pass a fake here to exercise `MediaPickerDialog`'s
+   *  rendering without invoking `api.listMedia()` or a real `document` keydown listener at all. */
+  useDialog?: typeof useMediaPickerDialog;
 }
 
-/**
- * Fetches the workspace's active media once per mount — mirrors `useExistingInstances`'s exact
- * shape (`null` while loading, a describable `error` string on failure).
- *
- * @returns `items` (`null` while the fetch is in flight, otherwise the loaded, active-only list)
- *   and `error` (a describable failure message, or `null`).
- */
-export function useMediaPickerItems() {
-  const [items, setItems] = useState<AdminMedia[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    api
-      .listMedia()
-      .then((r) => setItems(r.media.filter((m) => m.status === "active")))
-      .catch((e) => setError(describeApiError(e, "failed to load media")));
-  }, []);
-  return { items, error };
-}
-
-/**
- * Owns the dialog's own state on top of {@link useMediaPickerItems}: the Escape-to-cancel
- * listener and the single submit handler. Split out for the same reason
- * `useWidgetPickerDialog` is — a render-free unit to test the interaction logic against.
- */
-export function useMediaPickerDialog(props: MediaPickerDialogProps) {
-  const { items, error } = useMediaPickerItems();
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") props.onCancel();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return { items, error, select: props.onSelect };
-}
-
-export function MediaPickerDialog(props: MediaPickerDialogProps) {
-  const { items, error, select } = useMediaPickerDialog(props);
+export function MediaPickerDialog({ useDialog = useMediaPickerDialog, ...props }: MediaPickerDialogProps) {
+  const { items, error, select } = useDialog(props.onSelect, props.onCancel);
   const titleId = useId();
 
   return (

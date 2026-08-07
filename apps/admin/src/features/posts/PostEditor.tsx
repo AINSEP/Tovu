@@ -2,7 +2,7 @@ import { EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 
-import { EmbedInsertControl } from "../../lib/embed-insert-control";
+import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
 import { siteUrl } from "../../lib/site-url";
 import { usePostEditor } from "./hooks/use-post-editor.hooks";
 
@@ -72,7 +72,7 @@ function Toolbar({ editor }: { editor: Editor }) {
             formal spec/ADR process for this one) replacing the previously-separate "Media" and
             "Insert widget" buttons: Form and Menu are just the `contact-form`/`menu` widget TYPES
             (`WidgetConfigFields.tsx`), not separate mechanisms, so they used to be buried behind
-            "Insert widget"'s type dropdown. `EmbedInsertControl` (`lib/embed-insert-control.tsx`)
+            "Insert widget"'s type dropdown. `EmbedInsertControl` (`components/EmbedInsertControl/EmbedInsertControl.tsx`)
             surfaces Media/Form/Menu as one-click shortcuts plus a "Widget…" choice for the rest,
             composing the same `MediaPickerDialog`/`WidgetPickerDialog`/`WidgetAddControl` pieces
             `CollectionEntryEditor.tsx`/`WidgetRegionEditor.tsx` still use directly and unchanged. */}

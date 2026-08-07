@@ -1,8 +1,9 @@
-import { act, render, renderHook, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { SeeMore, useSeeMoreClamp } from "../SeeMore";
+import { SeeMore } from "../SeeMore/SeeMore";
+import type { useSeeMoreClamp } from "../SeeMore/SeeMore.hooks";
 
 /**
  * @file `SeeMore` — the line-clamped block with a "See more" / "See less" toggle.
@@ -15,6 +16,12 @@ import { SeeMore, useSeeMoreClamp } from "../SeeMore";
  * fourth test pins. Nothing here can vouch for the CSS actually clamping; that is a browser
  * measurement (see the handoff's "jsdom certified a visibly broken dialog" finding), and this
  * suite covers the behavior contract only.
+ *
+ * `useSeeMoreClamp` itself (rounding, overflow measurement, the expand/collapse state machine) has
+ * its own suite in `SeeMore.hooks.unit.test.tsx`, driven directly with `renderHook` — split out of
+ * this file the same way the component and hook themselves were split, per the `SeeMore`/
+ * `SeeMore.hooks` refactor. What stays here is only what needs a real render: DOM output, ARIA
+ * wiring, and the `useClamp` injection seam below.
  */
 
 const CLAMPED_BOX_HEIGHT = 40;
@@ -181,69 +188,30 @@ describe("SeeMore", () => {
   });
 });
 
-/** A fake element good enough for `useSeeMoreClamp`'s `measure()`: it only ever reads
- * `clientHeight`/`scrollHeight` off `textRef.current`, nothing else about a real node. */
-function fakeMeasuredElement(clientHeight: number, scrollHeight: number): HTMLDivElement {
-  return { clientHeight, scrollHeight } as unknown as HTMLDivElement;
-}
-
-describe("useSeeMoreClamp", () => {
-  it("rounds lines to the nearest integer and floors anything below 1", () => {
-    const cases: Array<[number, number]> = [
-      [2, 2],
-      [1.4, 1],
-      [2.6, 3],
-      [0, 1],
-      [-3, 1],
-    ];
-    for (const [lines, expected] of cases) {
-      const { result } = renderHook(() => useSeeMoreClamp({ lines, children: "x" }));
-      expect(result.current.lineCount).toBe(expected);
-    }
-  });
-
-  it("starts collapsed and flips via setExpanded", () => {
-    const { result } = renderHook(() => useSeeMoreClamp({ lines: 2, children: "x" }));
-    expect(result.current.expanded).toBe(false);
-
-    act(() => result.current.setExpanded(true));
-    expect(result.current.expanded).toBe(true);
-  });
-
-  it("measures overflow against the live textRef element when children change while collapsed", () => {
-    const { result, rerender } = renderHook(({ children }) => useSeeMoreClamp({ lines: 2, children }), {
-      initialProps: { children: "short" },
+describe("SeeMore hook injection", () => {
+  it("renders entirely off an injected useClamp — the real useSeeMoreClamp is never called", () => {
+    // A fake that always reports expanded+overflowing, independent of any real measurement — if
+    // this test passed with the real hook wired in instead (no DOM layout stubbed), it would prove
+    // nothing about injection actually working. Asserting `expanded`/label state that the real hook
+    // could not produce under jsdom's zero-layout defaults is what proves the seam is live.
+    const fakeUseClamp: typeof useSeeMoreClamp = () => ({
+      expanded: true,
+      setExpanded: () => {},
+      overflows: true,
+      textRef: { current: null },
+      regionId: "fake-region-id",
+      lineCount: 2,
     });
 
-    // The hook only measures the ref it's handed — nothing here renders real DOM, so a fake element
-    // exposing the two properties `measure()` actually reads is the honest substitute for the
-    // clamped/full-text box heights a real browser would report.
-    act(() => {
-      result.current.textRef.current = fakeMeasuredElement(CLAMPED_BOX_HEIGHT, FULL_TEXT_HEIGHT);
-    });
-    rerender({ children: "longer text that overflows" });
-    expect(result.current.overflows).toBe(true);
-  });
+    render(
+      <SeeMore useClamp={fakeUseClamp}>{LONG_TEXT}</SeeMore>
+    );
 
-  it("does not re-measure while expanded, leaving overflows stale until the next collapse", () => {
-    const { result, rerender } = renderHook(({ children }) => useSeeMoreClamp({ lines: 2, children }), {
-      initialProps: { children: "a" },
-    });
-    act(() => {
-      result.current.textRef.current = fakeMeasuredElement(CLAMPED_BOX_HEIGHT, FULL_TEXT_HEIGHT);
-    });
-    rerender({ children: "b" });
-    expect(result.current.overflows).toBe(true);
-
-    act(() => result.current.setExpanded(true));
-    act(() => {
-      // Reports "fits" now — matches what a real element would report once the clamp is lifted.
-      // The guard under test: the hook must NOT re-measure while expanded, so `overflows` should
-      // stay stuck at `true` rather than flip to `false` and strand the user with no way to
-      // collapse (the same regression the component-level "keeps the toggle mounted" test pins).
-      result.current.textRef.current = fakeMeasuredElement(CLAMPED_BOX_HEIGHT, CLAMPED_BOX_HEIGHT);
-    });
-    rerender({ children: "c" });
-    expect(result.current.overflows).toBe(true);
+    // Expanded + labeled "See less", with the fake's own regionId — none of this is reachable
+    // under jsdom's real useSeeMoreClamp without stubLayout(true) AND a click, which this test
+    // never does.
+    const toggle = screen.getByRole("button", { name: "See less" });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(toggle).toHaveAttribute("aria-controls", "fake-region-id");
   });
 });

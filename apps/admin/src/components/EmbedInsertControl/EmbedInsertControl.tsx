@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { MediaPickerDialog } from "../components/MediaPickerDialog";
-import { WidgetAddControl, WidgetPickerDialog, useWidgetAddControl } from "../components/WidgetPickerDialog";
+import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
+import { WidgetAddControl, WidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
+import { useEmbedInsertControl, type EmbedEditor } from "./EmbedInsertControl.hooks";
 
 /**
  * @file `EmbedInsertControl` — quick-and-dirty per the owner's explicit instruction (2026-08-05,
@@ -27,41 +27,33 @@ import { WidgetAddControl, WidgetPickerDialog, useWidgetAddControl } from "../co
  * exported shape has to stay intact for those other call sites.
  *
  * No new design system: plain buttons, matches `PostEditor.tsx`'s `Toolbar` `.tb-btn` idiom.
+ *
+ * Moved here from `lib/` (was `lib/embed-insert-control.tsx`) per the owner's ruling on that
+ * directory split: the file extension isn't the test, addressability is. A TipTap `Node` schema and
+ * its node view stay in `lib/` because a node view is React only `ReactNodeViewRenderer` can mount,
+ * 1:1 with its schema (see `media-image-extension.tsx`'s header) — this is an ordinary toolbar
+ * component any screen can render, ordinary `components/` territory. State — the menu/dialog
+ * visibility flags and the two pinned `useWidgetAddControl` instances — now lives in
+ * `EmbedInsertControl.hooks.tsx`, split out the same way `ConfirmDialog`/`ConfirmDialog.hooks.tsx`
+ * does in `@jini-ai/admin`; the `useEmbed` prop below lets a test render this JSX against a fake
+ * without driving the real menu/dialog state machine or the real `useWidgetAddControl` fetches.
  */
 
-/** Same placement-id minting `widget-embed-extension.tsx`'s own (private) helper uses — duplicated
- *  here rather than exported from that file, to avoid touching a file with its own existing test
- *  coverage for an unrelated reason. */
-function newPlacementId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `placement-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-interface EmbedEditor {
-  commands: {
-    insertMediaRef: (attrs: { assetId: string; transformName: string; alt?: string }) => boolean;
-    insertWidgetEmbed: (attrs: { placementId: string; widgetEntryId: string }) => boolean;
-  };
+export interface EmbedInsertControlProps {
+  editor: EmbedEditor | null;
+  /** Injectable seam for the menu/dialog visibility state and the two pinned Form/Menu
+   *  `useWidgetAddControl` instances. Defaults to the real {@link useEmbedInsertControl}; a test
+   *  can pass a fake here to exercise this component's rendering without the real state machine. */
+  useEmbed?: typeof useEmbedInsertControl;
 }
 
 /**
  * The toolbar's single "Embed" trigger — opens a small inline menu of four choices (Media, Form,
  * Menu, Widget…) in place of the old separate Media/Insert-widget buttons.
  */
-export function EmbedInsertControl(props: { editor: EmbedEditor | null }) {
-  const [open, setOpen] = useState(false);
-  const [widgetMode, setWidgetMode] = useState(false);
-  const [mediaPicking, setMediaPicking] = useState(false);
-
-  const insertWidget = (widgetEntryId: string) => {
-    props.editor?.commands.insertWidgetEmbed({ placementId: newPlacementId(), widgetEntryId });
-  };
-
-  // Two independent `useWidgetAddControl` instances — one per shortcut — each driven straight to
-  // its pinned type via `setPickerType`, never through the hook's own `selectedType`/`<Select>`
-  // (that path is only exercised by the "Widget…" full flow below, via the untouched
-  // `WidgetAddControl`).
-  const formControl = useWidgetAddControl({ triggerLabel: "Form", onResolved: insertWidget });
-  const menuControl = useWidgetAddControl({ triggerLabel: "Menu", onResolved: insertWidget });
+export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, ...props }: EmbedInsertControlProps) {
+  const { open, setOpen, widgetMode, setWidgetMode, mediaPicking, setMediaPicking, formControl, menuControl, insertWidget } =
+    useEmbed(props.editor);
 
   if (!props.editor) return null;
   const editor = props.editor;

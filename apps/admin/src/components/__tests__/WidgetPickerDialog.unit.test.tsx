@@ -1,15 +1,20 @@
-import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useExistingInstances, useWidgetAddControl, useWidgetPickerDialog, WidgetPickerDialog } from "../WidgetPickerDialog";
+import { WidgetAddControl, WidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
 
 /**
  * @file `WidgetPickerDialog` — end-to-end proof, in the real dialog (not just `Select.unit.test.tsx`'s
- * emulated host), that swapping its two native `<select>`s for `components/Select.tsx` didn't
+ * emulated host), that swapping its two native `<select>`s for `components/Select/Select.tsx` didn't
  * reintroduce the exact regression the dispatch that made that swap called out by name: this
  * dialog's own `document`-level Escape listener (the `onCancel` effect below `useExistingInstances`)
  * must not fire when Escape is only meant to close the new dropdown's floating panel.
+ *
+ * `useExistingInstances`/`useWidgetPickerDialog`/`useWidgetAddControl`'s own state-shape tests moved
+ * to `WidgetPickerDialog.hooks.unit.test.tsx` when `WidgetPickerDialog.tsx` split into
+ * `WidgetPickerDialog.tsx`/`WidgetPickerDialog.hooks.tsx` — this file keeps only the tests that
+ * render the actual `<WidgetPickerDialog>` component.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -96,163 +101,81 @@ it("still focuses Title once instances resolve as empty (a genuinely fresh widge
   await waitFor(() => expect(screen.getByLabelText("Title")).toHaveFocus());
 });
 
-/** Flushes the microtask queue past `request()`'s `fetch().then(res => res.json())` chain so a
- * pending `useExistingInstances` fetch settles inside `act` instead of leaking a state update past
- * the end of the test. */
-async function flush() {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
-}
+describe("WidgetPickerDialog dialog-hook injection", () => {
+  it("renders purely off an injected fake, proving useWidgetPickerDialog is not hardcoded", async () => {
+    // A fake that never touches `listWidgets`/`document`-level Escape handling at all — if
+    // `WidgetPickerDialog` rendered off anything other than what this hook returns (e.g. called the
+    // real `useWidgetPickerDialog` itself somewhere internally), `typeLabel` below would resolve to
+    // "Text" (the real `WIDGET_TYPE_OPTIONS` lookup for `widgetType: "text"`), not this fake's value.
+    const user = userEvent.setup();
+    const submitCreateNew = vi.fn((e: React.FormEvent) => e.preventDefault());
+    function useFakeDialog() {
+      return {
+        instances: [],
+        loadError: null,
+        selectedExistingId: "",
+        setSelectedExistingId: vi.fn(),
+        newTitle: "",
+        setNewTitle: vi.fn(),
+        newConfig: {},
+        setNewConfig: vi.fn(),
+        error: null,
+        titleId: "fake-title-id",
+        existingSelectId: "fake-existing-select-id",
+        newTitleInputId: "fake-title-input-id",
+        newTitleInputRef: { current: null },
+        typeLabel: "Fake Type",
+        hasExisting: false,
+        submitUseExisting: vi.fn((e: React.FormEvent) => e.preventDefault()),
+        submitCreateNew,
+      };
+    }
 
-function fakeFormEvent(): React.FormEvent {
-  return { preventDefault: () => {} } as unknown as React.FormEvent;
-}
+    render(
+      <WidgetPickerDialog
+        widgetType="text"
+        onUseExisting={vi.fn()}
+        onCreateNew={vi.fn()}
+        onCancel={vi.fn()}
+        useDialog={useFakeDialog}
+      />
+    );
 
-describe("useExistingInstances", () => {
-  it("starts with instances/error both null and resolves to the fetched list", async () => {
-    const { result } = renderHook(() => useExistingInstances("text"));
-    expect(result.current.instances).toBeNull();
-    expect(result.current.error).toBeNull();
+    expect(screen.getByRole("heading", { name: "Place a Fake Type widget" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toHaveAttribute("aria-labelledby", "fake-title-id");
+    // `hasExisting: false` in the fake means only "Create new" renders, same as the real hook would
+    // for a genuinely empty `instances` — but here that's the fake's own value, not a real fetch.
+    expect(screen.queryByRole("button", { name: "Use this widget" })).not.toBeInTheDocument();
 
-    await flush();
-    expect(result.current.instances).toEqual([EXISTING_WIDGET]);
-    expect(result.current.error).toBeNull();
-  });
-
-  it("surfaces a describable error and leaves instances null when the fetch rejects", async () => {
-    fetchMock.mockRejectedValue(new Error("network down"));
-    const { result } = renderHook(() => useExistingInstances("text"));
-
-    await flush();
-    expect(result.current.instances).toBeNull();
-    expect(result.current.error).toBeTruthy();
-  });
-});
-
-describe("useWidgetPickerDialog", () => {
-  function dialogProps() {
-    return {
-      widgetType: "text" as const,
-      onUseExisting: vi.fn(),
-      onCreateNew: vi.fn(),
-      onCancel: vi.fn(),
-    };
-  }
-
-  it("submitUseExisting rejects an empty selection and does not call onUseExisting", async () => {
-    const props = dialogProps();
-    const { result } = renderHook(() => useWidgetPickerDialog(props));
-    await flush();
-
-    act(() => result.current.submitUseExisting(fakeFormEvent()));
-
-    expect(result.current.error).toBe("Choose an existing widget to use.");
-    expect(props.onUseExisting).not.toHaveBeenCalled();
-  });
-
-  it("submitUseExisting forwards the selected id once one is chosen", async () => {
-    const props = dialogProps();
-    const { result } = renderHook(() => useWidgetPickerDialog(props));
-    await flush();
-
-    act(() => result.current.setSelectedExistingId("w1"));
-    act(() => result.current.submitUseExisting(fakeFormEvent()));
-
-    expect(props.onUseExisting).toHaveBeenCalledWith("w1");
-    expect(result.current.error).toBeNull();
-  });
-
-  it("submitCreateNew rejects a blank (or whitespace-only) title and does not call onCreateNew", async () => {
-    const props = dialogProps();
-    const { result } = renderHook(() => useWidgetPickerDialog(props));
-    await flush();
-
-    act(() => result.current.setNewTitle("   "));
-    act(() => result.current.submitCreateNew(fakeFormEvent()));
-
-    expect(result.current.error).toBe("Title is required.");
-    expect(props.onCreateNew).not.toHaveBeenCalled();
-  });
-
-  it("submitCreateNew trims the title and forwards it with the current draft config", async () => {
-    const props = dialogProps();
-    const { result } = renderHook(() => useWidgetPickerDialog(props));
-    await flush();
-
-    act(() => result.current.setNewTitle("  Hero  "));
-    act(() => result.current.submitCreateNew(fakeFormEvent()));
-
-    expect(props.onCreateNew).toHaveBeenCalledWith("Hero", result.current.newConfig);
+    // Submitting "Create new" routes through the fake's `submitCreateNew`, not the real hook's —
+    // the real `useWidgetPickerDialog` is never invoked at all in this render.
+    await user.click(screen.getByRole("button", { name: "Create and place" }));
+    expect(submitCreateNew).toHaveBeenCalledOnce();
   });
 });
 
-describe("useWidgetAddControl", () => {
-  function controlProps() {
-    return { triggerLabel: "+ Add widget", onResolved: vi.fn() };
-  }
+describe("WidgetAddControl add-control-hook injection", () => {
+  it("renders purely off an injected fake, proving useWidgetAddControl is not hardcoded", () => {
+    // A freshly-mounted real `useWidgetAddControl` always starts `error: null` — it only ever sets a
+    // string there after a failed `handleCreateNew`. A fake that reports an error on first render is
+    // something the real hook cannot produce, so its presence proves the fake was actually used.
+    function useFakeAddControl() {
+      return {
+        pickerType: null,
+        setPickerType: vi.fn(),
+        selectedType: "text" as const,
+        setSelectedType: vi.fn(),
+        error: "fake add-control error",
+        handleCreateNew: vi.fn(),
+        handleUseExisting: vi.fn(),
+      };
+    }
 
-  it("starts closed (pickerType null) with the type defaulted to text", () => {
-    const { result } = renderHook(() => useWidgetAddControl(controlProps()));
-    expect(result.current.pickerType).toBeNull();
-    expect(result.current.selectedType).toBe("text");
-  });
+    render(<WidgetAddControl triggerLabel="+ Add widget" onResolved={vi.fn()} useAddControl={useFakeAddControl} />);
 
-  it("handleCreateNew is a no-op when no picker type is open, per the pickerType guard", async () => {
-    const props = controlProps();
-    const { result } = renderHook(() => useWidgetAddControl(props));
-
-    await act(async () => {
-      await result.current.handleCreateNew("Hero", { body: "" });
-    });
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(props.onResolved).not.toHaveBeenCalled();
-  });
-
-  it("handleCreateNew creates the widget, closes the picker, and resolves with the new id", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ widget: EXISTING_WIDGET }));
-    const props = controlProps();
-    const { result } = renderHook(() => useWidgetAddControl(props));
-    act(() => result.current.setPickerType("text"));
-
-    await act(async () => {
-      await result.current.handleCreateNew("Hero", { body: "" });
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/widgets"), expect.objectContaining({ method: "POST" }));
-    expect(result.current.pickerType).toBeNull();
-    expect(props.onResolved).toHaveBeenCalledWith(EXISTING_WIDGET.id);
-  });
-
-  it("handleCreateNew leaves the picker open and records the error when creation fails", async () => {
-    fetchMock.mockResolvedValue(new Response("boom", { status: 500 }));
-    const props = controlProps();
-    const { result } = renderHook(() => useWidgetAddControl(props));
-    act(() => result.current.setPickerType("text"));
-
-    await act(async () => {
-      await result.current.handleCreateNew("Hero", { body: "" });
-    });
-
-    // The regression this pins: `setPickerType(null)` sits AFTER the `await` in the source, so a
-    // rejected create must leave the dialog open (the user still has their draft) rather than
-    // closing it out from under them the same way a success does.
-    expect(result.current.pickerType).toBe("text");
-    expect(result.current.error).toBeTruthy();
-    expect(props.onResolved).not.toHaveBeenCalled();
-  });
-
-  it("handleUseExisting always closes the picker and resolves with the given id", async () => {
-    const props = controlProps();
-    const { result } = renderHook(() => useWidgetAddControl(props));
-    act(() => result.current.setPickerType("text"));
-
-    await act(async () => {
-      await result.current.handleUseExisting("w1");
-    });
-
-    expect(result.current.pickerType).toBeNull();
-    expect(props.onResolved).toHaveBeenCalledWith("w1");
+    expect(screen.getByText("fake add-control error")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ Add widget" })).toBeInTheDocument();
+    // `pickerType: null` in the fake means no dialog renders — same as the real hook's own default.
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

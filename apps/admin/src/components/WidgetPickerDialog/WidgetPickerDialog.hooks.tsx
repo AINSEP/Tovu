@@ -1,29 +1,21 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { api, ApiError, describeApiError, type AdminWidget, type AdminWidgetType } from "../lib/api";
-import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "./WidgetConfigFields";
-import { Select } from "./Select";
+import { api, ApiError, describeApiError, type AdminWidget, type AdminWidgetType } from "../../lib/api";
+import { defaultWidgetConfig, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
+import type { WidgetAddControlProps, WidgetPickerDialogProps } from "./WidgetPickerDialog";
 
 /**
- * @file `WidgetPickerDialog` (`ui.spec.md` §2/§3.9/§4.8) — REQ-33's explicit reuse-vs-duplicate
- * modal. Two call sites: `RegionPlacementList.onAddWidgetRequest` and `WidgetEmbedNode`'s toolbar
- * insertion trigger (`widget-embed-extension.tsx`) — no third call site is authorized by the spec.
+ * @file `WidgetPickerDialog`'s and `WidgetAddControl`'s state — the existing-instances fetch, the
+ * dialog's own form/selection/Escape-listener/autofocus state, and the two-step type-choice flow —
+ * split out of the component file so each can be swapped for a fake via the `useDialog`/
+ * `useAddControl` props on their respective prop types (see those props' doc comments in
+ * `WidgetPickerDialog.tsx`), per the `@jini-ai/admin` `<Name>.tsx`/`<Name>.hooks.tsx` extraction
+ * pattern (`ConfirmDialog.tsx`/`ConfirmDialog.hooks.tsx` in that package).
  *
- * Mirrors `Collections.tsx`'s `.settings-dialog`/`.settings-dialog-backdrop` modal idiom exactly
- * (`role="dialog"`, `aria-modal`, `aria-labelledby`, Escape-to-close, backdrop-click-to-cancel) —
- * no new modal system invented.
- *
- * `ui.spec.md` §5's rendering rule (followed literally per its own §8 disclosure against ADR-047
- * Amendment 5's "default to reuse" prose): when `existingInstances.length > 0`, BOTH "use existing"
- * and "create new" render as explicit, equally-weighted options with no pre-selected default —
- * implemented here as two always-visible sections, not tabs defaulting to one or the other.
+ * `WidgetPickerDialogProps`/`WidgetAddControlProps` are imported here as types only (no runtime
+ * import) from `./WidgetPickerDialog` — the hooks need the full props shape, but the component file
+ * is still the one importing this file's runtime exports, not the other way around, so there is no
+ * runtime circular dependency between the two.
  */
-
-export interface WidgetPickerDialogProps {
-  widgetType: AdminWidgetType;
-  onUseExisting: (widgetInstanceId: string) => void;
-  onCreateNew: (title: string, config: Record<string, unknown>) => void;
-  onCancel: () => void;
-}
 
 /**
  * Fetches the widget type's existing instances for the "use existing" section, once per
@@ -148,102 +140,6 @@ export function useWidgetPickerDialog(props: WidgetPickerDialogProps) {
   };
 }
 
-export function WidgetPickerDialog(props: WidgetPickerDialogProps) {
-  const {
-    instances,
-    loadError,
-    selectedExistingId,
-    setSelectedExistingId,
-    newTitle,
-    setNewTitle,
-    newConfig,
-    setNewConfig,
-    error,
-    titleId,
-    existingSelectId,
-    newTitleInputId,
-    newTitleInputRef,
-    typeLabel,
-    hasExisting,
-    submitUseExisting,
-    submitCreateNew,
-  } = useWidgetPickerDialog(props);
-
-  return (
-    <div className="settings-dialog-backdrop" onClick={props.onCancel}>
-      <div
-        className="settings-dialog widget-picker-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id={titleId}>Place a {typeLabel} widget</h2>
-
-        <div className="widget-picker-body">
-          {loadError ? <div className="notice error">{loadError}</div> : null}
-          {error ? (
-            <span className="save-error" role="alert">
-              {error}
-            </span>
-          ) : null}
-
-          {hasExisting ? (
-            <form onSubmit={submitUseExisting} className="widget-picker-section">
-              <h3>Use existing</h3>
-              <div className="field">
-                <label className="field-label" htmlFor={existingSelectId}>
-                  Existing {typeLabel} widgets
-                </label>
-                <Select
-                  id={existingSelectId}
-                  value={selectedExistingId}
-                  onChange={setSelectedExistingId}
-                  options={(instances ?? []).map((instance) => ({ value: instance.id, label: instance.title }))}
-                  placeholder="Choose a widget…"
-                />
-              </div>
-              <button type="submit">Use this widget</button>
-            </form>
-          ) : null}
-
-          <form onSubmit={submitCreateNew} className="widget-picker-section">
-            <h3>Create new</h3>
-            <div className="field">
-              <label className="field-label" htmlFor={newTitleInputId}>
-                Title
-              </label>
-              <input id={newTitleInputId} ref={newTitleInputRef} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
-            </div>
-            <WidgetConfigFields widgetType={props.widgetType} config={newConfig} onChange={setNewConfig} />
-            <button type="submit">Create and place</button>
-          </form>
-        </div>
-
-        <div className="widget-picker-footer">
-          <span className="editor-actions">
-            <button type="button" className="btn-secondary" onClick={props.onCancel}>
-              Cancel
-            </button>
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * The shared "choose a type, then open `WidgetPickerDialog`" two-step trigger (`ui.spec.md` §4.7's
- * `RegionPlacementList.onAddWidgetRequest` and §4.9's `WidgetEmbedNode.onInsertRequest` both name
- * this exact flow). One small control, reused by `WidgetRegionEditor.tsx`'s "+ Add widget" and the
- * TipTap toolbar's "Insert widget" button — avoids two independent implementations of the same
- * type-choice step.
- */
-export interface WidgetAddControlProps {
-  triggerLabel: string;
-  onResolved: (widgetInstanceId: string) => void | Promise<void>;
-}
-
 /**
  * Owns `WidgetAddControl`'s two-step flow: the pending type choice (`selectedType`), whether the
  * picker dialog is open (`pickerType`, `null` when closed), and the two resolution handlers that
@@ -278,36 +174,4 @@ export function useWidgetAddControl(props: WidgetAddControlProps) {
   }
 
   return { pickerType, setPickerType, selectedType, setSelectedType, error, handleCreateNew, handleUseExisting };
-}
-
-export function WidgetAddControl(props: WidgetAddControlProps) {
-  const { pickerType, setPickerType, selectedType, setSelectedType, error, handleCreateNew, handleUseExisting } =
-    useWidgetAddControl(props);
-
-  return (
-    <span className="widget-add-control">
-      <Select
-        value={selectedType}
-        onChange={(v) => setSelectedType(v as AdminWidgetType)}
-        options={WIDGET_TYPE_OPTIONS}
-        aria-label="Widget type"
-      />
-      <button type="button" onClick={() => setPickerType(selectedType)}>
-        {props.triggerLabel}
-      </button>
-      {error ? (
-        <span className="save-error" role="alert">
-          {error}
-        </span>
-      ) : null}
-      {pickerType ? (
-        <WidgetPickerDialog
-          widgetType={pickerType}
-          onUseExisting={handleUseExisting}
-          onCreateNew={handleCreateNew}
-          onCancel={() => setPickerType(null)}
-        />
-      ) : null}
-    </span>
-  );
 }

@@ -1,5 +1,5 @@
 /**
- * `components/SeeMore.tsx` — the line-clamped block plus its "See more" / "See less" toggle.
+ * `components/SeeMore/SeeMore.tsx` — the line-clamped block plus its "See more" / "See less" toggle.
  * Imported directly by that component, the scoped-partial precedent `styles/select.css` and
  * `styles/assistant.css` establish, rather than a new line in `main.tsx`.
  *

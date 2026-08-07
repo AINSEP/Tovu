@@ -1,5 +1,5 @@
 import { DataTable } from "@jini-ai/admin/react";
-import { SeeMore } from "../../components/SeeMore";
+import { SeeMore } from "../../components/SeeMore/SeeMore";
 import "../../styles/form-field-attrs.css";
 
 import type { AdminFormField } from "../../lib/api";

@@ -15,8 +15,8 @@ import { getNav } from "./nav";
 import { Login } from "./features/auth";
 import { Placeholder } from "./components/Placeholder";
 import { ADMIN_PANELS } from "./panels";
-import { AssistantDock } from "./components/AssistantDock";
-import { ChatFab } from "./components/ChatFab";
+import { AssistantDock } from "./components/AssistantDock/AssistantDock";
+import { ChatFab } from "./components/ChatFab/ChatFab";
 
 /**
  * A resolved route, plus the one Tovu-local wrinkle `@jini-ai/admin/core`'s generic matcher does

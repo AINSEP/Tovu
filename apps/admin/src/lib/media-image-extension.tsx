@@ -2,7 +2,7 @@ import { useState } from "react";
 import TiptapImage from "@tiptap/extension-image";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
 import { api } from "./api";
-import { MediaPickerDialog } from "../components/MediaPickerDialog";
+import { MediaPickerDialog } from "../components/MediaPickerDialog/MediaPickerDialog";
 
 /**
  * @file `MediaImage` — the TipTap `image` node extended with ADR-027 §4's ref-based
@@ -116,40 +116,3 @@ export const MediaImage = TiptapImage.extend({
     };
   },
 });
-
-interface MediaImageEditor {
-  commands: { insertMediaRef: (attrs: { assetId: string; transformName: string; alt?: string }) => boolean };
-}
-
-/**
- * The toolbar's "Insert from Media Library" trigger: opens {@link MediaPickerDialog} and inserts
- * the chosen asset as a ref-based image node at the current cursor position, on the `"public"`
- * transform name (`src/media/bootstrap.ts`'s `CORE_PUBLIC_TRANSFORM_NAME`, registered server-side
- * at boot — the one transform name that can ever resolve on the public `/m/` route today; that
- * server module isn't importable from this admin app's own build, so the name is a matching
- * literal here rather than a shared import, same as every other admin/server string-contract in
- * this codebase). Mirrors `WidgetEmbedInsertControl`'s exact "small control wrapping a picker
- * dialog" shape.
- */
-export function MediaImageInsertControl(props: { editor: MediaImageEditor | null }) {
-  const [open, setOpen] = useState(false);
-  if (!props.editor) return null;
-  const editor = props.editor;
-
-  return (
-    <>
-      <button type="button" className="tb-btn" title="Insert from Media Library" onClick={() => setOpen(true)}>
-        Media
-      </button>
-      {open ? (
-        <MediaPickerDialog
-          onSelect={(item) => {
-            editor.commands.insertMediaRef({ assetId: item.id, transformName: "public", alt: item.alt || item.title });
-            setOpen(false);
-          }}
-          onCancel={() => setOpen(false)}
-        />
-      ) : null}
-    </>
-  );
-}

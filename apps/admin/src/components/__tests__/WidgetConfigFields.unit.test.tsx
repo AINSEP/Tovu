@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminWidgetType } from "../../lib/api";
-import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields";
+import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
 
 /**
  * @file First test file for `WidgetConfigFields.tsx` (0% before this pass — no test file existed).
@@ -15,6 +15,16 @@ import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "..
  * on mount, mirroring `WidgetPickerDialog.unit.test.tsx`'s pattern but spying on `api.listMenus`/
  * `api.listForms` directly rather than stubbing `fetch` — simpler here since nothing else in this
  * file touches the network.
+ *
+ * `MenuConfigFields`/`ContactFormConfigFields` now share their fetch-once-on-mount state via
+ * `useFetchedOptions` (`WidgetConfigFields.hooks.tsx`, extracted when `WidgetConfigFields.tsx` split
+ * into `WidgetConfigFields.tsx`/`WidgetConfigFields.hooks.tsx`) — most of this file still exercises
+ * that behavior through the rendered sub-components by mocking `api.listMenus`/`api.listForms`
+ * directly; `WidgetConfigFields.hooks.unit.test.tsx` covers the hook itself in isolation via
+ * `renderHook`. The `describe('WidgetConfigFields data-fetching-hook injection')` block at the
+ * bottom of this file additionally proves `WidgetConfigFields`'s own `useFetchedOptions` prop (owner
+ * mandate MSG-01: every DOM/IO-touching extracted hook must be reachable as an optional prop) is
+ * actually wired through to `MenuConfigFields`, not hardcoded.
  */
 
 afterEach(() => {
@@ -327,5 +337,60 @@ describe("defaultWidgetConfig", () => {
 
   it("an unknown type outside the closed union falls back to an empty object", () => {
     expect(defaultWidgetConfig("unknown-type" as AdminWidgetType)).toEqual({});
+  });
+});
+
+describe("WidgetConfigFields data-fetching-hook injection", () => {
+  it("MenuConfigFields renders purely off an injected fake, proving useFetchedOptions is not hardcoded", () => {
+    // The real useFetchedOptions always starts `{ items: null, error: null }` — even for an
+    // already-resolved promise, the `.then()` callback that populates `items` can only run after a
+    // microtask, so a real render is never synchronously past the "Loading menus…" state. A fake
+    // that returns already-populated data with no async wait at all is something the real hook could
+    // never produce on first render — if this test passes, `WidgetConfigFields` rendered off the
+    // fake, not the real `useFetchedOptions`.
+    // Generic like the real `useFetchedOptions<T>`, not a fixed shape — `WidgetConfigFields`'s
+    // `useFetchedOptions` prop is typed as `typeof useFetchedOptions`, so the fake has to satisfy
+    // that same generic call signature to typecheck as a drop-in replacement.
+    function useFakeFetchedOptions<T>(): { items: T[] | null; error: string | null } {
+      return {
+        items: [
+          { id: "fake-1", workspaceId: "ws1", slug: "fake", title: "Fake Menu", status: "published" as const, items: [], locations: [], updatedAt: "2026-01-01", version: 1 },
+        ] as unknown as T[],
+        error: null,
+      };
+    }
+
+    render(<WidgetConfigFields widgetType="menu" config={{}} onChange={vi.fn()} useFetchedOptions={useFakeFetchedOptions} />);
+
+    // No `api.listMenus` mock was ever installed in this test, and no `await`/`findBy*` was needed —
+    // the option is there synchronously, straight off the fake.
+    expect(screen.getByRole("option", { name: "Fake Menu (published)" })).toBeInTheDocument();
+    expect(screen.queryByText("Loading menus…")).not.toBeInTheDocument();
+  });
+
+  it("ContactFormConfigFields renders purely off an injected fake, proving useFetchedOptions is not hardcoded", () => {
+    function useFakeFetchedOptions<T>(): { items: T[] | null; error: string | null } {
+      return {
+        items: [
+          { id: "fake-f1", workspaceId: "ws1", name: "Fake Form", slug: "fake-form", fields: [], notify: { enabled: false, recipients: [] }, status: "active" as const, createdAt: "2026-01-01", updatedAt: "2026-01-01" },
+        ] as unknown as T[],
+        error: null,
+      };
+    }
+
+    render(<WidgetConfigFields widgetType="contact-form" config={{}} onChange={vi.fn()} useFetchedOptions={useFakeFetchedOptions} />);
+
+    expect(screen.getByRole("option", { name: "Fake Form — active" })).toBeInTheDocument();
+    expect(screen.queryByText("Loading forms…")).not.toBeInTheDocument();
+  });
+
+  it("a real widgetType with no fetching sub-component (e.g. text) ignores the prop entirely", () => {
+    // `useFetchedOptions` is only threaded to the two fetching sub-components — passing it alongside
+    // a non-fetching widgetType must be a harmless no-op, not an error.
+    const neverCalled = vi.fn();
+    render(<WidgetConfigFields widgetType="text" config={{}} onChange={vi.fn()} useFetchedOptions={neverCalled as never} />);
+
+    expect(screen.getByLabelText("Text")).toBeInTheDocument();
+    expect(neverCalled).not.toHaveBeenCalled();
   });
 });

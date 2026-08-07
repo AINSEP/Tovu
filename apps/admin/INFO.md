@@ -95,6 +95,89 @@ Two traps, both of which have already cost real time:
 Components consume the wired hook and may accept it as an overridable prop (`AssistantDock`'s
 `useChats`), which is what lets a component test run against a fake without touching `fetch`.
 
+## Components (`src/components/<Name>/`)
+
+A shared component is a **folder of two files**, ported from `@jini-ai/admin`'s
+`react/components/ConfirmDialog/` (see also `ConfirmButton/`, `RowMenu/` there):
+
+| File | Holds |
+|---|---|
+| `<Name>/<Name>.tsx` | props interface + JSX, and nothing else |
+| `<Name>/<Name>.hooks.tsx` | the state, effects, refs, and DOM/IO logic, as named `use*` hooks |
+
+Four rules, each of which has already earned itself:
+
+**1. No `index.ts` barrel.** Importers reference `components/<Name>/<Name>` directly. A barrel
+makes "add a file to this folder" look like an API change and hides which module a symbol really
+comes from.
+
+**2. The component file is the one public entry point per folder.** Nothing outside a folder may
+import from its `.hooks.tsx`. A hook with an external consumer gets re-exported by name from the
+component file (`WidgetPickerDialog.tsx`'s `export { useWidgetAddControl };`); hooks with no
+external consumer stay exported from `.hooks.tsx` only. Checked against the upstream package: no
+consumer there reaches into a `.hooks.tsx` from outside its own folder.
+
+**3. Any hook that touches the DOM, browser APIs, or IO is an injectable prop, defaulted to the
+real hook.** This is the load-bearing rule — the folder split alone buys tidiness; this buys
+testability.
+
+```tsx
+useClamp?: typeof useSeeMoreClamp;                        // optional prop
+export function SeeMore({ useClamp = useSeeMoreClamp, ...props }: SeeMoreProps) {
+```
+
+Shorten the prop name the way the reference does (`useConfirmDialog` → `useDialog`), so
+`useSeeMoreClamp` → `useClamp`, `useFabPosition` → `useFab`. Where the prop name would collide
+with the imported hook, rename the *local binding*, not the prop (`useExecutionConfig:
+useExecutionConfigState = useExecutionConfig`).
+
+Two consequences worth stating, because both were argued and settled:
+
+- **The seam is additive.** The default is the real hook, so every existing test that renders the
+  component without passing the prop still exercises the real path unchanged. Adding a seam is
+  never a reason to convert an existing integration test to a fake — `ChatFab`'s end-to-end
+  drag-guards-click test deliberately drives the real `useFabPosition`, and stays that way.
+- **One seam per *reachable* boundary; no nested overrides.** `useExistingInstances` runs only
+  inside `useWidgetPickerDialog`, which is already injectable — faking the outer hook means the
+  inner one never executes. Threading an override into a hook's own parameter list would add API
+  surface no consumer can reach.
+
+Each component with a seam carries a test proving the real hook is **not** hardcoded, modelled on
+the upstream `describe('ConfirmDialog dialog-hook injection')` block. Make the fake return
+something the real hook cannot produce, so the test fails if the default is ever wired back in
+directly — a fake resolving data synchronously (the real hook always starts `null` and resolves a
+microtask later), or a position outside the real hook's clamp range.
+
+This is also the fix for **vacuous tests under jsdom**, which reports `0` for every layout
+measurement. A `useSeeMoreClamp` test without the seam can pass while asserting nothing; with it,
+you inject "overflows" vs "fits" and assert the two renderings differ.
+
+One sharp edge: **a fake for a generic hook has to stay generic.** `typeof useFetchedOptions` is
+`<T>(…) => { items: T[] | null; error: string | null }`, so a fake written as a plain function
+returning fixed literal types is not a valid substitute and `tsc` will reject it — pointing at the
+fake, not at the genericity, which is what makes it confusing. Write the fake as
+`<T>(): { items: T[] | null; error: string | null }` with an `as unknown as T[]` on the literal
+data. Everywhere else, `typeof theRealHook` making the fake's shape self-enforcing is the pattern's
+main benefit; this is the same mechanism biting rather than helping.
+
+**4. Tests stay in `src/components/__tests__/`, not in the component folder** — matching upstream,
+which keeps them in `__tests__/components/`. One file per concern: `<Name>.unit.test.tsx` for
+markup and wiring, `<Name>.hooks.unit.test.tsx` for the hook's own behaviour.
+
+### What belongs in `components/` versus `lib/`
+
+**The file extension is not the test — addressability is.** `lib/` holds `.tsx` files, and that is
+correct:
+
+- A TipTap `Node` schema (`MediaImage`, `WidgetEmbed`) is a *module the editor consumes*, passed to
+  `useEditor({ extensions: [...] })`. It lives in `lib/`.
+- A **node view** (`MediaImageNodeView`) is React, but only `ReactNodeViewRenderer` can mount it and
+  nothing else imports it — it is the schema's rendering half, always 1:1 with it. It lives in
+  `lib/`, beside its schema. Splitting it out would file half of one node's definition elsewhere
+  for a naming reason.
+- A **toolbar control** any screen can render (`EmbedInsertControl`) is an ordinary component and
+  belongs in `components/`.
+
 ## Tests
 
 `npm --prefix apps/admin run test` (vitest + jsdom). Run from the repo root — `cd apps/admin &&

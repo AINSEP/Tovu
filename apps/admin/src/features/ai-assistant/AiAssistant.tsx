@@ -10,7 +10,7 @@ import {
   type SettingsDialogTab,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
-import { SeeMore } from "../../components/SeeMore";
+import { SeeMore } from "../../components/SeeMore/SeeMore";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt } from "../../components/AdminByokKeyPanel";
 import { useAdminAssistantSwitch } from "./hooks/use-admin-assistant-switch.hooks";
 import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
@@ -350,7 +350,7 @@ function VisitorCredentialForm({
         — this screen exists because an operator could not tell the two API keys apart — but all of it
         at once is a wall of explanation standing between the operator and the one field they came to
         fill in. Clamping keeps the full text in the DOM (findable by in-page search and by a screen
-        reader walking the region; see `components/SeeMore.tsx`'s header) while letting the form be the
+        reader walking the region; see `components/SeeMore/SeeMore.tsx`'s header) while letting the form be the
         first thing on the screen.
 
         3 lines, not the component's default 2, so the first paragraph's point — "this key is for your

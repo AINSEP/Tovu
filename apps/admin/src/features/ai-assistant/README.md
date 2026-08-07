@@ -10,7 +10,7 @@ The site-visitor-assistant settings screen — the ungrouped, top-row **AI Assis
 
 ## What this feature does not own
 
-- **The operator's admin-dock assistant** (`components/AssistantDock.tsx`) — a sibling under
+- **The operator's admin-dock assistant** (`components/AssistantDock/AssistantDock.tsx`) — a sibling under
   `App.tsx`, not a child of this feature, even though they share the model-discovery call
   (`createExecutionPort().listModels`) and some `@jini-ai/ui` settings pieces with
   `features/settings`'s `SettingsUi.tsx`'s Execution-mode tab.
