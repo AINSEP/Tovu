@@ -94,8 +94,9 @@ type SaveOutcome = "saved" | "exhausted" | "permanent" | "missing";
  *   writing minutes later. Never rejects, so a caller can treat the result as data rather than
  *   wrapping every call.
  *
- * @complexityExemption (2026-08-06, complexity pass) Measures 8 cyclomatic / 15 cognitive —
- * cognitive over the ceiling. This is a bounded retry loop with FIVE distinct, independently
+ * @complexityExemption (2026-08-06, complexity pass; bar raised to ≤9/≤9 same day, exemption
+ * reconfirmed against the new bar) **Score: 8 cyclomatic / 15 cognitive. Bar: ≤9 cyclomatic AND
+ * ≤9 cognitive. Cognitive is over; cyclomatic is not.** This is a bounded retry loop with FIVE distinct, independently
  * documented outcomes (`"saved"`, the `"permanent"` early return, the plain-`"exhausted"` early
  * return, and the two `giveUpOutcome` sites for "out of attempts" vs. "torn down mid-backoff"), each
  * one load-bearing per {@link SaveOutcome}'s own doc — collapsing any pair of them was the exact
@@ -206,11 +207,15 @@ export interface UseAssistantChats {
  *   test can describe conversation state and write failures directly — see
  *   `createFakeAssistantChatsPort`. Referential stability is NOT required; see `portRef`.
  *
- * @complexityExemption (2026-08-06, complexity pass, second pass) ESLint's own per-closure view
- * already scores every closure in this hook's body at or under the ceiling (`select`'s inner
- * `commit` is 2/1, `remove` is 6/3, `rename` is 4/2, `flush` is 4/2, `onMessagesChange` is 4/2 —
- * see this file's own before/after table in the session report). The dispatch brief's owner-tool
- * score (19/24) is the OTHER view: nested closures rolled into the hook's own total. This pass
+ * @complexityExemption (2026-08-06, complexity pass, second pass; bar raised to ≤9/≤9 same day,
+ * exemption reconfirmed against the new bar) **Score: this hook's own lexical scope is 1
+ * cyclomatic / ~0 cognitive under ESLint — every closure inside it is independently ≤9/≤9 too
+ * (`select`'s inner `commit` is 2/1, `remove` is 6/3, `rename` is 4/2, `flush` is 4/2,
+ * `onMessagesChange` is 4/2 — see this file's own before/after table in the session report). What
+ * is exempted here is a DIFFERENT, unmeasurable-by-me number: the dispatch brief's owner-tool score
+ * of 19/24, which rolls every nested closure's branches into the hook's total. Bar: ≤9/≤9 on
+ * whichever view is scored — ESLint's view already clears it; the owner-tool aggregate does not,
+ * and I have no local tool that reproduces that aggregate to re-measure against the new bar.** This pass
  * already pulled every closure that could become a genuinely top-level PURE function out of hook
  * bodies across this scope (`saveWithRetry`, `summarizeFlushOutcomes`, `consumeByokStream`,
  * `buildLocalCliContextRef`, `loadExecutionConfig`'s ledger mappers, `upsertMessage`) — each of

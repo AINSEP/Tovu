@@ -70,8 +70,10 @@ function asString(v: unknown): string {
  * `runPrompt`) so `assistant-transport.a2ui.test.ts` can assert the `"a2ui"` branch below in
  * isolation.
  *
- * @complexityExemption (2026-08-06, complexity pass) Measures 17 cyclomatic / 11 cognitive —
- * cyclomatic over the ceiling by construction, not by accident: this is a flat `switch` over
+ * @complexityExemption (2026-08-06, complexity pass; bar raised to ≤9/≤9 same day, exemption
+ * reconfirmed against the new bar) **Score: 17 cyclomatic / 11 cognitive. Bar: ≤9 cyclomatic AND
+ * ≤9 cognitive. Both axes are over.** Cyclomatic is over the ceiling by construction, not by
+ * accident: this is a flat `switch` over
  * `RunProtocolEventWire`'s closed `payload.type` vocabulary, one `case` per wire type, every case a
  * single-line `return`. Cyclomatic counts every `case` as a branch regardless of shape, which is why
  * it inflates faster than cognitive here (11 — near the ceiling on its own, mostly from the
