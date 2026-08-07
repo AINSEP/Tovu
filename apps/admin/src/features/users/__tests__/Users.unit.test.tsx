@@ -197,6 +197,27 @@ describe("Disable — via RowMenu, still confirm-gated", () => {
     await screen.findByText("disabled");
     expect(dialog).not.toHaveAttribute("open");
   });
+
+  it("Cancel closes the dialog without disabling — UserDisableDialog's onCancel branch", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
+      .mockResolvedValueOnce(jsonResponse({ roles: [] }))
+      .mockResolvedValueOnce(jsonResponse({ policies: [] }));
+    render(<Users />);
+
+    await screen.findByText("alice");
+    const menu = await openMenu(user, "alice");
+    await user.click(within(menu).getByRole("menuitem", { name: "Disable" }));
+
+    const dialog = dialogFor(/disable this user\?/i);
+    expect(dialog).toHaveAttribute("open");
+    await user.click(within(dialog).getByRole("button", { name: /^cancel$/i }));
+
+    expect(dialog).not.toHaveAttribute("open");
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/disable"))).toBe(false);
+    expect(screen.getByText("active")).toBeInTheDocument();
+  });
 });
 
 describe("Enable — via RowMenu, immediate (no confirm, matching prior behavior)", () => {
@@ -268,5 +289,33 @@ describe("Reset password — via RowMenu, opens a dialog with a password field",
     await screen.findByText("server exploded");
     expect(dialog).toHaveAttribute("open");
     expect(input.value).toBe("correct-horse-battery-staple");
+  });
+
+  it("Cancel closes the dialog and clears the typed password and error — UserResetPasswordDialog's onCancel branch", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
+      .mockResolvedValueOnce(jsonResponse({ roles: [] }))
+      .mockResolvedValueOnce(jsonResponse({ policies: [] }))
+      .mockResolvedValueOnce(jsonResponse({ error: "server exploded" }, 500));
+    render(<Users />);
+
+    await screen.findByText("alice");
+    const menu = await openMenu(user, "alice");
+    await user.click(within(menu).getByRole("menuitem", { name: "Reset password" }));
+
+    const dialog = dialogFor(/reset password\?/i);
+    await user.type(within(dialog).getByLabelText("New password"), "correct-horse-battery-staple");
+    await user.click(within(dialog).getByRole("button", { name: /^reset password$/i }));
+    await screen.findByText("server exploded");
+
+    await user.click(within(dialog).getByRole("button", { name: /^cancel$/i }));
+
+    expect(dialog).not.toHaveAttribute("open");
+    expect(screen.queryByText("server exploded")).not.toBeInTheDocument();
+    // Reopening starts from a clean slate — proves newPassword/passwordError were actually
+    // cleared by onCancel, not merely hidden behind the closed dialog.
+    await user.click(within(await openMenu(user, "alice")).getByRole("menuitem", { name: "Reset password" }));
+    expect((within(dialog).getByLabelText("New password") as HTMLInputElement).value).toBe("");
   });
 });

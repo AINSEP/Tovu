@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -195,9 +195,45 @@ describe("delete confirmation dialogs", () => {
     expect(screen.getByText(/delete role "editor"\?/i)).toBeInTheDocument();
   });
 
+  it("stays closed — RoleDeleteDialog's open=false branch — when nothing is pending", () => {
+    renderRoles();
+    expect(screen.queryByText(/delete role ".*"\?/i)).not.toBeInTheDocument();
+  });
+
+  it("wires the role dialog's Confirm/Cancel to onDeleteRole/setPendingRoleDelete(null)", async () => {
+    const user = userEvent.setup();
+    const controller = renderRoles({ pendingRoleDelete: CUSTOM_ROLE });
+    const dialog = screen.getByText(/delete role "editor"\?/i).closest("dialog") as HTMLElement;
+
+    await user.click(within(dialog).getByRole("button", { name: /^cancel$/i }));
+    expect(controller.setPendingRoleDelete).toHaveBeenCalledWith(null);
+    expect(controller.onDeleteRole).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole("button", { name: /^delete$/i }));
+    expect(controller.onDeleteRole).toHaveBeenCalled();
+  });
+
   it("opens the policy ConfirmDialog with the pending policy's name when pendingPolicyDelete is set", () => {
     renderRoles({ pendingPolicyDelete: CUSTOM_POLICY });
     expect(screen.getByText(/delete policy "custom policy"\?/i)).toBeInTheDocument();
+  });
+
+  it("stays closed — PolicyDeleteDialog's open=false branch — when nothing is pending", () => {
+    renderRoles();
+    expect(screen.queryByText(/delete policy ".*"\?/i)).not.toBeInTheDocument();
+  });
+
+  it("wires the policy dialog's Confirm/Cancel to onDeletePolicy/setPendingPolicyDelete(null)", async () => {
+    const user = userEvent.setup();
+    const controller = renderRoles({ pendingPolicyDelete: CUSTOM_POLICY });
+    const dialog = screen.getByText(/delete policy "custom policy"\?/i).closest("dialog") as HTMLElement;
+
+    await user.click(within(dialog).getByRole("button", { name: /^cancel$/i }));
+    expect(controller.setPendingPolicyDelete).toHaveBeenCalledWith(null);
+    expect(controller.onDeletePolicy).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole("button", { name: /^delete$/i }));
+    expect(controller.onDeletePolicy).toHaveBeenCalled();
   });
 });
 
