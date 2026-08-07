@@ -435,10 +435,17 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "subscriptions",
-    // Same shape and reasoning as `orders`/`products` above. `member_tiers` and `member_subscriptions`
-    // exist as tables (created alongside the membership feature, referenced by `payments`'s own
-    // comment above) but are both empty and have no admin API — the recurring-billing counterpart to
-    // Payments' provider configuration, unbuilt in exactly the same way as Orders and Products.
+    // Same `soon` + `Placeholder` shape as `orders`/`products` above, but the most speculative of
+    // the four — worth being honest about rather than implying parity. Products has 3 seeded rows,
+    // a public `routes/site/products.ts`, and a storefront theme actually serving them; Orders has 0
+    // rows but a real, wired path to get them (`store-plugin.ts`'s `checkout()`, called from
+    // `routes/site/store.ts`'s buy action — unexercised, not unbuilt). `member_tiers`/
+    // `member_subscriptions` (referenced by `payments`'s own comment above) are one level further
+    // back: `SqliteMemberTierRepo`/`SqliteMemberSubscriptionRepo` (`src/members/repo.sqlite.ts`)
+    // implement full CRUD against them, but nothing in the app calls those methods — no route, no
+    // plugin, no admin API. Verified via `grep` for their method names outside that one file and its
+    // tests: no hits. This is the recurring-billing counterpart to Payments' provider configuration,
+    // but with no reachable code path yet, not just an empty table waiting for traffic.
     render: () => <Placeholder sectionId="subscriptions" />,
     nav: {
       label: "Subscriptions",
