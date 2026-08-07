@@ -73,6 +73,56 @@ export function FetchQueryProvider({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
+// TanStack reports a disabled query as `pending`, same as a first load. Our
+// contract folds both into `loading` ("no data, nothing to show yet"), which
+// is what a caller actually branches on.
+//
+// Disabling does NOT clear a cached failure, though, and TanStack keeps
+// `data` from the last success even after a LATER fetch attempt errors (the
+// failure only flips `status`/`error`; nothing clears `data`). That leaves
+// two distinct cached-failure shapes once disabled, not one:
+//
+//   - Never succeeded (`data` is `undefined`): passing the error through
+//     broke this module's own stated contract ("stays `loading` with no
+//     request in flight") and, on the pilot screen, made a gesture-gated
+//     cell render a stale failure before the operator had gestured at all —
+//     a lazy read reporting a failure nobody asked it to retry, and one it
+//     cannot dismiss because nothing is "retrying" from its point of view.
+//     Reports `loading`, `error: null`.
+//   - Succeeded before, then broke on a later background refresh (`data` is
+//     defined): the data is still the best answer available and worth
+//     rendering, so `status` stays `success` — but silently dropping the
+//     error here would let a caller present known-stale, known-broken data
+//     as an unqualified success with no way to detect it. Reports
+//     `success`, and — unlike the never-succeeded case — the real `error`,
+//     so a caller that wants to flag "may be stale" can, without losing the
+//     right to just keep showing `data` if it doesn't care.
+
+/**
+ * Folds TanStack's own `status` plus this hook's `disabled`/`hasData` reads into the module's
+ * three-value contract — the nested ternary this used to be, flattened to a top-level function per
+ * this pass's extraction rule (§2 of the complexity-ceiling brief): nested ternaries carry a real
+ * cognitive-complexity nesting penalty a flat `if` chain of the same branch count does not, which is
+ * the entire reason `useFetchQuery` scored high here despite doing no more actual branching.
+ */
+export function resolveFetchQueryStatus<T>(disabled: boolean, hasData: boolean, tanstackStatus: "pending" | "error" | "success"): QueryResult<T>["status"] {
+  if (disabled) return hasData ? "success" : "loading";
+  if (tanstackStatus === "error") return "error";
+  if (tanstackStatus === "success") return "success";
+  return "loading";
+}
+
+/**
+ * The `error` half of the same disabled/never-succeeded-vs-succeeded-before fold `resolveFetchQueryStatus`
+ * documents above — split into its own function rather than kept as a second nested ternary for the
+ * same reason.
+ */
+export function resolveFetchQueryError(rawError: unknown, disabled: boolean, hasData: boolean): Error | null {
+  if (!rawError) return null;
+  if (disabled && !hasData) return null;
+  return toError(rawError, "request failed");
+}
+
 export function useFetchQuery<T>({ key, fetch, enabled = true, staleTime }: FetchQueryOptions<T>): QueryResult<T> {
   const query = useQuery({
     queryKey: key,
@@ -81,41 +131,8 @@ export function useFetchQuery<T>({ key, fetch, enabled = true, staleTime }: Fetc
     ...(staleTime === undefined ? {} : { staleTime }),
   });
 
-  // TanStack reports a disabled query as `pending`, same as a first load. Our
-  // contract folds both into `loading` ("no data, nothing to show yet"), which
-  // is what a caller actually branches on.
-  //
-  // Disabling does NOT clear a cached failure, though, and TanStack keeps
-  // `data` from the last success even after a LATER fetch attempt errors (the
-  // failure only flips `status`/`error`; nothing clears `data`). That leaves
-  // two distinct cached-failure shapes once disabled, not one:
-  //
-  //   - Never succeeded (`data` is `undefined`): passing the error through
-  //     broke this module's own stated contract ("stays `loading` with no
-  //     request in flight") and, on the pilot screen, made a gesture-gated
-  //     cell render a stale failure before the operator had gestured at all —
-  //     a lazy read reporting a failure nobody asked it to retry, and one it
-  //     cannot dismiss because nothing is "retrying" from its point of view.
-  //     Reports `loading`, `error: null`.
-  //   - Succeeded before, then broke on a later background refresh (`data` is
-  //     defined): the data is still the best answer available and worth
-  //     rendering, so `status` stays `success` — but silently dropping the
-  //     error here would let a caller present known-stale, known-broken data
-  //     as an unqualified success with no way to detect it. Reports
-  //     `success`, and — unlike the never-succeeded case — the real `error`,
-  //     so a caller that wants to flag "may be stale" can, without losing the
-  //     right to just keep showing `data` if it doesn't care.
   const disabled = !enabled;
   const hasData = query.data !== undefined;
-  const status: QueryResult<T>["status"] = disabled
-    ? hasData
-      ? "success"
-      : "loading"
-    : query.status === "error"
-      ? "error"
-      : query.status === "success"
-        ? "success"
-        : "loading";
 
   const refetch = useCallback(() => {
     void query.refetch();
@@ -123,8 +140,8 @@ export function useFetchQuery<T>({ key, fetch, enabled = true, staleTime }: Fetc
 
   return {
     data: query.data,
-    error: !query.error ? null : disabled && !hasData ? null : toError(query.error, "request failed"),
-    status,
+    error: resolveFetchQueryError(query.error, disabled, hasData),
+    status: resolveFetchQueryStatus(disabled, hasData, query.status),
     isFetching: query.isFetching,
     refetch,
   };
