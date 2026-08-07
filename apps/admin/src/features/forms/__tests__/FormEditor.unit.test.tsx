@@ -156,3 +156,81 @@ describe("field attributes modal", () => {
     expect(within(dialog).getByLabelText(/css classes/i)).toHaveValue("");
   });
 });
+
+/**
+ * @file (cont'd) Direct coverage for `FormEditorFieldsBody`, `FormEditorTabStrip`, and
+ * `FormEditorMainPanel` — extracted out of `FormEditor` by the complexity-ceiling pass. None of
+ * these branches (notify recipients reveal, the Enable/Disable status toggle, the Fields/
+ * Submissions tab switch, and the new-form "Create form" vs existing-form "Save" label) were
+ * exercised by the tests above, which only drove the load-error guards and the field-attributes
+ * modal. Added per the refactor brief's "every extracted unit gets its own direct unit test" rule.
+ */
+describe("new form — no tabs, Create form label, notify recipients reveal", () => {
+  it("renders no tab strip for a new form, and the Save button reads 'Create form'", async () => {
+    render(<FormEditor formId="new" />);
+
+    expect(screen.getByRole("button", { name: /create form/i })).toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+  });
+
+  it("reveals the recipients input only once notify is enabled", async () => {
+    const user = userEvent.setup();
+    render(<FormEditor formId="new" />);
+
+    expect(screen.queryByLabelText(/recipients/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: /enable email notification/i }));
+    expect(screen.getByLabelText(/recipients/i)).toBeInTheDocument();
+  });
+});
+
+describe("existing form — tab strip, status toggle, submissions panel", () => {
+  function activeForm() {
+    return {
+      id: "f1",
+      name: "Contact",
+      slug: "contact",
+      status: "active",
+      fields: [],
+      notify: { enabled: false, recipients: [] },
+    };
+  }
+
+  it("shows the tab strip and switches to the Submissions panel on click", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: activeForm() }))
+      .mockResolvedValueOnce(jsonResponse({ data: [] })); // FormSubmissions' own load on mount
+
+    render(<FormEditor formId="f1" />);
+
+    const tablist = await screen.findByRole("tablist");
+    expect(tablist).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel", { name: /fields/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: /submissions/i }));
+
+    expect(await screen.findByRole("tabpanel", { name: /submissions/i })).toBeInTheDocument();
+    expect(screen.queryByRole("tabpanel", { name: /fields/i })).not.toBeInTheDocument();
+  });
+
+  it("an active form's status button reads 'Disable' (btn-warning) and flips the form to disabled", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: activeForm() }))
+      .mockResolvedValueOnce(jsonResponse({})) // PUT status update
+      .mockResolvedValueOnce(jsonResponse({ data: { ...activeForm(), status: "disabled" } })); // reload after toggle
+
+    render(<FormEditor formId="f1" />);
+
+    const disableButton = await screen.findByRole("button", { name: /^disable$/i });
+    expect(disableButton).toHaveClass("btn-warning");
+
+    await user.click(disableButton);
+
+    expect(await screen.findByRole("button", { name: /^enable$/i })).toBeInTheDocument();
+    const putCall = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
+    expect(putCall).toBeTruthy();
+    const body = JSON.parse((putCall as [string, RequestInit])[1].body as string);
+    expect(body.status).toBe("disabled");
+  });
+});
