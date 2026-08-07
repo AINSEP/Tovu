@@ -99,6 +99,36 @@ export interface UsersController {
   confirmResetPassword: () => Promise<void>;
 }
 
+/** The shape `onAssignRole`/`onAttachPolicy`/`onSaveEmail` all repeat: set the shared
+ *  `grantSaving`/`grantError` pair, run one call, do a success-only side effect, reload, and clear
+ *  saving in a `finally` — the "whole-hook" complexity view (brief §2) rolls every closure inside
+ *  a hook into one score, so three near-identical 10-line blocks count against `useUsers` even
+ *  though `grantError`/`grantSaving` are deliberately NOT a fit for `useAsyncAction` (see that
+ *  file's own header: shared across three handlers on purpose, not one action's own slot).
+ *  Reproducing the shared-state shape as a local top-level helper — rather than importing the
+ *  generic primitive — collapses the three call sites without forcing that mismatch onto them.
+ *  `onSuccess` is a no-op for `onSaveEmail`, which has nothing else to clear on success. */
+async function runGrantMutation(
+  action: () => Promise<unknown>,
+  onSuccess: () => void,
+  setGrantSaving: Dispatch<SetStateAction<boolean>>,
+  setGrantError: Dispatch<SetStateAction<string | null>>,
+  reload: () => Promise<void>,
+  describeError: (e: unknown) => string,
+): Promise<void> {
+  setGrantSaving(true);
+  setGrantError(null);
+  try {
+    await action();
+    onSuccess();
+    await reload();
+  } catch (e) {
+    setGrantError(describeError(e));
+  } finally {
+    setGrantSaving(false);
+  }
+}
+
 export function useUsers(): UsersController {
   const [users, setUsers] = useState<AdminIdentityUser[] | null>(null);
   const [roles, setRoles] = useState<AdminRole[] | null>(null);
@@ -173,34 +203,32 @@ export function useUsers(): UsersController {
 
   async function onAssignRole(principalId: string) {
     if (!pendingRoleId) return;
-    setGrantSaving(true);
-    setGrantError(null);
-    try {
-      await api.assignRole({ principalId, roleId: pendingRoleId });
-      setPendingRoleId("");
-      await reload();
-    } catch (e) {
-      setGrantError(describeApiError(e, "failed to assign role"));
-    } finally {
-      setGrantSaving(false);
-    }
+    await runGrantMutation(
+      () => api.assignRole({ principalId, roleId: pendingRoleId }),
+      () => setPendingRoleId(""),
+      setGrantSaving,
+      setGrantError,
+      reload,
+      (e) => describeApiError(e, "failed to assign role"),
+    );
   }
 
   async function onAttachPolicy(principalId: string) {
     if (!pendingPolicyId) return;
-    setGrantSaving(true);
-    setGrantError(null);
-    try {
-      await api.attachPolicy({ principalId, policyId: pendingPolicyId });
-      setPendingPolicyId("");
-      await reload();
-    } catch (e) {
-      setGrantError(describeApiError(e, "failed to attach policy"));
-    } finally {
-      setGrantSaving(false);
-    }
+    await runGrantMutation(
+      () => api.attachPolicy({ principalId, policyId: pendingPolicyId }),
+      () => setPendingPolicyId(""),
+      setGrantSaving,
+      setGrantError,
+      reload,
+      (e) => describeApiError(e, "failed to attach policy"),
+    );
   }
 
+  // `onSaveEmail` was left out of the `runGrantMutation` fold above on purpose: it tracks its OWN
+  // `emailSaving` flag rather than the shared `grantSaving` `onAssignRole`/`onAttachPolicy` use, so
+  // routing it through the same helper would mean passing a no-op in place of `setGrantSaving` —
+  // extraction for the sake of a shared call site, not a shared shape. Left hand-rolled.
   async function onSaveEmail(principalId: string) {
     setEmailSaving(true);
     setGrantError(null);

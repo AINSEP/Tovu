@@ -122,6 +122,78 @@ describe("onDeleteRole", () => {
     expect(result.current.rowSavingId).toBeNull();
     expect(result.current.rowError).toBe("It is still in use — remove that assignment/attachment first.");
   });
+
+  it("on success: deletes, reloads, and clears both pendingRoleDelete and rowSavingId", async () => {
+    const { result } = await renderLoaded();
+    act(() => result.current.setPendingRoleDelete(ROLE));
+
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ deletedRoleId: ROLE.id })) // DELETE
+      .mockResolvedValueOnce(jsonResponse({ roles: [] })) // reload: roles
+      .mockResolvedValueOnce(jsonResponse({ policies: [POLICY] })); // reload: policies
+
+    await act(async () => {
+      await result.current.onDeleteRole();
+    });
+
+    expect(result.current.pendingRoleDelete).toBeNull();
+    expect(result.current.rowSavingId).toBeNull();
+    expect(result.current.rowError).toBeNull();
+    expect(result.current.roles).toEqual([]);
+    const deleteCall = fetchMock.mock.calls[2];
+    expect(String(deleteCall[0])).toContain(`/roles/${ROLE.id}`);
+    expect(deleteCall[1]?.method).toBe("DELETE");
+  });
+});
+
+// `onDeletePolicy` had no test at all before this pass — characterisation tests first, per this
+// scope's coverage rule, since `runRowDelete` (the extraction below) now carries its behavior too.
+describe("onDeletePolicy", () => {
+  it("is a no-op with no pending delete — no fetch call", async () => {
+    const { result } = await renderLoaded();
+    const callsBefore = fetchMock.mock.calls.length;
+    await act(async () => {
+      await result.current.onDeletePolicy();
+    });
+    expect(fetchMock.mock.calls.length).toBe(callsBefore);
+  });
+
+  it("on success: deletes, reloads, and clears both pendingPolicyDelete and rowSavingId", async () => {
+    const { result } = await renderLoaded();
+    act(() => result.current.setPendingPolicyDelete(POLICY));
+
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ deletedPolicyId: POLICY.id })) // DELETE
+      .mockResolvedValueOnce(jsonResponse({ roles: [ROLE] })) // reload: roles
+      .mockResolvedValueOnce(jsonResponse({ policies: [] })); // reload: policies
+
+    await act(async () => {
+      await result.current.onDeletePolicy();
+    });
+
+    expect(result.current.pendingPolicyDelete).toBeNull();
+    expect(result.current.rowSavingId).toBeNull();
+    expect(result.current.rowError).toBeNull();
+    expect(result.current.policies).toEqual([]);
+    const deleteCall = fetchMock.mock.calls[2];
+    expect(String(deleteCall[0])).toContain(`/policies/${POLICY.id}`);
+    expect(deleteCall[1]?.method).toBe("DELETE");
+  });
+
+  it("deletes, reloads, and clears pendingPolicyDelete even on failure", async () => {
+    const { result } = await renderLoaded();
+    act(() => result.current.setPendingPolicyDelete(POLICY));
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "still referenced", code: "RESOURCE_CONFLICT" }, 409));
+
+    await act(async () => {
+      await result.current.onDeletePolicy();
+    });
+
+    expect(result.current.pendingPolicyDelete).toBeNull();
+    expect(result.current.rowSavingId).toBeNull();
+    expect(result.current.rowError).toBe("It is still in use — remove that assignment/attachment first.");
+  });
 });
 
 describe("onSaveRole", () => {

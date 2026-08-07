@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { api, type AdminPolicy, type AdminRole } from "../../../lib/api";
 import { describeApiError } from "../rules";
 
@@ -80,6 +80,37 @@ export interface RolesController {
   pendingPolicyDelete: AdminPolicy | null;
   setPendingPolicyDelete: (policy: AdminPolicy | null) => void;
   onDeletePolicy: () => Promise<void>;
+}
+
+/** The shape `onDeleteRole`/`onDeletePolicy` both repeat: guard on nothing pending, set the shared
+ *  `rowSavingId`/`rowError` pair keyed by the row's own id (deliberately not a fit for
+ *  `useAsyncAction` — see that file's own header on why a busy-row-id, not a boolean, is a
+ *  different shape), delete, reload, and always clear both the saving flag and the pending
+ *  selection in `finally` regardless of outcome. The "whole-hook" complexity view (brief §2) counts
+ *  both ~12-line blocks against `useRoles` even though each is individually small under ESLint's
+ *  own per-function view — `onDeletePolicy` had no test at all before this pass; characterisation
+ *  tests were added first (`use-roles.unit.test.ts`) so this extraction has coverage to prove it
+ *  behavior-preserving against. */
+async function runRowDelete(
+  id: string,
+  deleteCall: (id: string) => Promise<unknown>,
+  setRowSavingId: Dispatch<SetStateAction<string | null>>,
+  setRowError: Dispatch<SetStateAction<string | null>>,
+  clearPending: () => void,
+  reload: () => Promise<void>,
+  describeError: (e: unknown) => string,
+): Promise<void> {
+  setRowSavingId(id);
+  setRowError(null);
+  try {
+    await deleteCall(id);
+    await reload();
+  } catch (e) {
+    setRowError(describeError(e));
+  } finally {
+    setRowSavingId(null);
+    clearPending();
+  }
 }
 
 export function useRoles(): RolesController {
@@ -188,17 +219,15 @@ export function useRoles(): RolesController {
   async function onDeleteRole() {
     if (!pendingRoleDelete) return;
     const role = pendingRoleDelete;
-    setRowSavingId(role.id);
-    setRowError(null);
-    try {
-      await api.deleteRole(role.id);
-      await reload();
-    } catch (e) {
-      setRowError(describeApiError(e, "failed to delete role"));
-    } finally {
-      setRowSavingId(null);
-      setPendingRoleDelete(null);
-    }
+    await runRowDelete(
+      role.id,
+      api.deleteRole,
+      setRowSavingId,
+      setRowError,
+      () => setPendingRoleDelete(null),
+      reload,
+      (e) => describeApiError(e, "failed to delete role"),
+    );
   }
 
   function startEditPolicy(policy: AdminPolicy) {
@@ -226,17 +255,15 @@ export function useRoles(): RolesController {
   async function onDeletePolicy() {
     if (!pendingPolicyDelete) return;
     const policy = pendingPolicyDelete;
-    setRowSavingId(policy.id);
-    setRowError(null);
-    try {
-      await api.deletePolicy(policy.id);
-      await reload();
-    } catch (e) {
-      setRowError(describeApiError(e, "failed to delete policy"));
-    } finally {
-      setRowSavingId(null);
-      setPendingPolicyDelete(null);
-    }
+    await runRowDelete(
+      policy.id,
+      api.deletePolicy,
+      setRowSavingId,
+      setRowError,
+      () => setPendingPolicyDelete(null),
+      reload,
+      (e) => describeApiError(e, "failed to delete policy"),
+    );
   }
 
   function togglePermissionForm(policyId: string) {

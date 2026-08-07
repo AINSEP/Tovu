@@ -167,6 +167,17 @@ async function refreshVisitorDiscoveryAfterTest(deps: {
   }
 }
 
+/** Turns the port's raw `testConnection` result into the screen's `ConnectionTestState` — pulled
+ *  out of {@link runVisitorTestConnection} per the complexity-pass extraction rule. This was an
+ *  inline optional-chain/`||`/ternary cluster that put the parent at 10/5 — over the ceiling on
+ *  cyclomatic alone once it tightened to ≤9/≤9 mid-pass. Same treatment as `AiAssistant.tsx`'s
+ *  `visitorCredentialSaveStatusMessage` sibling. */
+function connectionTestStateFromResult(result: { ok: boolean; message?: string } | undefined): ConnectionTestState {
+  if (!result) return { status: "error", message: "Connection test failed" };
+  if (result.ok) return { status: "ok", message: result.message };
+  return { status: "error", message: result.message || "Connection test failed" };
+}
+
 /** The explicit "Test connection" press — extracted for the same reason as
  *  {@link saveVisitorCredential}. */
 async function runVisitorTestConnection(deps: {
@@ -179,11 +190,7 @@ async function runVisitorTestConnection(deps: {
   setConnectionTest({ status: "testing" });
   try {
     const result = await port.testConnection?.(config);
-    setConnectionTest(
-      result?.ok
-        ? { status: "ok", message: result.message }
-        : { status: "error", message: result?.message || "Connection test failed" },
-    );
+    setConnectionTest(connectionTestStateFromResult(result));
     if (result?.ok) await refreshVisitorDiscoveryAfterTest({ port, config, setDiscovery });
   } catch (e) {
     setConnectionTest({ status: "error", message: e instanceof Error ? e.message : "Connection test failed" });
