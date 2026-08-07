@@ -449,6 +449,24 @@ function UsersPageHeader({ formOpen, setFormOpen }: UsersPageHeaderProps) {
   );
 }
 
+interface UsersNoticesProps {
+  toggleError: string | null;
+  notice: string | null;
+}
+
+/** The Disable/Enable-toggle error banner and the reset-password success notice — extracted from
+ *  `Users` verbatim. `Users` was still cyc 10 (over the tightened <=9/<=9 bar) with these two
+ *  independent ternaries inline; moving them out is the same "extract to a top-level function"
+ *  rule the rest of this pass follows. */
+function UsersNotices({ toggleError, notice }: UsersNoticesProps) {
+  return (
+    <>
+      {toggleError ? <div className="notice error">{toggleError}</div> : null}
+      {notice ? <div className="notice">{notice}</div> : null}
+    </>
+  );
+}
+
 export function Users({ useUsersHook = useUsers }: UsersProps = {}) {
   const {
     users,
@@ -526,8 +544,7 @@ export function Users({ useUsersHook = useUsers }: UsersProps = {}) {
         />
       ) : null}
 
-      {toggleError ? <div className="notice error">{toggleError}</div> : null}
-      {notice ? <div className="notice">{notice}</div> : null}
+      <UsersNotices toggleError={toggleError} notice={notice} />
 
       <UsersTable
         users={users}
