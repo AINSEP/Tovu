@@ -43,6 +43,88 @@ const VIEWS: ReadonlyArray<{ key: PageEditorView; label: string }> = [
   { key: "html", label: "HTML" },
 ];
 
+/**
+ * The editor header's action row — back link, save status, the publish/save/delete buttons.
+ *
+ * Extracted out of `PageEditor` because this is where nearly all of that component's branching
+ * lived: the message/error spans, the publish button's conditional render, the save button's
+ * className, and its "Saving…"/"Save •"/"Save" label are five independent decisions that don't
+ * depend on the preview/HTML body below them. As a top-level function its branches are scored in
+ * their own scope instead of accumulating onto `PageEditor`'s — same split as
+ * `features/posts/PostEditor.tsx`'s `PostEditorHeader`.
+ */
+function PageEditorHeader({
+  dirty,
+  message,
+  error,
+  status,
+  setStatus,
+  saving,
+  onPublish,
+  onSave,
+  onDeleteClick,
+}: {
+  dirty: boolean;
+  message: string | null;
+  error: string | null;
+  status: "draft" | "published";
+  setStatus: (value: "draft" | "published") => void;
+  saving: boolean;
+  onPublish: () => void;
+  onSave: () => void;
+  onDeleteClick: () => void;
+}) {
+  return (
+    <div className="page-header">
+      <div className="page-header-text">
+        <p className="page-kicker">Content</p>
+        <h1 className="page-title">Edit page</h1>
+        <p className="page-description">
+          Ask the assistant to build this page, or edit the HTML directly.
+        </p>
+      </div>
+      <div className="page-actions">
+        {/* Guards an in-app navigation away from unsaved work — the same protection the agent's
+            own navigation gate is meant to apply, applied here to a human click. */}
+        <a
+          href="/admin/pages"
+          onClick={(e) => {
+            if (dirty && !window.confirm("This page has unsaved changes. Leave anyway?")) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <button type="button" className="btn-secondary">
+            ← Pages
+          </button>
+        </a>
+        {message ? <span className="save-ok">{message}</span> : null}
+        {error ? <span className="save-error">{error}</span> : null}
+        <select value={status} onChange={(e) => setStatus(e.target.value as "draft" | "published")}>
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+        </select>
+        {status === "draft" ? (
+          <button type="button" onClick={onPublish} disabled={saving}>
+            Publish
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className={status === "draft" ? "btn-secondary" : undefined}
+          onClick={onSave}
+          disabled={saving}
+        >
+          {saving ? "Saving…" : dirty ? "Save •" : "Save"}
+        </button>
+        <button type="button" className="btn-danger" onClick={onDeleteClick}>
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function PageEditor({ pageId, usePageEditorHook = usePageEditor }: PageEditorProps) {
   const {
     page,
@@ -74,53 +156,17 @@ export function PageEditor({ pageId, usePageEditorHook = usePageEditor }: PageEd
 
   return (
     <div className="page">
-      <div className="page-header">
-        <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">Edit page</h1>
-          <p className="page-description">
-            Ask the assistant to build this page, or edit the HTML directly.
-          </p>
-        </div>
-        <div className="page-actions">
-          {/* Guards an in-app navigation away from unsaved work — the same protection the agent's
-              own navigation gate is meant to apply, applied here to a human click. */}
-          <a
-            href="/admin/pages"
-            onClick={(e) => {
-              if (dirty && !window.confirm("This page has unsaved changes. Leave anyway?")) {
-                e.preventDefault();
-              }
-            }}
-          >
-            <button type="button" className="btn-secondary">
-              ← Pages
-            </button>
-          </a>
-          {message ? <span className="save-ok">{message}</span> : null}
-          {error ? <span className="save-error">{error}</span> : null}
-          <select value={status} onChange={(e) => setStatus(e.target.value as "draft" | "published")}>
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-          </select>
-          {status === "draft" ? (
-            <button type="button" onClick={() => save("published")} disabled={saving}>
-              Publish
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className={status === "draft" ? "btn-secondary" : undefined}
-            onClick={() => save()}
-            disabled={saving}
-          >
-            {saving ? "Saving…" : dirty ? "Save •" : "Save"}
-          </button>
-          <button type="button" className="btn-danger" onClick={() => setConfirmingDelete(true)}>
-            Delete
-          </button>
-        </div>
-      </div>
+      <PageEditorHeader
+        dirty={dirty}
+        message={message}
+        error={error}
+        status={status}
+        setStatus={setStatus}
+        saving={saving}
+        onPublish={() => save("published")}
+        onSave={() => save()}
+        onDeleteClick={() => setConfirmingDelete(true)}
+      />
 
       {/* `editor-title`/`editor-slug` are the existing editor chrome from `styles/editor.css`,
           reused verbatim so a Page's header looks and behaves exactly like the screen it replaces.
