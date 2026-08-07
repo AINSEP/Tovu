@@ -33,6 +33,19 @@ export interface WorkspaceProps {
   useWorkspaceHook?: typeof useWorkspace;
 }
 
+/** The rename form's own status pair — a save error, or a "Saved." confirmation once the form is
+ * no longer dirty. Split out of `Workspace` as a top-level function per the complexity-ceiling
+ * brief's extraction rule. */
+function WorkspaceFormStatus(props: { saveError: string | null; saved: boolean; dirty: boolean }) {
+  const { saveError, saved, dirty } = props;
+  return (
+    <>
+      {saveError ? <span className="save-error">{saveError}</span> : null}
+      {saved && !dirty ? <span className="save-success">Saved.</span> : null}
+    </>
+  );
+}
+
 export function Workspace({ useWorkspaceHook = useWorkspace }: WorkspaceProps = {}) {
   const { workspace, error, name, setName, slug, setSlug, saving, saveError, saved, onSave } = useWorkspaceHook();
 
@@ -52,8 +65,7 @@ export function Workspace({ useWorkspaceHook = useWorkspace }: WorkspaceProps = 
       </div>
 
       <form onSubmit={onSave} className="notice integrations-form">
-        {saveError ? <span className="save-error">{saveError}</span> : null}
-        {saved && !dirty ? <span className="save-success">Saved.</span> : null}
+        <WorkspaceFormStatus saveError={saveError} saved={saved} dirty={dirty} />
         <label>
           Name
           <input value={name} onChange={(e) => setName(e.target.value)} required />
