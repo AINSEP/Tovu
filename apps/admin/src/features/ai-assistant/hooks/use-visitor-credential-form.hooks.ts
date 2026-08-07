@@ -5,6 +5,7 @@ import {
   resolveSelectedPreset,
   type ByokConfig,
   type ConnectionTestState,
+  type ExecutionPort,
   type ModelDiscoveryState,
   type ProviderPreset,
 } from "@jini-ai/ui";
@@ -68,6 +69,125 @@ export interface VisitorCredentialFormController {
   saveCredential: () => Promise<void>;
   runKeyTest: () => Promise<void>;
   runTestConnection: () => Promise<void>;
+}
+
+/**
+ * The explicit save, extracted from the hook body per the complexity-pass extraction rule — a
+ * top-level function, not a nested closure, so it actually leaves the hook's own scope instead of
+ * only lowering its ESLint per-closure score (the "whole-hook" view the owner's tool takes rolls
+ * every nested closure back in regardless of how small each one measures on its own). See
+ * `VisitorCredentialForm`'s own doc comment in `AiAssistant.tsx` for the "why an explicit press,
+ * not a debounce" reasoning this function implements; `apiKey.trim()` empty-field handling implements
+ * `put-site-credential.ts`'s documented "leave the stored key alone" case.
+ */
+async function saveVisitorCredential(deps: {
+  apiKey: string;
+  hasStoredKey: boolean;
+  protocol: ByokConfig["protocol"];
+  baseUrl: string;
+  model: string;
+  setSaveState: (state: SaveState) => void;
+  setStored: (stored: SiteAssistantCredential) => void;
+  setDirty: (dirty: boolean) => void;
+  setConfig: (updater: (current: ByokConfig) => ByokConfig) => void;
+}): Promise<void> {
+  const { apiKey, hasStoredKey, protocol, baseUrl, model, setSaveState, setStored, setDirty, setConfig } = deps;
+  // No key typed AND none stored: the only thing a write could do is create a keyless row, which
+  // would make `isSet` lie about a credential that does not exist.
+  if (!apiKey.trim() && !hasStoredKey) return;
+
+  const patch: SiteAssistantCredentialPatch = { provider: protocol, baseUrl, model };
+  if (apiKey.trim()) patch.apiKey = apiKey.trim();
+
+  setSaveState({ status: "saving" });
+  try {
+    const { data } = await api.setAssistantSiteCredential(patch);
+    // The SERVER's view, not the patch that was sent — same reasoning as `setPublicEnabled` in
+    // `use-ai-assistant.hooks.ts`. A partially-applied or rejected write must not leave this screen
+    // claiming a key is stored when it is not.
+    setStored(data);
+    setSaveState({ status: "saved", at: data.updatedAt });
+    setDirty(false);
+    // Clear the field once the key is safely stored. Leaving the plaintext sitting in a React
+    // state tree after it has been persisted keeps it readable in devtools for no benefit, and the
+    // masked placeholder now carries the "which key" answer the field would otherwise be giving.
+    if (patch.apiKey) setConfig((current) => ({ ...current, apiKey: "" }));
+  } catch (e) {
+    setSaveState({ status: "error", message: describeApiError(e, "failed to save the key") });
+  }
+}
+
+/**
+ * The explicit "Test Key" press — extracted for the same reason as {@link saveVisitorCredential}.
+ * Runs against WHATEVER endpoint is in `config`, preset or not, unlike the debounced automatic
+ * discovery effect: an operator pressing a button labelled "Test Key" has deliberately chosen to
+ * send this credential to the host they typed.
+ */
+async function runVisitorKeyTest(deps: {
+  port: ExecutionPort;
+  config: ByokConfig;
+  setDiscovery: (state: ModelDiscoveryState) => void;
+  setConfig: (updater: (current: ByokConfig) => ByokConfig) => void;
+}): Promise<void> {
+  const { port, config, setDiscovery, setConfig } = deps;
+  setDiscovery({ status: "loading" });
+  try {
+    const models = (await port.listModels?.(config)) ?? [];
+    setDiscovery({ status: "ok", models });
+    setConfig((current) =>
+      current.model.trim() || models.length === 0
+        ? current
+        : { ...current, model: models.find((m) => m === "gemini-flash-latest") ?? (models[0] as string) },
+    );
+  } catch (e) {
+    setDiscovery({ status: "error", message: e instanceof Error ? e.message : "Could not reach the provider with that key" });
+  }
+}
+
+/**
+ * Refreshes discovery after an explicit connection test — extracted for the same reason as
+ * {@link saveVisitorCredential}. The debounced effect can't recover from a transient discovery
+ * failure on its own (nothing about the credential changed afterwards), so without this the
+ * operator would be stuck looking at a stale error next to a connection that just went green. Only
+ * called by {@link runVisitorTestConnection} below, on a successful test.
+ */
+async function refreshVisitorDiscoveryAfterTest(deps: {
+  port: ExecutionPort;
+  config: ByokConfig;
+  setDiscovery: (state: ModelDiscoveryState) => void;
+}): Promise<void> {
+  const { port, config, setDiscovery } = deps;
+  if (!config.apiKey.trim()) return;
+  try {
+    const models = await port.listModels?.(config);
+    if (models) setDiscovery({ status: "ok", models });
+  } catch {
+    // Leave whatever discovery state already exists — the connection result is the answer the
+    // operator asked for, and failing to also refresh the list must not overwrite it.
+  }
+}
+
+/** The explicit "Test connection" press — extracted for the same reason as
+ *  {@link saveVisitorCredential}. */
+async function runVisitorTestConnection(deps: {
+  port: ExecutionPort;
+  config: ByokConfig;
+  setConnectionTest: (state: ConnectionTestState) => void;
+  setDiscovery: (state: ModelDiscoveryState) => void;
+}): Promise<void> {
+  const { port, config, setConnectionTest, setDiscovery } = deps;
+  setConnectionTest({ status: "testing" });
+  try {
+    const result = await port.testConnection?.(config);
+    setConnectionTest(
+      result?.ok
+        ? { status: "ok", message: result.message }
+        : { status: "error", message: result?.message || "Connection test failed" },
+    );
+    if (result?.ok) await refreshVisitorDiscoveryAfterTest({ port, config, setDiscovery });
+  } catch (e) {
+    setConnectionTest({ status: "error", message: e instanceof Error ? e.message : "Connection test failed" });
+  }
 }
 
 export function useVisitorCredentialForm(): VisitorCredentialFormController {
@@ -189,55 +309,24 @@ export function useVisitorCredentialForm(): VisitorCredentialFormController {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stored?.isSet, baseUrl, protocol]);
 
-  /**
-   * Explicit save. Nothing on this screen writes a credential except this function, called from the
-   * Save button.
-   *
-   * ## Why this is not a debounce any more
-   *
-   * It was: the key auto-saved 2 seconds after typing stopped. That is a fine pattern for a
-   * preference and a bad one for a production secret, because it makes every keystroke in the key
-   * field a WRITE to the credential a live site is serving. It cost a real key during this session —
-   * a verification script typed into the field to trigger model discovery, and two seconds later the
-   * owner's working key had been encrypted over and was unrecoverable. There was no user error in
-   * that sequence, which is the point: the affordance made an incidental action destructive.
-   *
-   * An explicit Save costs one click and makes the destructive step the one the operator actually
-   * asked for.
-   *
-   * ## Why `apiKey` is omitted when the field is empty
-   *
-   * That is the route's documented "leave the stored key alone" case (`put-site-credential.ts`), and
-   * it is what lets an operator change the model or base URL of an existing credential without
-   * re-pasting the secret — the field shows only a masked placeholder, after all. It also means Save
-   * can never blank a working key by accident; clearing is DELETE, a separate deliberate act.
-   */
+  // Nothing on this screen writes a credential except this function, called from the Save button.
+  // Why an explicit press rather than the debounce this used to be, and why `apiKey` is omitted
+  // when the field is empty — see `saveVisitorCredential`'s own doc comment above (moved WITH the
+  // function in the complexity-pass extraction, not summarised here).
   const hasStoredKey = hasStoredCredential(stored);
 
-  async function saveCredential() {
-    // No key typed AND none stored: the only thing a write could do is create a keyless row, which
-    // would make `isSet` lie about a credential that does not exist.
-    if (!apiKey.trim() && !hasStoredKey) return;
-
-    const patch: SiteAssistantCredentialPatch = { provider: protocol, baseUrl, model: config.model };
-    if (apiKey.trim()) patch.apiKey = apiKey.trim();
-
-    setSaveState({ status: "saving" });
-    try {
-      const { data } = await api.setAssistantSiteCredential(patch);
-      // The SERVER's view, not the patch that was sent — same reasoning as `setPublicEnabled` in
-      // `use-ai-assistant.hooks.ts`. A partially-applied or rejected write must not leave this screen
-      // claiming a key is stored when it is not.
-      setStored(data);
-      setSaveState({ status: "saved", at: data.updatedAt });
-      setDirty(false);
-      // Clear the field once the key is safely stored. Leaving the plaintext sitting in a React
-      // state tree after it has been persisted keeps it readable in devtools for no benefit, and the
-      // masked placeholder now carries the "which key" answer the field would otherwise be giving.
-      if (patch.apiKey) setConfig((current) => ({ ...current, apiKey: "" }));
-    } catch (e) {
-      setSaveState({ status: "error", message: describeApiError(e, "failed to save the key") });
-    }
+  function saveCredential() {
+    return saveVisitorCredential({
+      apiKey,
+      hasStoredKey,
+      protocol,
+      baseUrl,
+      model: config.model,
+      setSaveState,
+      setStored,
+      setDirty,
+      setConfig,
+    });
   }
 
   // `isPresetSuppliedEndpoint` (in `../rules.ts`) is the SECURITY GATE for the debounced discovery
@@ -297,57 +386,16 @@ export function useVisitorCredentialForm(): VisitorCredentialFormController {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey, baseUrl, protocol, presetSuppliedEndpoint]);
 
-  /**
-   * The explicit "Test Key" press. Unlike the automatic effect above this runs against WHATEVER
-   * endpoint is in the field, preset or not — an operator pressing a button labelled "Test Key" has
-   * deliberately chosen to send this credential to the host they typed, which is precisely the
-   * explicit gate the keystroke-leak finding asks for. The difference between the two paths is
-   * consent, not capability.
-   */
-  async function runKeyTest() {
-    setDiscovery({ status: "loading" });
-    try {
-      const models = (await port.current.listModels?.(config)) ?? [];
-      setDiscovery({ status: "ok", models });
-      setConfig((current) =>
-        current.model.trim() || models.length === 0
-          ? current
-          : { ...current, model: models.find((m) => m === "gemini-flash-latest") ?? (models[0] as string) },
-      );
-    } catch (e) {
-      setDiscovery({ status: "error", message: e instanceof Error ? e.message : "Could not reach the provider with that key" });
-    }
+  // The explicit "Test Key" / "Test connection" presses — see `runVisitorKeyTest` and
+  // `runVisitorTestConnection`'s own doc comments above for why these run against WHATEVER endpoint
+  // is in the field (unlike the debounced automatic effect above) and how the post-test discovery
+  // refresh works.
+  function runKeyTest() {
+    return runVisitorKeyTest({ port: port.current, config, setDiscovery, setConfig });
   }
 
-  // Also refresh discovery on an explicit test. The debounced effect above cannot recover from a
-  // discovery attempt that failed transiently, because nothing about the credential changed
-  // afterwards — so without this the operator would be stuck looking at a stale error next to a
-  // connection that just went green. (The same trap was found and fixed independently upstream in
-  // Jini's `ExecutionTab`; this screen must not reintroduce it.)
-  async function refreshDiscoveryAfterTest() {
-    if (!config.apiKey.trim()) return;
-    try {
-      const models = await port.current.listModels?.(config);
-      if (models) setDiscovery({ status: "ok", models });
-    } catch {
-      // Leave whatever discovery state already exists — the connection result is the answer the
-      // operator asked for, and failing to also refresh the list must not overwrite it.
-    }
-  }
-
-  async function runTestConnection() {
-    setConnectionTest({ status: "testing" });
-    try {
-      const result = await port.current.testConnection?.(config);
-      setConnectionTest(
-        result?.ok
-          ? { status: "ok", message: result.message }
-          : { status: "error", message: result?.message || "Connection test failed" },
-      );
-      if (result?.ok) await refreshDiscoveryAfterTest();
-    } catch (e) {
-      setConnectionTest({ status: "error", message: e instanceof Error ? e.message : "Connection test failed" });
-    }
+  function runTestConnection() {
+    return runVisitorTestConnection({ port: port.current, config, setConnectionTest, setDiscovery });
   }
 
   /**
