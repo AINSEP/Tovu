@@ -31,6 +31,33 @@ import {
  * value alone, without assembling raw namespace/effective-value fixtures by hand.
  */
 
+/** Shared try/setSaving/setError/finally shape behind `onSubmitValue` / `onClearValue` /
+ *  `onConfirmReset` below — a top-level function per the complexity-pass extraction rule, so the
+ *  repeated shape actually leaves the hook body instead of only being three separate nested
+ *  closures with the same lines in them.
+ *
+ *  Deliberately NOT `useAsyncAction` (`hooks/use-async-action.hooks.ts`): that primitive gives each
+ *  call site its OWN `saving`/`error` pair, but all three callers here intentionally share ONE
+ *  `saving`/`error` slot with each other (this screen has a single active mutation at a time, one
+ *  error line under the detail panel) — exactly the "shared across multiple actions" shape that
+ *  primitive's own header documents as not a fit. Passing the shared setters in as `deps` keeps
+ *  that sharing unchanged rather than splitting it. */
+async function runSettingsMutation(
+  action: () => Promise<void>,
+  describeError: (e: unknown) => string,
+  deps: { setSaving: (v: boolean) => void; setError: (v: string | null) => void },
+): Promise<void> {
+  deps.setSaving(true);
+  deps.setError(null);
+  try {
+    await action();
+  } catch (e) {
+    deps.setError(describeError(e));
+  } finally {
+    deps.setSaving(false);
+  }
+}
+
 export interface SettingsContainerHookProps {
   canWriteScopes: CanWriteScopes;
   selfPrincipalId: string;
@@ -181,56 +208,50 @@ export function useSettingsContainer(props: SettingsContainerHookProps): Setting
   async function onSubmitValue(scope: SettingScope, valueJson: unknown) {
     const sel = selectedNamespaceAndKey(selectedKey);
     if (!sel) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await api.setSetting(
-        { namespace: sel.namespace, key: sel.key, scope, valueJson },
-        { principalId: scope === "user" ? effectivePrincipalId : undefined }
-      );
-      setLiveMessage(`Saved ${sel.namespace}.${sel.key} at ${scope} scope.`);
-      await loadNamespace(sel.namespace);
-    } catch (e) {
-      setError(describeApiError(e, "Failed to save value"));
-    } finally {
-      setSaving(false);
-    }
+    await runSettingsMutation(
+      async () => {
+        await api.setSetting(
+          { namespace: sel.namespace, key: sel.key, scope, valueJson },
+          { principalId: scope === "user" ? effectivePrincipalId : undefined }
+        );
+        setLiveMessage(`Saved ${sel.namespace}.${sel.key} at ${scope} scope.`);
+        await loadNamespace(sel.namespace);
+      },
+      (e) => describeApiError(e, "Failed to save value"),
+      { setSaving, setError },
+    );
   }
 
   async function onClearValue(scope: SettingScope) {
     const sel = selectedNamespaceAndKey(selectedKey);
     if (!sel) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await api.clearSetting(
-        { namespace: sel.namespace, key: sel.key, scope },
-        { principalId: scope === "user" ? effectivePrincipalId : undefined }
-      );
-      setLiveMessage(`Cleared ${sel.namespace}.${sel.key} at ${scope} scope.`);
-      await loadNamespace(sel.namespace);
-    } catch (e) {
-      setError(describeApiError(e, "Failed to clear value"));
-    } finally {
-      setSaving(false);
-    }
+    await runSettingsMutation(
+      async () => {
+        await api.clearSetting(
+          { namespace: sel.namespace, key: sel.key, scope },
+          { principalId: scope === "user" ? effectivePrincipalId : undefined }
+        );
+        setLiveMessage(`Cleared ${sel.namespace}.${sel.key} at ${scope} scope.`);
+        await loadNamespace(sel.namespace);
+      },
+      (e) => describeApiError(e, "Failed to clear value"),
+      { setSaving, setError },
+    );
   }
 
   async function onConfirmReset() {
     if (!pendingReset) return;
     const { namespace, scope } = pendingReset;
-    setSaving(true);
-    setError(null);
-    try {
-      const result = await api.resetSettingsNamespace({ namespace, scope });
-      setLiveMessage(`Reset ${result.clearedCount} setting(s) in ${namespace} (${scope} scope) to defaults.`);
-      setPendingReset(null);
-      await loadNamespace(namespace);
-    } catch (e) {
-      setError(describeApiError(e, "Failed to reset namespace"));
-    } finally {
-      setSaving(false);
-    }
+    await runSettingsMutation(
+      async () => {
+        const result = await api.resetSettingsNamespace({ namespace, scope });
+        setLiveMessage(`Reset ${result.clearedCount} setting(s) in ${namespace} (${scope} scope) to defaults.`);
+        setPendingReset(null);
+        await loadNamespace(namespace);
+      },
+      (e) => describeApiError(e, "Failed to reset namespace"),
+      { setSaving, setError },
+    );
   }
 
   const groups = buildNamespaceGroups(namespaces, groupsByNamespace);
