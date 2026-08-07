@@ -4,7 +4,7 @@ import { DataTable } from "@jini-ai/admin/react";
 
 import { navigateToRecoveryWithDeepLink, useTimelineSection } from "./hooks/use-timeline-section.hooks";
 import { useRestorePointsSection } from "./hooks/use-restore-points-section.hooks";
-import { useMigrateForwardSection } from "./hooks/use-migrate-forward-section.hooks";
+import { useMigrateForwardSection, type MigrateForwardSectionController } from "./hooks/use-migrate-forward-section.hooks";
 
 /**
  * @file Database screen (design-spec.md §3, ADR-041) — the `/admin/database` route: the
@@ -190,6 +190,82 @@ export interface MigrateForwardSectionProps {
   useMigrateForwardSectionHook?: typeof useMigrateForwardSection;
 }
 
+/** step === "idle": the entry point into the ceremony. */
+function PlanMigrationStep(props: { busy: boolean; onStartPlan: () => void }) {
+  return (
+    <button type="button" className="btn-ghost" onClick={props.onStartPlan} disabled={props.busy}>
+      {props.busy ? "Planning…" : "Plan migration"}
+    </button>
+  );
+}
+
+/** step === "planned": nothing is migrated yet — confirming only issues a one-time execution
+ *  token. `plan` is checked by the caller ({@link migrateForwardStep}), not here — the "defensive
+ *  AND" (render nothing if the step/data pair is inconsistent) is the dispatch's job, not this
+ *  component's. */
+function PlannedStep(props: { plan: { planId: string }; busy: boolean; onConfirm: () => void }) {
+  return (
+    <div className="notice">
+      <p>
+        Plan ready (plan <code>{props.plan.planId}</code>). Confirming issues a one-time execution
+        token — nothing is migrated yet.
+      </p>
+      <button type="button" className="btn-secondary" onClick={props.onConfirm} disabled={props.busy}>
+        {props.busy ? "Confirming…" : "Confirm migration"}
+      </button>
+    </div>
+  );
+}
+
+/** step === "confirmed": the token from `PlannedStep` is in hand; executing now actually runs the
+ *  migration. */
+function ConfirmedStep(props: { busy: boolean; onExecute: () => void }) {
+  return (
+    <div className="notice">
+      <p>Confirmed. Executing runs the migration now.</p>
+      <button type="button" className="btn-warning" onClick={props.onExecute} disabled={props.busy}>
+        {props.busy ? "Migrating…" : "Execute migration"}
+      </button>
+    </div>
+  );
+}
+
+/** step === "done": terminal state. */
+function DoneStep() {
+  return (
+    <div className="notice">
+      <p role="status">Migration executed successfully.</p>
+    </div>
+  );
+}
+
+/** Dispatches the ceremony's one active step as a flat if-chain — the four steps were previously
+ *  four independent `step === X && data` JSX ternaries in `MigrateForwardSection`'s own body,
+ *  which is what pushed its cognitive score past the ceiling (each guard reads as "is this the
+ *  active step AND is its data actually present", four times over). Each `&& data` pairing is
+ *  preserved exactly: a step whose expected payload is unexpectedly null renders nothing, same as
+ *  before (see the "defensive AND" tests in `Database.unit.test.tsx`). */
+function migrateForwardStep(props: {
+  step: MigrateForwardSectionController["step"];
+  plan: MigrateForwardSectionController["plan"];
+  confirmationToken: MigrateForwardSectionController["confirmationToken"];
+  done: boolean;
+  busy: boolean;
+  onStartPlan: () => void;
+  onConfirm: () => void;
+  onExecute: () => void;
+}) {
+  if (props.step === "idle") return <PlanMigrationStep busy={props.busy} onStartPlan={props.onStartPlan} />;
+  if (props.step === "planned" && props.plan) {
+    return <PlannedStep plan={props.plan} busy={props.busy} onConfirm={props.onConfirm} />;
+  }
+  if (props.step === "confirmed" && props.confirmationToken) {
+    return <ConfirmedStep busy={props.busy} onExecute={props.onExecute} />;
+  }
+  if (props.step === "done" && props.done) return <DoneStep />;
+  return null;
+}
+
 function MigrateForwardSection({ useMigrateForwardSectionHook = useMigrateForwardSection }: MigrateForwardSectionProps = {}) {
   const { step, busy, error, plan, confirmationToken, done, reset, startPlan, doConfirm, doExecute } = useMigrateForwardSectionHook();
 
@@ -209,38 +285,16 @@ function MigrateForwardSection({ useMigrateForwardSectionHook = useMigrateForwar
       </p>
       {error ? <div className="notice error">{error}</div> : null}
 
-      {step === "idle" ? (
-        <button type="button" className="btn-ghost" onClick={startPlan} disabled={busy}>
-          {busy ? "Planning…" : "Plan migration"}
-        </button>
-      ) : null}
-
-      {step === "planned" && plan ? (
-        <div className="notice">
-          <p>
-            Plan ready (plan <code>{plan.planId}</code>). Confirming issues a one-time execution
-            token — nothing is migrated yet.
-          </p>
-          <button type="button" className="btn-secondary" onClick={doConfirm} disabled={busy}>
-            {busy ? "Confirming…" : "Confirm migration"}
-          </button>
-        </div>
-      ) : null}
-
-      {step === "confirmed" && confirmationToken ? (
-        <div className="notice">
-          <p>Confirmed. Executing runs the migration now.</p>
-          <button type="button" className="btn-warning" onClick={doExecute} disabled={busy}>
-            {busy ? "Migrating…" : "Execute migration"}
-          </button>
-        </div>
-      ) : null}
-
-      {step === "done" && done ? (
-        <div className="notice">
-          <p role="status">Migration executed successfully.</p>
-        </div>
-      ) : null}
+      {migrateForwardStep({
+        step,
+        plan,
+        confirmationToken,
+        done,
+        busy,
+        onStartPlan: startPlan,
+        onConfirm: doConfirm,
+        onExecute: doExecute,
+      })}
     </div>
   );
 }

@@ -32,6 +32,37 @@ function newPlacementId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `placement-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+/** The type-option label for a resolved widget's `widgetType`, falling back to the raw type string
+ *  when it isn't in `WIDGET_TYPE_OPTIONS` (a widget type retired or renamed since this embed was
+ *  created). Pulled out to a top-level pure function per the extraction rule in the complexity-pass
+ *  brief: it lowers `WidgetEmbedNodeView`'s own branch count and is independently testable without
+ *  mounting the node view. Exported for that direct testability, same reasoning as
+ *  `WidgetEmbedNodeView`'s own export comment below. */
+export function widgetTypeLabel(widget: AdminWidget | null | undefined): string {
+  if (!widget) return "";
+  return WIDGET_TYPE_OPTIONS.find((o) => o.value === widget.widgetType)?.label ?? widget.widgetType;
+}
+
+/** The node's three mutually exclusive display states (loading / broken / resolved), split out of
+ *  `WidgetEmbedNodeView` for the same reason as `widgetTypeLabel` above — a top-level component
+ *  rather than a nested closure, so the branch it owns leaves the parent's scope entirely instead
+ *  of only lowering its ESLint per-closure score. Exported for direct testability. */
+export function WidgetEmbedStatus({ widget, isBroken, typeLabel }: { widget: AdminWidget | null | undefined; isBroken: boolean; typeLabel: string }) {
+  if (widget === undefined) return <span className="notice">Loading widget…</span>;
+  if (isBroken) {
+    return (
+      <span className="widget-embed-node__broken-label" role="img" aria-label="Broken widget reference">
+        ⚠ Widget unavailable{widget ? ` (${widget.title})` : ""}
+      </span>
+    );
+  }
+  return (
+    <span className="widget-embed-node__label">
+      <strong>{widget!.title}</strong> <span className="muted-cell">({typeLabel})</span>
+    </span>
+  );
+}
+
 /**
  * The in-canvas rendered representation of an existing embed (`ui.spec.md` §3.10's `WidgetEmbedNode`
  * authoring-surface contract: `widgetInstanceId`, resolved `widgetTitle`/`widgetType`, `isBroken`,
@@ -74,21 +105,11 @@ export function WidgetEmbedNodeView(props: NodeViewProps) {
     setChanging(false);
   }
 
-  const typeLabel = widget ? WIDGET_TYPE_OPTIONS.find((o) => o.value === widget.widgetType)?.label ?? widget.widgetType : "";
+  const nodeClassName = `widget-embed-node${isBroken ? " widget-embed-node--broken" : ""}`;
 
   return (
-    <NodeViewWrapper as="div" className={`widget-embed-node${isBroken ? " widget-embed-node--broken" : ""}`} data-drag-handle contentEditable={false}>
-      {widget === undefined ? (
-        <span className="notice">Loading widget…</span>
-      ) : isBroken ? (
-        <span className="widget-embed-node__broken-label" role="img" aria-label="Broken widget reference">
-          ⚠ Widget unavailable{widget ? ` (${widget.title})` : ""}
-        </span>
-      ) : (
-        <span className="widget-embed-node__label">
-          <strong>{widget!.title}</strong> <span className="muted-cell">({typeLabel})</span>
-        </span>
-      )}
+    <NodeViewWrapper as="div" className={nodeClassName} data-drag-handle contentEditable={false}>
+      <WidgetEmbedStatus widget={widget} isBroken={isBroken} typeLabel={widgetTypeLabel(widget)} />
       <span className="widget-embed-node__actions">
         <button type="button" onClick={() => setChanging(true)}>
           Change
