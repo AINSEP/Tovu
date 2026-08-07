@@ -54,7 +54,14 @@ export function useWidgetsLibrary(): WidgetsLibraryController {
     api
       .listWidgets({ includeInactive: true })
       .then((r) => {
-        setWidgets(r.widgets);
+        // `includeInactive: true` deliberately asks the server for both `trash` and `purged` rows
+        // (see `src/server/routes/admin/widgets/list.ts`), because `purgeWidgetInstance` never
+        // hard-deletes — ADR-047 Amendment 4: "never deleted, only active⇄disabled" — it only
+        // flips status to the terminal `purged` state. `trash` stays reversible and visible here
+        // (its row still offers "Delete permanently"); `purged` has nothing left to do or show, so
+        // it's filtered out client-side rather than dropped from the wire contract other
+        // `includeInactive` callers may still rely on.
+        setWidgets(r.widgets.filter((w) => w.status !== "purged"));
         setSkippedCount(r.skippedCount ?? 0);
       })
       .catch((e) => setError(describeApiError(e, "failed to load widgets")));
