@@ -58,7 +58,7 @@ export function focusableInDomOrder(exclude: HTMLElement | null): HTMLElement[] 
   );
 }
 
-interface PanelPosition {
+export interface PanelPosition {
   top?: number;
   bottom?: number;
   left: number;
