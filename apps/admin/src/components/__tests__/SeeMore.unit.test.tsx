@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { SeeMore } from "../SeeMore/SeeMore";
+import { resolveSeeMoreView, SeeMore } from "../SeeMore/SeeMore";
 import type { useSeeMoreClamp } from "../SeeMore/SeeMore.hooks";
 
 /**
@@ -213,5 +213,43 @@ describe("SeeMore hook injection", () => {
     const toggle = screen.getByRole("button", { name: "See less" });
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(toggle).toHaveAttribute("aria-controls", "fake-region-id");
+  });
+});
+
+describe("resolveSeeMoreView", () => {
+  // Direct coverage of the pure function extracted out of `SeeMore`'s own render body — the
+  // rendered-component tests above already pin the same behavior end-to-end (a `className` prop
+  // shows up on the wrapper, `moreLabel`/`lessLabel` show up on the toggle, etc.); this exercises
+  // its branch combinations without a render at all.
+  it("defaults every className to its bare form and the label to moreLabel when collapsed", () => {
+    expect(resolveSeeMoreView({ expanded: false })).toEqual({
+      wrapperClassName: "see-more",
+      textClassName: "see-more-text",
+      toggleClassName: "see-more-toggle",
+      toggleLabel: "See more",
+    });
+  });
+
+  it("appends a caller class to each className, alongside the fixed one, and switches the label when expanded", () => {
+    expect(
+      resolveSeeMoreView({
+        expanded: true,
+        className: "host",
+        textClassName: "host-text",
+        toggleClassName: "host-toggle",
+      })
+    ).toEqual({
+      wrapperClassName: "see-more host",
+      textClassName: "see-more-text is-expanded host-text",
+      toggleClassName: "see-more-toggle host-toggle",
+      toggleLabel: "See less",
+    });
+  });
+
+  it("honors custom moreLabel/lessLabel over the defaults", () => {
+    const collapsed = resolveSeeMoreView({ expanded: false, moreLabel: "Show details", lessLabel: "Hide details" });
+    const expanded = resolveSeeMoreView({ expanded: true, moreLabel: "Show details", lessLabel: "Hide details" });
+    expect(collapsed.toggleLabel).toBe("Show details");
+    expect(expanded.toggleLabel).toBe("Hide details");
   });
 });

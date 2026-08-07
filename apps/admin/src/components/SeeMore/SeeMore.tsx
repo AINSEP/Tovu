@@ -56,26 +56,56 @@ export interface SeeMoreProps {
 
 const DEFAULT_LINES = 2;
 
+export interface SeeMoreView {
+  wrapperClassName: string;
+  textClassName: string;
+  toggleClassName: string;
+  toggleLabel: string;
+}
+
+/**
+ * Derives every className/label `SeeMore`'s JSX reads from its own props plus the hook's live
+ * `expanded` flag — the four ternaries (wrapper class, text class, toggle class, toggle label) and
+ * the `moreLabel`/`lessLabel` defaults that used to sit directly in the component body, pulled out
+ * as a top-level pure function per this pass's extraction rule (§2 of the complexity-ceiling brief).
+ * Nothing here touches state or refs, so it needs no access to the component's own scope — a plain
+ * function of its inputs, independently testable without rendering anything.
+ */
+export function resolveSeeMoreView({
+  expanded,
+  moreLabel = "See more",
+  lessLabel = "See less",
+  className,
+  textClassName,
+  toggleClassName,
+}: {
+  expanded: boolean;
+  moreLabel?: string;
+  lessLabel?: string;
+  className?: string;
+  textClassName?: string;
+  toggleClassName?: string;
+}): SeeMoreView {
+  return {
+    wrapperClassName: className ? `see-more ${className}` : "see-more",
+    textClassName: `see-more-text${expanded ? " is-expanded" : ""}${textClassName ? ` ${textClassName}` : ""}`,
+    toggleClassName: toggleClassName ? `see-more-toggle ${toggleClassName}` : "see-more-toggle",
+    toggleLabel: expanded ? lessLabel : moreLabel,
+  };
+}
+
 export function SeeMore({ useClamp = useSeeMoreClamp, ...props }: SeeMoreProps) {
-  const {
-    children,
-    lines = DEFAULT_LINES,
-    moreLabel = "See more",
-    lessLabel = "See less",
-    className,
-    textClassName,
-    toggleClassName,
-    toggleAriaLabel,
-  } = props;
+  const { children, lines = DEFAULT_LINES, moreLabel, lessLabel, className, textClassName, toggleClassName, toggleAriaLabel } = props;
 
   const { expanded, setExpanded, overflows, textRef, regionId, lineCount } = useClamp({ lines, children });
+  const view = resolveSeeMoreView({ expanded, moreLabel, lessLabel, className, textClassName, toggleClassName });
 
   return (
-    <div className={className ? `see-more ${className}` : "see-more"}>
+    <div className={view.wrapperClassName}>
       <div
         ref={textRef}
         id={regionId}
-        className={`see-more-text${expanded ? " is-expanded" : ""}${textClassName ? ` ${textClassName}` : ""}`}
+        className={view.textClassName}
         // The line count rides a custom property rather than a class-per-N (`.see-more-text--3`),
         // so `lines` can be any integer a caller needs without this file growing a rule for each.
         style={{ "--see-more-lines": lineCount } as React.CSSProperties}
@@ -85,13 +115,13 @@ export function SeeMore({ useClamp = useSeeMoreClamp, ...props }: SeeMoreProps) 
       {overflows ? (
         <button
           type="button"
-          className={toggleClassName ? `see-more-toggle ${toggleClassName}` : "see-more-toggle"}
+          className={view.toggleClassName}
           aria-expanded={expanded}
           aria-controls={regionId}
           aria-label={toggleAriaLabel}
           onClick={() => setExpanded((current) => !current)}
         >
-          {expanded ? lessLabel : moreLabel}
+          {view.toggleLabel}
         </button>
       ) : null}
     </div>
