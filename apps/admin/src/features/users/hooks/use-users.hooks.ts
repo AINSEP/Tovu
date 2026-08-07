@@ -233,7 +233,8 @@ export function useUsers(): UsersController {
     await resetPassword.run(async () => {
       await api.resetUserPassword({ principalId: resetPasswordFor.principalId, password: newPassword });
       setNotice(`Password reset for "${resetPasswordFor.username}" — every active session for this user was revoked.`);
-      // BROKEN FOR NEGATIVE VERIFICATION — dropped setResetPasswordFor(null), dialog should stay open.
+      setResetPasswordFor(null);
+      setNewPassword("");
     }, (e) => describeApiError(e, "failed to reset password"));
   }
 
