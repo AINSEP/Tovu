@@ -4,7 +4,7 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "../../lib/api";
 import { categoryLabel, isAssertiveRecoveryBanner } from "./rules";
 import { useRecovery } from "./hooks/use-recovery.hooks";
-import { useRestoreFlow } from "./hooks/use-restore-flow.hooks";
+import { useRestoreFlow, type CeremonyStep } from "./hooks/use-restore-flow.hooks";
 
 /**
  * @file Recovery screen (design-spec.md §4, ADR-045) — the `/admin/recovery` route.
@@ -155,6 +155,128 @@ function DisclosurePanel(props: {
   );
 }
 
+/** The disclosure section (top of `RestoreFlow`): the discarded-write-window error, its loading
+ * placeholder, or the panel itself, in that priority order. Split out because — along with
+ * `RestoreCeremonySteps` below — this is one of the two independent "wide branch set" halves of
+ * the original `RestoreFlow`: this half decides what to show about data loss, the other half
+ * decides what to show about ceremony progress, and neither needs the other's branches in scope. */
+function RestoreDisclosureStatus(props: {
+  point: AdminRestorePoint;
+  disclosure: AdminDisclosureResult | null;
+  error: string | null;
+  acknowledged: boolean;
+  onAcknowledgeChange: (checked: boolean) => void;
+}) {
+  const { point, disclosure, error, acknowledged, onAcknowledgeChange } = props;
+
+  if (error) return <div className="notice error">{error}</div>;
+  if (!disclosure) return <div className="notice">Computing the discarded-write-window disclosure…</div>;
+  return <DisclosurePanel point={point} disclosure={disclosure} acknowledged={acknowledged} onAcknowledgeChange={onAcknowledgeChange} />;
+}
+
+/** Step 3a (design-spec.md §4.3) — acknowledge-gated entry into the ceremony. Its own component
+ * (rather than inline in `RestoreCeremonySteps`) because the busy-label ternary and the
+ * not-yet-acknowledged `title` ternary would otherwise nest two levels deep inside that
+ * function's own `step === "idle"` branch — exactly the nesting SonarJS's cognitive-complexity
+ * rule penalises beyond what the cyclomatic count shows. */
+function RestoreIdleStep(props: { acknowledged: boolean; busy: boolean; onStart: () => void }) {
+  const { acknowledged, busy, onStart } = props;
+  return (
+    <div className="notice">
+      <button
+        type="button"
+        className="btn-ghost"
+        disabled={!acknowledged || busy}
+        aria-describedby="recovery-ack-label"
+        title={!acknowledged ? "Acknowledge the disclosure above to continue." : undefined}
+        onClick={onStart}
+      >
+        {busy ? "Planning…" : "Continue to confirm"}
+      </button>
+    </div>
+  );
+}
+
+/** Step 3b (SPEC-019 C-301) — plan issued, not yet confirmed. */
+function RestorePlannedStep(props: { planId: string; busy: boolean; onConfirm: () => void }) {
+  const { planId, busy, onConfirm } = props;
+  return (
+    <div className="notice">
+      <p>
+        Restore plan ready (plan <code>{planId}</code>). Confirming issues a one-time execution
+        token — nothing is restored yet.
+      </p>
+      <button type="button" className="btn-secondary" onClick={onConfirm} disabled={busy}>
+        {busy ? "Confirming…" : "Confirm restore"}
+      </button>
+    </div>
+  );
+}
+
+/** Step 3c (SPEC-019 C-302) — confirmed, execution token in hand, not yet executed. */
+function RestoreConfirmedStep(props: { busy: boolean; onExecute: () => void }) {
+  const { busy, onExecute } = props;
+  return (
+    <div className="notice">
+      <p>Confirmed. Executing performs the restore — this cannot be undone.</p>
+      <button type="button" className="btn-danger" onClick={onExecute} disabled={busy}>
+        {busy ? "Restoring…" : "Execute restore"}
+      </button>
+    </div>
+  );
+}
+
+/** Step 3d (SPEC-019 C-303) — the ceremony's terminal state. `restartRequired` (2026-07-16,
+ * `DbOpsPort.restoreFromArtifact`) surfaces the "already-running process still holds the
+ * pre-restore file handle" caveat described in this file's header, rather than silently implying
+ * a live hot-swap happened. */
+function RestoreDoneStep(props: { restoreRunId: string; state: string; restartRequired?: boolean }) {
+  const { restoreRunId, state, restartRequired } = props;
+  return (
+    <div className="notice">
+      <p role="status">
+        Restore run <code>{restoreRunId}</code> finished in state <span className={`status status-${state}`}>{state}</span>.
+      </p>
+      {restartRequired ? (
+        <p className="save-error" role="alert">
+          The database file was replaced — this server process is still serving the pre-restore
+          data from its open connection. Restart the server now to pick up the restored data.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** The four-stage ceremony switch (idle → planned → confirmed → done) plus its own error slot.
+ * Exactly one of the four step components below renders at a time, keyed off `step` — this
+ * function owns that selection so `RestoreFlow` itself doesn't have to. */
+function RestoreCeremonySteps(props: {
+  ceremonyError: string | null;
+  step: CeremonyStep;
+  busy: boolean;
+  acknowledged: boolean;
+  plan: { planId: string } | null;
+  confirmationToken: string | null;
+  result: { restoreRunId: string; state: string; restartRequired?: boolean } | null;
+  onStart: () => void;
+  onConfirm: () => void;
+  onExecute: () => void;
+}) {
+  const { ceremonyError, step, busy, acknowledged, plan, confirmationToken, result, onStart, onConfirm, onExecute } = props;
+
+  return (
+    <>
+      {ceremonyError ? <div className="notice error">{ceremonyError}</div> : null}
+      {step === "idle" ? <RestoreIdleStep acknowledged={acknowledged} busy={busy} onStart={onStart} /> : null}
+      {step === "planned" && plan ? <RestorePlannedStep planId={plan.planId} busy={busy} onConfirm={onConfirm} /> : null}
+      {step === "confirmed" && confirmationToken ? <RestoreConfirmedStep busy={busy} onExecute={onExecute} /> : null}
+      {step === "done" && result ? (
+        <RestoreDoneStep restoreRunId={result.restoreRunId} state={result.state} restartRequired={result.restartRequired} />
+      ) : null}
+    </>
+  );
+}
+
 export interface RestoreFlowProps {
   point: AdminRestorePoint;
   onBack: () => void;
@@ -205,65 +327,20 @@ function RestoreFlow({
         </div>
       </div>
 
-      {error ? <div className="notice error">{error}</div> : null}
-      {!disclosure && !error ? <div className="notice">Computing the discarded-write-window disclosure…</div> : null}
-      {disclosure ? (
-        <DisclosurePanel point={point} disclosure={disclosure} acknowledged={acknowledged} onAcknowledgeChange={setAcknowledged} />
-      ) : null}
+      <RestoreDisclosureStatus point={point} disclosure={disclosure} error={error} acknowledged={acknowledged} onAcknowledgeChange={setAcknowledged} />
 
-      {ceremonyError ? <div className="notice error">{ceremonyError}</div> : null}
-
-      {step === "idle" ? (
-        <div className="notice">
-          <button
-            type="button"
-            className="btn-ghost"
-            disabled={!acknowledged || busy}
-            aria-describedby="recovery-ack-label"
-            title={!acknowledged ? "Acknowledge the disclosure above to continue." : undefined}
-            onClick={startPlan}
-          >
-            {busy ? "Planning…" : "Continue to confirm"}
-          </button>
-        </div>
-      ) : null}
-
-      {step === "planned" && plan ? (
-        <div className="notice">
-          <p>
-            Restore plan ready (plan <code>{plan.planId}</code>). Confirming issues a one-time
-            execution token — nothing is restored yet.
-          </p>
-          <button type="button" className="btn-secondary" onClick={doConfirm} disabled={busy}>
-            {busy ? "Confirming…" : "Confirm restore"}
-          </button>
-        </div>
-      ) : null}
-
-      {step === "confirmed" && confirmationToken ? (
-        <div className="notice">
-          <p>Confirmed. Executing performs the restore — this cannot be undone.</p>
-          <button type="button" className="btn-danger" onClick={doExecute} disabled={busy}>
-            {busy ? "Restoring…" : "Execute restore"}
-          </button>
-        </div>
-      ) : null}
-
-      {step === "done" && result ? (
-        <div className="notice">
-          <p role="status">
-            Restore run <code>{result.restoreRunId}</code> finished in state{" "}
-            <span className={`status status-${result.state}`}>{result.state}</span>.
-          </p>
-          {result.restartRequired ? (
-            <p className="save-error" role="alert">
-              The database file was replaced — this server process is still serving the
-              pre-restore data from its open connection. Restart the server now to pick up the
-              restored data.
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+      <RestoreCeremonySteps
+        ceremonyError={ceremonyError}
+        step={step}
+        busy={busy}
+        acknowledged={acknowledged}
+        plan={plan}
+        confirmationToken={confirmationToken}
+        result={result}
+        onStart={startPlan}
+        onConfirm={doConfirm}
+        onExecute={doExecute}
+      />
     </div>
   );
 }
