@@ -40,3 +40,23 @@ export function mergeRecent(prev: AdminPost[] | null, incoming: AdminPost[]): Ad
 export function activityRowHref(row: Pick<AdminPost, "id" | "kind">): string {
   return row.kind === "page" ? "/admin/pages" : `/admin/posts/${row.id}`;
 }
+
+/** The Posts stat card's meta line — blank while `published` is still pending (`null`). */
+export function postsStatMeta(published: number | null): string {
+  return published === null ? "" : `${published} published`;
+}
+
+/** The Pages stat card's meta line — blank while `drafts` is still pending, singular/plural
+ *  otherwise. */
+export function pagesStatMeta(drafts: number | null): string {
+  if (drafts === null) return "";
+  return `${drafts} draft${drafts === 1 ? "" : "s"}`;
+}
+
+/** The Comments stat card's meta line. Note this reads `StatState.value` directly rather than a
+ *  loading-aware wrapper: `null !== 0`, so it reads "awaiting moderation" while the count is still
+ *  pending, same as before this was extracted — preserved rather than fixed, since a moderation
+ *  queue of unknown size defaulting to "may need attention" is arguably the safer default anyway. */
+export function commentsStatMeta(pendingCount: number | null): string {
+  return pendingCount === 0 ? "nothing to review" : "awaiting moderation";
+}
