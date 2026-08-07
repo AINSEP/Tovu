@@ -272,13 +272,35 @@ function useScrollHighlightedIntoView({
   }, [open, highlightedIndex]);
 }
 
+/** Resolves Tab's DOM-order neighbour of the trigger — the one piece of `handlePanelKeyDown`'s
+ *  `"Tab"` case that wasn't a one-line action, and the reason that case scored high on cognitive
+ *  complexity despite the switch itself staying flat (see this file's header, 2026-08-06 pass).
+ *  Same `focusableInDomOrder` walk, same `indexOf`, same neighbour arithmetic as before — only
+ *  moved out of the switch case so the case body is a single call plus two side effects. Returns
+ *  `null` when the trigger can't be found among the focusable nodes (disabled mid-session — see
+ *  `Select.unit.test.tsx`'s "Tab closes the panel without moving focus..." regression), which the
+ *  caller reads as "don't move focus, just close." */
+export function resolveTabTarget(
+  panel: HTMLElement | null,
+  trigger: HTMLElement | null,
+  shiftKey: boolean
+): HTMLElement | null {
+  const nodes = focusableInDomOrder(panel);
+  const triggerIndex = trigger ? nodes.indexOf(trigger) : -1;
+  if (triggerIndex < 0) return null;
+  return nodes[triggerIndex + (shiftKey ? -1 : 1)] ?? null;
+}
+
 /**
  * `Select`'s two keyboard handlers, extracted from `useSelectDropdown` verbatim — neither body
  * changed, including `handlePanelKeyDown`'s own flat `switch` over `e.key` (kept exactly as-is per
  * this pass's explicit guidance: a keyboard handler written as a flat switch is the clearest form
  * available, and converting the dispatch into a lookup table would trade that clarity for a lower
  * number). Pulled into its own hook purely so neither handler sits directly inside the much larger
- * `useSelectDropdown` body anymore.
+ * `useSelectDropdown` body anymore. The `"Tab"` case's own focus-walking math is now
+ * `resolveTabTarget`, above — the 2026-08-06 complexity pass's fix for the case that carried the
+ * hook's actual complexity load (16/15): not the switch, the nested `if` + `indexOf` + `shiftKey`
+ * ternary inside one of its cases.
  */
 function useSelectKeyboardHandlers({
   disabled,
@@ -320,6 +342,22 @@ function useSelectKeyboardHandlers({
     }
   }
 
+  /**
+   * @complexity 13 cyclomatic / 8 cognitive, measured after the 2026-08-06 `resolveTabTarget`
+   * extraction dropped cognitive from 15 to 8 (the nested `if`/`indexOf`/ternary that used to sit in
+   * the `"Tab"` case is gone from this body). Cyclomatic did not cross the ≤10 ceiling and cannot,
+   * without changing what kind of thing this is: ESLint's `complexity` rule charges one branch per
+   * `case` label, so the 13 is a count of the seven keys this handler answers to
+   * (Escape/ArrowDown/ArrowUp/Home/End/Enter/Tab) plus the `Enter` case's own `if`/`&&` — not nested
+   * branching, which is what cognitive complexity models and which is already at 8. Tried: moving
+   * the `"Tab"` case body out (done, above) — it lowered cognitive but a switch's cyclomatic score
+   * doesn't fall by moving case *bodies* elsewhere, only by removing cases. The remaining way to
+   * lower it is to stop being a switch — collapse it into a key -> handler lookup table — which both
+   * this file's header and this pass's own dispatch brief reject explicitly for this function: "a
+   * keyboard handler written as a flat switch is the clearest form available, and converting the
+   * dispatch into a lookup table would trade that clarity for a lower number." Documented exemption
+   * under this pass's acceptance criterion (≤10/≤10 OR a documented reason), not an oversight.
+   */
   function handlePanelKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     switch (e.key) {
       case "Escape":
@@ -351,17 +389,13 @@ function useSelectKeyboardHandlers({
         if (highlightedIndex >= 0 && filtered[highlightedIndex]) selectOption(filtered[highlightedIndex]);
         break;
       case "Tab": {
-        // See `focusableInDomOrder`'s own comment: walk the trigger's real DOM-order neighbours
-        // rather than let native Tab handling run, since this event is bubbling from a panel
-        // portaled to the end of `document.body`, not sitting next to the trigger in the DOM.
-        const nodes = focusableInDomOrder(panelRef.current);
-        const triggerIndex = triggerRef.current ? nodes.indexOf(triggerRef.current) : -1;
+        // See `resolveTabTarget`'s own comment: walk the trigger's real DOM-order neighbours rather
+        // than let native Tab handling run, since this event is bubbling from a panel portaled to
+        // the end of `document.body`, not sitting next to the trigger in the DOM.
+        const target = resolveTabTarget(panelRef.current, triggerRef.current, e.shiftKey);
         e.preventDefault();
         closePanel({ refocusTrigger: false });
-        if (triggerIndex >= 0) {
-          const target = nodes[triggerIndex + (e.shiftKey ? -1 : 1)];
-          target?.focus();
-        }
+        target?.focus();
         break;
       }
       default:
