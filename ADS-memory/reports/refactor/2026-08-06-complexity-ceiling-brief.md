@@ -23,15 +23,19 @@ is invalid under `AI-Dev-Shop/AGENTS.md` §Delegated Agent Bootstrap without it.
 
 ## 1. THE ACCEPTANCE CRITERION
 
-> **10 is the ceiling. Every function you touch ends at ≤10 cyclomatic AND ≤10 cognitive — or it
+> **Strictly under 10. Every function you touch ends at ≤9 cyclomatic AND ≤9 cognitive — or it
 > carries a documented reason, in the code, for why it cannot.**
+
+**A score of exactly 10 does not pass.** The owner's wording is "under 10", and this was tightened
+from an earlier ≤10 reading precisely so there is no one-value ambiguity to argue about at review
+time. Measure at threshold `9`, which makes ESLint report anything at 10 or above.
 
 This is a hard bar, not a direction of travel. The previous round had no target at all, so each
 agent took one clean cut and stopped; a closure was reported "done" at 8/15.
 
 Two acceptable outcomes per target, nothing else:
 
-1. **≤10 / ≤10**, measured with §3 before and after.
+1. **≤9 / ≤9**, measured with §3 before and after.
 2. **A documented in-code exemption** — a comment on the function stating what it scores, why the
    structure is irreducible, and what you tried. Legitimate shapes, all of which already exist here:
    - a flat `switch` over a closed protocol/key set where a lookup table would lose TypeScript
@@ -90,7 +94,7 @@ Scoped to your own files, before you start and again when you finish:
 
 ```bash
 npx eslint --no-error-on-unmatched-pattern --format json \
-  --rule '{"complexity":["warn",10],"sonarjs/cognitive-complexity":["warn",10]}' \
+  --rule '{"complexity":["warn",9],"sonarjs/cognitive-complexity":["warn",9]}' \
   <your files>
 ```
 
@@ -243,7 +247,7 @@ shouldn't be touched. A refusal with reasoning will not be treated as under-deli
 End with a table of **measured** numbers, never estimates. A previous round hand-estimated a
 target at ~12/~12; the tool showed no change at all.
 
-| symbol | file | before cyc/cog | after cyc/cog | ≤10? | tests |
+| symbol | file | before cyc/cog | after cyc/cog | ≤9? | tests |
 |---|---|---|---|---|---|
 
 Then:
