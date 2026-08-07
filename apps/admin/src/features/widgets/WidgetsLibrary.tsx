@@ -1,5 +1,5 @@
 import { type AdminWidgetType } from "../../lib/api";
-import { WIDGET_TYPE_OPTIONS } from "../../components/WidgetConfigFields";
+import { WIDGET_TYPE_OPTIONS } from "../../components/WidgetConfigFields/WidgetConfigFields";
 import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 import { widgetTypeLabel } from "./rules";
 import { useWidgetsLibrary } from "./hooks/use-widgets-library.hooks";

@@ -138,7 +138,7 @@
   align-items: end;
 }
 
-/* `.widget-config-fields` (`components/WidgetConfigFields.tsx`) — five widget-type sub-forms plus
+/* `.widget-config-fields` (`components/WidgetConfigFields/WidgetConfigFields.tsx`) — five widget-type sub-forms plus
    `WidgetPickerDialog`'s "create new" path share this one class, and it had zero CSS anywhere in
    the app before this rule. Every site renders a bare `<label htmlFor>` immediately followed by
    its `<input>`/`<select>`/`<textarea>` as plain inline siblings (never nested, never wrapped) —

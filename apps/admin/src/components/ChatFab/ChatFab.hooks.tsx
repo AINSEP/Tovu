@@ -4,10 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
  * @file Draggable position for the assistant `ChatFab` (MSG-09).
  *
  * Own hook, not inline state in `ChatFab.tsx` — the same reasoning as `useSidebarRail`: this is
- * real, testable-on-its-own behavior (persistence, clamping, free-drag), and `apps/admin/INFO.md`'s
- * hook convention is where it lives. No `-port.hooks.ts` / `-dependencies.hooks.ts` pair, for the
- * same reason as `useSidebarRail`: the only outside dependency is `localStorage`, a browser
- * built-in, not a swappable backend worth a fake-port seam.
+ * real, testable-on-its-own behavior (persistence, clamping, free-drag). Colocated as
+ * `ChatFab.hooks.tsx` next to the component it belongs to (2026-08-06 extraction, moved out of
+ * the flatter `apps/admin/src/hooks/*.hooks.ts` convention `apps/admin/INFO.md` still documents
+ * for hooks with no single owning component) rather than left under `hooks/`, since
+ * `useFabPosition` has exactly one consumer. No `-port.hooks.ts` / `-dependencies.hooks.ts` pair,
+ * for the same reason as `useSidebarRail`: the only outside dependency is `localStorage`, a
+ * browser built-in, not a swappable backend worth a fake-port seam.
  *
  * Position is persisted as **two independent 0–1 fractions of the viewport** —
  * `rightFraction` (distance from the right edge, as a fraction of `innerWidth`) and

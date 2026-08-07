@@ -1,5 +1,5 @@
 /**
- * `components/Select.tsx` — trigger + floating panel for the custom searchable dropdown
+ * `components/Select/Select.tsx` — trigger + floating panel for the custom searchable dropdown
  * (`WidgetPickerDialog.tsx`'s two selects only; every other `<select>` in this admin stays native,
  * see that component's own header). Imported directly by `Select.tsx`, the same scoped-partial
  * precedent `styles/assistant.css` established (see `AssistantDock.tsx`'s import and that file's

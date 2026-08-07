@@ -3,7 +3,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ChatFab } from "../ChatFab";
+import { ChatFab } from "../ChatFab/ChatFab";
+import type { FabPositionResult } from "../ChatFab/ChatFab.hooks";
 
 /**
  * @file `ChatFab` (40% before this pass) — the floating assistant toggle. Uses the real
@@ -13,7 +14,7 @@ import { ChatFab } from "../ChatFab";
  *
  * jsdom has no `setPointerCapture`/`releasePointerCapture` at all — stubbed as no-ops in every
  * test (not only the drag-specific ones): `onPointerDown` is wired unconditionally, so even a
- * plain `userEvent.click()`'s synthesized pointerdown reaches `use-fab-position.hooks.ts`'s real
+ * plain `userEvent.click()`'s synthesized pointerdown reaches `ChatFab.hooks.tsx`'s real
  * `e.currentTarget.setPointerCapture(...)` call and throws without this.
  */
 
@@ -88,7 +89,7 @@ describe("ChatFab — interaction", () => {
     } as DOMRect);
 
     fireEvent.pointerDown(button, { button: 0, pointerId: 1, clientX: 520, clientY: 520 });
-    // Past use-fab-position's own DRAG_THRESHOLD_PX (5) — this must register as a drag, not a tap.
+    // Past ChatFab.hooks.tsx's own DRAG_THRESHOLD_PX (5) — this must register as a drag, not a tap.
     fireEvent.pointerMove(document, { pointerId: 1, clientX: 560, clientY: 560 });
     expect(button.className).toContain("chat-fab-dragging");
 
@@ -122,5 +123,54 @@ describe("ChatFab — interaction", () => {
     fireEvent.pointerDown(button, { button: 2, pointerId: 1, clientX: 520, clientY: 520 });
 
     expect(setPointerCapture).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `useFab` (MSG-01, 2026-08-06, owner directive) — mirrors Jini's `ConfirmDialog.test.tsx`'s own
+ * `describe('ConfirmDialog dialog-hook injection')` block: proves the fake is actually reaching the
+ * render, not just that the prop typechecks. `style: { right: 999, bottom: 888 }` is a position the
+ * REAL `useFabPosition` could never produce at this suite's default 1024×768-ish jsdom viewport (its
+ * own clamp holds every axis to `[FAB_EDGE_MARGIN, innerWidth/innerHeight - FAB_EDGE_MARGIN -
+ * FAB_SIZE_PX]` — see `ChatFab.hooks.tsx`), so this test fails if the default ever gets wired back
+ * in directly instead of the injected fake.
+ */
+describe("ChatFab useFab injection", () => {
+  function fakeFab(overrides: Partial<FabPositionResult> = {}): FabPositionResult {
+    return {
+      style: { right: 999, bottom: 888 },
+      onPointerDown: vi.fn(),
+      consumeDragFlag: vi.fn(() => false),
+      isDragging: false,
+      ...overrides,
+    };
+  }
+
+  it("renders at the injected fake's position, not the real hook's clamped default", () => {
+    render(<ChatFab open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} useFab={() => fakeFab()} />);
+    const button = screen.getByRole("button", { name: "Open assistant" });
+
+    expect(button).toHaveStyle({ right: "999px", bottom: "888px" });
+  });
+
+  it("routes onClick through the injected fake's consumeDragFlag, not the real drag state", async () => {
+    const user = userEvent.setup();
+    const onToggle = vi.fn();
+    // The fake reports every click as the tail end of a drag — the real hook would never do this
+    // for a plain click with no preceding pointerdown/move, so onToggle firing zero times here can
+    // only be explained by the injected fake being consulted.
+    render(
+      <ChatFab
+        open={false}
+        onToggle={onToggle}
+        avoidBottomPx={0}
+        avoidRightPx={0}
+        useFab={() => fakeFab({ consumeDragFlag: vi.fn(() => true) })}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Open assistant" }));
+
+    expect(onToggle).not.toHaveBeenCalled();
   });
 });

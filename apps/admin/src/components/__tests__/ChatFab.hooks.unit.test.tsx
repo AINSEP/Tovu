@@ -2,7 +2,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { FAB_EDGE_MARGIN, useFabPosition, type FabPositionResult } from "../use-fab-position.hooks";
+import { FAB_EDGE_MARGIN, useFabPosition, type FabPositionResult } from "../ChatFab/ChatFab.hooks";
 
 /**
  * @file `useFabPosition` — pins the free-drag fix (MSG-09 follow-up): a drop anywhere on screen

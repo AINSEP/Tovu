@@ -98,8 +98,14 @@ export function useTaxonomy(): TaxonomyController {
   }
 
   async function confirmDeleteTerm() {
-    if (false) return;
-    const term = pendingDeleteTerm as AdminTerm;
+    // Matches `confirmDeleteTaxonomy`'s guard below. This read `if (false) return;` from 87e07f6
+    // until 2026-08-06 — a neutered guard that let the `as AdminTerm` cast below dereference
+    // `null`, so calling this with nothing pending threw `Cannot read properties of null
+    // (reading 'id')` instead of no-op'ing. The existing "is a no-op when nothing is pending"
+    // test caught it and had been failing on main since. Narrowing here also removes the need
+    // for the cast, so the same class of bug cannot be reintroduced silently.
+    if (!pendingDeleteTerm) return;
+    const term = pendingDeleteTerm;
     setDeleteTermBusy(true);
     try {
       await api.deleteTerm(term.id);

@@ -1,4 +1,4 @@
-import { WidgetAddControl } from "../../components/WidgetPickerDialog";
+import { WidgetAddControl } from "../../components/WidgetPickerDialog/WidgetPickerDialog";
 import { useWidgetRegionEditor } from "./hooks/use-widget-region-editor.hooks";
 
 /**
