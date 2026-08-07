@@ -1,6 +1,6 @@
 import { CONTENT_TYPE_FIELD_KINDS, type AdminContentType, type ContentTypeFieldKind } from "../../lib/api";
 import { DataTable, RowMenu } from "@jini-ai/admin/react";
-import { contentTypeMenuItems } from "./rules";
+import { contentTypeMenuItems, type LifecycleConfirmOp } from "./rules";
 import { useCollections } from "./hooks/use-collections.hooks";
 import { useNewContentTypeDialog } from "./hooks/use-new-content-type-dialog.hooks";
 import { useEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";
@@ -328,6 +328,51 @@ export interface CollectionsProps {
   useCollectionsHook?: typeof useCollections;
 }
 
+/** The three modals `Collections` can have open at once (mutually exclusive in practice, but not
+ * enforced as a union since the controller tracks them as three independent pieces of state).
+ * Split out because each one is its own conditional-render branch on the parent — bundling all
+ * three into one component keeps `Collections` itself down to the table + header. */
+function CollectionsDialogs(props: {
+  showNewDialog: boolean;
+  onNewDialogCreated: () => void;
+  onNewDialogCancel: () => void;
+  pendingLifecycle: { op: LifecycleConfirmOp; contentType: AdminContentType } | null;
+  onLifecycleConfirm: (op: LifecycleConfirmOp, contentType: AdminContentType) => void;
+  onLifecycleCancel: () => void;
+  editingFieldsFor: AdminContentType | null;
+  onFieldsSaved: () => void;
+  onFieldsCancel: () => void;
+}) {
+  const {
+    showNewDialog,
+    onNewDialogCreated,
+    onNewDialogCancel,
+    pendingLifecycle,
+    onLifecycleConfirm,
+    onLifecycleCancel,
+    editingFieldsFor,
+    onFieldsSaved,
+    onFieldsCancel,
+  } = props;
+
+  return (
+    <>
+      {showNewDialog ? <NewContentTypeDialog onCreated={onNewDialogCreated} onCancel={onNewDialogCancel} /> : null}
+      {pendingLifecycle ? (
+        <LifecycleConfirmDialog
+          op={pendingLifecycle.op}
+          contentType={pendingLifecycle.contentType}
+          onConfirm={() => onLifecycleConfirm(pendingLifecycle.op, pendingLifecycle.contentType)}
+          onCancel={onLifecycleCancel}
+        />
+      ) : null}
+      {editingFieldsFor ? (
+        <EditFieldsDialog contentType={editingFieldsFor} onSaved={onFieldsSaved} onCancel={onFieldsCancel} />
+      ) : null}
+    </>
+  );
+}
+
 export function Collections({ useCollectionsHook = useCollections }: CollectionsProps = {}) {
   const {
     types,
@@ -410,38 +455,26 @@ export function Collections({ useCollectionsHook = useCollections }: Collections
         ]}
       />
 
-      {showNewDialog ? (
-        <NewContentTypeDialog
-          onCreated={() => {
-            setShowNewDialog(false);
-            load();
-          }}
-          onCancel={() => setShowNewDialog(false)}
-        />
-      ) : null}
-
-      {pendingLifecycle ? (
-        <LifecycleConfirmDialog
-          op={pendingLifecycle.op}
-          contentType={pendingLifecycle.contentType}
-          onConfirm={() => {
-            void runLifecycle(pendingLifecycle.contentType, pendingLifecycle.op);
-            setPendingLifecycle(null);
-          }}
-          onCancel={() => setPendingLifecycle(null)}
-        />
-      ) : null}
-
-      {editingFieldsFor ? (
-        <EditFieldsDialog
-          contentType={editingFieldsFor}
-          onSaved={() => {
-            setEditingFieldsFor(null);
-            load();
-          }}
-          onCancel={() => setEditingFieldsFor(null)}
-        />
-      ) : null}
+      <CollectionsDialogs
+        showNewDialog={showNewDialog}
+        onNewDialogCreated={() => {
+          setShowNewDialog(false);
+          load();
+        }}
+        onNewDialogCancel={() => setShowNewDialog(false)}
+        pendingLifecycle={pendingLifecycle}
+        onLifecycleConfirm={(op, contentType) => {
+          void runLifecycle(contentType, op);
+          setPendingLifecycle(null);
+        }}
+        onLifecycleCancel={() => setPendingLifecycle(null)}
+        editingFieldsFor={editingFieldsFor}
+        onFieldsSaved={() => {
+          setEditingFieldsFor(null);
+          load();
+        }}
+        onFieldsCancel={() => setEditingFieldsFor(null)}
+      />
     </div>
   );
 }
