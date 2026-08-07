@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HttpError, type AssistantConversation } from "../../lib/assistant-chats";
 import { createFakeAssistantChatsPort, defaultAssistantChatsPort } from "../assistant-chats-dependencies.hooks";
 import type { AssistantChatsPort } from "../assistant-chats-port.hooks";
-import { useAssistantChats, useWiredAssistantChats } from "../use-assistant-chats.hooks";
+import { summarizeFlushOutcomes, useAssistantChats, useWiredAssistantChats } from "../use-assistant-chats.hooks";
 
 /**
  * @file `useAssistantChats` — the persistence paths an external audit found were silently lossy.
@@ -63,6 +63,53 @@ const message = (id: string, content: string) => ({
   role: "user" as const,
   content,
   createdAt: 1,
+});
+
+/**
+ * `summarizeFlushOutcomes` — pulled out of `flush`'s `Promise.all(...).then(...)` continuation
+ * (2026-08-06, complexity pass). Directly assertable with a plain array of outcomes, no port, no
+ * timers, no React state — the same reduction the "re-reads the list when a write keeps 404ing"
+ * and "does not retry a 400" integration tests further down exercise indirectly through a full
+ * mounted hook; these pin the decision itself.
+ */
+describe("summarizeFlushOutcomes", () => {
+  const outcome = (id: string, outcome: "saved" | "exhausted" | "permanent" | "missing") => ({
+    message: message(id, "x"),
+    outcome,
+  });
+
+  it("releases exhausted and missing ids for retry, but not saved or permanent ones", () => {
+    const { idsToRelease } = summarizeFlushOutcomes(
+      [outcome("saved-1", "saved"), outcome("exhausted-1", "exhausted"), outcome("permanent-1", "permanent"), outcome("missing-1", "missing")],
+      true,
+    );
+    expect(idsToRelease.sort()).toEqual(["exhausted-1", "missing-1"]);
+  });
+
+  it("refreshes when any message saved, regardless of the conversation's active state", () => {
+    expect(summarizeFlushOutcomes([outcome("m1", "saved")], false).shouldRefresh).toBe(true);
+    expect(summarizeFlushOutcomes([outcome("m1", "saved")], true).shouldRefresh).toBe(true);
+  });
+
+  it("refreshes on a missing outcome only while the conversation is still the active one", () => {
+    expect(summarizeFlushOutcomes([outcome("m1", "missing")], true).shouldRefresh).toBe(true);
+    expect(summarizeFlushOutcomes([outcome("m1", "missing")], false).shouldRefresh).toBe(false);
+  });
+
+  it("does not refresh on exhausted-only or permanent-only outcomes", () => {
+    expect(summarizeFlushOutcomes([outcome("m1", "exhausted")], true).shouldRefresh).toBe(false);
+    expect(summarizeFlushOutcomes([outcome("m1", "permanent")], true).shouldRefresh).toBe(false);
+  });
+
+  it("a mix of saved and missing still refreshes exactly once — the OR, not a double-trigger", () => {
+    const result = summarizeFlushOutcomes([outcome("m1", "saved"), outcome("m2", "missing")], true);
+    expect(result.shouldRefresh).toBe(true);
+    expect(result.idsToRelease).toEqual(["m2"]);
+  });
+
+  it("an empty batch releases nothing and does not refresh", () => {
+    expect(summarizeFlushOutcomes([], true)).toEqual({ idsToRelease: [], shouldRefresh: false });
+  });
 });
 
 describe("typing with no conversation selected", () => {

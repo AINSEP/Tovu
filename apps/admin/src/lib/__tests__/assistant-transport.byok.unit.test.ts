@@ -4,7 +4,7 @@ import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { RunHandlers } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
-import { createTovuAssistantTransport } from "../assistant-transport";
+import { createTovuAssistantTransport, handleByokFrame, parseFrame } from "../assistant-transport";
 import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-helpers";
 
 /**
@@ -12,10 +12,14 @@ import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-he
  * `reattachRun`/`fetchRunStatus`/`stopRun`) — the other half of the coverage audit's "4 of 4
  * complex functions in this file are effectively untested" finding.
  *
- * `readSseFrames` is not exported, so it is exercised the only way a caller can reach it: through
- * `startByokRun`'s held-open POST, feeding a real `ReadableStream<Uint8Array>` via a stubbed
- * `fetch`'s `Response.body`. This also doubles as the frame-boundary/chunk-splitting coverage the
- * risk ranking flagged (`readSseFrames` was rank #4 by itself).
+ * `readSseFrames` itself is still not exported, so its buffering/chunk-splitting behavior is
+ * exercised the only way a caller can reach it: through `startByokRun`'s held-open POST, feeding a
+ * real `ReadableStream<Uint8Array>` via a stubbed `fetch`'s `Response.body` (the "SSE frame
+ * streaming" describe block below). Its two extracted pieces (2026-08-06, complexity pass) —
+ * `parseFrame` (per-frame `event:`/`data:` parsing) and `handleByokFrame` (the `"agent"`/`"error"`/
+ * `"end"` dispatch that used to sit inside `startByokRun`'s stream-consumer IIFE) — ARE exported,
+ * and get their own direct describe blocks immediately below: no `ReadableStream`, `fetch`, or
+ * `startRun` call needed to exercise either.
  */
 
 function handlers(): RunHandlers & { events: AgentEvent[]; errors: Error[]; done: AgentEvent[] | null } {
@@ -57,6 +61,107 @@ function byokConfig(overrides: Partial<ExecutionConfig["byok"]> = {}): Execution
 function frame(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
+
+describe("parseFrame", () => {
+  test("extracts event and data from a well-formed frame", () => {
+    expect(parseFrame('event: agent\ndata: {"a":1}')).toEqual({ event: "agent", data: '{"a":1}' });
+  });
+
+  test("defaults event to 'message' when no event: line is present", () => {
+    expect(parseFrame('data: {"noop":true}')).toEqual({ event: "message", data: '{"noop":true}' });
+  });
+
+  test("joins multiple data: lines with a newline, per the SSE spec", () => {
+    expect(parseFrame("data: line one\ndata: line two")).toEqual({ event: "message", data: "line one\nline two" });
+  });
+
+  test("returns null for a frame with no data: lines at all — e.g. a bare keepalive", () => {
+    expect(parseFrame("event: ping")).toBeNull();
+  });
+
+  test("ignores a line matching neither event: nor data: (e.g. an id: field)", () => {
+    expect(parseFrame("id: 42\ndata: kept")).toEqual({ event: "message", data: "kept" });
+  });
+});
+
+describe("handleByokFrame — frame dispatch, extracted from startByokRun's consumer IIFE", () => {
+  test("an 'agent' frame that translates pushes to collected and forwards onEvent", () => {
+    const collected: AgentEvent[] = [];
+    const h = handlers();
+    const finish = vi.fn();
+
+    handleByokFrame({ event: "agent", data: JSON.stringify({ type: "text_delta", delta: "hi" }) }, { collected, handlers: h, finish });
+
+    expect(collected).toEqual([{ kind: "text", text: "hi" }]);
+    expect(h.events).toEqual([{ kind: "text", text: "hi" }]);
+    expect(finish).not.toHaveBeenCalled();
+  });
+
+  test("an 'agent' frame whose payload translates to null is not collected or forwarded", () => {
+    const collected: AgentEvent[] = [];
+    const h = handlers();
+
+    handleByokFrame({ event: "agent", data: JSON.stringify({ type: "thinking_start" }) }, { collected, handlers: h, finish: vi.fn() });
+
+    expect(collected).toEqual([]);
+    expect(h.events).toEqual([]);
+  });
+
+  test("an 'error' frame reports via onError without calling finish", () => {
+    const h = handlers();
+    const finish = vi.fn();
+
+    handleByokFrame({ event: "error", data: JSON.stringify({ message: "model overloaded" }) }, { collected: [], handlers: h, finish });
+
+    expect(h.errors.map((e) => e.message)).toEqual(["model overloaded"]);
+    expect(finish).not.toHaveBeenCalled();
+  });
+
+  test("an 'error' frame with no message field falls back to a generic BYOK failure message", () => {
+    const h = handlers();
+
+    handleByokFrame({ event: "error", data: JSON.stringify({}) }, { collected: [], handlers: h, finish: vi.fn() });
+
+    expect(h.errors.map((e) => e.message)).toEqual(["BYOK turn failed"]);
+  });
+
+  test("an 'end' frame with an ordinary reason calls finish without pushing a notice", () => {
+    const collected: AgentEvent[] = [];
+    const h = handlers();
+    const finish = vi.fn();
+
+    handleByokFrame({ event: "end", data: JSON.stringify({ reason: "stop" }) }, { collected, handlers: h, finish });
+
+    expect(collected).toEqual([]);
+    expect(h.events).toEqual([]);
+    expect(finish).toHaveBeenCalledTimes(1);
+  });
+
+  test("an 'end' frame with reason max_tool_turns pushes the notice, then calls finish", () => {
+    const collected: AgentEvent[] = [];
+    const h = handlers();
+    const finish = vi.fn();
+
+    handleByokFrame({ event: "end", data: JSON.stringify({ reason: "max_tool_turns" }) }, { collected, handlers: h, finish });
+
+    expect(collected).toHaveLength(1);
+    expect(collected[0]?.kind).toBe("status");
+    expect(h.events).toEqual(collected);
+    expect(finish).toHaveBeenCalledTimes(1);
+  });
+
+  test("a frame with an unrecognized event name matches no branch — a silent no-op", () => {
+    const collected: AgentEvent[] = [];
+    const h = handlers();
+    const finish = vi.fn();
+
+    handleByokFrame({ event: "message", data: "{}" }, { collected, handlers: h, finish });
+
+    expect(collected).toEqual([]);
+    expect(h.events).toEqual([]);
+    expect(finish).not.toHaveBeenCalled();
+  });
+});
 
 let fetchMock: ReturnType<typeof vi.fn>;
 

@@ -12,6 +12,21 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "re
  * all three exist purely to serve this hook's own state (`position`, the `<li>` id scheme, the
  * Tab-handling DOM walk), and `Select.hooks.unit.test.tsx` exercises them directly rather than only
  * through the rendered component.
+ *
+ * **2026-08-06 complexity pass:** `useSelectDropdown` was, by a wide margin, the highest-complexity
+ * symbol in the admin app — every effect, action, and keyboard handler it owns was declared inline
+ * in its own body, so reviewing (or scoring) it meant holding all of that at once. The five private
+ * hooks below (`usePanelPosition`, `useCloseOnOutsideClick`, `useResetHighlightOnQueryChange`,
+ * `useScrollHighlightedIntoView`, `useSelectKeyboardHandlers`) are a LITERAL extraction, not a
+ * rewrite: every effect/handler body is unchanged from before this pass, each is now called
+ * unconditionally from `useSelectDropdown` in the same relative order the inline code used to run
+ * in (Rules of Hooks — hooks calling hooks is ordinary React, not a new pattern), and
+ * `useSelectDropdown`'s own exported signature and return shape are byte-identical to before, so
+ * the `useDropdown` injectable seam on `SelectProps` and every existing test against it are
+ * unaffected. `handlePanelKeyDown` specifically is untouched internally — same flat `switch`, no
+ * lookup-table conversion (that would trade a genuinely-clear form for a lower number) — it simply
+ * now lives inside the small `useSelectKeyboardHandlers` hook instead of the mega-hook's own body,
+ * which is what "cut the nesting around it" meant for this pass.
  */
 
 /** A search box over a handful of options looks silly (the design ask, not a guess) — below this
@@ -78,84 +93,30 @@ export function buildOptionId(listboxId: string, index: number): string {
 }
 
 /**
- * Owns every piece of `Select`'s open/search/highlight/position state, its outside-click,
- * scroll/resize, and keyboard-driven effects, and the handlers the trigger/panel JSX wires up to —
- * everything except the inert rendering itself. Split out so the branch combinations below (search
- * visibility, highlight wraparound, upward/downward placement, the outside-viewport auto-close)
- * are exercisable directly with `renderHook`, not only by driving the full portaled DOM tree.
+ * Owns the floating panel's `position` state: the measure-then-focus effect that computes it after
+ * open, and the scroll/resize effect that keeps it anchored to the trigger (or reports the trigger
+ * has left view / is obscured, via `onOutOfView`, rather than deciding what to do about that
+ * itself — closing the panel is `useSelectDropdown`'s `closePanel`, not this hook's business).
  *
- * @param input.value - The currently selected option's value (may not match any option).
- * @param input.onChange - Called with the newly selected option's value.
- * @param input.options - The full option list; `filtered` narrows this by the live search query.
- * @param input.disabled - When true, `openPanel` and the trigger's own key handler both no-op.
- * @returns Everything `Select`'s JSX reads or calls: open/search/highlight state and their
- *   setters, the trigger/panel/search-input/option refs, `listboxId`, `showSearch`, `filtered`,
- *   `selectedOption`, the `openPanel`/`closePanel`/`selectOption` actions, the trigger/panel
- *   keydown handlers, and `optionId` (bound to this hook's own `listboxId`).
- * @example
- * const { open, filtered, handleTriggerKeyDown } = useSelectDropdown({ value, onChange, options });
+ * Extracted from `useSelectDropdown` verbatim — both effect bodies are unchanged from before this
+ * pass; only the `closePanel({refocusTrigger:false})` calls became `onOutOfView()`.
  */
-export function useSelectDropdown({
-  value,
-  onChange,
-  options,
-  disabled,
+function usePanelPosition({
+  open,
+  triggerRef,
+  panelRef,
+  searchInputRef,
+  showSearch,
+  onOutOfView,
 }: {
-  value: string;
-  onChange: (value: string) => void;
-  options: SelectOption[];
-  disabled?: boolean;
+  open: boolean;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
+  panelRef: React.RefObject<HTMLDivElement | null>;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
+  showSearch: boolean;
+  onOutOfView: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [position, setPosition] = useState<PanelPosition | null>(null);
-
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-  // Index -> `<li>` node, so the highlight-follow effect below can scroll the right row into view
-  // without an id-based `querySelector` (this component's ids come from `useId()`, which can
-  // contain characters — `:`, in React's own scheme — that need escaping in a CSS selector; a
-  // direct ref avoids that entirely). Populated by each option's own ref callback below.
-  const optionRefs = useRef<Map<number, HTMLLIElement>>(new Map());
-
-  const listboxId = useId();
-
-  const showSearch = options.length >= SEARCH_VISIBILITY_THRESHOLD;
-  const filtered = useMemo(() => {
-    if (!showSearch || !query.trim()) return options;
-    const q = query.trim().toLowerCase();
-    return options.filter((o) => o.label.toLowerCase().includes(q));
-  }, [options, query, showSearch]);
-
-  const selectedOption = options.find((o) => o.value === value) ?? null;
-
-  function openPanel() {
-    if (disabled) return;
-    const initialIndex = options.findIndex((o) => o.value === value);
-    setQuery("");
-    setOpen(true);
-    setHighlightedIndex(initialIndex >= 0 ? initialIndex : options.length ? 0 : -1);
-  }
-
-  function closePanel(opts: { refocusTrigger: boolean }) {
-    setOpen(false);
-    setPosition(null); // forces the effect below through its "measure, then focus" two-phase sequence again on the next open, rather than focusing at a stale, pre-close position
-    if (opts.refocusTrigger) triggerRef.current?.focus();
-  }
-
-  function selectOption(option: SelectOption) {
-    onChange(option.value);
-    closePanel({ refocusTrigger: true });
-  }
-
-  function moveHighlight(delta: 1 | -1) {
-    setHighlightedIndex((current) => {
-      if (filtered.length === 0) return -1;
-      return (current + delta + filtered.length) % filtered.length;
-    });
-  }
 
   // Two phases, deliberately in one effect rather than two: (1) `position` starts `null` on every
   // open (`closePanel` resets it), so the panel/`createPortal` call below isn't rendered at all yet
@@ -204,7 +165,7 @@ export function useSelectDropdown({
       const rect = el.getBoundingClientRect();
       const outOfViewport = rect.bottom <= 0 || rect.top >= window.innerHeight || rect.right <= 0 || rect.left >= window.innerWidth;
       if (outOfViewport) {
-        closePanel({ refocusTrigger: false });
+        onOutOfView();
         return;
       }
       // Guarded, not assumed available: some environments (older WebViews, this app's own jsdom
@@ -216,7 +177,7 @@ export function useSelectDropdown({
         const topmostAtCenter = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
         const obscured = !topmostAtCenter || !(el.contains(topmostAtCenter) || topmostAtCenter.contains(el));
         if (obscured) {
-          closePanel({ refocusTrigger: false });
+          onOutOfView();
           return;
         }
       }
@@ -231,34 +192,76 @@ export function useSelectDropdown({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  return { position, setPosition };
+}
+
+/** Closes the panel on an outside mousedown while it's open — extracted from `useSelectDropdown`
+ *  verbatim (same effect body, `closePanel({refocusTrigger:false})` became `onOutside()`). */
+function useCloseOnOutsideClick({
+  open,
+  triggerRef,
+  panelRef,
+  onOutside,
+}: {
+  open: boolean;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
+  panelRef: React.RefObject<HTMLDivElement | null>;
+  onOutside: () => void;
+}) {
   useEffect(() => {
     if (!open) return;
     function onDocMouseDown(e: MouseEvent) {
       const target = e.target as Node;
       if (triggerRef.current?.contains(target)) return;
       if (panelRef.current?.contains(target)) return;
-      closePanel({ refocusTrigger: false });
+      onOutside();
     }
     document.addEventListener("mousedown", onDocMouseDown);
     return () => document.removeEventListener("mousedown", onDocMouseDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+}
 
-  // The previously-highlighted option may not even be in `filtered` once the search narrows the
-  // list, so re-anchor the highlight to the top match every time the query changes.
+/** The previously-highlighted option may not even be in `filtered` once the search narrows the
+ *  list, so re-anchor the highlight to the top match every time the query changes — extracted from
+ *  `useSelectDropdown` verbatim. */
+function useResetHighlightOnQueryChange({
+  open,
+  query,
+  hasMatches,
+  setHighlightedIndex,
+}: {
+  open: boolean;
+  query: string;
+  hasMatches: boolean;
+  setHighlightedIndex: (index: number) => void;
+}) {
   useEffect(() => {
     if (!open) return;
-    setHighlightedIndex(filtered.length ? 0 : -1);
+    setHighlightedIndex(hasMatches ? 0 : -1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
+}
 
-  // Found live in a real browser, not by this component's own test suite until added just now: a
-  // list longer than the panel's own `max-height` (`styles/select.css`) moved the LOGICAL highlight
-  // correctly via ArrowUp/ArrowDown (`aria-activedescendant`, the `.is-highlighted` class both
-  // updated), but nothing ever scrolled `.select-list` to bring that row into view — keyboard-
-  // navigating past the visible fold silently lost track of where the highlight even was.
-  // `"nearest"` (not `"center"`) only scrolls the minimum needed, so it doesn't fight a user who has
-  // manually scrolled partway through an unrelated portion of the list.
+/**
+ * Found live in a real browser, not by this component's own test suite until added just now: a
+ * list longer than the panel's own `max-height` (`styles/select.css`) moved the LOGICAL highlight
+ * correctly via ArrowUp/ArrowDown (`aria-activedescendant`, the `.is-highlighted` class both
+ * updated), but nothing ever scrolled `.select-list` to bring that row into view — keyboard-
+ * navigating past the visible fold silently lost track of where the highlight even was.
+ * `"nearest"` (not `"center"`) only scrolls the minimum needed, so it doesn't fight a user who has
+ * manually scrolled partway through an unrelated portion of the list. Extracted from
+ * `useSelectDropdown` verbatim.
+ */
+function useScrollHighlightedIntoView({
+  open,
+  highlightedIndex,
+  optionRefs,
+}: {
+  open: boolean;
+  highlightedIndex: number;
+  optionRefs: React.RefObject<Map<number, HTMLLIElement>>;
+}) {
   useEffect(() => {
     if (!open || highlightedIndex < 0) return;
     const el = optionRefs.current.get(highlightedIndex);
@@ -267,7 +270,41 @@ export function useSelectDropdown({
     // throws inside the effect on every highlight change.
     if (el && typeof el.scrollIntoView === "function") el.scrollIntoView({ block: "nearest" });
   }, [open, highlightedIndex]);
+}
 
+/**
+ * `Select`'s two keyboard handlers, extracted from `useSelectDropdown` verbatim — neither body
+ * changed, including `handlePanelKeyDown`'s own flat `switch` over `e.key` (kept exactly as-is per
+ * this pass's explicit guidance: a keyboard handler written as a flat switch is the clearest form
+ * available, and converting the dispatch into a lookup table would trade that clarity for a lower
+ * number). Pulled into its own hook purely so neither handler sits directly inside the much larger
+ * `useSelectDropdown` body anymore.
+ */
+function useSelectKeyboardHandlers({
+  disabled,
+  open,
+  openPanel,
+  closePanel,
+  moveHighlight,
+  selectOption,
+  highlightedIndex,
+  setHighlightedIndex,
+  filtered,
+  triggerRef,
+  panelRef,
+}: {
+  disabled: boolean | undefined;
+  open: boolean;
+  openPanel: () => void;
+  closePanel: (opts: { refocusTrigger: boolean }) => void;
+  moveHighlight: (delta: 1 | -1) => void;
+  selectOption: (option: SelectOption) => void;
+  highlightedIndex: number;
+  setHighlightedIndex: (index: number) => void;
+  filtered: SelectOption[];
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
+  panelRef: React.RefObject<HTMLDivElement | null>;
+}) {
   function handleTriggerKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
     if (disabled || open) return;
     switch (e.key) {
@@ -331,6 +368,127 @@ export function useSelectDropdown({
         break;
     }
   }
+
+  return { handleTriggerKeyDown, handlePanelKeyDown };
+}
+
+/**
+ * Owns every piece of `Select`'s open/search/highlight/position state, its outside-click,
+ * scroll/resize, and keyboard-driven effects, and the handlers the trigger/panel JSX wires up to —
+ * everything except the inert rendering itself. Split out so the branch combinations below (search
+ * visibility, highlight wraparound, upward/downward placement, the outside-viewport auto-close)
+ * are exercisable directly with `renderHook`, not only by driving the full portaled DOM tree.
+ *
+ * Composed from five smaller private hooks (`usePanelPosition`, `useCloseOnOutsideClick`,
+ * `useResetHighlightOnQueryChange`, `useScrollHighlightedIntoView`, `useSelectKeyboardHandlers`) as
+ * of the 2026-08-06 complexity pass — see this file's header for why. Its own return shape and
+ * every field on it are unchanged from before that pass.
+ *
+ * @param input.value - The currently selected option's value (may not match any option).
+ * @param input.onChange - Called with the newly selected option's value.
+ * @param input.options - The full option list; `filtered` narrows this by the live search query.
+ * @param input.disabled - When true, `openPanel` and the trigger's own key handler both no-op.
+ * @returns Everything `Select`'s JSX reads or calls: open/search/highlight state and their
+ *   setters, the trigger/panel/search-input/option refs, `listboxId`, `showSearch`, `filtered`,
+ *   `selectedOption`, the `openPanel`/`closePanel`/`selectOption` actions, the trigger/panel
+ *   keydown handlers, and `optionId` (bound to this hook's own `listboxId`).
+ * @example
+ * const { open, filtered, handleTriggerKeyDown } = useSelectDropdown({ value, onChange, options });
+ */
+export function useSelectDropdown({
+  value,
+  onChange,
+  options,
+  disabled,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: SelectOption[];
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  // Index -> `<li>` node, so the highlight-follow effect below can scroll the right row into view
+  // without an id-based `querySelector` (this component's ids come from `useId()`, which can
+  // contain characters — `:`, in React's own scheme — that need escaping in a CSS selector; a
+  // direct ref avoids that entirely). Populated by each option's own ref callback below.
+  const optionRefs = useRef<Map<number, HTMLLIElement>>(new Map());
+
+  const listboxId = useId();
+
+  const showSearch = options.length >= SEARCH_VISIBILITY_THRESHOLD;
+  const filtered = useMemo(() => {
+    if (!showSearch || !query.trim()) return options;
+    const q = query.trim().toLowerCase();
+    return options.filter((o) => o.label.toLowerCase().includes(q));
+  }, [options, query, showSearch]);
+
+  const selectedOption = options.find((o) => o.value === value) ?? null;
+
+  function openPanel() {
+    if (disabled) return;
+    const initialIndex = options.findIndex((o) => o.value === value);
+    setQuery("");
+    setOpen(true);
+    setHighlightedIndex(initialIndex >= 0 ? initialIndex : options.length ? 0 : -1);
+  }
+
+  function closePanel(opts: { refocusTrigger: boolean }) {
+    setOpen(false);
+    setPosition(null); // forces the effect below through its "measure, then focus" two-phase sequence again on the next open, rather than focusing at a stale, pre-close position
+    if (opts.refocusTrigger) triggerRef.current?.focus();
+  }
+
+  function selectOption(option: SelectOption) {
+    onChange(option.value);
+    closePanel({ refocusTrigger: true });
+  }
+
+  function moveHighlight(delta: 1 | -1) {
+    setHighlightedIndex((current) => {
+      if (filtered.length === 0) return -1;
+      return (current + delta + filtered.length) % filtered.length;
+    });
+  }
+
+  const { position, setPosition } = usePanelPosition({
+    open,
+    triggerRef,
+    panelRef,
+    searchInputRef,
+    showSearch,
+    onOutOfView: () => closePanel({ refocusTrigger: false }),
+  });
+
+  useCloseOnOutsideClick({
+    open,
+    triggerRef,
+    panelRef,
+    onOutside: () => closePanel({ refocusTrigger: false }),
+  });
+
+  useResetHighlightOnQueryChange({ open, query, hasMatches: filtered.length > 0, setHighlightedIndex });
+
+  useScrollHighlightedIntoView({ open, highlightedIndex, optionRefs });
+
+  const { handleTriggerKeyDown, handlePanelKeyDown } = useSelectKeyboardHandlers({
+    disabled,
+    open,
+    openPanel,
+    closePanel,
+    moveHighlight,
+    selectOption,
+    highlightedIndex,
+    setHighlightedIndex,
+    filtered,
+    triggerRef,
+    panelRef,
+  });
 
   const optionId = (index: number) => buildOptionId(listboxId, index);
 
