@@ -1,8 +1,8 @@
-import type { CommentStatus } from "../../lib/api";
+import type { AdminComment, CommentModerationAction, CommentStatus } from "../../lib/api";
 import { hasPermission } from "../../lib/permissions";
-import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { DataTable, RowMenu, ConfirmDialog, type DataTableColumn } from "@jini-ai/admin/react";
 
-import { commentRowMenuItems, truncate } from "./rules";
+import { commentRowMenuItems, truncate, type RowActionState } from "./rules";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { useComments } from "./hooks/use-comments.hooks";
 import { useCommentQueue } from "./hooks/use-comment-queue.hooks";
@@ -36,6 +36,180 @@ import { useCommentSettings } from "./hooks/use-comment-settings.hooks";
 
 const STATUS_OPTIONS: readonly CommentStatus[] = ["pending", "approved", "spam", "trash"];
 
+/** The status-filter `<select>` — pure presentation, no state of its own. */
+function QueueToolbar({ status, onStatusChange }: { status: CommentStatus; onStatusChange: (s: CommentStatus) => void }) {
+  return (
+    <div className="toolbar">
+      <div className="field">
+        <label className="field-label" htmlFor="comments-status-filter">
+          Status
+        </label>
+        <select id="comments-status-filter" value={status} onChange={(e) => onStatusChange(e.target.value as CommentStatus)}>
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+/** The moderation-queue table's "More" column — a `RowMenu` built from `commentRowMenuItems`, or
+ *  an em dash when the operator's permissions leave no items, plus this row's own error (if the
+ *  last action against it failed). Top-level rather than an inline `cell` closure so it has its
+ *  own directly-testable scope, per `commentRowMenuItems`'s own risk ranking. */
+function QueueActionsCell(props: {
+  comment: AdminComment;
+  permissions: string[];
+  status: CommentStatus;
+  rowState: RowActionState;
+  onModerate: (comment: AdminComment, action: CommentModerationAction) => void;
+  onRequestPurge: (comment: AdminComment) => void;
+}) {
+  const menuItems = commentRowMenuItems(
+    props.comment,
+    { permissions: props.permissions, currentFilterStatus: props.status },
+    { onModerate: props.onModerate, onRequestPurge: props.onRequestPurge },
+  );
+  return (
+    <>
+      {menuItems.length > 0 ? (
+        <RowMenu triggerLabel={`Actions for the comment by "${props.comment.authorName}"`} items={menuItems} />
+      ) : (
+        <span className="muted-cell">—</span>
+      )}
+      {props.rowState.error ? (
+        <div className="notice error" role="alert">
+          {props.rowState.error}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/** Builds the `DataTable` column descriptors. A plain function rather than a closure declared
+ *  inside `QueueTable`'s body — it doesn't need to be a hook-scoped closure, only the values
+ *  already threaded through its parameters. */
+function queueColumns(props: {
+  permissions: string[];
+  status: CommentStatus;
+  stateFor: (id: string) => RowActionState;
+  onModerate: (comment: AdminComment, action: CommentModerationAction) => void;
+  onRequestPurge: (comment: AdminComment) => void;
+}): DataTableColumn<AdminComment>[] {
+  return [
+    { key: "author", header: "Author", cell: (comment) => comment.authorName },
+    { key: "comment", header: "Comment", cell: (comment) => truncate(comment.bodyText, 120) },
+    {
+      key: "status",
+      header: "Status",
+      cell: (comment) => <span className={`status status-${comment.status}`}>{comment.status}</span>,
+    },
+    { key: "depth", header: "Depth", cell: (comment) => comment.depth },
+    { key: "created", header: "Created", cell: (comment) => formatTimestamp(comment.createdAt) },
+    {
+      key: "actions",
+      header: "More",
+      cell: (comment) => (
+        <QueueActionsCell
+          comment={comment}
+          permissions={props.permissions}
+          status={props.status}
+          rowState={props.stateFor(comment.id)}
+          onModerate={props.onModerate}
+          onRequestPurge={props.onRequestPurge}
+        />
+      ),
+    },
+  ];
+}
+
+/** The populated-queue view: the table plus its "Load more" pager. Only rendered once
+ *  `QueueItemsView` has already ruled out the loading/empty states. */
+function QueueTable(props: {
+  items: AdminComment[];
+  nextCursor: string | null;
+  loadingMore: boolean;
+  loadMore: () => void;
+  permissions: string[];
+  status: CommentStatus;
+  stateFor: (id: string) => RowActionState;
+  onModerate: (comment: AdminComment, action: CommentModerationAction) => void;
+  onRequestPurge: (comment: AdminComment) => void;
+}) {
+  return (
+    <>
+      <DataTable
+        rows={props.items}
+        rowKey={(comment) => comment.id}
+        columns={queueColumns(props)}
+      />
+      {props.nextCursor ? (
+        <button type="button" className="btn-secondary" onClick={props.loadMore} disabled={props.loadingMore}>
+          {props.loadingMore ? "Loading…" : "Load more"}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+/** Dispatches between the three queue-body states (loading / empty / populated) as a flat
+ *  if-chain instead of a nested ternary — the nesting was the cognitive-complexity cost in the
+ *  original inline JSX, not the branch count itself. */
+function QueueItemsView(props: {
+  items: AdminComment[] | null;
+  status: CommentStatus;
+  nextCursor: string | null;
+  loadingMore: boolean;
+  loadMore: () => void;
+  permissions: string[];
+  stateFor: (id: string) => RowActionState;
+  onModerate: (comment: AdminComment, action: CommentModerationAction) => void;
+  onRequestPurge: (comment: AdminComment) => void;
+}) {
+  if (!props.items) return <div className="notice">Loading comments…</div>;
+  if (props.items.length === 0) {
+    return (
+      <div className="card">
+        <div className="empty-state">
+          <p>No {props.status} comments.</p>
+        </div>
+      </div>
+    );
+  }
+  return <QueueTable {...props} items={props.items} />;
+}
+
+/** The Purge confirm dialog. Stays mounted unconditionally (driven by `open`) — see
+ *  `useCommentQueue`'s `pendingPurge` doc comment for why. */
+function QueuePurgeDialog(props: {
+  pendingPurge: AdminComment | null;
+  busy: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <ConfirmDialog
+      open={props.pendingPurge !== null}
+      title="Permanently delete this comment?"
+      body={
+        props.pendingPurge ? (
+          <p>
+            Permanently delete this comment by &quot;{props.pendingPurge.authorName}&quot;? This cannot be undone.
+          </p>
+        ) : null
+      }
+      confirmLabel="Permanently delete"
+      destructive
+      pending={props.busy}
+      onConfirm={props.onConfirm}
+      onCancel={props.onCancel}
+    />
+  );
+}
+
 function QueueSection(props: { permissions: string[] }) {
   const {
     status,
@@ -56,104 +230,25 @@ function QueueSection(props: { permissions: string[] }) {
 
   return (
     <div>
-      <div className="toolbar">
-        <div className="field">
-          <label className="field-label" htmlFor="comments-status-filter">
-            Status
-          </label>
-          <select
-            id="comments-status-filter"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as CommentStatus)}
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <QueueToolbar status={status} onStatusChange={setStatus} />
 
       {error ? <div className="notice error">{error}</div> : null}
 
-      {!items ? (
-        <div className="notice">Loading comments…</div>
-      ) : items.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No {status} comments.</p>
-          </div>
-        </div>
-      ) : (
-        <>
-          <DataTable
-            rows={items}
-            rowKey={(comment) => comment.id}
-            columns={[
-              { key: "author", header: "Author", cell: (comment) => comment.authorName },
-              { key: "comment", header: "Comment", cell: (comment) => truncate(comment.bodyText, 120) },
-              {
-                key: "status",
-                header: "Status",
-                cell: (comment) => <span className={`status status-${comment.status}`}>{comment.status}</span>,
-              },
-              { key: "depth", header: "Depth", cell: (comment) => comment.depth },
-              { key: "created", header: "Created", cell: (comment) => formatTimestamp(comment.createdAt) },
-              {
-                key: "actions",
-                header: "More",
-                cell: (comment) => {
-                  const rs = stateFor(comment.id);
-                  const menuItems = commentRowMenuItems(
-                    comment,
-                    { permissions: props.permissions, currentFilterStatus: status },
-                    {
-                      onModerate: (c, action) => void onModerate(c, action),
-                      onRequestPurge: setPendingPurge,
-                    },
-                  );
-                  return (
-                    <>
-                      {menuItems.length > 0 ? (
-                        <RowMenu
-                          triggerLabel={`Actions for the comment by "${comment.authorName}"`}
-                          items={menuItems}
-                        />
-                      ) : (
-                        <span className="muted-cell">—</span>
-                      )}
-                      {rs.error ? (
-                        <div className="notice error" role="alert">
-                          {rs.error}
-                        </div>
-                      ) : null}
-                    </>
-                  );
-                },
-              },
-            ]}
-          />
-          {nextCursor ? (
-            <button type="button" className="btn-secondary" onClick={loadMore} disabled={loadingMore}>
-              {loadingMore ? "Loading…" : "Load more"}
-            </button>
-          ) : null}
-        </>
-      )}
-      <ConfirmDialog
-        open={pendingPurge !== null}
-        title="Permanently delete this comment?"
-        body={
-          pendingPurge ? (
-            <p>
-              Permanently delete this comment by &quot;{pendingPurge.authorName}&quot;? This cannot be undone.
-            </p>
-          ) : null
-        }
-        confirmLabel="Permanently delete"
-        destructive
-        pending={pendingPurge !== null && stateFor(pendingPurge.id).busy}
+      <QueueItemsView
+        items={items}
+        status={status}
+        nextCursor={nextCursor}
+        loadingMore={loadingMore}
+        loadMore={loadMore}
+        permissions={props.permissions}
+        stateFor={stateFor}
+        onModerate={(c, action) => void onModerate(c, action)}
+        onRequestPurge={setPendingPurge}
+      />
+
+      <QueuePurgeDialog
+        pendingPurge={pendingPurge}
+        busy={pendingPurge !== null && stateFor(pendingPurge.id).busy}
         onConfirm={onPurge}
         onCancel={() => setPendingPurge(null)}
       />
