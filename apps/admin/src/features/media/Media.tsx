@@ -479,6 +479,67 @@ function MediaLightbox(props: MediaLightboxProps) {
   );
 }
 
+/** The upload row — file picker, alt-text draft, and the Upload button. Extracted out of `Media`
+ *  because its "Uploading…"/"Upload" label ternary was one of that component's independent
+ *  branches; as a top-level function it's scored in its own scope instead. */
+function MediaToolbar({
+  fileInputRef,
+  altDraft,
+  setAltDraft,
+  upload,
+  uploading,
+}: {
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  altDraft: string;
+  setAltDraft: (value: string) => void;
+  upload: () => void;
+  uploading: boolean;
+}) {
+  return (
+    <div className="toolbar">
+      <input ref={fileInputRef} className="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+      <input value={altDraft} onChange={(e) => setAltDraft(e.target.value)} placeholder="Alt text (optional)" />
+      <button onClick={upload} disabled={uploading}>
+        {uploading ? "Uploading…" : "Upload"}
+      </button>
+    </div>
+  );
+}
+
+/** The purge-confirmation dialog — extracted out of `Media` for the same reason as
+ *  `MediaToolbar`: its `pendingPurge`-derived `body`/`pending` expressions were two more of that
+ *  component's independent branches. */
+function MediaPurgeDialog({
+  pendingPurge,
+  rowSavingId,
+  onConfirm,
+  onCancel,
+}: {
+  pendingPurge: AdminMedia | null;
+  rowSavingId: string | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <ConfirmDialog
+      open={pendingPurge !== null}
+      title="Delete permanently?"
+      body={
+        pendingPurge ? (
+          <p>
+            Permanently delete &quot;{pendingPurge.title}&quot;? This cannot be undone.
+          </p>
+        ) : null
+      }
+      confirmLabel="Delete permanently"
+      destructive
+      pending={pendingPurge !== null && rowSavingId === pendingPurge.id}
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
+  );
+}
+
 export interface MediaProps {
   /**
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
@@ -523,22 +584,13 @@ export function Media({ useMediaHook = useMedia }: MediaProps = {}) {
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
-      <div className="toolbar">
-        <input
-          ref={fileInputRef}
-          className="file-input"
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-        />
-        <input
-          value={altDraft}
-          onChange={(e) => setAltDraft(e.target.value)}
-          placeholder="Alt text (optional)"
-        />
-        <button onClick={upload} disabled={uploading}>
-          {uploading ? "Uploading…" : "Upload"}
-        </button>
-      </div>
+      <MediaToolbar
+        fileInputRef={fileInputRef}
+        altDraft={altDraft}
+        setAltDraft={setAltDraft}
+        upload={upload}
+        uploading={uploading}
+      />
 
       {editingItem ? (
         <EditMediaPanel
@@ -590,19 +642,9 @@ export function Media({ useMediaHook = useMedia }: MediaProps = {}) {
         onClose={() => setLightboxIndex(null)}
       />
 
-      <ConfirmDialog
-        open={pendingPurge !== null}
-        title="Delete permanently?"
-        body={
-          pendingPurge ? (
-            <p>
-              Permanently delete &quot;{pendingPurge.title}&quot;? This cannot be undone.
-            </p>
-          ) : null
-        }
-        confirmLabel="Delete permanently"
-        destructive
-        pending={pendingPurge !== null && rowSavingId === pendingPurge.id}
+      <MediaPurgeDialog
+        pendingPurge={pendingPurge}
+        rowSavingId={rowSavingId}
         onConfirm={purge}
         onCancel={() => setPendingPurge(null)}
       />
