@@ -124,6 +124,29 @@ export async function commitQueuedSave(
   }
 }
 
+/**
+ * Whether a background `refresh()` reload may still land, given what is true about the slice's
+ * uncommitted-work state at the moment of the check.
+ *
+ * Pulled out of `refresh` (2026-08-06, complexity pass, third pass): the same four-flag shape is
+ * checked TWICE inside `refresh` — once before the `load()` await (where `mounted`/`commitsUnchanged`
+ * are trivially true, since nothing could have unmounted or committed a save before the function has
+ * even started awaiting), once after (where all four are live) — and collapsing the check into one
+ * named function removes the duplicated branch count rather than moving it. This does not change
+ * WHEN any ref is read: every call site below still reads `timer.current`/`hasUnsavedEdits.current`/
+ * `mounted.current`/`commits.current` at exactly the point in `refresh`'s own body the inline version
+ * did, in the same tick — this function only names the boolean combination those reads produce. See
+ * `refresh`'s own doc for why a re-check after the await is necessary at all.
+ */
+export function canAcceptRefresh(state: {
+  timerPending: boolean;
+  hasUnsavedEdits: boolean;
+  mounted: boolean;
+  commitsUnchanged: boolean;
+}): boolean {
+  return !state.timerPending && !state.hasUnsavedEdits && state.mounted && state.commitsUnchanged;
+}
+
 export interface SettingsSlice<T> {
   /** `null` until the initial load settles — the caller renders a loading state. */
   value: T | null;
@@ -365,7 +388,16 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
    * transient blip. The mount load still reports its failures.
    */
   const refresh = useCallback(async () => {
-    if (timer.current || hasUnsavedEdits.current) return;
+    if (
+      !canAcceptRefresh({
+        timerPending: timer.current !== null,
+        hasUnsavedEdits: hasUnsavedEdits.current,
+        mounted: true,
+        commitsUnchanged: true,
+      })
+    ) {
+      return;
+    }
     const seenCommits = commits.current;
     let loaded: T;
     try {
@@ -373,8 +405,16 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
     } catch {
       return;
     }
-    if (!mounted.current || timer.current || hasUnsavedEdits.current) return;
-    if (commits.current !== seenCommits) return;
+    if (
+      !canAcceptRefresh({
+        timerPending: timer.current !== null,
+        hasUnsavedEdits: hasUnsavedEdits.current,
+        mounted: mounted.current,
+        commitsUnchanged: commits.current === seenCommits,
+      })
+    ) {
+      return;
+    }
     // `persisted` tracks what `load`/`save` actually manage, so it takes the RAW reload — a
     // reconciled field like a never-persisted API key has no business in the diff base `save` will
     // next diff against. `latest`/`value` are what the operator sees and edits next, so THEY take

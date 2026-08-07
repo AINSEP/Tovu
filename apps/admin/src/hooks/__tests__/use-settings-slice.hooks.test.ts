@@ -2,7 +2,14 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SAVE_DEBOUNCE_MS, commitQueuedSave, mergeSaveStates, useSettingsSlice, type SaveState } from "../use-settings-slice.hooks";
+import {
+  SAVE_DEBOUNCE_MS,
+  canAcceptRefresh,
+  commitQueuedSave,
+  mergeSaveStates,
+  useSettingsSlice,
+  type SaveState,
+} from "../use-settings-slice.hooks";
 
 /**
  * @file `useSettingsSlice` — the load/debounce/save lifecycle shared by every
@@ -851,6 +858,40 @@ describe("commitQueuedSave", () => {
     // A snapshot taken at schedule time would still read `false` here and incorrectly paint
     // "saved" over an edit the operator made while the write was still in flight.
     expect(d.setSaveState).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `canAcceptRefresh` — pulled out of `refresh`'s two duplicated guard checks (2026-08-06,
+ * complexity pass, third pass). The `describe("refresh …")` block above and
+ * `use-settings-slice.refresh.test.ts` already exercise this end-to-end through a real hook
+ * instance; these pin the four-flag decision directly.
+ */
+describe("canAcceptRefresh", () => {
+  const allClear = { timerPending: false, hasUnsavedEdits: false, mounted: true, commitsUnchanged: true };
+
+  it("accepts when nothing is uncommitted and the component is still mounted", () => {
+    expect(canAcceptRefresh(allClear)).toBe(true);
+  });
+
+  it("refuses while a debounce timer is pending", () => {
+    expect(canAcceptRefresh({ ...allClear, timerPending: true })).toBe(false);
+  });
+
+  it("refuses while there are unsaved edits", () => {
+    expect(canAcceptRefresh({ ...allClear, hasUnsavedEdits: true })).toBe(false);
+  });
+
+  it("refuses once the component has unmounted", () => {
+    expect(canAcceptRefresh({ ...allClear, mounted: false })).toBe(false);
+  });
+
+  it("refuses when a save committed during the reload's await window", () => {
+    expect(canAcceptRefresh({ ...allClear, commitsUnchanged: false })).toBe(false);
+  });
+
+  it("refuses when more than one condition fails at once", () => {
+    expect(canAcceptRefresh({ timerPending: true, hasUnsavedEdits: true, mounted: false, commitsUnchanged: false })).toBe(false);
   });
 });
 
