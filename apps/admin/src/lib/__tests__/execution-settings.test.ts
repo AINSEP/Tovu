@@ -76,11 +76,16 @@ vi.mock("../api", () => ({
 
 import {
   DEFAULT_EXECUTION_CONFIG,
+  buildByokConfigFromLedger,
+  buildLocalCliConfigFromLedger,
   clearLegacyLocalCredential,
   createExecutionPort,
   hasUsableAdminKey,
   loadAdminExecutionCredential,
   loadExecutionConfig,
+  readByokProtocol,
+  readByokProviderId,
+  readExecutionMode,
   readLegacyLocalCredential,
   reconcileExecutionConfigRefresh,
   resetLocalAgentDetectionCache,
@@ -198,6 +203,94 @@ describe("loadExecutionConfig", () => {
     getSettingsEffective.mockResolvedValue({ data: [{ key: "byok.providerId", value: null, sourceLayer: "workspace", defVersion: 1 }] });
     const config = await loadExecutionConfig();
     expect(config.byok.providerId).toBeNull();
+  });
+});
+
+/**
+ * `readExecutionMode`/`readByokProtocol`/`readByokProviderId`/`buildByokConfigFromLedger`/
+ * `buildLocalCliConfigFromLedger` — pulled out of `loadExecutionConfig` (2026-08-06, complexity
+ * pass, second pass) so its six inline fallback ternaries became named, independently testable
+ * steps. `loadExecutionConfig`'s own describe block above already exercises every one of these
+ * branches end to end (that behavior is unchanged); these tests pin each unit's own contract
+ * directly, with no `api.getSettingsEffective` mock involved.
+ */
+describe("readExecutionMode", () => {
+  it("passes through a recognized mode", () => {
+    expect(readExecutionMode("byok", "local-cli")).toBe("byok");
+  });
+  it("falls back on anything unrecognized, including undefined", () => {
+    expect(readExecutionMode(undefined, "local-cli")).toBe("local-cli");
+    expect(readExecutionMode("not-a-mode", "byok")).toBe("byok");
+  });
+});
+
+describe("readByokProtocol", () => {
+  it("passes through each of the four recognized protocols", () => {
+    for (const protocol of ["anthropic", "openai", "azure", "google"] as const) {
+      expect(readByokProtocol(protocol, "anthropic")).toBe(protocol);
+    }
+  });
+  it("falls back on an unrecognized protocol", () => {
+    expect(readByokProtocol("not-a-protocol", "openai")).toBe("openai");
+  });
+});
+
+describe("readByokProviderId", () => {
+  it("treats explicit null as the custom-endpoint selection, not a fallback trigger", () => {
+    expect(readByokProviderId(null, "anthropic")).toBeNull();
+  });
+  it("passes through a string providerId", () => {
+    expect(readByokProviderId("openai", "anthropic")).toBe("openai");
+  });
+  it("falls back only on undefined/non-string, non-null values", () => {
+    expect(readByokProviderId(undefined, "anthropic")).toBe("anthropic");
+    expect(readByokProviderId(42, "anthropic")).toBe("anthropic");
+  });
+});
+
+describe("buildByokConfigFromLedger", () => {
+  it("builds every field from the ledger map, omitting maxTokens when at the unset sentinel", () => {
+    const byKey = new Map<string, unknown>([
+      ["byko.unused", "ignored"],
+      ["byok.protocol", "openai"],
+      ["byok.providerId", "openai"],
+      ["byok.baseUrl", "https://api.openai.com/v1"],
+      ["byok.model", "gpt-4o"],
+      ["byok.maxTokens", 4096],
+    ]);
+    expect(buildByokConfigFromLedger(byKey, DEFAULT_EXECUTION_CONFIG)).toEqual({
+      protocol: "openai",
+      providerId: "openai",
+      apiKey: "",
+      baseUrl: "https://api.openai.com/v1",
+      model: "gpt-4o",
+      maxTokens: 4096,
+    });
+  });
+  it("falls back to defaults field-by-field on an empty map, and omits maxTokens", () => {
+    const result = buildByokConfigFromLedger(new Map(), DEFAULT_EXECUTION_CONFIG);
+    expect(result).toEqual(DEFAULT_EXECUTION_CONFIG.byok);
+    expect(result.maxTokens).toBeUndefined();
+  });
+});
+
+describe("buildLocalCliConfigFromLedger", () => {
+  it("returns agentId: null with no modelByAgentId when nothing is picked", () => {
+    expect(buildLocalCliConfigFromLedger(new Map())).toEqual({ agentId: null });
+  });
+  it("returns the selected agent keyed into modelByAgentId when both are present", () => {
+    const byKey = new Map<string, unknown>([
+      ["localCli.agentId", "claude"],
+      ["localCli.model", "claude-opus-5"],
+    ]);
+    expect(buildLocalCliConfigFromLedger(byKey)).toEqual({
+      agentId: "claude",
+      modelByAgentId: { claude: "claude-opus-5" },
+    });
+  });
+  it("omits modelByAgentId when an agent is selected but has no model recorded", () => {
+    const byKey = new Map<string, unknown>([["localCli.agentId", "claude"]]);
+    expect(buildLocalCliConfigFromLedger(byKey)).toEqual({ agentId: "claude" });
   });
 });
 

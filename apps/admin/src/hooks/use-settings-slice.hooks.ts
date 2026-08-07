@@ -143,6 +143,28 @@ export interface SettingsSlice<T> {
 /**
  * @complexity O(1) per edit — one debounce timer reset plus one link appended
  * to the save chain.
+ *
+ * @complexityExemption (2026-08-06, complexity pass, second pass) Same shape as
+ * `use-assistant-chats.hooks.ts`'s `useAssistantChats` exemption — see that one for the full
+ * reasoning; the short version: ESLint's per-closure view already scores every closure in this
+ * hook's own body at or under the ceiling (`onChange`'s debounce callback is 2/1, `refresh` is
+ * 9/5, the unmount-flush cleanup is 3/2), and the whole-hook owner-tool score (17/23) is the
+ * "closures rolled into their parent" view. `commitQueuedSave` — the one piece of this hook's logic
+ * that genuinely fit a top-level pure-function shape (4 plain callback params, no ref reads) — was
+ * already extracted in the FIRST complexity pass (see its own doc). What remains
+ * (`runSave`/`onChange`/the unmount cleanup/`refresh`) each reads or writes 3–6 of this hook's own
+ * refs (`io`, `persisted`, `latest`, `timer`, `saveChain`, `saveTicket`, `hasUnsavedEdits`,
+ * `commits`, `mounted`) and several of them call each other (`onChange` schedules a link that calls
+ * `runSave`; the unmount cleanup calls `runSave` directly), so none of them can become a top-level
+ * function without threading that whole ref set through as a parameter object. This file's own
+ * header states the reason that is dangerous here specifically: "a value read at schedule time is
+ * a claim about the store that may already be false by the time the code using it runs," and every
+ * ref above exists because an earlier version of exactly this logic got that ordering wrong (four
+ * distinct data-loss bugs, per the header). A previous pass already tried this kind of extraction
+ * on this file and the total was unchanged, 25 → 25 (brief §9) — the honest reading of that result
+ * is that the remaining closures do not have a top-level-shaped cut available at the risk level
+ * this pass's time budget allows, not that the attempt was done wrong. Declined for this pass;
+ * flagged to the coordinator. See this session's report for the full reasoning.
  */
 export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsSlice<T> {
   const { defaultValue } = options;

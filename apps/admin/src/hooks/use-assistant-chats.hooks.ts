@@ -93,6 +93,23 @@ type SaveOutcome = "saved" | "exhausted" | "permanent" | "missing";
  * @param isDisposed checked before and after every sleep — an unmounted dock must not still be
  *   writing minutes later. Never rejects, so a caller can treat the result as data rather than
  *   wrapping every call.
+ *
+ * @complexityExemption (2026-08-06, complexity pass) Measures 8 cyclomatic / 15 cognitive —
+ * cognitive over the ceiling. This is a bounded retry loop with FIVE distinct, independently
+ * documented outcomes (`"saved"`, the `"permanent"` early return, the plain-`"exhausted"` early
+ * return, and the two `giveUpOutcome` sites for "out of attempts" vs. "torn down mid-backoff"), each
+ * one load-bearing per {@link SaveOutcome}'s own doc — collapsing any pair of them was the exact
+ * class of bug this file's module doc and `isPermanent`'s doc both describe having shipped before
+ * (the 404 retry-storm). The `for (;;)` + `try`/`catch` + the two nested early-return checks inside
+ * `catch` are intrinsic to "retry with backoff, give up two different ways" — there is no
+ * flatter shape that keeps every outcome distinct and independently testable. Already extracted as
+ * far as it safely goes: `isTransient`/`isPermanent`/`giveUpOutcome`/`wasMissing` are pulled out as
+ * their own named predicates specifically so this loop's body reads as a sequence of named
+ * decisions rather than inline boolean expressions — further extraction (e.g. pulling the loop body
+ * itself into a helper) would need to pass back `attempt`, `delay`, and the give-up/continue
+ * decision through the helper boundary, which does not reduce the branching, only relocates it
+ * across a function call each iteration has to pay for. Left as a loop, documented here rather than
+ * only in this session's report.
  */
 async function saveWithRetry(
   port: AssistantChatsPort,
@@ -188,6 +205,33 @@ export interface UseAssistantChats {
  * @param port every call this hook makes off its own island. Injected rather than imported so a
  *   test can describe conversation state and write failures directly — see
  *   `createFakeAssistantChatsPort`. Referential stability is NOT required; see `portRef`.
+ *
+ * @complexityExemption (2026-08-06, complexity pass, second pass) ESLint's own per-closure view
+ * already scores every closure in this hook's body at or under the ceiling (`select`'s inner
+ * `commit` is 2/1, `remove` is 6/3, `rename` is 4/2, `flush` is 4/2, `onMessagesChange` is 4/2 —
+ * see this file's own before/after table in the session report). The dispatch brief's owner-tool
+ * score (19/24) is the OTHER view: nested closures rolled into the hook's own total. This pass
+ * already pulled every closure that could become a genuinely top-level PURE function out of hook
+ * bodies across this scope (`saveWithRetry`, `summarizeFlushOutcomes`, `consumeByokStream`,
+ * `buildLocalCliContextRef`, `loadExecutionConfig`'s ledger mappers, `upsertMessage`) — each of
+ * those needed 0–2 plain parameters. `select`/`create`/`remove`/`rename`/`flush`/
+ * `onMessagesChange` below do not fit that shape: each reads and writes between 3 and 9 of this
+ * hook's own refs (`portRef`, `activeIdRef`, `writtenRef`, `switchSeqRef`, `adoptingRef`,
+ * `adoptionGenRef`, `paneNonceRef`, `disposedRef`, `conversationsRef`, `listSeqRef`,
+ * `pendingRenamesRef`, `renameVersionRef`) AND calls several of this hook's OTHER closures
+ * (`resetAdoption`, `commitActiveId`, `refresh`, `select` itself), so extracting any one of them to
+ * a top-level function means threading the rest through as an ad-hoc context parameter — turning a
+ * compiler-checked lexical capture into a runtime object every call site has to assemble correctly
+ * by hand. That is not a smaller change than what this pass already made elsewhere; it is a
+ * different, far riskier one: every one of the ~12 numbered race conditions documented inline in
+ * this file (see `portRef`'s, `commitActiveId`'s, `select`'s, and `remove`'s own doc comments) was
+ * fixed by controlling EXACTLY when a specific ref is read relative to a specific React commit, and
+ * the fix is stated in terms of "this closure, at this point in its own body" — re-deriving each of
+ * those orderings through a threaded-params version, under this pass's own time budget, is how a
+ * metric improves and one of those bugs quietly comes back. `use-settings-slice.hooks.ts`'s own
+ * history is the cited precedent (brief §9): a previous attempt at exactly this kind of extraction
+ * left that file's total unchanged (25 → 25). Declined for this pass; flagged to the coordinator
+ * rather than attempted under time pressure. See this session's report for the full reasoning.
  */
 export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
   /**
