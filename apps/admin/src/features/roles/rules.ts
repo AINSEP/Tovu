@@ -18,20 +18,30 @@ import { ApiError, describeApiError as describeApiErrorDefault, type AdminPolicy
  * which callback a given row wires up.
  */
 
+/** Same flat-lookup shape as `users/rules.ts`'s `describeApiError` (see its comment for why a
+ *  table doesn't lose exhaustiveness here) — a closed set of literal `code` strings, not a
+ *  discriminated union. */
+const STATIC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  FORBIDDEN: "You do not have permission to do that.",
+  RESOURCE_CONFLICT: "It is still in use — remove that assignment/attachment first.",
+  PERMISSION_UNKNOWN: "That permission is not recognized.",
+  GRANT_EXCEEDS_ISSUER: "You cannot grant a permission you do not hold.",
+};
+
 /** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`) — this screen's
  *  `RESOURCE_CONFLICT` means "still referenced by an assignment/attachment", a different meaning
  *  than `Workspace.tsx`'s "slug already taken" or `Users.tsx`'s "username already in use" for the
  *  same code (audit cross-cutting finding #2 — deliberately not unified into one table).
+ *  `VALIDATION_ERROR` stays its own branch — its message comes from `e.message`, not a fixed
+ *  string a lookup table can hold.
  *
  * @complexity Time/space: O(1) — a fixed set of code checks, no iteration.
  */
 export function describeApiError(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
-    if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
-    if (e.code === "RESOURCE_CONFLICT") return "It is still in use — remove that assignment/attachment first.";
-    if (e.code === "PERMISSION_UNKNOWN") return "That permission is not recognized.";
-    if (e.code === "GRANT_EXCEEDS_ISSUER") return "You cannot grant a permission you do not hold.";
     if (e.code === "VALIDATION_ERROR") return e.message || "Please correct the highlighted fields.";
+    const staticMessage = STATIC_ERROR_MESSAGES[e.code];
+    if (staticMessage) return staticMessage;
   }
   return describeApiErrorDefault(e, fallback);
 }
