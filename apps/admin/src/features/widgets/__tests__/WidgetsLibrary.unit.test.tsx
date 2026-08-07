@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { WidgetsLibrary } from "../WidgetsLibrary";
+import { WidgetsLibrary, WidgetsLibraryNotices } from "../WidgetsLibrary";
 
 /**
  * @file `WidgetsLibrary` — pins the MSG-03 confirm-dialog swap for the force-purge escalation: a
@@ -122,4 +122,27 @@ it("keeps trash rows visible — only purged is filtered", async () => {
 
   expect(await screen.findByText("Hero banner")).toBeInTheDocument();
   expect(screen.queryByText("Purged one")).not.toBeInTheDocument();
+});
+
+// Direct coverage of the two notices extracted out of `WidgetsLibrary`'s own render body under the
+// tightened ≤9/≤9 pass. Neither branch had a test before this pass — `WidgetsLibrary`'s own suite
+// above never renders it with a fetch/action error or a nonzero skippedCount.
+it("renders neither notice when there is no error and nothing was skipped", () => {
+  const { container } = render(<WidgetsLibraryNotices error={null} skippedCount={0} />);
+  expect(container.querySelector(".notice")).not.toBeInTheDocument();
+});
+
+it("renders the error banner", () => {
+  render(<WidgetsLibraryNotices error="failed to load widgets" skippedCount={0} />);
+  expect(screen.getByText("failed to load widgets")).toBeInTheDocument();
+});
+
+it("uses the singular phrasing for exactly one skipped row", () => {
+  render(<WidgetsLibraryNotices error={null} skippedCount={1} />);
+  expect(screen.getByText("1 row could not be displayed.")).toBeInTheDocument();
+});
+
+it("uses the plural phrasing for more than one skipped row", () => {
+  render(<WidgetsLibraryNotices error={null} skippedCount={3} />);
+  expect(screen.getByText("3 rows could not be displayed.")).toBeInTheDocument();
 });

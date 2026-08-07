@@ -132,6 +132,36 @@ interface PrincipalSelectorProps {
   usePrincipalSelectorHook?: typeof usePrincipalSelector;
 }
 
+/** The selector's own status line — "now viewing X's settings" once a switch validates, or the
+ *  validation error, mutually exclusive with each other and with showing nothing. Pulled out of
+ *  `PrincipalSelector`'s own render body as a top-level component under the tightened ≤9/≤9 pass:
+ *  the two `validationState === … && …` checks were the densest branching in that function (a
+ *  ternary plus an `&&` each), and this is the same "collapse a small state machine's rendering
+ *  into its own scope" move `resolveByokFooterStatusLine`/`AdminByokKeyFooter` used elsewhere in
+ *  this pass. Always rendered unconditionally by the caller; renders nothing itself when neither
+ *  condition holds. */
+export function PrincipalSelectorStatus({
+  validationState,
+  value,
+  lastError,
+}: {
+  validationState: ValidationState;
+  value: string | null;
+  lastError: string | null;
+}) {
+  if (validationState === "valid" && value) {
+    return <span className="save-ok">Now viewing/editing {value}&apos;s user-layer settings.</span>;
+  }
+  if (validationState === "error" && lastError) {
+    return (
+      <span className="save-error" id="settings-principal-error" role="alert">
+        {lastError}
+      </span>
+    );
+  }
+  return null;
+}
+
 function PrincipalSelector({ usePrincipalSelectorHook = usePrincipalSelector, ...props }: PrincipalSelectorProps) {
   const { draft, setDraft, submit } = usePrincipalSelectorHook({
     value: props.value,
@@ -171,14 +201,7 @@ function PrincipalSelector({ usePrincipalSelectorHook = usePrincipalSelector, ..
           </button>
         ) : null}
       </span>
-      {props.validationState === "valid" && props.value ? (
-        <span className="save-ok">Now viewing/editing {props.value}&apos;s user-layer settings.</span>
-      ) : null}
-      {props.validationState === "error" && props.lastError ? (
-        <span className="save-error" id="settings-principal-error" role="alert">
-          {props.lastError}
-        </span>
-      ) : null}
+      <PrincipalSelectorStatus validationState={props.validationState} value={props.value} lastError={props.lastError} />
     </form>
   );
 }

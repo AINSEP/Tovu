@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { WidgetRegionEditor } from "../WidgetRegionEditor";
+import { WidgetRegionEditor, WidgetRegionEditorHeaderActions } from "../WidgetRegionEditor";
 import type { WidgetRegionEditorController } from "../hooks/use-widget-region-editor.hooks";
 import type { AdminWidgetArea, AdminWidgetPlacement } from "../../../lib/api";
 
@@ -167,5 +167,36 @@ describe("page chrome", () => {
   it("renders the Add widget control for placing a new widget", () => {
     render(<WidgetRegionEditor regionKey="footer" useWidgetRegionEditorHook={() => baseController()} />);
     expect(screen.getByRole("button", { name: "+ Add widget" })).toBeInTheDocument();
+  });
+});
+
+describe("WidgetRegionEditorHeaderActions", () => {
+  // Direct coverage of the header-actions cluster extracted out of `WidgetRegionEditor`'s own
+  // render body under the tightened ≤9/≤9 pass. The "page chrome" tests above already pin the same
+  // three branches end-to-end through the full screen; this exercises the component's own props
+  // directly.
+  it("shows neither message nor error when both are null", () => {
+    const { container } = render(<WidgetRegionEditorHeaderActions message={null} error={null} saving={false} onSave={vi.fn()} />);
+    expect(container.querySelector(".save-ok")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("shows the message and error together when both are present", () => {
+    render(<WidgetRegionEditorHeaderActions message="Saved · version 4" error="stale version" saving={false} onSave={vi.fn()} />);
+    expect(screen.getByText("Saved · version 4")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("stale version");
+  });
+
+  it("disables Save and reads 'Saving…' while saving", () => {
+    render(<WidgetRegionEditorHeaderActions message={null} error={null} saving={true} onSave={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+  });
+
+  it("calls onSave when Save is clicked", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<WidgetRegionEditorHeaderActions message={null} error={null} saving={false} onSave={onSave} />);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSave).toHaveBeenCalledTimes(1);
   });
 });

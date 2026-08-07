@@ -19,6 +19,42 @@ export interface WidgetRegionEditorProps {
   useWidgetRegionEditorHook?: typeof useWidgetRegionEditor;
 }
 
+/** The page header's actions cluster — the "back to regions" link, the save-status message/error,
+ *  and the Save button — pulled out of `WidgetRegionEditor`'s own render body as a top-level
+ *  component under the tightened ≤9/≤9 pass. Each of the three spans below is its own independent
+ *  conditional (a save succeeded, a save failed, the save is in flight); extracting the whole
+ *  cluster moves all three out of the parent's own scope at once. */
+export function WidgetRegionEditorHeaderActions({
+  message,
+  error,
+  saving,
+  onSave,
+}: {
+  message: string | null;
+  error: string | null;
+  saving: boolean;
+  onSave: () => void;
+}) {
+  return (
+    <div className="page-actions">
+      <a href="/admin/widgets/regions">
+        <button type="button" className="btn-secondary">
+          ← Regions
+        </button>
+      </a>
+      {message ? <span className="save-ok">{message}</span> : null}
+      {error ? (
+        <span className="save-error" role="alert">
+          {error}
+        </span>
+      ) : null}
+      <button onClick={onSave} disabled={saving}>
+        {saving ? "Saving…" : "Save"}
+      </button>
+    </div>
+  );
+}
+
 export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
   const { regionKey, useWidgetRegionEditorHook = useWidgetRegionEditor } = props;
   const { area, placements, message, error, loading, saving, removeAt, moveAt, toggleEnabled, addPlacement, save } =
@@ -36,22 +72,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
           <h1 className="page-title">Region: {regionKey}</h1>
           <p className="page-description">Manage which widgets appear in this region and their order.</p>
         </div>
-        <div className="page-actions">
-          <a href="/admin/widgets/regions">
-            <button type="button" className="btn-secondary">
-              ← Regions
-            </button>
-          </a>
-          {message ? <span className="save-ok">{message}</span> : null}
-          {error ? (
-            <span className="save-error" role="alert">
-              {error}
-            </span>
-          ) : null}
-          <button onClick={save} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-          </button>
-        </div>
+        <WidgetRegionEditorHeaderActions message={message} error={error} saving={saving} onSave={save} />
       </div>
 
       <div className="widget-region-placements">
