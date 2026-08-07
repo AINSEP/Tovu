@@ -41,6 +41,116 @@ export interface TimelineSectionProps {
   useTimelineSectionHook?: typeof useTimelineSection;
 }
 
+/** The Timeline's filter bar. Pure presentation, no branching of its own beyond the
+ *  `KIND_OPTIONS` map (its own function scope). Top-level rather than inline in `TimelineSection`'s
+ *  body, per the complexity-ceiling pass's extraction rule. */
+function TimelineFilterForm(props: {
+  onSubmit: (e: React.FormEvent) => void;
+  kind: string;
+  onKindChange: (kind: string) => void;
+  outcome: string;
+  onOutcomeChange: (outcome: string) => void;
+  fromDate: string;
+  onFromDateChange: (fromDate: string) => void;
+  toDate: string;
+  onToDateChange: (toDate: string) => void;
+}) {
+  return (
+    <form className="notice database-filter-bar toolbar" onSubmit={props.onSubmit}>
+      <div className="field">
+        <label className="field-label" htmlFor="database-filter-kind">Kind</label>
+        <select id="database-filter-kind" value={props.kind} onChange={(e) => props.onKindChange(e.target.value)}>
+          <option value="">(any)</option>
+          {KIND_OPTIONS.map((k) => (
+            <option key={k} value={k}>
+              {k}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <label className="field-label" htmlFor="database-filter-outcome">Outcome</label>
+        <input
+          id="database-filter-outcome"
+          value={props.outcome}
+          onChange={(e) => props.onOutcomeChange(e.target.value)}
+          placeholder="e.g. success"
+        />
+      </div>
+      <div className="field">
+        <label className="field-label" htmlFor="database-filter-from">From</label>
+        <input
+          id="database-filter-from"
+          type="date"
+          value={props.fromDate}
+          onChange={(e) => props.onFromDateChange(e.target.value)}
+        />
+      </div>
+      <div className="field">
+        <label className="field-label" htmlFor="database-filter-to">To</label>
+        <input id="database-filter-to" type="date" value={props.toDate} onChange={(e) => props.onToDateChange(e.target.value)} />
+      </div>
+      <button type="submit" className="btn-secondary">Apply filters</button>
+    </form>
+  );
+}
+
+/** Builds the Timeline `DataTable`'s column descriptors. A plain function rather than a closure
+ *  declared inside `TimelineBody`'s body — it closes over nothing but module-scope values, so it
+ *  takes no parameters at all. */
+function timelineColumns(): Array<{
+  key: string;
+  header: string;
+  cell: (row: AdminLedgerRow) => React.ReactNode;
+}> {
+  return [
+    { key: "kind", header: "Kind", cell: (row) => row.kind },
+    {
+      key: "outcome",
+      header: "Outcome",
+      cell: (row) => <span className={`status status-${row.outcome}`}>{row.outcome}</span>,
+    },
+    {
+      key: "restore-point",
+      header: "Restore point",
+      cell: (row: AdminLedgerRow) =>
+        row.restorePointId ? (
+          <button type="button" className="database-restore-point-link" onClick={() => navigateToRecoveryWithDeepLink(row)}>
+            View in Recovery →
+          </button>
+        ) : (
+          "—"
+        ),
+    },
+    { key: "time", header: "Time", cell: (row) => formatTimestamp(row.createdAt) },
+  ];
+}
+
+/** The Timeline's own row-activity body — empty state or the table + pager. Split out from
+ *  `TimelineSection` (which still owns the loading/error early returns) so each state is a flat
+ *  if-return rather than a nested ternary. */
+function TimelineBody(props: { rows: AdminLedgerRow[]; nextCursor: string | null; loadingMore: boolean; loadMore: () => void }) {
+  if (props.rows.length === 0) {
+    return (
+      <div className="card">
+        <div className="empty-state">
+          <p>No database activity recorded yet.</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <>
+      <DataTable rows={props.rows} rowKey={(row) => row.id} columns={timelineColumns()} />
+      {props.nextCursor ? (
+        <button type="button" className="btn-secondary" onClick={props.loadMore} disabled={props.loadingMore}>
+          {props.loadingMore ? "Loading…" : "Load more"}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
 function TimelineSection({ useTimelineSectionHook = useTimelineSection }: TimelineSectionProps = {}) {
   const { 
     rows, 
@@ -65,79 +175,21 @@ function TimelineSection({ useTimelineSectionHook = useTimelineSection }: Timeli
 
   return (
     <div>
-      <form className="notice database-filter-bar toolbar" onSubmit={applyFilters}>
-        <div className="field">
-          <label className="field-label" htmlFor="database-filter-kind">Kind</label>
-          <select id="database-filter-kind" value={kind} onChange={(e) => setKind(e.target.value)}>
-            <option value="">(any)</option>
-            {KIND_OPTIONS.map((k) => (
-              <option key={k} value={k}>
-                {k}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label className="field-label" htmlFor="database-filter-outcome">Outcome</label>
-          <input id="database-filter-outcome" value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="e.g. success" />
-        </div>
-        <div className="field">
-          <label className="field-label" htmlFor="database-filter-from">From</label>
-          <input id="database-filter-from" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-        </div>
-        <div className="field">
-          <label className="field-label" htmlFor="database-filter-to">To</label>
-          <input id="database-filter-to" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-        </div>
-        <button type="submit" className="btn-secondary">Apply filters</button>
-      </form>
+      <TimelineFilterForm
+        onSubmit={applyFilters}
+        kind={kind}
+        onKindChange={setKind}
+        outcome={outcome}
+        onOutcomeChange={setOutcome}
+        fromDate={fromDate}
+        onFromDateChange={setFromDate}
+        toDate={toDate}
+        onToDateChange={setToDate}
+      />
 
       {error ? <div className="notice error">{error}</div> : null}
 
-      {rows.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No database activity recorded yet.</p>
-          </div>
-        </div>
-      ) : (
-        <>
-          <DataTable
-            rows={rows}
-            rowKey={(row) => row.id}
-            columns={[
-              { key: "kind", header: "Kind", cell: (row) => row.kind },
-              {
-                key: "outcome",
-                header: "Outcome",
-                cell: (row) => <span className={`status status-${row.outcome}`}>{row.outcome}</span>,
-              },
-              {
-                key: "restore-point",
-                header: "Restore point",
-                cell: (row: AdminLedgerRow) =>
-                  row.restorePointId ? (
-                    <button
-                      type="button"
-                      className="database-restore-point-link"
-                      onClick={() => navigateToRecoveryWithDeepLink(row)}
-                    >
-                      View in Recovery →
-                    </button>
-                  ) : (
-                    "—"
-                  ),
-              },
-              { key: "time", header: "Time", cell: (row) => formatTimestamp(row.createdAt) },
-            ]}
-          />
-          {nextCursor ? (
-            <button type="button" className="btn-secondary" onClick={loadMore} disabled={loadingMore}>
-              {loadingMore ? "Loading…" : "Load more"}
-            </button>
-          ) : null}
-        </>
-      )}
+      <TimelineBody rows={rows} nextCursor={nextCursor} loadingMore={loadingMore} loadMore={loadMore} />
     </div>
   );
 }
