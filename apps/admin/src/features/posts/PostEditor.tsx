@@ -25,16 +25,16 @@ import { toolbarBtnClass } from "./rules";
 function Toolbar({ editor }: { editor: Editor }) {
   const s = useEditorState({
     editor,
-    // EXEMPTION (complexity ceiling, 2026-08-06): ESLint scores this selector's cyclomatic
-    // complexity at 27 against a 10 ceiling, but its cognitive complexity is 0 — not "low", not
-    // reported at all even at threshold 0. That gap is the signature of a measurement artifact, not
-    // real branching: this is a flat object literal of thirteen `editor?.isActive(...) ?? false`
-    // fallbacks with no control flow between them, and ESLint's cyclomatic rule counts each `?.`
-    // and `??` as its own decision point. There is nothing to extract — splitting the fields across
-    // multiple selectors would still evaluate the same thirteen fallbacks, just spread across more
-    // functions, and would break `useEditorState`'s single-selector re-render-batching contract for
-    // no complexity benefit. Kept as one object so `Toolbar` re-renders once per relevant editor
-    // state change instead of up to thirteen times.
+    // EXEMPTION (complexity ceiling, 2026-08-06, updated for the ≤9/≤9 bar): ESLint scores this
+    // selector's cyclomatic complexity at 27 against a 9 ceiling, but its cognitive complexity is
+    // 0 — not "low", not reported at all even at threshold 0. That gap is the signature of a
+    // measurement artifact, not real branching: this is a flat object literal of thirteen
+    // `editor?.isActive(...) ?? false` fallbacks with no control flow between them, and ESLint's
+    // cyclomatic rule counts each `?.` and `??` as its own decision point. There is nothing to
+    // extract — splitting the fields across multiple selectors would still evaluate the same
+    // thirteen fallbacks, just spread across more functions, and would break `useEditorState`'s
+    // single-selector re-render-batching contract for no complexity benefit. Kept as one object so
+    // `Toolbar` re-renders once per relevant editor state change instead of up to thirteen times.
     selector: ({ editor }) => ({
       bold: editor?.isActive("bold") ?? false,
       italic: editor?.isActive("italic") ?? false,

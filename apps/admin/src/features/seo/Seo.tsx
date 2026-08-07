@@ -94,8 +94,9 @@ export interface SeoEntryPanelProps {
  * tracks which fields the user actually touched so `putSeoEntry` only ever sends a genuine
  * partial patch — matching the resolved-vs-override distinction `SeoExtFields` implies (an
  * untouched field must not turn into a persisted override equal to today's resolved default). */
-// EXEMPTION (complexity ceiling, 2026-08-06): ESLint scores this component's cyclomatic complexity
-// at 25 against a 10 ceiling, but its cognitive complexity is 6. That gap is the signature of a
+// EXEMPTION (complexity ceiling, 2026-08-06, updated for the ≤9/≤9 bar): ESLint scores this
+// component's cyclomatic complexity at 25 against a 9 ceiling, but its cognitive complexity is 6
+// (also under 9). That gap between the two is the signature of a
 // measurement artifact, not real branching: eleven form fields each read as
 // `fieldValue(key, resolved.X ?? default) ?? default`, and ESLint's cyclomatic rule counts every
 // `??` as its own decision point — twenty of the twenty-five come from those fallback chains alone,
