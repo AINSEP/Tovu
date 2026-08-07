@@ -1,3 +1,4 @@
+import type { AdminWidgetType } from "../../lib/api";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import { WidgetAddControl, WidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
 import { useEmbedInsertControl, type EmbedEditor } from "./EmbedInsertControl.hooks";
@@ -47,6 +48,73 @@ export interface EmbedInsertControlProps {
   useEmbed?: typeof useEmbedInsertControl;
 }
 
+/** The inline popover behind the "Embed" trigger: the four-choice menu (Media/Form/Menu/Widget…),
+ * or the "Widget…" full flow once picked. Split out of `EmbedInsertControl` because this menu's
+ * own two-state switch (`open`, then `widgetMode` once inside it) was one of the two independent
+ * "wide branch set" halves of the original function — this half owns menu navigation, the other
+ * (`WidgetShortcutPicker` below) owns the Form/Menu shortcut dialogs. */
+function EmbedMenu(props: {
+  open: boolean;
+  widgetMode: boolean;
+  onPickMedia: () => void;
+  onPickForm: () => void;
+  onPickMenu: () => void;
+  onEnterWidgetMode: () => void;
+  onWidgetResolved: (widgetInstanceId: string) => void;
+}) {
+  const { open, widgetMode, onPickMedia, onPickForm, onPickMenu, onEnterWidgetMode, onWidgetResolved } = props;
+  if (!open) return null;
+
+  return (
+    <span className="embed-insert-menu" role="menu" aria-label="Insert">
+      {!widgetMode ? (
+        <>
+          <button type="button" role="menuitem" className="tb-btn" onClick={onPickMedia}>
+            Media
+          </button>
+          <button type="button" role="menuitem" className="tb-btn" onClick={onPickForm}>
+            Form
+          </button>
+          <button type="button" role="menuitem" className="tb-btn" onClick={onPickMenu}>
+            Menu
+          </button>
+          <button type="button" role="menuitem" className="tb-btn" onClick={onEnterWidgetMode}>
+            Widget…
+          </button>
+        </>
+      ) : (
+        <WidgetAddControl triggerLabel="Insert widget" onResolved={onWidgetResolved} />
+      )}
+    </span>
+  );
+}
+
+/** The Form/Menu "shortcut" flow: the pinned-type `WidgetPickerDialog` plus its own error slot.
+ * Identical shape for both `formControl` and `menuControl` (each a separate `useWidgetAddControl`
+ * instance pinned to a `widgetType`, per `EmbedInsertControl.hooks.tsx`'s own header) — one
+ * component used twice, rather than the same four-ternary pair written out inline twice. */
+function WidgetShortcutPicker(props: {
+  pickerType: AdminWidgetType | null;
+  error: string | null;
+  onUseExisting: (widgetInstanceId: string) => void;
+  onCreateNew: (title: string, config: Record<string, unknown>) => void;
+  onCancel: () => void;
+}) {
+  const { pickerType, error, onUseExisting, onCreateNew, onCancel } = props;
+  return (
+    <>
+      {pickerType ? (
+        <WidgetPickerDialog widgetType={pickerType} onUseExisting={onUseExisting} onCreateNew={onCreateNew} onCancel={onCancel} />
+      ) : null}
+      {error ? (
+        <span className="save-error" role="alert">
+          {error}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
 /**
  * The toolbar's single "Embed" trigger — opens a small inline menu of four choices (Media, Form,
  * Menu, Widget…) in place of the old separate Media/Insert-widget buttons.
@@ -73,59 +141,28 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, ...props 
       >
         Embed
       </button>
-      {open ? (
-        <span className="embed-insert-menu" role="menu" aria-label="Insert">
-          {!widgetMode ? (
-            <>
-              <button
-                type="button"
-                role="menuitem"
-                className="tb-btn"
-                onClick={() => {
-                  setMediaPicking(true);
-                  setOpen(false);
-                }}
-              >
-                Media
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="tb-btn"
-                onClick={() => {
-                  formControl.setPickerType("contact-form");
-                  setOpen(false);
-                }}
-              >
-                Form
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="tb-btn"
-                onClick={() => {
-                  menuControl.setPickerType("menu");
-                  setOpen(false);
-                }}
-              >
-                Menu
-              </button>
-              <button type="button" role="menuitem" className="tb-btn" onClick={() => setWidgetMode(true)}>
-                Widget…
-              </button>
-            </>
-          ) : (
-            <WidgetAddControl
-              triggerLabel="Insert widget"
-              onResolved={(widgetInstanceId) => {
-                insertWidget(widgetInstanceId);
-                setOpen(false);
-                setWidgetMode(false);
-              }}
-            />
-          )}
-        </span>
-      ) : null}
+      <EmbedMenu
+        open={open}
+        widgetMode={widgetMode}
+        onPickMedia={() => {
+          setMediaPicking(true);
+          setOpen(false);
+        }}
+        onPickForm={() => {
+          formControl.setPickerType("contact-form");
+          setOpen(false);
+        }}
+        onPickMenu={() => {
+          menuControl.setPickerType("menu");
+          setOpen(false);
+        }}
+        onEnterWidgetMode={() => setWidgetMode(true)}
+        onWidgetResolved={(widgetInstanceId) => {
+          insertWidget(widgetInstanceId);
+          setOpen(false);
+          setWidgetMode(false);
+        }}
+      />
 
       {mediaPicking ? (
         <MediaPickerDialog
@@ -137,33 +174,20 @@ export function EmbedInsertControl({ useEmbed = useEmbedInsertControl, ...props 
         />
       ) : null}
 
-      {formControl.pickerType ? (
-        <WidgetPickerDialog
-          widgetType={formControl.pickerType}
-          onUseExisting={formControl.handleUseExisting}
-          onCreateNew={formControl.handleCreateNew}
-          onCancel={() => formControl.setPickerType(null)}
-        />
-      ) : null}
-      {formControl.error ? (
-        <span className="save-error" role="alert">
-          {formControl.error}
-        </span>
-      ) : null}
-
-      {menuControl.pickerType ? (
-        <WidgetPickerDialog
-          widgetType={menuControl.pickerType}
-          onUseExisting={menuControl.handleUseExisting}
-          onCreateNew={menuControl.handleCreateNew}
-          onCancel={() => menuControl.setPickerType(null)}
-        />
-      ) : null}
-      {menuControl.error ? (
-        <span className="save-error" role="alert">
-          {menuControl.error}
-        </span>
-      ) : null}
+      <WidgetShortcutPicker
+        pickerType={formControl.pickerType}
+        error={formControl.error}
+        onUseExisting={formControl.handleUseExisting}
+        onCreateNew={formControl.handleCreateNew}
+        onCancel={() => formControl.setPickerType(null)}
+      />
+      <WidgetShortcutPicker
+        pickerType={menuControl.pickerType}
+        error={menuControl.error}
+        onUseExisting={menuControl.handleUseExisting}
+        onCreateNew={menuControl.handleCreateNew}
+        onCancel={() => menuControl.setPickerType(null)}
+      />
     </span>
   );
 }

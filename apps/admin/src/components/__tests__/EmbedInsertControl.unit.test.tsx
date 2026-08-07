@@ -282,4 +282,29 @@ describe("EmbedInsertControl — useEmbed injection", () => {
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
+
+  it("renders formControl's and menuControl's error slots independently — WidgetShortcutPicker direct coverage", () => {
+    // Neither `formControl.error` nor `menuControl.error` was exercised by any test above (the
+    // complexity-ceiling pass extracted this ternary pair into `WidgetShortcutPicker`, used once
+    // per control) — added per that pass's "every extracted unit gets its own direct unit test"
+    // rule. Both set at once, with distinct text, to prove each renders off its own control rather
+    // than one shared error slot.
+    const fakeUseEmbed: typeof useEmbedInsertControl = () => ({
+      open: false,
+      setOpen: vi.fn(),
+      widgetMode: false,
+      setWidgetMode: vi.fn(),
+      mediaPicking: false,
+      setMediaPicking: vi.fn(),
+      formControl: fakeAddControl({ error: "failed to create form widget" }),
+      menuControl: fakeAddControl({ error: "failed to create menu widget" }),
+      insertWidget: vi.fn(),
+    });
+
+    render(<EmbedInsertControl editor={fakeEditor()} useEmbed={fakeUseEmbed} />);
+
+    expect(screen.getByText("failed to create form widget")).toBeInTheDocument();
+    expect(screen.getByText("failed to create menu widget")).toBeInTheDocument();
+    expect(screen.getAllByRole("alert")).toHaveLength(2);
+  });
 });
