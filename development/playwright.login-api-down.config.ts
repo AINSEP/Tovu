@@ -24,13 +24,19 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * `login.spec.ts` (`playwright.destructive.config.ts`) already covers "login works when the API is
  * up" exhaustively (valid/invalid credentials, cookie flags, reload, logout). This config covers
- * the complementary, previously-untested case, and captures the actual root cause of operator
+ * the complementary, previously-untested case, and captured the actual root cause of operator
  * confusion found live: Vite's dev proxy answers an unreachable upstream with a bare `500`, and
- * `apps/admin/src/lib/api.ts`'s `request()` has no non-JSON-body fallback message beyond the
- * generic `` `request failed (${res.status})` ``  (api.ts:819) — so the login screen shows
+ * `apps/admin/src/lib/api.ts`'s `request()` had no non-JSON-body fallback message beyond the
+ * generic `` `request failed (${res.status})` `` — so the login screen showed
  * **"request failed (500)"**, a string that reads as "the server crashed" to anyone debugging it,
  * not "no server is running." That mismatch is a plausible reason "start the server" did not
- * immediately resolve the report: the on-screen error actively points away from the true cause.
+ * immediately resolve the report: the on-screen error actively pointed away from the true cause.
+ *
+ * That fallback is now fixed (`request()` recognizes "unparseable body + 5xx" and names the
+ * unreachable API), so this file's role has changed from reproduction to regression guard: it is
+ * the only place the fix is exercised against a REAL proxy failure rather than a constructed
+ * `Response`. Its unit-level counterpart is
+ * `apps/admin/src/lib/__tests__/api-request-unreachable.unit.test.ts`.
  *
  * Modeled on `playwright.destructive.config.ts`'s own header for the two load-bearing details it
  * documents: `testDir`/`testMatch` scoped narrowly (this directory is shared with a dozen other

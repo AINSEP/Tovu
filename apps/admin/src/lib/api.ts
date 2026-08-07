@@ -807,18 +807,106 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * `ApiError.code` for "no Tovu API answered this request" — client-synthesized, not a server code
+ * (the server never sent one, which is the whole point). Lets a screen branch on the condition
+ * without string-matching the operator copy below.
+ */
+export const API_UNREACHABLE_CODE = "API_UNREACHABLE";
+
+/**
+ * Operator copy for a request that never reached a Tovu API able to answer it.
+ *
+ * Replaces the old `request failed (500)`, which cost a real debugging hour on 2026-08-06: a bare
+ * status *asserts a server exists and returned a server error*, so the operator reads it as "the
+ * API crashed" and goes looking at application code, when in fact nothing was listening at all.
+ * The status is kept in the message when we have one, because that is the only thing that
+ * distinguishes the two routes described on {@link request} for a human reading the screen.
+ *
+ * @complexity O(1).
+ * @overallScore 100
+ */
+function unreachableApiMessage(status?: number): string {
+  const detail = status === undefined ? "" : ` (HTTP ${status})`;
+  return `cannot reach the Tovu API${detail} — is the server running?`;
+}
+
+/** Sentinel for "the response body was not parseable JSON", distinct from a body that legitimately
+ * parsed to `null`/`{}` — those prove an application answered, and must keep the old behavior. */
+const UNPARSEABLE_BODY = Symbol("unparseable-json-body");
+
+/**
+ * `fetch`, with the one failure mode it signals by REJECTING translated into an `ApiError` like
+ * every other failure here.
+ *
+ * A rejected `fetch` (a `TypeError`: DNS failure, connection refused at the origin itself, offline,
+ * TLS failure) is the case where nothing is listening where the admin app is served from — the
+ * neighbouring route to {@link request}'s unparseable-5xx case, and the one that never reaches its
+ * error handling at all. Unwrapped it surfaces as the browser's own "Failed to fetch"/"NetworkError
+ * when attempting to fetch resource", which is both browser-specific and says nothing about Tovu.
+ *
+ * `AbortError` is deliberately re-thrown untouched: a caller-cancelled request is not a reachability
+ * failure, and reporting it as one would be exactly the misleading-assertion bug this fixes. The
+ * original failure text is preserved on `body.cause` rather than discarded.
+ *
+ * @complexity O(1) plus the request itself.
+ * @overallScore 100
+ */
+async function fetchOrThrowUnreachable(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (cause) {
+    if (cause instanceof Error && cause.name === "AbortError") throw cause;
+    throw new ApiError(unreachableApiMessage(), 0, API_UNREACHABLE_CODE, {
+      cause: cause instanceof Error ? cause.message : String(cause),
+    });
+  }
+}
+
+/**
+ * The single fetch seam every `api.*` call goes through: sends JSON, parses JSON, and turns any
+ * non-2xx into an {@link ApiError}.
+ *
+ * ## Why the error message is not just the status
+ *
+ * Three different failures can leave the operator staring at this function's error, and they need
+ * different actions:
+ *
+ * 1. **An application answered and reported a failure** — the body is JSON with an `error`/`code`
+ *    envelope. Its own message wins, unchanged.
+ * 2. **Nothing was listening upstream.** In dev, Vite's `/api` proxy answers an unreachable target
+ *    with a bare `500`, `Content-Type: text/plain`, and a zero-length body (verified live against
+ *    this repo's own proxy config, 2026-08-06); a production reverse proxy answers the same shape
+ *    with 502/503/504. `fetch` resolves normally in this case — the proxy IS reachable — so this is
+ *    the branch that must not report a plain "500".
+ * 3. **The origin itself was unreachable**, so `fetch` rejected — handled one level down in
+ *    {@link fetchOrThrowUnreachable}, and never reaches the code below.
+ *
+ * Cases 2 and 3 are the ones the old message got wrong. Note the limit of what case 2 can prove: an
+ * unparseable 5xx is *also* what a genuine server-side crash looks like when it escapes to Express's
+ * default (HTML) error handler rather than this codebase's JSON envelopes — the wire shape is the
+ * same, so this cannot distinguish them, and the message deliberately does not claim to. It names
+ * the likeliest cause, keeps the status for the other one, and points at the server either way,
+ * which is the correct first action for both. Parseable JSON is the discriminator that IS reliable:
+ * it proves an application, not a proxy, composed the response, so those keep `request failed (n)`.
+ *
+ * @complexity O(1) plus the request and body parse.
+ * @overallScore 100
+ */
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetchOrThrowUnreachable(`${BASE}${path}`, {
     credentials: "same-origin",
     headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
     ...init,
   });
-  const body = await res.json().catch(() => ({}));
+  const parsed = await res.json().catch(() => UNPARSEABLE_BODY);
+  const body = parsed === UNPARSEABLE_BODY ? {} : parsed;
   if (!res.ok) {
+    const noAppEnvelope = parsed === UNPARSEABLE_BODY && res.status >= 500;
     throw new ApiError(
-      String(body?.error ?? `request failed (${res.status})`),
+      String(body?.error ?? (noAppEnvelope ? unreachableApiMessage(res.status) : `request failed (${res.status})`)),
       res.status,
-      typeof body?.code === "string" ? body.code : undefined,
+      noAppEnvelope ? API_UNREACHABLE_CODE : typeof body?.code === "string" ? body.code : undefined,
       body
     );
   }
