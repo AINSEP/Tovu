@@ -2,7 +2,7 @@ import { DataTable } from "@jini-ai/admin/react";
 import { SeeMore } from "../../components/SeeMore/SeeMore";
 import "../../styles/form-field-attrs.css";
 
-import type { AdminFormField } from "../../lib/api";
+import type { AdminFormDefinition, AdminFormField, AdminFormNotify } from "../../lib/api";
 import { ATTRIBUTE_NAME_SUGGESTIONS, FIELD_TYPES, FORM_TABS, fieldDisplayName } from "./rules";
 import { useFieldAttributesDialog } from "./hooks/use-field-attributes-dialog.hooks";
 import { useFormFieldsEditor } from "./hooks/use-form-fields-editor.hooks";
@@ -483,6 +483,198 @@ export interface FormEditorProps {
   useFormEditorHook?: typeof useFormEditor;
 }
 
+/** The name/slug fields, the field-definition table, the notify checkbox + recipients, and the
+ * status-toggle/save action row — shared verbatim between the "new form" view (no tabs) and the
+ * "existing form, Fields tab" view (see `FormEditor`'s own `fieldsBody` comment for why it's one
+ * JSX value rather than two copies). Split into its own top-level component, not just a local
+ * `const`, because a `const` assigned inside `FormEditor` still executes in that function's own
+ * scope — every branch inside it would still count toward `FormEditor`'s own complexity score. */
+function FormEditorFieldsBody(props: {
+  name: string;
+  onNameChange: (value: string) => void;
+  slug: string;
+  onSlugChange: (value: string) => void;
+  isNew: boolean;
+  fields: AdminFormField[];
+  existingFieldIds: string[];
+  onFieldsChange: (fields: AdminFormField[]) => void;
+  notify: AdminFormNotify;
+  onNotifyChange: (notify: AdminFormNotify) => void;
+  recipientsText: string;
+  onRecipientsTextChange: (value: string) => void;
+  form: AdminFormDefinition | null;
+  saving: boolean;
+  onStatusToggle: () => void;
+  onSave: () => void;
+}) {
+  const {
+    name,
+    onNameChange,
+    slug,
+    onSlugChange,
+    isNew,
+    fields,
+    existingFieldIds,
+    onFieldsChange,
+    notify,
+    onNotifyChange,
+    recipientsText,
+    onRecipientsTextChange,
+    form,
+    saving,
+    onStatusToggle,
+    onSave,
+  } = props;
+
+  return (
+    <>
+      <div className="field-group">
+        <div className="field-row">
+          <div className="field">
+            <label className="field-label" htmlFor="form-name">
+              Name
+            </label>
+            <input id="form-name" value={name} onChange={(e) => onNameChange(e.target.value)} />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="form-slug">
+              Slug
+            </label>
+            <input id="form-slug" value={slug} disabled={!isNew} onChange={(e) => onSlugChange(e.target.value)} />
+          </div>
+        </div>
+      </div>
+
+      <div className="field-group">
+        <div className="table-scroll">
+          <FormFieldsEditor fields={fields} existingFieldIds={existingFieldIds} onChange={onFieldsChange} />
+        </div>
+      </div>
+
+      <div className="field-group">
+        <label className="form-checkbox-field">
+          <input
+            type="checkbox"
+            checked={notify.enabled}
+            onChange={(e) => onNotifyChange({ ...notify, enabled: e.target.checked })}
+          />
+          Enable email notification
+        </label>
+        {notify.enabled ? (
+          <div className="field">
+            <label className="field-label" htmlFor="form-recipients">
+              Recipients (comma-separated)
+            </label>
+            <input id="form-recipients" value={recipientsText} onChange={(e) => onRecipientsTextChange(e.target.value)} />
+          </div>
+        ) : null}
+      </div>
+
+      {/* `form-actions` is a spacing-only hook layered on top of the shared `.editor-actions`
+          flex row. `.editor-actions` sets direction/gap/alignment but no top margin, and this row
+          is not a `.field-group`, so the `.field-group + .field-group` rhythm that separates every
+          other block on this screen skips it — leaving Disable/Save flush against the Recipients
+          input. Fixed here rather than by adding a margin to `.editor-actions` itself, because that
+          class is shared with the other editor screens and a global change would shift spacing on
+          screens nobody has looked at yet. */}
+      <div className="editor-actions form-actions">
+        {!isNew && form ? (
+          // Reversible-but-access-affecting (turns off the live site's ability to accept
+          // submissions through this form) — `.btn-warning`, not `.btn-danger`: nothing is
+          // deleted, and the same control flips right back to "Enable". Re-enabling is the safe
+          // direction, so it stays `.btn-secondary` rather than inheriting the warning look.
+          <button
+            type="button"
+            className={form.status === "active" ? "btn-warning" : "btn-secondary"}
+            disabled={saving}
+            onClick={onStatusToggle}
+          >
+            {form.status === "active" ? "Disable" : "Enable"}
+          </button>
+        ) : null}
+        <button type="button" disabled={saving} onClick={onSave}>
+          {isNew ? "Create form" : "Save"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+/** The page-header title/description text — split out because `FormEditor`'s isNew-dependent copy
+ * (two ternaries, one with a `||` fallback) is otherwise indistinguishable, in the complexity
+ * count, from the branches that actually decide what's on screen. */
+function FormEditorHeaderText(props: { isNew: boolean; name: string }) {
+  const { isNew, name } = props;
+  return (
+    <div className="page-header-text">
+      <p className="page-kicker">Content</p>
+      <h1 className="page-title">{isNew ? "New form" : name || "Form"}</h1>
+      <p className="page-description">
+        {isNew
+          ? "Configure a new form's fields and email notifications."
+          : "Configure this form's fields and notifications, or review its submissions."}
+      </p>
+    </div>
+  );
+}
+
+/** The Fields/Submissions tab strip — renders only for an existing, loaded form (`showTabs`). */
+function FormEditorTabStrip(props: {
+  showTabs: boolean;
+  tab: "fields" | "submissions";
+  onTabChange: (tab: "fields" | "submissions") => void;
+  tabRefs: React.MutableRefObject<Array<HTMLButtonElement | null>>;
+  onTabsKeyDown: (e: React.KeyboardEvent) => void;
+}) {
+  const { showTabs, tab, onTabChange, tabRefs, onTabsKeyDown } = props;
+  if (!showTabs) return null;
+
+  return (
+    <div className="form-tabs" role="tablist" aria-label="Form sections" onKeyDown={onTabsKeyDown}>
+      {FORM_TABS.map((t, index) => (
+        <button
+          key={t.id}
+          ref={(el) => {
+            tabRefs.current[index] = el;
+          }}
+          type="button"
+          role="tab"
+          id={`form-tab-${t.id}`}
+          className="form-tab"
+          aria-selected={tab === t.id}
+          aria-controls={`form-panel-${t.id}`}
+          tabIndex={tab === t.id ? 0 : -1}
+          onClick={() => onTabChange(t.id)}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Which card is showing below the tab strip: the fields form (always for `isNew`, or when the
+ * Fields tab is active) or the submissions table. */
+function FormEditorMainPanel(props: { isNew: boolean; tab: "fields" | "submissions"; formId: string; fieldsBody: React.ReactNode }) {
+  const { isNew, tab, formId, fieldsBody } = props;
+
+  if (isNew) {
+    return <div className="card">{fieldsBody}</div>;
+  }
+  if (tab === "fields") {
+    return (
+      <div className="card" role="tabpanel" id="form-panel-fields" aria-labelledby="form-tab-fields">
+        {fieldsBody}
+      </div>
+    );
+  }
+  return (
+    <div className="card" role="tabpanel" id="form-panel-submissions" aria-labelledby="form-tab-submissions">
+      <FormSubmissions formId={formId} />
+    </div>
+  );
+}
+
 export function FormEditor({ formId, useFormEditorHook = useFormEditor }: FormEditorProps) {
   const {
     isNew,
@@ -526,90 +718,30 @@ export function FormEditor({ formId, useFormEditorHook = useFormEditor }: FormEd
   // Shared between the "new form" (no tabs, always visible) and "existing form, Fields tab"
   // views — kept as one JSX value instead of two copies so the two paths can't drift.
   const fieldsBody = (
-    <>
-      <div className="field-group">
-        <div className="field-row">
-          <div className="field">
-            <label className="field-label" htmlFor="form-name">
-              Name
-            </label>
-            <input id="form-name" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor="form-slug">
-              Slug
-            </label>
-            <input id="form-slug" value={slug} disabled={!isNew} onChange={(e) => setSlug(e.target.value)} />
-          </div>
-        </div>
-      </div>
-
-      <div className="field-group">
-        <div className="table-scroll">
-          <FormFieldsEditor fields={fields} existingFieldIds={existingFieldIds} onChange={setFields} />
-        </div>
-      </div>
-
-      <div className="field-group">
-        <label className="form-checkbox-field">
-          <input
-            type="checkbox"
-            checked={notify.enabled}
-            onChange={(e) => setNotify({ ...notify, enabled: e.target.checked })}
-          />
-          Enable email notification
-        </label>
-        {notify.enabled ? (
-          <div className="field">
-            <label className="field-label" htmlFor="form-recipients">
-              Recipients (comma-separated)
-            </label>
-            <input id="form-recipients" value={recipientsText} onChange={(e) => setRecipientsText(e.target.value)} />
-          </div>
-        ) : null}
-      </div>
-
-      {/* `form-actions` is a spacing-only hook layered on top of the shared `.editor-actions`
-          flex row. `.editor-actions` sets direction/gap/alignment but no top margin, and this row
-          is not a `.field-group`, so the `.field-group + .field-group` rhythm that separates every
-          other block on this screen skips it — leaving Disable/Save flush against the Recipients
-          input. Fixed here rather than by adding a margin to `.editor-actions` itself, because that
-          class is shared with the other editor screens and a global change would shift spacing on
-          screens nobody has looked at yet. */}
-      <div className="editor-actions form-actions">
-        {!isNew && form ? (
-          // Reversible-but-access-affecting (turns off the live site's ability to accept
-          // submissions through this form) — `.btn-warning`, not `.btn-danger`: nothing is
-          // deleted, and the same control flips right back to "Enable". Re-enabling is the safe
-          // direction, so it stays `.btn-secondary` rather than inheriting the warning look.
-          <button
-            type="button"
-            className={form.status === "active" ? "btn-warning" : "btn-secondary"}
-            disabled={saving}
-            onClick={handleStatusToggle}
-          >
-            {form.status === "active" ? "Disable" : "Enable"}
-          </button>
-        ) : null}
-        <button type="button" disabled={saving} onClick={handleSave}>
-          {isNew ? "Create form" : "Save"}
-        </button>
-      </div>
-    </>
+    <FormEditorFieldsBody
+      name={name}
+      onNameChange={setName}
+      slug={slug}
+      onSlugChange={setSlug}
+      isNew={isNew}
+      fields={fields}
+      existingFieldIds={existingFieldIds}
+      onFieldsChange={setFields}
+      notify={notify}
+      onNotifyChange={setNotify}
+      recipientsText={recipientsText}
+      onRecipientsTextChange={setRecipientsText}
+      form={form}
+      saving={saving}
+      onStatusToggle={handleStatusToggle}
+      onSave={handleSave}
+    />
   );
 
   return (
     <div className="page">
       <div className="page-header">
-        <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">{isNew ? "New form" : name || "Form"}</h1>
-          <p className="page-description">
-            {isNew
-              ? "Configure a new form's fields and email notifications."
-              : "Configure this form's fields and notifications, or review its submissions."}
-          </p>
-        </div>
+        <FormEditorHeaderText isNew={isNew} name={name} />
         <div className="page-actions">
           <a href="/admin/forms">
             <button type="button" className="btn-secondary">
@@ -620,40 +752,9 @@ export function FormEditor({ formId, useFormEditorHook = useFormEditor }: FormEd
       </div>
       {error ? <div className="notice error">{error}</div> : null}
 
-      {showTabs ? (
-        <div className="form-tabs" role="tablist" aria-label="Form sections" onKeyDown={onTabsKeyDown}>
-          {FORM_TABS.map((t, index) => (
-            <button
-              key={t.id}
-              ref={(el) => {
-                tabRefs.current[index] = el;
-              }}
-              type="button"
-              role="tab"
-              id={`form-tab-${t.id}`}
-              className="form-tab"
-              aria-selected={tab === t.id}
-              aria-controls={`form-panel-${t.id}`}
-              tabIndex={tab === t.id ? 0 : -1}
-              onClick={() => setTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <FormEditorTabStrip showTabs={showTabs} tab={tab} onTabChange={setTab} tabRefs={tabRefs} onTabsKeyDown={onTabsKeyDown} />
 
-      {isNew ? (
-        <div className="card">{fieldsBody}</div>
-      ) : tab === "fields" ? (
-        <div className="card" role="tabpanel" id="form-panel-fields" aria-labelledby="form-tab-fields">
-          {fieldsBody}
-        </div>
-      ) : (
-        <div className="card" role="tabpanel" id="form-panel-submissions" aria-labelledby="form-tab-submissions">
-          <FormSubmissions formId={formId} />
-        </div>
-      )}
+      <FormEditorMainPanel isNew={isNew} tab={tab} formId={formId} fieldsBody={fieldsBody} />
     </div>
   );
 }
