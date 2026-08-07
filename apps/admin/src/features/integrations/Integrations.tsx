@@ -22,6 +22,68 @@ export interface IntegrationsProps {
   useIntegrationsHook?: typeof useIntegrations;
 }
 
+/** The "Add webhook" form — only rendered while `formOpen`. Top-level rather than an inline
+ *  ternary block in `Integrations`'s own body. */
+function IntegrationCreateForm(props: {
+  onSubmit: (e: React.FormEvent) => void;
+  formError: string | null;
+  label: string;
+  onLabelChange: (label: string) => void;
+  targetUrl: string;
+  onTargetUrlChange: (targetUrl: string) => void;
+  topics: string;
+  onTopicsChange: (topics: string) => void;
+  saving: boolean;
+}) {
+  return (
+    <form onSubmit={props.onSubmit} className="notice integrations-form">
+      {props.formError ? <span className="save-error">{props.formError}</span> : null}
+      <label>
+        Label
+        <input value={props.label} onChange={(e) => props.onLabelChange(e.target.value)} required />
+      </label>
+      <label>
+        Target URL
+        <input
+          value={props.targetUrl}
+          onChange={(e) => props.onTargetUrlChange(e.target.value)}
+          placeholder="https://example.com/hooks"
+          required
+        />
+      </label>
+      <label>
+        Topics (comma-separated, e.g. post.published, post.*)
+        <input value={props.topics} onChange={(e) => props.onTopicsChange(e.target.value)} required />
+      </label>
+      <button type="submit" disabled={props.saving}>
+        {props.saving ? "Saving…" : "Create"}
+      </button>
+    </form>
+  );
+}
+
+/** The delete-webhook confirm dialog. Stays mounted unconditionally (driven by `open`), matching
+ *  the `ConfirmDialog` convention `Comments.tsx`'s `QueuePurgeDialog` also follows. */
+function IntegrationDeleteDialog(props: {
+  pendingDelete: { label: string } | null;
+  deleting: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <ConfirmDialog
+      open={props.pendingDelete !== null}
+      title="Delete webhook?"
+      body={props.pendingDelete ? <p>Delete webhook &quot;{props.pendingDelete.label}&quot;? This cannot be undone.</p> : null}
+      confirmLabel="Delete"
+      destructive
+      pending={props.deleting}
+      onConfirm={props.onConfirm}
+      onCancel={props.onCancel}
+    />
+  );
+}
+
 export function Integrations({ useIntegrationsHook = useIntegrations }: IntegrationsProps = {}) {
   const {
     subscriptions,
@@ -65,29 +127,17 @@ export function Integrations({ useIntegrationsHook = useIntegrations }: Integrat
       </div>
 
       {formOpen ? (
-        <form onSubmit={onCreate} className="notice integrations-form">
-          {formError ? <span className="save-error">{formError}</span> : null}
-          <label>
-            Label
-            <input value={label} onChange={(e) => setLabel(e.target.value)} required />
-          </label>
-          <label>
-            Target URL
-            <input
-              value={targetUrl}
-              onChange={(e) => setTargetUrl(e.target.value)}
-              placeholder="https://example.com/hooks"
-              required
-            />
-          </label>
-          <label>
-            Topics (comma-separated, e.g. post.published, post.*)
-            <input value={topics} onChange={(e) => setTopics(e.target.value)} required />
-          </label>
-          <button type="submit" disabled={saving}>
-            {saving ? "Saving…" : "Create"}
-          </button>
-        </form>
+        <IntegrationCreateForm
+          onSubmit={onCreate}
+          formError={formError}
+          label={label}
+          onLabelChange={setLabel}
+          targetUrl={targetUrl}
+          onTargetUrlChange={setTargetUrl}
+          topics={topics}
+          onTopicsChange={setTopics}
+          saving={saving}
+        />
       ) : null}
 
       <DataTable
@@ -149,19 +199,9 @@ export function Integrations({ useIntegrationsHook = useIntegrations }: Integrat
           },
         ]}
       />
-      <ConfirmDialog
-        open={pendingDelete !== null}
-        title="Delete webhook?"
-        body={
-          pendingDelete ? (
-            <p>
-              Delete webhook &quot;{pendingDelete.label}&quot;? This cannot be undone.
-            </p>
-          ) : null
-        }
-        confirmLabel="Delete"
-        destructive
-        pending={deleting}
+      <IntegrationDeleteDialog
+        pendingDelete={pendingDelete}
+        deleting={deleting}
         onConfirm={onDelete}
         onCancel={() => setPendingDelete(null)}
       />
