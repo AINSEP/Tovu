@@ -1,5 +1,7 @@
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import type { ReactNode } from "react";
 
+import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
@@ -29,7 +31,22 @@ export interface PagesProps {
   usePagesHook?: typeof usePages;
 }
 
-export function Pages({ usePagesHook = usePages }: PagesProps = {}) {
+/**
+ * The loading/error guard shown before the table has anything to render — pulled out of `Pages`
+ * (2026-08-06, complexity pass, fourth pass) so its two early-return checks collapse into one
+ * `if` at the call site. `error && !pages` (not just `error`), matching Media.tsx/Comments.tsx:
+ * once the list has loaded, a later failure (create, delete) surfaces as an inline banner above
+ * the table instead of blanking out the whole screen behind it. Mirrors `Posts.tsx`'s identical
+ * `postsListNotice`, matching this pair's existing "twin screens" convention (this file's own
+ * header).
+ */
+export function pagesListNotice(pages: AdminPost[] | null, error: string | null): ReactNode {
+  if (error && !pages) return <div className="notice error">{error}</div>;
+  if (!pages) return <div className="notice">Loading pages…</div>;
+  return null;
+}
+
+export function Pages({ usePagesHook = usePages }: PagesProps) {
   const {
     pages,
     error,
@@ -42,11 +59,12 @@ export function Pages({ usePagesHook = usePages }: PagesProps = {}) {
     removePage,
   } = usePagesHook();
 
-  // `error && !pages` (not just `error`), matching Media.tsx/Comments.tsx: once the list has
-  // loaded, a later failure (create, delete) surfaces as an inline banner above the table instead
-  // of blanking out the whole screen behind it.
-  if (error && !pages) return <div className="notice error">{error}</div>;
-  if (!pages) return <div className="notice">Loading pages…</div>;
+  const notice = pagesListNotice(pages, error);
+  if (notice) return notice;
+  // Unreachable in practice — `pagesListNotice` already returns a non-null notice whenever `pages`
+  // is null — but restores the narrowing TS lost by moving that check behind a function call, so
+  // `rows={pages}` below type-checks as `AdminPost[]` without an `as`/`!` assertion.
+  if (!pages) return null;
 
   return (
     <div className="page">

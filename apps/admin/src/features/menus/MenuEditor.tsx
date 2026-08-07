@@ -27,17 +27,30 @@ function countDescendants(item: AdminMenuItem): number {
   return children.length + children.reduce((sum, child) => sum + countDescendants(child), 0);
 }
 
-function targetForKind(required: { kind: AdminMenuTargetKind; prev: AdminMenuTarget }): AdminMenuTarget {
+/**
+ * `?? ""` as a named function rather than inline. ESLint's cyclomatic-complexity rule counts each
+ * `??` as its own branch — six of them across {@link targetForKind} and {@link MenuItemTargetFields}
+ * below (2026-08-06, complexity pass, fourth pass) inflated each function's flat 4-case switch from
+ * a base of ~5 to 10, even though cognitive complexity for both is 1: no nesting, four sibling cases,
+ * each a single fallback. Naming the fallback removes the count from each switch's own scope without
+ * changing what either function produces — every call site still falls back to `""` for exactly the
+ * same absent values it did before.
+ */
+function orEmpty(value: string | undefined): string {
+  return value ?? "";
+}
+
+export function targetForKind(required: { kind: AdminMenuTargetKind; prev: AdminMenuTarget }): AdminMenuTarget {
   const { kind, prev } = required;
   switch (kind) {
     case "url":
-      return { kind, href: prev.href ?? "" };
+      return { kind, href: orEmpty(prev.href) };
     case "route":
-      return { kind, route: prev.route ?? "" };
+      return { kind, route: orEmpty(prev.route) };
     case "entryRef":
-      return { kind, entryId: prev.entryId ?? "" };
+      return { kind, entryId: orEmpty(prev.entryId) };
     case "termRef":
-      return { kind, termId: prev.termId ?? "", taxonomy: prev.taxonomy ?? "" };
+      return { kind, termId: orEmpty(prev.termId), taxonomy: orEmpty(prev.taxonomy) };
   }
 }
 
@@ -47,9 +60,10 @@ function targetForKind(required: { kind: AdminMenuTargetKind; prev: AdminMenuTar
  * branch count beyond the label field and the children map) into a `switch` over the same
  * `AdminMenuTargetKind` union `targetForKind` above already switches on — same convention, and
  * unlike an if/else-if chain a `switch`'s cases don't nest, which is what keeps this low under
- * cognitive complexity too.
+ * cognitive complexity too. Uses {@link orEmpty} for the same reason `targetForKind` above does —
+ * see that function's doc.
  */
-function MenuItemTargetFields({
+export function MenuItemTargetFields({
   item,
   path,
   onChange,
@@ -64,7 +78,7 @@ function MenuItemTargetFields({
         <label className="a11y-label-wrap">
           <span className="visually-hidden">URL</span>
           <input
-            value={item.target.href ?? ""}
+            value={orEmpty(item.target.href)}
             placeholder="https://…"
             onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, href: e.target.value } }))}
           />
@@ -75,7 +89,7 @@ function MenuItemTargetFields({
         <label className="a11y-label-wrap">
           <span className="visually-hidden">Route name</span>
           <input
-            value={item.target.route ?? ""}
+            value={orEmpty(item.target.route)}
             placeholder="route name"
             onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, route: e.target.value } }))}
           />
@@ -86,7 +100,7 @@ function MenuItemTargetFields({
         <label className="a11y-label-wrap">
           <span className="visually-hidden">Entry ID</span>
           <input
-            value={item.target.entryId ?? ""}
+            value={orEmpty(item.target.entryId)}
             placeholder="entry id"
             onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, entryId: e.target.value } }))}
           />
@@ -98,7 +112,7 @@ function MenuItemTargetFields({
           <label className="a11y-label-wrap">
             <span className="visually-hidden">Term ID</span>
             <input
-              value={item.target.termId ?? ""}
+              value={orEmpty(item.target.termId)}
               placeholder="term id"
               onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, termId: e.target.value } }))}
             />
@@ -106,7 +120,7 @@ function MenuItemTargetFields({
           <label className="a11y-label-wrap">
             <span className="visually-hidden">Taxonomy</span>
             <input
-              value={item.target.taxonomy ?? ""}
+              value={orEmpty(item.target.taxonomy)}
               placeholder="taxonomy"
               onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, taxonomy: e.target.value } }))}
             />

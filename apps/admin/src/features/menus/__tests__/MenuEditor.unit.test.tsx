@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MenuEditor } from "../MenuEditor";
+import { MenuEditor, MenuItemTargetFields, targetForKind } from "../MenuEditor";
 
 /**
  * @file `MenuEditor`'s nested-item tree — pins the fix for the audit's Major finding: "Remove"
@@ -214,5 +214,81 @@ describe("unsaved-changes protection on the back-link", () => {
     fireEvent.click(screen.getByRole("link", { name: /menus/i }));
 
     expect(watch.result()).toBe(false); // this screen's own handler did not prevent it
+  });
+});
+
+/**
+ * `targetForKind` — pulled apart from the four `?? ""` fallbacks that used to be inline
+ * (2026-08-06, complexity pass, fourth pass; see `orEmpty`'s own doc in the source file). The
+ * `item-row fields` describe block above only ever renders a "url" target through the full
+ * `MenuEditor`; these tests exercise all four kinds directly, no fetch/render involved.
+ */
+describe("targetForKind", () => {
+  it("switches to url, carrying over an existing href", () => {
+    expect(targetForKind({ kind: "url", prev: { kind: "route", route: "unused" } })).toEqual({
+      kind: "url",
+      href: "",
+    });
+    expect(targetForKind({ kind: "url", prev: { kind: "url", href: "/old" } })).toEqual({
+      kind: "url",
+      href: "/old",
+    });
+  });
+
+  it("switches to route, defaulting to an empty string when the previous target had none", () => {
+    expect(targetForKind({ kind: "route", prev: { kind: "url", href: "/x" } })).toEqual({ kind: "route", route: "" });
+  });
+
+  it("switches to entryRef, defaulting to an empty string when the previous target had none", () => {
+    expect(targetForKind({ kind: "entryRef", prev: { kind: "url", href: "/x" } })).toEqual({
+      kind: "entryRef",
+      entryId: "",
+    });
+  });
+
+  it("switches to termRef, defaulting BOTH termId and taxonomy independently", () => {
+    expect(targetForKind({ kind: "termRef", prev: { kind: "termRef", termId: "t1", taxonomy: "" } })).toEqual({
+      kind: "termRef",
+      termId: "t1",
+      taxonomy: "",
+    });
+    expect(targetForKind({ kind: "termRef", prev: { kind: "url", href: "/x" } })).toEqual({
+      kind: "termRef",
+      termId: "",
+      taxonomy: "",
+    });
+  });
+});
+
+/**
+ * `MenuItemTargetFields` — same extraction, the rendered half. Direct render tests for the three
+ * kinds ("route"/"entryRef"/"termRef") the full-`MenuEditor` fixture above never exercises (it only
+ * ever seeds "url" targets).
+ */
+describe("MenuItemTargetFields", () => {
+  const noop = () => {};
+
+  it("renders a Route name field for a route target, pre-filled from the item", () => {
+    render(
+      <MenuItemTargetFields item={{ id: "i1", target: { kind: "route", route: "/dashboard" } }} path={[0]} onChange={noop} />,
+    );
+    expect(screen.getByPlaceholderText("route name")).toHaveValue("/dashboard");
+  });
+
+  it("renders an Entry ID field for an entryRef target, defaulting to empty when absent", () => {
+    render(<MenuItemTargetFields item={{ id: "i1", target: { kind: "entryRef" } }} path={[0]} onChange={noop} />);
+    expect(screen.getByPlaceholderText("entry id")).toHaveValue("");
+  });
+
+  it("renders BOTH Term ID and Taxonomy fields for a termRef target", () => {
+    render(
+      <MenuItemTargetFields
+        item={{ id: "i1", target: { kind: "termRef", termId: "t1", taxonomy: "category" } }}
+        path={[0]}
+        onChange={noop}
+      />,
+    );
+    expect(screen.getByPlaceholderText("term id")).toHaveValue("t1");
+    expect(screen.getByPlaceholderText("taxonomy")).toHaveValue("category");
   });
 });

@@ -1,5 +1,7 @@
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import type { ReactNode } from "react";
 
+import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
@@ -27,7 +29,21 @@ export interface PostsProps {
   usePostsHook?: typeof usePosts;
 }
 
-export function Posts({ usePostsHook = usePosts }: PostsProps = {}) {
+/**
+ * The loading/error guard shown before the table has anything to render — pulled out of `Posts`
+ * (2026-08-06, complexity pass, fourth pass) so its two early-return checks collapse into one
+ * `if` at the call site. `error && !posts` (not just `error`): once the list has loaded, a later
+ * failure (create, delete) surfaces as an inline banner above the table instead of blanking the
+ * whole screen — matches Pages.tsx/Media.tsx/Comments.tsx. Mirrors `Pages.tsx`'s identical
+ * `pagesListNotice`.
+ */
+export function postsListNotice(posts: AdminPost[] | null, error: string | null): ReactNode {
+  if (error && !posts) return <div className="notice error">{error}</div>;
+  if (!posts) return <div className="notice">Loading posts…</div>;
+  return null;
+}
+
+export function Posts({ usePostsHook = usePosts }: PostsProps) {
   const {
     posts,
     error,
@@ -40,11 +56,12 @@ export function Posts({ usePostsHook = usePosts }: PostsProps = {}) {
     removePost,
   } = usePostsHook();
 
-  // `error && !posts` (not just `error`): once the list has loaded, a later failure (create,
-  // delete) surfaces as an inline banner above the table instead of blanking the whole screen —
-  // matches Pages.tsx/Media.tsx/Comments.tsx.
-  if (error && !posts) return <div className="notice error">{error}</div>;
-  if (!posts) return <div className="notice">Loading posts…</div>;
+  const notice = postsListNotice(posts, error);
+  if (notice) return notice;
+  // Unreachable in practice — `postsListNotice` already returns a non-null notice whenever `posts`
+  // is null — but restores the narrowing TS lost by moving that check behind a function call, so
+  // `rows={posts}` below type-checks as `AdminPost[]` without an `as`/`!` assertion.
+  if (!posts) return null;
 
   return (
     <div className="page">
