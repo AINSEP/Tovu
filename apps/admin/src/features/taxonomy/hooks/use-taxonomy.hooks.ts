@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { api, describeApiError, type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "../../../lib/api";
 import { describeDeleteBlocked, findSelectedTerm, type DeleteBlockedState } from "../rules";
 
@@ -62,6 +62,43 @@ export interface TaxonomyController {
   confirmDeleteTaxonomy: () => Promise<void>;
 }
 
+/** The shape `confirmDeleteTerm`/`confirmDeleteTaxonomy` both repeat: guard on nothing pending, set
+ *  a busy flag, delete, and on failure split a 409 "blocked" refusal (its own recoverable state,
+ *  see the controller doc comment) from a hard error — the "whole-hook" complexity view (brief §2)
+ *  counts both ~20-line blocks against `useTaxonomy` even though each is individually small under
+ *  ESLint's own per-function view. `onSuccess` carries the one thing that genuinely differs beyond
+ *  which id/state pair is involved: term-delete clears `selectedTermId` when the deleted term WAS
+ *  selected, taxonomy-delete clears it when the selected term belonged to the deleted taxonomy. */
+async function runGuardedDelete(
+  id: string,
+  deleteCall: (id: string) => Promise<unknown>,
+  setBusy: Dispatch<SetStateAction<boolean>>,
+  clearPending: () => void,
+  onSuccess: () => void,
+  onBlocked: (blocked: DeleteBlockedState) => void,
+  setError: Dispatch<SetStateAction<string | null>>,
+  load: () => void,
+  failureFallback: string,
+): Promise<void> {
+  setBusy(true);
+  try {
+    await deleteCall(id);
+    clearPending();
+    onSuccess();
+    load();
+  } catch (e) {
+    clearPending();
+    const blocked = describeDeleteBlocked(e);
+    if (blocked) {
+      onBlocked(blocked);
+    } else {
+      setError(describeApiError(e, failureFallback));
+    }
+  } finally {
+    setBusy(false);
+  }
+}
+
 export function useTaxonomy(): TaxonomyController {
   const [taxonomies, setTaxonomies] = useState<AdminTaxonomyWithTerms[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -106,24 +143,20 @@ export function useTaxonomy(): TaxonomyController {
     // for the cast, so the same class of bug cannot be reintroduced silently.
     if (!pendingDeleteTerm) return;
     const term = pendingDeleteTerm;
-    setDeleteTermBusy(true);
-    try {
-      await api.deleteTerm(term.id);
-      setPendingDeleteTermState(null);
+    await runGuardedDelete(
+      term.id,
+      api.deleteTerm,
+      setDeleteTermBusy,
+      () => setPendingDeleteTermState(null),
       // A deleted term can no longer own the detail panel it might currently be selected into.
-      if (selectedTermId === term.id) setSelectedTermId(null);
-      load();
-    } catch (e) {
-      setPendingDeleteTermState(null);
-      const blocked = describeDeleteBlocked(e);
-      if (blocked) {
-        setDeleteTermBlocked({ termId: term.id, state: blocked });
-      } else {
-        setError(describeApiError(e, "Failed to delete term"));
-      }
-    } finally {
-      setDeleteTermBusy(false);
-    }
+      () => {
+        if (selectedTermId === term.id) setSelectedTermId(null);
+      },
+      (blocked) => setDeleteTermBlocked({ termId: term.id, state: blocked }),
+      setError,
+      load,
+      "Failed to delete term",
+    );
   }
 
   function requestDeleteTaxonomy(taxonomy: AdminTaxonomy | null) {
@@ -134,25 +167,21 @@ export function useTaxonomy(): TaxonomyController {
   async function confirmDeleteTaxonomy() {
     if (!pendingDeleteTaxonomy) return;
     const taxonomy = pendingDeleteTaxonomy;
-    setDeleteTaxonomyBusy(true);
-    try {
-      await api.deleteTaxonomy(taxonomy.id);
-      setPendingDeleteTaxonomyState(null);
+    await runGuardedDelete(
+      taxonomy.id,
+      api.deleteTaxonomy,
+      setDeleteTaxonomyBusy,
+      () => setPendingDeleteTaxonomyState(null),
       // A deleted taxonomy takes every one of its terms with it (the route's own cascade) —
       // whatever was selected can't still exist if it belonged to this taxonomy.
-      if (selected?.taxonomy.taxonomy.id === taxonomy.id) setSelectedTermId(null);
-      load();
-    } catch (e) {
-      setPendingDeleteTaxonomyState(null);
-      const blocked = describeDeleteBlocked(e);
-      if (blocked) {
-        setDeleteTaxonomyBlocked({ taxonomyId: taxonomy.id, state: blocked });
-      } else {
-        setError(describeApiError(e, "Failed to delete taxonomy"));
-      }
-    } finally {
-      setDeleteTaxonomyBusy(false);
-    }
+      () => {
+        if (selected?.taxonomy.taxonomy.id === taxonomy.id) setSelectedTermId(null);
+      },
+      (blocked) => setDeleteTaxonomyBlocked({ taxonomyId: taxonomy.id, state: blocked }),
+      setError,
+      load,
+      "Failed to delete taxonomy",
+    );
   }
 
   return {
