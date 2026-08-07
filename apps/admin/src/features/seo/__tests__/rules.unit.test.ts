@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { sortIssuesBySeverity } from "../rules";
+import { actionLabel, orEmpty, sortIssuesBySeverity } from "../rules";
 import type { SeoIssue } from "../../../lib/api";
 
 /**
@@ -46,5 +46,29 @@ describe("sortIssuesBySeverity", () => {
   it("returns a new array, not the same reference", () => {
     const issues = [issue("e1", "error")];
     expect(sortIssuesBySeverity(issues)).not.toBe(issues);
+  });
+});
+
+describe("orEmpty", () => {
+  it("returns the value unchanged when set", () => {
+    expect(orEmpty("hello")).toBe("hello");
+  });
+
+  it("returns '' for undefined", () => {
+    expect(orEmpty(undefined)).toBe("");
+  });
+
+  it("does not fall back for an explicit empty string", () => {
+    expect(orEmpty("")).toBe("");
+  });
+});
+
+describe("actionLabel", () => {
+  it("returns the pending label while pending", () => {
+    expect(actionLabel(true, "Saving…", "Save")).toBe("Saving…");
+  });
+
+  it("returns the idle label when not pending", () => {
+    expect(actionLabel(false, "Saving…", "Save")).toBe("Save");
   });
 });
