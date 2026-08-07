@@ -62,7 +62,14 @@
  *    `createExecutionPort` below.
  */
 
-import { api, ApiError, type AdminExecutionCredential, type AdminExecutionCredentialPatch, type SettingScope } from "./api";
+import {
+  api,
+  ApiError,
+  type AdminExecutionCredential,
+  type AdminExecutionCredentialPatch,
+  type SettingResolvedValue,
+  type SettingScope,
+} from "./api";
 import type { ByokConfig, ExecutionConfig, ExecutionPort } from "@jini-ai/ui";
 
 /** SPEC-007 namespace holding every NON-SECRET execution-mode key. No
@@ -224,6 +231,71 @@ function asString(value: unknown, fallback: string): string {
   return typeof value === "string" ? value : fallback;
 }
 
+/** Ledger `mode` value -> `ExecutionConfig["mode"]`, falling back to `fallback` for anything else
+ *  (unset, or a value this admin build no longer recognizes). Pulled out of `loadExecutionConfig`
+ *  (2026-08-06, complexity pass) as its own named step — see {@link buildByokConfigFromLedger}'s doc
+ *  for why the whole function was split this way. */
+export function readExecutionMode(raw: unknown, fallback: ExecutionConfig["mode"]): ExecutionConfig["mode"] {
+  return raw === "local-cli" || raw === "byok" ? raw : fallback;
+}
+
+/** Ledger `byok.protocol` value -> `ByokConfig["protocol"]`, same fallback contract as
+ *  {@link readExecutionMode}. */
+export function readByokProtocol(raw: unknown, fallback: ByokConfig["protocol"]): ByokConfig["protocol"] {
+  return raw === "anthropic" || raw === "openai" || raw === "azure" || raw === "google" ? raw : fallback;
+}
+
+/** `null` is a real, distinct value here (it selects the custom endpoint), so only `undefined`
+ *  (unset) falls back to `fallback` — a plain `??` would treat both the same. */
+export function readByokProviderId(raw: unknown, fallback: string | null): string | null {
+  if (raw === null) return null;
+  return typeof raw === "string" ? raw : fallback;
+}
+
+/**
+ * Builds the `byok` half of `loadExecutionConfig`'s result from the ledger rows.
+ *
+ * Pulled out of `loadExecutionConfig` (2026-08-06, complexity pass) along with
+ * {@link buildLocalCliConfigFromLedger} and the `read*` helpers above: the function was one object
+ * literal with six inline fallback ternaries stacked inside it, which is exactly what pushed its
+ * cyclomatic/cognitive score over this pass's ceiling. Naming each fallback decision does not change
+ * what gets computed, only makes each one independently readable (and, for the `read*` functions,
+ * independently testable) instead of one undifferentiated expression.
+ */
+export function buildByokConfigFromLedger(byKey: Map<string, unknown>, defaults: ExecutionConfig): ByokConfig {
+  const rawMaxTokens = byKey.get(KEYS.maxTokens);
+  return {
+    protocol: readByokProtocol(byKey.get(KEYS.protocol), defaults.byok.protocol),
+    providerId: readByokProviderId(byKey.get(KEYS.providerId), defaults.byok.providerId),
+    // Write-only — see this file's own doc. Never anything but "", regardless of whether a
+    // credential is stored server-side.
+    apiKey: "",
+    baseUrl: asString(byKey.get(KEYS.baseUrl), defaults.byok.baseUrl),
+    model: asString(byKey.get(KEYS.model), defaults.byok.model),
+    ...(typeof rawMaxTokens === "number" && rawMaxTokens !== MAX_TOKENS_UNSET_SENTINEL
+      ? { maxTokens: rawMaxTokens }
+      : {}),
+    // `savedByProviderId` (other providers' drafts) is scoped out of v1 — see this file's
+    // header. Never populated; a host storing it would need its own per-provider server rows.
+  };
+}
+
+/** Builds the `localCli` half of `loadExecutionConfig`'s result from the ledger rows — see
+ *  {@link buildByokConfigFromLedger}'s doc for why this is split out the same way. */
+export function buildLocalCliConfigFromLedger(byKey: Map<string, unknown>): ExecutionConfig["localCli"] {
+  const agentId = asString(byKey.get(KEYS.localCliAgentId), "").trim();
+  const model = asString(byKey.get(KEYS.localCliModel), "").trim();
+  return {
+    // `""` is the ledger's "nothing picked yet" (a non-null default is
+    // required — see `execution-mode-settings.ts`), which `@jini-ai/ui`
+    // spells as `null`.
+    agentId: agentId ? agentId : null,
+    // Only the SELECTED agent's model round-trips through the ledger; see
+    // the `localCli.model` definition for why the per-agent map does not.
+    ...(agentId && model ? { modelByAgentId: { [agentId]: model } } : {}),
+  };
+}
+
 /**
  * Reads the non-secret ledger namespace and returns it as an `ExecutionConfig`. Unknown/missing
  * ledger keys fall back to `DEFAULT_EXECUTION_CONFIG` field by field, so a partially written
@@ -234,7 +306,7 @@ function asString(value: unknown, fallback: string): string {
  * already stored must call {@link loadAdminExecutionCredential} separately and read its `isSet`.
  */
 export async function loadExecutionConfig(): Promise<ExecutionConfig> {
-  let rows: Awaited<ReturnType<typeof api.getSettingsEffective>>["data"];
+  let rows: SettingResolvedValue[];
   try {
     rows = (await api.getSettingsEffective({ namespace: EXECUTION_NAMESPACE })).data;
   } catch (error) {
@@ -244,55 +316,12 @@ export async function loadExecutionConfig(): Promise<ExecutionConfig> {
     throw error;
   }
 
-  const byKey = new Map(rows.map((row) => [row.key, row.value]));
+  const byKey = new Map<string, unknown>(rows.map((row) => [row.key, row.value]));
   const defaults = DEFAULT_EXECUTION_CONFIG;
-  const rawMode = byKey.get(KEYS.mode);
-  const rawMaxTokens = byKey.get(KEYS.maxTokens);
-  const rawProviderId = byKey.get(KEYS.providerId);
-  const rawProtocol = byKey.get(KEYS.protocol);
-  const rawLocalCliAgentId = asString(byKey.get(KEYS.localCliAgentId), "").trim();
-  const rawLocalCliModel = asString(byKey.get(KEYS.localCliModel), "").trim();
-
   return {
-    mode: rawMode === "local-cli" || rawMode === "byok" ? rawMode : defaults.mode,
-    byok: {
-      protocol:
-        rawProtocol === "anthropic" ||
-        rawProtocol === "openai" ||
-        rawProtocol === "azure" ||
-        rawProtocol === "google"
-          ? rawProtocol
-          : defaults.byok.protocol,
-      // `null` is a real, distinct value here (it selects the custom endpoint),
-      // so only `undefined` falls back to the default.
-      providerId:
-        rawProviderId === null
-          ? null
-          : typeof rawProviderId === "string"
-            ? rawProviderId
-            : defaults.byok.providerId,
-      // Write-only — see this function's own doc. Never anything but "", regardless of whether a
-      // credential is stored server-side.
-      apiKey: "",
-      baseUrl: asString(byKey.get(KEYS.baseUrl), defaults.byok.baseUrl),
-      model: asString(byKey.get(KEYS.model), defaults.byok.model),
-      ...(typeof rawMaxTokens === "number" && rawMaxTokens !== MAX_TOKENS_UNSET_SENTINEL
-        ? { maxTokens: rawMaxTokens }
-        : {}),
-      // `savedByProviderId` (other providers' drafts) is scoped out of v1 — see this file's
-      // header. Never populated; a host storing it would need its own per-provider server rows.
-    },
-    localCli: {
-      // `""` is the ledger's "nothing picked yet" (a non-null default is
-      // required — see `execution-mode-settings.ts`), which `@jini-ai/ui`
-      // spells as `null`.
-      agentId: rawLocalCliAgentId ? rawLocalCliAgentId : null,
-      // Only the SELECTED agent's model round-trips through the ledger; see
-      // the `localCli.model` definition for why the per-agent map does not.
-      ...(rawLocalCliAgentId && rawLocalCliModel
-        ? { modelByAgentId: { [rawLocalCliAgentId]: rawLocalCliModel } }
-        : {}),
-    },
+    mode: readExecutionMode(byKey.get(KEYS.mode), defaults.mode),
+    byok: buildByokConfigFromLedger(byKey, defaults),
+    localCli: buildLocalCliConfigFromLedger(byKey),
   };
 }
 

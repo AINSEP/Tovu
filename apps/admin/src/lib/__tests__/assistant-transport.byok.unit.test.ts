@@ -4,7 +4,7 @@ import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { RunHandlers } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
-import { createTovuAssistantTransport, handleByokFrame, parseFrame } from "../assistant-transport";
+import { consumeByokStream, createTovuAssistantTransport, handleByokFrame, parseFrame } from "../assistant-transport";
 import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-helpers";
 
 /**
@@ -160,6 +160,80 @@ describe("handleByokFrame — frame dispatch, extracted from startByokRun's cons
     expect(collected).toEqual([]);
     expect(h.events).toEqual([]);
     expect(finish).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `consumeByokStream` — the async-IIFE stream consumer `startByokRun` used to hold inline, pulled
+ * out to a top-level function (2026-08-06, complexity pass, second pass) specifically so the
+ * OWNER'S whole-function complexity view (which rolls a nested closure's branches into its
+ * enclosing function) no longer counts this loop as part of `startByokRun`. The end-to-end
+ * `startByokRun — SSE frame streaming` block below still exercises this through a real
+ * `fetch`/`ReadableStream`; these tests drive it directly with a fake stream and no network.
+ */
+describe("consumeByokStream — the stream-consumer loop, extracted from startByokRun", () => {
+  function ctx(overrides: Partial<{ controller: AbortController }> = {}) {
+    const collected: AgentEvent[] = [];
+    const h = handlers();
+    const finish = vi.fn();
+    const controller = overrides.controller ?? new AbortController();
+    return { collected, handlers: h, finish, controller, runId: "byok:test" };
+  }
+
+  test("drains every frame via handleByokFrame; an 'end' frame's finish() and the generator's own completion finish() both fire", async () => {
+    const c = ctx();
+    const body = streamFromChunks([frame("agent", { type: "text_delta", delta: "hi" }), frame("end", {})]);
+
+    await consumeByokStream(body, c);
+
+    expect(c.handlers.events).toEqual([{ kind: "text", text: "hi" }]);
+    // `handleByokFrame`'s `"end"` case calls `ctx.finish` once, and the `for await` loop's own
+    // completion (once `readSseFrames` closes) calls it again unconditionally — matching the
+    // original inline IIFE. `finish` is idempotent via `startByokRun`'s real `settled` flag (see
+    // "'end' calls onDone exactly once..." in the SSE-streaming describe block below, asserted
+    // end-to-end through `handlers.onDone`); this bare `vi.fn()` has no such guard, so it correctly
+    // observes both calls.
+    expect(c.finish).toHaveBeenCalledTimes(2);
+  });
+
+  test("calls finish once via its own completion when the stream ends with no 'end' frame", async () => {
+    const c = ctx();
+    const body = streamFromChunks([frame("agent", { type: "text_delta", delta: "only" })]);
+
+    await consumeByokStream(body, c);
+
+    expect(c.handlers.events).toEqual([{ kind: "text", text: "only" }]);
+    expect(c.finish).toHaveBeenCalledTimes(1);
+  });
+
+  test("a stream error while not aborted is reported via onError, not treated as cancellation", async () => {
+    const c = ctx();
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.error(new Error("connection reset"));
+      },
+    });
+
+    await consumeByokStream(body, c);
+
+    expect(c.handlers.errors.map((e) => e.message)).toEqual(["connection reset"]);
+    expect(c.finish).not.toHaveBeenCalled();
+  });
+
+  test("a stream error after abort() is swallowed as an expected cancellation, and finish is still called", async () => {
+    const controller = new AbortController();
+    const c = ctx({ controller });
+    controller.abort();
+    const body = new ReadableStream<Uint8Array>({
+      pull(streamController) {
+        streamController.error(new Error("aborted mid-read"));
+      },
+    });
+
+    await consumeByokStream(body, c);
+
+    expect(c.handlers.errors).toEqual([]);
+    expect(c.finish).toHaveBeenCalledTimes(1);
   });
 });
 

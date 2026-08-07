@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
-import type { RunHandlers } from "@jini-ai/chat/react";
+import type { RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
-import { createTovuAssistantTransport } from "../assistant-transport";
+import { buildLocalCliContextRef, createTovuAssistantTransport } from "../assistant-transport";
 import { FakeEventSource, resetFakeEventSource } from "./assistant-transport.test-helpers";
 
 /**
@@ -46,6 +46,55 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+/**
+ * `buildLocalCliContextRef` — the local-CLI `contextRef` assembly pulled out of `startRun`
+ * (2026-08-06, complexity pass, second pass): three independent optional fields, each included only
+ * when present. `startRun — guard and request shape` below still asserts the end-to-end POST body
+ * these produce; these tests pin each field's own inclusion rule directly, with no `fetch` involved.
+ */
+describe("buildLocalCliContextRef", () => {
+  function input(overrides: Partial<StartRunInput> = {}): StartRunInput {
+    return { history: HISTORY, signal: new AbortController().signal, ...overrides } as StartRunInput;
+  }
+
+  test("always includes prompt, with no optional fields when context/attachments are absent", () => {
+    expect(buildLocalCliContextRef(input(), "the prompt")).toEqual({ prompt: "the prompt" });
+  });
+
+  test("includes frontendBindToken only when it is a non-empty string", () => {
+    expect(buildLocalCliContextRef(input({ context: { frontendBindToken: "tab-1" } }), "p")).toEqual({
+      prompt: "p",
+      frontendBindToken: "tab-1",
+    });
+    expect(buildLocalCliContextRef(input({ context: { frontendBindToken: "" } }), "p")).toEqual({ prompt: "p" });
+    expect(buildLocalCliContextRef(input({ context: { frontendBindToken: 42 } }), "p")).toEqual({ prompt: "p" });
+  });
+
+  test("includes model only when it is a non-empty string", () => {
+    expect(buildLocalCliContextRef(input({ context: { model: "claude-opus-5" } }), "p")).toEqual({
+      prompt: "p",
+      model: "claude-opus-5",
+    });
+    expect(buildLocalCliContextRef(input({ context: { model: "" } }), "p")).toEqual({ prompt: "p" });
+  });
+
+  test("includes attachmentIds (mapped to their opaque path) only when attachments is non-empty", () => {
+    expect(
+      buildLocalCliContextRef(
+        input({ attachments: [{ path: "attachment:1" }, { path: "attachment:2" }] as StartRunInput["attachments"] }),
+        "p",
+      ),
+    ).toEqual({ prompt: "p", attachmentIds: ["attachment:1", "attachment:2"] });
+    expect(buildLocalCliContextRef(input({ attachments: [] as StartRunInput["attachments"] }), "p")).toEqual({ prompt: "p" });
+  });
+
+  test("does not let a spread of context shadow the reserved keys — reads frontendBindToken/model by name only", () => {
+    expect(
+      buildLocalCliContextRef(input({ context: { frontendBindToken: "tab-1", principalId: "should-not-appear" } }), "p"),
+    ).toEqual({ prompt: "p", frontendBindToken: "tab-1" });
+  });
 });
 
 describe("startRun — guard and request shape", () => {

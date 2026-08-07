@@ -69,6 +69,21 @@ function asString(v: unknown): string {
  * `assistant-transport.transcript.test.ts`'s own module doc for the same reasoning applied to
  * `runPrompt`) so `assistant-transport.a2ui.test.ts` can assert the `"a2ui"` branch below in
  * isolation.
+ *
+ * @complexityExemption (2026-08-06, complexity pass) Measures 17 cyclomatic / 11 cognitive —
+ * cyclomatic over the ceiling by construction, not by accident: this is a flat `switch` over
+ * `RunProtocolEventWire`'s closed `payload.type` vocabulary, one `case` per wire type, every case a
+ * single-line `return`. Cyclomatic counts every `case` as a branch regardless of shape, which is why
+ * it inflates faster than cognitive here (11 — near the ceiling on its own, mostly from the
+ * `mcp-ui`/`a2ui` cases' optional-field handling, not from nesting: there is none). Tried and
+ * rejected: a `Record<string, (payload) => AgentEvent | null>` lookup table scores lower on both
+ * metrics but loses two things a switch over a TS discriminated union keeps — exhaustiveness
+ * checking (a lookup table compiles with a missing key; this switch does not, once `payload.type`
+ * is narrowed to the real union rather than the wire's untyped `string`), and the ability to attach
+ * a multi-paragraph comment to one case explaining a specific interop bug (the `mcp-ui`/`a2ui`
+ * cases' comments each document why THAT case cannot fall through to `default` — see below). A
+ * lookup table would have to carry those as a parallel structure, one step removed from the code
+ * they explain. Left as a `switch`, documented here rather than only in this session's report.
  */
 export function translateRunAgentPayload(payload: RunAgentPayload): AgentEvent | null {
   switch (payload.type) {
@@ -387,6 +402,46 @@ export function handleByokFrame(
 }
 
 /**
+ * Drains a BYOK turn's SSE body to completion, dispatching each frame via {@link handleByokFrame}
+ * and settling the turn through `ctx.finish` — the async IIFE `startByokRun` used to hold its
+ * stream-consumer loop in, pulled out to a top-level function (2026-08-06, complexity pass, second
+ * pass). `startByokRun`'s own per-function score is already under the per-function ceiling; this
+ * split is for the OTHER metric this repo's complexity ceiling tracks — a tool that rolls a nested
+ * closure's branches into its enclosing function's total still counted this IIFE as part of
+ * `startByokRun` as long as it stayed physically inside the body. Moving it to a sibling top-level
+ * function removes it from that rollup instead of just moving it to a different nested scope (a
+ * `const` inside `startByokRun` would not have changed the rollup at all).
+ *
+ * @param ctx.runId - Only used to clear {@link byokAbortControllers} on a genuine (non-abort)
+ *   failure — the abort path itself already deletes its own entry in `startByokRun` before this
+ *   runs, so `ctx.runId` here is scoped to the error branch alone.
+ * @param ctx.controller - Read only for `.signal.aborted`, to tell a deliberate `stopRun`/composer
+ *   abort apart from a real stream failure — same distinction the inline version drew.
+ */
+export async function consumeByokStream(
+  body: ReadableStream<Uint8Array>,
+  ctx: { runId: string; collected: AgentEvent[]; handlers: RunHandlers; finish: () => void; controller: AbortController },
+): Promise<void> {
+  try {
+    for await (const frame of readSseFrames(body)) {
+      handleByokFrame(frame, { collected: ctx.collected, handlers: ctx.handlers, finish: ctx.finish });
+    }
+    ctx.finish();
+  } catch (error) {
+    byokAbortControllers.delete(ctx.runId);
+    if (ctx.controller.signal.aborted) {
+      // Cancelled via `stopRun` or the composer's own signal — an expected exit, not a reportable
+      // failure. `subscribeToRun`'s `EventSource` has no equivalent branch because `.close()`
+      // doesn't reject a promise the way an aborted `fetch`'s body reader does; this mirrors what a
+      // cancelled daemon run already looks like to the rest of the pane: silence, not an error toast.
+      ctx.finish();
+      return;
+    }
+    ctx.handlers.onError(error instanceof Error ? error : new Error(String(error)));
+  }
+}
+
+/**
  * The BYOK run path (2026-08-04) — one held-open `POST` to `assistant-byok.ts`, no separate
  * `EventSource`/reattach. See module doc's path-2 section for why this shape differs from
  * `subscribeToRun`'s daemon-path pattern, and what it costs (no reattach after a reload; `stopRun`
@@ -451,28 +506,72 @@ async function startByokRun(
   // is to resolve `{runId}` once the turn has STARTED, not once it has finished — the response
   // headers (hence this function reaching this point at all) arrive as soon as
   // `assistant-byok.ts` calls `beginStream`, well before generation completes.
-  void (async () => {
-    try {
-      for await (const frame of readSseFrames(response.body!)) {
-        handleByokFrame(frame, { collected, handlers, finish });
-      }
-      finish();
-    } catch (error) {
-      byokAbortControllers.delete(runId);
-      if (controller.signal.aborted) {
-        // Cancelled via `stopRun` or the composer's own signal — an expected exit, not a
-        // reportable failure. `subscribeToRun`'s `EventSource` has no equivalent branch because
-        // `.close()` doesn't reject a promise the way an aborted `fetch`'s body reader does; this
-        // mirrors what a cancelled daemon run already looks like to the rest of the pane: silence,
-        // not an error toast.
-        finish();
-        return;
-      }
-      handlers.onError(error instanceof Error ? error : new Error(String(error)));
-    }
-  })();
+  void consumeByokStream(response.body, { runId, collected, handlers, finish, controller });
 
   return { runId };
+}
+
+/**
+ * Assembles the Local CLI path's `contextRef` — everything `startRun`'s daemon branch sends besides
+ * `agentId` itself. Pulled out of `startRun` (2026-08-06, complexity pass, second pass) as its own
+ * pure function: three independent, unrelated optional fields, each read from `input` by name and
+ * included only when present (see each field's own comment below for why). A plain object in, a
+ * plain object out — directly testable with a `StartRunInput` fixture, no `fetch`/`EventSource`
+ * involved.
+ *
+ * @param prompt - The already-built transcript string ({@link runPrompt}'s result) — this function
+ *   only decides which of the three OPTIONAL fields ride alongside it, not how the prompt itself is
+ *   built.
+ */
+export function buildLocalCliContextRef(input: StartRunInput, prompt: string): Record<string, unknown> {
+  const contextRef: Record<string, unknown> = { prompt };
+
+  /**
+   * Which browser tab this run should be allowed to drive, from `ChatPane`'s `runContext` prop
+   * (`AssistantDock.tsx` supplies it from the live `FrontendSessionBridge`).
+   *
+   * Read by name rather than spreading the whole `input.context` blob: `contextRef` is a shared
+   * envelope that Tovu's proxy also writes `principalId` into (`src/server/modules/assistant.ts`),
+   * and a spread would let any future `runContext` key silently shadow it — an identity field being
+   * overwritten by a UI prop is not a failure mode worth leaving open to save one line.
+   *
+   * Omitted entirely when absent, which is a normal state, not an error: the daemon treats a run
+   * with no bind token as one with no screen to drive (`agent-daemon-server.ts`).
+   */
+  const frontendBindToken = input.context?.["frontendBindToken"];
+  if (typeof frontendBindToken === "string" && frontendBindToken.length > 0) {
+    contextRef.frontendBindToken = frontendBindToken;
+  }
+
+  /**
+   * The Local CLI picker's live model selection, from `ChatPane`'s `runContext` prop
+   * (`AssistantDock.tsx`'s `resolveRunContext`). Same "read by name, not spread" reasoning as
+   * `frontendBindToken` above, and the same "omit when absent" convention. Forwarded as an opaque
+   * string — `agent-daemon-server.ts` forwards it the same way, and `AgentExecutor.run()`'s
+   * def-level `buildArgs` is what decides what an absent or `'default'` value means for a given CLI
+   * (`@jini-ai/agent-runtime`'s `models.ts`/`resolveModelForAgent`).
+   */
+  const model = input.context?.["model"];
+  if (typeof model === "string" && model.length > 0) {
+    contextRef.model = model;
+  }
+
+  /**
+   * Opaque `attachment:<uuid>` capability ids (`ChatAttachment.path` — never a real filesystem path
+   * this early; see `@jini-ai/http-kit`'s `attachments.ts` trust-model doc), not the attachments
+   * themselves — `contextRef` is the one channel `prompt`/`frontendBindToken` already ride on to
+   * reach `agent-daemon-server.ts`'s `onStarted`, which is where these ids get exchanged for real,
+   * re-validated paths via `AttachmentStore.claim()`. Nothing on this side of the wire is trusted;
+   * the id is inert until the daemon claims it.
+   *
+   * Omitted entirely when there are none, same convention as `frontendBindToken` above — a run with
+   * no attachments is the overwhelmingly common case and should not carry a key for it.
+   */
+  if (input.attachments && input.attachments.length > 0) {
+    contextRef.attachmentIds = input.attachments.map((attachment) => attachment.path);
+  }
+
+  return contextRef;
 }
 
 export interface CreateTovuAssistantTransportOptions {
@@ -514,53 +613,7 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
 
       // Local CLI path (unchanged) below.
       const prompt = runPrompt(input.history);
-
-      /**
-       * Which browser tab this run should be allowed to drive, from `ChatPane`'s `runContext`
-       * prop (`AssistantDock.tsx` supplies it from the live `FrontendSessionBridge`).
-       *
-       * Read by name rather than spreading the whole `input.context` blob: `contextRef` is a
-       * shared envelope that Tovu's proxy also writes `principalId` into
-       * (`src/server/modules/assistant.ts`), and a spread would let any future `runContext` key
-       * silently shadow it — an identity field being overwritten by a UI prop is not a failure
-       * mode worth leaving open to save one line.
-       *
-       * Omitted entirely when absent, which is a normal state, not an error: the daemon treats a
-       * run with no bind token as one with no screen to drive (`agent-daemon-server.ts`).
-       */
-      const frontendBindToken = input.context?.["frontendBindToken"];
-      const contextRef: Record<string, unknown> = { prompt };
-      if (typeof frontendBindToken === "string" && frontendBindToken.length > 0) {
-        contextRef.frontendBindToken = frontendBindToken;
-      }
-
-      /**
-       * The Local CLI picker's live model selection, from `ChatPane`'s `runContext` prop
-       * (`AssistantDock.tsx`'s `resolveRunContext`). Same "read by name, not spread" reasoning as
-       * `frontendBindToken` above, and the same "omit when absent" convention. Forwarded as an
-       * opaque string — `agent-daemon-server.ts` forwards it the same way, and
-       * `AgentExecutor.run()`'s def-level `buildArgs` is what decides what an absent or `'default'`
-       * value means for a given CLI (`@jini-ai/agent-runtime`'s `models.ts`/`resolveModelForAgent`).
-       */
-      const model = input.context?.["model"];
-      if (typeof model === "string" && model.length > 0) {
-        contextRef.model = model;
-      }
-
-      /**
-       * Opaque `attachment:<uuid>` capability ids (`ChatAttachment.path` — never a real filesystem
-       * path this early; see `@jini-ai/http-kit`'s `attachments.ts` trust-model doc), not the
-       * attachments themselves — `contextRef` is the one channel `prompt`/`frontendBindToken`
-       * already ride on to reach `agent-daemon-server.ts`'s `onStarted`, which is where these ids
-       * get exchanged for real, re-validated paths via `AttachmentStore.claim()`. Nothing on this
-       * side of the wire is trusted; the id is inert until the daemon claims it.
-       *
-       * Omitted entirely when there are none, same convention as `frontendBindToken` above — a run
-       * with no attachments is the overwhelmingly common case and should not carry a key for it.
-       */
-      if (input.attachments && input.attachments.length > 0) {
-        contextRef.attachmentIds = input.attachments.map((attachment) => attachment.path);
-      }
+      const contextRef = buildLocalCliContextRef(input, prompt);
 
       const response = await fetch(RUNS_URL, {
         method: "POST",

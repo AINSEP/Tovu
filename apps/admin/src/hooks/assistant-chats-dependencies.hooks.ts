@@ -41,6 +41,20 @@ export const defaultAssistantChatsPort: AssistantChatsPort = {
   saveMessage,
 };
 
+/**
+ * Upserts `message` into `list`, preserving first-insert order — an update keeps its original
+ * position rather than moving to the end, matching the real store's ordering contract (see
+ * {@link createFakeAssistantChatsPort}'s `loadMessages` for why order is a correctness property
+ * here, not cosmetic). Pulled out of `saveMessage` (2026-08-06, complexity pass): that method needed
+ * this exact three-line "find, then splice-or-append" ternary twice — once for the durable
+ * `messages` map, once for the `saved` map the fake exposes to tests — and writing it twice was
+ * exactly the kind of duplication a complexity-per-branch metric penalizes once per copy.
+ */
+export function upsertMessage(list: readonly ChatMessage[], message: ChatMessage): ChatMessage[] {
+  const at = list.findIndex((m) => m.id === message.id);
+  return at >= 0 ? [...list.slice(0, at), message, ...list.slice(at + 1)] : [...list, message];
+}
+
 /** Seed state for {@link createFakeAssistantChatsPort}. */
 export interface FakeAssistantChatsPortOptions {
   conversations?: AssistantConversation[];
@@ -158,21 +172,12 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
       // meaningful question to ask this fake afterwards.
       options.onSaveMessage?.(conversationId, message, attempts);
 
-      // Upsert IN PLACE, preserving first-insert order — see `loadMessages`.
+      // Upsert IN PLACE, preserving first-insert order — see {@link upsertMessage}.
       const existing = messages.get(conversationId) ?? [];
       const at = existing.findIndex((m) => m.id === message.id);
-      messages.set(
-        conversationId,
-        at >= 0 ? [...existing.slice(0, at), message, ...existing.slice(at + 1)] : [...existing, message],
-      );
+      messages.set(conversationId, upsertMessage(existing, message));
       const written = saved.get(conversationId) ?? [];
-      const writtenAt = written.findIndex((m) => m.id === message.id);
-      saved.set(
-        conversationId,
-        writtenAt >= 0
-          ? [...written.slice(0, writtenAt), message, ...written.slice(writtenAt + 1)]
-          : [...written, message],
-      );
+      saved.set(conversationId, upsertMessage(written, message));
 
       /*
        * Naming happens on APPEND, mirroring `src/server/modules/assistant-chats.ts` — and this fake
