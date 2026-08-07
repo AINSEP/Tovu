@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { translateRunAgentPayload } from "../assistant-transport";
+import { parseUsageEvent, translateRunAgentPayload } from "../assistant-transport";
 
 /**
  * @file The remaining `translateRunAgentPayload` branches — everything `assistant-transport.a2ui.test.ts`
@@ -84,6 +84,44 @@ describe("translateRunAgentPayload — usage", () => {
       durationMs: "890",
     });
     expect(translated).toEqual({ kind: "usage", inputTokens: undefined, outputTokens: undefined, costUsd: undefined, durationMs: undefined });
+  });
+});
+
+/**
+ * `parseUsageEvent` — pulled out of `translateRunAgentPayload`'s `"usage"` case (2026-08-06,
+ * complexity pass, sixth pass; see its own doc — this is the case an independent audit traced the
+ * switch's cognitive cost to). The describe block above already exercises it end to end through
+ * `translateRunAgentPayload`; these call it directly, no switch dispatch involved.
+ */
+describe("parseUsageEvent", () => {
+  test("numeric fields all present are passed through as numbers", () => {
+    const event = parseUsageEvent({
+      type: "usage",
+      usage: { input_tokens: 120, output_tokens: 45 },
+      costUsd: 0.012,
+      durationMs: 890,
+    });
+    expect(event).toEqual({ kind: "usage", inputTokens: 120, outputTokens: 45, costUsd: 0.012, durationMs: 890 });
+  });
+
+  test("a missing usage object does not throw — every field falls back to undefined", () => {
+    expect(parseUsageEvent({ type: "usage" })).toEqual({
+      kind: "usage",
+      inputTokens: undefined,
+      outputTokens: undefined,
+      costUsd: undefined,
+      durationMs: undefined,
+    });
+  });
+
+  test("non-numeric token/cost/duration fields are dropped rather than passed through as the wrong type", () => {
+    const event = parseUsageEvent({
+      type: "usage",
+      usage: { input_tokens: "120", output_tokens: null },
+      costUsd: "0.01",
+      durationMs: "890",
+    });
+    expect(event).toEqual({ kind: "usage", inputTokens: undefined, outputTokens: undefined, costUsd: undefined, durationMs: undefined });
   });
 });
 

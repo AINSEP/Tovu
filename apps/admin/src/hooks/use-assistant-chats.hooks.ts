@@ -87,30 +87,97 @@ function isPermanent(error: unknown): boolean {
  */
 type SaveOutcome = "saved" | "exhausted" | "permanent" | "missing";
 
+/** One attempt's outcome: either the retry loop is DONE (a final {@link SaveOutcome} to return),
+ *  or it should try again on the next iteration. A discriminated union rather than `SaveOutcome |
+ *  null`/`undefined`, so "keep retrying" cannot be confused with any real outcome value — none of
+ *  the four is a legitimate stand-in for "no verdict yet". */
+type AttemptResult = { done: true; outcome: SaveOutcome } | { done: false };
+
+/** The give-up classification for a transient failure that has run out of retries (out of attempts,
+ *  or torn down mid-backoff) — a 404 specifically gets `"missing"` rather than `"exhausted"`; see
+ *  `SaveOutcome`'s own doc for why that distinction is worth reporting separately. A top-level
+ *  function rather than a closure inside {@link attemptSave} so its own `instanceof`/`&&` check is
+ *  scored in its own (near-zero) scope instead of adding to that function's. */
+export function giveUpOutcome(error: unknown): SaveOutcome {
+  return error instanceof HttpError && error.status === 404 ? "missing" : "exhausted";
+}
+
 /**
- * Writes one message, re-attempting transient failures on {@link SAVE_RETRY_DELAYS_MS}.
+ * Classifies one write failure and decides this attempt's outcome — the body of `attemptSave`'s
+ * `catch` block, pulled out as its own function (2026-08-06, complexity pass, sixth pass) so its
+ * four decisions are scored at nesting depth 0 instead of one level deep inside a `catch`. Cognitive
+ * complexity charges extra for every structure nested inside another; a `catch` block is itself one
+ * level of nesting, and every `if` these decisions need was paying that penalty on top of its own
+ * cost. Moving the whole block to a sibling function resets the depth without changing which
+ * decision runs when — `attemptSave`'s `catch` still runs synchronously into this on every failure.
  *
- * @param isDisposed checked before and after every sleep — an unmounted dock must not still be
- *   writing minutes later. Never rejects, so a caller can treat the result as data rather than
- *   wrapping every call.
+ * Each of the five outcomes {@link SaveOutcome}'s own doc names stays individually reachable and
+ * individually distinguishable here, unchanged from the inline version: the one-line `"permanent"`
+ * return, the one-line plain `"exhausted"` return, and the two give-up sites (out of attempts vs.
+ * torn down mid-backoff) sharing {@link giveUpOutcome}'s classification. `"saved"` is handled in
+ * `attemptSave`'s own `try` block, never reaching here.
  *
- * @complexityExemption (2026-08-06, complexity pass; bar raised to ≤9/≤9 same day, exemption
- * reconfirmed against the new bar) **Score: 8 cyclomatic / 15 cognitive. Bar: ≤9 cyclomatic AND
- * ≤9 cognitive. Cognitive is over; cyclomatic is not.** This is a bounded retry loop with FIVE distinct, independently
- * documented outcomes (`"saved"`, the `"permanent"` early return, the plain-`"exhausted"` early
- * return, and the two `giveUpOutcome` sites for "out of attempts" vs. "torn down mid-backoff"), each
- * one load-bearing per {@link SaveOutcome}'s own doc — collapsing any pair of them was the exact
- * class of bug this file's module doc and `isPermanent`'s doc both describe having shipped before
- * (the 404 retry-storm). The `for (;;)` + `try`/`catch` + the two nested early-return checks inside
- * `catch` are intrinsic to "retry with backoff, give up two different ways" — there is no
- * flatter shape that keeps every outcome distinct and independently testable. Already extracted as
- * far as it safely goes: `isTransient`/`isPermanent`/`giveUpOutcome`/`wasMissing` are pulled out as
- * their own named predicates specifically so this loop's body reads as a sequence of named
- * decisions rather than inline boolean expressions — further extraction (e.g. pulling the loop body
- * itself into a helper) would need to pass back `attempt`, `delay`, and the give-up/continue
- * decision through the helper boundary, which does not reduce the branching, only relocates it
- * across a function call each iteration has to pay for. Left as a loop, documented here rather than
- * only in this session's report.
+ * @param isDisposed checked before and after the sleep — an unmounted dock must not still be
+ *   writing minutes later.
+ */
+export async function handleSaveFailure(
+  error: unknown,
+  conversationId: string,
+  message: ChatMessage,
+  attempt: number,
+  isDisposed: () => boolean,
+): Promise<AttemptResult> {
+  if (isPermanent(error)) {
+    // The one outcome that discards a message the user can still see on screen, so it does not get
+    // to be silent. There is no error surface in the dock to route this to yet; a console error is
+    // the honest minimum, and is what makes the drop findable rather than mysterious.
+    console.error("[admin] message permanently rejected, not persisted", {
+      conversationId,
+      messageId: message.id,
+      error,
+    });
+    return { done: true, outcome: "permanent" };
+  }
+  if (!isTransient(error)) return { done: true, outcome: "exhausted" };
+  const delay = SAVE_RETRY_DELAYS_MS[attempt];
+  // Out of attempts, or torn down mid-backoff. Both are "might work later", not "never will" — but
+  // a ladder spent entirely on 404s says something more specific, so report that.
+  if (delay === undefined || isDisposed()) return { done: true, outcome: giveUpOutcome(error) };
+  await new Promise((resolve) => setTimeout(resolve, delay));
+  if (isDisposed()) return { done: true, outcome: giveUpOutcome(error) };
+  return { done: false };
+}
+
+/**
+ * One attempt at writing `message`: the try/catch body `saveWithRetry`'s loop used to hold inline,
+ * pulled out (2026-08-06, complexity pass, fifth pass — an earlier pass at this same function left
+ * it as a documented exemption; this extraction disproves that exemption, see below) as its own
+ * async function so the loop itself only has to ask "is this attempt done, and with what?". The
+ * failure-classification decisions themselves live in {@link handleSaveFailure}.
+ *
+ * @param isDisposed checked before and after the sleep — an unmounted dock must not still be
+ *   writing minutes later. Never rejects, so `saveWithRetry`'s loop can await it unconditionally.
+ */
+export async function attemptSave(
+  port: AssistantChatsPort,
+  conversationId: string,
+  message: ChatMessage,
+  attempt: number,
+  isDisposed: () => boolean,
+): Promise<AttemptResult> {
+  try {
+    await port.saveMessage(conversationId, message);
+    return { done: true, outcome: "saved" };
+  } catch (error) {
+    return handleSaveFailure(error, conversationId, message, attempt, isDisposed);
+  }
+}
+
+/**
+ * Writes one message, re-attempting transient failures on {@link SAVE_RETRY_DELAYS_MS} via
+ * {@link attemptSave}.
+ *
+ * Never rejects, so a caller can treat the result as data rather than wrapping every call.
  */
 async function saveWithRetry(
   port: AssistantChatsPort,
@@ -118,36 +185,9 @@ async function saveWithRetry(
   message: ChatMessage,
   isDisposed: () => boolean,
 ): Promise<SaveOutcome> {
-  /** Whether the attempt that finally gave up did so against a 404 — see `"missing"`. */
-  const wasMissing = (error: unknown) => error instanceof HttpError && error.status === 404;
-  /** The give-up classification, shared by both give-up sites below (out of attempts, and torn
-   *  down mid-backoff) — the literal same ternary written twice, not a complex decision on its own. */
-  const giveUpOutcome = (error: unknown): SaveOutcome => (wasMissing(error) ? "missing" : "exhausted");
-
   for (let attempt = 0; ; attempt += 1) {
-    try {
-      await port.saveMessage(conversationId, message);
-      return "saved";
-    } catch (error) {
-      if (isPermanent(error)) {
-        // The one outcome that discards a message the user can still see on screen, so it does not
-        // get to be silent. There is no error surface in the dock to route this to yet; a console
-        // error is the honest minimum, and is what makes the drop findable rather than mysterious.
-        console.error("[admin] message permanently rejected, not persisted", {
-          conversationId,
-          messageId: message.id,
-          error,
-        });
-        return "permanent";
-      }
-      if (!isTransient(error)) return "exhausted";
-      const delay = SAVE_RETRY_DELAYS_MS[attempt];
-      // Out of attempts, or torn down mid-backoff. Both are "might work later", not "never will" —
-      // but a ladder spent entirely on 404s says something more specific, so report that.
-      if (delay === undefined || isDisposed()) return giveUpOutcome(error);
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      if (isDisposed()) return giveUpOutcome(error);
-    }
+    const result = await attemptSave(port, conversationId, message, attempt, isDisposed);
+    if (result.done) return result.outcome;
   }
 }
 

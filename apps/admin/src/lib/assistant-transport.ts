@@ -63,6 +63,28 @@ function asString(v: unknown): string {
 }
 
 /**
+ * Parses a `"usage"` wire payload into its renderable `AgentEvent`.
+ *
+ * The one case in {@link translateRunAgentPayload}'s switch with real branching: four independent
+ * optional fields, each `typeof`-checked before use (a malformed/missing field must not throw or
+ * silently coerce to `0`/`NaN`). Pulled out (2026-08-06, complexity pass, sixth pass) so those four
+ * ternaries are scored in their own scope instead of the switch's — this is the fix for the earlier
+ * `@complexityExemption`'s cognitive attribution on `translateRunAgentPayload`, which credited the
+ * `mcp-ui`/`a2ui` cases (each a one-line unwrap, zero branching — see their own comments below) for
+ * a cost that actually came from here.
+ */
+export function parseUsageEvent(payload: RunAgentPayload): AgentEvent {
+  const usage = (payload.usage ?? {}) as Record<string, unknown>;
+  return {
+    kind: "usage",
+    inputTokens: typeof usage.input_tokens === "number" ? usage.input_tokens : undefined,
+    outputTokens: typeof usage.output_tokens === "number" ? usage.output_tokens : undefined,
+    costUsd: typeof payload.costUsd === "number" ? payload.costUsd : undefined,
+    durationMs: typeof payload.durationMs === "number" ? payload.durationMs : undefined,
+  };
+}
+
+/**
  * Reduces one wire-level `RunAgentPayload` into zero or one renderable `AgentEvent`s.
  *
  * Exported (a pure function, so directly testable with no `EventSource`/`fetch` stub needed — see
@@ -70,22 +92,24 @@ function asString(v: unknown): string {
  * `runPrompt`) so `assistant-transport.a2ui.test.ts` can assert the `"a2ui"` branch below in
  * isolation.
  *
- * @complexityExemption (2026-08-06, complexity pass; bar raised to ≤9/≤9 same day, exemption
- * reconfirmed against the new bar) **Score: 17 cyclomatic / 11 cognitive. Bar: ≤9 cyclomatic AND
- * ≤9 cognitive. Both axes are over.** Cyclomatic is over the ceiling by construction, not by
- * accident: this is a flat `switch` over
- * `RunProtocolEventWire`'s closed `payload.type` vocabulary, one `case` per wire type, every case a
- * single-line `return`. Cyclomatic counts every `case` as a branch regardless of shape, which is why
- * it inflates faster than cognitive here (11 — near the ceiling on its own, mostly from the
- * `mcp-ui`/`a2ui` cases' optional-field handling, not from nesting: there is none). Tried and
- * rejected: a `Record<string, (payload) => AgentEvent | null>` lookup table scores lower on both
- * metrics but loses two things a switch over a TS discriminated union keeps — exhaustiveness
- * checking (a lookup table compiles with a missing key; this switch does not, once `payload.type`
- * is narrowed to the real union rather than the wire's untyped `string`), and the ability to attach
- * a multi-paragraph comment to one case explaining a specific interop bug (the `mcp-ui`/`a2ui`
- * cases' comments each document why THAT case cannot fall through to `default` — see below). A
- * lookup table would have to carry those as a parallel structure, one step removed from the code
- * they explain. Left as a `switch`, documented here rather than only in this session's report.
+ * @complexityExemption (2026-08-06, complexity pass, sixth pass; bar is ≤9/≤9) **Score: 12
+ * cyclomatic / 3 cognitive. Bar: ≤9 cyclomatic AND ≤9 cognitive. Cyclomatic-only exemption —
+ * cognitive already clears the bar since {@link parseUsageEvent} above took the switch's only real
+ * branching out of this function's own scope.** (An earlier version of this comment attributed the
+ * cognitive cost to the `mcp-ui`/`a2ui` cases below; that was wrong — an independent audit measured
+ * that extracting `parseUsageEvent` alone drops cognitive from 11 to 3, which only makes sense if
+ * `usage` was the real source. `mcp-ui`/`a2ui` are one-line unwraps with zero branching, exactly as
+ * their own comments already said.) Cyclomatic stays over by construction, not by accident: this is
+ * a flat `switch` over `RunProtocolEventWire`'s closed `payload.type` vocabulary, one `case` per
+ * wire type, and cyclomatic counts every `case` as a branch regardless of shape. Tried and rejected:
+ * a `Record<string, (payload) => AgentEvent | null>` lookup table scores lower but loses two things
+ * a switch over a TS discriminated union keeps — exhaustiveness checking (a lookup table compiles
+ * with a missing key; this switch does not, once `payload.type` is narrowed to the real union rather
+ * than the wire's untyped `string`), and the ability to attach a multi-paragraph comment to one case
+ * explaining a specific interop bug (the `mcp-ui`/`a2ui` cases' comments each document why THAT case
+ * cannot fall through to `default` — see below). A lookup table would have to carry those as a
+ * parallel structure, one step removed from the code they explain. Left as a `switch`, documented
+ * here rather than only in this session's report.
  */
 export function translateRunAgentPayload(payload: RunAgentPayload): AgentEvent | null {
   switch (payload.type) {
@@ -104,16 +128,8 @@ export function translateRunAgentPayload(payload: RunAgentPayload): AgentEvent |
         content: asString(payload.content),
         isError: Boolean(payload.isError),
       };
-    case "usage": {
-      const usage = (payload.usage ?? {}) as Record<string, unknown>;
-      return {
-        kind: "usage",
-        inputTokens: typeof usage.input_tokens === "number" ? usage.input_tokens : undefined,
-        outputTokens: typeof usage.output_tokens === "number" ? usage.output_tokens : undefined,
-        costUsd: typeof payload.costUsd === "number" ? payload.costUsd : undefined,
-        durationMs: typeof payload.durationMs === "number" ? payload.durationMs : undefined,
-      };
-    }
+    case "usage":
+      return parseUsageEvent(payload);
     case "raw":
       return { kind: "raw", line: asString(payload.line) };
     // An MCP content block the daemon withheld from the tool result because it is for the HUMAN,
