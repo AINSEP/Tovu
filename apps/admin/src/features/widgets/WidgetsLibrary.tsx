@@ -21,6 +21,23 @@ export interface WidgetsLibraryProps {
   useWidgetsLibraryHook?: typeof useWidgetsLibrary;
 }
 
+/** The list screen's two independent notices — a fetch/action error, and how many rows the server
+ *  sent back that couldn't be displayed — pulled out of `WidgetsLibrary`'s own render body as a
+ *  top-level component under the tightened ≤9/≤9 pass. `skippedCount`'s own singular/plural
+ *  ternary is part of the same extraction, since it only exists inside this notice. */
+export function WidgetsLibraryNotices({ error, skippedCount }: { error: string | null; skippedCount: number }) {
+  return (
+    <>
+      {error ? <div className="notice error">{error}</div> : null}
+      {skippedCount > 0 ? (
+        <div className="notice">
+          {skippedCount === 1 ? "1 row could not be displayed." : `${skippedCount} rows could not be displayed.`}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 export function WidgetsLibrary({ useWidgetsLibraryHook = useWidgetsLibrary }: WidgetsLibraryProps = {}) {
   const {
     widgets,
@@ -62,14 +79,7 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWidgetsLibrary }: Wi
           </a>
         </div>
       </div>
-      {error ? <div className="notice error">{error}</div> : null}
-      {skippedCount > 0 ? (
-        <div className="notice">
-          {skippedCount === 1
-            ? "1 row could not be displayed."
-            : `${skippedCount} rows could not be displayed.`}
-        </div>
-      ) : null}
+      <WidgetsLibraryNotices error={error} skippedCount={skippedCount} />
       <DataTable
         rows={widgets}
         rowKey={(widget) => widget.id}
