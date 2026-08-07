@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useSelectDropdown, type SelectOption } from "./Select.hooks";
+import { useSelectDropdown, type PanelPosition, type SelectOption } from "./Select.hooks";
 import "../../styles/select.css";
 
 /**
@@ -47,6 +47,133 @@ export interface SelectProps {
   useDropdown?: typeof useSelectDropdown;
 }
 
+/** One row of the option list — the `isSelected`/`isHighlighted` derivation, the option's
+ *  className chain, and the "show a checkmark" branch, pulled out of `SelectPanel`'s `.map()` as a
+ *  top-level component per this pass's extraction rule (§2 of the complexity-ceiling brief: extract
+ *  to a named function, never a closure nested inside the thing being measured). Purely
+ *  presentational — every value it needs is a prop, nothing here reaches back into `useDropdown`'s
+ *  state directly. */
+function SelectOptionRow({
+  option,
+  index,
+  isSelected,
+  isHighlighted,
+  optionId,
+  setOptionRef,
+  onHighlight,
+  onSelect,
+}: {
+  option: SelectOption;
+  index: number;
+  isSelected: boolean;
+  isHighlighted: boolean;
+  optionId: string;
+  setOptionRef: (index: number, el: HTMLLIElement | null) => void;
+  onHighlight: (index: number) => void;
+  onSelect: (option: SelectOption) => void;
+}) {
+  return (
+    <li
+      ref={(el) => setOptionRef(index, el)}
+      id={optionId}
+      role="option"
+      aria-selected={isSelected}
+      className={`select-option${isSelected ? " is-selected" : ""}${isHighlighted ? " is-highlighted" : ""}`}
+      onMouseEnter={() => onHighlight(index)}
+      onClick={() => onSelect(option)}
+    >
+      <span className="select-option-label">{option.label}</span>
+      {isSelected ? (
+        <svg className="select-option-check" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M3.5 8.5 6.5 11.5 12.5 4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : null}
+    </li>
+  );
+}
+
+/** The floating panel's whole contents — search input, empty state, and option list — pulled out
+ *  of `Select` as a top-level component (same extraction rule as `SelectOptionRow`, above). `Select`
+ *  itself now only decides *whether* to portal this in; everything about what's inside the portal
+ *  lives in this component's own scope instead of nested inside `Select`'s body. Rendered only when
+ *  `open && position` (checked by the caller), so `position` here is never null. */
+function SelectPanel({
+  panelRef,
+  position,
+  showSearch,
+  searchInputRef,
+  query,
+  setQuery,
+  filtered,
+  value,
+  highlightedIndex,
+  listboxId,
+  optionId,
+  setOptionRef,
+  onHighlight,
+  onSelect,
+  onKeyDown,
+}: {
+  panelRef: React.RefObject<HTMLDivElement | null>;
+  position: PanelPosition;
+  showSearch: boolean;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
+  query: string;
+  setQuery: (query: string) => void;
+  filtered: SelectOption[];
+  value: string;
+  highlightedIndex: number;
+  listboxId: string;
+  optionId: (index: number) => string;
+  setOptionRef: (index: number, el: HTMLLIElement | null) => void;
+  onHighlight: (index: number) => void;
+  onSelect: (option: SelectOption) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+}) {
+  return (
+    <div
+      ref={panelRef}
+      className="select-panel"
+      style={{ left: position.left, width: position.width, top: position.top, bottom: position.bottom, maxHeight: position.maxHeight }}
+      tabIndex={-1}
+      onKeyDown={onKeyDown}
+    >
+      {showSearch ? (
+        <input
+          ref={searchInputRef}
+          type="text"
+          className="select-search"
+          aria-label="Search options"
+          placeholder="Search…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      ) : null}
+      <ul className="select-list" role="listbox" id={listboxId}>
+        {filtered.length === 0 ? (
+          <li className="select-empty" role="presentation">
+            No matches
+          </li>
+        ) : (
+          filtered.map((option, index) => (
+            <SelectOptionRow
+              key={option.value}
+              option={option}
+              index={index}
+              isSelected={option.value === value}
+              isHighlighted={index === highlightedIndex}
+              optionId={optionId(index)}
+              setOptionRef={setOptionRef}
+              onHighlight={onHighlight}
+              onSelect={onSelect}
+            />
+          ))
+        )}
+      </ul>
+    </div>
+  );
+}
+
 export function Select(props: SelectProps) {
   const { value, onChange, options, placeholder, id, disabled, useDropdown = useSelectDropdown } = props;
   const ariaLabel = props["aria-label"];
@@ -75,6 +202,11 @@ export function Select(props: SelectProps) {
     setQuery,
   } = useDropdown({ value, onChange, options, disabled });
 
+  function setOptionRef(index: number, el: HTMLLIElement | null) {
+    if (el) optionRefs.current.set(index, el);
+    else optionRefs.current.delete(index);
+  }
+
   return (
     <>
       <button
@@ -101,59 +233,23 @@ export function Select(props: SelectProps) {
 
       {open && position
         ? createPortal(
-            <div
-              ref={panelRef}
-              className="select-panel"
-              style={{ left: position.left, width: position.width, top: position.top, bottom: position.bottom, maxHeight: position.maxHeight }}
-              tabIndex={-1}
+            <SelectPanel
+              panelRef={panelRef}
+              position={position}
+              showSearch={showSearch}
+              searchInputRef={searchInputRef}
+              query={query}
+              setQuery={setQuery}
+              filtered={filtered}
+              value={value}
+              highlightedIndex={highlightedIndex}
+              listboxId={listboxId}
+              optionId={optionId}
+              setOptionRef={setOptionRef}
+              onHighlight={setHighlightedIndex}
+              onSelect={selectOption}
               onKeyDown={handlePanelKeyDown}
-            >
-              {showSearch ? (
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  className="select-search"
-                  aria-label="Search options"
-                  placeholder="Search…"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-              ) : null}
-              <ul className="select-list" role="listbox" id={listboxId}>
-                {filtered.length === 0 ? (
-                  <li className="select-empty" role="presentation">
-                    No matches
-                  </li>
-                ) : (
-                  filtered.map((option, index) => {
-                    const isSelected = option.value === value;
-                    const isHighlighted = index === highlightedIndex;
-                    return (
-                      <li
-                        key={option.value}
-                        ref={(el) => {
-                          if (el) optionRefs.current.set(index, el);
-                          else optionRefs.current.delete(index);
-                        }}
-                        id={optionId(index)}
-                        role="option"
-                        aria-selected={isSelected}
-                        className={`select-option${isSelected ? " is-selected" : ""}${isHighlighted ? " is-highlighted" : ""}`}
-                        onMouseEnter={() => setHighlightedIndex(index)}
-                        onClick={() => selectOption(option)}
-                      >
-                        <span className="select-option-label">{option.label}</span>
-                        {isSelected ? (
-                          <svg className="select-option-check" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                            <path d="M3.5 8.5 6.5 11.5 12.5 4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        ) : null}
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            </div>,
+            />,
             document.body
           )
         : null}
