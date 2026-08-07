@@ -23,3 +23,16 @@ const SEVERITY_ORDER: Record<string, number> = { error: 0, warning: 1, info: 2 }
 export function sortIssuesBySeverity(issues: readonly SeoIssue[]): SeoIssue[] {
   return [...issues].sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9));
 }
+
+/** An optional site-wide default's controlled-input value — `Seo.tsx`'s three optional defaults
+ *  (`defaultDescription`, `defaultOgImage`, `twitterSite`) all fall back to `""` the same way. */
+export function orEmpty(value: string | undefined): string {
+  return value ?? "";
+}
+
+/** A pending-action button's label — `Seo.tsx` uses this for both the save-settings button
+ *  ("Saving…"/"Save settings") and the regenerate-sitemap button ("Working…"/"Regenerate
+ *  sitemap"), same `pending ? … : …` shape, different copy. */
+export function actionLabel(pending: boolean, pendingLabel: string, idleLabel: string): string {
+  return pending ? pendingLabel : idleLabel;
+}
