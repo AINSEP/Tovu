@@ -1,7 +1,14 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buildOptionId, computePosition, focusableInDomOrder, useSelectDropdown, type SelectOption } from "../Select/Select.hooks";
+import {
+  buildOptionId,
+  computePosition,
+  focusableInDomOrder,
+  resolveTabTarget,
+  useSelectDropdown,
+  type SelectOption,
+} from "../Select/Select.hooks";
 
 /**
  * @file `Select.hooks.tsx` — the pure DOM helpers (`buildOptionId`, `computePosition`,
@@ -99,6 +106,36 @@ describe("focusableInDomOrder", () => {
   it("returns every focusable element when exclude is null", () => {
     document.body.innerHTML = `<button id="only">x</button>`;
     expect(focusableInDomOrder(null).map((el) => el.id)).toEqual(["only"]);
+  });
+});
+
+describe("resolveTabTarget", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  // `Select.unit.test.tsx`'s "Tab moves focus..." / "Shift+Tab moves focus..." / "Tab closes the
+  // panel without moving focus..." tests already pin this behavior end-to-end through a real
+  // keydown; these three exercise the extracted function's own math directly, per this pass's rule
+  // that every top-level extraction gets a direct unit test.
+  it("returns the trigger's next DOM-order neighbour when moving forward", () => {
+    document.body.innerHTML = `<button id="before">before</button><button id="trigger">trigger</button><button id="after">after</button>`;
+    const trigger = document.getElementById("trigger")!;
+    const target = resolveTabTarget(null, trigger, false);
+    expect(target?.id).toBe("after");
+  });
+
+  it("returns the trigger's previous DOM-order neighbour when shiftKey is set", () => {
+    document.body.innerHTML = `<button id="before">before</button><button id="trigger">trigger</button><button id="after">after</button>`;
+    const trigger = document.getElementById("trigger")!;
+    const target = resolveTabTarget(null, trigger, true);
+    expect(target?.id).toBe("before");
+  });
+
+  it("returns null when the trigger cannot be found among the focusable nodes", () => {
+    document.body.innerHTML = `<button id="only">only</button>`;
+    const trigger = document.createElement("button"); // never attached to the DOM
+    expect(resolveTabTarget(null, trigger, false)).toBeNull();
   });
 });
 
