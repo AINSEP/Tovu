@@ -294,6 +294,18 @@ describe("describeApiError", () => {
     expect(describeApiError(new ApiError("", 500, "SOMETHING_ELSE"), "fallback")).toBe("fallback");
   });
 
+  /**
+   * Regression guard for the if-chain-to-lookup-table conversion. The chain this table replaced
+   * compared `e.code === "FORBIDDEN"` and friends, and comparing an absent code to a string is
+   * simply false, so a code-less `ApiError` fell through to the shared default. A lookup table
+   * *indexes* instead, and `ApiError.code` is declared `code?: string` — which both broke the
+   * build (TS2538) and, once guarded, moved the no-code case onto a branch nothing asserted.
+   */
+  it("an ApiError carrying no code at all falls through to the shared default", () => {
+    expect(describeApiError(new ApiError("server exploded", 500), "fallback")).toBe("server exploded");
+    expect(describeApiError(new ApiError("", 500), "fallback")).toBe("fallback");
+  });
+
   it("a non-ApiError value falls through to the shared default", () => {
     expect(describeApiError(new Error("plain error"), "fallback")).toBe("plain error");
     expect(describeApiError("not an error at all", "fallback")).toBe("fallback");
