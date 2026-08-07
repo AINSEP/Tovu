@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { Pages } from "../Pages";
+import { Pages, pagesListNotice } from "../Pages";
 import type { PagesController } from "../hooks/use-pages.hooks";
 import { navigate } from "../../../lib/router";
 import type { AdminPost } from "../../../lib/api";
@@ -188,5 +188,30 @@ describe("delete confirmation dialog", () => {
   it("is not pending when rowSavingId belongs to a different row", () => {
     renderWith({ pages: [PAGE], pendingDelete: PAGE, rowSavingId: "some-other-id" });
     expect(screen.getByRole("button", { name: "Move to trash" })).not.toBeDisabled();
+  });
+});
+
+/**
+ * `pagesListNotice` — pulled out of `Pages` (2026-08-06, complexity pass, fourth pass; see its own
+ * doc). The states above already exercise it end to end through the full component; these pin the
+ * function's own branch decisions directly, no render involved.
+ */
+describe("pagesListNotice", () => {
+  it("returns the error notice when there is an error and no list yet", () => {
+    expect(pagesListNotice(null, "boom")).not.toBeNull();
+  });
+
+  it("returns the loading notice when there is no list and no error", () => {
+    expect(pagesListNotice(null, null)).not.toBeNull();
+  });
+
+  it("prioritizes the error branch over the loading branch when both conditions could apply", () => {
+    render(<>{pagesListNotice(null, "boom")}</>);
+    expect(screen.getByText("boom")).toBeInTheDocument();
+    expect(screen.queryByText("Loading pages…")).not.toBeInTheDocument();
+  });
+
+  it("returns null once the list has loaded, even with an error set (the inline-banner case)", () => {
+    expect(pagesListNotice([], "a later error")).toBeNull();
   });
 });
