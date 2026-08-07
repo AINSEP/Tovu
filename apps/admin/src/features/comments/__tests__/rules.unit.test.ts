@@ -6,6 +6,8 @@ import {
   commentRowMenuItems,
   describeModerationError,
   emptyRowState,
+  parseCloseAfterDays,
+  parseOptionalNumber,
   truncate,
   validateSettingsPatch,
 } from "../rules";
@@ -223,6 +225,37 @@ describe("buildSettingsPatch", () => {
       current: SETTINGS,
     });
     expect(patch).toEqual({ maxDepth: 8, spamAutoRejectScore: 0.9, maxPerIpPerHour: 25 });
+  });
+});
+
+describe("parseOptionalNumber", () => {
+  it("treats a blank string as no opinion", () => {
+    expect(parseOptionalNumber("")).toBeUndefined();
+  });
+
+  it("treats a non-numeric string as no opinion", () => {
+    expect(parseOptionalNumber("not-a-number")).toBeUndefined();
+  });
+
+  it("parses a numeric string, including 0 and negatives", () => {
+    expect(parseOptionalNumber("8")).toBe(8);
+    expect(parseOptionalNumber("0")).toBe(0);
+    expect(parseOptionalNumber("-3")).toBe(-3);
+  });
+});
+
+describe("parseCloseAfterDays", () => {
+  it("REQ-10: a blank (or whitespace-only) raw value is null — never closes", () => {
+    expect(parseCloseAfterDays("")).toBeNull();
+    expect(parseCloseAfterDays("   ")).toBeNull();
+  });
+
+  it("a non-numeric raw value is undefined — no opinion, not a patch value", () => {
+    expect(parseCloseAfterDays("not-a-number")).toBeUndefined();
+  });
+
+  it("parses a positive numeric string", () => {
+    expect(parseCloseAfterDays("14")).toBe(14);
   });
 });
 
