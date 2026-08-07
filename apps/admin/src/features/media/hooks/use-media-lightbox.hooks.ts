@@ -43,6 +43,60 @@ export interface MediaLightboxController {
   goToNext: () => void;
 }
 
+/** `<dialog>` may not support `showModal()` in a test/older-browser environment — falls back to the
+ *  `open` attribute directly. Guards against calling `showModal()` on an already-open dialog, which
+ *  throws `InvalidStateError` in real browsers. Extracted out of the open/close effect below (was
+ *  its most deeply-nested branch) so it can be driven directly against a real `HTMLDialogElement`
+ *  without mounting `MediaLightbox`. */
+export function openDialog(dialog: HTMLDialogElement): void {
+  if (typeof dialog.showModal === "function") {
+    if (!dialog.open) dialog.showModal();
+  } else {
+    dialog.setAttribute("open", "");
+  }
+}
+
+/** The close-side mirror of {@link openDialog} — same fallback and already-closed guard. */
+export function closeDialog(dialog: HTMLDialogElement): void {
+  if (typeof dialog.close === "function") {
+    if (dialog.open) dialog.close();
+  } else {
+    dialog.removeAttribute("open");
+  }
+}
+
+/**
+ * The open/close effect's own body, extracted to a top-level function rather than left as the
+ * nested closure `useEffect` originally held. That nesting — an `if/else` for open-vs-closed, each
+ * branch itself calling into a guarded `if/else` for the fallback check — was this hook's most
+ * expensive shape under cognitive complexity (each nesting level adds its own penalty on top of the
+ * branch itself); the same branches read flat once `openDialog`/`closeDialog` carry their own
+ * nested guard instead of it living inline here.
+ *
+ * @param triggerRef Written to (not just read) on open — this is where "which element opened the
+ * dialog" gets captured, before focus moves into it.
+ */
+export function syncLightboxDialog(
+  dialog: HTMLDialogElement,
+  isOpen: boolean,
+  triggerRef: React.RefObject<Element | null>,
+  closeRef: React.RefObject<HTMLButtonElement | null>
+): void {
+  if (isOpen) {
+    triggerRef.current = document.activeElement;
+    openDialog(dialog);
+    // Focus the close action, not whichever nav arrow happens to render first — a single-item
+    // grid has no nav arrows at all, and the close button is the one control guaranteed to
+    // exist regardless of position in the list, so it's a stable, always-available focus target
+    // (same reasoning as `ConfirmDialog` explicitly choosing Cancel over letting the browser's
+    // showModal() default land wherever it likes).
+    closeRef.current?.focus();
+  } else {
+    closeDialog(dialog);
+    if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
+  }
+}
+
 /**
  * @complexity O(1) per open/close/navigate — one `showModal`/`close` call per open/close
  * transition, one array index bounds check per arrow-key or arrow-button press.
@@ -65,27 +119,7 @@ export function useMediaLightbox(props: MediaLightboxHookProps): MediaLightboxCo
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (isOpen) {
-      triggerRef.current = document.activeElement;
-      if (typeof dialog.showModal === "function") {
-        if (!dialog.open) dialog.showModal();
-      } else {
-        dialog.setAttribute("open", "");
-      }
-      // Focus the close action, not whichever nav arrow happens to render first — a single-item
-      // grid has no nav arrows at all, and the close button is the one control guaranteed to
-      // exist regardless of position in the list, so it's a stable, always-available focus target
-      // (same reasoning as `ConfirmDialog` explicitly choosing Cancel over letting the browser's
-      // showModal() default land wherever it likes).
-      closeRef.current?.focus();
-    } else {
-      if (typeof dialog.close === "function") {
-        if (dialog.open) dialog.close();
-      } else {
-        dialog.removeAttribute("open");
-      }
-      if (triggerRef.current instanceof HTMLElement) triggerRef.current.focus();
-    }
+    syncLightboxDialog(dialog, isOpen, triggerRef, closeRef);
     // Deliberately keyed on `isOpen`, not `activeIndex` — navigating to a different item while
     // already open changes `activeIndex` without an open/close transition, and re-running
     // `showModal()` on an already-open dialog would throw (`InvalidStateError`) in real browsers.
