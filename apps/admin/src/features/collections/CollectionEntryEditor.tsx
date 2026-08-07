@@ -35,7 +35,68 @@ function readExtSiteField(fieldsJson: unknown, name: string): unknown {
   return (site as Record<string, unknown>)[name];
 }
 
-/** One control per `ContentTypeFieldDef.kind` (design-spec.md §1.5). */
+/** A `DynamicField` control's own props, once the field/value/onChange triple has been narrowed
+ * down to the one input it renders. */
+interface FieldControlProps {
+  inputId: string;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}
+
+function TextFieldControl({ inputId, value, onChange }: FieldControlProps) {
+  return <input id={inputId} value={typeof value === "string" ? value : ""} onChange={(e) => onChange(e.target.value)} />;
+}
+
+function IntegerFieldControl({ inputId, value, onChange }: FieldControlProps) {
+  return (
+    <input
+      id={inputId}
+      type="number"
+      step="1"
+      value={typeof value === "number" ? value : ""}
+      onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+    />
+  );
+}
+
+function RealFieldControl({ inputId, value, onChange }: FieldControlProps) {
+  return (
+    <input
+      id={inputId}
+      type="number"
+      value={typeof value === "number" ? value : ""}
+      onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+    />
+  );
+}
+
+function BooleanFieldControl({ inputId, value, onChange }: FieldControlProps) {
+  return <input id={inputId} type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} />;
+}
+
+function DatetimeFieldControl({ inputId, value, onChange }: FieldControlProps) {
+  return (
+    <input
+      id={inputId}
+      type="datetime-local"
+      value={typeof value === "string" ? value : ""}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
+/** One control per `ContentTypeFieldDef.kind` (design-spec.md §1.5). A `Record` keyed by the
+ * closed `kind` union rather than a switch/ternary chain — same exhaustiveness guarantee (add a
+ * kind to the union and `tsc` rejects this object until a control is added for it), but as a flat
+ * lookup instead of nested conditionals. */
+const FIELD_CONTROLS: Record<ContentTypeFieldDef["kind"], (props: FieldControlProps) => React.JSX.Element> = {
+  text: TextFieldControl,
+  integer: IntegerFieldControl,
+  real: RealFieldControl,
+  boolean: BooleanFieldControl,
+  datetime: DatetimeFieldControl,
+};
+
 function DynamicField(props: {
   field: ContentTypeFieldDef;
   value: unknown;
@@ -43,6 +104,7 @@ function DynamicField(props: {
 }) {
   const { field, value, onChange } = props;
   const inputId = `entry-field-${field.name}`;
+  const Control = FIELD_CONTROLS[field.kind];
 
   return (
     <div className="collections-dynamic-field">
@@ -50,33 +112,7 @@ function DynamicField(props: {
         {field.name}
         {field.required ? " *" : ""}
       </label>
-      {field.kind === "text" ? (
-        <input id={inputId} value={typeof value === "string" ? value : ""} onChange={(e) => onChange(e.target.value)} />
-      ) : field.kind === "integer" ? (
-        <input
-          id={inputId}
-          type="number"
-          step="1"
-          value={typeof value === "number" ? value : ""}
-          onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
-        />
-      ) : field.kind === "real" ? (
-        <input
-          id={inputId}
-          type="number"
-          value={typeof value === "number" ? value : ""}
-          onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
-        />
-      ) : field.kind === "boolean" ? (
-        <input id={inputId} type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} />
-      ) : (
-        <input
-          id={inputId}
-          type="datetime-local"
-          value={typeof value === "string" ? value : ""}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
+      <Control inputId={inputId} value={value} onChange={onChange} />
     </div>
   );
 }
@@ -133,6 +169,124 @@ function TermPicker(props: { taxonomies: AdminTaxonomyWithTerms[]; contentType: 
   );
 }
 
+/** The page-header action cluster: back link, save/error status, and the status-dependent
+ * Publish/Unpublish/Save button set. Split out of `CollectionEntryEditor` because this cluster
+ * alone carried most of that function's branching — the entry's lifecycle status governs which
+ * buttons and status pill are showing at once. */
+/** Publish/Unpublish/Save — split out of `EntryPageActions` because the status-dependent branch
+ * pairs (which lifecycle button shows, which class the Save button gets) alone pushed that
+ * function's branch count over the ceiling; this trio is one coherent unit of "buttons driven by
+ * publish state" on its own. */
+function EntryLifecycleButtons(props: {
+  entry: { status: string } | null | undefined;
+  saving: boolean;
+  onToggleLifecycle: (op: "publish" | "unpublish") => void;
+  onSave: () => void;
+}) {
+  const { entry, saving, onToggleLifecycle, onSave } = props;
+  const isPublished = entry?.status === "published";
+
+  return (
+    <>
+      {entry && !isPublished ? (
+        <button type="button" onClick={() => onToggleLifecycle("publish")}>
+          Publish
+        </button>
+      ) : null}
+      {/* Reversible-but-access-affecting (drops the entry off the site; still editable here,
+          still re-publishable) — `.btn-warning`, matching `Posts.tsx`/`Pages.tsx` RowMenu's
+          own Disable, not `.btn-danger`, which stays reserved for the genuinely destructive
+          trash action. */}
+      {entry && isPublished ? (
+        <button type="button" className="btn-warning" onClick={() => onToggleLifecycle("unpublish")}>
+          Unpublish
+        </button>
+      ) : null}
+      {/* Secondary while Publish is also showing (draft entries) so the two don't compete for
+          primary weight — mirrors `PostEditor.tsx`'s identical Save/Publish pairing exactly.
+          Once published, Publish is gone and Save is this screen's one remaining primary
+          action, so it goes back to bare/primary. */}
+      <button type="button" className={entry && !isPublished ? "btn-secondary" : undefined} onClick={onSave} disabled={saving}>
+        {saving ? "Saving…" : "Save"}
+      </button>
+    </>
+  );
+}
+
+function EntryPageActions(props: {
+  contentTypeKey: string;
+  contentTypeLabel: string;
+  entry: { status: string } | null | undefined;
+  message: string | null;
+  error: string | null;
+  saving: boolean;
+  onToggleLifecycle: (op: "publish" | "unpublish") => void;
+  onSave: () => void;
+}) {
+  const { contentTypeKey, contentTypeLabel, entry, message, error, saving, onToggleLifecycle, onSave } = props;
+
+  return (
+    <div className="page-actions">
+      <a href={`/admin/collections/${contentTypeKey}`}>
+        <button type="button" className="btn-secondary">
+          ← {contentTypeLabel}
+        </button>
+      </a>
+      {message ? <span className="save-ok">{message}</span> : null}
+      {error ? <span className="save-error">{error}</span> : null}
+      {entry ? <span className={`status status-${entry.status}`}>{entry.status}</span> : null}
+      <EntryLifecycleButtons entry={entry} saving={saving} onToggleLifecycle={onToggleLifecycle} onSave={onSave} />
+    </div>
+  );
+}
+
+/** The `/{slug}` row under the title: an existing entry's slug is immutable (plain text), a new
+ * entry's slug is an editable field. Split out of `CollectionEntryEditor` alongside the fields
+ * section below — both are self-contained "does this thing exist yet" branches that don't need
+ * anything else in the parent's scope. */
+function EntrySlugField(props: { entry: { slug: string } | null | undefined; slug: string; onSlugChange: (value: string) => void }) {
+  const { entry, slug, onSlugChange } = props;
+  return (
+    <div className="editor-slug">
+      /{" "}
+      {entry ? (
+        <span>{entry.slug}</span>
+      ) : (
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">Entry slug</span>
+          <input value={slug} onChange={(e) => onSlugChange(e.target.value)} placeholder="entry-slug" />
+        </label>
+      )}
+    </div>
+  );
+}
+
+/** The dynamic-fields section (design-spec.md §1.5) — hidden entirely when the content type
+ * defines no custom fields. */
+function EntryFieldsSection(props: {
+  fields: ContentTypeFieldDef[];
+  entry: { fieldsJson?: unknown } | null | undefined;
+  extFields: Record<string, unknown>;
+  onFieldChange: (name: string, value: unknown) => void;
+}) {
+  const { fields, entry, extFields, onFieldChange } = props;
+  if (fields.length === 0) return null;
+
+  return (
+    <div className="collections-dynamic-fields">
+      <h3>Fields</h3>
+      {fields.map((field) => (
+        <DynamicField
+          key={field.name}
+          field={field}
+          value={extFields[field.name] ?? readExtSiteField(entry?.fieldsJson, field.name)}
+          onChange={(value) => onFieldChange(field.name, value)}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: string | null }) {
   const {
     contentType,
@@ -167,42 +321,16 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
           <h1 className="page-title">{entry ? `Edit ${contentType.label} entry` : `New ${contentType.label} entry`}</h1>
           <p className="page-description">Update this entry&apos;s title, fields, and body.</p>
         </div>
-        <div className="page-actions">
-          <a href={`/admin/collections/${props.contentTypeKey}`}>
-            <button type="button" className="btn-secondary">
-              ← {contentType.label}
-            </button>
-          </a>
-          {message ? <span className="save-ok">{message}</span> : null}
-          {error ? <span className="save-error">{error}</span> : null}
-          {entry ? <span className={`status status-${entry.status}`}>{entry.status}</span> : null}
-          {entry && entry.status !== "published" ? (
-            <button type="button" onClick={() => toggleLifecycle("publish")}>
-              Publish
-            </button>
-          ) : null}
-          {/* Reversible-but-access-affecting (drops the entry off the site; still editable here,
-              still re-publishable) — `.btn-warning`, matching `Posts.tsx`/`Pages.tsx` RowMenu's
-              own Disable, not `.btn-danger`, which stays reserved for the genuinely destructive
-              trash action. */}
-          {entry && entry.status === "published" ? (
-            <button type="button" className="btn-warning" onClick={() => toggleLifecycle("unpublish")}>
-              Unpublish
-            </button>
-          ) : null}
-          {/* Secondary while Publish is also showing (draft entries) so the two don't compete for
-              primary weight — mirrors `PostEditor.tsx`'s identical Save/Publish pairing exactly.
-              Once published, Publish is gone and Save is this screen's one remaining primary
-              action, so it goes back to bare/primary. */}
-          <button
-            type="button"
-            className={entry && entry.status !== "published" ? "btn-secondary" : undefined}
-            onClick={save}
-            disabled={saving}
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-        </div>
+        <EntryPageActions
+          contentTypeKey={props.contentTypeKey}
+          contentTypeLabel={contentType.label}
+          entry={entry}
+          message={message}
+          error={error}
+          saving={saving}
+          onToggleLifecycle={toggleLifecycle}
+          onSave={save}
+        />
       </div>
 
       {/* Audit finding: placeholder-only, no `<label>` — same fix as `PostEditor.tsx`'s title/slug
@@ -212,17 +340,7 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
         <span className="visually-hidden">Entry title</span>
         <input className="editor-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Entry title" />
       </label>
-      <div className="editor-slug">
-        /{" "}
-        {entry ? (
-          <span>{entry.slug}</span>
-        ) : (
-          <label className="a11y-label-wrap">
-            <span className="visually-hidden">Entry slug</span>
-            <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="entry-slug" />
-          </label>
-        )}
-      </div>
+      <EntrySlugField entry={entry} slug={slug} onSlugChange={setSlug} />
 
       <div className="editor-shell">
         <div className="editor-toolbar" role="toolbar" aria-label="Formatting">
@@ -235,19 +353,12 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
         </div>
       </div>
 
-      {contentType.fields.length > 0 ? (
-        <div className="collections-dynamic-fields">
-          <h3>Fields</h3>
-          {contentType.fields.map((field) => (
-            <DynamicField
-              key={field.name}
-              field={field}
-              value={extFields[field.name] ?? readExtSiteField(entry?.fieldsJson, field.name)}
-              onChange={(value) => setExtFields((current) => ({ ...current, [field.name]: value }))}
-            />
-          ))}
-        </div>
-      ) : null}
+      <EntryFieldsSection
+        fields={contentType.fields}
+        entry={entry}
+        extFields={extFields}
+        onFieldChange={(name, value) => setExtFields((current) => ({ ...current, [name]: value }))}
+      />
 
       {entry ? <TermPicker taxonomies={taxonomies} contentType={props.contentTypeKey} contentId={entry.id} /> : null}
     </div>
