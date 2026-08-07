@@ -297,7 +297,10 @@ const STATIC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
 export function describeApiError(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
     if (e.code === "VALUE_VALIDATION_FAILED") return e.message || "That value did not validate.";
-    const staticMessage = STATIC_ERROR_MESSAGES[e.code];
+    // `ApiError.code` is optional (`code?: string`), so it cannot index the table directly. The
+    // guard restores the exact behavior of the if-chain this table replaced: an error with no
+    // `code` matched none of its `e.code === "..."` branches and fell through to the default.
+    const staticMessage = e.code === undefined ? undefined : STATIC_ERROR_MESSAGES[e.code];
     if (staticMessage) return staticMessage;
   }
   return describeApiErrorDefault(e, fallback);
