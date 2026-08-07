@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { WidgetInstanceEditor } from "../WidgetInstanceEditor";
+import { WidgetInstanceEditor, widgetInstanceGuard } from "../WidgetInstanceEditor";
+import type { AdminWidget } from "../../../lib/api";
 
 /**
  * @file `WidgetInstanceEditor` — pins the fix for the audit's Major finding on
@@ -53,5 +54,65 @@ describe("a known widget type on /widgets/new", () => {
 
     const titleInput = screen.getByLabelText("Widget title");
     expect(titleInput).toHaveAttribute("placeholder", "Widget title");
+  });
+});
+
+// Direct tests for the pure decision function pulled out of `WidgetInstanceEditor` in the
+// complexity pass (cyc 14/cog 11 -> 9/7) — the four early-exit states are now one top-level
+// function, testable without mounting the component or its hook.
+const FAKE_WIDGET = {
+  id: "w1",
+  workspaceId: "ws1",
+  slug: "hero-text",
+  title: "Hero text",
+  status: "active" as const,
+  widgetType: "text" as const,
+  config: { body: "hi" },
+  updatedAt: "2026-01-01",
+  version: 1,
+} satisfies AdminWidget;
+
+describe("widgetInstanceGuard", () => {
+  it("returns fetch-error when loading a widget failed and none is already loaded", () => {
+    expect(widgetInstanceGuard({ error: "boom", isNew: false, widget: null, loading: false, widgetType: "text" })).toEqual({
+      kind: "fetch-error",
+      message: "boom",
+    });
+  });
+
+  it("does NOT return fetch-error once a widget is loaded, even if a stale error is still set", () => {
+    // Mirrors the original inline guard's `!widget` condition: an error from a prior failed save
+    // must not blank out an already-rendered editor.
+    expect(widgetInstanceGuard({ error: "stale save error", isNew: false, widget: FAKE_WIDGET, loading: false, widgetType: "text" })).toBeNull();
+  });
+
+  it("does NOT return fetch-error on the new-widget screen, even with an error set", () => {
+    expect(widgetInstanceGuard({ error: "save failed", isNew: true, widget: null, loading: false, widgetType: "text" })).toBeNull();
+  });
+
+  it("returns loading whenever loading is true, ahead of the no-type/unknown-type checks", () => {
+    expect(widgetInstanceGuard({ error: null, isNew: false, widget: null, loading: true, widgetType: null })).toEqual({ kind: "loading" });
+  });
+
+  it("returns no-type when widgetType is null and not loading", () => {
+    expect(widgetInstanceGuard({ error: null, isNew: true, widget: null, loading: false, widgetType: null })).toEqual({ kind: "no-type" });
+  });
+
+  it("returns unknown-type for a garbage type on the NEW-widget screen only", () => {
+    expect(widgetInstanceGuard({ error: null, isNew: true, widget: null, loading: false, widgetType: "garbage-nonsense" })).toEqual({
+      kind: "unknown-type",
+      widgetType: "garbage-nonsense",
+    });
+  });
+
+  it("does NOT check unknown-type for an already-loaded widget (server validated it at creation)", () => {
+    expect(
+      widgetInstanceGuard({ error: null, isNew: false, widget: FAKE_WIDGET, loading: false, widgetType: "garbage-nonsense" }),
+    ).toBeNull();
+  });
+
+  it("returns null (no guard) once everything is ready to render the full editor shell", () => {
+    expect(widgetInstanceGuard({ error: null, isNew: false, widget: FAKE_WIDGET, loading: false, widgetType: "text" })).toBeNull();
+    expect(widgetInstanceGuard({ error: null, isNew: true, widget: null, loading: false, widgetType: "text" })).toBeNull();
   });
 });
