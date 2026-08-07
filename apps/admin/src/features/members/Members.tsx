@@ -1,8 +1,9 @@
 import { Fragment } from "react";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import type { AdminMember } from "../../lib/api";
 import { formatTimestamp } from "../../lib/format-timestamp";
 
-import { memberRowMenuItems } from "./rules";
+import { memberRowMenuItems, type RowActionState } from "./rules";
 import { useMembers } from "./hooks/use-members.hooks";
 
 /**
@@ -32,6 +33,111 @@ export interface MembersProps {
    * nothing and behave exactly as before.
    */
   useMembersHook?: typeof useMembers;
+}
+
+interface MemberDetailPanelProps {
+  memberId: string;
+  detailLoadingId: string | null;
+  detailError: string | null;
+  detail: AdminMember | undefined;
+}
+
+/** The expanded row's detail panel — one of "loading" / "error" / the fetched fields / nothing
+ *  yet, extracted out of `MemberRow` so its three-way branch isn't counted in `MemberRow`'s own
+ *  scope. Same "the panel, not the row, was the actual size" split `Users.tsx`'s
+ *  `UserRow` -> `UserManagePanel` and `Roles.tsx`'s `PolicyRow` -> `PolicyRowActions` already use. */
+function MemberDetailPanel({ memberId, detailLoadingId, detailError, detail }: MemberDetailPanelProps) {
+  if (detailLoadingId === memberId) return <div className="notice">Loading detail…</div>;
+  if (detailError) return <div className="notice error">{detailError}</div>;
+  if (!detail) return null;
+  return (
+    <dl className="member-detail">
+      <dt>ID</dt>
+      <dd>{detail.id}</dd>
+      <dt>Email verified</dt>
+      <dd>{detail.emailVerifiedAt ?? "not verified"}</dd>
+      <dt>Updated</dt>
+      <dd>{detail.updatedAt}</dd>
+      <dt>Version</dt>
+      <dd>{detail.version}</dd>
+    </dl>
+  );
+}
+
+interface MemberRowProps {
+  member: AdminMember;
+  rowState: RowActionState;
+  isExpanded: boolean;
+  detail: AdminMember | undefined;
+  detailError: string | null;
+  detailLoadingId: string | null;
+  onToggleDetail: (member: AdminMember) => Promise<void>;
+  onResendSignInLink: (member: AdminMember) => Promise<void>;
+  setConfirmingDisable: (member: AdminMember) => void;
+}
+
+/** One member's row plus its optional expanded detail row — extracted from `Members`'s
+ *  `.map()` body verbatim, same convention `Users.tsx`'s `UserRow`/`Roles.tsx`'s `PolicyRow` use.
+ *  `key` lives on the `<MemberRow>` element at the call site. */
+function MemberRow({
+  member,
+  rowState,
+  isExpanded,
+  detail,
+  detailError,
+  detailLoadingId,
+  onToggleDetail,
+  onResendSignInLink,
+  setConfirmingDisable,
+}: MemberRowProps) {
+  return (
+    <Fragment key={member.id}>
+      <tr>
+        <td>
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => void onToggleDetail(member)}
+            aria-expanded={isExpanded}
+          >
+            {member.email}
+          </button>
+        </td>
+        <td>{member.name ?? "—"}</td>
+        <td>
+          <span className={`status status-${member.status}`}>{member.status}</span>
+        </td>
+        <td>{formatTimestamp(member.createdAt)}</td>
+        <td>
+          <RowMenu
+            triggerLabel={`Actions for member "${member.email}"`}
+            items={memberRowMenuItems(member, rowState, {
+              onResendSignInLink: (m) => void onResendSignInLink(m),
+              onRequestDisable: setConfirmingDisable,
+            })}
+          />
+          {rowState.error ? (
+            <div className="notice error" role="alert">
+              {rowState.error}
+            </div>
+          ) : null}
+          {rowState.notice ? <div className="notice">{rowState.notice}</div> : null}
+        </td>
+      </tr>
+      {isExpanded ? (
+        <tr>
+          <td colSpan={5}>
+            <MemberDetailPanel
+              memberId={member.id}
+              detailLoadingId={detailLoadingId}
+              detailError={detailError}
+              detail={detail}
+            />
+          </td>
+        </tr>
+      ) : null}
+    </Fragment>
+  );
 }
 
 export function Members({ useMembersHook = useMembers }: MembersProps = {}) {
@@ -83,69 +189,20 @@ export function Members({ useMembersHook = useMembers }: MembersProps = {}) {
           </tr>
         </thead>
         <tbody>
-          {members.map((member) => {
-            const rs = stateFor(member.id);
-            const isExpanded = expandedId === member.id;
-            const detail = detailById[member.id];
-            return (
-              <Fragment key={member.id}>
-                <tr>
-                  <td>
-                    <button
-                      type="button"
-                      className="link-button"
-                      onClick={() => void onToggleDetail(member)}
-                      aria-expanded={isExpanded}
-                    >
-                      {member.email}
-                    </button>
-                  </td>
-                  <td>{member.name ?? "—"}</td>
-                  <td>
-                    <span className={`status status-${member.status}`}>{member.status}</span>
-                  </td>
-                  <td>{formatTimestamp(member.createdAt)}</td>
-                  <td>
-                    <RowMenu
-                      triggerLabel={`Actions for member "${member.email}"`}
-                      items={memberRowMenuItems(member, rs, {
-                        onResendSignInLink: (m) => void onResendSignInLink(m),
-                        onRequestDisable: setConfirmingDisable,
-                      })}
-                    />
-                    {rs.error ? (
-                      <div className="notice error" role="alert">
-                        {rs.error}
-                      </div>
-                    ) : null}
-                    {rs.notice ? <div className="notice">{rs.notice}</div> : null}
-                  </td>
-                </tr>
-                {isExpanded ? (
-                  <tr>
-                    <td colSpan={5}>
-                      {detailLoadingId === member.id ? (
-                        <div className="notice">Loading detail…</div>
-                      ) : detailError ? (
-                        <div className="notice error">{detailError}</div>
-                      ) : detail ? (
-                        <dl className="member-detail">
-                          <dt>ID</dt>
-                          <dd>{detail.id}</dd>
-                          <dt>Email verified</dt>
-                          <dd>{detail.emailVerifiedAt ?? "not verified"}</dd>
-                          <dt>Updated</dt>
-                          <dd>{detail.updatedAt}</dd>
-                          <dt>Version</dt>
-                          <dd>{detail.version}</dd>
-                        </dl>
-                      ) : null}
-                    </td>
-                  </tr>
-                ) : null}
-              </Fragment>
-            );
-          })}
+          {members.map((member) => (
+            <MemberRow
+              key={member.id}
+              member={member}
+              rowState={stateFor(member.id)}
+              isExpanded={expandedId === member.id}
+              detail={detailById[member.id]}
+              detailError={detailError}
+              detailLoadingId={detailLoadingId}
+              onToggleDetail={onToggleDetail}
+              onResendSignInLink={onResendSignInLink}
+              setConfirmingDisable={setConfirmingDisable}
+            />
+          ))}
         </tbody>
       </table>
       </div>
