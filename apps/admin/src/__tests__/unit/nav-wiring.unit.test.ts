@@ -58,3 +58,21 @@ describe("'authentication' sits directly between 'users' and 'roles' in the Peop
     expect(rolesIndex).toBe(authIndex + 1);
   });
 });
+
+describe("Commerce nav section", () => {
+  it("exists with exactly Payments, Orders, Products in that order", () => {
+    const commerce = getNav().find((group) => group.label === "Commerce");
+    expect(commerce).toBeDefined();
+
+    const ids = commerce!.items.map((item) => item.id);
+    expect(ids).toEqual(["payments", "orders", "products"]);
+  });
+
+  it("no longer lists Payments under People", () => {
+    const people = getNav().find((group) => group.label === "People");
+    expect(people).toBeDefined();
+
+    const ids = people!.items.map((item) => item.id);
+    expect(ids).not.toContain("payments");
+  });
+});

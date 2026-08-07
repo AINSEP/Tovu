@@ -362,12 +362,24 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     agentReachable: true,
   },
   {
+    id: "comments",
+    render: () => <Comments />,
+    nav: {
+      label: "Comments",
+      group: "People",
+      icon: '<path d="M3 4h12v8H8l-3 3v-3H3V4z"/>',
+    },
+    agentReachable: true,
+  },
+
+  // --- Commerce ---
+  {
     id: "payments",
-    // Sits in People, next to Members, because that is what it actually bills: the payment
-    // machinery that exists today is `member_tiers`/`member_subscriptions` plus the `lipay` plugin's
-    // providers. If a storefront surfaces later (`p_store__orders` already exists as a table), this
-    // and Orders likely move together into a Commerce group — that is a reshuffle worth doing once,
-    // when there is something to group, rather than pre-creating a one-row section now.
+    // Moved out of People (see git history for the prior comment anticipating exactly this move):
+    // the payment machinery that exists today is `member_tiers`/`member_subscriptions` plus the
+    // `lipay` plugin's providers, but it bills a storefront now that `p_store__products`/
+    // `p_store__orders` are real tables (`store-plugin.ts`), so it groups with Orders and Products
+    // rather than with Members.
     render: () => (
       <PlaceholderTabs
         sectionId="payments"
@@ -380,21 +392,43 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     ),
     nav: {
       label: "Payments",
-      group: "People",
+      group: "Commerce",
       soon: true,
       soonPreviewable: true,
       icon: '<rect x="2" y="4" width="14" height="10" rx="1.5"/><path d="M2 7.5h14"/><path d="M4.5 11h3"/>',
     },
   },
   {
-    id: "comments",
-    render: () => <Comments />,
+    id: "orders",
+    // No screen yet — `soon: true` + `Placeholder`, the same shape `skills`/`newsletter`/
+    // `design-system` already use for a genuinely unbuilt-but-real nav entry. `p_store__orders`
+    // exists as a table (`store-plugin.ts`) but there is no admin API or screen for it yet, so this
+    // is NOT a `PlaceholderTabs` entry the way `payments`/`deployment`/`authentication` are — those
+    // three preview real named sub-integrations (Stripe/PayPal, GitHub/AWS, Google/Facebook/
+    // LinkedIn); Orders has no such sub-list, so it gets the plain single-page placeholder instead,
+    // and `soonPreviewable` is correspondingly omitted (it only means something for a real link, and
+    // a plain `Placeholder` renders the same "coming soon" body either way).
+    render: () => <Placeholder sectionId="orders" />,
     nav: {
-      label: "Comments",
-      group: "People",
-      icon: '<path d="M3 4h12v8H8l-3 3v-3H3V4z"/>',
+      label: "Orders",
+      group: "Commerce",
+      soon: true,
+      icon: '<rect x="3" y="2" width="10" height="14" rx="1.5"/><path d="M6 6h4M6 9h4"/><path d="M12 11.5l1.5 1.5 2.5-3"/>',
     },
-    agentReachable: true,
+    // Not agent-reachable: there is nothing built here yet for an agent to do.
+  },
+  {
+    id: "products",
+    // Same shape and reasoning as `orders` above: `p_store__products` exists as a table with rows
+    // in it (`store-plugin.ts`), but no admin API or screen exists yet.
+    render: () => <Placeholder sectionId="products" />,
+    nav: {
+      label: "Products",
+      group: "Commerce",
+      soon: true,
+      icon: '<path d="M9 2l6 3.2v7.6l-6 3.2-6-3.2V5.2L9 2z"/><path d="M3 5.2L9 8.4l6-3.2M9 8.4v7"/>',
+    },
+    // Not agent-reachable: there is nothing built here yet for an agent to do.
   },
 
   // --- Studio ---
