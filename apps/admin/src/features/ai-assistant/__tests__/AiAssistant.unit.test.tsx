@@ -130,10 +130,21 @@ describe("the not-yet-built roadmap accordion", () => {
   // would otherwise advertise an unbuilt feature that now exists.
   const EXPECTED = [/token \/ cost budget caps/i, /live status and recent activity/i];
 
+  // The roadmap moved from an accordion on the Visitor tab to its own "Not built yet" tab in
+  // 6c54aaf ("light theme, single scroller, roadmap tab, explicit Test Key") — a deliberate,
+  // browser-verified UX change, not a regression: interleaving the gap list with the visitor
+  // credential form pushed it below the fold. `SettingsDialogShell` renders every tab's nav button
+  // up front (`data-testid="settings-dialog-nav-<id>"`) regardless of which panel is active, so this
+  // helper switches to it before any of these tests query `.assistant-roadmap`.
+  async function openRoadmapTab() {
+    await waitFor(() => expect(theSwitch()).toBeInTheDocument());
+    await userEvent.click(screen.getByTestId("settings-dialog-nav-roadmap"));
+  }
+
   it("lists all three unbuilt controls, each marked as not implemented", async () => {
     serveSettings({ publicEnabled: false });
     const { container } = render(<AiAssistant />);
-    await waitFor(() => expect(theSwitch()).toBeInTheDocument());
+    await openRoadmapTab();
 
     // Scoped to the <summary> rows rather than a document-wide text query: the same phrases
     // deliberately appear again in the intro warning and in the sibling items' detail copy.
@@ -150,7 +161,7 @@ describe("the not-yet-built roadmap accordion", () => {
   it("renders every roadmap item as an inert unchecked box — no fake toggles", async () => {
     serveSettings({ publicEnabled: false });
     const { container } = render(<AiAssistant />);
-    await waitFor(() => expect(theSwitch()).toBeInTheDocument());
+    await openRoadmapTab();
 
     // Scoped to `.assistant-roadmap`, the same way the summary-row test above is, rather than
     // sweeping the document and subtracting the switches by identity. This assertion is about the
@@ -168,7 +179,7 @@ describe("the not-yet-built roadmap accordion", () => {
   it("expands to a one-line explanation of what each missing control would do", async () => {
     serveSettings({ publicEnabled: false });
     render(<AiAssistant />);
-    await waitFor(() => expect(theSwitch()).toBeInTheDocument());
+    await openRoadmapTab();
 
     expect(screen.getByText(/per-day and per-conversation spend ceilings/i)).toBeInTheDocument();
     expect(screen.getByText(/recent conversation counts, and spend to date/i)).toBeInTheDocument();
@@ -180,7 +191,7 @@ describe("the not-yet-built roadmap accordion", () => {
   it("warns, before anyone flips the switch, that there is no cost ceiling yet", async () => {
     serveSettings({ publicEnabled: false });
     render(<AiAssistant />);
-    await waitFor(() => expect(theSwitch()).toBeInTheDocument());
+    await openRoadmapTab();
 
     expect(screen.getByText(/without a cost ceiling/i)).toBeInTheDocument();
   });
