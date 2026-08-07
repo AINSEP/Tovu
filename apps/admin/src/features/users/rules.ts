@@ -36,7 +36,7 @@ const STATIC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
 export function describeApiError(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
     if (e.code === "VALIDATION_ERROR") return e.message || "Please correct the highlighted fields.";
-    const staticMessage = STATIC_ERROR_MESSAGES[e.code];
+    const staticMessage = e.code ? STATIC_ERROR_MESSAGES[e.code] : undefined;
     if (staticMessage) return staticMessage;
   }
   return describeApiErrorDefault(e, fallback);
