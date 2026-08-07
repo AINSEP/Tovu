@@ -55,6 +55,28 @@ export function upsertMessage(list: readonly ChatMessage[], message: ChatMessage
   return at >= 0 ? [...list.slice(0, at), message, ...list.slice(at + 1)] : [...list, message];
 }
 
+/**
+ * Returns `conversation` with a derived fallback title applied, or `conversation` unchanged.
+ *
+ * Naming happens on APPEND, mirroring `src/server/modules/assistant-chats.ts` — and this fake has
+ * to model it, because it is the ONLY way any conversation this hook creates ever gets a name. Both
+ * `create()` and lazy adoption call `createConversation()` with no `firstMessage`, so the
+ * create-time seed never fires on any path the hook actually takes. Without this, no test using the
+ * fake could observe whether the switcher ever stops saying "Untitled" — a blind spot over the
+ * exact mechanism a previous round had to fix a real bug in.
+ *
+ * Same guard as the route: first USER message only, and only while the title is still empty, so a
+ * manual rename is never clobbered. `deriveConversationTitle` is the real thing rather than an
+ * approximation, so the fake cannot disagree with production about what a title is. Pulled out of
+ * `saveMessage` (2026-08-06, complexity pass, third pass) — its two nested conditions collapse into
+ * one unconditional call at the site below.
+ */
+export function withDerivedTitle(conversation: AssistantConversation, message: ChatMessage): AssistantConversation {
+  if (message.role !== "user" || conversation.title) return conversation;
+  const derived = deriveConversationTitle(typeof message.content === "string" ? message.content : "");
+  return derived ? { ...conversation, title: derived, titleSource: "fallback" } : conversation;
+}
+
 /** Seed state for {@link createFakeAssistantChatsPort}. */
 export interface FakeAssistantChatsPortOptions {
   conversations?: AssistantConversation[];
@@ -179,23 +201,8 @@ export function createFakeAssistantChatsPort(options: FakeAssistantChatsPortOpti
       const written = saved.get(conversationId) ?? [];
       saved.set(conversationId, upsertMessage(written, message));
 
-      /*
-       * Naming happens on APPEND, mirroring `src/server/modules/assistant-chats.ts` — and this fake
-       * has to model it, because it is the ONLY way any conversation this hook creates ever gets a
-       * name. Both `create()` and lazy adoption call `createConversation()` with no `firstMessage`,
-       * so the create-time seed never fires on any path the hook actually takes. Without this, no
-       * test using the fake could observe whether the switcher ever stops saying "Untitled" — a
-       * blind spot over the exact mechanism a previous round had to fix a real bug in.
-       *
-       * Same guard as the route: first USER message only, and only while the title is still empty,
-       * so a manual rename is never clobbered. `deriveConversationTitle` is the real thing rather
-       * than an approximation, so the fake cannot disagree with production about what a title is.
-       */
-      const conversation = conversations[index]!;
-      if (message.role === "user" && !conversation.title) {
-        const derived = deriveConversationTitle(typeof message.content === "string" ? message.content : "");
-        if (derived) conversations[index] = { ...conversation, title: derived, titleSource: "fallback" };
-      }
+      // See {@link withDerivedTitle} for the naming rule this applies.
+      conversations[index] = withDerivedTitle(conversations[index]!, message);
       // `messageCount`/`updatedAt` are list-visible after a write on the real route too.
       const current = conversations[index]!;
       conversations[index] = {
