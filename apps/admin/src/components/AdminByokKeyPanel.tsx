@@ -1,4 +1,4 @@
-import type { AdminExecutionCredentialController } from "../hooks/use-admin-execution-credential.hooks";
+import type { AdminByokSaveState, AdminExecutionCredentialController } from "../hooks/use-admin-execution-credential.hooks";
 
 /**
  * @file The two small pieces `SettingsUi.tsx`'s Execution tab and `AiAssistant.tsx`'s
@@ -55,6 +55,21 @@ export interface AdminByokKeyFooterProps {
 }
 
 /**
+ * The footer's status line, as a single string (or `null` to render nothing) — the four
+ * mutually-exclusive `saveState.status` checks that used to sit directly in
+ * `AdminByokKeyFooter`'s JSX, pulled out as a top-level pure function per this pass's extraction
+ * rule (§2 of the complexity-ceiling brief). `isStored` takes the already-narrowed boolean rather
+ * than the full `stored` record, so this function has no dependency on `AdminExecutionCredential`'s
+ * shape beyond the one field it reads.
+ */
+export function resolveByokFooterStatusLine(status: AdminByokSaveState["status"], isStored: boolean): string | null {
+  if (status === "saving") return "Saving…";
+  if (status === "saved") return "Saved to the server, encrypted.";
+  if (status === "idle") return isStored ? "Stored on the server, encrypted. Paste a new key to replace it." : "Paste your key, then press Save key.";
+  return null;
+}
+
+/**
  * The explicit "Save key" control and its status line — the ONLY control on either screen that
  * writes the admin's own credential. Meant for `ExecutionTab`'s `apiKeyFooter` slot, directly under
  * the API-key field.
@@ -64,27 +79,20 @@ export interface AdminByokKeyFooterProps {
  */
 export function AdminByokKeyFooter({ controller }: AdminByokKeyFooterProps) {
   const { saveState, canSaveKey, stored } = controller;
+  const saving = saveState.status === "saving";
+  const statusLine = resolveByokFooterStatusLine(saveState.status, stored?.isSet ?? false);
+
   return (
     <div className="assistant-key-footer">
       <div className="assistant-key-actions">
         {/* Disabled until there is something meaningful to write — a typed key, or (for a
             protocol/model-only change) an already-stored one. Never fires automatically; see the
             hook's own doc for why this is the ONLY path that can persist the key. */}
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={() => void controller.saveKey()}
-          disabled={!canSaveKey || saveState.status === "saving"}
-        >
-          {saveState.status === "saving" ? "Saving…" : "Save key"}
+        <button type="button" className="btn-primary" onClick={() => void controller.saveKey()} disabled={!canSaveKey || saving}>
+          {saving ? "Saving…" : "Save key"}
         </button>
       </div>
-      <p className="assistant-save-line">
-        {saveState.status === "saving" ? "Saving…" : null}
-        {saveState.status === "saved" ? "Saved to the server, encrypted." : null}
-        {saveState.status === "idle" && stored?.isSet ? "Stored on the server, encrypted. Paste a new key to replace it." : null}
-        {saveState.status === "idle" && !stored?.isSet ? "Paste your key, then press Save key." : null}
-      </p>
+      <p className="assistant-save-line">{statusLine}</p>
       {saveState.status === "error" ? <div className="save-error">{saveState.message}</div> : null}
     </div>
   );
