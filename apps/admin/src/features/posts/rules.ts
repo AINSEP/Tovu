@@ -63,6 +63,27 @@ export function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 /**
+ * The dropped resource's own URI, read from whichever `DataTransfer` format carries it.
+ *
+ * `text/uri-list` wins over `text/plain` when a drag source offers both (e.g. dragging an image out
+ * of another browser tab populates both formats with the same URL) — the list format is the
+ * standard's intended carrier, plain text is the fallback for sources that only set that. Extracted
+ * out of {@link handleImageDrop} so this precedence and the trim are independently testable and no
+ * longer count toward that function's own branch count.
+ */
+export function droppedUri(dataTransfer: DataTransfer | null): string {
+  return (dataTransfer?.getData("text/uri-list") || dataTransfer?.getData("text/plain") || "").trim();
+}
+
+/** A toolbar button's className for its active/inactive state — the one thing repeated across every
+ *  formatting button in `PostEditor.tsx`'s `Toolbar`. Extracted so the eleven
+ *  `${active ? " on" : ""}` ternaries that used to live inline in `Toolbar`'s JSX (its entire branch
+ *  count) collapse to eleven calls to this one single-branch function instead. */
+export function toolbarBtnClass(active: boolean): string {
+  return `tb-btn${active ? " on" : ""}`;
+}
+
+/**
  * Drag-and-drop image support: a dropped local file is inlined as a `data:` URL (no media-library
  * serving route exists yet to reference instead — see PostEditor's file header note); a dropped
  * image URL (e.g. dragged from another browser tab) is inserted directly.
@@ -90,7 +111,7 @@ export function handleImageDrop(view: EditorView, event: DragEvent, moved: boole
     return true;
   }
 
-  const uri = (event.dataTransfer?.getData("text/uri-list") || event.dataTransfer?.getData("text/plain") || "").trim();
+  const uri = droppedUri(event.dataTransfer ?? null);
   if (/^https?:\/\//i.test(uri)) {
     event.preventDefault();
     const node = view.state.schema.nodes.image.create({ src: uri });

@@ -5,6 +5,7 @@ import { ConfirmDialog } from "@jini-ai/admin/react";
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
 import { siteUrl } from "../../lib/site-url";
 import { usePostEditor } from "./hooks/use-post-editor.hooks";
+import { toolbarBtnClass } from "./rules";
 
 /**
  * @file The post/page editor screen — markup only.
@@ -24,6 +25,16 @@ import { usePostEditor } from "./hooks/use-post-editor.hooks";
 function Toolbar({ editor }: { editor: Editor }) {
   const s = useEditorState({
     editor,
+    // EXEMPTION (complexity ceiling, 2026-08-06): ESLint scores this selector's cyclomatic
+    // complexity at 27 against a 10 ceiling, but its cognitive complexity is 0 — not "low", not
+    // reported at all even at threshold 0. That gap is the signature of a measurement artifact, not
+    // real branching: this is a flat object literal of thirteen `editor?.isActive(...) ?? false`
+    // fallbacks with no control flow between them, and ESLint's cyclomatic rule counts each `?.`
+    // and `??` as its own decision point. There is nothing to extract — splitting the fields across
+    // multiple selectors would still evaluate the same thirteen fallbacks, just spread across more
+    // functions, and would break `useEditorState`'s single-selector re-render-batching contract for
+    // no complexity benefit. Kept as one object so `Toolbar` re-renders once per relevant editor
+    // state change instead of up to thirteen times.
     selector: ({ editor }) => ({
       bold: editor?.isActive("bold") ?? false,
       italic: editor?.isActive("italic") ?? false,
@@ -46,21 +57,21 @@ function Toolbar({ editor }: { editor: Editor }) {
   return (
     <div className="editor-toolbar" role="toolbar" aria-label="Formatting">
       <div className="grp">
-        <button className={`tb-btn${s.bold ? " on" : ""}`} title="Bold (⌘B)" aria-pressed={s.bold} onClick={() => chain().toggleBold().run()}><b>B</b></button>
-        <button className={`tb-btn${s.italic ? " on" : ""}`} title="Italic (⌘I)" aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
-        <button className={`tb-btn${s.strike ? " on" : ""}`} title="Strikethrough" aria-pressed={s.strike} onClick={() => chain().toggleStrike().run()}><s>S</s></button>
-        <button className={`tb-btn${s.code ? " on" : ""}`} title="Inline code" aria-pressed={s.code} onClick={() => chain().toggleCode().run()}>&lt;/&gt;</button>
+        <button className={toolbarBtnClass(s.bold)} title="Bold (⌘B)" aria-pressed={s.bold} onClick={() => chain().toggleBold().run()}><b>B</b></button>
+        <button className={toolbarBtnClass(s.italic)} title="Italic (⌘I)" aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
+        <button className={toolbarBtnClass(s.strike)} title="Strikethrough" aria-pressed={s.strike} onClick={() => chain().toggleStrike().run()}><s>S</s></button>
+        <button className={toolbarBtnClass(s.code)} title="Inline code" aria-pressed={s.code} onClick={() => chain().toggleCode().run()}>&lt;/&gt;</button>
       </div>
       <div className="grp">
-        <button className={`tb-btn${s.h1 ? " on" : ""}`} title="Heading 1" aria-pressed={s.h1} onClick={() => chain().toggleHeading({ level: 1 }).run()}>H1</button>
-        <button className={`tb-btn${s.h2 ? " on" : ""}`} title="Heading 2" aria-pressed={s.h2} onClick={() => chain().toggleHeading({ level: 2 }).run()}>H2</button>
-        <button className={`tb-btn${s.h3 ? " on" : ""}`} title="Heading 3" aria-pressed={s.h3} onClick={() => chain().toggleHeading({ level: 3 }).run()}>H3</button>
+        <button className={toolbarBtnClass(s.h1)} title="Heading 1" aria-pressed={s.h1} onClick={() => chain().toggleHeading({ level: 1 }).run()}>H1</button>
+        <button className={toolbarBtnClass(s.h2)} title="Heading 2" aria-pressed={s.h2} onClick={() => chain().toggleHeading({ level: 2 }).run()}>H2</button>
+        <button className={toolbarBtnClass(s.h3)} title="Heading 3" aria-pressed={s.h3} onClick={() => chain().toggleHeading({ level: 3 }).run()}>H3</button>
       </div>
       <div className="grp">
-        <button className={`tb-btn${s.bullet ? " on" : ""}`} title="Bullet list" aria-pressed={s.bullet} onClick={() => chain().toggleBulletList().run()}>• List</button>
-        <button className={`tb-btn${s.ordered ? " on" : ""}`} title="Numbered list" aria-pressed={s.ordered} onClick={() => chain().toggleOrderedList().run()}>1. List</button>
-        <button className={`tb-btn${s.quote ? " on" : ""}`} title="Quote" aria-pressed={s.quote} onClick={() => chain().toggleBlockquote().run()}>&ldquo; Quote</button>
-        <button className={`tb-btn${s.codeBlock ? " on" : ""}`} title="Code block" aria-pressed={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}>{"{ }"}</button>
+        <button className={toolbarBtnClass(s.bullet)} title="Bullet list" aria-pressed={s.bullet} onClick={() => chain().toggleBulletList().run()}>• List</button>
+        <button className={toolbarBtnClass(s.ordered)} title="Numbered list" aria-pressed={s.ordered} onClick={() => chain().toggleOrderedList().run()}>1. List</button>
+        <button className={toolbarBtnClass(s.quote)} title="Quote" aria-pressed={s.quote} onClick={() => chain().toggleBlockquote().run()}>&ldquo; Quote</button>
+        <button className={toolbarBtnClass(s.codeBlock)} title="Code block" aria-pressed={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}>{"{ }"}</button>
         <button className="tb-btn" title="Divider" onClick={() => chain().setHorizontalRule().run()}>―</button>
       </div>
       <div className="grp">
@@ -88,6 +99,138 @@ function Toolbar({ editor }: { editor: Editor }) {
           }}
         >
           Img by URL
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The editor header's action row — back link, save status, the publish/save/delete buttons.
+ *
+ * Extracted out of `PostEditor` because this is where nearly all of that component's branching
+ * lived: five independent ternaries (back-link label, the message/error spans, the publish button's
+ * conditional render, and the save button's className) that don't depend on each other and don't
+ * need to share scope with the body/toolbar markup below them. As a top-level function its own
+ * branches are scored in their own scope instead of accumulating onto `PostEditor`'s.
+ */
+function PostEditorHeader({
+  kindLabel,
+  confirmLeave,
+  message,
+  error,
+  status,
+  setStatus,
+  onPublish,
+  onSave,
+  onDeleteClick,
+}: {
+  kindLabel: "post" | "page";
+  confirmLeave: () => boolean;
+  message: string | null;
+  error: string | null;
+  status: "draft" | "published";
+  setStatus: (value: "draft" | "published") => void;
+  onPublish: () => void;
+  onSave: () => void;
+  onDeleteClick: () => void;
+}) {
+  return (
+    <div
+      className="page-header"
+      {...agentHandle("post-header", {
+        role: "region",
+        label: "Editor header — back link, save status, publish state and the Save button",
+      })}
+    >
+      <div className="page-header-text">
+        <p className="page-kicker">Content</p>
+        <h1 className="page-title">{kindLabel === "page" ? "Edit page" : "Edit post"}</h1>
+        <p className="page-description">Update this {kindLabel}&apos;s title, body, and publish status.</p>
+      </div>
+      <div className="page-actions">
+        {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
+            edits — confirmed live on this exact screen (edit the title, click this link, the
+            edit is gone with no dialog). `preventDefault()` here also stops `router.ts`'s
+            document-level click interceptor from firing `navigate()`, since that listener's
+            first check is `event.defaultPrevented` — no change to `router.ts` needed. The nested
+            `<button>` is styling only (matches Forms/Posts' own "back"/"new" link idiom); the
+            real navigating element, its `href`, and its `onClick` guard all stay on the `<a>`.
+
+            Kind-aware `href`/label, reusing the same `post.kind` check `remove()` already makes
+            for its post-delete redirect just below — bug found during the page-header pass: this
+            link used to be hardcoded to "/admin/posts"/"← Posts" even while editing a *page*, so
+            it silently returned an operator to the wrong list. Deriving both from `kindLabel`
+            (not two independent ternaries) is what stops them drifting apart again. */}
+        <a
+          href={`/admin/${kindLabel}s`}
+          onClick={(e) => {
+            if (!confirmLeave()) e.preventDefault();
+          }}
+          {...agentHandle("post-back-to-list", { role: "link", label: `Back to the list of all ${kindLabel}s` })}
+        >
+          <button type="button" className="btn-secondary">
+            ← {kindLabel === "page" ? "Pages" : "Posts"}
+          </button>
+        </a>
+        {message ? <span className="save-ok">{message}</span> : null}
+        {error ? <span className="save-error">{error}</span> : null}
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value as "draft" | "published")}
+          {...agentHandle("post-status", {
+            role: "field",
+            label:
+              "Whether this post is a draft or published — set with page.select_option, not click. " +
+              "Setting to Draft unpublishes it (content is kept, just hidden from the site); this is " +
+              "NOT the same as Delete, which moves the whole entry to the trash.",
+          })}
+        >
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+        </select>
+        {/* Publish is the one-click "save this and put it live" shortcut, and only makes sense
+            while there is something to publish — once `status` is already "published" (matching
+            `RowMenu`'s own precedent in `Posts.tsx`, which omits "Disable" entirely for an
+            already-draft row rather than showing it disabled) it disappears rather than
+            rendering disabled with nothing left to do, and plain Save takes over as the primary
+            action. The status select still covers the reverse direction (unpublish), unchanged. */}
+        {status === "draft" ? (
+          <button
+            type="button"
+            onClick={onPublish}
+            {...agentHandle("post-publish", {
+              role: "button",
+              label:
+                "Publish this post/page immediately — saves the current title, slug and body and " +
+                "sets status to Published in one action. Only shown while the post is a draft; once " +
+                "published, use Save for further edits.",
+            })}
+          >
+            Publish
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className={status === "draft" ? "btn-secondary" : undefined}
+          onClick={onSave}
+          {...agentHandle("post-save", { role: "button", label: "Save this post's title, slug, status and body" })}
+        >
+          Save
+        </button>
+        <button
+          type="button"
+          className="btn-danger"
+          onClick={onDeleteClick}
+          {...agentHandle("post-delete", {
+            role: "button",
+            label:
+              "Move this post/page to the trash — different from unpublishing (the Draft/Published " +
+              "field above): the entry disappears from every list and the site. Asks for confirmation " +
+              "before deleting.",
+          })}
+        >
+          Delete
         </button>
       </div>
     </div>
@@ -134,104 +277,17 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
 
   return (
     <div className="page">
-      <div
-        className="page-header"
-        {...agentHandle("post-header", {
-          role: "region",
-          label: "Editor header — back link, save status, publish state and the Save button",
-        })}
-      >
-        <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">{kindLabel === "page" ? "Edit page" : "Edit post"}</h1>
-          <p className="page-description">Update this {kindLabel}&apos;s title, body, and publish status.</p>
-        </div>
-        <div className="page-actions">
-          {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
-              edits — confirmed live on this exact screen (edit the title, click this link, the
-              edit is gone with no dialog). `preventDefault()` here also stops `router.ts`'s
-              document-level click interceptor from firing `navigate()`, since that listener's
-              first check is `event.defaultPrevented` — no change to `router.ts` needed. The nested
-              `<button>` is styling only (matches Forms/Posts' own "back"/"new" link idiom); the
-              real navigating element, its `href`, and its `onClick` guard all stay on the `<a>`.
-
-              Kind-aware `href`/label, reusing the same `post.kind` check `remove()` already makes
-              for its post-delete redirect just below — bug found during the page-header pass: this
-              link used to be hardcoded to "/admin/posts"/"← Posts" even while editing a *page*, so
-              it silently returned an operator to the wrong list. Deriving both from `kindLabel`
-              (not two independent ternaries) is what stops them drifting apart again. */}
-          <a
-            href={`/admin/${kindLabel}s`}
-            onClick={(e) => {
-              if (!confirmLeave()) e.preventDefault();
-            }}
-            {...agentHandle("post-back-to-list", { role: "link", label: `Back to the list of all ${kindLabel}s` })}
-          >
-            <button type="button" className="btn-secondary">
-              ← {kindLabel === "page" ? "Pages" : "Posts"}
-            </button>
-          </a>
-          {message ? <span className="save-ok">{message}</span> : null}
-          {error ? <span className="save-error">{error}</span> : null}
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as "draft" | "published")}
-            {...agentHandle("post-status", {
-              role: "field",
-              label:
-                "Whether this post is a draft or published — set with page.select_option, not click. " +
-                "Setting to Draft unpublishes it (content is kept, just hidden from the site); this is " +
-                "NOT the same as Delete, which moves the whole entry to the trash.",
-            })}
-          >
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-          </select>
-          {/* Publish is the one-click "save this and put it live" shortcut, and only makes sense
-              while there is something to publish — once `status` is already "published" (matching
-              `RowMenu`'s own precedent in `Posts.tsx`, which omits "Disable" entirely for an
-              already-draft row rather than showing it disabled) it disappears rather than
-              rendering disabled with nothing left to do, and plain Save takes over as the primary
-              action. The status select still covers the reverse direction (unpublish), unchanged. */}
-          {status === "draft" ? (
-            <button
-              type="button"
-              onClick={() => save("published")}
-              {...agentHandle("post-publish", {
-                role: "button",
-                label:
-                  "Publish this post/page immediately — saves the current title, slug and body and " +
-                  "sets status to Published in one action. Only shown while the post is a draft; once " +
-                  "published, use Save for further edits.",
-              })}
-            >
-              Publish
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className={status === "draft" ? "btn-secondary" : undefined}
-            onClick={() => save()}
-            {...agentHandle("post-save", { role: "button", label: "Save this post's title, slug, status and body" })}
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            className="btn-danger"
-            onClick={() => setConfirmingDelete(true)}
-            {...agentHandle("post-delete", {
-              role: "button",
-              label:
-                "Move this post/page to the trash — different from unpublishing (the Draft/Published " +
-                "field above): the entry disappears from every list and the site. Asks for confirmation " +
-                "before deleting.",
-            })}
-          >
-            Delete
-          </button>
-        </div>
-      </div>
+      <PostEditorHeader
+        kindLabel={kindLabel}
+        confirmLeave={confirmLeave}
+        message={message}
+        error={error}
+        status={status}
+        setStatus={setStatus}
+        onPublish={() => save("published")}
+        onSave={() => save()}
+        onDeleteClick={() => setConfirmingDelete(true)}
+      />
       {/* Audit finding: placeholder-only, no `<label>` — a screen reader gets nothing (title) or
           the bare `type="text"` announcement (slug, which had no placeholder either). The
           wrapping `<label>` + `.visually-hidden` text gives each a real accessible name without

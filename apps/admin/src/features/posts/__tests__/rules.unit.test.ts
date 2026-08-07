@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { handleImageDrop, postRowMenuItems, readFileAsDataUrl } from "../rules";
+import { droppedUri, handleImageDrop, postRowMenuItems, readFileAsDataUrl, toolbarBtnClass } from "../rules";
 import type { AdminPost } from "../../../lib/api";
 
 /**
@@ -125,6 +125,60 @@ describe("readFileAsDataUrl", () => {
     const file = new File(["x"], "x.txt");
     await expect(readFileAsDataUrl(file)).rejects.toThrow("failed to read file");
     vi.unstubAllGlobals();
+  });
+});
+
+describe("toolbarBtnClass", () => {
+  it("appends ' on' when active", () => {
+    expect(toolbarBtnClass(true)).toBe("tb-btn on");
+  });
+
+  it("stays plain when inactive", () => {
+    expect(toolbarBtnClass(false)).toBe("tb-btn");
+  });
+});
+
+describe("droppedUri", () => {
+  function dataTransfer(opts: { uriList?: string; plainText?: string }) {
+    return {
+      getData: (fmt: string) => {
+        if (fmt === "text/uri-list") return opts.uriList ?? "";
+        if (fmt === "text/plain") return opts.plainText ?? "";
+        return "";
+      },
+    } as unknown as DataTransfer;
+  }
+
+  it("returns the text/uri-list value when present", () => {
+    expect(droppedUri(dataTransfer({ uriList: "https://example.com/pic.png" }))).toBe(
+      "https://example.com/pic.png"
+    );
+  });
+
+  it("falls back to text/plain when text/uri-list is empty", () => {
+    expect(droppedUri(dataTransfer({ plainText: "http://example.com/img.jpg" }))).toBe(
+      "http://example.com/img.jpg"
+    );
+  });
+
+  it("prefers text/uri-list over text/plain when both are present", () => {
+    expect(
+      droppedUri(dataTransfer({ uriList: "https://a.example/1.png", plainText: "https://b.example/2.png" }))
+    ).toBe("https://a.example/1.png");
+  });
+
+  it("trims surrounding whitespace", () => {
+    expect(droppedUri(dataTransfer({ uriList: "  https://example.com/pic.png  " }))).toBe(
+      "https://example.com/pic.png"
+    );
+  });
+
+  it("returns '' for a null dataTransfer", () => {
+    expect(droppedUri(null)).toBe("");
+  });
+
+  it("returns '' when neither format has data", () => {
+    expect(droppedUri(dataTransfer({}))).toBe("");
   });
 });
 
