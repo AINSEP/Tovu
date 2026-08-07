@@ -5,7 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HttpError, type AssistantConversation } from "../../lib/assistant-chats";
 import { createFakeAssistantChatsPort, defaultAssistantChatsPort } from "../assistant-chats-dependencies.hooks";
 import type { AssistantChatsPort } from "../assistant-chats-port.hooks";
-import { summarizeFlushOutcomes, useAssistantChats, useWiredAssistantChats } from "../use-assistant-chats.hooks";
+import {
+  attemptSave,
+  giveUpOutcome,
+  handleSaveFailure,
+  summarizeFlushOutcomes,
+  useAssistantChats,
+  useWiredAssistantChats,
+} from "../use-assistant-chats.hooks";
 
 /**
  * @file `useAssistantChats` — the persistence paths an external audit found were silently lossy.
@@ -63,6 +70,98 @@ const message = (id: string, content: string) => ({
   role: "user" as const,
   content,
   createdAt: 1,
+});
+
+/**
+ * `giveUpOutcome` / `handleSaveFailure` / `attemptSave` — pulled out of `saveWithRetry`'s loop body
+ * (2026-08-06, complexity pass, sixth pass; this extraction is what disproved that function's
+ * earlier `@complexityExemption`, see its own doc). The `describe("a failed message write is
+ * retried"...)` and `describe("guards proven necessary by deleting them"...)` blocks further down
+ * already exercise all five {@link SaveOutcome} paths end to end through a mounted hook; these pin
+ * each extracted unit's own contract directly, no hook, no `onMessagesChange` involved.
+ */
+describe("giveUpOutcome", () => {
+  it("classifies a 404 as missing", () => {
+    expect(giveUpOutcome(new HttpError(404, "Not Found"))).toBe("missing");
+  });
+
+  it("classifies anything else (a non-HttpError, or a different status) as exhausted", () => {
+    expect(giveUpOutcome(new HttpError(503, "Service Unavailable"))).toBe("exhausted");
+    expect(giveUpOutcome(new TypeError("network down"))).toBe("exhausted");
+  });
+});
+
+describe("handleSaveFailure", () => {
+  const isDisposed = () => false;
+
+  it("returns permanent for a 400-class error, without touching the retry ladder", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = await handleSaveFailure(new HttpError(400, "Bad Request"), "c1", message("m1", "x"), 0, isDisposed);
+    expect(result).toEqual({ done: true, outcome: "permanent" });
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
+  });
+
+  it("returns exhausted immediately for an HttpError status that is neither transient nor permanent", async () => {
+    // `isTransient` treats any non-HttpError as transient (a rejected fetch with no status at all
+    // is exactly the retryable case) — so the only way to reach the `!isTransient` branch is an
+    // HttpError whose status falls outside BOTH classifications: not 404/429/5xx (transient) and
+    // not 400-499-except-404/429 (permanent). A 3xx is the narrow gap between them.
+    const result = await handleSaveFailure(new HttpError(300, "weird"), "c1", message("m1", "x"), 0, isDisposed);
+    expect(result).toEqual({ done: true, outcome: "exhausted" });
+  });
+
+  it("gives up immediately (no sleep) once the retry ladder is exhausted (delay undefined)", async () => {
+    const result = await handleSaveFailure(new HttpError(503, "Service Unavailable"), "c1", message("m1", "x"), 3, isDisposed);
+    expect(result).toEqual({ done: true, outcome: "exhausted" });
+  });
+
+  it("gives up immediately when already disposed, without sleeping", async () => {
+    const result = await handleSaveFailure(new HttpError(503, "Service Unavailable"), "c1", message("m1", "x"), 0, () => true);
+    expect(result).toEqual({ done: true, outcome: "exhausted" });
+  });
+
+  it("sleeps the backoff delay, then signals retry (done: false) when still transient and not disposed", async () => {
+    vi.useFakeTimers();
+    const promise = handleSaveFailure(new HttpError(503, "Service Unavailable"), "c1", message("m1", "x"), 0, isDisposed);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(await promise).toEqual({ done: false });
+  });
+
+  it("re-checks isDisposed AFTER the sleep too — torn down mid-backoff still gives up", async () => {
+    vi.useFakeTimers();
+    let disposed = false;
+    const promise = handleSaveFailure(new HttpError(503, "Service Unavailable"), "c1", message("m1", "x"), 0, () => disposed);
+    disposed = true;
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(await promise).toEqual({ done: true, outcome: "exhausted" });
+  });
+
+  it("reports missing (not exhausted) when the ladder gives up against a 404", async () => {
+    const result = await handleSaveFailure(new HttpError(404, "Not Found"), "c1", message("m1", "x"), 3, isDisposed);
+    expect(result).toEqual({ done: true, outcome: "missing" });
+  });
+});
+
+describe("attemptSave", () => {
+  it("returns saved once port.saveMessage resolves", async () => {
+    const port = createFakeAssistantChatsPort({ conversations: [{ id: "c1", title: null, titleSource: "fallback", messageCount: 0, createdAt: 1, updatedAt: 1 }] });
+    const result = await attemptSave(port, "c1", message("m1", "hi"), 0, () => false);
+    expect(result).toEqual({ done: true, outcome: "saved" });
+  });
+
+  it("delegates a thrown failure to handleSaveFailure rather than rejecting", async () => {
+    const port = createFakeAssistantChatsPort({
+      conversations: [{ id: "c1", title: null, titleSource: "fallback", messageCount: 0, createdAt: 1, updatedAt: 1 }],
+      onSaveMessage: () => {
+        throw new HttpError(400, "Bad Request");
+      },
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = await attemptSave(port, "c1", message("m1", "hi"), 0, () => false);
+    expect(result).toEqual({ done: true, outcome: "permanent" });
+    errorSpy.mockRestore();
+  });
 });
 
 /**
