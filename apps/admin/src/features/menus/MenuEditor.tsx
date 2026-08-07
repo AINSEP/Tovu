@@ -41,6 +41,81 @@ function targetForKind(required: { kind: AdminMenuTargetKind; prev: AdminMenuTar
   }
 }
 
+/**
+ * The target-kind-specific field(s) — URL/Route/Entry each show one input, Term shows two.
+ * Extracted out of `ItemRow`'s four `item.target.kind === "…" ? (...) : null` blocks (its entire
+ * branch count beyond the label field and the children map) into a `switch` over the same
+ * `AdminMenuTargetKind` union `targetForKind` above already switches on — same convention, and
+ * unlike an if/else-if chain a `switch`'s cases don't nest, which is what keeps this low under
+ * cognitive complexity too.
+ */
+function MenuItemTargetFields({
+  item,
+  path,
+  onChange,
+}: {
+  item: AdminMenuItem;
+  path: number[];
+  onChange: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
+}) {
+  switch (item.target.kind) {
+    case "url":
+      return (
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">URL</span>
+          <input
+            value={item.target.href ?? ""}
+            placeholder="https://…"
+            onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, href: e.target.value } }))}
+          />
+        </label>
+      );
+    case "route":
+      return (
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">Route name</span>
+          <input
+            value={item.target.route ?? ""}
+            placeholder="route name"
+            onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, route: e.target.value } }))}
+          />
+        </label>
+      );
+    case "entryRef":
+      return (
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">Entry ID</span>
+          <input
+            value={item.target.entryId ?? ""}
+            placeholder="entry id"
+            onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, entryId: e.target.value } }))}
+          />
+        </label>
+      );
+    case "termRef":
+      return (
+        <>
+          <label className="a11y-label-wrap">
+            <span className="visually-hidden">Term ID</span>
+            <input
+              value={item.target.termId ?? ""}
+              placeholder="term id"
+              onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, termId: e.target.value } }))}
+            />
+          </label>
+          <label className="a11y-label-wrap">
+            <span className="visually-hidden">Taxonomy</span>
+            <input
+              value={item.target.taxonomy ?? ""}
+              placeholder="taxonomy"
+              onChange={(e) => onChange(path, (it) => ({ ...it, target: { ...it.target, taxonomy: e.target.value } }))}
+            />
+          </label>
+        </>
+      );
+  }
+}
+
 function ItemRow(props: {
   item: AdminMenuItem;
   path: number[];
@@ -84,66 +159,7 @@ function ItemRow(props: {
             <option value="termRef">Term</option>
           </select>
         </label>
-        {item.target.kind === "url" ? (
-          <label className="a11y-label-wrap">
-            <span className="visually-hidden">URL</span>
-            <input
-              value={item.target.href ?? ""}
-              placeholder="https://…"
-              onChange={(e) =>
-                onChange(path, (it) => ({ ...it, target: { ...it.target, href: e.target.value } }))
-              }
-            />
-          </label>
-        ) : null}
-        {item.target.kind === "route" ? (
-          <label className="a11y-label-wrap">
-            <span className="visually-hidden">Route name</span>
-            <input
-              value={item.target.route ?? ""}
-              placeholder="route name"
-              onChange={(e) =>
-                onChange(path, (it) => ({ ...it, target: { ...it.target, route: e.target.value } }))
-              }
-            />
-          </label>
-        ) : null}
-        {item.target.kind === "entryRef" ? (
-          <label className="a11y-label-wrap">
-            <span className="visually-hidden">Entry ID</span>
-            <input
-              value={item.target.entryId ?? ""}
-              placeholder="entry id"
-              onChange={(e) =>
-                onChange(path, (it) => ({ ...it, target: { ...it.target, entryId: e.target.value } }))
-              }
-            />
-          </label>
-        ) : null}
-        {item.target.kind === "termRef" ? (
-          <>
-            <label className="a11y-label-wrap">
-              <span className="visually-hidden">Term ID</span>
-              <input
-                value={item.target.termId ?? ""}
-                placeholder="term id"
-                onChange={(e) =>
-                  onChange(path, (it) => ({ ...it, target: { ...it.target, termId: e.target.value } }))
-                }
-              />
-            </label>
-            <label className="a11y-label-wrap">
-              <span className="visually-hidden">Taxonomy</span>
-              <input
-                value={item.target.taxonomy ?? ""}
-                placeholder="taxonomy"
-                onChange={(e) =>
-                  onChange(path, (it) => ({ ...it, target: { ...it.target, taxonomy: e.target.value } }))
-                }
-              />
-            </label>
-          </>
-        ) : null}
+        <MenuItemTargetFields item={item} path={path} onChange={onChange} />
         {/* `aria-label` alongside `title`: `title` alone isn't reliably exposed to assistive tech
             and isn't keyboard-discoverable without a mouse hover (audit Minor finding). */}
         <button className="tb-btn" onClick={() => onMove(path, -1)} title="Move up" aria-label="Move item up">

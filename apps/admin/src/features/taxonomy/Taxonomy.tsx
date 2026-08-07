@@ -183,6 +183,81 @@ export interface MergeTermSectionProps {
   useMergeTermSectionHook?: typeof useMergeTermSection;
 }
 
+interface MergeIdleStepProps {
+  otherTerms: AdminTerm[];
+  intoTermId: string;
+  setIntoTermId: (id: string) => void;
+  busy: boolean;
+  startPlan: () => void;
+}
+
+/** The "choose a target, Plan merge" step — extracted out of `MergeTermSection`, which was still
+ *  13/13 after the file's first extraction pass (the three `step === "..."` branches' own content,
+ *  including each step's `busy` label ternary, were still counted in its scope). Same
+ *  "the step, not the wizard shell, was the actual size" split `Users.tsx`'s
+ *  `UserRow` -> `UserManagePanel` already used. */
+function MergeIdleStep({ otherTerms, intoTermId, setIntoTermId, busy, startPlan }: MergeIdleStepProps) {
+  return (
+    <span className="editor-actions">
+      <select aria-label="Merge into" value={intoTermId} onChange={(e) => setIntoTermId(e.target.value)}>
+        <option value="">Choose a term…</option>
+        {otherTerms.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name}
+          </option>
+        ))}
+      </select>
+      {/* Secondary throughout this wizard's first two steps — planning/confirming a merge
+          commits nothing yet ("nothing is merged yet" below), so neither reads as this
+          screen's primary action. Only Execute (genuinely irreversible) escalates. */}
+      <button type="button" className="btn-secondary" onClick={startPlan} disabled={!intoTermId || busy}>
+        {busy ? "Planning…" : "Plan merge"}
+      </button>
+    </span>
+  );
+}
+
+interface MergePlannedStepProps {
+  termName: string;
+  overlappingContentCount: number;
+  busy: boolean;
+  doConfirm: () => void;
+}
+
+/** The "review the plan, Confirm merge" step — extracted out of `MergeTermSection`. */
+function MergePlannedStep({ termName, overlappingContentCount, busy, doConfirm }: MergePlannedStepProps) {
+  return (
+    <div>
+      <p>
+        This will move {overlappingContentCount} overlapping content assignment(s) onto the target
+        term and merge <strong>{termName}</strong> away. Confirming issues a one-time execution
+        token — nothing is merged yet.
+      </p>
+      <button type="button" className="btn-secondary" onClick={doConfirm} disabled={busy}>
+        {busy ? "Confirming…" : "Confirm merge"}
+      </button>
+    </div>
+  );
+}
+
+interface MergeConfirmedStepProps {
+  busy: boolean;
+  doExecute: () => void;
+}
+
+/** The "confirmed, Execute merge" step — extracted out of `MergeTermSection`. */
+function MergeConfirmedStep({ busy, doExecute }: MergeConfirmedStepProps) {
+  return (
+    <div>
+      <p>Confirmed. Executing merges the terms now — this cannot be undone.</p>
+      {/* Genuinely irreversible, per the copy right above — `.btn-danger`, unlike Plan/Confirm. */}
+      <button type="button" className="btn-danger" onClick={doExecute} disabled={busy}>
+        {busy ? "Merging…" : "Execute merge"}
+      </button>
+    </div>
+  );
+}
+
 function MergeTermSection({ taxonomy, term, onMerged, useMergeTermSectionHook = useMergeTermSection }: MergeTermSectionProps) {
   const otherTerms = otherMergeTargets(taxonomy, term.id);
   const { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute } = useMergeTermSectionHook({
@@ -198,46 +273,14 @@ function MergeTermSection({ taxonomy, term, onMerged, useMergeTermSectionHook = 
       {error ? <span className="save-error">{error}</span> : null}
 
       {step === "idle" ? (
-        <span className="editor-actions">
-          <select aria-label="Merge into" value={intoTermId} onChange={(e) => setIntoTermId(e.target.value)}>
-            <option value="">Choose a term…</option>
-            {otherTerms.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-          {/* Secondary throughout this wizard's first two steps — planning/confirming a merge
-              commits nothing yet ("nothing is merged yet" below), so neither reads as this
-              screen's primary action. Only Execute (genuinely irreversible) escalates. */}
-          <button type="button" className="btn-secondary" onClick={startPlan} disabled={!intoTermId || busy}>
-            {busy ? "Planning…" : "Plan merge"}
-          </button>
-        </span>
+        <MergeIdleStep otherTerms={otherTerms} intoTermId={intoTermId} setIntoTermId={setIntoTermId} busy={busy} startPlan={startPlan} />
       ) : null}
 
       {step === "planned" && plan ? (
-        <div>
-          <p>
-            This will move {plan.overlappingContentCount} overlapping content assignment(s) onto the target
-            term and merge <strong>{term.name}</strong> away. Confirming issues a one-time execution
-            token — nothing is merged yet.
-          </p>
-          <button type="button" className="btn-secondary" onClick={doConfirm} disabled={busy}>
-            {busy ? "Confirming…" : "Confirm merge"}
-          </button>
-        </div>
+        <MergePlannedStep termName={term.name} overlappingContentCount={plan.overlappingContentCount} busy={busy} doConfirm={doConfirm} />
       ) : null}
 
-      {step === "confirmed" && confirmationToken ? (
-        <div>
-          <p>Confirmed. Executing merges the terms now — this cannot be undone.</p>
-          {/* Genuinely irreversible, per the copy right above — `.btn-danger`, unlike Plan/Confirm. */}
-          <button type="button" className="btn-danger" onClick={doExecute} disabled={busy}>
-            {busy ? "Merging…" : "Execute merge"}
-          </button>
-        </div>
-      ) : null}
+      {step === "confirmed" && confirmationToken ? <MergeConfirmedStep busy={busy} doExecute={doExecute} /> : null}
     </div>
   );
 }
@@ -294,6 +337,97 @@ export interface TaxonomyProps {
   useTaxonomyHook?: typeof useTaxonomy;
 }
 
+interface TaxonomyPageHeaderProps {
+  formOpen: boolean;
+  setFormOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
+}
+
+/** The page title plus the "New taxonomy"/"Cancel" toggle button — extracted from `Taxonomy`
+ *  verbatim, same reason `Users.tsx`'s `UsersPageHeader` split off its own `formOpen` ternaries:
+ *  `Taxonomy` was still 13/10 (cyclomatic over the ceiling) with them inline. */
+function TaxonomyPageHeader({ formOpen, setFormOpen }: TaxonomyPageHeaderProps) {
+  return (
+    <div className="page-header">
+      <div className="page-header-text">
+        <p className="page-kicker">Content</p>
+        <h1 className="page-title">Categories &amp; Tags</h1>
+        <p className="page-description">Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.</p>
+      </div>
+      {/* Same `formOpen` toggle idiom as `Integrations.tsx`'s "Add webhook" button — see
+          `useTaxonomy`'s own comment for why this replaced the old always-open form. */}
+      <div className="page-actions">
+        <button className={formOpen ? "btn-secondary" : undefined} onClick={() => setFormOpen((v) => !v)}>
+          {formOpen ? "Cancel" : "New taxonomy"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface TermDeleteDialogProps {
+  pendingDeleteTerm: AdminTerm | null;
+  deleteTermBusy: boolean;
+  confirmDeleteTerm: () => Promise<void>;
+  requestDeleteTerm: (term: AdminTerm | null) => void;
+}
+
+/** The term-delete confirm dialog — extracted from `Taxonomy` verbatim. */
+function TermDeleteDialog({ pendingDeleteTerm, deleteTermBusy, confirmDeleteTerm, requestDeleteTerm }: TermDeleteDialogProps) {
+  return (
+    <ConfirmDialog
+      open={pendingDeleteTerm !== null}
+      title="Delete term?"
+      body={
+        pendingDeleteTerm ? (
+          <p>
+            Delete term &quot;{pendingDeleteTerm.name}&quot;? This cannot be undone.
+          </p>
+        ) : null
+      }
+      confirmLabel="Delete term"
+      destructive
+      pending={deleteTermBusy}
+      onConfirm={confirmDeleteTerm}
+      onCancel={() => requestDeleteTerm(null)}
+    />
+  );
+}
+
+interface TaxonomyDeleteDialogProps {
+  pendingDeleteTaxonomy: AdminTaxonomy | null;
+  deleteTaxonomyBusy: boolean;
+  confirmDeleteTaxonomy: () => Promise<void>;
+  requestDeleteTaxonomy: (taxonomy: AdminTaxonomy | null) => void;
+}
+
+/** The taxonomy-delete confirm dialog — extracted from `Taxonomy` verbatim. */
+function TaxonomyDeleteDialog({
+  pendingDeleteTaxonomy,
+  deleteTaxonomyBusy,
+  confirmDeleteTaxonomy,
+  requestDeleteTaxonomy,
+}: TaxonomyDeleteDialogProps) {
+  return (
+    <ConfirmDialog
+      open={pendingDeleteTaxonomy !== null}
+      title="Delete taxonomy?"
+      body={
+        pendingDeleteTaxonomy ? (
+          <p>
+            Delete taxonomy &quot;{pendingDeleteTaxonomy.name}&quot;, and every unassigned term in it?
+            This cannot be undone.
+          </p>
+        ) : null
+      }
+      confirmLabel="Delete taxonomy"
+      destructive
+      pending={deleteTaxonomyBusy}
+      onConfirm={confirmDeleteTaxonomy}
+      onCancel={() => requestDeleteTaxonomy(null)}
+    />
+  );
+}
+
 export function Taxonomy({ useTaxonomyHook = useTaxonomy }: TaxonomyProps = {}) {
   const {
     taxonomies,
@@ -322,20 +456,7 @@ export function Taxonomy({ useTaxonomyHook = useTaxonomy }: TaxonomyProps = {}) 
 
   return (
     <div className="page">
-      <div className="page-header">
-        <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">Categories &amp; Tags</h1>
-          <p className="page-description">Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.</p>
-        </div>
-        {/* Same `formOpen` toggle idiom as `Integrations.tsx`'s "Add webhook" button — see
-            `useTaxonomy`'s own comment for why this replaced the old always-open form. */}
-        <div className="page-actions">
-          <button className={formOpen ? "btn-secondary" : undefined} onClick={() => setFormOpen((v) => !v)}>
-            {formOpen ? "Cancel" : "New taxonomy"}
-          </button>
-        </div>
-      </div>
+      <TaxonomyPageHeader formOpen={formOpen} setFormOpen={setFormOpen} />
       {error ? <div className="notice error">{error}</div> : null}
 
       {formOpen ? (
@@ -371,38 +492,17 @@ export function Taxonomy({ useTaxonomyHook = useTaxonomy }: TaxonomyProps = {}) 
         namespaceList(taxonomies, selectedTermId, setSelectedTermId, load, deleteState)
       )}
 
-      <ConfirmDialog
-        open={pendingDeleteTerm !== null}
-        title="Delete term?"
-        body={
-          pendingDeleteTerm ? (
-            <p>
-              Delete term &quot;{pendingDeleteTerm.name}&quot;? This cannot be undone.
-            </p>
-          ) : null
-        }
-        confirmLabel="Delete term"
-        destructive
-        pending={deleteTermBusy}
-        onConfirm={confirmDeleteTerm}
-        onCancel={() => requestDeleteTerm(null)}
+      <TermDeleteDialog
+        pendingDeleteTerm={pendingDeleteTerm}
+        deleteTermBusy={deleteTermBusy}
+        confirmDeleteTerm={confirmDeleteTerm}
+        requestDeleteTerm={requestDeleteTerm}
       />
-      <ConfirmDialog
-        open={pendingDeleteTaxonomy !== null}
-        title="Delete taxonomy?"
-        body={
-          pendingDeleteTaxonomy ? (
-            <p>
-              Delete taxonomy &quot;{pendingDeleteTaxonomy.name}&quot;, and every unassigned term in it?
-              This cannot be undone.
-            </p>
-          ) : null
-        }
-        confirmLabel="Delete taxonomy"
-        destructive
-        pending={deleteTaxonomyBusy}
-        onConfirm={confirmDeleteTaxonomy}
-        onCancel={() => requestDeleteTaxonomy(null)}
+      <TaxonomyDeleteDialog
+        pendingDeleteTaxonomy={pendingDeleteTaxonomy}
+        deleteTaxonomyBusy={deleteTaxonomyBusy}
+        confirmDeleteTaxonomy={confirmDeleteTaxonomy}
+        requestDeleteTaxonomy={requestDeleteTaxonomy}
       />
     </div>
   );
