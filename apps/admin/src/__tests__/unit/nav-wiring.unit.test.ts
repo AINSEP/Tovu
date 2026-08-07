@@ -60,12 +60,12 @@ describe("'authentication' sits directly between 'users' and 'roles' in the Peop
 });
 
 describe("Commerce nav section", () => {
-  it("exists with exactly Payments, Orders, Products in that order", () => {
+  it("exists with exactly Payments, Orders, Products, Subscriptions in that order", () => {
     const commerce = getNav().find((group) => group.label === "Commerce");
     expect(commerce).toBeDefined();
 
     const ids = commerce!.items.map((item) => item.id);
-    expect(ids).toEqual(["payments", "orders", "products"]);
+    expect(ids).toEqual(["payments", "orders", "products", "subscriptions"]);
   });
 
   it("no longer lists Payments under People", () => {
@@ -74,5 +74,19 @@ describe("Commerce nav section", () => {
 
     const ids = people!.items.map((item) => item.id);
     expect(ids).not.toContain("payments");
+  });
+
+  it("every entry previews as a real link: soon + soonPreviewable both set", () => {
+    // Owner's stated rationale: "All of these should be coming soon... because they're obviously
+    // not active now" — but a section where some rows are clickable-preview and others are inert
+    // would read as a bug, so every row matches Payments' existing `soonPreviewable: true` rather
+    // than defaulting to the disabled-non-link shape `skills`/`newsletter`/`design-system` use.
+    const commerce = getNav().find((group) => group.label === "Commerce");
+    expect(commerce).toBeDefined();
+
+    for (const item of commerce!.items) {
+      expect(item.soon).toBe(true);
+      expect(item.soonPreviewable).toBe(true);
+    }
   });
 });

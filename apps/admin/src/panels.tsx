@@ -375,11 +375,13 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Commerce ---
   {
     id: "payments",
-    // Moved out of People (see git history for the prior comment anticipating exactly this move):
-    // the payment machinery that exists today is `member_tiers`/`member_subscriptions` plus the
-    // `lipay` plugin's providers, but it bills a storefront now that `p_store__products`/
-    // `p_store__orders` are real tables (`store-plugin.ts`), so it groups with Orders and Products
-    // rather than with Members.
+    // Moved out of People (see git history for the prior comment on this panel, which correctly
+    // anticipated exactly this reshuffle once there was something to group with). This entry is
+    // provider configuration — the `lipay` plugin's Stripe/PayPal integrations — not the billing
+    // data itself; the `member_tiers`/`member_subscriptions` tables it charges against are their
+    // own `subscriptions` entry below. Commerce groups the two together with Orders and Products
+    // because all four are the same business function (running a storefront), which is a
+    // meaningfully different concern from People's identity/access management.
     render: () => (
       <PlaceholderTabs
         sectionId="payments"
@@ -401,18 +403,18 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   {
     id: "orders",
     // No screen yet — `soon: true` + `Placeholder`, the same shape `skills`/`newsletter`/
-    // `design-system` already use for a genuinely unbuilt-but-real nav entry. `p_store__orders`
-    // exists as a table (`store-plugin.ts`) but there is no admin API or screen for it yet, so this
-    // is NOT a `PlaceholderTabs` entry the way `payments`/`deployment`/`authentication` are — those
-    // three preview real named sub-integrations (Stripe/PayPal, GitHub/AWS, Google/Facebook/
-    // LinkedIn); Orders has no such sub-list, so it gets the plain single-page placeholder instead,
-    // and `soonPreviewable` is correspondingly omitted (it only means something for a real link, and
-    // a plain `Placeholder` renders the same "coming soon" body either way).
+    // `design-system` use for a genuinely unbuilt-but-real nav entry. `p_store__orders` exists as a
+    // table (`store-plugin.ts`) but there is no admin API or screen for it yet, so it renders the
+    // plain single-page placeholder rather than `PlaceholderTabs` — there is no named sub-list
+    // (Stripe/PayPal, GitHub/AWS) to preview the way `payments`/`deployment` do. `soonPreviewable`
+    // is still set, by owner decision: every row in Commerce previews as a real, clickable link
+    // rather than a disabled one, so the section doesn't read as some rows working and others not.
     render: () => <Placeholder sectionId="orders" />,
     nav: {
       label: "Orders",
       group: "Commerce",
       soon: true,
+      soonPreviewable: true,
       icon: '<rect x="3" y="2" width="10" height="14" rx="1.5"/><path d="M6 6h4M6 9h4"/><path d="M12 11.5l1.5 1.5 2.5-3"/>',
     },
     // Not agent-reachable: there is nothing built here yet for an agent to do.
@@ -426,7 +428,24 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       label: "Products",
       group: "Commerce",
       soon: true,
+      soonPreviewable: true,
       icon: '<path d="M9 2l6 3.2v7.6l-6 3.2-6-3.2V5.2L9 2z"/><path d="M3 5.2L9 8.4l6-3.2M9 8.4v7"/>',
+    },
+    // Not agent-reachable: there is nothing built here yet for an agent to do.
+  },
+  {
+    id: "subscriptions",
+    // Same shape and reasoning as `orders`/`products` above. `member_tiers` and `member_subscriptions`
+    // exist as tables (created alongside the membership feature, referenced by `payments`'s own
+    // comment above) but are both empty and have no admin API — the recurring-billing counterpart to
+    // Payments' provider configuration, unbuilt in exactly the same way as Orders and Products.
+    render: () => <Placeholder sectionId="subscriptions" />,
+    nav: {
+      label: "Subscriptions",
+      group: "Commerce",
+      soon: true,
+      soonPreviewable: true,
+      icon: '<path d="M9 3a6 6 0 015.2 3M15 3v3.5H11.5"/><path d="M9 15a6 6 0 01-5.2-3M3 15v-3.5H6.5"/>',
     },
     // Not agent-reachable: there is nothing built here yet for an agent to do.
   },
