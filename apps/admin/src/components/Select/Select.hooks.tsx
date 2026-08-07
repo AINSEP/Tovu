@@ -143,45 +143,22 @@ function usePanelPosition({
   }, [open, position]);
 
   // Keeps the panel anchored to the trigger if the surrounding page/dialog scrolls or resizes while
-  // it's open — `.widget-picker-body`'s own new `overflow-y: auto` (this same dispatch's Task 1)
-  // made this a real, live scenario rather than a hypothetical one. `scroll` needs the capture
-  // phase: an inner element's own scroll does not bubble to `window` in the bubble phase.
+  // it's open — `.widget-picker-body`'s own `overflow-y: auto` made this a real, live scenario
+  // rather than a hypothetical one. `scroll` needs the capture phase: an inner element's own scroll
+  // does not bubble to `window` in the bubble phase. The decision logic itself is
+  // `repositionOrClose`, above; this effect is only the DOM listener wiring.
   //
   // Found live in a real browser, not by this component's own test suite: scrolling a host's
-  // scrolling ancestor far enough that the trigger scrolls out of its own visible clip still leaves
+  // scrolling ancestor far enough that the trigger scrolls out of its own visible clip used to leave
   // this effect happily recomputing a mathematically-correct `position` for it — the panel just
-  // ends up following the trigger to an off-screen (or behind-the-header, obscured) spot, floating
-  // there indefinitely, nominally still "open" with no visible way to tell. A native `<select>`'s
-  // OS popup does not survive its trigger leaving view; this closes the panel instead of chasing a
-  // trigger nobody can see, the same idea. `elementFromPoint` at the trigger's own center is the
-  // generic check (works for any clipping ancestor, not just `.widget-picker-body` specifically) —
-  // it asks "is my trigger actually the thing rendered at its own center point", which is false
-  // once a clipping ancestor (or the viewport edge) has hidden it.
+  // ended up following the trigger to an off-screen (or behind-the-header, obscured) spot, floating
+  // there indefinitely, nominally still "open" with no visible way to tell.
   useEffect(() => {
     if (!open) return;
     function reposition() {
       const el = triggerRef.current;
       if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const outOfViewport = rect.bottom <= 0 || rect.top >= window.innerHeight || rect.right <= 0 || rect.left >= window.innerWidth;
-      if (outOfViewport) {
-        onOutOfView();
-        return;
-      }
-      // Guarded, not assumed available: some environments (older WebViews, this app's own jsdom
-      // test harness) don't implement `elementFromPoint` at all. Where it exists, it also catches
-      // the narrower case of a clipping ancestor hiding the trigger without pushing it past the
-      // viewport edge (e.g. scrolled up behind a dialog's own fixed header) — where it doesn't,
-      // this degrades to the viewport-edge check above only, rather than throwing.
-      if (typeof document.elementFromPoint === "function") {
-        const topmostAtCenter = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-        const obscured = !topmostAtCenter || !(el.contains(topmostAtCenter) || topmostAtCenter.contains(el));
-        if (obscured) {
-          onOutOfView();
-          return;
-        }
-      }
-      setPosition(computePosition(el));
+      repositionOrClose(el, onOutOfView, setPosition);
     }
     window.addEventListener("scroll", reposition, true);
     window.addEventListener("resize", reposition);
@@ -193,6 +170,42 @@ function usePanelPosition({
   }, [open]);
 
   return { position, setPosition };
+}
+
+/**
+ * The scroll/resize repositioning decision — extracted from `usePanelPosition`'s effect as a
+ * top-level function under the tightened ≤9/≤9 pass: a function declared inside a `useEffect` is
+ * still a closure nested inside the hook that owns it, one level removed from the hook's own top
+ * scope rather than zero, and it still doesn't lower the whole-hook view (§2 of the
+ * complexity-ceiling brief). Takes the trigger element and the two callbacks it needs
+ * (`onOutOfView`, `setPosition`) as parameters instead of closing over them, so it can be tested
+ * without mounting anything.
+ *
+ * A native `<select>`'s OS popup does not survive its trigger leaving view; this closes the panel
+ * instead of chasing a trigger nobody can see, the same idea. `elementFromPoint` at the trigger's
+ * own center is the generic obscured-by-something check (works for any clipping ancestor, not just
+ * one dialog's own `overflow-y`) — it asks "is my trigger actually the thing rendered at its own
+ * center point", which is false once a clipping ancestor (or the viewport edge) has hidden it.
+ * Guarded, not assumed available: some environments (older WebViews, this app's own jsdom test
+ * harness) don't implement `elementFromPoint` at all — where it doesn't, this degrades to the
+ * viewport-edge check alone rather than throwing.
+ */
+export function repositionOrClose(trigger: HTMLElement, onOutOfView: () => void, setPosition: (position: PanelPosition) => void) {
+  const rect = trigger.getBoundingClientRect();
+  const outOfViewport = rect.bottom <= 0 || rect.top >= window.innerHeight || rect.right <= 0 || rect.left >= window.innerWidth;
+  if (outOfViewport) {
+    onOutOfView();
+    return;
+  }
+  if (typeof document.elementFromPoint === "function") {
+    const topmostAtCenter = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    const obscured = !topmostAtCenter || !(trigger.contains(topmostAtCenter) || topmostAtCenter.contains(trigger));
+    if (obscured) {
+      onOutOfView();
+      return;
+    }
+  }
+  setPosition(computePosition(trigger));
 }
 
 /** Closes the panel on an outside mousedown while it's open — extracted from `useSelectDropdown`
@@ -345,18 +358,21 @@ function useSelectKeyboardHandlers({
   /**
    * @complexity 13 cyclomatic / 8 cognitive, measured after the 2026-08-06 `resolveTabTarget`
    * extraction dropped cognitive from 15 to 8 (the nested `if`/`indexOf`/ternary that used to sit in
-   * the `"Tab"` case is gone from this body). Cyclomatic did not cross the ≤10 ceiling and cannot,
-   * without changing what kind of thing this is: ESLint's `complexity` rule charges one branch per
-   * `case` label, so the 13 is a count of the seven keys this handler answers to
-   * (Escape/ArrowDown/ArrowUp/Home/End/Enter/Tab) plus the `Enter` case's own `if`/`&&` — not nested
-   * branching, which is what cognitive complexity models and which is already at 8. Tried: moving
-   * the `"Tab"` case body out (done, above) — it lowered cognitive but a switch's cyclomatic score
-   * doesn't fall by moving case *bodies* elsewhere, only by removing cases. The remaining way to
-   * lower it is to stop being a switch — collapse it into a key -> handler lookup table — which both
-   * this file's header and this pass's own dispatch brief reject explicitly for this function: "a
-   * keyboard handler written as a flat switch is the clearest form available, and converting the
-   * dispatch into a lookup table would trade that clarity for a lower number." Documented exemption
-   * under this pass's acceptance criterion (≤10/≤10 OR a documented reason), not an oversight.
+   * the `"Tab"` case is gone from this body). Cyclomatic did not cross the ≤10 ceiling this pass
+   * started under, and does not cross the ≤9/≤9 bar it was later tightened to either — not because
+   * the score changed, but because no bar in that range changes the underlying fact: ESLint's
+   * `complexity` rule charges one branch per `case` label, so the 13 is a count of the seven keys
+   * this handler answers to (Escape/ArrowDown/ArrowUp/Home/End/Enter/Tab) plus the `Enter` case's
+   * own `if`/`&&` — not nested branching, which is what cognitive complexity models and which is
+   * already at 8, under both bars. Tried: moving the `"Tab"` case body out (done, above) — it
+   * lowered cognitive but a switch's cyclomatic score doesn't fall by moving case *bodies*
+   * elsewhere, only by removing cases. The remaining way to lower it is to stop being a switch —
+   * collapse it into a key -> handler lookup table — which both this file's header and this pass's
+   * own dispatch brief reject explicitly for this function: "a keyboard handler written as a flat
+   * switch is the clearest form available, and converting the dispatch into a lookup table would
+   * trade that clarity for a lower number." Documented exemption under this pass's acceptance
+   * criterion (≤9/≤9 OR a documented reason, tightened 2026-08-06 from the original ≤10/≤10), not an
+   * oversight.
    */
   function handlePanelKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     switch (e.key) {
