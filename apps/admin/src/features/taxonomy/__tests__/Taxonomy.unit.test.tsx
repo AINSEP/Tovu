@@ -242,6 +242,41 @@ describe("merge section visibility (otherMergeTargets)", () => {
   });
 });
 
+describe("merge wizard steps (real useMergeTermSection, mocked fetch) — MergeIdleStep/MergePlannedStep/MergeConfirmedStep", () => {
+  it("walks idle -> planned -> confirmed, rendering each step's own markup, not just the idle one", async () => {
+    const user = userEvent.setup();
+    const a = term({ id: "a", name: "Term A" });
+    const b = term({ id: "b", name: "Term B" });
+    const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [a, b] };
+    renderTaxonomy({ taxonomies: [group], selected: { taxonomy: group, term: a } });
+
+    // Idle step (MergeIdleStep): choose a target, Plan merge.
+    await user.selectOptions(screen.getByLabelText(/merge into/i), "b");
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ planId: "plan1", planHash: "hash1", details: { overlappingContentCount: 3 } })
+    );
+    await user.click(screen.getByRole("button", { name: /plan merge/i }));
+
+    // Planned step (MergePlannedStep): the plan's own copy, not the idle select, is now on screen.
+    expect(await screen.findByText(/3 overlapping content assignment/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/merge into/i)).not.toBeInTheDocument();
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ confirmationToken: "tok1" }));
+    await user.click(screen.getByRole("button", { name: /confirm merge/i }));
+
+    // Confirmed step (MergeConfirmedStep): its own irreversible-warning copy and Execute button.
+    expect(await screen.findByText(/executing merges the terms now/i)).toBeInTheDocument();
+    const executeButton = screen.getByRole("button", { name: /execute merge/i });
+    expect(executeButton).toHaveClass("btn-danger");
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ mergedCount: 3 }));
+    await user.click(executeButton);
+
+    // onMerged fires -> Taxonomy clears selectedTermId and reloads (stubbed setSelectedTermId/load).
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+  });
+});
+
 describe("new-term form's collapsed resting state (web-design pass, 2026-08-05)", () => {
   it("starts collapsed behind an 'Add term' trigger, not the form itself", () => {
     const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ hierarchical: false }), terms: [] };
