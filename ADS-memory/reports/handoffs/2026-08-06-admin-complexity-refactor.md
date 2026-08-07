@@ -16,12 +16,49 @@ ESLint+sonarjs methodology — NOT the hook-aggregated numbers that could not be
 ## Next-agent opening prompt
 
 > Read `AI-Dev-Shop/AGENTS.md` first and perform Mandatory Startup, then read
-> `ADS-memory/reports/handoffs/2026-08-06-admin-complexity-refactor.md`.
-> Run `git status` before touching anything — the tree carries another session's uncommitted
-> sidebar-accordion work that must not be swept into a commit; §Risks says which paths.
-> Start at Next Steps #1. **Read §"The methodology trap" before trusting any complexity number,
-> including the ones in this document.** Do not re-derive the ConfirmDialog folder pattern — it is
-> done and committed; `apps/admin/INFO.md` documents it.
+> `ADS-memory/reports/handoffs/2026-08-06-admin-complexity-refactor.md` **in full** — including
+> §"Coordinator mistakes from this session", which exists so they are not repeated.
+> Run `git status` before touching anything: the tree carries another session's uncommitted
+> sidebar-accordion work that must not be swept into a commit (§Risks names the paths), AND the
+> stopped remains of three subagents, one of which does not compile.
+> **The bar is ≤10 cyclomatic and ≤10 cognitive per function, or a documented in-code reason why
+> not** — see §"THE ACCEPTANCE CRITERION". Measure it yourself with the command in §"The
+> methodology trap"; do not trust any number handed to you, including the ones in this document.
+> Dispatch the work to **Refactor** agents (`AI-Dev-Shop/agents/refactor/skills.md`), lifting their
+> propose-only default explicitly, and add `AI-Dev-Shop/agents/tdd/skills.md` for any untested
+> target. Do not re-derive the ConfirmDialog folder pattern — it is done and committed in
+> `34a7936`; `apps/admin/INFO.md` documents it.
+
+---
+
+## THE ACCEPTANCE CRITERION — owner-set, 2026-08-06
+
+> **10 is the ceiling. Every function ends at ≤10 cyclomatic AND ≤10 cognitive — or it carries a
+> documented reason, in the code, for why it cannot.**
+
+This is a hard bar, not a direction of travel. It was set because the previous round had **no
+target at all**: the dispatch said "reduce complexity" and named symbols, so agents took one clean
+cut each and stopped. That produced real but partial results — `readSseFrames` reached 5/8, while
+`useAssistantChats`' deepest closure landed at 8/**15** and was reported as done. Under a ceiling
+it would not have been.
+
+**Two acceptable outcomes per function, nothing else:**
+
+1. **≤10 / ≤10.** Measured with the command in the next section, before and after.
+2. **A documented exemption** — a comment on the function saying what it scores, why the structure
+   is irreducible, and what was tried. "It's complicated" is not a reason. Legitimate shapes:
+   - a flat `switch` over a closed protocol/key set, where a lookup table would lose TypeScript
+     exhaustiveness (see `translateRunAgentPayload`, 17/0);
+   - a flat sequence of `??` / `?.` fallbacks that inflates *cyclomatic* while cognitive stays near
+     zero (see `PostEditor.tsx:27`, 27/0) — a measurement artifact, note it and move on;
+   - intrinsic control flow like a retry ladder whose branches are distinct documented outcomes
+     (see `saveWithRetry`).
+
+**A `for` loop nested three deep is not an exemption. Neither is "the tests pass."**
+
+Report before/after per function against the measured numbers, never estimates. The previous round
+hand-estimated `useSettingsSlice` at ~12/~12; the tool showed **no change at all** (file cognitive
+25 → 25). Hand-counting against the SonarJS nesting model is not reliable — run the command.
 
 ---
 
@@ -169,19 +206,80 @@ independently-testable function.
 
 ---
 
-## State of the in-flight complexity pass (as of writing)
+## State of the in-flight complexity pass — STOPPED MID-FLIGHT
 
-Three subagents were dispatched against the **owner's original (unreproducible) numbers** before
-the discrepancy surfaced. Their work is still defensible — it is closure extraction and test
-coverage, which improve any metric — but their targeting was not grounded in the ESLint method.
-**Nothing from this pass had landed on disk when this handoff was written.** Verify with
-`git status` rather than assuming.
+Three Refactor subagents were dispatched against the **owner's original (unreproducible) numbers**
+and with **no complexity ceiling set**. The owner stopped all three on 2026-08-06 to restart with
+the ≤10 bar. Their partial work is **uncommitted but present in the working tree** — it survived
+`TaskStop`, verified by listing the files afterwards.
 
-| agent | targets | notes |
-|---|---|---|
-| D | `lib/assistant-transport.ts` (`startByokRun`, `readSseFrames`), `hooks/use-assistant-chats.hooks.ts`, `hooks/use-settings-slice.hooks.ts` | Plan: extract per-frame dispatch from `startByokRun`'s 4-5-deep IIFE; `parseFrame`; one narrow extraction each from the two hooks. Deliberately restrained on the hooks — dense synchronisation code with documented StrictMode/staleness ordering. |
-| E | `components/Select/`, `features/settings-raw/`, `features/widgets/hooks/` | Found the metric discrepancy. Plan: decompose `useSelectDropdown` into named internal sub-hooks; characterisation tests for the two untested files. |
-| F | `features/users/`, `features/roles/`, `features/taxonomy/`, `features/ai-assistant/`, new `hooks/use-async-action.hooks.ts` | Creating the shared primitive (below) + investigating the roadmap test failures (below). |
+**The tree does NOT typecheck.** One live error, agent F caught mid-edit:
+
+```
+src/features/users/hooks/use-users.hooks.ts(325,5): error TS2322:
+  Type '(error: string | null) => void' is not assignable to
+  type 'Dispatch<SetStateAction<string | null>>'
+```
+
+That is the `useAsyncAction` adoption half-applied — the primitive's setter signature does not
+accept the `SetStateAction` updater form that `useUsers` passes. **Decide early whether to finish
+or discard this**; it is a real API-design question about the primitive, not a typo.
+
+### Agent D — `lib/assistant-transport.ts`, `use-assistant-chats`, `use-settings-slice` — COMPLETE and verified
+
+Extracted, all with direct unit tests: `handleByokFrame` and `parseFrame` (from
+`assistant-transport.ts`), `summarizeFlushOutcomes` (from `use-assistant-chats.hooks.ts`),
+`commitQueuedSave` (from `use-settings-slice.hooks.ts`). **167/167 green**, typecheck clean for
+its files, independently re-run by the coordinator.
+
+Measured with the real tool, before (`34a7936`) → after:
+
+| target | before | after | under 10? |
+|---|---|---|---|
+| `readSseFrames` | 8 / 16 | 5 / 8 | **yes** |
+| `startByokRun` stream IIFE | 11 / 16 | 5 / 6 | **yes** |
+| `useAssistantChats` deep closure | 10 / 23 | 8 / **15** | **NO — still over** |
+| `useSettingsSlice` (file cognitive total) | 25 | 25 | **no change at all** |
+
+File totals: `assistant-transport.ts` cyc 113→116, cog 82→**76**; `use-assistant-chats.hooks.ts`
+cyc 87→89, cog 52→**42**; `use-settings-slice.hooks.ts` cyc 51→54, cog 25→**25**.
+
+**Cyclomatic rose slightly in all three while cognitive fell. That is the correct signature of
+extract-method, not a regression** — each extracted function carries a baseline branch count, so
+cyc is roughly conserved, while cog falls because the nesting penalty disappears. Do not read
+rising cyc as failure; do not target cyc for this kind of work.
+
+Left deliberately untouched by D, with reasoning the coordinator accepted: `translateRunAgentPayload`
+and the body of `saveWithRetry`. D also declined further restructuring inside the two hooks after
+its one cut each, on the grounds that their cyc:cog ratios (1.26, 1.35) indicate breadth across
+many callbacks rather than a nesting pyramid. **The measurement supports that judgement** —
+`use-settings-slice` had no deep nesting left, hence no cognitive win available. Under the new ≤10
+ceiling, `useAssistantChats`' 8/15 closure still needs work or a documented exemption.
+
+D was partway through adding four thunk-semantics tests to `commitQueuedSave` when stopped; those
+may be absent or incomplete.
+
+### Agent E — `components/Select/`, `features/settings-raw/`, `features/widgets/hooks/` — PARTIAL, UNVERIFIED
+
+- `Select.hooks.tsx`: **+244 / −86 lines**, mid-decomposition of `useSelectDropdown` into named
+  internal sub-hooks. Not test-verified by the coordinator. Treat as untrusted until re-run.
+- Characterisation tests written for the two untested files:
+  `features/settings-raw/__tests__/use-settings-container.hooks.unit.test.ts` (15.4 KB) and
+  `features/widgets/__tests__/use-widget-instance-editor.hooks.unit.test.ts` (14.5 KB).
+  **These are the most clearly salvageable artifacts in the whole stopped pass** — characterisation
+  tests against unchanged behaviour keep their value regardless of what happens to the refactor.
+
+E is the agent that caught the metric discrepancy. Its judgement is worth trusting.
+
+### Agent F — `features/users|roles|taxonomy|ai-assistant/`, `hooks/use-async-action.hooks.ts` — PARTIAL, BROKEN
+
+- `hooks/use-async-action.hooks.ts` (5.3 KB) + `hooks/__tests__/use-async-action.hooks.test.ts` — the
+  new shared primitive, written.
+- Characterisation tests written: `features/ai-assistant/__tests__/use-visitor-credential-form.unit.test.ts`
+  (17.9 KB), `features/users/__tests__/use-users.unit.test.ts` (17.8 KB). Same salvage note as E's.
+- `features/users/hooks/use-users.hooks.ts` — **mid-adoption, does not compile** (the error above).
+- `useRoles` / `useTaxonomy` adoption: not started.
+- **The roadmap-accordion investigation was never done.** Still open, see its own section.
 
 ### The `useAsyncAction` primitive (agent F, in flight)
 
@@ -258,6 +356,108 @@ more of its *lines*, which for four components is the `.hooks.tsx`, not the `.ts
 **One orphaned Vite process**, PID 63004, started 2026-08-05 10:13, holding no port. Harmless but
 worth `kill`ing. A stale dev server was the cause of the `404 (Not Found)` HMR errors on old
 component paths reported this session — the fix is a dev-server restart after any file move.
+
+---
+
+## Coordinator mistakes from this session — do not repeat these
+
+Written by the coordinator who made them. Each cost real time or nearly caused a wrong action.
+Three of the eight were caught by subagents, not by the coordinator, which is itself the lesson
+in #8.
+
+### 1. Dispatched three agents against numbers I never verified
+
+The owner supplied a 16-symbol complexity table. I passed it straight into three briefs as
+targets. It does not reproduce under the repo's own documented tool — `useSelectDropdown` measures
+2/0, not 37/56. Agent E caught it *before writing code* and asked for the command.
+
+**Rule: measure the baseline yourself before making it a target.** The repo's method was already
+written down in `ADS-memory/reports/analysis/2026-08-05-admin-complexity-over-10.md` §0. One
+command would have caught this. Numbers handed to you are inputs, not facts.
+
+### 2. Set no acceptance threshold
+
+Briefs said "reduce complexity" and named symbols. With no ceiling, each agent took one clean cut
+and stopped — a defensible reading of a vague instruction. `useAssistantChats`' deepest closure was
+reported as done at 8/**15**.
+
+**Rule: state the bar, not the direction.** The owner has now set it: ≤10 on both axes, or a
+documented exemption. See the acceptance-criterion section at the top.
+
+### 3. Built a work list with a naive grep that counted comments as code
+
+I grepped `use[A-Z]\w*` across `AssistantDock.tsx` to enumerate its in-file hooks, and briefed
+agent A to extract `useByokRuntime`, `useLocalCliSelection`, `useExecutionConfig`, `useWorkingDir`,
+and `useChatPane`. **The last two do not exist** — they appear only in doc comments citing *other
+packages'* hooks. A grepped my claim, found it false, extracted the three real ones, and said so.
+
+Same error again on `WidgetConfigFields`: I claimed 5×`useState`/3×`useEffect`; the real count is
+4×/2× (I had counted the import line).
+
+**Rule: in a codebase this heavily commented, an occurrence count is not a symbol census.** Grep
+for definitions (`function useX`, `const useX =`) or read the file.
+
+### 4. Used the shell's `grep` for existence claims
+
+`grep` in this environment is a **shell function wrapping `ugrep --ignore-files`**. It silently
+skipped a tracked source file during a recursive search, returning zero hits for a class name that
+was on line 109 of the file I was asking about. I briefly concluded markup had been deleted when
+it had not.
+
+This is the dangerous failure mode: a false negative from grep does not look like an error, it
+looks like an answer — and "nothing references this" is the answer that authorises a deletion. I
+had used exactly that to justify deleting `MediaImageInsertControl`. Re-verified afterwards with
+`git grep`; it held, but by luck of double-checking.
+
+**Rule: `git grep` (or `command grep`) for any existence or dead-code claim. Never the wrapper.**
+
+### 5. Guessed at code instead of reading it
+
+I asserted `App` (16/17) was "a route switch" and recommended leaving it on that basis. It is not —
+it is a sequence of independent responsive-layout effects (`matchMedia` + two `ResizeObserver`s).
+The recommendation happened to survive, the reasoning did not.
+
+**Rule: if a verdict rests on what the code *is*, open the file first.**
+
+### 6. Repeated a `git mv` folk belief
+
+I endorsed an agent's claim that `git mv` makes "history follow." **Git does not store renames at
+all** — `git mv` is `mv` + `git add` + `git rm`, and rename detection happens at display time from
+content similarity. Then I compounded it by estimating rename-detection risk from *byte* ratios and
+predicting `Select` would lose its history. Git detected every rename, and matched each old file to
+whichever new file kept more of its **lines** — for four components that is the `.hooks.tsx`, not
+the `.tsx`. So `git log --follow Select/Select.hooks.tsx` works and `Select/Select.tsx` does not,
+which is the opposite of what I told the owner.
+
+**Rule: verify tooling beliefs against the tool, and use line-based similarity, not file size.**
+
+### 7. Under-rated a target using the unverified number
+
+Because the bad table listed `handlePanelKeyDown` at 11/23, I told agent E to leave it mostly alone
+as "an unavoidable key switch." It measures **16/15 — the highest-scoring function in its folder**,
+and cognitive 15 alongside cyclomatic 16 means the weight is *not* the switch (a flat switch scores
+low cognitive). Reading it showed the load sits in per-case conditionals, chiefly the `Tab` case's
+focus-walking block. Bad input produced bad guidance, then the guidance sounded principled.
+
+### 8. Under-used the agents' own judgement
+
+Three of the corrections above came from subagents pushing back, not from me: the metric
+discrepancy (E), the non-existent hooks (A), and the better seam rule — one seam per *reachable*
+boundary, no nested overrides (B). Every one of them was right.
+
+**Rule: brief agents to challenge the brief, and mean it.** Ask for reasoning when they decline
+something rather than treating a decline as under-delivery. Require a *paraphrase* rather than an
+"ack" — one agent went silent through an entire round and its work was invalid under AGENTS.md
+§Delegated Agent Bootstrap until it confirmed the persona load.
+
+### What went right, worth keeping
+
+- **Per-file negative verification** (break an assertion, confirm *that file* fails, revert) caught
+  nothing broken this pass but is the only reason "235 passing" means anything after a mass move.
+- **Hunk-level staging** kept another session's uncommitted feature out of the refactor commit.
+- **Worktree verification** proved the commit builds standalone rather than assuming it.
+- **Measuring agent claims rather than accepting them** is what surfaced the `useSettingsSlice`
+  no-op that a hand-estimate had reported as ~12/~12.
 
 ---
 
