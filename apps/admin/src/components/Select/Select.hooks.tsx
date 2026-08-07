@@ -358,14 +358,13 @@ function useSelectKeyboardHandlers({
   /**
    * @complexity 13 cyclomatic / 8 cognitive, measured after the 2026-08-06 `resolveTabTarget`
    * extraction dropped cognitive from 15 to 8 (the nested `if`/`indexOf`/ternary that used to sit in
-   * the `"Tab"` case is gone from this body). Cyclomatic did not cross the ≤10 ceiling this pass
-   * started under, and does not cross the ≤9/≤9 bar it was later tightened to either — not because
-   * the score changed, but because no bar in that range changes the underlying fact: ESLint's
-   * `complexity` rule charges one branch per `case` label, so the 13 is a count of the seven keys
-   * this handler answers to (Escape/ArrowDown/ArrowUp/Home/End/Enter/Tab) plus the `Enter` case's
-   * own `if`/`&&` — not nested branching, which is what cognitive complexity models and which is
-   * already at 8, under both bars. Tried: moving the `"Tab"` case body out (done, above) — it
-   * lowered cognitive but a switch's cyclomatic score doesn't fall by moving case *bodies*
+   * the `"Tab"` case is gone from this body). Cyclomatic exceeds both the ≤10 ceiling this pass
+   * started under and the ≤9/≤9 bar it was later tightened to — under either bar, for the same
+   * reason: ESLint's `complexity` rule charges one branch per `case` label, so the 13 is a count of
+   * the seven keys this handler answers to (Escape/ArrowDown/ArrowUp/Home/End/Enter/Tab) plus the
+   * `Enter` case's own `if`/`&&` — not nested branching, which is what cognitive complexity models
+   * and which stays at 8, under both bars. Tried: moving the `"Tab"` case body out (done, above) —
+   * it lowered cognitive but a switch's cyclomatic score doesn't fall by moving case *bodies*
    * elsewhere, only by removing cases. The remaining way to lower it is to stop being a switch —
    * collapse it into a key -> handler lookup table — which both this file's header and this pass's
    * own dispatch brief reject explicitly for this function: "a keyboard handler written as a flat
