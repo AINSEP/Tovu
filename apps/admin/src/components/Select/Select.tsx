@@ -174,6 +174,14 @@ function SelectPanel({
   );
 }
 
+/** The trigger button's derived label text + "is it showing a placeholder" className — pulled out
+ *  of `Select`'s own render body as a top-level pure function under the tightened ≤9/≤9 pass, same
+ *  extraction rule as `SelectPanel`/`SelectOptionRow` above. */
+export function resolveSelectTriggerLabel(selectedOption: SelectOption | null, placeholder: string | undefined): { text: string; className: string } {
+  if (selectedOption) return { text: selectedOption.label, className: "select-trigger-label" };
+  return { text: placeholder ?? "Select…", className: "select-trigger-label is-placeholder" };
+}
+
 export function Select(props: SelectProps) {
   const { value, onChange, options, placeholder, id, disabled, useDropdown = useSelectDropdown } = props;
   const ariaLabel = props["aria-label"];
@@ -207,6 +215,9 @@ export function Select(props: SelectProps) {
     else optionRefs.current.delete(index);
   }
 
+  const triggerLabel = resolveSelectTriggerLabel(selectedOption, placeholder);
+  const activeDescendant = open && highlightedIndex >= 0 ? optionId(highlightedIndex) : undefined;
+
   return (
     <>
       <button
@@ -218,16 +229,14 @@ export function Select(props: SelectProps) {
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-controls={open ? listboxId : undefined}
-        aria-activedescendant={open && highlightedIndex >= 0 ? optionId(highlightedIndex) : undefined}
+        aria-activedescendant={activeDescendant}
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
         disabled={disabled}
         onClick={() => (open ? closePanel({ refocusTrigger: false }) : openPanel())}
         onKeyDown={handleTriggerKeyDown}
       >
-        <span className={`select-trigger-label${selectedOption ? "" : " is-placeholder"}`}>
-          {selectedOption ? selectedOption.label : (placeholder ?? "Select…")}
-        </span>
+        <span className={triggerLabel.className}>{triggerLabel.text}</span>
         <span className="select-trigger-chevron" aria-hidden="true" />
       </button>
 

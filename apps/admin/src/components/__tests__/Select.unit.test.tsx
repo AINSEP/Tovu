@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useEffect, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { Select, type SelectOption } from "../Select/Select";
+import { resolveSelectTriggerLabel, Select, type SelectOption } from "../Select/Select";
 
 /**
  * @file `Select` — the custom searchable dropdown built to replace `WidgetPickerDialog.tsx`'s two
@@ -506,5 +506,30 @@ describe("Select dropdown-hook injection", () => {
     fireEvent.click(screen.getByRole("combobox", { name: "Pick one" }));
     expect(fakeClosePanel).toHaveBeenCalledWith({ refocusTrigger: false });
     expect(fakeOpenPanel).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveSelectTriggerLabel", () => {
+  // Direct coverage of the trigger label/className derivation extracted out of `Select`'s own
+  // render body under the tightened ≤9/≤9 pass.
+  it("shows the selected option's label with no placeholder class when a value is selected", () => {
+    expect(resolveSelectTriggerLabel({ value: "a", label: "Alpha" }, "Pick one")).toEqual({
+      text: "Alpha",
+      className: "select-trigger-label",
+    });
+  });
+
+  it("falls back to the caller's placeholder, with the placeholder class, when nothing is selected", () => {
+    expect(resolveSelectTriggerLabel(null, "Pick one")).toEqual({
+      text: "Pick one",
+      className: "select-trigger-label is-placeholder",
+    });
+  });
+
+  it("falls back to the default placeholder text when the caller supplies none", () => {
+    expect(resolveSelectTriggerLabel(null, undefined)).toEqual({
+      text: "Select…",
+      className: "select-trigger-label is-placeholder",
+    });
   });
 });

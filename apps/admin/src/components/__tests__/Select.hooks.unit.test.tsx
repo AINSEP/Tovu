@@ -5,6 +5,7 @@ import {
   buildOptionId,
   computePosition,
   focusableInDomOrder,
+  repositionOrClose,
   resolveTabTarget,
   useSelectDropdown,
   type SelectOption,
@@ -82,6 +83,76 @@ describe("computePosition", () => {
       const position = computePosition(trigger);
       expect(position.top).toBeDefined();
       expect(position.maxHeight).toBe(120);
+    });
+  });
+});
+
+describe("repositionOrClose", () => {
+  // Direct coverage of the scroll/resize decision extracted out of `usePanelPosition`'s effect
+  // under the tightened ≤9/≤9 pass. `Select.unit.test.tsx`'s "repositions on scroll..." test already
+  // pins the elementFromPoint-unavailable branch end-to-end; these exercise every branch directly.
+  it("closes without repositioning when the trigger's rect is entirely out of the viewport", () => {
+    withInnerHeight(800, () => {
+      const trigger = fakeTrigger({ top: -50, bottom: -10, left: 0, width: 50 }); // bottom <= 0
+      const onOutOfView = vi.fn();
+      const setPosition = vi.fn();
+      repositionOrClose(trigger, onOutOfView, setPosition);
+      expect(onOutOfView).toHaveBeenCalledTimes(1);
+      expect(setPosition).not.toHaveBeenCalled();
+    });
+  });
+
+  it("closes without repositioning when elementFromPoint reports the trigger is obscured", () => {
+    withInnerHeight(800, () => {
+      const trigger = fakeTrigger({ top: 100, bottom: 130, left: 20, right: 220, width: 200 });
+      const original = document.elementFromPoint;
+      // A stand-in element that is neither the trigger nor a descendant/ancestor of it — the
+      // "something else is on top" case.
+      document.elementFromPoint = vi.fn().mockReturnValue(document.createElement("div"));
+      try {
+        const onOutOfView = vi.fn();
+        const setPosition = vi.fn();
+        repositionOrClose(trigger, onOutOfView, setPosition);
+        expect(onOutOfView).toHaveBeenCalledTimes(1);
+        expect(setPosition).not.toHaveBeenCalled();
+      } finally {
+        document.elementFromPoint = original;
+      }
+    });
+  });
+
+  it("recomputes position when the trigger is visible and unobscured", () => {
+    withInnerHeight(800, () => {
+      const trigger = fakeTrigger({ top: 100, bottom: 130, left: 20, right: 220, width: 200 });
+      const original = document.elementFromPoint;
+      document.elementFromPoint = vi.fn().mockReturnValue(trigger); // the trigger is on top of itself
+      try {
+        const onOutOfView = vi.fn();
+        const setPosition = vi.fn();
+        repositionOrClose(trigger, onOutOfView, setPosition);
+        expect(onOutOfView).not.toHaveBeenCalled();
+        expect(setPosition).toHaveBeenCalledWith(computePosition(trigger));
+      } finally {
+        document.elementFromPoint = original;
+      }
+    });
+  });
+
+  it("degrades to the viewport-edge check alone when elementFromPoint is unavailable", () => {
+    withInnerHeight(800, () => {
+      const trigger = fakeTrigger({ top: 100, bottom: 130, left: 20, right: 220, width: 200 });
+      const original = document.elementFromPoint;
+      // @ts-expect-error — simulating an environment where the API does not exist at all.
+      document.elementFromPoint = undefined;
+      try {
+        const onOutOfView = vi.fn();
+        const setPosition = vi.fn();
+        repositionOrClose(trigger, onOutOfView, setPosition);
+        expect(onOutOfView).not.toHaveBeenCalled();
+        expect(setPosition).toHaveBeenCalledWith(computePosition(trigger));
+      } finally {
+        document.elementFromPoint = original;
+      }
     });
   });
 });
