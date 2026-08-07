@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { AdminByokKeyFooter, AdminByokMigrationPrompt } from "../AdminByokKeyPanel";
+import { AdminByokKeyFooter, AdminByokMigrationPrompt, resolveByokFooterStatusLine } from "../AdminByokKeyPanel";
 import type { AdminExecutionCredentialController } from "../../hooks/use-admin-execution-credential.hooks";
 
 /**
@@ -104,5 +104,28 @@ describe("AdminByokKeyFooter", () => {
   it("surfaces a save error", () => {
     render(<AdminByokKeyFooter controller={controller({ saveState: { status: "error", message: "failed to save the key" } })} />);
     expect(screen.getByText("failed to save the key")).toBeInTheDocument();
+  });
+});
+
+describe("resolveByokFooterStatusLine", () => {
+  // Direct coverage of the pure function extracted out of `AdminByokKeyFooter`'s own render body —
+  // the rendered-component tests above already pin the same four cases end-to-end; this exercises
+  // the status/isStored combinations without a render at all.
+  it("reports 'Saving…' while saving, regardless of isStored", () => {
+    expect(resolveByokFooterStatusLine("saving", false)).toBe("Saving…");
+    expect(resolveByokFooterStatusLine("saving", true)).toBe("Saving…");
+  });
+
+  it("reports the saved confirmation once saved", () => {
+    expect(resolveByokFooterStatusLine("saved", false)).toBe("Saved to the server, encrypted.");
+  });
+
+  it("distinguishes 'stored' from 'never stored' while idle", () => {
+    expect(resolveByokFooterStatusLine("idle", true)).toBe("Stored on the server, encrypted. Paste a new key to replace it.");
+    expect(resolveByokFooterStatusLine("idle", false)).toBe("Paste your key, then press Save key.");
+  });
+
+  it("returns null on error — the footer renders the error via a separate element", () => {
+    expect(resolveByokFooterStatusLine("error", false)).toBeNull();
   });
 });
