@@ -166,6 +166,28 @@ Stage **only your own paths, explicitly** — `git add <path> <path>`. Never `gi
 `git add .`, never `git commit -a`. Other agents are working on this branch concurrently, and the
 tree carries a different session's uncommitted feature (§7).
 
+**That is not sufficient on its own. Put the pathspec on the `commit` too:**
+
+```bash
+git add <any brand-new files>                   # only needed for untracked paths
+git commit <path> <path> -F <message-file>      # pathspec on the COMMIT, not only the add
+```
+
+`git add` stages only what you name, but a bare `git commit` commits **the whole index** — including
+whatever another agent happened to have staged at that instant. This has already happened once on
+this branch: one agent's commit swallowed 120 lines of `features/database/Database.tsx` belonging to
+another. Content survived intact and nothing was lost, but the change landed under the wrong commit
+message, and the fix (a rebase across commits you do not own, under concurrent writes) is far more
+dangerous than the mistake. Do not attempt that repair — flag it and move on.
+
+Two things to know about the pathspec form:
+
+- **It commits the working-tree content of those paths, not what you staged for them.** If you ever
+  stage a partial hunk deliberately, this form overrides it.
+- **It fails on brand-new untracked files** — `did not match any file(s) known to git`. Run
+  `git add` on those first, then the path-scoped commit. This is why the `git add` line above is
+  still there.
+
 If `git commit` fails on `.git/index.lock`, another agent is mid-commit. Wait a few seconds and
 retry. Do not delete the lock file.
 
