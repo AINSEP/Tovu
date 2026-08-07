@@ -319,6 +319,22 @@ export function useVisitorCredentialForm(): VisitorCredentialFormController {
     }
   }
 
+  // Also refresh discovery on an explicit test. The debounced effect above cannot recover from a
+  // discovery attempt that failed transiently, because nothing about the credential changed
+  // afterwards — so without this the operator would be stuck looking at a stale error next to a
+  // connection that just went green. (The same trap was found and fixed independently upstream in
+  // Jini's `ExecutionTab`; this screen must not reintroduce it.)
+  async function refreshDiscoveryAfterTest() {
+    if (!config.apiKey.trim()) return;
+    try {
+      const models = await port.current.listModels?.(config);
+      if (models) setDiscovery({ status: "ok", models });
+    } catch {
+      // Leave whatever discovery state already exists — the connection result is the answer the
+      // operator asked for, and failing to also refresh the list must not overwrite it.
+    }
+  }
+
   async function runTestConnection() {
     setConnectionTest({ status: "testing" });
     try {
@@ -328,20 +344,7 @@ export function useVisitorCredentialForm(): VisitorCredentialFormController {
           ? { status: "ok", message: result.message }
           : { status: "error", message: result?.message || "Connection test failed" },
       );
-      // Also refresh discovery on an explicit test. The debounced effect above cannot recover from a
-      // discovery attempt that failed transiently, because nothing about the credential changed
-      // afterwards — so without this the operator would be stuck looking at a stale error next to a
-      // connection that just went green. (The same trap was found and fixed independently upstream in
-      // Jini's `ExecutionTab`; this screen must not reintroduce it.)
-      if (result?.ok && config.apiKey.trim()) {
-        try {
-          const models = await port.current.listModels?.(config);
-          if (models) setDiscovery({ status: "ok", models });
-        } catch {
-          // Leave whatever discovery state already exists — the connection result is the answer the
-          // operator asked for, and failing to also refresh the list must not overwrite it.
-        }
-      }
+      if (result?.ok) await refreshDiscoveryAfterTest();
     } catch (e) {
       setConnectionTest({ status: "error", message: e instanceof Error ? e.message : "Connection test failed" });
     }

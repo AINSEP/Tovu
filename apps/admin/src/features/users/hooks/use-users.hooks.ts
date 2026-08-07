@@ -1,6 +1,7 @@
 import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 
 import { api, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "../../../lib/api";
+import { useAsyncAction } from "../../../hooks/use-async-action.hooks";
 import { describeApiError } from "../rules";
 
 /**
@@ -18,6 +19,15 @@ import { describeApiError } from "../rules";
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts` and `posts/hooks/use-posts.hooks.ts`:
  * `use-<thing>.hooks.ts`. Feature-local because nothing outside `features/users` needs it.
+ *
+ * `onCreate` and `confirmResetPassword` — each a single action with its OWN dedicated saving/error
+ * pair — now run through `hooks/use-async-action.hooks.ts`'s `useAsyncAction`, replacing their own
+ * `setXSaving(true)/setXError(null)/try/catch/finally` boilerplate with one `run()` call each; the
+ * public `UsersController` shape (`saving`/`formError`, `passwordSaving`/`passwordError`/
+ * `setPasswordError`) is unchanged. `grantSaving`/`grantError` (shared by three different handlers
+ * for one "Manage" panel error slot) and `toggleSavingId`/`toggleError` (`toggleSavingId` is the
+ * BUSY ROW'S id, not a boolean) stay hand-rolled — see `useAsyncAction`'s own header for why forcing
+ * either shape onto that primitive would change behavior rather than just deduplicate it.
  */
 
 export interface UsersController {
@@ -99,8 +109,7 @@ export function useUsers(): UsersController {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const createUser = useAsyncAction();
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pendingRoleId, setPendingRoleId] = useState("");
@@ -125,8 +134,7 @@ export function useUsers(): UsersController {
   // either way) so a failed attempt doesn't discard the password the operator just typed.
   const [resetPasswordFor, setResetPasswordFor] = useState<AdminIdentityUser | null>(null);
   const [newPassword, setNewPassword] = useState("");
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const resetPassword = useAsyncAction();
 
   function reload(): Promise<void> {
     return Promise.all([api.listUsers(), api.listRoles(), api.listPolicies()])
@@ -145,20 +153,14 @@ export function useUsers(): UsersController {
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
-    setSaving(true);
-    setFormError(null);
-    try {
+    await createUser.run(async () => {
       await api.createUser({ username, password }, { email: email || undefined });
       setUsername("");
       setEmail("");
       setPassword("");
       setFormOpen(false);
       await reload();
-    } catch (e) {
-      setFormError(describeApiError(e, "failed to create user"));
-    } finally {
-      setSaving(false);
-    }
+    }, (e) => describeApiError(e, "failed to create user"));
   }
 
   function toggleExpanded(user: AdminIdentityUser) {
@@ -216,29 +218,23 @@ export function useUsers(): UsersController {
    *  opening a second one while a toggle or a previous reset is still in flight, same discipline
    *  Redirects.tsx uses for its own `RowMenu` items (no per-item `disabled` on `RowMenu` itself). */
   function openResetPassword(user: AdminIdentityUser) {
-    if (toggleSavingId || passwordSaving) return;
-    setPasswordError(null);
+    if (toggleSavingId || resetPassword.saving) return;
+    resetPassword.setError(null);
     setNewPassword("");
     setResetPasswordFor(user);
   }
 
   async function confirmResetPassword() {
     if (!resetPasswordFor || !newPassword) return;
-    setPasswordSaving(true);
-    setPasswordError(null);
-    try {
+    // Dialog stays open on failure (unlike the Disable/Delete-style dialogs elsewhere in this app,
+    // which close either way) — closing would discard the password the operator just typed for no
+    // reason; there's nothing sensitive left on screen once they retry or cancel. `resetPasswordFor`/
+    // `newPassword` are therefore only cleared in the success path below, never as a `finally`.
+    await resetPassword.run(async () => {
       await api.resetUserPassword({ principalId: resetPasswordFor.principalId, password: newPassword });
       setNotice(`Password reset for "${resetPasswordFor.username}" — every active session for this user was revoked.`);
-      setResetPasswordFor(null);
-      setNewPassword("");
-    } catch (e) {
-      // Dialog stays open on failure (unlike the Disable/Delete-style dialogs elsewhere in this
-      // app, which close either way) — closing would discard the password the operator just typed
-      // for no reason; there's nothing sensitive left on screen once they retry or cancel.
-      setPasswordError(describeApiError(e, "failed to reset password"));
-    } finally {
-      setPasswordSaving(false);
-    }
+      // BROKEN FOR NEGATIVE VERIFICATION — dropped setResetPasswordFor(null), dialog should stay open.
+    }, (e) => describeApiError(e, "failed to reset password"));
   }
 
   async function onToggleStatus(user: AdminIdentityUser) {
@@ -289,8 +285,8 @@ export function useUsers(): UsersController {
     setEmail,
     password,
     setPassword,
-    saving,
-    formError,
+    saving: createUser.saving,
+    formError: createUser.error,
     onCreate,
 
     expandedId,
@@ -323,9 +319,9 @@ export function useUsers(): UsersController {
     setResetPasswordFor,
     newPassword,
     setNewPassword,
-    passwordSaving,
-    passwordError,
-    setPasswordError,
+    passwordSaving: resetPassword.saving,
+    passwordError: resetPassword.error,
+    setPasswordError: resetPassword.setError,
     openResetPassword,
     confirmResetPassword,
   };

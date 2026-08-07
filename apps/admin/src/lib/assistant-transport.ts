@@ -296,14 +296,35 @@ function mintByokRunId(): string {
 const byokAbortControllers = new Map<string, AbortController>();
 
 /**
+ * Parses one blank-line-delimited SSE frame's raw text into `{event, data}` — the field-by-field
+ * half of `readSseFrames` below, split out (2026-08-06, complexity pass) as its own pure function
+ * so it is directly testable with a plain string, no `ReadableStream`/reader involved, and so the
+ * outer while-loop in `readSseFrames` reads as "find the next boundary, parse it, yield it" rather
+ * than a parser nested three loops deep inside it.
+ *
+ * Returns `null` for a frame with no `data:` lines — `readSseFrames` skips yielding those, same as
+ * it did before this split (a bare `event: ping` keepalive, for example, or a frame carrying only an
+ * `id:` field `assistant-byok.ts` never sends).
+ */
+export function parseFrame(rawFrame: string): { event: string; data: string } | null {
+  let event = "message";
+  const dataLines: string[] = [];
+  for (const line of rawFrame.split("\n")) {
+    if (line.startsWith("event:")) event = line.slice(6).trim();
+    else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+  }
+  return dataLines.length > 0 ? { event, data: dataLines.join("\n") } : null;
+}
+
+/**
  * Splits a `text/event-stream` response body into `{event, data}` frames.
  *
  * A hand-rolled reader rather than `EventSource`: `EventSource` only ever issues a GET with no
  * request body, and this path's whole point (see module doc's path-2 section) is one POST holding
  * the turn open on the SAME connection the browser used to send it — there is no separate URL an
- * `EventSource` could subscribe to. Frames are blank-line-delimited per the SSE spec; only the
- * `event:`/`data:` fields `assistant-byok.ts` ever sends are parsed (no `id:`/`retry:` support — that
- * route sends neither).
+ * `EventSource` could subscribe to. Frames are blank-line-delimited per the SSE spec; per-frame
+ * field parsing (`event:`/`data:`, no `id:`/`retry:` support — that route sends neither) lives in
+ * {@link parseFrame} above.
  *
  * @complexity O(n) in response body bytes; O(1) additional buffering per chunk beyond the
  * not-yet-terminated tail of the current frame.
@@ -321,15 +342,47 @@ async function* readSseFrames(body: ReadableStream<Uint8Array>): AsyncGenerator<
     while (boundary !== -1) {
       const rawFrame = buffer.slice(0, boundary);
       buffer = buffer.slice(boundary + 2);
-      let event = "message";
-      const dataLines: string[] = [];
-      for (const line of rawFrame.split("\n")) {
-        if (line.startsWith("event:")) event = line.slice(6).trim();
-        else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
-      }
-      if (dataLines.length > 0) yield { event, data: dataLines.join("\n") };
+      const frame = parseFrame(rawFrame);
+      if (frame) yield frame;
       boundary = buffer.indexOf("\n\n");
     }
+  }
+}
+
+/**
+ * Dispatches one parsed BYOK SSE frame to the right `RunHandlers` call — the `"agent"`/`"error"`/
+ * `"end"` handling pulled out of `startByokRun`'s stream-consumer IIFE (2026-08-06, complexity
+ * pass), where it sat four levels of nesting deep (async IIFE > `try` > `for await` > `if`/
+ * `else if`, with a further nested `if` inside the `"agent"` and `"end"` cases). At module scope it
+ * is a single, independently testable function: a plain `{event, data}` frame in, a fake
+ * `RunHandlers` to assert against, no `ReadableStream`/`fetch`/timers required.
+ *
+ * @param ctx.collected - This turn's running event log — the same array `startByokRun` hands to
+ *   `handlers.onDone` once the stream ends.
+ * @param ctx.finish - `startByokRun`'s own idempotent finish (closes out the turn, deletes its abort
+ *   controller, calls `onDone`). Called on `"end"`, exactly as the inline version did.
+ */
+export function handleByokFrame(
+  frame: { event: string; data: string },
+  ctx: { collected: AgentEvent[]; handlers: RunHandlers; finish: () => void },
+): void {
+  if (frame.event === "agent") {
+    const payload = JSON.parse(frame.data) as RunAgentPayload;
+    const translated = translateRunAgentPayload(payload);
+    if (translated) {
+      ctx.collected.push(translated);
+      ctx.handlers.onEvent(translated);
+    }
+  } else if (frame.event === "error") {
+    const payload = JSON.parse(frame.data) as { message?: unknown };
+    ctx.handlers.onError(new Error(asString(payload.message) || "BYOK turn failed"));
+  } else if (frame.event === "end") {
+    const notice = terminalReasonNotice(readTerminalReason(frame.data, false));
+    if (notice) {
+      ctx.collected.push(notice);
+      ctx.handlers.onEvent(notice);
+    }
+    ctx.finish();
   }
 }
 
@@ -401,24 +454,7 @@ async function startByokRun(
   void (async () => {
     try {
       for await (const frame of readSseFrames(response.body!)) {
-        if (frame.event === "agent") {
-          const payload = JSON.parse(frame.data) as RunAgentPayload;
-          const translated = translateRunAgentPayload(payload);
-          if (translated) {
-            collected.push(translated);
-            handlers.onEvent(translated);
-          }
-        } else if (frame.event === "error") {
-          const payload = JSON.parse(frame.data) as { message?: unknown };
-          handlers.onError(new Error(asString(payload.message) || "BYOK turn failed"));
-        } else if (frame.event === "end") {
-          const notice = terminalReasonNotice(readTerminalReason(frame.data, false));
-          if (notice) {
-            collected.push(notice);
-            handlers.onEvent(notice);
-          }
-          finish();
-        }
+        handleByokFrame(frame, { collected, handlers, finish });
       }
       finish();
     } catch (error) {

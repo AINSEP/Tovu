@@ -82,6 +82,48 @@ export interface SettingsSliceOptions<T> {
   reconcileRefresh?: (current: T, loaded: T) => T;
 }
 
+/**
+ * Runs one save-chain link: calls `runSave`, then paints the ticket-owning outcome onto
+ * `saveState` — unless a newer save has since taken the ticket (`currentTicket()` no longer matches
+ * `ticket`), or the operator has queued another edit behind this one (`hasUnsavedEdits()`). Pulled
+ * out of `onChange`'s debounce-timer closure (2026-08-06, complexity pass) — it was the deepest
+ * nesting in this file, three closures in (`onChange` > the `setTimeout` callback > the
+ * `saveChain.current.then(async () => …)` link) — so the ticket/staleness handling is directly
+ * assertable against a fake `runSave`, without a real timer or save chain.
+ *
+ * The ref reads are passed as thunks rather than plain booleans specifically so this keeps the
+ * original "read at run time, not schedule time" contract this whole file's header calls out:
+ * `deps.currentTicket()`/`deps.hasUnsavedEdits()` are called from inside this function, at the same
+ * points the inline version read `saveTicket.current`/`hasUnsavedEdits.current` directly, so a
+ * ticket or edit that changes while `runSave` is in flight is still seen correctly.
+ *
+ * @param ticket - This link's own ticket, taken by the caller when the debounce timer fired.
+ */
+export async function commitQueuedSave(
+  ticket: number,
+  deps: {
+    runSave: () => Promise<readonly string[]>;
+    currentTicket: () => number;
+    hasUnsavedEdits: () => boolean;
+    setSaveState: (state: SaveState) => void;
+  },
+): Promise<void> {
+  try {
+    const written = await deps.runSave();
+    if (deps.currentTicket() !== ticket) return;
+    // A newer edit is already queued behind this one, so "Saved" would be a claim about state
+    // that is not saved. Stay in "saving".
+    if (deps.hasUnsavedEdits()) return;
+    deps.setSaveState(written.length > 0 ? { status: "saved" } : { status: "idle" });
+  } catch (error: unknown) {
+    if (deps.currentTicket() !== ticket) return;
+    deps.setSaveState({
+      status: "error",
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 export interface SettingsSlice<T> {
   /** `null` until the initial load settles — the caller renders a loading state. */
   value: T | null;
@@ -268,22 +310,14 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
       timer.current = null;
       const ticket = ++saveTicket.current;
       setSaveState({ status: "saving" });
-      saveChain.current = saveChain.current.then(async () => {
-        try {
-          const written = await runSave();
-          if (saveTicket.current !== ticket) return;
-          // A newer edit is already queued behind this one, so "Saved" would
-          // be a claim about state that is not saved. Stay in "saving".
-          if (hasUnsavedEdits.current) return;
-          setSaveState(written.length > 0 ? { status: "saved" } : { status: "idle" });
-        } catch (error: unknown) {
-          if (saveTicket.current !== ticket) return;
-          setSaveState({
-            status: "error",
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }
-      });
+      saveChain.current = saveChain.current.then(() =>
+        commitQueuedSave(ticket, {
+          runSave,
+          currentTicket: () => saveTicket.current,
+          hasUnsavedEdits: () => hasUnsavedEdits.current,
+          setSaveState,
+        }),
+      );
     }, SAVE_DEBOUNCE_MS);
   }, [runSave]);
 

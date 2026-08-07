@@ -2,7 +2,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SAVE_DEBOUNCE_MS, mergeSaveStates, useSettingsSlice, type SaveState } from "../use-settings-slice.hooks";
+import { SAVE_DEBOUNCE_MS, commitQueuedSave, mergeSaveStates, useSettingsSlice, type SaveState } from "../use-settings-slice.hooks";
 
 /**
  * @file `useSettingsSlice` — the load/debounce/save lifecycle shared by every
@@ -734,6 +734,123 @@ describe("refresh — external notification re-reads the persisted value", () =>
     // a response that predates a write that landed while it was in flight.
     expect(reconcileRefresh).not.toHaveBeenCalled();
     expect(result.current.value).toEqual({ field: "v1", secret: "typed-secret" });
+  });
+});
+
+/**
+ * `commitQueuedSave` — pulled out of `onChange`'s debounce-timer/save-chain closure (2026-08-06,
+ * complexity pass). Directly assertable against a fake `runSave` and plain thunks for the
+ * ticket/hasUnsavedEdits reads, no real timer or save chain needed — the ticket-staleness behavior
+ * itself is still covered end-to-end by the `describe("saveTicket …")` block above; these pin the
+ * decision in isolation.
+ */
+describe("commitQueuedSave", () => {
+  function deps(overrides: Partial<{
+    runSave: () => Promise<readonly string[]>;
+    currentTicket: () => number;
+    hasUnsavedEdits: () => boolean;
+    setSaveState: (state: SaveState) => void;
+  }> = {}) {
+    return {
+      runSave: vi.fn(async () => [] as readonly string[]),
+      currentTicket: () => 1,
+      hasUnsavedEdits: () => false,
+      setSaveState: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  it("paints 'saved' when runSave writes at least one key and the ticket is still current", async () => {
+    const d = deps({ runSave: async () => ["field"] });
+    await commitQueuedSave(1, d);
+    expect(d.setSaveState).toHaveBeenCalledWith({ status: "saved" });
+  });
+
+  it("paints 'idle' when runSave writes nothing — an empty diff is not a save", async () => {
+    const d = deps({ runSave: async () => [] });
+    await commitQueuedSave(1, d);
+    expect(d.setSaveState).toHaveBeenCalledWith({ status: "idle" });
+  });
+
+  it("paints nothing when a newer ticket has already taken over", async () => {
+    const d = deps({ runSave: async () => ["field"], currentTicket: () => 2 });
+    await commitQueuedSave(1, d);
+    expect(d.setSaveState).not.toHaveBeenCalled();
+  });
+
+  it("paints nothing on success when a newer edit is already queued behind this one — stays 'saving'", async () => {
+    const d = deps({ runSave: async () => ["field"], hasUnsavedEdits: () => true });
+    await commitQueuedSave(1, d);
+    expect(d.setSaveState).not.toHaveBeenCalled();
+  });
+
+  it("paints an error, stringified from the thrown Error, when runSave rejects and the ticket is current", async () => {
+    const d = deps({ runSave: async () => { throw new Error("write failed"); } });
+    await commitQueuedSave(1, d);
+    expect(d.setSaveState).toHaveBeenCalledWith({ status: "error", message: "write failed" });
+  });
+
+  it("stringifies a non-Error rejection the same way runSave's own callers do", async () => {
+    const d = deps({ runSave: async () => { throw "plain string failure"; } });
+    await commitQueuedSave(1, d);
+    expect(d.setSaveState).toHaveBeenCalledWith({ status: "error", message: "plain string failure" });
+  });
+
+  it("swallows a stale ticket's rejection too — a newer save already owns the status", async () => {
+    const d = deps({ runSave: async () => { throw new Error("too late"); }, currentTicket: () => 2 });
+    await commitQueuedSave(1, d);
+    expect(d.setSaveState).not.toHaveBeenCalled();
+  });
+
+  /*
+   * MSG-04 (2026-08-06): `currentTicket`/`hasUnsavedEdits` are passed as THUNKS, not plain booleans/
+   * numbers, specifically so `commitQueuedSave` reads them at RUN time — after `runSave` resolves —
+   * rather than at SCHEDULE time, when the caller built the `deps` object. Every test above happens
+   * to use a `currentTicket`/`hasUnsavedEdits` that returns the SAME value on every call, which
+   * cannot tell a thunk apart from a value captured once outside the function — both would pass
+   * identically. These two are the ones that actually distinguish them: the underlying value changes
+   * DURING `runSave`'s own await, after `commitQueuedSave` has already been called (schedule time)
+   * but before its post-await checks run (run time). This is the same class of bug
+   * `ChatFab.hooks.tsx`'s `consumeDragFlag` doc and `use-fab-position`'s own history warn about — a
+   * closure that captured a value before an async gap saw the value as of the capture, not as of
+   * when it mattered.
+   */
+  it("reads currentTicket() at run time — a newer save that takes the ticket mid-flight is not painted over", async () => {
+    let ticket = 1;
+    const d = deps({
+      runSave: async () => {
+        // A newer save takes the ticket WHILE this one is still awaiting its write — schedule time
+        // (this function call, with `ticket` still 1) has already passed; this is run time.
+        ticket = 2;
+        return ["field"];
+      },
+      currentTicket: () => ticket,
+    });
+
+    await commitQueuedSave(1, d);
+
+    // Committed behaviour must reflect the NEW value (2 !== the ticket this call owns, 1) — a
+    // snapshot taken at schedule time would still read 1 here and incorrectly paint "saved".
+    expect(d.setSaveState).not.toHaveBeenCalled();
+  });
+
+  it("reads hasUnsavedEdits() at run time — an edit queued mid-flight is not painted over as saved", async () => {
+    let edited = false;
+    const d = deps({
+      runSave: async () => {
+        // An edit arrives while this save is in flight — again, after schedule time, before the
+        // post-await check (run time) actually happens.
+        edited = true;
+        return ["field"];
+      },
+      hasUnsavedEdits: () => edited,
+    });
+
+    await commitQueuedSave(1, d);
+
+    // A snapshot taken at schedule time would still read `false` here and incorrectly paint
+    // "saved" over an edit the operator made while the write was still in flight.
+    expect(d.setSaveState).not.toHaveBeenCalled();
   });
 });
 

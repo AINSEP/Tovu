@@ -102,6 +102,9 @@ async function saveWithRetry(
 ): Promise<SaveOutcome> {
   /** Whether the attempt that finally gave up did so against a 404 — see `"missing"`. */
   const wasMissing = (error: unknown) => error instanceof HttpError && error.status === 404;
+  /** The give-up classification, shared by both give-up sites below (out of attempts, and torn
+   *  down mid-backoff) — the literal same ternary written twice, not a complex decision on its own. */
+  const giveUpOutcome = (error: unknown): SaveOutcome => (wasMissing(error) ? "missing" : "exhausted");
 
   for (let attempt = 0; ; attempt += 1) {
     try {
@@ -123,11 +126,40 @@ async function saveWithRetry(
       const delay = SAVE_RETRY_DELAYS_MS[attempt];
       // Out of attempts, or torn down mid-backoff. Both are "might work later", not "never will" —
       // but a ladder spent entirely on 404s says something more specific, so report that.
-      if (delay === undefined || isDisposed()) return wasMissing(error) ? "missing" : "exhausted";
+      if (delay === undefined || isDisposed()) return giveUpOutcome(error);
       await new Promise((resolve) => setTimeout(resolve, delay));
-      if (isDisposed()) return wasMissing(error) ? "missing" : "exhausted";
+      if (isDisposed()) return giveUpOutcome(error);
     }
   }
+}
+
+/**
+ * Decides what a settled batch of message-save outcomes means for `flush`'s bookkeeping: which
+ * message ids should be released back to `written` for a future delta to retry, and whether a
+ * fresh conversation-list read is warranted. Pulled out of `flush`'s `Promise.all(...).then(...)`
+ * continuation (2026-08-06, complexity pass) so this decision is directly assertable with a plain
+ * array of outcomes — no port, no timers, no React state.
+ *
+ * `shouldRefresh` composes the original `if (some saved) … else if (isConversationStillActive &&
+ * some missing) …` as one OR: the "saved" branch fires unconditionally, so ORing it with the
+ * "missing" branch (itself gated on `isConversationStillActive`) reproduces the original
+ * if/else-if exactly — the else-if only ever mattered when the first condition was already false.
+ *
+ * @param isConversationStillActive - `activeIdRef.current === conversationId` at the moment the
+ *   batch settled — a `"missing"` outcome only warrants a refresh while the pane this write
+ *   belonged to is still the one on screen; see `flush`'s own call site for why.
+ */
+export function summarizeFlushOutcomes(
+  results: readonly { message: ChatMessage; outcome: SaveOutcome }[],
+  isConversationStillActive: boolean,
+): { idsToRelease: string[]; shouldRefresh: boolean } {
+  const idsToRelease = results
+    .filter((result) => result.outcome === "exhausted" || result.outcome === "missing")
+    .map((result) => result.message.id);
+  const shouldRefresh =
+    results.some((result) => result.outcome === "saved") ||
+    (isConversationStillActive && results.some((result) => result.outcome === "missing"));
+  return { idsToRelease, shouldRefresh };
 }
 
 export interface UseAssistantChats {
@@ -575,23 +607,21 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
          * every subsequent delta for the rest of the session, and they accumulate as more messages
          * fail the same way. `saveWithRetry` has already spent its attempts by this point, so
          * "exhausted" is the only outcome where another try is worth queueing at all.
+         *
+         * `some`, not "all succeeded": one message failing must not suppress the list refresh for
+         * the others. The first turn is what gives an untitled chat its name server-side, and
+         * `messageCount` changes on every turn, so the list needs re-reading rather than patching.
+         * A write that spent its whole ladder on 404s means this conversation may no longer exist —
+         * re-read so the switcher stops showing a row the server has already forgotten, rather than
+         * leaving the pane to grind out doomed writes with nothing visible anywhere in the UI.
+         * See {@link summarizeFlushOutcomes} for the decision itself.
          */
-        for (const { message, outcome } of results) {
-          if (outcome === "exhausted" || outcome === "missing") written.delete(message.id);
-        }
-        // `some`, not "all succeeded": one message failing must not suppress the list refresh for
-        // the others. The first turn is what gives an untitled chat its name server-side, and
-        // `messageCount` changes on every turn, so the list needs re-reading rather than patching.
-        if (results.some((result) => result.outcome === "saved")) void refresh();
-        // A write that spent its whole ladder on 404s means this conversation may no longer exist.
-        // Re-read so the switcher stops showing a row the server has already forgotten, rather than
-        // leaving the pane to grind out doomed writes with nothing visible anywhere in the UI.
-        else if (
-          results.some((result) => result.outcome === "missing") &&
-          activeIdRef.current === conversationId
-        ) {
-          void refresh();
-        }
+        const { idsToRelease, shouldRefresh } = summarizeFlushOutcomes(
+          results,
+          activeIdRef.current === conversationId,
+        );
+        for (const id of idsToRelease) written.delete(id);
+        if (shouldRefresh) void refresh();
       });
     },
     [refresh],
