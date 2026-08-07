@@ -179,6 +179,29 @@ export interface AssistantDockProps {
   useLocalCliSelection?: typeof useLocalCliSelection;
 }
 
+/**
+ * @complexity 10 cyclomatic / 2 cognitive (measured, complexity-ceiling pass). Exempted from the
+ * ≤9/≤9 bar rather than refactored — this is the flat-fallback-chain shape already exempted
+ * elsewhere in this codebase (`PostEditor.tsx:27` at 27/0, `SeoEntryPanel` at 25/6): cyclomatic
+ * inflated by independent, unnested decision points, cognitive near zero because none of them
+ * nest.
+ *
+ * The 10 breaks down as: 5 destructured default parameters (`agentBridge`, `useChats`,
+ * `useExecutionConfig`, `useByokRuntime`, `useLocalCliSelection`) — the injectable-hook DI seam
+ * `apps/admin/INFO.md` §Components rule 3 requires for every hook doing DOM/IO work, not optional
+ * structure this component chose — plus 3 flat, sibling `?:`/`?.`/`??` expressions in the JSX
+ * below: `executionMode={... ? "api" : "local"}`, the conditional `conversationId` spread, and the
+ * active-conversation-title `?.title ?? "Tovu assistant"` fallback. 5 + 1 + 1 + (1 for `?.` + 1
+ * for `??`) = 10; none of the four wrap another, which is why cognitive stays at 2.
+ *
+ * Tried: extracting the title fallback (`chats.conversations.find(...)?.title ?? "..."`) to a
+ * top-level function would shave 2 points and clear ≤9 on its own — but doing that to one of the
+ * four flat expressions while leaving the other three in place is an arbitrary, metric-driven
+ * split of an equally trivial single-line derived value, not a real reduction in what a reader has
+ * to hold in their head (cognitive complexity is unchanged either way). Removing the DI-seam
+ * default parameters themselves is not an option: they are the testability contract every other
+ * component in this codebase depends on, not incidental complexity.
+ */
 export function AssistantDock({
   agentBridge = null,
   useChats = useWiredAssistantChats,
