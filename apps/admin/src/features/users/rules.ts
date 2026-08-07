@@ -13,18 +13,31 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
  * the component, reachable only by rendering the full screen.
  */
 
+/** Server error `code` -> a plain-language prefix, for every code on this screen whose message is
+ *  a fixed string. Keyed by the same closed set of `ApiError` codes the old if-chain checked, in a
+ *  flat lookup rather than sequential branches — this is what actually lowered the function's
+ *  cognitive score (11 -> under the ceiling): the codes are a closed set of *literal string* keys,
+ *  not a discriminated union, so there is no TypeScript exhaustiveness to lose by using a table
+ *  (contrast `translateRunAgentPayload`'s `switch`, which stays a `switch` for exactly that reason). */
+const STATIC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  GRANT_EXCEEDS_ISSUER: "You cannot grant a permission you do not hold.",
+  FORBIDDEN: "You do not have permission to do that.",
+  RESOURCE_CONFLICT: "That username is already in use.",
+  OWNER_REQUIRED: "The workspace must keep at least one active owner.",
+};
+
 /** Server error `code` -> a plain-language prefix (SPEC-006 errors.spec.md §2), layered on the
  *  shared default (`lib/api.ts`'s `describeApiError`) — this screen's `RESOURCE_CONFLICT` means
  *  "username already in use", a different meaning than `Roles.tsx`'s "still referenced" or
  *  `Workspace.tsx`'s "slug already taken" for the same code (audit cross-cutting finding #2 —
- *  deliberately not unified into one table). */
+ *  deliberately not unified into one table). `VALIDATION_ERROR` stays a dedicated branch rather than
+ *  joining the table above: its message comes from the error itself (`e.message`), not a fixed
+ *  string, so it isn't a value a plain lookup can hold. */
 export function describeApiError(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
-    if (e.code === "GRANT_EXCEEDS_ISSUER") return "You cannot grant a permission you do not hold.";
-    if (e.code === "FORBIDDEN") return "You do not have permission to do that.";
-    if (e.code === "RESOURCE_CONFLICT") return "That username is already in use.";
-    if (e.code === "OWNER_REQUIRED") return "The workspace must keep at least one active owner.";
     if (e.code === "VALIDATION_ERROR") return e.message || "Please correct the highlighted fields.";
+    const staticMessage = STATIC_ERROR_MESSAGES[e.code];
+    if (staticMessage) return staticMessage;
   }
   return describeApiErrorDefault(e, fallback);
 }
