@@ -1,9 +1,11 @@
 # Commerce nav section (Payments, Orders, Products, Subscriptions)
 
 Dispatched as Programmer agent (`AI-Dev-Shop/agents/programmer/skills.md` loaded). Branch
-`refactor/jini-admin-extraction`. Delivered in two passes: an initial three-entry Commerce section,
-then a follow-up correcting two brief errors and adding a fourth entry (Subscriptions) plus a
-`soonPreviewable` policy change, both directed by the team lead after reviewing pass one.
+`refactor/jini-admin-extraction`. Delivered in three passes: an initial three-entry Commerce section;
+a follow-up correcting two brief errors and adding a fourth entry (Subscriptions) plus a
+`soonPreviewable` policy change; and a third pass fixing a comment that understated how much less
+built Subscriptions is than its siblings. All three directed by the team lead after reviewing the
+prior pass.
 
 ## Final result
 
@@ -88,6 +90,29 @@ empty via direct query (`sqlite3 infra/content.db "SELECT count(*) FROM member_t
 as Orders/Products, so it gets the identical `soon: true, soonPreviewable: true` + plain `Placeholder`
 treatment.
 
+## Pass three — Subscriptions' comment overstated parity with Orders/Products
+
+Pass two's comment for `subscriptions` read: "unbuilt in exactly the same way as Orders and
+Products." The team lead flagged this as dishonest and asked for a precise comparison instead of an
+assertion of sameness. Verified the actual gap before rewriting:
+
+- **Products**: 3 seeded rows in `p_store__products`, a live public route
+  (`src/server/routes/site/products.ts`), and a storefront theme actually rendering them.
+- **Orders**: 0 rows in `p_store__orders`, but a real, wired path to get them —
+  `store-plugin.ts`'s `checkout()` (an OCC-guarded stock decrement + order-row insert), called from
+  `routes/site/store.ts`'s buy action. Unexercised, not unbuilt.
+- **Subscriptions**: `member_tiers`/`member_subscriptions` have a full CRUD repo
+  (`SqliteMemberTierRepo`/`SqliteMemberSubscriptionRepo` in `src/members/repo.sqlite.ts`), but
+  `grep -rl` for their method names (`upsertMemberTier`, `listMemberTiers`,
+  `upsertMemberSubscription`, `getMemberSubscription`) across `src/` outside that one file and its
+  tests returns no hits — no route, plugin, or admin surface calls any of it. This is one level more
+  speculative than Orders: not "hasn't happened yet on a working path" but "no reachable path exists
+  yet at all."
+
+Rewrote the `subscriptions` panel's comment to state this explicitly rather than imply parity with
+its siblings. Comment-only change; re-ran the scoped suite (51/51 green, unchanged) and the build
+(green) to confirm no regression, then committed by explicit path.
+
 ## Icons
 
 - **Payments**: unchanged (card icon).
@@ -156,10 +181,10 @@ change — it fires regardless of this diff, it's about overall `index-*.js` bun
 
 ## Commits
 
-Two commits, each staged by explicit path only, never `-A`/`.`/`-a`. The repo had (and still has)
-many unrelated modified/untracked files from other in-flight sessions (`App.tsx`, `styles.css`,
-`src/assistant/**`, `development/evals/**`, etc.) — none touched by either commit, verified via
-`git show --stat` after each:
+Six commits total across three passes, each staged by explicit path only, never `-A`/`.`/`-a`. The
+repo had (and still has) many unrelated modified/untracked files from other in-flight sessions
+(`App.tsx`, `styles.css`, `src/assistant/**`, `development/evals/**`, etc.) — none touched by any of
+them, verified via `git show --stat` after each:
 
 ```
 commit 12cbce3 feat(admin): add Commerce nav section (Payments, Orders, Products)
@@ -175,6 +200,17 @@ commit 55acb66 fix(admin): add Subscriptions to Commerce, match Payments' soonPr
  apps/admin/src/__tests__/unit/nav-wiring.unit.test.ts | 18 ++++++++-
  apps/admin/src/panels.tsx                             | 43 ++++++++++++++++------
  2 files changed, 47 insertions(+), 14 deletions(-)
+
+commit 0e44226 docs(findings): update Commerce nav report for pass-two corrections
+ development/findings/commerce-nav-section.md | 229 +++++++++++++++++--------
+ 1 file changed, 138 insertions(+), 91 deletions(-)
+
+commit 30a044e fix(admin): stop implying parity between Subscriptions and Orders/Products
+ apps/admin/src/panels.tsx | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
+
+commit <this doc's own commit> docs(findings): pass-three update
+ development/findings/commerce-nav-section.md | ...
 ```
 
 Each `git show --stat` confirms exactly the intended files and no others.
