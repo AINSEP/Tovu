@@ -15,6 +15,13 @@
  * `createDictionaryTranslator` in `dictionary-translator.ts`). Adding a new language is one block
  * here plus one block per feature file that actually has feature-specific copy — this file is
  * where an entry only has to be translated ONCE instead of once per feature.
+ *
+ * This does NOT cover the Settings dialog's own content (tab names, form labels inside it) — that
+ * ships as a SEPARATE dictionary in the `@jini-ai/ui` package this app depends on
+ * (`Jini/packages/ui/src/features/i18n/dictionaries/`), on purpose: that package is reusable across
+ * hosts, so a Tovu-specific dictionary has no business living inside it. Same shape/fallback
+ * convention as this file, but a genuinely separate dictionary that must be extended on its own —
+ * adding a language here does not add it there. Check both before assuming a locale is fully done.
  */
 export const COMMON_I18N: Record<string, Record<string, string>> = {
   es: {
