@@ -15,8 +15,11 @@ import { getNav } from "./nav";
 import { Login } from "./features/auth";
 import { Placeholder } from "./components/Placeholder";
 import { ADMIN_PANELS } from "./panels";
+import { translateAdminNavGroups, translateAdminNavLabel } from "./lib/admin-nav-i18n";
+import { useAdminLocale } from "./hooks/use-admin-locale.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
 import { ChatFab } from "./components/ChatFab/ChatFab";
+import { ASSISTANT_DOCK_DICT } from "./components/AssistantDock/assistant-dock-i18n";
 
 /**
  * A resolved route, plus the one Tovu-local wrinkle `@jini-ai/admin/core`'s generic matcher does
@@ -137,14 +140,15 @@ function renderRoute(route: Route): ReactNode {
  * rail-mode tooltip behavior every nav item gets — it must be called from inside a `<Sidebar>`,
  * which is why this is a separate component rather than inline JSX in `App`.
  */
-function SidebarLogoutButton(props: { onLogout: () => void }) {
+function SidebarLogoutButton(props: { onLogout: () => void; locale: string }) {
   const { railTooltipProps } = useSidebar();
+  const logOutLabel = translateAdminNavLabel(props.locale, "Log out");
   return (
-    <button className="cms-logout" onClick={props.onLogout} {...railTooltipProps("Log out")}>
+    <button className="cms-logout" onClick={props.onLogout} {...railTooltipProps(logOutLabel)}>
       <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5}>
         <path d="M7 15H4a1.5 1.5 0 01-1.5-1.5v-9A1.5 1.5 0 014 3h3M11.5 12L15 9l-3.5-3M15 9H7" />
       </svg>
-      <span>Log out</span>
+      <span>{logOutLabel}</span>
     </button>
   );
 }
@@ -280,7 +284,35 @@ export function App() {
    * (see `nav.ts`), so this is about intent rather than cost: it makes "one nav model, split for
    * layout" explicit instead of leaving two independent lookups to be kept in agreement by hand.
    */
-  const navGroups = getNav();
+  const rawNavGroups = getNav();
+
+  /**
+   * Sidebar nav translation — outside `SettingsUi.tsx`'s `I18nProvider` entirely, since this nav
+   * renders on every admin page, not just inside the settings dialog. `useAdminLocale()` (shared
+   * with every translated content screen — see its own doc comment) re-fetches on every
+   * `core.language` refresh notification, not just at mount, so switching the Language setting
+   * updates the sidebar immediately instead of requiring a reload.
+   */
+  const navLocale = useAdminLocale();
+  const navGroups = translateAdminNavGroups(navLocale, rawNavGroups);
+  const navSoonLabel = translateAdminNavLabel(navLocale, "Soon");
+
+  /** Same `navLocale`, reused for the assistant dock's mobile-sheet chrome and `ChatFab`'s
+   *  "assistant" label below — both live here rather than inside `AssistantDock.tsx`/`ChatFab.tsx`
+   *  themselves (see the `<aside>`'s own comment for why), so this is that chrome's translation. */
+  const dockT = (key: string): string => ASSISTANT_DOCK_DICT[navLocale]?.[key] ?? key;
+
+  /**
+   * Every labelled section collapses (CONTENT, PEOPLE, MARKETING, OPERATIONS, STUDIO,
+   * ADMINISTRATION). Derived from the nav rather than hardcoded so a section added to `panels.tsx`
+   * later is collapsible the day it appears — a hardcoded list would silently leave exactly one
+   * heading behaving differently from its neighbours, which reads as a bug rather than a choice.
+   *
+   * `filter(Boolean)` drops the ungrouped top row (Overview / AI Assistant), which has no label and
+   * therefore no heading to click. It is sliced off below anyway; this keeps the array honest on its
+   * own terms rather than relying on that.
+   */
+  const collapsibleGroups = navGroups.map((group) => group.label).filter((label): label is string => Boolean(label));
 
   // Plain `<a href="/admin/...">` links stay plain anchors and become SPA navigations here — see
   // `installInternalLinkInterceptor` for why this is a document listener and not a <Link>.
@@ -411,11 +443,16 @@ export function App() {
             so two calls produce exactly the DOM one call would, with the toggle spliced between.
             Doing it here also keeps this a host-only layout choice: `@jini-ai/admin` is unchanged,
             so no package rebuild is involved and no other host inherits Tovu's arrangement. */}
-        <Sidebar.Nav groups={navGroups.slice(0, 1)} />
+        <Sidebar.Nav groups={navGroups.slice(0, 1)} soonLabel={navSoonLabel} />
         <Sidebar.RailToggle />
-        <Sidebar.Nav groups={navGroups.slice(1)} />
+        {/* Collapsible sections (owner-directed, 2026-08-06 — piloted on PEOPLE, then widened to
+            all six). `collapsibleGroups` defaults to empty in `@jini-ai/admin`, so this opt-in is
+            what turns the headings into controls; other hosts embedding the admin are unaffected.
+            Open/closed state persists per section via `useNavSections` (localStorage), survives
+            reload and navigation, and syncs across tabs. */}
+        <Sidebar.Nav groups={navGroups.slice(1)} collapsibleGroups={collapsibleGroups} soonLabel={navSoonLabel} />
         <Sidebar.Footer>
-          <SidebarLogoutButton onLogout={logout} />
+          <SidebarLogoutButton onLogout={logout} locale={navLocale} />
         </Sidebar.Footer>
       </Sidebar>
       {/* Mobile-only backdrop behind the open drawer (`styles.css` hides `.cms-nav`'s off-canvas
@@ -499,14 +536,14 @@ export function App() {
             that). */}
         <div className="chat-sheet-bar">
           <span className="chat-sheet-handle" aria-hidden="true" />
-          <span className="chat-sheet-bar-title">Tovu assistant</span>
+          <span className="chat-sheet-bar-title">{dockT("Tovu assistant")}</span>
           <span className="chat-sheet-bar-actions">
             <button
               type="button"
               className="chat-sheet-action"
               onClick={() => setSheetExpanded((current) => !current)}
               aria-expanded={sheetExpanded}
-              aria-label={sheetExpanded ? "Collapse assistant panel" : "Expand assistant panel"}
+              aria-label={sheetExpanded ? dockT("Collapse assistant panel") : dockT("Expand assistant panel")}
             >
               <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
                 {sheetExpanded ? <path d="M4 11.5 9 6.5l5 5" /> : <path d="M4 6.5 9 11.5l5-5" />}
@@ -516,7 +553,7 @@ export function App() {
               type="button"
               className="chat-sheet-action"
               onClick={() => setChatOpen(false)}
-              aria-label="Close assistant"
+              aria-label={dockT("Close assistant")}
             >
               <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
                 <path d="M5 5 13 13M13 5 5 13" strokeLinecap="round" />
@@ -530,7 +567,8 @@ export function App() {
         ref={chatFabRef}
         open={chatOpen}
         onToggle={() => setChatOpen((current) => !current)}
-        label="assistant"
+        label={dockT("assistant")}
+        locale={navLocale}
         avoidBottomPx={isSheetMode && chatOpen ? sheetHeightPx : 0}
         avoidRightPx={!isSheetMode && chatOpen ? dockWidthPx : 0}
       />
