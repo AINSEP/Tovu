@@ -1,4 +1,8 @@
 import { getNav, type AdminNavItem } from "../nav";
+import { useAdminLocale } from "../hooks/use-admin-locale.hooks";
+import { translateAdminNavLabel } from "../lib/admin-nav-i18n";
+import { DEFAULT_LOCALE } from "../lib/settings-tabs";
+import { interpolate } from "../lib/template-i18n";
 
 /**
  * @file Fallback screen for a section with no dedicated component yet — reached either directly
@@ -71,23 +75,88 @@ export function findNavGroupLabel(sectionId: string): string {
  * `nav.ts` for `Placeholder`'s `sectionId` lookup to resolve, so it cannot call `Placeholder`
  * directly, but it must not grow a second "coming soon" shape either.
  */
-export function ComingSoonNotice(props: { kicker: string; label: string }) {
+const COMING_SOON_TEMPLATE: Record<string, string> = {
+  en: "{label} is coming soon.",
+  es: "{label} estará disponible próximamente.",
+  id: "{label} akan segera hadir.",
+  de: "{label} ist bald verfügbar.",
+  "zh-CN": "{label} 即将推出。",
+  "zh-TW": "{label} 即將推出。",
+  "pt-BR": "{label} estará disponível em breve.",
+  ru: "{label} скоро появится.",
+  fa: "{label} به‌زودی در دسترس خواهد بود.",
+  ar: "{label} قريبًا.",
+  ja: "{label}は近日公開予定です。",
+  ko: "{label}은(는) 곧 제공될 예정입니다.",
+  pl: "{label} będzie dostępne wkrótce.",
+  hu: "A(z) {label} hamarosan elérhető.",
+  fr: "{label} sera bientôt disponible.",
+  uk: "{label} незабаром зʼявиться.",
+  tr: "{label} yakında kullanıma sunulacak.",
+  th: "{label} จะพร้อมใช้งานเร็ว ๆ นี้",
+  it: "{label} sarà disponibile a breve.",
+};
+
+/** "X is coming soon." in the caller's locale — `label` here is already translated (by
+ *  `Placeholder`, via `translateAdminNavLabel`) by the time it reaches this component. */
+function comingSoonDescription(locale: string, label: string): string {
+  return interpolate(COMING_SOON_TEMPLATE[locale] ?? COMING_SOON_TEMPLATE.en, { label });
+}
+
+export function ComingSoonNotice(props: { kicker: string; label: string; locale?: string }) {
+  const locale = props.locale ?? DEFAULT_LOCALE;
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">{props.kicker}</p>
           <h1 className="page-title">{props.label}</h1>
-          <p className="page-description">{props.label} is coming soon.</p>
+          <p className="page-description">{comingSoonDescription(locale, props.label)}</p>
         </div>
       </div>
     </div>
   );
 }
 
-export function Placeholder(props: { sectionId: string }) {
-  const item = findNavItem(props.sectionId);
-  if (!item) return <div className="notice error">Unknown section: {props.sectionId}</div>;
+const UNKNOWN_SECTION_PREFIX: Record<string, string> = {
+  en: "Unknown section",
+  es: "Sección desconocida",
+  id: "Bagian tidak dikenal",
+  de: "Unbekannter Abschnitt",
+  "zh-CN": "未知部分",
+  "zh-TW": "未知區塊",
+  "pt-BR": "Seção desconhecida",
+  ru: "Неизвестный раздел",
+  fa: "بخش ناشناخته",
+  ar: "قسم غير معروف",
+  ja: "不明なセクション",
+  ko: "알 수 없는 섹션",
+  pl: "Nieznana sekcja",
+  hu: "Ismeretlen szakasz",
+  fr: "Section inconnue",
+  uk: "Невідомий розділ",
+  tr: "Bilinmeyen bölüm",
+  th: "ส่วนที่ไม่รู้จัก",
+  it: "Sezione sconosciuta",
+};
 
-  return <ComingSoonNotice kicker={findNavGroupLabel(props.sectionId)} label={item.label} />;
+export function Placeholder(props: { sectionId: string }) {
+  const locale = useAdminLocale();
+  const item = findNavItem(props.sectionId);
+  if (!item) {
+    const unknownSectionPrefix = UNKNOWN_SECTION_PREFIX[locale] ?? UNKNOWN_SECTION_PREFIX.en;
+    return (
+      <div className="notice error">
+        {unknownSectionPrefix}: {props.sectionId}
+      </div>
+    );
+  }
+
+  return (
+    <ComingSoonNotice
+      kicker={translateAdminNavLabel(locale, findNavGroupLabel(props.sectionId))}
+      label={translateAdminNavLabel(locale, item.label)}
+      locale={locale}
+    />
+  );
 }

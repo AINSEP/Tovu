@@ -1,9 +1,19 @@
 import { useFabPosition } from "./ChatFab.hooks";
+import { DEFAULT_LOCALE } from "../../lib/settings-tabs";
+import { interpolate } from "../../lib/template-i18n";
 
 interface ChatFabProps {
   open: boolean;
   onToggle: () => void;
   label?: string;
+  /**
+   * `useAdminLocale()`'s current value, threaded from the caller (`App.tsx`) rather than read here
+   * directly — this component has no other data-dependent hook today, and the existing unit tests
+   * render it with no locale at all, so `DEFAULT_LOCALE` ("en") is what every un-parameterized call
+   * — tests included — keeps getting. Only the "Open"/"Close" verb template is this component's own
+   * to translate; `label` itself is the caller's word (see `App.tsx`'s `dockT("assistant")`).
+   */
+  locale?: string;
   /**
    * Bottom clearance (px) to hold above while `open` — the mobile sheet's current rendered
    * height, or `0` at desktop, where the assistant docks to the *side* of `.admin-content`
@@ -32,6 +42,35 @@ interface ChatFabProps {
   useFab?: typeof useFabPosition;
 }
 
+const FAB_ACTION_TEMPLATE: Record<string, { open: string; close: string }> = {
+  en: { open: "Open {label}", close: "Close {label}" },
+  es: { open: "Abrir {label}", close: "Cerrar {label}" },
+  id: { open: "Buka {label}", close: "Tutup {label}" },
+  de: { open: "{label} öffnen", close: "{label} schließen" },
+  "zh-CN": { open: "打开{label}", close: "关闭{label}" },
+  "zh-TW": { open: "開啟{label}", close: "關閉{label}" },
+  "pt-BR": { open: "Abrir {label}", close: "Fechar {label}" },
+  ru: { open: "Открыть {label}", close: "Закрыть {label}" },
+  fa: { open: "باز کردن {label}", close: "بستن {label}" },
+  ar: { open: "فتح {label}", close: "إغلاق {label}" },
+  ja: { open: "{label}を開く", close: "{label}を閉じる" },
+  ko: { open: "{label} 열기", close: "{label} 닫기" },
+  pl: { open: "Otwórz {label}", close: "Zamknij {label}" },
+  hu: { open: "{label} megnyitása", close: "{label} bezárása" },
+  fr: { open: "Ouvrir {label}", close: "Fermer {label}" },
+  uk: { open: "Відкрити {label}", close: "Закрити {label}" },
+  tr: { open: "{label} aç", close: "{label} kapat" },
+  th: { open: "เปิด {label}", close: "ปิด {label}" },
+  it: { open: "Apri {label}", close: "Chiudi {label}" },
+};
+
+/** "Open {label}"/"Close {label}" in the caller's locale — `label` itself is already translated
+ *  (by the caller; see `App.tsx`'s `dockT("assistant")`) by the time it reaches this component. */
+function fabActionLabel(locale: string, action: "open" | "close", label: string): string {
+  const forms = FAB_ACTION_TEMPLATE[locale] ?? FAB_ACTION_TEMPLATE.en;
+  return interpolate(forms[action], { label });
+}
+
 /**
  * Floating toggle for the global assistant dock (ADR-049), and — per MSG-09 — draggable to
  * wherever the operator wants it out of the way. Mirrors
@@ -45,8 +84,9 @@ interface ChatFabProps {
  * toggle (see that function's own doc for why a plain `isDragging` check at this call site would
  * be timing-unsafe).
  */
-export function ChatFab({ open, onToggle, label = "assistant", avoidBottomPx, avoidRightPx, ref, useFab = useFabPosition }: ChatFabProps) {
+export function ChatFab({ open, onToggle, label = "assistant", avoidBottomPx, avoidRightPx, ref, useFab = useFabPosition, locale = DEFAULT_LOCALE }: ChatFabProps) {
   const fab = useFab({ dockOpen: open, avoidBottomPx, avoidRightPx });
+  const actionLabel = fabActionLabel(locale, open ? "close" : "open", label);
 
   return (
     <button
@@ -60,8 +100,8 @@ export function ChatFab({ open, onToggle, label = "assistant", avoidBottomPx, av
         onToggle();
       }}
       aria-expanded={open}
-      aria-label={open ? `Close ${label}` : `Open ${label}`}
-      title={open ? `Close ${label}` : `Open ${label}`}
+      aria-label={actionLabel}
+      title={actionLabel}
     >
       {open ? (
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
