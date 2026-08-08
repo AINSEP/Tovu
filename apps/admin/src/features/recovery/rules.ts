@@ -1,4 +1,6 @@
 import type { AdminDegradedBanner, DatabaseContextEnvelope } from "../../lib/api";
+import { t } from "./recovery-i18n";
+import { interpolate } from "../../lib/template-i18n";
 
 /**
  * @file Pure logic for the `recovery` feature — everything that computes a value rather than
@@ -11,11 +13,39 @@ const CATEGORY_LABELS: Record<string, string> = {
   plugin_table: "plugin-table rows",
 };
 
+const UNTAUGHT_CATEGORY_TEMPLATE: Record<string, string> = {
+  en: "{category} writes",
+  es: "escrituras de {category}",
+  id: "penulisan {category}",
+  de: "{category}-Schreibvorgänge",
+  "zh-CN": "{category} 写入",
+  "zh-TW": "{category} 寫入",
+  "pt-BR": "gravações de {category}",
+  ru: "записи {category}",
+  fa: "نوشتن {category}",
+  ar: "عمليات كتابة {category}",
+  ja: "{category}の書き込み",
+  ko: "{category} 쓰기",
+  pl: "zapisy {category}",
+  hu: "{category} írások",
+  fr: "écritures {category}",
+  uk: "записи {category}",
+  tr: "{category} yazmaları",
+  th: "การเขียน {category}",
+  it: "scritture {category}",
+};
+
 /** Human label for one discarded-write-window category (design-spec.md §4.3). Falls back to
  *  `"<category> writes"` for a category the server sends that this table has not been taught yet,
- *  so a new category degrades to readable-but-generic copy instead of `undefined`. */
-export function categoryLabel(category: string): string {
-  return CATEGORY_LABELS[category] ?? `${category} writes`;
+ *  so a new category degrades to readable-but-generic copy instead of `undefined`.
+ *
+ * Translated via `recovery-i18n.ts`'s `t()`, same two-step fallback as every other translated
+ * string in this app: the untaught-category fallback template is translated as a whole (word order
+ * differs between "<category> writes" and Spanish "escrituras de <category>"), not word-by-word. */
+export function categoryLabel(category: string, locale: string): string {
+  const known = CATEGORY_LABELS[category];
+  if (known) return t(locale, known);
+  return interpolate(UNTAUGHT_CATEGORY_TEMPLATE[locale] ?? UNTAUGHT_CATEGORY_TEMPLATE.en, { category });
 }
 
 /**
