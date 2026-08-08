@@ -20,6 +20,7 @@ import { createDictionaryTranslator } from "./dictionary-translator";
 
 const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   es: {
+  "Log out": "Cerrar sesión",
   // Group headings
   Content: "Contenido",
   People: "Personas",
@@ -82,6 +83,7 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   Soon: "Próximamente",
   },
   id: {
+  "Log out": "Keluar",
   Content: "Konten",
   People: "Orang",
   Studio: "Studio",
@@ -133,6 +135,7 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   Soon: "Segera",
   },
   de: {
+  "Log out": "Abmelden",
   Content: "Inhalt",
   People: "Personen",
   Studio: "Studio",
@@ -180,10 +183,11 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   "SEO & Metadata": "SEO & Metadaten",
   Redirects: "Weiterleitungen",
   Newsletter: "Newsletter",
-  Analytics: "Analytics",
+  Analytics: "Analytik",
   Soon: "Bald",
   },
   "zh-CN": {
+  "Log out": "退出登录",
   Content: "内容",
   People: "人员",
   Studio: "工作室",
@@ -235,6 +239,7 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   Soon: "即将推出",
   },
   "zh-TW": {
+  "Log out": "登出",
   Content: "內容",
   People: "人員",
   Studio: "工作室",
@@ -286,6 +291,7 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   Soon: "即將推出",
   },
   "pt-BR": {
+  "Log out": "Sair",
   Content: "Conteúdo",
   People: "Pessoas",
   Studio: "Estúdio",
@@ -333,10 +339,11 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   "SEO & Metadata": "SEO e metadados",
   Redirects: "Redirecionamentos",
   Newsletter: "Newsletter",
-  Analytics: "Análises",
+  Analytics: "Análise",
   Soon: "Em breve",
   },
   ru: {
+  "Log out": "Выйти",
   Content: "Контент",
   People: "Люди",
   Studio: "Студия",
@@ -388,6 +395,7 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   Soon: "Скоро",
   },
   fa: {
+  "Log out": "خروج",
   Content: "محتوا",
   People: "افراد",
   Studio: "استودیو",
@@ -435,10 +443,11 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   "SEO & Metadata": "سئو و متادیتا",
   Redirects: "تغییر مسیرها",
   Newsletter: "خبرنامه",
-  Analytics: "تحلیل‌ها",
+  Analytics: "تحلیل داده",
   Soon: "به‌زودی",
   },
   ar: {
+  "Log out": "تسجيل الخروج",
   Content: "المحتوى",
   People: "الأشخاص",
   Studio: "الاستوديو",
@@ -490,6 +499,7 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   Soon: "قريبًا",
   },
   ja: {
+  "Log out": "ログアウト",
   Content: "コンテンツ",
   People: "ユーザー",
   Studio: "スタジオ",
@@ -541,6 +551,7 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   Soon: "近日公開",
   },
   ko: {
+  "Log out": "로그아웃",
   Content: "콘텐츠",
   People: "사용자",
   Studio: "스튜디오",
@@ -588,10 +599,11 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   "SEO & Metadata": "SEO 및 메타데이터",
   Redirects: "리디렉션",
   Newsletter: "뉴스레터",
-  Analytics: "애널리틱스",
+  Analytics: "분석",
   Soon: "준비 중",
   },
   pl: {
+  "Log out": "Wyloguj się",
   Content: "Treść",
   People: "Osoby",
   Studio: "Studio",
@@ -643,6 +655,7 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   Soon: "Wkrótce",
   },
   hu: {
+  "Log out": "Kijelentkezés",
   Content: "Tartalom",
   People: "Emberek",
   Studio: "Stúdió",
@@ -690,10 +703,11 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   "SEO & Metadata": "SEO és metaadatok",
   Redirects: "Átirányítások",
   Newsletter: "Hírlevél",
-  Analytics: "Analitika",
+  Analytics: "Elemzés",
   Soon: "Hamarosan",
   },
   fr: {
+  "Log out": "Se déconnecter",
   Content: "Contenu",
   People: "Personnes",
   Studio: "Studio",
@@ -745,6 +759,7 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   Soon: "Bientôt",
   },
   uk: {
+  "Log out": "Вийти",
   Content: "Контент",
   People: "Люди",
   Studio: "Студія",
@@ -796,6 +811,7 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   Soon: "Скоро",
   },
   tr: {
+  "Log out": "Çıkış yap",
   Content: "İçerik",
   People: "Kişiler",
   Studio: "Stüdyo",
@@ -847,6 +863,7 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   Soon: "Yakında",
   },
   th: {
+  "Log out": "ออกจากระบบ",
   Content: "เนื้อหา",
   People: "บุคคล",
   Studio: "สตูดิโอ",
@@ -898,6 +915,7 @@ const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   Soon: "เร็วๆ นี้",
   },
   it: {
+  "Log out": "Esci",
   Content: "Contenuti",
   People: "Persone",
   Studio: "Studio",
