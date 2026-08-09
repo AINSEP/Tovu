@@ -120,7 +120,7 @@ export const META_TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
   {
     id: "search_tools",
     description:
-      "Search this Tovu site's tool catalog. Returns ranked {id, description, source, score} candidates only — no input schemas, so this stays cheap to call broadly. Call describe_tool on the 1-3 candidates that look right before calling execute_delegated_tool.",
+      "Search this Tovu site's tool catalog. Returns ranked {id, description, source, score} candidates only — no input schemas, so this stays cheap to call broadly. Call describe_tool on the 1-3 candidates that look right before calling execute_delegated_tool. If nothing in the results fits, re-search with a higher limit or different phrasing rather than assuming the tool does not exist.",
     inputSchema: {
       type: "object",
       properties: {
@@ -133,7 +133,11 @@ export const META_TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
           type: "integer",
           minimum: 1,
           maximum: SEARCH_LIMIT_MAX,
-          description: `Max hits to return (1-${SEARCH_LIMIT_MAX}). Optional, defaults to ${SEARCH_LIMIT_DEFAULT}.`,
+          description:
+            `Max hits to return (1-${SEARCH_LIMIT_MAX}). Optional, defaults to ${SEARCH_LIMIT_DEFAULT}. ` +
+            `If none of the returned candidates fit what you need, search again with a HIGHER limit (try ${SEARCH_LIMIT_MAX}) ` +
+            `before concluding no tool exists — measured on a 130-case blind set, the right tool is in the top ${SEARCH_LIMIT_DEFAULT} ` +
+            `98% of the time but in the top 20 100% of the time, so the remaining misses are ranked just below the default cutoff, not absent.`,
         },
       },
       required: ["query"],

@@ -7,6 +7,7 @@ import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
 import { createRouteDeps } from "../app";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
 import { createAssistantExecutionModule } from "../modules/assistant-execution";
+import { setSiteAssistantCredential } from "../../assistant/site-credential-store";
 import type { RouteDeps } from "../routes/types";
 
 /**
@@ -234,4 +235,178 @@ test("list-models surfaces the real SSRF guard as ok:false for an internal base 
   const body = (await res.json()) as { ok: boolean; models: string[] };
   assert.equal(body.ok, false);
   assert.deepEqual(body.models, []);
+});
+
+/**
+ * --- ADR-058 write-only boundary: where the STORED site key is allowed to travel -------------
+ *
+ * The exposure these cover: both probe routes accept `useStoredCredential: true`, decrypt the
+ * workspace's site key, and make one outbound call — while taking `baseUrl` from the request body.
+ * A principal who may never READ that key (`get-site-credential.ts` returns only `isSet`/`masked`)
+ * could therefore have the server deliver it to a host they control, in one request, leaving
+ * nothing persisted to notice afterwards.
+ *
+ * The SSRF guard does not cover this and is not meant to: it rejects internal address space
+ * (loopback/RFC1918/link-local), which is why these tests can use a real loopback listener as the
+ * "attacker" endpoint at all — the guard waves it through exactly as it would wave through any
+ * public host an attacker had registered.
+ *
+ * So the assertion that matters is not the status code, it is `capture.requests.length === 0`: a
+ * real server that would have recorded the key, proving absence of delivery rather than presence of
+ * a rejection. Status codes can be right while bytes still leave.
+ */
+
+interface CaptureServer {
+  url: string;
+  requests: { authorization: string | undefined; xApiKey: string | undefined; xGoogApiKey: string | undefined }[];
+}
+
+/** A stand-in provider endpoint that records what actually reached it. Answers every method and
+ *  path with a permissive body so no provider adapter hangs waiting on a shape it expects. */
+async function startCaptureServer(t: import("node:test").TestContext): Promise<CaptureServer> {
+  const capture: CaptureServer = { url: "", requests: [] };
+  const app = express();
+  app.use(express.json());
+  app.use((req, res) => {
+    capture.requests.push({
+      authorization: req.header("authorization"),
+      xApiKey: req.header("x-api-key"),
+      xGoogApiKey: req.header("x-goog-api-key"),
+    });
+    res.json({ data: [{ id: "captured-model" }], models: [{ name: "captured-model" }], choices: [{ message: { content: "ok" } }] });
+  });
+  capture.url = await startTestServer(app, t);
+  return capture;
+}
+
+const STORED_KEY = "sk-stored-site-key-abcd1234";
+
+/** Seeds the workspace's SITE credential through the real store (real sealing, real keyring), so
+ *  these tests exercise the same decrypt path the routes use rather than a hand-placed plaintext. */
+async function seedStoredCredential(deps: RouteDeps, input: { baseUrl?: string }): Promise<void> {
+  await setSiteAssistantCredential(
+    {
+      repo: deps.siteAssistantCredentialRepo,
+      sealer: deps.siteAssistantSecretSealer,
+      keyring: deps.siteAssistantSecretKeyring,
+      clock: deps.clock,
+    },
+    {
+      workspaceId: deps.workspaceId,
+      apiKey: STORED_KEY,
+      provider: "openai",
+      ...(input.baseUrl === undefined ? {} : { baseUrl: input.baseUrl }),
+      model: "gpt-4o-mini",
+    }
+  );
+}
+
+test("test-connection never sends the stored site key to a baseUrl the request body chose", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const attacker = await startCaptureServer(t);
+  await seedStoredCredential(deps, { baseUrl: "https://api.openai.com" });
+
+  const res = await post(baseUrl, TEST_CONNECTION_PATH, cookie, {
+    protocol: "openai",
+    baseUrl: attacker.url,
+    model: "gpt-4o-mini",
+    useStoredCredential: true,
+  });
+
+  assert.equal(res.status, 400, await res.clone().text());
+  assert.equal(((await res.json()) as { code: string }).code, "STORED_CREDENTIAL_ENDPOINT_MISMATCH");
+  // The load-bearing assertion — nothing reached the attacker's listener at all.
+  assert.deepEqual(attacker.requests, []);
+});
+
+test("list-models never sends the stored site key to a baseUrl the request body chose", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const attacker = await startCaptureServer(t);
+  await seedStoredCredential(deps, { baseUrl: "https://api.openai.com" });
+
+  const res = await post(baseUrl, LIST_MODELS_PATH, cookie, {
+    protocol: "openai",
+    baseUrl: attacker.url,
+    useStoredCredential: true,
+  });
+
+  assert.equal(res.status, 400, await res.clone().text());
+  assert.equal(((await res.json()) as { code: string }).code, "STORED_CREDENTIAL_ENDPOINT_MISMATCH");
+  assert.deepEqual(attacker.requests, []);
+});
+
+test("a stored credential with no saved endpoint is refused rather than sent to the requested one", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const attacker = await startCaptureServer(t);
+  // No baseUrl ever saved — the server has no approved destination, so it must not accept one here.
+  await seedStoredCredential(deps, {});
+
+  const res = await post(baseUrl, LIST_MODELS_PATH, cookie, {
+    protocol: "openai",
+    baseUrl: attacker.url,
+    useStoredCredential: true,
+  });
+
+  assert.equal(res.status, 400, await res.clone().text());
+  assert.equal(((await res.json()) as { code: string }).code, "STORED_CREDENTIAL_ENDPOINT_UNSET");
+  assert.deepEqual(attacker.requests, []);
+});
+
+test("the stored key IS sent when the requested endpoint matches the one saved for it", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const provider = await startCaptureServer(t);
+  await seedStoredCredential(deps, { baseUrl: provider.url });
+
+  const res = await post(baseUrl, LIST_MODELS_PATH, cookie, {
+    protocol: "openai",
+    baseUrl: provider.url,
+    useStoredCredential: true,
+  });
+
+  assert.equal(res.status, 200, await res.clone().text());
+  // The feature still works: this is what an operator returning to a screen with a saved key needs,
+  // and a fix that quietly broke it would be indistinguishable here from one that held the boundary.
+  assert.equal(provider.requests.length, 1);
+  assert.equal(provider.requests[0]?.authorization, `Bearer ${STORED_KEY}`);
+});
+
+test("a trailing-slash difference is the same endpoint, not a mismatch", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const provider = await startCaptureServer(t);
+  await seedStoredCredential(deps, { baseUrl: `${provider.url}/` });
+
+  const res = await post(baseUrl, LIST_MODELS_PATH, cookie, {
+    protocol: "openai",
+    baseUrl: provider.url,
+    useStoredCredential: true,
+  });
+
+  assert.equal(res.status, 200, await res.clone().text());
+  assert.equal(provider.requests.length, 1);
+});
+
+test("a key typed into THIS request still goes wherever the caller named — the pin binds only the stored one", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const chosen = await startCaptureServer(t);
+  await seedStoredCredential(deps, { baseUrl: "https://api.openai.com" });
+
+  const res = await post(baseUrl, LIST_MODELS_PATH, cookie, {
+    protocol: "openai",
+    baseUrl: chosen.url,
+    apiKey: "sk-typed-by-the-operator",
+    useStoredCredential: true,
+  });
+
+  assert.equal(res.status, 200, await res.clone().text());
+  // Their own key, their own choice of host — the operator can consent with a credential they hold.
+  // Proving this still works is what keeps the fix targeted rather than a blanket restriction.
+  assert.equal(chosen.requests.length, 1);
+  assert.equal(chosen.requests[0]?.authorization, "Bearer sk-typed-by-the-operator");
+  assert.notEqual(chosen.requests[0]?.authorization, `Bearer ${STORED_KEY}`);
 });

@@ -71,6 +71,7 @@ import {
   createFrontendControl,
   registerAgentRoutes,
   registerAttachmentRoutes,
+  registerComponentCatalogRoutes,
   registerDelegatedToolRoutes,
   registerRunRoutes,
   registerToolCatalogRoutes,
@@ -96,6 +97,7 @@ import { registerMcpUiToolCallsRoute } from "./mcp-ui-tool-calls-route";
 import { resolveMcpJsonInjection } from "./mcp-injection";
 import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership } from "./run-ownership";
 import { parseRunStartContextRef } from "./run-start-context";
+import { buildComponentCatalogQuery } from "./component-catalog-query";
 import { buildToolCatalogQuery } from "./tool-catalog-query";
 import { withToolAttemptAudit } from "./tool-executor-audit";
 import { buildAssistantToolRegistrations } from "./tool-registrations";
@@ -391,7 +393,11 @@ const assistantPromptAugmenter: PromptAugmenter = {
       "search_tools FIRST — phrasing the query as a description of what the tool DOES, the way its " +
       "own documentation would read (name the thing acted on plus the action, with likely synonyms), " +
       "rather than as terse keywords — then describe_tool on the top 1-3 candidates, then " +
-      "execute_delegated_tool to perform the action. Do this before reaching for Bash, curl, or " +
+      "execute_delegated_tool to perform the action. If none of the returned candidates fit, search " +
+      "again with a higher limit (up to 25) or different phrasing before concluding no tool exists: " +
+      "on a 130-case blind set the right tool is in the default top 10 98% of the time and in the " +
+      "top 20 100% of the time, so a near-miss is almost always ranked just below the cutoff rather " +
+      "than absent. Do this before reaching for Bash, curl, or " +
       "direct SQLite/database access — those bypass this site's authorization, risk-classification, " +
       "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
       "the admin login route) to perform an action a registered tool already exists for. Bash and " +
@@ -651,6 +657,11 @@ async function start(): Promise<void> {
   // so both 404'd for every spawned CLI despite the registry itself being fully populated. See
   // `tool-catalog-query.ts`.
   registerToolCatalogRoutes(app, { catalog: buildToolCatalogQuery(registry) }, adapter);
+
+  // Backs `@jini-ai/mcp`'s `search_components`/`describe_component` — same route-registration gap
+  // `tool-catalog-query.ts`'s own history warns about, avoided here by mounting alongside it from
+  // the start rather than adding it later. See `component-catalog-query.ts`.
+  registerComponentCatalogRoutes(app, { catalog: buildComponentCatalogQuery() }, adapter);
 
   // `createDiskAttachmentStore` is async (it empties `uploadDirectory` on construction — see its
   // own doc), so it cannot be a module-scope `const` the way `agentExecutor`/`toolExecutor` are.
