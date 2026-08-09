@@ -32,7 +32,7 @@ import { waitForAgentDaemon } from "./daemon-ready";
  * assistant has** — not a test-authoring gap, a real, disclosed, unfixed product limitation. This
  * test does not fabricate a pass for that half of the ask. Instead it (a) proves the achievable
  * half for real — menu + widget genuinely rendering on the PUBLIC site, embedded in a Page via the
- * `data-widget-embed` marker (`src/widgets/html-embeds.ts`) — and (b) proves the Post gap live: the
+ * `data-embed-type` marker (`src/widgets/html-embeds.ts`) — and (b) proves the Post gap live: the
  * assistant is directed to attempt `widgets_insert_embed` against a real post id, and this test
  * asserts that attempt fails and that the post's public HTML carries no widget markup at all. If a
  * future fix wires a reachable path (an `entries`-backed post/page host, or a theme that declares
@@ -207,7 +207,7 @@ execute the sequence, then stop.
 2. widgets_create_instance with { "widgetType": "menu", "title": "QA E2E Menu Widget", "config": { "menuRef": "<the menu id returned by step 1>" } }
 3. widgets_create_instance with { "widgetType": "text", "title": "QA E2E Text Widget", "config": { "body": "${TEXT_WIDGET_MARKER}" } }
 4. content_post_create with { "kind": "page", "title": "QA E2E Page", "slug": "${PAGE_SLUG}", "status": "published" }
-5. pages_write_html with { "id": "<the page id returned by step 4>", "html": "<!doctype html><html><body><h1>QA E2E Page</h1><div data-widget-embed=\\"<the widget instance id returned by step 2>\\"></div><div data-widget-embed=\\"<the widget instance id returned by step 3>\\"></div></body></html>" }
+5. pages_write_html with { "id": "<the page id returned by step 4>", "html": "<!doctype html><html><body><h1>QA E2E Page</h1><div data-embed-type=\\"widget\\" data-embed-id=\\"<the widget instance id returned by step 2>\\"></div><div data-embed-type=\\"widget\\" data-embed-id=\\"<the widget instance id returned by step 3>\\"></div></body></html>" }
 6. content_post_create with { "kind": "post", "title": "QA E2E Post", "slug": "${POST_SLUG}", "status": "published" }
 7. widgets_insert_embed with { "hostEntryId": "<the post id returned by step 6>", "baseVersion": 1, "widgetEntryId": "<the widget instance id returned by step 3>" }. This call is expected to fail because a real blog post cannot host a widget embed today — that is fine and expected. If it fails, report the error in your final message and do NOT retry it.`;
 
@@ -444,7 +444,7 @@ test.describe("MUTATION-VERIFY: menu/widget-in-Page render assertions, red-check
     await writePageHtmlHttp(
       request,
       page.id,
-      `<html><body><h1>Positive</h1><div data-widget-embed="${menuWidget.id}"></div><div data-widget-embed="${textWidget.id}"></div></body></html>`
+      `<html><body><h1>Positive</h1><div data-embed-type="widget" data-embed-id="${menuWidget.id}"></div><div data-embed-type="widget" data-embed-id="${textWidget.id}"></div></body></html>`
     );
 
     const html = await (await fetch(`${baseURL}/mutation-positive-page`)).text();
@@ -456,9 +456,9 @@ test.describe("MUTATION-VERIFY: menu/widget-in-Page render assertions, red-check
   test("RED-CHECK: removing the menu embed div makes assertMenuWidgetRendered fail (the text widget still renders, isolating the break)", async ({ request, baseURL }) => {
     const textWidget = await createWidgetHttp(request, { widgetType: "text", title: "No-Menu Text Widget", config: { body: "NO-MENU-TEXT-MARKER" } });
     const page = await createPageHttp(request, { title: "No Menu Embed", slug: "mutation-no-menu-embed", status: "published" });
-    // Deliberately no data-widget-embed div for a menu widget at all — the mechanism under test is
+    // Deliberately no data-embed-type div for a menu widget at all — the mechanism under test is
     // literally absent from the authored page.
-    await writePageHtmlHttp(request, page.id, `<html><body><h1>No Menu</h1><div data-widget-embed="${textWidget.id}"></div></body></html>`);
+    await writePageHtmlHttp(request, page.id, `<html><body><h1>No Menu</h1><div data-embed-type="widget" data-embed-id="${textWidget.id}"></div></body></html>`);
 
     const html = await (await fetch(`${baseURL}/mutation-no-menu-embed`)).text();
     // Proves the break is isolated to the menu assertion, not a broken page/route/resolver overall.
@@ -476,8 +476,8 @@ test.describe("MUTATION-VERIFY: menu/widget-in-Page render assertions, red-check
     });
     const menuWidget = await createWidgetHttp(request, { widgetType: "menu", title: "No-Text Menu Widget", config: { menuRef: menu.id } });
     const page = await createPageHttp(request, { title: "No Text Embed", slug: "mutation-no-text-embed", status: "published" });
-    // Deliberately no data-widget-embed div for the text widget at all.
-    await writePageHtmlHttp(request, page.id, `<html><body><h1>No Text</h1><div data-widget-embed="${menuWidget.id}"></div></body></html>`);
+    // Deliberately no data-embed-type div for the text widget at all.
+    await writePageHtmlHttp(request, page.id, `<html><body><h1>No Text</h1><div data-embed-type="widget" data-embed-id="${menuWidget.id}"></div></body></html>`);
 
     const html = await (await fetch(`${baseURL}/mutation-no-text-embed`)).text();
     assertMenuWidgetRendered(html, { linkLabel: "No Text Link", linkHref: "https://example.com/no-text" });
@@ -489,7 +489,7 @@ test.describe("MUTATION-VERIFY: menu/widget-in-Page render assertions, red-check
 
   test("RED-CHECK: an embed pointing at a nonexistent widget id degrades to the placeholder — proves the resolver having RUN with nothing to resolve is caught too, not just an absent marker", async ({ request, baseURL }) => {
     const page = await createPageHttp(request, { title: "Bogus Embed", slug: "mutation-bogus-embed", status: "published" });
-    await writePageHtmlHttp(request, page.id, `<html><body><h1>Bogus</h1><div data-widget-embed="00000000-0000-0000-0000-000000000000"></div></body></html>`);
+    await writePageHtmlHttp(request, page.id, `<html><body><h1>Bogus</h1><div data-embed-type="widget" data-embed-id="00000000-0000-0000-0000-000000000000"></div></body></html>`);
 
     const html = await (await fetch(`${baseURL}/mutation-bogus-embed`)).text();
     // The page still 200s and still has its own heading — a status/title check alone would pass

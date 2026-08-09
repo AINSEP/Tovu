@@ -100,8 +100,10 @@ test.describe("SPEC-046 AC6/REQ-7 — real per-IP rate limiting on the public ch
     // proves nothing either way. What actually proves the run finished is `ChatPane.tsx`'s
     // `disabled={disabled || unavailable || pane.conversation.isStreaming}` clearing — so:
     //
-    // (1) no lingering "Stop run" control, which only renders while `conversation.isStreaming`.
-    await expect(page.locator(".tovu-site-assistant .jini-chat-pane__cancel")).toHaveCount(0);
+    // (1) the composer's trailing button is not in its stop-mode variant, which only renders while
+    // `conversation.isStreaming` (`Composer.tsx`'s `running` prop — see that component for why this
+    // used to be a separate `.jini-chat-pane__cancel` control instead of the send button itself).
+    await expect(page.locator(".tovu-site-assistant .jini-composer-send--stop")).toHaveCount(0);
     // (2) typing fresh text makes the send button enabled again — if the run were still marked
     // streaming, `Composer`'s `disabled` prop would keep it disabled regardless of draft content.
     await page.locator(".tovu-site-assistant .jini-composer-input").fill("are you still there?");

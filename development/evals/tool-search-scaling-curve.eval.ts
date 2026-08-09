@@ -51,7 +51,7 @@ import { buildAssistantToolRegistrations } from "../../src/assistant/tool-regist
 import type { RouteDeps } from "../../src/server/routes/types";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2";
 import { HYDE_PROMPT_EXPANSIONS_V2 } from "./tool-search-hyde-prompt-expansions-v2";
-import { DOC2QUERY } from "./tool-search-doc2query-blind-questions";
+import { DOC2QUERY } from "../../src/assistant/tool-search-doc2query";
 import { indexedDescriptionFor, stripSearchKeywords } from "../../src/assistant/tool-search-keywords";
 import { MASTER_DISTRACTOR_DOC2QUERY, distractorsForSize, type DistractorTool } from "./tool-search-distractors";
 import { CALIBRATION_DOC2QUERY_250 } from "./tool-search-distractors-doc2query-calibration-250";
