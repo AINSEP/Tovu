@@ -21,7 +21,7 @@ import { createToolRegistry } from "@jini-ai/core";
 import { buildToolCatalogQuery } from "../../src/assistant/tool-catalog-query";
 import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations";
 import type { RouteDeps } from "../../src/server/routes/types";
-import { DOC2QUERY } from "./tool-search-doc2query-blind-questions";
+import { DOC2QUERY } from "../../src/assistant/tool-search-doc2query";
 import { HYDE_EXPANSIONS } from "./tool-search-hyde-blind-expansions";
 import { HYDE_PROMPT_EXPANSIONS } from "./tool-search-hyde-prompt-expansions";
 import Database from "better-sqlite3";

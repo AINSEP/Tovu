@@ -518,10 +518,13 @@ test.describe("destructive-path: content_post_delete false-transcript bug (ADR-0
 
     expect(await getPostById(page, post.id), "post must still exist while the dialog is open, unclicked").toBe(200);
 
-    // The real control a human uses to stop a run — `packages/chat/src/react/features/chat-pane/
-    // components/ChatPane.tsx:294-296` (`{t('Stop run')}`), rendered only while the pane's
-    // `conversation.isStreaming` is true, which it still is here (the confirmation gate is what
-    // holds the turn open). Its `onClick` is `pane.conversation.cancel` (`useRunStream.ts`), which
+    // The real control a human uses to stop a run — the composer's own trailing button, which
+    // swaps from send to a stop-labeled variant while the pane's `conversation.isStreaming` is
+    // true (`packages/chat/src/react/components/Composer.tsx:134-137`'s `running` branch;
+    // previously a separate `.jini-chat-pane__cancel` control next to the composer, folded into
+    // the composer's own button so there's one control to find, not two). `isStreaming` is still
+    // true here (the confirmation gate is what holds the turn open), so the button is in its stop
+    // form. Its `onClick` is `pane.conversation.cancel` (`useRunStream.ts`), which
     // does two things in the SAME synchronous call: POSTs `/api/runs/:runId/cancel` (reaching
     // `lifecycle.cancel()` -> `onCancelRequested`, which aborts the same signal
     // `delegated-tool-bridge.ts` hands to `ToolExecutor.execute()` and, for THIS tool, ultimately

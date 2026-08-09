@@ -85,6 +85,45 @@ Do not skip either just because TestRunner/TDD reported green — those are nece
 
 ---
 
+## ⚠️ OWED — specs/ADRs/tests for the 2026-08-05 embeds work (built quick-and-dirty, deliberately)
+
+**Added 2026-08-05.** Owner explicitly asked to skip spec/ADR-first process for this batch ("get
+something quick and dirty, make sure it works, and we can go back, fix the architecture, get the
+spec, and lock it down") — this entry is that promised follow-up, not a surprise gap. Four pieces
+landed this session with no spec, no ADR, and only ad hoc/mechanical test coverage (no red-team,
+no architecture sign-off):
+
+- **Posts can now render widgets/menus/forms** (`fix(embeds)` commit `571b11a`) — fixed
+  `resolvePageWidgets` resolving its host page via the generic `entries` table when Posts live in
+  a separate `posts` table, so an inline `widgetEmbed` node always fell back to a placeholder.
+  Real product question still open, now practically answered by building it but never formally
+  decided: **should widget/menu/form embedding be in Posts at all**, or should "Pages compose,
+  Posts stay prose" have been the answer? See `[[project_pages_vibecoding]]`/
+  `[[project_tovu_media_pipeline_gaps]]` memory for the prior open-question framing.
+- **Media gets per-asset width/height/cssClass** (same commit, plus paired Jini commit
+  `72f3a110`) — new DB columns, new migration `0027_bumpy_blockbuster.sql`, threaded into
+  `render.ts`'s public `<img>` output. No ADR on where per-asset display-size metadata *should*
+  live (per-asset default vs. per-insertion override was explicitly punted, not decided).
+- **Unified "Embed" control in the Post editor toolbar** (`feat(admin)` commit `8011bff`) — Media
+  / Form / Menu / Widget… in one menu. Pure UI, no spec.
+- **Taxonomy watermark stamping fixed** (`fix(taxonomy)` commit `b4c76b4`) — unrelated to embeds
+  but landed in the same session under the same "just fix it" instruction; also never spec'd.
+
+**Still separately unimplemented** (decided but not owed a NEW spec, since the decision itself is
+already recorded): the generic `data-embed-type`/`data-embed-id` contract for Pages' `body_html`
+(`[[project_tovu_generic_embed_contract]]` memory, decided 2026-08-05, rules settled) — today Pages
+still uses the older bespoke `data-widget-embed`/`data-form-embed` attributes. Fold this into
+whichever spec covers the Posts-embed work above, since both are "how do embeds work across
+Posts+Pages" and splitting them would re-litigate the same scanner/resolver architecture twice.
+
+**Next session should:** run the CodeBase Analyzer → System Design → Spec → Red-Team → Software
+Architect pipeline over what's now live (not from a blank slate — the working code + this todo
+entry + the two linked memory files are the input), and write real tests (unit + integration) for
+the render-path fix and the media sizing, since what exists today is whatever the implementing
+subagents added ad hoc, not designed-in coverage.
+
+---
+
 ## ⛔ BLOCKER — Admin Section Spec Sweep (DO FIRST NEXT SESSION)
 
 **Added 2026-07-07.** These are the admin nav sections currently rendering a generic

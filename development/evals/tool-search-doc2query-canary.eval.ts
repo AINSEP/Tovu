@@ -28,7 +28,7 @@ import { createToolRegistry } from "@jini-ai/core";
 import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
 import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations";
 import type { RouteDeps } from "../../src/server/routes/types";
-import { DOC2QUERY } from "./tool-search-doc2query-blind-questions";
+import { DOC2QUERY } from "../../src/assistant/tool-search-doc2query";
 
 interface EvalCase {
   readonly query: string;
