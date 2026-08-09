@@ -1,4 +1,5 @@
 import { ApiError, describeApiError as describeApiErrorDefault, type AdminPlugin } from "../../lib/api";
+import { t } from "./plugins-i18n";
 
 /**
  * @file Pure logic for the `plugins` feature — everything that computes a value rather than
@@ -39,7 +40,7 @@ export interface PluginToggleControl {
   label: string;
 }
 
-export function pluginToggleControl(plugin: AdminPlugin, rowSavingId: string | null): PluginToggleControl {
+export function pluginToggleControl(plugin: AdminPlugin, rowSavingId: string | null, locale: string): PluginToggleControl {
   if (!(plugin.enabled || plugin.status === "valid")) {
     return { visible: false, disabled: false, label: "" };
   }
@@ -47,6 +48,9 @@ export function pluginToggleControl(plugin: AdminPlugin, rowSavingId: string | n
   return {
     visible: true,
     disabled: savingThisRow,
-    label: savingThisRow ? "…" : plugin.enabled ? "Disable" : "Enable",
+    // The busy-state "…" is locale-neutral (no established translated bare-ellipsis precedent
+    // elsewhere in this app — every other busy label pairs it with a word, e.g. posts-i18n.ts's
+    // "Creating…") and stays untranslated here on purpose.
+    label: savingThisRow ? "…" : plugin.enabled ? t(locale, "Disable") : t(locale, "Enable"),
   };
 }

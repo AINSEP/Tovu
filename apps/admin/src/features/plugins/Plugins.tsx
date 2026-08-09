@@ -1,7 +1,9 @@
 import { DataTable } from "@jini-ai/admin/react";
 
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { pluginToggleControl } from "./rules";
 import { usePlugins } from "./hooks/use-plugins.hooks";
+import { t as translatePlugins } from "./plugins-i18n";
 
 /**
  * @file `Plugins` — the admin plugins list + enable/disable screen (SPEC-005 REQ-12..18,
@@ -40,18 +42,20 @@ export interface PluginsProps {
  */
 export function Plugins({ usePluginsHook = usePlugins }: PluginsProps = {}) {
   const { plugins, error, rowError, rowSavingId, onToggleEnabled } = usePluginsHook();
+  const locale = useAdminLocale();
+  const t = (key: string): string => translatePlugins(locale, key);
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!plugins) return <div className="notice">Loading plugins…</div>;
+  if (!plugins) return <div className="notice">{t("Loading plugins…")}</div>;
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Studio</p>
-          <h1 className="page-title">Plugins</h1>
+          <p className="page-kicker">{t("Studio")}</p>
+          <h1 className="page-title">{t("Plugins")}</h1>
           <p className="page-description">
-            Enable or disable plugins discovered in this site's plugin install directory.
+            {t("Enable or disable plugins discovered in this site's plugin install directory.")}
           </p>
         </div>
       </div>
@@ -67,21 +71,22 @@ export function Plugins({ usePluginsHook = usePlugins }: PluginsProps = {}) {
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>No plugins installed.</p>
+              <p>{t("No plugins installed.")}</p>
               <p className="page-description">
-                A new one appears here on the next load, once it's unpacked into the site's plugin
-                install directory.
+                {t(
+                  "A new one appears here on the next load, once it's unpacked into the site's plugin install directory.",
+                )}
               </p>
             </div>
           </div>
         }
         columns={[
-          { key: "name", header: "Name", cell: (plugin) => plugin.name },
-          { key: "version", header: "Version", cell: (plugin) => plugin.version },
-          { key: "source", header: "Source", cell: (plugin) => plugin.source },
+          { key: "name", header: t("Name"), cell: (plugin) => plugin.name },
+          { key: "version", header: t("Version"), cell: (plugin) => plugin.version },
+          { key: "source", header: t("Source"), cell: (plugin) => plugin.source },
           {
             key: "tier",
-            header: "Tier",
+            header: t("Tier"),
             cell: (plugin) => (
               // `tier-${plugin.tier}` doubles the prefix (`tier-tier-3`) because the manifest
               // value already carries it — ui.spec.md §5's literal template, kept verbatim.
@@ -90,14 +95,14 @@ export function Plugins({ usePluginsHook = usePlugins }: PluginsProps = {}) {
           },
           {
             key: "status",
-            header: "Status",
+            header: t("Status"),
             cell: (plugin) => <span className={`status status-${plugin.status}`}>{plugin.status}</span>,
           },
           {
             key: "enabled",
-            headerLabel: "Enabled",
+            headerLabel: t("Enabled"),
             cell: (plugin) => {
-              const control = pluginToggleControl(plugin, rowSavingId);
+              const control = pluginToggleControl(plugin, rowSavingId, locale);
               return control.visible ? (
                 <button type="button" disabled={control.disabled} onClick={() => onToggleEnabled(plugin)}>
                   {control.label}
@@ -111,7 +116,7 @@ export function Plugins({ usePluginsHook = usePlugins }: PluginsProps = {}) {
           },
           {
             key: "errors",
-            header: "Errors",
+            header: t("Errors"),
             cell: (plugin) =>
               plugin.errors.length > 0 ? (
                 <ul className="plugin-errors">

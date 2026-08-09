@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { api, type AdminPlugin } from "../../../lib/api";
 import { describeApiError } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../plugins-i18n";
 
 /**
  * @file Everything the Plugins list does, so `Plugins.tsx` is only markup.
@@ -36,6 +38,7 @@ export interface PluginsController {
  * @overallScore 92
  */
 export function usePlugins(): PluginsController {
+  const locale = useAdminLocale();
   const [plugins, setPlugins] = useState<AdminPlugin[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
@@ -45,7 +48,7 @@ export function usePlugins(): PluginsController {
     return api
       .listPlugins()
       .then((r) => setPlugins(r.plugins))
-      .catch((e) => setError(describeApiError(e, "failed to load plugins")));
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load plugins"))));
   }
 
   useEffect(() => {
@@ -62,7 +65,7 @@ export function usePlugins(): PluginsController {
       await api.setPluginEnabled(plugin.id, { enabled: !plugin.enabled });
       await reload();
     } catch (e) {
-      setRowError(describeApiError(e, "failed to update plugin"));
+      setRowError(describeApiError(e, t(locale, "failed to update plugin")));
     } finally {
       setRowSavingId(null);
     }
