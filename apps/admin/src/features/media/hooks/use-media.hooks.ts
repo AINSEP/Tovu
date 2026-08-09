@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { api, type AdminMedia } from "../../../lib/api";
 import { describeApiError, findEditingItem, readFileAsBase64 } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../media-i18n";
 
 /**
  * @file Everything the top-level Media grid screen does, so `Media()` in `Media.tsx` is only
@@ -56,6 +58,7 @@ export interface MediaController {
  * @complexity Time/space: O(1) per call — one list round trip on mount, one per mutation.
  */
 export function useMedia(): MediaController {
+  const locale = useAdminLocale();
   const [media, setMedia] = useState<AdminMedia[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -70,7 +73,7 @@ export function useMedia(): MediaController {
     api
       .listMedia()
       .then((r) => setMedia(r.media))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load media"));
+      .catch((e) => setError(e instanceof Error ? e.message : t(locale, "failed to load media")));
   }
 
   useEffect(load, []);
@@ -90,7 +93,7 @@ export function useMedia(): MediaController {
       if (fileInputRef.current) fileInputRef.current.value = "";
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "upload failed");
+      setError(e instanceof Error ? e.message : t(locale, "upload failed"));
     } finally {
       setUploading(false);
     }
@@ -103,7 +106,7 @@ export function useMedia(): MediaController {
       await api.trashMedia(item.id);
       load();
     } catch (e) {
-      setError(describeApiError(e, "delete failed"));
+      setError(describeApiError(e, t(locale, "delete failed")));
     } finally {
       setRowSavingId(null);
     }
@@ -118,7 +121,7 @@ export function useMedia(): MediaController {
       await api.deleteMedia(item.id);
       load();
     } catch (e) {
-      setError(describeApiError(e, "delete failed"));
+      setError(describeApiError(e, t(locale, "delete failed")));
     } finally {
       setRowSavingId(null);
       setPendingPurge(null);

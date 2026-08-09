@@ -2,6 +2,8 @@ import { useState } from "react";
 
 import { api, type AdminMedia } from "../../../lib/api";
 import { describeApiError, diffMediaMetadata, parseOptionalPixelSize, type MediaMetadataPatch } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../media-i18n";
 
 /**
  * @file Everything `EditMediaPanel` does, so the component in `Media.tsx` is only markup.
@@ -50,6 +52,7 @@ export interface EditMediaPanelController {
  * @complexity Time/space: O(1) per call — one metadata round trip per save, two clipboard writes.
  */
 export function useEditMediaPanel(props: EditMediaPanelHookProps): EditMediaPanelController {
+  const locale = useAdminLocale();
   const { item, onSaved, onCancel } = props;
   const [draft, setDraft] = useState<Required<MediaMetadataPatch>>({
     title: item.title,
@@ -134,7 +137,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps): EditMediaPane
       await api.updateMedia({ id: item.id }, patch);
       onSaved();
     } catch (e) {
-      setError(describeApiError(e, "failed to save media metadata"));
+      setError(describeApiError(e, t(locale, "failed to save media metadata")));
     } finally {
       setSaving(false);
     }

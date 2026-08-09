@@ -1,10 +1,16 @@
+import { useRef } from "react";
 import type { AdminMedia } from "../../lib/api";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { MediaProvidersTab, createFakeMediaProvidersPort } from "@jini-ai/ui";
+import "@jini-ai/ui/settings-dialog.css";
 import { mediaRowMenuItems } from "./rules";
 import { useMedia } from "./hooks/use-media.hooks";
 import { useMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useEditMediaPanel } from "./hooks/use-edit-media-panel.hooks";
 import { useMediaLightbox } from "./hooks/use-media-lightbox.hooks";
+import { useMediaTabs, MEDIA_TABS } from "./hooks/use-media-tabs.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { MEDIA_DICT } from "./media-i18n";
 
 /**
  * @file Media admin screen — list + upload + trash/purge ladder, wiring the `media` backend into
@@ -118,6 +124,9 @@ interface MediaPreviewProps {
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
   useMediaPreviewHook?: typeof useMediaPreview;
+  /** Translator closure — see `Media()`'s own `t` for where this comes from; threaded through the
+   *  lightbox too, since it remounts this same component for its enlarged view. */
+  t: (key: string) => string;
 }
 
 /** Resolves whether an asset previews as an image, a video, or neither — see this file's header
@@ -135,7 +144,7 @@ interface MediaPreviewProps {
  * that stage already renders a "Download original" link, and the lightbox would show nothing more
  * than the exact same placeholder, just bigger. */
 function MediaPreview(props: MediaPreviewProps) {
-  const { useMediaPreviewHook = useMediaPreview } = props;
+  const { useMediaPreviewHook = useMediaPreview, t } = props;
   const { stage, src, altText, handleImageError, handleVideoError } = useMediaPreviewHook(props.item);
 
   if (stage === "unsupported") {
@@ -148,9 +157,9 @@ function MediaPreview(props: MediaPreviewProps) {
     return (
       <div className="media-card-placeholder">
         <PlaceholderIcon />
-        <p className="media-card-placeholder-text">Preview not available</p>
+        <p className="media-card-placeholder-text">{t("Preview not available")}</p>
         <a className="media-card-placeholder-link" href={src} target="_blank" rel="noreferrer">
-          Download original
+          {t("Download original")}
         </a>
       </div>
     );
@@ -206,6 +215,8 @@ interface EditMediaPanelProps {
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
   useEditMediaPanelHook?: typeof useEditMediaPanel;
+  /** Translator closure — see `Media()`'s own `t`. */
+  t: (key: string) => string;
 }
 
 /** Inline edit panel for one media item's title/alt/caption/credit (REQ-01). No longer a table
@@ -213,7 +224,7 @@ interface EditMediaPanelProps {
  *  in-progress edit is never squeezed into one grid cell's width, and expanding it never reflows
  *  its siblings' cells. */
 function EditMediaPanel(props: EditMediaPanelProps) {
-  const { item, onSaved, onCancel, useEditMediaPanelHook = useEditMediaPanel } = props;
+  const { item, onSaved, onCancel, useEditMediaPanelHook = useEditMediaPanel, t } = props;
   const {
     draft,
     setTitle,
@@ -236,7 +247,9 @@ function EditMediaPanel(props: EditMediaPanelProps) {
   return (
     <div className="card media-edit-panel">
       <div className="editor-header">
-        <h2>Editing "{item.title}"</h2>
+        <h2>
+          {t("Editing")} "{item.title}"
+        </h2>
       </div>
       {/* Field layout per the OD reference (od-settings-external-mcp-customform.png): uppercase
           letterspaced label above its control (`.field-label`), short fields pairing into a
@@ -245,7 +258,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
         <div className="field-row">
           <div className="field">
             <label className="field-label" htmlFor={`media-edit-title-${item.id}`}>
-              Title
+              {t("Title")}
             </label>
             <input
               id={`media-edit-title-${item.id}`}
@@ -255,7 +268,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
           </div>
           <div className="field">
             <label className="field-label" htmlFor={`media-edit-alt-${item.id}`}>
-              Alt
+              {t("Alt")}
             </label>
             <input
               id={`media-edit-alt-${item.id}`}
@@ -267,7 +280,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
         <div className="field-row">
           <div className="field">
             <label className="field-label" htmlFor={`media-edit-caption-${item.id}`}>
-              Caption
+              {t("Caption")}
             </label>
             <input
               id={`media-edit-caption-${item.id}`}
@@ -277,7 +290,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
           </div>
           <div className="field">
             <label className="field-label" htmlFor={`media-edit-credit-${item.id}`}>
-              Credit
+              {t("Credit")}
             </label>
             <input
               id={`media-edit-credit-${item.id}`}
@@ -295,7 +308,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
         <div className="field-row">
           <div className="field">
             <label className="field-label" htmlFor={`media-edit-width-${item.id}`}>
-              Width (px)
+              {t("Width (px)")}
             </label>
             <input
               id={`media-edit-width-${item.id}`}
@@ -308,7 +321,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
           </div>
           <div className="field">
             <label className="field-label" htmlFor={`media-edit-height-${item.id}`}>
-              Height (px)
+              {t("Height (px)")}
             </label>
             <input
               id={`media-edit-height-${item.id}`}
@@ -322,7 +335,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
         </div>
         <div className="field">
           <label className="field-label" htmlFor={`media-edit-css-class-${item.id}`}>
-            CSS class (optional)
+            {t("CSS class (optional)")}
           </label>
           <input
             id={`media-edit-css-class-${item.id}`}
@@ -336,7 +349,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
             isn't something you type into"), but a clickable `<a>` instead of `<code>` since this
             value is a real, followable URL, not an opaque identifier. */}
         <div className="field">
-          <span className="field-label">File URL</span>
+          <span className="field-label">{t("File URL")}</span>
           <div className="field-readonly-row">
             <a
               className="field-mono field-readonly"
@@ -347,7 +360,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
               {originalUrl}
             </a>
             <button type="button" className="btn-ghost" onClick={copyUrl}>
-              {urlCopied ? "Copied" : "Copy"}
+              {urlCopied ? t("Copied") : t("Copy")}
             </button>
           </div>
         </div>
@@ -356,20 +369,20 @@ function EditMediaPanel(props: EditMediaPanelProps) {
             this is a content hash, not something an operator edits. Monospace per the OD idiom
             for values that are code/identifiers, not prose. */}
         <div className="field">
-          <span className="field-label">sha256</span>
+          <span className="field-label">{t("sha256")}</span>
           <div className="field-readonly-row">
             <code className="field-mono field-readonly">{item.sha256}</code>
             <button type="button" className="btn-ghost" onClick={copyHash}>
-              {hashCopied ? "Copied" : "Copy"}
+              {hashCopied ? t("Copied") : t("Copy")}
             </button>
           </div>
         </div>
         <span className="editor-actions">
           <button type="button" onClick={save} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("Saving…") : t("Save")}
           </button>
           <button type="button" className="btn-secondary" onClick={onCancel} disabled={saving}>
-            Cancel
+            {t("Cancel")}
           </button>
         </span>
       </div>
@@ -396,6 +409,8 @@ interface MediaLightboxProps {
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
   useMediaLightboxHook?: typeof useMediaLightbox;
+  /** Translator closure — see `Media()`'s own `t`; forwarded to the `MediaPreview` this remounts. */
+  t: (key: string) => string;
 }
 
 /**
@@ -414,7 +429,7 @@ interface MediaLightboxProps {
  * place.
  */
 function MediaLightbox(props: MediaLightboxProps) {
-  const { items, activeIndex, onNavigate, onClose, useMediaLightboxHook = useMediaLightbox } = props;
+  const { items, activeIndex, onNavigate, onClose, useMediaLightboxHook = useMediaLightbox, t } = props;
   const { titleId, dialogRef, closeRef, item, hasPrev, hasNext, handleNativeCancel, handleBackdropClick, handleKeyDown, goToPrev, goToNext } =
     useMediaLightboxHook({ items, activeIndex, onNavigate, onClose });
 
@@ -460,7 +475,7 @@ function MediaLightbox(props: MediaLightboxProps) {
                   React keeps the instance, so a PDF that fell all the way through to `"unsupported"`
                   leaves the next asset stuck on the placeholder even when it is a perfectly good
                   image. The grid cards never hit this — each card owns its own instance. */}
-              <MediaPreview key={item.id} item={item} />
+              <MediaPreview key={item.id} item={item} t={t} />
             </div>
             {hasNext ? (
               <button
@@ -488,19 +503,21 @@ function MediaToolbar({
   setAltDraft,
   upload,
   uploading,
+  t,
 }: {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   altDraft: string;
   setAltDraft: (value: string) => void;
   upload: () => void;
   uploading: boolean;
+  t: (key: string) => string;
 }) {
   return (
     <div className="toolbar">
       <input ref={fileInputRef} className="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-      <input value={altDraft} onChange={(e) => setAltDraft(e.target.value)} placeholder="Alt text (optional)" />
+      <input value={altDraft} onChange={(e) => setAltDraft(e.target.value)} placeholder={t("Alt text (optional)")} />
       <button onClick={upload} disabled={uploading}>
-        {uploading ? "Uploading…" : "Upload"}
+        {uploading ? t("Uploading…") : t("Upload")}
       </button>
     </div>
   );
@@ -514,24 +531,26 @@ function MediaPurgeDialog({
   rowSavingId,
   onConfirm,
   onCancel,
+  t,
 }: {
   pendingPurge: AdminMedia | null;
   rowSavingId: string | null;
   onConfirm: () => void;
   onCancel: () => void;
+  t: (key: string) => string;
 }) {
   return (
     <ConfirmDialog
       open={pendingPurge !== null}
-      title="Delete permanently?"
+      title={t("Delete permanently?")}
       body={
         pendingPurge ? (
           <p>
-            Permanently delete &quot;{pendingPurge.title}&quot;? This cannot be undone.
+            {t("Permanently delete")} &quot;{pendingPurge.title}&quot;? {t("This cannot be undone.")}
           </p>
         ) : null
       }
-      confirmLabel="Delete permanently"
+      confirmLabel={t("Delete permanently")}
       destructive
       pending={pendingPurge !== null && rowSavingId === pendingPurge.id}
       onConfirm={onConfirm}
@@ -546,6 +565,23 @@ export interface MediaProps {
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
   useMediaHook?: typeof useMedia;
+}
+
+/** "Images"/"Videos" tab body — see `Media()`'s own comment at the tab-bar mount site for why
+ *  these don't filter the grid yet: `AdminMedia` carries no content type to filter by. */
+function MediaTypeFilterPlaceholder({ kind, t }: { kind: "images" | "videos"; t: (key: string) => string }) {
+  return (
+    <div className="card">
+      <div className="empty-state">
+        <p>{t("Filtering by type isn't wired up yet.")}</p>
+        <p className="page-description">
+          The media list doesn't carry a content type to filter by today (see this file's header
+          comment) — the "{kind === "images" ? t("Images") : t("Videos")}" tab is here to confirm the
+          layout; it will show a filtered grid once that gap closes.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export function Media({ useMediaHook = useMedia }: MediaProps = {}) {
@@ -570,6 +606,13 @@ export function Media({ useMediaHook = useMedia }: MediaProps = {}) {
     lightboxIndex,
     setLightboxIndex,
   } = useMediaHook();
+  const { activeTab, setActiveTab } = useMediaTabs();
+  const locale = useAdminLocale();
+  const t = (key: string): string => MEDIA_DICT[locale]?.[key] ?? key;
+  // `useRef`, not a bare call: `createFakeMediaProvidersPort()` returns a fresh in-memory store
+  // each time, so a plain call here would forget every typed-but-unsaved field on the next
+  // render — same reasoning as `use-settings-ui.hooks.ts`'s own `mediaProvidersPort` ref.
+  const mediaProvidersPort = useRef(createFakeMediaProvidersPort());
 
   if (error && !media) return <div className="notice error">{error}</div>;
   if (!media) return <div className="notice">Loading media…</div>;
@@ -578,76 +621,124 @@ export function Media({ useMediaHook = useMedia }: MediaProps = {}) {
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">Media</h1>
-          <p className="page-description">Upload and manage image and video assets used across the site.</p>
+          <p className="page-kicker">{t("Content")}</p>
+          <h1 className="page-title">{t("Media")}</h1>
+          <p className="page-description">{t("Upload and manage image and video assets used across the site.")}</p>
         </div>
       </div>
-      {error ? <div className="notice error">{error}</div> : null}
-      <MediaToolbar
-        fileInputRef={fileInputRef}
-        altDraft={altDraft}
-        setAltDraft={setAltDraft}
-        upload={upload}
-        uploading={uploading}
-      />
 
-      {editingItem ? (
-        <EditMediaPanel
-          item={editingItem}
-          onSaved={onMetadataSaved}
-          onCancel={() => setEditingId(null)}
-        />
-      ) : null}
+      {/* OD-parity tab bar (owner instruction, 2026-08-08) — UI-review pass only, see
+          `use-media-tabs.hooks.ts`'s doc comment. "Media providers" mounts the real
+          `@jini-ai/ui` component fed `OD_MEDIA_PROVIDER_CATALOG` (the real OD provider list,
+          transcribed live) against a fake, in-memory-only port — no Tovu backend exists yet, so
+          nothing typed here survives a reload. That's the explicit next step, not this pass. */}
+      <div className="media-tabs" role="tablist" aria-label="Media">
+        {MEDIA_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            className="media-tab"
+            aria-selected={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {t(tab.label)}
+          </button>
+        ))}
+      </div>
 
-      {media.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>No media uploaded yet.</p>
-            <p className="page-description">Choose a file above and upload it to get started.</p>
-          </div>
+      {activeTab === "media-providers" ? (
+        // `data-theme="light"` is REQUIRED, not cosmetic — same trap `AiAssistant.tsx` and
+        // `PlaceholderTabs.tsx` already document at their own mounts of `@jini-ai/ui/settings-
+        // dialog.css` content: with no `data-theme` ancestor, the stylesheet falls through to its
+        // `@media (prefers-color-scheme: dark)` variant, so this tab renders dark on any OS/browser
+        // set to dark mode while the rest of the (light-only) admin shell stays light. This screen
+        // has no appearance control of its own, so pin to light rather than leave it themable.
+        <div data-theme="light">
+          <MediaProvidersTab port={mediaProvidersPort.current} />
         </div>
+      ) : activeTab === "images" ? (
+        <MediaTypeFilterPlaceholder kind="images" t={t} />
+      ) : activeTab === "videos" ? (
+        <MediaTypeFilterPlaceholder kind="videos" t={t} />
       ) : (
-        <div className="media-grid">
-          {media.map((item, index) => (
-            <div className="media-card" key={item.id}>
-              <div className="media-card-preview">
-                <MediaPreview item={item} onExpand={() => setLightboxIndex(index)} />
-              </div>
-              <div className="media-card-body">
-                <p className="media-card-title" title={item.title}>
-                  {item.title}
-                </p>
-                <div className="media-card-meta">
-                  <span className={`status status-${item.status}`}>{item.status}</span>
-                  <RowMenu
-                    triggerLabel={`Actions for "${item.title}"`}
-                    items={mediaRowMenuItems(item, editingId, {
-                      onToggleEdit: toggleEditing,
-                      onTrash: trash,
-                      onRequestPurge: setPendingPurge,
-                    })}
-                  />
-                </div>
+        <>
+          {error ? <div className="notice error">{error}</div> : null}
+          <MediaToolbar
+            fileInputRef={fileInputRef}
+            altDraft={altDraft}
+            setAltDraft={setAltDraft}
+            upload={upload}
+            uploading={uploading}
+            t={t}
+          />
+
+          {editingItem ? (
+            <EditMediaPanel
+              item={editingItem}
+              onSaved={onMetadataSaved}
+              onCancel={() => setEditingId(null)}
+              t={t}
+            />
+          ) : null}
+
+          {media.length === 0 ? (
+            <div className="card">
+              <div className="empty-state">
+                <p>{t("No media uploaded yet.")}</p>
+                <p className="page-description">{t("Choose a file above and upload it to get started.")}</p>
               </div>
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="media-grid">
+              {media.map((item, index) => (
+                <div className="media-card" key={item.id}>
+                  <div className="media-card-preview">
+                    <MediaPreview item={item} onExpand={() => setLightboxIndex(index)} t={t} />
+                  </div>
+                  <div className="media-card-body">
+                    <p className="media-card-title" title={item.title}>
+                      {item.title}
+                    </p>
+                    <div className="media-card-meta">
+                      <span className={`status status-${item.status}`}>{item.status}</span>
+                      <RowMenu
+                        triggerLabel={`Actions for "${item.title}"`}
+                        items={mediaRowMenuItems(
+                          item,
+                          editingId,
+                          {
+                            onToggleEdit: toggleEditing,
+                            onTrash: trash,
+                            onRequestPurge: setPendingPurge,
+                          },
+                          locale,
+                        )}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <MediaLightbox
+            items={media}
+            activeIndex={lightboxIndex}
+            onNavigate={setLightboxIndex}
+            onClose={() => setLightboxIndex(null)}
+            t={t}
+          />
+
+          <MediaPurgeDialog
+            pendingPurge={pendingPurge}
+            rowSavingId={rowSavingId}
+            onConfirm={purge}
+            onCancel={() => setPendingPurge(null)}
+            t={t}
+          />
+        </>
       )}
-
-      <MediaLightbox
-        items={media}
-        activeIndex={lightboxIndex}
-        onNavigate={setLightboxIndex}
-        onClose={() => setLightboxIndex(null)}
-      />
-
-      <MediaPurgeDialog
-        pendingPurge={pendingPurge}
-        rowSavingId={rowSavingId}
-        onConfirm={purge}
-        onCancel={() => setPendingPurge(null)}
-      />
     </div>
   );
 }
