@@ -16,6 +16,15 @@ Before proposing architecture changes, implementation plans, or new platform mod
 - `tovu/PROJECT_MEMORY.md` when the task is about the `tovu/` project
 - `tovu/src/INFO.md` when the task is about module layout in `tovu/`
 
+## Audit Scope
+
+Unless the user explicitly expands the scope, code audits, security reviews, bug hunts, and refactor reviews in this repository must inspect only the final source state under:
+
+- `src/**`
+- `apps/**`
+
+Treat all other top-level paths as out of scope for those audits, including history, overwritten intermediate versions, generated output, documentation, development material, and `AI-Dev-Shop/**`.
+
 ## Execution Rules
 
 - Treat sections 13 and 14 as governing constraints for architecture decisions.
