@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type SeoSettings } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../seo-i18n";
 
 /**
  * @file Everything the top-level `Seo` screen does (the site-wide defaults form + sitemap
@@ -21,6 +23,7 @@ export interface SeoController {
 }
 
 export function useSeo(): SeoController {
+  const locale = useAdminLocale();
   const [settings, setSettings] = useState<SeoSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -30,7 +33,8 @@ export function useSeo(): SeoController {
     api
       .getSeoSettings()
       .then((r) => setSettings(r.data))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load SEO settings"));
+      .catch((e) => setError(e instanceof Error ? e.message : t(locale, "failed to load SEO settings")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function save(patch: Partial<SeoSettings>) {
@@ -40,9 +44,9 @@ export function useSeo(): SeoController {
     try {
       const r = await api.setSeoSettings(patch);
       setSettings(r.data);
-      setNotice("Saved.");
+      setNotice(t(locale, "Saved."));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to save SEO settings");
+      setError(e instanceof Error ? e.message : t(locale, "failed to save SEO settings"));
     } finally {
       setSaving(false);
     }
@@ -54,9 +58,9 @@ export function useSeo(): SeoController {
     setNotice(null);
     try {
       await api.regenerateSitemap();
-      setNotice("Sitemap regeneration accepted.");
+      setNotice(t(locale, "Sitemap regeneration accepted."));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to regenerate sitemap");
+      setError(e instanceof Error ? e.message : t(locale, "failed to regenerate sitemap"));
     } finally {
       setSaving(false);
     }

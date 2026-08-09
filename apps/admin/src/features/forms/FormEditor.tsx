@@ -9,6 +9,8 @@ import { useFormFieldsEditor } from "./hooks/use-form-fields-editor.hooks";
 import { useFormSubmissionDetail } from "./hooks/use-form-submission-detail.hooks";
 import { useFormSubmissions } from "./hooks/use-form-submissions.hooks";
 import { useFormEditor } from "./hooks/use-form-editor.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { FORMS_DICT } from "./forms-i18n";
 
 /**
  * @file Form editor screen (SPEC-010 ui.spec.md §2.2-2.5/§3.2-3.5) — the `/admin/forms/:formId` route.
@@ -68,6 +70,8 @@ export interface FieldAttributesDialogProps {
   onCancel: () => void;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useFieldAttributesDialogHook?: typeof useFieldAttributesDialog;
+  /** Translator closure — see `FormEditor()`'s own `t`. */
+  t: (key: string) => string;
 }
 
 function FieldAttributesDialog({
@@ -76,6 +80,7 @@ function FieldAttributesDialog({
   onSave,
   onCancel,
   useFieldAttributesDialogHook = useFieldAttributesDialog,
+  t,
 }: FieldAttributesDialogProps) {
   const { className, setClassName, rows, updateRow, removeRow, addRow, error, submit } = useFieldAttributesDialogHook({
     field,
@@ -94,7 +99,7 @@ function FieldAttributesDialog({
         onSubmit={submit}
       >
         <h2 id="field-attrs-title">
-          Field attributes — {fieldDisplayName(field, fieldIndex)}
+          {t("Field attributes —")} {fieldDisplayName(field, fieldIndex)}
         </h2>
         {/* Clamped to two lines rather than shortened. Measured in a real browser at this dialog's
             461px content width: the full text is 5 lines / 98px and the dialog 389px tall;
@@ -115,7 +120,7 @@ function FieldAttributesDialog({
 
         <div className="field">
           <label className="field-label" htmlFor="field-attrs-classname">
-            CSS classes
+            {t("CSS classes")}
           </label>
           <input
             id="field-attrs-classname"
@@ -126,7 +131,7 @@ function FieldAttributesDialog({
         </div>
 
         <div className="field-attrs-rows">
-          <span className="field-label">HTML attributes</span>
+          <span className="field-label">{t("HTML attributes")}</span>
           <datalist id="field-attrs-name-suggestions">
             {ATTRIBUTE_NAME_SUGGESTIONS.map((name) => (
               <option key={name} value={name} />
@@ -137,7 +142,7 @@ function FieldAttributesDialog({
               <legend>Attribute {index + 1}</legend>
               <div className="field">
                 <label className="field-label" htmlFor={`field-attrs-name-${row._rowId}`}>
-                  Name
+                  {t("Name")}
                 </label>
                 <input
                   id={`field-attrs-name-${row._rowId}`}
@@ -149,7 +154,7 @@ function FieldAttributesDialog({
               </div>
               <div className="field">
                 <label className="field-label" htmlFor={`field-attrs-value-${row._rowId}`}>
-                  Value
+                  {t("Value")}
                 </label>
                 <input
                   id={`field-attrs-value-${row._rowId}`}
@@ -159,12 +164,12 @@ function FieldAttributesDialog({
                 />
               </div>
               <button type="button" className="btn-secondary" onClick={() => removeRow(row._rowId)}>
-                Remove
+                {t("Remove")}
               </button>
             </fieldset>
           ))}
           <button type="button" className="btn-secondary" onClick={addRow}>
-            Add attribute
+            {t("Add attribute")}
           </button>
         </div>
 
@@ -175,9 +180,9 @@ function FieldAttributesDialog({
         ) : null}
 
         <span className="editor-actions">
-          <button type="submit">Save</button>
+          <button type="submit">{t("Save")}</button>
           <button type="button" className="btn-secondary" onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </button>
         </span>
       </form>
@@ -191,6 +196,8 @@ export interface FormFieldsEditorProps {
   onChange: (fields: AdminFormField[]) => void;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useFormFieldsEditorHook?: typeof useFormFieldsEditor;
+  /** Translator closure — see `FormEditor()`'s own `t`. */
+  t: (key: string) => string;
 }
 
 function FormFieldsEditor({
@@ -198,6 +205,7 @@ function FormFieldsEditor({
   existingFieldIds = [],
   onChange,
   useFormFieldsEditorHook = useFormFieldsEditor,
+  t,
 }: FormFieldsEditorProps) {
   const { editingAttrsIndex, openAttrsDialog, closeAttrsDialog, kebabRefs, updateField, addField, removeField } =
     useFormFieldsEditorHook({ fields, onChange });
@@ -231,21 +239,21 @@ function FormFieldsEditor({
         </colgroup>
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Label</th>
-            <th>Type</th>
+            <th>{t("ID")}</th>
+            <th>{t("Label")}</th>
+            <th>{t("Type")}</th>
             {/* "Required" is one unbreakable word — at this column's necessarily checkbox-sized
                 width it has nowhere to wrap to and was visibly overflowing into "Max length"'s own
                 header. "Req" reads fine sitting directly above the checkbox it labels; the row
                 cell's own `aria-label` ("Field N required", unchanged below) still says the full
                 word for anyone not reading the visual header at all. */}
-            <th>Req</th>
-            <th>Max length</th>
+            <th>{t("Req")}</th>
+            <th>{t("Max length")}</th>
             {/* "More" — the exact literal string `FormsList.tsx`'s own `RowMenu` column header
                 uses (confirmed by reading that file, not just the rendered DOM); `.list-table th`
                 (`styles.css`) uppercases it visually to "MORE", same as every other header in this
                 table (e.g. "Max length" above renders as "MAX LENGTH"). */}
-            <th>More</th>
+            <th>{t("More")}</th>
             <th></th>
           </tr>
         </thead>
@@ -332,7 +340,7 @@ function FormFieldsEditor({
                     title={isExisting ? "Existing fields cannot be removed once created" : undefined}
                     onClick={() => removeField(index)}
                   >
-                    Remove
+                    {t("Remove")}
                   </button>
                 </td>
               </tr>
@@ -343,7 +351,7 @@ function FormFieldsEditor({
           <tr>
             <td colSpan={7}>
               <button type="button" className="btn-secondary" onClick={addField}>
-                Add field
+                {t("Add field")}
               </button>
             </td>
           </tr>
@@ -358,6 +366,7 @@ function FormFieldsEditor({
             closeAttrsDialog();
           }}
           onCancel={closeAttrsDialog}
+          t={t}
         />
       ) : null}
     </>
@@ -371,6 +380,8 @@ export interface FormSubmissionDetailProps {
   onDeleted: () => void;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useFormSubmissionDetailHook?: typeof useFormSubmissionDetail;
+  /** Translator closure — see `FormEditor()`'s own `t`. */
+  t: (key: string) => string;
 }
 
 function FormSubmissionDetail({
@@ -379,6 +390,7 @@ function FormSubmissionDetail({
   onBack,
   onDeleted,
   useFormSubmissionDetailHook = useFormSubmissionDetail,
+  t,
 }: FormSubmissionDetailProps) {
   const { submission, error, confirming, deleting, handleDelete } = useFormSubmissionDetailHook({
     formId,
@@ -392,18 +404,18 @@ function FormSubmissionDetail({
   return (
     <div>
       <button type="button" className="btn-secondary" onClick={onBack}>
-        &larr; Back to submissions
+        &larr; {t("Back to submissions")}
       </button>
       {error ? <div className="notice error">{error}</div> : null}
       <div className="table-scroll">
         <table className="list-table">
           <tbody>
             <tr>
-              <th>Submitted at</th>
+              <th>{t("Submitted at")}</th>
               <td>{submission.submittedAt}</td>
             </tr>
             <tr>
-              <th>Source IP</th>
+              <th>{t("Source IP")}</th>
               <td>{submission.sourceIp}</td>
             </tr>
             {Object.entries(submission.data).map(([key, value]) => (
@@ -416,7 +428,7 @@ function FormSubmissionDetail({
         </table>
       </div>
       <button type="button" className="btn-danger" disabled={deleting} onClick={handleDelete}>
-        {confirming ? "Confirm delete" : "Delete submission"}
+        {confirming ? t("Confirm delete") : t("Delete submission")}
       </button>
     </div>
   );
@@ -426,9 +438,11 @@ export interface FormSubmissionsProps {
   formId: string;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useFormSubmissionsHook?: typeof useFormSubmissions;
+  /** Translator closure — see `FormEditor()`'s own `t`. */
+  t: (key: string) => string;
 }
 
-function FormSubmissions({ formId, useFormSubmissionsHook = useFormSubmissions }: FormSubmissionsProps) {
+function FormSubmissions({ formId, useFormSubmissionsHook = useFormSubmissions, t }: FormSubmissionsProps) {
   const { submissions, nextCursor, error, selectedId, setSelectedId, load } = useFormSubmissionsHook({ formId });
 
   if (selectedId) {
@@ -441,13 +455,14 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useFormSubmissions }
           setSelectedId(null);
           load();
         }}
+        t={t}
       />
     );
   }
 
   if (error && !submissions) return <div className="notice error">{error}</div>;
   if (!submissions) return <div className="notice">Loading submissions…</div>;
-  if (submissions.length === 0) return <div className="empty-state">No submissions yet.</div>;
+  if (submissions.length === 0) return <div className="empty-state">{t("No submissions yet.")}</div>;
 
   return (
     <div>
@@ -456,13 +471,13 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useFormSubmissions }
         rows={submissions}
         rowKey={(s) => s.id}
         columns={[
-          { key: "submitted-at", header: "Submitted at", cell: (s) => s.submittedAt },
-          { key: "source-ip", header: "Source IP", cell: (s) => s.sourceIp },
+          { key: "submitted-at", header: t("Submitted at"), cell: (s) => s.submittedAt },
+          { key: "source-ip", header: t("Source IP"), cell: (s) => s.sourceIp },
           {
             key: "view",
             cell: (s) => (
               <button type="button" onClick={() => setSelectedId(s.id)}>
-                View
+                {t("View")}
               </button>
             ),
           },
@@ -470,7 +485,7 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useFormSubmissions }
       />
       {nextCursor ? (
         <button type="button" className="btn-secondary" onClick={() => load(nextCursor)}>
-          Load more
+          {t("Load more")}
         </button>
       ) : null}
     </div>
@@ -506,6 +521,8 @@ function FormEditorFieldsBody(props: {
   saving: boolean;
   onStatusToggle: () => void;
   onSave: () => void;
+  /** Translator closure — see `FormEditor()`'s own `t`. */
+  t: (key: string) => string;
 }) {
   const {
     name,
@@ -524,6 +541,7 @@ function FormEditorFieldsBody(props: {
     saving,
     onStatusToggle,
     onSave,
+    t,
   } = props;
 
   return (
@@ -532,13 +550,13 @@ function FormEditorFieldsBody(props: {
         <div className="field-row">
           <div className="field">
             <label className="field-label" htmlFor="form-name">
-              Name
+              {t("Name")}
             </label>
             <input id="form-name" value={name} onChange={(e) => onNameChange(e.target.value)} />
           </div>
           <div className="field">
             <label className="field-label" htmlFor="form-slug">
-              Slug
+              {t("Slug")}
             </label>
             <input id="form-slug" value={slug} disabled={!isNew} onChange={(e) => onSlugChange(e.target.value)} />
           </div>
@@ -547,7 +565,7 @@ function FormEditorFieldsBody(props: {
 
       <div className="field-group">
         <div className="table-scroll">
-          <FormFieldsEditor fields={fields} existingFieldIds={existingFieldIds} onChange={onFieldsChange} />
+          <FormFieldsEditor fields={fields} existingFieldIds={existingFieldIds} onChange={onFieldsChange} t={t} />
         </div>
       </div>
 
@@ -558,12 +576,12 @@ function FormEditorFieldsBody(props: {
             checked={notify.enabled}
             onChange={(e) => onNotifyChange({ ...notify, enabled: e.target.checked })}
           />
-          Enable email notification
+          {t("Enable email notification")}
         </label>
         {notify.enabled ? (
           <div className="field">
             <label className="field-label" htmlFor="form-recipients">
-              Recipients (comma-separated)
+              {t("Recipients (comma-separated)")}
             </label>
             <input id="form-recipients" value={recipientsText} onChange={(e) => onRecipientsTextChange(e.target.value)} />
           </div>
@@ -589,11 +607,11 @@ function FormEditorFieldsBody(props: {
             disabled={saving}
             onClick={onStatusToggle}
           >
-            {form.status === "active" ? "Disable" : "Enable"}
+            {form.status === "active" ? t("Disable") : t("Enable")}
           </button>
         ) : null}
         <button type="button" disabled={saving} onClick={onSave}>
-          {isNew ? "Create form" : "Save"}
+          {isNew ? t("Create form") : t("Save")}
         </button>
       </div>
     </>
@@ -603,16 +621,16 @@ function FormEditorFieldsBody(props: {
 /** The page-header title/description text — split out because `FormEditor`'s isNew-dependent copy
  * (two ternaries, one with a `||` fallback) is otherwise indistinguishable, in the complexity
  * count, from the branches that actually decide what's on screen. */
-function FormEditorHeaderText(props: { isNew: boolean; name: string }) {
-  const { isNew, name } = props;
+function FormEditorHeaderText(props: { isNew: boolean; name: string; t: (key: string) => string }) {
+  const { isNew, name, t } = props;
   return (
     <div className="page-header-text">
-      <p className="page-kicker">Content</p>
-      <h1 className="page-title">{isNew ? "New form" : name || "Form"}</h1>
+      <p className="page-kicker">{t("Content")}</p>
+      <h1 className="page-title">{isNew ? t("New form") : name || t("Form")}</h1>
       <p className="page-description">
         {isNew
-          ? "Configure a new form's fields and email notifications."
-          : "Configure this form's fields and notifications, or review its submissions."}
+          ? t("Configure a new form's fields and email notifications.")
+          : t("Configure this form's fields and notifications, or review its submissions.")}
       </p>
     </div>
   );
@@ -625,28 +643,30 @@ function FormEditorTabStrip(props: {
   onTabChange: (tab: "fields" | "submissions") => void;
   tabRefs: React.MutableRefObject<Array<HTMLButtonElement | null>>;
   onTabsKeyDown: (e: React.KeyboardEvent) => void;
+  /** Translator closure — see `FormEditor()`'s own `t`. */
+  t: (key: string) => string;
 }) {
-  const { showTabs, tab, onTabChange, tabRefs, onTabsKeyDown } = props;
+  const { showTabs, tab, onTabChange, tabRefs, onTabsKeyDown, t } = props;
   if (!showTabs) return null;
 
   return (
     <div className="form-tabs" role="tablist" aria-label="Form sections" onKeyDown={onTabsKeyDown}>
-      {FORM_TABS.map((t, index) => (
+      {FORM_TABS.map((formTab, index) => (
         <button
-          key={t.id}
+          key={formTab.id}
           ref={(el) => {
             tabRefs.current[index] = el;
           }}
           type="button"
           role="tab"
-          id={`form-tab-${t.id}`}
+          id={`form-tab-${formTab.id}`}
           className="form-tab"
-          aria-selected={tab === t.id}
-          aria-controls={`form-panel-${t.id}`}
-          tabIndex={tab === t.id ? 0 : -1}
-          onClick={() => onTabChange(t.id)}
+          aria-selected={tab === formTab.id}
+          aria-controls={`form-panel-${formTab.id}`}
+          tabIndex={tab === formTab.id ? 0 : -1}
+          onClick={() => onTabChange(formTab.id)}
         >
-          {t.label}
+          {t(formTab.label)}
         </button>
       ))}
     </div>
@@ -655,8 +675,15 @@ function FormEditorTabStrip(props: {
 
 /** Which card is showing below the tab strip: the fields form (always for `isNew`, or when the
  * Fields tab is active) or the submissions table. */
-function FormEditorMainPanel(props: { isNew: boolean; tab: "fields" | "submissions"; formId: string; fieldsBody: React.ReactNode }) {
-  const { isNew, tab, formId, fieldsBody } = props;
+function FormEditorMainPanel(props: {
+  isNew: boolean;
+  tab: "fields" | "submissions";
+  formId: string;
+  fieldsBody: React.ReactNode;
+  /** Translator closure — see `FormEditor()`'s own `t`. */
+  t: (key: string) => string;
+}) {
+  const { isNew, tab, formId, fieldsBody, t } = props;
 
   if (isNew) {
     return <div className="card">{fieldsBody}</div>;
@@ -670,7 +697,7 @@ function FormEditorMainPanel(props: { isNew: boolean; tab: "fields" | "submissio
   }
   return (
     <div className="card" role="tabpanel" id="form-panel-submissions" aria-labelledby="form-tab-submissions">
-      <FormSubmissions formId={formId} />
+      <FormSubmissions formId={formId} t={t} />
     </div>
   );
 }
@@ -700,6 +727,8 @@ export function FormEditor({ formId, useFormEditorHook = useFormEditor }: FormEd
     handleSave,
     handleStatusToggle,
   } = useFormEditorHook({ formId });
+  const locale = useAdminLocale();
+  const t = (key: string): string => FORMS_DICT[locale]?.[key] ?? key;
 
   if (!isNew && !form && !error) return <div className="notice">Loading form…</div>;
   // Previously this was the ONLY guard, and it only covers the pre-error case — once the load
@@ -735,26 +764,27 @@ export function FormEditor({ formId, useFormEditorHook = useFormEditor }: FormEd
       saving={saving}
       onStatusToggle={handleStatusToggle}
       onSave={handleSave}
+      t={t}
     />
   );
 
   return (
     <div className="page">
       <div className="page-header">
-        <FormEditorHeaderText isNew={isNew} name={name} />
+        <FormEditorHeaderText isNew={isNew} name={name} t={t} />
         <div className="page-actions">
           <a href="/admin/forms">
             <button type="button" className="btn-secondary">
-              Back to forms
+              {t("Back to forms")}
             </button>
           </a>
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
 
-      <FormEditorTabStrip showTabs={showTabs} tab={tab} onTabChange={setTab} tabRefs={tabRefs} onTabsKeyDown={onTabsKeyDown} />
+      <FormEditorTabStrip showTabs={showTabs} tab={tab} onTabChange={setTab} tabRefs={tabRefs} onTabsKeyDown={onTabsKeyDown} t={t} />
 
-      <FormEditorMainPanel isNew={isNew} tab={tab} formId={formId} fieldsBody={fieldsBody} />
+      <FormEditorMainPanel isNew={isNew} tab={tab} formId={formId} fieldsBody={fieldsBody} t={t} />
     </div>
   );
 }

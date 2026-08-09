@@ -2,8 +2,15 @@ import { Fragment, type FormEvent } from "react";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { AdminPolicy, AdminRole } from "../../lib/api";
 
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { roleMenuItems, policyMenuItems } from "./rules";
 import { useRoles } from "./hooks/use-roles.hooks";
+import {
+  t as translateRoles,
+  rolesDescriptionParts,
+  roleDeleteBodyParts,
+  policyDeleteBodyParts,
+} from "./roles-i18n";
 
 /**
  * @file "Roles & Permissions" screen (SPEC-006 + 0.6.0 CRUD-completion amendment) — the
@@ -55,6 +62,8 @@ interface RolesSectionProps {
   onSaveRole: (roleId: string) => Promise<void>;
   rowSavingId: string | null;
   setPendingRoleDelete: (role: AdminRole | null) => void;
+  t: (key: string) => string;
+  locale: string;
 }
 
 /** "Roles" heading, create-role form, and the roles `DataTable` — extracted from `Roles` verbatim.
@@ -75,18 +84,20 @@ function RolesSection({
   onSaveRole,
   rowSavingId,
   setPendingRoleDelete,
+  t,
+  locale,
 }: RolesSectionProps) {
   return (
     <>
-      <h2>Roles</h2>
+      <h2>{t("Roles")}</h2>
       <form onSubmit={onCreateRole} className="notice integrations-form">
         {roleError ? <span className="save-error">{roleError}</span> : null}
         <label>
-          Role name
+          {t("Role name")}
           <input value={roleName} onChange={(e) => setRoleName(e.target.value)} required />
         </label>
         <button type="submit" disabled={roleSaving || !roleName}>
-          {roleSaving ? "Creating…" : "Create role"}
+          {roleSaving ? t("Creating…") : t("Create role")}
         </button>
       </form>
       <DataTable
@@ -95,14 +106,14 @@ function RolesSection({
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>No roles yet.</p>
+              <p>{t("No roles yet.")}</p>
             </div>
           </div>
         }
         columns={[
           {
             key: "name",
-            header: "Name",
+            header: t("Name"),
             cell: (role) =>
               editingRoleId === role.id ? (
                 <input value={editingRoleName} onChange={(e) => setEditingRoleName(e.target.value)} />
@@ -110,26 +121,26 @@ function RolesSection({
                 role.name
               ),
           },
-          { key: "type", header: "Type", cell: (role) => (role.isBuiltin ? "Built-in" : "Custom") },
+          { key: "type", header: t("Type"), cell: (role) => (role.isBuiltin ? t("Built-in") : t("Custom")) },
           {
             key: "actions",
-            header: "More",
+            header: t("More"),
             cell: (role) =>
               role.isBuiltin ? (
                 <span className="muted-cell">—</span>
               ) : editingRoleId === role.id ? (
                 <span className="editor-actions">
                   <button type="button" disabled={rowSavingId === role.id} onClick={() => onSaveRole(role.id)}>
-                    {rowSavingId === role.id ? "Saving…" : "Save"}
+                    {rowSavingId === role.id ? t("Saving…") : t("Save")}
                   </button>
                   <button type="button" onClick={() => setEditingRoleId(null)}>
-                    Cancel
+                    {t("Cancel")}
                   </button>
                 </span>
               ) : (
                 <RowMenu
-                  triggerLabel={`Actions for role "${role.name}"`}
-                  items={roleMenuItems(role, { onRename: startEditRole, onDelete: setPendingRoleDelete })}
+                  triggerLabel={`${t("Actions for role")} "${role.name}"`}
+                  items={roleMenuItems(role, { onRename: startEditRole, onDelete: setPendingRoleDelete }, locale)}
                 />
               ),
           },
@@ -158,6 +169,8 @@ interface PolicyRowProps {
   togglePermissionForm: (policyId: string) => void;
   onWritePermission: (policyId: string) => Promise<void>;
   setPendingPolicyDelete: (policy: AdminPolicy | null) => void;
+  t: (key: string) => string;
+  locale: string;
 }
 
 interface PolicyRowActionsProps {
@@ -170,6 +183,8 @@ interface PolicyRowActionsProps {
   startEditPolicy: (policy: AdminPolicy) => void;
   togglePermissionForm: (policyId: string) => void;
   setPendingPolicyDelete: (policy: AdminPolicy | null) => void;
+  t: (key: string) => string;
+  locale: string;
 }
 
 /** The "More" cell's three-way branch (built-in/frozen -> dash, mid-rename -> Save/Cancel,
@@ -187,28 +202,35 @@ function PolicyRowActions({
   startEditPolicy,
   togglePermissionForm,
   setPendingPolicyDelete,
+  t,
+  locale,
 }: PolicyRowActionsProps) {
   if (policy.isBuiltin || policy.isFrozen) return <span className="muted-cell">—</span>;
   if (editingPolicyId === policy.id) {
     return (
       <span className="editor-actions">
         <button type="button" disabled={rowSavingId === policy.id} onClick={() => onSavePolicy(policy.id)}>
-          {rowSavingId === policy.id ? "Saving…" : "Save"}
+          {rowSavingId === policy.id ? t("Saving…") : t("Save")}
         </button>
         <button type="button" onClick={() => setEditingPolicyId(null)}>
-          Cancel
+          {t("Cancel")}
         </button>
       </span>
     );
   }
   return (
     <RowMenu
-      triggerLabel={`Actions for policy "${policy.name}"`}
-      items={policyMenuItems(policy, permissionPolicyId, {
-        onRename: startEditPolicy,
-        onTogglePermissionForm: togglePermissionForm,
-        onDelete: setPendingPolicyDelete,
-      })}
+      triggerLabel={`${t("Actions for policy")} "${policy.name}"`}
+      items={policyMenuItems(
+        policy,
+        permissionPolicyId,
+        {
+          onRename: startEditPolicy,
+          onTogglePermissionForm: togglePermissionForm,
+          onDelete: setPendingPolicyDelete,
+        },
+        locale,
+      )}
     />
   );
 }
@@ -221,6 +243,7 @@ interface PolicyPermissionFormProps {
   resourceTypeInput: string;
   setResourceTypeInput: (resourceType: string) => void;
   onWritePermission: (policyId: string) => Promise<void>;
+  t: (key: string) => string;
 }
 
 /** The inline "Add permission" row — extracted out of `PolicyRow` verbatim, for the same reason as
@@ -233,13 +256,14 @@ function PolicyPermissionForm({
   resourceTypeInput,
   setResourceTypeInput,
   onWritePermission,
+  t,
 }: PolicyPermissionFormProps) {
   return (
     <tr>
       <td colSpan={4}>
         <div className="notice integrations-form">
           <label>
-            Permission
+            {t("Permission")}
             <span className="editor-actions">
               <input
                 value={permissionInput}
@@ -249,14 +273,14 @@ function PolicyPermissionForm({
               <input
                 value={resourceTypeInput}
                 onChange={(e) => setResourceTypeInput(e.target.value)}
-                placeholder="resource type (optional)"
+                placeholder={t("resource type (optional)")}
               />
               <button
                 type="button"
                 disabled={!permissionInput || rowSavingId === policyId}
                 onClick={() => onWritePermission(policyId)}
               >
-                {rowSavingId === policyId ? "Saving…" : "Add"}
+                {rowSavingId === policyId ? t("Saving…") : t("Add")}
               </button>
             </span>
           </label>
@@ -288,6 +312,8 @@ function PolicyRow({
   togglePermissionForm,
   onWritePermission,
   setPendingPolicyDelete,
+  t,
+  locale,
 }: PolicyRowProps) {
   return (
     <>
@@ -310,8 +336,8 @@ function PolicyRow({
           )}
         </td>
         <td>
-          {policy.isBuiltin ? "Built-in" : "Custom"}
-          {policy.isFrozen ? " (frozen)" : ""}
+          {policy.isBuiltin ? t("Built-in") : t("Custom")}
+          {policy.isFrozen ? ` ${t("(frozen)")}` : ""}
         </td>
         <td>
           <PolicyRowActions
@@ -324,6 +350,8 @@ function PolicyRow({
             startEditPolicy={startEditPolicy}
             togglePermissionForm={togglePermissionForm}
             setPendingPolicyDelete={setPendingPolicyDelete}
+            t={t}
+            locale={locale}
           />
         </td>
       </tr>
@@ -336,6 +364,7 @@ function PolicyRow({
           resourceTypeInput={resourceTypeInput}
           setResourceTypeInput={setResourceTypeInput}
           onWritePermission={onWritePermission}
+          t={t}
         />
       ) : null}
     </>
@@ -364,29 +393,30 @@ function PoliciesSection({
   policySaving,
   policyError,
   onCreatePolicy,
+  t,
   ...rowProps
 }: PoliciesSectionProps) {
   return (
     <>
-      <h2>Policies</h2>
+      <h2>{t("Policies")}</h2>
       <form onSubmit={onCreatePolicy} className="notice integrations-form">
         {policyError ? <span className="save-error">{policyError}</span> : null}
         <label>
-          Policy name
+          {t("Policy name")}
           <input value={policyName} onChange={(e) => setPolicyName(e.target.value)} required />
         </label>
         <label>
-          Description (optional)
+          {t("Description (optional)")}
           <input value={policyDescription} onChange={(e) => setPolicyDescription(e.target.value)} />
         </label>
         <button type="submit" disabled={policySaving || !policyName}>
-          {policySaving ? "Creating…" : "Create policy"}
+          {policySaving ? t("Creating…") : t("Create policy")}
         </button>
       </form>
       {policies.length === 0 ? (
         <div className="card">
           <div className="empty-state">
-            <p>No policies yet.</p>
+            <p>{t("No policies yet.")}</p>
           </div>
         </div>
       ) : (
@@ -394,16 +424,16 @@ function PoliciesSection({
           <table className="list-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Description</th>
-                <th>Type</th>
-                <th>More</th>
+                <th>{t("Name")}</th>
+                <th>{t("Description")}</th>
+                <th>{t("Type")}</th>
+                <th>{t("More")}</th>
               </tr>
             </thead>
             <tbody>
               {policies.map((policy) => (
                 <Fragment key={policy.id}>
-                  <PolicyRow policy={policy} {...rowProps} />
+                  <PolicyRow policy={policy} t={t} {...rowProps} />
                 </Fragment>
               ))}
             </tbody>
@@ -419,16 +449,27 @@ interface RoleDeleteDialogProps {
   setPendingRoleDelete: (role: AdminRole | null) => void;
   rowSavingId: string | null;
   onDeleteRole: () => Promise<void>;
+  t: (key: string) => string;
+  locale: string;
 }
 
 /** The role-delete confirm dialog — extracted from `Roles` verbatim. */
-function RoleDeleteDialog({ pendingRoleDelete, setPendingRoleDelete, rowSavingId, onDeleteRole }: RoleDeleteDialogProps) {
+function RoleDeleteDialog({ pendingRoleDelete, setPendingRoleDelete, rowSavingId, onDeleteRole, t, locale }: RoleDeleteDialogProps) {
+  const { prefix, suffix } = roleDeleteBodyParts(locale);
   return (
     <ConfirmDialog
       open={pendingRoleDelete !== null}
-      title="Delete role?"
-      body={pendingRoleDelete ? <p>Delete role &quot;{pendingRoleDelete.name}&quot;?</p> : null}
-      confirmLabel="Delete"
+      title={t("Delete role?")}
+      body={
+        pendingRoleDelete ? (
+          <p>
+            {prefix}
+            {pendingRoleDelete.name}
+            {suffix}
+          </p>
+        ) : null
+      }
+      confirmLabel={t("Delete")}
       destructive
       pending={pendingRoleDelete !== null && rowSavingId === pendingRoleDelete.id}
       onConfirm={onDeleteRole}
@@ -442,16 +483,27 @@ interface PolicyDeleteDialogProps {
   setPendingPolicyDelete: (policy: AdminPolicy | null) => void;
   rowSavingId: string | null;
   onDeletePolicy: () => Promise<void>;
+  t: (key: string) => string;
+  locale: string;
 }
 
 /** The policy-delete confirm dialog — extracted from `Roles` verbatim. */
-function PolicyDeleteDialog({ pendingPolicyDelete, setPendingPolicyDelete, rowSavingId, onDeletePolicy }: PolicyDeleteDialogProps) {
+function PolicyDeleteDialog({ pendingPolicyDelete, setPendingPolicyDelete, rowSavingId, onDeletePolicy, t, locale }: PolicyDeleteDialogProps) {
+  const { prefix, suffix } = policyDeleteBodyParts(locale);
   return (
     <ConfirmDialog
       open={pendingPolicyDelete !== null}
-      title="Delete policy?"
-      body={pendingPolicyDelete ? <p>Delete policy &quot;{pendingPolicyDelete.name}&quot;?</p> : null}
-      confirmLabel="Delete"
+      title={t("Delete policy?")}
+      body={
+        pendingPolicyDelete ? (
+          <p>
+            {prefix}
+            {pendingPolicyDelete.name}
+            {suffix}
+          </p>
+        ) : null
+      }
+      confirmLabel={t("Delete")}
       destructive
       pending={pendingPolicyDelete !== null && rowSavingId === pendingPolicyDelete.id}
       onConfirm={onDeletePolicy}
@@ -515,19 +567,24 @@ export function Roles({ useRolesHook = useRoles }: RolesProps = {}) {
     setPendingPolicyDelete,
     onDeletePolicy,
   } = useRolesHook();
+  const locale = useAdminLocale();
+  const t = (key: string): string => translateRoles(locale, key);
+  const { prefix: descriptionPrefix, linkLabel: descriptionLinkLabel, suffix: descriptionSuffix } =
+    rolesDescriptionParts(locale);
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!roles || !policies) return <div className="notice">Loading roles & permissions…</div>;
+  if (!roles || !policies) return <div className="notice">{t("Loading roles & permissions…")}</div>;
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">People</p>
-          <h1 className="page-title">Roles & Permissions</h1>
+          <p className="page-kicker">{t("People")}</p>
+          <h1 className="page-title">{t("Roles & Permissions")}</h1>
           <p className="page-description">
-            Roles and policies grant access to operator users. Assign a role or policy to a
-            specific user from the <a href="/admin/users">Users</a> screen.
+            {descriptionPrefix}
+            <a href="/admin/users">{descriptionLinkLabel}</a>
+            {descriptionSuffix}
           </p>
         </div>
       </div>
@@ -548,6 +605,8 @@ export function Roles({ useRolesHook = useRoles }: RolesProps = {}) {
         onSaveRole={onSaveRole}
         rowSavingId={rowSavingId}
         setPendingRoleDelete={setPendingRoleDelete}
+        t={t}
+        locale={locale}
       />
 
       <PoliciesSection
@@ -576,18 +635,24 @@ export function Roles({ useRolesHook = useRoles }: RolesProps = {}) {
         togglePermissionForm={togglePermissionForm}
         onWritePermission={onWritePermission}
         setPendingPolicyDelete={setPendingPolicyDelete}
+        t={t}
+        locale={locale}
       />
 
       <RoleDeleteDialog
         pendingRoleDelete={pendingRoleDelete}
         setPendingRoleDelete={setPendingRoleDelete}
         rowSavingId={rowSavingId}
+        t={t}
+        locale={locale}
         onDeleteRole={onDeleteRole}
       />
       <PolicyDeleteDialog
         pendingPolicyDelete={pendingPolicyDelete}
         setPendingPolicyDelete={setPendingPolicyDelete}
         rowSavingId={rowSavingId}
+        t={t}
+        locale={locale}
         onDeletePolicy={onDeletePolicy}
       />
     </div>

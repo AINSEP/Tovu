@@ -5,6 +5,8 @@ import { useEntryPicker } from "./hooks/use-entry-picker.hooks";
 import { useSeoEntryPanel } from "./hooks/use-seo-entry-panel.hooks";
 import { useSeoEntrySection } from "./hooks/use-seo-entry-section.hooks";
 import { useSeo } from "./hooks/use-seo.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { t } from "./seo-i18n";
 import type { SeoEntryAnalysis } from "../../lib/api";
 
 /**
@@ -21,9 +23,13 @@ import type { SeoEntryAnalysis } from "../../lib/api";
  * than threading a new panel through `PostEditor.tsx`, per REQ-06's own "implementer's choice")
  * plus a partial-override edit form and a read-only analyze view. `RobotsRuleEditor` (§2.5) is
  * still a minimal textarea-per-rule form (unchanged from the original disclosed scope note).
+ *
+ * `locale` is fetched once in `Seo` via `useAdminLocale()` and threaded down as a prop — see
+ * `Database.tsx`'s file header for why (the hook's `loadLanguage()` isn't memoized).
  */
 
 export interface EntryPickerProps {
+  locale: string;
   entryId: string;
   onChange: (entryId: string) => void;
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
@@ -33,17 +39,17 @@ export interface EntryPickerProps {
 
 /** Dropdown over every post + page, sourced from the already-existing `listPosts`/`listPages`
  * routes — cheapest entry-selection UX available given what's already built (REQ-06). */
-function EntryPicker({ entryId, onChange, useEntryPickerHook = useEntryPicker }: EntryPickerProps) {
+function EntryPicker({ locale, entryId, onChange, useEntryPickerHook = useEntryPicker }: EntryPickerProps) {
   const { entries, error } = useEntryPickerHook();
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!entries) return <div className="notice">Loading entries…</div>;
+  if (!entries) return <div className="notice">{t(locale, "Loading entries…")}</div>;
 
   return (
     <label>
-      Entry
+      {t(locale, "Entry")}
       <select value={entryId} onChange={(e) => onChange(e.target.value)}>
-        <option value="">Choose an entry…</option>
+        <option value="">{t(locale, "Choose an entry…")}</option>
         {entries.map((entry) => (
           <option key={entry.id} value={entry.id}>
             {entry.title} ({entry.status})
@@ -57,17 +63,18 @@ function EntryPicker({ entryId, onChange, useEntryPickerHook = useEntryPicker }:
 /** Read-only score + issues view (REQ-07) — exact field names read off `SeoAnalysis`/`SeoIssue`
  * (`src/seo/types.ts`), not guessed. No state of its own — only the severity sort, which lives in
  * `rules.ts` as `sortIssuesBySeverity`. */
-function AnalyzePanel(props: { analysis: SeoEntryAnalysis }) {
+function AnalyzePanel(props: { locale: string; analysis: SeoEntryAnalysis }) {
+  const { locale } = props;
   const sortedIssues = sortIssuesBySeverity(props.analysis.issues);
 
   return (
     <div className="notice seo-analyze-panel">
-      <h3>Analysis</h3>
+      <h3>{t(locale, "Analysis")}</h3>
       <p>
-        Score: <strong>{props.analysis.score}</strong>
+        {t(locale, "Score:")} <strong>{props.analysis.score}</strong>
       </p>
       {sortedIssues.length === 0 ? (
-        <p className="muted-cell">No issues.</p>
+        <p className="muted-cell">{t(locale, "No issues.")}</p>
       ) : (
         <ul>
           {sortedIssues.map((issue, i) => (
@@ -86,6 +93,7 @@ function AnalyzePanel(props: { analysis: SeoEntryAnalysis }) {
 }
 
 export interface SeoEntryPanelProps {
+  locale: string;
   entryId: string;
   useSeoEntryPanelHook?: typeof useSeoEntryPanel;
 }
@@ -106,18 +114,17 @@ export interface SeoEntryPanelProps {
 // the ceiling on their own. There is nothing to extract: splitting the eleven fields into their own
 // components would still evaluate the same fallback chains, just spread across more functions, for
 // no complexity benefit and a real loss of "one form, one place to read its fields."
-function SeoEntryPanel({ entryId, useSeoEntryPanelHook = useSeoEntryPanel }: SeoEntryPanelProps) {
+function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useSeoEntryPanel }: SeoEntryPanelProps) {
   const { resolved, analysis, loadError, saving, saveError, notice, fieldValue, setField, save, touched } = useSeoEntryPanelHook({ entryId });
 
   if (loadError) return <div className="notice error">{loadError}</div>;
-  if (!resolved) return <div className="notice">Loading entry SEO…</div>;
+  if (!resolved) return <div className="notice">{t(locale, "Loading entry SEO…")}</div>;
 
   return (
     <div className="notice seo-entry-panel">
-      <h3>Per-entry overrides</h3>
+      <h3>{t(locale, "Per-entry overrides")}</h3>
       <p className="muted-cell">
-        Fields show the currently-effective value (author override, or site default, or derived
-        from the entry). Only fields you change here are saved as overrides.
+        {t(locale, "Fields show the currently-effective value (author override, or site default, or derived from the entry). Only fields you change here are saved as overrides.")}
       </p>
       {notice ? <div className="notice">{notice}</div> : null}
       {saveError ? (
@@ -127,18 +134,18 @@ function SeoEntryPanel({ entryId, useSeoEntryPanelHook = useSeoEntryPanel }: Seo
       ) : null}
 
       <label>
-        Title
+        {t(locale, "Title")}
         <input value={fieldValue("title", resolved.title) ?? ""} onChange={(e) => setField("title", e.target.value)} />
       </label>
       <label>
-        Description
+        {t(locale, "Description")}
         <textarea
           value={fieldValue("description", resolved.description ?? "") ?? ""}
           onChange={(e) => setField("description", e.target.value)}
         />
       </label>
       <label>
-        Canonical URL
+        {t(locale, "Canonical URL")}
         <input
           value={fieldValue("canonical", resolved.canonical) ?? ""}
           onChange={(e) => setField("canonical", e.target.value)}
@@ -150,7 +157,7 @@ function SeoEntryPanel({ entryId, useSeoEntryPanelHook = useSeoEntryPanel }: Seo
           checked={fieldValue("noindex", resolved.robots.noindex) ?? false}
           onChange={(e) => setField("noindex", e.target.checked)}
         />
-        Noindex
+        {t(locale, "Noindex")}
       </label>
       <label>
         <input
@@ -158,45 +165,45 @@ function SeoEntryPanel({ entryId, useSeoEntryPanelHook = useSeoEntryPanel }: Seo
           checked={fieldValue("nofollow", resolved.robots.nofollow) ?? false}
           onChange={(e) => setField("nofollow", e.target.checked)}
         />
-        Nofollow
+        {t(locale, "Nofollow")}
       </label>
       <label>
-        OG title
+        {t(locale, "OG title")}
         <input
           value={fieldValue("ogTitle", resolved.openGraph.title) ?? ""}
           onChange={(e) => setField("ogTitle", e.target.value)}
         />
       </label>
       <label>
-        OG description
+        {t(locale, "OG description")}
         <input
           value={fieldValue("ogDescription", resolved.openGraph.description ?? "") ?? ""}
           onChange={(e) => setField("ogDescription", e.target.value)}
         />
       </label>
       <label>
-        OG image (media ref or URL)
+        {t(locale, "OG image (media ref or URL)")}
         <input
           value={fieldValue("ogImage", resolved.openGraph.image ?? "") ?? ""}
           onChange={(e) => setField("ogImage", e.target.value)}
         />
       </label>
       <label>
-        Twitter title
+        {t(locale, "Twitter title")}
         <input
           value={fieldValue("twitterTitle", resolved.twitter.title) ?? ""}
           onChange={(e) => setField("twitterTitle", e.target.value)}
         />
       </label>
       <label>
-        Twitter description
+        {t(locale, "Twitter description")}
         <input
           value={fieldValue("twitterDescription", resolved.twitter.description ?? "") ?? ""}
           onChange={(e) => setField("twitterDescription", e.target.value)}
         />
       </label>
       <label>
-        Twitter image (media ref or URL)
+        {t(locale, "Twitter image (media ref or URL)")}
         <input
           value={fieldValue("twitterImage", resolved.twitter.image ?? "") ?? ""}
           onChange={(e) => setField("twitterImage", e.target.value)}
@@ -205,21 +212,22 @@ function SeoEntryPanel({ entryId, useSeoEntryPanelHook = useSeoEntryPanel }: Seo
 
       <span className="editor-actions">
         <button type="button" className="btn-secondary" onClick={save} disabled={saving || Object.keys(touched).length === 0}>
-          {saving ? "Saving…" : "Save overrides"}
+          {saving ? t(locale, "Saving…") : t(locale, "Save overrides")}
         </button>
       </span>
 
-      {analysis ? <AnalyzePanel analysis={analysis} /> : null}
+      {analysis ? <AnalyzePanel locale={locale} analysis={analysis} /> : null}
     </div>
   );
 }
 
 export interface SeoEntrySectionProps {
+  locale: string;
   useSeoEntrySectionHook?: typeof useSeoEntrySection;
 }
 
 /** Section wrapper (REQ-06/07) — entry picker over the per-entry edit + analyze panels. */
-function SeoEntrySection({ useSeoEntrySectionHook = useSeoEntrySection }: SeoEntrySectionProps = {}) {
+function SeoEntrySection({ locale, useSeoEntrySectionHook = useSeoEntrySection }: SeoEntrySectionProps) {
   const { entryId, setEntryId } = useSeoEntrySectionHook();
 
   return (
@@ -230,9 +238,9 @@ function SeoEntrySection({ useSeoEntrySectionHook = useSeoEntrySection }: SeoEnt
         label: "Per-entry SEO overrides — pick one entry and edit or analyze its metadata",
       })}
     >
-      <h2>Per-entry SEO</h2>
-      <EntryPicker entryId={entryId} onChange={setEntryId} />
-      {entryId ? <SeoEntryPanel key={entryId} entryId={entryId} /> : null}
+      <h2>{t(locale, "Per-entry SEO")}</h2>
+      <EntryPicker locale={locale} entryId={entryId} onChange={setEntryId} />
+      {entryId ? <SeoEntryPanel locale={locale} key={entryId} entryId={entryId} /> : null}
     </div>
   );
 }
@@ -245,20 +253,20 @@ export interface SeoProps {
 }
 
 export function Seo({ useSeoHook = useSeo }: SeoProps = {}) {
+  const locale = useAdminLocale();
   const { settings, error, saving, notice, save, regenerateSitemap } = useSeoHook();
 
   if (error && !settings) return <div className="notice error">{error}</div>;
-  if (!settings) return <div className="notice">Loading SEO settings…</div>;
+  if (!settings) return <div className="notice">{t(locale, "Loading SEO settings…")}</div>;
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Marketing</p>
+          <p className="page-kicker">{t(locale, "Marketing")}</p>
           <h1 className="page-title">SEO</h1>
           <p className="page-description">
-            Site-wide defaults for meta titles, descriptions, Open Graph/Twitter cards, and robots
-            directives. Per-entry overrides are below.
+            {t(locale, "Site-wide defaults for meta titles, descriptions, Open Graph/Twitter cards, and robots directives. Per-entry overrides are below.")}
           </p>
         </div>
       </div>
@@ -290,7 +298,7 @@ export function Seo({ useSeoHook = useSeo }: SeoProps = {}) {
         <div className="field-group">
           <div className="field">
             <label className="field-label" htmlFor="seo-title-template">
-              Title template (must contain %s)
+              {t(locale, "Title template (must contain %s)")}
             </label>
             <input
               id="seo-title-template"
@@ -304,7 +312,7 @@ export function Seo({ useSeoHook = useSeo }: SeoProps = {}) {
           </div>
           <div className="field">
             <label className="field-label" htmlFor="seo-default-description">
-              Default meta description
+              {t(locale, "Default meta description")}
             </label>
             <textarea
               id="seo-default-description"
@@ -318,7 +326,7 @@ export function Seo({ useSeoHook = useSeo }: SeoProps = {}) {
           </div>
           <div className="field">
             <label className="field-label" htmlFor="seo-default-og-image">
-              Default Open Graph / Twitter image (media ref)
+              {t(locale, "Default Open Graph / Twitter image (media ref)")}
             </label>
             <input
               id="seo-default-og-image"
@@ -332,7 +340,7 @@ export function Seo({ useSeoHook = useSeo }: SeoProps = {}) {
           </div>
           <div className="field">
             <label className="field-label" htmlFor="seo-twitter-site">
-              Twitter @site handle
+              {t(locale, "Twitter @site handle")}
             </label>
             <input
               id="seo-twitter-site"
@@ -357,7 +365,7 @@ export function Seo({ useSeoHook = useSeo }: SeoProps = {}) {
                 label: "Ask search engines not to index pages by default",
               })}
             />
-            Default noindex
+            {t(locale, "Default noindex")}
           </label>
           <label className="form-checkbox-field">
             <input
@@ -369,7 +377,7 @@ export function Seo({ useSeoHook = useSeo }: SeoProps = {}) {
                 label: "Ask search engines not to follow links by default",
               })}
             />
-            Default nofollow
+            {t(locale, "Default nofollow")}
           </label>
           <label className="form-checkbox-field">
             <input
@@ -381,7 +389,7 @@ export function Seo({ useSeoHook = useSeo }: SeoProps = {}) {
                 label: "Whether this site publishes a sitemap at all",
               })}
             />
-            Sitemap enabled
+            {t(locale, "Sitemap enabled")}
           </label>
         </div>
 
@@ -394,7 +402,7 @@ export function Seo({ useSeoHook = useSeo }: SeoProps = {}) {
               label: "Save the site-wide SEO defaults above",
             })}
           >
-            {actionLabel(saving, "Saving…", "Save settings")}
+            {actionLabel(saving, t(locale, "Saving…"), t(locale, "Save settings"))}
           </button>
         </div>
       </form>
@@ -405,8 +413,8 @@ export function Seo({ useSeoHook = useSeo }: SeoProps = {}) {
           label: "Sitemap — force a rebuild of the cached sitemap",
         })}
       >
-        <h2>Sitemap</h2>
-        <p>Force-rebuild the cached sitemap now, bypassing the normal cache-hit path.</p>
+        <h2>{t(locale, "Sitemap")}</h2>
+        <p>{t(locale, "Force-rebuild the cached sitemap now, bypassing the normal cache-hit path.")}</p>
         <button
           className="btn-secondary"
           disabled={saving}
@@ -416,11 +424,11 @@ export function Seo({ useSeoHook = useSeo }: SeoProps = {}) {
             label: "Rebuild the cached sitemap now, bypassing the cache",
           })}
         >
-          {actionLabel(saving, "Working…", "Regenerate sitemap")}
+          {actionLabel(saving, t(locale, "Working…"), t(locale, "Regenerate sitemap"))}
         </button>
       </div>
 
-      <SeoEntrySection />
+      <SeoEntrySection locale={locale} />
     </div>
   );
 }

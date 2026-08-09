@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { api, describeApiError } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { assignedTermsMessage, t } from "../collections-i18n";
 
 /**
  * @file `TermPicker`'s own state and async action, extracted so it is reachable from `renderHook`
@@ -23,6 +25,7 @@ export interface TermPickerController {
 }
 
 export function useTermPicker(props: { contentType: string; contentId: string }): TermPickerController {
+  const locale = useAdminLocale();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -44,10 +47,10 @@ export function useTermPicker(props: { contentType: string; contentId: string })
     setMessage(null);
     try {
       await api.assignTerms({ contentType: props.contentType, contentId: props.contentId, termIds: [...selected] });
-      setMessage(`Assigned ${selected.size} term(s).`);
+      setMessage(assignedTermsMessage(locale, selected.size));
       setSelected(new Set());
     } catch (e) {
-      setError(describeApiError(e, "Failed to assign terms"));
+      setError(describeApiError(e, t(locale, "Failed to assign terms")));
     } finally {
       setSaving(false);
     }

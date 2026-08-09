@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, api, type AdminWidget } from "../../../lib/api";
 import { navigate } from "../../../lib/router";
-import { STALE_VERSION_MESSAGE, useWidgetInstanceEditor } from "../hooks/use-widget-instance-editor.hooks";
+import { staleVersionMessage, useWidgetInstanceEditor } from "../hooks/use-widget-instance-editor.hooks";
 
 /**
  * @file Characterization tests for `useWidgetInstanceEditor` — first direct test file for this
@@ -243,7 +243,7 @@ describe("save — update (existing widget)", () => {
       await view.result.current.save();
     });
 
-    expect(view.result.current.error).toBe(STALE_VERSION_MESSAGE);
+    expect(view.result.current.error).toBe(staleVersionMessage("en"));
     expect(view.result.current.fieldErrors).toEqual([]);
   });
 

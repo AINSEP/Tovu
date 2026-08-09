@@ -6,6 +6,8 @@ import { useNewTaxonomyForm } from "./hooks/use-new-taxonomy-form.hooks";
 import { useMergeTermSection } from "./hooks/use-merge-term-section.hooks";
 import { useTermDetailPanel } from "./hooks/use-term-detail-panel.hooks";
 import { useTaxonomy } from "./hooks/use-taxonomy.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { TAXONOMY_DICT } from "./taxonomy-i18n";
 
 /**
  * @file Categories & Tags screen (design-spec.md §2, ADR-044) — the `/admin/taxonomy` route.
@@ -77,9 +79,11 @@ export interface NewTermFormProps {
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    *  for `useCustomSelect`. */
   useNewTermFormHook?: typeof useNewTermForm;
+  /** Translator closure — see `Taxonomy()`'s own `t`. */
+  t: (key: string) => string;
 }
 
-function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useNewTermForm }: NewTermFormProps) {
+function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useNewTermForm, t }: NewTermFormProps) {
   const { open, setOpen, name, setName, parentId, setParentId, error, saving, submit } = useNewTermFormHook({
     taxonomy,
     onCreated,
@@ -92,28 +96,30 @@ function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useNewTermForm 
   if (!open) {
     return (
       <button type="button" className="btn-ghost taxonomy-add-term-trigger" onClick={() => setOpen(true)}>
-        + Add term
+        {t("+ Add term")}
       </button>
     );
   }
 
   return (
     <form className="notice taxonomy-new-term-form" onSubmit={submit}>
-      <label htmlFor={`new-term-name-${taxonomy.taxonomy.id}`}>New term in {taxonomy.taxonomy.name}</label>
+      <label htmlFor={`new-term-name-${taxonomy.taxonomy.id}`}>
+        {t("New term in {name}").replace("{name}", taxonomy.taxonomy.name)}
+      </label>
       <span className="editor-actions">
         <input
           id={`new-term-name-${taxonomy.taxonomy.id}`}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Term name"
+          placeholder={t("Term name")}
           autoFocus
         />
         {taxonomy.taxonomy.hierarchical ? (
           <select aria-label="Parent term" value={parentId} onChange={(e) => setParentId(e.target.value)}>
-            <option value="">(top level)</option>
-            {taxonomy.terms.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
+            <option value="">{t("(top level)")}</option>
+            {taxonomy.terms.map((term) => (
+              <option key={term.id} value={term.id}>
+                {term.name}
               </option>
             ))}
           </select>
@@ -121,10 +127,10 @@ function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useNewTermForm 
         {/* Secondary — repeated once per taxonomy group, not this page's one headline create
             ("Create taxonomy" above owns that). */}
         <button type="submit" className="btn-secondary" disabled={saving}>
-          {saving ? "Saving…" : "Add term"}
+          {saving ? t("Saving…") : t("Add term")}
         </button>
         <button type="button" className="btn-ghost" onClick={() => setOpen(false)} disabled={saving}>
-          Cancel
+          {t("Cancel")}
         </button>
       </span>
       {error ? (
@@ -139,16 +145,18 @@ function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useNewTermForm 
 export interface NewTaxonomyFormProps {
   onCreated: () => void;
   useNewTaxonomyFormHook?: typeof useNewTaxonomyForm;
+  /** Translator closure — see `Taxonomy()`'s own `t`. */
+  t: (key: string) => string;
 }
 
 /** New-taxonomy form (REQ-02) — name + hierarchical toggle, calling `api.createTaxonomy`. Mirrors
  * `NewTermForm`'s local-state/submit/error shape. */
-function NewTaxonomyForm({ onCreated, useNewTaxonomyFormHook = useNewTaxonomyForm }: NewTaxonomyFormProps) {
+function NewTaxonomyForm({ onCreated, useNewTaxonomyFormHook = useNewTaxonomyForm, t }: NewTaxonomyFormProps) {
   const { name, setName, hierarchical, setHierarchical, error, saving, submit } = useNewTaxonomyFormHook({ onCreated });
 
   return (
     <form className="notice taxonomy-new-term-form" onSubmit={submit}>
-      <label htmlFor="new-taxonomy-name">New taxonomy</label>
+      <label htmlFor="new-taxonomy-name">{t("New taxonomy")}</label>
       <span className="editor-actions">
         <input
           id="new-taxonomy-name"
@@ -158,13 +166,13 @@ function NewTaxonomyForm({ onCreated, useNewTaxonomyFormHook = useNewTaxonomyFor
         />
         <label>
           <input type="checkbox" checked={hierarchical} onChange={(e) => setHierarchical(e.target.checked)} />
-          Hierarchical
+          {t("Hierarchical")}
         </label>
         {/* The one page-level primary — the entry point for the whole feature. Everything below
             (per-group "Add term", the merge wizard's "Plan"/"Confirm") is scoped and repeated
             rather than a single headline action, so those stay secondary; see their own comments. */}
         <button type="submit" disabled={saving}>
-          {saving ? "Saving…" : "Create taxonomy"}
+          {saving ? t("Saving…") : t("Create taxonomy")}
         </button>
       </span>
       {error ? (
@@ -181,6 +189,8 @@ export interface MergeTermSectionProps {
   term: AdminTerm;
   onMerged: () => void;
   useMergeTermSectionHook?: typeof useMergeTermSection;
+  /** Translator closure — see `Taxonomy()`'s own `t`. */
+  t: (key: string) => string;
 }
 
 interface MergeIdleStepProps {
@@ -189,6 +199,7 @@ interface MergeIdleStepProps {
   setIntoTermId: (id: string) => void;
   busy: boolean;
   startPlan: () => void;
+  t: (key: string) => string;
 }
 
 /** The "choose a target, Plan merge" step — extracted out of `MergeTermSection`, which was still
@@ -196,14 +207,14 @@ interface MergeIdleStepProps {
  *  including each step's `busy` label ternary, were still counted in its scope). Same
  *  "the step, not the wizard shell, was the actual size" split `Users.tsx`'s
  *  `UserRow` -> `UserManagePanel` already used. */
-function MergeIdleStep({ otherTerms, intoTermId, setIntoTermId, busy, startPlan }: MergeIdleStepProps) {
+function MergeIdleStep({ otherTerms, intoTermId, setIntoTermId, busy, startPlan, t }: MergeIdleStepProps) {
   return (
     <span className="editor-actions">
       <select aria-label="Merge into" value={intoTermId} onChange={(e) => setIntoTermId(e.target.value)}>
-        <option value="">Choose a term…</option>
-        {otherTerms.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.name}
+        <option value="">{t("Choose a term…")}</option>
+        {otherTerms.map((term) => (
+          <option key={term.id} value={term.id}>
+            {term.name}
           </option>
         ))}
       </select>
@@ -211,7 +222,7 @@ function MergeIdleStep({ otherTerms, intoTermId, setIntoTermId, busy, startPlan 
           commits nothing yet ("nothing is merged yet" below), so neither reads as this
           screen's primary action. Only Execute (genuinely irreversible) escalates. */}
       <button type="button" className="btn-secondary" onClick={startPlan} disabled={!intoTermId || busy}>
-        {busy ? "Planning…" : "Plan merge"}
+        {busy ? t("Planning…") : t("Plan merge")}
       </button>
     </span>
   );
@@ -222,19 +233,22 @@ interface MergePlannedStepProps {
   overlappingContentCount: number;
   busy: boolean;
   doConfirm: () => void;
+  t: (key: string) => string;
 }
 
 /** The "review the plan, Confirm merge" step — extracted out of `MergeTermSection`. */
-function MergePlannedStep({ termName, overlappingContentCount, busy, doConfirm }: MergePlannedStepProps) {
+function MergePlannedStep({ termName, overlappingContentCount, busy, doConfirm, t }: MergePlannedStepProps) {
   return (
     <div>
       <p>
-        This will move {overlappingContentCount} overlapping content assignment(s) onto the target
-        term and merge <strong>{termName}</strong> away. Confirming issues a one-time execution
-        token — nothing is merged yet.
+        {t("This will move {count} overlapping content assignment(s) onto the target term and merge").replace(
+          "{count}",
+          String(overlappingContentCount),
+        )}{" "}
+        <strong>{termName}</strong> {t("away. Confirming issues a one-time execution token — nothing is merged yet.")}
       </p>
       <button type="button" className="btn-secondary" onClick={doConfirm} disabled={busy}>
-        {busy ? "Confirming…" : "Confirm merge"}
+        {busy ? t("Confirming…") : t("Confirm merge")}
       </button>
     </div>
   );
@@ -243,22 +257,23 @@ function MergePlannedStep({ termName, overlappingContentCount, busy, doConfirm }
 interface MergeConfirmedStepProps {
   busy: boolean;
   doExecute: () => void;
+  t: (key: string) => string;
 }
 
 /** The "confirmed, Execute merge" step — extracted out of `MergeTermSection`. */
-function MergeConfirmedStep({ busy, doExecute }: MergeConfirmedStepProps) {
+function MergeConfirmedStep({ busy, doExecute, t }: MergeConfirmedStepProps) {
   return (
     <div>
-      <p>Confirmed. Executing merges the terms now — this cannot be undone.</p>
+      <p>{t("Confirmed. Executing merges the terms now — this cannot be undone.")}</p>
       {/* Genuinely irreversible, per the copy right above — `.btn-danger`, unlike Plan/Confirm. */}
       <button type="button" className="btn-danger" onClick={doExecute} disabled={busy}>
-        {busy ? "Merging…" : "Execute merge"}
+        {busy ? t("Merging…") : t("Execute merge")}
       </button>
     </div>
   );
 }
 
-function MergeTermSection({ taxonomy, term, onMerged, useMergeTermSectionHook = useMergeTermSection }: MergeTermSectionProps) {
+function MergeTermSection({ taxonomy, term, onMerged, useMergeTermSectionHook = useMergeTermSection, t }: MergeTermSectionProps) {
   const otherTerms = otherMergeTargets(taxonomy, term.id);
   const { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute } = useMergeTermSectionHook({
     term,
@@ -269,18 +284,24 @@ function MergeTermSection({ taxonomy, term, onMerged, useMergeTermSectionHook = 
 
   return (
     <div className="notice taxonomy-merge-section">
-      <h3>Merge into another term</h3>
+      <h3>{t("Merge into another term")}</h3>
       {error ? <span className="save-error">{error}</span> : null}
 
       {step === "idle" ? (
-        <MergeIdleStep otherTerms={otherTerms} intoTermId={intoTermId} setIntoTermId={setIntoTermId} busy={busy} startPlan={startPlan} />
+        <MergeIdleStep otherTerms={otherTerms} intoTermId={intoTermId} setIntoTermId={setIntoTermId} busy={busy} startPlan={startPlan} t={t} />
       ) : null}
 
       {step === "planned" && plan ? (
-        <MergePlannedStep termName={term.name} overlappingContentCount={plan.overlappingContentCount} busy={busy} doConfirm={doConfirm} />
+        <MergePlannedStep
+          termName={term.name}
+          overlappingContentCount={plan.overlappingContentCount}
+          busy={busy}
+          doConfirm={doConfirm}
+          t={t}
+        />
       ) : null}
 
-      {step === "confirmed" && confirmationToken ? <MergeConfirmedStep busy={busy} doExecute={doExecute} /> : null}
+      {step === "confirmed" && confirmationToken ? <MergeConfirmedStep busy={busy} doExecute={doExecute} t={t} /> : null}
     </div>
   );
 }
@@ -291,9 +312,11 @@ export interface TermDetailPanelProps {
   onRenamed: () => void;
   onMerged: () => void;
   useTermDetailPanelHook?: typeof useTermDetailPanel;
+  /** Translator closure — see `Taxonomy()`'s own `t`. */
+  t: (key: string) => string;
 }
 
-function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, useTermDetailPanelHook = useTermDetailPanel }: TermDetailPanelProps) {
+function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, useTermDetailPanelHook = useTermDetailPanel, t }: TermDetailPanelProps) {
   const { newName, setNewName, saving, message, error, rename } = useTermDetailPanelHook({ term, onRenamed });
 
   return (
@@ -302,30 +325,32 @@ function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, useTermDetailPan
       <p className="muted-cell">{taxonomy.taxonomy.name}</p>
       <div className="settings-layer-grid">
         <div className="settings-layer-cell">
-          <span className="settings-layer-label">Status</span>
+          <span className="settings-layer-label">{t("Status")}</span>
           <span className={`status status-${term.status}`}>{term.status}</span>
         </div>
         <div className="settings-layer-cell">
-          <span className="settings-layer-label">Parent</span>
-          <span>{term.parentId ? taxonomy.terms.find((t) => t.id === term.parentId)?.name ?? term.parentId : "—"}</span>
+          <span className="settings-layer-label">{t("Parent")}</span>
+          <span>
+            {term.parentId ? taxonomy.terms.find((candidate) => candidate.id === term.parentId)?.name ?? term.parentId : "—"}
+          </span>
         </div>
         <div className="settings-layer-cell">
-          <span className="settings-layer-label">Version</span>
+          <span className="settings-layer-label">{t("Version")}</span>
           <span>{term.version}</span>
         </div>
       </div>
       <form onSubmit={rename} className="collections-field-row">
-        <label htmlFor="term-rename-input">Rename</label>
+        <label htmlFor="term-rename-input">{t("Rename")}</label>
         <input id="term-rename-input" value={newName} onChange={(e) => setNewName(e.target.value)} />
         <span className="editor-actions">
           <button type="submit" className="btn-secondary" disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("Saving…") : t("Save")}
           </button>
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? <span className="save-error">{error}</span> : null}
         </span>
       </form>
-      <MergeTermSection taxonomy={taxonomy} term={term} onMerged={onMerged} />
+      <MergeTermSection taxonomy={taxonomy} term={term} onMerged={onMerged} t={t} />
     </div>
   );
 }
@@ -340,24 +365,27 @@ export interface TaxonomyProps {
 interface TaxonomyPageHeaderProps {
   formOpen: boolean;
   setFormOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
+  t: (key: string) => string;
 }
 
 /** The page title plus the "New taxonomy"/"Cancel" toggle button — extracted from `Taxonomy`
  *  verbatim, same reason `Users.tsx`'s `UsersPageHeader` split off its own `formOpen` ternaries:
  *  `Taxonomy` was still 13/10 (cyclomatic over the ceiling) with them inline. */
-function TaxonomyPageHeader({ formOpen, setFormOpen }: TaxonomyPageHeaderProps) {
+function TaxonomyPageHeader({ formOpen, setFormOpen, t }: TaxonomyPageHeaderProps) {
   return (
     <div className="page-header">
       <div className="page-header-text">
-        <p className="page-kicker">Content</p>
-        <h1 className="page-title">Categories &amp; Tags</h1>
-        <p className="page-description">Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.</p>
+        <p className="page-kicker">{t("Content")}</p>
+        <h1 className="page-title">{t("Categories & Tags")}</h1>
+        <p className="page-description">
+          {t("Organize content with taxonomies and terms — categories, tags, and any custom hierarchy you define.")}
+        </p>
       </div>
       {/* Same `formOpen` toggle idiom as `Integrations.tsx`'s "Add webhook" button — see
           `useTaxonomy`'s own comment for why this replaced the old always-open form. */}
       <div className="page-actions">
         <button className={formOpen ? "btn-secondary" : undefined} onClick={() => setFormOpen((v) => !v)}>
-          {formOpen ? "Cancel" : "New taxonomy"}
+          {formOpen ? t("Cancel") : t("New taxonomy")}
         </button>
       </div>
     </div>
@@ -369,22 +397,21 @@ interface TermDeleteDialogProps {
   deleteTermBusy: boolean;
   confirmDeleteTerm: () => Promise<void>;
   requestDeleteTerm: (term: AdminTerm | null) => void;
+  t: (key: string) => string;
 }
 
 /** The term-delete confirm dialog — extracted from `Taxonomy` verbatim. */
-function TermDeleteDialog({ pendingDeleteTerm, deleteTermBusy, confirmDeleteTerm, requestDeleteTerm }: TermDeleteDialogProps) {
+function TermDeleteDialog({ pendingDeleteTerm, deleteTermBusy, confirmDeleteTerm, requestDeleteTerm, t }: TermDeleteDialogProps) {
   return (
     <ConfirmDialog
       open={pendingDeleteTerm !== null}
-      title="Delete term?"
+      title={t("Delete term?")}
       body={
         pendingDeleteTerm ? (
-          <p>
-            Delete term &quot;{pendingDeleteTerm.name}&quot;? This cannot be undone.
-          </p>
+          <p>{t('Delete term "{name}"? This cannot be undone.').replace("{name}", pendingDeleteTerm.name)}</p>
         ) : null
       }
-      confirmLabel="Delete term"
+      confirmLabel={t("Delete term")}
       destructive
       pending={deleteTermBusy}
       onConfirm={confirmDeleteTerm}
@@ -398,6 +425,7 @@ interface TaxonomyDeleteDialogProps {
   deleteTaxonomyBusy: boolean;
   confirmDeleteTaxonomy: () => Promise<void>;
   requestDeleteTaxonomy: (taxonomy: AdminTaxonomy | null) => void;
+  t: (key: string) => string;
 }
 
 /** The taxonomy-delete confirm dialog — extracted from `Taxonomy` verbatim. */
@@ -406,20 +434,23 @@ function TaxonomyDeleteDialog({
   deleteTaxonomyBusy,
   confirmDeleteTaxonomy,
   requestDeleteTaxonomy,
+  t,
 }: TaxonomyDeleteDialogProps) {
   return (
     <ConfirmDialog
       open={pendingDeleteTaxonomy !== null}
-      title="Delete taxonomy?"
+      title={t("Delete taxonomy?")}
       body={
         pendingDeleteTaxonomy ? (
           <p>
-            Delete taxonomy &quot;{pendingDeleteTaxonomy.name}&quot;, and every unassigned term in it?
-            This cannot be undone.
+            {t('Delete taxonomy "{name}", and every unassigned term in it? This cannot be undone.').replace(
+              "{name}",
+              pendingDeleteTaxonomy.name,
+            )}
           </p>
         ) : null
       }
-      confirmLabel="Delete taxonomy"
+      confirmLabel={t("Delete taxonomy")}
       destructive
       pending={deleteTaxonomyBusy}
       onConfirm={confirmDeleteTaxonomy}
@@ -450,13 +481,15 @@ export function Taxonomy({ useTaxonomyHook = useTaxonomy }: TaxonomyProps = {}) 
     confirmDeleteTaxonomy,
   } = useTaxonomyHook();
   const deleteState = { requestDeleteTerm, deleteTermBlocked, requestDeleteTaxonomy, deleteTaxonomyBlocked };
+  const locale = useAdminLocale();
+  const t = (key: string): string => TAXONOMY_DICT[locale]?.[key] ?? key;
 
   if (error && !taxonomies) return <div className="notice error">{error}</div>;
   if (!taxonomies) return <div className="notice">Loading taxonomies…</div>;
 
   return (
     <div className="page">
-      <TaxonomyPageHeader formOpen={formOpen} setFormOpen={setFormOpen} />
+      <TaxonomyPageHeader formOpen={formOpen} setFormOpen={setFormOpen} t={t} />
       {error ? <div className="notice error">{error}</div> : null}
 
       {formOpen ? (
@@ -465,6 +498,7 @@ export function Taxonomy({ useTaxonomyHook = useTaxonomy }: TaxonomyProps = {}) 
             load();
             setFormOpen(false);
           }}
+          t={t}
         />
       ) : null}
 
@@ -477,7 +511,7 @@ export function Taxonomy({ useTaxonomyHook = useTaxonomy }: TaxonomyProps = {}) 
           comment for the fuller diagnosis. */}
       {selected ? (
         <div className="settings-body">
-          {namespaceList(taxonomies, selectedTermId, setSelectedTermId, load, deleteState)}
+          {namespaceList(taxonomies, selectedTermId, setSelectedTermId, load, deleteState, t)}
           <TermDetailPanel
             taxonomy={selected.taxonomy}
             term={selected.term}
@@ -486,10 +520,11 @@ export function Taxonomy({ useTaxonomyHook = useTaxonomy }: TaxonomyProps = {}) 
               setSelectedTermId(null);
               load();
             }}
+            t={t}
           />
         </div>
       ) : (
-        namespaceList(taxonomies, selectedTermId, setSelectedTermId, load, deleteState)
+        namespaceList(taxonomies, selectedTermId, setSelectedTermId, load, deleteState, t)
       )}
 
       <TermDeleteDialog
@@ -497,12 +532,14 @@ export function Taxonomy({ useTaxonomyHook = useTaxonomy }: TaxonomyProps = {}) 
         deleteTermBusy={deleteTermBusy}
         confirmDeleteTerm={confirmDeleteTerm}
         requestDeleteTerm={requestDeleteTerm}
+        t={t}
       />
       <TaxonomyDeleteDialog
         pendingDeleteTaxonomy={pendingDeleteTaxonomy}
         deleteTaxonomyBusy={deleteTaxonomyBusy}
         confirmDeleteTaxonomy={confirmDeleteTaxonomy}
         requestDeleteTaxonomy={requestDeleteTaxonomy}
+        t={t}
       />
     </div>
   );
@@ -527,12 +564,13 @@ function namespaceList(
     deleteTermBlocked: { termId: string; state: DeleteBlockedState } | null;
     requestDeleteTaxonomy: (taxonomy: AdminTaxonomy | null) => void;
     deleteTaxonomyBlocked: { taxonomyId: string; state: DeleteBlockedState } | null;
-  }
+  },
+  t: (key: string) => string,
 ) {
   return (
     <div className="settings-namespace-list">
       {taxonomies.map((group) => {
-        const byId = new Map(group.terms.map((t) => [t.id, t]));
+        const byId = new Map(group.terms.map((term) => [term.id, term]));
         return (
           <section key={group.taxonomy.id} className="settings-namespace-group taxonomy-namespace-group">
             <div className="taxonomy-namespace-group-header">
@@ -542,7 +580,7 @@ function namespaceList(
                 items={[
                   {
                     key: "delete",
-                    label: "Delete taxonomy",
+                    label: t("Delete taxonomy"),
                     destructive: true,
                     onSelect: () => deleteState.requestDeleteTaxonomy(group.taxonomy),
                   },
@@ -555,7 +593,7 @@ function namespaceList(
               </p>
             ) : null}
             {group.terms.length === 0 ? (
-              <p className="muted-cell">No terms yet.</p>
+              <p className="muted-cell">{t("No terms yet.")}</p>
             ) : (
               <ul role="list" className="settings-row-list taxonomy-term-list">
                 {group.terms.map((term) => {
@@ -600,7 +638,7 @@ function namespaceList(
                           items={[
                             {
                               key: "delete",
-                              label: "Delete term",
+                              label: t("Delete term"),
                               destructive: true,
                               onSelect: () => deleteState.requestDeleteTerm(term),
                             },
@@ -618,7 +656,7 @@ function namespaceList(
                 {deleteState.deleteTermBlocked.state.message}
               </p>
             ) : null}
-            <NewTermForm taxonomy={group} onCreated={load} />
+            <NewTermForm taxonomy={group} onCreated={load} t={t} />
           </section>
         );
       })}

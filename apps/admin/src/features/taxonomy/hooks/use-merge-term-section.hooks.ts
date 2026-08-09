@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, describeApiError, type AdminTerm } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../taxonomy-i18n";
 
 /**
  * @file Everything `MergeTermSection` (the merge-term plan/confirm/execute wizard, ADR-044,
@@ -32,6 +34,7 @@ export interface MergeTermSectionController {
 }
 
 export function useMergeTermSection(options: MergeTermSectionOptions): MergeTermSectionController {
+  const locale = useAdminLocale();
   const { term, onMerged } = options;
   const [intoTermId, setIntoTermId] = useState("");
   const [step, setStep] = useState<MergeStep>("idle");
@@ -57,7 +60,7 @@ export function useMergeTermSection(options: MergeTermSectionOptions): MergeTerm
       setPlan({ planId: r.planId, planHash: r.planHash, overlappingContentCount: r.details.overlappingContentCount });
       setStep("planned");
     } catch (e) {
-      setError(describeApiError(e, "Failed to plan the merge"));
+      setError(describeApiError(e, t(locale, "Failed to plan the merge")));
     } finally {
       setBusy(false);
     }
@@ -72,7 +75,7 @@ export function useMergeTermSection(options: MergeTermSectionOptions): MergeTerm
       setConfirmationToken(r.confirmationToken);
       setStep("confirmed");
     } catch (e) {
-      setError(describeApiError(e, "Failed to confirm the merge"));
+      setError(describeApiError(e, t(locale, "Failed to confirm the merge")));
     } finally {
       setBusy(false);
     }
@@ -86,7 +89,7 @@ export function useMergeTermSection(options: MergeTermSectionOptions): MergeTerm
       await api.executeMergeTerm({ fromTermId: term.id, intoTermId, confirmationToken });
       onMerged();
     } catch (e) {
-      setError(describeApiError(e, "Failed to execute the merge"));
+      setError(describeApiError(e, t(locale, "Failed to execute the merge")));
     } finally {
       setBusy(false);
     }

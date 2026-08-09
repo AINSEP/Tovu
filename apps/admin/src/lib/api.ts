@@ -849,6 +849,12 @@ const UNPARSEABLE_BODY = Symbol("unparseable-json-body");
  * failure, and reporting it as one would be exactly the misleading-assertion bug this fixes. The
  * original failure text is preserved on `body.cause` rather than discarded.
  *
+ * Only a `TypeError` gets wrapped — the type both the browser's `fetch` and Node's `undici` reject
+ * with for DNS failure/connection refused/offline/TLS failure, per the paragraph above. Anything
+ * else `fetch` rejects with (there is no other real case, but a caller could stub one, e.g. in a
+ * test) is not a reachability failure this function has evidence for, and is re-thrown as-is rather
+ * than relabeled — the same non-assertion discipline the unparseable-5xx case above already applies.
+ *
  * @complexity O(1) plus the request itself.
  * @overallScore 100
  */
@@ -857,8 +863,9 @@ async function fetchOrThrowUnreachable(url: string, init: RequestInit): Promise<
     return await fetch(url, init);
   } catch (cause) {
     if (cause instanceof Error && cause.name === "AbortError") throw cause;
+    if (!(cause instanceof TypeError)) throw cause;
     throw new ApiError(unreachableApiMessage(), 0, API_UNREACHABLE_CODE, {
-      cause: cause instanceof Error ? cause.message : String(cause),
+      cause: cause.message,
     });
   }
 }

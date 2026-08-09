@@ -60,14 +60,14 @@ describe("userRowMenuItems", () => {
   };
 
   it("always has exactly three items: toggle, manage, reset password", () => {
-    const items = userRowMenuItems(ACTIVE_USER, false, handlers);
+    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en");
     expect(items.map((i) => i.key)).toEqual(["toggle", "manage", "reset-password"]);
   });
 
   it("an active user's toggle item reads Disable and asks (onRequestDisable), not immediate", () => {
     handlers.onRequestDisable.mockClear();
     handlers.onEnable.mockClear();
-    const items = userRowMenuItems(ACTIVE_USER, false, handlers);
+    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en");
     const toggle = items.find((i) => i.key === "toggle")!;
     expect(toggle.label).toBe("Disable");
     expect(toggle.tone).toBe("warning");
@@ -79,7 +79,7 @@ describe("userRowMenuItems", () => {
   it("a disabled user's toggle item reads Enable and fires immediately, no confirm", () => {
     handlers.onRequestDisable.mockClear();
     handlers.onEnable.mockClear();
-    const items = userRowMenuItems(DISABLED_USER, false, handlers);
+    const items = userRowMenuItems(DISABLED_USER, false, handlers, "en");
     const toggle = items.find((i) => i.key === "toggle")!;
     expect(toggle.label).toBe("Enable");
     expect(toggle.tone).toBe("default");
@@ -91,7 +91,7 @@ describe("userRowMenuItems", () => {
   it("the toggle item no-ops while another row action is in flight (toggleSaving)", () => {
     handlers.onRequestDisable.mockClear();
     handlers.onEnable.mockClear();
-    const items = userRowMenuItems(ACTIVE_USER, true, handlers);
+    const items = userRowMenuItems(ACTIVE_USER, true, handlers, "en");
     items.find((i) => i.key === "toggle")!.onSelect();
     expect(handlers.onRequestDisable).not.toHaveBeenCalled();
     expect(handlers.onEnable).not.toHaveBeenCalled();
@@ -100,11 +100,18 @@ describe("userRowMenuItems", () => {
   it("manage and reset-password wire straight through to their handlers", () => {
     handlers.onManage.mockClear();
     handlers.onResetPassword.mockClear();
-    const items = userRowMenuItems(ACTIVE_USER, false, handlers);
+    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "en");
     items.find((i) => i.key === "manage")!.onSelect();
     items.find((i) => i.key === "reset-password")!.onSelect();
     expect(handlers.onManage).toHaveBeenCalledWith(ACTIVE_USER);
     expect(handlers.onResetPassword).toHaveBeenCalledWith(ACTIVE_USER);
+  });
+
+  it("translates labels to Spanish when locale is es", () => {
+    const items = userRowMenuItems(ACTIVE_USER, false, handlers, "es");
+    expect(items.map((i) => i.label)).toEqual(["Desactivar", "Administrar", "Restablecer contraseña"]);
+    const disabledItems = userRowMenuItems(DISABLED_USER, false, handlers, "es");
+    expect(disabledItems.find((i) => i.key === "toggle")?.label).toBe("Activar");
   });
 });
 

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { api, describeApiError, type CommentsSettings } from "../../../lib/api";
 import { buildSettingsPatch, validateSettingsPatch } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../comments-i18n";
 
 /**
  * @file `SettingsSection`'s load/edit/save lifecycle for the Comments workspace settings form.
@@ -23,6 +25,7 @@ export interface CommentSettingsController {
 }
 
 export function useCommentSettings(canConfigure: boolean): CommentSettingsController {
+  const locale = useAdminLocale();
   const [settings, setSettings] = useState<CommentsSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -37,7 +40,7 @@ export function useCommentSettings(canConfigure: boolean): CommentSettingsContro
     api
       .getCommentsSettings()
       .then((r) => setSettings(r.data))
-      .catch((e) => setError(describeApiError(e, "failed to load Comments settings")));
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load Comments settings"))));
   }, [canConfigure]);
 
   async function save(form: FormData) {
@@ -59,9 +62,9 @@ export function useCommentSettings(canConfigure: boolean): CommentSettingsContro
     try {
       const r = await api.putCommentsSettings(patch);
       setSettings(r.data);
-      setNotice("Saved.");
+      setNotice(t(locale, "Saved."));
     } catch (e) {
-      setError(describeApiError(e, "failed to save Comments settings"));
+      setError(describeApiError(e, t(locale, "failed to save Comments settings")));
     } finally {
       setSaving(false);
     }

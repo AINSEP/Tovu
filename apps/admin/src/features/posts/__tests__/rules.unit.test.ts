@@ -30,31 +30,31 @@ describe("postRowMenuItems", () => {
   const handlers = { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() };
 
   it("always includes Edit and Delete", () => {
-    const items = postRowMenuItems(post({ status: "draft" }), handlers);
+    const items = postRowMenuItems(post({ status: "draft" }), handlers, "en");
     const keys = items.map((i) => i.key);
     expect(keys).toContain("edit");
     expect(keys).toContain("delete");
   });
 
   it("offers Disable for a published post", () => {
-    const items = postRowMenuItems(post({ status: "published" }), handlers);
+    const items = postRowMenuItems(post({ status: "published" }), handlers, "en");
     expect(items.map((i) => i.key)).toContain("disable");
   });
 
   it("omits Disable entirely for a draft post — not rendered disabled, not present at all", () => {
-    const items = postRowMenuItems(post({ status: "draft" }), handlers);
+    const items = postRowMenuItems(post({ status: "draft" }), handlers, "en");
     expect(items.map((i) => i.key)).not.toContain("disable");
   });
 
   it("Delete is marked destructive; Edit/Disable are not", () => {
-    const items = postRowMenuItems(post({ status: "published" }), handlers);
+    const items = postRowMenuItems(post({ status: "published" }), handlers, "en");
     expect(items.find((i) => i.key === "delete")?.destructive).toBe(true);
     expect(items.find((i) => i.key === "edit")?.destructive).toBeFalsy();
     expect(items.find((i) => i.key === "disable")?.destructive).toBeFalsy();
   });
 
   it("preserves order: edit, [disable], delete", () => {
-    const items = postRowMenuItems(post({ status: "published" }), handlers);
+    const items = postRowMenuItems(post({ status: "published" }), handlers, "en");
     expect(items.map((i) => i.key)).toEqual(["edit", "disable", "delete"]);
   });
 
@@ -63,13 +63,18 @@ describe("postRowMenuItems", () => {
     const onDisable = vi.fn();
     const onDelete = vi.fn();
     const p = post({ status: "published" });
-    const items = postRowMenuItems(p, { onEdit, onDisable, onDelete });
+    const items = postRowMenuItems(p, { onEdit, onDisable, onDelete }, "en");
     items.find((i) => i.key === "edit")!.onSelect();
     items.find((i) => i.key === "disable")!.onSelect();
     items.find((i) => i.key === "delete")!.onSelect();
     expect(onEdit).toHaveBeenCalledWith(p);
     expect(onDisable).toHaveBeenCalledWith(p);
     expect(onDelete).toHaveBeenCalledWith(p);
+  });
+
+  it("translates labels to Spanish when locale is es", () => {
+    const items = postRowMenuItems(post({ status: "published" }), handlers, "es");
+    expect(items.map((i) => i.label)).toEqual(["Editar", "Desactivar", "Eliminar"]);
   });
 });
 

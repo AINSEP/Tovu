@@ -10,6 +10,8 @@ import {
 } from "../../../lib/api";
 import { WidgetEmbed } from "../../../lib/widget-embed-extension";
 import { navigate } from "../../../lib/router";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { entryLifecycleFailureMessage, t } from "../collections-i18n";
 
 /**
  * @file Everything the collection entry editor does, so `CollectionEntryEditor.tsx` is only
@@ -48,6 +50,7 @@ export function useCollectionEntryEditor(props: {
   contentTypeKey: string;
   entryId: string | null;
 }): CollectionEntryEditorController {
+  const locale = useAdminLocale();
   const [contentType, setContentType] = useState<AdminContentType | null | undefined>(undefined);
   const [entry, setEntry] = useState<AdminEntry | null>(null);
   const [title, setTitle] = useState("");
@@ -99,7 +102,7 @@ export function useCollectionEntryEditor(props: {
           editor?.commands.setContent("");
         }
       })
-      .catch((e) => setLoadError(describeApiError(e, "failed to load entry")))
+      .catch((e) => setLoadError(describeApiError(e, t(locale, "failed to load entry"))))
       .finally(() => setLoaded(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.contentTypeKey, props.entryId, editor === null]);
@@ -132,7 +135,7 @@ export function useCollectionEntryEditor(props: {
         navigate(`/collections/${props.contentTypeKey}/${created.id}`);
       }
     } catch (e) {
-      setError(describeApiError(e, "save failed"));
+      setError(describeApiError(e, t(locale, "save failed")));
     } finally {
       setSaving(false);
     }
@@ -146,7 +149,7 @@ export function useCollectionEntryEditor(props: {
       setEntry(saved);
       setMessage(`Entry ${op}ed · version ${saved.version}`);
     } catch (e) {
-      setError(describeApiError(e, `Failed to ${op} entry`));
+      setError(describeApiError(e, entryLifecycleFailureMessage(locale, op)));
     }
   }
 

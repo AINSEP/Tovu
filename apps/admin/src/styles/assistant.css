@@ -264,8 +264,7 @@
   background: var(--surface-3);
 }
 
-.jini-chat-pane__new-thread,
-.jini-chat-pane__cancel {
+.jini-chat-pane__new-thread {
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--fg-2);

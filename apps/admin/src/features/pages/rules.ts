@@ -1,6 +1,7 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import type { AdminPost } from "../../lib/api";
+import { PAGES_DICT } from "./pages-i18n";
 
 /**
  * @file Pure logic for the `pages` feature — everything that computes a value rather than
@@ -36,11 +37,12 @@ export interface PageRowMenuHandlers {
  * @complexity Time/space: O(1) — at most three entries, no iteration.
  * @overallScore 100
  */
-export function pageRowMenuItems(page: AdminPost, handlers: PageRowMenuHandlers): RowMenuItem[] {
-  const items: RowMenuItem[] = [{ key: "edit", label: "Edit", onSelect: () => handlers.onEdit(page) }];
+export function pageRowMenuItems(page: AdminPost, handlers: PageRowMenuHandlers, locale: string): RowMenuItem[] {
+  const t = (key: string): string => PAGES_DICT[locale]?.[key] ?? key;
+  const items: RowMenuItem[] = [{ key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit(page) }];
   if (page.status === "published") {
-    items.push({ key: "disable", label: "Disable", onSelect: () => handlers.onDisable(page) });
+    items.push({ key: "disable", label: t("Disable"), onSelect: () => handlers.onDisable(page) });
   }
-  items.push({ key: "delete", label: "Delete", destructive: true, onSelect: () => handlers.onDelete(page) });
+  items.push({ key: "delete", label: t("Delete"), destructive: true, onSelect: () => handlers.onDelete(page) });
   return items;
 }

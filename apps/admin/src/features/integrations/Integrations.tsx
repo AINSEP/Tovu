@@ -2,6 +2,8 @@ import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 
 import { integrationRowMenuItems } from "./rules";
 import { useIntegrations } from "./hooks/use-integrations.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { t, deleteWebhookBody, actionsForWebhookLabel } from "./integrations-i18n";
 
 /**
  * @file The Integrations list screen — markup only.
@@ -9,6 +11,10 @@ import { useIntegrations } from "./hooks/use-integrations.hooks";
  * State and API calls live in `hooks/use-integrations.hooks.ts`; the row-menu logic lives in
  * `rules.ts`. What stays here is what actually renders: the create form, column definitions, and
  * the confirm copy.
+ *
+ * `rules.ts`'s row-menu item labels ("Pause"/"Resume"/"Delete") stay English — see
+ * `integrations-i18n.tsx`'s file header for why that's a deliberate scope boundary, not an
+ * oversight.
  */
 export interface IntegrationsProps {
   /**
@@ -25,6 +31,7 @@ export interface IntegrationsProps {
 /** The "Add webhook" form — only rendered while `formOpen`. Top-level rather than an inline
  *  ternary block in `Integrations`'s own body. */
 function IntegrationCreateForm(props: {
+  locale: string;
   onSubmit: (e: React.FormEvent) => void;
   formError: string | null;
   label: string;
@@ -35,15 +42,16 @@ function IntegrationCreateForm(props: {
   onTopicsChange: (topics: string) => void;
   saving: boolean;
 }) {
+  const { locale } = props;
   return (
     <form onSubmit={props.onSubmit} className="notice integrations-form">
       {props.formError ? <span className="save-error">{props.formError}</span> : null}
       <label>
-        Label
+        {t(locale, "Label")}
         <input value={props.label} onChange={(e) => props.onLabelChange(e.target.value)} required />
       </label>
       <label>
-        Target URL
+        {t(locale, "Target URL")}
         <input
           value={props.targetUrl}
           onChange={(e) => props.onTargetUrlChange(e.target.value)}
@@ -52,11 +60,11 @@ function IntegrationCreateForm(props: {
         />
       </label>
       <label>
-        Topics (comma-separated, e.g. post.published, post.*)
+        {t(locale, "Topics (comma-separated, e.g. post.published, post.*)")}
         <input value={props.topics} onChange={(e) => props.onTopicsChange(e.target.value)} required />
       </label>
       <button type="submit" disabled={props.saving}>
-        {props.saving ? "Saving…" : "Create"}
+        {props.saving ? t(locale, "Saving…") : t(locale, "Create")}
       </button>
     </form>
   );
@@ -65,17 +73,19 @@ function IntegrationCreateForm(props: {
 /** The delete-webhook confirm dialog. Stays mounted unconditionally (driven by `open`), matching
  *  the `ConfirmDialog` convention `Comments.tsx`'s `QueuePurgeDialog` also follows. */
 function IntegrationDeleteDialog(props: {
+  locale: string;
   pendingDelete: { label: string } | null;
   deleting: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { locale } = props;
   return (
     <ConfirmDialog
       open={props.pendingDelete !== null}
-      title="Delete webhook?"
-      body={props.pendingDelete ? <p>Delete webhook &quot;{props.pendingDelete.label}&quot;? This cannot be undone.</p> : null}
-      confirmLabel="Delete"
+      title={t(locale, "Delete webhook?")}
+      body={props.pendingDelete ? deleteWebhookBody(locale, props.pendingDelete.label) : null}
+      confirmLabel={t(locale, "Delete")}
       destructive
       pending={props.deleting}
       onConfirm={props.onConfirm}
@@ -85,6 +95,7 @@ function IntegrationDeleteDialog(props: {
 }
 
 export function Integrations({ useIntegrationsHook = useIntegrations }: IntegrationsProps = {}) {
+  const locale = useAdminLocale();
   const {
     subscriptions,
     error,
@@ -107,27 +118,28 @@ export function Integrations({ useIntegrationsHook = useIntegrations }: Integrat
   } = useIntegrationsHook();
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!subscriptions) return <div className="notice">Loading integrations…</div>;
+  if (!subscriptions) return <div className="notice">{t(locale, "Loading integrations…")}</div>;
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Operations</p>
-          <h1 className="page-title">Integrations</h1>
+          <p className="page-kicker">{t(locale, "Operations")}</p>
+          <h1 className="page-title">{t(locale, "Integrations")}</h1>
           <p className="page-description">
-            Send webhook notifications to external services when content on this site changes.
+            {t(locale, "Send webhook notifications to external services when content on this site changes.")}
           </p>
         </div>
         <div className="page-actions">
           <button className={formOpen ? "btn-secondary" : undefined} onClick={() => setFormOpen((v) => !v)}>
-            {formOpen ? "Cancel" : "Add webhook"}
+            {formOpen ? t(locale, "Cancel") : t(locale, "Add webhook")}
           </button>
         </div>
       </div>
 
       {formOpen ? (
         <IntegrationCreateForm
+          locale={locale}
           onSubmit={onCreate}
           formError={formError}
           label={label}
@@ -146,40 +158,40 @@ export function Integrations({ useIntegrationsHook = useIntegrations }: Integrat
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>No webhooks yet.</p>
-              <p className="page-description">Add one above to start sending event notifications.</p>
+              <p>{t(locale, "No webhooks yet.")}</p>
+              <p className="page-description">{t(locale, "Add one above to start sending event notifications.")}</p>
             </div>
           </div>
         }
         columns={[
           {
             key: "label",
-            header: "Label",
+            header: t(locale, "Label"),
             cell: (subscription) => <a href={`/admin/integrations/${subscription.id}`}>{subscription.label}</a>,
           },
-          { key: "target-url", header: "Target URL", cell: (subscription) => subscription.targetUrl },
+          { key: "target-url", header: t(locale, "Target URL"), cell: (subscription) => subscription.targetUrl },
           {
             key: "status",
-            header: "Status",
+            header: t(locale, "Status"),
             cell: (subscription) => (
               <span className={`status status-sub-${subscription.status}`}>{subscription.status}</span>
             ),
           },
           {
             key: "last-delivery",
-            header: "Last delivery",
+            header: t(locale, "Last delivery"),
             cell: (subscription) =>
               subscription.lastDelivery ? (
                 <span className={`status status-delivery-${subscription.lastDelivery.status}`}>
                   {subscription.lastDelivery.status}
                 </span>
               ) : (
-                <span className="muted-cell">never</span>
+                <span className="muted-cell">{t(locale, "never")}</span>
               ),
           },
           {
             key: "actions",
-            headerLabel: "Actions",
+            headerLabel: t(locale, "Actions"),
             cell: (subscription) =>
               subscription.status === "disabled" ? (
                 // `disabled` on both old inline buttons for a `status === "disabled"` row — a
@@ -189,17 +201,22 @@ export function Integrations({ useIntegrationsHook = useIntegrations }: Integrat
                 <span className="muted-cell">—</span>
               ) : (
                 <RowMenu
-                  triggerLabel={`Actions for webhook "${subscription.label}"`}
-                  items={integrationRowMenuItems(subscription, {
-                    onTogglePause,
-                    onDelete: setPendingDelete,
-                  })}
+                  triggerLabel={actionsForWebhookLabel(locale, subscription.label)}
+                  items={integrationRowMenuItems(
+                    subscription,
+                    {
+                      onTogglePause,
+                      onDelete: setPendingDelete,
+                    },
+                    locale,
+                  )}
                 />
               ),
           },
         ]}
       />
       <IntegrationDeleteDialog
+        locale={locale}
         pendingDelete={pendingDelete}
         deleting={deleting}
         onConfirm={onDelete}

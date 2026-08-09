@@ -64,7 +64,19 @@ let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  vi.stubGlobal("fetch", fetchMock);
+  // `useTimelineSection` now also calls `useAdminLocale()` (real `fetch`, not this hook's own
+  // concern), which would otherwise consume one of this file's strictly-ordered
+  // `mockResolvedValueOnce` slots and shift every later assertion by one call. Routed to a fixed
+  // default-locale response outside `fetchMock`'s own call queue — same interceptor pattern
+  // `Members.unit.test.tsx` uses.
+  vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+    if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "content-type": "application/json" } }),
+      );
+    }
+    return fetchMock(url, init);
+  });
 });
 
 afterEach(() => {

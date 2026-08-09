@@ -2,8 +2,10 @@ import { Fragment, type Dispatch, type FormEvent, type SetStateAction } from "re
 import type { AdminIdentityUser, AdminPolicy, AdminRole } from "../../lib/api";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { formatGrantLabel, userRowMenuItems } from "./rules";
 import { useUsers } from "./hooks/use-users.hooks";
+import { t as translateUsers } from "./users-i18n";
 
 /**
  * @file Admin "Users" screen (SPEC-006 §3 human grant-writing transitions + 0.6.0 CRUD-completion
@@ -61,23 +63,24 @@ interface NewUserFormProps {
   saving: boolean;
   formError: string | null;
   onCreate: (e: FormEvent) => Promise<void>;
+  t: (key: string) => string;
 }
 
 /** The "New user" form — extracted from `Users` verbatim; own scope for `formError`/`saving`. */
-function NewUserForm({ username, setUsername, email, setEmail, password, setPassword, saving, formError, onCreate }: NewUserFormProps) {
+function NewUserForm({ username, setUsername, email, setEmail, password, setPassword, saving, formError, onCreate, t }: NewUserFormProps) {
   return (
     <form onSubmit={onCreate} className="notice integrations-form">
       {formError ? <span className="save-error">{formError}</span> : null}
       <label>
-        Username
+        {t("Username")}
         <input value={username} onChange={(e) => setUsername(e.target.value)} required />
       </label>
       <label>
-        Email (optional)
+        {t("Email (optional)")}
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       </label>
       <label>
-        Password
+        {t("Password")}
         <input
           type="password"
           value={password}
@@ -87,7 +90,7 @@ function NewUserForm({ username, setUsername, email, setEmail, password, setPass
         />
       </label>
       <button type="submit" disabled={saving}>
-        {saving ? "Creating…" : "Create user"}
+        {saving ? t("Creating…") : t("Create user")}
       </button>
     </form>
   );
@@ -109,6 +112,7 @@ interface UserManagePanelProps {
   pendingPolicyId: string;
   setPendingPolicyId: Dispatch<SetStateAction<string>>;
   onAttachPolicy: (principalId: string) => Promise<void>;
+  t: (key: string) => string;
 }
 
 /** The expanded "Manage" row's contents (email edit, role/policy grant forms) — extracted out of
@@ -133,6 +137,7 @@ function UserManagePanel({
   pendingPolicyId,
   setPendingPolicyId,
   onAttachPolicy,
+  t,
 }: UserManagePanelProps) {
   return (
     <tr>
@@ -140,28 +145,28 @@ function UserManagePanel({
         <div className="notice integrations-form">
           {grantError ? <span className="save-error">{grantError}</span> : null}
           <label>
-            Email
+            {t("Email")}
             <span className="editor-actions">
               <input
                 type="email"
                 value={editEmail}
                 onChange={(e) => setEditEmail(e.target.value)}
-                placeholder="(none)"
+                placeholder={t("(none)")}
               />
               <button type="button" disabled={emailSaving} onClick={() => onSaveEmail(principalId)}>
-                {emailSaving ? "Saving…" : "Save email"}
+                {emailSaving ? t("Saving…") : t("Save email")}
               </button>
             </span>
           </label>
           <label>
-            Assign role
+            {t("Assign role")}
             <span className="editor-actions">
               <select value={pendingRoleId} onChange={(e) => setPendingRoleId(e.target.value)}>
-                <option value="">Select a role…</option>
+                <option value="">{t("Select a role…")}</option>
                 {roles.map((role) => (
                   <option key={role.id} value={role.id}>
                     {role.name}
-                    {role.isBuiltin ? " (built-in)" : ""}
+                    {role.isBuiltin ? ` ${t("(built-in)")}` : ""}
                   </option>
                 ))}
               </select>
@@ -170,19 +175,19 @@ function UserManagePanel({
                 disabled={!pendingRoleId || grantSaving}
                 onClick={() => onAssignRole(principalId)}
               >
-                {grantSaving ? "Saving…" : "Assign"}
+                {grantSaving ? t("Saving…") : t("Assign")}
               </button>
             </span>
           </label>
           <label>
-            Attach policy
+            {t("Attach policy")}
             <span className="editor-actions">
               <select value={pendingPolicyId} onChange={(e) => setPendingPolicyId(e.target.value)}>
-                <option value="">Select a policy…</option>
+                <option value="">{t("Select a policy…")}</option>
                 {policies.map((policy) => (
                   <option key={policy.id} value={policy.id}>
                     {policy.name}
-                    {policy.isBuiltin ? " (built-in)" : ""}
+                    {policy.isBuiltin ? ` ${t("(built-in)")}` : ""}
                   </option>
                 ))}
               </select>
@@ -191,7 +196,7 @@ function UserManagePanel({
                 disabled={!pendingPolicyId || grantSaving}
                 onClick={() => onAttachPolicy(principalId)}
               >
-                {grantSaving ? "Saving…" : "Attach"}
+                {grantSaving ? t("Saving…") : t("Attach")}
               </button>
             </span>
           </label>
@@ -211,6 +216,7 @@ type UserRowProps = Omit<UserManagePanelProps, "principalId"> & {
   requestDisable: (user: AdminIdentityUser) => void;
   onToggleStatus: (user: AdminIdentityUser) => Promise<void>;
   openResetPassword: (user: AdminIdentityUser) => void;
+  locale: string;
 };
 
 /** One user's row plus its optional expanded "Manage" row — extracted from `UsersTable`'s
@@ -226,6 +232,8 @@ function UserRow({
   requestDisable,
   onToggleStatus,
   openResetPassword,
+  t,
+  locale,
   ...managePanelProps
 }: UserRowProps) {
   const roleLabel = formatGrantLabel(user.roleIds, roleById);
@@ -256,26 +264,31 @@ function UserRow({
         <td>
           <span className={`status status-${user.status}`}>{user.status}</span>
         </td>
-        <td>{roleLabel !== null ? roleLabel : <span className="muted-cell">none</span>}</td>
-        <td>{policyLabel !== null ? policyLabel : <span className="muted-cell">none</span>}</td>
+        <td>{roleLabel !== null ? roleLabel : <span className="muted-cell">{t("none")}</span>}</td>
+        <td>{policyLabel !== null ? policyLabel : <span className="muted-cell">{t("none")}</span>}</td>
         <td>
           {/* Matches Posts.tsx/Pages.tsx's three-dot RowMenu shape — Disable/Enable,
               Manage, and Reset password all live in the menu; there is no standalone
               button left in this column. See `rules.ts`'s `userRowMenuItems` doc comment
               for why "Manage" keeps a static label instead of alternating with "Close". */}
           <RowMenu
-            triggerLabel={`Actions for user "${user.username}"`}
-            items={userRowMenuItems(user, toggleSavingId === user.principalId, {
-              onRequestDisable: requestDisable,
-              onEnable: (u) => void onToggleStatus(u),
-              onManage: toggleExpanded,
-              onResetPassword: openResetPassword,
-            })}
+            triggerLabel={`${t("Actions for user")} "${user.username}"`}
+            items={userRowMenuItems(
+              user,
+              toggleSavingId === user.principalId,
+              {
+                onRequestDisable: requestDisable,
+                onEnable: (u) => void onToggleStatus(u),
+                onManage: toggleExpanded,
+                onResetPassword: openResetPassword,
+              },
+              locale,
+            )}
           />
         </td>
       </tr>
       {expandedId === user.principalId ? (
-        <UserManagePanel principalId={user.principalId} {...managePanelProps} />
+        <UserManagePanel principalId={user.principalId} t={t} {...managePanelProps} />
       ) : null}
     </>
   );
@@ -287,13 +300,13 @@ type UsersTableProps = Omit<UserRowProps, "user" | "roleById" | "policyById"> & 
 
 /** The users table, or the empty state — extracted from `Users` verbatim. Builds the
  *  role/policy lookup maps once per render rather than once per row. */
-function UsersTable({ users, roles, policies, ...rowProps }: UsersTableProps) {
+function UsersTable({ users, roles, policies, t, ...rowProps }: UsersTableProps) {
   if (users.length === 0) {
     return (
       <div className="card">
         <div className="empty-state">
-          <p>No users yet.</p>
-          <p className="page-description">Create your first operator account to get started.</p>
+          <p>{t("No users yet.")}</p>
+          <p className="page-description">{t("Create your first operator account to get started.")}</p>
         </div>
       </div>
     );
@@ -307,18 +320,18 @@ function UsersTable({ users, roles, policies, ...rowProps }: UsersTableProps) {
       <table className="list-table">
         <thead>
           <tr>
-            <th>Username</th>
-            <th>Email</th>
-            <th>Status</th>
-            <th>Roles</th>
-            <th>Policies</th>
-            <th>More</th>
+            <th>{t("Username")}</th>
+            <th>{t("Email")}</th>
+            <th>{t("Status")}</th>
+            <th>{t("Roles")}</th>
+            <th>{t("Policies")}</th>
+            <th>{t("More")}</th>
           </tr>
         </thead>
         <tbody>
           {users.map((user) => (
             <Fragment key={user.principalId}>
-              <UserRow user={user} roleById={roleById} policyById={policyById} roles={roles} policies={policies} {...rowProps} />
+              <UserRow user={user} roleById={roleById} policyById={policyById} roles={roles} policies={policies} t={t} {...rowProps} />
             </Fragment>
           ))}
         </tbody>
@@ -332,23 +345,23 @@ interface UserDisableDialogProps {
   setConfirmingDisable: Dispatch<SetStateAction<AdminIdentityUser | null>>;
   toggleSavingId: string | null;
   confirmDisable: () => Promise<void>;
+  t: (key: string) => string;
 }
 
 /** The Disable confirm dialog — extracted from `Users` verbatim. */
-function UserDisableDialog({ confirmingDisable, setConfirmingDisable, toggleSavingId, confirmDisable }: UserDisableDialogProps) {
+function UserDisableDialog({ confirmingDisable, setConfirmingDisable, toggleSavingId, confirmDisable, t }: UserDisableDialogProps) {
   return (
     <ConfirmDialog
       open={confirmingDisable !== null}
-      title="Disable this user?"
+      title={t("Disable this user?")}
       body={
         confirmingDisable ? (
           <p>
-            Disable &quot;{confirmingDisable.username}&quot;? They will not be able to sign in until
-            re-enabled.
+            {t("Disable")} &quot;{confirmingDisable.username}&quot;? {t("They will not be able to sign in until re-enabled.")}
           </p>
         ) : null
       }
-      confirmLabel="Disable"
+      confirmLabel={t("Disable")}
       tone="warning"
       pending={confirmingDisable !== null && toggleSavingId === confirmingDisable.principalId}
       onConfirm={confirmDisable}
@@ -366,6 +379,7 @@ interface UserResetPasswordDialogProps {
   setPasswordError: Dispatch<SetStateAction<string | null>>;
   passwordSaving: boolean;
   confirmResetPassword: () => Promise<void>;
+  t: (key: string) => string;
 }
 
 /** The reset-password dialog — extracted from `Users` verbatim. */
@@ -378,21 +392,22 @@ function UserResetPasswordDialog({
   setPasswordError,
   passwordSaving,
   confirmResetPassword,
+  t,
 }: UserResetPasswordDialogProps) {
   return (
     <ConfirmDialog
       open={resetPasswordFor !== null}
-      title="Reset password?"
+      title={t("Reset password?")}
       body={
         resetPasswordFor ? (
           <>
             <p>
-              Set a new password for &quot;{resetPasswordFor.username}&quot;. Every active session for
-              this user will be signed out.
+              {t("Set a new password for")} &quot;{resetPasswordFor.username}&quot;.{" "}
+              {t("Every active session for this user will be signed out.")}
             </p>
             <div className="field">
               <label className="field-label" htmlFor="users-reset-password-input">
-                New password
+                {t("New password")}
               </label>
               <input
                 id="users-reset-password-input"
@@ -409,7 +424,7 @@ function UserResetPasswordDialog({
           </>
         ) : null
       }
-      confirmLabel="Reset password"
+      confirmLabel={t("Reset password")}
       tone="warning"
       pending={passwordSaving}
       onConfirm={confirmResetPassword}
@@ -425,24 +440,27 @@ function UserResetPasswordDialog({
 interface UsersPageHeaderProps {
   formOpen: boolean;
   setFormOpen: Dispatch<SetStateAction<boolean>>;
+  t: (key: string) => string;
 }
 
 /** The page title plus the "New user"/"Cancel" toggle button — extracted from `Users` verbatim so
  *  its two `formOpen` ternaries (class, label) count against this function, not `Users`'. */
-function UsersPageHeader({ formOpen, setFormOpen }: UsersPageHeaderProps) {
+function UsersPageHeader({ formOpen, setFormOpen, t }: UsersPageHeaderProps) {
   return (
     <div className="page-header">
       <div className="page-header-text">
-        <p className="page-kicker">People</p>
-        <h1 className="page-title">Users</h1>
-        <p className="page-description">Operator accounts with access to this admin — assign roles and policies, or disable access.</p>
+        <p className="page-kicker">{t("People")}</p>
+        <h1 className="page-title">{t("Users")}</h1>
+        <p className="page-description">
+          {t("Operator accounts with access to this admin — assign roles and policies, or disable access.")}
+        </p>
       </div>
       <div className="page-actions">
         {/* Same toggle button throughout — reads "New user" (the page's one primary action) when
             closed, "Cancel" (a dismiss, not a create) once the form is open, so the tone follows
             the label instead of a second button competing with the form's own "Create user". */}
         <button className={formOpen ? "btn-secondary" : undefined} onClick={() => setFormOpen((v) => !v)}>
-          {formOpen ? "Cancel" : "New user"}
+          {formOpen ? t("Cancel") : t("New user")}
         </button>
       </div>
     </div>
@@ -522,13 +540,15 @@ export function Users({ useUsersHook = useUsers }: UsersProps = {}) {
     openResetPassword,
     confirmResetPassword,
   } = useUsersHook();
+  const locale = useAdminLocale();
+  const t = (key: string): string => translateUsers(locale, key);
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!users || !roles || !policies) return <div className="notice">Loading users…</div>;
+  if (!users || !roles || !policies) return <div className="notice">{t("Loading users…")}</div>;
 
   return (
     <div className="page">
-      <UsersPageHeader formOpen={formOpen} setFormOpen={setFormOpen} />
+      <UsersPageHeader formOpen={formOpen} setFormOpen={setFormOpen} t={t} />
 
       {formOpen ? (
         <NewUserForm
@@ -541,6 +561,7 @@ export function Users({ useUsersHook = useUsers }: UsersProps = {}) {
           saving={saving}
           formError={formError}
           onCreate={onCreate}
+          t={t}
         />
       ) : null}
 
@@ -568,6 +589,8 @@ export function Users({ useUsersHook = useUsers }: UsersProps = {}) {
         pendingPolicyId={pendingPolicyId}
         setPendingPolicyId={setPendingPolicyId}
         onAttachPolicy={onAttachPolicy}
+        t={t}
+        locale={locale}
       />
 
       <UserDisableDialog
@@ -575,6 +598,7 @@ export function Users({ useUsersHook = useUsers }: UsersProps = {}) {
         setConfirmingDisable={setConfirmingDisable}
         toggleSavingId={toggleSavingId}
         confirmDisable={confirmDisable}
+        t={t}
       />
       <UserResetPasswordDialog
         resetPasswordFor={resetPasswordFor}
@@ -585,6 +609,7 @@ export function Users({ useUsersHook = useUsers }: UsersProps = {}) {
         setPasswordError={setPasswordError}
         passwordSaving={passwordSaving}
         confirmResetPassword={confirmResetPassword}
+        t={t}
       />
     </div>
   );

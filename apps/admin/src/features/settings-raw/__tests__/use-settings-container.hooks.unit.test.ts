@@ -55,7 +55,17 @@ function queueLoad(withUser: SettingResolvedValue[], withoutUser: SettingResolve
     .mockResolvedValueOnce({ data: withoutUser });
 }
 
+/** Queues a single response for `useAdminLocale()`'s own `getSettingsEffective({ namespace:
+ *  "core.language" })` call — it shares this same spied method (a different namespace, same
+ *  function) and now fires FIRST, before either of `loadNamespace`'s own two calls, since
+ *  `useSettingsContainer` calls `useAdminLocale()` as its very first line. Callers that mount
+ *  fresh must queue this ahead of `queueLoad` so the once-queue order matches real call order. */
+function queueLocale() {
+  vi.spyOn(api, "getSettingsEffective").mockResolvedValueOnce({ data: [] });
+}
+
 async function mountLoaded(rows: SettingResolvedValue[] = [row("theme", "dark", "default")]) {
+  queueLocale();
   queueLoad(rows);
   const view = renderHook(() => useSettingsContainer(baseProps()));
   await waitFor(() => expect(view.result.current.isLoading).toBe(false));
@@ -64,6 +74,7 @@ async function mountLoaded(rows: SettingResolvedValue[] = [row("theme", "dark", 
 
 describe("initial auto-load (core.presentation, on mount)", () => {
   it("starts isLoading=true, then loads and populates groups for the default namespace", async () => {
+    queueLocale();
     queueLoad([row("theme", "dark", "default")]);
     const { result } = renderHook(() => useSettingsContainer(baseProps()));
     expect(result.current.isLoading).toBe(true);
@@ -78,12 +89,14 @@ describe("initial auto-load (core.presentation, on mount)", () => {
     const getSettingsEffective = vi.spyOn(api, "getSettingsEffective").mockResolvedValue({ data: [] });
     renderHook(() => useSettingsContainer(baseProps()));
 
-    await waitFor(() => expect(getSettingsEffective).toHaveBeenCalledTimes(2));
-    expect(getSettingsEffective).toHaveBeenNthCalledWith(1, { namespace: "core.presentation" }, { principalId: "p1" });
-    // The second call passes no second argument at all (not even `undefined` explicitly) — the
+    // 3 total: `useAdminLocale()`'s own namespace="core.language" call fires first (this hook
+    // calls it as its very first line), then `loadNamespace`'s own two.
+    await waitFor(() => expect(getSettingsEffective).toHaveBeenCalledTimes(3));
+    expect(getSettingsEffective).toHaveBeenNthCalledWith(2, { namespace: "core.presentation" }, { principalId: "p1" });
+    // The third call passes no second argument at all (not even `undefined` explicitly) — the
     // real source is `api.getSettingsEffective({ namespace })`, one-arg, relying on the API
     // function's own default parameter rather than passing an explicit `undefined`.
-    expect(getSettingsEffective).toHaveBeenNthCalledWith(2, { namespace: "core.presentation" });
+    expect(getSettingsEffective).toHaveBeenNthCalledWith(3, { namespace: "core.presentation" });
   });
 
   it("sets a describable error and isLoading=false when the load rejects", async () => {
@@ -160,6 +173,10 @@ describe("principal selection", () => {
   it("reloads every already-loaded namespace when the target principal changes", async () => {
     const view = await mountLoaded();
     const getSettingsEffective = vi.spyOn(api, "getSettingsEffective").mockResolvedValue({ data: [] });
+    // `useSettingsContainer` now also calls `useAdminLocale()`, which shares this same
+    // `api.getSettingsEffective` spy (its own fetch just asks a different namespace) — drop the
+    // mount's own calls before asserting, same pattern the `onLoadNamespace` test above uses.
+    getSettingsEffective.mockClear();
 
     act(() => view.result.current.onSubmitPrincipal("alice"));
 
@@ -182,6 +199,7 @@ describe("onSelectSetting / sel / detail / onRetryLoad", () => {
   });
 
   it("detail resolves once both effective reads are loaded and the key matches", async () => {
+    queueLocale();
     queueLoad([row("theme", "dark", "workspace")]);
     const view = renderHook(() => useSettingsContainer(baseProps()));
     await waitFor(() => expect(view.result.current.isLoading).toBe(false));

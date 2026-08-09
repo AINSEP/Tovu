@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { api, describeApiError, type AdminDisclosureResult, type AdminRestorePoint } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../recovery-i18n";
 
 /**
  * @file The restore ceremony (`plan`/`confirm`/`execute`, SPEC-019 C-301/C-302/C-303) plus the
@@ -33,6 +35,7 @@ export interface RestoreFlowController {
 }
 
 export function useRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlowController {
+  const locale = useAdminLocale();
   const [disclosure, setDisclosure] = useState<AdminDisclosureResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -59,7 +62,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlow
     api
       .computeRecoveryDisclosure(props.point.id)
       .then(setDisclosure)
-      .catch((e) => setError(describeApiError(e, "Failed to compute the discarded-write-window disclosure")));
+      .catch((e) => setError(describeApiError(e, t(locale, "Failed to compute the discarded-write-window disclosure"))));
   }, [props.point.id]);
 
   async function startPlan() {
@@ -70,7 +73,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlow
       setPlan({ planId: r.planId, planHash: r.planHash });
       setStep("planned");
     } catch (e) {
-      setCeremonyError(describeApiError(e, "Failed to plan the restore"));
+      setCeremonyError(describeApiError(e, t(locale, "Failed to plan the restore")));
     } finally {
       setBusy(false);
     }
@@ -89,7 +92,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlow
       setConfirmationToken(r.confirmationToken);
       setStep("confirmed");
     } catch (e) {
-      setCeremonyError(describeApiError(e, "Failed to confirm the restore"));
+      setCeremonyError(describeApiError(e, t(locale, "Failed to confirm the restore")));
     } finally {
       setBusy(false);
     }
@@ -104,7 +107,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlow
       setResult({ restoreRunId: r.restoreRunId, state: r.state, restartRequired: r.restartRequired });
       setStep("done");
     } catch (e) {
-      setCeremonyError(describeApiError(e, "Failed to execute the restore"));
+      setCeremonyError(describeApiError(e, t(locale, "Failed to execute the restore")));
     } finally {
       setBusy(false);
     }

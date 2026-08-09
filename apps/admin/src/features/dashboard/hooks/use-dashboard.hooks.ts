@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { api, describeApiError, type AdminPost } from "../../../lib/api";
 import { mergeRecent } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../dashboard-i18n";
 
 /**
  * @file Everything the Dashboard screen loads, so `Dashboard.tsx` is only markup.
@@ -50,6 +52,7 @@ export interface DashboardController {
 }
 
 export function useDashboard(): DashboardController {
+  const locale = useAdminLocale();
   const [posts, setPosts] = useState<StatState>(PENDING);
   const [published, setPublished] = useState<number | null>(null);
   const [pages, setPages] = useState<StatState>(PENDING);
@@ -71,7 +74,7 @@ export function useDashboard(): DashboardController {
         setPublished(rows.filter((p) => p.status === "published").length);
         setRecent((prev) => mergeRecent(prev, rows));
       })
-      .catch((e) => setPosts({ value: null, error: describeApiError(e, "failed to load posts") }));
+      .catch((e) => setPosts({ value: null, error: describeApiError(e, t(locale, "failed to load posts")) }));
 
     api
       .listPages()
@@ -81,22 +84,23 @@ export function useDashboard(): DashboardController {
         setDrafts(rows.filter((p) => p.status === "draft").length);
         setRecent((prev) => mergeRecent(prev, rows));
       })
-      .catch((e) => setPages({ value: null, error: describeApiError(e, "failed to load pages") }));
+      .catch((e) => setPages({ value: null, error: describeApiError(e, t(locale, "failed to load pages")) }));
 
     api
       .listMedia()
       .then((r) => setMedia({ value: r.media.filter((m) => m.status === "active").length, error: null }))
-      .catch((e) => setMedia({ value: null, error: describeApiError(e, "failed to load media") }));
+      .catch((e) => setMedia({ value: null, error: describeApiError(e, t(locale, "failed to load media")) }));
 
     api
       .listCommentsQueue({ status: "pending" })
       .then((r) => setComments({ value: r.items.length, error: null }))
-      .catch((e) => setComments({ value: null, error: describeApiError(e, "failed to load comments") }));
+      .catch((e) => setComments({ value: null, error: describeApiError(e, t(locale, "failed to load comments")) }));
 
     api
       .getPresentation()
       .then((r) => setThemeId(r.settings.activeThemeId))
-      .catch((e) => setThemeError(describeApiError(e, "failed to load the active theme")));
+      .catch((e) => setThemeError(describeApiError(e, t(locale, "failed to load the active theme"))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { posts, published, pages, drafts, media, comments, themeId, themeError, recent };

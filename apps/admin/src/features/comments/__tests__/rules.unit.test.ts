@@ -100,7 +100,7 @@ describe("commentRowMenuItems", () => {
   const handlers = { onModerate: vi.fn(), onRequestPurge: vi.fn() };
 
   it("a pending comment with full permissions offers Approve/Spam/Trash, no Restore/Purge", () => {
-    const items = commentRowMenuItems(COMMENT, { permissions: FULL_PERMISSIONS, currentFilterStatus: "pending" }, handlers);
+    const items = commentRowMenuItems(COMMENT, { permissions: FULL_PERMISSIONS, currentFilterStatus: "pending" }, handlers, "en");
     expect(items.map((i) => i.key)).toEqual(["approve", "spam", "trash"]);
   });
 
@@ -109,6 +109,7 @@ describe("commentRowMenuItems", () => {
       { ...COMMENT, status: "spam" },
       { permissions: FULL_PERMISSIONS, currentFilterStatus: "spam" },
       handlers,
+      "en",
     );
     expect(items.map((i) => i.key)).toEqual(["approve", "trash", "restore"]);
   });
@@ -118,6 +119,7 @@ describe("commentRowMenuItems", () => {
       { ...COMMENT, status: "trash" },
       { permissions: FULL_PERMISSIONS, currentFilterStatus: "pending" },
       handlers,
+      "en",
     );
     expect(trashedButWrongFilter.some((i) => i.key === "purge")).toBe(false);
 
@@ -125,6 +127,7 @@ describe("commentRowMenuItems", () => {
       { ...COMMENT, status: "trash" },
       { permissions: FULL_PERMISSIONS, currentFilterStatus: "trash" },
       handlers,
+      "en",
     );
     const purge = trashedUnderTrashFilter.find((i) => i.key === "purge");
     expect(purge).toBeDefined();
@@ -132,7 +135,7 @@ describe("commentRowMenuItems", () => {
   });
 
   it("withholds every item the caller lacks permission for", () => {
-    const items = commentRowMenuItems(COMMENT, { permissions: [], currentFilterStatus: "pending" }, handlers);
+    const items = commentRowMenuItems(COMMENT, { permissions: [], currentFilterStatus: "pending" }, handlers, "en");
     expect(items).toEqual([]);
   });
 
@@ -141,15 +144,21 @@ describe("commentRowMenuItems", () => {
       { ...COMMENT, status: "trash" },
       { permissions: ["comments.moderate", "comments.delete"], currentFilterStatus: "trash" },
       handlers,
+      "en",
     );
     expect(items.some((i) => i.key === "purge")).toBe(false);
   });
 
   it("wires onSelect through to the passed handlers", () => {
     handlers.onModerate.mockClear();
-    const items = commentRowMenuItems(COMMENT, { permissions: FULL_PERMISSIONS, currentFilterStatus: "pending" }, handlers);
+    const items = commentRowMenuItems(COMMENT, { permissions: FULL_PERMISSIONS, currentFilterStatus: "pending" }, handlers, "en");
     items.find((i) => i.key === "approve")?.onSelect();
     expect(handlers.onModerate).toHaveBeenCalledWith(COMMENT, "approve");
+  });
+
+  it("translates labels to Spanish when locale is es", () => {
+    const items = commentRowMenuItems(COMMENT, { permissions: FULL_PERMISSIONS, currentFilterStatus: "pending" }, handlers, "es");
+    expect(items.map((i) => i.label)).toEqual(["Aprobar", "Spam", "Papelera"]);
   });
 });
 

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, describeApiError, type SeoEntryAnalysis, type SeoEntryMeta, type SeoEntryOverridesPatch } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../seo-i18n";
 
 /**
  * @file Everything `SeoEntryPanel` (REQ-06's per-entry overrides edit form + REQ-07's analyze
@@ -31,6 +33,7 @@ export interface SeoEntryPanelController {
 }
 
 export function useSeoEntryPanel(options: SeoEntryPanelOptions): SeoEntryPanelController {
+  const locale = useAdminLocale();
   const { entryId } = options;
   const [resolved, setResolved] = useState<SeoEntryMeta | null>(null);
   const [analysis, setAnalysis] = useState<SeoEntryAnalysis | null>(null);
@@ -52,7 +55,7 @@ export function useSeoEntryPanel(options: SeoEntryPanelOptions): SeoEntryPanelCo
         setResolved(metaRes.data);
         setAnalysis(analyzeRes.data);
       })
-      .catch((e) => setLoadError(describeApiError(e, "failed to load entry SEO data")));
+      .catch((e) => setLoadError(describeApiError(e, t(locale, "failed to load entry SEO data"))));
   }
 
   useEffect(load, [entryId]);
@@ -74,7 +77,7 @@ export function useSeoEntryPanel(options: SeoEntryPanelOptions): SeoEntryPanelCo
       const r = await api.putSeoEntry({ entryId }, touched);
       setResolved(r.data);
       setTouched({});
-      setNotice("Saved.");
+      setNotice(t(locale, "Saved."));
       api
         .getSeoEntryAnalyze(entryId)
         .then((analyzeRes) => setAnalysis(analyzeRes.data))
@@ -82,7 +85,7 @@ export function useSeoEntryPanel(options: SeoEntryPanelOptions): SeoEntryPanelCo
           /* analyze refresh is best-effort; the save itself already succeeded */
         });
     } catch (e) {
-      setSaveError(describeApiError(e, "failed to save SEO overrides"));
+      setSaveError(describeApiError(e, t(locale, "failed to save SEO overrides")));
     } finally {
       setSaving(false);
     }

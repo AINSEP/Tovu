@@ -2,6 +2,7 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import type { AdminWebhookDelivery, AdminWebhookSubscription } from "../../lib/api";
 import { formatTimestamp } from "../../lib/format-timestamp";
+import { t } from "./integrations-i18n";
 
 /**
  * @file Pure logic for the `integrations` feature — everything that computes a value rather than
@@ -51,16 +52,17 @@ export interface IntegrationRowMenuHandlers {
 export function integrationRowMenuItems(
   subscription: AdminWebhookSubscription,
   handlers: IntegrationRowMenuHandlers,
+  locale: string,
 ): RowMenuItem[] {
   return [
     {
       key: "pause",
-      label: subscription.status === "paused" ? "Resume" : "Pause",
+      label: subscription.status === "paused" ? t(locale, "Resume") : t(locale, "Pause"),
       onSelect: () => handlers.onTogglePause(subscription),
     },
     {
       key: "delete",
-      label: "Delete",
+      label: t(locale, "Delete"),
       destructive: true,
       onSelect: () => handlers.onDelete(subscription),
     },

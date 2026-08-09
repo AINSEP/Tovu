@@ -21,7 +21,17 @@ let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  vi.stubGlobal("fetch", fetchMock);
+  // `FormEditor` now also reads `core.language.locale` (via `useAdminLocale`) to translate its own
+  // chrome — a real `fetch` call this file's tests never queued for. Routed here, ahead of
+  // `fetchMock`, so it never consumes a slot from the `mockResolvedValueOnce` sequence every test
+  // below still queues on `fetchMock` itself unchanged.
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input.toString();
+    if (url.includes("/settings/effective")) {
+      return Promise.resolve(jsonResponse({ data: [] }));
+    }
+    return fetchMock(input, init);
+  });
 });
 
 afterEach(() => {

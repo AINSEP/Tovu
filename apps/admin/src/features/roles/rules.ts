@@ -1,6 +1,7 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import { ApiError, describeApiError as describeApiErrorDefault, type AdminPolicy, type AdminRole } from "../../lib/api";
+import { t } from "./roles-i18n";
 
 /**
  * @file Pure logic for the `roles` feature — everything that computes a value rather than
@@ -58,10 +59,10 @@ export interface RoleRowMenuHandlers {
  *
  * @complexity Time/space: O(1) — exactly two entries, no iteration.
  */
-export function roleMenuItems(role: AdminRole, handlers: RoleRowMenuHandlers): RowMenuItem[] {
+export function roleMenuItems(role: AdminRole, handlers: RoleRowMenuHandlers, locale: string): RowMenuItem[] {
   return [
-    { key: "rename", label: "Rename", onSelect: () => handlers.onRename(role) },
-    { key: "delete", label: "Delete", destructive: true, onSelect: () => handlers.onDelete(role) },
+    { key: "rename", label: t(locale, "Rename"), onSelect: () => handlers.onRename(role) },
+    { key: "delete", label: t(locale, "Delete"), destructive: true, onSelect: () => handlers.onDelete(role) },
   ];
 }
 
@@ -84,14 +85,15 @@ export function policyMenuItems(
   policy: AdminPolicy,
   permissionPolicyId: string | null,
   handlers: PolicyRowMenuHandlers,
+  locale: string,
 ): RowMenuItem[] {
   return [
-    { key: "rename", label: "Rename", onSelect: () => handlers.onRename(policy) },
+    { key: "rename", label: t(locale, "Rename"), onSelect: () => handlers.onRename(policy) },
     {
       key: "permission",
-      label: permissionPolicyId === policy.id ? "Close" : "Add permission",
+      label: permissionPolicyId === policy.id ? t(locale, "Close") : t(locale, "Add permission"),
       onSelect: () => handlers.onTogglePermissionForm(policy.id),
     },
-    { key: "delete", label: "Delete", destructive: true, onSelect: () => handlers.onDelete(policy) },
+    { key: "delete", label: t(locale, "Delete"), destructive: true, onSelect: () => handlers.onDelete(policy) },
   ];
 }

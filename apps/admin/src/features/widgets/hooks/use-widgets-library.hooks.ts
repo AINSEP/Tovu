@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { ApiError, api, describeApiError, type AdminWidget, type AdminWidgetType } from "../../../lib/api";
 import { describeReferencingLocations } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../widgets-i18n";
 
 /**
  * @file Everything the `WidgetsLibrary` screen does, so `WidgetsLibrary.tsx` is only markup.
@@ -35,6 +37,7 @@ export interface WidgetsLibraryController {
 }
 
 export function useWidgetsLibrary(): WidgetsLibraryController {
+  const locale = useAdminLocale();
   const [widgets, setWidgets] = useState<AdminWidget[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Dossier C5 follow-up (2026-08-03): `listWidgetInstances` silently skips a widget-instance row
@@ -64,7 +67,7 @@ export function useWidgetsLibrary(): WidgetsLibraryController {
         setWidgets(r.widgets.filter((w) => w.status !== "purged"));
         setSkippedCount(r.skippedCount ?? 0);
       })
-      .catch((e) => setError(describeApiError(e, "failed to load widgets")));
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load widgets"))));
   }
 
   useEffect(load, []);
@@ -89,7 +92,7 @@ export function useWidgetsLibrary(): WidgetsLibraryController {
         setPendingForcePurge({ widget, summary });
         return;
       }
-      setError(describeApiError(e, "delete failed"));
+      setError(describeApiError(e, t(locale, "delete failed")));
     }
   }
 
@@ -101,7 +104,7 @@ export function useWidgetsLibrary(): WidgetsLibraryController {
       await api.purgeWidget({ id: widget.id }, { force: true });
       load();
     } catch (e2) {
-      setError(describeApiError(e2, "force-purge failed"));
+      setError(describeApiError(e2, t(locale, "force-purge failed")));
     } finally {
       setForcePurging(false);
       setPendingForcePurge(null);
@@ -118,7 +121,7 @@ export function useWidgetsLibrary(): WidgetsLibraryController {
       }
       await purge(widget);
     } catch (e) {
-      setError(describeApiError(e, "delete failed"));
+      setError(describeApiError(e, t(locale, "delete failed")));
     }
   }
 

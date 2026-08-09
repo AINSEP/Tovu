@@ -1,5 +1,6 @@
 import { ApiError, type AdminWidget, type AdminWidgetPlacement, type AdminWidgetType } from "../../lib/api";
 import { WIDGET_TYPE_OPTIONS } from "../../components/WidgetConfigFields/WidgetConfigFields";
+import { WIDGETS_DICT } from "./widgets-i18n";
 
 /**
  * @file Pure logic shared by the four `widgets` feature screens (`WidgetsLibrary`,
@@ -16,13 +17,18 @@ const KNOWN_WIDGET_TYPES = new Set<string>(WIDGET_TYPE_OPTIONS.map((o) => o.valu
 /**
  * The display label for a widget's type — `WidgetsLibrary`'s type column and
  * `WidgetInstanceEditor`'s type caption both fall back to the raw stored value when it isn't one
- * of the known v1 types, rather than rendering blank.
+ * of the known v1 types, rather than rendering blank. The English label is translated afterward via
+ * `widgets-i18n.ts`'s `WIDGETS_DICT` (keyed by the English label text, same "translate the resolved
+ * display string" shape `lib/admin-nav-i18n.ts`'s `translateAdminNavLabel` uses) rather than
+ * `WIDGET_TYPE_OPTIONS` itself carrying per-locale labels — that constant is shared with
+ * `WidgetConfigFields.tsx`'s config-form dispatch and is out of this pass's scope.
  *
  * @complexity Time/space: O(k) in `WIDGET_TYPE_OPTIONS`'s fixed, small size (five entries) — not
  * caller-controlled, so effectively O(1).
  */
-export function widgetTypeLabel(widgetType: string): string {
-  return WIDGET_TYPE_OPTIONS.find((o) => o.value === widgetType)?.label ?? widgetType;
+export function widgetTypeLabel(widgetType: string, locale: string): string {
+  const rawLabel = WIDGET_TYPE_OPTIONS.find((o) => o.value === widgetType)?.label ?? widgetType;
+  return WIDGETS_DICT[locale]?.[rawLabel] ?? rawLabel;
 }
 
 /** Whether `widgetType` is one of the five closed v1 types — see {@link KNOWN_WIDGET_TYPES}'s own

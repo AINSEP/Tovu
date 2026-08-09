@@ -27,18 +27,18 @@ const DRAFT_PAGE: AdminPost = { ...PUBLISHED_PAGE, id: "pg2", title: "Draft Page
 
 describe("pageRowMenuItems", () => {
   it("returns Edit, Disable, then Delete (in that order) for a published page", () => {
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() });
+    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() }, "en");
     expect(items.map((i) => i.key)).toEqual(["edit", "disable", "delete"]);
   });
 
   it("omits Disable entirely (not a disabled entry) for a draft page", () => {
-    const items = pageRowMenuItems(DRAFT_PAGE, { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() });
+    const items = pageRowMenuItems(DRAFT_PAGE, { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() }, "en");
     expect(items.map((i) => i.key)).toEqual(["edit", "delete"]);
     expect(items.find((i) => i.key === "disable")).toBeUndefined();
   });
 
   it("marks Delete destructive, and Edit/Disable not", () => {
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() });
+    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() }, "en");
     expect(items.find((i) => i.key === "delete")).toMatchObject({ label: "Delete", destructive: true });
     expect(items.find((i) => i.key === "edit")).not.toHaveProperty("destructive", true);
     expect(items.find((i) => i.key === "disable")).not.toHaveProperty("destructive", true);
@@ -48,7 +48,7 @@ describe("pageRowMenuItems", () => {
     const onEdit = vi.fn();
     const onDisable = vi.fn();
     const onDelete = vi.fn();
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onDisable, onDelete });
+    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onDisable, onDelete }, "en");
     items.find((i) => i.key === "edit")!.onSelect();
     expect(onEdit).toHaveBeenCalledWith(PUBLISHED_PAGE);
     expect(onDisable).not.toHaveBeenCalled();
@@ -59,7 +59,7 @@ describe("pageRowMenuItems", () => {
     const onEdit = vi.fn();
     const onDisable = vi.fn();
     const onDelete = vi.fn();
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onDisable, onDelete });
+    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onDisable, onDelete }, "en");
     items.find((i) => i.key === "disable")!.onSelect();
     expect(onDisable).toHaveBeenCalledWith(PUBLISHED_PAGE);
     expect(onEdit).not.toHaveBeenCalled();
@@ -70,10 +70,15 @@ describe("pageRowMenuItems", () => {
     const onEdit = vi.fn();
     const onDisable = vi.fn();
     const onDelete = vi.fn();
-    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onDisable, onDelete });
+    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit, onDisable, onDelete }, "en");
     items.find((i) => i.key === "delete")!.onSelect();
     expect(onDelete).toHaveBeenCalledWith(PUBLISHED_PAGE);
     expect(onEdit).not.toHaveBeenCalled();
     expect(onDisable).not.toHaveBeenCalled();
+  });
+
+  it("translates labels to Spanish when locale is es", () => {
+    const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() }, "es");
+    expect(items.map((i) => i.label)).toEqual(["Editar", "Desactivar", "Eliminar"]);
   });
 });

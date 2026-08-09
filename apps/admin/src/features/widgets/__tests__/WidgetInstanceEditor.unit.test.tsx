@@ -16,7 +16,18 @@ let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  vi.stubGlobal("fetch", fetchMock);
+  // `WidgetInstanceEditor` now also reads `core.language.locale` (via `useAdminLocale`) to
+  // translate its own chrome — unconditionally, ahead of the guard below, since it's a top-level
+  // hook call. Routed here rather than through `fetchMock`, so `fetchMock` keeps meaning exactly
+  // what this file's tests assert on it: widget-data calls only, none of which should fire while
+  // the guard is bailing out on a bad `?type=`.
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input.toString();
+    if (url.includes("/settings/effective")) {
+      return Promise.resolve(new Response(JSON.stringify({ data: [] }), { status: 200 }));
+    }
+    return fetchMock(input, init);
+  });
 });
 
 afterEach(() => {

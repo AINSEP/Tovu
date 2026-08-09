@@ -515,10 +515,42 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .cms-nav-close:hover { background: var(--surface-2); opacity: 1; }
 .cms-nav-close svg { width: 16px; height: 16px; }
 .cms-section { display: flex; flex-direction: column; gap: 2px; }
+/* Wraps a section's rows so `hidden` can collapse them as one unit. Inherits the column layout
+   `.cms-section` used to supply directly — without this the rows would lose their 2px gap the
+   moment they gained a wrapper, since `gap` only applies to a flex container's own children. */
+.cms-section-items { display: flex; flex-direction: column; gap: 2px; }
+/* MUST accompany the `display: flex` above, and deleting it silently breaks the accordion.
+   `hidden` only hides an element because the UA stylesheet carries `[hidden] { display: none }` —
+   and ANY author-level `display` declaration beats the UA sheet outright, regardless of
+   specificity. So the rule directly above defeats `Sidebar.tsx`'s `hidden={!open}` on its own: the
+   button would keep toggling `aria-expanded`, the attribute would keep landing in the DOM, and the
+   items would never disappear. `!important` is not needed — this is a plain, more-specific author
+   rule beating another author rule. */
+.cms-section-items[hidden] { display: none; }
 .cms-group {
   font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--faint); padding: 14px 10px 6px;
 }
+/* Collapsible section heading (`collapsibleGroups` in App.tsx). A real `<button>`, so this resets
+   the UA's own font/background/border rather than restyling from scratch — `font: inherit` is what
+   stops the browser's default 13px system font from overriding `.cms-group`'s 10px uppercase
+   treatment, which is the usual reason a heading-turned-button suddenly looks wrong. */
+.cms-group-toggle {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; font: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--faint); background: none; border: 0;
+  text-align: left; cursor: pointer; border-radius: var(--r-md);
+  transition: color 0.14s, background 0.14s;
+}
+.cms-group-toggle:hover { color: var(--fg-2); background: var(--surface-2); }
+.cms-group-toggle:focus-visible { outline: 2px solid var(--accent, currentColor); outline-offset: -2px; }
+.cms-group-chevron {
+  width: 14px; height: 14px; flex-shrink: 0; opacity: 0.7;
+  transition: transform 0.16s ease;
+}
+/* Closed points right, open points down — one glyph rotated rather than two icons, matching the
+   rail toggle's existing approach directly below. */
+.cms-group-toggle.is-closed .cms-group-chevron { transform: rotate(-90deg); }
 .cms-item {
   display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-md);
   font-size: 13px; font-weight: 500; color: var(--fg-2); cursor: pointer;

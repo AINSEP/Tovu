@@ -1,6 +1,8 @@
 import { siteUrl } from "../../lib/site-url";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { useAppearance } from "./hooks/use-appearance.hooks";
 import { isActiveTheme } from "./rules";
+import { t as translateAppearance } from "./appearance-i18n";
 
 /**
  * @file The Appearance/Themes screen — markup only.
@@ -25,21 +27,25 @@ export interface AppearanceProps {
 
 export function Appearance({ useAppearanceHook = useAppearance }: AppearanceProps = {}) {
   const { settings, themes, error, busyTheme, activate } = useAppearanceHook();
+  const locale = useAdminLocale();
+  const t = (key: string): string => translateAppearance(locale, key);
 
   if (error && !settings) return <div className="notice error">{error}</div>;
-  if (!settings) return <div className="notice">Loading themes…</div>;
+  if (!settings) return <div className="notice">{t("Loading themes…")}</div>;
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Studio</p>
-          <h1 className="page-title">Themes</h1>
-          <p className="page-description">The active theme controls what visitors see across the entire public site.</p>
+          <p className="page-kicker">{t("Studio")}</p>
+          <h1 className="page-title">{t("Themes")}</h1>
+          <p className="page-description">
+            {t("The active theme controls what visitors see across the entire public site.")}
+          </p>
         </div>
       </div>
       <p>
-        <a href={siteUrl("/")} target="_blank" rel="noreferrer">View site ↗</a>
+        <a href={siteUrl("/")} target="_blank" rel="noreferrer">{t("View site ↗")}</a>
       </p>
       {error ? <div className="notice error">{error}</div> : null}
       <div className="theme-grid">
@@ -48,12 +54,12 @@ export function Appearance({ useAppearanceHook = useAppearance }: AppearanceProp
           return (
             <div key={themeId} className={`theme-card theme-${themeId}${active ? " active" : ""}`}>
               <h3>{themeId}</h3>
-              <p>{THEME_BLURBS[themeId] ?? ""}</p>
+              <p>{t(THEME_BLURBS[themeId] ?? "")}</p>
               {active ? (
-                <span className="theme-active-tag">Active</span>
+                <span className="theme-active-tag">{t("Active")}</span>
               ) : (
                 <button disabled={busyTheme !== null} onClick={() => activate(themeId)}>
-                  {busyTheme === themeId ? "Activating…" : "Activate"}
+                  {busyTheme === themeId ? t("Activating…") : t("Activate")}
                 </button>
               )}
             </div>

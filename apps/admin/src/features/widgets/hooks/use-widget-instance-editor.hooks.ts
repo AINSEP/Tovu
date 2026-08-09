@@ -4,6 +4,8 @@ import { ApiError, api, describeApiError, type AdminWidget, type AdminWidgetType
 import { navigate } from "../../../lib/router";
 import { defaultWidgetConfig } from "../../../components/WidgetConfigFields/WidgetConfigFields";
 import { resolveEditorWidgetType, widgetConfigFieldErrors } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../widgets-i18n";
 
 /**
  * @file Everything the `WidgetInstanceEditor` screen does, so `WidgetInstanceEditor.tsx` is only
@@ -14,7 +16,12 @@ import { resolveEditorWidgetType, widgetConfigFieldErrors } from "../rules";
  * `use-<thing>.hooks.ts`. Feature-local because nothing outside `features/widgets` needs it.
  */
 
-export const STALE_VERSION_MESSAGE = "This widget changed since you loaded it, refresh and try again.";
+/** Locale-aware replacement for the old `STALE_VERSION_MESSAGE` constant — this string is only
+ *  ever read inside this hook itself (after a `WIDGETS_VERSION_CONFLICT` 409), so it can be a
+ *  function of `locale` instead of a locale-blind module constant. */
+export function staleVersionMessage(locale: string): string {
+  return t(locale, "This widget changed since you loaded it, refresh and try again.");
+}
 
 /** The subset of `WidgetInstanceEditor`'s props this hook needs — the DI seam prop itself stays
  *  the component's own concern. */
@@ -43,6 +50,7 @@ export interface WidgetInstanceEditorController {
 }
 
 export function useWidgetInstanceEditor(props: WidgetInstanceEditorHookProps): WidgetInstanceEditorController {
+  const locale = useAdminLocale();
   const isNew = props.widgetId === null;
   const [widget, setWidget] = useState<AdminWidget | null>(null);
   const [whereUsed, setWhereUsed] = useState<AdminWidgetWhereUsed>({ count: 0, references: [] });
@@ -75,7 +83,7 @@ export function useWidgetInstanceEditor(props: WidgetInstanceEditorHookProps): W
         setConfig(r.widget.config);
         setWhereUsed(r.whereUsed);
       })
-      .catch((e) => setError(describeApiError(e, "failed to load widget")))
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load widget"))))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.widgetId, props.widgetType, isNew]);
@@ -99,12 +107,12 @@ export function useWidgetInstanceEditor(props: WidgetInstanceEditorHookProps): W
       setMessage(`Saved · version ${saved.version}`);
     } catch (e) {
       if (e instanceof ApiError && e.code === "WIDGETS_VERSION_CONFLICT") {
-        setError(STALE_VERSION_MESSAGE);
+        setError(staleVersionMessage(locale));
       } else if (e instanceof ApiError && e.code === "WIDGETS_CONFIG_VALIDATION_ERROR") {
         setFieldErrors(widgetConfigFieldErrors(e));
-        setError(describeApiError(e, "save failed"));
+        setError(describeApiError(e, t(locale, "save failed")));
       } else {
-        setError(describeApiError(e, "save failed"));
+        setError(describeApiError(e, t(locale, "save failed")));
       }
     } finally {
       setSaving(false);

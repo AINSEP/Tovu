@@ -65,7 +65,17 @@ let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  vi.stubGlobal("fetch", fetchMock);
+  // `FormsList` now also reads `core.language.locale` (via `useAdminLocale`) to translate its own
+  // chrome — a real `fetch` call this file's tests never queued for and never counted as one of
+  // the form-data GETs they assert on. Routed here, ahead of `fetchMock`, so `fetchMock` keeps
+  // meaning exactly what this file's tests assert on it.
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input.toString();
+    if (url.includes("/settings/effective")) {
+      return Promise.resolve(jsonResponse({ data: [] }));
+    }
+    return fetchMock(input, init);
+  });
 });
 
 afterEach(() => {

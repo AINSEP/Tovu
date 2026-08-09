@@ -52,7 +52,19 @@ function dialogFor(titleRe: RegExp): HTMLElement {
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  vi.stubGlobal("fetch", fetchMock);
+  // `Users` now also calls `useAdminLocale()` (real `fetch`, not this screen's own concern), which
+  // would otherwise consume one of this file's strictly-ordered `mockResolvedValueOnce` slots and
+  // shift every later assertion by one call. Routed to a fixed default-locale response outside
+  // `fetchMock`'s own call queue, so `fetchMock.mock.calls` still holds exactly this screen's own
+  // requests, in the order each test already expects.
+  vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+    if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "content-type": "application/json" } }),
+      );
+    }
+    return fetchMock(url, init);
+  });
 });
 
 afterEach(() => {

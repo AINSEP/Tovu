@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, describeApiError, type AdminTerm } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../taxonomy-i18n";
 
 /**
  * @file Everything `TermDetailPanel`'s own rename form does, so it can stay markup only.
@@ -24,6 +26,7 @@ export interface TermDetailPanelController {
 }
 
 export function useTermDetailPanel(options: TermDetailPanelOptions): TermDetailPanelController {
+  const locale = useAdminLocale();
   const { term, onRenamed } = options;
   const [newName, setNewName] = useState(term.name);
   const [saving, setSaving] = useState(false);
@@ -44,10 +47,10 @@ export function useTermDetailPanel(options: TermDetailPanelOptions): TermDetailP
     setMessage(null);
     try {
       await api.renameTerm({ termId: term.id, newName: newName.trim() });
-      setMessage("Renamed.");
+      setMessage(t(locale, "Renamed."));
       onRenamed();
     } catch (e) {
-      setError(describeApiError(e, "Failed to rename term"));
+      setError(describeApiError(e, t(locale, "Failed to rename term")));
     } finally {
       setSaving(false);
     }

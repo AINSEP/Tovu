@@ -3,6 +3,8 @@ import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { useDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from "./rules";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { DASHBOARD_DICT } from "./dashboard-i18n";
 
 /**
  * @file Admin landing screen — markup only.
@@ -25,11 +27,11 @@ export interface DashboardProps {
 }
 
 /** One row in the "Recently updated" activity list. */
-function ActivityRow({ row }: { row: AdminPost }) {
+function ActivityRow({ row, t }: { row: AdminPost; t: (key: string) => string }) {
   return (
     <div className="dash-activity-row" key={row.id}>
       <a className="dash-activity-title" href={activityRowHref(row)}>
-        {row.title || "Untitled"}
+        {row.title || t("Untitled")}
       </a>
       <span className="dash-kind">{row.kind}</span>
       <span className="dash-activity-time">{formatTimestamp(row.updatedAt)}</span>
@@ -49,12 +51,18 @@ function ActivityRow({ row }: { row: AdminPost }) {
  * errors rather than given a third error state: the panel has no independent fetch, so a separate
  * slot could disagree with the cards about what happened. A single failure deliberately still
  * renders — the surviving endpoint's rows are real and worth showing. */
-function RecentActivityBody(props: { recent: AdminPost[] | null; postsError: string | null; pagesError: string | null }) {
+function RecentActivityBody(props: {
+  recent: AdminPost[] | null;
+  postsError: string | null;
+  pagesError: string | null;
+  t: (key: string) => string;
+}) {
+  const { t } = props;
   if (props.recent === null && props.postsError && props.pagesError) {
     return (
       <div className="dash-panel-body">
         <p className="dash-stat-meta is-error" role="alert">
-          Could not load recent activity. {props.postsError}
+          {t("Could not load recent activity.")} {props.postsError}
         </p>
       </div>
     );
@@ -62,29 +70,30 @@ function RecentActivityBody(props: { recent: AdminPost[] | null; postsError: str
   if (props.recent === null) {
     return (
       <div className="dash-panel-body">
-        <p>Loading…</p>
+        <p>{t("Loading…")}</p>
       </div>
     );
   }
   if (props.recent.length === 0) {
     return (
       <div className="empty-state">
-        <p>Nothing published or drafted yet.</p>
-        <p className="page-description">Create a post or page and it will show up here.</p>
+        <p>{t("Nothing published or drafted yet.")}</p>
+        <p className="page-description">{t("Create a post or page and it will show up here.")}</p>
       </div>
     );
   }
   return (
     <div className="dash-activity">
       {props.recent.slice(0, ACTIVITY_LIMIT).map((row) => (
-        <ActivityRow row={row} key={row.id} />
+        <ActivityRow row={row} key={row.id} t={t} />
       ))}
     </div>
   );
 }
 
 /** The Appearance panel's body — active theme, or its own error. */
-function AppearanceBody(props: { themeError: string | null; themeId: string | null }) {
+function AppearanceBody(props: { themeError: string | null; themeId: string | null; t: (key: string) => string }) {
+  const { t } = props;
   if (props.themeError) {
     return (
       <p className="dash-stat-meta is-error" role="alert">
@@ -95,56 +104,58 @@ function AppearanceBody(props: { themeError: string | null; themeId: string | nu
   return (
     <>
       <p>
-        Active theme
+        {t("Active theme")}
         <br />
         <strong style={{ color: "var(--fg)", fontSize: "var(--text-md)" }}>{props.themeId ?? "…"}</strong>
       </p>
-      <p>Your public site is live and serving this theme.</p>
+      <p>{t("Your public site is live and serving this theme.")}</p>
     </>
   );
 }
 
 export function Dashboard({ useDashboardHook = useDashboard }: DashboardProps = {}) {
   const { posts, published, pages, drafts, media, comments, themeId, themeError, recent } = useDashboardHook();
+  const locale = useAdminLocale();
+  const t = (key: string): string => DASHBOARD_DICT[locale]?.[key] ?? key;
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Overview</p>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="page-description">Everything happening on this site at a glance.</p>
+          <p className="page-kicker">{t("Overview")}</p>
+          <h1 className="page-title">{t("Dashboard")}</h1>
+          <p className="page-description">{t("Everything happening on this site at a glance.")}</p>
         </div>
         <div className="page-actions">
           <a className="btn-secondary" href={siteUrl("/")} target="_blank" rel="noreferrer">
-            View site ↗
+            {t("View site ↗")}
           </a>
         </div>
       </div>
 
       <div className="dash-stats">
-        <Stat href="/admin/posts" label="Posts" state={posts} meta={postsStatMeta(published)} />
-        <Stat href="/admin/pages" label="Pages" state={pages} meta={pagesStatMeta(drafts)} />
-        <Stat href="/admin/media" label="Media" state={media} meta="items in the library" />
-        <Stat href="/admin/comments" label="Comments" state={comments} meta={commentsStatMeta(comments.value)} />
+        <Stat href="/admin/posts" label={t("Posts")} state={posts} meta={postsStatMeta(published)} />
+        <Stat href="/admin/pages" label={t("Pages")} state={pages} meta={pagesStatMeta(drafts)} />
+        <Stat href="/admin/media" label={t("Media")} state={media} meta={t("items in the library")} />
+        <Stat href="/admin/comments" label={t("Comments")} state={comments} meta={commentsStatMeta(comments.value)} />
       </div>
 
       <div className="dash-panels">
         <div className="dash-panel">
           <div className="dash-panel-head">
-            <h2 className="dash-panel-title">Recently updated</h2>
-            <a href="/admin/posts">All posts</a>
+            <h2 className="dash-panel-title">{t("Recently updated")}</h2>
+            <a href="/admin/posts">{t("All posts")}</a>
           </div>
-          <RecentActivityBody recent={recent} postsError={posts.error} pagesError={pages.error} />
+          <RecentActivityBody recent={recent} postsError={posts.error} pagesError={pages.error} t={t} />
         </div>
 
         <div className="dash-panel">
           <div className="dash-panel-head">
-            <h2 className="dash-panel-title">Appearance</h2>
-            <a href="/admin/themes">Change</a>
+            <h2 className="dash-panel-title">{t("Appearance")}</h2>
+            <a href="/admin/themes">{t("Change")}</a>
           </div>
           <div className="dash-panel-body">
-            <AppearanceBody themeError={themeError} themeId={themeId} />
+            <AppearanceBody themeError={themeError} themeId={themeId} t={t} />
           </div>
         </div>
       </div>

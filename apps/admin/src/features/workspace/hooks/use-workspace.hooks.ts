@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { api, type AdminWorkspace } from "../../../lib/api";
 import { describeApiError } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../workspace-i18n";
 
 /**
  * @file Everything the Workspace screen does, so `Workspace.tsx` is only markup.
@@ -29,6 +31,7 @@ export interface WorkspaceController {
  * @complexity Time/space: O(1) per call — one workspace round trip on mount, one per save.
  */
 export function useWorkspace(): WorkspaceController {
+  const locale = useAdminLocale();
   const [workspace, setWorkspace] = useState<AdminWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +49,7 @@ export function useWorkspace(): WorkspaceController {
         setName(r.workspace.name);
         setSlug(r.workspace.slug);
       })
-      .catch((e) => setError(describeApiError(e, "failed to load workspace")));
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load workspace"))));
   }
 
   useEffect(() => {
@@ -64,7 +67,7 @@ export function useWorkspace(): WorkspaceController {
       setWorkspace(updated);
       setSaved(true);
     } catch (e) {
-      setSaveError(describeApiError(e, "failed to save workspace"));
+      setSaveError(describeApiError(e, t(locale, "failed to save workspace")));
     } finally {
       setSaving(false);
     }

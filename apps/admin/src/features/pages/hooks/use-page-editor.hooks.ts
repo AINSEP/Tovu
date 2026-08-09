@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import { api, type AdminPost } from "../../../lib/api";
 import { navigate } from "../../../lib/router";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../page-editor-i18n";
 
 /**
  * @file Everything the Pages EDITOR does, so `PageEditor.tsx` is only markup.
@@ -12,9 +14,11 @@ import { navigate } from "../../../lib/router";
  * only thing the two screens have in common is the header chrome.
  */
 
-/** The two things the editor's main pane can show. Preview is the default — the HTML source is for
- *  when the operator wants to see or hand-edit what the assistant produced. */
-export type PageEditorView = "preview" | "html";
+/** The three things the editor's main pane can show. Preview is the default — the HTML source is
+ *  for when the operator wants to see or hand-edit what the assistant produced, and Interactive is
+ *  a GrapesJS-backed surface for clicking into rendered text and editing it in place (text editing
+ *  and basic formatting only — see `@jini-ai/admin/react`'s `InteractiveHtmlEditor`). */
+export type PageEditorView = "preview" | "html" | "interactive";
 
 /**
  * Viewport widths the preview renders AT, independent of how much room the pane actually has.
@@ -63,7 +67,16 @@ export interface PageEditorController {
   deleting: boolean;
 }
 
-export function usePageEditor(pageId: string): PageEditorController {
+/**
+ * `routeSlug` names what the URL actually carries: the page's slug, as read from the route (see
+ * `panels.tsx`'s `/:slug` pattern). It doubles as a legacy id — the server-side lookup this feeds
+ * (`getAdminPostByIdOrSlug`) tries an exact id match before falling back to slug, so an old
+ * id-based bookmark still resolves. Every write below uses `page.id` (the real id from the loaded
+ * record), never `routeSlug` directly — the slug in the URL can go stale if the page is renamed
+ * elsewhere, but the id it resolved to at load time cannot.
+ */
+export function usePageEditor(routeSlug: string): PageEditorController {
+  const locale = useAdminLocale();
   const [page, setPage] = useState<AdminPost | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -81,7 +94,7 @@ export function usePageEditor(pageId: string): PageEditorController {
   useEffect(() => {
     let cancelled = false;
     api
-      .getPage(pageId)
+      .getPage(routeSlug)
       .then(({ post }) => {
         if (cancelled) return;
         setPage(post);
@@ -97,15 +110,19 @@ export function usePageEditor(pageId: string): PageEditorController {
         setSavedHtml(body);
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "failed to load page");
+        if (!cancelled) setError(e instanceof Error ? e.message : t(locale, "failed to load page"));
       });
     return () => {
       cancelled = true;
     };
-  }, [pageId]);
+  }, [routeSlug]);
 
   const save = useCallback(
     async (nextStatus?: "draft" | "published") => {
+      // Save is only reachable once `page` has loaded — `PageEditor.tsx` shows a loading notice
+      // and renders no Save/Publish button until then — but the guard keeps `page.id` below sound
+      // without a non-null assertion, and mirrors `usePostEditor`'s identical `remove` guard.
+      if (!page) return;
       setSaving(true);
       setError(null);
       setMessage(null);
@@ -114,13 +131,13 @@ export function usePageEditor(pageId: string): PageEditorController {
         // Two writes, in this order, because they are two different server-side paths and only the
         // second one can create the html row. Body first: if the metadata write fails on a slug
         // conflict, the operator's actual content is already safe.
-        await api.updatePageHtml(pageId, html);
+        await api.updatePageHtml(page.id, html);
         // No `bodyJson` — a bespoke-HTML Page has no Tiptap document, and the server no longer
         // demands one for an html-format row (it used to, which made such a Page's title
         // permanently un-editable). Sending a dummy empty doc to satisfy a validation that does not
         // apply would be the wrong fix.
         const { post: updated } = await api.updatePost(
-          { id: pageId },
+          { id: page.id },
           { title, slug, status: statusToWrite }
         );
         setPage(updated);
@@ -128,28 +145,29 @@ export function usePageEditor(pageId: string): PageEditorController {
         setStatus(updated.status);
         setSavedHtml(html);
         if (nextStatus) setStatus(nextStatus);
-        setMessage("Saved");
+        setMessage(t(locale, "Saved"));
       } catch (e) {
-        setError(e instanceof Error ? e.message : "failed to save page");
+        setError(e instanceof Error ? e.message : t(locale, "failed to save page"));
       } finally {
         setSaving(false);
       }
     },
-    [pageId, html, title, slug, status]
+    [page, html, title, slug, status, locale]
   );
 
   const remove = useCallback(async () => {
+    if (!page) return;
     setDeleting(true);
     setError(null);
     try {
-      await api.deletePage(pageId);
+      await api.deletePage(page.id);
       navigate("/pages");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to delete page");
+      setError(e instanceof Error ? e.message : t(locale, "failed to delete page"));
       setDeleting(false);
       setConfirmingDelete(false);
     }
-  }, [pageId]);
+  }, [page, locale]);
 
   return {
     page,

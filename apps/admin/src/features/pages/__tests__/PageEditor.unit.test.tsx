@@ -84,7 +84,7 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
 function renderEditor(overrides: Partial<PageEditorController> = {}) {
   const ctrl = controller(overrides);
   const usePageEditorHook = () => ctrl;
-  const utils = render(<PageEditor pageId="pg1" usePageEditorHook={usePageEditorHook} />);
+  const utils = render(<PageEditor slug="pg1" usePageEditorHook={usePageEditorHook} />);
   return { ctrl, ...utils };
 }
 
@@ -245,10 +245,11 @@ describe("delete confirmation", () => {
   });
 });
 
-describe("view toggle (Preview / HTML)", () => {
+describe("view toggle (Preview / Interactive / HTML)", () => {
   it("marks the active view tab as selected", () => {
     renderEditor({ view: "preview" });
     expect(screen.getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Interactive" })).toHaveAttribute("aria-selected", "false");
     expect(screen.getByRole("tab", { name: "HTML" })).toHaveAttribute("aria-selected", "false");
   });
 
@@ -257,6 +258,13 @@ describe("view toggle (Preview / HTML)", () => {
     const { ctrl } = renderEditor({ view: "preview" });
     await user.click(screen.getByRole("tab", { name: "HTML" }));
     expect(ctrl.setView).toHaveBeenCalledWith("html");
+  });
+
+  it("clicking the Interactive tab calls setView('interactive')", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderEditor({ view: "preview" });
+    await user.click(screen.getByRole("tab", { name: "Interactive" }));
+    expect(ctrl.setView).toHaveBeenCalledWith("interactive");
   });
 
   it("renders the rendered preview (not a textarea) in preview view", () => {
@@ -282,6 +290,14 @@ describe("view toggle (Preview / HTML)", () => {
     renderEditor({ view: "html" });
     expect(screen.queryByRole("group", { name: /preview width/i })).not.toBeInTheDocument();
   });
+
+  // No "renders in interactive view" test: `InteractiveHtmlEditor` mounts a real GrapesJS editor,
+  // which drives an `<iframe>` whose `onload` fires asynchronously — jsdom does not implement enough
+  // of the canvas/frame machinery GrapesJS's `FrameView` expects (confirmed directly: mounting it
+  // here throws an uncaught `TypeError` from inside `grapesjs.mjs` after the test has already
+  // finished, "Cannot read properties of undefined (reading 'getTypes')", polluting the run per
+  // Vitest's own "might cause false positive tests" warning). Interactive-tab correctness is
+  // verified in a real browser instead — see the self-validation report.
 });
 
 describe("device toggle (preview view only)", () => {

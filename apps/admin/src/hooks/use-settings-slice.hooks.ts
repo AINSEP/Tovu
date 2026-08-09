@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
+import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
 
 /**
  * @file One settings-dialog tab's load/edit/debounced-save lifecycle,
@@ -325,6 +325,18 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
     commits.current += 1;
     // Only clear the flag if nothing was edited WHILE this save ran.
     if (latest.current === target) hasUnsavedEdits.current = false;
+    // Notify same-tab siblings this slice has no direct connection to — same rationale
+    // `settings-refresh-bus.ts`'s own doc comment gives for `AssistantDock`: this slice and
+    // whatever else reads this namespace (e.g. `useAdminLocale()`, read by ~30 screens outside the
+    // Settings dialog for `core.language`) are unrelated subtrees under `App.tsx` with no shared
+    // state. Without this, a language switch only reached OTHER tabs via SSE — the tab that made
+    // the change never re-read its own write, so it looked "stuck" until a hard reload. Scoped to
+    // this slice's own declared `namespaces`, so an unrelated slice's save doesn't trigger a
+    // pointless refetch elsewhere; a slice that never declared `namespaces` publishes nothing,
+    // matching that it never subscribed to anything either.
+    if (io.current.namespaces && io.current.namespaces.length > 0) {
+      publishSettingsRefresh(io.current.namespaces);
+    }
     return written;
   }, []);
 

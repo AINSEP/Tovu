@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { ApiError, api, describeApiError, type AdminWidgetArea, type AdminWidgetPlacement } from "../../../lib/api";
 import { buildDraftPlacement, movePlacement } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../widgets-i18n";
 
 /**
  * @file Everything the `WidgetRegionEditor` screen does, so `WidgetRegionEditor.tsx` is only
@@ -12,7 +14,12 @@ import { buildDraftPlacement, movePlacement } from "../rules";
  * outside `features/widgets` needs it.
  */
 
-export const STALE_VERSION_MESSAGE = "This region changed since you loaded it, refresh and try again.";
+/** Locale-aware replacement for the old `STALE_VERSION_MESSAGE` constant — this string is only
+ *  ever read inside this hook itself (after a `WIDGETS_AREA_CONFLICT` 409), so it can be a
+ *  function of `locale` instead of a locale-blind module constant. */
+export function staleVersionMessage(locale: string): string {
+  return t(locale, "This region changed since you loaded it, refresh and try again.");
+}
 
 export interface WidgetRegionEditorController {
   area: AdminWidgetArea | null;
@@ -29,6 +36,7 @@ export interface WidgetRegionEditorController {
 }
 
 export function useWidgetRegionEditor(regionKey: string): WidgetRegionEditorController {
+  const locale = useAdminLocale();
   const [area, setArea] = useState<AdminWidgetArea | null>(null);
   const [placements, setPlacements] = useState<AdminWidgetPlacement[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -45,7 +53,7 @@ export function useWidgetRegionEditor(regionKey: string): WidgetRegionEditorCont
         setArea(r.area);
         setPlacements(r.placements);
       })
-      .catch((e) => setError(describeApiError(e, "failed to load region")))
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load region"))))
       .finally(() => setLoading(false));
   }
 
@@ -80,9 +88,9 @@ export function useWidgetRegionEditor(regionKey: string): WidgetRegionEditorCont
       load();
     } catch (e) {
       if (e instanceof ApiError && e.code === "WIDGETS_AREA_CONFLICT") {
-        setError(STALE_VERSION_MESSAGE);
+        setError(staleVersionMessage(locale));
       } else {
-        setError(describeApiError(e, "save failed"));
+        setError(describeApiError(e, t(locale, "save failed")));
       }
     } finally {
       setSaving(false);

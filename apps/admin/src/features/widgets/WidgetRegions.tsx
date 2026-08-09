@@ -1,5 +1,7 @@
 import { DataTable } from "@jini-ai/admin/react";
 import { useWidgetRegions } from "./hooks/use-widget-regions.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { WIDGETS_DICT } from "./widgets-i18n";
 
 /**
  * @file `WidgetRegionsScreen` (`ui.spec.md` §2.4/§3.6/§4.5/§9) — `/admin/widgets/regions` — markup
@@ -21,26 +23,29 @@ export interface WidgetRegionsProps {
 
 export function WidgetRegions({ useWidgetRegionsHook = useWidgetRegions }: WidgetRegionsProps = {}) {
   const { regions, error, newRegionKey, setNewRegionKey, binding, bind } = useWidgetRegionsHook();
+  const locale = useAdminLocale();
+  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
 
   if (error && !regions) return <div className="notice error">{error}</div>;
   if (!regions) return <div className="notice">Loading regions…</div>;
 
   return (
     <div className="page">
-      <a href="/admin/widgets">← Widgets</a>
+      <a href="/admin/widgets">← {t("Widgets")}</a>
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">Widget Regions</h1>
+          <p className="page-kicker">{t("Content")}</p>
+          <h1 className="page-title">{t("Widget Regions")}</h1>
           <p className="page-description">
-            A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a
-            region by its key to start placing widgets in it.
+            {t(
+              'A region is a theme-declared placement area (e.g. "header", "footer", "sidebar"). Bind a region by its key to start placing widgets in it.',
+            )}
           </p>
         </div>
         <div className="page-actions">
           <input value={newRegionKey} onChange={(e) => setNewRegionKey(e.target.value)} placeholder="e.g. footer" />
           <button onClick={bind} disabled={binding || !newRegionKey.trim()}>
-            {binding ? "Binding…" : "Bind region"}
+            {binding ? t("Binding…") : t("Bind region")}
           </button>
         </div>
       </div>
@@ -51,22 +56,22 @@ export function WidgetRegions({ useWidgetRegionsHook = useWidgetRegions }: Widge
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>No regions bound yet.</p>
+              <p>{t("No regions bound yet.")}</p>
             </div>
           </div>
         }
         columns={[
           {
             key: "region-key",
-            header: "Region key",
+            header: t("Region key"),
             cell: (region) => <a href={`/admin/widgets/regions/${region.regionKey}`}>{region.regionKey}</a>,
           },
-          { key: "placements", header: "Placements", cell: (region) => region.placementCount },
+          { key: "placements", header: t("Placements"), cell: (region) => region.placementCount },
           {
             key: "manage",
             cell: (region) => (
               <a href={`/admin/widgets/regions/${region.regionKey}`}>
-                <button>Manage</button>
+                <button>{t("Manage")}</button>
               </a>
             ),
           },

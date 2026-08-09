@@ -2,6 +2,8 @@ import { WidgetConfigFields } from "../../components/WidgetConfigFields/WidgetCo
 import { isKnownWidgetType, widgetTypeLabel } from "./rules";
 import { useWidgetInstanceEditor } from "./hooks/use-widget-instance-editor.hooks";
 import type { AdminWidget, AdminWidgetWhereUsed } from "../../lib/api";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { WIDGETS_DICT } from "./widgets-i18n";
 
 /**
  * @file `WidgetInstanceEditorScreen` (`ui.spec.md` §2.2/§3.3/§4.3) — create/edit one widget
@@ -14,15 +16,20 @@ import type { AdminWidget, AdminWidgetWhereUsed } from "../../lib/api";
  */
 
 /** REQ-34/`ui.spec.md` §3.5 — rendered only when `references.length > 0`, before the config form. */
-function WhereUsedBanner(props: { whereUsed: AdminWidgetWhereUsed }) {
+function WhereUsedBanner(props: { whereUsed: AdminWidgetWhereUsed; t: (key: string) => string }) {
+  const { t } = props;
   if (props.whereUsed.count === 0) return null;
   return (
     <div className="notice widget-where-used-banner">
-      <strong>Used in {props.whereUsed.count} place{props.whereUsed.count === 1 ? "" : "s"}:</strong>
+      <strong>
+        {props.whereUsed.count === 1
+          ? t("Used in 1 place:")
+          : t("Used in {count} places:").replace("{count}", String(props.whereUsed.count))}
+      </strong>
       <ul>
         {props.whereUsed.references.map((ref, i) => (
           <li key={i}>
-            {ref.kind === "region" ? "Region area" : "Inline embed"} ({ref.sourceEntryId})
+            {ref.kind === "region" ? t("Region area") : t("Inline embed")} ({ref.sourceEntryId})
           </li>
         ))}
       </ul>
@@ -91,6 +98,8 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
   const { widgetId, widgetType: queryWidgetType, useWidgetInstanceEditorHook = useWidgetInstanceEditor } = props;
   const { isNew, widget, whereUsed, title, setTitle, config, setConfig, message, error, fieldErrors, loading, saving, widgetType, save } =
     useWidgetInstanceEditorHook({ widgetId, widgetType: queryWidgetType });
+  const locale = useAdminLocale();
+  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
 
   const guard = widgetInstanceGuard({ error, isNew, widget, loading, widgetType });
   if (guard) return <WidgetInstanceGuardNotice guard={guard} />;
@@ -103,14 +112,14 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">{isNew ? "New widget" : "Edit widget"}</h1>
-          <p className="page-description">Configure this widget&apos;s title and settings.</p>
+          <p className="page-kicker">{t("Content")}</p>
+          <h1 className="page-title">{t(isNew ? "New widget" : "Edit widget")}</h1>
+          <p className="page-description">{t("Configure this widget's title and settings.")}</p>
         </div>
         <div className="page-actions">
           <a href="/admin/widgets">
             <button type="button" className="btn-secondary">
-              ← Widgets
+              ← {t("Widgets")}
             </button>
           </a>
           {message ? <span className="save-ok">{message}</span> : null}
@@ -120,20 +129,20 @@ export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
             </span>
           ) : null}
           <button onClick={save} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("Saving…") : t("Save")}
           </button>
         </div>
       </div>
 
-      {widget ? <WhereUsedBanner whereUsed={whereUsed} /> : null}
+      {widget ? <WhereUsedBanner whereUsed={whereUsed} t={t} /> : null}
 
       {/* Audit finding: placeholder-only, no `<label>` — same fix as `PostEditor.tsx`'s title field
           (see `styles/editor.css`'s `.a11y-label-wrap` comment). */}
       <label className="a11y-label-wrap">
         <span className="visually-hidden">Widget title</span>
-        <input className="editor-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Widget title" />
+        <input className="editor-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("Widget title")} />
       </label>
-      <p className="muted-cell">Type: {widgetTypeLabel(widgetType)}</p>
+      <p className="muted-cell">{t("Type:")} {widgetTypeLabel(widgetType, locale)}</p>
 
       <div className="widget-config-form">
         <WidgetConfigFields widgetType={widgetType} config={config} onChange={setConfig} />
