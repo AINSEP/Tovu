@@ -1,3 +1,4 @@
+import { DOC2QUERY } from "./tool-search-doc2query";
 /**
  * @file Operator vocabulary for tool search — the words a human uses that a tool's own description
  * does not contain.
@@ -190,10 +191,32 @@ const KEYWORD_MARKER = " — also known as: ";
  * shown to a model, and padding it with synonyms to game a search index would degrade the thing
  * the model actually reasons about in order to fix the thing it searches with.
  */
-export function indexedDescriptionFor(toolId: string, description: string): string {
+export function indexedDescriptionFor(
+  toolId: string,
+  description: string,
+  /** Test seam, mirroring `buildToolCatalogQuery`'s own `includeSearchKeywords`. `false` folds the
+   *  operator nouns but NOT the doc2query questions, which is the only way to still measure the
+   *  pre-adoption baseline now that production includes both — without it, the adoption eval's
+   *  "before" arm silently becomes its "after" arm and the comparison reports a null result. */
+  options: { readonly includeDoc2query?: boolean } = {},
+): string {
   const keywords = TOOL_SEARCH_KEYWORDS[toolId];
-  if (!keywords) return description;
-  return description.length > 0 ? `${description}${KEYWORD_MARKER}${keywords}` : keywords;
+  // doc2query (ADOPTED 2026-08-06) — the same fold, one tier further out. `TOOL_SEARCH_KEYWORDS`
+  // supplies the operator's NOUNS; `DOC2QUERY` supplies whole questions an operator would ask, which
+  // is what carries the verbs and the phrasing BM25 needs to separate sibling tools inside one
+  // domain. Both live behind the same {@link KEYWORD_MARKER}, so {@link stripSearchKeywords} removes
+  // the pair with the single cut it already made and no caller sees either.
+  //
+  // Adopted on the paired test against HyDE-alone (the live config), NOT against the keywords
+  // baseline that every earlier document quoted: `tool-search-doc2query-adoption.eval.ts` measures
+  // +12 cases at top-3 (won 14, lost 2, exact p=0.004). Top-1 is +7 and NOT significant (p=0.21) —
+  // top-3 is the metric that governs because `byok-tool-surface.ts` returns 10 ranked candidates and
+  // instructs the model to inspect the 1-3 that look right, so ranking into the shortlist is what
+  // the model actually consumes. Recall@20 hits 130/130 with this folded in.
+  const questions = (options.includeDoc2query ?? true) ? DOC2QUERY[toolId] : undefined;
+  const tail = [keywords, questions?.join(" ")].filter((part): part is string => Boolean(part && part.length > 0)).join(" ");
+  if (tail.length === 0) return description;
+  return description.length > 0 ? `${description}${KEYWORD_MARKER}${tail}` : tail;
 }
 
 /**

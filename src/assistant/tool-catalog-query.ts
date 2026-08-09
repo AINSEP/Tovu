@@ -57,9 +57,10 @@ export function buildToolCatalogQuery(
   /** Test seam. `false` seeds the raw descriptions with no operator vocabulary folded in — the ONLY
    *  caller is `tool-search-quality.eval.ts`, which needs a true before/after on the same case set to
    *  make its improvement attributable rather than asserted. Production always wants the default. */
-  options: { readonly includeSearchKeywords?: boolean } = {},
+  options: { readonly includeSearchKeywords?: boolean; readonly includeDoc2query?: boolean } = {},
 ): ToolCatalogQuery {
   const includeSearchKeywords = options.includeSearchKeywords ?? true;
+  const includeDoc2query = options.includeDoc2query ?? true;
   const db = new Database(":memory:");
   ensureToolCatalogTables(db);
   reseedToolCatalog(
@@ -71,7 +72,7 @@ export function buildToolCatalogQuery(
       // are written in the codebase's nouns while operators search in theirs. Measured at 40%
       // top-1 before this.
       description: includeSearchKeywords
-        ? indexedDescriptionFor(descriptor.id, descriptor.description ?? "")
+        ? indexedDescriptionFor(descriptor.id, descriptor.description ?? "", { includeDoc2query })
         : (descriptor.description ?? ""),
       inputSchema: descriptor.inputSchema,
       source: sourceForToolId(descriptor.id),

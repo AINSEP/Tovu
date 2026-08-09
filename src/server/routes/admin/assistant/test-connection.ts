@@ -1,8 +1,8 @@
 import { testProviderConnection, type ConnectionTestResponse } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/public-assistant-settings";
-import { resolveSiteAssistantApiKey } from "#src/assistant/site-credential-store";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { AssistantExecutionRouteRegistrar } from "./execution-deps";
+import { resolveProbeCredential } from "./stored-credential-probe";
 
 const SUPPORTED_PROTOCOLS = ["anthropic", "openai", "azure", "google"] as const;
 
@@ -30,6 +30,12 @@ function renderMessage(result: ConnectionTestResponse): string {
  * never has to leave the admin's own browser via a cross-origin fetch, and
  * so the SSRF guard (`validateBaseUrlResolved`) runs against a base URL the
  * SERVER resolves, not one a hostile client could steer client-side.
+ *
+ * That guard bounds which ADDRESS SPACE a probe may reach (it rejects
+ * loopback/RFC1918/link-local/CGNAT), and deliberately not which HOST — every
+ * real provider is a public host. It is therefore not what keeps the stored
+ * site credential from being sent somewhere it shouldn't go; see
+ * `stored-credential-probe.ts` for the separate rule that does.
  *
  * The request body's `apiKey` is used for exactly this one outbound call and
  * is never persisted anywhere on this server — no settings write, no log
@@ -80,24 +86,24 @@ export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteR
         return;
       }
 
-      // A typed key wins; otherwise, only on explicit opt-in, use the workspace's stored site
-      // credential. See `list-models.ts`'s note on why this must stay opt-in rather than "empty key
-      // ⇒ use the stored one" — this route is shared with Settings → Execution mode, whose key is a
-      // DIFFERENT credential, and an implicit fallback would cross that boundary silently.
-      const typedKey = typeof body.apiKey === "string" ? body.apiKey : "";
-      let apiKey = typedKey;
-      if (!apiKey.trim() && body.useStoredCredential === true) {
-        const stored = await resolveSiteAssistantApiKey(
-          { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
-          { workspaceId: deps.workspaceId }
-        );
-        apiKey = stored?.apiKey ?? "";
+      // Which key probes, and WHERE it is allowed to go — one chokepoint shared with
+      // `list-models.ts`. A typed key wins and travels to the endpoint its owner named; the stored
+      // site credential travels only to the endpoint the server already recorded for it, never to
+      // one this request body chose. See `stored-credential-probe.ts`'s header.
+      const credential = await resolveProbeCredential(deps, {
+        requestedBaseUrl: baseUrl,
+        typedKey: typeof body.apiKey === "string" ? body.apiKey : "",
+        useStoredCredential: body.useStoredCredential === true,
+      });
+      if (!credential.ok) {
+        res.status(400).json(credential.failure);
+        return;
       }
 
       const result = await testProviderConnection({
         protocol: protocol as (typeof SUPPORTED_PROTOCOLS)[number],
-        baseUrl,
-        apiKey,
+        baseUrl: credential.baseUrl,
+        apiKey: credential.apiKey,
         model,
         ...(apiVersion ? { apiVersion } : {}),
       });

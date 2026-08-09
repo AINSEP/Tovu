@@ -1,8 +1,8 @@
 import { listProviderModels } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/public-assistant-settings";
-import { resolveSiteAssistantApiKey } from "#src/assistant/site-credential-store";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { AssistantExecutionRouteRegistrar } from "./execution-deps";
+import { resolveProbeCredential } from "./stored-credential-probe";
 
 const SUPPORTED_PROTOCOLS = ["anthropic", "openai", "azure", "google"] as const;
 
@@ -26,6 +26,15 @@ interface ListModelsRequestBody {
  *
  * Same never-persisted `apiKey` contract as `test-connection.ts` — see that
  * file's header.
+ *
+ * An earlier revision of this header answered the wrong threat here, and it is worth leaving the
+ * correction visible: it argued the stored credential was safe because "the key still never reaches
+ * the browser — decrypted, used for one outbound call, and only model IDs come back". Every clause
+ * of that is true, and none of it was the exposure. The key did not need to reach the browser; the
+ * SERVER sent it wherever the request body's `baseUrl` pointed, so a principal who may never read
+ * that key could have it delivered to a host they controlled. `stored-credential-probe.ts` is what
+ * actually holds the boundary now. A correct sentence about the wrong boundary reads like a safety
+ * argument and audits like one too.
  */
 export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/assistant/execution/models", async (req, res) => {
@@ -56,35 +65,6 @@ export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegis
       const baseUrl = typeof body.baseUrl === "string" ? body.baseUrl : "";
       const apiVersion = typeof body.apiVersion === "string" ? body.apiVersion : undefined;
 
-      /**
-       * Which key probes the provider.
-       *
-       * A typed key always wins. Otherwise, and ONLY when the caller explicitly opted in, fall back
-       * to the workspace's stored site credential.
-       *
-       * The opt-in is the load-bearing part and must not be softened into "empty key ⇒ use the
-       * stored one". This route is shared: Settings → Execution mode calls it with the ADMIN's own
-       * browser-local key, and the AI Assistant tab calls it for the SITE's key. An implicit
-       * fallback would mean an operator on the Settings screen with an empty field silently probes
-       * — and discovers models for — the visitor credential, quietly crossing the exact boundary
-       * ADR-058 §5 exists to make structural. Two keys stay two keys, including here.
-       *
-       * The key still never reaches the browser: the stored credential is decrypted, used for one
-       * outbound call, and only model IDs come back.
-       */
-      const typedKey = typeof body.apiKey === "string" ? body.apiKey : "";
-      let apiKey = typedKey;
-      if (!apiKey.trim() && body.useStoredCredential === true) {
-        const stored = await resolveSiteAssistantApiKey(
-          { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
-          { workspaceId: deps.workspaceId }
-        );
-        // `resolveSiteAssistantApiKey` never throws — a missing row, a missing master secret, and a
-        // corrupt ciphertext all arrive as `null`. Falling through with an empty key lets the
-        // provider return its own auth error, which is a truer message than a synthesized one.
-        apiKey = stored?.apiKey ?? "";
-      }
-
       if (!SUPPORTED_PROTOCOLS.includes(protocol as (typeof SUPPORTED_PROTOCOLS)[number])) {
         res.status(400).json({
           error: `protocol must be one of ${SUPPORTED_PROTOCOLS.join("|")}`,
@@ -97,10 +77,38 @@ export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegis
         return;
       }
 
+      /**
+       * Which key probes the provider, and WHERE that key is allowed to go — one chokepoint shared
+       * with `test-connection.ts`. Runs AFTER the validation above, deliberately: a request that
+       * cannot proceed must never cause the stored credential to be decrypted at all.
+       *
+       * A typed key always wins, and travels to the endpoint its owner named. Otherwise, and ONLY
+       * when the caller explicitly opted in, the workspace's stored site credential is used — and
+       * then it travels only to the endpoint the SERVER already recorded for it. A caller cannot
+       * name a destination for a key ADR-058 forbids them to read; see
+       * `stored-credential-probe.ts`'s header for the boundary and the residual path it leaves.
+       *
+       * The opt-in is the other load-bearing part and must not be softened into "empty key ⇒ use
+       * the stored one". This route is shared: Settings → Execution mode calls it with the ADMIN's
+       * own browser-local key, and the AI Assistant tab calls it for the SITE's key. An implicit
+       * fallback would mean an operator on the Settings screen with an empty field silently probes
+       * — and discovers models for — the visitor credential, quietly crossing the exact boundary
+       * ADR-058 §5 exists to make structural. Two keys stay two keys, including here.
+       */
+      const credential = await resolveProbeCredential(deps, {
+        requestedBaseUrl: baseUrl,
+        typedKey: typeof body.apiKey === "string" ? body.apiKey : "",
+        useStoredCredential: body.useStoredCredential === true,
+      });
+      if (!credential.ok) {
+        res.status(400).json(credential.failure);
+        return;
+      }
+
       const result = await listProviderModels({
         protocol: protocol as (typeof SUPPORTED_PROTOCOLS)[number],
-        baseUrl,
-        apiKey,
+        baseUrl: credential.baseUrl,
+        apiKey: credential.apiKey,
         ...(apiVersion ? { apiVersion } : {}),
       });
       res.json({
