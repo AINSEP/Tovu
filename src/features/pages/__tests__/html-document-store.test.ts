@@ -217,7 +217,7 @@ test("write() with entryRefsRepo supplied replaces this page's entry_refs to mat
   const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock, entryRefsRepo });
 
   await store.read();
-  await store.write('<div data-widget-embed="widget-1"></div>');
+  await store.write('<div data-embed-type="widget" data-embed-id="widget-1"></div>');
 
   const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-1" });
   assert.equal(refs.length, 1);
@@ -232,7 +232,7 @@ test("write() with entryRefsRepo supplied REPLACES the prior ref set, not append
   const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock, entryRefsRepo });
 
   await store.read();
-  await store.write('<div data-widget-embed="widget-1"></div>');
+  await store.write('<div data-embed-type="widget" data-embed-id="widget-1"></div>');
   await store.write("<p>the embed was removed in this edit</p>");
 
   const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-1" });
@@ -245,10 +245,10 @@ test("write() with NO entryRefsRepo supplied still succeeds — the dependency i
   const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock });
 
   await store.read();
-  await store.write('<div data-widget-embed="widget-1"></div>');
+  await store.write('<div data-embed-type="widget" data-embed-id="widget-1"></div>');
 
   const row = readRow(db, "page-1");
-  assert.equal(row.bodyHtml, '<div data-widget-embed="widget-1"></div>');
+  assert.equal(row.bodyHtml, '<div data-embed-type="widget" data-embed-id="widget-1"></div>');
 });
 
 test("write() indexes a ref for an embed pointing at an id with no corresponding widget/form row — entry_refs must see the dangling reference, not silently skip it (this store has no widget/form repo to check against, so it cannot filter on resolution status even if it wanted to)", async () => {
@@ -258,7 +258,7 @@ test("write() indexes a ref for an embed pointing at an id with no corresponding
   const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { db, clock, entryRefsRepo });
 
   await store.read();
-  await store.write('<div data-widget-embed="widget-does-not-exist-anywhere"></div>');
+  await store.write('<div data-embed-type="widget" data-embed-id="widget-does-not-exist-anywhere"></div>');
 
   const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-1" });
   assert.equal(refs.length, 1);
@@ -276,7 +276,7 @@ test("ensureHtmlFormat() reindexes entry_refs on the seeding conversion (doc -> 
   const entryRefsRepo = new InMemoryEntryRefsRepo();
   const store = new PagesHtmlDocumentStore({ workspaceId: WS, postId: "page-2" }, { db, clock, entryRefsRepo });
 
-  await store.ensureHtmlFormat('<div data-form-embed="form-1"></div>');
+  await store.ensureHtmlFormat('<div data-embed-type="form" data-embed-id="form-1"></div>');
 
   const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-2" });
   assert.equal(refs.length, 1);

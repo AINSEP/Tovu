@@ -4,6 +4,7 @@ import test from "node:test";
 import type { OutboxPort } from "@jini-ai/cms/core";
 import {
   createPost,
+  getAdminPostByIdOrSlug,
   getPublishedPostBySlug,
   listAdminPages,
   listAdminPosts,
@@ -416,6 +417,52 @@ test("getPublishedPostBySlug hides drafts", async () => {
       getPublishedPostBySlug({
         deps: { repo },
         input: { workspaceId: "workspace-1", slug: "hello-world" },
+      }),
+    PostNotFoundError
+  );
+});
+
+test("getAdminPostByIdOrSlug resolves by real id", async () => {
+  const repo = new InMemoryPostRepo([seedPost]);
+
+  const { post } = await getAdminPostByIdOrSlug({
+    deps: { repo },
+    input: { workspaceId: "workspace-1", idOrSlug: "post-1" },
+  });
+
+  assert.equal(post.id, "post-1");
+});
+
+test("getAdminPostByIdOrSlug falls back to slug when the value is not a known id", async () => {
+  const repo = new InMemoryPostRepo([seedPost]);
+
+  const { post } = await getAdminPostByIdOrSlug({
+    deps: { repo },
+    input: { workspaceId: "workspace-1", idOrSlug: "hello-world" },
+  });
+
+  assert.equal(post.id, "post-1");
+});
+
+test("getAdminPostByIdOrSlug normalizes the slug fallback the same way getPublishedPostBySlug does", async () => {
+  const repo = new InMemoryPostRepo([seedPost]);
+
+  const { post } = await getAdminPostByIdOrSlug({
+    deps: { repo },
+    input: { workspaceId: "workspace-1", idOrSlug: "  HELLO-WORLD  " },
+  });
+
+  assert.equal(post.id, "post-1");
+});
+
+test("getAdminPostByIdOrSlug 404s, trash-blind, for a value that matches neither an id nor a slug", async () => {
+  const repo = new InMemoryPostRepo([seedPost]);
+
+  await assert.rejects(
+    () =>
+      getAdminPostByIdOrSlug({
+        deps: { repo },
+        input: { workspaceId: "workspace-1", idOrSlug: "does-not-exist" },
       }),
     PostNotFoundError
   );

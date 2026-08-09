@@ -1,28 +1,34 @@
 /**
- * @file The `data-widget-embed`/`data-form-embed` placeholder convention for `"html"`-format Pages
- * (SPEC-047 Slice 2).
+ * @file The `data-embed-type` placeholder convention for `"html"`-format Pages (SPEC-047 Slice 2,
+ * generalized 2026-08-07 per `project-tovu-generic-embed-contract`).
  *
  * Purpose:
  * A TipTap `widgetEmbed` node has a structured home (`bodyJson`) to carry a `{placementId,
  * widgetEntryId}` attrs object. A Page's body is a free-form HTML string with no such tree, so an
  * embed there has to be a literal markup convention instead: an otherwise-empty
- * `<div data-widget-embed="{widgetEntryId}"></div>` or `<div data-form-embed="{formDefinitionId}">
- * </div>`, anywhere in the page's `body_html`. This file is the ONE place that convention is
- * defined — `scanHtmlEmbeds` (read: which ids does this markup reference) and
- * `substituteHtmlEmbeds` (write: replace each placeholder with its resolved markup) both parse
- * against the exact same pattern, so "what render.ts embeds" and "what entry_refs indexes" (via
- * `core/entry-refs/extractor.ts`'s own, independently-written scanner — see that file's header for
- * why it is a deliberate second copy rather than an import of this one) can never disagree about
- * what counts as a reference, short of the two patterns themselves drifting apart.
+ * `<div data-embed-type="widget" data-embed-id="{widgetEntryId}"></div>` (or `type="form"`,
+ * `type="media"`, or any future type token), anywhere in the page's `body_html`. This file is the
+ * ONE place that convention is defined — `scanHtmlEmbeds` (read: which refs does this markup
+ * contain) and `substituteHtmlEmbeds` (write: replace each placeholder with its resolved markup)
+ * both parse against the exact same pattern, so "what render.ts embeds" and "what entry_refs
+ * indexes" (via `core/entry-refs/extractor.ts`'s own, independently-written scanner — see that
+ * file's header for why it is a deliberate second copy rather than an import of this one) can never
+ * disagree about what counts as a reference, short of the two patterns themselves drifting apart.
+ *
+ * **Why `type` is a free string, not a closed union.** A closed union would mean this file's own
+ * type signature has to change every time a new embed type is added — exactly the coupling the
+ * generic contract exists to remove. Adding a fourth type is a new resolver registration
+ * (`resolver-service.ts`'s `HTML_EMBED_RESOLVERS`), never a scanner change. Unknown types flow
+ * through untouched; "is this type known" is a resolution-time question, never a scan-time one.
  *
  * **Why an empty div, not an arbitrary element with children.** Matching a self-closing pair with
  * nothing between the tags keeps this a single non-backtracking regex instead of a hand-rolled HTML
  * parser (this codebase has no HTML-parsing dependency, and `render.ts`'s whole house style is
  * string-templated output, never a real DOM) — a `<div ...>anything nested here</div>` shape would
  * need real tag-balance tracking to substitute correctly. Any content an author puts inside a
- * `data-widget-embed`/`data-form-embed` div today simply keeps the div from matching at all, which
- * degrades safely (REQ-28-style): the div renders verbatim, inert, never a crash and never a
- * dropped reference silently mistaken for something else.
+ * `data-embed-type` div today simply keeps the div from matching at all, which degrades safely
+ * (REQ-28-style): the div renders verbatim, inert, never a crash and never a dropped reference
+ * silently mistaken for something else.
  *
  * **Why attribute VALUES are not re-validated here for injection safety.** A Page's `body_html` is
  * already unescaped, trusted-ish markup by the time it reaches this module (see
@@ -34,12 +40,19 @@
  * `extractor.ts`'s html-ref collector, both of which only ever use the id that way.
  */
 
-export type PageHtmlEmbedKind = "widget" | "form";
-
-/** One `data-widget-embed`/`data-form-embed` reference found in a Page's `body_html`. */
+/**
+ * One `data-embed-type` reference found in a Page's `body_html`. `type` is deliberately a free
+ * string (see this file's header) — the scanner never validates it against a known-type list.
+ * `id`/`name`/`variant` are `null` when the corresponding attribute is absent (or, for `id`, out of
+ * {@link MAX_EMBED_ID_LENGTH} bounds) — the scanner reports what is literally written in the markup;
+ * deciding whether an absent/invalid attribute makes the reference resolvable is a resolver-side
+ * concern (`resolver-service.ts`), not a scanner-side one.
+ */
 export interface PageHtmlEmbedRef {
-  readonly kind: PageHtmlEmbedKind;
-  readonly id: string;
+  readonly type: string;
+  readonly id: string | null;
+  readonly name: string | null;
+  readonly variant: string | null;
 }
 
 /**
@@ -69,27 +82,52 @@ export const MAX_HTML_EMBEDS_PER_PAGE = 50;
 const MAX_EMBED_ID_LENGTH = 200;
 
 /**
- * `<div ...data-widget-embed="ID"...></div>` or the `data-form-embed` twin, ID captured, both other
- * attribute runs discarded — order-independent (the target attribute may appear anywhere in the
- * tag), but the div must be immediately closed with nothing between the tags (see this file's own
- * header for why). Rebuilt fresh per call (`embedPattern()`) rather than shared as a module-level
- * `RegExp`, deliberately: a `g`-flagged `RegExp` is stateful (`lastIndex`), and this pattern is used
- * from two independent call sites (`scanHtmlEmbeds`, `substituteHtmlEmbeds`) that must never be able
- * to corrupt each other's scan position by sharing one mutable instance.
+ * `<div ...data-embed-type="TYPE"...></div>`, type token captured (the div's other attributes,
+ * including `data-embed-id`/`data-embed-name`/`data-embed-variant`, are pulled separately from the
+ * full match text by {@link toEmbedRef} rather than by this pattern) — order-independent (the target
+ * attribute may appear anywhere in the tag), but the div must be immediately closed with nothing
+ * between the tags (see this file's own header for why). `TYPE` is constrained to
+ * `[a-z][a-z0-9-]*` — a type token is an internal identifier this codebase defines (never rendered,
+ * never attacker-controlled beyond "does this known type match"), so a narrow shape is enough
+ * without needing quote-escaping defenses attribute VALUES don't get either (see this file's header).
+ * Rebuilt fresh per call (`embedPattern()`) rather than shared as a module-level `RegExp`,
+ * deliberately: a `g`-flagged `RegExp` is stateful (`lastIndex`), and this pattern is used from two
+ * independent call sites (`scanHtmlEmbeds`, `substituteHtmlEmbeds`) that must never be able to
+ * corrupt each other's scan position by sharing one mutable instance.
  */
-const EMBED_PATTERN_SOURCE = String.raw`<div\b[^>]*?\bdata-(widget|form)-embed\s*=\s*"([^"]*)"[^>]*?>\s*<\/div>`;
+const EMBED_PATTERN_SOURCE = String.raw`<div\b[^>]*?\bdata-embed-type\s*=\s*"([a-z][a-z0-9-]*)"[^>]*?>\s*<\/div>`;
 
 function embedPattern(): RegExp {
   return new RegExp(EMBED_PATTERN_SOURCE, "gi");
 }
 
-function toEmbedRef(kindToken: string, id: string): PageHtmlEmbedRef | null {
-  if (id.length === 0 || id.length > MAX_EMBED_ID_LENGTH) return null;
-  return { kind: kindToken.toLowerCase() === "widget" ? "widget" : "form", id };
+/** Pulls one `attr="VALUE"` attribute's value out of a matched embed div's full tag text, or `null`
+ * when the attribute is absent. Rebuilt per call for the same non-shared-stateful-RegExp reason
+ * {@link embedPattern} is. */
+function extractAttrValue(tagText: string, attrName: string): string | null {
+  const match = tagText.match(new RegExp(`\\b${attrName}\\s*=\\s*"([^"]*)"`, "i"));
+  return match ? match[1] : null;
+}
+
+/** `null` when `rawId` is absent, empty, or beyond {@link MAX_EMBED_ID_LENGTH} — a bound too long to
+ * safely carry into a `Map`/`Set` key or an `entry_refs` row (see {@link MAX_EMBED_ID_LENGTH}'s own
+ * doc), same sanity check the old `data-widget-embed`/`data-form-embed` convention applied. */
+function normalizeEmbedId(rawId: string | null): string | null {
+  if (rawId === null || rawId.length === 0 || rawId.length > MAX_EMBED_ID_LENGTH) return null;
+  return rawId;
+}
+
+function toEmbedRef(tagText: string, typeToken: string): PageHtmlEmbedRef {
+  return {
+    type: typeToken.toLowerCase(),
+    id: normalizeEmbedId(extractAttrValue(tagText, "data-embed-id")),
+    name: extractAttrValue(tagText, "data-embed-name"),
+    variant: extractAttrValue(tagText, "data-embed-variant"),
+  };
 }
 
 /**
- * Every `data-widget-embed`/`data-form-embed` reference in `html`, in document order, truncated at
+ * Every `data-embed-type` reference in `html`, in document order, truncated at
  * {@link MAX_HTML_EMBEDS_PER_PAGE}. Pure — no I/O, never throws. Shared by the render-time resolver
  * (`resolver-service.ts`'s `resolveHtmlPageEmbeds`, which needs to know what to batch-load) and
  * anything that needs to enumerate a page's embed set without rendering it.
@@ -101,31 +139,26 @@ function toEmbedRef(kindToken: string, id: string): PageHtmlEmbedRef | null {
 export function scanHtmlEmbeds(html: string): PageHtmlEmbedRef[] {
   const refs: PageHtmlEmbedRef[] = [];
   for (const match of html.matchAll(embedPattern())) {
-    const ref = toEmbedRef(match[1], match[2]);
-    if (!ref) continue;
-    refs.push(ref);
+    refs.push(toEmbedRef(match[0], match[1]));
     if (refs.length >= MAX_HTML_EMBEDS_PER_PAGE) break;
   }
   return refs;
 }
 
 /**
- * Replaces every `data-widget-embed`/`data-form-embed` placeholder in `html` with `resolve(ref)`'s
- * return value. `resolve` is synchronous and pure from this function's own perspective — the
- * caller is expected to have already batch-resolved every id it cares about (mirroring how
- * `render.ts`'s `renderDocNode` receives an already-resolved `inlineResolved` map rather than doing
- * its own I/O); an id `resolve` doesn't recognize (never loaded, or beyond
+ * Replaces every `data-embed-type` placeholder in `html` with `resolve(ref)`'s return value.
+ * `resolve` is synchronous and pure from this function's own perspective — the caller is expected
+ * to have already batch-resolved every ref it cares about (mirroring how `render.ts`'s
+ * `renderDocNode` receives an already-resolved `inlineResolved` map rather than doing its own I/O);
+ * a ref `resolve` doesn't recognize (unknown type, never loaded, or beyond
  * {@link MAX_HTML_EMBEDS_PER_PAGE}) is `resolve`'s own call to degrade safely, not something this
  * function special-cases — every caller here (`render.ts`'s `renderHtmlPageBody`) already returns
- * the REQ-28 placeholder for an unresolved id, which is exactly what "no cap-aware branch needed
+ * the REQ-28 placeholder for an unresolved ref, which is exactly what "no cap-aware branch needed
  * here" relies on.
  *
  * @complexity O(n) over `html`'s length for the regex pass, plus O(1) per match for `resolve`.
  * @overallScore 100
  */
 export function substituteHtmlEmbeds(html: string, resolve: (ref: PageHtmlEmbedRef) => string): string {
-  return html.replace(embedPattern(), (full, kindToken: string, id: string) => {
-    const ref = toEmbedRef(kindToken, id);
-    return ref ? resolve(ref) : full;
-  });
+  return html.replace(embedPattern(), (full: string, typeToken: string) => resolve(toEmbedRef(full, typeToken)));
 }

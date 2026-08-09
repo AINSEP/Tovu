@@ -313,6 +313,11 @@ export interface GetPostBySlugRequired {
   input: { workspaceId: UUID; slug: string };
 }
 
+export interface GetPostByIdOrSlugRequired {
+  deps: { repo: PostRepoPort };
+  input: { workspaceId: UUID; idOrSlug: string };
+}
+
 export interface GetPostOptional {}
 
 export class PostNotFoundError extends Error {}
@@ -789,6 +794,23 @@ export async function getPublishedPostBySlug(
   if (!post || isTrashed(post) || post.status !== "published") {
     throw new PostNotFoundError(`post '${slug}' was not found`);
   }
+  return { post };
+}
+
+/**
+ * Admin-facing lookup that accepts either a record's id or its slug — same trash-blind 404 as
+ * {@link getAdminPostById}. Tries the id first: an id and a slug never collide (ids are opaque
+ * UUIDs `findById` matches exactly, slugs are user-authored strings), so a stale id-based
+ * bookmark and a newer slug-based URL both resolve to the same row through one lookup path.
+ */
+export async function getAdminPostByIdOrSlug(
+  required: GetPostByIdOrSlugRequired,
+  _optional: GetPostOptional = {}
+): Promise<{ post: PostRecord }> {
+  const { workspaceId, idOrSlug } = required.input;
+  const byId = await required.deps.repo.findById({ workspaceId, id: idOrSlug });
+  const post = byId ?? (await required.deps.repo.findBySlug({ workspaceId, slug: idOrSlug.trim().toLowerCase() }));
+  if (!post || isTrashed(post)) throw new PostNotFoundError(`post '${idOrSlug}' was not found`);
   return { post };
 }
 

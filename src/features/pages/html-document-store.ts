@@ -65,7 +65,7 @@ export interface PagesHtmlDocumentStoreDeps {
   /**
    * SPEC-047 Slice 3 — when supplied, every successful {@link PagesHtmlDocumentStore.write}/
    * {@link PagesHtmlDocumentStore.ensureHtmlFormat} (the seeding branch only — see that method's own
-   * doc) re-extracts this Page's `data-widget-embed`/`data-form-embed` references
+   * doc) re-extracts this Page's `data-embed-type` references
    * (`core/entry-refs/extractor.ts`'s `extractHtmlEntryRefs`) and replaces its `entry_refs` rows, so
    * "deleting a widget/form silently breaks a page" is covered for html Pages the same way it
    * already is for TipTap `widgetEmbed` nodes.

@@ -622,7 +622,7 @@ test("contact-form widget: a non-allowlisted attribute name (e.g. an 'onclick' t
 });
 
 // ---------------------------------------------------------------------------
-// SPEC-047 Slice 1/2 — "html"-format Page rendering, and `data-widget-embed`/`data-form-embed`
+// SPEC-047 Slice 1/2 — "html"-format Page rendering, and `data-embed-type` embeds
 // ---------------------------------------------------------------------------
 
 function htmlPage(overrides: Partial<PostRecord> = {}): PostRecord {
@@ -634,8 +634,8 @@ function htmlPage(overrides: Partial<PostRecord> = {}): PostRecord {
   });
 }
 
-function emptyHtmlEmbeds(overrides: Partial<ResolveHtmlPageEmbedsResult> = {}): ResolveHtmlPageEmbedsResult {
-  return { widgetResolved: new Map(), formResolved: new Map(), ...overrides };
+function htmlEmbeds(byType: Readonly<Record<string, ReadonlyMap<string, WidgetRenderIR>>> = {}): ResolveHtmlPageEmbedsResult {
+  return new Map(Object.entries(byType));
 }
 
 test("renderSite (Slice 1): an 'html'-format post's body_html renders raw through the live dispatch theme's post.content — its bodyJson is never walked", async () => {
@@ -661,11 +661,13 @@ test("renderSite (Slice 1, declarative tier): the 'content' slot renders an html
   assert.match(html, /<div class="prose"><p>Slice 1 via slot<\/p><\/div>/);
 });
 
-test("renderSite (Slice 2): data-widget-embed substitutes to its resolved widget IR; an id with no matching entry in the resolved map degrades to the REQ-28 placeholder", async () => {
+test("renderSite (Slice 2): a data-embed-type=\"widget\" embed substitutes to its resolved widget IR; an id with no matching entry in the resolved map degrades to the REQ-28 placeholder", async () => {
   const theme = declarativeTheme({ type: "doc", content: [] });
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
   const post = htmlPage({
-    bodyHtml: '<div data-widget-embed="widget-1"></div><div data-widget-embed="widget-missing"></div>',
+    bodyHtml:
+      '<div data-embed-type="widget" data-embed-id="widget-1"></div>' +
+      '<div data-embed-type="widget" data-embed-id="widget-missing"></div>',
   });
 
   const html = await renderSite({
@@ -674,8 +676,8 @@ test("renderSite (Slice 2): data-widget-embed substitutes to its resolved widget
     siteTitle: "T",
     posts: [post],
     post,
-    pageHtmlEmbeds: emptyHtmlEmbeds({
-      widgetResolved: new Map([["widget-1", { componentId: "text", props: { body: "Embedded!" } }]]),
+    pageHtmlEmbeds: htmlEmbeds({
+      widget: new Map([["widget-1", { componentId: "text", props: { body: "Embedded!" } }]]),
     }),
   });
 
@@ -683,10 +685,10 @@ test("renderSite (Slice 2): data-widget-embed substitutes to its resolved widget
   assert.equal((html.match(/widget-placeholder/g) ?? []).length, 1, "only the unresolved id degrades to the placeholder");
 });
 
-test("renderSite (Slice 2): data-form-embed substitutes to its resolved contact-form IR — the same renderer a real contact-form widget instance uses", async () => {
+test("renderSite (Slice 2): a data-embed-type=\"form\" embed substitutes to its resolved contact-form IR — the same renderer a real contact-form widget instance uses", async () => {
   const theme = declarativeTheme({ type: "doc", content: [] });
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
-  const post = htmlPage({ bodyHtml: '<div data-form-embed="form-1"></div>' });
+  const post = htmlPage({ bodyHtml: '<div data-embed-type="form" data-embed-id="form-1"></div>' });
 
   const html = await renderSite({
     theme,
@@ -694,8 +696,8 @@ test("renderSite (Slice 2): data-form-embed substitutes to its resolved contact-
     siteTitle: "T",
     posts: [post],
     post,
-    pageHtmlEmbeds: emptyHtmlEmbeds({
-      formResolved: new Map([["form-1", { componentId: "contact-form", props: { slug: "contact-us", fields: [], successMessage: null } }]]),
+    pageHtmlEmbeds: htmlEmbeds({
+      form: new Map([["form-1", { componentId: "contact-form", props: { slug: "contact-us", fields: [], successMessage: null } }]]),
     }),
   });
 
@@ -703,13 +705,96 @@ test("renderSite (Slice 2): data-form-embed substitutes to its resolved contact-
   assert.match(html, /action="\/forms\/contact-us\/submit"/);
 });
 
-test("renderSite (Slice 2): an html Page's embed placeholders degrade safely when pageHtmlEmbeds is omitted entirely — never leaks the raw data-widget-embed markup", async () => {
+test("renderSite (Slice 2): an html Page's embed placeholders degrade safely when pageHtmlEmbeds is omitted entirely — never leaks the raw data-embed-type markup", async () => {
   const theme = declarativeTheme({ type: "doc", content: [] });
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
-  const post = htmlPage({ bodyHtml: '<div data-widget-embed="widget-1"></div>' });
+  const post = htmlPage({ bodyHtml: '<div data-embed-type="widget" data-embed-id="widget-1"></div>' });
 
   const html = await renderSite({ theme, route: "post", siteTitle: "T", posts: [post], post });
 
-  assert.doesNotMatch(html, /data-widget-embed/);
+  assert.doesNotMatch(html, /data-embed-type/);
+  assert.match(html, /widget-placeholder/);
+});
+
+test("renderSite (Slice 2): an unknown embed type degrades to the REQ-28 placeholder exactly like a known-type resolution failure — render.ts never distinguishes the two externally", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: '<div data-embed-type="media" data-embed-id="asset-1"></div>' });
+
+  const html = await renderSite({ theme, route: "post", siteTitle: "T", posts: [post], post, pageHtmlEmbeds: htmlEmbeds() });
+
+  assert.doesNotMatch(html, /data-embed-type/);
+  assert.match(html, /widget-placeholder/);
+});
+
+// ---------------------------------------------------------------------------
+// SPEC-047 Slice 3 (2026-08-07) — "media-image" widget IR: the render side of a
+// data-embed-type="media" Page embed, resolved by resolver-service.ts's resolveMediaTypeEmbeds.
+// ---------------------------------------------------------------------------
+
+test("renderSite (Slice 2, media): a resolved data-embed-type=\"media\" embed renders a real <img> through the same /m/ URL contract the TipTap ref-image case uses", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: '<div data-embed-type="media" data-embed-id="asset-1" data-embed-variant="public"></div>' });
+
+  const html = await renderSite({
+    theme,
+    route: "post",
+    siteTitle: "T",
+    posts: [post],
+    post,
+    pageHtmlEmbeds: htmlEmbeds({
+      media: new Map([
+        [
+          "asset-1",
+          { componentId: "media-image", props: { assetId: "asset-1", transformName: "public", version: 3, alt: "A photo", width: 640, height: 480, cssClass: "rounded" } },
+        ],
+      ]),
+    }),
+  });
+
+  assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="A photo" width="640" height="480" class="rounded" loading="lazy">/);
+});
+
+test("renderSite (Slice 2, media): width/height/class are each omitted independently when null, never a zeroed/empty attribute", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: '<div data-embed-type="media" data-embed-id="asset-1"></div>' });
+
+  const html = await renderSite({
+    theme,
+    route: "post",
+    siteTitle: "T",
+    posts: [post],
+    post,
+    pageHtmlEmbeds: htmlEmbeds({
+      media: new Map([
+        ["asset-1", { componentId: "media-image", props: { assetId: "asset-1", transformName: "public", version: 1, alt: "", width: null, height: null, cssClass: null } }],
+      ]),
+    }),
+  });
+
+  const imgMatch = html.match(/<img[^>]*>/);
+  assert.ok(imgMatch, "expected exactly one <img> tag in the rendered page");
+  assert.equal(imgMatch![0], '<img src="/m/asset-1/public.v1/image.jpg" alt="" loading="lazy">', "no width/height/class attribute on the <img> itself — the page shell's own <meta viewport>/wrapper <div class> must not be mistaken for these");
+});
+
+test("renderSite (Slice 2, media): a malformed media-image IR (missing assetId — should never happen from this codebase's own resolver, defense-in-depth only) degrades to the ordinary widget placeholder rather than a malformed <img>", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: '<div data-embed-type="media" data-embed-id="asset-1"></div>' });
+
+  const html = await renderSite({
+    theme,
+    route: "post",
+    siteTitle: "T",
+    posts: [post],
+    post,
+    pageHtmlEmbeds: htmlEmbeds({
+      media: new Map([["asset-1", { componentId: "media-image", props: { transformName: "public", version: 1 } }]]),
+    }),
+  });
+
+  assert.doesNotMatch(html, /<img/);
   assert.match(html, /widget-placeholder/);
 });
