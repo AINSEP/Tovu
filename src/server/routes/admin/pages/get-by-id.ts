@@ -1,17 +1,18 @@
-import { getAdminPostById, PostNotFoundError } from "#src/features/post/index";
+import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/http/admin/posts";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps";
 
 /**
- * GET one page (SPEC-002 api.spec.md `PAGE_GET`) — same underlying
- * `getAdminPostById` lookup `posts/get-by-id.ts` uses (same `post` table, same
- * repo), plus a `kind === "page"` guard: api.spec.md §6 documents `PAGE_GET`'s
- * 404 as "unknown workspace / `ENTRY_NOT_FOUND` (incl. kind mismatch)" — a
- * `kind: "post"` row fetched through `/pages/:pageId` must 404 exactly like an
- * unknown id, not leak the post's existence through this route family
- * ("kind-mismatch 404s are deliberately indistinguishable from not-found",
- * api.spec.md §7).
+ * GET one page (SPEC-002 api.spec.md `PAGE_GET`) — `getAdminPostByIdOrSlug` (same
+ * `post` table, same repo `posts/get-by-id.ts` uses, but id-or-slug rather than
+ * id-only: the Pages editor URL is slug-based, and this keeps an old id-based
+ * bookmark resolving too), plus a `kind === "page"` guard: api.spec.md §6
+ * documents `PAGE_GET`'s 404 as "unknown workspace / `ENTRY_NOT_FOUND` (incl.
+ * kind mismatch)" — a `kind: "post"` row fetched through `/pages/:pageId` must
+ * 404 exactly like an unknown id/slug, not leak the post's existence through
+ * this route family ("kind-mismatch 404s are deliberately indistinguishable
+ * from not-found", api.spec.md §7).
  *
  * Gated by `content.read` (mirrors `pages/list.ts`'s identical 2026-07-16 authz
  * sweep fix, and `posts/get-by-id.ts`'s own doc note).
@@ -28,7 +29,9 @@ export const registerAdminPageGetRoute: ContentRouteRegistrar = (app, deps) => {
       return;
     }
 
-    const pageId = String(req.params.pageId ?? "");
+    // Route param kept as `pageId` (external URL shape, untouched) — the value it carries is
+    // either the row's id or its slug, resolved below by `getAdminPostByIdOrSlug`.
+    const idOrSlug = String(req.params.pageId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -46,14 +49,14 @@ export const registerAdminPageGetRoute: ContentRouteRegistrar = (app, deps) => {
         return;
       }
 
-      const result = await getAdminPostById({
+      const result = await getAdminPostByIdOrSlug({
         deps: { repo: deps.postRepo },
-        input: { workspaceId: deps.workspaceId, id: pageId },
+        input: { workspaceId: deps.workspaceId, idOrSlug },
       });
 
       if (result.post.kind !== "page") {
         // Kind mismatch — treated identically to not-found (api.spec.md §6/§7).
-        res.status(404).json({ error: `page '${pageId}' was not found`, code: "ENTRY_NOT_FOUND" });
+        res.status(404).json({ error: `page '${idOrSlug}' was not found`, code: "ENTRY_NOT_FOUND" });
         return;
       }
 

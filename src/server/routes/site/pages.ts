@@ -120,7 +120,7 @@ async function resolveWidgetsForRender(deps: RouteDeps, theme: DiscoveredTheme, 
 }
 
 /**
- * SPEC-047 Slice 2 — resolves an `"html"`-format Page's `data-widget-embed`/`data-form-embed`
+ * SPEC-047 Slice 2 — resolves an `"html"`-format Page's `data-embed-type`
  * placeholders ahead of `renderSite`, mirroring `resolveWidgetsForRender`'s own "route resolves,
  * `render.ts` stays I/O-free" split immediately above. `undefined` for a `"doc"` post (nothing to
  * resolve — `renderSite`'s `pageHtmlEmbeds` param is optional for exactly this case) so this is a
@@ -129,7 +129,7 @@ async function resolveWidgetsForRender(deps: RouteDeps, theme: DiscoveredTheme, 
 async function resolveHtmlEmbedsForRender(deps: RouteDeps, post: PostRecord | undefined): Promise<ResolveHtmlPageEmbedsResult | undefined> {
   if (!post || post.bodyFormat !== "html") return undefined;
   return resolveHtmlPageEmbeds({
-    deps: { entryRepo: deps.entryRepo },
+    deps: { entryRepo: deps.entryRepo, mediaRepo: deps.mediaRepo, transformRepo: deps.transformDefinitionRepo },
     input: { workspaceId: deps.workspaceId, html: post.bodyHtml ?? "" },
   });
 }

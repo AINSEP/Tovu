@@ -158,16 +158,25 @@ export function extractEntryRefs(input: ExtractEntryRefsInput): readonly EntryRe
 // ---------------------------------------------------------------------------
 
 /**
- * `widgets/html-embeds.ts`'s `data-widget-embed`/`data-form-embed` pattern, duplicated here
- * deliberately rather than imported — the SAME tradeoff {@link collectWidgetEmbedRefs} above already
- * makes for the TipTap `widgetEmbed` case (this file takes no injected widgets dependency, so
- * `core/` stays importable by `widgets/` and never the reverse — see this file's own header on why
- * `core` is beneath `widgets` in this codebase's layering). Correctness drift between the two copies
- * — "what entry_refs indexes" silently disagreeing with "what render.ts actually embeds" — is guarded
- * by `__tests__/integration/html-entry-refs-consistency.integration.test.ts`, which asserts both
- * scanners agree on the same fixture HTML, rather than by a shared import.
+ * `widgets/html-embeds.ts`'s `data-embed-type` pattern, duplicated here deliberately rather than
+ * imported — the SAME tradeoff {@link collectWidgetEmbedRefs} above already makes for the TipTap
+ * `widgetEmbed` case (this file takes no injected widgets dependency, so `core/` stays importable by
+ * `widgets/` and never the reverse — see this file's own header on why `core` is beneath `widgets`
+ * in this codebase's layering). Correctness drift between the two copies — "what entry_refs
+ * indexes" silently disagreeing with "what render.ts actually embeds" — is guarded by
+ * `__tests__/integration/html-entry-refs-consistency.integration.test.ts`, which asserts both
+ * scanners agree on the same fixture HTML, rather than by a shared import. `type` stays a free
+ * string here too (2026-08-07 generalization) — a fourth embed type must never require a change to
+ * this file any more than to `html-embeds.ts` itself.
  */
-const HTML_EMBED_PATTERN_SOURCE = String.raw`<div\b[^>]*?\bdata-(widget|form)-embed\s*=\s*"([^"]*)"[^>]*?>\s*<\/div>`;
+const HTML_EMBED_PATTERN_SOURCE = String.raw`<div\b[^>]*?\bdata-embed-type\s*=\s*"([a-z][a-z0-9-]*)"[^>]*?>\s*<\/div>`;
+
+/** Mirrors `html-embeds.ts`'s `extractAttrValue` — pulls one `attr="VALUE"` out of a matched embed
+ * div's full tag text, `null` when absent. */
+function extractHtmlAttrValue(tagText: string, attrName: string): string | null {
+  const match = tagText.match(new RegExp(`\\b${attrName}\\s*=\\s*"([^"]*)"`, "i"));
+  return match ? match[1] : null;
+}
 
 /** Mirrors `widgets/html-embeds.ts`'s `MAX_HTML_EMBEDS_PER_PAGE` — the index must never grow past
  * what a render can actually resolve, so the same resource bound applies here too. */
@@ -177,17 +186,42 @@ const MAX_HTML_PAGE_EMBED_REFS = 50;
 const MAX_HTML_EMBED_REF_ID_LENGTH = 200;
 
 /**
- * REQ-30-style — extracts one `entry_refs` row per `data-widget-embed`/`data-form-embed`
- * placeholder found in `html`, up to {@link MAX_HTML_PAGE_EMBED_REFS}. `targetKind` is always
- * `"entry"` — mirrors `MENU_REGISTRATION`'s `menuRef`/`CONTACT_FORM_REGISTRATION`'s
- * `formDefinitionId` both being extracted as `"entry"`-target refs elsewhere in this codebase even
- * though neither a menu nor a Forms definition is a literal `entries`-table row; `targetKind` marks
- * "a durable content object", not literal table membership. Pure, never throws, matching
+ * Embed types this function currently knows how to target-map into `entry_refs`, and which
+ * {@link EntryRefTargetKind} each maps to. `widget`/`form` -> `"entry"` (mirrors
+ * `MENU_REGISTRATION`'s `menuRef`/`CONTACT_FORM_REGISTRATION`'s `formDefinitionId` both being
+ * extracted as `"entry"`-target refs elsewhere in this codebase even though neither a menu nor a
+ * Forms definition is a literal `entries`-table row; `targetKind` marks "a durable content object",
+ * not literal table membership). `media` -> `"asset"` (2026-08-07,
+ * `IMPLEMENTATION-PLAN-data-embed-type-2026-08-07.md` §4 — a media asset lives in a genuinely
+ * different storage domain than the generic `entries` graph, so it gets its own target kind rather
+ * than overloading `"entry"` the way the first two do). A type absent from this map is still
+ * SCANNED (the pattern above matches any `data-embed-type` token, per this file's 2026-08-07
+ * generalization) but produces no row: an unrecognized/future type has no known target-kind mapping
+ * yet, and guessing one would be actively wrong data, not just incomplete. Widening this map is
+ * exactly the "one place to change" a new indexable type needs; the regex above never does.
+ */
+const HTML_EMBED_TARGET_KINDS: ReadonlyMap<string, EntryRefTargetKind> = new Map([
+  ["widget", "entry"],
+  ["form", "entry"],
+  ["media", "asset"],
+]);
+
+/**
+ * REQ-30-style — extracts one `entry_refs` row per `data-embed-type` placeholder found in `html`,
+ * up to {@link MAX_HTML_PAGE_EMBED_REFS}. `targetKind` is looked up per embed type via
+ * {@link HTML_EMBED_TARGET_KINDS} — an embed type with no entry there (unrecognized/future type)
+ * produces no row rather than a guessed `targetKind`. Pure, never throws, matching
  * `extractEntryRefs`'s own contract.
+ *
+ * A reference whose `data-embed-id` is absent, empty, or beyond {@link MAX_HTML_EMBED_REF_ID_LENGTH}
+ * produces no row — `EntryRefRow.targetId` is a required `UUID`, so an unusable id has nothing to
+ * populate it with (mirrors `scanHtmlEmbeds`'s own id-normalization, but this function drops the
+ * occurrence entirely rather than reporting a null-id row, since an indexable-or-not decision is
+ * exactly what this function's contract already commits to for every other ref kind it extracts).
  *
  * **Indexes REFERENCES, never RESOLUTIONS — by construction, not by discipline.** This function
  * takes no repo/resolver dependency (only a plain `html` string), so it has no way to check whether
- * a placeholder's target currently exists, let alone resolves. A `data-widget-embed` pointing at a
+ * a placeholder's target currently exists, let alone resolves. A `data-embed-type` div pointing at a
  * deleted widget produces a row here exactly like one pointing at a live widget does. This is
  * required, not incidental: `entry_refs`' whole purpose is catching "deleting a widget silently
  * breaks a page" (SPEC-043 REQ-34/REQ-42's safe-delete/where-used check), and that is precisely the
@@ -210,16 +244,18 @@ export function extractHtmlEntryRefs(input: {
 
   for (const match of input.html.matchAll(pattern)) {
     occurrence += 1;
-    const kindToken = match[1]?.toLowerCase();
-    const id = match[2];
+    const typeToken = match[1]?.toLowerCase();
+    const targetKind = HTML_EMBED_TARGET_KINDS.get(typeToken);
+    if (!targetKind) continue;
+    const id = extractHtmlAttrValue(match[0], "data-embed-id");
     if (!id || id.length === 0 || id.length > MAX_HTML_EMBED_REF_ID_LENGTH) continue;
 
     refs.push({
       workspaceId: input.workspaceId,
       sourceEntryId: input.sourceEntryId,
       sourceKind: "page-html-embed",
-      fieldPath: `bodyHtml[data-${kindToken}-embed#${occurrence}]`,
-      targetKind: "entry",
+      fieldPath: `bodyHtml[data-embed-type=${typeToken}#${occurrence}]`,
+      targetKind,
       targetId: id,
     });
     if (refs.length >= MAX_HTML_PAGE_EMBED_REFS) break;

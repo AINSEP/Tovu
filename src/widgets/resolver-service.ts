@@ -22,8 +22,12 @@
 import type { JsonObject, UUID } from "@jini-ai/cms/core";
 import type { EntryListPort } from "../features/entries/list";
 import type { EntryRepoPort } from "../features/entries/write-service";
+import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/bootstrap";
+import { getLatestTransformDefinition } from "../media/index";
+import type { MediaRepoPort, TransformDefinitionRepoPort } from "../media/index";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload";
 import { scanHtmlEmbeds } from "./html-embeds";
+import type { PageHtmlEmbedRef } from "./html-embeds";
 import type { WidgetRegionBindingRepoPort } from "./ports";
 import { resolveWidgetType } from "./resolvers/index";
 import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "./types";
@@ -226,85 +230,103 @@ export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): 
 }
 
 // ---------------------------------------------------------------------------
-// HTML Page embeds (SPEC-047 Slice 2) — resolves `html-embeds.ts`'s `data-widget-embed`/
-// `data-form-embed` placeholder convention. A parallel entry point to `resolvePageWidgets` above,
-// not a mode of it: an `"html"`-format Page has no `bodyJson` tree and is not an `entries` row
-// `pageEntryId` could resolve (see `routes/site/pages.ts`'s `resolveWidgetsForRender`, which
-// documents that same gap for the TipTap inline-embed path on the live `home`/`post` routes) — its
-// references live in a plain HTML string instead, so they need their own scan step, not a `bodyJson`
-// walk. Everything downstream of "which ids are referenced" is shared with `resolvePageWidgets`
+// HTML Page embeds (SPEC-047 Slice 2, registry-restructured 2026-08-07 per
+// `project-tovu-generic-embed-contract`) — resolves `html-embeds.ts`'s `data-embed-type`
+// placeholder convention. A parallel entry point to `resolvePageWidgets` above, not a mode of it: an
+// `"html"`-format Page has no `bodyJson` tree and is not an `entries` row `pageEntryId` could
+// resolve (see `routes/site/pages.ts`'s `resolveWidgetsForRender`, which documents that same gap for
+// the TipTap inline-embed path on the live `home`/`post` routes) — its references live in a plain
+// HTML string instead, so they need their own scan step, not a `bodyJson` walk. Everything
+// downstream of "which ids are referenced" is shared with `resolvePageWidgets`
 // (`resolveWidgetInstances`, `resolveWidgetType`, the REQ-27/28 failure taxonomy).
 // ---------------------------------------------------------------------------
 
-export interface ResolveHtmlPageEmbedsResult {
-  /**
-   * `data-widget-embed` targets, keyed by the referenced `widgetEntryId`. A genuinely nonexistent
-   * id is ABSENT from this map (never found in the batched load, so never entered `resolvedById` —
-   * see {@link resolveWidgetInstances}); a widget that WAS found but whose own resolution failed
-   * (unknown type, resolver error, etc.) is PRESENT, with a placeholder IR value. Both render
-   * identically via `render.ts`'s `renderHtmlPageBody` (absent and placeholder-valued both fall
-   * through to the same REQ-28 marker), so this is not a behavior bug.
-   *
-   * **Reviewed and intentionally left as-is (2026-08-05) — do not "fix" this to be uniform.** It is
-   * inherited from `resolvePageWidgets`'s own identical convention, not introduced here; making the
-   * two embed kinds agree with each other would only make them disagree with the TipTap path they
-   * both already match. An inconsistency shared with its sibling is cheaper than a local tidiness
-   * that makes the two paths diverge.
-   */
-  readonly widgetResolved: ReadonlyMap<UUID, WidgetRenderIR>;
-  /** `data-form-embed` targets, keyed by the referenced `formDefinitionId` — see
-   * {@link widgetResolved}'s doc for the identical present-with-placeholder-vs-absent convention and
-   * why it stays as-is. */
-  readonly formResolved: ReadonlyMap<UUID, WidgetRenderIR>;
+/**
+ * One embed type's resolver: given every {@link PageHtmlEmbedRef} of that type found on the page,
+ * resolve as many as possible into a map keyed by the referenced id. A ref whose `id` is `null`
+ * (missing or out-of-bounds `data-embed-id`) can never be resolved — a resolver skips it and should
+ * log a resolver-internal miss (see `HTML_EMBED_RESOLVERS`'s own doc for why this is a DIFFERENT log
+ * line from "unknown embed type"). The returned map's "present-with-placeholder-vs-absent" shape
+ * (a genuinely nonexistent target is ABSENT; a found-but-broken target is PRESENT with a placeholder
+ * IR) mirrors {@link resolveWidgetInstances}'s own convention — both render identically via
+ * `render.ts`'s `renderHtmlPageBody`, so this is not a behavior bug, same as the pre-restructuring
+ * `widgetResolved`/`formResolved` shape this replaces.
+ */
+/**
+ * `resolveHtmlPageEmbeds`'s full dependency set — a structural superset of
+ * {@link WidgetInstanceResolutionDeps} (the widget/form resolvers' own narrower need) plus the
+ * OPTIONAL `mediaRepo`/`transformRepo` pair the `media` resolver needs. Optional, not required
+ * (mirrors `PagesHtmlDocumentStoreDeps.entryRefsRepo`'s own "optional dependency" precedent), so
+ * every pre-existing widget/form-only call site and test keeps compiling and behaving unchanged; a
+ * `media` embed present with no `mediaRepo`/`transformRepo` supplied simply cannot resolve (logged,
+ * degrades to the REQ-28 placeholder like any other unresolved reference) rather than forcing every
+ * call site that never touches media to thread media dependencies through anyway.
+ */
+export interface ResolveHtmlPageEmbedsDeps extends WidgetInstanceResolutionDeps {
+  readonly mediaRepo?: MediaRepoPort;
+  readonly transformRepo?: TransformDefinitionRepoPort;
 }
 
-/**
- * Resolves every `data-widget-embed`/`data-form-embed` placeholder (`html-embeds.ts`'s
- * `scanHtmlEmbeds`) found in an `"html"`-format Page's `body_html`.
- *
- * `data-widget-embed="{widgetEntryId}"` batches through the same {@link resolveWidgetInstances}
- * `resolvePageWidgets` uses — any widget type, any placement context; no `data-widget-embed`-
- * specific resolver exists or is needed. `data-form-embed="{formDefinitionId}"` is sugar over the
- * SAME `contact-form` resolver a real `contact-form` widget instance would use, via a synthetic,
- * never-persisted {@link WidgetInstanceView} whose `config.formDefinitionId` is the id captured from
- * the placeholder — a page author (human or the AI writing `pages_write_html`) never has to create a
- * throwaway widget instance in the widgets admin surface just to embed a form; they name the Forms
- * definition directly. This is the reuse the SPEC-047 dispatch asked for: no second render path, no
- * duplicated form-rendering logic — `render.ts`'s existing `renderWidgetIr` `"contact-form"` case
- * renders whatever this returns exactly as it already renders a real widget instance's resolution.
- *
- * Never throws (REQ-27's contract, carried over unchanged): a malformed, missing, disabled, wrong-
- * type, or duplicate-beyond-{@link MAX_HTML_EMBEDS_PER_PAGE} reference degrades to the REQ-28
- * placeholder exactly the way every other widget-resolution failure already does — the caller
- * (`render.ts`'s `renderHtmlPageBody`) never special-cases "this ref failed to resolve" versus "this
- * ref does not exist" versus "this ref was never attempted".
- *
- * @complexity O(e) over the page's embed-reference count (capped at `MAX_HTML_EMBEDS_PER_PAGE`) for
- * the scan, plus one batched widget-listing query plus at most one `resolveWidgetType` call per
- * distinct widget type present (widget path), plus one more `resolveWidgetType` call for the
- * synthetic `contact-form` batch (form path, only when at least one form embed is present) — the
- * same O(1)-typed cost shape `resolvePageWidgets` already carries, REQ-24 in spirit.
- * @overallScore 100
- */
-export async function resolveHtmlPageEmbeds(required: {
-  deps: WidgetInstanceResolutionDeps;
-  input: { readonly workspaceId: UUID; readonly html: string };
-}): Promise<ResolveHtmlPageEmbedsResult> {
-  const { deps, input } = required;
-  const context: WidgetResolveContext = { workspaceId: input.workspaceId, preview: false };
-  const refs = scanHtmlEmbeds(input.html);
+type HtmlEmbedResolver = (
+  refs: readonly PageHtmlEmbedRef[],
+  deps: ResolveHtmlPageEmbedsDeps,
+  context: WidgetResolveContext
+) => Promise<ReadonlyMap<string, WidgetRenderIR>>;
 
-  const widgetIds = new Set<UUID>();
-  const formIds = new Set<UUID>();
-  for (const ref of refs) (ref.kind === "widget" ? widgetIds : formIds).add(ref.id);
+/** `data-embed-type="widget"` batches through the same {@link resolveWidgetInstances}
+ * `resolvePageWidgets` uses — any widget type, any placement context; no widget-embed-specific
+ * resolver logic exists or is needed beyond this thin adapter. Behavior carried over unchanged from
+ * the pre-restructuring `resolveHtmlPageEmbeds` widget path. */
+async function resolveWidgetTypeEmbeds(
+  refs: readonly PageHtmlEmbedRef[],
+  deps: ResolveHtmlPageEmbedsDeps,
+  context: WidgetResolveContext
+): Promise<ReadonlyMap<string, WidgetRenderIR>> {
+  const ids = new Set<UUID>();
+  for (const ref of refs) {
+    if (ref.id === null) {
+      console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "widget" reference — missing or invalid data-embed-id', {
+        workspaceId: context.workspaceId,
+      });
+      continue;
+    }
+    ids.add(ref.id);
+  }
 
-  const widgetResolvedRaw = await resolveWidgetInstances(deps, input.workspaceId, widgetIds, context);
-  const widgetResolved = new Map<UUID, WidgetRenderIR>();
-  for (const [id, result] of widgetResolvedRaw) widgetResolved.set(id, toRenderIr(result));
+  const resolvedRaw = await resolveWidgetInstances(deps, context.workspaceId, ids, context);
+  const resolved = new Map<string, WidgetRenderIR>();
+  for (const [id, result] of resolvedRaw) resolved.set(id, toRenderIr(result));
+  return resolved;
+}
+
+/** `data-embed-type="form"` is sugar over the SAME `contact-form` resolver a real `contact-form`
+ * widget instance would use, via a synthetic, never-persisted {@link WidgetInstanceView} whose
+ * `config.formDefinitionId` is the id captured from the placeholder — a page author (human or the AI
+ * writing `pages_write_html`) never has to create a throwaway widget instance in the widgets admin
+ * surface just to embed a form; they name the Forms definition directly. This is the reuse the
+ * SPEC-047 dispatch asked for: no second render path, no duplicated form-rendering logic —
+ * `render.ts`'s existing `renderWidgetIr` `"contact-form"` case renders whatever this returns
+ * exactly as it already renders a real widget instance's resolution. Behavior carried over unchanged
+ * from the pre-restructuring `resolveHtmlPageEmbeds` form path. */
+async function resolveFormTypeEmbeds(
+  refs: readonly PageHtmlEmbedRef[],
+  _deps: ResolveHtmlPageEmbedsDeps,
+  context: WidgetResolveContext
+): Promise<ReadonlyMap<string, WidgetRenderIR>> {
+  const formDefinitionIds: string[] = [];
+  for (const ref of refs) {
+    if (ref.id === null) {
+      console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "form" reference — missing or invalid data-embed-id', {
+        workspaceId: context.workspaceId,
+      });
+      continue;
+    }
+    formDefinitionIds.push(ref.id);
+  }
 
   // Synthetic contact-form instances (see this function's own doc) — never written anywhere, never
   // a real `widget`-type entries row; only `formDefinitionId` in `config` is real.
-  const formInstances: WidgetInstanceView[] = [...formIds].map((formDefinitionId) => ({
+  const formInstances: WidgetInstanceView[] = formDefinitionIds.map((formDefinitionId) => ({
     id: formDefinitionId,
     widgetType: "contact-form",
     config: { formDefinitionId },
@@ -313,8 +335,207 @@ export async function resolveHtmlPageEmbeds(required: {
     formInstances.length > 0
       ? await resolveWidgetType({ typeKey: "contact-form", instances: formInstances, context })
       : new Map<UUID, WidgetResolveResult>();
-  const formResolved = new Map<UUID, WidgetRenderIR>();
-  for (const [id, result] of formResolvedRaw) formResolved.set(id, toRenderIr(result));
+  const resolved = new Map<string, WidgetRenderIR>();
+  for (const [id, result] of formResolvedRaw) resolved.set(id, toRenderIr(result));
+  return resolved;
+}
 
-  return { widgetResolved, formResolved };
+/** Mirrors `render.ts`'s own `MAX_MEDIA_REF_ID_LENGTH`/`PLAUSIBLE_MEDIA_REF_ID_PATTERN` shape check
+ * for an `assetId`/`transformName` that will eventually become a `/m/` URL path segment —
+ * duplicated here rather than imported for the same reason `core/entry-refs/extractor.ts`
+ * duplicates `html-embeds.ts`'s scan pattern instead of importing it: `widgets/` (this file) must
+ * not depend on `server/http/site/render.ts`, which sits above it in this codebase's layering. Both
+ * copies guard the SAME hazard — this copy stops a malformed id/name from being used as a
+ * repo-lookup key at resolve time; `render.ts`'s copy (`renderWidgetMediaImage`) re-checks
+ * defense-in-depth immediately before URL templating. */
+const MAX_MEDIA_REF_ID_LENGTH = 200;
+const PLAUSIBLE_MEDIA_REF_ID_PATTERN = /^[^\s/]+$/;
+
+function isPlausibleMediaRefId(value: string): boolean {
+  return value.length > 0 && value.length <= MAX_MEDIA_REF_ID_LENGTH && PLAUSIBLE_MEDIA_REF_ID_PATTERN.test(value);
+}
+
+/**
+ * `data-embed-type="media"` resolver (SPEC-047, 2026-08-07) — NEW logic, not adapted from
+ * `resolveWidgetType`: a media embed targets an assets-domain record (`MediaRepoPort`), never a
+ * `widget`-type entries row, so it shares nothing with `resolveWidgetInstances`'s batching shape
+ * beyond the same REQ-27/28 never-throws/degrade-to-absent discipline every resolver here follows.
+ *
+ * `data-embed-id` is the `assetId`; `data-embed-variant` is the transform name, defaulting to
+ * {@link CORE_PUBLIC_TRANSFORM_NAME} (`"public"`, confirmed live against `media/bootstrap.ts`'s own
+ * boot registration, not assumed from the plan doc) when the author omits `data-embed-variant`.
+ * Builds the same `/m/{assetId}/{transformName}.v{version}/...` URL contract `render.ts`'s TipTap
+ * `image` case already uses — this function only resolves the DATA (`{assetId, transformName,
+ * version, alt, width, height, cssClass}`); `render.ts`'s `renderWidgetMediaImage`/`renderImageTag`
+ * own the actual URL templating and escaping (the "reuse, don't reimplement" split this dispatch was
+ * asked for, mirroring how `resolveWidgetTypeEmbeds` resolves data and `renderWidgetIr` renders it).
+ *
+ * **Scope limitation versus the original implementation plan, disclosed rather than silently
+ * narrowed.** The plan's step 3 called for dispatching by the asset's STORED MIME TYPE (image/
+ * audio/video are "one media type", rendered differently per mime). `MediaRecord`
+ * (`@jini-ai/cms/media`) has NO mime/contentType field — verified against the package's own
+ * `media/types.d.ts` and `media/ports.d.ts`, not assumed: `contentType` exists only transiently in
+ * `UploadMediaInput` at upload time and is never persisted onto the record `MediaRepoPort.findById`
+ * returns. There is also no OTHER media-rendering precedent anywhere in this codebase to mirror —
+ * the only existing one, `render.ts`'s TipTap `image` node case, is unconditionally image-only too.
+ * Real mime-based dispatch would need a schema/persistence change outside this dispatch's scope, so
+ * THIS resolver, like the rest of the codebase today, treats every `media` embed as an image.
+ * Flagging for Coordinator/Architect review rather than either inventing a field that doesn't exist
+ * or silently pretending the plan's dispatch-by-mime requirement was met.
+ *
+ * Never throws (REQ-27): a missing `mediaRepo`/`transformRepo` dependency, an id/name that fails
+ * {@link isPlausibleMediaRefId}'s shape check, a nonexistent asset, or an unregistered transform name
+ * all leave that ref's id absent from the returned map — `render.ts`'s `renderHtmlPageBody` degrades
+ * an absent id to the REQ-28 placeholder exactly as it does for every other resolver here.
+ *
+ * @complexity O(e) over the media refs present (already capped at `MAX_HTML_EMBEDS_PER_PAGE`
+ * upstream by `scanHtmlEmbeds`) — one `MediaRepoPort.findById` plus at most one
+ * `getLatestTransformDefinition` call per ref, run concurrently via `Promise.all` (mirrors
+ * `pages.ts`'s `resolveMediaAssetMetadataForRender`'s own per-asset `findById` fan-out — the same
+ * frozen-no-batch-primitive situation `MediaRepoPort` discloses there).
+ * @overallScore 100
+ */
+async function resolveMediaTypeEmbeds(
+  refs: readonly PageHtmlEmbedRef[],
+  deps: ResolveHtmlPageEmbedsDeps,
+  context: WidgetResolveContext
+): Promise<ReadonlyMap<string, WidgetRenderIR>> {
+  const resolved = new Map<string, WidgetRenderIR>();
+  const { mediaRepo, transformRepo } = deps;
+  if (!mediaRepo || !transformRepo) {
+    if (refs.length > 0) {
+      console.warn(
+        '[widgets] resolveHtmlPageEmbeds: "media" embeds present but no mediaRepo/transformRepo dependency was supplied — every occurrence degrades to the placeholder',
+        { workspaceId: context.workspaceId, occurrences: refs.length }
+      );
+    }
+    return resolved;
+  }
+
+  await Promise.all(
+    refs.map(async (ref) => {
+      const assetId = ref.id;
+      const transformName = ref.variant ?? CORE_PUBLIC_TRANSFORM_NAME;
+      if (assetId === null || !isPlausibleMediaRefId(assetId) || !isPlausibleMediaRefId(transformName)) {
+        console.warn(
+          '[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — missing or invalid data-embed-id/data-embed-variant',
+          { workspaceId: context.workspaceId }
+        );
+        return;
+      }
+
+      const record = await mediaRepo.findById({ workspaceId: context.workspaceId, id: assetId });
+      if (!record) {
+        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset', {
+          workspaceId: context.workspaceId,
+          assetId,
+        });
+        return;
+      }
+
+      const definition = await getLatestTransformDefinition({
+        deps: { transformRepo },
+        input: { workspaceId: context.workspaceId, name: transformName },
+      });
+      if (!definition) {
+        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — transform not registered', {
+          workspaceId: context.workspaceId,
+          assetId,
+          transformName,
+        });
+        return;
+      }
+
+      resolved.set(assetId, {
+        componentId: "media-image",
+        props: {
+          assetId,
+          transformName,
+          version: definition.version,
+          alt: record.alt,
+          width: record.width,
+          height: record.height,
+          cssClass: record.cssClass,
+        },
+      });
+    })
+  );
+
+  return resolved;
+}
+
+/**
+ * Registry of known embed types (SPEC-047, generalized 2026-08-07). Adding a new embed type is
+ * registering one more entry here — no other file in `resolveHtmlPageEmbeds`'s call chain changes,
+ * and `html-embeds.ts`'s scanner already reports any type token it finds regardless of whether an
+ * entry exists here (see that file's own doc). A type ABSENT from this registry is the "unknown
+ * embed type" log path in {@link resolveHtmlPageEmbeds}; a type PRESENT here whose resolver still
+ * can't find a given id/name is the "resolver-internal miss" log path inside that resolver
+ * (`resolveWidgetTypeEmbeds`/`resolveFormTypeEmbeds`/`resolveMediaTypeEmbeds` above) — DECIDED
+ * (2026-08-07) to keep these two distinguishable in logs even though both render the identical
+ * REQ-28 placeholder externally: an author's markup typo (unknown type) and an author's stale
+ * reference (known type, dead id) are different problems needing different fixes.
+ */
+const HTML_EMBED_RESOLVERS: Readonly<Record<string, HtmlEmbedResolver>> = {
+  widget: resolveWidgetTypeEmbeds,
+  form: resolveFormTypeEmbeds,
+  media: resolveMediaTypeEmbeds,
+};
+
+/**
+ * Resolved embed IR, keyed by embed type then by the referenced id (`resolved.get(ref.type)?.get(
+ * ref.id)`). A type absent from the outer map means either nothing of that type was found on the
+ * page or the type has no registered resolver (`render.ts`'s `renderHtmlPageBody` treats both
+ * identically — a REQ-28 placeholder, per this file's `HTML_EMBED_RESOLVERS` doc).
+ */
+export type ResolveHtmlPageEmbedsResult = ReadonlyMap<string, ReadonlyMap<string, WidgetRenderIR>>;
+
+/**
+ * Resolves every `data-embed-type` placeholder (`html-embeds.ts`'s `scanHtmlEmbeds`) found in an
+ * `"html"`-format Page's `body_html`, dispatching each embed type to its registered resolver in
+ * {@link HTML_EMBED_RESOLVERS}.
+ *
+ * Never throws (REQ-27's contract, carried over unchanged): a malformed, missing, disabled, wrong-
+ * type, unknown-type, or duplicate-beyond-{@link MAX_HTML_EMBEDS_PER_PAGE} reference degrades to the
+ * REQ-28 placeholder exactly the way every other widget-resolution failure already does — the caller
+ * (`render.ts`'s `renderHtmlPageBody`) never special-cases "this ref failed to resolve" versus "this
+ * ref does not exist" versus "this ref was never attempted".
+ *
+ * @complexity O(e) over the page's embed-reference count (capped at `MAX_HTML_EMBEDS_PER_PAGE`) for
+ * the scan plus grouping, plus each registered type present incurring its own resolver's cost (the
+ * widget path: one batched widget-listing query plus at most one `resolveWidgetType` call per
+ * distinct widget type; the form path: one more `resolveWidgetType` call for the synthetic
+ * `contact-form` batch) — the same O(1)-typed per-type cost shape the pre-restructuring function
+ * already carried, REQ-24 in spirit.
+ * @overallScore 100
+ */
+export async function resolveHtmlPageEmbeds(required: {
+  deps: ResolveHtmlPageEmbedsDeps;
+  input: { readonly workspaceId: UUID; readonly html: string };
+}): Promise<ResolveHtmlPageEmbedsResult> {
+  const { deps, input } = required;
+  const context: WidgetResolveContext = { workspaceId: input.workspaceId, preview: false };
+  const refs = scanHtmlEmbeds(input.html);
+
+  const refsByType = new Map<string, PageHtmlEmbedRef[]>();
+  for (const ref of refs) {
+    const list = refsByType.get(ref.type) ?? [];
+    list.push(ref);
+    refsByType.set(ref.type, list);
+  }
+
+  const result = new Map<string, ReadonlyMap<string, WidgetRenderIR>>();
+  for (const [type, typeRefs] of refsByType) {
+    const resolver = HTML_EMBED_RESOLVERS[type];
+    if (!resolver) {
+      console.warn("[widgets] resolveHtmlPageEmbeds: unknown embed type, every occurrence degrades to the placeholder", {
+        type,
+        workspaceId: input.workspaceId,
+        occurrences: typeRefs.length,
+      });
+      continue;
+    }
+    result.set(type, await resolver(typeRefs, deps, context));
+  }
+  return result;
 }

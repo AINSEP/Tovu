@@ -4,6 +4,7 @@ export {
   deletePost,
   isTrashed,
   getAdminPostById,
+  getAdminPostByIdOrSlug,
   getPublishedPostBySlug,
   listAdminPages,
   listAdminPosts,

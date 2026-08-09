@@ -80,7 +80,7 @@ export interface SiteRenderContext {
    */
   mediaTransformVersions: ReadonlyMap<string, number>;
   /**
-   * SPEC-047 Slice 2 — an `"html"`-format Page's resolved `data-widget-embed`/`data-form-embed`
+   * SPEC-047 Slice 2 — an `"html"`-format Page's resolved `data-embed-type`
    * targets (`resolver-service.ts`'s `resolveHtmlPageEmbeds`), consumed by {@link renderPostBody}.
    * `undefined` for every render this feature doesn't touch (a `"doc"` post/home route, or any
    * pre-existing caller/test of `renderSite`) — `renderHtmlPageBody` treats that identically to "no
@@ -193,6 +193,41 @@ function isPlausibleMediaRefId(value: string): boolean {
   return value.length > 0 && value.length <= MAX_MEDIA_REF_ID_LENGTH && PLAUSIBLE_MEDIA_REF_ID_PATTERN.test(value);
 }
 
+/**
+ * Builds a real `<img>` tag from an already-resolved, already-validated media reference — the ONE
+ * place `/m/{assetId}/{transformName}.v{version}/...` is templated (ADR-027 §4's frozen URL
+ * contract) and the ONE place its attributes are escaped. Two callers share this: the TipTap
+ * `image` ref-node case below (`assetId`/`transformName`/`version` resolved via
+ * `mediaTransformVersions`/`mediaAssetMetadata`, threaded in by the route caller) and
+ * `renderWidgetIr`'s `"media-image"` case (SPEC-047, `data-embed-type="media"` Page embeds,
+ * resolved ahead of render by `resolver-service.ts`'s `resolveHtmlPageEmbeds`) — same URL shape,
+ * same escaping, same optional-attribute-omission rule, deliberately implemented once rather than
+ * twice (the "reuse, don't reimplement" requirement the media embed resolver was dispatched under).
+ *
+ * `width`/`height`/`cssClass` are each emitted independently and only when non-null — an asset with
+ * only `width` set gets `width="…"` alone, never a `height="0"` or empty `class="""` (owner's
+ * explicit instruction, carried over unchanged from the original `image` case).
+ *
+ * @complexity O(1).
+ * @overallScore 100
+ */
+function renderImageTag(props: {
+  readonly assetId: string;
+  readonly transformName: string;
+  readonly version: number;
+  readonly alt: string;
+  readonly width: number | null;
+  readonly height: number | null;
+  readonly cssClass: string | null;
+}): string {
+  const src = `/m/${encodeURIComponent(props.assetId)}/${encodeURIComponent(props.transformName)}.v${props.version}/image.jpg`;
+  const altAttr = escapeHtml(props.alt);
+  const widthAttr = props.width != null ? ` width="${props.width}"` : "";
+  const heightAttr = props.height != null ? ` height="${props.height}"` : "";
+  const classAttr = props.cssClass ? ` class="${escapeHtml(props.cssClass)}"` : "";
+  return `<img src="${escapeHtml(src)}" alt="${altAttr}"${widthAttr}${heightAttr}${classAttr} loading="lazy">`;
+}
+
 function renderNodes(
   nodes: JsonValue[] | undefined,
   inlineResolved: ReadonlyMap<string, WidgetRenderIR>,
@@ -296,13 +331,16 @@ export function renderDocNode(
       if (assetId && transformName && isPlausibleMediaRefId(assetId) && isPlausibleMediaRefId(transformName)) {
         const version = mediaTransformVersions.get(transformName);
         if (version !== undefined) {
-          const src = `/m/${encodeURIComponent(assetId)}/${encodeURIComponent(transformName)}.v${version}/image.jpg`;
-          const altAttr = escapeHtml(alt);
           const meta = mediaAssetMetadata.get(assetId);
-          const widthAttr = meta?.width != null ? ` width="${meta.width}"` : "";
-          const heightAttr = meta?.height != null ? ` height="${meta.height}"` : "";
-          const classAttr = meta?.cssClass ? ` class="${escapeHtml(meta.cssClass)}"` : "";
-          return `<img src="${escapeHtml(src)}" alt="${altAttr}"${widthAttr}${heightAttr}${classAttr} loading="lazy">`;
+          return renderImageTag({
+            assetId,
+            transformName,
+            version,
+            alt,
+            width: meta?.width ?? null,
+            height: meta?.height ?? null,
+            cssClass: meta?.cssClass ?? null,
+          });
         }
       }
       return mediaPlaceholder({ label: alt || "Image" });
@@ -356,24 +394,24 @@ function entryList(ctx: SiteRenderContext, props: JsonObject): string {
 const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeholder", props: {} };
 
 /**
- * Substitutes every `data-widget-embed`/`data-form-embed` placeholder in an `"html"`-format Page's
- * `bodyHtml` with its resolved markup (SPEC-047 Slice 2). Pure — `resolved` is the already-batch-
- * loaded result of `resolver-service.ts`'s `resolveHtmlPageEmbeds`, computed by the caller (a route
- * handler) ahead of `renderSite`, the same "resolved data in, HTML out" discipline this file's own
- * header states for every other widget-shaped render path here. `resolved` being `undefined` (no
- * pre-existing caller of `renderSite` passes `pageHtmlEmbeds`) degrades every placeholder in `html`
- * to the public-safe REQ-28 marker, never a crash and never the literal, unresolved `<div
- * data-widget-embed="…">` markup reaching a visitor.
+ * Substitutes every `data-embed-type` placeholder in an `"html"`-format Page's `bodyHtml` with its
+ * resolved markup (SPEC-047 Slice 2, generalized 2026-08-07). Pure — `resolved` is the already-
+ * batch-loaded, type-then-id-keyed result of `resolver-service.ts`'s `resolveHtmlPageEmbeds`,
+ * computed by the caller (a route handler) ahead of `renderSite`, the same "resolved data in, HTML
+ * out" discipline this file's own header states for every other widget-shaped render path here.
+ * `resolved` being `undefined` (no pre-existing caller of `renderSite` passes `pageHtmlEmbeds`), a
+ * ref's `type` having no entry in `resolved` (unknown embed type), or a ref's `id` being `null`
+ * (missing/invalid `data-embed-id`) all degrade identically to the public-safe REQ-28 marker — this
+ * function never distinguishes "unresolved" from "unresolvable" from "never attempted", never a
+ * crash and never the literal, unresolved `<div data-embed-type="…">` markup reaching a visitor.
  *
  * @complexity O(n) over `html`'s length (one regex substitution pass); O(1) additional work per
- * embed occurrence (a map lookup plus `renderWidgetIr`'s own O(1) dispatch).
+ * embed occurrence (two map lookups plus `renderWidgetIr`'s own O(1) dispatch).
  * @overallScore 100
  */
 function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbedsResult | undefined): string {
   return substituteHtmlEmbeds(html, (ref) => {
-    const ir =
-      (ref.kind === "widget" ? resolved?.widgetResolved.get(ref.id) : resolved?.formResolved.get(ref.id)) ??
-      HTML_EMBED_PLACEHOLDER_IR;
+    const ir = (ref.id !== null ? resolved?.get(ref.type)?.get(ref.id) : undefined) ?? HTML_EMBED_PLACEHOLDER_IR;
     return renderWidgetIr(ir);
   });
 }
@@ -381,7 +419,7 @@ function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbedsResult 
 /**
  * Renders `ctx.post`'s body to HTML, branching on `bodyFormat` (SPEC-047 Slice 1). A `"doc"` post
  * walks its TipTap `bodyJson` exactly as before; an `"html"` Page's `bodyHtml` is bespoke,
- * pre-authored markup — there is no tree to walk, so its `data-widget-embed`/`data-form-embed`
+ * pre-authored markup — there is no tree to walk, so its `data-embed-type`
  * placeholders are substituted by {@link renderHtmlPageBody} (Slice 2) and the result emitted as-is.
  *
  * `body_html` is never HTML-escaped here: SPEC-047/ADR-056's own disclosure (`update-html.ts`'s file
@@ -707,13 +745,47 @@ function renderWidgetPlaceholder(): string {
 }
 
 /**
+ * Renders a resolved `data-embed-type="media"` Page embed (SPEC-047, generalized 2026-08-07) —
+ * `resolver-service.ts`'s `resolveMediaTypeEmbeds` already did the I/O (asset lookup, transform
+ * version lookup) and only ever puts a `"media-image"` IR into its result map once every value
+ * below is a validated primitive, so this function's own `isPlausibleMediaRefId`/`typeof` checks
+ * are defense-in-depth (mirrors `renderExtraFieldAttrs`'s own re-check-even-though-upstream-
+ * validated precedent), not the primary guard. A malformed `props` shape — which should never
+ * happen from this codebase's own resolver, only from some future/foreign IR producer — degrades to
+ * the ordinary widget placeholder rather than emitting a malformed or unsafe `<img>` tag.
+ *
+ * `props.width`/`height`/`cssClass` come through as `JsonValue` (a `WidgetRenderIR.props` is
+ * `JsonObject`, so `null` and `number` both need explicit narrowing) — normalized to
+ * {@link renderImageTag}'s `number | null` / `string | null` contract before delegating, same
+ * "own it once, reuse everywhere" split `renderImageTag`'s own doc describes.
+ */
+function renderWidgetMediaImage(props: JsonObject): string {
+  const assetId = props.assetId;
+  const transformName = props.transformName;
+  const version = props.version;
+  if (
+    typeof assetId !== "string" ||
+    typeof transformName !== "string" ||
+    typeof version !== "number" ||
+    !isPlausibleMediaRefId(assetId) ||
+    !isPlausibleMediaRefId(transformName)
+  ) {
+    return renderWidgetPlaceholder();
+  }
+  const width = typeof props.width === "number" ? props.width : null;
+  const height = typeof props.height === "number" ? props.height : null;
+  const cssClass = typeof props.cssClass === "string" ? props.cssClass : null;
+  return renderImageTag({ assetId, transformName, version, alt: str(props.alt), width, height, cssClass });
+}
+
+/**
  * Renders one resolved widget IR node to HTML. Never throws: an unrecognized `componentId` (a
  * resolver shape this renderer doesn't yet know, or the REQ-27 failure taxonomy reaching here some
  * other way) degrades to the same public-safe placeholder REQ-28 requires, not a crash or an
  * unescaped dump of unknown props.
  *
  * Exported for {@link renderHtmlPageBody} (SPEC-047 Slice 2) — an `"html"`-format Page's
- * `data-widget-embed`/`data-form-embed` targets resolve to the exact same `WidgetRenderIR` shape a
+ * `data-embed-type` targets resolve to the exact same `WidgetRenderIR` shape a
  * region or a TipTap `widgetEmbed` does, so they render through this same function rather than a
  * second implementation.
  */
@@ -731,6 +803,8 @@ export function renderWidgetIr(ir: WidgetRenderIR): string {
       return renderWidgetMenu(ir.props);
     case "contact-form":
       return renderWidgetContactForm(ir.props);
+    case "media-image":
+      return renderWidgetMediaImage(ir.props);
     case "widget-placeholder":
     default:
       return renderWidgetPlaceholder();
@@ -1060,7 +1134,7 @@ export async function renderSite(required: {
    */
   widgets?: ResolvePageWidgetsResult;
   /**
-   * SPEC-047 Slice 2 — an `"html"`-format Page's pre-resolved `data-widget-embed`/`data-form-embed`
+   * SPEC-047 Slice 2 — an `"html"`-format Page's pre-resolved `data-embed-type`
    * targets (`resolver-service.ts`'s `resolveHtmlPageEmbeds`), threaded straight into
    * `SiteRenderContext.pageHtmlEmbeds`. Omitted by every caller/test that never renders a Page with
    * embeds (including a `"doc"` post, which has no use for this at all) — see that field's own doc

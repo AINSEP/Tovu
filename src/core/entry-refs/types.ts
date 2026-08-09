@@ -23,7 +23,7 @@ import type { UUID } from "@jini-ai/cms/core";
  * widget instance's own `fields.ext.widget.*` config, e.g. Contact Form's
  * `formDefinitionId`).
  *
- * `page-html-embed` (SPEC-047 Slice 3) — a `data-widget-embed`/`data-form-embed` placeholder
+ * `page-html-embed` (SPEC-047 Slice 3) — a `data-embed-type` placeholder
  * (`widgets/html-embeds.ts`'s convention) inside an `"html"`-format Page's `body_html`. A distinct
  * kind from `widget-embed` on purpose: the source location is a plain HTML string, not a `bodyJson`
  * TipTap node, and it is populated by `features/pages/html-document-store.ts`'s write path, not the
@@ -31,8 +31,16 @@ import type { UUID } from "@jini-ai/cms/core";
  */
 export type EntryRefSourceKind = "widget-area-placement" | "widget-embed" | "config-field" | "page-html-embed";
 
-/** What kind of thing a reference *targets*. Term-target coverage is narrower than entry-target (SPEC-043 REQ-32). */
-export type EntryRefTargetKind = "entry" | "term";
+/**
+ * What kind of thing a reference *targets*. Term-target coverage is narrower than entry-target
+ * (SPEC-043 REQ-32). `"asset"` (2026-08-07, `IMPLEMENTATION-PLAN-data-embed-type-2026-08-07.md`
+ * §4) is a media asset (`MediaRepoPort`, `@jini-ai/cms/media`) — a genuinely different storage
+ * domain from the generic `entries` graph `"entry"` denotes, so a `data-embed-type="media"` Page
+ * embed is indexed as `"asset"` rather than overloading `"entry"` the way a menu/Forms-definition
+ * reference already does (see `extractHtmlEntryRefs`'s own doc for why that overload was judged
+ * acceptable for those two but not for media).
+ */
+export type EntryRefTargetKind = "entry" | "term" | "asset";
 
 /**
  * One row of the derived `entry_refs` index. Extracted/retracted in the same
