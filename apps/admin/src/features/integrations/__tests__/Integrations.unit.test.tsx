@@ -9,6 +9,12 @@ import { Integrations } from "../Integrations";
  * into a shared `RowMenu`, and Delete's confirmation moved off a blocking `window.confirm` onto
  * the shared `ConfirmDialog`, preserving the exact prior copy ("cannot be undone"). Follows the
  * RTL harness `FormEditor.unit.test.tsx`/`PostEditor.unit.test.tsx` established for this package.
+ *
+ * `Integrations` now also reads the operator's locale via `useAdminLocale()` (a `core.language`
+ * settings-effective GET). Routed to a fixed default-locale response outside `fetchMock`'s own
+ * call queue below (same shim `Members.unit.test.tsx`/`Plugins.unit.test.tsx`/`Users.*.unit.test.tsx`
+ * already use) so `fetchMock.mock.calls` still holds exactly this screen's own requests, in the
+ * order each test already expects — order-independent, unlike seeding a leading queue slot.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -33,7 +39,12 @@ let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  vi.stubGlobal("fetch", fetchMock);
+  vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+    if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) {
+      return Promise.resolve(jsonResponse({ data: [] }));
+    }
+    return fetchMock(url, init);
+  });
 });
 
 afterEach(() => {

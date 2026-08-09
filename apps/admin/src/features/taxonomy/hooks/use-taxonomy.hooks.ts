@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { api, describeApiError, type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "../../../lib/api";
 import { describeDeleteBlocked, findSelectedTerm, type DeleteBlockedState } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../taxonomy-i18n";
 
 /**
  * @file Everything the top-level `Taxonomy` screen does, so `Taxonomy.tsx` is only markup.
@@ -100,6 +102,7 @@ async function runGuardedDelete(
 }
 
 export function useTaxonomy(): TaxonomyController {
+  const locale = useAdminLocale();
   const [taxonomies, setTaxonomies] = useState<AdminTaxonomyWithTerms[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
@@ -122,7 +125,7 @@ export function useTaxonomy(): TaxonomyController {
     api
       .listTaxonomies()
       .then((r) => setTaxonomies(r.items))
-      .catch((e) => setError(describeApiError(e, "failed to load taxonomies")));
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load taxonomies"))));
   }
 
   useEffect(load, []);
@@ -155,7 +158,7 @@ export function useTaxonomy(): TaxonomyController {
       (blocked) => setDeleteTermBlocked({ termId: term.id, state: blocked }),
       setError,
       load,
-      "Failed to delete term",
+      t(locale, "Failed to delete term"),
     );
   }
 
@@ -180,7 +183,7 @@ export function useTaxonomy(): TaxonomyController {
       (blocked) => setDeleteTaxonomyBlocked({ taxonomyId: taxonomy.id, state: blocked }),
       setError,
       load,
-      "Failed to delete taxonomy",
+      t(locale, "Failed to delete taxonomy"),
     );
   }
 

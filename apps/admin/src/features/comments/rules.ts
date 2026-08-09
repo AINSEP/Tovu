@@ -8,6 +8,7 @@ import {
 } from "../../lib/api";
 import { hasPermission } from "../../lib/permissions";
 import type { RowMenuItem } from "@jini-ai/admin/react";
+import { t } from "./comments-i18n";
 
 /**
  * @file Pure logic for the `comments` feature — everything that computes a value rather than
@@ -64,25 +65,45 @@ interface RowMenuPermissions {
   canForceDelete: boolean;
 }
 
-function approveItem(comment: AdminComment, perms: RowMenuPermissions, handlers: CommentRowMenuHandlers): RowMenuItem | null {
+function approveItem(
+  comment: AdminComment,
+  perms: RowMenuPermissions,
+  handlers: CommentRowMenuHandlers,
+  locale: string,
+): RowMenuItem | null {
   if (comment.status === "approved" || !perms.canModerate) return null;
-  return { key: "approve", label: "Approve", onSelect: () => handlers.onModerate(comment, "approve") };
+  return { key: "approve", label: t(locale, "Approve"), onSelect: () => handlers.onModerate(comment, "approve") };
 }
 
-function spamItem(comment: AdminComment, perms: RowMenuPermissions, handlers: CommentRowMenuHandlers): RowMenuItem | null {
+function spamItem(
+  comment: AdminComment,
+  perms: RowMenuPermissions,
+  handlers: CommentRowMenuHandlers,
+  locale: string,
+): RowMenuItem | null {
   if (comment.status === "spam" || !perms.canModerate) return null;
-  return { key: "spam", label: "Spam", onSelect: () => handlers.onModerate(comment, "spam") };
+  return { key: "spam", label: t(locale, "Spam"), onSelect: () => handlers.onModerate(comment, "spam") };
 }
 
-function trashItem(comment: AdminComment, perms: RowMenuPermissions, handlers: CommentRowMenuHandlers): RowMenuItem | null {
+function trashItem(
+  comment: AdminComment,
+  perms: RowMenuPermissions,
+  handlers: CommentRowMenuHandlers,
+  locale: string,
+): RowMenuItem | null {
   if (comment.status === "trash" || !perms.canDelete) return null;
-  return { key: "trash", label: "Trash", onSelect: () => handlers.onModerate(comment, "trash") };
+  return { key: "trash", label: t(locale, "Trash"), onSelect: () => handlers.onModerate(comment, "trash") };
 }
 
-function restoreItem(comment: AdminComment, perms: RowMenuPermissions, handlers: CommentRowMenuHandlers): RowMenuItem | null {
+function restoreItem(
+  comment: AdminComment,
+  perms: RowMenuPermissions,
+  handlers: CommentRowMenuHandlers,
+  locale: string,
+): RowMenuItem | null {
   const isRestorable = comment.status === "spam" || comment.status === "trash";
   if (!isRestorable || !perms.canModerate) return null;
-  return { key: "restore", label: "Restore", onSelect: () => handlers.onModerate(comment, "restore") };
+  return { key: "restore", label: t(locale, "Restore"), onSelect: () => handlers.onModerate(comment, "restore") };
 }
 
 /** REQ-06: purge only ever surfaces from the trash filter view (`currentFilterStatus === "trash"`),
@@ -93,10 +114,11 @@ function purgeItem(
   currentFilterStatus: CommentStatus,
   perms: RowMenuPermissions,
   handlers: CommentRowMenuHandlers,
+  locale: string,
 ): RowMenuItem | null {
   const inTrashFilter = currentFilterStatus === "trash" && comment.status === "trash";
   if (!inTrashFilter || !perms.canForceDelete) return null;
-  return { key: "purge", label: "Purge", destructive: true, onSelect: () => handlers.onRequestPurge(comment) };
+  return { key: "purge", label: t(locale, "Purge"), destructive: true, onSelect: () => handlers.onRequestPurge(comment) };
 }
 
 /** At-rest row actions for `RowMenu` — every condition here is copied verbatim from the inline
@@ -111,6 +133,7 @@ export function commentRowMenuItems(
   comment: AdminComment,
   context: { permissions: readonly string[]; currentFilterStatus: CommentStatus },
   handlers: CommentRowMenuHandlers,
+  locale: string,
 ): RowMenuItem[] {
   const perms: RowMenuPermissions = {
     canModerate: hasPermission(context.permissions, "comments.moderate"),
@@ -119,11 +142,11 @@ export function commentRowMenuItems(
   };
 
   const candidates = [
-    approveItem(comment, perms, handlers),
-    spamItem(comment, perms, handlers),
-    trashItem(comment, perms, handlers),
-    restoreItem(comment, perms, handlers),
-    purgeItem(comment, context.currentFilterStatus, perms, handlers),
+    approveItem(comment, perms, handlers, locale),
+    spamItem(comment, perms, handlers, locale),
+    trashItem(comment, perms, handlers, locale),
+    restoreItem(comment, perms, handlers, locale),
+    purgeItem(comment, context.currentFilterStatus, perms, handlers, locale),
   ];
   return candidates.filter((item): item is RowMenuItem => item !== null);
 }

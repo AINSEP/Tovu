@@ -1,6 +1,7 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import { ApiError, describeApiError, type AdminContentType, type ContentTypeFieldDef } from "../../lib/api";
+import { COLLECTIONS_DICT } from "./collections-i18n";
 
 /**
  * @file Pure logic for the `collections` feature (top-level Collections screen only — see
@@ -201,20 +202,25 @@ export interface ContentTypeRowMenuHandlers {
  *
  * @complexity Time/space: O(1) — at most three entries, no iteration.
  */
-export function contentTypeMenuItems(contentType: AdminContentType, handlers: ContentTypeRowMenuHandlers): RowMenuItem[] {
+export function contentTypeMenuItems(
+  contentType: AdminContentType,
+  handlers: ContentTypeRowMenuHandlers,
+  locale: string,
+): RowMenuItem[] {
+  const t = (key: string): string => COLLECTIONS_DICT[locale]?.[key] ?? key;
   const items: RowMenuItem[] = [
-    { key: "edit-fields", label: "Edit fields", onSelect: () => handlers.onEditFields(contentType) },
+    { key: "edit-fields", label: t("Edit fields"), onSelect: () => handlers.onEditFields(contentType) },
   ];
   if (contentType.status === "active") {
-    items.push({ key: "deprecate", label: "Deprecate", onSelect: () => handlers.onDeprecate(contentType) });
+    items.push({ key: "deprecate", label: t("Deprecate"), onSelect: () => handlers.onDeprecate(contentType) });
   }
   if (contentType.status === "deprecated") {
-    items.push({ key: "reactivate", label: "Reactivate", onSelect: () => handlers.onReactivate(contentType) });
+    items.push({ key: "reactivate", label: t("Reactivate"), onSelect: () => handlers.onReactivate(contentType) });
   }
   if (contentType.status !== "tombstone") {
     items.push({
       key: "tombstone",
-      label: "Tombstone",
+      label: t("Tombstone"),
       destructive: true,
       onSelect: () => handlers.onTombstone(contentType),
     });

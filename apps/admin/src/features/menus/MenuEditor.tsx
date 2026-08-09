@@ -1,5 +1,7 @@
 import type { AdminMenuItem, AdminMenuTarget } from "../../lib/api";
 import { useMenuEditor } from "./hooks/use-menu-editor.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { MENUS_DICT } from "./menus-i18n";
 
 type AdminMenuTargetKind = AdminMenuTarget["kind"];
 
@@ -137,8 +139,9 @@ function ItemRow(props: {
   onRemove: (path: number[]) => void;
   onAddChild: (path: number[]) => void;
   onMove: (path: number[], direction: -1 | 1) => void;
+  t: (key: string) => string;
 }) {
-  const { item, path, onChange, onRemove, onAddChild, onMove } = props;
+  const { item, path, onChange, onRemove, onAddChild, onMove, t } = props;
 
   return (
     <div className="menu-item-row" style={{ marginLeft: path.length * 20 }}>
@@ -152,7 +155,7 @@ function ItemRow(props: {
           <span className="visually-hidden">Item label</span>
           <input
             value={item.label ?? ""}
-            placeholder="Label"
+            placeholder={t("Label")}
             onChange={(e) => onChange(path, (it) => ({ ...it, label: e.target.value }))}
           />
         </label>
@@ -167,10 +170,10 @@ function ItemRow(props: {
               }))
             }
           >
-            <option value="url">URL</option>
-            <option value="route">Route</option>
-            <option value="entryRef">Entry</option>
-            <option value="termRef">Term</option>
+            <option value="url">{t("URL")}</option>
+            <option value="route">{t("Route")}</option>
+            <option value="entryRef">{t("Entry")}</option>
+            <option value="termRef">{t("Term")}</option>
           </select>
         </label>
         <MenuItemTargetFields item={item} path={path} onChange={onChange} />
@@ -183,7 +186,7 @@ function ItemRow(props: {
           ↓
         </button>
         <button className="tb-btn" onClick={() => onAddChild(path)} title="Add child item">
-          + child
+          {t("+ child")}
         </button>
         <button
           className="tb-btn"
@@ -225,6 +228,7 @@ function ItemRow(props: {
           onRemove={onRemove}
           onAddChild={onAddChild}
           onMove={onMove}
+          t={t}
         />
       ))}
     </div>
@@ -251,6 +255,8 @@ export function MenuEditor(props: { menuId: string | null }) {
     addRootItem,
     save,
   } = useMenuEditor(props.menuId);
+  const locale = useAdminLocale();
+  const t = (key: string): string => MENUS_DICT[locale]?.[key] ?? key;
 
   if (error && !isNew && !menu) return <div className="notice error">{error}</div>;
   if (loading) return <div className="notice">Loading menu…</div>;
@@ -259,9 +265,9 @@ export function MenuEditor(props: { menuId: string | null }) {
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">{isNew ? "New menu" : "Edit menu"}</h1>
-          <p className="page-description">Build this menu&apos;s items and where each one links to.</p>
+          <p className="page-kicker">{t("Content")}</p>
+          <h1 className="page-title">{t(isNew ? "New menu" : "Edit menu")}</h1>
+          <p className="page-description">{t("Build this menu's items and where each one links to.")}</p>
         </div>
         <div className="page-actions">
           {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
@@ -275,12 +281,12 @@ export function MenuEditor(props: { menuId: string | null }) {
             }}
           >
             <button type="button" className="btn-secondary">
-              ← Menus
+              ← {t("Menus")}
             </button>
           </a>
           {message ? <span className="save-ok">{message}</span> : null}
           {error ? <span className="save-error">{error}</span> : null}
-          <button onClick={save}>Save</button>
+          <button onClick={save}>{t("Save")}</button>
         </div>
       </div>
       {/* Audit finding: placeholder-only, no `<label>` — same fix as `PostEditor.tsx`'s title/slug
@@ -291,7 +297,7 @@ export function MenuEditor(props: { menuId: string | null }) {
           className="editor-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Menu title"
+          placeholder={t("Menu title")}
         />
       </label>
       <div className="editor-slug">
@@ -311,6 +317,7 @@ export function MenuEditor(props: { menuId: string | null }) {
             onRemove={removeAt}
             onAddChild={addChildAt}
             onMove={moveAt}
+            t={t}
           />
         ))}
         {/* Secondary, not bare/primary — Save in the header is this screen's one primary action;
@@ -318,7 +325,7 @@ export function MenuEditor(props: { menuId: string | null }) {
             `styles.css`'s button-hierarchy comment describes for row actions, just at the
             page level instead of a table row. */}
         <button type="button" className="btn-secondary" onClick={addRootItem}>
-          + Add item
+          {t("+ Add item")}
         </button>
       </div>
     </div>

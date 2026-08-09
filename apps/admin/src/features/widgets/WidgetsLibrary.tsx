@@ -3,6 +3,8 @@ import { WIDGET_TYPE_OPTIONS } from "../../components/WidgetConfigFields/WidgetC
 import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 import { widgetTypeLabel } from "./rules";
 import { useWidgetsLibrary } from "./hooks/use-widgets-library.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { WIDGETS_DICT } from "./widgets-i18n";
 
 /**
  * @file `WidgetsLibraryScreen` (`ui.spec.md` §2.1/§3.1/§4.1) — the widget library/list screen,
@@ -25,13 +27,26 @@ export interface WidgetsLibraryProps {
  *  sent back that couldn't be displayed — pulled out of `WidgetsLibrary`'s own render body as a
  *  top-level component under the tightened ≤9/≤9 pass. `skippedCount`'s own singular/plural
  *  ternary is part of the same extraction, since it only exists inside this notice. */
-export function WidgetsLibraryNotices({ error, skippedCount }: { error: string | null; skippedCount: number }) {
+export function WidgetsLibraryNotices({
+  error,
+  skippedCount,
+  t = (key: string) => key,
+}: {
+  error: string | null;
+  skippedCount: number;
+  /** Translator closure — see `WidgetsLibrary()`'s own `t`. Optional (identity default) since this
+   *  component is exported and unit-tested directly without one — same "default to the real thing,
+   *  a stub renders English" convention every `use*Hook` prop in this app already follows. */
+  t?: (key: string) => string;
+}) {
   return (
     <>
       {error ? <div className="notice error">{error}</div> : null}
       {skippedCount > 0 ? (
         <div className="notice">
-          {skippedCount === 1 ? "1 row could not be displayed." : `${skippedCount} rows could not be displayed.`}
+          {skippedCount === 1
+            ? t("1 row could not be displayed.")
+            : t("{n} rows could not be displayed.").replace("{n}", String(skippedCount))}
         </div>
       ) : null}
     </>
@@ -51,6 +66,8 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWidgetsLibrary }: Wi
     confirmForcePurge,
     trashOrPurge,
   } = useWidgetsLibraryHook();
+  const locale = useAdminLocale();
+  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
 
   if (error && !widgets) return <div className="notice error">{error}</div>;
   if (!widgets) return <div className="notice">Loading widgets…</div>;
@@ -59,14 +76,14 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWidgetsLibrary }: Wi
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">Widgets</h1>
+          <p className="page-kicker">{t("Content")}</p>
+          <h1 className="page-title">{t("Widgets")}</h1>
           <p className="page-description">
-            Create reusable content blocks and place them into your theme's widget regions.
+            {t("Create reusable content blocks and place them into your theme's widget regions.")}
           </p>
         </div>
         <div className="page-actions">
-          <a href="/admin/widgets/regions">Regions →</a>
+          <a href="/admin/widgets/regions">{t("Regions →")}</a>
           <select value={createType} onChange={(e) => setCreateType(e.target.value as AdminWidgetType)} aria-label="Widget type to create">
             {WIDGET_TYPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -75,36 +92,36 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWidgetsLibrary }: Wi
             ))}
           </select>
           <a href={`/admin/widgets/new?type=${createType}`}>
-            <button>Add New</button>
+            <button>{t("Add New")}</button>
           </a>
         </div>
       </div>
-      <WidgetsLibraryNotices error={error} skippedCount={skippedCount} />
+      <WidgetsLibraryNotices error={error} skippedCount={skippedCount} t={t} />
       <DataTable
         rows={widgets}
         rowKey={(widget) => widget.id}
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>No widgets yet.</p>
-              <p className="page-description">Create one above to get started.</p>
+              <p>{t("No widgets yet.")}</p>
+              <p className="page-description">{t("Create one above to get started.")}</p>
             </div>
           </div>
         }
         columns={[
           {
             key: "title",
-            header: "Title",
+            header: t("Title"),
             cell: (widget) => <a href={`/admin/widgets/${widget.id}`}>{widget.title}</a>,
           },
           {
             key: "type",
-            header: "Type",
-            cell: (widget) => widgetTypeLabel(widget.widgetType),
+            header: t("Type"),
+            cell: (widget) => widgetTypeLabel(widget.widgetType, locale),
           },
           {
             key: "status",
-            header: "Status",
+            header: t("Status"),
             cell: (widget) => <span className={`status status-${widget.status}`}>{widget.status}</span>,
           },
           { key: "version", header: "v", cell: (widget) => widget.version },
@@ -114,10 +131,10 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWidgetsLibrary }: Wi
             // with one item is pure overhead over a direct button). Still labeled for
             // accessibility, matching `Roles.tsx`/`Users.tsx`'s existing pattern for an actions
             // column that isn't a bare `<th></th>`.
-            headerLabel: "Actions",
+            headerLabel: t("Actions"),
             cell: (widget) => (
               <button onClick={() => trashOrPurge(widget)}>
-                {widget.status === "active" ? "Trash" : "Delete permanently"}
+                {widget.status === "active" ? t("Trash") : t("Delete permanently")}
               </button>
             ),
           },
@@ -125,17 +142,19 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWidgetsLibrary }: Wi
       />
       <ConfirmDialog
         open={pendingForcePurge !== null}
-        title="Still in use"
+        title={t("Still in use")}
         body={
           pendingForcePurge ? (
             <p>
-              &quot;{pendingForcePurge.widget.title}&quot; is still used in: {pendingForcePurge.summary}.
+              {t('"{title}" is still used in: {summary}.')
+                .replace("{title}", pendingForcePurge.widget.title)
+                .replace("{summary}", pendingForcePurge.summary)}
               <br />
-              Permanently delete anyway? This cannot be undone.
+              {t("Permanently delete anyway? This cannot be undone.")}
             </p>
           ) : null
         }
-        confirmLabel="Permanently delete"
+        confirmLabel={t("Permanently delete")}
         destructive
         pending={forcePurging}
         onConfirm={confirmForcePurge}

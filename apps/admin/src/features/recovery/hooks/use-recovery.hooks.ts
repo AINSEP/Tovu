@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { api, describeApiError, type AdminRecoveryStatus, type AdminRestorePoint } from "../../../lib/api";
 import { parseDeepLinkEnvelope } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../recovery-i18n";
 
 /**
  * @file Everything the Recovery SCREEN (the restore-points list + status/banner) does, so
@@ -29,6 +31,7 @@ export interface RecoveryController {
 }
 
 export function useRecovery(): RecoveryController {
+  const locale = useAdminLocale();
   const [status, setStatus] = useState<AdminRecoveryStatus | null>(null);
   const [points, setPoints] = useState<AdminRestorePoint[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +44,7 @@ export function useRecovery(): RecoveryController {
         setStatus(statusResult);
         setPoints(pointsResult.items);
       })
-      .catch((e) => setError(describeApiError(e, "failed to load Recovery")));
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load Recovery"))));
   }
 
   useEffect(load, []);

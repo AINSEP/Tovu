@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { api, describeApiError, type AdminContentType } from "../../../lib/api";
 import type { LifecycleConfirmOp } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { lifecycleFailureMessage, t } from "../collections-i18n";
 
 /**
  * @file Everything the Collections LIST screen (content-type registry + the three dialogs' open/
@@ -36,6 +38,7 @@ export interface CollectionsController {
 }
 
 export function useCollections(): CollectionsController {
+  const locale = useAdminLocale();
   const [types, setTypes] = useState<AdminContentType[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
@@ -47,7 +50,7 @@ export function useCollections(): CollectionsController {
     api
       .listContentTypes()
       .then((r) => setTypes(r.items))
-      .catch((e) => setError(describeApiError(e, "failed to load content types")));
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load content types"))));
   }
 
   useEffect(load, []);
@@ -58,7 +61,7 @@ export function useCollections(): CollectionsController {
       await api.contentTypeLifecycle({ key: contentType.key, op, expectedVersion: contentType.version });
       load();
     } catch (e) {
-      setActionError(describeApiError(e, `Failed to ${op} "${contentType.label}"`));
+      setActionError(describeApiError(e, lifecycleFailureMessage(locale, op, contentType.label)));
     }
   }
 

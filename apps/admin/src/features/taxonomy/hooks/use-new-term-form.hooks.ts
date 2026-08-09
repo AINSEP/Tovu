@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { api, describeApiError, type AdminTaxonomyWithTerms } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../taxonomy-i18n";
 
 /**
  * @file Everything `NewTermForm` does, so it can stay markup only.
@@ -33,6 +35,7 @@ export interface NewTermFormController {
 }
 
 export function useNewTermForm(options: NewTermFormOptions): NewTermFormController {
+  const locale = useAdminLocale();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [parentId, setParentId] = useState("");
@@ -42,7 +45,7 @@ export function useNewTermForm(options: NewTermFormOptions): NewTermFormControll
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
-      setError("Name is required.");
+      setError(t(locale, "Name is required."));
       return;
     }
     setSaving(true);
@@ -57,7 +60,7 @@ export function useNewTermForm(options: NewTermFormOptions): NewTermFormControll
       setOpen(false);
       options.onCreated();
     } catch (e) {
-      setError(describeApiError(e, "Failed to create term"));
+      setError(describeApiError(e, t(locale, "Failed to create term")));
     } finally {
       setSaving(false);
     }

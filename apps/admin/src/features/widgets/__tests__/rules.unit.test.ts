@@ -20,11 +20,19 @@ describe("widgetTypeLabel", () => {
   it("returns the known type's display label", () => {
     // "text" is one of the five closed v1 types (WIDGET_TYPE_OPTIONS) per widgets/rules.ts's own
     // header comment.
-    expect(widgetTypeLabel("text")).not.toBe("text");
+    expect(widgetTypeLabel("text", "en")).not.toBe("text");
   });
 
   it("falls back to the raw stored value for an unknown type rather than rendering blank", () => {
-    expect(widgetTypeLabel("some-legacy-type")).toBe("some-legacy-type");
+    expect(widgetTypeLabel("some-legacy-type", "en")).toBe("some-legacy-type");
+  });
+
+  it("translates the known type's display label to Spanish when locale is es", () => {
+    expect(widgetTypeLabel("text", "es")).toBe("Texto");
+  });
+
+  it("falls back to the raw stored value for an unknown type in Spanish too", () => {
+    expect(widgetTypeLabel("some-legacy-type", "es")).toBe("some-legacy-type");
   });
 });
 

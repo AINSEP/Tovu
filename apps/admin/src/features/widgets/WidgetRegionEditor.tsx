@@ -1,5 +1,7 @@
 import { WidgetAddControl } from "../../components/WidgetPickerDialog/WidgetPickerDialog";
 import { useWidgetRegionEditor } from "./hooks/use-widget-region-editor.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { WIDGETS_DICT } from "./widgets-i18n";
 
 /**
  * @file `RegionPlacementEditorScreen` + `RegionPlacementList` (`ui.spec.md` §2.5/§2.6/§3.7/§3.8/
@@ -29,17 +31,21 @@ export function WidgetRegionEditorHeaderActions({
   error,
   saving,
   onSave,
+  t = (key: string) => key,
 }: {
   message: string | null;
   error: string | null;
   saving: boolean;
   onSave: () => void;
+  /** Translator closure — see `WidgetRegionEditor()`'s own `t`. Optional (identity default) since
+   *  this component is exported and unit-tested directly without one. */
+  t?: (key: string) => string;
 }) {
   return (
     <div className="page-actions">
       <a href="/admin/widgets/regions">
         <button type="button" className="btn-secondary">
-          ← Regions
+          ← {t("Regions")}
         </button>
       </a>
       {message ? <span className="save-ok">{message}</span> : null}
@@ -49,7 +55,7 @@ export function WidgetRegionEditorHeaderActions({
         </span>
       ) : null}
       <button onClick={onSave} disabled={saving}>
-        {saving ? "Saving…" : "Save"}
+        {saving ? t("Saving…") : t("Save")}
       </button>
     </div>
   );
@@ -59,6 +65,8 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
   const { regionKey, useWidgetRegionEditorHook = useWidgetRegionEditor } = props;
   const { area, placements, message, error, loading, saving, removeAt, moveAt, toggleEnabled, addPlacement, save } =
     useWidgetRegionEditorHook(regionKey);
+  const locale = useAdminLocale();
+  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
 
   if (error && !area) return <div className="notice error">{error}</div>;
   if (loading) return <div className="notice">Loading region…</div>;
@@ -68,18 +76,18 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">Region: {regionKey}</h1>
-          <p className="page-description">Manage which widgets appear in this region and their order.</p>
+          <p className="page-kicker">{t("Content")}</p>
+          <h1 className="page-title">{t("Region:")} {regionKey}</h1>
+          <p className="page-description">{t("Manage which widgets appear in this region and their order.")}</p>
         </div>
-        <WidgetRegionEditorHeaderActions message={message} error={error} saving={saving} onSave={save} />
+        <WidgetRegionEditorHeaderActions message={message} error={error} saving={saving} onSave={save} t={t} />
       </div>
 
       <div className="widget-region-placements">
         {placements.length === 0 ? (
           <div className="card">
             <div className="empty-state">
-              <p>No widgets placed in this region yet.</p>
+              <p>{t("No widgets placed in this region yet.")}</p>
             </div>
           </div>
         ) : (
@@ -87,7 +95,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
             <div key={placement.placementId} className="menu-item-row">
               <div className="menu-item-fields">
                 {placement.broken ? (
-                  <span className="widget-embed-node--broken">⚠ Broken reference</span>
+                  <span className="widget-embed-node--broken">{t("⚠ Broken reference")}</span>
                 ) : (
                   <span>
                     <strong>{placement.widgetTitle}</strong> <span className="muted-cell">({placement.widgetType})</span>
@@ -95,7 +103,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
                 )}
                 <label>
                   <input type="checkbox" checked={placement.enabled} onChange={() => toggleEnabled(placement.placementId)} />
-                  Enabled
+                  {t("Enabled")}
                 </label>
                 <button className="tb-btn" onClick={() => moveAt(i, -1)} title="Move up">
                   ↑
@@ -110,7 +118,7 @@ export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
             </div>
           ))
         )}
-        <WidgetAddControl triggerLabel="+ Add widget" onResolved={(widgetInstanceId) => addPlacement(widgetInstanceId)} />
+        <WidgetAddControl triggerLabel={t("+ Add widget")} onResolved={(widgetInstanceId) => addPlacement(widgetInstanceId)} />
       </div>
     </div>
   );

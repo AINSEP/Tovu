@@ -1,5 +1,7 @@
 import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 import { useMenus } from "./hooks/use-menus.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { MENUS_DICT } from "./menus-i18n";
 
 /**
  * @file Menus admin screens: list view (this file) + tree editor
@@ -23,6 +25,8 @@ export function Menus() {
     trashOrPurge,
     confirmForceDelete,
   } = useMenus();
+  const locale = useAdminLocale();
+  const t = (key: string): string => MENUS_DICT[locale]?.[key] ?? key;
 
   if (error && !menus) return <div className="notice error">{error}</div>;
   if (!menus) return <div className="notice">Loading menus…</div>;
@@ -31,13 +35,13 @@ export function Menus() {
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">Menus</h1>
-          <p className="page-description">Build navigation menus and assign them to your theme's menu locations.</p>
+          <p className="page-kicker">{t("Content")}</p>
+          <h1 className="page-title">{t("Menus")}</h1>
+          <p className="page-description">{t("Build navigation menus and assign them to your theme's menu locations.")}</p>
         </div>
         <div className="page-actions">
           <a href="/admin/menus/new">
-            <button>Add New</button>
+            <button>{t("Add New")}</button>
           </a>
         </div>
       </div>
@@ -48,27 +52,27 @@ export function Menus() {
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>No menus yet.</p>
-              <p className="page-description">Create your first menu to get started.</p>
+              <p>{t("No menus yet.")}</p>
+              <p className="page-description">{t("Create your first menu to get started.")}</p>
             </div>
           </div>
         }
         columns={[
-          { key: "title", header: "Title", cell: (menu) => <a href={`/admin/menus/${menu.id}`}>{menu.title}</a> },
+          { key: "title", header: t("Title"), cell: (menu) => <a href={`/admin/menus/${menu.id}`}>{menu.title}</a> },
           { key: "slug", header: "Slug", cell: (menu) => menu.slug },
           {
             key: "status",
-            header: "Status",
+            header: t("Status"),
             cell: (menu) => <span className={`status status-${menu.status}`}>{menu.status}</span>,
           },
           {
             key: "locations",
-            header: "Locations",
+            header: t("Locations"),
             cell: (menu) => (menu.locations.length ? menu.locations.join(", ") : "—"),
           },
           {
             key: "assign-location",
-            header: "Assign location",
+            header: t("Assign location"),
             cell: (menu) => (
               <>
                 <input
@@ -78,17 +82,17 @@ export function Menus() {
                   }
                   placeholder="e.g. primary"
                 />
-                <button onClick={() => assign(menu.id)}>Assign</button>
+                <button onClick={() => assign(menu.id)}>{t("Assign")}</button>
               </>
             ),
           },
           { key: "version", header: "v", cell: (menu) => menu.version },
           {
             key: "actions",
-            headerLabel: "Actions",
+            headerLabel: t("Actions"),
             cell: (menu) => (
               <button onClick={() => trashOrPurge(menu)}>
-                {menu.status === "trash" ? "Delete permanently" : "Trash"}
+                {menu.status === "trash" ? t("Delete permanently") : t("Trash")}
               </button>
             ),
           },
@@ -96,15 +100,15 @@ export function Menus() {
       />
       <ConfirmDialog
         open={pendingForceDelete !== null}
-        title="Permanently delete menu?"
+        title={t("Permanently delete menu?")}
         body={
           pendingForceDelete ? (
             <p>
-              Permanently delete &quot;{pendingForceDelete.title}&quot;? This cannot be undone.
+              {t('Permanently delete "{title}"? This cannot be undone.').replace("{title}", pendingForceDelete.title)}
             </p>
           ) : null
         }
-        confirmLabel="Permanently delete"
+        confirmLabel={t("Permanently delete")}
         destructive
         pending={forceDeleting}
         onConfirm={confirmForceDelete}

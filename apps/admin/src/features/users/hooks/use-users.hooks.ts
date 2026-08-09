@@ -3,6 +3,8 @@ import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction
 import { api, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "../../../lib/api";
 import { useAsyncAction } from "../../../hooks/use-async-action.hooks";
 import { describeApiError } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { passwordResetNotice, t } from "../users-i18n";
 
 /**
  * @file Everything the Users screen does, so `Users.tsx` is only markup.
@@ -130,6 +132,7 @@ async function runGrantMutation(
 }
 
 export function useUsers(): UsersController {
+  const locale = useAdminLocale();
   const [users, setUsers] = useState<AdminIdentityUser[] | null>(null);
   const [roles, setRoles] = useState<AdminRole[] | null>(null);
   const [policies, setPolicies] = useState<AdminPolicy[] | null>(null);
@@ -173,7 +176,7 @@ export function useUsers(): UsersController {
         setRoles(r.roles);
         setPolicies(p.policies);
       })
-      .catch((e) => setError(describeApiError(e, "failed to load users")));
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load users"))));
   }
 
   useEffect(() => {
@@ -190,7 +193,7 @@ export function useUsers(): UsersController {
       setPassword("");
       setFormOpen(false);
       await reload();
-    }, (e) => describeApiError(e, "failed to create user"));
+    }, (e) => describeApiError(e, t(locale, "failed to create user")));
   }
 
   function toggleExpanded(user: AdminIdentityUser) {
@@ -209,7 +212,7 @@ export function useUsers(): UsersController {
       setGrantSaving,
       setGrantError,
       reload,
-      (e) => describeApiError(e, "failed to assign role"),
+      (e) => describeApiError(e, t(locale, "failed to assign role")),
     );
   }
 
@@ -221,7 +224,7 @@ export function useUsers(): UsersController {
       setGrantSaving,
       setGrantError,
       reload,
-      (e) => describeApiError(e, "failed to attach policy"),
+      (e) => describeApiError(e, t(locale, "failed to attach policy")),
     );
   }
 
@@ -236,7 +239,7 @@ export function useUsers(): UsersController {
       await api.updateUser({ principalId }, { email: editEmail });
       await reload();
     } catch (e) {
-      setGrantError(describeApiError(e, "failed to update email"));
+      setGrantError(describeApiError(e, t(locale, "failed to update email")));
     } finally {
       setEmailSaving(false);
     }
@@ -260,10 +263,10 @@ export function useUsers(): UsersController {
     // `newPassword` are therefore only cleared in the success path below, never as a `finally`.
     await resetPassword.run(async () => {
       await api.resetUserPassword({ principalId: resetPasswordFor.principalId, password: newPassword });
-      setNotice(`Password reset for "${resetPasswordFor.username}" — every active session for this user was revoked.`);
+      setNotice(passwordResetNotice(locale, resetPasswordFor.username));
       setResetPasswordFor(null);
       setNewPassword("");
-    }, (e) => describeApiError(e, "failed to reset password"));
+    }, (e) => describeApiError(e, t(locale, "failed to reset password")));
   }
 
   async function onToggleStatus(user: AdminIdentityUser) {
@@ -277,7 +280,7 @@ export function useUsers(): UsersController {
       }
       await reload();
     } catch (e) {
-      setToggleError(describeApiError(e, "failed to change status"));
+      setToggleError(describeApiError(e, t(locale, "failed to change status")));
     } finally {
       setToggleSavingId(null);
     }

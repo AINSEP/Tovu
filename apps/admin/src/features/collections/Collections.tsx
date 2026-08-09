@@ -5,6 +5,8 @@ import { useCollections } from "./hooks/use-collections.hooks";
 import { useNewContentTypeDialog } from "./hooks/use-new-content-type-dialog.hooks";
 import { useEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";
 import { useLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { COLLECTIONS_DICT } from "./collections-i18n";
 
 /**
  * @file Collections screen (design-spec.md §1, ADR-022/ADR-043) — the `/admin/collections`
@@ -43,12 +45,15 @@ export interface NewContentTypeDialogProps {
   onCancel: () => void;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useNewContentTypeDialogHook?: typeof useNewContentTypeDialog;
+  /** Translator closure — see `Collections()`'s own `t`. */
+  t: (key: string) => string;
 }
 
 function NewContentTypeDialog({
   onCreated,
   onCancel,
   useNewContentTypeDialogHook = useNewContentTypeDialog,
+  t,
 }: NewContentTypeDialogProps) {
   const { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit } =
     useNewContentTypeDialogHook({ onCreated, onCancel });
@@ -63,25 +68,25 @@ function NewContentTypeDialog({
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
       >
-        <h2 id="new-content-type-title">New content type</h2>
+        <h2 id="new-content-type-title">{t("New content type")}</h2>
 
         <div className="field">
-          <label className="field-label" htmlFor="ct-label">Label</label>
+          <label className="field-label" htmlFor="ct-label">{t("Label")}</label>
           <input id="ct-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Recipe" autoFocus />
         </div>
 
         <div className="field">
-          <label className="field-label" htmlFor="ct-key">Key</label>
+          <label className="field-label" htmlFor="ct-key">{t("Key")}</label>
           <input id="ct-key" value={key} onChange={(e) => setKey(e.target.value)} placeholder="e.g. recipe" />
         </div>
 
         <div>
-          <p>Fields</p>
+          <p>{t("Fields")}</p>
           {fields.map((f, index) => (
             <fieldset key={f._rowId} className="collections-field-row">
-              <legend>Field {index + 1}</legend>
+              <legend>{t("Field")} {index + 1}</legend>
               <div className="field">
-                <label className="field-label" htmlFor={`ct-field-name-${f._rowId}`}>Name</label>
+                <label className="field-label" htmlFor={`ct-field-name-${f._rowId}`}>{t("Name")}</label>
                 <input
                   id={`ct-field-name-${f._rowId}`}
                   value={f.name}
@@ -90,7 +95,7 @@ function NewContentTypeDialog({
                 />
               </div>
               <div className="field">
-                <label className="field-label" htmlFor={`ct-field-kind-${f._rowId}`}>Kind</label>
+                <label className="field-label" htmlFor={`ct-field-kind-${f._rowId}`}>{t("Kind")}</label>
                 <select
                   id={`ct-field-kind-${f._rowId}`}
                   value={f.kind}
@@ -109,7 +114,7 @@ function NewContentTypeDialog({
                   checked={f.required}
                   onChange={(e) => updateField(f._rowId, { required: e.target.checked })}
                 />
-                Required
+                {t("Required")}
               </label>
               <label className="form-checkbox-field" title="Adds a database index; keep this list small.">
                 <input
@@ -117,17 +122,17 @@ function NewContentTypeDialog({
                   checked={f.queryable}
                   onChange={(e) => updateField(f._rowId, { queryable: e.target.checked })}
                 />
-                Queryable (adds a database index; keep this list small)
+                {t("Queryable (adds a database index; keep this list small)")}
               </label>
               {fields.length > 1 ? (
                 <button type="button" className="btn-secondary" onClick={() => removeField(f._rowId)}>
-                  Remove field
+                  {t("Remove field")}
                 </button>
               ) : null}
             </fieldset>
           ))}
           <button type="button" className="btn-secondary" onClick={addField}>
-            Add field
+            {t("Add field")}
           </button>
         </div>
 
@@ -139,10 +144,10 @@ function NewContentTypeDialog({
 
         <span className="editor-actions">
           <button type="submit" disabled={saving}>
-            {saving ? "Saving…" : "Create content type"}
+            {saving ? t("Saving…") : t("Create content type")}
           </button>
           <button type="button" className="btn-secondary" onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </button>
         </span>
       </form>
@@ -160,6 +165,8 @@ export interface EditFieldsDialogProps {
   onCancel: () => void;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useEditFieldsDialogHook?: typeof useEditFieldsDialog;
+  /** Translator closure — see `Collections()`'s own `t`. */
+  t: (key: string) => string;
 }
 
 function EditFieldsDialog({
@@ -167,6 +174,7 @@ function EditFieldsDialog({
   onSaved,
   onCancel,
   useEditFieldsDialogHook = useEditFieldsDialog,
+  t,
 }: EditFieldsDialogProps) {
   const { fields, updateField, removeField, addField, error, saving, submit } = useEditFieldsDialogHook({
     contentType,
@@ -184,14 +192,14 @@ function EditFieldsDialog({
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
       >
-        <h2 id="edit-fields-title">Edit fields — {contentType.label}</h2>
+        <h2 id="edit-fields-title">{t("Edit fields —")} {contentType.label}</h2>
 
         <div>
           {fields.map((f, index) => (
             <fieldset key={f._rowId} className="collections-field-row">
-              <legend>Field {index + 1}</legend>
+              <legend>{t("Field")} {index + 1}</legend>
               <div className="field">
-                <label className="field-label" htmlFor={`ct-edit-field-name-${f._rowId}`}>Name</label>
+                <label className="field-label" htmlFor={`ct-edit-field-name-${f._rowId}`}>{t("Name")}</label>
                 <input
                   id={`ct-edit-field-name-${f._rowId}`}
                   value={f.name}
@@ -200,7 +208,7 @@ function EditFieldsDialog({
                 />
               </div>
               <div className="field">
-                <label className="field-label" htmlFor={`ct-edit-field-kind-${f._rowId}`}>Kind</label>
+                <label className="field-label" htmlFor={`ct-edit-field-kind-${f._rowId}`}>{t("Kind")}</label>
                 <select
                   id={`ct-edit-field-kind-${f._rowId}`}
                   value={f.kind}
@@ -219,7 +227,7 @@ function EditFieldsDialog({
                   checked={f.required}
                   onChange={(e) => updateField(f._rowId, { required: e.target.checked })}
                 />
-                Required
+                {t("Required")}
               </label>
               <label className="form-checkbox-field" title="Adds a database index; keep this list small.">
                 <input
@@ -227,15 +235,15 @@ function EditFieldsDialog({
                   checked={f.queryable}
                   onChange={(e) => updateField(f._rowId, { queryable: e.target.checked })}
                 />
-                Queryable (adds a database index; keep this list small)
+                {t("Queryable (adds a database index; keep this list small)")}
               </label>
               <button type="button" className="btn-secondary" onClick={() => removeField(f._rowId)}>
-                Remove field
+                {t("Remove field")}
               </button>
             </fieldset>
           ))}
           <button type="button" className="btn-secondary" onClick={addField}>
-            Add field
+            {t("Add field")}
           </button>
         </div>
 
@@ -247,10 +255,10 @@ function EditFieldsDialog({
 
         <span className="editor-actions">
           <button type="submit" disabled={saving}>
-            {saving ? "Saving…" : "Save fields"}
+            {saving ? t("Saving…") : t("Save fields")}
           </button>
           <button type="button" className="btn-secondary" onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </button>
         </span>
       </form>
@@ -269,6 +277,8 @@ export interface LifecycleConfirmDialogProps {
   onCancel: () => void;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useLifecycleConfirmDialogHook?: typeof useLifecycleConfirmDialog;
+  /** Translator closure — see `Collections()`'s own `t`. */
+  t: (key: string) => string;
 }
 
 function LifecycleConfirmDialog({
@@ -277,6 +287,7 @@ function LifecycleConfirmDialog({
   onConfirm,
   onCancel,
   useLifecycleConfirmDialogHook = useLifecycleConfirmDialog,
+  t,
 }: LifecycleConfirmDialogProps) {
   const { copy, autoFocusCancel } = useLifecycleConfirmDialogHook({ op, onCancel });
 
@@ -304,10 +315,10 @@ function LifecycleConfirmDialog({
             autoFocus={!autoFocusCancel}
             onClick={onConfirm}
           >
-            {op === "deprecate" ? "Deprecate" : "Tombstone"}
+            {op === "deprecate" ? t("Deprecate") : t("Tombstone")}
           </button>
           <button type="button" className="btn-secondary" autoFocus={autoFocusCancel} onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </button>
         </span>
       </div>
@@ -342,6 +353,7 @@ function CollectionsDialogs(props: {
   editingFieldsFor: AdminContentType | null;
   onFieldsSaved: () => void;
   onFieldsCancel: () => void;
+  t: (key: string) => string;
 }) {
   const {
     showNewDialog,
@@ -353,21 +365,23 @@ function CollectionsDialogs(props: {
     editingFieldsFor,
     onFieldsSaved,
     onFieldsCancel,
+    t,
   } = props;
 
   return (
     <>
-      {showNewDialog ? <NewContentTypeDialog onCreated={onNewDialogCreated} onCancel={onNewDialogCancel} /> : null}
+      {showNewDialog ? <NewContentTypeDialog onCreated={onNewDialogCreated} onCancel={onNewDialogCancel} t={t} /> : null}
       {pendingLifecycle ? (
         <LifecycleConfirmDialog
           op={pendingLifecycle.op}
           contentType={pendingLifecycle.contentType}
           onConfirm={() => onLifecycleConfirm(pendingLifecycle.op, pendingLifecycle.contentType)}
           onCancel={onLifecycleCancel}
+          t={t}
         />
       ) : null}
       {editingFieldsFor ? (
-        <EditFieldsDialog contentType={editingFieldsFor} onSaved={onFieldsSaved} onCancel={onFieldsCancel} />
+        <EditFieldsDialog contentType={editingFieldsFor} onSaved={onFieldsSaved} onCancel={onFieldsCancel} t={t} />
       ) : null}
     </>
   );
@@ -387,6 +401,8 @@ export function Collections({ useCollectionsHook = useCollections }: Collections
     load,
     runLifecycle,
   } = useCollectionsHook();
+  const locale = useAdminLocale();
+  const t = (key: string): string => COLLECTIONS_DICT[locale]?.[key] ?? key;
 
   if (error && !types) return <div className="notice error">{error}</div>;
   if (!types) return <div className="notice">Loading content types…</div>;
@@ -395,12 +411,12 @@ export function Collections({ useCollectionsHook = useCollections }: Collections
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">Collections</h1>
-          <p className="page-description">Content types you define, each with its own set of entries.</p>
+          <p className="page-kicker">{t("Content")}</p>
+          <h1 className="page-title">{t("Collections")}</h1>
+          <p className="page-description">{t("Content types you define, each with its own set of entries.")}</p>
         </div>
         <div className="page-actions">
-          <button onClick={() => setShowNewDialog(true)}>New content type</button>
+          <button onClick={() => setShowNewDialog(true)}>{t("New content type")}</button>
         </div>
       </div>
 
@@ -413,42 +429,46 @@ export function Collections({ useCollectionsHook = useCollections }: Collections
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>No Collections yet.</p>
-              <p className="page-description">Create your first content type to start adding entries.</p>
+              <p>{t("No Collections yet.")}</p>
+              <p className="page-description">{t("Create your first content type to start adding entries.")}</p>
             </div>
           </div>
         }
         columns={[
-          { key: "label", header: "Label", cell: (ct) => ct.label },
-          { key: "key", header: "Key", cell: (ct) => <code>{ct.key}</code> },
-          { key: "fields", header: "Fields", cell: (ct) => ct.fields.length },
+          { key: "label", header: t("Label"), cell: (ct) => ct.label },
+          { key: "key", header: t("Key"), cell: (ct) => <code>{ct.key}</code> },
+          { key: "fields", header: t("Fields"), cell: (ct) => ct.fields.length },
           {
             key: "queryable-fields",
-            header: "Queryable fields",
+            header: t("Queryable fields"),
             cell: (ct) => ct.fields.filter((f) => f.queryable).length,
           },
           {
             key: "status",
-            header: "Status",
+            header: t("Status"),
             cell: (ct) => <span className={`status status-${ct.status}`}>{ct.status}</span>,
           },
           {
             key: "entries",
-            header: "Entries",
-            cell: (ct) => <a href={`/admin/collections/${ct.key}`}>Manage entries</a>,
+            header: t("Entries"),
+            cell: (ct) => <a href={`/admin/collections/${ct.key}`}>{t("Manage entries")}</a>,
           },
           {
             key: "actions",
-            header: "More",
+            header: t("More"),
             cell: (ct) => (
               <RowMenu
                 triggerLabel={`Actions for content type "${ct.label}"`}
-                items={contentTypeMenuItems(ct, {
-                  onEditFields: setEditingFieldsFor,
-                  onDeprecate: (contentType) => setPendingLifecycle({ op: "deprecate", contentType }),
-                  onReactivate: (contentType) => void runLifecycle(contentType, "reactivate"),
-                  onTombstone: (contentType) => setPendingLifecycle({ op: "tombstone", contentType }),
-                })}
+                items={contentTypeMenuItems(
+                  ct,
+                  {
+                    onEditFields: setEditingFieldsFor,
+                    onDeprecate: (contentType) => setPendingLifecycle({ op: "deprecate", contentType }),
+                    onReactivate: (contentType) => void runLifecycle(contentType, "reactivate"),
+                    onTombstone: (contentType) => setPendingLifecycle({ op: "tombstone", contentType }),
+                  },
+                  locale,
+                )}
               />
             ),
           },
@@ -474,6 +494,7 @@ export function Collections({ useCollectionsHook = useCollections }: Collections
           load();
         }}
         onFieldsCancel={() => setEditingFieldsFor(null)}
+        t={t}
       />
     </div>
   );

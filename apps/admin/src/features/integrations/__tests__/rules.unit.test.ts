@@ -47,25 +47,32 @@ describe("integrationRowMenuItems", () => {
   const handlers = { onTogglePause: vi.fn(), onDelete: vi.fn() };
 
   it("an active subscription's pause item reads Pause", () => {
-    const items = integrationRowMenuItems(SUBSCRIPTION, handlers);
+    const items = integrationRowMenuItems(SUBSCRIPTION, handlers, "en");
     expect(items.find((i) => i.key === "pause")?.label).toBe("Pause");
   });
 
   it("a paused subscription's pause item reads Resume", () => {
-    const items = integrationRowMenuItems({ ...SUBSCRIPTION, status: "paused" }, handlers);
+    const items = integrationRowMenuItems({ ...SUBSCRIPTION, status: "paused" }, handlers, "en");
     expect(items.find((i) => i.key === "pause")?.label).toBe("Resume");
   });
 
   it("delete is marked destructive; both items wire through to their handlers", () => {
     handlers.onTogglePause.mockClear();
     handlers.onDelete.mockClear();
-    const items = integrationRowMenuItems(SUBSCRIPTION, handlers);
+    const items = integrationRowMenuItems(SUBSCRIPTION, handlers, "en");
     const del = items.find((i) => i.key === "delete")!;
     expect(del.destructive).toBe(true);
     items.find((i) => i.key === "pause")!.onSelect();
     del.onSelect();
     expect(handlers.onTogglePause).toHaveBeenCalledWith(SUBSCRIPTION);
     expect(handlers.onDelete).toHaveBeenCalledWith(SUBSCRIPTION);
+  });
+
+  it("translates labels to Spanish when locale is es", () => {
+    const items = integrationRowMenuItems(SUBSCRIPTION, handlers, "es");
+    expect(items.map((i) => i.label)).toEqual(["Pausar", "Eliminar"]);
+    const paused = integrationRowMenuItems({ ...SUBSCRIPTION, status: "paused" }, handlers, "es");
+    expect(paused.find((i) => i.key === "pause")?.label).toBe("Reanudar");
   });
 });
 

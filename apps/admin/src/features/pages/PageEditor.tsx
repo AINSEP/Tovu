@@ -1,4 +1,4 @@
-import { ConfirmDialog } from "@jini-ai/admin/react";
+import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
 import { SrcDocSandbox } from "@jini-ai/renderers-react";
 
 import { siteUrl } from "../../lib/site-url";
@@ -14,11 +14,16 @@ import {
  * @file The Pages editor — markup only. State lives in `hooks/use-page-editor.hooks.ts`.
  *
  * **There is no Tiptap here, and there never will be.** A Page is a bespoke HTML document; the
- * editing surface is the rendered preview plus the raw HTML behind it. Posts keep Tiptap in
- * `features/posts/PostEditor.tsx`, which this screen replaces for `kind: "page"` entries — that
- * screen was previously reached for Pages too, differing only by a `kindLabel === "page"` ternary on
- * its heading while still mounting the Tiptap toolbar over a document Tiptap would silently
- * mangle.
+ * editing surfaces are the rendered preview, the raw HTML behind it, and — the "Interactive" tab —
+ * a GrapesJS-backed visual surface for clicking into rendered text and editing it in place
+ * (`@jini-ai/admin/react`'s `InteractiveHtmlEditor`). GrapesJS does not contradict the "no Tiptap"
+ * invariant: it edits and exports raw HTML directly, `html`/`setHtml` above stay the single source
+ * of truth, and there is no parallel structured-document format the way Tiptap's `bodyJson` would
+ * be — text editing and basic formatting only this pass, not Gutenberg-style block manipulation.
+ * Posts keep Tiptap in `features/posts/PostEditor.tsx`, which this screen replaces for `kind:
+ * "page"` entries — that screen was previously reached for Pages too, differing only by a
+ * `kindLabel === "page"` ternary on its heading while still mounting the Tiptap toolbar over a
+ * document Tiptap would silently mangle.
  *
  * The chat that drives generation is NOT in this component. It is the workspace assistant dock,
  * which `App.tsx` renders outside the route switch and ADR-049 pins to never unmount — so it is the
@@ -27,7 +32,8 @@ import {
  * would fork that conversation for no gain.
  */
 export interface PageEditorProps {
-  pageId: string;
+  /** The page's slug, as it appears in the URL. Also accepts a legacy id — see `usePageEditor`. */
+  slug: string;
   /** DI seam for tests — same convention as `Pages.tsx`'s `usePagesHook`. */
   usePageEditorHook?: typeof usePageEditor;
 }
@@ -39,8 +45,9 @@ const DEVICES: ReadonlyArray<{ key: PagePreviewDevice; label: string }> = [
 ];
 
 const VIEWS: ReadonlyArray<{ key: PageEditorView; label: string }> = [
-  { key: "preview", label: "Preview" },
   { key: "html", label: "HTML" },
+  { key: "interactive", label: "Interactive" },
+  { key: "preview", label: "Preview" },
 ];
 
 /**
@@ -125,7 +132,7 @@ function PageEditorHeader({
   );
 }
 
-export function PageEditor({ pageId, usePageEditorHook = usePageEditor }: PageEditorProps) {
+export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor }: PageEditorProps) {
   const {
     page,
     error,
@@ -149,7 +156,7 @@ export function PageEditor({ pageId, usePageEditorHook = usePageEditor }: PageEd
     confirmingDelete,
     setConfirmingDelete,
     deleting,
-  } = usePageEditorHook(pageId);
+  } = usePageEditorHook(routeSlug);
 
   if (error && !page) return <div className="notice error">{error}</div>;
   if (!page) return <div className="notice">Loading editor…</div>;
@@ -227,6 +234,10 @@ export function PageEditor({ pageId, usePageEditorHook = usePageEditor }: PageEd
 
       {view === "preview" ? (
         <PagePreview html={html} width={PAGE_PREVIEW_WIDTHS[device]} />
+      ) : view === "interactive" ? (
+        // Remounts with fresh `html` on every tab switch — see `InteractiveHtmlEditor`'s own file
+        // header for why it reads `html` once at mount rather than reacting to later prop changes.
+        <InteractiveHtmlEditor html={html} onChange={setHtml} />
       ) : (
         <textarea
           className="page-html-source"

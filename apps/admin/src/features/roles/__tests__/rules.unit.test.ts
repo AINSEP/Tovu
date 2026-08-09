@@ -59,7 +59,7 @@ describe("describeApiError", () => {
 
 describe("roleMenuItems", () => {
   it("returns exactly Rename then Delete, with Delete marked destructive", () => {
-    const items = roleMenuItems(ROLE, { onRename: vi.fn(), onDelete: vi.fn() });
+    const items = roleMenuItems(ROLE, { onRename: vi.fn(), onDelete: vi.fn() }, "en");
     expect(items.map((i) => i.key)).toEqual(["rename", "delete"]);
     expect(items[0]).toMatchObject({ label: "Rename" });
     expect(items[1]).toMatchObject({ label: "Delete", destructive: true });
@@ -68,7 +68,7 @@ describe("roleMenuItems", () => {
   it("wires Rename's onSelect to onRename with the role, not onDelete", () => {
     const onRename = vi.fn();
     const onDelete = vi.fn();
-    const items = roleMenuItems(ROLE, { onRename, onDelete });
+    const items = roleMenuItems(ROLE, { onRename, onDelete }, "en");
     items[0].onSelect?.();
     expect(onRename).toHaveBeenCalledWith(ROLE);
     expect(onDelete).not.toHaveBeenCalled();
@@ -77,58 +77,68 @@ describe("roleMenuItems", () => {
   it("wires Delete's onSelect to onDelete with the role, not onRename", () => {
     const onRename = vi.fn();
     const onDelete = vi.fn();
-    const items = roleMenuItems(ROLE, { onRename, onDelete });
+    const items = roleMenuItems(ROLE, { onRename, onDelete }, "en");
     items[1].onSelect?.();
     expect(onDelete).toHaveBeenCalledWith(ROLE);
     expect(onRename).not.toHaveBeenCalled();
+  });
+
+  it("translates labels to Spanish when locale is es", () => {
+    const items = roleMenuItems(ROLE, { onRename: vi.fn(), onDelete: vi.fn() }, "es");
+    expect(items.map((i) => i.label)).toEqual(["Renombrar", "Eliminar"]);
   });
 });
 
 describe("policyMenuItems", () => {
   it("returns exactly Rename, permission-toggle, then Delete", () => {
-    const items = policyMenuItems(POLICY, null, {
-      onRename: vi.fn(),
-      onTogglePermissionForm: vi.fn(),
-      onDelete: vi.fn(),
-    });
+    const items = policyMenuItems(
+      POLICY,
+      null,
+      { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
+      "en",
+    );
     expect(items.map((i) => i.key)).toEqual(["rename", "permission", "delete"]);
     expect(items[2]).toMatchObject({ label: "Delete", destructive: true });
   });
 
   it("labels the toggle 'Add permission' when this policy's form is not open", () => {
-    const items = policyMenuItems(POLICY, null, {
-      onRename: vi.fn(),
-      onTogglePermissionForm: vi.fn(),
-      onDelete: vi.fn(),
-    });
+    const items = policyMenuItems(
+      POLICY,
+      null,
+      { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
+      "en",
+    );
     expect(items[1].label).toBe("Add permission");
   });
 
   it("labels the toggle 'Add permission' when a DIFFERENT policy's form is open", () => {
-    const items = policyMenuItems(POLICY, "some-other-policy-id", {
-      onRename: vi.fn(),
-      onTogglePermissionForm: vi.fn(),
-      onDelete: vi.fn(),
-    });
+    const items = policyMenuItems(
+      POLICY,
+      "some-other-policy-id",
+      { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
+      "en",
+    );
     expect(items[1].label).toBe("Add permission");
   });
 
   it("labels the toggle 'Close' when THIS policy's form is open", () => {
-    const items = policyMenuItems(POLICY, POLICY.id, {
-      onRename: vi.fn(),
-      onTogglePermissionForm: vi.fn(),
-      onDelete: vi.fn(),
-    });
+    const items = policyMenuItems(
+      POLICY,
+      POLICY.id,
+      { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
+      "en",
+    );
     expect(items[1].label).toBe("Close");
   });
 
   it("wires the toggle's onSelect to onTogglePermissionForm with the policy id", () => {
     const onTogglePermissionForm = vi.fn();
-    const items = policyMenuItems(POLICY, null, {
-      onRename: vi.fn(),
-      onTogglePermissionForm,
-      onDelete: vi.fn(),
-    });
+    const items = policyMenuItems(
+      POLICY,
+      null,
+      { onRename: vi.fn(), onTogglePermissionForm, onDelete: vi.fn() },
+      "en",
+    );
     items[1].onSelect?.();
     expect(onTogglePermissionForm).toHaveBeenCalledWith(POLICY.id);
   });
@@ -136,10 +146,28 @@ describe("policyMenuItems", () => {
   it("wires Rename and Delete to the policy, independently of each other", () => {
     const onRename = vi.fn();
     const onDelete = vi.fn();
-    const items = policyMenuItems(POLICY, null, { onRename, onTogglePermissionForm: vi.fn(), onDelete });
+    const items = policyMenuItems(POLICY, null, { onRename, onTogglePermissionForm: vi.fn(), onDelete }, "en");
     items[0].onSelect?.();
     items[2].onSelect?.();
     expect(onRename).toHaveBeenCalledWith(POLICY);
     expect(onDelete).toHaveBeenCalledWith(POLICY);
+  });
+
+  it("translates labels to Spanish when locale is es, including the toggle's open/closed state", () => {
+    const closedItems = policyMenuItems(
+      POLICY,
+      null,
+      { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
+      "es",
+    );
+    expect(closedItems.map((i) => i.label)).toEqual(["Renombrar", "Agregar permiso", "Eliminar"]);
+
+    const openItems = policyMenuItems(
+      POLICY,
+      POLICY.id,
+      { onRename: vi.fn(), onTogglePermissionForm: vi.fn(), onDelete: vi.fn() },
+      "es",
+    );
+    expect(openItems[1].label).toBe("Cerrar");
   });
 });

@@ -2,6 +2,8 @@ import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 
 import { api, describeApiError, type AdminComment, type CommentModerationAction, type CommentStatus } from "../../../lib/api";
 import { describeModerationError, emptyRowState, type RowActionState } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../comments-i18n";
 
 /**
  * @file `QueueSection`'s moderation-queue state — status filter, keyset-cursor paging, per-row
@@ -36,6 +38,7 @@ export interface CommentQueueController {
 }
 
 export function useCommentQueue(): CommentQueueController {
+  const locale = useAdminLocale();
   const [status, setStatus] = useState<CommentStatus>("pending");
   const [items, setItems] = useState<AdminComment[] | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -65,7 +68,7 @@ export function useCommentQueue(): CommentQueueController {
         setItems((current) => (reset || !current ? r.items : [...current, ...r.items]));
         setNextCursor(r.nextCursor);
       })
-      .catch((e) => setError(describeApiError(e, "failed to load the moderation queue")))
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load the moderation queue"))))
       .finally(() => setLoadingMore(false));
   }
 
@@ -115,7 +118,7 @@ export function useCommentQueue(): CommentQueueController {
       await api.purgeComment({ commentId: comment.id });
       reloadFirstPage();
     } catch (e) {
-      patchRowState(comment.id, { busy: false, error: describeApiError(e, "Failed to purge comment.") });
+      patchRowState(comment.id, { busy: false, error: describeApiError(e, t(locale, "Failed to purge comment.")) });
     } finally {
       setPendingPurge(null);
     }

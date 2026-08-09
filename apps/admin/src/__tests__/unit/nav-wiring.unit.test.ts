@@ -59,13 +59,38 @@ describe("'authentication' sits directly between 'users' and 'roles' in the Peop
   });
 });
 
+describe("Plugins nav section", () => {
+  it("exists with exactly Installed, Marketplace, Agent Plugins in that order", () => {
+    const plugins = getNav().find((group) => group.label === "Plugins");
+    expect(plugins).toBeDefined();
+
+    const ids = plugins!.items.map((item) => item.id);
+    expect(ids).toEqual(["plugins", "plugins-marketplace", "agent-plugins"]);
+  });
+
+  it("agent-plugins is a real clickable preview link, not an inert 'soon' label", () => {
+    const plugins = getNav().find((group) => group.label === "Plugins");
+    const item = plugins!.items.find((i) => i.id === "agent-plugins");
+
+    expect(item).toBeDefined();
+    expect(item?.label).toBe("Agent Plugins");
+    expect(item?.soon).toBe(true);
+    expect(item?.soonPreviewable).toBe(true);
+  });
+});
+
 describe("Commerce nav section", () => {
-  it("exists with exactly Payments, Orders, Products, Subscriptions in that order", () => {
+  it("exists with exactly Payments, Orders, Products, Subscriptions, Billing in that order", () => {
     const commerce = getNav().find((group) => group.label === "Commerce");
     expect(commerce).toBeDefined();
 
+    // `billing` appended 2026-08-06 (owner request). Updated rather than loosened to a
+    // `toContain`/length check: an exact-order assertion is the only thing that catches a panel
+    // silently changing group or drifting up the array, which is precisely what the sibling
+    // "no longer lists Payments under People" case below exists to guard. Weakening it to
+    // accommodate one new row would retire that guarantee for every row.
     const ids = commerce!.items.map((item) => item.id);
-    expect(ids).toEqual(["payments", "orders", "products", "subscriptions"]);
+    expect(ids).toEqual(["payments", "orders", "products", "subscriptions", "billing"]);
   });
 
   it("no longer lists Payments under People", () => {

@@ -2,6 +2,8 @@ import { DataTable } from "@jini-ai/admin/react";
 
 import { displayTimestamp } from "./rules";
 import { useIntegrationDeliveries } from "./hooks/use-integration-deliveries.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { t } from "./integrations-i18n";
 
 /**
  * @file The webhook delivery-log screen — markup only.
@@ -23,19 +25,20 @@ export function IntegrationDeliveries({
   subscriptionId,
   useIntegrationDeliveriesHook = useIntegrationDeliveries,
 }: IntegrationDeliveriesProps) {
+  const locale = useAdminLocale();
   const { deliveries, error } = useIntegrationDeliveriesHook(subscriptionId);
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!deliveries) return <div className="notice">Loading delivery log…</div>;
+  if (!deliveries) return <div className="notice">{t(locale, "Loading delivery log…")}</div>;
 
   return (
     <div className="page">
-      <a href="/admin/integrations">← Integrations</a>
+      <a href="/admin/integrations">{t(locale, "← Integrations")}</a>
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Operations</p>
-          <h1 className="page-title">Delivery log</h1>
-          <p className="page-description">Every delivery attempt logged for this webhook subscription.</p>
+          <p className="page-kicker">{t(locale, "Operations")}</p>
+          <h1 className="page-title">{t(locale, "Delivery log")}</h1>
+          <p className="page-description">{t(locale, "Every delivery attempt logged for this webhook subscription.")}</p>
         </div>
       </div>
       <DataTable
@@ -44,22 +47,22 @@ export function IntegrationDeliveries({
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>No deliveries yet for this subscription.</p>
+              <p>{t(locale, "No deliveries yet for this subscription.")}</p>
             </div>
           </div>
         }
         columns={[
           {
             key: "status",
-            header: "Status",
+            header: t(locale, "Status"),
             cell: (delivery) => (
               <span className={`status status-delivery-${delivery.status}`}>{delivery.status}</span>
             ),
           },
-          { key: "attempts", header: "Attempts", cell: (delivery) => delivery.attempts },
+          { key: "attempts", header: t(locale, "Attempts"), cell: (delivery) => delivery.attempts },
           {
             key: "last-response",
-            header: "Last response",
+            header: t(locale, "Last response"),
             cell: (delivery) => (
               <>
                 {delivery.lastResponseStatus ?? "—"}
@@ -67,7 +70,7 @@ export function IntegrationDeliveries({
               </>
             ),
           },
-          { key: "timestamp", header: "Timestamp", cell: (delivery) => displayTimestamp(delivery) },
+          { key: "timestamp", header: t(locale, "Timestamp"), cell: (delivery) => displayTimestamp(delivery) },
         ]}
       />
     </div>

@@ -18,19 +18,28 @@ function banner(overrides: Partial<AdminDegradedBanner> = {}): AdminDegradedBann
 
 describe("categoryLabel", () => {
   it("maps posts_pages to its human label", () => {
-    expect(categoryLabel("posts_pages")).toBe("posts/pages writes");
+    expect(categoryLabel("posts_pages", "en")).toBe("posts/pages writes");
   });
 
   it("maps plugin_table to its human label", () => {
-    expect(categoryLabel("plugin_table")).toBe("plugin-table rows");
+    expect(categoryLabel("plugin_table", "en")).toBe("plugin-table rows");
   });
 
   it("falls back to '<category> writes' for an untaught category, rather than throwing or returning undefined", () => {
-    expect(categoryLabel("taxonomy_terms")).toBe("taxonomy_terms writes");
+    expect(categoryLabel("taxonomy_terms", "en")).toBe("taxonomy_terms writes");
   });
 
   it("falls back for an empty-string category too", () => {
-    expect(categoryLabel("")).toBe(" writes");
+    expect(categoryLabel("", "en")).toBe(" writes");
+  });
+
+  it("translates known categories to Spanish when locale is es", () => {
+    expect(categoryLabel("posts_pages", "es")).toBe("escrituras de posts/páginas");
+    expect(categoryLabel("plugin_table", "es")).toBe("filas de tablas de plugins");
+  });
+
+  it("falls back to a Spanish '<category> writes' template for an untaught category in es", () => {
+    expect(categoryLabel("taxonomy_terms", "es")).toBe("escrituras de taxonomy_terms");
   });
 });
 

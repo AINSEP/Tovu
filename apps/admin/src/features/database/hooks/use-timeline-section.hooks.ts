@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, describeApiError, type AdminLedgerRow } from "../../../lib/api";
 import { navigate } from "../../../lib/router";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../database-i18n";
 
 /**
  * @file Everything `TimelineSection` (the Database screen's ledger browser) does, so
@@ -57,6 +59,7 @@ export interface TimelineSectionController {
 }
 
 export function useTimelineSection(): TimelineSectionController {
+  const locale = useAdminLocale();
   const [rows, setRows] = useState<AdminLedgerRow[] | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +83,7 @@ export function useTimelineSection(): TimelineSectionController {
         setRows((current) => (reset || !current ? r.items : [...current, ...r.items]));
         setNextCursor(r.nextCursor);
       })
-      .catch((e) => setError(describeApiError(e, "failed to load the Database Timeline")))
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load the Database Timeline"))))
       .finally(() => setLoadingMore(false));
   }
 

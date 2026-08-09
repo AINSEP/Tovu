@@ -18,6 +18,8 @@ import { createTovuAssistantTransport } from "../../lib/assistant-transport";
 import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
 import { hasUsableAdminKey } from "../../lib/execution-settings";
 import { useWiredAssistantChats, type UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { ASSISTANT_DOCK_DICT, createChatI18nAdapter } from "./assistant-dock-i18n";
 import "../../styles/assistant.css";
 // The runtime picker's BYOK model row renders `@jini-ai/ui`'s `SearchableModelSelect`, whose
 // styles (including the body-portaled `.jini-select-menu`) live in this sheet. The settings
@@ -209,6 +211,16 @@ export function AssistantDock({
   useByokRuntime: useByokRuntimeState = useByokRuntime,
   useLocalCliSelection: useLocalCliSelectionState = useLocalCliSelection,
 }: AssistantDockProps) {
+  /**
+   * Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)
+   * and — via `createChatI18nAdapter` — the `ConversationList` switcher mounted in `header` below.
+   * `useAdminLocale()` is the same shared hook every other translated admin screen uses; see its
+   * own doc comment for the live-refresh behavior.
+   */
+  const locale = useAdminLocale();
+  const t = (key: string): string => ASSISTANT_DOCK_DICT[locale]?.[key] ?? key;
+  const chatI18n = useMemo(() => createChatI18nAdapter(locale), [locale]);
+
   const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded } = useExecutionConfigState();
   const { byokRuntime, handleByokModelChange } = useByokRuntimeState({ executionConfig, setExecutionConfig });
   const { localCliSelection, handleLocalCliSelectionChange } = useLocalCliSelectionState({
@@ -313,7 +325,7 @@ export function AssistantDock({
   );
 
   return (
-    <JiniChatProvider transport={transport}>
+    <JiniChatProvider transport={transport} i18n={chatI18n}>
       {/* ChatPane takes `transport` directly as well as via the provider — the package's
           components read their dependencies from props, not implicitly from context. */}
       <ChatPane
@@ -373,7 +385,7 @@ export function AssistantDock({
         header={
           <div className="jini-chat-pane__header">
             <div className="jini-chat-pane__heading">
-              <span className="jini-chat-pane__eyebrow">Workspace chat</span>
+              <span className="jini-chat-pane__eyebrow">{t("Workspace chat")}</span>
               {/* Was an `<h1>` — the dock mounts on every route (ADR-049, one conversation for
                   the whole session), so every admin screen had two `<h1>`s: its own page title
                   and this one, with no signal to a screen-reader user navigating by heading which
@@ -383,7 +395,7 @@ export function AssistantDock({
                   type, drive this component's styling (`styles/assistant.css`), so the tag change
                   is visually inert. */}
               <h2 className="jini-chat-pane__title">
-                {chats.conversations.find((c) => c.id === chats.activeId)?.title ?? "Tovu assistant"}
+                {chats.conversations.find((c) => c.id === chats.activeId)?.title ?? t("Tovu assistant")}
               </h2>
             </div>
             <ConversationList
@@ -396,8 +408,8 @@ export function AssistantDock({
             />
           </div>
         }
-        title="Tovu assistant"
-        placeholder="Ask the assistant to do something…"
+        title={t("Tovu assistant")}
+        placeholder={t("Ask the assistant to do something…")}
         onMessagesChange={handleMessagesChange}
         runContext={runContext}
         uploadAttachments={uploadAttachments}

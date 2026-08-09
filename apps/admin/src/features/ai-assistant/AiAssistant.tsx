@@ -18,6 +18,10 @@ import { useAdminExecutionCredential } from "../../hooks/use-admin-execution-cre
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { useAiAssistant } from "./hooks/use-ai-assistant.hooks";
 import { useVisitorCredentialForm, type VisitorCredentialFormController } from "./hooks/use-visitor-credential-form.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
+import { AI_ASSISTANT_DICT } from "./ai-assistant-i18n";
+import { useAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
 
 /**
  * @file "AI Assistant" admin screen — the `/admin/ai-assistant` route. Markup only.
@@ -104,13 +108,14 @@ function TabIcon({ children }: { children: React.ReactNode }) {
   );
 }
 
-function RoadmapChecklist() {
+function RoadmapChecklist({ t = (key: string) => key }: { t?: (key: string) => string }) {
   return (
     <section className="assistant-roadmap">
-      <h2>Not built yet</h2>
+      <h2>{t("Not built yet")}</h2>
       <p className="muted-cell">
-        These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today
-        means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.
+        {t(
+          "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.",
+        )}
       </p>
       {ROADMAP.map((item) => (
         <details key={item.key}>
@@ -118,10 +123,10 @@ function RoadmapChecklist() {
             {/* Disabled and unchecked: this is a status marker, not a control. A live-looking
                 checkbox here would imply the feature can be enabled from this screen. */}
             <input type="checkbox" checked={false} disabled readOnly aria-hidden="true" tabIndex={-1} />
-            <span>{item.label}</span>
-            <span className="assistant-roadmap-tag">Not implemented</span>
+            <span>{t(item.label)}</span>
+            <span className="assistant-roadmap-tag">{t("Not implemented")}</span>
           </summary>
-          <p className="muted-cell">{item.detail}</p>
+          <p className="muted-cell">{t(item.detail)}</p>
         </details>
       ))}
     </section>
@@ -151,9 +156,15 @@ interface AdminAssistantSwitchProps {
    * `usePostsHook` uses. Defaulted to the real hook, so production callers pass nothing.
    */
   useAdminAssistantSwitchHook?: typeof useAdminAssistantSwitch;
+  /** `AiAssistant`'s own `t`, threaded rather than read here via `useAdminLocale()` directly — see
+   *  that component's own comment for why. Defaults to English passthrough. */
+  t?: (key: string) => string;
 }
 
-function AdminAssistantSwitch({ useAdminAssistantSwitchHook = useAdminAssistantSwitch }: AdminAssistantSwitchProps = {}) {
+function AdminAssistantSwitch({
+  useAdminAssistantSwitchHook = useAdminAssistantSwitch,
+  t = (key: string) => key,
+}: AdminAssistantSwitchProps = {}) {
   const { open, setOpen } = useAdminAssistantSwitchHook();
 
   // No `.notice` wrapper, matching the Visitor tab's switch: this screen's `--page-flow` block
@@ -163,16 +174,17 @@ function AdminAssistantSwitch({ useAdminAssistantSwitchHook = useAdminAssistantS
     <div className="assistant-switch">
       <label>
         <input type="checkbox" checked={open} onChange={(e) => setOpen(e.target.checked)} />
-        Show the AI assistant on the admin site
+        {t("Show the AI assistant on the admin site")}
       </label>
       <p className="muted-cell">
         {open
-          ? "Open. The assistant panel is showing on the right."
-          : "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does."}
+          ? t("Open. The assistant panel is showing on the right.")
+          : t("Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.")}
       </p>
       <p className="muted-cell">
-        Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating
-        button is ever off-screen or hard to find.
+        {t(
+          "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.",
+        )}
       </p>
     </div>
   );
@@ -210,9 +222,14 @@ function AdminAssistantSwitch({ useAdminAssistantSwitchHook = useAdminAssistantS
  */
 interface AdminExecutionModeProps {
   useAdminExecutionModeHook?: typeof useAdminExecutionMode;
+  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. */
+  t?: (key: string) => string;
 }
 
-function AdminExecutionMode({ useAdminExecutionModeHook = useAdminExecutionMode }: AdminExecutionModeProps = {}) {
+function AdminExecutionMode({
+  useAdminExecutionModeHook = useAdminExecutionMode,
+  t = (key: string) => key,
+}: AdminExecutionModeProps = {}) {
   const { port, execution } = useAdminExecutionModeHook();
 
   // Called unconditionally, ahead of the `execution.value === null` gate below (rules of hooks) —
@@ -227,7 +244,7 @@ function AdminExecutionMode({ useAdminExecutionModeHook = useAdminExecutionMode 
   // `null` until the initial ledger read settles. Rendering `ExecutionTab` against the default config
   // in the meantime would show "Local CLI" selected for a workspace that has BYOK stored, and the
   // first edit would then diff against a base that was never what was persisted.
-  if (execution.value === null) return <p className="muted-cell">Loading execution settings…</p>;
+  if (execution.value === null) return <p className="muted-cell">{t("Loading execution settings…")}</p>;
 
   return (
     <section className="assistant-execution">
@@ -241,7 +258,7 @@ function AdminExecutionMode({ useAdminExecutionModeHook = useAdminExecutionMode 
         // CMS those are different computers, so the component's own default ("on this machine") would
         // be a false claim about whose CLIs these are. Same string as the Settings mount — if one
         // changes, both must.
-        localCliScopeLabel="Detected on the Tovu server, not on your own computer."
+        localCliScopeLabel={t("Detected on the Tovu server, not on your own computer.")}
         // The admin's own BYOK credential is encrypted server-side and write-only (2026-08-05) —
         // same three pass-through props `SettingsUi.tsx`'s mount sets, and for the same "must never
         // disagree" reason this file's own header already documents for `useStoredCredential`. See
@@ -258,8 +275,8 @@ function AdminExecutionMode({ useAdminExecutionModeHook = useAdminExecutionMode 
         one slice on this tab and merging over a set of one would be ceremony.
       */}
       <p className="assistant-save-line" role="status">
-        {execution.saveState.status === "saving" ? "Saving…" : null}
-        {execution.saveState.status === "saved" ? "Saved." : null}
+        {execution.saveState.status === "saving" ? t("Saving…") : null}
+        {execution.saveState.status === "saved" ? t("Saved.") : null}
       </p>
       {execution.saveState.status === "error" ? <div className="save-error">{execution.saveState.message}</div> : null}
     </section>
@@ -316,16 +333,31 @@ function AdminExecutionMode({ useAdminExecutionModeHook = useAdminExecutionMode 
 type VisitorCredentialKeyFooterProps = Pick<
   VisitorCredentialFormController,
   "config" | "dirty" | "saveState" | "stored" | "hasStoredKey" | "hasUsableKey" | "discovery" | "saveCredential" | "runKeyTest"
->;
+> & {
+  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to English
+   *  passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct renders (no `t` passed) keep
+   *  finding "Save"/"Test Key" by their exact English accessible names. */
+  t?: (key: string) => string;
+};
 
 /** The status span next to the Save/Test Key buttons — one of three mutually exclusive messages
  *  keyed on `discovery.status`. Pulled to a top-level pure function, same reasoning as
  *  `visitorCredentialApiKeyPlaceholder` above: it was three sibling ternaries in the footer's JSX,
  *  now one independently testable decision. */
-export function visitorCredentialKeyStatusMessage(discovery: VisitorCredentialFormController["discovery"]): string | null {
-  if (discovery.status === "ok") return `Key works — ${discovery.models.length} models available.`;
-  if (discovery.status === "idle") return "Checks the key against the provider and lists the models it can use.";
-  if (discovery.status === "loading") return "Asking the provider which models this key allows…";
+/**
+ * @param t - `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to
+ *   English passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct, locale-unaware calls
+ *   keep asserting the exact English strings they always have.
+ */
+export function visitorCredentialKeyStatusMessage(
+  discovery: VisitorCredentialFormController["discovery"],
+  t: (key: string) => string = (key) => key,
+): string | null {
+  if (discovery.status === "ok") {
+    return t("Key works — {count} models available.").replace("{count}", String(discovery.models.length));
+  }
+  if (discovery.status === "idle") return t("Checks the key against the provider and lists the models it can use.");
+  if (discovery.status === "loading") return t("Asking the provider which models this key allows…");
   return null;
 }
 
@@ -340,17 +372,22 @@ export function visitorCredentialKeyStatusMessage(discovery: VisitorCredentialFo
  *  worth recording here too: it is a deliberate, bounded disclosure — without it the field is blank
  *  and cannot distinguish "nothing was ever saved" from "a key is saved and working", an ambiguity
  *  worse than four characters. */
+/**
+ * @param t - Same seam as {@link visitorCredentialKeyStatusMessage}'s own `t` param — defaults to
+ *   English passthrough for the same test-compatibility reason.
+ */
 export function visitorCredentialSaveStatusMessage(
   saveState: VisitorCredentialFormController["saveState"],
   dirty: boolean,
   stored: VisitorCredentialFormController["stored"],
+  t: (key: string) => string = (key) => key,
 ): string | null {
-  if (saveState.status === "saving") return "Saving…";
-  if (saveState.status === "saved") return "Saved to the server, encrypted.";
+  if (saveState.status === "saving") return t("Saving…");
+  if (saveState.status === "saved") return t("Saved to the server, encrypted.");
   if (saveState.status !== "idle") return null;
-  if (dirty) return "Not saved yet — press Save.";
-  if (stored?.isSet) return "Stored on the server, encrypted. Paste a new key to replace it.";
-  return "Paste your key, check it with Show, then press Save.";
+  if (dirty) return t("Not saved yet — press Save.");
+  if (stored?.isSet) return t("Stored on the server, encrypted. Paste a new key to replace it.");
+  return t("Paste your key, check it with Show, then press Save.");
 }
 
 export function VisitorCredentialKeyFooter({
@@ -363,6 +400,7 @@ export function VisitorCredentialKeyFooter({
   discovery,
   saveCredential,
   runKeyTest,
+  t = (key: string) => key,
 }: VisitorCredentialKeyFooterProps) {
   return (
     <div className="assistant-key-footer">
@@ -375,7 +413,7 @@ export function VisitorCredentialKeyFooter({
           onClick={() => void saveCredential()}
           disabled={!dirty || saveState.status === "saving" || (!config.apiKey.trim() && !hasStoredKey)}
         >
-          {saveState.status === "saving" ? "Saving…" : "Save"}
+          {saveState.status === "saving" ? t("Saving…") : t("Save")}
         </button>
         {/*
           An explicit "Test Key" control, in addition to the debounced automatic discovery
@@ -399,9 +437,9 @@ export function VisitorCredentialKeyFooter({
           // control told the operator their working credential could not be checked.
           disabled={!hasUsableKey || discovery.status === "loading"}
         >
-          {discovery.status === "loading" ? "Testing…" : "Test Key"}
+          {discovery.status === "loading" ? t("Testing…") : t("Test Key")}
         </button>
-        <span className="assistant-key-status" role="status">{visitorCredentialKeyStatusMessage(discovery)}</span>
+        <span className="assistant-key-status" role="status">{visitorCredentialKeyStatusMessage(discovery, t)}</span>
       </div>
 
       {discovery.status === "error" ? <div className="save-error">{discovery.message}</div> : null}
@@ -423,7 +461,7 @@ export function VisitorCredentialKeyFooter({
 
       {/* Save's status line — see `visitorCredentialSaveStatusMessage`'s own doc comment above for
           the mask/placeholder reasoning. */}
-      <p className="assistant-save-line">{visitorCredentialSaveStatusMessage(saveState, dirty, stored)}</p>
+      <p className="assistant-save-line">{visitorCredentialSaveStatusMessage(saveState, dirty, stored, t)}</p>
       {saveState.status === "error" ? <div className="save-error">{saveState.message}</div> : null}
     </div>
   );
@@ -444,10 +482,15 @@ export function visitorCredentialApiKeyPlaceholder(stored: VisitorCredentialForm
 
 interface VisitorCredentialFormProps {
   useVisitorCredentialFormHook?: typeof useVisitorCredentialForm;
+  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to English
+   *  passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct render (no `t` passed) keeps
+   *  finding "Protocols"/"Gateways"/the intro copy by their exact English text. */
+  t?: (key: string) => string;
 }
 
-export function VisitorCredentialForm({ 
-  useVisitorCredentialFormHook = useVisitorCredentialForm 
+export function VisitorCredentialForm({
+  useVisitorCredentialFormHook = useVisitorCredentialForm,
+  t = (key: string) => key,
 }: VisitorCredentialFormProps = {}) {
   const {
     config,
@@ -500,15 +543,22 @@ export function VisitorCredentialForm({
         control the whole tab is about. Weight is a hierarchy signal and it only works while it is
         scarce.
       */}
-      <SeeMore lines={3} textClassName="assistant-intro" toggleAriaLabel="See more about the visitor key">
+      <SeeMore
+        lines={3}
+        textClassName="assistant-intro"
+        toggleAriaLabel={t("See more about the visitor key")}
+        moreLabel={t("See more")}
+        lessLabel={t("See less")}
+      >
         <p>
-          This key is for your visitors, not for you. It is what lets people reading your published site ask questions
-          and get answers. It is stored on the server and used for every visitor conversation.
+          {t(
+            "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.",
+          )}
         </p>
         <p>
-          It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is saved
-          only in this browser, and it powers the assistant in this admin. A deployed site can never use it — which is
-          why saving a key there does not switch on the visitor chat.
+          {t(
+            "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is saved only in this browser, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.",
+          )}
         </p>
         {/*
           KNOWN COPY CONFLICT, stated here rather than papered over: the shared `ByokProviderForm`
@@ -524,8 +574,9 @@ export function VisitorCredentialForm({
           appears ABOVE the card so the operator reads the true statement first.
         */}
         <p>
-          Ignore the “Stored only by this host” note below. It belongs to the shared form component and is accurate on
-          the Settings screen, not here. This key will be stored on the server, encrypted.
+          {t(
+            'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.',
+          )}
         </p>
       </SeeMore>
 
@@ -534,22 +585,22 @@ export function VisitorCredentialForm({
           needing a second set of rules here. */}
       <section className="jini-settings-section jini-settings-byok">
         <ProviderChipGroup
-          label="Protocols"
+          label={t("Protocols")}
           presets={protocols}
           selectedPresetId={preset?.id ?? null}
           configuredPresetIds={configuredPresetIds}
           onSelect={selectPreset}
-          configuredLabel="Configured"
-          unsetLabel="Not configured"
+          configuredLabel={t("Configured")}
+          unsetLabel={t("Not configured")}
         />
         <ProviderChipGroup
-          label="Gateways"
+          label={t("Gateways")}
           presets={gateways}
           selectedPresetId={preset?.id ?? null}
           configuredPresetIds={configuredPresetIds}
           onSelect={selectPreset}
-          configuredLabel="Configured"
-          unsetLabel="Not configured"
+          configuredLabel={t("Configured")}
+          unsetLabel={t("Not configured")}
         />
 
       {/* `canTestConnection` left at its default (true): the probe is real here. It posts the typed
@@ -582,12 +633,34 @@ export function VisitorCredentialForm({
             discovery={discovery}
             saveCredential={saveCredential}
             runKeyTest={runKeyTest}
+            t={t}
           />
         }
         />
       </section>
     </>
   );
+}
+
+/**
+ * Bridges `AiAssistant`'s own `locale` to the mounted `I18nProvider`'s active locale. Renders
+ * nothing; see `hooks/use-ai-assistant-locale-sync.hooks.ts` for the full rationale (an
+ * uncontrolled `initialLocale` prop that only applies at mount) — same shape as
+ * `features/settings/SettingsUi.tsx`'s own `SettingsLocaleSync`.
+ *
+ * @complexity O(1) — one equality check per render, no iteration.
+ * @overallScore 100
+ */
+function AiAssistantLocaleSync({
+  locale,
+  useAiAssistantLocaleSyncHook = useAiAssistantLocaleSync,
+}: {
+  locale: string;
+  /** Dependency injection seam for tests — same convention as `PostsProps.usePostsHook`. */
+  useAiAssistantLocaleSyncHook?: typeof useAiAssistantLocaleSync;
+}) {
+  useAiAssistantLocaleSyncHook({ locale });
+  return null;
 }
 
 export interface AiAssistantProps {
@@ -607,8 +680,20 @@ export interface AiAssistantProps {
 export function AiAssistant({ useAiAssistantHook = useAiAssistant }: AiAssistantProps = {}) {
   const { settings, loadError, saveError, saving, setPublicEnabled } = useAiAssistantHook();
 
+  /**
+   * The one `useAdminLocale()` call for this whole screen — every subcomponent below (
+   * `AdminAssistantSwitch`, `AdminExecutionMode`, `RoadmapChecklist`, `VisitorCredentialForm`, and
+   * that last one's own `VisitorCredentialKeyFooter`) takes the resulting `t` as a prop rather than
+   * calling the hook itself, so switching the Language setting re-fetches once here, not once per
+   * subcomponent — same "take `t` as a prop" shape `features/settings/SettingsUi.tsx`'s own
+   * `AboutPanel({ t })` uses, for the same reason (a component that isn't a descendant of the
+   * `I18nProvider` mounted below can't call that package's own `useT()`).
+   */
+  const locale = useAdminLocale();
+  const t = (key: string): string => AI_ASSISTANT_DICT[locale]?.[key] ?? key;
+
   if (loadError) return <div className="notice error">{loadError}</div>;
-  if (!settings) return <div className="notice">Loading AI assistant settings…</div>;
+  if (!settings) return <div className="notice">{t("Loading AI assistant settings…")}</div>;
 
   /**
    * Two tabs, split by WHOSE assistant each one configures — not by kind of control.
@@ -624,9 +709,9 @@ export function AiAssistant({ useAiAssistantHook = useAiAssistant }: AiAssistant
   const tabs: SettingsDialogTab[] = [
     {
       id: "visitor",
-      label: "Visitor's AI Assistant",
-      title: "Visitor's AI Assistant",
-      subtitle: "The assistant your published site offers to readers.",
+      label: t("Visitor's AI Assistant"),
+      title: t("Visitor's AI Assistant"),
+      subtitle: t("The assistant your published site offers to readers."),
       icon: (
         <TabIcon>
           <circle cx="9" cy="9" r="6.5" />
@@ -647,7 +732,7 @@ export function AiAssistant({ useAiAssistantHook = useAiAssistant }: AiAssistant
                 disabled={saving}
                 onChange={(e) => void setPublicEnabled(e.target.checked)}
               />
-              Enable the AI assistant on the public site. *API Key needed*
+              {t("Enable the AI assistant on the public site. *API Key needed*")}
             </label>
             {/* `.muted-cell` dropped along with the intro's: it is an admin-table class (0.85rem,
                 `--faint`) that made this tab's body copy a third size next to the Jini form's own
@@ -655,20 +740,22 @@ export function AiAssistant({ useAiAssistantHook = useAiAssistant }: AiAssistant
                 `styles.css`. */}
             <p>
               {settings.publicEnabled
-                ? "Visitors can chat with the assistant. It is served on every public page."
-                : "Off. The public site ships no assistant code and exposes no assistant endpoint — this is a full disable, not a hidden widget."}
+                ? t("Visitors can chat with the assistant. It is served on every public page.")
+                : t(
+                    "Off. The public site ships no assistant code and exposes no assistant endpoint — this is a full disable, not a hidden widget.",
+                  )}
             </p>
           </div>
 
-          <VisitorCredentialForm />
+          <VisitorCredentialForm t={t} />
         </>
       ),
     },
     {
       id: "admin",
-      label: "Admin AI Assistant",
-      title: "Admin AI Assistant",
-      subtitle: "The assistant in this admin, for signed-in administrators.",
+      label: t("Admin AI Assistant"),
+      title: t("Admin AI Assistant"),
+      subtitle: t("The assistant in this admin, for signed-in administrators."),
       icon: (
         <TabIcon>
           <rect x="3" y="5" width="12" height="9" rx="2.5" />
@@ -677,16 +764,16 @@ export function AiAssistant({ useAiAssistantHook = useAiAssistant }: AiAssistant
       ),
       panel: (
         <>
-          <AdminAssistantSwitch />
-          <AdminExecutionMode />
+          <AdminAssistantSwitch t={t} />
+          <AdminExecutionMode t={t} />
         </>
       ),
     },
     {
       id: "roadmap",
-      label: "Not built yet",
-      title: "Not built yet",
-      subtitle: "Operator controls that are planned but not implemented.",
+      label: t("Not built yet"),
+      title: t("Not built yet"),
+      subtitle: t("Operator controls that are planned but not implemented."),
       icon: (
         <TabIcon>
           <path d="M9 2.5v6.5l4 2.2" />
@@ -706,7 +793,7 @@ export function AiAssistant({ useAiAssistantHook = useAiAssistant }: AiAssistant
        * The label stays blunt ("Not built yet") specifically so the tab strip keeps doing the
        * disclosure job the accordion used to do. A softer label like "Roadmap" would hide it.
        */
-      panel: <RoadmapChecklist />,
+      panel: <RoadmapChecklist t={t} />,
     },
   ];
 
@@ -714,9 +801,12 @@ export function AiAssistant({ useAiAssistantHook = useAiAssistant }: AiAssistant
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Overview</p>
-          <h1 className="page-title">AI Assistant</h1>
-          <p className="page-description">Turn the visitor-facing assistant on or off for your public site.</p>
+          {/* Reuses the exact nav vocabulary (`admin-nav-i18n.ts`'s `ES` dict) rather than a second,
+              independent translation of the same two words — "Overview" and "AI Assistant" are the
+              sidebar's own kicker/label for this screen. */}
+          <p className="page-kicker">{translateAdminNavLabel(locale, "Overview")}</p>
+          <h1 className="page-title">{translateAdminNavLabel(locale, "AI Assistant")}</h1>
+          <p className="page-description">{t("Turn the visitor-facing assistant on or off for your public site.")}</p>
         </div>
       </div>
 
@@ -728,8 +818,15 @@ export function AiAssistant({ useAiAssistantHook = useAiAssistant }: AiAssistant
         `syncDocumentAttributes={false}` for the identical reason SettingsUi documents — only this
         panel's content is translated, so claiming a document-wide language would misinform assistive
         tech about the untranslated rest of the admin.
+
+        `initialLocale={locale}`, not the hardcoded `"en"` this used to read — `SETTINGS_DIALOG_DICTIONARIES`
+        already ships an `es` dictionary (the same one `SettingsUi.tsx`'s own mount uses), so this is
+        what makes `ByokProviderForm`'s/`SettingsDialogShell`'s OWN internal chrome (field labels,
+        hints, "Test connection", the shell's tab-strip chrome) follow the operator's Language setting
+        too, not just the literal strings this file passes in as props above.
       */}
-      <I18nProvider initialLocale="en" dictionaries={SETTINGS_DIALOG_DICTIONARIES} fallbackLocale="en" syncDocumentAttributes={false}>
+      <I18nProvider initialLocale={locale} dictionaries={SETTINGS_DIALOG_DICTIONARIES} fallbackLocale="en" syncDocumentAttributes={false}>
+        <AiAssistantLocaleSync locale={locale} />
         {/*
           `data-theme="light"` is REQUIRED, not cosmetic. `SettingsUi.tsx` sets this from its own
           "Dialog appearance" setting; with the attribute absent entirely the shell's stylesheet falls

@@ -5,6 +5,15 @@ import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } fr
 import { categoryLabel, isAssertiveRecoveryBanner } from "./rules";
 import { useRecovery } from "./hooks/use-recovery.hooks";
 import { useRestoreFlow, type CeremonyStep } from "./hooks/use-restore-flow.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import {
+  t,
+  sinceDiscardMessage,
+  discardCountLine,
+  baselineUnavailableMessage,
+  restorePlanReadyMessage,
+  restoreDoneMessage,
+} from "./recovery-i18n";
 
 /**
  * @file Recovery screen (design-spec.md §4, ADR-045) — the `/admin/recovery` route.
@@ -33,10 +42,14 @@ import { useRestoreFlow, type CeremonyStep } from "./hooks/use-restore-flow.hook
  * `src/__tests__/unit/admin-nav-recovery-acs.unit.test.ts` reads this file's source directly
  * (`readFileSync`) to assert AC-32 against the `page-description` copy below — keep that
  * `className="page-description">...</p>` line intact if editing the header copy.
+ *
+ * `locale` is fetched once in `Recovery` via `useAdminLocale()` and threaded down as a prop —
+ * see `Database.tsx`'s file header for why (the hook's `loadLanguage()` isn't memoized).
  */
 
-function DegradedBannerView(props: { status: AdminRecoveryStatus }) {
-  const banner = props.status.banner;
+function DegradedBannerView(props: { locale: string; status: AdminRecoveryStatus }) {
+  const { locale, status } = props;
+  const banner = status.banner;
   if (!banner) return null;
 
   // AC-27/EC-06/INV-07: `pending-migration`'s action always deep-links to Database's own
@@ -49,12 +62,12 @@ function DegradedBannerView(props: { status: AdminRecoveryStatus }) {
       <span>{banner.accessibleText}</span>
       {banner.actionKind === "deep-link-to-database-migration" ? (
         <a href="/admin/database">
-          <button type="button" className="btn-secondary">Go to Database</button>
+          <button type="button" className="btn-secondary">{t(locale, "Go to Database")}</button>
         </a>
       ) : null}
       {banner.actionKind === "unblock-interrupted-migration" ? (
-        <button type="button" disabled title="No unblock route exists yet — see this screen's file header.">
-          Unblock (not yet available)
+        <button type="button" disabled title={t(locale, "No unblock route exists yet — see this screen's file header.")}>
+          {t(locale, "Unblock (not yet available)")}
         </button>
       ) : null}
     </div>
@@ -62,9 +75,11 @@ function DegradedBannerView(props: { status: AdminRecoveryStatus }) {
 }
 
 function RestorePointsList(props: {
+  locale: string;
   points: AdminRestorePoint[];
   onSelect: (point: AdminRestorePoint) => void;
 }) {
+  const { locale } = props;
   return (
     <DataTable
       rows={props.points}
@@ -72,26 +87,26 @@ function RestorePointsList(props: {
       empty={
         <div className="card">
           <div className="empty-state">
-            <p>No restore points yet.</p>
+            <p>{t(locale, "No restore points yet.")}</p>
           </div>
         </div>
       }
       columns={[
-        { key: "timestamp", header: "Timestamp", cell: (p) => formatTimestamp(p.createdAt) },
-        { key: "trigger", header: "Trigger", cell: (p) => p.trigger },
+        { key: "timestamp", header: t(locale, "Timestamp"), cell: (p) => formatTimestamp(p.createdAt) },
+        { key: "trigger", header: t(locale, "Trigger"), cell: (p) => p.trigger },
         {
           key: "cost-class",
-          header: "Cost class",
+          header: t(locale, "Cost class"),
           cell: (p) => <span className={`status status-${p.costClass}`}>{p.costClass}</span>,
         },
         {
           key: "restore",
           cell: (p) =>
             p.costClass === "unavailable" ? (
-              <span className="muted-cell">No restore-point mechanism available — see the runbook.</span>
+              <span className="muted-cell">{t(locale, "No restore-point mechanism available — see the runbook.")}</span>
             ) : (
               <button type="button" onClick={() => props.onSelect(p)}>
-                Restore…
+                {t(locale, "Restore…")}
               </button>
             ),
         },
@@ -106,40 +121,27 @@ function RestorePointsList(props: {
  * from `0` (INV-05 — a `0` implies verified-zero-loss, `"unknown"` means the baseline could not be
  * computed at all; these must never be conflated). */
 function DisclosurePanel(props: {
+  locale: string;
   point: AdminRestorePoint;
   disclosure: AdminDisclosureResult;
   acknowledged: boolean;
   onAcknowledgeChange: (checked: boolean) => void;
 }) {
+  const { locale } = props;
   const categories = Object.entries(props.disclosure.counts);
 
   return (
     <div className="notice recovery-disclosure-panel">
-      <p>
-        Since <strong>{props.point.createdAt}</strong>, restoring here would discard at least:
-      </p>
+      <p>{sinceDiscardMessage(locale, props.point.createdAt)}</p>
       <ul>
         {categories.map(([category, count]) => (
-          <li key={category}>
-            {count === "unknown" ? (
-              <span>at least an unknown number of {categoryLabel(category)}</span>
-            ) : (
-              <span>
-                {count} {categoryLabel(category)}
-              </span>
-            )}
-          </li>
+          <li key={category}>{discardCountLine(locale, count, categoryLabel(category, locale))}</li>
         ))}
       </ul>
-      <p>
-        This covers watermark-stamped write paths only (posts/pages and plugin-table writes today)
-        and is NOT a complete count of everything written since this restore point — change-sets,
-        taxonomy writes, Collections entries, and sessions are not yet counted here.
-      </p>
+      <p>{t(locale, "This covers watermark-stamped write paths only (posts/pages and plugin-table writes today) and is NOT a complete count of everything written since this restore point — change-sets, taxonomy writes, Collections entries, and sessions are not yet counted here.")}</p>
       {!props.disclosure.watermarkBaselineAvailable ? (
         <p className="save-error" role="alert">
-          The discarded-write-window baseline could not be computed for this site right now — every
-          count above is shown as "unknown", not a verified zero.
+          {baselineUnavailableMessage(locale)}
         </p>
       ) : null}
       <label id="recovery-ack-label">
@@ -148,8 +150,7 @@ function DisclosurePanel(props: {
           checked={props.acknowledged}
           onChange={(e) => props.onAcknowledgeChange(e.target.checked)}
         />
-        I understand this count is partial, not exhaustive, and accept the loss window described
-        above.
+        {t(locale, "I understand this count is partial, not exhaustive, and accept the loss window described above.")}
       </label>
     </div>
   );
@@ -161,17 +162,18 @@ function DisclosurePanel(props: {
  * the original `RestoreFlow`: this half decides what to show about data loss, the other half
  * decides what to show about ceremony progress, and neither needs the other's branches in scope. */
 function RestoreDisclosureStatus(props: {
+  locale: string;
   point: AdminRestorePoint;
   disclosure: AdminDisclosureResult | null;
   error: string | null;
   acknowledged: boolean;
   onAcknowledgeChange: (checked: boolean) => void;
 }) {
-  const { point, disclosure, error, acknowledged, onAcknowledgeChange } = props;
+  const { locale, point, disclosure, error, acknowledged, onAcknowledgeChange } = props;
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!disclosure) return <div className="notice">Computing the discarded-write-window disclosure…</div>;
-  return <DisclosurePanel point={point} disclosure={disclosure} acknowledged={acknowledged} onAcknowledgeChange={onAcknowledgeChange} />;
+  if (!disclosure) return <div className="notice">{t(locale, "Computing the discarded-write-window disclosure…")}</div>;
+  return <DisclosurePanel locale={locale} point={point} disclosure={disclosure} acknowledged={acknowledged} onAcknowledgeChange={onAcknowledgeChange} />;
 }
 
 /** Step 3a (design-spec.md §4.3) — acknowledge-gated entry into the ceremony. Its own component
@@ -179,8 +181,8 @@ function RestoreDisclosureStatus(props: {
  * not-yet-acknowledged `title` ternary would otherwise nest two levels deep inside that
  * function's own `step === "idle"` branch — exactly the nesting SonarJS's cognitive-complexity
  * rule penalises beyond what the cyclomatic count shows. */
-function RestoreIdleStep(props: { acknowledged: boolean; busy: boolean; onStart: () => void }) {
-  const { acknowledged, busy, onStart } = props;
+function RestoreIdleStep(props: { locale: string; acknowledged: boolean; busy: boolean; onStart: () => void }) {
+  const { locale, acknowledged, busy, onStart } = props;
   return (
     <div className="notice">
       <button
@@ -188,39 +190,36 @@ function RestoreIdleStep(props: { acknowledged: boolean; busy: boolean; onStart:
         className="btn-ghost"
         disabled={!acknowledged || busy}
         aria-describedby="recovery-ack-label"
-        title={!acknowledged ? "Acknowledge the disclosure above to continue." : undefined}
+        title={!acknowledged ? t(locale, "Acknowledge the disclosure above to continue.") : undefined}
         onClick={onStart}
       >
-        {busy ? "Planning…" : "Continue to confirm"}
+        {busy ? t(locale, "Planning…") : t(locale, "Continue to confirm")}
       </button>
     </div>
   );
 }
 
 /** Step 3b (SPEC-019 C-301) — plan issued, not yet confirmed. */
-function RestorePlannedStep(props: { planId: string; busy: boolean; onConfirm: () => void }) {
-  const { planId, busy, onConfirm } = props;
+function RestorePlannedStep(props: { locale: string; planId: string; busy: boolean; onConfirm: () => void }) {
+  const { locale, planId, busy, onConfirm } = props;
   return (
     <div className="notice">
-      <p>
-        Restore plan ready (plan <code>{planId}</code>). Confirming issues a one-time execution
-        token — nothing is restored yet.
-      </p>
+      <p>{restorePlanReadyMessage(locale, planId)}</p>
       <button type="button" className="btn-secondary" onClick={onConfirm} disabled={busy}>
-        {busy ? "Confirming…" : "Confirm restore"}
+        {busy ? t(locale, "Confirming…") : t(locale, "Confirm restore")}
       </button>
     </div>
   );
 }
 
 /** Step 3c (SPEC-019 C-302) — confirmed, execution token in hand, not yet executed. */
-function RestoreConfirmedStep(props: { busy: boolean; onExecute: () => void }) {
-  const { busy, onExecute } = props;
+function RestoreConfirmedStep(props: { locale: string; busy: boolean; onExecute: () => void }) {
+  const { locale, busy, onExecute } = props;
   return (
     <div className="notice">
-      <p>Confirmed. Executing performs the restore — this cannot be undone.</p>
+      <p>{t(locale, "Confirmed. Executing performs the restore — this cannot be undone.")}</p>
       <button type="button" className="btn-danger" onClick={onExecute} disabled={busy}>
-        {busy ? "Restoring…" : "Execute restore"}
+        {busy ? t(locale, "Restoring…") : t(locale, "Execute restore")}
       </button>
     </div>
   );
@@ -230,17 +229,16 @@ function RestoreConfirmedStep(props: { busy: boolean; onExecute: () => void }) {
  * `DbOpsPort.restoreFromArtifact`) surfaces the "already-running process still holds the
  * pre-restore file handle" caveat described in this file's header, rather than silently implying
  * a live hot-swap happened. */
-function RestoreDoneStep(props: { restoreRunId: string; state: string; restartRequired?: boolean }) {
-  const { restoreRunId, state, restartRequired } = props;
+function RestoreDoneStep(props: { locale: string; restoreRunId: string; state: string; restartRequired?: boolean }) {
+  const { locale, restoreRunId, state, restartRequired } = props;
   return (
     <div className="notice">
       <p role="status">
-        Restore run <code>{restoreRunId}</code> finished in state <span className={`status status-${state}`}>{state}</span>.
+        {restoreDoneMessage(locale, restoreRunId, <span className={`status status-${state}`}>{state}</span>)}
       </p>
       {restartRequired ? (
         <p className="save-error" role="alert">
-          The database file was replaced — this server process is still serving the pre-restore
-          data from its open connection. Restart the server now to pick up the restored data.
+          {t(locale, "The database file was replaced — this server process is still serving the pre-restore data from its open connection. Restart the server now to pick up the restored data.")}
         </p>
       ) : null}
     </div>
@@ -251,6 +249,7 @@ function RestoreDoneStep(props: { restoreRunId: string; state: string; restartRe
  * Exactly one of the four step components below renders at a time, keyed off `step` — this
  * function owns that selection so `RestoreFlow` itself doesn't have to. */
 function RestoreCeremonySteps(props: {
+  locale: string;
   ceremonyError: string | null;
   step: CeremonyStep;
   busy: boolean;
@@ -262,32 +261,34 @@ function RestoreCeremonySteps(props: {
   onConfirm: () => void;
   onExecute: () => void;
 }) {
-  const { ceremonyError, step, busy, acknowledged, plan, confirmationToken, result, onStart, onConfirm, onExecute } = props;
+  const { locale, ceremonyError, step, busy, acknowledged, plan, confirmationToken, result, onStart, onConfirm, onExecute } = props;
 
   return (
     <>
       {ceremonyError ? <div className="notice error">{ceremonyError}</div> : null}
-      {step === "idle" ? <RestoreIdleStep acknowledged={acknowledged} busy={busy} onStart={onStart} /> : null}
-      {step === "planned" && plan ? <RestorePlannedStep planId={plan.planId} busy={busy} onConfirm={onConfirm} /> : null}
-      {step === "confirmed" && confirmationToken ? <RestoreConfirmedStep busy={busy} onExecute={onExecute} /> : null}
+      {step === "idle" ? <RestoreIdleStep locale={locale} acknowledged={acknowledged} busy={busy} onStart={onStart} /> : null}
+      {step === "planned" && plan ? <RestorePlannedStep locale={locale} planId={plan.planId} busy={busy} onConfirm={onConfirm} /> : null}
+      {step === "confirmed" && confirmationToken ? <RestoreConfirmedStep locale={locale} busy={busy} onExecute={onExecute} /> : null}
       {step === "done" && result ? (
-        <RestoreDoneStep restoreRunId={result.restoreRunId} state={result.state} restartRequired={result.restartRequired} />
+        <RestoreDoneStep locale={locale} restoreRunId={result.restoreRunId} state={result.state} restartRequired={result.restartRequired} />
       ) : null}
     </>
   );
 }
 
 export interface RestoreFlowProps {
+  locale: string;
   point: AdminRestorePoint;
   onBack: () => void;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useRestoreFlowHook?: typeof useRestoreFlow;
 }
 
-function RestoreFlow({ 
-  point, 
-  onBack, 
-  useRestoreFlowHook = useRestoreFlow 
+function RestoreFlow({
+  locale,
+  point,
+  onBack,
+  useRestoreFlowHook = useRestoreFlow
 }: RestoreFlowProps) {
   const {
     disclosure,
@@ -308,28 +309,31 @@ function RestoreFlow({
   return (
     <div>
       <button type="button" className="btn-ghost" onClick={onBack}>
-        ← Restore points
+        {t(locale, "← Restore points")}
       </button>
-      <h2>Restore to {formatTimestamp(point.createdAt)}</h2>
+      <h2>
+        {t(locale, "Restore to")} {formatTimestamp(point.createdAt)}
+      </h2>
 
       <div className="settings-layer-grid">
         <div className="settings-layer-cell">
-          <span className="settings-layer-label">Trigger</span>
+          <span className="settings-layer-label">{t(locale, "Trigger")}</span>
           <span>{point.trigger}</span>
         </div>
         <div className="settings-layer-cell">
-          <span className="settings-layer-label">Cost class</span>
+          <span className="settings-layer-label">{t(locale, "Cost class")}</span>
           <span className={`status status-${point.costClass}`}>{point.costClass}</span>
         </div>
         <div className="settings-layer-cell">
-          <span className="settings-layer-label">Kind</span>
+          <span className="settings-layer-label">{t(locale, "Kind")}</span>
           <span>{point.kind}</span>
         </div>
       </div>
 
-      <RestoreDisclosureStatus point={point} disclosure={disclosure} error={error} acknowledged={acknowledged} onAcknowledgeChange={setAcknowledged} />
+      <RestoreDisclosureStatus locale={locale} point={point} disclosure={disclosure} error={error} acknowledged={acknowledged} onAcknowledgeChange={setAcknowledged} />
 
       <RestoreCeremonySteps
+        locale={locale}
         ceremonyError={ceremonyError}
         step={step}
         busy={busy}
@@ -355,30 +359,31 @@ export interface RecoveryProps {
 }
 
 export function Recovery({ useRecoveryHook = useRecovery }: RecoveryProps = {}) {
+  const locale = useAdminLocale();
   const { status, points, error, selected, setSelected } = useRecoveryHook();
 
   if (error && !points) return <div className="notice error">{error}</div>;
-  if (!points || !status) return <div className="notice">Loading restore points…</div>;
+  if (!points || !status) return <div className="notice">{t(locale, "Loading restore points…")}</div>;
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Operations</p>
-          <h1 className="page-title">Recovery</h1>
-          <p className="page-description">Restore this site to a previous point in time using a captured restore point.</p>
+          <p className="page-kicker">{t(locale, "Operations")}</p>
+          <h1 className="page-title">{t(locale, "Recovery")}</h1>
+          <p className="page-description">{t(locale, "Restore this site to a previous point in time using a captured restore point.")}</p>
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
       <div className="notice">
-        Restore capability: <span className={`status status-${status.costClass}`}>{status.costClass}</span>
+        {t(locale, "Restore capability:")} <span className={`status status-${status.costClass}`}>{status.costClass}</span>
       </div>
-      <DegradedBannerView status={status} />
+      <DegradedBannerView locale={locale} status={status} />
 
       {selected ? (
-        <RestoreFlow point={selected} onBack={() => setSelected(null)} />
+        <RestoreFlow locale={locale} point={selected} onBack={() => setSelected(null)} />
       ) : (
-        <RestorePointsList points={points} onSelect={setSelected} />
+        <RestorePointsList locale={locale} points={points} onSelect={setSelected} />
       )}
     </div>
   );

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { api, describeApiError } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../taxonomy-i18n";
 
 /**
  * @file Everything `NewTaxonomyForm` does (REQ-02), so it can stay markup only.
@@ -24,6 +26,7 @@ export interface NewTaxonomyFormController {
 }
 
 export function useNewTaxonomyForm(options: NewTaxonomyFormOptions): NewTaxonomyFormController {
+  const locale = useAdminLocale();
   const [name, setName] = useState("");
   const [hierarchical, setHierarchical] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +35,7 @@ export function useNewTaxonomyForm(options: NewTaxonomyFormOptions): NewTaxonomy
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
-      setError("Name is required.");
+      setError(t(locale, "Name is required."));
       return;
     }
     setSaving(true);
@@ -43,7 +46,7 @@ export function useNewTaxonomyForm(options: NewTaxonomyFormOptions): NewTaxonomy
       setHierarchical(false);
       options.onCreated();
     } catch (e) {
-      setError(describeApiError(e, "Failed to create taxonomy"));
+      setError(describeApiError(e, t(locale, "Failed to create taxonomy")));
     } finally {
       setSaving(false);
     }

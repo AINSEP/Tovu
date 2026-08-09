@@ -1,5 +1,7 @@
 import { isWorkspaceDirty } from "./rules";
 import { useWorkspace } from "./hooks/use-workspace.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { t } from "./workspace-i18n";
 
 /**
  * @file "Workspace" admin screen (SPEC-044) — the `/admin/workspace` route — markup only.
@@ -34,23 +36,24 @@ export interface WorkspaceProps {
 }
 
 /** The rename form's own status pair — a save error, or a "Saved." confirmation once the form is
- * no longer dirty. Split out of `Workspace` as a top-level function per the complexity-ceiling
- * brief's extraction rule. */
-function WorkspaceFormStatus(props: { saveError: string | null; saved: boolean; dirty: boolean }) {
-  const { saveError, saved, dirty } = props;
+ *  no longer dirty. Split out of `Workspace` as a top-level function per the complexity-ceiling
+ *  brief's extraction rule. */
+function WorkspaceFormStatus(props: { locale: string; saveError: string | null; saved: boolean; dirty: boolean }) {
+  const { locale, saveError, saved, dirty } = props;
   return (
     <>
       {saveError ? <span className="save-error">{saveError}</span> : null}
-      {saved && !dirty ? <span className="save-success">Saved.</span> : null}
+      {saved && !dirty ? <span className="save-success">{t(locale, "Saved.")}</span> : null}
     </>
   );
 }
 
 export function Workspace({ useWorkspaceHook = useWorkspace }: WorkspaceProps = {}) {
+  const locale = useAdminLocale();
   const { workspace, error, name, setName, slug, setSlug, saving, saveError, saved, onSave } = useWorkspaceHook();
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!workspace) return <div className="notice">Loading workspace…</div>;
+  if (!workspace) return <div className="notice">{t(locale, "Loading workspace…")}</div>;
 
   const dirty = isWorkspaceDirty(workspace, name, slug);
 
@@ -58,44 +61,42 @@ export function Workspace({ useWorkspaceHook = useWorkspace }: WorkspaceProps = 
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Administration</p>
-          <h1 className="page-title">Workspace</h1>
-          <p className="page-description">This site's identity — its name, URL slug, and creation date.</p>
+          <p className="page-kicker">{t(locale, "Administration")}</p>
+          <h1 className="page-title">{t(locale, "Workspace")}</h1>
+          <p className="page-description">{t(locale, "This site's identity — its name, URL slug, and creation date.")}</p>
         </div>
       </div>
 
       <form onSubmit={onSave} className="notice integrations-form">
-        <WorkspaceFormStatus saveError={saveError} saved={saved} dirty={dirty} />
+        <WorkspaceFormStatus locale={locale} saveError={saveError} saved={saved} dirty={dirty} />
         <label>
-          Name
+          {t(locale, "Name")}
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
         <label>
-          Slug
+          {t(locale, "Slug")}
           <input value={slug} onChange={(e) => setSlug(e.target.value)} required />
         </label>
         <button type="submit" disabled={saving || !dirty}>
-          {saving ? "Saving…" : "Save changes"}
+          {saving ? t(locale, "Saving…") : t(locale, "Save changes")}
         </button>
       </form>
 
       <div className="settings-layer-grid">
         <div className="settings-layer-cell">
-          <span className="settings-layer-label">Workspace ID</span>
+          <span className="settings-layer-label">{t(locale, "Workspace ID")}</span>
           <span>{workspace.id}</span>
         </div>
         <div className="settings-layer-cell">
-          <span className="settings-layer-label">Created</span>
+          <span className="settings-layer-label">{t(locale, "Created")}</span>
           <span>{workspace.createdAt}</span>
         </div>
       </div>
 
-      <h2>Delete workspace</h2>
+      <h2>{t(locale, "Delete workspace")}</h2>
       <div className="notice">
         <p>
-          Every Tovu install must always have at least one workspace, so deleting your only
-          workspace is not available. This becomes available once this install supports more than
-          one workspace.
+          {t(locale, "Every Tovu install must always have at least one workspace, so deleting your only workspace is not available. This becomes available once this install supports more than one workspace.")}
         </p>
         {/* `.btn-danger` at rest, not just on some future enabled state — genuinely destructive by
             nature even while `:disabled` (which already desaturates it); staying `.btn-danger`
@@ -104,9 +105,9 @@ export function Workspace({ useWorkspaceHook = useWorkspace }: WorkspaceProps = 
           type="button"
           className="btn-danger"
           disabled
-          title="Not available — this install has only one workspace"
+          title={t(locale, "Not available — this install has only one workspace")}
         >
-          Delete workspace
+          {t(locale, "Delete workspace")}
         </button>
       </div>
     </div>

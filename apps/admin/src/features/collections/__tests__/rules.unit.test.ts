@@ -282,12 +282,12 @@ describe("contentTypeMenuItems", () => {
   };
 
   it("always includes Edit fields", () => {
-    const items = contentTypeMenuItems(contentType({ status: "active" }), handlers);
+    const items = contentTypeMenuItems(contentType({ status: "active" }), handlers, "en");
     expect(items.map((i) => i.key)).toContain("edit-fields");
   });
 
   it("active status: offers Deprecate and Tombstone, not Reactivate", () => {
-    const items = contentTypeMenuItems(contentType({ status: "active" }), handlers);
+    const items = contentTypeMenuItems(contentType({ status: "active" }), handlers, "en");
     const keys = items.map((i) => i.key);
     expect(keys).toContain("deprecate");
     expect(keys).not.toContain("reactivate");
@@ -295,7 +295,7 @@ describe("contentTypeMenuItems", () => {
   });
 
   it("deprecated status: offers Reactivate and Tombstone, not Deprecate", () => {
-    const items = contentTypeMenuItems(contentType({ status: "deprecated" }), handlers);
+    const items = contentTypeMenuItems(contentType({ status: "deprecated" }), handlers, "en");
     const keys = items.map((i) => i.key);
     expect(keys).not.toContain("deprecate");
     expect(keys).toContain("reactivate");
@@ -303,7 +303,7 @@ describe("contentTypeMenuItems", () => {
   });
 
   it("tombstone status: offers neither Deprecate nor Reactivate nor Tombstone (already terminal)", () => {
-    const items = contentTypeMenuItems(contentType({ status: "tombstone" }), handlers);
+    const items = contentTypeMenuItems(contentType({ status: "tombstone" }), handlers, "en");
     const keys = items.map((i) => i.key);
     expect(keys).not.toContain("deprecate");
     expect(keys).not.toContain("reactivate");
@@ -311,7 +311,7 @@ describe("contentTypeMenuItems", () => {
   });
 
   it("marks Tombstone destructive, and Deprecate/Reactivate plain", () => {
-    const items = contentTypeMenuItems(contentType({ status: "active" }), handlers);
+    const items = contentTypeMenuItems(contentType({ status: "active" }), handlers, "en");
     expect(items.find((i) => i.key === "tombstone")?.destructive).toBe(true);
     expect(items.find((i) => i.key === "deprecate")?.destructive).toBeFalsy();
   });
@@ -320,10 +320,17 @@ describe("contentTypeMenuItems", () => {
     const ct = contentType({ status: "active", key: "recipe" });
     const onEditFields = vi.fn();
     const onDeprecate = vi.fn();
-    const items = contentTypeMenuItems(ct, { ...handlers, onEditFields, onDeprecate });
+    const items = contentTypeMenuItems(ct, { ...handlers, onEditFields, onDeprecate }, "en");
     items.find((i) => i.key === "edit-fields")!.onSelect();
     items.find((i) => i.key === "deprecate")!.onSelect();
     expect(onEditFields).toHaveBeenCalledWith(ct);
     expect(onDeprecate).toHaveBeenCalledWith(ct);
+  });
+
+  it("translates labels to Spanish when locale is es", () => {
+    const items = contentTypeMenuItems(contentType({ status: "active" }), handlers, "es");
+    expect(items.map((i) => i.label)).toEqual(["Editar campos", "Marcar obsoleto", "Eliminar definitivamente"]);
+    const deprecated = contentTypeMenuItems(contentType({ status: "deprecated" }), handlers, "es");
+    expect(deprecated.find((i) => i.key === "reactivate")?.label).toBe("Reactivar");
   });
 });

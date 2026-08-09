@@ -6,6 +6,8 @@ import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedIns
 import { siteUrl } from "../../lib/site-url";
 import { usePostEditor } from "./hooks/use-post-editor.hooks";
 import { toolbarBtnClass } from "./rules";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { POSTS_DICT } from "./posts-i18n";
 
 /**
  * @file The post/page editor screen — markup only.
@@ -124,6 +126,7 @@ function PostEditorHeader({
   onPublish,
   onSave,
   onDeleteClick,
+  t,
 }: {
   kindLabel: "post" | "page";
   confirmLeave: () => boolean;
@@ -134,6 +137,7 @@ function PostEditorHeader({
   onPublish: () => void;
   onSave: () => void;
   onDeleteClick: () => void;
+  t: (key: string) => string;
 }) {
   return (
     <div
@@ -144,9 +148,15 @@ function PostEditorHeader({
       })}
     >
       <div className="page-header-text">
-        <p className="page-kicker">Content</p>
-        <h1 className="page-title">{kindLabel === "page" ? "Edit page" : "Edit post"}</h1>
-        <p className="page-description">Update this {kindLabel}&apos;s title, body, and publish status.</p>
+        <p className="page-kicker">{t("Content")}</p>
+        <h1 className="page-title">{t(kindLabel === "page" ? "Edit page" : "Edit post")}</h1>
+        <p className="page-description">
+          {t(
+            kindLabel === "page"
+              ? "Update this page's title, body, and publish status."
+              : "Update this post's title, body, and publish status.",
+          )}
+        </p>
       </div>
       <div className="page-actions">
         {/* Audit finding: no editor screen warns before an in-app navigation discards unsaved
@@ -170,7 +180,7 @@ function PostEditorHeader({
           {...agentHandle("post-back-to-list", { role: "link", label: `Back to the list of all ${kindLabel}s` })}
         >
           <button type="button" className="btn-secondary">
-            ← {kindLabel === "page" ? "Pages" : "Posts"}
+            ← {kindLabel === "page" ? t("Pages") : t("Posts")}
           </button>
         </a>
         {message ? <span className="save-ok">{message}</span> : null}
@@ -186,8 +196,8 @@ function PostEditorHeader({
               "NOT the same as Delete, which moves the whole entry to the trash.",
           })}
         >
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
+          <option value="draft">{t("Draft")}</option>
+          <option value="published">{t("Published")}</option>
         </select>
         {/* Publish is the one-click "save this and put it live" shortcut, and only makes sense
             while there is something to publish — once `status` is already "published" (matching
@@ -207,7 +217,7 @@ function PostEditorHeader({
                 "published, use Save for further edits.",
             })}
           >
-            Publish
+            {t("Publish")}
           </button>
         ) : null}
         <button
@@ -216,7 +226,7 @@ function PostEditorHeader({
           onClick={onSave}
           {...agentHandle("post-save", { role: "button", label: "Save this post's title, slug, status and body" })}
         >
-          Save
+          {t("Save")}
         </button>
         <button
           type="button"
@@ -230,7 +240,7 @@ function PostEditorHeader({
               "before deleting.",
           })}
         >
-          Delete
+          {t("Delete")}
         </button>
       </div>
     </div>
@@ -269,6 +279,8 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
     save,
     remove,
   } = usePostEditorHook(postId);
+  const locale = useAdminLocale();
+  const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
 
   if (error && !post) return <div className="notice error">{error}</div>;
   if (!post) return <div className="notice">Loading editor…</div>;
@@ -287,6 +299,7 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
         onPublish={() => save("published")}
         onSave={() => save()}
         onDeleteClick={() => setConfirmingDelete(true)}
+        t={t}
       />
       {/* Audit finding: placeholder-only, no `<label>` — a screen reader gets nothing (title) or
           the bare `type="text"` announcement (slug, which had no placeholder either). The
@@ -299,7 +312,7 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
           className="editor-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Post title"
+          placeholder={t("Post title")}
           {...agentHandle("post-title", { role: "field", label: "This post's title" })}
         />
       </label>
@@ -342,14 +355,18 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
       </div>
       <ConfirmDialog
         open={confirmingDelete}
-        title="Move to trash?"
+        title={t("Move to trash?")}
         body={
           <p>
-            Move this {kindLabel} (&quot;{post.title}&quot;) to trash? It will disappear from the site and from the{" "}
-            {kindLabel}s list.
+            {t(kindLabel === "page" ? "Move this page" : "Move this post")} (&quot;{post.title}&quot;){" "}
+            {t(
+              kindLabel === "page"
+                ? "to trash? It will disappear from the site and from the pages list."
+                : "to trash? It will disappear from the site and from the posts list.",
+            )}
           </p>
         }
-        confirmLabel="Move to trash"
+        confirmLabel={t("Move to trash")}
         destructive
         pending={deleting}
         onConfirm={remove}

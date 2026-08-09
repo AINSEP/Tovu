@@ -7,6 +7,8 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
 import { pageRowMenuItems } from "./rules";
 import { usePages } from "./hooks/use-pages.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { PAGES_DICT } from "./pages-i18n";
 
 /**
  * @file The Pages list screen — markup only.
@@ -58,6 +60,8 @@ export function Pages({ usePagesHook = usePages }: PagesProps) {
     disablePage,
     removePage,
   } = usePagesHook();
+  const locale = useAdminLocale();
+  const t = (key: string): string => PAGES_DICT[locale]?.[key] ?? key;
 
   const notice = pagesListNotice(pages, error);
   if (notice) return notice;
@@ -70,13 +74,13 @@ export function Pages({ usePagesHook = usePages }: PagesProps) {
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">Pages</h1>
-          <p className="page-description">Manage every standalone page on this site.</p>
+          <p className="page-kicker">{t("Content")}</p>
+          <h1 className="page-title">{t("Pages")}</h1>
+          <p className="page-description">{t("Manage every standalone page on this site.")}</p>
         </div>
         <div className="page-actions">
           <button onClick={createPage} disabled={creating}>
-            {creating ? "Creating…" : "New Page"}
+            {creating ? t("Creating…") : t("New Page")}
           </button>
         </div>
       </div>
@@ -87,13 +91,13 @@ export function Pages({ usePagesHook = usePages }: PagesProps) {
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>No pages yet.</p>
-              <p className="page-description">Create your first page to get started.</p>
+              <p>{t("No pages yet.")}</p>
+              <p className="page-description">{t("Create your first page to get started.")}</p>
             </div>
           </div>
         }
         columns={[
-          { key: "title", header: "Title", cell: (page) => <a href={`/admin/pages/${page.id}`}>{page.title}</a> },
+          { key: "title", header: t("Title"), cell: (page) => <a href={`/admin/pages/${page.slug}`}>{page.title}</a> },
           {
             key: "slug",
             header: "Slug",
@@ -105,21 +109,25 @@ export function Pages({ usePagesHook = usePages }: PagesProps) {
           },
           {
             key: "status",
-            header: "Status",
+            header: t("Status"),
             cell: (page) => <span className={`status status-${page.status}`}>{page.status}</span>,
           },
-          { key: "updated", header: "Updated", cell: (page) => formatTimestamp(page.updatedAt) },
+          { key: "updated", header: t("Updated"), cell: (page) => formatTimestamp(page.updatedAt) },
           {
             key: "actions",
-            header: "More",
+            header: t("More"),
             cell: (page) => (
               <RowMenu
                 triggerLabel={`Actions for "${page.title}"`}
-                items={pageRowMenuItems(page, {
-                  onEdit: (p) => navigate(`/pages/${p.id}`),
-                  onDisable: disablePage,
-                  onDelete: setPendingDelete,
-                })}
+                items={pageRowMenuItems(
+                  page,
+                  {
+                    onEdit: (p) => navigate(`/pages/${p.slug}`),
+                    onDisable: disablePage,
+                    onDelete: setPendingDelete,
+                  },
+                  locale,
+                )}
               />
             ),
           },
@@ -127,15 +135,15 @@ export function Pages({ usePagesHook = usePages }: PagesProps) {
       />
       <ConfirmDialog
         open={pendingDelete !== null}
-        title="Move to trash?"
+        title={t("Move to trash?")}
         body={
           pendingDelete ? (
             <p>
-              Move &quot;{pendingDelete.title}&quot; to trash? It will disappear from the site and from this list.
+              {t("Move")} &quot;{pendingDelete.title}&quot; {t("to trash? It will disappear from the site and from this list.")}
             </p>
           ) : null
         }
-        confirmLabel="Move to trash"
+        confirmLabel={t("Move to trash")}
         destructive
         pending={pendingDelete !== null && rowSavingId === pendingDelete.id}
         onConfirm={removePage}

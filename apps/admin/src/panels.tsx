@@ -18,7 +18,7 @@ import { Settings } from "./features/settings-raw";
 import { SettingsUi } from "./features/settings";
 import { Seo } from "./features/seo";
 import { Redirects } from "./features/redirects";
-import { Plugins } from "./features/plugins";
+import { Plugins, AgentPlugins } from "./features/plugins";
 import { FormsList, FormEditor } from "./features/forms";
 import { Collections, CollectionEntries, CollectionEntryEditor } from "./features/collections";
 import { Taxonomy } from "./features/taxonomy";
@@ -41,15 +41,20 @@ import { AiAssistant } from "./features/ai-assistant";
  * - `lib/agent-pages.ts` — the AI assistant's navigation allowlist.
  *
  * `apps/admin/INFO.md` ("Adding a new admin section") explained why that split existed and was
- * right to insist on it: `nav.ts` presence and agent reachability are both *deliberate opt-ins*,
- * not things a new section should get simply by being routable — `appearance` and `settings-raw`
- * are reachable with no sidebar row, and an agent may only navigate where `agent-pages.ts` names,
- * on purpose. `@jini-ai/admin/core`'s `AdminPanel` keeps that exact reasoning but as fields on one
- * declaration: `nav` is optional (omit it and a panel is routable but unlisted), and
- * `agentReachable` defaults to `false` and must be opted into explicitly. A panel author who
- * forgets to think about agent reachability gets `false` — the safe default — rather than a panel
- * silently becoming agent-reachable by existing in a dispatch map, which is what deriving it from
- * `SECTIONS` would have done.
+ * right to insist on it: `nav.ts` presence and agent reachability are separate concerns from
+ * routability — `appearance` and `settings-raw` are reachable with no sidebar row, for instance,
+ * and an agent may only navigate where `agent-pages.ts` names. `@jini-ai/admin/core`'s `AdminPanel`
+ * keeps that exact reasoning but as fields on one declaration: `nav` is optional (omit it and a
+ * panel is routable but unlisted), and `agentReachable` is left unset on nearly every panel below —
+ * `agent-pages.ts` opts Tovu into `buildAgentPageMap`'s `defaultReachable: true`, so unset now means
+ * reachable, not excluded. Only `settings-raw` sets `agentReachable: false` explicitly, to opt back
+ * OUT — a human-only debugging surface with a real, still-current reason to stay off the allowlist,
+ * documented at that panel's own declaration. This is the mirror image of the field's original
+ * fail-safe-by-default design (`@jini-ai/admin/core`'s own default is still `false`, for a host that
+ * hasn't made this call); Tovu decided navigation-only reachability carries no meaningful risk on
+ * its own — operating a page's controls is a separate, still per-element `data-agent-element`
+ * opt-in this default has no effect on — so unset defaulting to *included* is the more useful shape
+ * for an operator asking the assistant "where is X" and getting "nowhere, by construction" back.
  *
  * Detail routes (`/posts/:id`, `/widgets/regions/:key`, …) used to live as branches in `App.tsx`'s
  * `parseRoute`, a ~30-line if-chain. They live on each panel's own `routes` now — see
@@ -105,9 +110,13 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       label: "AI Assistant",
       icon: '<rect x="3" y="5" width="12" height="9" rx="2.5"/><path d="M9 5V2.5M6.5 9v.01M11.5 9v.01M7 12h4"/><path d="M1.5 8.5v2M16.5 8.5v2"/>',
     },
-    // Not agent-reachable, by design: this IS the assistant surface. An agent navigating to its
-    // own dock is not a meaningful action, and the allowlist default (`false`, unset) is correct
-    // here without needing a comment at every other panel that also leaves it unset.
+    // Reachable via the default, same as every other panel here. An earlier version of this
+    // comment excluded it on the reasoning that "an agent navigating to its own dock is not a
+    // meaningful action" — a mistaken premise: this screen is not the assistant's chat dock, it's
+    // an operator control panel (the visitor-assistant kill switch, execution mode, BYOK
+    // credentials) that happens to be named "AI Assistant". Reachability alone only lets an agent
+    // land here; operating the kill switch or reading a credential would need those specific
+    // controls individually tagged with `data-agent-element`, which none of them are.
   },
 
   // --- Content ---
@@ -116,13 +125,15 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     render: (ctx) => {
       switch (ctx.view) {
         case "page-editor":
-          // Guaranteed present: this view only fires when `/:pageId` matched.
-          return <PageEditor pageId={ctx.params.pageId} />;
+          // Guaranteed present: this view only fires when `/:slug` matched. Despite the name, the
+          // server-side lookup this feeds (`getAdminPostByIdOrSlug`) accepts either a slug or a
+          // real id, so an old id-based bookmark still resolves — see that function's own doc.
+          return <PageEditor slug={ctx.params.slug} />;
         default:
           return <Pages />;
       }
     },
-    routes: [{ pattern: "/:pageId", view: "page-editor" }],
+    routes: [{ pattern: "/:slug", view: "page-editor" }],
     nav: {
       label: "Pages",
       group: "Content",
@@ -339,7 +350,10 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       // (a shaft + teeth + a ring) from both neighbors' silhouettes.
       icon: '<circle cx="6" cy="6" r="2.75"/><path d="M8 8l7 7M12 12l1.5-1.5M14 14l1.5-1.5"/>',
     },
-    // Not agent-reachable: there is nothing built here yet for an agent to do.
+    // Reachable via `agent-pages.ts`'s flipped default like every other panel here — there is
+    // nothing built yet for an agent to DO on this screen, but landing here to report that back
+    // ("payments isn't set up yet") is itself useful, and is exactly the discoverability gap a
+    // `false` default would reintroduce.
   },
   {
     id: "roles",
@@ -363,13 +377,121 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "comments",
+    // `soon: true` on a panel that DOES render a real screen — deliberately, and the only entry in
+    // this file shaped that way. Every other `soon` row is a `Placeholder`; here the owner's call is
+    // that the Comments surface is genuinely unfinished, so the badge sets expectations while the
+    // working screen stays reachable. `soonPreviewable` is what makes that combination coherent:
+    // without it the row would render as a disabled link and the badge would hide shipped
+    // functionality rather than annotate it.
     render: () => <Comments />,
     nav: {
       label: "Comments",
       group: "People",
+      soon: true,
+      soonPreviewable: true,
       icon: '<path d="M3 4h12v8H8l-3 3v-3H3V4z"/>',
     },
     agentReachable: true,
+  },
+
+  // --- Studio ---
+  {
+    id: "themes",
+    // `themes` and `appearance` below both render `Appearance`: two accepted spellings, one
+    // screen, kept as two panel ids (rather than one panel with two routes) because they are two
+    // independently agent-reachable pages at two independent URLs, exactly as `SECTIONS` and
+    // `ADMIN_AGENT_PAGE_PATHS` both treated them before.
+    render: () => <Appearance />,
+    nav: {
+      label: "Themes",
+      group: "Studio",
+      icon: '<circle cx="6.2" cy="7" r="3.4"/><circle cx="11.8" cy="7" r="3.4"/><circle cx="9" cy="11.6" r="3.4"/>',
+    },
+    agentReachable: true,
+  },
+  {
+    id: "skills",
+    // No screen yet — `soon: true` + `Placeholder`, the same shape `newsletter` below already uses
+    // for a genuinely unbuilt-but-real nav entry. Deliberately NOT a bespoke "coming soon"
+    // component: this repo has one idiom for this, and a second would be a second thing to maintain.
+    render: () => <Placeholder sectionId="skills" />,
+    nav: {
+      label: "Skills",
+      group: "Studio",
+      soon: true,
+      icon: '<path d="M9 2.5l1.9 4 4.4.6-3.2 3.1.8 4.3L9 12.5l-3.9 2 .8-4.3L2.7 7.1l4.4-.6z"/>',
+    },
+    // Reachable via `agent-pages.ts`'s flipped default like every other panel here — there is
+    // nothing built yet for an agent to DO on this screen, but landing here to report that back
+    // ("payments isn't set up yet") is itself useful, and is exactly the discoverability gap a
+    // `false` default would reintroduce.
+  },
+  {
+    id: "design-system",
+    render: () => <Placeholder sectionId="design-system" />,
+    nav: {
+      label: "Design System",
+      group: "Studio",
+      soon: true,
+      // Four tiles, two square and two round — a token/primitive set, distinct from `widgets`'
+      // four-equal-squares icon at a glance in the icon-only rail.
+      icon: '<rect x="2.5" y="2.5" width="6" height="6" rx="1"/><rect x="9.5" y="2.5" width="6" height="6" rx="3"/><rect x="2.5" y="9.5" width="6" height="6" rx="3"/><rect x="9.5" y="9.5" width="6" height="6" rx="1"/>',
+    },
+  },
+
+  // --- Plugins ---
+  // Promoted out of Studio to its own group (owner call). Studio is the design surface — themes,
+  // skills, design tokens — whereas plugins are installed capabilities that extend what the site
+  // can DO, which is a different axis. Splitting also gives Marketplace somewhere to live: as a
+  // Studio row it would have read as a fourth design tool.
+  {
+    id: "plugins",
+    render: () => <Plugins />,
+    nav: {
+      // SPEC-005 REQ-17/AC-25: the plugin system now ships (SPEC-045's Option A — finish SPEC-005,
+      // then add this thin admin UI), so this entry links to the real `Plugins` screen instead of
+      // being marked `soon`. Relabelled "Installed" now that it is one of two rows under a
+      // "Plugins" heading — "Plugins > Plugins" would have read as a mistake. The panel **id** is
+      // deliberately unchanged: it is the route (`/plugins`) and the `agent-pages.ts` allowlist
+      // key, so renaming it would break both for a cosmetic gain.
+      label: "Installed",
+      group: "Plugins",
+      icon: '<path d="M7 2v3H4v9h10V5h-3V2H7z"/>',
+    },
+    agentReachable: true,
+  },
+  {
+    id: "plugins-marketplace",
+    render: () => <Placeholder sectionId="plugins-marketplace" />,
+    nav: {
+      label: "Marketplace",
+      group: "Plugins",
+      soon: true,
+      icon: '<path d="M3 6.5h12l-1 8H4z"/><path d="M6.5 6.5a2.5 2.5 0 015 0"/>',
+    },
+    // Reachable via `agent-pages.ts`'s flipped default like every other panel here — there is
+    // nothing built yet for an agent to DO on this screen, but landing here to report that back
+    // ("payments isn't set up yet") is itself useful, and is exactly the discoverability gap a
+    // `false` default would reintroduce.
+  },
+  {
+    id: "agent-plugins",
+    render: () => <AgentPlugins />,
+    nav: {
+      // Third row under "Plugins", alongside Installed and Marketplace: surfaces the Agent
+      // Plugins open standard (agent-plugins.org, published 2026-08-06) — portable
+      // skills/MCP-server bundles, distinct from the site-capability plugins the other two rows
+      // manage. No backend yet, but `soonPreviewable: true` (owner request) so the row is a real
+      // clickable link to a reminder note + the spec URL, not an inert "coming soon" label.
+      label: "Agent Plugins",
+      group: "Plugins",
+      soon: true,
+      soonPreviewable: true,
+      icon: '<circle cx="8" cy="8" r="2.25"/><path d="M8 2v2.25M8 11.75V14M2 8h2.25M11.75 8H14M4.5 4.5l1.6 1.6M9.9 9.9l1.6 1.6M4.5 11.5l1.6-1.6M9.9 6.1l1.6-1.6"/>',
+    },
+    // Reachable via the default, same as every other panel here — still no backend, so an agent
+    // landing here finds a reminder note and a spec URL, not a usable feature, but that's still a
+    // more useful answer than "no such page" for an operator asking where this is.
   },
 
   // --- Commerce ---
@@ -417,7 +539,10 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       soonPreviewable: true,
       icon: '<rect x="3" y="2" width="10" height="14" rx="1.5"/><path d="M6 6h4M6 9h4"/><path d="M12 11.5l1.5 1.5 2.5-3"/>',
     },
-    // Not agent-reachable: there is nothing built here yet for an agent to do.
+    // Reachable via `agent-pages.ts`'s flipped default like every other panel here — there is
+    // nothing built yet for an agent to DO on this screen, but landing here to report that back
+    // ("payments isn't set up yet") is itself useful, and is exactly the discoverability gap a
+    // `false` default would reintroduce.
   },
   {
     id: "products",
@@ -431,7 +556,10 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       soonPreviewable: true,
       icon: '<path d="M9 2l6 3.2v7.6l-6 3.2-6-3.2V5.2L9 2z"/><path d="M3 5.2L9 8.4l6-3.2M9 8.4v7"/>',
     },
-    // Not agent-reachable: there is nothing built here yet for an agent to do.
+    // Reachable via `agent-pages.ts`'s flipped default like every other panel here — there is
+    // nothing built yet for an agent to DO on this screen, but landing here to report that back
+    // ("payments isn't set up yet") is itself useful, and is exactly the discoverability gap a
+    // `false` default would reintroduce.
   },
   {
     id: "subscriptions",
@@ -454,62 +582,31 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       soonPreviewable: true,
       icon: '<path d="M9 3a6 6 0 015.2 3M15 3v3.5H11.5"/><path d="M9 15a6 6 0 01-5.2-3M3 15v-3.5H6.5"/>',
     },
-    // Not agent-reachable: there is nothing built here yet for an agent to do.
-  },
-
-  // --- Studio ---
-  {
-    id: "themes",
-    // `themes` and `appearance` below both render `Appearance`: two accepted spellings, one
-    // screen, kept as two panel ids (rather than one panel with two routes) because they are two
-    // independently agent-reachable pages at two independent URLs, exactly as `SECTIONS` and
-    // `ADMIN_AGENT_PAGE_PATHS` both treated them before.
-    render: () => <Appearance />,
-    nav: {
-      label: "Themes",
-      group: "Studio",
-      icon: '<circle cx="6.2" cy="7" r="3.4"/><circle cx="11.8" cy="7" r="3.4"/><circle cx="9" cy="11.6" r="3.4"/>',
-    },
-    agentReachable: true,
+    // Reachable via `agent-pages.ts`'s flipped default like every other panel here — there is
+    // nothing built yet for an agent to DO on this screen, but landing here to report that back
+    // ("payments isn't set up yet") is itself useful, and is exactly the discoverability gap a
+    // `false` default would reintroduce.
   },
   {
-    id: "plugins",
-    render: () => <Plugins />,
+    id: "billing",
+    // Distinct from Payments and Subscriptions, which are both about money coming IN: Payments is
+    // provider configuration (the `lipay` plugin's Stripe/PayPal wiring) and Subscriptions is the
+    // recurring charges levied against members. Billing is this workspace's own account — what the
+    // operator pays to run the site. `soonPreviewable` matches the owner decision recorded on
+    // `orders` above: every Commerce row previews as a real clickable link, so the section never
+    // reads as some rows working and others not.
+    render: () => <Placeholder sectionId="billing" />,
     nav: {
-      // SPEC-005 REQ-17/AC-25: the plugin system now ships (SPEC-045's Option A — finish SPEC-005,
-      // then add this thin admin UI), so this entry links to the real `Plugins` screen instead of
-      // being marked `soon`.
-      label: "Plugins",
-      group: "Studio",
-      icon: '<path d="M7 2v3H4v9h10V5h-3V2H7z"/>',
-    },
-    agentReachable: true,
-  },
-  {
-    id: "skills",
-    // No screen yet — `soon: true` + `Placeholder`, the same shape `newsletter` below already uses
-    // for a genuinely unbuilt-but-real nav entry. Deliberately NOT a bespoke "coming soon"
-    // component: this repo has one idiom for this, and a second would be a second thing to maintain.
-    render: () => <Placeholder sectionId="skills" />,
-    nav: {
-      label: "Skills",
-      group: "Studio",
+      label: "Billing",
+      group: "Commerce",
       soon: true,
-      icon: '<path d="M9 2.5l1.9 4 4.4.6-3.2 3.1.8 4.3L9 12.5l-3.9 2 .8-4.3L2.7 7.1l4.4-.6z"/>',
+      soonPreviewable: true,
+      icon: '<path d="M4 2.5h10v13l-2-1.5-1.5 1.5L9 14l-1.5 1.5L6 14l-2 1.5z"/><path d="M6.5 6h5M6.5 9h5"/>',
     },
-    // Not agent-reachable: there is nothing built here yet for an agent to do.
-  },
-  {
-    id: "design-system",
-    render: () => <Placeholder sectionId="design-system" />,
-    nav: {
-      label: "Design System",
-      group: "Studio",
-      soon: true,
-      // Four tiles, two square and two round — a token/primitive set, distinct from `widgets`'
-      // four-equal-squares icon at a glance in the icon-only rail.
-      icon: '<rect x="2.5" y="2.5" width="6" height="6" rx="1"/><rect x="9.5" y="2.5" width="6" height="6" rx="3"/><rect x="2.5" y="9.5" width="6" height="6" rx="3"/><rect x="9.5" y="9.5" width="6" height="6" rx="1"/>',
-    },
+    // Reachable via `agent-pages.ts`'s flipped default like every other panel here — there is
+    // nothing built yet for an agent to DO on this screen, but landing here to report that back
+    // ("payments isn't set up yet") is itself useful, and is exactly the discoverability gap a
+    // `false` default would reintroduce.
   },
 
   // --- Operations ---
@@ -559,6 +656,36 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     agentReachable: true,
   },
   {
+    id: "activity-log",
+    // No screen yet — `soon: true` + `Placeholder`, this repo's one idiom for a real-but-unbuilt
+    // nav entry. Sits beside Recovery deliberately: both answer "what happened to my site," one
+    // after the fact and one as a way back. The read side already exists in the tool catalog as
+    // `database_query_timeline`, so this is a missing surface rather than a missing capability.
+    render: () => <Placeholder sectionId="activity-log" />,
+    nav: {
+      label: "Activity Log",
+      group: "Operations",
+      soon: true,
+      icon: '<circle cx="9" cy="9" r="6.5"/><path d="M9 5v4l2.5 1.5"/>',
+    },
+    // Reachable via the default, same as every other panel here — nothing built here yet for an
+    // agent to act on, but landing here to report so is itself a useful answer.
+  },
+  {
+    id: "import-export",
+    // Operations rather than Studio or Administration: this is bulk data movement, so its siblings
+    // are Database, Recovery, and Integrations — not the design surface (Studio) and not this
+    // site's own configuration (Administration). It is also the one section that is as much about
+    // getting data OUT as in, which is an operational guarantee rather than an authoring feature.
+    render: () => <Placeholder sectionId="import-export" />,
+    nav: {
+      label: "Import & Export",
+      group: "Operations",
+      soon: true,
+      icon: '<path d="M9 2.5v8M9 10.5L6 7.5M9 10.5l3-3"/><path d="M3 12v2.5h12V12"/>',
+    },
+  },
+  {
     id: "deployment",
     render: () => (
       <PlaceholderTabs
@@ -582,7 +709,11 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Administration ---
   {
     id: "settings",
-    render: () => <SettingsUi />,
+    // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
+    // (see `SettingsUi`'s `tabId` prop) — same "URL names the sub-state" shape as `widgets`' own
+    // `?type=` below, so `/admin/settings?tab=privacy` is both bookmarkable and a page an agent's
+    // `page.navigate` could be pointed at once that capability grows param support.
+    render: (ctx) => <SettingsUi tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Settings",
       group: "Administration",
@@ -596,8 +727,13 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // the curated tabbed surface ported from Open Design. Both read and write the same
     // `content.db` rows through the ADR-028 chokepoint — a second *view*, not a second store.
     // No `nav` entry — deliberately reachable without a sidebar row, same as `appearance` below.
-    // Not agent-reachable, by the same allowlist logic as `ai-assistant`: this is a human-only
-    // debugging surface, not a destination worth publishing.
+    //
+    // Explicit `agentReachable: false`, not just left unset — `agent-pages.ts` now defaults every
+    // OTHER unset panel to reachable, and this is the one panel that genuinely should stay excluded
+    // rather than inherit that default: a human-only debugging surface over the same raw
+    // namespace/key rows `/settings` already exposes through a curated UI, not a destination worth
+    // an agent (or an operator asking one for help) ever landing on directly.
+    agentReachable: false,
     render: () => <Settings />,
   },
   {
@@ -612,6 +748,34 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       icon: '<rect x="2.5" y="2.5" width="13" height="13" rx="2"/><path d="M2.5 7h13"/>',
     },
     agentReachable: true,
+  },
+  {
+    id: "notifications",
+    // Owner placed this "under settings" — read as the Administration group beside Settings, not as
+    // a tab inside `SettingsUi`, because it ships as a `soon` NAV entry and a tab would have no nav
+    // row to label. Same open question Workspace's own note records above (standalone entry vs
+    // Settings tab); resolving one should probably resolve both.
+    render: () => <Placeholder sectionId="notifications" />,
+    nav: {
+      label: "Notifications",
+      group: "Administration",
+      soon: true,
+      icon: '<path d="M9 2.5a4.5 4.5 0 00-4.5 4.5c0 3.5-1.5 4.5-1.5 4.5h12s-1.5-1-1.5-4.5A4.5 4.5 0 009 2.5z"/><path d="M7.5 14a1.5 1.5 0 003 0"/>',
+    },
+  },
+  {
+    id: "trash",
+    // Administration rather than Content: the trash spans domains — `media_trash_asset`,
+    // `comments_trash_comment`, and `redirects_tombstone` all exist today and each currently
+    // strands its deletions inside its own section. A single cross-cutting recycle bin belongs
+    // with the site-wide surfaces, not under any one content type.
+    render: () => <Placeholder sectionId="trash" />,
+    nav: {
+      label: "Trash",
+      group: "Administration",
+      soon: true,
+      icon: '<path d="M3.5 5h11M7 5V3.5h4V5M5 5l.8 9.5h6.4L13 5"/>',
+    },
   },
 
   // --- Marketing ---
@@ -646,7 +810,10 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       soon: true,
       icon: '<rect x="2.5" y="4" width="13" height="9" rx="1.5"/><path d="M2.5 5.5L9 9.5l6.5-4"/>',
     },
-    // Not agent-reachable: there is nothing built here yet for an agent to do.
+    // Reachable via `agent-pages.ts`'s flipped default like every other panel here — there is
+    // nothing built yet for an agent to DO on this screen, but landing here to report that back
+    // ("payments isn't set up yet") is itself useful, and is exactly the discoverability gap a
+    // `false` default would reintroduce.
   },
   {
     id: "analytics",

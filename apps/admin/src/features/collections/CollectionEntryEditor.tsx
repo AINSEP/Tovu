@@ -3,6 +3,8 @@ import { type AdminTaxonomyWithTerms, type ContentTypeFieldDef } from "../../lib
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
 import { useCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
 import { useTermPicker } from "./hooks/use-term-picker.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { COLLECTIONS_DICT } from "./collections-i18n";
 
 /**
  * @file Collections' entry editor (design-spec.md §1.5/§1.6) — the
@@ -121,26 +123,33 @@ function DynamicField(props: {
  * no "terms assigned to this entry" read route exists yet (only the write-only `assignTerms`
  * route). `assignTerms` itself is additive (upserts, never clears an unselected assignment), so
  * this control is deliberately framed as "assign", not "set", to avoid implying it can unassign. */
-function TermPicker(props: { taxonomies: AdminTaxonomyWithTerms[]; contentType: string; contentId: string }) {
+function TermPicker(props: {
+  taxonomies: AdminTaxonomyWithTerms[];
+  contentType: string;
+  contentId: string;
+  t: (key: string) => string;
+}) {
   const { selected, toggle, saving, message, error, assign } = useTermPicker({
     contentType: props.contentType,
     contentId: props.contentId,
   });
+  const { t } = props;
 
   if (props.taxonomies.length === 0) return null;
 
   return (
     <div className="collections-term-picker">
-      <h3>Categories &amp; Tags</h3>
+      <h3>{t("Categories & Tags")}</h3>
       <p className="muted-cell">
-        Assign existing terms to this entry. This adds assignments — it does not show or remove
-        terms already assigned (no read route exists for that yet).
+        {t(
+          "Assign existing terms to this entry. This adds assignments — it does not show or remove terms already assigned (no read route exists for that yet).",
+        )}
       </p>
       {props.taxonomies.map(({ taxonomy, terms }) => (
         <fieldset key={taxonomy.id}>
           <legend>{taxonomy.name}</legend>
           {terms.length === 0 ? (
-            <p className="muted-cell">No terms yet.</p>
+            <p className="muted-cell">{t("No terms yet.")}</p>
           ) : (
             terms.map((term) => (
               <label key={term.id} className="collections-term-checkbox">
@@ -160,7 +169,7 @@ function TermPicker(props: { taxonomies: AdminTaxonomyWithTerms[]; contentType: 
           inside a table row or compact form, not a bottom-of-block action bar). */}
       <span className="editor-actions term-picker-actions">
         <button type="button" onClick={assign} disabled={saving || selected.size === 0}>
-          {saving ? "Assigning…" : "Assign selected terms"}
+          {saving ? t("Assigning…") : t("Assign selected terms")}
         </button>
         {message ? <span className="save-ok">{message}</span> : null}
         {error ? <span className="save-error">{error}</span> : null}
@@ -182,15 +191,16 @@ function EntryLifecycleButtons(props: {
   saving: boolean;
   onToggleLifecycle: (op: "publish" | "unpublish") => void;
   onSave: () => void;
+  t: (key: string) => string;
 }) {
-  const { entry, saving, onToggleLifecycle, onSave } = props;
+  const { entry, saving, onToggleLifecycle, onSave, t } = props;
   const isPublished = entry?.status === "published";
 
   return (
     <>
       {entry && !isPublished ? (
         <button type="button" onClick={() => onToggleLifecycle("publish")}>
-          Publish
+          {t("Publish")}
         </button>
       ) : null}
       {/* Reversible-but-access-affecting (drops the entry off the site; still editable here,
@@ -199,7 +209,7 @@ function EntryLifecycleButtons(props: {
           trash action. */}
       {entry && isPublished ? (
         <button type="button" className="btn-warning" onClick={() => onToggleLifecycle("unpublish")}>
-          Unpublish
+          {t("Unpublish")}
         </button>
       ) : null}
       {/* Secondary while Publish is also showing (draft entries) so the two don't compete for
@@ -207,7 +217,7 @@ function EntryLifecycleButtons(props: {
           Once published, Publish is gone and Save is this screen's one remaining primary
           action, so it goes back to bare/primary. */}
       <button type="button" className={entry && !isPublished ? "btn-secondary" : undefined} onClick={onSave} disabled={saving}>
-        {saving ? "Saving…" : "Save"}
+        {saving ? t("Saving…") : t("Save")}
       </button>
     </>
   );
@@ -222,8 +232,9 @@ function EntryPageActions(props: {
   saving: boolean;
   onToggleLifecycle: (op: "publish" | "unpublish") => void;
   onSave: () => void;
+  t: (key: string) => string;
 }) {
-  const { contentTypeKey, contentTypeLabel, entry, message, error, saving, onToggleLifecycle, onSave } = props;
+  const { contentTypeKey, contentTypeLabel, entry, message, error, saving, onToggleLifecycle, onSave, t } = props;
 
   return (
     <div className="page-actions">
@@ -235,7 +246,7 @@ function EntryPageActions(props: {
       {message ? <span className="save-ok">{message}</span> : null}
       {error ? <span className="save-error">{error}</span> : null}
       {entry ? <span className={`status status-${entry.status}`}>{entry.status}</span> : null}
-      <EntryLifecycleButtons entry={entry} saving={saving} onToggleLifecycle={onToggleLifecycle} onSave={onSave} />
+      <EntryLifecycleButtons entry={entry} saving={saving} onToggleLifecycle={onToggleLifecycle} onSave={onSave} t={t} />
     </div>
   );
 }
@@ -268,13 +279,14 @@ function EntryFieldsSection(props: {
   entry: { fieldsJson?: unknown } | null | undefined;
   extFields: Record<string, unknown>;
   onFieldChange: (name: string, value: unknown) => void;
+  t: (key: string) => string;
 }) {
-  const { fields, entry, extFields, onFieldChange } = props;
+  const { fields, entry, extFields, onFieldChange, t } = props;
   if (fields.length === 0) return null;
 
   return (
     <div className="collections-dynamic-fields">
-      <h3>Fields</h3>
+      <h3>{t("Fields")}</h3>
       {fields.map((field) => (
         <DynamicField
           key={field.name}
@@ -307,6 +319,8 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
     save,
     toggleLifecycle,
   } = useCollectionEntryEditor({ contentTypeKey: props.contentTypeKey, entryId: props.entryId });
+  const locale = useAdminLocale();
+  const t = (key: string): string => COLLECTIONS_DICT[locale]?.[key] ?? key;
 
   if (loadError) return <div className="notice error">{loadError}</div>;
   if (!loaded || contentType === undefined) return <div className="notice">Loading entry…</div>;
@@ -317,9 +331,11 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">{entry ? `Edit ${contentType.label} entry` : `New ${contentType.label} entry`}</h1>
-          <p className="page-description">Update this entry&apos;s title, fields, and body.</p>
+          <p className="page-kicker">{t("Content")}</p>
+          <h1 className="page-title">
+            {t(entry ? "Edit {label} entry" : "New {label} entry").replace("{label}", contentType.label)}
+          </h1>
+          <p className="page-description">{t("Update this entry's title, fields, and body.")}</p>
         </div>
         <EntryPageActions
           contentTypeKey={props.contentTypeKey}
@@ -330,6 +346,7 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
           saving={saving}
           onToggleLifecycle={toggleLifecycle}
           onSave={save}
+          t={t}
         />
       </div>
 
@@ -338,7 +355,7 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
           rendered in the `!entry` (create) branch, matching that branch's own `<input>`. */}
       <label className="a11y-label-wrap">
         <span className="visually-hidden">Entry title</span>
-        <input className="editor-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Entry title" />
+        <input className="editor-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("Entry title")} />
       </label>
       <EntrySlugField entry={entry} slug={slug} onSlugChange={setSlug} />
 
@@ -358,9 +375,12 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
         entry={entry}
         extFields={extFields}
         onFieldChange={(name, value) => setExtFields((current) => ({ ...current, [name]: value }))}
+        t={t}
       />
 
-      {entry ? <TermPicker taxonomies={taxonomies} contentType={props.contentTypeKey} contentId={entry.id} /> : null}
+      {entry ? (
+        <TermPicker taxonomies={taxonomies} contentType={props.contentTypeKey} contentId={entry.id} t={t} />
+      ) : null}
     </div>
   );
 }

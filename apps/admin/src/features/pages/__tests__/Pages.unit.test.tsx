@@ -86,7 +86,8 @@ describe("populated table", () => {
     renderWith({ pages: [PAGE] });
     // The Pages editor, NOT the Posts one. A Page is a bespoke HTML document and is never
     // opened in Tiptap; this href is the guarantee, and it used to point at /admin/posts/{id}.
-    expect(screen.getByRole("link", { name: "About" })).toHaveAttribute("href", "/admin/pages/pg1");
+    // Built from the slug (not the id) — the Pages editor URL is slug-based.
+    expect(screen.getByRole("link", { name: "About" })).toHaveAttribute("href", "/admin/pages/about");
     expect(screen.getByRole("link", { name: "/about" })).toBeInTheDocument();
     expect(screen.getByText("published")).toBeInTheDocument();
     expect(screen.getByText("2026-08-01 12:34")).toBeInTheDocument();
@@ -123,12 +124,12 @@ describe("row menu — Disable visibility mirrors pageRowMenuItems", () => {
     expect(screen.queryByRole("menuitem", { name: "Disable" })).not.toBeInTheDocument();
   });
 
-  it("Edit navigates to the Pages editor at /pages/{id}, never the Posts editor", async () => {
+  it("Edit navigates to the Pages editor at /pages/{slug}, never the Posts editor", async () => {
     const user = userEvent.setup();
     renderWith({ pages: [PAGE] });
     await user.click(screen.getByRole("button", { name: 'Actions for "About"' }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    expect(navigate).toHaveBeenCalledWith("/pages/pg1");
+    expect(navigate).toHaveBeenCalledWith("/pages/about");
   });
 
   it("Disable calls disablePage with the row", async () => {

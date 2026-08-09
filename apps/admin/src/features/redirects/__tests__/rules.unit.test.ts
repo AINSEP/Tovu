@@ -95,7 +95,7 @@ describe("redirectRowMenuItems", () => {
   it("labels the toggle item 'Disable' for an active rule and wires onToggleStatus", () => {
     const onToggleStatus = () => {};
     const onRequestDelete = () => {};
-    const items = redirectRowMenuItems(BASE_RULE, { onToggleStatus, onRequestDelete });
+    const items = redirectRowMenuItems(BASE_RULE, { onToggleStatus, onRequestDelete }, "en");
 
     expect(items).toHaveLength(2);
     expect(items[0]).toMatchObject({ key: "toggle", label: "Disable" });
@@ -106,6 +106,7 @@ describe("redirectRowMenuItems", () => {
     const items = redirectRowMenuItems(
       { ...BASE_RULE, status: "disabled" },
       { onToggleStatus: () => {}, onRequestDelete: () => {} },
+      "en",
     );
     expect(items[0]).toMatchObject({ label: "Enable" });
   });
@@ -113,15 +114,30 @@ describe("redirectRowMenuItems", () => {
   it("wires each item's onSelect to the matching handler with the rule itself", () => {
     let toggled: AdminRedirect | undefined;
     let deleted: AdminRedirect | undefined;
-    const items = redirectRowMenuItems(BASE_RULE, {
-      onToggleStatus: (rule) => (toggled = rule),
-      onRequestDelete: (rule) => (deleted = rule),
-    });
+    const items = redirectRowMenuItems(
+      BASE_RULE,
+      {
+        onToggleStatus: (rule) => (toggled = rule),
+        onRequestDelete: (rule) => (deleted = rule),
+      },
+      "en",
+    );
 
     items[0].onSelect?.();
     items[1].onSelect?.();
     expect(toggled).toBe(BASE_RULE);
     expect(deleted).toBe(BASE_RULE);
+  });
+
+  it("translates labels to Spanish when locale is es", () => {
+    const items = redirectRowMenuItems(BASE_RULE, { onToggleStatus: () => {}, onRequestDelete: () => {} }, "es");
+    expect(items.map((i) => i.label)).toEqual(["Desactivar", "Eliminar"]);
+    const disabled = redirectRowMenuItems(
+      { ...BASE_RULE, status: "disabled" },
+      { onToggleStatus: () => {}, onRequestDelete: () => {} },
+      "es",
+    );
+    expect(disabled[0].label).toBe("Activar");
   });
 });
 

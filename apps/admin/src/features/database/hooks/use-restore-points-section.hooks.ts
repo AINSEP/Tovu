@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, describeApiError, type AdminRestorePoint } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../database-i18n";
 
 /**
  * @file Everything `RestorePointsSection` (the Database screen's restore-point list + create
@@ -17,6 +19,7 @@ export interface RestorePointsSectionController {
 }
 
 export function useRestorePointsSection(): RestorePointsSectionController {
+  const locale = useAdminLocale();
   const [points, setPoints] = useState<AdminRestorePoint[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -25,7 +28,7 @@ export function useRestorePointsSection(): RestorePointsSectionController {
     api
       .listDatabaseRestorePoints()
       .then((r) => setPoints(r.items))
-      .catch((e) => setError(describeApiError(e, "failed to load restore points")));
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load restore points"))));
   }
 
   useEffect(load, []);
@@ -42,7 +45,7 @@ export function useRestorePointsSection(): RestorePointsSectionController {
       await api.createDatabaseRestorePoint({ trigger: "manual", costAck: true });
       load();
     } catch (e) {
-      setError(describeApiError(e, "Failed to create restore point"));
+      setError(describeApiError(e, t(locale, "Failed to create restore point")));
     } finally {
       setCreating(false);
     }

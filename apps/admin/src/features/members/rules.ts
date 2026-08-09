@@ -1,5 +1,6 @@
 import { ApiError, describeApiError as describeApiErrorDefault, type AdminMember } from "../../lib/api";
 import type { RowMenuItem } from "@jini-ai/admin/react";
+import { t } from "./members-i18n";
 
 /**
  * @file Pure logic for the `members` feature — everything that computes a value rather than
@@ -49,11 +50,12 @@ export function memberRowMenuItems(
   member: AdminMember,
   rs: RowActionState,
   handlers: MemberRowMenuHandlers,
+  locale: string,
 ): RowMenuItem[] {
   const items: RowMenuItem[] = [
     {
       key: "resend",
-      label: "Resend sign-in link",
+      label: t(locale, "Resend sign-in link"),
       onSelect: () => {
         if (rs.resending) return;
         handlers.onResendSignInLink(member);
@@ -63,7 +65,7 @@ export function memberRowMenuItems(
   if (member.status !== "disabled") {
     items.push({
       key: "disable",
-      label: "Disable",
+      label: t(locale, "Disable"),
       tone: "warning",
       onSelect: () => {
         if (rs.disabling) return;

@@ -87,3 +87,16 @@
   tab-size: 2;
   resize: vertical;
 }
+
+/*
+ * The GrapesJS-backed "Interactive" tab (`@jini-ai/admin/react`'s `InteractiveHtmlEditor`). A
+ * fixed height, not `min-height` like `.page-html-source` above: GrapesJS is told `height: '100%'`
+ * at construction (`InteractiveHtmlEditor.hooks.tsx`), which only resolves against a parent with a
+ * concrete height — a `min-height`-only ancestor leaves that percentage undefined.
+ */
+.interactive-html-editor {
+  height: 32rem;
+  border: 1px solid var(--border, #e2e0dc);
+  border-radius: 10px;
+  overflow: hidden;
+}

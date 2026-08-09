@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { api, describeApiError } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../database-i18n";
 
 /**
  * @file Everything `MigrateForwardSection` (the Database screen's plan/confirm/execute
@@ -24,6 +26,7 @@ export interface MigrateForwardSectionController {
 }
 
 export function useMigrateForwardSection(): MigrateForwardSectionController {
+  const locale = useAdminLocale();
   const [step, setStep] = useState<CeremonyStep>("idle");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +50,7 @@ export function useMigrateForwardSection(): MigrateForwardSectionController {
       setPlan({ planId: r.planId, planHash: r.planHash });
       setStep("planned");
     } catch (e) {
-      setError(describeApiError(e, "Failed to plan the forward migration"));
+      setError(describeApiError(e, t(locale, "Failed to plan the forward migration")));
     } finally {
       setBusy(false);
     }
@@ -62,7 +65,7 @@ export function useMigrateForwardSection(): MigrateForwardSectionController {
       setConfirmationToken(r.confirmationToken);
       setStep("confirmed");
     } catch (e) {
-      setError(describeApiError(e, "Failed to confirm the forward migration"));
+      setError(describeApiError(e, t(locale, "Failed to confirm the forward migration")));
     } finally {
       setBusy(false);
     }
@@ -77,7 +80,7 @@ export function useMigrateForwardSection(): MigrateForwardSectionController {
       setDone(true);
       setStep("done");
     } catch (e) {
-      setError(describeApiError(e, "Failed to execute the forward migration"));
+      setError(describeApiError(e, t(locale, "Failed to execute the forward migration")));
     } finally {
       setBusy(false);
     }

@@ -2,6 +2,8 @@ import { type AdminFormDefinition } from "../../lib/api";
 import { navigate } from "../../lib/router";
 import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
 import { useFormsList } from "./hooks/use-forms-list.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { FORMS_DICT } from "./forms-i18n";
 
 /**
  * @file Forms list screen (SPEC-010 ui.spec.md §2.1/§3.1) — the `/admin/forms` route.
@@ -38,15 +40,17 @@ export interface FormsListProps {
 
 export function FormsList({ useFormsListHook = useFormsList }: FormsListProps = {}) {
   const { forms, error, rowSavingId, toggleStatus } = useFormsListHook();
+  const locale = useAdminLocale();
+  const t = (key: string): string => FORMS_DICT[locale]?.[key] ?? key;
 
   // `RowMenu` has no per-item `disabled` — the in-flight guard lives inside `onSelect` instead,
   // same shape as `Redirects.tsx`'s `if (saving) return;`.
   function rowMenuItems(form: AdminFormDefinition): RowMenuItem[] {
     return [
-      { key: "edit", label: "Edit", onSelect: () => navigate(`/forms/${form.id}`) },
+      { key: "edit", label: t("Edit"), onSelect: () => navigate(`/forms/${form.id}`) },
       {
         key: "toggle-status",
-        label: form.status === "active" ? "Disable" : "Enable",
+        label: form.status === "active" ? t("Disable") : t("Enable"),
         tone: form.status === "active" ? "warning" : "default",
         onSelect: () => {
           if (rowSavingId) return;
@@ -63,13 +67,13 @@ export function FormsList({ useFormsListHook = useFormsList }: FormsListProps = 
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">Forms</h1>
-          <p className="page-description">Manage the forms embedded across the site and their submissions.</p>
+          <p className="page-kicker">{t("Content")}</p>
+          <h1 className="page-title">{t("Forms")}</h1>
+          <p className="page-description">{t("Manage the forms embedded across the site and their submissions.")}</p>
         </div>
         <div className="page-actions">
           <a href="/admin/forms/new">
-            <button>New form</button>
+            <button>{t("New form")}</button>
           </a>
         </div>
       </div>
@@ -80,28 +84,28 @@ export function FormsList({ useFormsListHook = useFormsList }: FormsListProps = 
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>No forms yet.</p>
-              <p className="page-description">Create your first form to start collecting submissions.</p>
+              <p>{t("No forms yet.")}</p>
+              <p className="page-description">{t("Create your first form to start collecting submissions.")}</p>
             </div>
           </div>
         }
         columns={[
-          { key: "name", header: "Name", cell: (form) => <a href={`/admin/forms/${form.id}`}>{form.name}</a> },
-          { key: "slug", header: "Slug", cell: (form) => form.slug },
+          { key: "name", header: t("Name"), cell: (form) => <a href={`/admin/forms/${form.id}`}>{form.name}</a> },
+          { key: "slug", header: t("Slug"), cell: (form) => form.slug },
           {
             key: "status",
-            header: "Status",
+            header: t("Status"),
             cell: (form) => <span className={`status status-${form.status}`}>{form.status}</span>,
           },
-          { key: "fields", header: "Fields", cell: (form) => form.fields.length },
+          { key: "fields", header: t("Fields"), cell: (form) => form.fields.length },
           {
             key: "notify",
-            header: "Notify",
-            cell: (form) => (form.notify.enabled ? `${form.notify.recipients.length} recipient(s)` : "off"),
+            header: t("Notify"),
+            cell: (form) => (form.notify.enabled ? `${form.notify.recipients.length} recipient(s)` : t("off")),
           },
           {
             key: "actions",
-            header: "More",
+            header: t("More"),
             cell: (form) => <RowMenu triggerLabel={`Actions for form "${form.name}"`} items={rowMenuItems(form)} />,
           },
         ]}

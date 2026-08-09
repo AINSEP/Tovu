@@ -2,6 +2,7 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { EditorView } from "@tiptap/pm/view";
 
 import type { AdminPost } from "../../lib/api";
+import { POSTS_DICT } from "./posts-i18n";
 
 /**
  * @file Pure logic for the `posts` feature — everything that computes a value rather than rendering
@@ -38,12 +39,13 @@ export interface PostRowMenuHandlers {
  *
  * @complexity Time/space: O(1) — at most three entries, no iteration.
  */
-export function postRowMenuItems(post: AdminPost, handlers: PostRowMenuHandlers): RowMenuItem[] {
-  const items: RowMenuItem[] = [{ key: "edit", label: "Edit", onSelect: () => handlers.onEdit(post) }];
+export function postRowMenuItems(post: AdminPost, handlers: PostRowMenuHandlers, locale: string): RowMenuItem[] {
+  const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
+  const items: RowMenuItem[] = [{ key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit(post) }];
   if (post.status === "published") {
-    items.push({ key: "disable", label: "Disable", onSelect: () => handlers.onDisable(post) });
+    items.push({ key: "disable", label: t("Disable"), onSelect: () => handlers.onDisable(post) });
   }
-  items.push({ key: "delete", label: "Delete", destructive: true, onSelect: () => handlers.onDelete(post) });
+  items.push({ key: "delete", label: t("Delete"), destructive: true, onSelect: () => handlers.onDelete(post) });
   return items;
 }
 

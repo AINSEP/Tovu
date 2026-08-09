@@ -2,6 +2,7 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import type { AdminRedirect, RedirectImportRule } from "../../lib/api";
 import type { MutationStatus, QueryKey } from "../../lib/fetch-query";
+import { t } from "./redirects-i18n";
 
 /**
  * @file Pure logic for the `redirects` feature — everything that computes a value rather than
@@ -70,16 +71,16 @@ export interface RedirectRowMenuHandlers {
  *
  * @complexity Time/space: O(1) — two fixed entries, no iteration.
  */
-export function redirectRowMenuItems(rule: AdminRedirect, handlers: RedirectRowMenuHandlers): RowMenuItem[] {
+export function redirectRowMenuItems(rule: AdminRedirect, handlers: RedirectRowMenuHandlers, locale: string): RowMenuItem[] {
   return [
     {
       key: "toggle",
-      label: rule.status === "active" ? "Disable" : "Enable",
+      label: rule.status === "active" ? t(locale, "Disable") : t(locale, "Enable"),
       onSelect: () => handlers.onToggleStatus(rule),
     },
     {
       key: "delete",
-      label: "Delete",
+      label: t(locale, "Delete"),
       destructive: true,
       onSelect: () => handlers.onRequestDelete(rule),
     },

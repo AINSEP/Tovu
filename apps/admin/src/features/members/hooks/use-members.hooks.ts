@@ -2,6 +2,8 @@ import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 
 import { api, type AdminMember } from "../../../lib/api";
 import { describeApiError, emptyRowState, type RowActionState } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../members-i18n";
 
 /**
  * @file Everything the Members screen does, so `Members.tsx` is only markup.
@@ -43,6 +45,7 @@ export interface MembersController {
 }
 
 export function useMembers(): MembersController {
+  const locale = useAdminLocale();
   const [members, setMembers] = useState<AdminMember[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rowState, setRowState] = useState<Record<string, RowActionState>>({});
@@ -60,7 +63,7 @@ export function useMembers(): MembersController {
     api
       .listMembers()
       .then((r) => setMembers(r.members))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load members"));
+      .catch((e) => setError(e instanceof Error ? e.message : t(locale, "failed to load members")));
   }
 
   useEffect(() => {
@@ -81,9 +84,9 @@ export function useMembers(): MembersController {
     try {
       const result = await api.disableMember(member.id);
       setMembers((current) => (current ? current.map((m) => (m.id === member.id ? result.member : m)) : current));
-      patchRowState(member.id, { disabling: false, notice: "Member disabled." });
+      patchRowState(member.id, { disabling: false, notice: t(locale, "Member disabled.") });
     } catch (e) {
-      patchRowState(member.id, { disabling: false, error: describeApiError(e, "Failed to disable member.") });
+      patchRowState(member.id, { disabling: false, error: describeApiError(e, t(locale, "Failed to disable member.")) });
     }
   }
 
@@ -92,9 +95,9 @@ export function useMembers(): MembersController {
     patchRowState(member.id, { resending: true, error: null, notice: null });
     try {
       await api.requestMemberMagicLink({ email: member.email });
-      patchRowState(member.id, { resending: false, notice: "Sign-in link sent." });
+      patchRowState(member.id, { resending: false, notice: t(locale, "Sign-in link sent.") });
     } catch (e) {
-      patchRowState(member.id, { resending: false, error: describeApiError(e, "Failed to send sign-in link.") });
+      patchRowState(member.id, { resending: false, error: describeApiError(e, t(locale, "Failed to send sign-in link.")) });
     }
   }
 
@@ -121,7 +124,7 @@ export function useMembers(): MembersController {
       const result = await api.getMember(member.id);
       setDetailById((current) => ({ ...current, [member.id]: result.member }));
     } catch (e) {
-      setDetailError(describeApiError(e, "Failed to load member detail."));
+      setDetailError(describeApiError(e, t(locale, "Failed to load member detail.")));
     } finally {
       setDetailLoadingId(null);
     }

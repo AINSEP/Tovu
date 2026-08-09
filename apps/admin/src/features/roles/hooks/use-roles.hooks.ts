@@ -1,6 +1,8 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { api, type AdminPolicy, type AdminRole } from "../../../lib/api";
 import { describeApiError } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../roles-i18n";
 
 /**
  * @file Everything the "Roles & Permissions" screen does, so `Roles.tsx` is only markup.
@@ -114,6 +116,7 @@ async function runRowDelete(
 }
 
 export function useRoles(): RolesController {
+  const locale = useAdminLocale();
   const [roles, setRoles] = useState<AdminRole[] | null>(null);
   const [policies, setPolicies] = useState<AdminPolicy[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -152,7 +155,7 @@ export function useRoles(): RolesController {
         setRoles(r.roles);
         setPolicies(p.policies);
       })
-      .catch((e) => setError(describeApiError(e, "failed to load roles/policies")));
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load roles/policies"))));
   }
 
   useEffect(() => {
@@ -168,7 +171,7 @@ export function useRoles(): RolesController {
       setRoleName("");
       await reload();
     } catch (e) {
-      setRoleError(describeApiError(e, "failed to create role"));
+      setRoleError(describeApiError(e, t(locale, "failed to create role")));
     } finally {
       setRoleSaving(false);
     }
@@ -184,7 +187,7 @@ export function useRoles(): RolesController {
       setPolicyDescription("");
       await reload();
     } catch (e) {
-      setPolicyError(describeApiError(e, "failed to create policy"));
+      setPolicyError(describeApiError(e, t(locale, "failed to create policy")));
     } finally {
       setPolicySaving(false);
     }
@@ -204,7 +207,7 @@ export function useRoles(): RolesController {
       setEditingRoleId(null);
       await reload();
     } catch (e) {
-      setRowError(describeApiError(e, "failed to rename role"));
+      setRowError(describeApiError(e, t(locale, "failed to rename role")));
     } finally {
       setRowSavingId(null);
     }
@@ -226,7 +229,7 @@ export function useRoles(): RolesController {
       setRowError,
       () => setPendingRoleDelete(null),
       reload,
-      (e) => describeApiError(e, "failed to delete role"),
+      (e) => describeApiError(e, t(locale, "failed to delete role")),
     );
   }
 
@@ -245,7 +248,7 @@ export function useRoles(): RolesController {
       setEditingPolicyId(null);
       await reload();
     } catch (e) {
-      setRowError(describeApiError(e, "failed to update policy"));
+      setRowError(describeApiError(e, t(locale, "failed to update policy")));
     } finally {
       setRowSavingId(null);
     }
@@ -262,7 +265,7 @@ export function useRoles(): RolesController {
       setRowError,
       () => setPendingPolicyDelete(null),
       reload,
-      (e) => describeApiError(e, "failed to delete policy"),
+      (e) => describeApiError(e, t(locale, "failed to delete policy")),
     );
   }
 
@@ -282,7 +285,7 @@ export function useRoles(): RolesController {
       setPermissionInput("");
       setResourceTypeInput("");
     } catch (e) {
-      setRowError(describeApiError(e, "failed to add permission"));
+      setRowError(describeApiError(e, t(locale, "failed to add permission")));
     } finally {
       setRowSavingId(null);
     }

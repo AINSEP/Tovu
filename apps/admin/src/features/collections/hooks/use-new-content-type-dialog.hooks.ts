@@ -11,6 +11,8 @@ import {
   type DraftField,
 } from "../rules";
 import { useEscapeToCancel } from "./use-escape-to-cancel.hooks";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../collections-i18n";
 
 /**
  * @file `NewContentTypeDialog`'s own state and submit action (design-spec.md §1.3), so the dialog
@@ -43,6 +45,7 @@ export function useNewContentTypeDialog(props: {
   onCreated: () => void;
   onCancel: () => void;
 }): NewContentTypeDialogController {
+  const locale = useAdminLocale();
   const [label, setLabel] = useState("");
   const [key, setKey] = useState("");
   const [fields, setFields] = useState<DraftField[]>([emptyField()]);
@@ -82,7 +85,7 @@ export function useNewContentTypeDialog(props: {
       });
       props.onCreated();
     } catch (e) {
-      setError(describeApiError(e, "Failed to create content type"));
+      setError(describeApiError(e, t(locale, "Failed to create content type")));
     } finally {
       setSaving(false);
     }

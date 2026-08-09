@@ -3,8 +3,10 @@ import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { AdminMember } from "../../lib/api";
 import { formatTimestamp } from "../../lib/format-timestamp";
 
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { memberRowMenuItems, type RowActionState } from "./rules";
 import { useMembers } from "./hooks/use-members.hooks";
+import { t as translateMembers } from "./members-i18n";
 
 /**
  * @file Admin "Members" screen (ADR-030, ADR-PIPE-013 Decision §7) — markup only.
@@ -40,25 +42,26 @@ interface MemberDetailPanelProps {
   detailLoadingId: string | null;
   detailError: string | null;
   detail: AdminMember | undefined;
+  t: (key: string) => string;
 }
 
 /** The expanded row's detail panel — one of "loading" / "error" / the fetched fields / nothing
  *  yet, extracted out of `MemberRow` so its three-way branch isn't counted in `MemberRow`'s own
  *  scope. Same "the panel, not the row, was the actual size" split `Users.tsx`'s
  *  `UserRow` -> `UserManagePanel` and `Roles.tsx`'s `PolicyRow` -> `PolicyRowActions` already use. */
-function MemberDetailPanel({ memberId, detailLoadingId, detailError, detail }: MemberDetailPanelProps) {
-  if (detailLoadingId === memberId) return <div className="notice">Loading detail…</div>;
+function MemberDetailPanel({ memberId, detailLoadingId, detailError, detail, t }: MemberDetailPanelProps) {
+  if (detailLoadingId === memberId) return <div className="notice">{t("Loading detail…")}</div>;
   if (detailError) return <div className="notice error">{detailError}</div>;
   if (!detail) return null;
   return (
     <dl className="member-detail">
-      <dt>ID</dt>
+      <dt>{t("ID")}</dt>
       <dd>{detail.id}</dd>
-      <dt>Email verified</dt>
-      <dd>{detail.emailVerifiedAt ?? "not verified"}</dd>
-      <dt>Updated</dt>
+      <dt>{t("Email verified")}</dt>
+      <dd>{detail.emailVerifiedAt ?? t("not verified")}</dd>
+      <dt>{t("Updated")}</dt>
       <dd>{detail.updatedAt}</dd>
-      <dt>Version</dt>
+      <dt>{t("Version")}</dt>
       <dd>{detail.version}</dd>
     </dl>
   );
@@ -74,6 +77,8 @@ interface MemberRowProps {
   onToggleDetail: (member: AdminMember) => Promise<void>;
   onResendSignInLink: (member: AdminMember) => Promise<void>;
   setConfirmingDisable: (member: AdminMember) => void;
+  t: (key: string) => string;
+  locale: string;
 }
 
 /** One member's row plus its optional expanded detail row — extracted from `Members`'s
@@ -89,6 +94,8 @@ function MemberRow({
   onToggleDetail,
   onResendSignInLink,
   setConfirmingDisable,
+  t,
+  locale,
 }: MemberRowProps) {
   return (
     <Fragment key={member.id}>
@@ -110,11 +117,16 @@ function MemberRow({
         <td>{formatTimestamp(member.createdAt)}</td>
         <td>
           <RowMenu
-            triggerLabel={`Actions for member "${member.email}"`}
-            items={memberRowMenuItems(member, rowState, {
-              onResendSignInLink: (m) => void onResendSignInLink(m),
-              onRequestDisable: setConfirmingDisable,
-            })}
+            triggerLabel={`${t("Actions for member")} "${member.email}"`}
+            items={memberRowMenuItems(
+              member,
+              rowState,
+              {
+                onResendSignInLink: (m) => void onResendSignInLink(m),
+                onRequestDisable: setConfirmingDisable,
+              },
+              locale,
+            )}
           />
           {rowState.error ? (
             <div className="notice error" role="alert">
@@ -132,6 +144,7 @@ function MemberRow({
               detailLoadingId={detailLoadingId}
               detailError={detailError}
               detail={detail}
+              t={t}
             />
           </td>
         </tr>
@@ -155,25 +168,31 @@ export function Members({ useMembersHook = useMembers }: MembersProps = {}) {
     setConfirmingDisable,
     confirmDisable,
   } = useMembersHook();
+  const locale = useAdminLocale();
+  const t = (key: string): string => translateMembers(locale, key);
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!members) return <div className="notice">Loading members…</div>;
+  if (!members) return <div className="notice">{t("Loading members…")}</div>;
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">People</p>
-          <h1 className="page-title">Members</h1>
-          <p className="page-description">Site visitors who have registered an account — review status, resend a sign-in link, or disable access.</p>
+          <p className="page-kicker">{t("People")}</p>
+          <h1 className="page-title">{t("Members")}</h1>
+          <p className="page-description">
+            {t(
+              "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.",
+            )}
+          </p>
         </div>
       </div>
 
       {members.length === 0 ? (
         <div className="card">
           <div className="empty-state">
-            <p>No members yet.</p>
-            <p className="page-description">Registered site visitors will show up here.</p>
+            <p>{t("No members yet.")}</p>
+            <p className="page-description">{t("Registered site visitors will show up here.")}</p>
           </div>
         </div>
       ) : (
@@ -181,11 +200,11 @@ export function Members({ useMembersHook = useMembers }: MembersProps = {}) {
       <table className="list-table">
         <thead>
           <tr>
-            <th>Email</th>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Created</th>
-            <th>Actions</th>
+            <th>{t("Email")}</th>
+            <th>{t("Name")}</th>
+            <th>{t("Status")}</th>
+            <th>{t("Created")}</th>
+            <th>{t("Actions")}</th>
           </tr>
         </thead>
         <tbody>
@@ -201,6 +220,8 @@ export function Members({ useMembersHook = useMembers }: MembersProps = {}) {
               onToggleDetail={onToggleDetail}
               onResendSignInLink={onResendSignInLink}
               setConfirmingDisable={setConfirmingDisable}
+              t={t}
+              locale={locale}
             />
           ))}
         </tbody>
@@ -209,13 +230,15 @@ export function Members({ useMembersHook = useMembers }: MembersProps = {}) {
       )}
       <ConfirmDialog
         open={confirmingDisable !== null}
-        title="Disable this member?"
+        title={t("Disable this member?")}
         body={
           confirmingDisable ? (
-            <p>Disable &quot;{confirmingDisable.email}&quot;? They will no longer be able to sign in.</p>
+            <p>
+              {t("Disable")} &quot;{confirmingDisable.email}&quot;? {t("They will no longer be able to sign in.")}
+            </p>
           ) : null
         }
-        confirmLabel="Disable"
+        confirmLabel={t("Disable")}
         tone="warning"
         pending={confirmingDisable !== null && stateFor(confirmingDisable.id).disabling}
         onConfirm={confirmDisable}

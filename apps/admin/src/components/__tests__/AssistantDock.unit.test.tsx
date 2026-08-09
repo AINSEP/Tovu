@@ -72,7 +72,14 @@ vi.mock("../../lib/execution-settings", async (importOriginal) => {
   };
 });
 
-vi.mock("../../lib/settings-refresh-bus", () => ({ publishSettingsRefresh: vi.fn() }));
+// `publishSettingsRefresh` stays a spy (this file's own concern — a run-completion side effect);
+// `subscribeToSettingsRefresh` keeps its real, side-effect-free in-memory pub/sub implementation
+// (`importOriginal`) rather than being stubbed away, since `useAdminLocale()` (now called by
+// `AssistantDock` for the dock's own translated chrome) subscribes through it on mount.
+vi.mock("../../lib/settings-refresh-bus", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../lib/settings-refresh-bus")>();
+  return { ...actual, publishSettingsRefresh: vi.fn() };
+});
 
 import { AssistantDock } from "../AssistantDock/AssistantDock";
 import {

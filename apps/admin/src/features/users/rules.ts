@@ -1,5 +1,6 @@
 import { ApiError, describeApiError as describeApiErrorDefault, type AdminIdentityUser } from "../../lib/api";
 import type { RowMenuItem } from "@jini-ai/admin/react";
+import { t } from "./users-i18n";
 
 /**
  * @file Pure logic for the `users` feature — everything that computes a value rather than
@@ -80,11 +81,12 @@ export function userRowMenuItems(
   user: AdminIdentityUser,
   toggleSaving: boolean,
   handlers: UserRowMenuHandlers,
+  locale: string,
 ): RowMenuItem[] {
   return [
     {
       key: "toggle",
-      label: user.status === "active" ? "Disable" : "Enable",
+      label: user.status === "active" ? t(locale, "Disable") : t(locale, "Enable"),
       tone: user.status === "active" ? "warning" : "default",
       onSelect: () => {
         if (toggleSaving) return;
@@ -97,12 +99,12 @@ export function userRowMenuItems(
     },
     {
       key: "manage",
-      label: "Manage",
+      label: t(locale, "Manage"),
       onSelect: () => handlers.onManage(user),
     },
     {
       key: "reset-password",
-      label: "Reset password",
+      label: t(locale, "Reset password"),
       tone: "warning",
       onSelect: () => handlers.onResetPassword(user),
     },

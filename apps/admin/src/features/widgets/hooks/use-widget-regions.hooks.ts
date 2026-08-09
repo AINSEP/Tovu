@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { api, describeApiError, type AdminWidgetRegionBinding } from "../../../lib/api";
 import { navigate } from "../../../lib/router";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../widgets-i18n";
 
 /**
  * @file Everything the `WidgetRegions` screen does, so `WidgetRegions.tsx` is only markup.
@@ -22,6 +24,7 @@ export interface WidgetRegionsController {
 }
 
 export function useWidgetRegions(): WidgetRegionsController {
+  const locale = useAdminLocale();
   const [regions, setRegions] = useState<AdminWidgetRegionBinding[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newRegionKey, setNewRegionKey] = useState("");
@@ -31,7 +34,7 @@ export function useWidgetRegions(): WidgetRegionsController {
     api
       .listWidgetRegions()
       .then((r) => setRegions(r.regions))
-      .catch((e) => setError(describeApiError(e, "failed to load regions")));
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load regions"))));
   }
 
   useEffect(load, []);
@@ -46,7 +49,7 @@ export function useWidgetRegions(): WidgetRegionsController {
       setNewRegionKey("");
       navigate(`/widgets/regions/${regionKey}`);
     } catch (e) {
-      setError(describeApiError(e, "bind failed"));
+      setError(describeApiError(e, t(locale, "bind failed")));
     } finally {
       setBinding(false);
     }

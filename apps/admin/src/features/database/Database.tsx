@@ -5,6 +5,8 @@ import { DataTable } from "@jini-ai/admin/react";
 import { navigateToRecoveryWithDeepLink, useTimelineSection } from "./hooks/use-timeline-section.hooks";
 import { useRestorePointsSection } from "./hooks/use-restore-points-section.hooks";
 import { useMigrateForwardSection, type MigrateForwardSectionController } from "./hooks/use-migrate-forward-section.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { t, planReadyMessage } from "./database-i18n";
 
 /**
  * @file Database screen (design-spec.md §3, ADR-041) — the `/admin/database` route: the
@@ -21,6 +23,11 @@ import { useMigrateForwardSection, type MigrateForwardSectionController } from "
  * Still disclosed, still omitted (per design-spec.md §3.8/§5 and progress-ledger.md "Session 5"):
  * the drift banner, the `PENDING_MIGRATION` boot banner, and the Tier-3 browser have no route yet
  * — this screen omits them rather than rendering dead affordances.
+ *
+ * `locale` is fetched once in `Database` via `useAdminLocale()` and threaded down as a prop to
+ * every section and presentational helper below, rather than each calling the hook itself — the
+ * hook's underlying `loadLanguage()` isn't memoized, so ten independent calls would mean ten
+ * concurrent settings fetches for one page.
  */
 
 const KIND_OPTIONS = [
@@ -35,6 +42,7 @@ const KIND_OPTIONS = [
 ] as const;
 
 export interface TimelineSectionProps {
+  locale: string;
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    *  for `useCustomSelect`. Mirrored per-section below (`RestorePointsSectionProps`,
    *  `MigrateForwardSectionProps`) since each section owns independent state. */
@@ -45,6 +53,7 @@ export interface TimelineSectionProps {
  *  `KIND_OPTIONS` map (its own function scope). Top-level rather than inline in `TimelineSection`'s
  *  body, per the complexity-ceiling pass's extraction rule. */
 function TimelineFilterForm(props: {
+  locale: string;
   onSubmit: (e: React.FormEvent) => void;
   kind: string;
   onKindChange: (kind: string) => void;
@@ -55,12 +64,13 @@ function TimelineFilterForm(props: {
   toDate: string;
   onToDateChange: (toDate: string) => void;
 }) {
+  const { locale } = props;
   return (
     <form className="notice database-filter-bar toolbar" onSubmit={props.onSubmit}>
       <div className="field">
-        <label className="field-label" htmlFor="database-filter-kind">Kind</label>
+        <label className="field-label" htmlFor="database-filter-kind">{t(locale, "Kind")}</label>
         <select id="database-filter-kind" value={props.kind} onChange={(e) => props.onKindChange(e.target.value)}>
-          <option value="">(any)</option>
+          <option value="">{t(locale, "(any)")}</option>
           {KIND_OPTIONS.map((k) => (
             <option key={k} value={k}>
               {k}
@@ -69,16 +79,16 @@ function TimelineFilterForm(props: {
         </select>
       </div>
       <div className="field">
-        <label className="field-label" htmlFor="database-filter-outcome">Outcome</label>
+        <label className="field-label" htmlFor="database-filter-outcome">{t(locale, "Outcome")}</label>
         <input
           id="database-filter-outcome"
           value={props.outcome}
           onChange={(e) => props.onOutcomeChange(e.target.value)}
-          placeholder="e.g. success"
+          placeholder={t(locale, "e.g. success")}
         />
       </div>
       <div className="field">
-        <label className="field-label" htmlFor="database-filter-from">From</label>
+        <label className="field-label" htmlFor="database-filter-from">{t(locale, "From")}</label>
         <input
           id="database-filter-from"
           type="date"
@@ -87,95 +97,97 @@ function TimelineFilterForm(props: {
         />
       </div>
       <div className="field">
-        <label className="field-label" htmlFor="database-filter-to">To</label>
+        <label className="field-label" htmlFor="database-filter-to">{t(locale, "To")}</label>
         <input id="database-filter-to" type="date" value={props.toDate} onChange={(e) => props.onToDateChange(e.target.value)} />
       </div>
-      <button type="submit" className="btn-secondary">Apply filters</button>
+      <button type="submit" className="btn-secondary">{t(locale, "Apply filters")}</button>
     </form>
   );
 }
 
 /** Builds the Timeline `DataTable`'s column descriptors. A plain function rather than a closure
  *  declared inside `TimelineBody`'s body — it closes over nothing but module-scope values, so it
- *  takes no parameters at all. */
-function timelineColumns(): Array<{
+ *  takes no parameters at all beyond `locale`. */
+function timelineColumns(locale: string): Array<{
   key: string;
   header: string;
   cell: (row: AdminLedgerRow) => React.ReactNode;
 }> {
   return [
-    { key: "kind", header: "Kind", cell: (row) => row.kind },
+    { key: "kind", header: t(locale, "Kind"), cell: (row) => row.kind },
     {
       key: "outcome",
-      header: "Outcome",
+      header: t(locale, "Outcome"),
       cell: (row) => <span className={`status status-${row.outcome}`}>{row.outcome}</span>,
     },
     {
       key: "restore-point",
-      header: "Restore point",
+      header: t(locale, "Restore point"),
       cell: (row: AdminLedgerRow) =>
         row.restorePointId ? (
           <button type="button" className="database-restore-point-link" onClick={() => navigateToRecoveryWithDeepLink(row)}>
-            View in Recovery →
+            {t(locale, "View in Recovery →")}
           </button>
         ) : (
           "—"
         ),
     },
-    { key: "time", header: "Time", cell: (row) => formatTimestamp(row.createdAt) },
+    { key: "time", header: t(locale, "Time"), cell: (row) => formatTimestamp(row.createdAt) },
   ];
 }
 
 /** The Timeline's own row-activity body — empty state or the table + pager. Split out from
  *  `TimelineSection` (which still owns the loading/error early returns) so each state is a flat
  *  if-return rather than a nested ternary. */
-function TimelineBody(props: { rows: AdminLedgerRow[]; nextCursor: string | null; loadingMore: boolean; loadMore: () => void }) {
+function TimelineBody(props: { locale: string; rows: AdminLedgerRow[]; nextCursor: string | null; loadingMore: boolean; loadMore: () => void }) {
+  const { locale } = props;
   if (props.rows.length === 0) {
     return (
       <div className="card">
         <div className="empty-state">
-          <p>No database activity recorded yet.</p>
+          <p>{t(locale, "No database activity recorded yet.")}</p>
         </div>
       </div>
     );
   }
   return (
     <>
-      <DataTable rows={props.rows} rowKey={(row) => row.id} columns={timelineColumns()} />
+      <DataTable rows={props.rows} rowKey={(row) => row.id} columns={timelineColumns(locale)} />
       {props.nextCursor ? (
         <button type="button" className="btn-secondary" onClick={props.loadMore} disabled={props.loadingMore}>
-          {props.loadingMore ? "Loading…" : "Load more"}
+          {props.loadingMore ? t(locale, "Loading…") : t(locale, "Load more")}
         </button>
       ) : null}
     </>
   );
 }
 
-function TimelineSection({ useTimelineSectionHook = useTimelineSection }: TimelineSectionProps = {}) {
-  const { 
-    rows, 
-    nextCursor, 
-    error, 
-    kind, 
-    setKind, 
-    outcome, 
-    setOutcome, 
-    fromDate, 
-    setFromDate, 
-    toDate, 
-    setToDate, 
-    loadingMore, 
-    applyFilters, 
-    loadMore 
+function TimelineSection({ locale, useTimelineSectionHook = useTimelineSection }: TimelineSectionProps) {
+  const {
+    rows,
+    nextCursor,
+    error,
+    kind,
+    setKind,
+    outcome,
+    setOutcome,
+    fromDate,
+    setFromDate,
+    toDate,
+    setToDate,
+    loadingMore,
+    applyFilters,
+    loadMore
   } =
     useTimelineSectionHook();
 
   if (error && !rows) return <div className="notice error">{error}</div>;
-  if (!rows) return <div className="notice">Loading timeline…</div>;
+  if (!rows) return <div className="notice">{t(locale, "Loading timeline…")}</div>;
 
   return (
     <div>
       <TimelineFilterForm
+        locale={locale}
         onSubmit={applyFilters}
         kind={kind}
         onKindChange={setKind}
@@ -189,27 +201,28 @@ function TimelineSection({ useTimelineSectionHook = useTimelineSection }: Timeli
 
       {error ? <div className="notice error">{error}</div> : null}
 
-      <TimelineBody rows={rows} nextCursor={nextCursor} loadingMore={loadingMore} loadMore={loadMore} />
+      <TimelineBody locale={locale} rows={rows} nextCursor={nextCursor} loadingMore={loadingMore} loadMore={loadMore} />
     </div>
   );
 }
 
 export interface RestorePointsSectionProps {
+  locale: string;
   useRestorePointsSectionHook?: typeof useRestorePointsSection;
 }
 
-function RestorePointsSection({ useRestorePointsSectionHook = useRestorePointsSection }: RestorePointsSectionProps = {}) {
+function RestorePointsSection({ locale, useRestorePointsSectionHook = useRestorePointsSection }: RestorePointsSectionProps) {
   const { points, error, creating, createRestorePoint } = useRestorePointsSectionHook();
 
   if (error && !points) return <div className="notice error">{error}</div>;
-  if (!points) return <div className="notice">Loading restore points…</div>;
+  if (!points) return <div className="notice">{t(locale, "Loading restore points…")}</div>;
 
   return (
     <div>
       <div className="editor-header">
-        <h2>Restore points</h2>
+        <h2>{t(locale, "Restore points")}</h2>
         <button type="button" onClick={createRestorePoint} disabled={creating}>
-          {creating ? "Creating…" : "Create restore point"}
+          {creating ? t(locale, "Creating…") : t(locale, "Create restore point")}
         </button>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
@@ -219,19 +232,19 @@ function RestorePointsSection({ useRestorePointsSectionHook = useRestorePointsSe
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>No restore points yet.</p>
+              <p>{t(locale, "No restore points yet.")}</p>
             </div>
           </div>
         }
         columns={[
-          { key: "timestamp", header: "Timestamp", cell: (p) => formatTimestamp(p.createdAt) },
-          { key: "trigger", header: "Trigger", cell: (p) => p.trigger },
+          { key: "timestamp", header: t(locale, "Timestamp"), cell: (p) => formatTimestamp(p.createdAt) },
+          { key: "trigger", header: t(locale, "Trigger"), cell: (p) => p.trigger },
           {
             key: "cost-class",
-            header: "Cost class",
+            header: t(locale, "Cost class"),
             cell: (p) => <span className={`status status-${p.costClass}`}>{p.costClass}</span>,
           },
-          { key: "kind", header: "Kind", cell: (p) => p.kind },
+          { key: "kind", header: t(locale, "Kind"), cell: (p) => p.kind },
         ]}
       />
     </div>
@@ -239,14 +252,15 @@ function RestorePointsSection({ useRestorePointsSectionHook = useRestorePointsSe
 }
 
 export interface MigrateForwardSectionProps {
+  locale: string;
   useMigrateForwardSectionHook?: typeof useMigrateForwardSection;
 }
 
 /** step === "idle": the entry point into the ceremony. */
-function PlanMigrationStep(props: { busy: boolean; onStartPlan: () => void }) {
+function PlanMigrationStep(props: { locale: string; busy: boolean; onStartPlan: () => void }) {
   return (
     <button type="button" className="btn-ghost" onClick={props.onStartPlan} disabled={props.busy}>
-      {props.busy ? "Planning…" : "Plan migration"}
+      {props.busy ? t(props.locale, "Planning…") : t(props.locale, "Plan migration")}
     </button>
   );
 }
@@ -255,15 +269,12 @@ function PlanMigrationStep(props: { busy: boolean; onStartPlan: () => void }) {
  *  token. `plan` is checked by the caller ({@link migrateForwardStep}), not here — the "defensive
  *  AND" (render nothing if the step/data pair is inconsistent) is the dispatch's job, not this
  *  component's. */
-function PlannedStep(props: { plan: { planId: string }; busy: boolean; onConfirm: () => void }) {
+function PlannedStep(props: { locale: string; plan: { planId: string }; busy: boolean; onConfirm: () => void }) {
   return (
     <div className="notice">
-      <p>
-        Plan ready (plan <code>{props.plan.planId}</code>). Confirming issues a one-time execution
-        token — nothing is migrated yet.
-      </p>
+      <p>{planReadyMessage(props.locale, props.plan.planId)}</p>
       <button type="button" className="btn-secondary" onClick={props.onConfirm} disabled={props.busy}>
-        {props.busy ? "Confirming…" : "Confirm migration"}
+        {props.busy ? t(props.locale, "Confirming…") : t(props.locale, "Confirm migration")}
       </button>
     </div>
   );
@@ -271,22 +282,22 @@ function PlannedStep(props: { plan: { planId: string }; busy: boolean; onConfirm
 
 /** step === "confirmed": the token from `PlannedStep` is in hand; executing now actually runs the
  *  migration. */
-function ConfirmedStep(props: { busy: boolean; onExecute: () => void }) {
+function ConfirmedStep(props: { locale: string; busy: boolean; onExecute: () => void }) {
   return (
     <div className="notice">
-      <p>Confirmed. Executing runs the migration now.</p>
+      <p>{t(props.locale, "Confirmed. Executing runs the migration now.")}</p>
       <button type="button" className="btn-warning" onClick={props.onExecute} disabled={props.busy}>
-        {props.busy ? "Migrating…" : "Execute migration"}
+        {props.busy ? t(props.locale, "Migrating…") : t(props.locale, "Execute migration")}
       </button>
     </div>
   );
 }
 
 /** step === "done": terminal state. */
-function DoneStep() {
+function DoneStep(props: { locale: string }) {
   return (
     <div className="notice">
-      <p role="status">Migration executed successfully.</p>
+      <p role="status">{t(props.locale, "Migration executed successfully.")}</p>
     </div>
   );
 }
@@ -298,6 +309,7 @@ function DoneStep() {
  *  preserved exactly: a step whose expected payload is unexpectedly null renders nothing, same as
  *  before (see the "defensive AND" tests in `Database.unit.test.tsx`). */
 function migrateForwardStep(props: {
+  locale: string;
   step: MigrateForwardSectionController["step"];
   plan: MigrateForwardSectionController["plan"];
   confirmationToken: MigrateForwardSectionController["confirmationToken"];
@@ -307,37 +319,37 @@ function migrateForwardStep(props: {
   onConfirm: () => void;
   onExecute: () => void;
 }) {
-  if (props.step === "idle") return <PlanMigrationStep busy={props.busy} onStartPlan={props.onStartPlan} />;
+  if (props.step === "idle") return <PlanMigrationStep locale={props.locale} busy={props.busy} onStartPlan={props.onStartPlan} />;
   if (props.step === "planned" && props.plan) {
-    return <PlannedStep plan={props.plan} busy={props.busy} onConfirm={props.onConfirm} />;
+    return <PlannedStep locale={props.locale} plan={props.plan} busy={props.busy} onConfirm={props.onConfirm} />;
   }
   if (props.step === "confirmed" && props.confirmationToken) {
-    return <ConfirmedStep busy={props.busy} onExecute={props.onExecute} />;
+    return <ConfirmedStep locale={props.locale} busy={props.busy} onExecute={props.onExecute} />;
   }
-  if (props.step === "done" && props.done) return <DoneStep />;
+  if (props.step === "done" && props.done) return <DoneStep locale={props.locale} />;
   return null;
 }
 
-function MigrateForwardSection({ useMigrateForwardSectionHook = useMigrateForwardSection }: MigrateForwardSectionProps = {}) {
+function MigrateForwardSection({ locale, useMigrateForwardSectionHook = useMigrateForwardSection }: MigrateForwardSectionProps) {
   const { step, busy, error, plan, confirmationToken, done, reset, startPlan, doConfirm, doExecute } = useMigrateForwardSectionHook();
 
   return (
     <div>
       <div className="editor-header">
-        <h2>Migrate forward</h2>
+        <h2>{t(locale, "Migrate forward")}</h2>
         {step !== "idle" ? (
           <button type="button" className="btn-ghost" onClick={reset} disabled={busy}>
-            Reset
+            {t(locale, "Reset")}
           </button>
         ) : null}
       </div>
       <p className="muted-cell">
-        Brings this site's schema up to the latest migration, capturing a restore point first when the
-        site's restore-point mechanism allows it.
+        {t(locale, "Brings this site's schema up to the latest migration, capturing a restore point first when the site's restore-point mechanism allows it.")}
       </p>
       {error ? <div className="notice error">{error}</div> : null}
 
       {migrateForwardStep({
+        locale,
         step,
         plan,
         confirmationToken,
@@ -352,20 +364,21 @@ function MigrateForwardSection({ useMigrateForwardSectionHook = useMigrateForwar
 }
 
 export function Database() {
+  const locale = useAdminLocale();
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Operations</p>
-          <h1 className="page-title">Database</h1>
+          <p className="page-kicker">{t(locale, "Operations")}</p>
+          <h1 className="page-title">{t(locale, "Database")}</h1>
           <p className="page-description">
-            A read-first record of every migration, snapshot, index change, and template upgrade on this site.
+            {t(locale, "A read-first record of every migration, snapshot, index change, and template upgrade on this site.")}
           </p>
         </div>
       </div>
-      <TimelineSection />
-      <RestorePointsSection />
-      <MigrateForwardSection />
+      <TimelineSection locale={locale} />
+      <RestorePointsSection locale={locale} />
+      <MigrateForwardSection locale={locale} />
     </div>
   );
 }

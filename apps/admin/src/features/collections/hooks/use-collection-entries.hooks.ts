@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { describeApiError, api, type AdminContentType, type AdminEntry } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t } from "../collections-i18n";
 
 /**
  * @file Everything the collections entries LIST does, so `CollectionEntries.tsx` is only markup.
@@ -17,6 +19,7 @@ export interface CollectionEntriesController {
 }
 
 export function useCollectionEntries(props: { contentTypeKey: string }): CollectionEntriesController {
+  const locale = useAdminLocale();
   const [contentType, setContentType] = useState<AdminContentType | null | undefined>(undefined);
   const [entries, setEntries] = useState<AdminEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +31,7 @@ export function useCollectionEntries(props: { contentTypeKey: string }): Collect
         setContentType(typesResult.items.find((t) => t.key === props.contentTypeKey) ?? null);
         setEntries(entriesResult.items);
       })
-      .catch((e) => setError(describeApiError(e, "failed to load entries")));
+      .catch((e) => setError(describeApiError(e, t(locale, "failed to load entries"))));
   }
 
   useEffect(load, [props.contentTypeKey]);

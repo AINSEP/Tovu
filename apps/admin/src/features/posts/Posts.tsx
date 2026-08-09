@@ -7,6 +7,8 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
 import { postRowMenuItems } from "./rules";
 import { usePosts } from "./hooks/use-posts.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { POSTS_DICT } from "./posts-i18n";
 
 /**
  * @file The Posts list screen — markup only.
@@ -55,6 +57,8 @@ export function Posts({ usePostsHook = usePosts }: PostsProps) {
     disablePost,
     removePost,
   } = usePostsHook();
+  const locale = useAdminLocale();
+  const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
 
   const notice = postsListNotice(posts, error);
   if (notice) return notice;
@@ -67,13 +71,13 @@ export function Posts({ usePostsHook = usePosts }: PostsProps) {
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">Content</p>
-          <h1 className="page-title">Posts</h1>
-          <p className="page-description">Manage and publish every post on this site.</p>
+          <p className="page-kicker">{t("Content")}</p>
+          <h1 className="page-title">{t("Posts")}</h1>
+          <p className="page-description">{t("Manage and publish every post on this site.")}</p>
         </div>
         <div className="page-actions">
           <button onClick={createPost} disabled={creating}>
-            {creating ? "Creating…" : "New Post"}
+            {creating ? t("Creating…") : t("New Post")}
           </button>
         </div>
       </div>
@@ -84,13 +88,13 @@ export function Posts({ usePostsHook = usePosts }: PostsProps) {
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>No posts yet.</p>
-              <p className="page-description">Create your first post to get started.</p>
+              <p>{t("No posts yet.")}</p>
+              <p className="page-description">{t("Create your first post to get started.")}</p>
             </div>
           </div>
         }
         columns={[
-          { key: "title", header: "Title", cell: (post) => <a href={`/admin/posts/${post.id}`}>{post.title}</a> },
+          { key: "title", header: t("Title"), cell: (post) => <a href={`/admin/posts/${post.id}`}>{post.title}</a> },
           {
             key: "slug",
             header: "Slug",
@@ -102,21 +106,25 @@ export function Posts({ usePostsHook = usePosts }: PostsProps) {
           },
           {
             key: "status",
-            header: "Status",
+            header: t("Status"),
             cell: (post) => <span className={`status status-${post.status}`}>{post.status}</span>,
           },
-          { key: "updated", header: "Updated", cell: (post) => formatTimestamp(post.updatedAt) },
+          { key: "updated", header: t("Updated"), cell: (post) => formatTimestamp(post.updatedAt) },
           {
             key: "actions",
-            header: "More",
+            header: t("More"),
             cell: (post) => (
               <RowMenu
                 triggerLabel={`Actions for "${post.title}"`}
-                items={postRowMenuItems(post, {
-                  onEdit: (p) => navigate(`/posts/${p.id}`),
-                  onDisable: disablePost,
-                  onDelete: setPendingDelete,
-                })}
+                items={postRowMenuItems(
+                  post,
+                  {
+                    onEdit: (p) => navigate(`/posts/${p.id}`),
+                    onDisable: disablePost,
+                    onDelete: setPendingDelete,
+                  },
+                  locale,
+                )}
               />
             ),
           },
@@ -124,15 +132,15 @@ export function Posts({ usePostsHook = usePosts }: PostsProps) {
       />
       <ConfirmDialog
         open={pendingDelete !== null}
-        title="Move to trash?"
+        title={t("Move to trash?")}
         body={
           pendingDelete ? (
             <p>
-              Move &quot;{pendingDelete.title}&quot; to trash? It will disappear from the site and from this list.
+              {t("Move")} &quot;{pendingDelete.title}&quot; {t("to trash? It will disappear from the site and from this list.")}
             </p>
           ) : null
         }
-        confirmLabel="Move to trash"
+        confirmLabel={t("Move to trash")}
         destructive
         pending={pendingDelete !== null && rowSavingId === pendingDelete.id}
         onConfirm={removePost}

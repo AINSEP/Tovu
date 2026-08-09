@@ -14,6 +14,8 @@ import {
   type SettingSummary,
   type ValidationState,
 } from "../rules";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { clearedAtScopeMessage, principalNotFoundMessage, resetNamespaceMessage, savedAtScopeMessage, t } from "../settings-raw-i18n";
 
 /**
  * @file `SettingsContainer`'s full load/select/edit/reset lifecycle, so `SettingsContainer` in
@@ -108,6 +110,7 @@ export interface SettingsContainerController {
  * namespace, O(n) namespaces. Space: O(n·k) across `groupsByNamespace`/`rawByNamespace`.
  */
 export function useSettingsContainer(props: SettingsContainerHookProps): SettingsContainerController {
+  const locale = useAdminLocale();
   const [namespaceInput, setNamespaceInput] = useState("core.presentation");
   const [namespaces, setNamespaces] = useState<string[]>([]);
   const [groupsByNamespace, setGroupsByNamespace] = useState<Record<string, SettingSummary[]>>({});
@@ -147,7 +150,7 @@ export function useSettingsContainer(props: SettingsContainerHookProps): Setting
         [namespace]: { withUser: withUser.data, withoutUser: withoutUser.data },
       }));
     } catch (e) {
-      setError(describeApiError(e, "Failed to load namespace"));
+      setError(describeApiError(e, t(locale, "Failed to load namespace")));
     } finally {
       setIsLoading(false);
     }
@@ -189,7 +192,7 @@ export function useSettingsContainer(props: SettingsContainerHookProps): Setting
     );
     if (!match) {
       setPrincipalValidationState("error");
-      setPrincipalLastError(`PRINCIPAL_NOT_FOUND: no active principal matches "${principalIdRaw}".`);
+      setPrincipalLastError(principalNotFoundMessage(locale, principalIdRaw));
       return;
     }
     setPrincipalValidationState("valid");
@@ -214,10 +217,10 @@ export function useSettingsContainer(props: SettingsContainerHookProps): Setting
           { namespace: sel.namespace, key: sel.key, scope, valueJson },
           { principalId: scope === "user" ? effectivePrincipalId : undefined }
         );
-        setLiveMessage(`Saved ${sel.namespace}.${sel.key} at ${scope} scope.`);
+        setLiveMessage(savedAtScopeMessage(locale, sel.namespace, sel.key, scope));
         await loadNamespace(sel.namespace);
       },
-      (e) => describeApiError(e, "Failed to save value"),
+      (e) => describeApiError(e, t(locale, "Failed to save value")),
       { setSaving, setError },
     );
   }
@@ -231,10 +234,10 @@ export function useSettingsContainer(props: SettingsContainerHookProps): Setting
           { namespace: sel.namespace, key: sel.key, scope },
           { principalId: scope === "user" ? effectivePrincipalId : undefined }
         );
-        setLiveMessage(`Cleared ${sel.namespace}.${sel.key} at ${scope} scope.`);
+        setLiveMessage(clearedAtScopeMessage(locale, sel.namespace, sel.key, scope));
         await loadNamespace(sel.namespace);
       },
-      (e) => describeApiError(e, "Failed to clear value"),
+      (e) => describeApiError(e, t(locale, "Failed to clear value")),
       { setSaving, setError },
     );
   }
@@ -245,11 +248,11 @@ export function useSettingsContainer(props: SettingsContainerHookProps): Setting
     await runSettingsMutation(
       async () => {
         const result = await api.resetSettingsNamespace({ namespace, scope });
-        setLiveMessage(`Reset ${result.clearedCount} setting(s) in ${namespace} (${scope} scope) to defaults.`);
+        setLiveMessage(resetNamespaceMessage(locale, result.clearedCount, namespace, scope));
         setPendingReset(null);
         await loadNamespace(namespace);
       },
-      (e) => describeApiError(e, "Failed to reset namespace"),
+      (e) => describeApiError(e, t(locale, "Failed to reset namespace")),
       { setSaving, setError },
     );
   }
