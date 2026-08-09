@@ -17,6 +17,7 @@
     "@jini-ai/agent-runtime": "file:../../../Jini/packages/agent-runtime",
     "@jini-ai/agentic": "file:../../../Jini/packages/agentic",
     "@jini-ai/chat": "file:../../../Jini/packages/chat",
+    "@jini-ai/cms": "file:../../../Jini/packages/cms",
     "@jini-ai/platform": "file:../../../Jini/packages/platform",
     "@jini-ai/protocol": "file:../../../Jini/packages/protocol",
     "@jini-ai/renderers-react": "file:../../../Jini/packages/renderers-react",
@@ -25,6 +26,7 @@
     "@tiptap/extension-image": "^3.27.2",
     "@tiptap/react": "^3.22.2",
     "@tiptap/starter-kit": "^3.22.2",
+    "grapesjs": "0.23.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
