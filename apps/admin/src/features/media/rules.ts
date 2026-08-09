@@ -1,5 +1,6 @@
 import { ApiError, type AdminMedia } from "../../lib/api";
 import type { RowMenuItem } from "@jini-ai/admin/react";
+import { MEDIA_DICT } from "./media-i18n";
 
 /**
  * @file Pure logic for the `media` feature — everything that computes a value rather than
@@ -103,18 +104,24 @@ export interface MediaRowMenuHandlers {
  *
  * @complexity Time/space: O(1) — at most two entries, no iteration.
  */
-export function mediaRowMenuItems(item: AdminMedia, editingId: string | null, handlers: MediaRowMenuHandlers): RowMenuItem[] {
+export function mediaRowMenuItems(
+  item: AdminMedia,
+  editingId: string | null,
+  handlers: MediaRowMenuHandlers,
+  locale: string,
+): RowMenuItem[] {
+  const t = (key: string): string => MEDIA_DICT[locale]?.[key] ?? key;
   const items: RowMenuItem[] = [
     {
       key: "edit",
-      label: editingId === item.id ? "Close editing" : "Edit metadata",
+      label: editingId === item.id ? t("Close editing") : t("Edit metadata"),
       onSelect: () => handlers.onToggleEdit(item),
     },
   ];
   if (item.status === "trashed") {
-    items.push({ key: "purge", label: "Delete permanently", destructive: true, onSelect: () => handlers.onRequestPurge(item) });
+    items.push({ key: "purge", label: t("Delete permanently"), destructive: true, onSelect: () => handlers.onRequestPurge(item) });
   } else {
-    items.push({ key: "trash", label: "Trash", onSelect: () => handlers.onTrash(item) });
+    items.push({ key: "trash", label: t("Trash"), onSelect: () => handlers.onTrash(item) });
   }
   return items;
 }
