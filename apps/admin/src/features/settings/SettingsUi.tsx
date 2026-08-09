@@ -68,12 +68,15 @@ import {
 import "@jini-ai/ui/settings-dialog.css";
 import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS, type AppearanceConfig } from "../../lib/settings-tabs";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
+import { navigate } from "../../lib/router";
 import { describeSaveStatus, resolveDialogDataTheme } from "./rules";
 import { useSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
 import { useAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt } from "../../components/AdminByokKeyPanel";
 import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
+import { t as tCapability } from "./settings-capabilities-i18n";
+import { SETTINGS_DIALOG_DICTIONARIES as CMS_SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/cms/settings";
 
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data. */
 function TabIcon({ children }: { children: React.ReactNode }) {
@@ -122,13 +125,8 @@ const MEMORY_HOOK_FLAGS: Record<MemoryConfigFlagKey, boolean> = {
  * `AboutTab`'s update-status row always renders `t(control.statusKey)`,
  * and every branch of `deriveAboutUpdateControl` (ui-core) sets `statusKey`
  * to a semantic dictionary id like `settings.updateStatusUnsupported` — never
- * to literal English, unlike every other label on every other tab mounted in
- * this file (`t('Version')`, `t('Media providers')`, ...). Tovu mounts no
- * `I18nProvider` anywhere (`useT()` runs in passthrough mode: `t(key)`
- * returns `key`), so any `AboutTab` mount would show that raw id as on-screen
- * text — a second instance of the already-known "no dictionary mounted" gap
- * (Notifications' sound picker), and unlike that one, unavoidable here: there
- * is no `UpdaterModel` state that produces a null status text, and
+ * to literal English, unlike this file's own tab labels. There is no
+ * `UpdaterModel` state that produces a null status text, and
  * `showReleaseLink` is `true` in every reachable static state, so "omit the
  * updater surface entirely" (the dispatch's own instruction) cannot be done
  * through `AboutTab`'s props at all. Composing a minimal panel instead is
@@ -137,19 +135,26 @@ const MEMORY_HOOK_FLAGS: Record<MemoryConfigFlagKey, boolean> = {
  * upstream: `ABOUT_UPDATE_KEYS` has no literal-English fallback path the way
  * every other tab's default labels do.
  *
+ * Takes `t` as a prop rather than calling `useT()` itself: this module-scope
+ * function isn't a descendant of the `I18nProvider` mounted in `SettingsUi`'s
+ * own return value below (a component is never inside the context tree it
+ * renders), so a `useT()` call here would silently resolve to context.tsx's
+ * passthrough default instead of the real dictionary. See the `const t = ...`
+ * comment inside `SettingsUi` for the full explanation.
+ *
  * @complexity O(1) — fixed-shape render, no iteration, no branching.
  * @overallScore 100 — no branches, no I/O, no state.
  */
-function AboutPanel() {
+function AboutPanel({ t, tCap }: { t: (key: string) => string; tCap: (key: string) => string }) {
   return (
     <section className="jini-settings-section">
       <div className="jini-settings-section-card">
         <div className="jini-field">
-          <span className="jini-field-label">Version</span>
+          <span className="jini-field-label">{t("Version")}</span>
           <strong>{`Tovu Admin ${TOVU_ADMIN_VERSION}`}</strong>
         </div>
         <p className="jini-hint">
-          Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.
+          {tCap("Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.")}
         </p>
       </div>
     </section>
@@ -179,10 +184,49 @@ function SettingsLocaleSync({
 export interface SettingsUiProps {
   /** Dependency injection seam for tests — same convention as `PostsProps.usePostsHook`. */
   useSettingsUiHook?: typeof useSettingsUi;
+  /**
+   * The `?tab=` query value from `panels.tsx`'s `settings` route (`URLSearchParams.get` returns
+   * `null` when the param is absent). Drives which tab the inline shell opens on — see the
+   * `requestedTabId` computation below for why this can't be passed straight through as
+   * `SettingsDialogShell`'s `activeTabId`.
+   */
+  tabId?: string | null;
 }
 
-export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProps = {}) {
+export function SettingsUi({ useSettingsUiHook = useSettingsUi, tabId = null }: SettingsUiProps = {}) {
   const s: SettingsUiController = useSettingsUiHook();
+
+  /**
+   * `SettingsDialogShell` renders `tabs[].label/title/subtitle` verbatim — it only calls `t()` on
+   * its own chrome strings (the "Settings" kicker, "Settings sections" aria-label, etc.; see
+   * `context.tsx`). Every tab's own label/title/subtitle below is this file's responsibility to
+   * translate before handing it to the shell, same as OD's own settings-tab array does upstream.
+   *
+   * Can't use `@jini-ai/ui`'s `useT()` hook for that: it reads `I18nContext` via `useContext`,
+   * which only sees a provider mounted by an ANCESTOR. The `<I18nProvider>` this component renders
+   * (below, wrapping `SettingsDialogShell`) is a *child* of `SettingsUi`, not a parent of it — a
+   * component is never inside the context it itself provides. Calling `useT()` here would silently
+   * hit `useI18n`'s `PASSTHROUGH_CONTEXT` and always return the raw key, with no error to catch it.
+   * This inlines the exact same two-step resolution `I18nProvider`'s own `t` uses
+   * (`dictionaries?.[locale]?.[key] ?? dictionaries?.[fallbackLocale]?.[key] ?? key`), against the
+   * same `SETTINGS_DIALOG_DICTIONARIES` and the same locale value passed as `initialLocale` below —
+   * so the visible result is identical to a real context read, without needing one.
+   *
+   * Third fallback tier added 2026-08-08: the 24 generic tab labels/subtitles (Instructions,
+   * Notifications, Privacy, MCP server, Memory, Skills, Version, ...) moved out of `@jini-ai/ui`
+   * into `@jini-ai/cms/settings` — see project memory "Settings-dialog i18n relocation". Checking
+   * `CMS_SETTINGS_DIALOG_DICTIONARIES` last (not first) costs nothing: the two dictionaries are
+   * disjoint key sets, so ordering only matters for the final raw-key fallback.
+   */
+  const settingsLocale = s.language.value as string;
+  const t = (key: string): string =>
+    SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ??
+    SETTINGS_DIALOG_DICTIONARIES.en?.[key] ??
+    CMS_SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ??
+    key;
+  /** The 8 "no backend yet" capability-status notes below — see `settings-capabilities-i18n.ts`'s
+   *  header for why these live in Tovu's own dictionary rather than `SETTINGS_DIALOG_DICTIONARIES`. */
+  const tCap = (key: string): string => tCapability(settingsLocale, key);
 
   // Called unconditionally, ahead of the loading gate below (rules of hooks) — falls back to
   // `DEFAULT_EXECUTION_CONFIG.byok` while `s.execution.value` is still `null`, which is harmless:
@@ -206,9 +250,9 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
   const tabs: SettingsDialogTab[] = [
     {
       id: "execution",
-      label: "Execution mode",
-      title: "Execution mode",
-      subtitle: "Choose Local CLI or BYOK.",
+      label: t("Execution mode"),
+      title: t("Execution mode"),
+      subtitle: t("Choose Local CLI or BYOK."),
       icon: (
         <TabIcon>
           <path d="M3 5h3M9 5h6M12 9H9M6 9H3M3 13h7M13 13h2" />
@@ -243,9 +287,9 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
     },
     {
       id: "instructions",
-      label: "Instructions",
-      title: "Custom instructions",
-      subtitle: "Applied to every assistant conversation in this workspace.",
+      label: t("Instructions"),
+      title: t("Custom instructions"),
+      subtitle: t("Applied to every assistant conversation in this workspace."),
       icon: (
         <TabIcon>
           <path d="M4 3h10v12H4z" />
@@ -264,9 +308,9 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
     },
     {
       id: "notifications",
-      label: "Notifications",
-      title: "Notifications",
-      subtitle: "How you're told a task finished. Saved per operator, not per workspace.",
+      label: t("Notifications"),
+      title: t("Notifications"),
+      subtitle: t("How you're told a task finished. Saved per operator, not per workspace."),
       icon: (
         <TabIcon>
           <path d="M9 3a4 4 0 0 0-4 4v3l-1.5 2.5h11L13 10V7a4 4 0 0 0-4-4z" />
@@ -288,11 +332,11 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
     },
     {
       id: "privacy",
-      label: "Privacy",
-      title: "Privacy",
+      label: t("Privacy"),
+      title: t("Privacy"),
       // Not "Choose what this installation shares" — there is nothing to
       // choose yet. See the panel note below.
-      subtitle: "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.",
+      subtitle: tCap("Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet."),
       icon: (
         <TabIcon>
           <path d="M9 2.5 14 4.5v4c0 3.2-2.1 6-5 7-2.9-1-5-3.8-5-7v-4z" />
@@ -323,9 +367,9 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
       panel: (
         <div className="settings-ui-inert-wrap">
           <p className="settings-ui-inert-note" role="note">
-            Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent
-            regardless of this choice. The control below is shown for reference and disabled until a
-            real collection path exists.
+            {tCap(
+              "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.",
+            )}
           </p>
           <div className="settings-ui-inert-control" inert>
             <PrivacyTab state={s.privacy.value as PrivacyConsentState} onChange={s.privacy.onChange} />
@@ -339,9 +383,9 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
       // Appearance concept (site theming, its own admin section), and two nav
       // entries reading "Appearance" that configure different things is the
       // label collision recon §4 flagged. This one styles the settings surface.
-      label: "Dialog appearance",
-      title: "Dialog appearance",
-      subtitle: "Theme and accent color for this settings surface. Saved per operator.",
+      label: t("Dialog appearance"),
+      title: t("Dialog appearance"),
+      subtitle: t("Theme and accent color for this settings surface. Saved per operator."),
       icon: (
         <TabIcon>
           <circle cx="9" cy="9" r="6" />
@@ -367,14 +411,14 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
     },
     {
       id: "language",
-      label: "Language",
-      title: "Language",
+      label: t("Language"),
+      title: t("Language"),
       // Real translation as of this pass: picking Español actually switches
       // this settings panel's tab content (see `SettingsLocaleSync` and the
       // `I18nProvider` mount below). Scoped honestly in the subtitle itself —
       // see `ADMIN_LOCALES`'s doc comment for exactly what is and isn't
       // covered.
-      subtitle: "Admin interface language. Applies to this settings panel's tab content only.",
+      subtitle: t("Admin interface language. Applies to this settings panel's tab content only."),
       icon: (
         <TabIcon>
           <circle cx="9" cy="9" r="6.5" />
@@ -391,12 +435,12 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
     },
     {
       id: "mcp",
-      label: "MCP server",
-      title: "MCP server",
+      label: t("MCP server"),
+      title: t("MCP server"),
       // The component defaults to an in-memory fake port, so this renders and
       // is explorable with no backend at all. Wiring a real McpIntegrationsPort
       // to Tovu's daemon is its own piece of work.
-      subtitle: "Connect an MCP client. Showing sample output — not yet wired to a live server.",
+      subtitle: t("Connect an MCP client. Showing sample output — not yet wired to a live server."),
       icon: (
         <TabIcon>
           <path d="M4 6.5h10M4 11.5h10" />
@@ -408,9 +452,9 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
     },
     {
       id: "media-providers",
-      label: "Media providers",
-      title: "Media providers",
-      subtitle: "API keys for image, video, and audio generation.",
+      label: t("Media providers"),
+      title: t("Media providers"),
+      subtitle: t("API keys for image, video, and audio generation."),
       icon: (
         <TabIcon>
           <path d="M3 4.5h12v9H3z" />
@@ -430,8 +474,9 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
       panel: (
         <div className="settings-ui-inert-wrap">
           <p className="settings-ui-inert-note" role="note">
-            Tovu doesn't have a media-provider backend yet. The control below is shown for
-            reference and disabled until one exists.
+            {tCap(
+              "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.",
+            )}
           </p>
           <div className="settings-ui-inert-control" inert>
             <MediaProvidersTab port={s.mediaProvidersPort} catalog={EMPTY_MEDIA_PROVIDER_CATALOG} />
@@ -441,9 +486,9 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
     },
     {
       id: "connectors",
-      label: "Connectors",
-      title: "Connectors",
-      subtitle: "Third-party accounts and APIs via Composio.",
+      label: t("Connectors"),
+      title: t("Connectors"),
+      subtitle: t("Third-party accounts and APIs via Composio."),
       icon: (
         <TabIcon>
           <path d="M4 5h10M4 9h10M4 13h10" />
@@ -477,8 +522,9 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
       panel: (
         <div className="settings-ui-inert-wrap">
           <p className="settings-ui-inert-note" role="note">
-            Composio-backed third-party connectors aren't wired up in Tovu yet. The control below
-            is shown for reference and disabled until they are.
+            {tCap(
+              "Composio-backed third-party connectors aren't wired up in Tovu yet. The control below is shown for reference and disabled until they are.",
+            )}
           </p>
           <div className="settings-ui-inert-control" inert>
             <ConnectorsBrowser
@@ -496,9 +542,9 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
     },
     {
       id: "memory",
-      label: "Memory",
-      title: "Memory",
-      subtitle: "Saved facts and context for future chats.",
+      label: t("Memory"),
+      title: t("Memory"),
+      subtitle: t("Saved facts and context for future chats."),
       icon: (
         <TabIcon>
           <circle cx="9" cy="9" r="6.5" />
@@ -518,9 +564,9 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
       panel: (
         <div className="settings-ui-inert-wrap">
           <p className="settings-ui-inert-note" role="note">
-            Tovu's assistant doesn't persist extracted facts across conversations yet — that's
-            separate from chat history, which does persist. The control below is shown for
-            reference and disabled until it does.
+            {tCap(
+              "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.",
+            )}
           </p>
           <div className="settings-ui-inert-control" inert>
             <MemorySettingsPanel
@@ -558,9 +604,9 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
     },
     {
       id: "external-mcp",
-      label: "External MCP",
-      title: "External MCP",
-      subtitle: "Add MCP tools from external services.",
+      label: t("External MCP"),
+      title: t("External MCP"),
+      subtitle: t("Add MCP tools from external services."),
       icon: (
         <TabIcon>
           <path d="M6 3v4M12 3v4M4.5 7h9v2a4.5 4.5 0 0 1-9 0z" />
@@ -581,14 +627,15 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
       panel: (
         <div className="settings-ui-inert-wrap">
           <p className="settings-ui-inert-note" role="note">
-            Tovu doesn't run an MCP client yet, so there are no external MCP servers to add here.
-            The control below is shown for reference and disabled until one exists.
+            {tCap(
+              "Tovu doesn't run an MCP client yet, so there are no external MCP servers to add here. The control below is shown for reference and disabled until one exists.",
+            )}
           </p>
           <div className="settings-ui-inert-control" inert>
             <ExternalMcpTab
               dependencies={s.externalMcpDependencies}
-              connectionError="No MCP config store to connect to yet."
-              saveStatusLabel="All changes saved"
+              connectionError={t("No MCP config store to connect to yet.")}
+              saveStatusLabel={t("All changes saved")}
               configPath=".od/mcp-config.json"
             />
           </div>
@@ -597,9 +644,9 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
     },
     {
       id: "skills",
-      label: "Skills",
-      title: "Skills",
-      subtitle: "Custom skills your assistant can invoke mid-task.",
+      label: t("Skills"),
+      title: t("Skills"),
+      subtitle: t("Custom skills your assistant can invoke mid-task."),
       icon: (
         <TabIcon>
           <path d="M9 3l1.2 3.8L14 8l-3.8 1.2L9 13l-1.2-3.8L4 8l3.8-1.2z" />
@@ -618,9 +665,9 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
       panel: (
         <div className="settings-ui-inert-wrap">
           <p className="settings-ui-inert-note" role="note">
-            Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open
-            Design's separate Integrations page. The control below is shown for reference and
-            disabled until a real backend exists.
+            {tCap(
+              "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.",
+            )}
           </p>
           <div className="settings-ui-inert-control" inert>
             <SkillsTab
@@ -634,18 +681,48 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
     },
     {
       id: "about",
-      label: "About",
-      title: "About",
-      subtitle: "Version and runtime details.",
+      label: t("About"),
+      title: t("About"),
+      subtitle: t("Version and runtime details."),
       icon: (
         <TabIcon>
           <circle cx="9" cy="9" r="6.5" />
           <path d="M9 6.2h.01M8.3 8.5h1v4h1" />
         </TabIcon>
       ),
-      panel: <AboutPanel />,
+      panel: <AboutPanel t={t} tCap={tCap} />,
     },
   ];
+
+  /**
+   * The tab the inline shell should actually open on, or `undefined` to leave it uncontrolled.
+   *
+   * Can't pass `tabId` straight through as `SettingsDialogShell`'s `activeTabId`: that prop's own
+   * controlled/uncontrolled switch is `!== undefined`, not truthiness (see
+   * `useSettingsDialogShell.ts`), so a literal `null` — what `URLSearchParams.get("tab")` returns
+   * for every URL with no `?tab=` at all, i.e. most of them — would still count as "controlled,
+   * active tab is null" and blank the panel instead of falling back to the first tab. A `?tab=`
+   * naming an id that isn't one of the 13 above (typo, stale link, or a deliberately bogus value)
+   * would do the same, so this checks membership, not just presence — same "don't trust a raw
+   * query value" instinct `WidgetInstanceEditor`'s own `?type=` guard applies for the same reason.
+   */
+  const requestedTabId = tabId && tabs.some((tab) => tab.id === tabId) ? tabId : undefined;
+
+  /**
+   * Keeps `?tab=` in sync as the operator switches tabs, so the URL is always a correct deep link
+   * back to whatever is on screen — not just the one the panel happened to open on. `replace`, not a
+   * new history entry per click: switching tabs is not a navigation Back should step through one at
+   * a time, the same reasoning `navigate()`'s own legacy-hash-redirect caller applies.
+   *
+   * Fires even before any `?tab=` is present (`requestedTabId` is `undefined` then, so the shell
+   * manages the active tab itself) — `useSettingsDialogShell`'s `setActiveTabId` calls
+   * `onActiveTabIdChange` unconditionally, controlled or not. That is what turns the very first tab
+   * click into the point the URL starts tracking the panel, with no local "which tab" state needed
+   * here to make that happen.
+   */
+  const handleTabChange = (nextTabId: string) => {
+    navigate(`/settings?tab=${nextTabId}`, { replace: true });
+  };
 
   /**
    * Top-right chrome. Lives in the shell's own `chromeExtra` slot rather than
@@ -668,7 +745,7 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
     <>
       {saveStatus}
       <button type="button" className="settings-ui-dialog-btn" onClick={() => s.setModalOpen(true)}>
-        Open as dialog
+        {t("Open as dialog")}
       </button>
     </>
   );
@@ -739,6 +816,8 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi }: SettingsUiProp
           className="jini-settings-dialog--inline"
           fullscreenEnabled={false}
           chromeExtra={pageChrome}
+          activeTabId={requestedTabId}
+          onActiveTabIdChange={handleTabChange}
         />
 
         {/* Modal mode: same component, same tabs, one different prop. */}

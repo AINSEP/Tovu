@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createFakeMediaProvidersPort,
   createFakeSkillsPort,
@@ -79,6 +79,13 @@ async function goToTab(user: ReturnType<typeof userEvent.setup>, tabId: string) 
   await user.click(screen.getByTestId(`settings-dialog-nav-${tabId}`));
 }
 
+afterEach(() => {
+  // `handleTabChange` drives real `history.replaceState` via `lib/router`'s `navigate()` — reset
+  // between tests so one test's tab click can't leak a `?tab=` into the next (same convention
+  // `FormsList.unit.test.tsx` uses for its own `navigate()`-driven Edit test).
+  window.history.replaceState(null, "", "/");
+});
+
 describe("loading and error states", () => {
   it("shows a loading placeholder while any slice is still settling", () => {
     render(<SettingsUi useSettingsUiHook={() => baseController({ loading: true })} />);
@@ -92,6 +99,34 @@ describe("loading and error states", () => {
       screen.getByText('Could not load saved settings (namespace fetch failed). Showing defaults — edits will still save.'),
     ).toBeInTheDocument();
     expect(screen.getByTestId("settings-dialog-nav-execution")).toBeInTheDocument();
+  });
+});
+
+describe("settings-dialog translation: two dictionary sources", () => {
+  /**
+   * `t()` now merges three lookup tiers (see `SettingsUi.tsx`'s own doc comment): `@jini-ai/ui`'s
+   * `SETTINGS_DIALOG_DICTIONARIES` for the OD-generic keys, `@jini-ai/cms`'s
+   * `SETTINGS_DIALOG_DICTIONARIES` for the 24 relocated chrome keys (tab labels like
+   * "Instructions"), and Tovu's own `settings-capabilities-i18n.ts` (via `tCap`) for the 8
+   * capability-fact notes. This pins that a non-English locale actually resolves real translations
+   * from BOTH of the relocated sources, not just from whichever dictionary still lives in
+   * `@jini-ai/ui` — a real regression risk the relocation introduces that pure typechecking can't
+   * catch.
+   */
+  it("renders a Category B tab label (from @jini-ai/cms) translated when locale is es", () => {
+    render(<SettingsUi useSettingsUiHook={() => baseController({ language: makeSlice("es") })} />);
+    expect(within(screen.getByTestId("settings-dialog-nav-instructions")).getByText("Instrucciones")).toBeInTheDocument();
+  });
+
+  it("renders a Category A capability note (from Tovu's own dictionary) translated when locale is es", async () => {
+    const user = userEvent.setup();
+    render(<SettingsUi useSettingsUiHook={() => baseController({ language: makeSlice("es") })} />);
+    await goToTab(user, "about");
+    expect(
+      screen.getByText(
+        "Tovu es un CMS de servidor — las versiones nuevas se publican con un despliegue, no con un actualizador dentro de la app.",
+      ),
+    ).toBeInTheDocument();
   });
 });
 
@@ -206,6 +241,48 @@ describe("Open as dialog", () => {
     // Two shells are mounted at once in modal mode (inline page + modal), so there are two
     // matching sidebar nav buttons — scope to the modal's own dialog to avoid ambiguity.
     expect(screen.getAllByTestId("settings-dialog-nav-execution").length).toBe(2);
+  });
+});
+
+describe("?tab= deep linking", () => {
+  it("opens directly on the tab named by the tabId prop", () => {
+    render(<SettingsUi useSettingsUiHook={() => baseController()} tabId="privacy" />);
+
+    expect(
+      screen.getByText(/this installation has no outbound telemetry pipeline/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Custom instructions")).not.toBeInTheDocument();
+  });
+
+  it("falls back to the default tab for an id that names no real tab, instead of blanking the panel", () => {
+    // The regression this guards: `URLSearchParams.get` also returns `null` for a missing `?tab=`,
+    // and `SettingsDialogShell`'s controlled/uncontrolled switch is `activeTabId !== undefined` —
+    // passing an unrecognized id straight through would render a controlled-but-matchless tab and
+    // show no panel at all, not the first tab.
+    render(<SettingsUi useSettingsUiHook={() => baseController()} tabId="not-a-real-tab" />);
+
+    expect(screen.getByRole("tablist", { name: "Execution mode" })).toBeInTheDocument();
+  });
+
+  it("defaults to the first tab when no tabId is supplied at all", () => {
+    render(<SettingsUi useSettingsUiHook={() => baseController()} />);
+    expect(screen.getByRole("tablist", { name: "Execution mode" })).toBeInTheDocument();
+  });
+
+  it("switching tabs writes the new id into the URL's ?tab= so the shown tab is always the linkable one", async () => {
+    const user = userEvent.setup();
+    render(<SettingsUi useSettingsUiHook={() => baseController()} />);
+
+    await goToTab(user, "privacy");
+
+    expect(window.location.search).toBe("?tab=privacy");
+  });
+
+  it("publishes the inline tab nav as agent-clickable, matching the ?tab= id, so an agent already on this page can reach a specific tab via page.find_elements/page.click", () => {
+    render(<SettingsUi useSettingsUiHook={() => baseController()} />);
+    const privacyNav = screen.getByTestId("settings-dialog-nav-privacy");
+    expect(privacyNav).toHaveAttribute("data-agent-element", "tab-privacy");
+    expect(privacyNav).toHaveAttribute("data-agent-label", "Privacy");
   });
 });
 
