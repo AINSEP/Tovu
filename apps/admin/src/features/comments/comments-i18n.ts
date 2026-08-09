@@ -1,12 +1,12 @@
 /**
- * @file Spanish dictionary for the Comments feature. Covers `rules.ts`'s moderation-queue
- * row-menu labels (`commentRowMenuItems`: Approve/Spam/Trash/Restore/Purge) as well as the
+ * @file Dictionary for the Comments feature, covering all 18 target locales. Covers `rules.ts`'s
+ * moderation-queue row-menu labels (`commentRowMenuItems`: Approve/Spam/Trash/Restore/Purge), the
  * hook-level notice/error strings from `use-comment-queue.hooks.ts` and
- * `use-comment-settings.hooks.ts` (`describeApiError` fallbacks, `setNotice` copy) — those never
- * got translated during the JSX-only pass since they live in `.hooks.ts` files, not component
- * markup. `Comments.tsx`'s own markup was not part of the earlier admin i18n pass and stays
- * English for now (see `redirects-i18n.tsx`/`integrations-i18n.tsx`/`recovery-i18n.tsx`'s matching
- * "rules.ts labels not translated" notes, now being closed feature-by-feature).
+ * `use-comment-settings.hooks.ts` (`describeApiError` fallbacks, `setNotice` copy), and
+ * `Comments.tsx`'s own markup (table headers, queue/settings copy, the purge-confirm dialog) — the
+ * last of these was the one gap left after the rest of this admin app's JSX-only i18n pass (see
+ * `redirects-i18n.tsx`/`integrations-i18n.tsx`/`recovery-i18n.tsx`'s matching notes for that
+ * earlier pass), now closed.
  */
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
@@ -25,6 +25,36 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     // inventing a literal "Purgar".
     Purge: "Eliminar permanentemente",
 
+    // Comments.tsx markup (this pass) — the screen's own JSX was never wired to translation
+    // before now; see the file header.
+    "Loading…": "Cargando…",
+    Author: "Autor",
+    Comment: "Comentario",
+    Depth: "Profundidad",
+    Created: "Creado",
+    "Load more": "Cargar más",
+    "Loading comments…": "Cargando comentarios…",
+    "Loading Comments…": "Cargando comentarios…",
+    "No {status} comments.": 'No hay comentarios "{status}".',
+    "Permanently delete this comment?": "¿Eliminar permanentemente este comentario?",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      '¿Eliminar permanentemente este comentario de "{author}"? Esta acción no se puede deshacer.',
+    "Permanently delete": "Eliminar permanentemente",
+    'Actions for the comment by "{author}"': 'Acciones para el comentario de "{author}"',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "Modera los comentarios entrantes y configura el comportamiento de comentarios en todo el espacio de trabajo.",
+    "You do not have permission to view the moderation queue.":
+      "No tienes permiso para ver la cola de moderación.",
+    "Loading Comments settings…": "Cargando la configuración de comentarios…",
+    "Comments enabled": "Comentarios habilitados",
+    "Require moderation (new comments start pending)":
+      "Requerir moderación (los comentarios nuevos comienzan como pendientes)",
+    "Max thread depth": "Profundidad máxima del hilo",
+    "Close submissions after (days, blank = never)": "Cerrar los envíos después de (días, en blanco = nunca)",
+    "Spam auto-reject score (0–1)": "Puntuación de rechazo automático de spam (0–1)",
+    "Max submissions per IP per hour": "Máximo de envíos por IP por hora",
+    "Save settings": "Guardar configuración",
+
     // use-comment-queue.hooks.ts / use-comment-settings.hooks.ts (hook-level notice/error strings)
     "failed to load the moderation queue": "no se pudo cargar la cola de moderación",
     "Failed to purge comment.": "No se pudo purgar el comentario.",
@@ -36,6 +66,35 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "Spam",
     Restore: "Pulihkan",
     Purge: "Hapus permanen",
+
+    "Loading…": "Memuat…",
+    Author: "Penulis",
+    Comment: "Komentar",
+    Depth: "Kedalaman",
+    Created: "Dibuat",
+    "Load more": "Muat lagi",
+    "Loading comments…": "Memuat komentar…",
+    "Loading Comments…": "Memuat komentar…",
+    "No {status} comments.": 'Tidak ada komentar "{status}".',
+    "Permanently delete this comment?": "Hapus komentar ini secara permanen?",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      'Hapus komentar dari "{author}" secara permanen? Tindakan ini tidak dapat dibatalkan.',
+    "Permanently delete": "Hapus permanen",
+    'Actions for the comment by "{author}"': 'Tindakan untuk komentar dari "{author}"',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "Moderasi komentar masuk dan konfigurasikan perilaku komentar di seluruh ruang kerja.",
+    "You do not have permission to view the moderation queue.":
+      "Anda tidak memiliki izin untuk melihat antrean moderasi.",
+    "Loading Comments settings…": "Memuat pengaturan Komentar…",
+    "Comments enabled": "Komentar diaktifkan",
+    "Require moderation (new comments start pending)":
+      "Wajibkan moderasi (komentar baru dimulai sebagai tertunda)",
+    "Max thread depth": "Kedalaman maksimum utas",
+    "Close submissions after (days, blank = never)": "Tutup pengiriman setelah (hari, kosongkan = tidak pernah)",
+    "Spam auto-reject score (0–1)": "Skor penolakan otomatis spam (0–1)",
+    "Max submissions per IP per hour": "Maksimum pengiriman per IP per jam",
+    "Save settings": "Simpan pengaturan",
+
     "failed to load the moderation queue": "gagal memuat antrean moderasi",
     "Failed to purge comment.": "Gagal menghapus komentar secara permanen.",
     "failed to load Comments settings": "gagal memuat pengaturan Komentar",
@@ -46,6 +105,35 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "Spam",
     Restore: "Wiederherstellen",
     Purge: "Endgültig löschen",
+
+    "Loading…": "Wird geladen…",
+    Author: "Autor",
+    Comment: "Kommentar",
+    Depth: "Tiefe",
+    Created: "Erstellt",
+    "Load more": "Mehr laden",
+    "Loading comments…": "Kommentare werden geladen…",
+    "Loading Comments…": "Kommentare werden geladen…",
+    "No {status} comments.": "Keine Kommentare mit Status „{status}“.",
+    "Permanently delete this comment?": "Diesen Kommentar endgültig löschen?",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      "Kommentar von „{author}“ endgültig löschen? Dies kann nicht rückgängig gemacht werden.",
+    "Permanently delete": "Endgültig löschen",
+    'Actions for the comment by "{author}"': "Aktionen für Kommentar von „{author}“",
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "Eingehende Kommentare moderieren und das arbeitsbereichsweite Kommentarverhalten konfigurieren.",
+    "You do not have permission to view the moderation queue.":
+      "Sie haben keine Berechtigung, die Moderationswarteschlange anzuzeigen.",
+    "Loading Comments settings…": "Kommentareinstellungen werden geladen…",
+    "Comments enabled": "Kommentare aktiviert",
+    "Require moderation (new comments start pending)":
+      "Moderation erforderlich (neue Kommentare starten als ausstehend)",
+    "Max thread depth": "Maximale Thread-Tiefe",
+    "Close submissions after (days, blank = never)": "Einsendungen schließen nach (Tage, leer = nie)",
+    "Spam auto-reject score (0–1)": "Spam-Auto-Ablehnungswert (0–1)",
+    "Max submissions per IP per hour": "Maximale Einsendungen pro IP und Stunde",
+    "Save settings": "Einstellungen speichern",
+
     "failed to load the moderation queue": "Moderationswarteschlange konnte nicht geladen werden",
     "Failed to purge comment.": "Kommentar konnte nicht endgültig gelöscht werden.",
     "failed to load Comments settings": "Kommentareinstellungen konnten nicht geladen werden",
@@ -58,6 +146,33 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "垃圾评论",
     Restore: "恢复",
     Purge: "永久删除",
+
+    "Loading…": "加载中…",
+    Author: "作者",
+    Comment: "评论",
+    Depth: "深度",
+    Created: "创建时间",
+    "Load more": "加载更多",
+    "Loading comments…": "正在加载评论…",
+    "Loading Comments…": "正在加载评论…",
+    "No {status} comments.": "没有“{status}”评论。",
+    "Permanently delete this comment?": "永久删除此评论？",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      "永久删除来自“{author}”的评论？此操作无法撤销。",
+    "Permanently delete": "永久删除",
+    'Actions for the comment by "{author}"': "来自“{author}”的评论操作",
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "审核新提交的评论，并配置整个工作区的评论行为。",
+    "You do not have permission to view the moderation queue.": "您没有权限查看审核队列。",
+    "Loading Comments settings…": "正在加载评论设置…",
+    "Comments enabled": "启用评论",
+    "Require moderation (new comments start pending)": "需要审核（新评论默认状态为待审核）",
+    "Max thread depth": "最大楼层深度",
+    "Close submissions after (days, blank = never)": "提交截止时间（天数，留空表示永不截止）",
+    "Spam auto-reject score (0–1)": "垃圾评论自动拒绝分数（0–1）",
+    "Max submissions per IP per hour": "每个 IP 每小时最大提交数",
+    "Save settings": "保存设置",
+
     "failed to load the moderation queue": "无法加载审核队列",
     "Failed to purge comment.": "无法永久删除评论。",
     "failed to load Comments settings": "无法加载评论设置",
@@ -69,6 +184,33 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "垃圾留言",
     Restore: "還原",
     Purge: "永久刪除",
+
+    "Loading…": "載入中…",
+    Author: "作者",
+    Comment: "留言",
+    Depth: "深度",
+    Created: "建立時間",
+    "Load more": "載入更多",
+    "Loading comments…": "正在載入留言…",
+    "Loading Comments…": "正在載入留言…",
+    "No {status} comments.": "沒有「{status}」留言。",
+    "Permanently delete this comment?": "永久刪除此留言？",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      "永久刪除來自「{author}」的留言？此操作無法復原。",
+    "Permanently delete": "永久刪除",
+    'Actions for the comment by "{author}"': "來自「{author}」的留言操作",
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "審核新提交的留言，並設定整個工作區的留言行為。",
+    "You do not have permission to view the moderation queue.": "您沒有權限檢視審核佇列。",
+    "Loading Comments settings…": "正在載入留言設定…",
+    "Comments enabled": "啟用留言",
+    "Require moderation (new comments start pending)": "需要審核（新留言預設為待審核狀態）",
+    "Max thread depth": "最大討論串深度",
+    "Close submissions after (days, blank = never)": "提交截止時間（天數，留空表示永不截止）",
+    "Spam auto-reject score (0–1)": "垃圾留言自動拒絕分數（0–1）",
+    "Max submissions per IP per hour": "每個 IP 每小時最大提交數",
+    "Save settings": "儲存設定",
+
     "failed to load the moderation queue": "無法載入審核佇列",
     "Failed to purge comment.": "無法永久刪除留言。",
     "failed to load Comments settings": "無法載入留言設定",
@@ -79,6 +221,35 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "Spam",
     Restore: "Restaurar",
     Purge: "Excluir permanentemente",
+
+    "Loading…": "Carregando…",
+    Author: "Autor",
+    Comment: "Comentário",
+    Depth: "Profundidade",
+    Created: "Criado",
+    "Load more": "Carregar mais",
+    "Loading comments…": "Carregando comentários…",
+    "Loading Comments…": "Carregando comentários…",
+    "No {status} comments.": 'Nenhum comentário "{status}".',
+    "Permanently delete this comment?": "Excluir permanentemente este comentário?",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      'Excluir permanentemente este comentário de "{author}"? Esta ação não pode ser desfeita.',
+    "Permanently delete": "Excluir permanentemente",
+    'Actions for the comment by "{author}"': 'Ações para o comentário de "{author}"',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "Modere os comentários recebidos e configure o comportamento dos comentários em todo o espaço de trabalho.",
+    "You do not have permission to view the moderation queue.":
+      "Você não tem permissão para ver a fila de moderação.",
+    "Loading Comments settings…": "Carregando as configurações de Comentários…",
+    "Comments enabled": "Comentários ativados",
+    "Require moderation (new comments start pending)":
+      "Exigir moderação (novos comentários começam como pendentes)",
+    "Max thread depth": "Profundidade máxima da conversa",
+    "Close submissions after (days, blank = never)": "Encerrar envios após (dias, em branco = nunca)",
+    "Spam auto-reject score (0–1)": "Pontuação de rejeição automática de spam (0–1)",
+    "Max submissions per IP per hour": "Máximo de envios por IP por hora",
+    "Save settings": "Salvar configurações",
+
     "failed to load the moderation queue": "falha ao carregar a fila de moderação",
     "Failed to purge comment.": "Falha ao excluir permanentemente o comentário.",
     "failed to load Comments settings": "falha ao carregar as configurações de Comentários",
@@ -91,6 +262,35 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "Спам",
     Restore: "Восстановить",
     Purge: "Удалить навсегда",
+
+    "Loading…": "Загрузка…",
+    Author: "Автор",
+    Comment: "Комментарий",
+    Depth: "Глубина",
+    Created: "Создано",
+    "Load more": "Загрузить ещё",
+    "Loading comments…": "Загрузка комментариев…",
+    "Loading Comments…": "Загрузка комментариев…",
+    "No {status} comments.": 'Нет комментариев со статусом "{status}".',
+    "Permanently delete this comment?": "Удалить этот комментарий навсегда?",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      'Удалить навсегда комментарий от "{author}"? Это действие невозможно отменить.',
+    "Permanently delete": "Удалить навсегда",
+    'Actions for the comment by "{author}"': 'Действия для комментария от "{author}"',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "Модерируйте входящие комментарии и настраивайте поведение комментариев для всего рабочего пространства.",
+    "You do not have permission to view the moderation queue.":
+      "У вас нет прав для просмотра очереди модерации.",
+    "Loading Comments settings…": "Загрузка настроек комментариев…",
+    "Comments enabled": "Комментарии включены",
+    "Require moderation (new comments start pending)":
+      "Требовать модерацию (новые комментарии начинаются со статуса «на рассмотрении»)",
+    "Max thread depth": "Максимальная глубина треда",
+    "Close submissions after (days, blank = never)": "Закрывать приём после (дней, пусто = никогда)",
+    "Spam auto-reject score (0–1)": "Порог автоотклонения спама (0–1)",
+    "Max submissions per IP per hour": "Максимум отправок с одного IP в час",
+    "Save settings": "Сохранить настройки",
+
     "failed to load the moderation queue": "не удалось загрузить очередь модерации",
     "Failed to purge comment.": "Не удалось удалить комментарий навсегда.",
     "failed to load Comments settings": "не удалось загрузить настройки комментариев",
@@ -103,6 +303,34 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "هرزنامه",
     Restore: "بازیابی",
     Purge: "حذف دائمی",
+
+    "Loading…": "در حال بارگذاری…",
+    Author: "نویسنده",
+    Comment: "نظر",
+    Depth: "عمق",
+    Created: "ایجاد شده",
+    "Load more": "بارگذاری بیشتر",
+    "Loading comments…": "در حال بارگذاری نظرات…",
+    "Loading Comments…": "در حال بارگذاری نظرات…",
+    "No {status} comments.": 'نظری با وضعیت "{status}" وجود ندارد.',
+    "Permanently delete this comment?": "این نظر برای همیشه حذف شود؟",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      'نظر "{author}" برای همیشه حذف شود؟ این کار قابل بازگشت نیست.',
+    "Permanently delete": "حذف دائمی",
+    'Actions for the comment by "{author}"': 'عملیات برای نظر "{author}"',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "نظرات دریافتی را مدیریت کنید و رفتار نظرات را برای کل فضای کاری پیکربندی کنید.",
+    "You do not have permission to view the moderation queue.": "شما مجوز مشاهده صف نظارت را ندارید.",
+    "Loading Comments settings…": "در حال بارگذاری تنظیمات نظرات…",
+    "Comments enabled": "نظرات فعال است",
+    "Require moderation (new comments start pending)":
+      "نیاز به نظارت (نظرات جدید با وضعیت در انتظار شروع می‌شوند)",
+    "Max thread depth": "حداکثر عمق موضوع",
+    "Close submissions after (days, blank = never)": "بستن ارسال‌ها پس از (روز، خالی = هرگز)",
+    "Spam auto-reject score (0–1)": "امتیاز رد خودکار هرزنامه (0–1)",
+    "Max submissions per IP per hour": "حداکثر ارسال به ازای هر IP در ساعت",
+    "Save settings": "ذخیره تنظیمات",
+
     "failed to load the moderation queue": "بارگذاری صف نظارت ناموفق بود",
     "Failed to purge comment.": "حذف دائمی نظر ناموفق بود.",
     "failed to load Comments settings": "بارگذاری تنظیمات نظرات ناموفق بود",
@@ -115,6 +343,35 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "مزعج",
     Restore: "استعادة",
     Purge: "حذف نهائي",
+
+    "Loading…": "جارٍ التحميل…",
+    Author: "الكاتب",
+    Comment: "التعليق",
+    Depth: "العمق",
+    Created: "تاريخ الإنشاء",
+    "Load more": "تحميل المزيد",
+    "Loading comments…": "جارٍ تحميل التعليقات…",
+    "Loading Comments…": "جارٍ تحميل التعليقات…",
+    "No {status} comments.": 'لا توجد تعليقات بحالة "{status}".',
+    "Permanently delete this comment?": "هل تريد حذف هذا التعليق نهائيًا؟",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      'هل تريد حذف هذا التعليق من "{author}" نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.',
+    "Permanently delete": "حذف نهائي",
+    'Actions for the comment by "{author}"': 'إجراءات للتعليق من "{author}"',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "راجع التعليقات الواردة واضبط سلوك التعليقات على مستوى مساحة العمل بأكملها.",
+    "You do not have permission to view the moderation queue.":
+      "ليس لديك إذن لعرض قائمة انتظار المراجعة.",
+    "Loading Comments settings…": "جارٍ تحميل إعدادات التعليقات…",
+    "Comments enabled": "التعليقات مفعّلة",
+    "Require moderation (new comments start pending)":
+      "طلب المراجعة (تبدأ التعليقات الجديدة بحالة قيد الانتظار)",
+    "Max thread depth": "أقصى عمق للمناقشة",
+    "Close submissions after (days, blank = never)": "إغلاق الإرسال بعد (أيام، فارغ = أبدًا)",
+    "Spam auto-reject score (0–1)": "درجة الرفض التلقائي للتعليقات المزعجة (0–1)",
+    "Max submissions per IP per hour": "الحد الأقصى للإرسال لكل عنوان IP في الساعة",
+    "Save settings": "حفظ الإعدادات",
+
     "failed to load the moderation queue": "تعذّر تحميل قائمة انتظار المراجعة",
     "Failed to purge comment.": "تعذّر حذف التعليق نهائيًا.",
     "failed to load Comments settings": "تعذّر تحميل إعدادات التعليقات",
@@ -127,6 +384,35 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "迷惑コメント",
     Restore: "復元",
     Purge: "完全に削除",
+
+    "Loading…": "読み込み中…",
+    Author: "投稿者",
+    Comment: "コメント",
+    Depth: "深さ",
+    Created: "作成日時",
+    "Load more": "さらに読み込む",
+    "Loading comments…": "コメントを読み込み中…",
+    "Loading Comments…": "コメントを読み込み中…",
+    "No {status} comments.": "「{status}」のコメントはありません。",
+    "Permanently delete this comment?": "このコメントを完全に削除しますか？",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      "「{author}」によるこのコメントを完全に削除しますか？この操作は取り消せません。",
+    "Permanently delete": "完全に削除",
+    'Actions for the comment by "{author}"': "「{author}」によるコメントの操作",
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "受信したコメントをモデレートし、ワークスペース全体のコメント動作を設定します。",
+    "You do not have permission to view the moderation queue.":
+      "モデレーションキューを表示する権限がありません。",
+    "Loading Comments settings…": "コメント設定を読み込み中…",
+    "Comments enabled": "コメントを有効にする",
+    "Require moderation (new comments start pending)":
+      "モデレーションを必須にする（新しいコメントは保留状態で始まります）",
+    "Max thread depth": "最大スレッドの深さ",
+    "Close submissions after (days, blank = never)": "送信の受付終了（日数、空欄=無期限）",
+    "Spam auto-reject score (0–1)": "スパム自動拒否スコア（0〜1）",
+    "Max submissions per IP per hour": "1時間あたりのIPごとの最大送信数",
+    "Save settings": "設定を保存",
+
     "failed to load the moderation queue": "モデレーションキューを読み込めませんでした",
     "Failed to purge comment.": "コメントを完全に削除できませんでした。",
     "failed to load Comments settings": "コメント設定を読み込めませんでした",
@@ -137,6 +423,33 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "스팸",
     Restore: "복원",
     Purge: "영구 삭제",
+
+    "Loading…": "로딩 중…",
+    Author: "작성자",
+    Comment: "댓글",
+    Depth: "깊이",
+    Created: "생성일",
+    "Load more": "더 보기",
+    "Loading comments…": "댓글을 불러오는 중…",
+    "Loading Comments…": "댓글을 불러오는 중…",
+    "No {status} comments.": '"{status}" 상태의 댓글이 없습니다.',
+    "Permanently delete this comment?": "이 댓글을 영구적으로 삭제하시겠습니까?",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      '"{author}"님의 이 댓글을 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+    "Permanently delete": "영구 삭제",
+    'Actions for the comment by "{author}"': '"{author}"님의 댓글에 대한 작업',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "수신되는 댓글을 검토하고 워크스페이스 전체의 댓글 동작을 구성하세요.",
+    "You do not have permission to view the moderation queue.": "검토 대기열을 볼 권한이 없습니다.",
+    "Loading Comments settings…": "댓글 설정을 불러오는 중…",
+    "Comments enabled": "댓글 사용",
+    "Require moderation (new comments start pending)": "검토 필수 (새 댓글은 대기 상태로 시작됨)",
+    "Max thread depth": "최대 스레드 깊이",
+    "Close submissions after (days, blank = never)": "제출 마감 기한 (일수, 비워 두면 마감 없음)",
+    "Spam auto-reject score (0–1)": "스팸 자동 거부 점수(0~1)",
+    "Max submissions per IP per hour": "IP당 시간당 최대 제출 수",
+    "Save settings": "설정 저장",
+
     "failed to load the moderation queue": "검토 대기열을 불러오지 못했습니다",
     "Failed to purge comment.": "댓글을 완전히 삭제하지 못했습니다.",
     "failed to load Comments settings": "댓글 설정을 불러오지 못했습니다",
@@ -147,6 +460,35 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "Spam",
     Restore: "Przywróć",
     Purge: "Usuń trwale",
+
+    "Loading…": "Wczytywanie…",
+    Author: "Autor",
+    Comment: "Komentarz",
+    Depth: "Głębokość",
+    Created: "Utworzono",
+    "Load more": "Wczytaj więcej",
+    "Loading comments…": "Wczytywanie komentarzy…",
+    "Loading Comments…": "Wczytywanie komentarzy…",
+    "No {status} comments.": 'Brak komentarzy o statusie "{status}".',
+    "Permanently delete this comment?": "Trwale usunąć ten komentarz?",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      'Trwale usunąć ten komentarz użytkownika "{author}"? Tej czynności nie można cofnąć.',
+    "Permanently delete": "Usuń trwale",
+    'Actions for the comment by "{author}"': 'Działania dla komentarza użytkownika "{author}"',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "Moderuj przychodzące komentarze i konfiguruj zachowanie komentarzy w całej przestrzeni roboczej.",
+    "You do not have permission to view the moderation queue.":
+      "Nie masz uprawnień do wyświetlania kolejki moderacji.",
+    "Loading Comments settings…": "Wczytywanie ustawień komentarzy…",
+    "Comments enabled": "Komentarze włączone",
+    "Require moderation (new comments start pending)":
+      "Wymagaj moderacji (nowe komentarze zaczynają jako oczekujące)",
+    "Max thread depth": "Maksymalna głębokość wątku",
+    "Close submissions after (days, blank = never)": "Zamknij przyjmowanie po (dni, puste = nigdy)",
+    "Spam auto-reject score (0–1)": "Wynik automatycznego odrzucania spamu (0–1)",
+    "Max submissions per IP per hour": "Maksymalna liczba zgłoszeń na adres IP na godzinę",
+    "Save settings": "Zapisz ustawienia",
+
     "failed to load the moderation queue": "nie udało się wczytać kolejki moderacji",
     "Failed to purge comment.": "Nie udało się trwale usunąć komentarza.",
     "failed to load Comments settings": "nie udało się wczytać ustawień komentarzy",
@@ -157,6 +499,35 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "Spam",
     Restore: "Visszaállítás",
     Purge: "Végleges törlés",
+
+    "Loading…": "Betöltés…",
+    Author: "Szerző",
+    Comment: "Hozzászólás",
+    Depth: "Mélység",
+    Created: "Létrehozva",
+    "Load more": "Továbbiak betöltése",
+    "Loading comments…": "Hozzászólások betöltése…",
+    "Loading Comments…": "Hozzászólások betöltése…",
+    "No {status} comments.": "Nincs „{status}” állapotú hozzászólás.",
+    "Permanently delete this comment?": "Véglegesen törli ezt a hozzászólást?",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      "Véglegesen törli „{author}” hozzászólását? Ez a művelet nem vonható vissza.",
+    "Permanently delete": "Végleges törlés",
+    'Actions for the comment by "{author}"': "Műveletek a(z) „{author}” hozzászólásához",
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "Moderálja a beérkező hozzászólásokat, és állítsa be a hozzászólások viselkedését a teljes munkaterületen.",
+    "You do not have permission to view the moderation queue.":
+      "Nincs jogosultsága a moderálási várólista megtekintéséhez.",
+    "Loading Comments settings…": "A Hozzászólások beállításainak betöltése…",
+    "Comments enabled": "Hozzászólások engedélyezve",
+    "Require moderation (new comments start pending)":
+      "Moderálás megkövetelése (az új hozzászólások függőben kezdődnek)",
+    "Max thread depth": "Maximális szálmélység",
+    "Close submissions after (days, blank = never)": "Beküldések lezárása ennyi nap után (üresen hagyva = soha)",
+    "Spam auto-reject score (0–1)": "Spam automatikus elutasítási pontszáma (0–1)",
+    "Max submissions per IP per hour": "Maximális beküldés IP-nként óránként",
+    "Save settings": "Beállítások mentése",
+
     "failed to load the moderation queue": "a moderálási várólista betöltése sikertelen",
     "Failed to purge comment.": "A hozzászólás végleges törlése sikertelen.",
     "failed to load Comments settings": "a Hozzászólások beállításainak betöltése sikertelen",
@@ -167,6 +538,35 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "Spam",
     Restore: "Restaurer",
     Purge: "Supprimer définitivement",
+
+    "Loading…": "Chargement…",
+    Author: "Auteur",
+    Comment: "Commentaire",
+    Depth: "Profondeur",
+    Created: "Créé le",
+    "Load more": "Charger plus",
+    "Loading comments…": "Chargement des commentaires…",
+    "Loading Comments…": "Chargement des commentaires…",
+    "No {status} comments.": "Aucun commentaire « {status} ».",
+    "Permanently delete this comment?": "Supprimer définitivement ce commentaire ?",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      "Supprimer définitivement ce commentaire de « {author} » ? Cette action est irréversible.",
+    "Permanently delete": "Supprimer définitivement",
+    'Actions for the comment by "{author}"': "Actions pour le commentaire de « {author} »",
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "Modérez les commentaires entrants et configurez le comportement des commentaires pour tout l'espace de travail.",
+    "You do not have permission to view the moderation queue.":
+      "Vous n'avez pas l'autorisation de consulter la file de modération.",
+    "Loading Comments settings…": "Chargement des paramètres des commentaires…",
+    "Comments enabled": "Commentaires activés",
+    "Require moderation (new comments start pending)":
+      "Exiger une modération (les nouveaux commentaires démarrent en attente)",
+    "Max thread depth": "Profondeur maximale du fil",
+    "Close submissions after (days, blank = never)": "Clore les envois après (jours, vide = jamais)",
+    "Spam auto-reject score (0–1)": "Score de rejet automatique du spam (0–1)",
+    "Max submissions per IP per hour": "Envois maximum par IP et par heure",
+    "Save settings": "Enregistrer les paramètres",
+
     "failed to load the moderation queue": "échec du chargement de la file de modération",
     "Failed to purge comment.": "Échec de la suppression définitive du commentaire.",
     "failed to load Comments settings": "échec du chargement des paramètres des commentaires",
@@ -178,6 +578,35 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "Спам",
     Restore: "Відновити",
     Purge: "Видалити назавжди",
+
+    "Loading…": "Завантаження…",
+    Author: "Автор",
+    Comment: "Коментар",
+    Depth: "Глибина",
+    Created: "Створено",
+    "Load more": "Завантажити ще",
+    "Loading comments…": "Завантаження коментарів…",
+    "Loading Comments…": "Завантаження коментарів…",
+    "No {status} comments.": 'Немає коментарів зі статусом "{status}".',
+    "Permanently delete this comment?": "Видалити цей коментар назавжди?",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      'Видалити назавжди цей коментар від "{author}"? Цю дію не можна скасувати.',
+    "Permanently delete": "Видалити назавжди",
+    'Actions for the comment by "{author}"': 'Дії для коментаря від "{author}"',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "Модеруйте вхідні коментарі та налаштовуйте поведінку коментарів для всього робочого простору.",
+    "You do not have permission to view the moderation queue.":
+      "У вас немає дозволу переглядати чергу модерації.",
+    "Loading Comments settings…": "Завантаження налаштувань коментарів…",
+    "Comments enabled": "Коментарі увімкнено",
+    "Require moderation (new comments start pending)":
+      "Вимагати модерацію (нові коментарі починаються зі статусу «очікує»)",
+    "Max thread depth": "Максимальна глибина треду",
+    "Close submissions after (days, blank = never)": "Закривати надсилання через (днів, порожнє = ніколи)",
+    "Spam auto-reject score (0–1)": "Оцінка автоматичного відхилення спаму (0–1)",
+    "Max submissions per IP per hour": "Максимум надсилань з одного IP за годину",
+    "Save settings": "Зберегти налаштування",
+
     "failed to load the moderation queue": "не вдалося завантажити чергу модерації",
     "Failed to purge comment.": "Не вдалося видалити коментар назавжди.",
     "failed to load Comments settings": "не вдалося завантажити налаштування коментарів",
@@ -188,6 +617,35 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "Spam",
     Restore: "Geri yükle",
     Purge: "Kalıcı olarak sil",
+
+    "Loading…": "Yükleniyor…",
+    Author: "Yazar",
+    Comment: "Yorum",
+    Depth: "Derinlik",
+    Created: "Oluşturulma",
+    "Load more": "Daha fazla yükle",
+    "Loading comments…": "Yorumlar yükleniyor…",
+    "Loading Comments…": "Yorumlar yükleniyor…",
+    "No {status} comments.": '"{status}" durumunda yorum yok.',
+    "Permanently delete this comment?": "Bu yorum kalıcı olarak silinsin mi?",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      '"{author}" kullanıcısının bu yorumu kalıcı olarak silinsin mi? Bu işlem geri alınamaz.',
+    "Permanently delete": "Kalıcı olarak sil",
+    'Actions for the comment by "{author}"': '"{author}" kullanıcısının yorumu için işlemler',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "Gelen yorumları denetleyin ve çalışma alanı genelinde yorum davranışını yapılandırın.",
+    "You do not have permission to view the moderation queue.":
+      "Denetim kuyruğunu görüntüleme izniniz yok.",
+    "Loading Comments settings…": "Yorumlar ayarları yükleniyor…",
+    "Comments enabled": "Yorumlar etkin",
+    "Require moderation (new comments start pending)":
+      "Denetim gerektir (yeni yorumlar beklemede olarak başlar)",
+    "Max thread depth": "Maksimum konu derinliği",
+    "Close submissions after (days, blank = never)": "Gönderimleri şu süre sonra kapat (gün, boş = asla)",
+    "Spam auto-reject score (0–1)": "Otomatik spam reddetme puanı (0–1)",
+    "Max submissions per IP per hour": "IP başına saatte maksimum gönderim",
+    "Save settings": "Ayarları kaydet",
+
     "failed to load the moderation queue": "moderasyon kuyruğu yüklenemedi",
     "Failed to purge comment.": "Yorum kalıcı olarak silinemedi.",
     "failed to load Comments settings": "Yorumlar ayarları yüklenemedi",
@@ -200,6 +658,34 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "สแปม",
     Restore: "กู้คืน",
     Purge: "ลบอย่างถาวร",
+
+    "Loading…": "กำลังโหลด…",
+    Author: "ผู้เขียน",
+    Comment: "ความคิดเห็น",
+    Depth: "ความลึก",
+    Created: "สร้างเมื่อ",
+    "Load more": "โหลดเพิ่มเติม",
+    "Loading comments…": "กำลังโหลดความคิดเห็น…",
+    "Loading Comments…": "กำลังโหลดความคิดเห็น…",
+    "No {status} comments.": 'ไม่มีความคิดเห็นสถานะ "{status}"',
+    "Permanently delete this comment?": "ลบความคิดเห็นนี้อย่างถาวรใช่หรือไม่",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      'ลบความคิดเห็นนี้จาก "{author}" อย่างถาวรใช่หรือไม่ การดำเนินการนี้ไม่สามารถย้อนกลับได้',
+    "Permanently delete": "ลบอย่างถาวร",
+    'Actions for the comment by "{author}"': 'การดำเนินการสำหรับความคิดเห็นจาก "{author}"',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "ตรวจสอบความคิดเห็นที่เข้ามาและกำหนดค่าพฤติกรรมความคิดเห็นทั่วทั้งพื้นที่ทำงาน",
+    "You do not have permission to view the moderation queue.": "คุณไม่มีสิทธิ์ดูคิวการตรวจสอบ",
+    "Loading Comments settings…": "กำลังโหลดการตั้งค่าความคิดเห็น…",
+    "Comments enabled": "เปิดใช้งานความคิดเห็น",
+    "Require moderation (new comments start pending)":
+      "กำหนดให้ต้องตรวจสอบ (ความคิดเห็นใหม่จะเริ่มต้นในสถานะรอดำเนินการ)",
+    "Max thread depth": "ความลึกสูงสุดของกระทู้",
+    "Close submissions after (days, blank = never)": "ปิดรับการส่งหลังจาก (วัน เว้นว่าง = ไม่ปิด)",
+    "Spam auto-reject score (0–1)": "คะแนนปฏิเสธสแปมอัตโนมัติ (0–1)",
+    "Max submissions per IP per hour": "จำนวนการส่งสูงสุดต่อ IP ต่อชั่วโมง",
+    "Save settings": "บันทึกการตั้งค่า",
+
     "failed to load the moderation queue": "โหลดคิวการตรวจสอบไม่สำเร็จ",
     "Failed to purge comment.": "ลบความคิดเห็นอย่างถาวรไม่สำเร็จ",
     "failed to load Comments settings": "โหลดการตั้งค่าความคิดเห็นไม่สำเร็จ",
@@ -210,6 +696,35 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     Spam: "Spam",
     Restore: "Ripristina",
     Purge: "Elimina definitivamente",
+
+    "Loading…": "Caricamento…",
+    Author: "Autore",
+    Comment: "Commento",
+    Depth: "Profondità",
+    Created: "Creato",
+    "Load more": "Carica altro",
+    "Loading comments…": "Caricamento dei commenti…",
+    "Loading Comments…": "Caricamento dei commenti…",
+    "No {status} comments.": 'Nessun commento "{status}".',
+    "Permanently delete this comment?": "Eliminare definitivamente questo commento?",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      'Eliminare definitivamente questo commento di "{author}"? Questa azione non può essere annullata.',
+    "Permanently delete": "Elimina definitivamente",
+    'Actions for the comment by "{author}"': 'Azioni per il commento di "{author}"',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "Modera i commenti in arrivo e configura il comportamento dei commenti per l'intera area di lavoro.",
+    "You do not have permission to view the moderation queue.":
+      "Non disponi dell'autorizzazione per visualizzare la coda di moderazione.",
+    "Loading Comments settings…": "Caricamento delle impostazioni dei Commenti…",
+    "Comments enabled": "Commenti abilitati",
+    "Require moderation (new comments start pending)":
+      "Richiedi moderazione (i nuovi commenti iniziano come in sospeso)",
+    "Max thread depth": "Profondità massima del thread",
+    "Close submissions after (days, blank = never)": "Chiudi gli invii dopo (giorni, vuoto = mai)",
+    "Spam auto-reject score (0–1)": "Punteggio di rifiuto automatico dello spam (0–1)",
+    "Max submissions per IP per hour": "Invii massimi per IP all'ora",
+    "Save settings": "Salva impostazioni",
+
     "failed to load the moderation queue": "impossibile caricare la coda di moderazione",
     "Failed to purge comment.": "Impossibile eliminare definitivamente il commento.",
     "failed to load Comments settings": "impossibile caricare le impostazioni dei Commenti",

@@ -7,6 +7,10 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 import { useComments } from "./hooks/use-comments.hooks";
 import { useCommentQueue } from "./hooks/use-comment-queue.hooks";
 import { useCommentSettings } from "./hooks/use-comment-settings.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { t } from "./comments-i18n";
+import { interpolate } from "../../lib/template-i18n";
+import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 
 /**
  * @file Comments admin screen (ADR-031, SPEC-033/035 backend; SPEC-036 this frontend) — markup
@@ -37,12 +41,20 @@ import { useCommentSettings } from "./hooks/use-comment-settings.hooks";
 const STATUS_OPTIONS: readonly CommentStatus[] = ["pending", "approved", "spam", "trash"];
 
 /** The status-filter `<select>` — pure presentation, no state of its own. */
-function QueueToolbar({ status, onStatusChange }: { status: CommentStatus; onStatusChange: (s: CommentStatus) => void }) {
+function QueueToolbar({
+  status,
+  onStatusChange,
+  locale,
+}: {
+  status: CommentStatus;
+  onStatusChange: (s: CommentStatus) => void;
+  locale: string;
+}) {
   return (
     <div className="toolbar">
       <div className="field">
         <label className="field-label" htmlFor="comments-status-filter">
-          Status
+          {t(locale, "Status")}
         </label>
         <select id="comments-status-filter" value={status} onChange={(e) => onStatusChange(e.target.value as CommentStatus)}>
           {STATUS_OPTIONS.map((s) => (
@@ -65,6 +77,7 @@ function QueueActionsCell(props: {
   permissions: string[];
   status: CommentStatus;
   rowState: RowActionState;
+  locale: string;
   onModerate: (comment: AdminComment, action: CommentModerationAction) => void;
   onRequestPurge: (comment: AdminComment) => void;
 }) {
@@ -72,11 +85,17 @@ function QueueActionsCell(props: {
     props.comment,
     { permissions: props.permissions, currentFilterStatus: props.status },
     { onModerate: props.onModerate, onRequestPurge: props.onRequestPurge },
+    props.locale,
   );
   return (
     <>
       {menuItems.length > 0 ? (
-        <RowMenu triggerLabel={`Actions for the comment by "${props.comment.authorName}"`} items={menuItems} />
+        <RowMenu
+          triggerLabel={interpolate(t(props.locale, 'Actions for the comment by "{author}"'), {
+            author: props.comment.authorName,
+          })}
+          items={menuItems}
+        />
       ) : (
         <span className="muted-cell">—</span>
       )}
@@ -96,28 +115,30 @@ function queueColumns(props: {
   permissions: string[];
   status: CommentStatus;
   stateFor: (id: string) => RowActionState;
+  locale: string;
   onModerate: (comment: AdminComment, action: CommentModerationAction) => void;
   onRequestPurge: (comment: AdminComment) => void;
 }): DataTableColumn<AdminComment>[] {
   return [
-    { key: "author", header: "Author", cell: (comment) => comment.authorName },
-    { key: "comment", header: "Comment", cell: (comment) => truncate(comment.bodyText, 120) },
+    { key: "author", header: t(props.locale, "Author"), cell: (comment) => comment.authorName },
+    { key: "comment", header: t(props.locale, "Comment"), cell: (comment) => truncate(comment.bodyText, 120) },
     {
       key: "status",
-      header: "Status",
+      header: t(props.locale, "Status"),
       cell: (comment) => <span className={`status status-${comment.status}`}>{comment.status}</span>,
     },
-    { key: "depth", header: "Depth", cell: (comment) => comment.depth },
-    { key: "created", header: "Created", cell: (comment) => formatTimestamp(comment.createdAt) },
+    { key: "depth", header: t(props.locale, "Depth"), cell: (comment) => comment.depth },
+    { key: "created", header: t(props.locale, "Created"), cell: (comment) => formatTimestamp(comment.createdAt) },
     {
       key: "actions",
-      header: "More",
+      header: t(props.locale, "More"),
       cell: (comment) => (
         <QueueActionsCell
           comment={comment}
           permissions={props.permissions}
           status={props.status}
           rowState={props.stateFor(comment.id)}
+          locale={props.locale}
           onModerate={props.onModerate}
           onRequestPurge={props.onRequestPurge}
         />
@@ -136,6 +157,7 @@ function QueueTable(props: {
   permissions: string[];
   status: CommentStatus;
   stateFor: (id: string) => RowActionState;
+  locale: string;
   onModerate: (comment: AdminComment, action: CommentModerationAction) => void;
   onRequestPurge: (comment: AdminComment) => void;
 }) {
@@ -148,7 +170,7 @@ function QueueTable(props: {
       />
       {props.nextCursor ? (
         <button type="button" className="btn-secondary" onClick={props.loadMore} disabled={props.loadingMore}>
-          {props.loadingMore ? "Loading…" : "Load more"}
+          {props.loadingMore ? t(props.locale, "Loading…") : t(props.locale, "Load more")}
         </button>
       ) : null}
     </>
@@ -166,15 +188,16 @@ function QueueItemsView(props: {
   loadMore: () => void;
   permissions: string[];
   stateFor: (id: string) => RowActionState;
+  locale: string;
   onModerate: (comment: AdminComment, action: CommentModerationAction) => void;
   onRequestPurge: (comment: AdminComment) => void;
 }) {
-  if (!props.items) return <div className="notice">Loading comments…</div>;
+  if (!props.items) return <div className="notice">{t(props.locale, "Loading comments…")}</div>;
   if (props.items.length === 0) {
     return (
       <div className="card">
         <div className="empty-state">
-          <p>No {props.status} comments.</p>
+          <p>{interpolate(t(props.locale, "No {status} comments."), { status: props.status })}</p>
         </div>
       </div>
     );
@@ -187,21 +210,24 @@ function QueueItemsView(props: {
 function QueuePurgeDialog(props: {
   pendingPurge: AdminComment | null;
   busy: boolean;
+  locale: string;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
   return (
     <ConfirmDialog
       open={props.pendingPurge !== null}
-      title="Permanently delete this comment?"
+      title={t(props.locale, "Permanently delete this comment?")}
       body={
         props.pendingPurge ? (
           <p>
-            Permanently delete this comment by &quot;{props.pendingPurge.authorName}&quot;? This cannot be undone.
+            {interpolate(t(props.locale, 'Permanently delete this comment by "{author}"? This cannot be undone.'), {
+              author: props.pendingPurge.authorName,
+            })}
           </p>
         ) : null
       }
-      confirmLabel="Permanently delete"
+      confirmLabel={t(props.locale, "Permanently delete")}
       destructive
       pending={props.busy}
       onConfirm={props.onConfirm}
@@ -210,7 +236,7 @@ function QueuePurgeDialog(props: {
   );
 }
 
-function QueueSection(props: { permissions: string[] }) {
+function QueueSection(props: { permissions: string[]; locale: string }) {
   const {
     status,
     setStatus,
@@ -230,7 +256,7 @@ function QueueSection(props: { permissions: string[] }) {
 
   return (
     <div>
-      <QueueToolbar status={status} onStatusChange={setStatus} />
+      <QueueToolbar status={status} onStatusChange={setStatus} locale={props.locale} />
 
       {error ? <div className="notice error">{error}</div> : null}
 
@@ -242,6 +268,7 @@ function QueueSection(props: { permissions: string[] }) {
         loadMore={loadMore}
         permissions={props.permissions}
         stateFor={stateFor}
+        locale={props.locale}
         onModerate={(c, action) => void onModerate(c, action)}
         onRequestPurge={setPendingPurge}
       />
@@ -249,6 +276,7 @@ function QueueSection(props: { permissions: string[] }) {
       <QueuePurgeDialog
         pendingPurge={pendingPurge}
         busy={pendingPurge !== null && stateFor(pendingPurge.id).busy}
+        locale={props.locale}
         onConfirm={onPurge}
         onCancel={() => setPendingPurge(null)}
       />
@@ -256,17 +284,17 @@ function QueueSection(props: { permissions: string[] }) {
   );
 }
 
-function SettingsSection(props: { canConfigure: boolean }) {
+function SettingsSection(props: { canConfigure: boolean; locale: string }) {
   const { settings, error, saving, notice, save } = useCommentSettings(props.canConfigure);
 
   if (!props.canConfigure) return null;
 
   if (error && !settings) return <div className="notice error">{error}</div>;
-  if (!settings) return <div className="notice">Loading Comments settings…</div>;
+  if (!settings) return <div className="notice">{t(props.locale, "Loading Comments settings…")}</div>;
 
   return (
     <div>
-      <h2>Settings</h2>
+      <h2>{translateAdminNavLabel(props.locale, "Settings")}</h2>
       {error ? <div className="notice error">{error}</div> : null}
       {notice ? <div className="notice">{notice}</div> : null}
 
@@ -280,7 +308,7 @@ function SettingsSection(props: { canConfigure: boolean }) {
         <div className="field-group">
           <label className="form-checkbox-field">
             <input type="checkbox" name="enabled" defaultChecked={settings.enabled} />
-            Comments enabled
+            {t(props.locale, "Comments enabled")}
           </label>
           <label className="form-checkbox-field">
             <input
@@ -288,7 +316,7 @@ function SettingsSection(props: { canConfigure: boolean }) {
               name="requireModeration"
               defaultChecked={settings.requireModeration}
             />
-            Require moderation (new comments start pending)
+            {t(props.locale, "Require moderation (new comments start pending)")}
           </label>
         </div>
 
@@ -296,7 +324,7 @@ function SettingsSection(props: { canConfigure: boolean }) {
           <div className="field-row">
             <div className="field">
               <label className="field-label" htmlFor="comments-max-depth">
-                Max thread depth
+                {t(props.locale, "Max thread depth")}
               </label>
               <input
                 id="comments-max-depth"
@@ -309,7 +337,7 @@ function SettingsSection(props: { canConfigure: boolean }) {
             </div>
             <div className="field">
               <label className="field-label" htmlFor="comments-close-after-days">
-                Close submissions after (days, blank = never)
+                {t(props.locale, "Close submissions after (days, blank = never)")}
               </label>
               <input
                 id="comments-close-after-days"
@@ -322,7 +350,7 @@ function SettingsSection(props: { canConfigure: boolean }) {
             </div>
             <div className="field">
               <label className="field-label" htmlFor="comments-spam-score">
-                Spam auto-reject score (0–1)
+                {t(props.locale, "Spam auto-reject score (0–1)")}
               </label>
               <input
                 id="comments-spam-score"
@@ -336,7 +364,7 @@ function SettingsSection(props: { canConfigure: boolean }) {
             </div>
             <div className="field">
               <label className="field-label" htmlFor="comments-max-per-ip">
-                Max submissions per IP per hour
+                {t(props.locale, "Max submissions per IP per hour")}
               </label>
               <input
                 id="comments-max-per-ip"
@@ -352,7 +380,7 @@ function SettingsSection(props: { canConfigure: boolean }) {
 
         <div className="editor-actions form-actions">
           <button type="submit" disabled={saving}>
-            {saving ? "Saving…" : "Save settings"}
+            {saving ? t(props.locale, "Saving…") : t(props.locale, "Save settings")}
           </button>
         </div>
       </form>
@@ -371,25 +399,28 @@ export interface CommentsProps {
 
 export function Comments({ useCommentsHook = useComments }: CommentsProps = {}) {
   const { permissions, error } = useCommentsHook();
+  const locale = useAdminLocale();
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!permissions) return <div className="notice">Loading Comments…</div>;
+  if (!permissions) return <div className="notice">{t(locale, "Loading Comments…")}</div>;
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">People</p>
-          <h1 className="page-title">Comments</h1>
-          <p className="page-description">Moderate incoming comments and configure workspace-wide comment behavior.</p>
+          <p className="page-kicker">{translateAdminNavLabel(locale, "People")}</p>
+          <h1 className="page-title">{translateAdminNavLabel(locale, "Comments")}</h1>
+          <p className="page-description">
+            {t(locale, "Moderate incoming comments and configure workspace-wide comment behavior.")}
+          </p>
         </div>
       </div>
       {hasPermission(permissions, "comments.read") ? (
-        <QueueSection permissions={permissions} />
+        <QueueSection permissions={permissions} locale={locale} />
       ) : (
-        <div className="notice">You do not have permission to view the moderation queue.</div>
+        <div className="notice">{t(locale, "You do not have permission to view the moderation queue.")}</div>
       )}
-      <SettingsSection canConfigure={hasPermission(permissions, "comments.configure")} />
+      <SettingsSection canConfigure={hasPermission(permissions, "comments.configure")} locale={locale} />
     </div>
   );
 }
