@@ -7,3 +7,4 @@
  * it is exported from this line.
  */
 export { Plugins } from "./Plugins";
+export { AgentPlugins } from "./AgentPlugins";
