@@ -1,3 +1,4 @@
+import type Database from "better-sqlite3";
 import { and, eq, inArray } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
@@ -19,6 +20,14 @@ import type { ContentDb } from "./content-db";
  * validates their contents (that is `AesGcmSecretSealer`'s and `provider-credential-store.ts`'s
  * job); it only moves the DB's all-null-or-all-set shape (enforced by the table's CHECK) into and
  * out of `SealedSecret | null`.
+ *
+ * `transaction()` uses manual `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` against the raw better-sqlite3
+ * handle (`db.$client`) rather than Drizzle's `db.transaction((tx) => ...)` wrapper — that wrapper
+ * requires a *synchronous* callback (better-sqlite3 itself is synchronous), but
+ * `saveMediaProviderCredentials`'s chokepoint callback does `await`ed repo calls. Manual BEGIN/COMMIT
+ * is safe here because better-sqlite3 has no real async I/O: every call resolves on the same
+ * microtask tick, so no other statement can interleave on this single connection between awaits.
+ * Same precedent as `SqliteSettingsRepo.transaction`/`SqliteTaxonomyRepo.transaction`.
  */
 
 type Row = typeof mediaProviderCredentials.$inferSelect;
@@ -93,5 +102,32 @@ export class SqliteMediaProviderCredentialRepo implements MediaProviderCredentia
         )
       )
       .run();
+  }
+
+  /** See this file's header for why manual `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` is used instead of
+   *  Drizzle's synchronous `db.transaction()` wrapper.
+   *
+   *  Deliberately NOT reentrant — same rationale as `SqliteSettingsRepo.transaction`'s doc comment
+   *  (an instance-level depth counter cannot distinguish legitimate nesting from a second, unrelated
+   *  concurrent transaction). `saveMediaProviderCredentials` calls this exactly once per invocation.
+   *
+   *  @complexity O(1) fixed overhead plus whatever `fn` itself costs.
+   *  @overallScore 100
+   */
+  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+    // `$client` (the raw better-sqlite3 handle) exists at runtime on every `drizzle()`-constructed
+    // instance but isn't part of the exported `BetterSQLite3Database` class type `ContentDb`
+    // aliases — a known drizzle-orm typing gap (the property lives on the factory's return type, not
+    // the class). Cast narrowly, scoped to this one call site.
+    const client = (this.db as unknown as { $client: Database.Database }).$client;
+    client.exec("BEGIN IMMEDIATE");
+    try {
+      const result = await fn();
+      client.exec("COMMIT");
+      return result;
+    } catch (error) {
+      client.exec("ROLLBACK");
+      throw error;
+    }
   }
 }
