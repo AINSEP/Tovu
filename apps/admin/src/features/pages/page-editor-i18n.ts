@@ -119,6 +119,24 @@ const PAGE_EDITOR_DICT: Record<string, Record<string, string>> = {
     "failed to save page": "impossibile salvare la pagina",
     "failed to delete page": "impossibile eliminare la pagina",
   },
+  hi: {
+    "failed to load page": "पेज लोड नहीं हो सका",
+    Saved: "सहेजा गया",
+    "failed to save page": "पेज सहेजा नहीं जा सका",
+    "failed to delete page": "पेज हटाया नहीं जा सका",
+  },
+  ur: {
+    "failed to load page": "صفحہ لوڈ نہیں ہو سکا",
+    Saved: "محفوظ ہو گیا",
+    "failed to save page": "صفحہ محفوظ نہیں ہو سکا",
+    "failed to delete page": "صفحہ حذف نہیں ہو سکا",
+  },
+  bn: {
+    "failed to load page": "পেজ লোড করা যায়নি",
+    Saved: "সংরক্ষিত হয়েছে",
+    "failed to save page": "পেজ সংরক্ষণ করা যায়নি",
+    "failed to delete page": "পেজ মুছে ফেলা যায়নি",
+  },
 };
 
 export const t = createDictionaryTranslator(PAGE_EDITOR_DICT);

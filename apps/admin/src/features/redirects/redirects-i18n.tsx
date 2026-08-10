@@ -552,6 +552,96 @@ const REDIRECTS_DICT: Record<string, Record<string, string>> = {
   "Delete redirect rule?": "Eliminare la regola di reindirizzamento?",
   "Loading redirects…": "Caricamento reindirizzamenti…",
   },
+  hi: {
+  "Loading…": "लोड हो रहा है…",
+  "Load hits": "हिट्स लोड करें",
+  "Bulk import": "बल्क आयात",
+  "rule objects (1-500 items)": "नियम ऑब्जेक्ट (1-500 आइटम)",
+  "Importing…": "आयात हो रहा है…",
+  Import: "आयात करें",
+  Marketing: "मार्केटिंग",
+  Redirects: "रीडायरेक्ट",
+  "Manual URL redirect rules. Rules created automatically from a slug change (source": "मैनुअल URL रीडायरेक्ट नियम। स्लग परिवर्तन से स्वचालित रूप से बनाए गए नियम (मूल",
+  ") also show up here.": ") भी यहां दिखाई देते हैं।",
+  "Match type": "मिलान प्रकार",
+  "From path": "स्रोत पथ",
+  "To target": "लक्ष्य",
+  "Status code": "स्थिति कोड",
+  "301 (permanent)": "301 (स्थायी)",
+  "302 (temporary)": "302 (अस्थायी)",
+  "307 (temporary, method-preserving)": "307 (अस्थायी, विधि-संरक्षित)",
+  "308 (permanent, method-preserving)": "308 (स्थायी, विधि-संरक्षित)",
+  "Add redirect": "रीडायरेक्ट जोड़ें",
+  "No redirect rules yet.": "अभी तक कोई रीडायरेक्ट नियम नहीं है।",
+  From: "स्रोत",
+  To: "गंतव्य",
+  Type: "प्रकार",
+  Code: "कोड",
+  Source: "मूल",
+  Hits: "हिट्स",
+  "Delete redirect rule?": "रीडायरेक्ट नियम हटाएं?",
+  "Loading redirects…": "रीडायरेक्ट लोड हो रहे हैं…",
+  },
+  ur: {
+  "Loading…": "لوڈ ہو رہا ہے…",
+  "Load hits": "ہٹس لوڈ کریں",
+  "Bulk import": "بلک درآمد",
+  "rule objects (1-500 items)": "اصول آبجیکٹس (1-500 آئٹمز)",
+  "Importing…": "درآمد ہو رہا ہے…",
+  Import: "درآمد کریں",
+  Marketing: "مارکیٹنگ",
+  Redirects: "ری ڈائریکٹس",
+  "Manual URL redirect rules. Rules created automatically from a slug change (source": "دستی URL ری ڈائریکٹ اصول۔ سلگ کی تبدیلی سے خودکار طور پر بننے والے اصول (اصل",
+  ") also show up here.": ") بھی یہاں ظاہر ہوتے ہیں۔",
+  "Match type": "مماثلت کی قسم",
+  "From path": "ماخذ پاتھ",
+  "To target": "ہدف",
+  "Status code": "حیثیت کوڈ",
+  "301 (permanent)": "301 (مستقل)",
+  "302 (temporary)": "302 (عارضی)",
+  "307 (temporary, method-preserving)": "307 (عارضی، طریقہ محفوظ رکھنے والا)",
+  "308 (permanent, method-preserving)": "308 (مستقل، طریقہ محفوظ رکھنے والا)",
+  "Add redirect": "ری ڈائریکٹ شامل کریں",
+  "No redirect rules yet.": "ابھی تک کوئی ری ڈائریکٹ اصول نہیں ہے۔",
+  From: "ماخذ",
+  To: "منزل",
+  Type: "قسم",
+  Code: "کوڈ",
+  Source: "اصل",
+  Hits: "ہٹس",
+  "Delete redirect rule?": "ری ڈائریکٹ اصول حذف کریں؟",
+  "Loading redirects…": "ری ڈائریکٹس لوڈ ہو رہے ہیں…",
+  },
+  bn: {
+  "Loading…": "লোড হচ্ছে…",
+  "Load hits": "হিট লোড করুন",
+  "Bulk import": "বাল্ক আমদানি",
+  "rule objects (1-500 items)": "নিয়ম অবজেক্ট (1-500 আইটেম)",
+  "Importing…": "আমদানি হচ্ছে…",
+  Import: "আমদানি করুন",
+  Marketing: "মার্কেটিং",
+  Redirects: "রিডাইরেক্ট",
+  "Manual URL redirect rules. Rules created automatically from a slug change (source": "ম্যানুয়াল URL রিডাইরেক্ট নিয়ম। স্লাগ পরিবর্তন থেকে স্বয়ংক্রিয়ভাবে তৈরি হওয়া নিয়ম (মূল",
+  ") also show up here.": ") এখানেও দেখা যায়।",
+  "Match type": "মিলের ধরন",
+  "From path": "উৎস পথ",
+  "To target": "লক্ষ্য",
+  "Status code": "অবস্থা কোড",
+  "301 (permanent)": "301 (স্থায়ী)",
+  "302 (temporary)": "302 (অস্থায়ী)",
+  "307 (temporary, method-preserving)": "307 (অস্থায়ী, পদ্ধতি-সংরক্ষণকারী)",
+  "308 (permanent, method-preserving)": "308 (স্থায়ী, পদ্ধতি-সংরক্ষণকারী)",
+  "Add redirect": "রিডাইরেক্ট যোগ করুন",
+  "No redirect rules yet.": "এখনও কোনো রিডাইরেক্ট নিয়ম নেই।",
+  From: "উৎস",
+  To: "গন্তব্য",
+  Type: "ধরন",
+  Code: "কোড",
+  Source: "মূল",
+  Hits: "হিট",
+  "Delete redirect rule?": "রিডাইরেক্ট নিয়ম মুছবেন?",
+  "Loading redirects…": "রিডাইরেক্ট লোড হচ্ছে…",
+  },
 };
 
 /** Same two-step fallback every other `t()` in this app uses: translated value, else the English
@@ -578,6 +668,9 @@ const IMPORT_RULES_LABEL_FRAGMENTS: Record<string, { before: string; after: stri
   tr: { before: "", after: " biçimindeki kural nesnelerinin JSON dizisini yapıştırın (1-500 öğe)" },
   th: { before: "วางอาร์เรย์ JSON ของ", after: " อ็อบเจ็กต์กฎ (1-500 รายการ)" },
   it: { before: "Incolla un array JSON di oggetti regola ", after: " (1-500 elementi)" },
+  hi: { before: "", after: " के आकार वाले नियम ऑब्जेक्ट का एक JSON ऐरे पेस्ट करें (1-500 आइटम)" },
+  ur: { before: "", after: " کی شکل کے اصول آبجیکٹس کا ایک JSON اری پیسٹ کریں (1-500 آئٹمز)" },
+  bn: { before: "", after: " আকারের নিয়ম অবজেক্টের একটি JSON অ্যারে পেস্ট করুন (1-500 আইটেম)" },
 };
 
 /** The bulk-import label sentence embeds the rule-shape `<code>` block mid-sentence. */
@@ -612,6 +705,9 @@ const IMPORT_RESULT_SUMMARY_TEMPLATE: Record<string, string> = {
   tr: "{created} oluşturuldu, {failed} başarısız oldu.",
   th: "สร้างแล้ว {created} รายการ ล้มเหลว {failed} รายการ",
   it: "{created} creati, {failed} falliti.",
+  hi: "{created} बनाए गए, {failed} विफल रहे।",
+  ur: "{created} بنائے گئے، {failed} ناکام ہوئے۔",
+  bn: "{created} তৈরি হয়েছে, {failed} ব্যর্থ হয়েছে।",
 };
 
 /** The import result summary — "{created} created, {failed} failed." */
@@ -642,6 +738,9 @@ const CREATED_LABEL: Record<string, string> = {
   tr: "Oluşturuldu",
   th: "สร้างแล้ว",
   it: "Creato",
+  hi: "बनाया गया",
+  ur: "تخلیق کردہ",
+  bn: "তৈরি হয়েছে",
 };
 
 /** One created-item line: "Created {fromPattern} → {toTarget}" — "Created" is a status word, not
@@ -670,6 +769,9 @@ const FAILED_ITEM_LABEL_TEMPLATE: Record<string, string> = {
   tr: "Öğe {index} ({code})",
   th: "รายการที่ {index} ({code})",
   it: "Elemento {index} ({code})",
+  hi: "आइटम {index} ({code})",
+  ur: "آئٹم {index} ({code})",
+  bn: "আইটেম {index} ({code})",
 };
 
 /** One failed-item line: "Item {index} ({code})". */
@@ -697,6 +799,9 @@ const DELETE_REDIRECT_BODY_FRAGMENTS: Record<string, { before: string; after: st
   tr: { before: '"', after: '" kaynaklı yönlendirme kuralı silinsin mi?' },
   th: { before: 'ลบกฎการเปลี่ยนเส้นทางจาก "', after: '" หรือไม่?' },
   it: { before: 'Eliminare la regola di reindirizzamento da "', after: '"?' },
+  hi: { before: 'रीडायरेक्ट नियम "', after: '" से हटाएं?' },
+  ur: { before: 'ری ڈائریکٹ اصول "', after: '" سے حذف کریں؟' },
+  bn: { before: 'রিডাইরেক্ট নিয়ম "', after: '" থেকে মুছবেন?' },
 };
 
 /** The delete-confirm body embeds the rule's own `fromPattern` mid-sentence. */
@@ -731,6 +836,9 @@ const ACTIONS_FOR_REDIRECT_TEMPLATE: Record<string, string> = {
   tr: '"{fromPattern}" kaynaklı yönlendirme kuralı için işlemler',
   th: 'การดำเนินการสำหรับกฎการเปลี่ยนเส้นทางจาก "{fromPattern}"',
   it: 'Azioni per la regola di reindirizzamento da "{fromPattern}"',
+  hi: 'रीडायरेक्ट नियम "{fromPattern}" के लिए कार्रवाइयां',
+  ur: 'ری ڈائریکٹ اصول "{fromPattern}" کے لیے اقدامات',
+  bn: 'রিডাইরেক্ট নিয়ম "{fromPattern}" এর জন্য কার্যক্রম',
 };
 
 /** The row-menu trigger's accessible name embeds the rule's own `fromPattern`. */

@@ -947,6 +947,162 @@ const USERS_DICT: Record<string, Record<string, string>> = {
     "failed to reset password": "impossibile reimpostare la password",
     "failed to change status": "impossibile modificare lo stato",
   },
+  hi: {
+    People: "लोग",
+    Users: "उपयोगकर्ता",
+    "Operator accounts with access to this admin — assign roles and policies, or disable access.":
+      "इस एडमिन तक पहुंच वाले ऑपरेटर खाते — रोल और पॉलिसी असाइन करें, या पहुंच अक्षम करें।",
+    "New user": "नया उपयोगकर्ता",
+
+    Username: "उपयोगकर्ता नाम",
+    "Email (optional)": "ईमेल (वैकल्पिक)",
+    Password: "पासवर्ड",
+    "Create user": "उपयोगकर्ता बनाएं",
+
+    Email: "ईमेल",
+    "(none)": "(कोई नहीं)",
+    "Save email": "ईमेल सहेजें",
+    "Assign role": "रोल असाइन करें",
+    "Select a role…": "एक रोल चुनें…",
+    "(built-in)": "(बिल्ट-इन)",
+    Assign: "असाइन करें",
+    "Attach policy": "पॉलिसी जोड़ें",
+    "Select a policy…": "एक पॉलिसी चुनें…",
+    Attach: "जोड़ें",
+
+    "Actions for user": "उपयोगकर्ता के लिए कार्रवाइयां",
+    none: "कोई नहीं",
+
+    "No users yet.": "अभी तक कोई उपयोगकर्ता नहीं है।",
+    "Create your first operator account to get started.": "शुरू करने के लिए अपना पहला ऑपरेटर खाता बनाएं।",
+    Roles: "रोल",
+    Policies: "पॉलिसी",
+
+    "Disable this user?": "इस उपयोगकर्ता को अक्षम करें?",
+    "They will not be able to sign in until re-enabled.": "फिर से सक्षम होने तक वे साइन इन नहीं कर पाएंगे।",
+    Manage: "प्रबंधित करें",
+
+    "Reset password?": "पासवर्ड रीसेट करें?",
+    "Set a new password for": "इसके लिए नया पासवर्ड सेट करें",
+    "Every active session for this user will be signed out.":
+      "इस उपयोगकर्ता का हर सक्रिय सत्र साइन आउट कर दिया जाएगा।",
+    "New password": "नया पासवर्ड",
+    "Reset password": "पासवर्ड रीसेट करें",
+
+    "Loading users…": "उपयोगकर्ता लोड हो रहे हैं…",
+
+    "failed to load users": "उपयोगकर्ता लोड नहीं हो सके",
+    "failed to create user": "उपयोगकर्ता नहीं बन सका",
+    "failed to assign role": "रोल असाइन नहीं हो सका",
+    "failed to attach policy": "पॉलिसी नहीं जोड़ी जा सकी",
+    "failed to update email": "ईमेल अपडेट नहीं हो सका",
+    "failed to reset password": "पासवर्ड रीसेट नहीं हो सका",
+    "failed to change status": "स्थिति नहीं बदली जा सकी",
+  },
+  ur: {
+    People: "افراد",
+    Users: "صارفین",
+    "Operator accounts with access to this admin — assign roles and policies, or disable access.":
+      "اس ایڈمن تک رسائی رکھنے والے آپریٹر اکاؤنٹس — رولز اور پالیسیاں تفویض کریں، یا رسائی غیرفعال کریں۔",
+    "New user": "نیا صارف",
+
+    Username: "صارف نام",
+    "Email (optional)": "ای میل (اختیاری)",
+    Password: "پاس ورڈ",
+    "Create user": "صارف بنائیں",
+
+    Email: "ای میل",
+    "(none)": "(کوئی نہیں)",
+    "Save email": "ای میل محفوظ کریں",
+    "Assign role": "رول تفویض کریں",
+    "Select a role…": "ایک رول منتخب کریں…",
+    "(built-in)": "(بلٹ اِن)",
+    Assign: "تفویض کریں",
+    "Attach policy": "پالیسی منسلک کریں",
+    "Select a policy…": "ایک پالیسی منتخب کریں…",
+    Attach: "منسلک کریں",
+
+    "Actions for user": "صارف کے لیے کارروائیاں",
+    none: "کوئی نہیں",
+
+    "No users yet.": "ابھی تک کوئی صارف نہیں ہے۔",
+    "Create your first operator account to get started.": "شروع کرنے کے لیے اپنا پہلا آپریٹر اکاؤنٹ بنائیں۔",
+    Roles: "رولز",
+    Policies: "پالیسیاں",
+
+    "Disable this user?": "اس صارف کو غیرفعال کریں؟",
+    "They will not be able to sign in until re-enabled.": "دوبارہ فعال ہونے تک وہ سائن ان نہیں کر سکیں گے۔",
+    Manage: "منظم کریں",
+
+    "Reset password?": "پاس ورڈ ری سیٹ کریں؟",
+    "Set a new password for": "اس کے لیے نیا پاس ورڈ سیٹ کریں",
+    "Every active session for this user will be signed out.":
+      "اس صارف کا ہر فعال سیشن سائن آؤٹ کر دیا جائے گا۔",
+    "New password": "نیا پاس ورڈ",
+    "Reset password": "پاس ورڈ ری سیٹ کریں",
+
+    "Loading users…": "صارفین لوڈ ہو رہے ہیں…",
+
+    "failed to load users": "صارفین لوڈ نہ ہو سکے",
+    "failed to create user": "صارف نہ بن سکا",
+    "failed to assign role": "رول تفویض نہ ہو سکا",
+    "failed to attach policy": "پالیسی منسلک نہ ہو سکی",
+    "failed to update email": "ای میل اپ ڈیٹ نہ ہو سکی",
+    "failed to reset password": "پاس ورڈ ری سیٹ نہ ہو سکا",
+    "failed to change status": "حیثیت تبدیل نہ ہو سکی",
+  },
+  bn: {
+    People: "ব্যক্তি",
+    Users: "ব্যবহারকারী",
+    "Operator accounts with access to this admin — assign roles and policies, or disable access.":
+      "এই অ্যাডমিনে অ্যাক্সেস থাকা অপারেটর অ্যাকাউন্ট — রোল ও পলিসি নির্ধারণ করুন, অথবা অ্যাক্সেস নিষ্ক্রিয় করুন।",
+    "New user": "নতুন ব্যবহারকারী",
+
+    Username: "ইউজারনেম",
+    "Email (optional)": "ইমেইল (ঐচ্ছিক)",
+    Password: "পাসওয়ার্ড",
+    "Create user": "ব্যবহারকারী তৈরি করুন",
+
+    Email: "ইমেইল",
+    "(none)": "(কোনোটি না)",
+    "Save email": "ইমেইল সংরক্ষণ করুন",
+    "Assign role": "রোল নির্ধারণ করুন",
+    "Select a role…": "একটি রোল বেছে নিন…",
+    "(built-in)": "(বিল্ট-ইন)",
+    Assign: "নির্ধারণ করুন",
+    "Attach policy": "পলিসি সংযুক্ত করুন",
+    "Select a policy…": "একটি পলিসি বেছে নিন…",
+    Attach: "সংযুক্ত করুন",
+
+    "Actions for user": "ব্যবহারকারীর জন্য কার্যক্রম",
+    none: "কোনোটি না",
+
+    "No users yet.": "এখনো কোনো ব্যবহারকারী নেই।",
+    "Create your first operator account to get started.": "শুরু করতে আপনার প্রথম অপারেটর অ্যাকাউন্ট তৈরি করুন।",
+    Roles: "রোল",
+    Policies: "পলিসি",
+
+    "Disable this user?": "এই ব্যবহারকারীকে নিষ্ক্রিয় করবেন?",
+    "They will not be able to sign in until re-enabled.": "পুনরায় সক্ষম না করা পর্যন্ত তিনি সাইন ইন করতে পারবেন না।",
+    Manage: "পরিচালনা করুন",
+
+    "Reset password?": "পাসওয়ার্ড রিসেট করবেন?",
+    "Set a new password for": "এর জন্য নতুন পাসওয়ার্ড সেট করুন",
+    "Every active session for this user will be signed out.":
+      "এই ব্যবহারকারীর প্রতিটি সক্রিয় সেশন সাইন আউট করা হবে।",
+    "New password": "নতুন পাসওয়ার্ড",
+    "Reset password": "পাসওয়ার্ড রিসেট করুন",
+
+    "Loading users…": "ব্যবহারকারী লোড হচ্ছে…",
+
+    "failed to load users": "ব্যবহারকারী লোড করা যায়নি",
+    "failed to create user": "ব্যবহারকারী তৈরি করা যায়নি",
+    "failed to assign role": "রোল নির্ধারণ করা যায়নি",
+    "failed to attach policy": "পলিসি সংযুক্ত করা যায়নি",
+    "failed to update email": "ইমেইল আপডেট করা যায়নি",
+    "failed to reset password": "পাসওয়ার্ড রিসেট করা যায়নি",
+    "failed to change status": "অবস্থা পরিবর্তন করা যায়নি",
+  },
 };
 
 export const t = createDictionaryTranslator(USERS_DICT);
@@ -971,6 +1127,9 @@ const PASSWORD_RESET_NOTICE_TEMPLATE: Record<string, string> = {
   tr: '"{username}" için parola sıfırlandı — bu kullanıcının tüm etkin oturumları iptal edildi.',
   th: 'รีเซ็ตรหัสผ่านสำหรับ "{username}" แล้ว — เซสชันที่ใช้งานอยู่ทั้งหมดของผู้ใช้รายนี้ถูกเพิกถอนแล้ว',
   it: 'Password reimpostata per "{username}" — tutte le sessioni attive di questo utente sono state revocate.',
+  hi: '"{username}" के लिए पासवर्ड रीसेट कर दिया गया — इस उपयोगकर्ता का हर सक्रिय सत्र रद्द कर दिया गया।',
+  ur: '"{username}" کے لیے پاس ورڈ ری سیٹ کر دیا گیا — اس صارف کا ہر فعال سیشن منسوخ کر دیا گیا۔',
+  bn: '"{username}"-এর জন্য পাসওয়ার্ড রিসেট করা হয়েছে — এই ব্যবহারকারীর প্রতিটি সক্রিয় সেশন প্রত্যাহার করা হয়েছে।',
 };
 
 /** The reset-password success toast — embeds the user's own (untranslated) `username`

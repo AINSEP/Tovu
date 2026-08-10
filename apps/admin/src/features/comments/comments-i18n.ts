@@ -730,6 +730,129 @@ const COMMENTS_DICT: Record<string, Record<string, string>> = {
     "failed to load Comments settings": "impossibile caricare le impostazioni dei Commenti",
     "failed to save Comments settings": "impossibile salvare le impostazioni dei Commenti",
   },
+  hi: {
+    Approve: "स्वीकृत करें",
+    // Transliterated into Devanagari ("स्पैम") rather than translated — that is how Hindi
+    // moderation UIs (Gmail included) render this word; the bare Latin "Spam" would read as a typo.
+    Spam: "स्पैम",
+    Restore: "पुनर्स्थापित करें",
+    Purge: "स्थायी रूप से हटाएं",
+
+    "Loading…": "लोड हो रहा है…",
+    Author: "लेखक",
+    Comment: "टिप्पणी",
+    Depth: "गहराई",
+    Created: "बनाया गया",
+    "Load more": "अधिक लोड करें",
+    "Loading comments…": "टिप्पणियाँ लोड हो रही हैं…",
+    "Loading Comments…": "टिप्पणियाँ लोड हो रही हैं…",
+    "No {status} comments.": 'कोई "{status}" टिप्पणी नहीं है।',
+    "Permanently delete this comment?": "क्या इस टिप्पणी को स्थायी रूप से हटाना है?",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      'क्या "{author}" की इस टिप्पणी को स्थायी रूप से हटाना है? इसे पूर्ववत नहीं किया जा सकता।',
+    "Permanently delete": "स्थायी रूप से हटाएं",
+    'Actions for the comment by "{author}"': '"{author}" की टिप्पणी के लिए कार्रवाइयाँ',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "आने वाली टिप्पणियों को मॉडरेट करें और पूरे वर्कस्पेस के लिए टिप्पणी व्यवहार कॉन्फ़िगर करें।",
+    "You do not have permission to view the moderation queue.":
+      "आपको मॉडरेशन कतार देखने की अनुमति नहीं है।",
+    "Loading Comments settings…": "टिप्पणी सेटिंग्स लोड हो रही हैं…",
+    "Comments enabled": "टिप्पणियाँ सक्षम हैं",
+    "Require moderation (new comments start pending)":
+      "मॉडरेशन आवश्यक करें (नई टिप्पणियाँ लंबित स्थिति से शुरू होती हैं)",
+    "Max thread depth": "अधिकतम थ्रेड गहराई",
+    "Close submissions after (days, blank = never)": "इतने दिनों बाद सबमिशन बंद करें (दिन, खाली = कभी नहीं)",
+    "Spam auto-reject score (0–1)": "स्पैम ऑटो-रिजेक्ट स्कोर (0–1)",
+    "Max submissions per IP per hour": "प्रति IP प्रति घंटा अधिकतम सबमिशन",
+    "Save settings": "सेटिंग्स सहेजें",
+
+    "failed to load the moderation queue": "मॉडरेशन कतार लोड नहीं हो सकी",
+    "Failed to purge comment.": "टिप्पणी को स्थायी रूप से हटाया नहीं जा सका।",
+    "failed to load Comments settings": "टिप्पणी सेटिंग्स लोड नहीं हो सकीं",
+    "failed to save Comments settings": "टिप्पणी सेटिंग्स सहेजी नहीं जा सकीं",
+  },
+  ur: {
+    Approve: "منظور کریں",
+    // Transliterated ("سپیم") rather than translated — that is how Urdu moderation UIs (Gmail
+    // included) render this word; the bare Latin "Spam" would read as a typo.
+    Spam: "سپیم",
+    Restore: "بحال کریں",
+    Purge: "مستقل طور پر حذف کریں",
+
+    "Loading…": "لوڈ ہو رہا ہے…",
+    Author: "مصنف",
+    Comment: "تبصرہ",
+    Depth: "گہرائی",
+    Created: "تخلیق کردہ",
+    "Load more": "مزید لوڈ کریں",
+    "Loading comments…": "تبصرے لوڈ ہو رہے ہیں…",
+    "Loading Comments…": "تبصرے لوڈ ہو رہے ہیں…",
+    "No {status} comments.": 'کوئی "{status}" تبصرہ نہیں ہے۔',
+    "Permanently delete this comment?": "کیا اس تبصرے کو مستقل طور پر حذف کرنا ہے؟",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      'کیا "{author}" کے اس تبصرے کو مستقل طور پر حذف کرنا ہے؟ اسے واپس نہیں کیا جا سکتا۔',
+    "Permanently delete": "مستقل طور پر حذف کریں",
+    'Actions for the comment by "{author}"': '"{author}" کے تبصرے کے لیے کارروائیاں',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "موصول ہونے والے تبصروں کی نگرانی کریں اور پورے ورک اسپیس کے لیے تبصرے کا رویہ ترتیب دیں۔",
+    "You do not have permission to view the moderation queue.":
+      "آپ کو نگرانی کی قطار دیکھنے کی اجازت نہیں ہے۔",
+    "Loading Comments settings…": "تبصرہ کی ترتیبات لوڈ ہو رہی ہیں…",
+    "Comments enabled": "تبصرے فعال ہیں",
+    "Require moderation (new comments start pending)":
+      "نگرانی لازمی کریں (نئے تبصرے زیرِ التوا حالت سے شروع ہوتے ہیں)",
+    "Max thread depth": "زیادہ سے زیادہ تھریڈ گہرائی",
+    "Close submissions after (days, blank = never)": "اتنے دنوں بعد جمع کرانا بند کریں (دن، خالی = کبھی نہیں)",
+    "Spam auto-reject score (0–1)": "سپیم خودکار مسترد اسکور (0–1)",
+    "Max submissions per IP per hour": "فی IP فی گھنٹہ زیادہ سے زیادہ جمع کرانا",
+    "Save settings": "ترتیبات محفوظ کریں",
+
+    "failed to load the moderation queue": "نگرانی کی قطار لوڈ نہیں ہو سکی",
+    "Failed to purge comment.": "تبصرہ مستقل طور پر حذف نہیں ہو سکا۔",
+    "failed to load Comments settings": "تبصرہ کی ترتیبات لوڈ نہیں ہو سکیں",
+    "failed to save Comments settings": "تبصرہ کی ترتیبات محفوظ نہیں ہو سکیں",
+  },
+  bn: {
+    Approve: "অনুমোদন করুন",
+    // Transliterated ("স্প্যাম") rather than translated — that is how Bengali moderation UIs
+    // (Gmail included) render this word; the bare Latin "Spam" would read as a typo.
+    Spam: "স্প্যাম",
+    Restore: "পুনরুদ্ধার করুন",
+    Purge: "স্থায়ীভাবে মুছুন",
+
+    "Loading…": "লোড হচ্ছে…",
+    Author: "লেখক",
+    Comment: "মন্তব্য",
+    Depth: "গভীরতা",
+    Created: "তৈরি হয়েছে",
+    "Load more": "আরও লোড করুন",
+    "Loading comments…": "মন্তব্য লোড হচ্ছে…",
+    "Loading Comments…": "মন্তব্য লোড হচ্ছে…",
+    "No {status} comments.": 'কোনো "{status}" মন্তব্য নেই।',
+    "Permanently delete this comment?": "এই মন্তব্যটি কি স্থায়ীভাবে মুছে ফেলা হবে?",
+    'Permanently delete this comment by "{author}"? This cannot be undone.':
+      '"{author}"-এর এই মন্তব্যটি কি স্থায়ীভাবে মুছে ফেলা হবে? এটি ফিরিয়ে আনা যাবে না।',
+    "Permanently delete": "স্থায়ীভাবে মুছুন",
+    'Actions for the comment by "{author}"': '"{author}"-এর মন্তব্যের জন্য কার্যক্রম',
+    "Moderate incoming comments and configure workspace-wide comment behavior.":
+      "আগত মন্তব্যগুলি পর্যালোচনা করুন এবং পুরো ওয়ার্কস্পেস জুড়ে মন্তব্যের আচরণ কনফিগার করুন।",
+    "You do not have permission to view the moderation queue.":
+      "পর্যালোচনা সারি দেখার অনুমতি আপনার নেই।",
+    "Loading Comments settings…": "মন্তব্য সেটিংস লোড হচ্ছে…",
+    "Comments enabled": "মন্তব্য সক্ষম করা হয়েছে",
+    "Require moderation (new comments start pending)":
+      "পর্যালোচনা আবশ্যক করুন (নতুন মন্তব্য মুলতুবি অবস্থায় শুরু হয়)",
+    "Max thread depth": "সর্বোচ্চ থ্রেড গভীরতা",
+    "Close submissions after (days, blank = never)": "এত দিন পর জমা বন্ধ করুন (দিন, খালি = কখনও নয়)",
+    "Spam auto-reject score (0–1)": "স্প্যাম স্বয়ংক্রিয়-প্রত্যাখ্যান স্কোর (0–1)",
+    "Max submissions per IP per hour": "প্রতি IP প্রতি ঘণ্টায় সর্বোচ্চ জমা",
+    "Save settings": "সেটিংস সংরক্ষণ করুন",
+
+    "failed to load the moderation queue": "পর্যালোচনা সারি লোড করা যায়নি",
+    "Failed to purge comment.": "মন্তব্যটি স্থায়ীভাবে মুছে ফেলা যায়নি।",
+    "failed to load Comments settings": "মন্তব্য সেটিংস লোড করা যায়নি",
+    "failed to save Comments settings": "মন্তব্য সেটিংস সংরক্ষণ করা যায়নি",
+  },
 };
 
 export const t = createDictionaryTranslator(COMMENTS_DICT);

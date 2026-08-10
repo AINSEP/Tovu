@@ -313,6 +313,57 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
     "A bright product-blog — cobalt masthead and a rounded card grid.":
       "Un blog di prodotto luminoso — intestazione blu cobalto e una griglia di card con angoli arrotondati.",
   },
+  hi: {
+    Studio: "स्टूडियो",
+    Themes: "थीम",
+    "The active theme controls what visitors see across the entire public site.":
+      "सक्रिय थीम यह नियंत्रित करती है कि विज़िटर्स को पूरी सार्वजनिक साइट पर क्या दिखाई देता है।",
+    "View site ↗": "साइट देखें ↗",
+    "Loading themes…": "थीम लोड हो रही हैं…",
+    Active: "सक्रिय",
+    "Activating…": "सक्रिय किया जा रहा है…",
+    Activate: "सक्रिय करें",
+    "The official explainer — a landing page that documents Tovu itself.":
+      "आधिकारिक व्याख्याता — एक लैंडिंग पेज जो स्वयं Tovu का दस्तावेज़ीकरण करता है।",
+    "A reading-first literary theme — serif type in a single column.":
+      "पठन-प्रधान साहित्यिक थीम — एक ही कॉलम में सेरिफ़ टाइप।",
+    "A bright product-blog — cobalt masthead and a rounded card grid.":
+      "एक जीवंत प्रोडक्ट-ब्लॉग — कोबाल्ट रंग का मास्टहेड और गोल कोनों वाला कार्ड ग्रिड।",
+  },
+  ur: {
+    Studio: "اسٹوڈیو",
+    Themes: "تھیمز",
+    "The active theme controls what visitors see across the entire public site.":
+      "فعال تھیم یہ طے کرتی ہے کہ زائرین پوری عوامی سائٹ پر کیا دیکھتے ہیں۔",
+    "View site ↗": "سائٹ دیکھیں ↗",
+    "Loading themes…": "تھیمز لوڈ ہو رہی ہیں…",
+    Active: "فعال",
+    "Activating…": "فعال کیا جا رہا ہے…",
+    Activate: "فعال کریں",
+    "The official explainer — a landing page that documents Tovu itself.":
+      "سرکاری وضاحتی تھیم — ایک لینڈنگ پیج جو خود Tovu کو دستاویزی شکل دیتا ہے۔",
+    "A reading-first literary theme — serif type in a single column.":
+      "مطالعے کو ترجیح دینے والی ادبی تھیم — ایک ہی کالم میں سیرف ٹائپ۔",
+    "A bright product-blog — cobalt masthead and a rounded card grid.":
+      "ایک روشن پروڈکٹ بلاگ — کوبالٹ رنگ کا ہیڈر اور گول کونوں والے کارڈز کا گرڈ۔",
+  },
+  bn: {
+    Studio: "স্টুডিও",
+    Themes: "থিম",
+    "The active theme controls what visitors see across the entire public site.":
+      "সক্রিয় থিম নির্ধারণ করে যে দর্শনার্থীরা পুরো পাবলিক সাইট জুড়ে কী দেখতে পান।",
+    "View site ↗": "সাইট দেখুন ↗",
+    "Loading themes…": "থিম লোড হচ্ছে…",
+    Active: "সক্রিয়",
+    "Activating…": "সক্রিয় করা হচ্ছে…",
+    Activate: "সক্রিয় করুন",
+    "The official explainer — a landing page that documents Tovu itself.":
+      "অফিসিয়াল ব্যাখ্যামূলক থিম — একটি ল্যান্ডিং পেজ যা নিজেই Tovu-কে নথিভুক্ত করে।",
+    "A reading-first literary theme — serif type in a single column.":
+      "পঠন-কেন্দ্রিক সাহিত্যিক থিম — একক কলামে সেরিফ টাইপ।",
+    "A bright product-blog — cobalt masthead and a rounded card grid.":
+      "একটি উজ্জ্বল প্রোডাক্ট-ব্লগ — কোবাল্ট রঙের হেডার এবং গোলাকার কোণাযুক্ত কার্ড গ্রিড।",
+  },
 };
 
 export const t = createDictionaryTranslator(APPEARANCE_DICT);

@@ -442,6 +442,78 @@ const PLUGINS_DICT: Record<string, Record<string, string>> = {
     "failed to load plugins": "impossibile caricare i plugin",
     "failed to update plugin": "impossibile aggiornare il plugin",
   },
+  hi: {
+    Studio: "स्टूडियो",
+    Plugins: "प्लगिन",
+    "Loading plugins…": "प्लगिन लोड हो रहे हैं…",
+    "Enable or disable plugins discovered in this site's plugin install directory.":
+      "इस साइट की प्लगिन इंस्टॉल डायरेक्टरी में मिले प्लगिन को सक्षम या अक्षम करें।",
+    "No plugins installed.": "कोई प्लगिन इंस्टॉल नहीं है।",
+    "A new one appears here on the next load, once it's unpacked into the site's plugin install directory.":
+      "साइट की प्लगिन इंस्टॉल डायरेक्टरी में अनपैक होने के बाद, नया प्लगिन अगली बार लोड होने पर यहाँ दिखाई देगा।",
+    Version: "संस्करण",
+    Source: "स्रोत",
+    Tier: "स्तर",
+    Enabled: "सक्षम",
+    Errors: "त्रुटियां",
+    "Agent Plugins": "एजेंट प्लगिन",
+    "Agent Plugins is coming soon.": "एजेंट प्लगिन जल्द आ रहे हैं।",
+    "This is from the": "यह ",
+    "Agent Plugins open standard": "Agent Plugins ओपन स्टैंडर्ड से है",
+    "— packaging skills, tools, and MCP servers into portable plugins.":
+      " — जो स्किल, टूल और MCP सर्वर को पोर्टेबल प्लगिन में पैकेज करता है।",
+
+    "failed to load plugins": "प्लगिन लोड नहीं हो सके",
+    "failed to update plugin": "प्लगिन अपडेट नहीं हो सका",
+  },
+  ur: {
+    Studio: "اسٹوڈیو",
+    Plugins: "پلگ اِنز",
+    "Loading plugins…": "پلگ اِنز لوڈ ہو رہے ہیں…",
+    "Enable or disable plugins discovered in this site's plugin install directory.":
+      "اس سائٹ کی پلگ اِن انسٹال ڈائرکٹری میں ملنے والے پلگ اِنز کو فعال یا غیرفعال کریں۔",
+    "No plugins installed.": "کوئی پلگ اِن انسٹال نہیں ہے۔",
+    "A new one appears here on the next load, once it's unpacked into the site's plugin install directory.":
+      "سائٹ کی پلگ اِن انسٹال ڈائرکٹری میں ان پیک ہونے کے بعد، نیا پلگ اِن اگلی بار لوڈ ہونے پر یہاں ظاہر ہوگا۔",
+    Version: "ورژن",
+    Source: "ماخذ",
+    Tier: "درجہ",
+    Enabled: "فعال",
+    Errors: "خرابیاں",
+    "Agent Plugins": "ایجنٹ پلگ اِنز",
+    "Agent Plugins is coming soon.": "ایجنٹ پلگ اِنز جلد آ رہے ہیں۔",
+    "This is from the": "یہ ",
+    "Agent Plugins open standard": "Agent Plugins اوپن اسٹینڈرڈ سے ہے",
+    "— packaging skills, tools, and MCP servers into portable plugins.":
+      " — جو اسکلز، ٹولز، اور MCP سرورز کو پورٹیبل پلگ اِنز میں پیک کرتا ہے۔",
+
+    "failed to load plugins": "پلگ اِنز لوڈ نہ ہو سکے",
+    "failed to update plugin": "پلگ اِن اپ ڈیٹ نہ ہو سکا",
+  },
+  bn: {
+    Studio: "স্টুডিও",
+    Plugins: "প্লাগইন",
+    "Loading plugins…": "প্লাগইন লোড হচ্ছে…",
+    "Enable or disable plugins discovered in this site's plugin install directory.":
+      "এই সাইটের প্লাগইন ইনস্টল ডিরেক্টরিতে পাওয়া প্লাগইন সক্ষম বা নিষ্ক্রিয় করুন।",
+    "No plugins installed.": "কোনো প্লাগইন ইনস্টল করা নেই।",
+    "A new one appears here on the next load, once it's unpacked into the site's plugin install directory.":
+      "সাইটের প্লাগইন ইনস্টল ডিরেক্টরিতে আনপ্যাক হওয়ার পর, নতুনটি পরের বার লোড হলে এখানে দেখা যাবে।",
+    Version: "সংস্করণ",
+    Source: "উৎস",
+    Tier: "স্তর",
+    Enabled: "সক্ষম করা হয়েছে",
+    Errors: "ত্রুটি",
+    "Agent Plugins": "এজেন্ট প্লাগইন",
+    "Agent Plugins is coming soon.": "এজেন্ট প্লাগইন শীঘ্রই আসছে।",
+    "This is from the": "এটি ",
+    "Agent Plugins open standard": "Agent Plugins ওপেন স্ট্যান্ডার্ডের অংশ",
+    "— packaging skills, tools, and MCP servers into portable plugins.":
+      " — যা স্কিল, টুল এবং MCP সার্ভারকে পোর্টেবল প্লাগইনে প্যাকেজ করে।",
+
+    "failed to load plugins": "প্লাগইন লোড করা যায়নি",
+    "failed to update plugin": "প্লাগইন আপডেট করা যায়নি",
+  },
 };
 
 export const t = createDictionaryTranslator(PLUGINS_DICT);

@@ -616,16 +616,23 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi, tabId = null }: 
        * `ExternalMcpTab` (new upstream component wrapping the generic
        * `SourceConfigList` primitive — see its own doc comment) fed a fresh
        * empty dependencies fake, same convention as Media providers/Skills
-       * above. `connectionError` names Tovu's real gap plainly instead of
-       * reusing OD's own "local daemon" copy, which would misname a daemon
-       * Tovu doesn't run. `saveStatusLabel`/`configPath` are OD's own footer
-       * chrome, shown for visual reference under the same honest note.
+       * above.
+       *
+       * Unlike the other inert tabs here, the backend is NOT missing: Tovu
+       * really does act as an MCP client (`src/assistant/mcp-federation/`,
+       * attached at daemon boot by `agent-daemon-server.ts`'s `start()`), and
+       * federated tools reach the assistant as `mcp__<connection>__<tool>`.
+       * What is missing is an operator-editable config store — connections
+       * resolve from env vars via `mcp-federation/presets.ts` at boot only.
+       * The note says so; an earlier version claimed Tovu ran no MCP client
+       * at all, which was false. `saveStatusLabel`/`configPath` are OD's own
+       * footer chrome, shown for visual reference under the same honest note.
        */
       panel: (
         <div className="settings-ui-inert-wrap">
           <p className="settings-ui-inert-note" role="note">
             {tCap(
-              "Tovu doesn't run an MCP client yet, so there are no external MCP servers to add here. The control below is shown for reference and disabled until one exists.",
+              "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.",
             )}
           </p>
           <div className="settings-ui-inert-control" inert>

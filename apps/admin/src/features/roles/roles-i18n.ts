@@ -787,6 +787,135 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
   "failed to delete policy": "impossibile eliminare il criterio",
   "failed to add permission": "impossibile aggiungere l'autorizzazione",
   },
+  hi: {
+  People: "लोग",
+  "Roles & Permissions": "भूमिकाएँ और अनुमतियाँ",
+  "Loading roles & permissions…": "भूमिकाएँ और अनुमतियाँ लोड हो रही हैं…",
+
+  Roles: "भूमिकाएँ",
+  "Role name": "भूमिका का नाम",
+  "Create role": "भूमिका बनाएं",
+  "No roles yet.": "अभी तक कोई भूमिका नहीं है।",
+  Type: "प्रकार",
+  "Built-in": "अंतर्निर्मित",
+  Custom: "कस्टम",
+  "Actions for role": "भूमिका के लिए कार्रवाइयां",
+  "Actions for policy": "नीति के लिए कार्रवाइयां",
+
+  Policies: "नीतियाँ",
+  "Policy name": "नीति का नाम",
+  "Description (optional)": "विवरण (वैकल्पिक)",
+  "Create policy": "नीति बनाएं",
+  "No policies yet.": "अभी तक कोई नीति नहीं है।",
+  Description: "विवरण",
+  "(frozen)": "(फ़्रीज़्ड)",
+
+  Permission: "अनुमति",
+  "resource type (optional)": "संसाधन प्रकार (वैकल्पिक)",
+  Add: "जोड़ें",
+
+  "Delete role?": "भूमिका हटाएं?",
+  "Delete policy?": "नीति हटाएं?",
+
+  Rename: "नाम बदलें",
+  Close: "बंद करें",
+  "Add permission": "अनुमति जोड़ें",
+
+  "failed to load roles/policies": "भूमिकाएं/नीतियां लोड नहीं हो सकीं",
+  "failed to create role": "भूमिका नहीं बनाई जा सकी",
+  "failed to create policy": "नीति नहीं बनाई जा सकी",
+  "failed to rename role": "भूमिका का नाम नहीं बदला जा सका",
+  "failed to delete role": "भूमिका नहीं हटाई जा सकी",
+  "failed to update policy": "नीति अपडेट नहीं की जा सकी",
+  "failed to delete policy": "नीति नहीं हटाई जा सकी",
+  "failed to add permission": "अनुमति नहीं जोड़ी जा सकी",
+  },
+  ur: {
+  People: "افراد",
+  "Roles & Permissions": "کردار اور اجازتیں",
+  "Loading roles & permissions…": "کردار اور اجازتیں لوڈ ہو رہی ہیں…",
+
+  Roles: "کردار",
+  "Role name": "کردار کا نام",
+  "Create role": "کردار بنائیں",
+  "No roles yet.": "ابھی تک کوئی کردار نہیں ہے۔",
+  Type: "قسم",
+  "Built-in": "بلٹ ان",
+  Custom: "کسٹم",
+  "Actions for role": "کردار کے لیے کارروائیاں",
+  "Actions for policy": "پالیسی کے لیے کارروائیاں",
+
+  Policies: "پالیسیاں",
+  "Policy name": "پالیسی کا نام",
+  "Description (optional)": "تفصیل (اختیاری)",
+  "Create policy": "پالیسی بنائیں",
+  "No policies yet.": "ابھی تک کوئی پالیسی نہیں ہے۔",
+  Description: "تفصیل",
+  "(frozen)": "(منجمد)",
+
+  Permission: "اجازت",
+  "resource type (optional)": "وسائل کی قسم (اختیاری)",
+  Add: "شامل کریں",
+
+  "Delete role?": "کردار حذف کریں؟",
+  "Delete policy?": "پالیسی حذف کریں؟",
+
+  Rename: "نام تبدیل کریں",
+  Close: "بند کریں",
+  "Add permission": "اجازت شامل کریں",
+
+  "failed to load roles/policies": "کردار/پالیسیاں لوڈ نہیں ہو سکیں",
+  "failed to create role": "کردار نہیں بنایا جا سکا",
+  "failed to create policy": "پالیسی نہیں بنائی جا سکی",
+  "failed to rename role": "کردار کا نام تبدیل نہیں ہو سکا",
+  "failed to delete role": "کردار حذف نہیں ہو سکا",
+  "failed to update policy": "پالیسی اپ ڈیٹ نہیں ہو سکی",
+  "failed to delete policy": "پالیسی حذف نہیں ہو سکی",
+  "failed to add permission": "اجازت شامل نہیں ہو سکی",
+  },
+  bn: {
+  People: "ব্যক্তি",
+  "Roles & Permissions": "ভূমিকা ও অনুমতি",
+  "Loading roles & permissions…": "ভূমিকা ও অনুমতি লোড হচ্ছে…",
+
+  Roles: "ভূমিকা",
+  "Role name": "ভূমিকার নাম",
+  "Create role": "ভূমিকা তৈরি করুন",
+  "No roles yet.": "এখনও কোনো ভূমিকা নেই।",
+  Type: "ধরন",
+  "Built-in": "বিল্ট-ইন",
+  Custom: "কাস্টম",
+  "Actions for role": "ভূমিকার জন্য কার্যক্রম",
+  "Actions for policy": "নীতির জন্য কার্যক্রম",
+
+  Policies: "নীতি",
+  "Policy name": "নীতির নাম",
+  "Description (optional)": "বিবরণ (ঐচ্ছিক)",
+  "Create policy": "নীতি তৈরি করুন",
+  "No policies yet.": "এখনও কোনো নীতি নেই।",
+  Description: "বিবরণ",
+  "(frozen)": "(ফ্রিজ করা)",
+
+  Permission: "অনুমতি",
+  "resource type (optional)": "রিসোর্সের ধরন (ঐচ্ছিক)",
+  Add: "যোগ করুন",
+
+  "Delete role?": "ভূমিকা মুছবেন?",
+  "Delete policy?": "নীতি মুছবেন?",
+
+  Rename: "নাম পরিবর্তন করুন",
+  Close: "বন্ধ করুন",
+  "Add permission": "অনুমতি যোগ করুন",
+
+  "failed to load roles/policies": "ভূমিকা/নীতি লোড করা যায়নি",
+  "failed to create role": "ভূমিকা তৈরি করা যায়নি",
+  "failed to create policy": "নীতি তৈরি করা যায়নি",
+  "failed to rename role": "ভূমিকার নাম পরিবর্তন করা যায়নি",
+  "failed to delete role": "ভূমিকা মুছে ফেলা যায়নি",
+  "failed to update policy": "নীতি আপডেট করা যায়নি",
+  "failed to delete policy": "নীতি মুছে ফেলা যায়নি",
+  "failed to add permission": "অনুমতি যোগ করা যায়নি",
+  },
 };
 
 export const t = createDictionaryTranslator(ROLES_DICT);
@@ -909,6 +1038,24 @@ const ROLES_DESCRIPTION_PARTS: Record<string, { prefix: string; linkLabel: strin
     linkLabel: "Utenti",
     suffix: ".",
   },
+  hi: {
+    prefix:
+      "भूमिकाएँ और नीतियाँ ऑपरेटर उपयोगकर्ताओं को पहुँच प्रदान करती हैं। किसी विशिष्ट उपयोगकर्ता को भूमिका या नीति असाइन करने के लिए ",
+    linkLabel: "उपयोगकर्ता",
+    suffix: " स्क्रीन का उपयोग करें।",
+  },
+  ur: {
+    prefix:
+      "کردار اور پالیسیاں آپریٹر صارفین کو رسائی فراہم کرتی ہیں۔ کسی مخصوص صارف کو کردار یا پالیسی تفویض کرنے کے لیے ",
+    linkLabel: "صارفین",
+    suffix: " اسکرین استعمال کریں۔",
+  },
+  bn: {
+    prefix:
+      "ভূমিকা ও নীতি অপারেটর ব্যবহারকারীদের অ্যাক্সেস প্রদান করে। কোনো নির্দিষ্ট ব্যবহারকারীকে ভূমিকা বা নীতি বরাদ্দ করতে ",
+    linkLabel: "ব্যবহারকারী",
+    suffix: " স্ক্রিন ব্যবহার করুন।",
+  },
 };
 
 export function rolesDescriptionParts(locale: string): { prefix: string; linkLabel: string; suffix: string } {
@@ -938,6 +1085,9 @@ const ROLE_DELETE_BODY_PARTS: Record<string, { prefix: string; suffix: string }>
   tr: { prefix: '"', suffix: '" rolü silinsin mi?' },
   th: { prefix: 'ลบบทบาท "', suffix: '" หรือไม่?' },
   it: { prefix: 'Eliminare il ruolo "', suffix: '"?' },
+  hi: { prefix: 'भूमिका "', suffix: '" हटाएं?' },
+  ur: { prefix: 'کردار "', suffix: '" حذف کریں؟' },
+  bn: { prefix: 'ভূমিকা "', suffix: '" মুছবেন?' },
 };
 
 export function roleDeleteBodyParts(locale: string): { prefix: string; suffix: string } {
@@ -965,6 +1115,9 @@ const POLICY_DELETE_BODY_PARTS: Record<string, { prefix: string; suffix: string 
   tr: { prefix: '"', suffix: '" politikası silinsin mi?' },
   th: { prefix: 'ลบนโยบาย "', suffix: '" หรือไม่?' },
   it: { prefix: 'Eliminare il criterio "', suffix: '"?' },
+  hi: { prefix: 'नीति "', suffix: '" हटाएं?' },
+  ur: { prefix: 'پالیسی "', suffix: '" حذف کریں؟' },
+  bn: { prefix: 'নীতি "', suffix: '" মুছবেন?' },
 };
 
 export function policyDeleteBodyParts(locale: string): { prefix: string; suffix: string } {
