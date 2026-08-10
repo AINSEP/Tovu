@@ -229,6 +229,58 @@ function renderImageTag(props: {
   return `<img src="${escapeHtml(src)}" alt="${altAttr}"${widthAttr}${heightAttr}${classAttr} loading="lazy">`;
 }
 
+/**
+ * Flattens a doc node's nested inline content down to its plain text — the heading label as a reader
+ * sees it, with `bold`/`italic`/`link` marks and any other inline wrapper structure discarded. Used
+ * only to derive {@link headingAnchorId}; the visible heading still renders through the normal
+ * `renderNodes` path with all its markup intact.
+ */
+function nodeText(node: JsonValue): string {
+  if (!isObject(node)) return "";
+  if (typeof node.text === "string") return node.text;
+  const content = Array.isArray(node.content) ? node.content : [];
+  return content.map(nodeText).join("");
+}
+
+/**
+ * The `id` a rendered heading carries so an in-page `#anchor` link has something to land on.
+ *
+ * Matches `post.ts`'s own `slugify` rule character-for-character rather than inventing a second
+ * slug dialect — a heading's anchor and a post's slug should not disagree about what "C++ & Rust"
+ * becomes. Returns `""` for a heading whose text slugifies to nothing (emoji-only, punctuation-only);
+ * the caller then emits no `id` rather than an empty one, since `id=""` is invalid and unlinkable
+ * anyway.
+ */
+function headingAnchorId(node: JsonValue): string {
+  return nodeText(node)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Suffixes repeated heading ids within ONE rendered document (`overview`, `overview-2`, `overview-3`).
+ *
+ * Runs as a pass over the finished `doc` HTML rather than being threaded through `renderDocNode` as
+ * an accumulator parameter, for two reasons: `renderDocNode` is exported and its signature is
+ * depended on by `liquid-worker.ts` and direct test calls, and a document is the only scope where
+ * "duplicate" is even meaningful — two posts may each legitimately have an `#overview`.
+ *
+ * Only ids this renderer just generated are touched. The pattern is anchored to a heading tag with
+ * `id` as its FIRST attribute, which is exactly the shape the `heading` case emits and is not a shape
+ * authored content can reach (doc nodes cannot carry raw HTML attributes), so no author-supplied
+ * markup is rewritten by this.
+ */
+function dedupeHeadingIds(html: string): string {
+  const seen = new Map<string, number>();
+  return html.replace(/<h([1-6]) id="([^"]*)">/g, (_m, level: string, id: string) => {
+    const count = (seen.get(id) ?? 0) + 1;
+    seen.set(id, count);
+    return count === 1 ? `<h${level} id="${id}">` : `<h${level} id="${id}-${count}">`;
+  });
+}
+
 function renderNodes(
   nodes: JsonValue[] | undefined,
   inlineResolved: ReadonlyMap<string, WidgetRenderIR>,
@@ -269,13 +321,20 @@ export function renderDocNode(
 
   switch (node.type) {
     case "doc":
-      return renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata);
+      // Dedupe at the doc boundary — see `dedupeHeadingIds` for why this is a pass over the finished
+      // string rather than state threaded through the recursion.
+      return dedupeHeadingIds(renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata));
     case "paragraph":
       return `<p>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</p>`;
     case "heading": {
       const level = isObject(node.attrs) && typeof node.attrs.level === "number" ? node.attrs.level : 2;
       const h = Math.min(Math.max(level, 1), 6);
-      return `<h${h}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</h${h}>`;
+      // Additive: an `id` changes nothing visually, and every heading rendered before this existed
+      // simply had no anchor to link to. Emitted as the FIRST attribute, which `dedupeHeadingIds`
+      // relies on. Omitted entirely when the text slugifies to nothing.
+      const anchor = headingAnchorId(node);
+      const idAttr = anchor === "" ? "" : ` id="${escapeHtml(anchor)}"`;
+      return `<h${h}${idAttr}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</h${h}>`;
     }
     case "text":
       return renderMarks(
