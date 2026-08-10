@@ -1,4 +1,4 @@
-import type { DiscoveredTheme, ThemeTokens } from "./theme";
+import { DEFAULT_THEME_SLOTS, type DiscoveredTheme, type ThemeSlotDescriptor, type ThemeTokens } from "./theme";
 
 /**
  * @file Real (non-spike) request-time rendering for `static`-tier themes.
@@ -160,21 +160,77 @@ export function scanMenuEmbedIds(theme: DiscoveredTheme): readonly string[] {
   return Array.from(ids);
 }
 
-function resolveSlots(html: string, partials: Record<string, string>): string {
-  html = html.replace(
-    /<div data-tovu-slot="nav"[^>]*data-nav-current="([^"]+)"[^>]*><\/div>/,
-    (_m, current: string) => {
-      const navHtml = partials.nav ?? "";
-      const linkRe = new RegExp(`(<a href="[^"]+" data-nav-id="${current}")(>)`);
-      return navHtml.replace(linkRe, '$1 aria-current="page"$2');
-    }
-  );
-  html = html.replace(
-    /<div data-tovu-slot="footer"( data-slot-variant="([a-z-]+)")?[^>]*><\/div>/,
-    (_m, _attr: string | undefined, variant: string | undefined) =>
-      (variant ? partials[`footer-${variant}`] : partials.footer) ?? ""
-  );
+/** Escape a manifest-supplied string so it matches literally inside a constructed `RegExp`. */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** `nav.html` → `nav`; the partial-id key `loadStaticTierAssets` stores root partials under. */
+function partialIdFromSource(source: string): string {
+  return source.endsWith(".html") ? source.slice(0, -".html".length) : source;
+}
+
+/**
+ * Replace every `<div data-tovu-slot="<key>"></div>` marker with the root partial the theme's
+ * `theme.json` `slots` block maps that key to. Driven by the manifest rather than the hardcoded
+ * `nav`/`footer` pair this function carried before 2026-08-10 — that pair now lives in
+ * {@link DEFAULT_THEME_SLOTS} and is used verbatim for a theme declaring no `slots`, so a theme that
+ * never adopts the field renders byte-identically to how it did.
+ *
+ * Two per-marker modifiers, both optional and both honored for any slot key rather than only the two
+ * the old code special-cased:
+ * - `activeAttr` — the marker attribute naming the current page (`data-nav-current="pricing"`), which
+ *   marks the partial's `data-nav-id="pricing"` anchor `aria-current="page"`. Unlike the old nav
+ *   branch, a marker *without* this attribute still resolves (it previously matched nothing and was
+ *   left in the page as a literal empty `<div>`).
+ * - `data-slot-variant="<name>"` — swaps the source, via the descriptor's explicit `variants` map or,
+ *   failing that, the `<source-stem>-<variant>.html` convention the old footer branch assumed.
+ *
+ * A marker whose resolved partial does not exist collapses to empty, matching the old behavior's
+ * `?? ""` for the same case.
+ */
+function resolveSlots(
+  html: string,
+  partials: Record<string, string>,
+  slots: Readonly<Record<string, ThemeSlotDescriptor>> = DEFAULT_THEME_SLOTS
+): string {
+  for (const [key, descriptor] of Object.entries(slots)) {
+    const marker = new RegExp(`<div data-tovu-slot="${escapeRegExp(key)}"([^>]*)></div>`, "g");
+    html = html.replace(marker, (_m, attrs: string) => {
+      const variant = /data-slot-variant="([^"]+)"/.exec(attrs)?.[1];
+      const source =
+        variant === undefined
+          ? descriptor.source
+          : descriptor.variants?.[variant] ?? `${partialIdFromSource(descriptor.source)}-${variant}.html`;
+      let partial = partials[partialIdFromSource(source)] ?? "";
+
+      if (descriptor.activeAttr !== undefined) {
+        const current = new RegExp(`${escapeRegExp(descriptor.activeAttr)}="([^"]+)"`).exec(attrs)?.[1];
+        if (current !== undefined) {
+          const linkRe = new RegExp(`(<a href="[^"]+" data-nav-id="${escapeRegExp(current)}")(>)`);
+          partial = partial.replace(linkRe, '$1 aria-current="page"$2');
+        }
+      }
+      return partial;
+    });
+  }
   return html;
+}
+
+/**
+ * Stamp the theme's declared `defaultMode` onto the page's `<html>` element as `data-theme`, which is
+ * the selector `tokensToRootCss` emits the `tokens.light.json` override block under. Without this the
+ * light token set was authored, loaded, and emitted into the page — but unreachable, because nothing
+ * ever set the attribute its block keys off.
+ *
+ * No-ops when the manifest declares no `defaultMode`, and leaves an `<html>` that already carries a
+ * `data-theme` alone, so a theme hand-authoring its own value keeps it. A theme wanting the mode to be
+ * user-switchable ships its own toggle script against `document.documentElement.dataset.theme`; this
+ * only establishes the server-rendered starting value.
+ */
+function injectColorMode(html: string, defaultMode: string | undefined): string {
+  if (defaultMode === undefined) return html;
+  return html.replace(/<html(?![^>]*\sdata-theme=)([^>]*)>/i, `<html$1 data-theme="${escapeHtml(defaultMode)}">`);
 }
 
 /**
@@ -218,7 +274,8 @@ export function renderStaticPage(
       `<style>\n${tokensToRootCss(theme.tokens, theme.tokensLight)}\n</style>\n<link rel="stylesheet" href="../css/styles.css" />`
   );
   html = rewriteAssetPaths(html, theme.manifest.id);
-  html = resolveSlots(html, theme.partials);
+  html = injectColorMode(html, theme.manifest.defaultMode);
+  html = resolveSlots(html, theme.partials, theme.manifest.slots ?? DEFAULT_THEME_SLOTS);
   for (const [menuId, items] of Object.entries(menus ?? {})) {
     html = injectMenuEmbed(html, menuId, items);
   }
