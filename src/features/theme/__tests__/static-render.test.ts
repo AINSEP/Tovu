@@ -39,7 +39,12 @@ function makeTheme(): DiscoveredTheme {
     },
     partials: {
       nav: `<nav class="main-nav" data-embed-type="menu" data-embed-id="${HEADER_ID}"><a href="pricing.html" data-nav-id="pricing">Pricing</a></nav>`,
-      footer: `<footer><div class="footer-col" data-embed-type="menu" data-embed-id="${FOOTER_ID}"><h4>Legal</h4><a href="#">Privacy</a><a href="#">Terms</a></div></footer>`,
+      // Marker sits on an inner wrapper, NOT on the same element as the `<h4>` heading — the
+      // heading is a sibling outside the marker so `injectMenuEmbed`'s wholesale content replace
+      // can never delete it (regression, 2026-08-10: 5 of 6 static themes shipped the heading
+      // *inside* the marker div, so binding a footer menu silently deleted the heading; see the
+      // "heading survives a resolved footer menu" test below).
+      footer: `<footer><div class="footer-col"><h4>Legal</h4><div data-embed-type="menu" data-embed-id="${FOOTER_ID}"><a href="#">Privacy</a><a href="#">Terms</a></div></div></footer>`,
     },
     css: "",
     source: "site",
@@ -91,7 +96,11 @@ test("renderStaticPage: a resolved menu replaces the marker's content, omits una
   assert.ok(!html?.includes('data-nav-id="pricing"'), "original hardcoded nav link should be replaced, not duplicated");
   assert.ok(html?.includes('<a href="/privacy">Privacy Policy</a>'));
   assert.ok(html?.includes('<a href="/terms">Terms of Service</a>'));
-  assert.ok(!html?.includes("<h4>Legal</h4>"), "footer marker's own fallback content (incl. heading) is replaced wholesale");
+  assert.ok(!html?.includes('<a href="#">Privacy</a>'), "original hardcoded footer link should be replaced, not duplicated");
+  assert.ok(
+    html?.includes("<h4>Legal</h4>"),
+    "the footer heading lives outside the menu marker, so a resolved footer menu must not delete it",
+  );
 });
 
 test("renderStaticPage: a menu that resolves to zero renderable links falls back to authored content", () => {
