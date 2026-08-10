@@ -1,3 +1,5 @@
+import { agentHandle } from "@jini-ai/agentic";
+
 import type { AdminMenuItem, AdminMenuTarget } from "../../lib/api";
 import { useMenuEditor } from "./hooks/use-menu-editor.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -306,6 +308,25 @@ export function MenuEditor(props: { menuId: string | null }) {
           <span className="visually-hidden">Menu slug</span>
           <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="menu-slug" />
         </label>
+        {/* Internal id, visible for reference (2026-08-09) — same `readOnly` (not `disabled`) +
+            `.editor-id` treatment as PostEditor's own id field, added the same way for the same
+            reason: an operator can select/copy it, and no draft/published status field exists here
+            (or should — menus are always live, no draft workflow, confirmed by the owner) so this
+            is the one identity fact worth surfacing next to the slug. Only shown once a real menu
+            is loaded — a not-yet-saved new menu has no id to show yet. */}
+        {!isNew && menu ? (
+          <span className="editor-id">
+            <label className="a11y-label-wrap">
+              <span className="visually-hidden">Internal menu id</span>
+              <span aria-hidden="true">id:</span>
+              <input
+                value={menu.id}
+                readOnly
+                {...agentHandle("menu-id", { role: "field", label: "This menu's internal id — read-only, shown for reference only" })}
+              />
+            </label>
+          </span>
+        ) : null}
       </div>
       <div className="menu-tree">
         {items.map((item, i) => (

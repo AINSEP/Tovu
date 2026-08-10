@@ -94,7 +94,7 @@ export function Posts({ usePostsHook = usePosts }: PostsProps) {
           </div>
         }
         columns={[
-          { key: "title", header: t("Title"), cell: (post) => <a href={`/admin/posts/${post.id}`}>{post.title}</a> },
+          { key: "title", header: t("Title"), cell: (post) => <a href={`/admin/posts/${post.slug}`}>{post.title}</a> },
           {
             key: "slug",
             header: "Slug",
@@ -119,7 +119,7 @@ export function Posts({ usePostsHook = usePosts }: PostsProps) {
                 items={postRowMenuItems(
                   post,
                   {
-                    onEdit: (p) => navigate(`/posts/${p.id}`),
+                    onEdit: (p) => navigate(`/posts/${p.slug}`),
                     onDisable: disablePost,
                     onDelete: setPendingDelete,
                   },

@@ -42,6 +42,65 @@ export interface SettingResetResponse {
   revisionSeqs: number[];
 }
 
+/**
+ * One media-generation vendor's stored credentials, keyed by ENGINE-CANONICAL provider id (`grok`,
+ * `nanobanana`, …) — see `features/media/media-provider-catalog.ts` for why the spelling matters.
+ *
+ * Structurally `@jini-ai/ui`'s `MediaProviderCredentials` and mirrors
+ * `src/media/provider-credential-store.ts`'s `MediaProviderCredentialView` on the server. `apiKey`
+ * is send-only: the operator types one and it goes up, but no response ever carries it back — a
+ * stored key comes back as `apiKeyConfigured`/`apiKeyTail` instead.
+ */
+export interface AdminMediaProviderCredentials {
+  apiKey?: string;
+  baseUrl?: string;
+  model?: string;
+  apiKeyConfigured?: boolean;
+  apiKeyTail?: string;
+  source?: string;
+}
+
+export type AdminMediaProviderMap = Record<string, AdminMediaProviderCredentials>;
+
+/**
+ * Whether this workspace has a Composio API key. Mirrors `src/connectors/composio-config-store.ts`'s
+ * `ComposioConfigView` and, structurally, `@jini-ai/integrations/composio`'s `PublicComposioConfig`.
+ *
+ * Markers only, in both directions of the two-kinds-of-present distinction: `configured` says a key
+ * exists, `apiKeyTail` shows its last 4 characters. The key itself is send-only and never returned.
+ */
+export interface AdminComposioConfig {
+  configured: boolean;
+  apiKeyTail: string;
+}
+
+/**
+ * One connector as the Connectors tab sees it.
+ *
+ * Structurally `@jini-ai/ui`'s `Connector`, restated here rather than imported so this file stays
+ * the single description of Tovu's admin wire shapes (the same call
+ * {@link AdminMediaProviderCredentials} makes). The server returns
+ * `@jini-ai/integrations/composio`'s richer `ConnectorDetail`, which is a superset — the extra
+ * fields are simply unread by the UI.
+ */
+export interface AdminConnector {
+  id: string;
+  name: string;
+  provider: string;
+  category: string;
+  description?: string;
+  status: "available" | "connected" | "error" | "disabled";
+  accountLabel?: string;
+  lastError?: string;
+  auth?: { provider: string };
+  tools: { name: string; title?: string; description?: string; safety: { sideEffect: string; reason?: string } }[];
+  toolCount?: number;
+  toolsNextCursor?: string;
+  toolsHasMore?: boolean;
+  featuredToolNames?: string[];
+  logoUrl?: string;
+}
+
 /** Mirrors `@jini-ai/ui`'s `ExecutionTab` `DetectedAgent` shape — see
  *  `src/server/routes/admin/assistant/detect-agents.ts`'s `toExecutionTabAgent`. */
 export interface AdminExecutionDetectedAgent {
@@ -247,12 +306,38 @@ export interface AdminPost {
   status: "draft" | "published";
   updatedAt: string;
   version: number;
+  /**
+   * Post-template-picker feature (2026-08-10) — the active static theme's `pages/*.html` filename
+   * (from `theme.json`'s `postTemplate` array) this post renders through, or `null` when unset.
+   * Optional (matches `bodyFormat`/`bodyHtml`'s own precedent just above) so pre-feature test
+   * fixtures across this app don't all need updating — the real API always sends a definite value.
+   */
+  templateChoice?: string | null;
+  /**
+   * Slug-collision override (2026-08-10) — `true` when this post has been explicitly set to win
+   * over an active static theme's own same-slug page. Optional, same migration-safety precedent as
+   * `templateChoice` just above.
+   */
+  overridesThemePage?: boolean;
 }
 
 export interface PresentationSettings {
   workspaceId: string;
   activeThemeId: string;
   updatedAt: string;
+}
+
+/**
+ * ADR-020 capability tier, mirrored client-side from `#src/headless`'s `HeadlessThemeTier` —
+ * same decoupling precedent as every other client-side type in this file that mirrors a wire
+ * contract rather than importing server internals.
+ */
+export type ThemeTier = "declarative" | "templated" | "handlebars" | "static" | "code";
+
+/** Themes admin screen (2026-08-10) — one available theme's id plus its capability tier. */
+export interface AdminThemeSummary {
+  id: string;
+  tier: ThemeTier;
 }
 
 export interface AdminMember {
@@ -981,7 +1066,7 @@ export const api = {
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${id}`),
   updatePost: (
     { id }: { id: string },
-    options: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status">> = {}
+    options: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> = {}
   ) =>
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${id}`, {
       method: "PUT",
@@ -1025,9 +1110,13 @@ export const api = {
       method: "DELETE",
     }),
   getPresentation: () =>
-    request<{ settings: PresentationSettings; availableThemeIds: string[] }>(
-      `/workspaces/${WORKSPACE_ID}/presentation`
-    ),
+    request<{
+      settings: PresentationSettings;
+      availableThemeIds: string[];
+      availableThemes: AdminThemeSummary[];
+      activeThemePostTemplates: string[];
+      activeThemeStaticPageIds: string[];
+    }>(`/workspaces/${WORKSPACE_ID}/presentation`),
   setActiveTheme: (activeThemeId: string) =>
     request<{ settings: PresentationSettings; availableThemeIds: string[] }>(
       `/workspaces/${WORKSPACE_ID}/presentation`,
@@ -1070,18 +1159,6 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ expectedVersion, items, title: options.title, slug: options.slug }),
     }),
-  assignMenuLocation: (
-    { id, locationKey }: { id: string; locationKey: string },
-    _options: Record<string, never> = {}
-  ) =>
-    request<{
-      menu: AdminMenu;
-      binding: { locationKey: string; menuId: string; boundAt: string };
-      displacedMenu: AdminMenu | null;
-    }>(`/workspaces/${WORKSPACE_ID}/menus/${id}/locations`, {
-      method: "POST",
-      body: JSON.stringify({ locationKey }),
-    }),
   deleteMenu: ({ id }: { id: string }, options: { force?: boolean } = {}) =>
     request<{ menu: AdminMenu | null; purged: boolean }>(
       `/workspaces/${WORKSPACE_ID}/menus/${id}${options.force ? "?force=true" : ""}`,
@@ -1114,6 +1191,75 @@ export const api = {
       `/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${subscriptionId}/deliveries`
     ),
   listMedia: () => request<{ media: AdminMedia[] }>(`/workspaces/${WORKSPACE_ID}/media`),
+  /** The workspace's media-generation vendor credentials, as markers only — never key material.
+   *  Bare map, not a `{ data }` envelope, matching `MediaProvidersPort.fetchMediaProviders`. */
+  getMediaProviders: () =>
+    request<AdminMediaProviderMap>(`/workspaces/${WORKSPACE_ID}/media/providers`),
+  /** Replaces the workspace's ENTIRE provider set — a provider absent from `providers` is deleted
+   *  server-side, which is how the tab expresses Clear. Resolves the authoritative copy back. */
+  saveMediaProviders: (providers: AdminMediaProviderMap) =>
+    request<AdminMediaProviderMap>(`/workspaces/${WORKSPACE_ID}/media/providers`, {
+      method: "PUT",
+      body: JSON.stringify(providers),
+    }),
+  /** Whether this workspace has a Composio API key, as markers only — drives `ConnectorsBrowser`'s
+   *  `unlocked` prop. Never carries key material. */
+  getComposioConfig: () =>
+    request<AdminComposioConfig>(`/workspaces/${WORKSPACE_ID}/connectors/config`),
+  /** Stores (`string`) or clears (`null`) the workspace's Composio API key. A missing `apiKey`
+   *  property is a 400 server-side — "leave it alone" is not expressible against one field. */
+  saveComposioConfig: (apiKey: string | null) =>
+    request<AdminComposioConfig>(`/workspaces/${WORKSPACE_ID}/connectors/config`, {
+      method: "PUT",
+      body: JSON.stringify({ apiKey }),
+    }),
+  /** The Composio connector catalog. Without `refresh` this is the provider's in-process static
+   *  catalog (no API key needed, no outbound request); with it, a live re-fetch that does need one. */
+  listConnectors: (refresh?: boolean) =>
+    request<{ connectors: AdminConnector[] }>(
+      `/workspaces/${WORKSPACE_ID}/connectors${refresh ? "?refresh=1" : ""}`
+    ),
+  /** Every connector's connection status, as a bare map keyed by connector id. */
+  getConnectorStatuses: () =>
+    request<Record<string, { status: string; accountLabel?: string; lastError?: string }>>(
+      `/workspaces/${WORKSPACE_ID}/connectors/statuses`
+    ),
+  /** Begins authorizing a connector. Resolves `{ connector, auth }`; `auth.kind` is
+   *  `redirect_required` for the normal OAuth path, or `connected` when Composio already had a
+   *  validated account. */
+  connectConnector: (connectorId: string) =>
+    request<{
+      connector: AdminConnector;
+      auth?: { kind: "redirect_required" | "pending" | "connected"; redirectUrl?: string; expiresAt?: string };
+    }>(`/workspaces/${WORKSPACE_ID}/connectors/${encodeURIComponent(connectorId)}/connect`, {
+      method: "POST",
+    }),
+  /** Revokes the account at Composio and deletes the sealed local credentials. */
+  disconnectConnector: (connectorId: string) =>
+    request<AdminConnector>(
+      `/workspaces/${WORKSPACE_ID}/connectors/${encodeURIComponent(connectorId)}/disconnect`,
+      { method: "POST" }
+    ),
+  /** Drops an in-flight authorization. Nothing was stored, so this only clears pending state. */
+  cancelConnectorAuthorization: (connectorId: string) =>
+    request<AdminConnector>(
+      `/workspaces/${WORKSPACE_ID}/connectors/${encodeURIComponent(connectorId)}/cancel`,
+      { method: "POST" }
+    ),
+  /** One connector, optionally with a page of its tools (the drawer's bounded preview read). */
+  getConnector: (
+    connectorId: string,
+    options?: { hydrateTools?: boolean; toolsLimit?: number; toolsCursor?: string }
+  ) => {
+    const query = new URLSearchParams();
+    if (options?.hydrateTools) query.set("hydrateTools", "1");
+    if (options?.toolsLimit !== undefined) query.set("toolsLimit", String(options.toolsLimit));
+    if (options?.toolsCursor !== undefined) query.set("toolsCursor", options.toolsCursor);
+    const suffix = query.size > 0 ? `?${query.toString()}` : "";
+    return request<AdminConnector>(
+      `/workspaces/${WORKSPACE_ID}/connectors/${encodeURIComponent(connectorId)}${suffix}`
+    );
+  },
   /** Byte-serving URL for an asset's original file (MSG-05) — authenticated, same-origin, so a
    *  plain `<img src>`/`<video src>` sends the session cookie automatically with no `crossorigin`
    *  attribute needed. Not wrapped in `request()` like the rest of this file's methods: callers

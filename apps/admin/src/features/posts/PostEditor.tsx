@@ -270,6 +270,12 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
     setSlug,
     status,
     setStatus,
+    templateChoice,
+    setTemplateChoice,
+    availableTemplates,
+    overridesThemePage,
+    setOverridesThemePage,
+    hasSlugCollision,
     message,
     error,
     confirmingDelete,
@@ -316,25 +322,138 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
           {...agentHandle("post-title", { role: "field", label: "This post's title" })}
         />
       </label>
-      <div className="editor-slug">
-        /{" "}
-        <label className="a11y-label-wrap">
-          <span className="visually-hidden">URL slug</span>
-          <input
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            {...agentHandle("post-slug", { role: "field", label: "URL slug this post is published at" })}
-          />
-        </label>
-        <a
-          href={siteUrl(`/${post.slug}`)}
-          target="_blank"
-          rel="noreferrer"
-          {...agentHandle("post-view-live", { role: "link", label: "Open this post on the public site in a new tab" })}
-        >
-          view ↗
-        </a>
+      {/* Slug (+ view link) and the template picker share one row, space-between, to save vertical
+          space — both are short, single-line controls with no reason to stack (2026-08-10). */}
+      <div className="editor-slug-row">
+        <div className="editor-slug">
+          /{" "}
+          <label className="a11y-label-wrap">
+            <span className="visually-hidden">URL slug</span>
+            <input
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              {...agentHandle("post-slug", { role: "field", label: "URL slug this post is published at" })}
+            />
+          </label>
+          <a
+            href={siteUrl(`/${post.slug}`)}
+            target="_blank"
+            rel="noreferrer"
+            {...agentHandle("post-view-live", { role: "link", label: "Open this post on the public site in a new tab" })}
+          >
+            view ↗
+          </a>
+          {/* Internal id, visible for reference (2026-08-10) — `readOnly`, not `disabled`: the id is
+              genuinely never editable (renaming a post's stored id isn't something this app's own
+              repo layer supports, unlike the slug above), but readOnly still lets an operator select
+              and copy it, which disabled would block in most browsers.
+
+              The visual spacing/divider lives on THIS outer span, not the `<label>` — `.a11y-label-
+              wrap` sets `display: contents` (see that class's own comment in editor.css), which
+              strips a label's own box entirely, so any margin/padding/border placed directly on the
+              label is silently a no-op. Real bug, found live: the divider never rendered and the
+              id sat crowded against "view" with only the parent row's own small gap. */}
+          <span className="editor-id">
+            <label className="a11y-label-wrap">
+              <span className="visually-hidden">Internal post id</span>
+              <span aria-hidden="true">id:</span>
+              <input
+                value={post.id}
+                readOnly
+                {...agentHandle("post-id", { role: "field", label: "This post's internal id — read-only, shown for reference only" })}
+              />
+            </label>
+          </span>
+        </div>
+        {/* Post-template-picker feature (2026-08-10) — rendered whenever this row is a Post/
+            formulaic-body record (`bodyFormat: "doc"`), not an `"html"`-format Page — a Page's body
+            IS its own design already (see `resolveHtmlEmbedsForRender`'s own doc), so it has nothing
+            to pick between. Untranslated (`t()` falls back to the raw key, same graceful-degrade
+            every other string on this screen already relies on) — this repo's i18n dictionaries
+            cover 19 locales and adding this feature's strings to all of them is out of scope for
+            this pass; disclosed rather than silently skipped.
+
+            Options list real templates FIRST, "No template chosen" LAST (owner's own ordering
+            request) — matches `theme.json`'s own `postTemplate` doc ("ordered to nudge the right
+            choice"): opting OUT is the one deliberate action, not the default you land on. The
+            SELECTED value defaults to the first template too when nothing has been chosen yet (see
+            the load effect below) — an author only ever sees "No template chosen" selected if they
+            (or a prior save) explicitly picked it.
+
+            When the active theme declares zero templates, the row previously vanished entirely
+            (owner feedback, 2026-08-09: "it makes sense... but it should still be there" — an empty
+            theme should read as "nothing to choose" in the UI, not disappear as if the feature
+            itself weren't there). Renders a disabled control with a one-line explanation instead. */}
+        {(post.bodyFormat ?? "doc") === "doc" ? (
+          <div className="editor-template-picker">
+            <label className="a11y-label-wrap">
+              <span className="visually-hidden">{t("Template")}</span>
+            </label>
+            {availableTemplates.length > 0 ? (
+              <select
+                value={templateChoice ?? ""}
+                // `e.target.value`, NOT `|| null` — "No template chosen" must persist as `""`
+                // (explicitly opted out), which `resolvePostTemplate` treats differently from `null`
+                // (never chosen → falls back to the first template). Coercing to `null` here is what
+                // made the two indistinguishable and served 15 posts a diagnostic page.
+                onChange={(e) => setTemplateChoice(e.target.value)}
+                {...agentHandle("post-template-choice", {
+                  role: "field",
+                  label:
+                    "Which theme page template this post renders through on the public site. " +
+                    "Setting this to \"No template chosen\" shows a diagnostic page instead of the post, " +
+                    "not a silent fallback to generic rendering.",
+                })}
+              >
+                {availableTemplates.map((template) => (
+                  <option key={template} value={template}>
+                    {template}
+                  </option>
+                ))}
+                <option value="">{t("No template chosen")}</option>
+              </select>
+            ) : (
+              <select
+                disabled
+                value=""
+                {...agentHandle("post-template-choice", {
+                  role: "field",
+                  label: "The active theme declares no post templates, so there is nothing to choose here.",
+                })}
+              >
+                <option value="">{t("No templates for this theme")}</option>
+              </select>
+            )}
+          </div>
+        ) : null}
       </div>
+      {/* Slug-collision override (2026-08-10) — surfaced live this session: a post at slug "about"
+          was silently unreachable because the active theme ships its own pages/about.html at the
+          same slug, and the theme page always won with zero indication why. Warn explicitly rather
+          than let an author discover this by visiting the public URL and finding their post missing. */}
+      {hasSlugCollision ? (
+        <div className="notice warning" {...agentHandle("post-slug-collision-warning", {
+          role: "region",
+          label: "Warning: this post's slug is claimed by the active theme's own page",
+        })}>
+          <p>
+            {t("The active theme has its own page at this slug — it will be shown instead of this post.")}
+          </p>
+          <label>
+            <input
+              type="checkbox"
+              checked={overridesThemePage}
+              onChange={(e) => setOverridesThemePage(e.target.checked)}
+              {...agentHandle("post-override-theme-page", {
+                role: "field",
+                label: "Show this post instead of the active theme's own same-slug page",
+              })}
+            />
+            {" "}
+            {t("Show this post instead")}
+          </label>
+        </div>
+      ) : null}
       <div
         className="editor-shell"
         {...agentHandle("post-editor-shell", {

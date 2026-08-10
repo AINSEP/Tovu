@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Pages, pagesListNotice } from "../Pages";
 import type { PagesController } from "../hooks/use-pages.hooks";
+import type { ThemePagesController } from "../hooks/use-theme-pages.hooks";
 import { navigate } from "../../../lib/router";
 import type { AdminPost } from "../../../lib/api";
 
@@ -45,10 +46,21 @@ function controller(overrides: Partial<PagesController> = {}): PagesController {
   };
 }
 
-function renderWith(overrides: Partial<PagesController> = {}) {
+function themePagesController(overrides: Partial<ThemePagesController> = {}): ThemePagesController {
+  return { pageIds: [], error: null, ...overrides };
+}
+
+/**
+ * `themePages` defaults to an already-loaded, empty list (not the real `useThemePages` hook) —
+ * every test in this file predates the Theme Pages tab and asserts against the "My Pages" tab's
+ * own content, so a real, unmocked `getPresentation()` call here would be pure noise (and, since
+ * nothing in this test environment mocks `fetch`, a source of flaky unhandled-rejection warnings).
+ */
+function renderWith(overrides: Partial<PagesController> = {}, themePages: Partial<ThemePagesController> = {}) {
   const c = controller(overrides);
   const usePagesHook = () => c;
-  render(<Pages usePagesHook={usePagesHook} />);
+  const useThemePagesHook = () => themePagesController(themePages);
+  render(<Pages usePagesHook={usePagesHook} useThemePagesHook={useThemePagesHook} />);
   return c;
 }
 
@@ -189,6 +201,53 @@ describe("delete confirmation dialog", () => {
   it("is not pending when rowSavingId belongs to a different row", () => {
     renderWith({ pages: [PAGE], pendingDelete: PAGE, rowSavingId: "some-other-id" });
     expect(screen.getByRole("button", { name: "Move to trash" })).not.toBeDisabled();
+  });
+});
+
+describe("Theme Pages tab", () => {
+  it("shows a count on each tab and hides the New Page action once switched to Theme Pages", async () => {
+    const user = userEvent.setup();
+    renderWith({ pages: [PAGE] }, { pageIds: ["pricing", "docs"] });
+    expect(screen.getByRole("tab", { name: "My Pages1" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Theme Pages2" })).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Theme Pages2" }));
+    expect(screen.queryByRole("button", { name: "New Page" })).not.toBeInTheDocument();
+  });
+
+  it("lists each theme page id with a view link and a read-only badge, no RowMenu", async () => {
+    const user = userEvent.setup();
+    renderWith({ pages: [PAGE] }, { pageIds: ["pricing"] });
+    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+    expect(screen.getByText("pricing")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "/pricing" })).toBeInTheDocument();
+    expect(screen.getByText("Theme content — read-only")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Actions for/ })).not.toBeInTheDocument();
+  });
+
+  it("links the 'index' page id at the site root, not literally /index — pages.ts's static-page route excludes that slug (home is served by the route === \"home\" branch instead)", async () => {
+    const user = userEvent.setup();
+    renderWith({ pages: [PAGE] }, { pageIds: ["index"] });
+    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+    const link = screen.getByRole("link", { name: "/" });
+    expect(link.getAttribute("href")).not.toMatch(/\/index$/);
+  });
+
+  it("shows a sensible empty state, not the My Pages empty copy, when the active theme ships no pages", async () => {
+    const user = userEvent.setup();
+    renderWith({ pages: [PAGE] }, { pageIds: [] });
+    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+    expect(screen.getByText("The active theme doesn't ship any of its own static pages.")).toBeInTheDocument();
+    expect(screen.queryByText("No pages yet.")).not.toBeInTheDocument();
+  });
+
+  it("shows a loading notice on the Theme Pages tab while its own request is still in flight, without blocking My Pages", async () => {
+    const user = userEvent.setup();
+    renderWith({ pages: [PAGE] }, { pageIds: null, error: null });
+    // "My Pages" (the default tab) already rendered its table — only the Theme Pages tab's own
+    // body is gated on its own load, not the whole screen.
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+    expect(screen.getByText("Loading theme pages…")).toBeInTheDocument();
   });
 });
 

@@ -328,6 +328,40 @@ input[type="checkbox"], input[type="radio"] {
    this covers everything else in one place instead of per-component rules. */
 button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 
+/* InfoTip (`components/InfoTip.tsx`, 2026-08-09) — a real tooltip, not the native `title`
+   attribute: `title` was tried first and rejected live (owner feedback: too slow/inconsistent to
+   notice, and the icon itself read as too small). Owner also asked for it to open ABOVE the
+   trigger — that's unsafe with a plain CSS `position: absolute` bubble here, since this component's
+   first real use sits inside a `<th>` in `.list-table`, which has its own `overflow: hidden` (there
+   to clip the table's own rounded corners) and would clip an upward-opening bubble with no room
+   above it. So the bubble is portaled straight into `document.body` (see the component) and
+   positioned in JS via `getBoundingClientRect()` — `top`/`left` below are only the fixed-position
+   base; the component sets the actual coordinates inline per-render. That sidesteps the clipping
+   ancestor entirely rather than trading positions for the same bug. `pointer-events: none` keeps
+   the bubble from ever intercepting the hover that reveals it in the first place. Colors are a
+   literal white/black pairing (owner's explicit ask), not theme tokens — deliberately fixed
+   regardless of light/dark mode, unlike the rest of this app's chrome. */
+.info-tip { position: relative; display: inline-flex; margin-left: 0.35rem; vertical-align: middle; }
+.info-tip-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.1rem; height: 1.1rem; border-radius: 50%; color: var(--faint);
+  font-size: 0.95rem; line-height: 1; cursor: pointer;
+}
+.info-tip:hover .info-tip-icon, .info-tip:focus-within .info-tip-icon { color: var(--accent-text); }
+.info-tip-icon:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; border-radius: 50%; }
+.info-tip-bubble {
+  position: fixed; transform: translate(-50%, calc(-100% - 8px));
+  width: max-content; max-width: 18rem; padding: 0.55rem 0.75rem; border-radius: var(--r-sm);
+  background: #fff; color: #111; font-size: 0.78rem; font-weight: 400;
+  line-height: 1.4; letter-spacing: normal; text-transform: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); border: 1px solid rgba(0, 0, 0, 0.1);
+  pointer-events: none; z-index: 1000;
+}
+.info-tip-bubble::after {
+  content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: #fff;
+}
+
 /* Page headings + intro copy */
 .admin-content h1 { font-family: var(--font-display); font-size: 1.65rem; font-weight: 700; letter-spacing: -0.01em; color: var(--fg); margin: 0 0 0.4rem; }
 .admin-content h1 + p { color: var(--muted); font-size: 0.95rem; margin: 0 0 1.6rem; }
@@ -792,6 +826,8 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 /* Content bits */
 .notice { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
 .notice.error { border-left-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
+.notice.warning { border-left-color: var(--warning); background: var(--warning-bg); color: var(--warning); margin: 0.6rem 0; }
+.notice.warning label { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.85rem; color: var(--fg-2); cursor: pointer; }
 .list-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
 .list-table th, .list-table td { text-align: left; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--fg-2); }
 .list-table th { background: var(--surface-2); font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
@@ -995,8 +1031,25 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .editor-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; padding: 0.6rem 0.2rem; width: 100%; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--fg); }
 .editor-title::placeholder { color: var(--faint); font-weight: 500; }
 .editor-title:focus { outline: none; box-shadow: none; border-bottom-color: var(--accent-text); }
-.editor-slug { color: var(--muted); font-size: 0.85rem; display: flex; gap: 0.4rem; align-items: center; }
+.editor-slug-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; row-gap: 0.6rem; }
+.editor-slug { color: var(--muted); font-size: 0.85rem; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; row-gap: 0.4rem; }
 .editor-slug input { width: 14rem; }
+.editor-id { display: inline-flex; align-items: center; gap: 0.35rem; margin-left: 0.5rem; padding-left: 1rem; border-left: 1px solid var(--border); }
+.editor-id input { width: 9rem; background: transparent; border: none; color: var(--muted); font: 12px/1 var(--font-mono, monospace); padding: 0; cursor: text; }
+.editor-id input:focus { outline: none; box-shadow: none; }
+.editor-template-picker select { width: 14rem; font-size: 0.85rem; }
+/* Small screens (2026-08-09 live feedback): the slug row was overflowing — the template picker got
+   clipped off the right edge instead of wrapping to its own line, and the id block (no visible
+   divider, see the JSX comment on `.editor-id`'s markup for why) sat crowded against "view". Stack
+   into two clearly separated rows instead of trying to force three variable-width controls onto one
+   line at narrow widths. */
+@media (max-width: 640px) {
+  .editor-slug-row { flex-direction: column; align-items: stretch; }
+  .editor-slug { justify-content: center; text-align: center; }
+  .editor-id { margin-left: 0; padding-left: 0.75rem; justify-content: center; }
+  .editor-template-picker select { width: 100%; }
+  .editor-slug input { width: 100%; }
+}
 
 /* Menu tree editor */
 .menu-tree { display: flex; flex-direction: column; gap: 0.6rem; }
@@ -1121,15 +1174,111 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .theme-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1.2rem; }
 .theme-card { position: relative; border-radius: var(--r-lg); padding: 1.4rem; box-shadow: var(--shadow-sm); background: var(--surface); border: 1.5px solid var(--border); transition: transform 0.14s, box-shadow 0.14s; }
 .theme-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-.theme-card.active { border-color: var(--accent-text); box-shadow: 0 0 0 1px var(--accent-text), var(--shadow-md); }
+/* Active theme card "border beam" (2026-08-09) — replaces the old plain 1px accent outline+ring
+   with a broader, animated, multicolored arc that continuously travels around the card edge,
+   trailing off into transparency on both ends (owner's own description: "multicolored beam that
+   trails the edges"). Pure CSS, no JS: a `conic-gradient` on a `::before` pseudo-element, rotated by
+   animating a registered `<angle>` custom property (`@property` — required for the browser to
+   interpolate the angle smoothly frame-to-frame rather than jump-cutting), then masked down from a
+   filled square to a ring using the standard two-layer `mask-composite: exclude` trick (an opaque
+   `content-box` layer subtracted from an opaque `padding-box` layer leaves only the padding-box's
+   border-width perimeter visible — `padding: 3px` below IS the beam's thickness, not decorative
+   spacing). `.theme-card`'s own base rule already has `position: relative`, which this depends on
+   for the pseudo-element's `position: absolute; inset: 0` to anchor correctly. */
+@property --border-beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.theme-card.active { border-color: transparent; box-shadow: var(--shadow-md); }
+.theme-card.active::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 3px;
+  /* Lighter (owner feedback, 2026-08-09): opacity on the whole layer rather than paler individual
+     stops — keeps the same hues/contrast between colors, just softer against the card overall. */
+  opacity: 0.6;
+  background: conic-gradient(from var(--border-beam-angle),
+    transparent 0deg, transparent 260deg,
+    #ff5f6d 282deg, #ffc371 306deg, #4facfe 330deg, #a855f7 354deg,
+    transparent 360deg);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  /* 3.2s -> 4.26s: ~33% slower, owner feedback same pass. */
+  animation: theme-card-border-beam 4.26s linear infinite;
+  pointer-events: none;
+}
+@keyframes theme-card-border-beam { to { --border-beam-angle: 360deg; } }
+@media (prefers-reduced-motion: reduce) {
+  .theme-card.active::before { animation: none; --border-beam-angle: 45deg; }
+}
 .theme-card h3 { margin-top: 0; font-family: var(--font-display); font-size: 1.15rem; text-transform: capitalize; }
 .theme-card p { font-size: 0.9rem; line-height: 1.45; opacity: 0.85; }
 .theme-card button { background: color-mix(in oklch, currentColor 16%, transparent); color: currentColor; border: 1px solid color-mix(in oklch, currentColor 30%, transparent); }
 .theme-card button:hover { background: color-mix(in oklch, currentColor 26%, transparent); opacity: 1; }
+/* Activate (2026-08-10 owner feedback) — the `currentColor`-tinted rule just above exists for the
+   three legacy swatch-background cards (`.theme-paper`/`.theme-atlas`/`.theme-glassmorphic`, right
+   below) so a button stays legible against an arbitrary swatch hue. It also caught every OTHER
+   card's Activate button, though, muting it to a washed-out secondary look instead of this admin's
+   actual primary-action color (`--primary`, the same token `PostEditor.tsx`'s bare/default Save
+   button gets). `.btn-primary` alone loses that fight — `.theme-card button` outranks a bare
+   `.btn-primary` on selector specificity — so this re-asserts it at one class higher than the rule
+   it's overriding, same "outrank than replace" approach `.list-table td button:not(...)` documents
+   above for the identical bare-`button` shape problem. */
+.theme-card button.btn-primary { background: var(--primary); color: var(--primary-ink); border: 1px solid transparent; }
+.theme-card button.btn-primary:hover { background: var(--primary); opacity: 0.88; }
 .theme-paper { background: #faf6ef; color: #2b2620; }
 .theme-atlas { background: #0e1420; color: #e8ecf4; }
 .theme-glassmorphic { background: linear-gradient(135deg, #1c2740, #3a2a55); color: #f2f4fb; }
-.theme-active-tag { display: inline-block; background: color-mix(in oklch, currentColor 14%, transparent); border: 1px solid color-mix(in oklch, currentColor 35%, transparent); color: inherit; padding: 0.2rem 0.7rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; }
+/* Green, matching the app's existing --ok/--ok-bg pairing used for every other "active" status
+   pill (.status-active, .status-sub-active) — previously `currentColor`-based, which inherited
+   whatever ambient text color the card had and read as plain gray instead of a status color. */
+.theme-active-tag { display: inline-block; background: var(--ok-bg); border: 1px solid color-mix(in oklch, var(--ok) 35%, transparent); color: var(--ok); padding: 0.2rem 0.7rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; }
+
+/* Theme card preview thumbnail (Themes screen, 2026-08-10) — a `static`-tier theme's own
+   `screenshots/index.png` (served straight off disk by `theme-static-assets.ts`'s
+   `/theme-assets/{id}/...` mount, no new backend work) shown above the card's existing text.
+   A theme with no screenshot at that path 404s the `<img>` — `onError` below swaps it for this
+   placeholder rather than leaving a broken-image icon. `aspect-ratio` (not a fixed height) keeps
+   every card's thumbnail the same shape before either the real image or the placeholder has
+   painted, so the grid doesn't reflow when screenshots load in. */
+.theme-card-preview { aspect-ratio: 16 / 10; border-radius: var(--r-md); overflow: hidden; margin-bottom: 0.9rem; background: var(--surface-2); border: 1px solid var(--border); }
+.theme-card-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.theme-card-preview-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--faint); }
+.theme-card-preview-placeholder svg { width: 2rem; height: 2rem; }
+
+/* Generic horizontal tab row (`components/TabBar.tsx`) — shared by the Themes screen (tier tabs)
+   and the Pages screen (My Pages / Theme Pages), so both list screens carry one visual language
+   for "here are several groupings of the same kind of thing" instead of two. Overrides the global
+   `button` rule's filled-primary look entirely (background/border/radius/color), same reasoning
+   `.list-table td button:not([class*="btn-"])` documents further up this file for why a bare
+   `button` selector needs an explicit opt-out rather than relying on specificity alone. */
+.tab-bar { display: flex; gap: 0.3rem; border-bottom: 1px solid var(--border); margin-bottom: 1.3rem; }
+.tab-bar-item {
+  background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0;
+  padding: 0.65rem 0.9rem; font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 600;
+  color: var(--muted); cursor: pointer; transition: color 0.14s, border-color 0.14s;
+}
+.tab-bar-item:hover { background: none; color: var(--fg); opacity: 1; }
+.tab-bar-item[aria-selected="true"] { color: var(--accent-text); border-bottom-color: var(--accent-text); }
+.tab-bar-count { margin-left: 0.4rem; font-size: var(--text-2xs); color: var(--faint); font-variant-numeric: tabular-nums; }
+.tab-bar-item[aria-selected="true"] .tab-bar-count { color: var(--accent-text); opacity: 0.75; }
+/* Marketplace (soon) placeholder tab (2026-08-10 owner feedback) — greyed out and inert, not a
+   clickable empty state: `disabled` already stops the click and pulls it out of the tab order,
+   this just makes that visible instead of leaving it looking like every other tab. `background:
+   none` is required here, not cosmetic — the global `button:disabled` rule (styles.css ~L218)
+   paints a `color-mix` tint of `--primary` (a burnt-orange hue) behind every disabled `<button>`,
+   and beats this rule's own un-suffixed `.tab-bar-item { background: none }` on specificity
+   (type selector `button:disabled` outranks the class-only base rule for that property), which
+   is what actually produced the reddish/pink overlay the grey text color alone couldn't fix. */
+.tab-bar-item:disabled { color: var(--faint); background: none; cursor: not-allowed; }
+.tab-bar-item:disabled:hover { color: var(--faint); background: none; }
+.tab-bar-item:disabled .tab-bar-count { color: var(--faint); }
+
+/* Pages screen's "Theme Pages" tab (2026-08-10) — the active theme's own bundled `pages/*.html`,
+   listed read-only (no `PostRecord` backs them, so there is no editor to link into). Reuses
+   `.list-table`/`.card`/`.empty-state` rather than new table CSS; `.badge-readonly` is the one new
+   class, styled like `.status-draft` (muted, not a tone that implies success/danger) since
+   "read-only" isn't a warning, just a fact about where this row's content lives. */
+.badge-readonly { display: inline-block; background: var(--surface-3); color: var(--muted); padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em; }
 
 /* Screen-reader-only live region (SPEC-007 ui.spec.md §5 "Status updates") */
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
@@ -1398,6 +1547,28 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   border: 1px dashed var(--jini-border); border-radius: var(--jini-radius-sm);
 }
 .settings-ui-inert-control { opacity: 0.55; }
+/* Connectors tab: Tovu's own Composio API key field above `ConnectorsBrowser`, which ships no key
+ * input of its own (see `ComposioKeyField.tsx`). Sized to sit as chrome above the grid rather than
+ * compete with it. */
+.composio-key-field { margin: 0 0 16px; }
+.composio-key-label {
+  display: block; margin: 0 0 4px; font-size: 12px; font-weight: 600; color: var(--jini-text);
+}
+.composio-key-help {
+  margin: 0 0 8px; font-size: 12px; line-height: 1.5; color: var(--jini-text-muted);
+}
+.composio-key-help code {
+  padding: 1px 4px; font-size: 11px;
+  background: var(--jini-bg-subtle); border-radius: var(--jini-radius-sm);
+}
+.composio-key-row { display: flex; gap: 8px; align-items: center; }
+.composio-key-input {
+  flex: 1 1 auto; min-width: 0; font: inherit; font-size: 13px; padding: 6px 10px;
+  color: var(--jini-text); background: var(--jini-bg-panel);
+  border: 1px solid var(--jini-border); border-radius: var(--jini-radius-sm);
+}
+.composio-key-input:focus-visible { outline: 2px solid var(--jini-accent); outline-offset: 1px; }
+.composio-key-input:disabled { opacity: 0.6; }
 /* OD's Local CLI / BYOK toggle shows only the mode name, no second line —
  * confirmed against `od-settings-execution.png`. `ExecutionTab` renders that
  * description unconditionally (`.jini-seg-meta`, no prop to suppress it), so
@@ -2017,3 +2188,36 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .confirm-dialog h2 { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
 .confirm-dialog-body { margin: 0; color: var(--fg-2); font-size: var(--text-md); line-height: 1.5; }
 .confirm-dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
+
+/* Image preview lightbox (`ImagePreviewModal`, 2026-08-10) — same native-`<dialog>` foundation and
+   same `[open]`-scoped `display` trap as `.confirm-dialog` above (an author `display` rule on the
+   bare class always wins over the UA stylesheet's `dialog:not([open]) { display: none }`
+   regardless of specificity — the comment above this block found that live; this dialog inherits
+   the same risk and the same fix). `position`/`margin` deliberately untouched so `showModal()`'s
+   own top-layer centering keeps doing the layout work. Sized to the image, capped at 90vw/90vh —
+   "readable, not full native resolution" per the owner's own framing. */
+.image-preview-modal {
+  border: none; padding: 0; background: transparent; max-width: 90vw; max-height: 90vh;
+}
+.image-preview-modal[open] { display: block; }
+.image-preview-modal::backdrop { background: oklch(0% 0 0 / 0.6); }
+.image-preview-modal img { display: block; max-width: 90vw; max-height: 90vh; width: auto; height: auto; border-radius: var(--r-lg); box-shadow: var(--shadow-md); }
+.image-preview-modal-close {
+  position: absolute; top: 0.7rem; right: 0.7rem; width: 2.1rem; height: 2.1rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: oklch(0% 0 0 / 0.55); color: white; font-size: 1.3rem; line-height: 1;
+  /* A screenshot's own top-right corner can be just as dark as this button's fill (this session's
+     Basic theme's nav bar, verified live) — a light ring keeps the button findable regardless of
+     what's directly behind it, rather than relying on background contrast alone. */
+  border: 1px solid oklch(100% 0 0 / 0.35); box-shadow: var(--shadow-md);
+}
+.image-preview-modal-close:hover { background: oklch(0% 0 0 / 0.72); opacity: 1; }
+
+/* The theme card's screenshot thumbnail, made clickable (2026-08-10 owner feedback: too small to
+   read, needs a click-to-expand). A real `<button>` wrapping the `<img>`, not a bare clickable
+   `<img>` — keyboard-operable and properly announced, unlike an image with only an onClick.
+   Resets the global `button` rule's filled-primary chrome to transparent so it reads as "the image
+   is clickable", not "there's a button over the image". */
+.theme-card-preview-trigger { display: block; width: 100%; height: 100%; padding: 0; border: none; background: none; cursor: zoom-in; }
+.theme-card-preview-trigger:hover { opacity: 1; }
+.theme-card-preview-trigger img { width: 100%; height: 100%; object-fit: cover; display: block; }

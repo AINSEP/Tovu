@@ -1,5 +1,5 @@
 import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
-import { SrcDocSandbox } from "@jini-ai/renderers-react";
+import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
@@ -270,7 +270,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
  * the entire point — see `PAGE_PREVIEW_WIDTHS`. The wrapper's height is scaled to match so the
  * transformed content does not leave a gap or overflow underneath it.
  *
- * `SrcDocSandbox` (`@jini-ai/renderers-react`) gives the document an opaque origin: its `sandbox`
+ * `SrcDocSandbox` (`@jini-ai/ui/renderers`) gives the document an opaque origin: its `sandbox`
  * attribute omits `allow-same-origin`, which is asserted by that component's own regression test, so
  * generated markup cannot reach the admin's cookies, storage or DOM even though scripts run in it.
  */

@@ -7,6 +7,7 @@ import { buildAdminAgentPages } from "./lib/agent-pages";
 import { installInternalLinkInterceptor, useRouteLocation } from "./lib/router";
 import { WORKSPACE_ID, api, type AdminUser } from "./lib/api";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
+import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
 import {
   publishAssistantDockState,
   subscribeToAssistantDockRequests,
@@ -400,13 +401,34 @@ export function App() {
     return subscribeToSettingsChanges(WORKSPACE_ID);
   }, [user]);
 
+  /**
+   * Signing in changes what this tab is allowed to READ, not just who it is — so every settings
+   * reader already mounted has to re-read.
+   *
+   * `useAdminLocale()` above is the visible casualty. It is called from this component, which
+   * mounts while the login screen is still showing, so its one-shot fetch resolves against a 401
+   * (no session yet), swallows it, and keeps `DEFAULT_LOCALE`. Its effect has no dependency that
+   * changes at login, so it never retries: the sidebar stayed English for the whole session no
+   * matter what `core.language.locale` said, and an operator who set another language — through
+   * the Settings dialog or by asking the assistant — saw the admin ignore it.
+   *
+   * The bus's unscoped "something moved, re-read" notification is exactly the right signal, and
+   * fixes the whole class rather than the locale alone: any settings reader that mounts before
+   * authentication has the same 401-at-mount problem. Same reasoning that already gates the change
+   * feed below on `user`; this is the read side of it.
+   */
+  function handleLogin(next: AdminUser) {
+    setUser(next);
+    publishSettingsRefresh();
+  }
+
   async function logout() {
     await api.logout().catch(() => undefined);
     setUser(null);
   }
 
   if (checking) return <div className="boot-screen">Loading Tovu…</div>;
-  if (!user) return <Login onLogin={setUser} />;
+  if (!user) return <Login onLogin={handleLogin} />;
 
   const content: ReactNode = renderRoute(route);
 
