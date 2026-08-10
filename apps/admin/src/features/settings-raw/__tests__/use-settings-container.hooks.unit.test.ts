@@ -64,10 +64,13 @@ function queueLocale() {
   vi.spyOn(api, "getSettingsEffective").mockResolvedValueOnce({ data: [] });
 }
 
-async function mountLoaded(rows: SettingResolvedValue[] = [row("theme", "dark", "default")]) {
+async function mountLoaded(
+  rows: SettingResolvedValue[] = [row("theme", "dark", "default")],
+  users?: AdminIdentityUser[],
+) {
   queueLocale();
   queueLoad(rows);
-  const view = renderHook(() => useSettingsContainer(baseProps()));
+  const view = renderHook(() => useSettingsContainer(baseProps(users ? { users } : {})));
   await waitFor(() => expect(view.result.current.isLoading).toBe(false));
   return view;
 }
@@ -171,18 +174,29 @@ describe("principal selection", () => {
   });
 
   it("reloads every already-loaded namespace when the target principal changes", async () => {
-    const view = await mountLoaded();
+    // Regression: this used to submit "alice" — `USER.principalId` ("p1"), which is also
+    // `baseProps().selfPrincipalId`. `effectivePrincipalId` is `targetPrincipalId ?? selfPrincipalId`,
+    // so setting `targetPrincipalId` to a value IDENTICAL to `selfPrincipalId` never actually changes
+    // `effectivePrincipalId`'s VALUE — it was already "p1" via the fallback. The hook's
+    // `useEffect(..., [effectivePrincipalId])` correctly sees no change and never re-fires, so the
+    // reload this test asserts on never happened: `getSettingsEffective` stayed at 0 calls and the
+    // `waitFor` below timed out. Not a timing flake — deterministic, since the two principals were
+    // never actually different. Fixed by giving the test a SECOND user whose principalId genuinely
+    // differs from self, so submitting it is a real principal change, the way the test's own name
+    // (and the codebase's `useSettingsContainer` `@complexity` doc line about this effect) describes.
+    const otherUser: AdminIdentityUser = { ...USER, principalId: "p2", username: "bob", email: "bob@example.com" };
+    const view = await mountLoaded(undefined, [USER, otherUser]);
     const getSettingsEffective = vi.spyOn(api, "getSettingsEffective").mockResolvedValue({ data: [] });
     // `useSettingsContainer` now also calls `useAdminLocale()`, which shares this same
     // `api.getSettingsEffective` spy (its own fetch just asks a different namespace) — drop the
     // mount's own calls before asserting, same pattern the `onLoadNamespace` test above uses.
     getSettingsEffective.mockClear();
 
-    act(() => view.result.current.onSubmitPrincipal("alice"));
+    act(() => view.result.current.onSubmitPrincipal("bob"));
 
     // The principal-change effect reloads `core.presentation` again — 2 more calls (with/without).
     await waitFor(() => expect(getSettingsEffective).toHaveBeenCalledTimes(2));
-    expect(getSettingsEffective).toHaveBeenCalledWith({ namespace: "core.presentation" }, { principalId: "p1" });
+    expect(getSettingsEffective).toHaveBeenCalledWith({ namespace: "core.presentation" }, { principalId: "p2" });
   });
 });
 

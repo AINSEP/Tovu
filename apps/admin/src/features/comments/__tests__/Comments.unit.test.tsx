@@ -16,6 +16,22 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
 
+/**
+ * Regression (2026-08-10): every `findByRole("button", { name: /actions for the comment by/i })`
+ * below used to rely on Testing Library's default `asyncUtilTimeout` (1000ms real wall-clock, no
+ * override anywhere in this app's `vitest.config.ts`/`setup.ts`). In isolation the permissions ->
+ * queue-fetch -> row-render chain this waits on resolves in a few milliseconds (every `fetch` here
+ * is a mocked, already-resolved promise, not real I/O) — but under the full suite's parallel
+ * worker-thread execution, CPU contention with sibling files occasionally pushed that past 1000ms
+ * of REAL time, producing a genuine intermittent timeout with no logic bug behind it (confirmed:
+ * always the identical failure at this exact `findByRole`, never any other assertion in this file;
+ * reliably green run alone, ~25% red when batched with over a dozen other suites). Raising the
+ * margin tolerates that contention without weakening the test: the underlying async work is still
+ * fundamentally bounded (mocked promises resolve on the next microtask, never hang), so a genuinely
+ * broken render still fails this assertion — just after up to 5s instead of 1s, not never.
+ */
+const ROW_MENU_TRIGGER_TIMEOUT = { timeout: 5000 };
+
 const FULL_PERMISSIONS = ["comments.read", "comments.moderate", "comments.delete", "comments.delete.force"];
 
 const PENDING_COMMENT = {
@@ -77,7 +93,7 @@ it("offers only Approve/Spam/Trash for a pending comment — no Restore, no Purg
 
   render(<Comments />);
 
-  const trigger = await screen.findByRole("button", { name: /actions for the comment by "jane"/i });
+  const trigger = await screen.findByRole("button", { name: /actions for the comment by "jane"/i }, ROW_MENU_TRIGGER_TIMEOUT);
   await user.click(trigger);
 
   expect(screen.getByRole("menuitem", { name: /^approve$/i })).toBeInTheDocument();
@@ -105,10 +121,10 @@ it("offers Purge only under the trash filter, and gates it through ConfirmDialog
 
   render(<Comments />);
 
-  await screen.findByRole("button", { name: /actions for the comment by "jane"/i });
+  await screen.findByRole("button", { name: /actions for the comment by "jane"/i }, ROW_MENU_TRIGGER_TIMEOUT);
   await user.selectOptions(screen.getByLabelText(/status/i), "trash");
 
-  const trigger = await screen.findByRole("button", { name: /actions for the comment by "jane"/i });
+  const trigger = await screen.findByRole("button", { name: /actions for the comment by "jane"/i }, ROW_MENU_TRIGGER_TIMEOUT);
   await user.click(trigger);
 
   expect(screen.getByRole("menuitem", { name: /^restore$/i })).toBeInTheDocument();
@@ -157,7 +173,7 @@ it("an owner holding only the wildcard grant still sees both the moderation queu
 
   render(<Comments />);
 
-  expect(await screen.findByRole("button", { name: /actions for the comment by "jane"/i })).toBeInTheDocument();
+  expect(await screen.findByRole("button", { name: /actions for the comment by "jane"/i }, ROW_MENU_TRIGGER_TIMEOUT)).toBeInTheDocument();
   expect(screen.queryByText(/you do not have permission to view the moderation queue/i)).not.toBeInTheDocument();
   expect(await screen.findByRole("checkbox", { name: /comments enabled/i })).toBeInTheDocument();
 });
