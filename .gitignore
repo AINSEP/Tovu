@@ -35,6 +35,9 @@ test-results/
 development/test-results-*/
 development/playwright-report/
 blob-report/
+# Regenerated-on-every-run screenshots (e.g. connectors-screenshot.spec.ts), not checked baselines
+# — those live under `*-snapshots/` above and stay committed. Same "artifact, not fixture" split.
+development/e2e/__screenshots__/
 
 # stray/local artifacts (do not track)
 admin-page.png
