@@ -1,10 +1,10 @@
-import type Database from "better-sqlite3";
 import { and, eq, inArray } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
 
 import type {
   MediaProviderCredentialRecord,
+  MediaProviderCredentialReplacePlanner,
   MediaProviderCredentialRepoPort,
 } from "../../media/provider-credential-store";
 import { mediaProviderCredentials } from "../schema";
@@ -21,16 +21,25 @@ import type { ContentDb } from "./content-db";
  * job); it only moves the DB's all-null-or-all-set shape (enforced by the table's CHECK) into and
  * out of `SealedSecret | null`.
  *
- * `transaction()` uses manual `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` against the raw better-sqlite3
- * handle (`db.$client`) rather than Drizzle's `db.transaction((tx) => ...)` wrapper — that wrapper
- * requires a *synchronous* callback (better-sqlite3 itself is synchronous), but
- * `saveMediaProviderCredentials`'s chokepoint callback does `await`ed repo calls. Manual BEGIN/COMMIT
- * is safe here because better-sqlite3 has no real async I/O: every call resolves on the same
- * microtask tick, so no other statement can interleave on this single connection between awaits.
- * Same precedent as `SqliteSettingsRepo.transaction`/`SqliteTaxonomyRepo.transaction`.
+ * `replaceWorkspace()` uses Drizzle's own `db.transaction((tx) => ...)` wrapper, which requires a
+ * *synchronous* callback (better-sqlite3 itself is synchronous). This file previously carried a
+ * manual `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` against the raw handle instead, because the caller's
+ * chokepoint callback made `await`ed repo calls — but every `await` inside an open transaction
+ * hands the event loop back while this single shared connection sits mid-transaction, so another
+ * queued continuation could read (or write) half-replaced state, and a second concurrent open
+ * failed outright with better-sqlite3's `cannot start a transaction within a transaction`. The port
+ * now takes a synchronous planner instead of an async callback, so the built-in wrapper fits and
+ * the interleaving window is gone by construction rather than by convention.
  */
 
 type Row = typeof mediaProviderCredentials.$inferSelect;
+
+/** The transaction handle Drizzle hands its synchronous callback. Structurally the same query
+ *  builder as `ContentDb`, which is why the private helpers below accept either. */
+type ContentDbTx = Parameters<Parameters<ContentDb["transaction"]>[0]>[0];
+
+/** Either the connection itself or an open transaction on it. */
+type Writer = Pick<ContentDb, "select" | "insert" | "delete"> | Pick<ContentDbTx, "select" | "insert" | "delete">;
 
 function toRecord(row: Row): MediaProviderCredentialRecord {
   const sealed =
@@ -52,82 +61,102 @@ function toRecord(row: Row): MediaProviderCredentialRecord {
   };
 }
 
+/** Reads one workspace's rows through `writer` — the connection, or an open transaction on it. */
+function selectByWorkspaceId(writer: Writer, workspaceId: UUID): MediaProviderCredentialRecord[] {
+  return writer
+    .select()
+    .from(mediaProviderCredentials)
+    .where(eq(mediaProviderCredentials.workspaceId, workspaceId))
+    .all()
+    .map(toRecord);
+}
+
+function upsertRow(writer: Writer, record: MediaProviderCredentialRecord): void {
+  const values = {
+    workspaceId: record.workspaceId,
+    providerId: record.providerId,
+    baseUrl: record.baseUrl,
+    model: record.model,
+    sealedKeyId: record.sealed?.keyId ?? null,
+    sealedCiphertext: record.sealed?.ciphertext ?? null,
+    sealedNonce: record.sealed?.nonce ?? null,
+    sealedAlg: record.sealed?.alg ?? null,
+    keyTail: record.keyTail,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  };
+  writer
+    .insert(mediaProviderCredentials)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [mediaProviderCredentials.workspaceId, mediaProviderCredentials.providerId],
+      set: values,
+    })
+    .run();
+}
+
+function deleteRows(writer: Writer, workspaceId: UUID, providerIds: readonly string[]): void {
+  // Guarded because Drizzle's `inArray` against an empty list compiles to `IN ()`, which is a
+  // SQLite syntax error rather than the zero-row match the port's "no-op on an empty list"
+  // contract promises.
+  if (providerIds.length === 0) return;
+  writer
+    .delete(mediaProviderCredentials)
+    .where(
+      and(
+        eq(mediaProviderCredentials.workspaceId, workspaceId),
+        inArray(mediaProviderCredentials.providerId, [...providerIds])
+      )
+    )
+    .run();
+}
+
 export class SqliteMediaProviderCredentialRepo implements MediaProviderCredentialRepoPort {
   constructor(private readonly db: ContentDb) {}
 
   async listByWorkspaceId(workspaceId: UUID): Promise<MediaProviderCredentialRecord[]> {
-    return this.db
-      .select()
-      .from(mediaProviderCredentials)
-      .where(eq(mediaProviderCredentials.workspaceId, workspaceId))
-      .all()
-      .map(toRecord);
+    return selectByWorkspaceId(this.db, workspaceId);
   }
 
   async upsert(record: MediaProviderCredentialRecord): Promise<void> {
-    const values = {
-      workspaceId: record.workspaceId,
-      providerId: record.providerId,
-      baseUrl: record.baseUrl,
-      model: record.model,
-      sealedKeyId: record.sealed?.keyId ?? null,
-      sealedCiphertext: record.sealed?.ciphertext ?? null,
-      sealedNonce: record.sealed?.nonce ?? null,
-      sealedAlg: record.sealed?.alg ?? null,
-      keyTail: record.keyTail,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-    };
-    this.db
-      .insert(mediaProviderCredentials)
-      .values(values)
-      .onConflictDoUpdate({
-        target: [mediaProviderCredentials.workspaceId, mediaProviderCredentials.providerId],
-        set: values,
-      })
-      .run();
+    upsertRow(this.db, record);
   }
 
   async deleteByProviderIds(input: { workspaceId: UUID; providerIds: readonly string[] }): Promise<void> {
-    // Guarded because Drizzle's `inArray` against an empty list compiles to `IN ()`, which is a
-    // SQLite syntax error rather than the zero-row match the port's "no-op on an empty list"
-    // contract promises.
-    if (input.providerIds.length === 0) return;
-    this.db
-      .delete(mediaProviderCredentials)
-      .where(
-        and(
-          eq(mediaProviderCredentials.workspaceId, input.workspaceId),
-          inArray(mediaProviderCredentials.providerId, [...input.providerIds])
-        )
-      )
-      .run();
+    deleteRows(this.db, input.workspaceId, input.providerIds);
   }
 
-  /** See this file's header for why manual `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK` is used instead of
-   *  Drizzle's synchronous `db.transaction()` wrapper.
+  /**
+   * Read, plan, and write the whole workspace inside one `BEGIN IMMEDIATE` transaction.
    *
-   *  Deliberately NOT reentrant — same rationale as `SqliteSettingsRepo.transaction`'s doc comment
-   *  (an instance-level depth counter cannot distinguish legitimate nesting from a second, unrelated
-   *  concurrent transaction). `saveMediaProviderCredentials` calls this exactly once per invocation.
+   * The callback Drizzle runs is synchronous end to end — the fresh read, the caller's planner, all
+   * upserts and the tombstone delete — so this connection is never handed back to the event loop
+   * while the transaction is open. That is the property the port promises and the reason the planner
+   * cannot be async (see this file's header, and
+   * `MediaProviderCredentialRepoPort.replaceWorkspace`).
    *
-   *  @complexity O(1) fixed overhead plus whatever `fn` itself costs.
-   *  @overallScore 100
+   * `behavior: "immediate"` preserves the write lock this path used to take explicitly: the read
+   * that feeds the planner is a read-for-update, so deferring the lock until the first write would
+   * let a second writer slip in behind it.
+   *
+   * Deliberately NOT reentrant — same rationale as `SqliteSettingsRepo.transaction`'s doc comment.
+   *
+   * @throws whatever `plan` throws, after the transaction has rolled back.
+   * @complexity O(n) statements for `n` submitted providers, plus one read and at most one delete.
+   * @overallScore 100
    */
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    // `$client` (the raw better-sqlite3 handle) exists at runtime on every `drizzle()`-constructed
-    // instance but isn't part of the exported `BetterSQLite3Database` class type `ContentDb`
-    // aliases — a known drizzle-orm typing gap (the property lives on the factory's return type, not
-    // the class). Cast narrowly, scoped to this one call site.
-    const client = (this.db as unknown as { $client: Database.Database }).$client;
-    client.exec("BEGIN IMMEDIATE");
-    try {
-      const result = await fn();
-      client.exec("COMMIT");
-      return result;
-    } catch (error) {
-      client.exec("ROLLBACK");
-      throw error;
-    }
+  async replaceWorkspace(input: {
+    workspaceId: UUID;
+    plan: MediaProviderCredentialReplacePlanner;
+  }): Promise<readonly MediaProviderCredentialRecord[]> {
+    return this.db.transaction(
+      (tx) => {
+        const { upserts, tombstoneProviderIds } = input.plan(selectByWorkspaceId(tx, input.workspaceId));
+        for (const record of upserts) upsertRow(tx, record);
+        deleteRows(tx, input.workspaceId, tombstoneProviderIds);
+        return upserts;
+      },
+      { behavior: "immediate" }
+    );
   }
 }

@@ -149,37 +149,179 @@ test("the CHECK constraint rejects a half-sealed row this adapter should never b
   );
 });
 
-test("transaction rolls back an upsert AND a delete when a later step in the same transaction throws (atomicity proof)", async () => {
+test("replaceWorkspace commits every upsert and the tombstone delete together", async () => {
   const repo = makeRepo();
   await repo.upsert(makeRecord({ providerId: "grok" }));
 
-  await assert.rejects(() =>
-    repo.transaction(async () => {
-      // Two writes representative of `saveMediaProviderCredentials`'s whole-map replace: an upsert
-      // for one provider, a delete for another.
-      await repo.upsert(makeRecord({ providerId: "openai", model: "dall-e-3" }));
-      await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["grok"] });
-      throw new Error("simulated failure after both writes, before commit");
-    })
+  const written = await repo.replaceWorkspace({
+    workspaceId: WORKSPACE,
+    plan: () => ({
+      upserts: [makeRecord({ providerId: "openai", model: "dall-e-3" })],
+      tombstoneProviderIds: ["grok"],
+    }),
+  });
+
+  assert.deepEqual(written.map((r) => r.providerId), ["openai"]);
+  const rows = await repo.listByWorkspaceId(WORKSPACE);
+  assert.deepEqual(rows.map((r) => r.providerId).sort(), ["openai"]);
+});
+
+test("replaceWorkspace rolls back writes it had already applied when a later write in the same transaction fails (atomicity proof)", async () => {
+  const repo = makeRepo();
+  await repo.upsert(makeRecord({ providerId: "grok", model: "kept" }));
+
+  await assert.rejects(
+    () =>
+      repo.replaceWorkspace({
+        workspaceId: WORKSPACE,
+        plan: () => ({
+          upserts: [
+            makeRecord({ providerId: "openai", model: "dall-e-3" }),
+            // `keyTail` with no ciphertext — the CHECK rejects this row, and it is planned AFTER a
+            // row the transaction has already written.
+            makeRecord({ providerId: "fal", keyTail: "1234" }),
+          ],
+          tombstoneProviderIds: ["grok"],
+        }),
+      }),
+    /CHECK constraint failed/
   );
 
   const rows = await repo.listByWorkspaceId(WORKSPACE);
   assert.deepEqual(
     rows.map((r) => r.providerId).sort(),
     ["grok"],
-    "neither the upsert nor the delete may survive a transaction that failed after both ran"
+    "the openai row written before the failure must roll back, and the planned tombstone must not be reached"
   );
+  assert.equal(rows[0]?.model, "kept");
 });
 
-test("transaction commits every write together when fn resolves", async () => {
+test("replaceWorkspace applies nothing when the planner itself throws", async () => {
   const repo = makeRepo();
-  await repo.upsert(makeRecord({ providerId: "grok" }));
+  await repo.upsert(makeRecord({ providerId: "grok", model: "kept" }));
 
-  await repo.transaction(async () => {
-    await repo.upsert(makeRecord({ providerId: "openai", model: "dall-e-3" }));
-    await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["grok"] });
+  await assert.rejects(
+    () =>
+      repo.replaceWorkspace({
+        workspaceId: WORKSPACE,
+        plan: () => {
+          throw new Error("planner refused");
+        },
+      }),
+    /planner refused/
+  );
+
+  assert.deepEqual((await repo.listByWorkspaceId(WORKSPACE)).map((r) => r.model), ["kept"]);
+});
+
+test("the planner is handed the rows as of the transaction, never a caller's earlier snapshot", async () => {
+  // The staleness half of the atomicity defect: the store used to read the workspace itself, merge
+  // against that snapshot, and only then open a transaction. Anything committed in between was
+  // overwritten by the merge. The read now lives inside the boundary.
+  const repo = makeRepo();
+  await repo.upsert(makeRecord({ providerId: "openai", model: "v1" }));
+  const staleSnapshot = await repo.listByWorkspaceId(WORKSPACE);
+  await repo.upsert(makeRecord({ providerId: "openai", model: "v2" }));
+
+  let seenByPlanner: string[] = [];
+  await repo.replaceWorkspace({
+    workspaceId: WORKSPACE,
+    plan: (existing) => {
+      seenByPlanner = existing.map((row) => `${row.providerId}:${row.model}`);
+      return { upserts: [], tombstoneProviderIds: [] };
+    },
   });
 
-  const rows = await repo.listByWorkspaceId(WORKSPACE);
-  assert.deepEqual(rows.map((r) => r.providerId).sort(), ["openai"]);
+  assert.deepEqual(staleSnapshot.map((r) => r.model), ["v1"]);
+  assert.deepEqual(seenByPlanner, ["openai:v2"], "the planner must see committed state, not the caller's older read");
+});
+
+test("replaceWorkspace never reads or tombstones another workspace's rows", async () => {
+  const repo = makeRepo();
+  await repo.upsert(makeRecord({ workspaceId: OTHER_WORKSPACE, providerId: "openai" }));
+  await repo.upsert(makeRecord({ workspaceId: WORKSPACE, providerId: "grok" }));
+
+  let seenByPlanner: string[] = [];
+  await repo.replaceWorkspace({
+    workspaceId: WORKSPACE,
+    plan: (existing) => {
+      seenByPlanner = existing.map((row) => row.providerId);
+      return { upserts: [], tombstoneProviderIds: ["grok", "openai"] };
+    },
+  });
+
+  assert.deepEqual(seenByPlanner, ["grok"]);
+  assert.deepEqual((await repo.listByWorkspaceId(OTHER_WORKSPACE)).map((r) => r.providerId), ["openai"]);
+  assert.deepEqual(await repo.listByWorkspaceId(WORKSPACE), []);
+});
+
+test("a reader polling on the shared connection can never observe a half-replaced map", async () => {
+  // Codex's live reproduction against better-sqlite3: the old `transaction()` awaited between each
+  // upsert and the tombstone delete, and because this connection is shared and synchronous, another
+  // queued continuation could run mid-transaction and read uncommitted, half-replaced state
+  // (`[a:new, b:old]`). `replaceWorkspace`'s body has no suspension point, so there is no turn of
+  // the event loop at which such a state exists.
+  const repo = makeRepo();
+  await repo.upsert(makeRecord({ providerId: "openai", model: "old" }));
+  await repo.upsert(makeRecord({ providerId: "grok", model: "old" }));
+
+  const modelsNow = async (): Promise<string> =>
+    (await repo.listByWorkspaceId(WORKSPACE))
+      .map((row) => `${row.providerId}:${row.model}`)
+      .sort()
+      .join(",");
+
+  let replacing = true;
+  const observations: string[] = [];
+  const observer = (async () => {
+    for (let turn = 0; turn < 5000 && replacing; turn += 1) {
+      observations.push(await modelsNow());
+      await Promise.resolve();
+    }
+  })();
+
+  await repo.replaceWorkspace({
+    workspaceId: WORKSPACE,
+    plan: () => ({
+      upserts: [
+        makeRecord({ providerId: "openai", model: "new" }),
+        makeRecord({ providerId: "grok", model: "new" }),
+      ],
+      tombstoneProviderIds: [],
+    }),
+  });
+  replacing = false;
+  await observer;
+
+  assert.ok(observations.length > 0);
+  for (const observed of observations) {
+    assert.ok(
+      observed === "grok:old,openai:old" || observed === "grok:new,openai:new",
+      `uncommitted half-replaced state was observable: ${observed}`
+    );
+  }
+});
+
+test("an async planner smuggled past the type system fails closed instead of reopening the interleaving window", async () => {
+  // `MediaProviderCredentialReplacePlanner` forbids a promise return, which is the primary defence.
+  // This pins the runtime behaviour behind it: a planner cast past that type does not quietly write
+  // a partial map or leave the transaction hanging open — it aborts and rolls back.
+  const repo = makeRepo();
+  await repo.upsert(makeRecord({ providerId: "grok", model: "kept" }));
+
+  await assert.rejects(() =>
+    repo.replaceWorkspace({
+      workspaceId: WORKSPACE,
+      plan: (async () => ({
+        upserts: [makeRecord({ providerId: "openai" })],
+        tombstoneProviderIds: ["grok"],
+      })) as unknown as Parameters<typeof repo.replaceWorkspace>[0]["plan"],
+    })
+  );
+
+  assert.deepEqual((await repo.listByWorkspaceId(WORKSPACE)).map((r) => r.providerId), ["grok"]);
+
+  // ...and the connection is usable afterwards, proving the aborted transaction really closed.
+  await repo.upsert(makeRecord({ providerId: "openai" }));
+  assert.deepEqual((await repo.listByWorkspaceId(WORKSPACE)).map((r) => r.providerId).sort(), ["grok", "openai"]);
 });

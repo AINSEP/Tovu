@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryKeyring } from "../../integrations/keyring.memory";
-import type { KeyringPort } from "../../integrations/ports";
+import type { KeyringPort, SecretSealerPort } from "../../integrations/ports";
 import { AesGcmSecretSealer } from "../../integrations/secret-sealer.aesgcm";
 import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory";
 import {
@@ -231,7 +231,7 @@ test("an empty map clears every provider and reads back empty", async () => {
   assert.deepEqual(await getMediaProviderCredentials({ repo }, { workspaceId: WORKSPACE }), {});
 });
 
-test("the whole-map replace's writes (every upsert and the tombstone delete) happen strictly inside deps.repo.transaction() — never before it opens", async () => {
+test("every read AND write of the whole-map replace happens strictly inside deps.repo.replaceWorkspace() — nothing runs before it opens", async () => {
   const { deps } = makeDeps();
   await saveMediaProviderCredentials(deps, {
     workspaceId: WORKSPACE,
@@ -239,12 +239,15 @@ test("the whole-map replace's writes (every upsert and the tombstone delete) hap
   });
 
   const calls: string[] = [];
-  // Wraps the real in-memory repo, recording call order and refusing to open a transaction — proves
-  // `saveMediaProviderCredentials` routes every upsert/delete through `transaction()` rather than
-  // calling them directly on `deps.repo` (which would defeat the atomicity fix even though the port
-  // now exposes `transaction()`).
+  // Wraps the real in-memory repo, recording call order and refusing to open the replace. Proves
+  // two things at once: no upsert/delete runs outside the transaction, and — the part that matters
+  // for the rotation-resurrection defect — the store no longer takes its own `listByWorkspaceId`
+  // snapshot beforehand. A pre-read here would be a staleness window no transaction can close.
   const guardedRepo = {
-    listByWorkspaceId: (workspaceId: string) => deps.repo.listByWorkspaceId(workspaceId),
+    listByWorkspaceId: (workspaceId: string) => {
+      calls.push("listByWorkspaceId");
+      return deps.repo.listByWorkspaceId(workspaceId);
+    },
     upsert: (record: Parameters<typeof deps.repo.upsert>[0]) => {
       calls.push(`upsert:${record.providerId}`);
       return deps.repo.upsert(record);
@@ -253,9 +256,9 @@ test("the whole-map replace's writes (every upsert and the tombstone delete) hap
       calls.push("deleteByProviderIds");
       return deps.repo.deleteByProviderIds(input);
     },
-    transaction: async <T>(): Promise<T> => {
-      calls.push("transaction:refused");
-      throw new Error("simulated transaction-open failure — no writes should have happened yet");
+    replaceWorkspace: async (): Promise<never> => {
+      calls.push("replaceWorkspace:refused");
+      throw new Error("simulated transaction-open failure — no reads or writes should have happened yet");
     },
   };
 
@@ -267,9 +270,153 @@ test("the whole-map replace's writes (every upsert and the tombstone delete) hap
     /simulated transaction-open failure/
   );
 
-  assert.deepEqual(calls, ["transaction:refused"], "upsert/deleteByProviderIds must never run outside the transaction");
+  assert.deepEqual(
+    calls,
+    ["replaceWorkspace:refused"],
+    "listByWorkspaceId/upsert/deleteByProviderIds must never run outside replaceWorkspace"
+  );
 
-  // And the pre-existing row is untouched, proving nothing leaked around the guarded transaction.
+  // And the pre-existing row is untouched, proving nothing leaked around the guarded replace.
   const after = await getMediaProviderCredentials({ repo: deps.repo }, { workspaceId: WORKSPACE });
   assert.deepEqual(after, { grok: { apiKeyConfigured: true, apiKeyTail: "4444" } });
+});
+
+/** A sealer whose `seal` parks on a caller-released gate — the one async step
+ *  `saveMediaProviderCredentials` performs before it writes, and therefore the only place a
+ *  concurrent save can be made to interleave deterministically. */
+class GatedSealer implements SecretSealerPort {
+  constructor(
+    private readonly inner: SecretSealerPort,
+    private readonly gate: Promise<void>
+  ) {}
+
+  async seal(input: Parameters<SecretSealerPort["seal"]>[0]) {
+    await this.gate;
+    return this.inner.seal(input);
+  }
+
+  open(input: Parameters<SecretSealerPort["open"]>[0]) {
+    return this.inner.open(input);
+  }
+}
+
+test("a metadata-only save cannot resurrect a key that another save rotated while it was sealing", async () => {
+  // The second half of the atomicity defect: `saveMediaProviderCredentials` used to read the
+  // workspace's rows BEFORE opening its transaction, then write a merge built from that snapshot.
+  // A provider whose entry carries no `apiKey` keeps the key from that snapshot — so a rotation
+  // that committed in the window between the read and the write was silently reverted by a save
+  // that never intended to touch the key at all.
+  const { repo, deps } = makeDeps();
+  await saveMediaProviderCredentials(deps, {
+    workspaceId: WORKSPACE,
+    providers: { openai: { apiKey: "sk-alpha-1111" } },
+  });
+
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const gatedDeps = { ...deps, sealer: new GatedSealer(deps.sealer, gate) };
+
+  // Metadata-only for `openai`, a genuinely new key for `grok`. Sealing grok's key parks on the
+  // gate, holding this save open across the rotation below.
+  const slowSave = saveMediaProviderCredentials(gatedDeps, {
+    workspaceId: WORKSPACE,
+    providers: { openai: { model: "dall-e-3" }, grok: { apiKey: "xai-new-3333" } },
+  });
+
+  // Meanwhile an admin rotates openai's key, and that save commits in full.
+  await saveMediaProviderCredentials(deps, {
+    workspaceId: WORKSPACE,
+    providers: { openai: { apiKey: "sk-beta-9999" } },
+  });
+
+  release();
+  const written = await slowSave;
+
+  assert.equal(written.openai?.apiKeyTail, "9999", "the rotation that committed mid-flight must survive");
+
+  const rows = await repo.listByWorkspaceId(WORKSPACE);
+  const openai = rows.find((row) => row.providerId === "openai");
+  assert.notEqual(openai?.sealed, null);
+  assert.equal(
+    await deps.sealer.open({ sealed: openai!.sealed! }),
+    "sk-beta-9999",
+    "the stored ciphertext must be the rotated key, not the one this save read before it started"
+  );
+  assert.deepEqual(await getMediaProviderCredentials({ repo }, { workspaceId: WORKSPACE }), {
+    openai: { model: "dall-e-3", apiKeyConfigured: true, apiKeyTail: "9999" },
+    grok: { apiKeyConfigured: true, apiKeyTail: "3333" },
+  });
+});
+
+test("a reader polling throughout a save never observes a half-replaced map", async () => {
+  // Codex's reproduction of the same defect from the other side: the old transaction body awaited
+  // between each upsert and the tombstone delete, so a continuation queued on the shared connection
+  // could observe `[a:new, b:old]` — a map that was never a valid state of this workspace.
+  const { repo, deps } = makeDeps();
+  await saveMediaProviderCredentials(deps, {
+    workspaceId: WORKSPACE,
+    providers: { openai: { apiKey: "sk-old-1111" }, grok: { apiKey: "xai-old-2222" } },
+  });
+
+  const tailsNow = async (): Promise<string> => {
+    const map = await getMediaProviderCredentials({ repo }, { workspaceId: WORKSPACE });
+    return Object.keys(map)
+      .sort()
+      .map((id) => `${id}:${map[id]?.apiKeyTail}`)
+      .join(",");
+  };
+  const BEFORE = "grok:2222,openai:1111";
+  const AFTER = "grok:4444,openai:3333";
+
+  let saving = true;
+  const observations: string[] = [];
+  const observer = (async () => {
+    for (let turn = 0; turn < 5000 && saving; turn += 1) {
+      observations.push(await tailsNow());
+      await Promise.resolve();
+    }
+  })();
+
+  await saveMediaProviderCredentials(deps, {
+    workspaceId: WORKSPACE,
+    providers: { openai: { apiKey: "sk-new-3333" }, grok: { apiKey: "xai-new-4444" } },
+  });
+  saving = false;
+  await observer;
+
+  assert.ok(observations.length > 1, "the observer must actually have run while the save was in flight");
+  for (const observed of observations) {
+    assert.ok(
+      observed === BEFORE || observed === AFTER,
+      `a half-replaced map was observable mid-save: ${observed}`
+    );
+  }
+});
+
+test("the in-memory adapter stages its writes: a planner that throws leaves storage exactly as it was", async () => {
+  // Rollback proof for the test double itself. Without staging, the upserts applied before the
+  // failure would survive, and no test against this adapter could tell a real transaction from a
+  // passthrough.
+  const { repo, deps } = makeDeps();
+  await saveMediaProviderCredentials(deps, {
+    workspaceId: WORKSPACE,
+    providers: { openai: { apiKey: "sk-kept-1111" } },
+  });
+
+  await assert.rejects(
+    () =>
+      repo.replaceWorkspace({
+        workspaceId: WORKSPACE,
+        plan: () => {
+          throw new Error("planner refused");
+        },
+      }),
+    /planner refused/
+  );
+
+  assert.deepEqual(await getMediaProviderCredentials({ repo }, { workspaceId: WORKSPACE }), {
+    openai: { apiKeyConfigured: true, apiKeyTail: "1111" },
+  });
 });

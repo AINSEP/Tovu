@@ -40,6 +40,27 @@ export interface MediaProviderCredentialRecord {
   updatedAt: ISODateTime;
 }
 
+/** Every write one whole-map replace performs, derived from the rows the replace itself just read. */
+export interface MediaProviderCredentialReplacePlan {
+  /** Rows to write, in submission order. Already merged against the rows the planner was handed. */
+  upserts: readonly MediaProviderCredentialRecord[];
+  /** Ids to delete — providers the payload omitted. May be empty. */
+  tombstoneProviderIds: readonly string[];
+}
+
+/**
+ * Turns the workspace's CURRENT rows into the writes that replace them.
+ *
+ * MUST be synchronous and free of I/O. That is the whole point: `replaceWorkspace` invokes this
+ * between its own read and its own writes, inside an open transaction, so a planner that awaited
+ * anything would hand the event loop back mid-transaction — which is precisely the defect this
+ * signature exists to make unrepresentable (see {@link MediaProviderCredentialRepoPort.replaceWorkspace}).
+ * The return type is not a promise, so an `async` planner cannot type-check.
+ */
+export type MediaProviderCredentialReplacePlanner = (
+  existing: readonly MediaProviderCredentialRecord[]
+) => MediaProviderCredentialReplacePlan;
+
 /** Workspace-scoped persistence for {@link MediaProviderCredentialRecord} (ADR-007 §1). Multi-row
  *  per workspace, unlike the two single-row credential stores, so the port needs a list read and a
  *  bulk delete rather than a single find and a `clearKey`. */
@@ -49,16 +70,28 @@ export interface MediaProviderCredentialRepoPort {
   /** Idempotent: ids with no row are skipped, not an error. A no-op on an empty list. */
   deleteByProviderIds(input: { workspaceId: UUID; providerIds: readonly string[] }): Promise<void>;
   /**
-   * Runs `fn` as one atomic unit against this port's storage. `saveMediaProviderCredentials`'s
-   * whole-map replace is N `upsert()` calls followed by one `deleteByProviderIds()` call, not a
-   * single write — without a shared transaction, a crash (or a concurrent `listByWorkspaceId` read)
-   * between those calls could observe a half-replaced map: some providers already updated to their
-   * new values, the tombstoned ones not yet deleted. Same contract as every other `transaction()`
-   * port in this codebase (`SettingsRepoPort`, `NewsletterCampaignRepoPort`, taxonomy's
-   * `TransactionalRepoPort`): commits iff `fn` resolves, rolls back and rethrows iff `fn` rejects.
+   * READ-PLAN-WRITE for the whole workspace, as one atomic unit: reads the workspace's current
+   * rows, calls `plan` with them, then applies that plan's upserts and tombstone deletes. Commits
+   * iff every step succeeds; rolls back and rethrows if `plan` throws or any write fails.
+   *
+   * The read lives INSIDE the boundary on purpose. `saveMediaProviderCredentials` merges each
+   * submitted entry against the stored row (an entry with no `apiKey` keeps the stored key, and
+   * `createdAt` is preserved), so a read taken before the boundary opens can be stale by the time
+   * the merge is written: a concurrent rotation landing in that window would be silently reverted
+   * by a metadata-only save that re-wrote the key it had read a moment earlier.
+   *
+   * `plan` is synchronous by type, which is the second half of the fix — see
+   * {@link MediaProviderCredentialReplacePlanner}. Everything that must await (sealing a new key)
+   * happens before this method is called.
+   *
    * Not reentrant — callers invoke this exactly once, at the outermost level of their own body.
+   *
+   * @returns the rows written, exactly as the plan supplied them.
    */
-  transaction<T>(fn: () => Promise<T>): Promise<T>;
+  replaceWorkspace(input: {
+    workspaceId: UUID;
+    plan: MediaProviderCredentialReplacePlanner;
+  }): Promise<readonly MediaProviderCredentialRecord[]>;
 }
 
 /**
@@ -202,6 +235,13 @@ function assertValidEntry(providerId: string, entry: MediaProviderCredentialInpu
  * leave the workspace half-rewritten — the alternative, sealing inside the write loop, would delete
  * some providers and abort before writing the rest.
  *
+ * Sealing up front is also what lets the merge itself be synchronous: this function hands
+ * `replaceWorkspace` a plain function of the workspace's CURRENT rows, and the repo runs that read,
+ * that merge, and every resulting write inside one transaction with no suspension point in between.
+ * Reading the stored rows out here instead — the shape this function used to have — reintroduces a
+ * window in which a concurrent rotation lands between the read and the write and is then reverted by
+ * this call's own merge, because a metadata-only entry re-writes the sealed key it read.
+ *
  * @throws {MediaProviderCredentialValidationError} `providers` is not an object, names an unknown
  *   provider id, or carries a non-string/oversized `apiKey`/`baseUrl`/`model`.
  * @throws {MediaProviderCredentialSecretStoreUnconfiguredError} a new key was supplied but the
@@ -222,11 +262,10 @@ export async function saveMediaProviderCredentials(
   const entries = Object.entries(providers);
   for (const [providerId, entry] of entries) assertValidEntry(providerId, entry);
 
-  const existingRows = await deps.repo.listByWorkspaceId(input.workspaceId);
-  const existingByProviderId = new Map(existingRows.map((row) => [row.providerId, row]));
   const now = deps.clock.nowIso();
 
-  // Seal every new key BEFORE any write — see this function's doc for why the order matters.
+  // Seal every new key BEFORE any write — see this function's doc for why the order matters, and
+  // why this is the ONLY async step left before the transaction opens.
   const sealedByProviderId = new Map<string, { sealed: SealedSecret; keyTail: string }>();
   for (const [providerId, entry] of entries) {
     const apiKey = entry.apiKey?.trim();
@@ -244,16 +283,16 @@ export async function saveMediaProviderCredentials(
     }
   }
 
-  // Every upsert AND the tombstone delete land as one atomic transaction — see
-  // `MediaProviderCredentialRepoPort.transaction`'s doc for why: this is a multi-row whole-map
-  // replace (N upserts + 1 bulk delete), and without a shared transaction a crash or a concurrent
-  // `listByWorkspaceId` read between those calls could observe a half-replaced map.
-  const written = await deps.repo.transaction(async () => {
-    const written: MediaProviderCredentialRecord[] = [];
-    for (const [providerId, entry] of entries) {
+  const submittedIds = new Set(entries.map(([providerId]) => providerId));
+
+  /** Merges the submitted payload against whatever rows the transaction just read. Synchronous and
+   *  pure by contract — it runs inside the open transaction. */
+  const plan: MediaProviderCredentialReplacePlanner = (existingRows) => {
+    const existingByProviderId = new Map(existingRows.map((row) => [row.providerId, row]));
+    const upserts = entries.map(([providerId, entry]) => {
       const existing = existingByProviderId.get(providerId);
       const freshlySealed = sealedByProviderId.get(providerId);
-      const record: MediaProviderCredentialRecord = {
+      return {
         workspaceId: input.workspaceId,
         providerId,
         baseUrl: trimmedOrNull(entry.baseUrl),
@@ -262,17 +301,15 @@ export async function saveMediaProviderCredentials(
         keyTail: freshlySealed?.keyTail ?? existing?.keyTail ?? null,
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
-      };
-      await deps.repo.upsert(record);
-      written.push(record);
-    }
+      } satisfies MediaProviderCredentialRecord;
+    });
+    return {
+      upserts,
+      tombstoneProviderIds: existingRows
+        .map((row) => row.providerId)
+        .filter((providerId) => !submittedIds.has(providerId)),
+    };
+  };
 
-    const submittedIds = new Set(entries.map(([providerId]) => providerId));
-    const tombstoned = existingRows.map((row) => row.providerId).filter((providerId) => !submittedIds.has(providerId));
-    await deps.repo.deleteByProviderIds({ workspaceId: input.workspaceId, providerIds: tombstoned });
-
-    return written;
-  });
-
-  return toMap(written);
+  return toMap(await deps.repo.replaceWorkspace({ workspaceId: input.workspaceId, plan }));
 }
