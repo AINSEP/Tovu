@@ -798,3 +798,71 @@ test("renderSite (Slice 2, media): a malformed media-image IR (missing assetId �
   assert.doesNotMatch(html, /<img/);
   assert.match(html, /widget-placeholder/);
 });
+
+/**
+ * Heading anchors (docs sidebar, 2026-08-10). A menu of `#anchor` links is inert unless the rendered
+ * headings carry matching ids, and until now `renderDocNode` emitted a bare `<hN>` — so every
+ * in-page anchor on the site pointed at nothing. Additive: an `id` changes no rendering, only what
+ * a link can target.
+ */
+
+function headingDoc(...headings: Array<[string, number]>): JsonObject {
+  return {
+    type: "doc",
+    content: headings.map(([text, level]) => ({
+      type: "heading",
+      attrs: { level },
+      content: [{ type: "text", text }],
+    })),
+  };
+}
+
+test("renderDocNode: headings get a slugified id an in-page anchor can target", () => {
+  const html = renderDocNode(headingDoc(["Getting Started", 2], ["What is a theme?", 3]));
+  assert.ok(html.includes('<h2 id="getting-started">Getting Started</h2>'));
+  assert.ok(html.includes('<h3 id="what-is-a-theme">What is a theme?</h3>'));
+});
+
+test("renderDocNode: the anchor slug matches post.ts's slugify dialect, not a second one", () => {
+  // Same rule: lowercase, every non-alphanumeric run collapses to one dash, edges trimmed.
+  const html = renderDocNode(headingDoc(["C++ & Rust — a Comparison!", 2]));
+  assert.ok(html.includes('id="c-rust-a-comparison"'), html);
+});
+
+test("renderDocNode: repeated headings are suffixed within one document, first one unsuffixed", () => {
+  const html = renderDocNode(headingDoc(["Overview", 2], ["Overview", 2], ["Overview", 3]));
+  assert.ok(html.includes('<h2 id="overview">'));
+  assert.ok(html.includes('<h2 id="overview-2">'));
+  assert.ok(html.includes('<h3 id="overview-3">'));
+});
+
+test("renderDocNode: dedupe is per-document — two documents may each own the same anchor", () => {
+  const a = renderDocNode(headingDoc(["Overview", 2]));
+  const b = renderDocNode(headingDoc(["Overview", 2]));
+  assert.equal(a, b, "a second post's #overview must not inherit the first post's suffix");
+  assert.ok(a.includes('id="overview"'));
+});
+
+test("renderDocNode: a heading whose text slugifies to nothing gets no id, never id=\"\"", () => {
+  const html = renderDocNode(headingDoc(["🎉", 2], ["...", 2]));
+  assert.ok(!html.includes('id=""'));
+  assert.ok(html.includes("<h2>🎉</h2>"));
+});
+
+test("renderDocNode: the slug comes from the heading's text, ignoring inline marks", () => {
+  const html = renderDocNode({
+    type: "doc",
+    content: [
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [
+          { type: "text", text: "Design ", marks: [{ type: "bold" }] },
+          { type: "text", text: "tokens" },
+        ],
+      },
+    ],
+  });
+  assert.ok(html.includes('<h2 id="design-tokens">'), html);
+  assert.ok(html.includes("<strong>Design </strong>"), "the visible markup is untouched");
+});
