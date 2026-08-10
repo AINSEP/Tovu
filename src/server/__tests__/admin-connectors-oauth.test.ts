@@ -131,6 +131,66 @@ test("connect returns a redirect and registers a callback carrying an OAuth stat
   assert.equal(statuses.github?.status, "available");
 });
 
+test("the callback URL is built as https:// when a reverse proxy reports X-Forwarded-Proto: https, even though the test server itself only speaks http", async (t) => {
+  // Regression test: `resolvePublicOrigin` used to build the callback origin from `req.protocol`
+  // alone, which Express only derives from a forwarded header when `app.set('trust proxy', ...)`
+  // is configured — and this app deliberately never sets that. Behind a TLS-terminating reverse
+  // proxy, every callback URL would therefore be minted as `http://...` even though the real
+  // public endpoint is `https://`: broken (nothing may be listening on plain HTTP externally) and
+  // a downgrade of a URL meant to be HTTPS.
+  const h = await boot(t);
+
+  const res = await fetch(`${h.baseUrl}${BASE}/github/connect`, {
+    method: "POST",
+    headers: { cookie: h.cookie, "x-forwarded-proto": "https" },
+  });
+  assert.equal(res.status, 200, `connect failed: ${await res.clone().text()}`);
+
+  const callbackUrl = h.fake.lastCallbackUrl ?? "";
+  assert.ok(
+    callbackUrl.startsWith("https://"),
+    `expected an https callback URL honoring X-Forwarded-Proto, got: ${callbackUrl}`
+  );
+});
+
+test("the callback URL stays http:// with no forwarded-proto header — no proxy means req.protocol is already correct", async (t) => {
+  const h = await boot(t);
+  await beginConnect(h);
+
+  const callbackUrl = h.fake.lastCallbackUrl ?? "";
+  assert.ok(callbackUrl.startsWith("http://"), `expected the unproxied default, got: ${callbackUrl}`);
+});
+
+test("connect is rate-limited per client IP — the 13th attempt within the window is rejected 429 before any outbound Composio call", async (t) => {
+  // Regression test: `POST .../connect` triggers a real outbound call to Composio
+  // (`ComposioConnectorProvider.connect`) on every hit and previously had no rate limit of its
+  // own — only session auth, which bounds WHO can call it, not how often. A retry storm (a
+  // double-clicked button, a buggy client retry loop, or a misbehaving script reusing a valid
+  // session) could drive unbounded outbound load against the workspace's single shared Composio
+  // project key, risking Composio rate-limiting or blocking that key — a self-inflicted denial of
+  // service against every admin in the workspace. `CONNECTOR_CONNECT_PER_IP` closes that: 10
+  // requests + 2 burst = 12 allowed per 60s window per client IP.
+  const h = await boot(t);
+
+  for (let i = 0; i < 12; i++) {
+    const res = await fetch(`${h.baseUrl}${BASE}/github/connect`, { method: "POST", headers: { cookie: h.cookie } });
+    assert.equal(res.status, 200, `attempt ${i + 1} should reach Composio, not the limiter: ${await res.clone().text()}`);
+  }
+
+  const thirteenth = await fetch(`${h.baseUrl}${BASE}/github/connect`, { method: "POST", headers: { cookie: h.cookie } });
+  assert.equal(thirteenth.status, 429);
+  const body = (await thirteenth.json()) as { code: string; details: { retryAfterSeconds: number } };
+  assert.equal(body.code, "RATE_LIMIT_EXCEEDED");
+  assert.ok(Number.isInteger(body.details.retryAfterSeconds) && body.details.retryAfterSeconds > 0);
+  assert.equal(thirteenth.headers.get("retry-after"), String(body.details.retryAfterSeconds));
+
+  // The count the fake server actually received must match — the limiter has to run BEFORE the
+  // outbound call, not just before the response, or the "self-DoS against Composio" it exists to
+  // prevent would still happen even while the caller sees 429s.
+  const linkRequests = h.fake.requests.filter((p) => p.includes("connected_accounts/link"));
+  assert.equal(linkRequests.length, 12, "the 13th, rate-limited attempt must never reach Composio");
+});
+
 test("the callback completes the handshake WITHOUT a session and seals the credentials", async (t) => {
   const h = await boot(t);
   const { state } = await beginConnect(h);

@@ -126,6 +126,29 @@ export const CONNECTOR_CALLBACK_PER_IP: RateLimitProfile = {
   burst: 5,
 };
 
+/**
+ * `POST .../connectors/:connectorId/connect` (`routes/admin/connectors/connect.ts`) requires an
+ * admin session, but session auth alone does not bound how often it can be called: every hit
+ * prunes the provider's pending-state map and then makes a REAL outbound call to Composio
+ * (`ComposioConnectorProvider.connect`, minting/looking up an auth config and creating a connected-
+ * account link) before this process ever sees a callback. A retry storm — a double-clicked
+ * "Connect" button, a buggy client-side retry loop, or a misbehaving script reusing a valid session
+ * — can drive an unbounded burst of these against Composio's own API using the workspace's single
+ * shared project key. Composio rate-limiting or provisionally blocking that key in response would
+ * be a self-inflicted denial of service against every admin in the workspace, not just the caller
+ * who triggered it — the same class of harm {@link CONNECTOR_CALLBACK_PER_IP} was already guarding
+ * on the public callback side, just unguarded here because this route sits behind
+ * `requireAdminSession` and was assumed safe on that basis alone. Keyed by `resolveClientIp(req)`,
+ * matching every other limiter in this file; an authenticated caller does not need a higher-fidelity
+ * key (e.g. principal id) for this to be effective, since the abuse shape is "one client hammering
+ * one connection attempt," not cross-admin collision.
+ */
+export const CONNECTOR_CONNECT_PER_IP: RateLimitProfile = {
+  windowSeconds: 60,
+  max: 10,
+  burst: 2,
+};
+
 /** Outcome of a single `checkRateLimit` call. */
 export type RateLimitResult =
   | { allowed: true }
