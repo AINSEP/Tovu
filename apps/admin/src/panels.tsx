@@ -27,6 +27,7 @@ import { Recovery } from "./features/recovery";
 import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "./features/widgets";
 import { Workspace } from "./features/workspace";
 import { AiAssistant } from "./features/ai-assistant";
+import { Playground } from "./features/playground";
 
 /**
  * @file The single declaration of every Tovu admin section — one `AdminPanel` per screen, in one
@@ -437,6 +438,19 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       // four-equal-squares icon at a glance in the icon-only rail.
       icon: '<rect x="2.5" y="2.5" width="6" height="6" rx="1"/><rect x="9.5" y="2.5" width="6" height="6" rx="3"/><rect x="2.5" y="9.5" width="6" height="6" rx="3"/><rect x="9.5" y="9.5" width="6" height="6" rx="1"/>',
     },
+  },
+  {
+    id: "playground",
+    // Not `soon: true`, unlike Skills/Design System above — this one is real: a live A2UI surface
+    // over `@jini-ai/ui`'s `interactive-ui` registry. See `features/playground/Playground.tsx`'s
+    // own header for exactly what does and doesn't work yet (not wired to chat).
+    render: () => <Playground />,
+    nav: {
+      label: "Playground",
+      group: "Studio",
+      icon: '<path d="M4 3h10v3H4zM4 9h10v6H4z"/><circle cx="6.5" cy="12" r="1"/>',
+    },
+    agentReachable: true,
   },
 
   // --- Plugins ---

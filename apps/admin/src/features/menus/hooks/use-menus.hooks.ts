@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useState } from "react";
 import { api, type AdminMenu } from "../../../lib/api";
 
 /**
@@ -13,15 +13,12 @@ import { api, type AdminMenu } from "../../../lib/api";
 export interface MenusController {
   menus: AdminMenu[] | null;
   error: string | null;
-  locationDrafts: Record<string, string>;
-  setLocationDrafts: Dispatch<SetStateAction<Record<string, string>>>;
   /** The already-trashed menu a force-delete click is asking to confirm — `null` when the dialog
    *  is closed. `ConfirmDialog` stays mounted unconditionally in the view (see its own doc comment
    *  on why); this is what drives its `open` prop. */
   pendingForceDelete: AdminMenu | null;
   setPendingForceDelete: (menu: AdminMenu | null) => void;
   forceDeleting: boolean;
-  assign: (menuId: string) => Promise<void>;
   trashOrPurge: (menu: AdminMenu) => Promise<void>;
   confirmForceDelete: () => Promise<void>;
 }
@@ -29,7 +26,6 @@ export interface MenusController {
 export function useMenus(): MenusController {
   const [menus, setMenus] = useState<AdminMenu[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [locationDrafts, setLocationDrafts] = useState<Record<string, string>>({});
   const [pendingForceDelete, setPendingForceDelete] = useState<AdminMenu | null>(null);
   const [forceDeleting, setForceDeleting] = useState(false);
 
@@ -41,19 +37,6 @@ export function useMenus(): MenusController {
   }
 
   useEffect(load, []);
-
-  async function assign(menuId: string) {
-    const locationKey = (locationDrafts[menuId] ?? "").trim();
-    if (!locationKey) return;
-    setError(null);
-    try {
-      await api.assignMenuLocation({ id: menuId, locationKey });
-      setLocationDrafts((prev) => ({ ...prev, [menuId]: "" }));
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "assign failed");
-    }
-  }
 
   /** Trashing an active menu still needs no confirmation (unchanged). Permanently deleting an
    *  already-trashed one now gates via a `ConfirmDialog` modal (`setPendingForceDelete` below)
@@ -92,12 +75,9 @@ export function useMenus(): MenusController {
   return {
     menus,
     error,
-    locationDrafts,
-    setLocationDrafts,
     pendingForceDelete,
     setPendingForceDelete,
     forceDeleting,
-    assign,
     trashOrPurge,
     confirmForceDelete,
   };

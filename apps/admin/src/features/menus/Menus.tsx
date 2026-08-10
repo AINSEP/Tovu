@@ -16,12 +16,9 @@ export function Menus() {
   const {
     menus,
     error,
-    locationDrafts,
-    setLocationDrafts,
     pendingForceDelete,
     setPendingForceDelete,
     forceDeleting,
-    assign,
     trashOrPurge,
     confirmForceDelete,
   } = useMenus();
@@ -37,7 +34,7 @@ export function Menus() {
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">{t("Menus")}</h1>
-          <p className="page-description">{t("Build navigation menus and assign them to your theme's menu locations.")}</p>
+          <p className="page-description">{t("Build navigation menus for your theme's header and footer.")}</p>
         </div>
         <div className="page-actions">
           <a href="/admin/menus/new">
@@ -65,28 +62,6 @@ export function Menus() {
             header: t("Status"),
             cell: (menu) => <span className={`status status-${menu.status}`}>{menu.status}</span>,
           },
-          {
-            key: "locations",
-            header: t("Locations"),
-            cell: (menu) => (menu.locations.length ? menu.locations.join(", ") : "—"),
-          },
-          {
-            key: "assign-location",
-            header: t("Assign location"),
-            cell: (menu) => (
-              <>
-                <input
-                  value={locationDrafts[menu.id] ?? ""}
-                  onChange={(e) =>
-                    setLocationDrafts((prev) => ({ ...prev, [menu.id]: e.target.value }))
-                  }
-                  placeholder="e.g. primary"
-                />
-                <button onClick={() => assign(menu.id)}>{t("Assign")}</button>
-              </>
-            ),
-          },
-          { key: "version", header: "v", cell: (menu) => menu.version },
           {
             key: "actions",
             headerLabel: t("Actions"),

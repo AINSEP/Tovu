@@ -32,9 +32,12 @@ const DRAFT_POST = {
 const DRAFT_PAGE = { ...DRAFT_POST, id: "pg1", kind: "page" as const, title: "About", slug: "about" };
 
 let fetchMock: ReturnType<typeof vi.fn>;
+/** Per-test override for the active theme's `postTemplate` list; `[]` disables the picker. */
+let activeThemePostTemplates: string[];
 
 beforeEach(() => {
   fetchMock = vi.fn();
+  activeThemePostTemplates = [];
   // `PostEditor` now also reads `core.language.locale` (via `useAdminLocale`) to translate its own
   // chrome — a real `fetch` call this file's tests never queued for. Routed here, ahead of
   // `fetchMock`, so it never consumes a slot from the post-load/save `mockResolvedValueOnce`
@@ -45,6 +48,23 @@ beforeEach(() => {
     const url = typeof input === "string" ? input : input.toString();
     if (url.includes("/settings/effective")) {
       return Promise.resolve(jsonResponse({ data: [] }));
+    }
+    // Post-template-picker feature — `PostEditor`'s load effect now fetches presentation settings
+    // in a `Promise.all` alongside the post. Routed here for the same reason `/settings/effective`
+    // is: queued via `mockResolvedValueOnce` it would eat the slot each test below reserved for its
+    // own save/publish response, and the post-load would resolve `undefined`. Defaults to an empty
+    // template list, which keeps the picker in its disabled "no templates for this theme" state —
+    // what every pre-existing assertion in this file was written against.
+    if (url.includes("/presentation")) {
+      return Promise.resolve(
+        jsonResponse({
+          settings: { activeThemeId: "basic" },
+          availableThemeIds: [],
+          availableThemes: [],
+          activeThemePostTemplates,
+          activeThemeStaticPageIds: [],
+        })
+      );
     }
     return fetchMock(input, init);
   });
@@ -156,5 +176,52 @@ describe("Back-to-list link", () => {
 
     const link = await screen.findByRole("link", { name: /pages/i });
     expect(link).toHaveAttribute("href", "/admin/pages");
+  });
+});
+
+/** The template picker shares the `combobox` role with the status select, so match its agent handle. */
+function templateSelect(): HTMLSelectElement {
+  const el = document.querySelector('[data-agent-element="post-template-choice"]');
+  if (!(el instanceof HTMLSelectElement)) throw new Error("template picker not rendered");
+  return el;
+}
+
+describe("Template picker", () => {
+  /**
+   * The picker's two non-obvious behaviors, both load-bearing for the site render:
+   * a post with no saved choice must show the theme's FIRST template selected (never "No template
+   * chosen"), and picking "No template chosen" must persist as `""` — not `null`. `""` is what the
+   * render path reads as a deliberate opt-out; `null` means "never chosen" and falls back. A `||`
+   * on the change handler collapses the two, which is how 11 published posts ended up serving a
+   * diagnostic page.
+   */
+  it("defaults an unset post to the theme's first template rather than 'No template chosen'", async () => {
+    activeThemePostTemplates = ["blog-post.html", "long-form.html"];
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, templateChoice: null } }));
+
+    render(<PostEditor postId="p1" />);
+
+    await screen.findByRole("button", { name: /^save$/i });
+    const select = templateSelect();
+    await waitFor(() => expect(select).toHaveValue("blog-post.html"));
+  });
+
+  it('persists an explicit "No template chosen" as "" so the opt-out is distinguishable from never-chosen', async () => {
+    const user = userEvent.setup();
+    activeThemePostTemplates = ["blog-post.html"];
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, templateChoice: "blog-post.html" } }))
+      .mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, templateChoice: "", version: 2 } }));
+
+    render(<PostEditor postId="p1" />);
+
+    await screen.findByRole("button", { name: /^save$/i });
+    await user.selectOptions(templateSelect(), "");
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const body = JSON.parse(String((fetchMock.mock.calls[1]?.[1] as RequestInit).body));
+    expect(body.templateChoice).toBe("");
+    expect(body.templateChoice).not.toBeNull();
   });
 });

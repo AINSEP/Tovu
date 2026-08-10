@@ -42,8 +42,8 @@ export default defineConfig({
   },
   plugins: [redirectBareAdmin, react()],
   resolve: {
-    // The `@jini-ai/*` deps are `file:` links into a sibling Jini checkout, and four of them
-    // (`admin`, `chat`, `renderers-react`, `ui`) carry their OWN `node_modules/react`. Without
+    // The `@jini-ai/*` deps are `file:` links into a sibling Jini checkout, and three of them
+    // (`admin`, `chat`, `ui`) carry their OWN `node_modules/react`. Without
     // dedupe the production build embeds one React module instance per copy — measured as five
     // distinct `react.transitional.element` symbol registrations in `dist/assets/index-*.js` —
     // and a component rendered by one instance calls hooks against another instance's null
@@ -71,6 +71,13 @@ export default defineConfig({
       // `@jini-ai/chat-react`'s runtime picker requests agent icons from this root-relative path
       // (see `src/server/app.ts`'s matching route for why it can't just live under `/admin/`).
       "/agent-icons": { target: process.env.TOVU_API_URL ?? "http://localhost:3000", changeOrigin: false },
+      // `theme-static-assets.ts`'s `express.static` mount — a `static`-tier theme's own `css/`/
+      // `js/`/`screenshots/` files, requested root-relative by the theme's own rendered HTML and by
+      // `Appearance.tsx`'s theme-card preview thumbnail. Without this, those requests 404 against
+      // Vite's own dev server (which has never heard of `/theme-assets`) instead of reaching the
+      // backend that actually serves them, in production this is a non-issue since one server
+      // serves both the built admin SPA and this mount.
+      "/theme-assets": { target: process.env.TOVU_API_URL ?? "http://localhost:3000", changeOrigin: false },
     },
   },
 });

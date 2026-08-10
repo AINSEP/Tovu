@@ -50,7 +50,7 @@ const SAMPLE_COLUMNS = [
   { key: "status", label: "Status" },
 ];
 
-export function PlaygroundTab() {
+export function Playground() {
   const registry = DEFAULT_INTERACTIVE_UI_REGISTRY;
   const catalog = useMemo(
     () => buildA2uiCatalogFromRegistry(registry, CATALOG_ID, { base: createLabCatalog() }),

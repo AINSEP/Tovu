@@ -86,7 +86,10 @@ describe("empty state", () => {
 describe("populated table", () => {
   it("renders title, slug, status, and formatted-updated columns for each row", () => {
     renderWith({ posts: [POST] });
-    expect(screen.getByRole("link", { name: "Hello World" })).toHaveAttribute("href", "/admin/posts/p1");
+    // Slug, not the stored id (2026-08-10 admin-URL cleanup). The server's get-by-id route resolves
+    // either (`getAdminPostByIdOrSlug`), so an old id-based bookmark still works — but a freshly
+    // rendered link must use the readable form.
+    expect(screen.getByRole("link", { name: "Hello World" })).toHaveAttribute("href", "/admin/posts/hello-world");
     expect(screen.getByRole("link", { name: "/hello-world" })).toBeInTheDocument();
     expect(screen.getByText("published")).toBeInTheDocument();
     expect(screen.getByText("2026-08-01 12:34")).toBeInTheDocument();
@@ -123,12 +126,12 @@ describe("row menu — Disable visibility mirrors postRowMenuItems", () => {
     expect(screen.queryByRole("menuitem", { name: "Disable" })).not.toBeInTheDocument();
   });
 
-  it("Edit navigates to the Posts editor at /posts/{id}", async () => {
+  it("Edit navigates to the Posts editor at /posts/{slug}", async () => {
     const user = userEvent.setup();
     renderWith({ posts: [POST] });
     await user.click(screen.getByRole("button", { name: 'Actions for "Hello World"' }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    expect(navigate).toHaveBeenCalledWith("/posts/p1");
+    expect(navigate).toHaveBeenCalledWith("/posts/hello-world");
   });
 
   it("Disable calls disablePost with the row", async () => {

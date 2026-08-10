@@ -30,6 +30,8 @@ export interface PostFormState {
   slug: string;
   status: "draft" | "published";
   bodyJson: unknown;
+  templateChoice: string | null;
+  overridesThemePage: boolean;
 }
 
 export interface PostEditorController {
@@ -43,6 +45,16 @@ export interface PostEditorController {
   setSlug: (slug: string) => void;
   status: "draft" | "published";
   setStatus: (status: "draft" | "published") => void;
+  templateChoice: string | null;
+  setTemplateChoice: (templateChoice: string | null) => void;
+  /** The active static theme's declared `postTemplate` list — `[]` when the theme doesn't support
+   *  templates, in which case the caller should not render the picker at all. */
+  availableTemplates: string[];
+  overridesThemePage: boolean;
+  setOverridesThemePage: (overridesThemePage: boolean) => void;
+  /** `true` when this post's own `slug` matches one of the active theme's own page ids — the caller
+   *  shows the collision warning + override checkbox only then. */
+  hasSlugCollision: boolean;
   message: string | null;
   error: string | null;
   confirmingDelete: boolean;
@@ -60,6 +72,16 @@ export function usePostEditor(postId: string): PostEditorController {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [status, setStatus] = useState<"draft" | "published">("draft");
+  const [templateChoice, setTemplateChoice] = useState<string | null>(null);
+  // The active static theme's own declared template list (theme.json's `postTemplate`) — fetched
+  // once, independent of which post is loaded, so the picker always reflects whichever theme is
+  // actually live right now. `[]` (the default, and the steady state for any non-participating
+  // theme) means the picker has nothing to offer and stays hidden, not broken.
+  const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
+  const [overridesThemePage, setOverridesThemePage] = useState(false);
+  // Same fetch-once-independent-of-postId shape as `availableTemplates` — the active theme's own
+  // page ids don't change when switching between posts.
+  const [staticPageIds, setStaticPageIds] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // TipTap's content lives in the editor's own imperative state, not React state, so nothing here
@@ -91,29 +113,55 @@ export function usePostEditor(postId: string): PostEditorController {
   useEffect(() => {
     setPost(null);
     setError(null);
-    api
-      .getPost(postId)
-      .then(({ post }) => {
+    // Loaded together (not two independent effects) so the template default below never races: the
+    // owner's own ordering request ("default to the template... I don't want it to be no template
+    // chosen") needs `activeThemePostTemplates` in hand at the exact moment `post.templateChoice` is
+    // read, or a fast post-load racing a slow presentation-settings load could default to "" before
+    // the real list arrives. Costs one extra GET per post switch (presentation settings re-fetched
+    // even though it rarely changes) — an acceptable trade for a local admin panel.
+    Promise.all([api.getPost(postId), api.getPresentation()])
+      .then(([{ post }, { activeThemePostTemplates, activeThemeStaticPageIds }]) => {
+        setAvailableTemplates(activeThemePostTemplates);
+        setStaticPageIds(activeThemeStaticPageIds);
         setPost(post);
         setTitle(post.title);
         setSlug(post.slug);
         setStatus(post.status);
+        // Defaults to the theme's own first-listed template — never to "no template chosen" — unless
+        // this post already has an explicit choice saved. Only reachable when the theme actually
+        // offers templates; otherwise `post.templateChoice ?? null` (unset stays unset, same as
+        // before this change) since there is nothing to default TO.
+        const defaultedTemplateChoice =
+          post.templateChoice ?? (activeThemePostTemplates.length > 0 ? activeThemePostTemplates[0] : null);
+        setTemplateChoice(defaultedTemplateChoice);
+        setOverridesThemePage(post.overridesThemePage ?? false);
         if (editor) {
           editor.commands.setContent(post.bodyJson as never);
           // Captured via `editor.getJSON()` right after `setContent`, not `post.bodyJson` as
           // loaded — both sides of the later dirty comparison are then produced by the exact same
           // serialization, so a schema-normalization difference between the server's stored JSON
           // and TipTap's own round-trip can never register as a false "unsaved change" on a
-          // freshly-opened, untouched post.
-          setOriginal({ title: post.title, slug: post.slug, status: post.status, bodyJson: editor.getJSON() });
+          // freshly-opened, untouched post. `original.templateChoice` uses the SAME defaulted value
+          // (not the raw, possibly-null `post.templateChoice`) so simply opening an unset post never
+          // shows as dirty on its own — only an actual further change does.
+          setOriginal({
+            title: post.title,
+            slug: post.slug,
+            status: post.status,
+            bodyJson: editor.getJSON(),
+            templateChoice: defaultedTemplateChoice,
+            overridesThemePage: post.overridesThemePage ?? false,
+          });
         }
       })
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load post"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId, editor === null]);
 
+  const hasSlugCollision = staticPageIds.includes(slug);
+
   const { confirmLeave } = useDirtyGuard<PostFormState>(
-    { title, slug, status, bodyJson: editor?.getJSON() ?? null },
+    { title, slug, status, bodyJson: editor?.getJSON() ?? null, templateChoice, overridesThemePage },
     original,
   );
 
@@ -133,11 +181,14 @@ export function usePostEditor(postId: string): PostEditorController {
     const nextStatus = statusOverride ?? status;
     try {
       const bodyJson = editor.getJSON() as Record<string, unknown>;
-      const { post: saved } = await api.updatePost({ id: postId }, { title, slug, status: nextStatus, bodyJson });
+      const { post: saved } = await api.updatePost(
+        { id: postId },
+        { title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage },
+      );
       setPost(saved);
       setStatus(nextStatus);
       setMessage(`${statusOverride === "published" ? "Published" : "Saved"} · version ${saved.version}`);
-      setOriginal({ title, slug, status: nextStatus, bodyJson });
+      setOriginal({ title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage });
     } catch (e) {
       setError(e instanceof Error ? e.message : statusOverride === "published" ? "publish failed" : "save failed");
     }
@@ -191,6 +242,12 @@ export function usePostEditor(postId: string): PostEditorController {
     slug,
     setSlug,
     status,
+    templateChoice,
+    setTemplateChoice,
+    availableTemplates,
+    overridesThemePage,
+    setOverridesThemePage,
+    hasSlugCollision,
     setStatus,
     message,
     error,
