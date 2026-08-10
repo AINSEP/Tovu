@@ -26,6 +26,8 @@ export function toHeadlessPost(post: PostRecord): AdminPost {
     status: post.status,
     updatedAt: post.updatedAt,
     version: post.version,
+    templateChoice: post.templateChoice ?? null,
+    overridesThemePage: post.overridesThemePage ?? false,
     ...(post.ext !== undefined ? { ext: post.ext as Record<string, Record<string, unknown>> } : {}),
   };
 

@@ -96,6 +96,25 @@ export const posts = sqliteTable(
      * of passing and then dying on a constraint violation.
      */
     deletedAt: text("deleted_at"),
+    /**
+     * Post-template-picker feature (2026-08-10) — the `pages/*.html` filename (from the active
+     * static theme's `theme.json` `postTemplate` array, e.g. `"blog-post.html"`) this post renders
+     * through, or `NULL` when no template has been chosen. Nullable, additive, no backfill: every
+     * pre-existing row reads back as `null` ("no template chosen" — `pages.ts`'s post-template
+     * render path treats this as a diagnostic state, not a silent fallback to generic rendering; see
+     * that file's own doc), mirroring `seo_ext_json`/`deleted_at`'s identical precedent above.
+     */
+    templateChoice: text("template_choice"),
+    /**
+     * Slug-collision override (2026-08-10) — when a real post's slug matches one of the active
+     * static theme's own page filenames (e.g. a post at slug "about" colliding with `pages/
+     * about.html`), the theme's page wins by default (reserved, reliable namespace). This flag lets
+     * an author explicitly choose the opposite for one specific post, after the admin UI warns them
+     * about the collision — never a silent, blanket priority flip. `NOT NULL DEFAULT false`:
+     * additive, every pre-existing row keeps today's exact behavior (theme page wins) with zero
+     * backfill.
+     */
+    overridesThemePage: integer("overrides_theme_page", { mode: "boolean" }).notNull().default(false),
   },
   (table) => [
     uniqueIndex("posts_workspace_slug_unique").on(table.workspaceId, table.slug),
@@ -1373,6 +1392,170 @@ export const adminExecutionCredentials = sqliteTable(
     check(
       "admin_execution_credentials_sealed_shape",
       sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL AND ${table.masked} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL AND ${table.masked} IS NOT NULL)`
+    ),
+  ]
+);
+
+/**
+ * Per-workspace media-generation vendor credentials, one row per `(workspace_id, provider_id)` —
+ * what the admin's Media → "Media providers" tab persists (`media/provider-credential-store.ts`).
+ *
+ * Workspace-scoped, NOT per-principal like `adminExecutionCredentials` above: generation spends
+ * real money and produces assets published to the whole site, so the install has one roster of
+ * vendor keys rather than one per admin. That is the opposite call from the BYOK table, and
+ * deliberately so — see that table's header for the per-admin reasoning it does not share.
+ *
+ * `provider_id` holds an ENGINE-CANONICAL id from `@jini-ai/integrations/media-providers`'
+ * `MEDIA_PROVIDERS` (`grok`, `nanobanana`, `fal`, `custom-image`, …) — NOT the differently-spelled
+ * ids in `@jini-ai/ui`'s own `DEFAULT_MEDIA_PROVIDER_CATALOG` (`xai-grok-imagine`, `nano-banana`,
+ * `fal-ai`, `custom-image-api`, …). The dispatch engine looks credentials up by the former, so
+ * storing the latter would persist keys that silently never resolve. The store validates every id
+ * against that catalogue on write, which is what keeps the two from drifting apart again.
+ *
+ * Multi-row per workspace, so `sealed*`/`masked` follow the same all-null-or-all-set CHECK as the
+ * two credential tables above: a provider row may legitimately carry only `base_url`/`model` with
+ * no key yet.
+ */
+export const mediaProviderCredentials = sqliteTable(
+  "media_provider_credentials",
+  {
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** Engine-canonical provider id — see this table's header for why the spelling matters. */
+    providerId: text("provider_id").notNull(),
+    baseUrl: text("base_url"),
+    model: text("model"),
+    /** `SealedSecret.keyId` — names the root-key generation the value was wrapped under. */
+    sealedKeyId: text("sealed_key_id"),
+    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag`. */
+    sealedCiphertext: text("sealed_ciphertext"),
+    /** Base64 12-byte AES-GCM IV. */
+    sealedNonce: text("sealed_nonce"),
+    /** Always `'aes-256-gcm'` today; stored rather than hardcoded so a future algorithm change is
+     *  data, not a silent reinterpretation of old rows. */
+    sealedAlg: text("sealed_alg"),
+    /** Last 4 characters of the key, precomputed at write time — feeds `@jini-ai/ui`'s
+     *  `maskedKeyLabel` as its `apiKeyTail`. Stored as the bare tail, not the `••••`-prefixed
+     *  label, because that package clamps and renders the prefix itself. */
+    keyTail: text("key_tail"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.providerId] }),
+    check(
+      "media_provider_credentials_sealed_shape",
+      sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL AND ${table.keyTail} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL AND ${table.keyTail} IS NOT NULL)`
+    ),
+  ]
+);
+
+/**
+ * The workspace's Composio project credentials — one row per workspace, backing the admin's
+ * Settings → Connectors tab (`connectors/composio-config-store.ts`).
+ *
+ * Workspace-scoped rather than per-principal, for the same reason as `mediaProviderCredentials`
+ * above and the opposite of `adminExecutionCredentials`: a Composio project key authorizes
+ * third-party accounts on behalf of the whole install, so one roster per workspace is the honest
+ * scope. Two admins do not each hold their own Composio project.
+ *
+ * Single-row-per-workspace, so `workspace_id` is the bare primary key rather than half of a
+ * composite — `siteAssistantCredentials`' shape, not `mediaProviderCredentials`'.
+ *
+ * `auth_config_ids` holds `ComposioConfig.authConfigIds`: a JSON object mapping connector id →
+ * Composio auth-config id. NOT secret (they are opaque Composio resource ids, not credentials),
+ * so it is a plain column while the API key beside it is sealed. It is persisted rather than
+ * rederived because `ComposioConnectorProvider.prepareAuthConfig` CREATES an auth config on
+ * Composio's side the first time a connector is used; losing the id would orphan that remote
+ * resource and silently provision a duplicate on the next attempt.
+ *
+ * Sealed via the SAME ADR-058 `AesGcmSecretSealer`/`KeyringPort` instances the tables above reuse,
+ * with the sealed-shape CHECK copied from `media_provider_credentials_sealed_shape`. A row may
+ * legitimately exist with no key at all — `auth_config_ids` alone is a valid state after a key is
+ * cleared, which is why every sealed column is nullable.
+ */
+export const composioConfig = sqliteTable(
+  "composio_config",
+  {
+    workspaceId: text("workspace_id")
+      .primaryKey()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** `SealedSecret.keyId`; NULL iff no Composio API key is stored. */
+    sealedKeyId: text("sealed_key_id"),
+    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag`. */
+    sealedCiphertext: text("sealed_ciphertext"),
+    /** Base64 12-byte AES-GCM IV. */
+    sealedNonce: text("sealed_nonce"),
+    /** Always `'aes-256-gcm'` today; stored so a future algorithm change is data, not a silent
+     *  reinterpretation of old rows. */
+    sealedAlg: text("sealed_alg"),
+    /** Last 4 characters of the key, precomputed at write time — feeds the tab's masked label.
+     *  Bare tail, no `••••` prefix, matching `media_provider_credentials.key_tail`. */
+    keyTail: text("key_tail"),
+    /** JSON object: connector id → Composio auth-config id. See this table's header. */
+    authConfigIds: text("auth_config_ids"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    check(
+      "composio_config_sealed_shape",
+      sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL AND ${table.keyTail} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL AND ${table.keyTail} IS NOT NULL)`
+    ),
+  ]
+);
+
+/**
+ * One connected third-party ACCOUNT per `(workspace_id, connector_id)` — what survives an OAuth
+ * handshake, and what `connectors/connector-credential-store.ts` seals.
+ *
+ * Distinct from `composioConfig` above, which holds the one PROJECT key that authorizes talking to
+ * Composio at all. This table holds the per-connector material Composio hands back after a user
+ * authorizes an account (`ConnectorCredentialRecord.credentials`). Losing the project key means
+ * nothing works; losing a row here means one connector needs reconnecting.
+ *
+ * Workspace-scoped for the same reason the project key is: an authorized GitHub or Notion account
+ * acts on behalf of the whole install, and both are gated by the same `admin.integrations.manage`
+ * permission. Cascade-deleted with the workspace.
+ *
+ * `credentials` is an opaque JSON object whose shape Composio owns, so it is sealed WHOLE rather
+ * than decomposed into columns — Tovu never interprets it, and a schema that mirrored today's
+ * fields would silently drop anything the provider adds. `account_label` is the only part held in
+ * the clear, because the admin grid renders it on every card and decrypting the roster just to
+ * paint labels would put an AEAD open on the page-load path.
+ *
+ * Sealed columns are nullable with the same all-null-or-all-set CHECK as every sibling credential
+ * table, even though a row without credentials has no meaning today: the invariant belongs in the
+ * CHECK, not in a NOT NULL that a later "record the account before the token arrives" flow would
+ * have to migrate away from.
+ */
+export const composioConnectorCredentials = sqliteTable(
+  "composio_connector_credentials",
+  {
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** Connector id from `@jini-ai/integrations/composio`'s catalog (`github`, `notion`, …). */
+    connectorId: text("connector_id").notNull(),
+    /** Human-facing account name shown on the connector card. Not secret. */
+    accountLabel: text("account_label"),
+    /** `SealedSecret.keyId` — names the root-key generation the credentials were wrapped under. */
+    sealedKeyId: text("sealed_key_id"),
+    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag` over `JSON.stringify(credentials)`. */
+    sealedCiphertext: text("sealed_ciphertext"),
+    /** Base64 12-byte AES-GCM IV. */
+    sealedNonce: text("sealed_nonce"),
+    /** Always `'aes-256-gcm'` today; stored so a future algorithm change is data. */
+    sealedAlg: text("sealed_alg"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.connectorId] }),
+    check(
+      "composio_connector_credentials_sealed_shape",
+      sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL)`
     ),
   ]
 );

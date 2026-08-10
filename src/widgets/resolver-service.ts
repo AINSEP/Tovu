@@ -25,6 +25,7 @@ import type { EntryRepoPort } from "../features/entries/write-service";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/bootstrap";
 import { getLatestTransformDefinition } from "../media/index";
 import type { MediaRepoPort, TransformDefinitionRepoPort } from "../media/index";
+import type { PostRepoPort } from "../features/post/index";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload";
 import { scanHtmlEmbeds } from "./html-embeds";
 import type { PageHtmlEmbedRef } from "./html-embeds";
@@ -265,6 +266,7 @@ export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): 
 export interface ResolveHtmlPageEmbedsDeps extends WidgetInstanceResolutionDeps {
   readonly mediaRepo?: MediaRepoPort;
   readonly transformRepo?: TransformDefinitionRepoPort;
+  readonly postRepo?: PostRepoPort;
 }
 
 type HtmlEmbedResolver = (
@@ -465,6 +467,65 @@ async function resolveMediaTypeEmbeds(
 }
 
 /**
+ * `data-embed-type="post"` resolver — the post-template-picker feature (post-template.md's own
+ * design conversation, first shipped 2026-08-10). `data-embed-id` is the post's stored id, exactly
+ * like every other resolver here (never a slug — see this file's `media`/`widget` resolvers, which
+ * are id-only too; kept consistent rather than adding a slug-lookup fallback for one type).
+ *
+ * Returns RAW post data (title/bodyJson/updatedAt/slug), not rendered HTML — this file (`widgets/`)
+ * must not depend on `server/http/site/render.ts` (that module sits above this one in the codebase's
+ * layering, the same constraint `resolveMediaTypeEmbeds`'s own doc discloses for why it returns
+ * `{assetId, transformName, ...}` instead of an `<img>` string). `render.ts`'s `renderWidgetIr`
+ * `"post-content"` case (which already has `renderDocNode` in scope) does the actual TipTap-to-HTML
+ * render from this data.
+ *
+ * A caller with no `postRepo` supplied (every pre-existing call site) behaves exactly like a `media`
+ * embed with no `mediaRepo` — every occurrence degrades to the placeholder, logged once, not silently.
+ */
+async function resolvePostTypeEmbeds(
+  refs: readonly PageHtmlEmbedRef[],
+  deps: ResolveHtmlPageEmbedsDeps,
+  context: WidgetResolveContext
+): Promise<ReadonlyMap<string, WidgetRenderIR>> {
+  const resolved = new Map<string, WidgetRenderIR>();
+  const { postRepo } = deps;
+  if (!postRepo) {
+    if (refs.length > 0) {
+      console.warn(
+        '[widgets] resolveHtmlPageEmbeds: "post" embeds present but no postRepo dependency was supplied — every occurrence degrades to the placeholder',
+        { workspaceId: context.workspaceId, occurrences: refs.length }
+      );
+    }
+    return resolved;
+  }
+
+  await Promise.all(
+    refs.map(async (ref) => {
+      if (ref.id === null) {
+        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "post" reference — missing or invalid data-embed-id', {
+          workspaceId: context.workspaceId,
+        });
+        return;
+      }
+      const post = await postRepo.findById({ workspaceId: context.workspaceId, id: ref.id });
+      if (!post) {
+        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "post" reference — no such post', {
+          workspaceId: context.workspaceId,
+          postId: ref.id,
+        });
+        return;
+      }
+      resolved.set(ref.id, {
+        componentId: "post-content",
+        props: { title: post.title, slug: post.slug, updatedAt: post.updatedAt, bodyJson: post.bodyJson },
+      });
+    })
+  );
+
+  return resolved;
+}
+
+/**
  * Registry of known embed types (SPEC-047, generalized 2026-08-07). Adding a new embed type is
  * registering one more entry here — no other file in `resolveHtmlPageEmbeds`'s call chain changes,
  * and `html-embeds.ts`'s scanner already reports any type token it finds regardless of whether an
@@ -480,6 +541,7 @@ const HTML_EMBED_RESOLVERS: Readonly<Record<string, HtmlEmbedResolver>> = {
   widget: resolveWidgetTypeEmbeds,
   form: resolveFormTypeEmbeds,
   media: resolveMediaTypeEmbeds,
+  post: resolvePostTypeEmbeds,
 };
 
 /**

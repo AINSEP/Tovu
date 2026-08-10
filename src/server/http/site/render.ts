@@ -1,10 +1,11 @@
 import type { JsonObject, JsonValue } from "@jini-ai/cms/core";
 import type { PostRecord } from "#src/features/post/index";
-import type { DiscoveredTheme, TemplateNode } from "#src/features/theme/index";
+import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/features/theme/index";
 import {
   resolveTemplateId,
   resolveLiquidTemplateId,
   resolveHandlebarsTemplateId,
+  renderStaticPage,
 } from "#src/features/theme/index";
 import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
 import type { WidgetRenderIR } from "#src/widgets/types";
@@ -408,8 +409,14 @@ const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeho
  * @complexity O(n) over `html`'s length (one regex substitution pass); O(1) additional work per
  * embed occurrence (two map lookups plus `renderWidgetIr`'s own O(1) dispatch).
  * @overallScore 100
+ *
+ * Exported for `pages.ts`'s post-template render path (post-template-picker feature, 2026-08-10) —
+ * a chosen `blog-post.html` template's `data-embed-type="post"` slot substitutes through this exact
+ * same function, not a second implementation; the only difference from an `"html"`-format Page is
+ * WHERE the html/resolved pair comes from (a theme's `pages/*.html` plus a real-id substitution, not
+ * `post.bodyHtml`).
  */
-function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbedsResult | undefined): string {
+export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbedsResult | undefined): string {
   return substituteHtmlEmbeds(html, (ref) => {
     const ir = (ref.id !== null ? resolved?.get(ref.type)?.get(ref.id) : undefined) ?? HTML_EMBED_PLACEHOLDER_IR;
     return renderWidgetIr(ir);
@@ -779,6 +786,35 @@ function renderWidgetMediaImage(props: JsonObject): string {
 }
 
 /**
+ * Renders a resolved `data-embed-type="post"` embed (post-template-picker feature, 2026-08-10) —
+ * `resolver-service.ts`'s `resolvePostTypeEmbeds` returns the post's RAW data (title/bodyJson/
+ * updatedAt), not rendered HTML, because that resolver lives in `widgets/` and must not depend on
+ * this file (see that resolver's own doc). This is the one place that gap closes: `renderDocNode` is
+ * already in scope here, so the actual TipTap-to-HTML render happens at this dispatch step, the same
+ * "resolve raw, render here" split `renderWidgetMediaImage` uses for media embeds just above.
+ *
+ * Renders the body with the empty inline-widget/media-transform/media-asset defaults (this file's
+ * own `EMPTY_*` constants) — a `widgetEmbed` or ref-image node nested inside a template-embedded
+ * post's own body degrades to its normal unresolved-reference placeholder rather than resolving
+ * recursively. Disclosed scope limit, not an oversight: no other embed resolver in this codebase
+ * resolves nested references either (see `resolveMediaTypeEmbeds`'s own disclosed mime-type gap).
+ */
+function renderWidgetPostContent(props: JsonObject): string {
+  const title = props.title;
+  const bodyJson = props.bodyJson;
+  if (typeof title !== "string" || bodyJson === undefined) return renderWidgetPlaceholder();
+  const updatedAt = typeof props.updatedAt === "string" ? props.updatedAt : "";
+  const dateLabel = updatedAt ? new Date(updatedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+  return (
+    `<div class="post-detail-header">` +
+    `<h1>${escapeHtml(title)}</h1>` +
+    (dateLabel ? `<div class="post-meta"><time datetime="${escapeHtml(updatedAt)}">${escapeHtml(dateLabel)}</time></div>` : "") +
+    `</div>` +
+    `<div class="post-detail-body">${renderDocNode(bodyJson)}</div>`
+  );
+}
+
+/**
  * Renders one resolved widget IR node to HTML. Never throws: an unrecognized `componentId` (a
  * resolver shape this renderer doesn't yet know, or the REQ-27 failure taxonomy reaching here some
  * other way) degrades to the same public-safe placeholder REQ-28 requires, not a crash or an
@@ -805,6 +841,8 @@ export function renderWidgetIr(ir: WidgetRenderIR): string {
       return renderWidgetContactForm(ir.props);
     case "media-image":
       return renderWidgetMediaImage(ir.props);
+    case "post-content":
+      return renderWidgetPostContent(ir.props);
     case "widget-placeholder":
     default:
       return renderWidgetPlaceholder();
@@ -1171,6 +1209,16 @@ export async function renderSite(required: {
    * itself, the same convention `widgets`/`posts`/`post` above already follow.
    */
   siteAssistantEnabled?: boolean;
+  /**
+   * Menu-location wiring (2026-08-10) — the `header`/`footer` location menus pre-resolved by the
+   * route layer (`pages.ts`'s `resolveStaticMenusForRender`, over `navigation`'s `resolveForLocation`
+   * + `routing`'s `urlFor`), threaded straight into the static-tier home-route `renderStaticPage`
+   * call below. `render.ts` stays I/O-free — same "route resolves, render renders" split every other
+   * pre-resolved field on this required object already follows. Omitted (every non-static-tier
+   * caller, and every existing test) behaves as "no menu bound to either location", i.e. each
+   * static theme's own authored header/footer content renders unchanged — not a breaking change.
+   */
+  staticMenus?: { header?: readonly StaticMenuItem[]; footer?: readonly StaticMenuItem[] };
 }): Promise<string> {
   const { theme, route } = required;
   const ctx: SiteRenderContext = {
@@ -1194,6 +1242,17 @@ export async function renderSite(required: {
   // of relying on a component that doesn't exist (REQ-10 spirit: never a raw crash).
   const fallbackBody = (): string =>
     `${siteHeader(ctx, {})}${route === "post" || route === "product" ? entryContent(ctx) : entryList(ctx, {})}${siteFooter(ctx)}`;
+
+  // Static tier: unlike every other branch below, a static theme's page is already a complete
+  // `<!doctype html>` document (tokens, nav, footer, scripts — all of it), not a body fragment
+  // `pageShell()` still needs to wrap. Returned directly, bypassing pageShell, when the theme has
+  // one for this route. Home only for now — anything else (including a missing pages/index.html)
+  // falls through to the existing fallbackBody()/pageShell() path below, same as any other
+  // unresolved route on any other tier.
+  if (theme.manifest.tier === "static" && route === "home") {
+    const staticHtml = renderStaticPage({ theme, pageId: "index", menus: required.staticMenus });
+    if (staticHtml) return staticHtml;
+  }
 
   let body: string;
   if (theme.manifest.tier === "templated") {

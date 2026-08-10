@@ -1,4 +1,4 @@
-import { getAdminPostById, PostNotFoundError } from "#src/features/post/index";
+import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/http/admin/posts";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps";
@@ -27,9 +27,12 @@ export const registerAdminPostGetRoute: ContentRouteRegistrar = (app, deps) => {
         return;
       }
 
-      const result = await getAdminPostById({
+      // Admin URLs use the slug when one resolves (cleaner than the raw stored id, 2026-08-10) — this
+      // route accepts either so an old id-based bookmark/link keeps working (getAdminPostByIdOrSlug
+      // tries id first, falls back to slug; see that function's own doc).
+      const result = await getAdminPostByIdOrSlug({
         deps: { repo: deps.postRepo },
-        input: { workspaceId: deps.workspaceId, id: String(req.params.postId ?? "") },
+        input: { workspaceId: deps.workspaceId, idOrSlug: String(req.params.postId ?? "") },
       });
 
       res.json(toAdminPostResponse(result.post));

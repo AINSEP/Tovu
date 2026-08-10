@@ -24,12 +24,15 @@ import { lintLiquidTemplate } from "./liquid-allowlist";
  * ADR-020 capability tier. `declarative` = data-only (safe from anyone),
  * `templated` = LiquidJS-rendered (sandboxed logic, no JS), `handlebars` =
  * Handlebars-rendered (sandboxed logic, no JS — a sibling of `templated` with
- * its own allowlist/worker pair, not a replacement for it), `code` = trusted
- * signed-plugin JS (not built yet). Absent in `theme.json` ⇒ `declarative`.
+ * its own allowlist/worker pair, not a replacement for it), `static` = plain
+ * HTML/CSS/JS, no template language at all — every byte editable, a whole
+ * `pages/*.html` set instead of one `templates/` route map (see `pages` on
+ * {@link DiscoveredTheme}), `code` = trusted signed-plugin JS (not built yet).
+ * Absent in `theme.json` ⇒ `declarative`.
  */
-export type ThemeTier = "declarative" | "templated" | "handlebars" | "code";
+export type ThemeTier = "declarative" | "templated" | "handlebars" | "static" | "code";
 
-const THEME_TIERS: readonly ThemeTier[] = ["declarative", "templated", "handlebars", "code"];
+const THEME_TIERS: readonly ThemeTier[] = ["declarative", "templated", "handlebars", "static", "code"];
 
 /** `theme.json` — static theme identity. */
 export interface ThemeManifest {
@@ -80,6 +83,15 @@ export interface ThemeManifest {
    * the flag simply does not apply to `.hbs`/`.handlebars` files.
    */
   skipLiquidAllowlist?: boolean;
+  /**
+   * `static` tier only — the ordered list of `pages/*.html` filenames (e.g. `["blog-post.html",
+   * "blog-post-v2.html"]`) an author can pick between when a Post uses this theme, "ordered to nudge
+   * the right choice" (first entry is the implicit default in the admin picker). Absent/undefined
+   * means this theme ships no post templates — a Post's `templateChoice` then has nothing to resolve
+   * against, which the render path treats as "misconfigured", not "fall back to generic rendering"
+   * (see `pages.ts`'s post-template branch).
+   */
+  postTemplate?: string[];
 }
 
 /** Design tokens: CSS custom-property name → value (emitted into `:root`). */
@@ -101,12 +113,35 @@ export interface DiscoveredTheme {
    */
   dir: string;
   tokens: ThemeTokens;
+  /**
+   * Light-mode token overrides (static tier only), from an optional `tokens.light.json` sibling to
+   * `tokens.json`. Empty object when the theme ships no light variant — a static theme is not
+   * required to support both modes, and an empty `:root[data-theme="light"] {}` override block is
+   * harmless (it overrides nothing, so the page just stays on its dark values).
+   */
+  tokensLight: ThemeTokens;
   /** Template id (`home`, `post`, …) → block tree (declarative tier). */
   templates: Record<string, TemplateNode>;
   /** Template id → raw LiquidJS source (templated tier, ADR-020). */
   liquidTemplates: Record<string, string>;
   /** Template id → raw Handlebars source (handlebars tier, ADR-020). */
   handlebarsTemplates: Record<string, string>;
+  /**
+   * Page id → raw HTML document source (static tier only). Keyed by filename
+   * minus `.html`, from `pages/*.html` — unlike `templates`/`liquidTemplates`/
+   * `handlebarsTemplates`, these are already-complete `<!doctype html>` documents,
+   * not route-driven block trees/fragments, because a static theme has no
+   * templating language for a renderer to fill in.
+   */
+  pages: Record<string, string>;
+  /**
+   * Partial id → raw HTML source (static tier only): `nav`, `footer`, and any
+   * `footer-*` variant (e.g. `footer-minimal`) found at the theme root. A static
+   * page embeds these via `data-tovu-slot="nav"` / `data-tovu-slot="footer"`
+   * markers rather than a template-include directive — resolving them is the
+   * renderer's job, not something baked into the page HTML at author time.
+   */
+  partials: Record<string, string>;
   /** Raw theme stylesheet (unsanitized in the spike). */
   css: string;
   source: "built-in" | "site";
@@ -157,6 +192,7 @@ export function loadTheme(
       fonts: Array.isArray(raw.fonts) ? raw.fonts.map(String) : undefined,
       regions: Array.isArray(raw.regions) ? raw.regions.map(String) : undefined,
       skipLiquidAllowlist: raw.skipLiquidAllowlist === true,
+      postTemplate: Array.isArray(raw.postTemplate) ? raw.postTemplate.map(String) : undefined,
     };
     if (manifest.id !== id) errors.push(`theme.json id '${manifest.id}' must equal folder name '${id}'`);
   } catch (err) {
@@ -170,6 +206,22 @@ export function loadTheme(
     tokens = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, String(v)]));
   } catch (err) {
     errors.push(`tokens.json: ${(err as Error).message}`);
+  }
+
+  // Optional, static tier only — unlike tokens.json, a missing tokens.light.json is not an error;
+  // it just means the theme has no light variant (leaves tokensLight empty, no :root override).
+  let tokensLight: ThemeTokens = {};
+  if (manifest.tier === "static") {
+    const tokensLightPath = join(themeDir, "tokens.light.json");
+    if (existsSync(tokensLightPath)) {
+      try {
+        const raw = readJson(tokensLightPath);
+        if (!isObject(raw)) throw new Error("tokens.light.json is not an object");
+        tokensLight = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, String(v)]));
+      } catch (err) {
+        errors.push(`tokens.light.json: ${(err as Error).message}`);
+      }
+    }
   }
 
   const templates: Record<string, TemplateNode> = {};
@@ -223,27 +275,57 @@ export function loadTheme(
       }
     }
   }
-  // REQ-01: a theme's required template minimum is home + entry (the base). C3:
-  // post/page are optional specializations that fall through to entry (REQ-03).
-  // The required set is tier-aware: templated themes ship `.liquid`, handlebars
-  // themes ship `.hbs`, others JSON.
-  const ext = manifest.tier === "templated" ? "liquid" : manifest.tier === "handlebars" ? "hbs" : "json";
-  const requiredTemplates =
-    manifest.tier === "templated" ? liquidTemplates : manifest.tier === "handlebars" ? handlebarsTemplates : templates;
-  if (!requiredTemplates.home) errors.push(`templates/home.${ext} is required`);
-  if (!requiredTemplates.entry) errors.push(`templates/entry.${ext} is required`);
+  // Static tier has no `templates/` route map at all — it ships already-complete
+  // HTML documents under `pages/*.html` instead, so it gets its own required-file
+  // check (REQ-01's spirit, not its exact home+entry pair: a static theme's
+  // minimum is one page to actually show, not a route id a templating engine
+  // would fill in). Kept out of the `templates`/`liquidTemplates`/
+  // `handlebarsTemplates` branch below entirely rather than forced through it.
+  const pages: Record<string, string> = {};
+  const partials: Record<string, string> = {};
+  if (manifest.tier === "static") {
+    const pagesDir = join(themeDir, "pages");
+    if (existsSync(pagesDir)) {
+      for (const file of readdirSync(pagesDir)) {
+        if (file.endsWith(".html")) pages[file.slice(0, -".html".length)] = readFileSync(join(pagesDir, file), "utf8");
+      }
+    }
+    if (!pages.index) errors.push("pages/index.html is required");
+    for (const file of readdirSync(themeDir)) {
+      if (file.endsWith(".html") && (file === "nav.html" || file.startsWith("footer"))) {
+        partials[file.slice(0, -".html".length)] = readFileSync(join(themeDir, file), "utf8");
+      }
+    }
+  } else {
+    // REQ-01: a theme's required template minimum is home + entry (the base). C3:
+    // post/page are optional specializations that fall through to entry (REQ-03).
+    // The required set is tier-aware: templated themes ship `.liquid`, handlebars
+    // themes ship `.hbs`, others JSON.
+    const ext = manifest.tier === "templated" ? "liquid" : manifest.tier === "handlebars" ? "hbs" : "json";
+    const requiredTemplates =
+      manifest.tier === "templated" ? liquidTemplates : manifest.tier === "handlebars" ? handlebarsTemplates : templates;
+    if (!requiredTemplates.home) errors.push(`templates/home.${ext} is required`);
+    if (!requiredTemplates.entry) errors.push(`templates/entry.${ext} is required`);
+  }
 
   let css = "";
-  const cssPath = join(themeDir, "styles.css");
+  // Static themes keep CSS under css/styles.css (alongside sibling js/ and pages/
+  // folders) rather than a lone file at the theme root — the root-level convention
+  // fits every other tier's flat, single-stylesheet shape; static ships a whole
+  // small multi-file project instead.
+  const cssPath = join(themeDir, manifest.tier === "static" ? "css/styles.css" : "styles.css");
   if (existsSync(cssPath)) css = readFileSync(cssPath, "utf8");
 
   return {
     manifest,
     dir: themeDir,
     tokens,
+    tokensLight,
     templates,
     liquidTemplates,
     handlebarsTemplates,
+    pages,
+    partials,
     css,
     source,
     status: errors.length === 0 ? "valid" : "invalid",
@@ -288,7 +370,7 @@ export function discoverThemes(
  * themes root or of one of THESE subfolders is not a recognized theme root, and no agent-driven file
  * write may resolve into it.
  */
-export const ENGINE_SUBFOLDERS = ["liquidjs", "handlebars"] as const;
+export const ENGINE_SUBFOLDERS = ["liquidjs", "handlebars", "static"] as const;
 
 /**
  * Discover every built-in theme across the top-level (declarative) folder plus every engine

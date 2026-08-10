@@ -71,7 +71,7 @@ test("a disallowed filter in entry.liquid fails the theme as invalid, naming the
 });
 
 test("the live themes/dispatch demonstrator theme loads as valid end-to-end", () => {
-  const dispatchDir = path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch");
+  const dispatchDir = path.join(process.cwd(), "src", "theme-archive", "dispatch");
   const theme = loadTheme({ themeDir: dispatchDir, id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   assert.deepEqual(theme.errors, []);
@@ -219,7 +219,7 @@ test("a theme.json with no regions field leaves manifest.regions undefined (back
 });
 
 test("the live themes/dispatch demonstrator theme (no regions declared yet) still loads as valid with manifest.regions undefined", () => {
-  const dispatchDir = path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch");
+  const dispatchDir = path.join(process.cwd(), "src", "theme-archive", "dispatch");
   const theme = loadTheme({ themeDir: dispatchDir, id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   assert.equal(theme.manifest.regions, undefined);

@@ -1,0 +1,1 @@
+ALTER TABLE `posts` ADD `template_choice` text;

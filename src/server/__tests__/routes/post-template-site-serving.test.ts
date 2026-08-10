@@ -1,0 +1,246 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import test from "node:test";
+
+import express from "express";
+
+import type { PostRecord } from "#src/features/post/index";
+import type { DiscoveredTheme } from "#src/features/theme/index";
+import { createRouteDeps } from "../../app";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
+import { createContentModule } from "../../modules/content";
+import { registerSiteRoutes } from "../../routes/site/pages";
+import type { RouteDeps } from "../../routes/types";
+import { bootAuthenticated, startTestServer } from "../helpers/http-test-server";
+
+/**
+ * @file End-to-end coverage for the two post/theme-page routing decisions that had none, through a
+ * real GET on the live-site boundary rather than in-domain resolution alone.
+ *
+ * Written after both shipped untested and one regressed in production: with a static-tier active
+ * theme declaring `postTemplate`, every post whose `templateChoice` was `null` served a "Template
+ * not configured" diagnostic page at HTTP 200 — 11 live published posts, silent because the status
+ * code was a success and nothing alarmed. The `null` vs `""` pair below is the regression test.
+ */
+
+const WORKSPACE_ID = "workspace-local";
+const DIAGNOSTIC_MARKER = "Not configured";
+const POST_BODY_TEXT = "Body text that proves the real post rendered";
+
+function staticThemeWithPostTemplate(
+  overrides: { postTemplate?: string[]; extraPages?: Record<string, string> } = {}
+): DiscoveredTheme {
+  const postSlot = '<div data-embed-type="post" data-embed-id="{{post}}"></div>';
+  return {
+    manifest: {
+      id: "static-test-theme",
+      name: "Static Test Theme",
+      version: "1.0.0",
+      tier: "static",
+      engine: 1,
+      postTemplate: overrides.postTemplate ?? ["blog-post.html"],
+    },
+    dir: "/nonexistent/test-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: {
+      index: "<html><body><main>home</main></body></html>",
+      "blog-post": `<html><body><main data-tpl="blog-post">${postSlot}</main></body></html>`,
+      "long-form": `<html><body><main data-tpl="long-form">${postSlot}</main></body></html>`,
+      ...overrides.extraPages,
+    },
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+/**
+ * `withAdmin` also mounts the authenticated admin content routes, so one test can drive the real
+ * write path and then read the result back off the public site. Admin routes mount BEFORE
+ * `registerSiteRoutes`, whose `/:slug` handler would otherwise shadow them.
+ */
+function buildTestApp(
+  theme: DiscoveredTheme,
+  { withAdmin = false }: { withAdmin?: boolean } = {}
+): { app: express.Express; deps: RouteDeps } {
+  const deps: RouteDeps = createRouteDeps();
+  deps.themes = [theme];
+  const app = express();
+  app.use(express.json());
+  if (withAdmin) {
+    registerAuthRoutes(app, deps);
+    app.use("/api/admin", requireAdminSession(deps));
+    createContentModule(deps as never).registerRoutes?.(app);
+  }
+  registerSiteRoutes(app, deps);
+  return { app, deps };
+}
+
+/**
+ * Saves a published `doc` post straight through the repo port rather than the admin HTTP API — the
+ * subject under test is the SITE render path, and a direct save is the only way to reproduce the
+ * exact stored shape that caused the regression (`templateChoice` absent entirely, as migration
+ * `0028` left every pre-feature row) without the admin editor's own defaulting in the way.
+ */
+async function savePost(
+  deps: RouteDeps,
+  fields: { slug: string; templateChoice?: string | null; overridesThemePage?: boolean }
+): Promise<PostRecord> {
+  const post = {
+    id: randomUUID(),
+    workspaceId: WORKSPACE_ID,
+    title: `Post ${fields.slug}`,
+    slug: fields.slug,
+    bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: POST_BODY_TEXT }] }] },
+    status: "published",
+    kind: "post",
+    bodyFormat: "doc",
+    bodyHtml: null,
+    updatedAt: new Date().toISOString(),
+    version: 1,
+    ...(fields.templateChoice !== undefined ? { templateChoice: fields.templateChoice } : {}),
+    ...(fields.overridesThemePage !== undefined ? { overridesThemePage: fields.overridesThemePage } : {}),
+  } as unknown as PostRecord;
+  await deps.postRepo.save(post);
+  return post;
+}
+
+async function getPage(baseUrl: string, slug: string): Promise<{ status: number; html: string }> {
+  const res = await fetch(`${baseUrl}/${slug}`);
+  return { status: res.status, html: await res.text() };
+}
+
+test("REGRESSION: a post whose templateChoice was never set renders its real content, not the diagnostic page", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithPostTemplate());
+  await savePost(deps, { slug: "legacy-post" });
+  const baseUrl = await startTestServer(app, t);
+
+  const { status, html } = await getPage(baseUrl, "legacy-post");
+
+  assert.equal(status, 200);
+  assert.ok(!html.includes(DIAGNOSTIC_MARKER), "must not serve the 'Template not configured' page");
+  assert.ok(html.includes(POST_BODY_TEXT), "the post's own body must reach the page");
+  assert.ok(html.includes('data-tpl="blog-post"'), "must render through the theme's first postTemplate");
+});
+
+test("a post explicitly opted out of templates still gets the diagnostic page", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithPostTemplate());
+  await savePost(deps, { slug: "opted-out", templateChoice: "" });
+  const baseUrl = await startTestServer(app, t);
+
+  const { status, html } = await getPage(baseUrl, "opted-out");
+
+  assert.equal(status, 200);
+  assert.ok(html.includes(DIAGNOSTIC_MARKER), "explicit opt-out is designed product behavior");
+  assert.ok(!html.includes(POST_BODY_TEXT));
+});
+
+test("null and \"\" produce different pages for otherwise identical posts", async (t) => {
+  // The single assertion the pre-fix code could not satisfy: it mapped both to the diagnostic page.
+  const { app, deps } = buildTestApp(staticThemeWithPostTemplate());
+  await savePost(deps, { slug: "never-chosen" });
+  await savePost(deps, { slug: "explicitly-none", templateChoice: "" });
+  const baseUrl = await startTestServer(app, t);
+
+  const neverChosen = await getPage(baseUrl, "never-chosen");
+  const explicitlyNone = await getPage(baseUrl, "explicitly-none");
+
+  assert.ok(!neverChosen.html.includes(DIAGNOSTIC_MARKER));
+  assert.ok(explicitlyNone.html.includes(DIAGNOSTIC_MARKER));
+});
+
+test("an explicit templateChoice renders through that template, not the first one", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithPostTemplate({ postTemplate: ["blog-post.html", "long-form.html"] }));
+  await savePost(deps, { slug: "chosen", templateChoice: "long-form.html" });
+  const baseUrl = await startTestServer(app, t);
+
+  const { html } = await getPage(baseUrl, "chosen");
+
+  assert.ok(html.includes('data-tpl="long-form"'));
+  assert.ok(html.includes(POST_BODY_TEXT));
+});
+
+test("overridesThemePage false: the theme's own same-slug page wins over the post", async (t) => {
+  const theme = staticThemeWithPostTemplate({
+    extraPages: { "collision-page": '<html><body><main data-tpl="theme-collision-page">Theme collision page</main></body></html>' },
+  });
+  const { app, deps } = buildTestApp(theme);
+  await savePost(deps, { slug: "collision-page", overridesThemePage: false });
+  const baseUrl = await startTestServer(app, t);
+
+  const { status, html } = await getPage(baseUrl, "collision-page");
+
+  assert.equal(status, 200);
+  assert.ok(html.includes('data-tpl="theme-collision-page"'), "theme page is the default winner");
+  assert.ok(!html.includes(POST_BODY_TEXT));
+});
+
+test("overridesThemePage true: the post wins over the theme's own same-slug page", async (t) => {
+  const theme = staticThemeWithPostTemplate({
+    extraPages: { "collision-page": '<html><body><main data-tpl="theme-collision-page">Theme collision page</main></body></html>' },
+  });
+  const { app, deps } = buildTestApp(theme);
+  await savePost(deps, { slug: "collision-page", overridesThemePage: true });
+  const baseUrl = await startTestServer(app, t);
+
+  const { status, html } = await getPage(baseUrl, "collision-page");
+
+  assert.equal(status, 200);
+  assert.ok(html.includes(POST_BODY_TEXT), "the overriding post's body must render");
+  assert.ok(!html.includes('data-tpl="theme-collision-page"'), "the theme page must lose");
+});
+
+test("overridesThemePage true composes with the templateChoice fallback rather than bypassing it", async (t) => {
+  // Both features on one row: an overriding post that never chose a template must still fall back,
+  // not land on the diagnostic page — the combination neither feature's own path exercises alone.
+  const theme = staticThemeWithPostTemplate({
+    extraPages: { "collision-page": '<html><body><main data-tpl="theme-collision-page">Theme collision page</main></body></html>' },
+  });
+  const { app, deps } = buildTestApp(theme);
+  await savePost(deps, { slug: "collision-page", overridesThemePage: true });
+  const baseUrl = await startTestServer(app, t);
+
+  const { html } = await getPage(baseUrl, "collision-page");
+
+  assert.ok(!html.includes(DIAGNOSTIC_MARKER));
+  assert.ok(html.includes('data-tpl="blog-post"'));
+});
+
+test('ROUND TRIP: saving "No template chosen" through the admin API persists "" and diagnoses on the site', async (t) => {
+  // The editor sends `""` for its "No template chosen" option. `""` is falsy, so any `|| null` on
+  // the way through would quietly turn a deliberate opt-out back into "never chosen" — which is the
+  // exact coercion that made the two states indistinguishable in the first place. This walks the
+  // real admin PUT so that regression can't return through the write path instead of the read one.
+  const { app, deps } = buildTestApp(staticThemeWithPostTemplate(), { withAdmin: true });
+  const post = await savePost(deps, { slug: "round-trip" });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const put = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/posts/${post.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: post.title, slug: post.slug, status: "published", bodyJson: post.bodyJson, templateChoice: "" }),
+  });
+  assert.equal(put.status, 200);
+
+  const stored = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: post.id });
+  assert.equal(stored?.templateChoice, "", 'the opt-out must survive as "", never coerced to null');
+
+  const { html } = await getPage(baseUrl, "round-trip");
+  assert.ok(html.includes(DIAGNOSTIC_MARKER));
+});
+
+test("a theme with no same-slug page serves the post regardless of overridesThemePage", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithPostTemplate());
+  await savePost(deps, { slug: "no-collision", overridesThemePage: false });
+  const baseUrl = await startTestServer(app, t);
+
+  const { html } = await getPage(baseUrl, "no-collision");
+
+  assert.ok(html.includes(POST_BODY_TEXT));
+});

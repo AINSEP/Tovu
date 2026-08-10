@@ -85,6 +85,23 @@ export interface PostRecord {
    * file's own domain functions, exactly the way `kind` filtering already does.
    */
   deletedAt?: string | null;
+  /**
+   * Post-template-picker feature (2026-08-10) — the `pages/*.html` filename (from the active static
+   * theme's `theme.json` `postTemplate` array, e.g. `"blog-post.html"`) this post renders through.
+   *
+   * Tri-state, and the `null`-vs-`""` difference is load-bearing: `null`/absent means *never chosen*
+   * (falls back to the theme's first-listed template at render time), `""` means the author
+   * *explicitly opted out* via the admin picker's "No template chosen" (renders the diagnostic page,
+   * not a silent fallback to generic rendering). See `resolvePostTemplate` for the full rationale.
+   */
+  templateChoice?: string | null;
+  /**
+   * Slug-collision override (2026-08-10) — when this post's slug matches one of the active static
+   * theme's own page filenames, the theme's page renders instead of this post by default. Setting
+   * this `true` (an explicit author choice, made after the admin UI warns about the collision) makes
+   * this post win instead. Absent/`false` is the pre-feature default: theme pages keep winning.
+   */
+  overridesThemePage?: boolean;
 }
 
 /**
@@ -188,6 +205,14 @@ export interface UpdatePostInput {
   slug: string;
   bodyJson: JsonObject;
   status: PostStatus;
+  /**
+   * Post-template-picker feature (2026-08-10) — optional. `undefined` (the field simply omitted)
+   * carries the existing choice over unchanged, matching every other field this endpoint doesn't
+   * require a caller to resend; `null` explicitly clears a previously-chosen template.
+   */
+  templateChoice?: string | null;
+  /** Same "omit to leave unchanged" contract as {@link UpdatePostInput.templateChoice} just above. */
+  overridesThemePage?: boolean;
 }
 
 export interface UpdatePostDeps {
@@ -687,6 +712,8 @@ export async function updatePost(
     status: input.status,
     updatedAt: deps.clock.nowIso(),
     version: existing.version + 1,
+    ...(input.templateChoice !== undefined ? { templateChoice: input.templateChoice } : {}),
+    ...(input.overridesThemePage !== undefined ? { overridesThemePage: input.overridesThemePage } : {}),
     ...(ext !== undefined ? { ext } : {}),
   };
 

@@ -6,4 +6,6 @@ export type {
   ContentPostPayload,
   HeadlessEntryKind,
   HeadlessThemeId,
+  HeadlessThemeSummary,
+  HeadlessThemeTier,
 } from "./contracts";

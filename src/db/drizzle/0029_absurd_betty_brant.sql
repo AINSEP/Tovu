@@ -1,0 +1,1 @@
+ALTER TABLE `posts` ADD `overrides_theme_page` integer DEFAULT false NOT NULL;

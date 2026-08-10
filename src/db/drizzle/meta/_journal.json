@@ -197,6 +197,41 @@
       "when": 1785970513110,
       "tag": "0027_bumpy_blockbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1786327842277,
+      "tag": "0028_eminent_lilith",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1786329446367,
+      "tag": "0029_absurd_betty_brant",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1786335341813,
+      "tag": "0030_optimal_logan",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1786338769435,
+      "tag": "0031_polite_reavers",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1786340849048,
+      "tag": "0032_fresh_forge",
+      "breakpoints": true
     }
   ]
 }

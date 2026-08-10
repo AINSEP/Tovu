@@ -1,6 +1,6 @@
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { processOutbox } from "#src/core/events/index";
-import { PostNotFoundError, deletePost, type PostRecord } from "#src/features/post/index";
+import { PostNotFoundError, deletePost, getAdminPostByIdOrSlug, type PostRecord } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/http/admin/posts";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps";
@@ -40,7 +40,13 @@ export const registerAdminPostDeleteRoute: ContentRouteRegistrar = (app, deps) =
       return;
     }
 
-    const postId = String(req.params.postId ?? "");
+    const rawParam = String(req.params.postId ?? "");
+    // Admin URLs use the slug when one resolves (2026-08-10) — same resolve-up-front rationale as
+    // `posts/update.ts`.
+    const postId = (await getAdminPostByIdOrSlug({
+      deps: { repo: deps.postRepo },
+      input: { workspaceId: deps.workspaceId, idOrSlug: rawParam },
+    }).catch(() => null))?.post.id ?? rawParam;
     const idempotencyKey = req.get("Idempotency-Key") || undefined;
 
     // Full pre-trash record, captured in captureInverse and reused verbatim by rollback so the
