@@ -120,12 +120,12 @@ test("migrateLegacyPresentationSettings: backfills a theme.{themeId} availabilit
 });
 
 test("migrateLegacyPresentationSettings: prefers caller-supplied availableThemeIds (discovered themes) over the legacy ALLOWED_THEME_IDS fallback", async () => {
-  const deps = { ...makeDeps([]), availableThemeIds: ["tovu-official", "column"] };
+  const deps = { ...makeDeps([]), availableThemeIds: ["basic", "fuel"] };
 
   await migrateLegacyPresentationSettings(deps);
 
   const discovered = await deps.settingsRepo.findActiveDefinition({
-    namespace: "theme.tovu-official",
+    namespace: "theme.basic",
     key: "available",
     workspaceId: null,
   });

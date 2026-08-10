@@ -673,7 +673,17 @@ test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one ma
   // that silently stops being discovered fails here rather than going unnoticed.
   assert.deepEqual(
     themesPayload.themes.map((t) => t.id),
-    ["clean-blog", "column", "dispatch", "grayscale", "ledger", "minima", "storefront", "tovu-official"]
+    [
+      "basic",
+      "basic-declarative",
+      "fuel",
+      "gracious-timing",
+      "portfolite",
+      "storefront",
+      "tailark-dusk",
+      "tailark-quartz-dark",
+      "tailark-quartz-libre",
+    ]
   );
   assert.ok(themesPayload.themes.every((t) => t.source === "built-in"));
   assert.ok(themesPayload.themes.every((t) => Array.isArray(t.errors)));
@@ -681,7 +691,7 @@ test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one ma
   // Exactly one theme is active, matching the seeded default (server/seed.ts).
   const activeThemes = themesPayload.themes.filter((t) => t.active);
   assert.equal(activeThemes.length, 1);
-  assert.equal(activeThemes[0].id, "tovu-official");
+  assert.equal(activeThemes[0].id, "basic");
 });
 
 test("GET themes 404s for an unknown workspace id and 403s without theme.set", async (t) => {
