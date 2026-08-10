@@ -3,7 +3,7 @@ import type { ChatPaneAgentSelection } from "@jini-ai/chat/react";
 import { isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
 import { DEFAULT_PROVIDER_PRESETS, resolveSelectedPreset, type ExecutionConfig } from "@jini-ai/ui";
 
-import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
+import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../../lib/settings-refresh-bus";
 import {
   DEFAULT_EXECUTION_CONFIG,
   EXECUTION_NAMESPACE,
@@ -172,20 +172,35 @@ export function useExecutionConfig(): UseExecutionConfig {
    * any more. Read-only and independent of the ledger load above: a failed GET here leaves this
    * `null`/`false` (picker reads as "not configured"), which is the same fail-soft posture the
    * ledger load's own `.catch` takes — never blocks the dock, only degrades one affordance.
+   *
+   * Re-reads on {@link subscribeToSettingsRefresh}, not just on mount. This dock mounts once at the
+   * app shell and never remounts for the session (`AssistantDock.tsx`'s own header comment), so
+   * without this a key saved, rotated, or cleared from a settings screen's OWN
+   * `useAdminExecutionCredential` (a different, independently-mounted copy of the same server row —
+   * see that hook's "Cross-mount staleness" doc) would leave this picker showing "not configured" (or
+   * a stale "configured") for the rest of the session, not just briefly.
    */
   const [hasStoredAdminKey, setHasStoredAdminKey] = useState<boolean | null>(null);
   useEffect(() => {
     let cancelled = false;
-    void loadAdminExecutionCredential()
-      .then((view) => {
-        if (!cancelled) setHasStoredAdminKey(view.isSet);
-      })
-      .catch((error: unknown) => {
-        console.error("[AssistantDock] failed to load stored BYOK credential state", error);
-        if (!cancelled) setHasStoredAdminKey(false);
-      });
+    const refresh = () => {
+      void loadAdminExecutionCredential()
+        .then((view) => {
+          if (!cancelled) setHasStoredAdminKey(view.isSet);
+        })
+        .catch((error: unknown) => {
+          console.error("[AssistantDock] failed to load stored BYOK credential state", error);
+          if (!cancelled) setHasStoredAdminKey(false);
+        });
+    };
+    refresh();
+    const unsubscribe = subscribeToSettingsRefresh((scope) => {
+      if (scope && !scope.includes(EXECUTION_NAMESPACE)) return;
+      refresh();
+    });
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, []);
 

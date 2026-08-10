@@ -29,7 +29,23 @@ vi.mock("../../lib/execution-settings", async (importOriginal) => {
   };
 });
 
-vi.mock("../../lib/settings-refresh-bus", () => ({ publishSettingsRefresh: vi.fn() }));
+// A minimal fake bus, hoisted so both the mock factory and test bodies can reach the same listener
+// array — tests below trigger a publish by calling the captured listeners directly, the same shape
+// `settings-refresh-bus.ts`'s own real `publishSettingsRefresh` uses internally.
+const { settingsRefreshListeners } = vi.hoisted(() => ({
+  settingsRefreshListeners: [] as Array<(scope: readonly string[] | null) => void>,
+}));
+
+vi.mock("../../lib/settings-refresh-bus", () => ({
+  publishSettingsRefresh: vi.fn(),
+  subscribeToSettingsRefresh: vi.fn((listener: (scope: readonly string[] | null) => void) => {
+    settingsRefreshListeners.push(listener);
+    return () => {
+      const index = settingsRefreshListeners.indexOf(listener);
+      if (index >= 0) settingsRefreshListeners.splice(index, 1);
+    };
+  }),
+}));
 
 import {
   resolveRunContext,
@@ -104,6 +120,7 @@ beforeEach(() => {
   mockPublishSettingsRefresh.mockReset();
   mockLoadAdminExecutionCredential.mockReset().mockResolvedValue(storedCredential(false));
   consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  settingsRefreshListeners.length = 0;
 });
 
 afterEach(() => {
@@ -233,6 +250,38 @@ describe("useExecutionConfig", () => {
       await Promise.resolve();
     });
     expect(result.current.configLoaded).toBe(false);
+  });
+
+  // Finding 2 (cross-mount staleness): this dock mounts once at the app shell and never remounts for
+  // the session (`AssistantDock.tsx`'s own header comment), so `hasStoredAdminKey` used to be able to
+  // sit on a stale answer for the entire session once a settings screen's OWN, independently mounted
+  // `useAdminExecutionCredential` saved/rotated/migrated the same server-side credential row.
+  it("hasStoredAdminKey re-reads on a core.execution settings refresh, without remounting", async () => {
+    const { result } = renderHook(() => useExecutionConfig());
+    await waitFor(() => expect(result.current.hasStoredAdminKey).toBe(false));
+
+    // A key was saved from elsewhere (a settings screen's own mount) — nothing here changed except
+    // what the next GET returns, modeling a real server's state having moved.
+    mockLoadAdminExecutionCredential.mockResolvedValue(storedCredential(true));
+    await act(async () => {
+      for (const listener of settingsRefreshListeners) listener(["core.execution"]);
+    });
+
+    await waitFor(() => expect(result.current.hasStoredAdminKey).toBe(true));
+  });
+
+  it("hasStoredAdminKey ignores a settings refresh for an unrelated namespace", async () => {
+    const { result } = renderHook(() => useExecutionConfig());
+    await waitFor(() => expect(result.current.hasStoredAdminKey).toBe(false));
+    mockLoadAdminExecutionCredential.mockClear().mockResolvedValue(storedCredential(true));
+
+    await act(async () => {
+      for (const listener of settingsRefreshListeners) listener(["core.presentation"]);
+      await Promise.resolve();
+    });
+
+    expect(mockLoadAdminExecutionCredential).not.toHaveBeenCalled();
+    expect(result.current.hasStoredAdminKey).toBe(false);
   });
 });
 
