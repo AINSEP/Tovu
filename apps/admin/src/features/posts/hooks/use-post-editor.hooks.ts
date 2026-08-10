@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 
-import { api, type AdminPost } from "../../../lib/api";
+import { api, type AdminPost, type ThemeTier } from "../../../lib/api";
 import { MediaImage } from "../../../lib/media-image-extension";
 import { WidgetEmbed } from "../../../lib/widget-embed-extension";
 import { navigate } from "../../../lib/router";
@@ -50,6 +50,18 @@ export interface PostEditorController {
   /** The active static theme's declared `postTemplate` list — `[]` when the theme doesn't support
    *  templates, in which case the caller should not render the picker at all. */
   availableTemplates: string[];
+  /** The workspace's currently active theme id (`PresentationSettings.activeThemeId`) — `null`
+   *  until the presentation settings load. Feeds the "View Template" button's fetch URL
+   *  (`/theme-assets/{activeThemeId}/pages/{templateChoice}`, 2026-08-10). */
+  activeThemeId: string | null;
+  /** The active theme's own capability tier (`AdminThemeSummary.tier`, looked up by
+   *  `activeThemeId` against `availableThemes`) — `null` when the id has not loaded yet OR when
+   *  the active theme is absent from `availableThemes` (a real gap the caller should treat as
+   *  "unknown", not silently as any one tier). Only a `"static"` theme actually serves
+   *  `pages/*.html` at `/theme-assets/...` (see `theme-static-assets.ts`'s own file header: it
+   *  mounts one `express.static` root per discovered STATIC-tier theme dir, nothing else) — the
+   *  caller uses this to decide whether "View Template" can fetch anything at all. */
+  activeThemeTier: ThemeTier | null;
   overridesThemePage: boolean;
   setOverridesThemePage: (overridesThemePage: boolean) => void;
   /** `true` when this post's own `slug` matches one of the active theme's own page ids — the caller
@@ -78,6 +90,11 @@ export function usePostEditor(postId: string): PostEditorController {
   // actually live right now. `[]` (the default, and the steady state for any non-participating
   // theme) means the picker has nothing to offer and stays hidden, not broken.
   const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
+  // View-Template feature (2026-08-10) — same fetch-once-independent-of-postId shape as
+  // `availableTemplates` just above: the active theme's id/tier don't change when switching
+  // between posts, only when the workspace's presentation settings themselves change.
+  const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
+  const [activeThemeTier, setActiveThemeTier] = useState<ThemeTier | null>(null);
   const [overridesThemePage, setOverridesThemePage] = useState(false);
   // Same fetch-once-independent-of-postId shape as `availableTemplates` — the active theme's own
   // page ids don't change when switching between posts.
@@ -120,9 +137,11 @@ export function usePostEditor(postId: string): PostEditorController {
     // the real list arrives. Costs one extra GET per post switch (presentation settings re-fetched
     // even though it rarely changes) — an acceptable trade for a local admin panel.
     Promise.all([api.getPost(postId), api.getPresentation()])
-      .then(([{ post }, { activeThemePostTemplates, activeThemeStaticPageIds }]) => {
+      .then(([{ post }, { settings, availableThemes, activeThemePostTemplates, activeThemeStaticPageIds }]) => {
         setAvailableTemplates(activeThemePostTemplates);
         setStaticPageIds(activeThemeStaticPageIds);
+        setActiveThemeId(settings.activeThemeId);
+        setActiveThemeTier(availableThemes.find((theme) => theme.id === settings.activeThemeId)?.tier ?? null);
         setPost(post);
         setTitle(post.title);
         setSlug(post.slug);
@@ -245,6 +264,8 @@ export function usePostEditor(postId: string): PostEditorController {
     templateChoice,
     setTemplateChoice,
     availableTemplates,
+    activeThemeId,
+    activeThemeTier,
     overridesThemePage,
     setOverridesThemePage,
     hasSlugCollision,

@@ -1049,6 +1049,12 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .editor-id { display: inline-flex; align-items: center; gap: 0.35rem; margin-left: 0.5rem; padding-left: 1rem; border-left: 1px solid var(--border); }
 .editor-id input { width: 9rem; background: transparent; border: none; color: var(--muted); font: 12px/1 var(--font-mono, monospace); padding: 0; cursor: text; }
 .editor-id input:focus { outline: none; box-shadow: none; }
+/* `display: flex` added for the "View Template" button (2026-08-10) sitting next to the `<select>`
+   — before this the picker's only visible child was the `<select>` itself, so nothing here relied
+   on a layout mode; a bare `<select>` and `<button>` both default to `inline-block`, which would
+   sit them side by side with no controlled gap. `align-items: center` keeps the button's own
+   padding from making it taller than the select and pushing it out of vertical alignment. */
+.editor-template-picker { display: flex; align-items: center; gap: 0.5rem; }
 .editor-template-picker select { width: 14rem; font-size: 0.85rem; }
 /* Small screens (2026-08-09 live feedback): the slug row was overflowing — the template picker got
    clipped off the right edge instead of wrapping to its own line, and the id block (no visible
@@ -1060,6 +1066,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   .editor-slug { justify-content: center; text-align: center; }
   .editor-id { margin-left: 0; padding-left: 0.75rem; justify-content: center; }
   .editor-template-picker select { width: 100%; }
+  .editor-template-picker { flex-wrap: wrap; }
   .editor-slug input { width: 100%; }
 }
 
@@ -2230,6 +2237,56 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   border: 1px solid oklch(100% 0 0 / 0.35); box-shadow: var(--shadow-md);
 }
 .image-preview-modal-close:hover { background: oklch(0% 0 0 / 0.72); opacity: 1; }
+
+/* "View Template" (2026-08-10, `PostTemplateModal.tsx`) — same `PreviewModalShell` host chrome as
+   `.agent-plugin-source-modal` above, but a single stage pane rather than a file-browser grid: this
+   modal has exactly one file (the chosen template), never a list to pick from. `.code-viewer` reuses
+   the identical gutter/line styling `CodeWithLines` renders into, scoped under this modal's own
+   ancestor since `.agent-plugin-source-content .code-viewer` above only matches inside that OTHER
+   modal's markup. */
+.post-template-modal {
+  z-index: 80;
+  padding: var(--space-4);
+  background: oklch(0% 0 0 / 0.48);
+}
+.post-template-modal [data-preview-modal] {
+  max-width: 60rem;
+  max-height: min(44rem, calc(100vh - 2rem));
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+}
+.post-template-modal [data-preview-modal-header] {
+  min-height: 4rem;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+.post-template-modal [data-preview-modal-title] { font-weight: 700; color: var(--fg); font-family: var(--font-mono); }
+.post-template-modal [data-preview-modal-subtitle] { margin-top: 2px; font-size: var(--text-sm); color: var(--muted); }
+.post-template-modal [data-preview-modal-close],
+.post-template-modal [data-preview-modal-stage-fullscreen] {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 2rem; min-height: 2rem; padding: 0.4rem;
+  color: var(--fg-2); background: transparent;
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+}
+.post-template-modal [data-preview-modal-stage-fullscreen] { position: absolute; z-index: 1; top: var(--space-3); right: var(--space-3); }
+.post-template-modal [data-preview-modal-stage-custom] {
+  width: 100%; height: 100%; min-height: 0; overflow: auto; padding: var(--space-4);
+}
+.post-template-modal [data-preview-modal-stage-custom] .code-viewer {
+  display: grid; grid-template-columns: auto minmax(max-content, 1fr);
+  margin: 0; color: var(--fg-2); background: var(--surface); font: var(--text-xs)/1.6 var(--font-mono);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+}
+.post-template-modal [data-preview-modal-stage-custom] .code-viewer code { display: block; padding: var(--space-3) var(--space-4); white-space: pre; }
+.post-template-modal [data-preview-modal-stage-custom] .code-viewer .gutter {
+  position: sticky; left: 0; text-align: right; user-select: none;
+  color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
+}
 
 /* The theme card's screenshot thumbnail, made clickable (2026-08-10 owner feedback: too small to
    read, needs a click-to-expand). A real `<button>` wrapping the `<img>`, not a bare clickable

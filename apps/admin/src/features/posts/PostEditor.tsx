@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { ConfirmDialog } from "@jini-ai/admin/react";
@@ -5,6 +6,7 @@ import { ConfirmDialog } from "@jini-ai/admin/react";
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
 import { siteUrl } from "../../lib/site-url";
 import { usePostEditor } from "./hooks/use-post-editor.hooks";
+import { PostTemplateModal } from "./PostTemplateModal";
 import { toolbarBtnClass } from "./rules";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { POSTS_DICT } from "./posts-i18n";
@@ -273,6 +275,8 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
     templateChoice,
     setTemplateChoice,
     availableTemplates,
+    activeThemeId,
+    activeThemeTier,
     overridesThemePage,
     setOverridesThemePage,
     hasSlugCollision,
@@ -287,6 +291,9 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
   } = usePostEditorHook(postId);
   const locale = useAdminLocale();
   const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
+  // View Template (2026-08-10) — called above the early returns below so hook order stays stable
+  // across the loading/error/loaded renders, same reasoning as `Posts.tsx`'s `updatedSort` state.
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   if (error && !post) return <div className="notice error">{error}</div>;
   if (!post) return <div className="notice">Loading editor…</div>;
@@ -412,6 +419,25 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
                 ))}
                 <option value="">{t("No template chosen")}</option>
               </select>
+            ) : null}
+            {availableTemplates.length > 0 ? (
+              // Read-only inspection, not editing (`PostTemplateModal.tsx`'s own file header —
+              // "I just wanna see it" is the owner's own framing). Disabled rather than hidden
+              // when nothing is chosen: an operator who opted out via "No template chosen" (`""`)
+              // still sees the control, just inert, matching this screen's own precedent for the
+              // theme-with-zero-templates `<select>` above rather than the row disappearing.
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={!templateChoice}
+                onClick={() => setShowTemplateModal(true)}
+                {...agentHandle("post-view-template", {
+                  role: "button",
+                  label: "Open a read-only view of the selected template's HTML source. Nothing here is editable.",
+                })}
+              >
+                {t("View Template")}
+              </button>
             ) : (
               <select
                 disabled
@@ -491,6 +517,21 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
         onConfirm={remove}
         onCancel={() => setConfirmingDelete(false)}
       />
+      {/* Conditionally mounted, not always-mounted-with-`open`: `PreviewModalShell` is a plain
+          fixed-position overlay `<div>` (see its own file header), not the native `<dialog>`
+          `ConfirmDialog` above wraps — there is no `open` prop to toggle, so this follows
+          `AgentPluginDetailsModal`'s own call site (`AgentPlugins.tsx`) instead. `templateChoice`
+          and `activeThemeId` are re-checked here (not just at the button's `disabled`) so this can
+          never render with an empty/`null` URL segment even if state changes out from under an
+          already-open modal. */}
+      {showTemplateModal && templateChoice && activeThemeId ? (
+        <PostTemplateModal
+          themeId={activeThemeId}
+          themeTier={activeThemeTier}
+          templateFilename={templateChoice}
+          onClose={() => setShowTemplateModal(false)}
+        />
+      ) : null}
     </div>
   );
 }
