@@ -92,7 +92,63 @@ export interface ThemeManifest {
    * (see `pages.ts`'s post-template branch).
    */
   postTemplate?: string[];
+  /**
+   * `static` tier only — the color modes this theme ships token sets for, e.g. `["dark", "light"]`.
+   * A mode name is just the value written into the page's root `data-theme` attribute, which is the
+   * selector `tokensToRootCss` (`static-render.ts`) already emits its `tokens.light.json` override
+   * block under (`:root[data-theme="light"]`). Absent/undefined means the theme declares nothing, and
+   * {@link renderStaticPage} then emits no `data-theme` at all — the pre-2026-08-10 behavior, where
+   * the base `:root` block always won because no attribute existed for an override block to match.
+   */
+  modes?: string[];
+  /**
+   * `static` tier only — which of {@link modes} a freshly-served page starts in. Emitted as
+   * `data-theme="<defaultMode>"` on the page's `<html>` element, so it selects between the token
+   * blocks above. A theme wanting a user-flippable toggle owns that itself: static themes are plain
+   * HTML/JS, so their own script sets `document.documentElement.dataset.theme`, and the engine's job
+   * ends at establishing the initial value. Declaring a `defaultMode` outside `modes` is a manifest
+   * error (the theme loads `invalid` with a message), not a silent fallback.
+   */
+  defaultMode?: string;
+  /**
+   * `static` tier only — the `data-tovu-slot="<key>"` markers this theme's pages embed, mapped to the
+   * root partial file each one pulls in. Read by `resolveSlots` (`static-render.ts`); before this was
+   * wired, that function hardcoded exactly the `nav`/`footer` pair every theme on disk happens to
+   * declare, so the field was authored but never parsed. {@link DEFAULT_THEME_SLOTS} reproduces that
+   * hardcoded pair for a theme that declares no `slots`, which is why wiring this changed no existing
+   * theme's output.
+   */
+  slots?: Record<string, ThemeSlotDescriptor>;
 }
+
+/** One entry of {@link ThemeManifest.slots}. */
+export interface ThemeSlotDescriptor {
+  /** Root partial filename this slot renders, e.g. `nav.html`. */
+  source: string;
+  /**
+   * Name of the attribute on the *marker* element carrying the current page id (e.g.
+   * `data-nav-current`). When present, the anchor inside the partial whose `data-nav-id` equals that
+   * value gets `aria-current="page"`. `data-nav-id` is the fixed anchor-side half of the convention;
+   * only the marker-side attribute name is configurable, because that is the only half themes vary.
+   */
+  activeAttr?: string;
+  /**
+   * Alternate sources selected by a marker's `data-slot-variant="<name>"`, e.g.
+   * `{ "minimal": "footer-minimal.html" }`. A variant with no entry here falls back to the
+   * `<source-stem>-<variant>.html` filename convention, which is what `resolveSlots` did for every
+   * variant before this field was parsed.
+   */
+  variants?: Record<string, string>;
+}
+
+/**
+ * The `nav`/`footer` pair `resolveSlots` hardcoded before {@link ThemeManifest.slots} was parsed.
+ * Used verbatim when a static theme declares no `slots`, so such a theme renders exactly as it did.
+ */
+export const DEFAULT_THEME_SLOTS: Readonly<Record<string, ThemeSlotDescriptor>> = {
+  nav: { source: "nav.html", activeAttr: "data-nav-current" },
+  footer: { source: "footer.html" },
+};
 
 /** Design tokens: CSS custom-property name → value (emitted into `:root`). */
 export type ThemeTokens = Record<string, string>;
@@ -163,6 +219,31 @@ function parseTier(value: JsonValue | undefined): ThemeTier {
   return typeof value === "string" && (THEME_TIERS as readonly string[]).includes(value)
     ? (value as ThemeTier)
     : "declarative";
+}
+
+/**
+ * Parse `theme.json.slots` into {@link ThemeSlotDescriptor}s, skipping any entry that isn't an object
+ * with a string `source`. Returns `undefined` for an absent/unusable field so the caller falls back to
+ * {@link DEFAULT_THEME_SLOTS} rather than resolving zero slots — a theme whose `slots` block is
+ * malformed still renders its nav and footer under the legacy convention instead of losing both.
+ */
+function parseSlots(value: JsonValue | undefined): Record<string, ThemeSlotDescriptor> | undefined {
+  if (!isObject(value)) return undefined;
+  const slots: Record<string, ThemeSlotDescriptor> = {};
+  for (const [key, raw] of Object.entries(value)) {
+    if (!isObject(raw) || typeof raw.source !== "string") continue;
+    const variants = isObject(raw.variants)
+      ? Object.fromEntries(
+          Object.entries(raw.variants).filter(([, v]) => typeof v === "string").map(([k, v]) => [k, String(v)])
+        )
+      : undefined;
+    slots[key] = {
+      source: raw.source,
+      ...(typeof raw.activeAttr === "string" ? { activeAttr: raw.activeAttr } : {}),
+      ...(variants && Object.keys(variants).length > 0 ? { variants } : {}),
+    };
+  }
+  return Object.keys(slots).length > 0 ? slots : undefined;
 }
 
 /** Everything only a static theme ships. Returned by {@link loadStaticTierAssets}. */
@@ -285,8 +366,19 @@ export function loadTheme(
       regions: Array.isArray(raw.regions) ? raw.regions.map(String) : undefined,
       skipLiquidAllowlist: raw.skipLiquidAllowlist === true,
       postTemplate: Array.isArray(raw.postTemplate) ? raw.postTemplate.map(String) : undefined,
+      modes: Array.isArray(raw.modes) ? raw.modes.map(String) : undefined,
+      defaultMode: typeof raw.defaultMode === "string" ? raw.defaultMode : undefined,
+      slots: parseSlots(raw.slots),
     };
     if (manifest.id !== id) errors.push(`theme.json id '${manifest.id}' must equal folder name '${id}'`);
+    // A `defaultMode` the theme ships no tokens for would silently render the base `:root` block
+    // while the manifest claims otherwise — the exact "declared but unreachable" failure wiring
+    // these fields was meant to end, so it fails the theme loudly instead of falling back.
+    if (manifest.defaultMode !== undefined && !(manifest.modes ?? []).includes(manifest.defaultMode)) {
+      errors.push(
+        `theme.json defaultMode '${manifest.defaultMode}' is not listed in modes [${(manifest.modes ?? []).join(", ")}]`
+      );
+    }
   } catch (err) {
     errors.push(`theme.json: ${(err as Error).message}`);
   }

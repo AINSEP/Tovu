@@ -175,3 +175,112 @@ test("renderStaticPage: tailark-quartz-libre's mobile Sign in/Get started surviv
   assert.ok(withMenu?.includes(">Sign in<"), "mobile Sign in action must survive a bound header menu");
   assert.ok(withMenu?.includes(">Get started<"), "mobile Get started action must survive a bound header menu");
 });
+
+/**
+ * `theme.json`'s `modes`/`defaultMode`/`slots` were authored by every static theme on disk but read
+ * by nothing until 2026-08-10 — `resolveSlots` hardcoded the nav/footer pair, and no code ever set
+ * the `data-theme` attribute the light-token block keys off, so `tokens.light.json` was unreachable.
+ * These certify the wiring AND its back-compat floor: a theme declaring none of the three renders
+ * exactly as it did before (the `makeTheme()` fixture below declares no `slots` and no `defaultMode`,
+ * and every test above it still passes unchanged).
+ */
+
+test("resolveSlots: a theme declaring no slots still resolves nav/footer under the legacy default pair", () => {
+  const html = renderStaticPage({ theme: makeTheme(), pageId: "index" });
+  assert.ok(html?.includes('class="main-nav"'), "nav partial must still resolve with no manifest slots");
+  assert.ok(html?.includes("<h4>Legal</h4>"), "footer partial must still resolve with no manifest slots");
+  assert.ok(!html?.includes('data-tovu-slot="nav"'), "the marker itself must be consumed, not left in the page");
+});
+
+test("resolveSlots: activeAttr marks the matching data-nav-id anchor aria-current", () => {
+  const theme = makeTheme();
+  theme.pages["index"] = '<html><body><div data-tovu-slot="nav" data-nav-current="pricing"></div></body></html>';
+  const html = renderStaticPage({ theme, pageId: "index" });
+  assert.ok(html?.includes('data-nav-id="pricing" aria-current="page"'));
+});
+
+test("resolveSlots: a marker with no activeAttr value still resolves (it used to be left as a literal div)", () => {
+  const theme = makeTheme();
+  theme.pages["index"] = '<html><body><div data-tovu-slot="nav"></div></body></html>';
+  const html = renderStaticPage({ theme, pageId: "index" });
+  assert.ok(html?.includes('class="main-nav"'));
+  assert.ok(!html?.includes("data-tovu-slot"));
+  assert.ok(!html?.includes('aria-current="page"'), "no current page declared, so nothing is marked current");
+});
+
+test("resolveSlots: manifest slots drive arbitrary keys, not just the hardcoded nav/footer", () => {
+  const theme = makeTheme();
+  theme.manifest = { ...theme.manifest, slots: { sidebar: { source: "sidebar.html" } } };
+  theme.partials = { sidebar: "<aside>docs sidebar</aside>" };
+  theme.pages["index"] = '<html><body><div data-tovu-slot="sidebar"></div></body></html>';
+  const html = renderStaticPage({ theme, pageId: "index" });
+  assert.ok(html?.includes("<aside>docs sidebar</aside>"));
+});
+
+test("resolveSlots: an explicit variants map wins, and an undeclared variant falls back to the filename convention", () => {
+  const theme = makeTheme();
+  theme.manifest = {
+    ...theme.manifest,
+    slots: { footer: { source: "footer.html", variants: { minimal: "footer-tiny.html" } } },
+  };
+  theme.partials = { "footer-tiny": "<footer>tiny</footer>", "footer-bare": "<footer>bare</footer>" };
+  theme.pages["index"] = [
+    '<html><body><div data-tovu-slot="footer" data-slot-variant="minimal"></div>',
+    '<div data-tovu-slot="footer" data-slot-variant="bare"></div></body></html>',
+  ].join("");
+  const html = renderStaticPage({ theme, pageId: "index" });
+  assert.ok(html?.includes("<footer>tiny</footer>"), "declared variant resolves through the map");
+  assert.ok(html?.includes("<footer>bare</footer>"), "undeclared variant falls back to footer-<variant>.html");
+});
+
+test("renderStaticPage: defaultMode is stamped onto <html> as data-theme, making the light token block reachable", () => {
+  const theme = makeTheme();
+  theme.manifest = { ...theme.manifest, modes: ["dark", "light"], defaultMode: "light" };
+  theme.tokensLight = { "--bg": "#fff" };
+  const html = renderStaticPage({ theme, pageId: "index" });
+  assert.ok(html?.includes('<html data-theme="light">'));
+  assert.ok(html?.includes(':root[data-theme="light"]'), "the override block the attribute now selects");
+});
+
+test("renderStaticPage: a theme declaring no defaultMode emits no data-theme at all (pre-wiring behavior)", () => {
+  const html = renderStaticPage({ theme: makeTheme(), pageId: "index" });
+  // Asserted against the `<html>` tag specifically: `data-theme` also appears in the emitted
+  // `:root[data-theme="light"]` CSS block, which `tokensToRootCss` writes unconditionally.
+  assert.ok(/<html[^>]*>/.test(html ?? ""), "sanity: the fixture has an <html> tag to check");
+  assert.ok(
+    !/<html[^>]*\sdata-theme=/.test(html ?? ""),
+    "no attribute on <html>, so the base :root block wins exactly as before"
+  );
+});
+
+test("renderStaticPage: an <html> that already carries data-theme is left alone", () => {
+  const theme = makeTheme();
+  theme.manifest = { ...theme.manifest, modes: ["dark", "light"], defaultMode: "dark" };
+  theme.pages["index"] = '<html lang="en" data-theme="light"><body></body></html>';
+  const html = renderStaticPage({ theme, pageId: "index" });
+  assert.ok(html?.includes('data-theme="light"'));
+  assert.ok(!html?.includes('data-theme="dark"'));
+});
+
+test("renderStaticPage: the real `basic` theme gets its declared dark default and its minimal-footer variant", () => {
+  const theme = loadTheme({
+    themeDir: path.join(process.cwd(), "src/themes/static/basic"),
+    id: "basic",
+    source: "built-in",
+  });
+  assert.equal(theme.status, "valid");
+  assert.deepEqual(theme.manifest.modes, ["dark", "light"]);
+  assert.equal(theme.manifest.defaultMode, "dark");
+
+  // `dark` is the base `:root` block, so stamping it changes nothing visually — it only gives the
+  // theme's own toggle an attribute to flip. This is why wiring `defaultMode` was safe to land.
+  const home = renderStaticPage({ theme, pageId: "index" });
+  assert.ok(home?.includes('data-theme="dark"'));
+  assert.ok(home?.includes('class="main-nav'), "nav slot still resolves through the manifest");
+
+  // signin.html is the one page on disk using `data-slot-variant="minimal"`, and `basic` is the one
+  // theme declaring an explicit `variants` map for it.
+  const signin = renderStaticPage({ theme, pageId: "signin" });
+  assert.ok(signin !== null);
+  assert.ok(!signin?.includes('data-tovu-slot="footer"'), "the minimal-footer marker must be consumed");
+});
