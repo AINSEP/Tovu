@@ -151,7 +151,13 @@ export function Appearance({ useAppearanceHook = useAppearance }: AppearanceProp
           </div>
         </div>
       ) : (
-        <div className="theme-grid">
+        // `role="group"` + `aria-label` names the picker as a whole, matching `PageEditor.tsx`'s
+        // `role="group" aria-label="Preview width"` — the codebase's existing pattern for "a set of
+        // related controls with one label" rather than nothing. Without it, this was a bare `<div>`:
+        // a screen reader landing here (e.g. browsing by form control or by region) had no name for
+        // the widget at all, only the individual, per-card `<h3>`/button text. Reuses the "Themes"
+        // key already translated in every locale here instead of adding a new one.
+        <div className="theme-grid" role="group" aria-label={t("Themes")}>
           {visibleThemes.map((themeId) => {
             const active = isActiveTheme(settings, themeId);
             return (
