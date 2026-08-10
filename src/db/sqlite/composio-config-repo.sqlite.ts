@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-import type { UUID } from "@jini-ai/cms/core";
+import type { ISODateTime, UUID } from "@jini-ai/cms/core";
 
 import type { ComposioConfigRecord, ComposioConfigRepoPort } from "../../connectors/composio-config-store";
 import { composioConfig } from "../schema";
@@ -60,9 +60,16 @@ function toRecord(row: Row): ComposioConfigRecord {
     sealed,
     keyTail: row.keyTail,
     authConfigIds: parseAuthConfigIds(row.authConfigIds),
+    keyGeneration: row.keyGeneration,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+/** Shared by `upsert` and the conditional update so the two can never disagree about the empty
+ *  case — see `upsert` for why an empty map is stored as `null`. */
+function serializeAuthConfigIds(authConfigIds: Record<string, string>): string | null {
+  return Object.keys(authConfigIds).length === 0 ? null : JSON.stringify(authConfigIds);
 }
 
 export class SqliteComposioConfigRepo implements ComposioConfigRepoPort {
@@ -87,8 +94,8 @@ export class SqliteComposioConfigRepo implements ComposioConfigRepoPort {
       keyTail: record.keyTail,
       // Stored as `null` rather than `"{}"` when empty so the common unconfigured row carries no
       // JSON at all, matching how every other optional column here reads as absent.
-      authConfigIds:
-        Object.keys(record.authConfigIds).length === 0 ? null : JSON.stringify(record.authConfigIds),
+      authConfigIds: serializeAuthConfigIds(record.authConfigIds),
+      keyGeneration: record.keyGeneration,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     };
@@ -97,5 +104,41 @@ export class SqliteComposioConfigRepo implements ComposioConfigRepoPort {
       .values(values)
       .onConflictDoUpdate({ target: composioConfig.workspaceId, set: values })
       .run();
+  }
+
+  /**
+   * One conditional `UPDATE ... WHERE workspace_id = ? AND key_generation = ?`, touching only
+   * `auth_config_ids` and `updated_at`.
+   *
+   * A single statement is the point. SQLite applies it atomically, so there is no read this caller
+   * could be holding stale — and because the SET list names two columns, a delayed write physically
+   * cannot carry a stale `sealed_*`/`key_tail` back over a rotation the way the read-modify-write
+   * upsert it replaced could.
+   *
+   * @returns whether the row matched — `changes === 0` means the generation moved on and nothing
+   *   was written.
+   * @complexity O(1) — one primary-key-anchored update.
+   * @overallScore 100
+   */
+  async updateAuthConfigIdsIfGenerationMatches(input: {
+    workspaceId: UUID;
+    expectedGeneration: number;
+    authConfigIds: Record<string, string>;
+    updatedAt: ISODateTime;
+  }): Promise<boolean> {
+    const result = this.db
+      .update(composioConfig)
+      .set({
+        authConfigIds: serializeAuthConfigIds(input.authConfigIds),
+        updatedAt: input.updatedAt,
+      })
+      .where(
+        and(
+          eq(composioConfig.workspaceId, input.workspaceId),
+          eq(composioConfig.keyGeneration, input.expectedGeneration)
+        )
+      )
+      .run();
+    return result.changes > 0;
   }
 }

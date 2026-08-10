@@ -1,0 +1,1 @@
+ALTER TABLE `composio_config` ADD `key_generation` integer DEFAULT 0 NOT NULL;

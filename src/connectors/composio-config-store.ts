@@ -39,6 +39,13 @@ export interface ComposioConfigRecord {
   keyTail: string | null;
   /** Connector id → Composio auth-config id. Empty object when none are provisioned. */
   authConfigIds: Record<string, string>;
+  /**
+   * Monotonic counter identifying which stored key the rest of this row belongs to. Bumped by
+   * {@link saveComposioApiKey} whenever the key actually changes and by {@link clearComposioApiKey}
+   * on every clear; a re-save of the SAME key leaves it alone. See `db/schema.ts`'s `key_generation`
+   * column for the full reasoning, and {@link saveComposioAuthConfigIds} for the write it guards.
+   */
+  keyGeneration: number;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
 }
@@ -49,6 +56,24 @@ export interface ComposioConfigRecord {
 export interface ComposioConfigRepoPort {
   findByWorkspaceId(workspaceId: UUID): Promise<ComposioConfigRecord | null>;
   upsert(record: ComposioConfigRecord): Promise<void>;
+  /**
+   * Writes ONLY `auth_config_ids`/`updated_at`, and only while the row still carries
+   * `expectedGeneration` — a compare-and-swap on the key generation, applied as one statement.
+   *
+   * Two properties matter and neither is optional. It is column-scoped, so it cannot carry a stale
+   * `sealed`/`key_tail` back with it the way a read-modify-write upsert does. And it is conditional,
+   * so ids provisioned under one key can never land on a row that now holds a different one.
+   *
+   * @returns `true` if the row matched and was updated; `false` if the generation had moved on, in
+   *   which case NOTHING was written and the caller should discard the write rather than retry —
+   *   the ids belong to a key this workspace no longer has.
+   */
+  updateAuthConfigIdsIfGenerationMatches(input: {
+    workspaceId: UUID;
+    expectedGeneration: number;
+    authConfigIds: Record<string, string>;
+    updatedAt: ISODateTime;
+  }): Promise<boolean>;
 }
 
 /**
@@ -188,6 +213,11 @@ async function isSameApiKey(input: {
  * cannot see — every connect would fail with a confusing remote 404 rather than simply
  * re-provisioning. Re-pasting the SAME key preserves them, so a no-op save is genuinely a no-op.
  *
+ * `keyGeneration` moves on exactly when that discard happens, and NOT on a same-key re-save. Tying
+ * the two together is what makes the counter mean "the ids you hold are stale": a re-paste that
+ * deliberately keeps the existing ids must not invalidate a connect handshake that is mid-flight,
+ * whereas a genuine rotation must.
+ *
  * @throws {ComposioConfigValidationError} `apiKey` is absent, blank, or oversized.
  * @throws {ComposioConfigSecretStoreUnconfiguredError} the master secret is unavailable — never
  *   downgraded to a plaintext write or a silent skip.
@@ -225,11 +255,17 @@ export async function saveComposioApiKey(
   const keyTail = apiKey.slice(-KEY_TAIL_LENGTH);
   const keyUnchanged = await isSameApiKey({ sealer: deps.sealer, existing, candidate: apiKey });
 
+  // The first key a workspace ever stores is generation 0; a rotation moves it on; a re-paste of
+  // the same key holds it, because the ids that generation vouches for are being kept too.
+  const keyGeneration =
+    existing === null ? 0 : keyUnchanged ? existing.keyGeneration : existing.keyGeneration + 1;
+
   const record: ComposioConfigRecord = {
     workspaceId: input.workspaceId,
     sealed,
     keyTail,
     authConfigIds: keyUnchanged ? { ...(existing?.authConfigIds ?? {}) } : {},
+    keyGeneration,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
@@ -247,6 +283,13 @@ export async function saveComposioApiKey(
  * Idempotent: clearing an already-unconfigured workspace writes nothing and reports the
  * unconfigured view.
  *
+ * `keyGeneration` is bumped on EVERY clear that writes, including a clear of an already-keyless row.
+ * That is stricter than {@link saveComposioApiKey}'s same-key exemption and deliberately so: this
+ * function's whole purpose is to leave no auth-config ids behind, so an in-flight persist that
+ * landed afterwards under the previous generation would undo exactly the thing the operator asked
+ * for. Losing that write costs one re-provision; letting it through resurrects ids for a key the
+ * workspace no longer holds.
+ *
  * @complexity O(1) — one lookup plus at most one upsert.
  * @overallScore 100
  */
@@ -262,6 +305,7 @@ export async function clearComposioApiKey(
     sealed: null,
     keyTail: null,
     authConfigIds: {},
+    keyGeneration: existing.keyGeneration + 1,
     updatedAt: deps.clock.nowIso(),
   };
   await deps.repo.upsert(record);
@@ -275,20 +319,37 @@ export async function clearComposioApiKey(
  * from {@link createSnapshotComposioConfigStore}'s persist callback during a connect handshake,
  * not from an admin form submission, and it must never need the sealer.
  *
+ * CONDITIONAL, not a read-modify-write upsert. It used to read the row and write the whole thing
+ * back with only `authConfigIds` changed — so every other column came from the snapshot it had
+ * read. Because this path is fire-and-forget (see
+ * {@link SnapshotComposioConfigStoreOptions.persistAuthConfigIds}), an ordinary key rotation could
+ * land in the gap and be silently reverted by the delayed write, which would also attach ids
+ * provisioned under the NEW key to the resurrected OLD one. The write is now a column-scoped
+ * compare-and-swap on `keyGeneration`: it cannot carry any other column, and it does not apply at
+ * all if the key moved on.
+ *
+ * A generation mismatch DISCARDS the write rather than reloading and retrying. That is the correct
+ * resolution, not a shortcut: the ids describe resources in the previous key's Composio project, so
+ * there is nothing to merge — and this path already tolerates a dropped write at the cost of one
+ * re-provision on the next connect.
+ *
  * A workspace with no row yet is skipped rather than created: auth-config ids are meaningless
  * without the API key that provisioned them, so there is no valid state this could write.
  *
- * @complexity O(1) — one lookup plus at most one upsert.
+ * @returns `true` when the ids were stored; `false` when there was no row, or the key generation
+ *   had moved on and the write was deliberately dropped.
+ * @complexity O(1) — one lookup plus at most one conditional update.
  * @overallScore 100
  */
 export async function saveComposioAuthConfigIds(
   deps: ComposioConfigReadDeps & { clock: ClockPort },
   input: { workspaceId: UUID; authConfigIds: Record<string, string> }
-): Promise<void> {
+): Promise<boolean> {
   const existing = await deps.repo.findByWorkspaceId(input.workspaceId);
-  if (existing === null) return;
-  await deps.repo.upsert({
-    ...existing,
+  if (existing === null) return false;
+  return deps.repo.updateAuthConfigIdsIfGenerationMatches({
+    workspaceId: input.workspaceId,
+    expectedGeneration: existing.keyGeneration,
     authConfigIds: { ...input.authConfigIds },
     updatedAt: deps.clock.nowIso(),
   });

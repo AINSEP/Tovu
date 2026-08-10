@@ -241,15 +241,174 @@ test("an unavailable master secret fails closed instead of storing plaintext", a
 
 test("saveComposioAuthConfigIds skips a workspace that has no row", async () => {
   const deps = makeDeps();
-  await saveComposioAuthConfigIds(deps, {
-    workspaceId: WORKSPACE,
-    authConfigIds: { github: "ac_github_1" },
-  });
+  assert.equal(
+    await saveComposioAuthConfigIds(deps, {
+      workspaceId: WORKSPACE,
+      authConfigIds: { github: "ac_github_1" },
+    }),
+    false
+  );
   assert.equal(
     await deps.repo.findByWorkspaceId(WORKSPACE),
     null,
     "auth-config ids are meaningless without the key that provisioned them"
   );
+});
+
+test("saveComposioAuthConfigIds persists ids and leaves the sealed key untouched (happy path)", async () => {
+  const deps = makeDeps();
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_SECRET1234" });
+  const before = await deps.repo.findByWorkspaceId(WORKSPACE);
+
+  assert.equal(
+    await saveComposioAuthConfigIds(deps, {
+      workspaceId: WORKSPACE,
+      authConfigIds: { github: "ac_github_1", slack: "ac_slack_2" },
+    }),
+    true
+  );
+
+  const after = await deps.repo.findByWorkspaceId(WORKSPACE);
+  assert.deepEqual(after?.authConfigIds, { github: "ac_github_1", slack: "ac_slack_2" });
+  assert.deepEqual(after?.sealed, before?.sealed, "the sealed key must not be rewritten by this path");
+  assert.equal(after?.keyTail, "1234");
+  assert.equal(after?.keyGeneration, before?.keyGeneration, "persisting ids must not move the generation on");
+});
+
+test("a delayed auth-config write cannot revert a key rotation that landed while it was in flight", async () => {
+  // Codex's reproduction of the defect, verbatim in shape: the persist callback reads the row (K1),
+  // an admin rotates the key to K2, and only then does the delayed write complete. The old
+  // read-modify-write upsert put K1's `sealed`/`keyTail` back while attaching ids provisioned under
+  // K2 — the workspace ended up holding the WRONG key with cross-project ids stapled to it.
+  const deps = makeDeps();
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_FIRSTKEY1111" });
+
+  // The read half of the persist, captured before the rotation — this is the stale snapshot.
+  const staleRow = await deps.repo.findByWorkspaceId(WORKSPACE);
+  assert.notEqual(staleRow, null);
+
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_SECONDKEY2222" });
+
+  // ...and now the delayed write lands, still believing the row is at the generation it read.
+  const applied = await deps.repo.updateAuthConfigIdsIfGenerationMatches({
+    workspaceId: WORKSPACE,
+    expectedGeneration: staleRow!.keyGeneration,
+    authConfigIds: { github: "ac_provisioned_under_second_key" },
+    updatedAt: "2026-08-09T00:00:01.000Z",
+  });
+
+  assert.equal(applied, false, "the compare-and-swap must refuse a write aimed at a superseded key");
+
+  const config = await readComposioConfig(deps, { workspaceId: WORKSPACE });
+  assert.equal(config.apiKey, "comp_live_SECONDKEY2222", "the rotation must survive the delayed write");
+  assert.deepEqual(config.authConfigIds, {}, "ids provisioned against another key must not be attached");
+  assert.equal((await deps.repo.findByWorkspaceId(WORKSPACE))?.keyTail, "2222");
+});
+
+test("the same interleaving through saveComposioAuthConfigIds itself drops the write instead of corrupting the row", async () => {
+  // The port-level test above pins the compare-and-swap; this pins the caller that has to use it.
+  // `saveComposioAuthConfigIds` must capture the generation alongside the row it reads, not re-read
+  // it at write time — re-reading would make the guard vacuous.
+  const deps = makeDeps();
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_FIRSTKEY1111" });
+
+  // A repo whose read resolves normally but parks the caller before it can write, so a rotation
+  // can be slipped into exactly the window the fire-and-forget persist opens.
+  let releaseRotation!: () => void;
+  const rotationDone = new Promise<void>((resolve) => {
+    releaseRotation = resolve;
+  });
+  const gatedRepo: typeof deps.repo = {
+    findByWorkspaceId: (workspaceId) => deps.repo.findByWorkspaceId(workspaceId),
+    upsert: (record) => deps.repo.upsert(record),
+    updateAuthConfigIdsIfGenerationMatches: async (input) => {
+      await rotationDone;
+      return deps.repo.updateAuthConfigIdsIfGenerationMatches(input);
+    },
+  };
+
+  const delayedPersist = saveComposioAuthConfigIds(
+    { repo: gatedRepo, clock: deps.clock },
+    { workspaceId: WORKSPACE, authConfigIds: { github: "ac_github_1" } }
+  );
+
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_SECONDKEY2222" });
+  releaseRotation();
+
+  assert.equal(await delayedPersist, false, "the write must be reported as dropped, not silently applied");
+
+  const config = await readComposioConfig(deps, { workspaceId: WORKSPACE });
+  assert.equal(config.apiKey, "comp_live_SECONDKEY2222");
+  assert.deepEqual(config.authConfigIds, {});
+});
+
+test("re-pasting the SAME key does not invalidate an auth-config write that was already in flight", async () => {
+  // The counterpart to the test above, and the reason the generation is NOT bumped on a no-op save:
+  // a re-paste deliberately keeps the provisioned ids, so invalidating a concurrent connect
+  // handshake would force a pointless re-provision for a save that changed nothing.
+  const deps = makeDeps();
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_SECRET1234" });
+  const rowBeforePersist = await deps.repo.findByWorkspaceId(WORKSPACE);
+
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_SECRET1234" });
+
+  const applied = await deps.repo.updateAuthConfigIdsIfGenerationMatches({
+    workspaceId: WORKSPACE,
+    expectedGeneration: rowBeforePersist!.keyGeneration,
+    authConfigIds: { github: "ac_github_1" },
+    updatedAt: "2026-08-09T00:00:01.000Z",
+  });
+
+  assert.equal(applied, true);
+  assert.deepEqual((await readComposioConfig(deps, { workspaceId: WORKSPACE })).authConfigIds, {
+    github: "ac_github_1",
+  });
+});
+
+test("clearing the key invalidates an auth-config write that was already in flight", async () => {
+  const deps = makeDeps();
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_SECRET1234" });
+  const rowBeforeClear = await deps.repo.findByWorkspaceId(WORKSPACE);
+
+  await clearComposioApiKey(deps, { workspaceId: WORKSPACE });
+
+  const applied = await deps.repo.updateAuthConfigIdsIfGenerationMatches({
+    workspaceId: WORKSPACE,
+    expectedGeneration: rowBeforeClear!.keyGeneration,
+    authConfigIds: { github: "ac_github_1" },
+    updatedAt: "2026-08-09T00:00:01.000Z",
+  });
+
+  assert.equal(applied, false, "a clear must leave no window for ids to be written back afterwards");
+  assert.deepEqual(await readComposioConfig(deps, { workspaceId: WORKSPACE }), {
+    apiKey: "",
+    authConfigIds: {},
+  });
+});
+
+test("the key generation moves on for every rotation and clear, and holds for a same-key re-save", async () => {
+  const deps = makeDeps();
+  const generationNow = async (): Promise<number | undefined> =>
+    (await deps.repo.findByWorkspaceId(WORKSPACE))?.keyGeneration;
+
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_AAAA1111" });
+  assert.equal(await generationNow(), 0, "the first key a workspace stores starts the counter");
+
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_AAAA1111" });
+  assert.equal(await generationNow(), 0, "a genuine no-op re-save must not invalidate in-flight writes");
+
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_BBBB2222" });
+  assert.equal(await generationNow(), 1);
+
+  // Same tail as the key above, different key — the tail is a display marker, never the identity.
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_CCCC2222" });
+  assert.equal(await generationNow(), 2);
+
+  await clearComposioApiKey(deps, { workspaceId: WORKSPACE });
+  assert.equal(await generationNow(), 3);
+
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_DDDD3333" });
+  assert.equal(await generationNow(), 4, "the counter is monotonic across a clear, never reset");
 });
 
 test("the snapshot store satisfies Jini's synchronous ComposioConfigStore contract", () => {
