@@ -191,6 +191,131 @@ test("connect is rate-limited per client IP — the 13th attempt within the wind
   assert.equal(linkRequests.length, 12, "the 13th, rate-limited attempt must never reach Composio");
 });
 
+test("disconnect is rate-limited per client IP — the 13th attempt within the window is rejected 429", async (t) => {
+  // Regression test: `POST .../disconnect` revokes the account at Composio (a real outbound call)
+  // on every hit, same self-DoS shape `connect`'s own rate-limit test above covers, but this route
+  // had no limiter of its own until now. Uses its own limiter instance (`CONNECTOR_OUTBOUND_PER_IP`
+  // via `disconnectOutboundLimiter`), separate from `connect`'s budget, so this test's 12 allowed
+  // attempts prove the two limiters don't share state.
+  //
+  // NOTE on what this test does NOT prove: unlike connect/list-refresh/preview/put-config,
+  // `service.disconnect` short-circuits locally with NO outbound call whenever the connector has no
+  // stored credential (`if (credentials === undefined) return;` — Jini's `composio.ts`). Since this
+  // test never connects "github" first, none of the 12 "allowed" attempts make an outbound call
+  // either, so a fake-server request-count assertion here would be vacuous (flat at 0 whether or
+  // not the limiter worked). The status-code assertions below are the meaningful proof for this
+  // route: the limiter check runs unconditionally, before that credential short-circuit.
+  const h = await boot(t);
+
+  for (let i = 0; i < 12; i++) {
+    const res = await fetch(`${h.baseUrl}${BASE}/github/disconnect`, { method: "POST", headers: { cookie: h.cookie } });
+    assert.notEqual(res.status, 429, `attempt ${i + 1} should reach the route handler, not the limiter`);
+  }
+
+  const thirteenth = await fetch(`${h.baseUrl}${BASE}/github/disconnect`, { method: "POST", headers: { cookie: h.cookie } });
+  assert.equal(thirteenth.status, 429);
+  const body = (await thirteenth.json()) as { code: string };
+  assert.equal(body.code, "RATE_LIMIT_EXCEEDED");
+});
+
+test("catalog refresh (?refresh=1) is rate-limited per client IP; the unrefreshed static catalog is not", async (t) => {
+  // Regression test: `GET .../connectors?refresh=1` re-fetches from Composio (a real outbound
+  // call, `provider.refreshCatalog` -> the fake's `/api/v3.1/toolkits`); the default static-catalog
+  // path makes no outbound call and must stay unlimited even past the refresh limiter's window.
+  const h = await boot(t);
+  const before = h.fake.requests.length;
+
+  for (let i = 0; i < 12; i++) {
+    const res = await fetch(`${h.baseUrl}${BASE}?refresh=1`, { headers: { cookie: h.cookie } });
+    assert.notEqual(res.status, 429, `refresh attempt ${i + 1} should reach the route handler, not the limiter`);
+  }
+  const afterAllowed = h.fake.requests.length;
+  // Not an exact-count assertion: a single refresh can fan out to more than one outbound request
+  // (observed 2x — cache-clear plus re-fetch). The point is proving the limiter, not pinning that
+  // ratio, so just confirm the allowed attempts actually reached Composio at all.
+  assert.ok(afterAllowed > before, "the 12 allowed refresh attempts must actually reach Composio");
+
+  const refreshBlocked = await fetch(`${h.baseUrl}${BASE}?refresh=1`, { headers: { cookie: h.cookie } });
+  assert.equal(refreshBlocked.status, 429);
+  assert.equal(((await refreshBlocked.json()) as { code: string }).code, "RATE_LIMIT_EXCEEDED");
+  assert.equal(
+    h.fake.requests.length,
+    afterAllowed,
+    "the 13th, rate-limited refresh attempt must never reach Composio"
+  );
+
+  // The static (no-refresh) path is a separate, unlimited code path — it must still work.
+  const unrefreshed = await fetch(`${h.baseUrl}${BASE}`, { headers: { cookie: h.cookie } });
+  assert.equal(unrefreshed.status, 200, "the static catalog path must never be rate-limited");
+});
+
+test("tool-preview hydration (?hydrateTools=1) is rate-limited per client IP; plain getConnector is not", async (t) => {
+  // Regression test: `GET .../connectors/:id?hydrateTools=1` makes a paginated outbound Composio
+  // call; plain `getConnector` (no hydrateTools) is a cheap local read and must stay unlimited.
+  const h = await boot(t);
+  const before = h.fake.requests.length;
+
+  for (let i = 0; i < 12; i++) {
+    const res = await fetch(`${h.baseUrl}${BASE}/github?hydrateTools=1`, { headers: { cookie: h.cookie } });
+    assert.notEqual(res.status, 429, `preview attempt ${i + 1} should reach the route handler, not the limiter`);
+  }
+  const afterAllowed = h.fake.requests.length;
+  assert.ok(afterAllowed > before, "the 12 allowed preview attempts must actually reach Composio");
+
+  const previewBlocked = await fetch(`${h.baseUrl}${BASE}/github?hydrateTools=1`, { headers: { cookie: h.cookie } });
+  assert.equal(previewBlocked.status, 429);
+  assert.equal(((await previewBlocked.json()) as { code: string }).code, "RATE_LIMIT_EXCEEDED");
+  assert.equal(
+    h.fake.requests.length,
+    afterAllowed,
+    "the 13th, rate-limited preview attempt must never reach Composio"
+  );
+
+  const plain = await fetch(`${h.baseUrl}${BASE}/github`, { headers: { cookie: h.cookie } });
+  assert.equal(plain.status, 200, "the plain (non-hydrating) read path must never be rate-limited");
+});
+
+test("key verification on PUT config is rate-limited per client IP; clearing a key is not", async (t) => {
+  // Regression test: a non-null `apiKey` write verifies against Composio (a real outbound call,
+  // `probeApiKey`) before persisting; `apiKey: null` (clear) makes no outbound call and must stay
+  // unlimited, matching the existing "clearing works while Composio is down" invariant above.
+  // NOTE: `boot()` itself already does one verifying PUT (the "configured project key" precondition
+  // it sets up), consuming 1 of the 12 allowed slots — so only 11 more are available here, not 12.
+  const h = await boot(t);
+  const before = h.fake.requests.length;
+
+  for (let i = 0; i < 11; i++) {
+    const res = await fetch(`${h.baseUrl}${BASE}/config`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", cookie: h.cookie },
+      body: JSON.stringify({ apiKey: DUMMY_KEY }),
+    });
+    assert.notEqual(res.status, 429, `verify attempt ${i + 1} should reach the route handler, not the limiter`);
+  }
+  const afterAllowed = h.fake.requests.length;
+  assert.ok(afterAllowed > before, "the 11 allowed verify attempts must actually reach Composio");
+
+  const blocked = await fetch(`${h.baseUrl}${BASE}/config`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie: h.cookie },
+    body: JSON.stringify({ apiKey: DUMMY_KEY }),
+  });
+  assert.equal(blocked.status, 429);
+  assert.equal(((await blocked.json()) as { code: string }).code, "RATE_LIMIT_EXCEEDED");
+  assert.equal(
+    h.fake.requests.length,
+    afterAllowed,
+    "the 12th, rate-limited verify attempt must never reach Composio"
+  );
+
+  const cleared = await fetch(`${h.baseUrl}${BASE}/config`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie: h.cookie },
+    body: JSON.stringify({ apiKey: null }),
+  });
+  assert.equal(cleared.status, 200, "clearing a key must never be rate-limited");
+});
+
 test("the callback completes the handshake WITHOUT a session and seals the credentials", async (t) => {
   const h = await boot(t);
   const { state } = await beginConnect(h);
