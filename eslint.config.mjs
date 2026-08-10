@@ -10,6 +10,14 @@ export default [
       '**/coverage/**',
       'AI-Dev-Shop/**',
       'ADS-memory/**',
+      // `**/dist/**` only matches a directory literally named `dist` — `dist-debug` is a
+      // different name and slips through. A local debug build under this folder is dev-machine
+      // state, not a CI artifact, but its unminified bundle can carry the original source's
+      // inline `eslint-disable` comments, which `npm run complexity` then chokes on (verified:
+      // reproduced against the debug build already present in this checkout — "Definition for
+      // rule '...' was not found" for two disabled rules the minimal complexity-only config
+      // doesn't load). CI never has this directory, so this is a local-machine-only fix.
+      'apps/admin/dist-debug/**',
     ],
   },
   {
