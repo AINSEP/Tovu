@@ -52,6 +52,11 @@ describe("loading and error states", () => {
 });
 
 describe("theme grid", () => {
+  it("names the picker so assistive tech can identify it — regression for a previously nameless <div>", () => {
+    render(<Appearance useAppearanceHook={() => baseController()} />);
+    expect(screen.getByRole("group", { name: "Themes" })).toBeInTheDocument();
+  });
+
   it("marks the active theme with the Active tag, not an Activate button", () => {
     render(<Appearance useAppearanceHook={() => baseController()} />);
     const activeCard = screen.getByText("signal").closest(".theme-card") as HTMLElement;
