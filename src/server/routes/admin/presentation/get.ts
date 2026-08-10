@@ -45,7 +45,29 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
         input: { workspaceId: deps.workspaceId },
       });
 
-      res.json(toAdminPresentationResponse({ settings: result.settings, availableThemeIds: result.availableThemeIds }));
+      // Post-template-picker feature (2026-08-10) — the active theme's own declared template list,
+      // so the Post editor's picker always reflects whichever theme is actually live right now.
+      const activeTheme = deps.themes.find((t) => t.manifest.id === result.settings.activeThemeId);
+      const activeThemePostTemplates = activeTheme?.manifest.postTemplate ?? [];
+      // Slug-collision override (2026-08-10) — every page id the active theme ships, so the editor
+      // can warn when a post's own slug is currently claimed by one of the theme's own pages.
+      const activeThemeStaticPageIds = activeTheme ? Object.keys(activeTheme.pages) : [];
+      // Themes admin screen (2026-08-10) — tier alongside id for every valid theme, so the Themes
+      // screen can group cards by tier without a second round trip. Filtered to `status === "valid"`
+      // to match `validThemeIds`'s own filter above (an invalid theme is not one an operator can pick).
+      const availableThemes = deps.themes
+        .filter((t) => t.status === "valid")
+        .map((t) => ({ id: t.manifest.id, tier: t.manifest.tier }));
+
+      res.json(
+        toAdminPresentationResponse({
+          settings: result.settings,
+          availableThemeIds: result.availableThemeIds,
+          availableThemes,
+          activeThemePostTemplates,
+          activeThemeStaticPageIds,
+        })
+      );
     } catch (err) {
       if (err instanceof PresentationSettingsNotFoundError) {
         res.status(404).json({ error: err.message });

@@ -1,11 +1,15 @@
 import type { PresentationSettingsRecord } from "#src/features/presentation/index";
-import type { AdminPresentation } from "#src/headless/index";
+import type { AdminPresentation, HeadlessThemeSummary } from "#src/headless/index";
 
 export function toAdminPresentationResponse(required: {
   settings: PresentationSettingsRecord;
   availableThemeIds: string[];
+  availableThemes: HeadlessThemeSummary[];
+  activeThemePostTemplates: string[];
+  activeThemeStaticPageIds: string[];
 }): AdminPresentation {
-  const { settings, availableThemeIds } = required;
+  const { settings, availableThemeIds, availableThemes, activeThemePostTemplates, activeThemeStaticPageIds } =
+    required;
   return {
     settings: {
       workspaceId: settings.workspaceId,
@@ -13,5 +17,8 @@ export function toAdminPresentationResponse(required: {
       updatedAt: settings.updatedAt,
     },
     availableThemeIds,
+    availableThemes,
+    activeThemePostTemplates,
+    activeThemeStaticPageIds,
   };
 }

@@ -111,6 +111,21 @@ export const SITE_ASSISTANT_PER_IP: RateLimitProfile = {
   burst: 0,
 };
 
+/**
+ * The public Composio OAuth callback (`routes/connectors/composio-callback.ts`) is anonymous by
+ * necessity — a `SameSite=Strict` cookie cannot survive the cross-site redirect that reaches it —
+ * and each hit can cost outbound requests to Composio. Keyed by `resolveClientIp(req)`.
+ *
+ * The 24-byte single-use `state` is the real control and makes guessing infeasible; this is
+ * secondary, the same defence-in-depth role {@link MAGIC_LINK_COMPLETE_ATTEMPT} plays for its own
+ * unguessable token. Generous enough that a human retrying a flaky authorization never trips it.
+ */
+export const CONNECTOR_CALLBACK_PER_IP: RateLimitProfile = {
+  windowSeconds: 60,
+  max: 20,
+  burst: 5,
+};
+
 /** Outcome of a single `checkRateLimit` call. */
 export type RateLimitResult =
   | { allowed: true }
