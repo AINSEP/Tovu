@@ -144,12 +144,28 @@ export default [
      * top of this file still sets everywhere else. Deliberately NOT a repo-wide flag day — ~114
      * pre-existing findings exist outside `apps/admin` today and are out of scope for this pass.
      *
+     * Reconciliation note, so the two counts anyone finds for this task don't look like a
+     * contradiction: measured AT THE REPO'S EXISTING 15/15 THRESHOLD, `apps/admin/src` has exactly
+     * 3 findings (2 `complexity`, 1 `sonarjs/cognitive-complexity` — `Media.tsx`, `PostEditor.tsx`,
+     * `Seo.tsx`, verified with `--rule '{"complexity":["error",15],"sonarjs/cognitive-complexity":
+     * ["error",15]}'`). Measured AT THE 9/9 CEILING THIS BLOCK ACTUALLY SETS, the same directory has
+     * 20 violating functions across 18 production files (`admin-complexity-debt.json`) — one
+     * further test-only violation is excluded below rather than counted as debt, see that `ignores`
+     * entry. Both counts are correct; they answer different questions — "what's already failing the
+     * old bar" vs. "what violates the ceiling this repo documents but never enforced." The 18-file
+     * debt list below is the 9/9 count, because 9/9 is what this block enforces.
+     *
      * This block alone would also fail on every file listed in `admin-complexity-debt.json` — the
      * grandfather block directly below re-lowers exactly those files back to `warn`/15 (flat config
      * resolves later blocks over earlier ones for the same file+rule), so today's pre-existing debt
      * doesn't fail CI while any NEW apps/admin function over the line still does.
      */
     files: ['apps/admin/src/**/*.ts', 'apps/admin/src/**/*.tsx'],
+    // Test files are excluded from this stricter gate entirely, not grandfathered as debt — a
+    // complexity ceiling on test code (setup tables, parametrized assertions) is a different, and
+    // weaker, argument than on production logic, and grandfathering implies "debt someone should pay
+    // down," which isn't the claim here. They still get the repo-wide `warn`/15 from the block above.
+    ignores: ['apps/admin/src/**/__tests__/**'],
     languageOptions: { parser: tseslint.parser },
     plugins: { sonarjs },
     rules: {

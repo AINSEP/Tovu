@@ -17,6 +17,10 @@
  * reported (not failed on) as a prompt to delete the now-stale entry — the JSON file's own
  * instruction not to let it grow only works if it's also allowed to shrink.
  *
+ * Test files (`apps/admin/src/**\/__tests__/**`) are excluded from the violation set entirely,
+ * mirroring `eslint.config.mjs`'s `ignores` on the same gate — they're not debt to track, they're
+ * out of scope for this ceiling (see that config block's comment for why).
+ *
  * Usage: npx tsx development/scripts/check-admin-complexity-drift.ts
  * Exit codes: 0 = no apps/admin file outside the debt list violates ≤9/≤9. 1 = at least one does.
  */
@@ -64,10 +68,16 @@ function findViolatingFiles(): Set<string> {
   const results = JSON.parse(raw) as EslintFileResult[];
   const violating = new Set<string>();
   for (const result of results) {
+    const relPath = path.relative(REPO_ROOT, result.filePath);
+    // Mirrors `eslint.config.mjs`'s own `ignores: ['apps/admin/src/**/__tests__/**']` on its error/9
+    // block: test files are excluded from this gate entirely, not tracked as debt, so they must be
+    // excluded here too or a violating test file would be reported as a "new" violation forever
+    // (it can never be added to `admin-complexity-debt.json` — see that file's `_comment`).
+    if (relPath.includes(`${path.sep}__tests__${path.sep}`)) continue;
     const hasComplexityFinding = result.messages.some(
       (m) => m.ruleId === "complexity" || m.ruleId === "sonarjs/cognitive-complexity"
     );
-    if (hasComplexityFinding) violating.add(path.relative(REPO_ROOT, result.filePath));
+    if (hasComplexityFinding) violating.add(relPath);
   }
   return violating;
 }
