@@ -148,3 +148,38 @@ test("the CHECK constraint rejects a half-sealed row this adapter should never b
     /CHECK constraint failed/
   );
 });
+
+test("transaction rolls back an upsert AND a delete when a later step in the same transaction throws (atomicity proof)", async () => {
+  const repo = makeRepo();
+  await repo.upsert(makeRecord({ providerId: "grok" }));
+
+  await assert.rejects(() =>
+    repo.transaction(async () => {
+      // Two writes representative of `saveMediaProviderCredentials`'s whole-map replace: an upsert
+      // for one provider, a delete for another.
+      await repo.upsert(makeRecord({ providerId: "openai", model: "dall-e-3" }));
+      await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["grok"] });
+      throw new Error("simulated failure after both writes, before commit");
+    })
+  );
+
+  const rows = await repo.listByWorkspaceId(WORKSPACE);
+  assert.deepEqual(
+    rows.map((r) => r.providerId).sort(),
+    ["grok"],
+    "neither the upsert nor the delete may survive a transaction that failed after both ran"
+  );
+});
+
+test("transaction commits every write together when fn resolves", async () => {
+  const repo = makeRepo();
+  await repo.upsert(makeRecord({ providerId: "grok" }));
+
+  await repo.transaction(async () => {
+    await repo.upsert(makeRecord({ providerId: "openai", model: "dall-e-3" }));
+    await repo.deleteByProviderIds({ workspaceId: WORKSPACE, providerIds: ["grok"] });
+  });
+
+  const rows = await repo.listByWorkspaceId(WORKSPACE);
+  assert.deepEqual(rows.map((r) => r.providerId).sort(), ["openai"]);
+});

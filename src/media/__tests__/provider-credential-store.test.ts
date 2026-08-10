@@ -230,3 +230,46 @@ test("an empty map clears every provider and reads back empty", async () => {
   assert.deepEqual(await saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: {} }), {});
   assert.deepEqual(await getMediaProviderCredentials({ repo }, { workspaceId: WORKSPACE }), {});
 });
+
+test("the whole-map replace's writes (every upsert and the tombstone delete) happen strictly inside deps.repo.transaction() — never before it opens", async () => {
+  const { deps } = makeDeps();
+  await saveMediaProviderCredentials(deps, {
+    workspaceId: WORKSPACE,
+    providers: { grok: { apiKey: "xai-existing-4444" } },
+  });
+
+  const calls: string[] = [];
+  // Wraps the real in-memory repo, recording call order and refusing to open a transaction — proves
+  // `saveMediaProviderCredentials` routes every upsert/delete through `transaction()` rather than
+  // calling them directly on `deps.repo` (which would defeat the atomicity fix even though the port
+  // now exposes `transaction()`).
+  const guardedRepo = {
+    listByWorkspaceId: (workspaceId: string) => deps.repo.listByWorkspaceId(workspaceId),
+    upsert: (record: Parameters<typeof deps.repo.upsert>[0]) => {
+      calls.push(`upsert:${record.providerId}`);
+      return deps.repo.upsert(record);
+    },
+    deleteByProviderIds: (input: Parameters<typeof deps.repo.deleteByProviderIds>[0]) => {
+      calls.push("deleteByProviderIds");
+      return deps.repo.deleteByProviderIds(input);
+    },
+    transaction: async <T>(): Promise<T> => {
+      calls.push("transaction:refused");
+      throw new Error("simulated transaction-open failure — no writes should have happened yet");
+    },
+  };
+
+  await assert.rejects(
+    saveMediaProviderCredentials(
+      { ...deps, repo: guardedRepo },
+      { workspaceId: WORKSPACE, providers: { openai: { apiKey: "sk-new-5555" } } }
+    ),
+    /simulated transaction-open failure/
+  );
+
+  assert.deepEqual(calls, ["transaction:refused"], "upsert/deleteByProviderIds must never run outside the transaction");
+
+  // And the pre-existing row is untouched, proving nothing leaked around the guarded transaction.
+  const after = await getMediaProviderCredentials({ repo: deps.repo }, { workspaceId: WORKSPACE });
+  assert.deepEqual(after, { grok: { apiKeyConfigured: true, apiKeyTail: "4444" } });
+});

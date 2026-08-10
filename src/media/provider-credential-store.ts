@@ -48,6 +48,17 @@ export interface MediaProviderCredentialRepoPort {
   upsert(record: MediaProviderCredentialRecord): Promise<void>;
   /** Idempotent: ids with no row are skipped, not an error. A no-op on an empty list. */
   deleteByProviderIds(input: { workspaceId: UUID; providerIds: readonly string[] }): Promise<void>;
+  /**
+   * Runs `fn` as one atomic unit against this port's storage. `saveMediaProviderCredentials`'s
+   * whole-map replace is N `upsert()` calls followed by one `deleteByProviderIds()` call, not a
+   * single write — without a shared transaction, a crash (or a concurrent `listByWorkspaceId` read)
+   * between those calls could observe a half-replaced map: some providers already updated to their
+   * new values, the tombstoned ones not yet deleted. Same contract as every other `transaction()`
+   * port in this codebase (`SettingsRepoPort`, `NewsletterCampaignRepoPort`, taxonomy's
+   * `TransactionalRepoPort`): commits iff `fn` resolves, rolls back and rethrows iff `fn` rejects.
+   * Not reentrant — callers invoke this exactly once, at the outermost level of their own body.
+   */
+  transaction<T>(fn: () => Promise<T>): Promise<T>;
 }
 
 /**
@@ -233,27 +244,35 @@ export async function saveMediaProviderCredentials(
     }
   }
 
-  const written: MediaProviderCredentialRecord[] = [];
-  for (const [providerId, entry] of entries) {
-    const existing = existingByProviderId.get(providerId);
-    const freshlySealed = sealedByProviderId.get(providerId);
-    const record: MediaProviderCredentialRecord = {
-      workspaceId: input.workspaceId,
-      providerId,
-      baseUrl: trimmedOrNull(entry.baseUrl),
-      model: trimmedOrNull(entry.model),
-      sealed: freshlySealed?.sealed ?? existing?.sealed ?? null,
-      keyTail: freshlySealed?.keyTail ?? existing?.keyTail ?? null,
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-    };
-    await deps.repo.upsert(record);
-    written.push(record);
-  }
+  // Every upsert AND the tombstone delete land as one atomic transaction — see
+  // `MediaProviderCredentialRepoPort.transaction`'s doc for why: this is a multi-row whole-map
+  // replace (N upserts + 1 bulk delete), and without a shared transaction a crash or a concurrent
+  // `listByWorkspaceId` read between those calls could observe a half-replaced map.
+  const written = await deps.repo.transaction(async () => {
+    const written: MediaProviderCredentialRecord[] = [];
+    for (const [providerId, entry] of entries) {
+      const existing = existingByProviderId.get(providerId);
+      const freshlySealed = sealedByProviderId.get(providerId);
+      const record: MediaProviderCredentialRecord = {
+        workspaceId: input.workspaceId,
+        providerId,
+        baseUrl: trimmedOrNull(entry.baseUrl),
+        model: trimmedOrNull(entry.model),
+        sealed: freshlySealed?.sealed ?? existing?.sealed ?? null,
+        keyTail: freshlySealed?.keyTail ?? existing?.keyTail ?? null,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+      };
+      await deps.repo.upsert(record);
+      written.push(record);
+    }
 
-  const submittedIds = new Set(entries.map(([providerId]) => providerId));
-  const tombstoned = existingRows.map((row) => row.providerId).filter((providerId) => !submittedIds.has(providerId));
-  await deps.repo.deleteByProviderIds({ workspaceId: input.workspaceId, providerIds: tombstoned });
+    const submittedIds = new Set(entries.map(([providerId]) => providerId));
+    const tombstoned = existingRows.map((row) => row.providerId).filter((providerId) => !submittedIds.has(providerId));
+    await deps.repo.deleteByProviderIds({ workspaceId: input.workspaceId, providerIds: tombstoned });
+
+    return written;
+  });
 
   return toMap(written);
 }
