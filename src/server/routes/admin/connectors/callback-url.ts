@@ -16,11 +16,48 @@ import type { Request } from "express";
 export const COMPOSIO_CALLBACK_PATH = "/api/connectors/composio/callback";
 
 /**
+ * Resolves the protocol (`"http"` or `"https"`) the ORIGINAL client used to reach this deployment,
+ * honoring `X-Forwarded-Proto` when present.
+ *
+ * `req.protocol` alone is wrong behind any reverse proxy or load balancer that terminates TLS:
+ * Express only derives it from `X-Forwarded-Proto` when `app.set('trust proxy', ...)` is
+ * configured, and this app deliberately never sets that (see `rate-limit.ts`'s `resolveClientIp`
+ * doc — the same `trust proxy` gap, for the same reason: no trusted-proxy config surface exists
+ * here yet). Left unhandled, every callback URL built behind a TLS-terminating proxy would read
+ * `http://...` — both broken (a client that only exposes the app over 443 has nothing listening on
+ * 80 for Composio's redirect to land on) and a downgrade of a URL that is supposed to be HTTPS.
+ *
+ * Unlike `resolveClientIp`'s `X-Forwarded-For` handling, this does NOT require the immediate peer
+ * to be an allow-listed trusted proxy before honoring the header. That asymmetry is deliberate, not
+ * an oversight: trusting a spoofed `X-Forwarded-For` lets an attacker impersonate another client's
+ * IP for rate-limit/audit purposes, a real security property. Trusting a spoofed
+ * `X-Forwarded-Proto` only affects which scheme this string is built with; nothing here treats
+ * `req.protocol` as an authentication or authorization signal, and a caller who can already reach
+ * this route with a forged header cannot use it to reach anyone else's callback or forge a valid
+ * `state` — the worst case is a self-inflicted broken redirect for that same caller. Only the first,
+ * comma-separated hop is read, and only an exact `"http"`/`"https"` value is honored; anything else
+ * falls back to `req.protocol` rather than trusting an unrecognized value.
+ *
+ * @complexity O(1).
+ * @overallScore 100
+ */
+function resolveProtocol(req: Request): string {
+  const forwarded = req.headers["x-forwarded-proto"];
+  const firstHop = (Array.isArray(forwarded) ? forwarded[0] : forwarded)
+    ?.split(",")[0]
+    ?.trim()
+    .toLowerCase();
+  if (firstHop === "http" || firstHop === "https") return firstHop;
+  return req.protocol;
+}
+
+/**
  * Resolves the absolute origin the browser reaches this server on.
  *
- * Prefers `TOVU_PUBLIC_URL` and falls back to the request's own `Host`. The env var exists because
- * `Host` is caller-controlled: a request routed through a proxy that forwards an attacker-chosen
- * `Host` would make this build a callback pointing at that origin, handing the `state` to whoever
+ * Prefers `TOVU_PUBLIC_URL` and falls back to the request's own `Host` and (via
+ * {@link resolveProtocol}) forwarded protocol. The env var exists because `Host` is
+ * caller-controlled: a request routed through a proxy that forwards an attacker-chosen `Host`
+ * would make this build a callback pointing at that origin, handing the `state` to whoever
  * controls it. The practical blast radius is small — the state is single-use, connector-bound, and
  * completion still re-validates the account against Composio, so the worst case is a third party
  * completing a connection the admin already started, not credential theft — but an operator behind
@@ -40,7 +77,7 @@ export function resolvePublicOrigin(req: Request): string {
     }
     return url.origin;
   }
-  return `${req.protocol}://${req.get("host") ?? "localhost"}`;
+  return `${resolveProtocol(req)}://${req.get("host") ?? "localhost"}`;
 }
 
 /**

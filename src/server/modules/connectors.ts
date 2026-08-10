@@ -1,4 +1,4 @@
-import { createRateLimiter, CONNECTOR_CALLBACK_PER_IP } from "../middleware/rate-limit";
+import { createRateLimiter, CONNECTOR_CALLBACK_PER_IP, CONNECTOR_CONNECT_PER_IP } from "../middleware/rate-limit";
 import { registerAdminConnectorsConnectRoute } from "../routes/admin/connectors/connect";
 import type {
   ConnectorsConfigRouteDeps,
@@ -35,6 +35,7 @@ export function createConnectorsModule(
   // Built here rather than in the composition root because nothing else shares it — the same call
   // `app.ts` makes for the magic-link limiters, which live next to their own route family.
   const callbackLimiter = createRateLimiter({ profile: CONNECTOR_CALLBACK_PER_IP, clock: deps.clock });
+  const connectLimiter = createRateLimiter({ profile: CONNECTOR_CONNECT_PER_IP, clock: deps.clock });
 
   return {
     name: "connectors",
@@ -46,7 +47,7 @@ export function createConnectorsModule(
       registerAdminConnectorsGetConfigRoute(app, deps);
       registerAdminConnectorsPutConfigRoute(app, deps);
       registerAdminConnectorsStatusesRoute(app, deps);
-      registerAdminConnectorsConnectRoute(app, deps);
+      registerAdminConnectorsConnectRoute(app, deps, connectLimiter);
       registerAdminConnectorsDisconnectRoute(app, deps);
       registerAdminConnectorsCancelRoute(app, deps);
       registerAdminConnectorsListRoute(app, deps);
