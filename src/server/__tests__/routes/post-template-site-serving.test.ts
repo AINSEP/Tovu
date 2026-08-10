@@ -244,3 +244,37 @@ test("a theme with no same-slug page serves the post regardless of overridesThem
 
   assert.ok(html.includes(POST_BODY_TEXT));
 });
+
+test('ROUND TRIP: saving overridesThemePage through the admin API persists it and the post wins over the theme page', async (t) => {
+  // Closes a real coverage gap: every overridesThemePage test above writes through
+  // `deps.postRepo.save()` directly — none exercise the real admin PUT the way an operator's
+  // checkbox-and-Save actually would, so a regression in `update.ts`'s pass-through (the same class
+  // of coercion bug the templateChoice ROUND TRIP test above was written to catch) would not be
+  // caught today. This is also the exact production bug: a live site's `contact` post collided with
+  // fuel's built-in contact.html because `overridesThemePage` was left unset.
+  const theme = staticThemeWithPostTemplate({
+    extraPages: { "collision-page": '<html><body><main data-tpl="theme-collision-page">Theme collision page</main></body></html>' },
+  });
+  const { app, deps } = buildTestApp(theme, { withAdmin: true });
+  const post = await savePost(deps, { slug: "collision-page", overridesThemePage: false });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // Baseline: before the admin sets the override, the theme page still wins (this is the exact
+  // production bug state — a post colliding with a theme page, flag unset).
+  const before = await getPage(baseUrl, "collision-page");
+  assert.ok(before.html.includes('data-tpl="theme-collision-page"'));
+
+  const put = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/posts/${post.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: post.title, slug: post.slug, status: "published", bodyJson: post.bodyJson, overridesThemePage: true }),
+  });
+  assert.equal(put.status, 200);
+
+  const stored = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: post.id });
+  assert.equal(stored?.overridesThemePage, true, "the override must persist through the real admin write path");
+
+  const after = await getPage(baseUrl, "collision-page");
+  assert.ok(after.html.includes(POST_BODY_TEXT), "the post's own content must now win over the theme page");
+  assert.ok(!after.html.includes('data-tpl="theme-collision-page"'));
+});
