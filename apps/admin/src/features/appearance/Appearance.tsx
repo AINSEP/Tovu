@@ -5,7 +5,14 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ImagePreviewModal } from "../../components/ImagePreviewModal";
 import { useAppearance } from "./hooks/use-appearance.hooks";
-import { isActiveTheme, groupThemesByTabGroup, defaultThemeTabGroup, THEME_TAB_GROUPS, type ThemeTabGroup } from "./rules";
+import {
+  isActiveTheme,
+  isStrandedActiveTheme,
+  groupThemesByTabGroup,
+  defaultThemeTabGroup,
+  THEME_TAB_GROUPS,
+  type ThemeTabGroup,
+} from "./rules";
 import { t as translateAppearance } from "./appearance-i18n";
 
 /**
@@ -130,6 +137,19 @@ export function Appearance({ useAppearanceHook = useAppearance }: AppearanceProp
         <a href={siteUrl("/")} target="_blank" rel="noreferrer">{t("View site ↗")}</a>
       </p>
       {error ? <div className="notice error">{error}</div> : null}
+      {/* Stranded active theme (2026-08-10) — `settings.activeThemeId` names a theme the server no
+          longer resolves, so no card below can ever show the Active tag and nothing else said why.
+          `.notice.warning` — same visual language `PostEditor.tsx`'s slug-collision banner already
+          established for "the admin needs to know this, but nothing was lost/destroyed" — not
+          `.notice.error`, which this codebase reserves for a failed fetch/save. */}
+      {isStrandedActiveTheme(settings, themes) ? (
+        <div className="notice warning">
+          {t("The site's active theme (\"{id}\") is no longer available, so the public site cannot render until you activate a different one. No content was lost.").replace(
+            "{id}",
+            settings.activeThemeId,
+          )}
+        </div>
+      ) : null}
       <TabBar
         ariaLabel={t("Themes")}
         tabs={[

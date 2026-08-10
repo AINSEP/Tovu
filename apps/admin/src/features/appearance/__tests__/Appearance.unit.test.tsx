@@ -51,6 +51,49 @@ describe("loading and error states", () => {
   });
 });
 
+describe("stranded active theme", () => {
+  it("shows no warning when the active theme is present in the discovered set (the normal case)", () => {
+    render(<Appearance useAppearanceHook={() => baseController()} />);
+    expect(screen.queryByText(/no longer available/i)).not.toBeInTheDocument();
+  });
+
+  it("warns, naming the missing theme id, when settings.activeThemeId resolves to nothing the server discovered", () => {
+    render(
+      <Appearance
+        useAppearanceHook={() =>
+          baseController({
+            settings: { ...SETTINGS, activeThemeId: "deleted-theme" },
+            themes: ["tovu-official", "column", "signal"], // "deleted-theme" is absent
+          })
+        }
+      />,
+    );
+    const warning = screen.getByText(/no longer available/i);
+    expect(warning).toHaveTextContent("deleted-theme");
+    expect(warning.closest(".notice")).toHaveClass("warning");
+    expect(warning.closest(".notice")).not.toHaveClass("error");
+    // Honest, not alarmist — see rules.ts's isStrandedActiveTheme doc for why this is a real
+    // (site-down) consequence that must still not be worded as data loss.
+    expect(warning).toHaveTextContent(/no content was lost/i);
+  });
+
+  it("still renders every theme card and grid controls normally alongside the warning", () => {
+    render(
+      <Appearance
+        useAppearanceHook={() =>
+          baseController({ settings: { ...SETTINGS, activeThemeId: "deleted-theme" } })
+        }
+      />,
+    );
+    expect(screen.getByText(/no longer available/i)).toBeInTheDocument();
+    expect(screen.getByText("tovu-official")).toBeInTheDocument();
+    expect(screen.getByText("column")).toBeInTheDocument();
+    expect(screen.getByText("signal")).toBeInTheDocument();
+    // None of the cards claim to be Active — the whole point is that nothing legitimately can.
+    expect(screen.queryByText("Active")).not.toBeInTheDocument();
+  });
+});
+
 describe("theme grid", () => {
   it("names the picker so assistive tech can identify it — regression for a previously nameless <div>", () => {
     render(<Appearance useAppearanceHook={() => baseController()} />);

@@ -5,6 +5,7 @@ import {
   defaultThemeTabGroup,
   groupThemesByTabGroup,
   isActiveTheme,
+  isStrandedActiveTheme,
   THEME_TAB_GROUPS,
   themeTabGroup,
   themeTier,
@@ -30,6 +31,24 @@ describe("isActiveTheme", () => {
   it("is false for any other theme", () => {
     expect(isActiveTheme(SETTINGS, "column")).toBe(false);
     expect(isActiveTheme(SETTINGS, "tovu-official")).toBe(false);
+  });
+});
+
+describe("isStrandedActiveTheme", () => {
+  it("is false when the active theme id is present in the discovered set", () => {
+    expect(isStrandedActiveTheme(SETTINGS, ["tovu-official", "column", "signal"])).toBe(false);
+  });
+
+  it("is true when the active theme id resolves to nothing the server discovered — the stranded case", () => {
+    expect(isStrandedActiveTheme(SETTINGS, ["tovu-official", "column"])).toBe(true);
+  });
+
+  it("is true against an empty theme catalogue (every theme id would be stranded)", () => {
+    expect(isStrandedActiveTheme(SETTINGS, [])).toBe(true);
+  });
+
+  it("is false for an empty activeThemeId — nothing chosen yet is not the same as chosen-but-missing", () => {
+    expect(isStrandedActiveTheme({ ...SETTINGS, activeThemeId: "" }, ["tovu-official"])).toBe(false);
   });
 });
 
