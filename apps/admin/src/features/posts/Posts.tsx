@@ -1,11 +1,11 @@
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
-import { postRowMenuItems } from "./rules";
+import { postRowMenuItems, sortPostsByUpdated, updatedSortButtonLabel, type PostUpdatedSortDirection } from "./rules";
 import { usePosts } from "./hooks/use-posts.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { POSTS_DICT } from "./posts-i18n";
@@ -59,6 +59,9 @@ export function Posts({ usePostsHook = usePosts }: PostsProps) {
   } = usePostsHook();
   const locale = useAdminLocale();
   const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
+  // Defaults to "newest" (owner's requested default) — called above any early return so hook order
+  // stays stable across the loading/error/loaded renders `postsListNotice` distinguishes below.
+  const [updatedSort, setUpdatedSort] = useState<PostUpdatedSortDirection>("newest");
 
   const notice = postsListNotice(posts, error);
   if (notice) return notice;
@@ -83,7 +86,7 @@ export function Posts({ usePostsHook = usePosts }: PostsProps) {
       </div>
       {error ? <div className="notice error">{error}</div> : null}
       <DataTable
-        rows={posts}
+        rows={sortPostsByUpdated(posts, updatedSort)}
         rowKey={(post) => post.id}
         empty={
           <div className="card">
@@ -109,7 +112,27 @@ export function Posts({ usePostsHook = usePosts }: PostsProps) {
             header: t("Status"),
             cell: (post) => <span className={`status status-${post.status}`}>{post.status}</span>,
           },
-          { key: "updated", header: t("Updated"), cell: (post) => formatTimestamp(post.updatedAt) },
+          {
+            key: "updated",
+            // Sortable header (2026-08-10): a plain button toggling `updatedSort` between newest-
+            // and oldest-first, defaulting to newest — `DataTable`'s `<th>` doesn't expose an
+            // `aria-sort` prop (see its own file header: "no sorting" was a deliberate scope cut for
+            // that shared component), so the accessible state lives on this button's own
+            // `aria-label` instead (`updatedSortButtonLabel`), not just the ▲/▼ glyph, which is
+            // `aria-hidden`.
+            header: (
+              <button
+                type="button"
+                className="sortable-column-header"
+                onClick={() => setUpdatedSort((d) => (d === "newest" ? "oldest" : "newest"))}
+                aria-label={updatedSortButtonLabel(updatedSort)}
+              >
+                {t("Updated")}
+                <span aria-hidden="true">{updatedSort === "newest" ? " ▼" : " ▲"}</span>
+              </button>
+            ),
+            cell: (post) => formatTimestamp(post.updatedAt),
+          },
           {
             key: "actions",
             header: t("More"),

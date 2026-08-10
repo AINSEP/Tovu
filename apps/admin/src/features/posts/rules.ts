@@ -85,6 +85,37 @@ export function toolbarBtnClass(active: boolean): string {
   return `tb-btn${active ? " on" : ""}`;
 }
 
+/** Which end of `updatedAt` the Posts list's "Updated" column header currently sorts toward. */
+export type PostUpdatedSortDirection = "newest" | "oldest";
+
+/**
+ * The "Updated" column's sort — pulled out of `Posts.tsx` so the comparator and its default are
+ * directly testable without rendering a `DataTable` (2026-08-10, sortable-Updated-column feature).
+ *
+ * Note for callers: the server's `listPosts` has no `ORDER BY` today (confirmed against
+ * `PostSqliteRepo.list` — a plain `select().from(posts).where(...)`), so rows arrive in table scan
+ * order, not `updatedAt` order. This function is what actually produces "most recent first" rather
+ * than that already being true of the input.
+ *
+ * @complexity Time: O(n log n) in `posts.length` (a single `Array#sort`); space: O(n) for the copy
+ * — the input is never mutated, matching every other list-shaping helper in this codebase.
+ */
+export function sortPostsByUpdated(posts: readonly AdminPost[], direction: PostUpdatedSortDirection): AdminPost[] {
+  const sign = direction === "newest" ? -1 : 1;
+  return [...posts].sort((a, b) => sign * (Date.parse(a.updatedAt) - Date.parse(b.updatedAt)));
+}
+
+/**
+ * The "Updated" column header button's accessible name — states the CURRENT sort direction and
+ * what activating the button does next, rather than relying on the visual ▲/▼ glyph alone (which
+ * `aria-hidden` hides from assistive tech; see `Posts.tsx`'s column definition).
+ */
+export function updatedSortButtonLabel(direction: PostUpdatedSortDirection): string {
+  return direction === "newest"
+    ? "Sorted by updated date, newest first. Activate to sort oldest first."
+    : "Sorted by updated date, oldest first. Activate to sort newest first.";
+}
+
 /**
  * Drag-and-drop image support: a dropped local file is inlined as a `data:` URL (no media-library
  * serving route exists yet to reference instead — see PostEditor's file header note); a dropped
