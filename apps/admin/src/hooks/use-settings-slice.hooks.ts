@@ -283,13 +283,24 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
       .load()
       .then((loaded) => {
         if (!alive) return;
+        // `persisted` always takes the raw load, same as `refresh()` — it is the diff base the next
+        // save diffs against, and the server's real state is a strictly better base than the
+        // never-actually-persisted `defaultValue` this ref started at, whether or not the operator
+        // has since edited.
         persisted.current = loaded;
+        // Guards the same hazard `refresh()` guards via `canAcceptRefresh`'s `hasUnsavedEdits` check,
+        // on the OTHER load path: `onChange` has no documented precondition requiring `value` to be
+        // non-null first, so nothing stops an edit from landing before this initial `load()` settles.
+        // Without this check, that edit is silently overwritten the instant the response arrives —
+        // the same class of data loss this file's four prior audited bugs all belong to.
+        if (hasUnsavedEdits.current) return;
         latest.current = loaded;
         setValue(loaded);
       })
       .catch((error: unknown) => {
         if (!alive) return;
         setLoadError(error instanceof Error ? error.message : String(error));
+        if (hasUnsavedEdits.current) return;
         setValue(defaultValue);
       });
     return () => {
