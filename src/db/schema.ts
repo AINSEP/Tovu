@@ -1495,6 +1495,22 @@ export const composioConfig = sqliteTable(
     keyTail: text("key_tail"),
     /** JSON object: connector id → Composio auth-config id. See this table's header. */
     authConfigIds: text("auth_config_ids"),
+    /**
+     * Monotonic counter bumped every time the stored key's IDENTITY changes — a different key saved,
+     * or the key cleared. Re-saving the same key does not bump it, because nothing about the row's
+     * Composio project changed.
+     *
+     * It exists so `auth_config_ids` can be written with a compare-and-swap. Those ids are
+     * provisioned asynchronously during a connect handshake and persisted fire-and-forget, so a
+     * rotation can commit between the read that fetched the row and the write that stores the ids.
+     * Without this counter that late write would blind-overwrite the whole row, reverting the
+     * rotation AND attaching ids scoped to the previous Composio project to the new key. Comparing
+     * `sealed`/`key_tail` instead is not sufficient: those can coincide across keys, and the check
+     * needed is "did this change since I read it", not "does it equal what I remember".
+     *
+     * Defaulted rather than backfilled: every pre-existing row starts at 0 and is immediately valid.
+     */
+    keyGeneration: integer("key_generation").notNull().default(0),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

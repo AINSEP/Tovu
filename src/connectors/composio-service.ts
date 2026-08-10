@@ -106,9 +106,22 @@ export function createComposioConnectors(deps: ComposioConnectorsDeps): Composio
       void saveComposioAuthConfigIds(
         { repo: deps.repo, clock: deps.clock },
         { workspaceId: deps.workspaceId, authConfigIds }
-      ).catch((err: unknown) => {
-        console.error(`composio auth-config persistence failed: ${(err as Error).message}`);
-      });
+      )
+        .then((persisted) => {
+          // A `false` here is a deliberate drop, not a failure: either the workspace has no stored
+          // key, or its key generation moved on while these ids were being provisioned, so they
+          // describe a Composio project this workspace no longer talks to. Logged rather than
+          // retried — the next connect re-provisions, which is the tolerance this whole path is
+          // built on.
+          if (!persisted) {
+            console.warn(
+              "composio auth-config persistence discarded: the workspace has no stored key, or the key changed while these ids were being provisioned"
+            );
+          }
+        })
+        .catch((err: unknown) => {
+          console.error(`composio auth-config persistence failed: ${(err as Error).message}`);
+        });
     },
   });
 

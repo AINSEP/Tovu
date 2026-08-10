@@ -1,4 +1,4 @@
-import type { UUID } from "@jini-ai/cms/core";
+import type { ISODateTime, UUID } from "@jini-ai/cms/core";
 
 import type { ComposioConfigRecord, ComposioConfigRepoPort } from "./composio-config-store";
 
@@ -20,5 +20,30 @@ export class InMemoryComposioConfigRepo implements ComposioConfigRepoPort {
 
   async upsert(record: ComposioConfigRecord): Promise<void> {
     this.rows.set(record.workspaceId, { ...record, authConfigIds: { ...record.authConfigIds } });
+  }
+
+  /**
+   * Column-scoped compare-and-swap on `keyGeneration`, mirroring the SQLite adapter's single
+   * conditional `UPDATE`. Rebuilding the row from `...row` is safe here precisely because `row` is
+   * re-read at this instant rather than supplied by the caller — the caller only ever gets to
+   * choose `authConfigIds`/`updatedAt`, which is the property the port promises.
+   *
+   * @complexity O(1) — one map lookup plus one map write.
+   * @overallScore 100
+   */
+  async updateAuthConfigIdsIfGenerationMatches(input: {
+    workspaceId: UUID;
+    expectedGeneration: number;
+    authConfigIds: Record<string, string>;
+    updatedAt: ISODateTime;
+  }): Promise<boolean> {
+    const row = this.rows.get(input.workspaceId);
+    if (row === undefined || row.keyGeneration !== input.expectedGeneration) return false;
+    this.rows.set(input.workspaceId, {
+      ...row,
+      authConfigIds: { ...input.authConfigIds },
+      updatedAt: input.updatedAt,
+    });
+    return true;
   }
 }
