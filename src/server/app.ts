@@ -41,6 +41,7 @@ import { InMemoryComposioConfigRepo } from "../connectors/composio-config-store.
 import { createComposioConnectors } from "../connectors/composio-service";
 import { InMemoryConnectorCredentialRepo } from "../connectors/connector-credential-store.memory";
 import { InMemoryMediaProviderCredentialRepo } from "../media/provider-credential-store.memory";
+import { InMemoryExternalMcpServerRepo } from "../assistant/external-mcp-store.memory";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
@@ -135,6 +136,7 @@ import { createWorkspaceModule } from "./modules/workspace";
 import { createIntegrationsModule } from "./modules/integrations";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin";
 import { createConnectorsModule } from "./modules/connectors";
+import { createExternalMcpModule } from "./modules/external-mcp";
 import { createMediaModule } from "./modules/media";
 import { createTaxonomyModule } from "./modules/taxonomy";
 import { createContentModule } from "./modules/content";
@@ -426,6 +428,7 @@ export function createRouteDeps(): NewsletterRouteDeps {
     siteAssistantSecretKeyring,
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo(),
+    externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
     composioConfigRepo,
     composioConnectors,
     executionSettingsReady,
@@ -733,6 +736,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // the `admin.integrations.manage` permission, but they own different subsystems (outbound
   // webhooks there, inbound third-party accounts here) — see `modules/connectors.ts`.
   createConnectorsModule(routeDeps).registerRoutes?.(app);
+  createExternalMcpModule(routeDeps).registerRoutes?.(app);
   // ADR-046 Phase 3 (SPEC-040): the `users` server module — 8 admin CRUD/list routes over
   // users/roles/policies (ADR-021/SPEC-006 identity RBAC).
   createUsersModule(routeDeps).registerRoutes?.(app);

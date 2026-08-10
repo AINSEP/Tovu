@@ -63,6 +63,41 @@ export interface AdminMediaProviderCredentials {
 export type AdminMediaProviderMap = Record<string, AdminMediaProviderCredentials>;
 
 /**
+ * One configured external MCP server, as the admin tab sees it. Mirrors
+ * `src/assistant/external-mcp-store.ts`'s `ExternalMcpServerView`.
+ *
+ * `envNames` without any matching values is the whole point of the shape, not an omission: the
+ * variable names are what an operator needs in order to see which credentials are set, and the
+ * values are what must never leave the server.
+ */
+export interface AdminExternalMcpServer {
+  serverId: string;
+  label: string;
+  transport: string;
+  enabled: boolean;
+  command: string;
+  args: string[];
+  allowedToolNames: string[];
+  envNames: string[];
+}
+
+/**
+ * Write shape for one external MCP server. `args`/`allowedToolNames`/`env` are the operator's raw
+ * strings — the server owns parsing them, so the admin never has a second, subtly different parser
+ * that could accept something the store rejects.
+ */
+export interface AdminExternalMcpServerInput {
+  label?: string;
+  transport: string;
+  enabled: boolean;
+  command: string;
+  args: string;
+  allowedToolNames: string;
+  /** Omit to keep stored credentials; `""` to clear them. The distinction is load-bearing. */
+  env?: string;
+}
+
+/**
  * Whether this workspace has a Composio API key. Mirrors `src/connectors/composio-config-store.ts`'s
  * `ComposioConfigView` and, structurally, `@jini-ai/integrations/composio`'s `PublicComposioConfig`.
  *
@@ -1202,6 +1237,25 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(providers),
     }),
+  /** The workspace's configured external MCP servers. Carries env variable NAMES only — there is no
+   *  route anywhere that returns a stored env VALUE, by design. */
+  listExternalMcpServers: () =>
+    request<{ servers: AdminExternalMcpServer[] }>(`/workspaces/${WORKSPACE_ID}/mcp-servers`),
+  /** Creates or replaces one external MCP server. Omitting `env` PRESERVES the stored credentials
+   *  (what an enable/disable toggle sends); passing `""` clears them. `restartRequired` is always
+   *  true — federation freezes its tool set at connect, so a saved row lands at the next boot. */
+  saveExternalMcpServer: (serverId: string, body: AdminExternalMcpServerInput) =>
+    request<{ server: AdminExternalMcpServer; restartRequired: boolean }>(
+      `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}`,
+      { method: "PUT", body: JSON.stringify(body) }
+    ),
+  /** Removes one external MCP server. 404s on an id that was never configured rather than
+   *  reporting success, so deleting a typo cannot read as deleting the real server. */
+  deleteExternalMcpServer: (serverId: string) =>
+    request<{ removed: boolean; restartRequired: boolean }>(
+      `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}`,
+      { method: "DELETE" }
+    ),
   /** Whether this workspace has a Composio API key, as markers only — drives `ConnectorsBrowser`'s
    *  `unlocked` prop. Never carries key material. */
   getComposioConfig: () =>

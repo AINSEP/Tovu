@@ -44,6 +44,8 @@ function makeSlice<T>(value: T): SettingsSlice<T> {
   };
 }
 
+import { TOVU_MCP_FIELD_SPECS } from "../hooks/use-external-mcp.hooks";
+
 function baseController(overrides: Partial<SettingsUiController> = {}): SettingsUiController {
   return {
     modalOpen: false,
@@ -54,9 +56,16 @@ function baseController(overrides: Partial<SettingsUiController> = {}): Settings
     port: createExecutionPort(),
     mediaProvidersPort: createFakeMediaProvidersPort(),
     skillsPort: createFakeSkillsPort({ skills: [] }),
-    externalMcpDependencies: createFakeSourceConfigDependencies<SourceConfigItem>({
-      createSource: (input) => ({ id: input.fields.id?.trim() || "mcp-test", fields: input.fields }),
-    }),
+    // The real controller talks to `/mcp-servers`; these tests are about tab chrome, so the fake
+    // port stands in. `TOVU_MCP_FIELD_SPECS` is the REAL spec list, not a stub — the tab's rendered
+    // fields are part of what this suite covers.
+    externalMcp: {
+      dependencies: createFakeSourceConfigDependencies<SourceConfigItem>({
+        createSource: (input) => ({ id: input.fields.id?.trim() || "mcp-test", fields: input.fields }),
+      }),
+      fieldSpecs: TOVU_MCP_FIELD_SPECS,
+      restartRequired: false,
+    },
 
     // Unconfigured, which is what the Connectors tab shows on a fresh install: the grid renders
     // gated behind `ConnectorGate`. Not a `makeSlice` — this one is not ledger-backed.

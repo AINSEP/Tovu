@@ -79,6 +79,17 @@ export async function attachFederatedMcpTools(params: {
   registry: ToolRegistry;
   deps: FederationDeps;
   connections?: readonly ResolvedFederatedConnection[];
+  /**
+   * Connections from a config source that is not the preset registry — today, the operator-editable
+   * roster in `assistant/external-mcp-store.ts`.
+   *
+   * A second parameter rather than a second preset, because `FederatedMcpPresetResolver` cannot
+   * express this source: it is synchronous (a DB read plus an unseal are not) and returns at most
+   * one connection (a roster returns N). Appended AFTER the presets so a preset keeps first claim on
+   * a contested tool id under R1, which preserves the existing behaviour of every already-configured
+   * deployment — an operator adding a row cannot displace a vendor preset that was already working.
+   */
+  extraConnections?: readonly ResolvedFederatedConnection[];
   connect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
   logger?: FederationLogger;
   env?: NodeJS.ProcessEnv;
@@ -86,7 +97,10 @@ export async function attachFederatedMcpTools(params: {
   const logger = params.logger ?? consoleLogger;
   const connect = params.connect ?? defaultConnect;
 
-  const connections = params.connections ?? resolveRegisteredPresets(params.env ?? process.env, logger);
+  const connections = [
+    ...(params.connections ?? resolveRegisteredPresets(params.env ?? process.env, logger)),
+    ...(params.extraConnections ?? []),
+  ];
 
   if (connections.length === 0) return { registeredToolIds: [], sessions: [] };
 

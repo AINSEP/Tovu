@@ -42,6 +42,7 @@ import {
 } from "../../../lib/settings-tabs";
 import { mergeSaveStates, useSettingsSlice, type SaveState, type SettingsSlice } from "../../../hooks/use-settings-slice.hooks";
 import { useComposioConfig, type ComposioConfigController } from "./use-composio-config.hooks";
+import { useExternalMcp, type ExternalMcpController } from "./use-external-mcp.hooks";
 import { areAnySlicesLoading, firstLoadError } from "../rules";
 
 /**
@@ -73,7 +74,12 @@ export interface SettingsUiController {
   port: ReturnType<typeof createExecutionPort>;
   mediaProvidersPort: ReturnType<typeof createFakeMediaProvidersPort>;
   skillsPort: ReturnType<typeof createFakeSkillsPort>;
-  externalMcpDependencies: ReturnType<typeof createFakeSourceConfigDependencies<SourceConfigItem>>;
+  /**
+   * The External MCP tab's real transport, plus the Tovu-specific field specs and the
+   * restart-required flag. Backed by the `external_mcp_servers` table rather than the settings
+   * ledger, so it is not a `SettingsSlice` — see `use-external-mcp.hooks.ts`.
+   */
+  externalMcp: ExternalMcpController;
 
   /**
    * The Connectors tab's Composio API key. Not a `SettingsSlice` — it is backed by its own sealed
@@ -109,19 +115,12 @@ export function useSettingsUi(): SettingsUiController {
   // these ports otherwise avoid.
   const mediaProvidersPort = useRef(createFakeMediaProvidersPort());
   const skillsPort = useRef(createFakeSkillsPort({ skills: [] }));
-  // Empty in-memory dependencies for the inert-wrapped `ExternalMcpTab` mount
-  // below. `createSource` only has to satisfy the type — `inert` means the
-  // add form can never actually submit, so this is never called in practice.
-  const externalMcpDependencies = useRef(
-    createFakeSourceConfigDependencies<SourceConfigItem>({
-      createSource: (input) => ({ id: input.fields.id?.trim() || `mcp-${Date.now()}`, fields: input.fields }),
-    }),
-  );
   // Which segment of the inert-wrapped `MemorySettingsPanel` mount below is
   // showing. Local view state only — nothing here persists, matching every
   // other prop this tab's `inert` control feeds.
   const [memoryTopTab, setMemoryTopTab] = useState<MemoryTopTab>("memories");
   const composio = useComposioConfig();
+  const externalMcp = useExternalMcp();
 
   const execution = useSettingsSlice<ExecutionConfig>({
     load: loadExecutionConfig,
@@ -180,7 +179,7 @@ export function useSettingsUi(): SettingsUiController {
     port: port.current,
     mediaProvidersPort: mediaProvidersPort.current,
     skillsPort: skillsPort.current,
-    externalMcpDependencies: externalMcpDependencies.current,
+    externalMcp,
 
     composio,
 

@@ -92,6 +92,8 @@ import { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-aut
 import { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes";
 import { FRONTEND_CONTROL_CAPABILITIES } from "./frontend-control-capabilities";
 import { attachFederatedMcpTools } from "./mcp-federation/bootstrap";
+import type { ResolvedFederatedConnection } from "./mcp-federation/config";
+import { readEnabledExternalMcpConfigs, toResolvedFederatedConnections } from "./external-mcp-store";
 import { registerA2uiActionsRoute } from "./a2ui-actions-route";
 import { registerMcpUiToolCallsRoute } from "./mcp-ui-tool-calls-route";
 import { resolveMcpJsonInjection } from "./mcp-injection";
@@ -645,12 +647,47 @@ frontendControl.httpExtension(app, { adapter });
  * the half-wired state `tool-catalog-query.ts`'s own header records finding on 2026-07-30. Route
  * order is otherwise unchanged: the catalog routes were already registered last.
  */
+/**
+ * Reads the operator-editable roster (Settings → External MCP) into federation's connection shape.
+ *
+ * Boot-time only, and that is the DESIGN, not a limitation left unfinished: the admitted tool set is
+ * frozen at connect (`trust.ts` R5), which is what closes the rug-pull where a server advertises a
+ * benign surface while an operator picks an allowlist and swaps it afterwards. Re-reading this
+ * roster mid-process would have to re-establish that guarantee deliberately. The tab therefore tells
+ * the operator a restart is required rather than implying a saved row is already live.
+ *
+ * Fail-open on every path, matching `bootstrap.ts`: an unreadable roster must not stop the daemon
+ * booting, because the assistant's own native catalog does not depend on it.
+ *
+ * @returns The stored connections, or an empty list if none are usable.
+ * @complexity O(n) in the enabled server count.
+ * @overallScore 100
+ */
+async function resolveStoredExternalMcpConnections(): Promise<ResolvedFederatedConnection[]> {
+  try {
+    const { configs, failures } = await readEnabledExternalMcpConfigs(
+      { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer },
+      routeDeps.workspaceId,
+    );
+    for (const failure of failures) {
+      console.warn(`[agent-daemon] mcp-federation: stored server '${failure.serverId}' skipped — ${failure.reason}`);
+    }
+    return toResolvedFederatedConnections(configs);
+  } catch (error) {
+    console.warn(
+      `[agent-daemon] mcp-federation: the stored external-MCP roster could not be read, continuing without it — ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return [];
+  }
+}
+
 async function start(): Promise<void> {
   registerSupabaseMcpPreset();
 
   await attachFederatedMcpTools({
     registry,
     deps: { authorize: routeDeps.authorize, workspaceId: routeDeps.workspaceId },
+    extraConnections: await resolveStoredExternalMcpConnections(),
   });
 
   // Backs `@jini-ai/mcp`'s `search_tools`/`describe_tool` — was never mounted before 2026-07-30,

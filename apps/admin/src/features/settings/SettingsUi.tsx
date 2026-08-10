@@ -611,39 +611,34 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi, tabId = null }: 
         </TabIcon>
       ),
       /**
-       * OD as MCP *client* (`source-config-list`) — distinct from the "MCP
-       * server" tab above, where Tovu is the one being connected TO.
-       * `ExternalMcpTab` (new upstream component wrapping the generic
-       * `SourceConfigList` primitive — see its own doc comment) fed a fresh
-       * empty dependencies fake, same convention as Media providers/Skills
-       * above.
+       * Tovu as MCP *client* — distinct from the "MCP server" tab above, where
+       * Tovu is the one being connected TO. Live since the `external_mcp_servers`
+       * store landed; this was previously an `inert` reference mount.
        *
-       * Unlike the other inert tabs here, the backend is NOT missing: Tovu
-       * really does act as an MCP client (`src/assistant/mcp-federation/`,
-       * attached at daemon boot by `agent-daemon-server.ts`'s `start()`), and
-       * federated tools reach the assistant as `mcp__<connection>__<tool>`.
-       * What is missing is an operator-editable config store — connections
-       * resolve from env vars via `mcp-federation/presets.ts` at boot only.
-       * The note says so; an earlier version claimed Tovu ran no MCP client
-       * at all, which was false. `saveStatusLabel`/`configPath` are OD's own
-       * footer chrome, shown for visual reference under the same honest note.
+       * `fieldSpecs` is overridden rather than taking `@jini-ai/ui`'s default
+       * `MCP_SOURCE_FIELD_SPECS` for two reasons that both bite: those offer an
+       * `http` transport Tovu cannot federate, and they carry no allowlist field
+       * at all — and without one, `mcp-federation/trust.ts` R2's default-deny
+       * means a saved server contributes zero tools. See
+       * `use-external-mcp.hooks.ts`.
+       *
+       * `saveStatusLabel` deliberately carries the restart notice instead of
+       * "All changes saved": a saved row is persisted but NOT live, because the
+       * admitted tool set is frozen at connect (R5). Telling an operator their
+       * change is saved, when the running assistant still cannot see the server,
+       * would be true and useless. `configPath` is dropped — it pointed at OD's
+       * `.od/mcp-config.json`, a path Tovu has never had.
        */
       panel: (
-        <div className="settings-ui-inert-wrap">
-          <p className="settings-ui-inert-note" role="note">
-            {tCap(
-              "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.",
-            )}
-          </p>
-          <div className="settings-ui-inert-control" inert>
-            <ExternalMcpTab
-              dependencies={s.externalMcpDependencies}
-              connectionError={t("No MCP config store to connect to yet.")}
-              saveStatusLabel={t("All changes saved")}
-              configPath=".od/mcp-config.json"
-            />
-          </div>
-        </div>
+        <ExternalMcpTab
+          dependencies={s.externalMcp.dependencies}
+          fieldSpecs={s.externalMcp.fieldSpecs}
+          saveStatusLabel={
+            s.externalMcp.restartRequired
+              ? tCap("Saved — restart Tovu to connect")
+              : tCap("Changes apply when Tovu restarts")
+          }
+        />
       ),
     },
     {
