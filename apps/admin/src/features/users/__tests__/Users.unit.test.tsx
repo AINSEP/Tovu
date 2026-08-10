@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Users } from "../Users";
+import { UserManagePanel, Users, type UserManageController } from "../Users";
 
 /**
  * @file `Users` — pins the `RowMenu` rollout (task: roll `RowMenu` out to `Users.tsx`/
@@ -329,5 +329,82 @@ describe("Reset password — via RowMenu, opens a dialog with a password field",
     // cleared by onCancel, not merely hidden behind the closed dialog.
     await user.click(within(await openMenu(user, "alice")).getByRole("menuitem", { name: "Reset password" }));
     expect((within(dialog).getByLabelText("New password") as HTMLInputElement).value).toBe("");
+  });
+});
+
+/**
+ * The controller seam introduced by the F05 coupling fix (audit `TM-20260810-01`). `UserManagePanel`
+ * used to take fifteen loose state/setter/callback props, and `UserRow` relayed them through an
+ * `Omit<UserManagePanelProps, "principalId">` rest spread — so nothing could render the panel
+ * without reconstructing that whole bag. These assertions drive it from one hand-built controller.
+ */
+describe("UserManagePanel controller seam", () => {
+  const t = (key: string): string => key;
+
+  function manageController(overrides: Partial<UserManageController> = {}): UserManageController {
+    return {
+      error: null,
+      saving: false,
+      email: { value: "", set: vi.fn(), saving: false, save: vi.fn() },
+      roleGrant: { options: [], pendingId: "", setPendingId: vi.fn(), submit: vi.fn() },
+      policyGrant: { options: [], pendingId: "", setPendingId: vi.fn(), submit: vi.fn() },
+      ...overrides,
+    };
+  }
+
+  function renderPanel(manage: UserManageController) {
+    return render(
+      <table>
+        <tbody>
+          <UserManagePanel principalId="p-1" manage={manage} t={t} />
+        </tbody>
+      </table>,
+    );
+  }
+
+  it("renders and submits both grants from one controller, with no hook or API behind it", async () => {
+    const manage = manageController({
+      roleGrant: {
+        options: [{ id: "r-1", name: "Editor", isBuiltin: false }],
+        pendingId: "r-1",
+        setPendingId: vi.fn(),
+        submit: vi.fn(),
+      },
+      policyGrant: {
+        options: [{ id: "p-1", name: "Publish", isBuiltin: true }],
+        pendingId: "p-1",
+        setPendingId: vi.fn(),
+        submit: vi.fn(),
+      },
+    });
+    renderPanel(manage);
+
+    await userEvent.click(screen.getByRole("button", { name: "Assign" }));
+    expect(manage.roleGrant.submit).toHaveBeenCalledWith("p-1");
+
+    await userEvent.click(screen.getByRole("button", { name: "Attach" }));
+    expect(manage.policyGrant.submit).toHaveBeenCalledWith("p-1");
+
+    // The built-in marker comes from the option's own flag, not from a full `AdminPolicy` record —
+    // the shared `GrantSelect` only ever sees `GrantOption`.
+    expect(screen.getByRole("option", { name: /Publish \(built-in\)/ })).toBeInTheDocument();
+  });
+
+  it("keeps the email save independent of the shared grant-saving flag", async () => {
+    const manage = manageController({ saving: true });
+    renderPanel(manage);
+
+    // Both grants are blocked by the shared flag...
+    const blocked = screen.getAllByRole("button", { name: "Saving…" });
+    expect(blocked).toHaveLength(2);
+    for (const button of blocked) expect(button).toBeDisabled();
+    // ...while the email control has its own, and is still pressable.
+    await userEvent.click(screen.getByRole("button", { name: "Save email" }));
+    expect(manage.email.save).toHaveBeenCalledWith("p-1");
+  });
+
+  it("shows the one shared error line the panel's three writes all report through", () => {
+    renderPanel(manageController({ error: "grant failed" }));
+    expect(screen.getByText("grant failed")).toBeInTheDocument();
   });
 });

@@ -1,8 +1,17 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api, ApiError, type SiteAssistantCredential } from "../../../lib/api";
-import { useVisitorCredentialForm } from "../hooks/use-visitor-credential-form.hooks";
+import {
+  api,
+  ApiError,
+  type SiteAssistantCredential,
+  type SiteAssistantCredentialPatch,
+} from "../../../lib/api";
+import {
+  saveVisitorCredential,
+  useVisitorCredentialForm,
+  type VisitorCredentialApi,
+} from "../hooks/use-visitor-credential-form.hooks";
 
 /**
  * @file First test file for `useVisitorCredentialForm` (0% before this pass — no test file existed
@@ -419,5 +428,101 @@ describe("useVisitorCredentialForm — editConfig", () => {
 
     expect(result.current.dirty).toBe(true);
     expect(result.current.config.model).toBe("operator-typed-model");
+  });
+});
+
+/**
+ * The injected-port seam from the F05 coupling fix (audit `TM-20260810-01`). `saveVisitorCredential`
+ * used to import the ambient `api` singleton directly, so the only way to exercise it was to
+ * `vi.spyOn` that module — which every test above still does for the hook's other surfaces. These
+ * assertions pass a fake in instead: no module mocking at all, which is the property that proves the
+ * seam is a real dependency boundary rather than a rename.
+ */
+describe("VisitorCredentialApi injection", () => {
+  function fakeApi(stored: SiteAssistantCredential) {
+    const setCalls: SiteAssistantCredentialPatch[] = [];
+    let getCalls = 0;
+    return {
+      setCalls,
+      getCallCount: () => getCalls,
+      port: {
+        getAssistantSiteCredential: async () => {
+          getCalls += 1;
+          return { data: stored };
+        },
+        setAssistantSiteCredential: async (patch: SiteAssistantCredentialPatch) => {
+          setCalls.push(patch);
+          return { data: { ...stored, ...patch, isSet: true, updatedAt: "2026-08-10T00:00:00.000Z" } };
+        },
+      } satisfies VisitorCredentialApi,
+    };
+  }
+
+  it("saveVisitorCredential writes through the injected port, never the ambient singleton", async () => {
+    // No `vi.spyOn(api, ...)` anywhere in this test: if the handler still reached for the module
+    // singleton, this would hit the real client and the fake would record nothing.
+    const fake = fakeApi(credential());
+    const writes: string[] = [];
+
+    await saveVisitorCredential({
+      api: fake.port,
+      config: {
+        protocol: "google",
+        providerId: "google-gemini",
+        apiKey: "  typed-key  ",
+        baseUrl: "https://example.test",
+        model: "gemini-flash-latest",
+      },
+      hasStoredKey: false,
+      writers: {
+        setSaveState: (state) => writes.push(`saveState:${state.status}`),
+        setStored: () => writes.push("stored"),
+        setDirty: (dirty) => writes.push(`dirty:${String(dirty)}`),
+        setConfig: () => writes.push("config"),
+      },
+    });
+
+    expect(fake.setCalls).toEqual([
+      { provider: "google", baseUrl: "https://example.test", model: "gemini-flash-latest", apiKey: "typed-key" },
+    ]);
+    expect(writes).toEqual(["saveState:saving", "stored", "saveState:saved", "dirty:false", "config"]);
+  });
+
+  it("saveVisitorCredential reports the injected port's failure without touching storage", async () => {
+    const states: string[] = [];
+    await saveVisitorCredential({
+      api: {
+        getAssistantSiteCredential: () => Promise.reject(new Error("unused")),
+        setAssistantSiteCredential: () => Promise.reject(new ApiError("boom", 500, "SERVER_ERROR")),
+      },
+      config: {
+        protocol: "google",
+        providerId: "google-gemini",
+        apiKey: "typed-key",
+        baseUrl: "https://example.test",
+        model: "gemini-flash-latest",
+      },
+      hasStoredKey: false,
+      writers: {
+        setSaveState: (state) => states.push(state.status),
+        setStored: () => states.push("stored-MUST-NOT-HAPPEN"),
+        setDirty: () => states.push("dirty-MUST-NOT-HAPPEN"),
+        setConfig: () => states.push("config-MUST-NOT-HAPPEN"),
+      },
+    });
+
+    expect(states).toEqual(["saving", "error"]);
+  });
+
+  it("the hook hydrates from an injected port instead of the singleton", async () => {
+    const fake = fakeApi(credential({ isSet: true, masked: "••••1234", baseUrl: "https://injected.test", model: "m-1" }));
+    const { result } = renderHook(() => useVisitorCredentialForm({ api: fake.port }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fake.getCallCount()).toBe(1);
+    expect(result.current.stored?.masked).toBe("••••1234");
+    expect(result.current.config.baseUrl).toBe("https://injected.test");
   });
 });

@@ -37,6 +37,29 @@ export type SaveState =
   | { status: "saved"; at: string | null }
   | { status: "error"; message: string };
 
+/**
+ * The two site-credential calls this form makes, as an explicit port.
+ *
+ * Structurally the matching slice of `lib/api`'s client, declared here rather than imported whole so
+ * the handler below depends on the two methods it uses instead of on the ambient singleton. That
+ * singleton is still the production default — nothing about the wiring changes — but it is now
+ * passed in, which is what makes {@link saveVisitorCredential} exercisable against a fake without
+ * module mocking, and what stops the port from silently widening as `api` grows.
+ */
+export interface VisitorCredentialApi {
+  getAssistantSiteCredential(): Promise<{ data: SiteAssistantCredential }>;
+  setAssistantSiteCredential(patch: SiteAssistantCredentialPatch): Promise<{ data: SiteAssistantCredential }>;
+}
+
+/** The four writers {@link saveVisitorCredential} needs, grouped rather than passed as four loose
+ *  setters beside four loose values. A save either advances all of them or none. */
+export interface VisitorCredentialSaveWriters {
+  setSaveState: (state: SaveState) => void;
+  setStored: (stored: SiteAssistantCredential) => void;
+  setDirty: (dirty: boolean) => void;
+  setConfig: (updater: (current: ByokConfig) => ByokConfig) => void;
+}
+
 export interface VisitorCredentialFormController {
   config: ByokConfig;
   /** Every edit that originates from a CONTROL goes through here, so `dirty` reflects the operator
@@ -80,28 +103,32 @@ export interface VisitorCredentialFormController {
  * not a debounce" reasoning this function implements; `apiKey.trim()` empty-field handling implements
  * `put-site-credential.ts`'s documented "leave the stored key alone" case.
  */
-async function saveVisitorCredential(deps: {
-  apiKey: string;
+export async function saveVisitorCredential(deps: {
+  /** Injected, not imported — see {@link VisitorCredentialApi}. */
+  api: VisitorCredentialApi;
+  /** The whole draft, rather than the four fields picked out of it: the patch is built from `config`
+   *  and nothing else, so restating its members here only invited them to drift apart. */
+  config: ByokConfig;
   hasStoredKey: boolean;
-  protocol: ByokConfig["protocol"];
-  baseUrl: string;
-  model: string;
-  setSaveState: (state: SaveState) => void;
-  setStored: (stored: SiteAssistantCredential) => void;
-  setDirty: (dirty: boolean) => void;
-  setConfig: (updater: (current: ByokConfig) => ByokConfig) => void;
+  writers: VisitorCredentialSaveWriters;
 }): Promise<void> {
-  const { apiKey, hasStoredKey, protocol, baseUrl, model, setSaveState, setStored, setDirty, setConfig } = deps;
+  const { config, hasStoredKey } = deps;
+  const { setSaveState, setStored, setDirty, setConfig } = deps.writers;
+  const apiKey = config.apiKey;
   // No key typed AND none stored: the only thing a write could do is create a keyless row, which
   // would make `isSet` lie about a credential that does not exist.
   if (!apiKey.trim() && !hasStoredKey) return;
 
-  const patch: SiteAssistantCredentialPatch = { provider: protocol, baseUrl, model };
+  const patch: SiteAssistantCredentialPatch = {
+    provider: config.protocol,
+    baseUrl: config.baseUrl,
+    model: config.model,
+  };
   if (apiKey.trim()) patch.apiKey = apiKey.trim();
 
   setSaveState({ status: "saving" });
   try {
-    const { data } = await api.setAssistantSiteCredential(patch);
+    const { data } = await deps.api.setAssistantSiteCredential(patch);
     // The SERVER's view, not the patch that was sent — same reasoning as `setPublicEnabled` in
     // `use-ai-assistant.hooks.ts`. A partially-applied or rejected write must not leave this screen
     // claiming a key is stored when it is not.
@@ -197,7 +224,19 @@ async function runVisitorTestConnection(deps: {
   }
 }
 
-export function useVisitorCredentialForm(): VisitorCredentialFormController {
+export interface UseVisitorCredentialFormOptions {
+  /** Dependency injection seam for tests — same convention `Roles`/`Users`/`Members` use for their
+   *  hooks. Defaulted to the real client, so production callers pass nothing. */
+  api?: VisitorCredentialApi;
+}
+
+export function useVisitorCredentialForm(
+  options: UseVisitorCredentialFormOptions = {}
+): VisitorCredentialFormController {
+  // A ref so the hydration effect can read it without listing it as a dependency, and so swapping
+  // the prop mid-life cannot re-run that one-shot effect. Same lifetime rule as `port` below.
+  const apiRef = useRef<VisitorCredentialApi>(options.api ?? api);
+
   const [config, setConfig] = useState<ByokConfig>(() => ({
     protocol: "google",
     providerId: "google-gemini",
@@ -256,7 +295,7 @@ export function useVisitorCredentialForm(): VisitorCredentialFormController {
   // what the "A key is stored" line under the field reports.
   useEffect(() => {
     let cancelled = false;
-    api
+    apiRef.current
       .getAssistantSiteCredential()
       .then(({ data }) => {
         if (cancelled) return;
@@ -324,15 +363,10 @@ export function useVisitorCredentialForm(): VisitorCredentialFormController {
 
   function saveCredential() {
     return saveVisitorCredential({
-      apiKey,
+      api: apiRef.current,
+      config,
       hasStoredKey,
-      protocol,
-      baseUrl,
-      model: config.model,
-      setSaveState,
-      setStored,
-      setDirty,
-      setConfig,
+      writers: { setSaveState, setStored, setDirty, setConfig },
     });
   }
 
