@@ -1,4 +1,9 @@
-import { createRateLimiter, CONNECTOR_CALLBACK_PER_IP, CONNECTOR_CONNECT_PER_IP } from "../middleware/rate-limit";
+import {
+  createRateLimiter,
+  CONNECTOR_CALLBACK_PER_IP,
+  CONNECTOR_CONNECT_PER_IP,
+  CONNECTOR_OUTBOUND_PER_IP,
+} from "../middleware/rate-limit";
 import { registerAdminConnectorsConnectRoute } from "../routes/admin/connectors/connect";
 import type {
   ConnectorsConfigRouteDeps,
@@ -36,6 +41,12 @@ export function createConnectorsModule(
   // `app.ts` makes for the magic-link limiters, which live next to their own route family.
   const callbackLimiter = createRateLimiter({ profile: CONNECTOR_CALLBACK_PER_IP, clock: deps.clock });
   const connectLimiter = createRateLimiter({ profile: CONNECTOR_CONNECT_PER_IP, clock: deps.clock });
+  // Separate instances per route (not one shared limiter) so a burst on one action doesn't eat
+  // another action's budget — see `CONNECTOR_OUTBOUND_PER_IP`'s doc for which routes need this.
+  const putConfigOutboundLimiter = createRateLimiter({ profile: CONNECTOR_OUTBOUND_PER_IP, clock: deps.clock });
+  const disconnectOutboundLimiter = createRateLimiter({ profile: CONNECTOR_OUTBOUND_PER_IP, clock: deps.clock });
+  const listOutboundLimiter = createRateLimiter({ profile: CONNECTOR_OUTBOUND_PER_IP, clock: deps.clock });
+  const getByIdOutboundLimiter = createRateLimiter({ profile: CONNECTOR_OUTBOUND_PER_IP, clock: deps.clock });
 
   return {
     name: "connectors",
@@ -45,13 +56,13 @@ export function createConnectorsModule(
       // connector ids and answered with a 404 from the catalog lookup. The `:connectorId/connect`
       // family needs no such care — its second path segment keeps it from colliding.
       registerAdminConnectorsGetConfigRoute(app, deps);
-      registerAdminConnectorsPutConfigRoute(app, deps);
+      registerAdminConnectorsPutConfigRoute(app, deps, putConfigOutboundLimiter);
       registerAdminConnectorsStatusesRoute(app, deps);
       registerAdminConnectorsConnectRoute(app, deps, connectLimiter);
-      registerAdminConnectorsDisconnectRoute(app, deps);
+      registerAdminConnectorsDisconnectRoute(app, deps, disconnectOutboundLimiter);
       registerAdminConnectorsCancelRoute(app, deps);
-      registerAdminConnectorsListRoute(app, deps);
-      registerAdminConnectorsGetByIdRoute(app, deps);
+      registerAdminConnectorsListRoute(app, deps, listOutboundLimiter);
+      registerAdminConnectorsGetByIdRoute(app, deps, getByIdOutboundLimiter);
 
       // PUBLIC — deliberately outside `/api/admin`, so `requireAdminSession` never sees it.
       registerComposioCallbackRoute(app, {

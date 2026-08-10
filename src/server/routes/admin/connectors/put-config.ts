@@ -1,3 +1,5 @@
+import type { Express } from "express";
+
 import {
   clearComposioApiKey,
   ComposioConfigSecretStoreUnconfiguredError,
@@ -5,7 +7,9 @@ import {
   saveComposioApiKey,
 } from "#src/connectors/composio-config-store";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ConnectorsConfigRouteRegistrar } from "./deps";
+import type { RateLimiter } from "../../../middleware/rate-limit";
+import { resolveClientIp } from "../../../middleware/rate-limit";
+import type { ConnectorsConfigRouteDeps } from "./deps";
 
 /**
  * PUT the workspace's Composio API key.
@@ -28,8 +32,17 @@ import type { ConnectorsConfigRouteRegistrar } from "./deps";
  * the previous key until restart.
  *
  * Responds with markers only — the stored key is never echoed back.
+ *
+ * The verify-against-Composio step (`probeApiKey`, below) is rate-limited (`CONNECTOR_OUTBOUND_PER_IP`)
+ * the same way `connect`/`disconnect`/list-refresh/preview-hydration are: it is a real outbound call
+ * to Composio that `requireAdminSession` alone does not bound the frequency of. Clearing a key
+ * (`apiKey: null`) makes no outbound call and stays unlimited.
  */
-export const registerAdminConnectorsPutConfigRoute: ConnectorsConfigRouteRegistrar = (app, deps) => {
+export function registerAdminConnectorsPutConfigRoute(
+  app: Express,
+  deps: ConnectorsConfigRouteDeps,
+  outboundLimiter: RateLimiter
+): void {
   app.put("/api/admin/v1/workspaces/:workspaceId/connectors/config", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -76,6 +89,17 @@ export const registerAdminConnectorsPutConfigRoute: ConnectorsConfigRouteRegistr
       if (!clearing) {
         const candidate = String(body.apiKey).trim();
         if (candidate) {
+          const rateLimitResult = outboundLimiter.check(resolveClientIp(req));
+          if (!rateLimitResult.allowed) {
+            res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
+            res.status(429).json({
+              error: "too many key-verification attempts",
+              code: "RATE_LIMIT_EXCEEDED",
+              details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
+            });
+            return;
+          }
+
           const probe = await deps.composioConnectors.probeApiKey(candidate);
           if (!probe.ok) {
             const rejected = probe.reason === "rejected";
@@ -122,4 +146,4 @@ export const registerAdminConnectorsPutConfigRoute: ConnectorsConfigRouteRegistr
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
   });
-};
+}

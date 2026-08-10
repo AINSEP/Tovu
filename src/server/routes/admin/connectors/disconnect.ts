@@ -1,5 +1,9 @@
+import type { Express } from "express";
+
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ConnectorsRouteRegistrar } from "./deps";
+import type { RateLimiter } from "../../../middleware/rate-limit";
+import { resolveClientIp } from "../../../middleware/rate-limit";
+import type { ConnectorsRouteDeps, ConnectorsRouteRegistrar } from "./deps";
 import { sendConnectorError } from "./errors";
 
 /**
@@ -12,11 +16,31 @@ import { sendConnectorError } from "./errors";
  * `disconnect` revokes the account at Composio AND deletes the sealed local credentials; the flush
  * is awaited so a 200 really means the row is gone. `cancel` only drops the provider's in-memory
  * pending-authorization entry — nothing was ever stored, so there is nothing to flush.
+ *
+ * `disconnect` is rate-limited (`CONNECTOR_OUTBOUND_PER_IP`) the same way `connect.ts` is: it makes
+ * a real outbound call to Composio to revoke the account, so `requireAdminSession` alone does not
+ * bound how often it can be hit. `cancel` is NOT limited — it only touches the provider's in-memory
+ * pending-authorization map and makes no outbound call.
  */
-export const registerAdminConnectorsDisconnectRoute: ConnectorsRouteRegistrar = (app, deps) => {
+export function registerAdminConnectorsDisconnectRoute(
+  app: Express,
+  deps: ConnectorsRouteDeps,
+  outboundLimiter: RateLimiter
+): void {
   app.post("/api/admin/v1/workspaces/:workspaceId/connectors/:connectorId/disconnect", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
+      return;
+    }
+
+    const rateLimitResult = outboundLimiter.check(resolveClientIp(req));
+    if (!rateLimitResult.allowed) {
+      res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
+      res.status(429).json({
+        error: "too many disconnect attempts",
+        code: "RATE_LIMIT_EXCEEDED",
+        details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
+      });
       return;
     }
 
@@ -44,7 +68,7 @@ export const registerAdminConnectorsDisconnectRoute: ConnectorsRouteRegistrar = 
       sendConnectorError(res, error);
     }
   });
-};
+}
 
 export const registerAdminConnectorsCancelRoute: ConnectorsRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/connectors/:connectorId/cancel", async (req, res) => {

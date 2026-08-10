@@ -1,5 +1,9 @@
+import type { Express } from "express";
+
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ConnectorsRouteRegistrar } from "./deps";
+import type { RateLimiter } from "../../../middleware/rate-limit";
+import { resolveClientIp } from "../../../middleware/rate-limit";
+import type { ConnectorsRouteDeps } from "./deps";
 import { sendConnectorError } from "./errors";
 
 /**
@@ -12,12 +16,19 @@ import { sendConnectorError } from "./errors";
  * that has never configured Composio.
  *
  * `?refresh=1` asks the provider to re-fetch from Composio and therefore DOES require a configured
- * key; it is the enrichment call `ConnectorsBrowser` only makes once `unlocked`.
+ * key; it is the enrichment call `ConnectorsBrowser` only makes once `unlocked`. That path is
+ * rate-limited (`CONNECTOR_OUTBOUND_PER_IP`) for the same reason `connect`/`disconnect` are — a
+ * real outbound Composio call that `requireAdminSession` alone does not bound the frequency of. The
+ * static (no-refresh) path stays unlimited since it makes no outbound call.
  *
  * Gated by `admin.integrations.manage` — the existing third-party-integration permission, reused
  * rather than minting a new string, the same call `assistant/mcp-federation/trust.ts` documents.
  */
-export const registerAdminConnectorsListRoute: ConnectorsRouteRegistrar = (app, deps) => {
+export function registerAdminConnectorsListRoute(
+  app: Express,
+  deps: ConnectorsRouteDeps,
+  outboundLimiter: RateLimiter
+): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/connectors", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -42,6 +53,20 @@ export const registerAdminConnectorsListRoute: ConnectorsRouteRegistrar = (app, 
       }
 
       const refresh = req.query.refresh === "1" || req.query.refresh === "true";
+
+      if (refresh) {
+        const rateLimitResult = outboundLimiter.check(resolveClientIp(req));
+        if (!rateLimitResult.allowed) {
+          res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
+          res.status(429).json({
+            error: "too many catalog refresh attempts",
+            code: "RATE_LIMIT_EXCEEDED",
+            details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
+          });
+          return;
+        }
+      }
+
       const result = await deps.composioConnectors.service.listConnectorDiscovery(
         refresh ? { refresh: true } : {}
       );
@@ -50,4 +75,4 @@ export const registerAdminConnectorsListRoute: ConnectorsRouteRegistrar = (app, 
       sendConnectorError(res, error);
     }
   });
-};
+}

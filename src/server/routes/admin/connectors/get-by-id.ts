@@ -1,5 +1,9 @@
+import type { Express } from "express";
+
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ConnectorsRouteRegistrar } from "./deps";
+import type { RateLimiter } from "../../../middleware/rate-limit";
+import { resolveClientIp } from "../../../middleware/rate-limit";
+import type { ConnectorsRouteDeps } from "./deps";
 import { sendConnectorError } from "./errors";
 
 /**
@@ -16,6 +20,11 @@ import { sendConnectorError } from "./errors";
  * provider forwards it to Composio as a page size.
  *
  * MUST be registered after `statuses.ts` and `get-config.ts` — see `server/modules/connectors.ts`.
+ *
+ * `?hydrateTools=1` is rate-limited (`CONNECTOR_OUTBOUND_PER_IP`): it makes a real, paginated
+ * outbound call to Composio, so `requireAdminSession` alone does not bound how often it can be
+ * paged through. Plain `getConnector` (no `hydrateTools`) is a cheap local read and stays
+ * unlimited.
  */
 
 /** Upper bound on a client-supplied tool page size. Composio's own pagination is the real limit;
@@ -35,7 +44,11 @@ function parseToolsLimit(raw: unknown): number {
   return Math.min(parsed, MAX_TOOLS_LIMIT);
 }
 
-export const registerAdminConnectorsGetByIdRoute: ConnectorsRouteRegistrar = (app, deps) => {
+export function registerAdminConnectorsGetByIdRoute(
+  app: Express,
+  deps: ConnectorsRouteDeps,
+  outboundLimiter: RateLimiter
+): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/connectors/:connectorId", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -61,6 +74,20 @@ export const registerAdminConnectorsGetByIdRoute: ConnectorsRouteRegistrar = (ap
 
       const connectorId = String(req.params.connectorId ?? "");
       const hydrateTools = req.query.hydrateTools === "1" || req.query.hydrateTools === "true";
+
+      if (hydrateTools) {
+        const rateLimitResult = outboundLimiter.check(resolveClientIp(req));
+        if (!rateLimitResult.allowed) {
+          res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
+          res.status(429).json({
+            error: "too many tool-preview requests",
+            code: "RATE_LIMIT_EXCEEDED",
+            details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
+          });
+          return;
+        }
+      }
+
       const toolsCursor = typeof req.query.toolsCursor === "string" ? req.query.toolsCursor : undefined;
 
       const connector = hydrateTools
@@ -75,4 +102,4 @@ export const registerAdminConnectorsGetByIdRoute: ConnectorsRouteRegistrar = (ap
       sendConnectorError(res, error);
     }
   });
-};
+}
