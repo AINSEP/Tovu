@@ -1,0 +1,18 @@
+{
+  "--bg": "#f4f4f5",
+  "--surface": "#ffffff",
+  "--surface-2": "#f8f8f8",
+  "--fg": "#09090b",
+  "--muted": "#52525c",
+  "--border": "#e4e4e7",
+  "--border-strong": "#d4d4d8",
+  "--accent": "#615fff",
+  "--accent-strong": "#5252d7",
+  "--accent-soft": "#f1f1fd",
+  "--accent-fg": "#ffffff",
+  "--success": "#0f9d70",
+  "--font-display": "'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif",
+  "--font-body": "'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif",
+  "--font-mono": "'Geist Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace",
+  "--container": "1200px"
+}

@@ -1,0 +1,32 @@
+{
+  "id": "tailark-quartz-dark",
+  "name": "Onyx",
+  "version": "0.1.0",
+  "tier": "static",
+  "description": "A dark, minimal SaaS marketing site (home, blog, blog article, customer stories, customers, legal, legal document, pricing). Plain HTML/CSS/JS, no build step, no template language.",
+  "modes": ["dark", "light"],
+  "defaultMode": "dark",
+  "fonts": ["Geist:wght@400;500", "Geist+Mono:wght@400;500"],
+  "pages": [
+    "index",
+    "blog",
+    "blog-two",
+    "blog-three",
+    "blog-article",
+    "blog-article-two",
+    "blog-article-three",
+    "customer-story",
+    "customer-story-two",
+    "customer-story-three",
+    "customers",
+    "legal",
+    "legal-document",
+    "legal-document-two",
+    "pricing"
+  ],
+  "postTemplate": ["blog-post.html"],
+  "slots": {
+    "nav": { "source": "nav.html", "activeAttr": "data-nav-current" },
+    "footer": { "source": "footer.html" }
+  }
+}
