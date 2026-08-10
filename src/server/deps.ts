@@ -54,6 +54,10 @@ import { createKeyringBackedSigner } from "../integrations/signing.keyring";
 import { AesGcmSecretSealer } from "../integrations/secret-sealer.aesgcm";
 import { SqliteSiteAssistantCredentialRepo } from "../db/sqlite/site-credential-repo.sqlite";
 import { SqliteAdminExecutionCredentialRepo } from "../db/sqlite/execution-credential-repo.sqlite";
+import { SqliteComposioConfigRepo } from "../db/sqlite/composio-config-repo.sqlite";
+import { SqliteConnectorCredentialRepo } from "../db/sqlite/composio-connector-credential-repo.sqlite";
+import { SqliteMediaProviderCredentialRepo } from "../db/sqlite/media-provider-credential-repo.sqlite";
+import { createComposioConnectors } from "../connectors/composio-service";
 import {
   LocalFsBlobStore,
   SharpImageTransformer,
@@ -546,6 +550,29 @@ export function createSqliteRouteDeps(
   const siteAssistantSecretKeyring = new EnvOrFileKeyring({ allowFileFallback: false });
   const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
 
+  // Composio connectors. The service is built BEFORE the deps object because both the routes and
+  // the boot hydration below need the same instance — its provider holds the catalog cache and the
+  // OAuth pending-state map, so a second instance would silently not share either.
+  const composioConfigRepo = new SqliteComposioConfigRepo(db);
+  const composioConnectors = createComposioConnectors({
+    workspaceId,
+    repo: composioConfigRepo,
+    credentialRepo: new SqliteConnectorCredentialRepo(db),
+    sealer: siteAssistantSecretSealer,
+    keyring: siteAssistantSecretKeyring,
+    clock,
+    // Test-only seam: points the provider at a fake Composio for `development/e2e`. Unset in every
+    // real deployment, where the provider's own default origin applies.
+    ...(process.env.TOVU_COMPOSIO_BASE_URL ? { baseUrl: process.env.TOVU_COMPOSIO_BASE_URL } : {}),
+  });
+  // Loads the sealed API key into the provider's synchronous snapshot. Failure is logged, not
+  // fatal: an unhydrated provider still serves its static catalog, so the Connectors tab degrades
+  // to its unconfigured (gated) state rather than taking the whole admin down.
+  void composioConnectors.refresh().catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error(`composio connectors hydration failed at boot: ${(err as Error).message}`);
+  });
+
   return {
     workspaceId: workspaceId,
     workspaceRepo: new SqliteWorkspaceRepo(db),
@@ -573,6 +600,11 @@ export function createSqliteRouteDeps(
     // (see `routes/types.ts`'s `adminExecutionCredentialRepo` doc for why one shared sealing
     // capability is correct here rather than a third `EnvOrFileKeyring` instance).
     adminExecutionCredentialRepo: new SqliteAdminExecutionCredentialRepo(db),
+    // Same shared sealer/keyring again — one sealing capability across all three credential tables.
+    mediaProviderCredentialRepo: new SqliteMediaProviderCredentialRepo(db),
+    // Same shared sealer/keyring once more — see the note above the BYOK repo.
+    composioConfigRepo,
+    composioConnectors,
     executionSettingsReady,
     settingsUiTabsReady,
     analyticsSettingsReady,

@@ -37,6 +37,10 @@ import { createKeyringBackedSigner } from "../integrations/signing.keyring";
 import { AesGcmSecretSealer } from "../integrations/secret-sealer.aesgcm";
 import { InMemorySiteAssistantCredentialRepo } from "../assistant/site-credential-store.memory";
 import { InMemoryAdminExecutionCredentialRepo } from "../assistant/execution-credential-store.memory";
+import { InMemoryComposioConfigRepo } from "../connectors/composio-config-store.memory";
+import { createComposioConnectors } from "../connectors/composio-service";
+import { InMemoryConnectorCredentialRepo } from "../connectors/connector-credential-store.memory";
+import { InMemoryMediaProviderCredentialRepo } from "../media/provider-credential-store.memory";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
@@ -112,6 +116,8 @@ import { applyDevCors } from "./middleware/dev-cors";
 import { applySiteServingGate } from "./middleware/site-serving-gate";
 import { registerAdminStatic } from "./middleware/admin-static";
 import { registerSiteChatStatic } from "./middleware/site-chat-static";
+import { registerThemePreviewStatic } from "./middleware/theme-preview-static";
+import { registerThemeStaticAssets } from "./middleware/theme-static-assets";
 import { registerSiteRoutes } from "./routes/site/pages";
 import { registerStoreRoutes } from "./routes/site/store";
 import { registerPaymentsWebhookRoute } from "./routes/site/payments-webhook";
@@ -128,6 +134,7 @@ import { createUsersModule } from "./modules/users";
 import { createWorkspaceModule } from "./modules/workspace";
 import { createIntegrationsModule } from "./modules/integrations";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin";
+import { createConnectorsModule } from "./modules/connectors";
 import { createMediaModule } from "./modules/media";
 import { createTaxonomyModule } from "./modules/taxonomy";
 import { createContentModule } from "./modules/content";
@@ -372,6 +379,20 @@ export function createRouteDeps(): NewsletterRouteDeps {
   const siteAssistantSecretKeyring = new InMemoryKeyring();
   const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
 
+  // Composio connectors, hermetic half. No boot `refresh()` here, unlike `deps.ts`: the in-memory
+  // repo starts empty every time, so hydrating it could only ever install the same empty config
+  // the provider is already constructed with.
+  const composioConfigRepo = new InMemoryComposioConfigRepo();
+  const composioConnectors = createComposioConnectors({
+    workspaceId: seededWorkspace.id,
+    repo: composioConfigRepo,
+    credentialRepo: new InMemoryConnectorCredentialRepo(),
+    sealer: siteAssistantSecretSealer,
+    keyring: siteAssistantSecretKeyring,
+    clock,
+    ...(process.env.TOVU_COMPOSIO_BASE_URL ? { baseUrl: process.env.TOVU_COMPOSIO_BASE_URL } : {}),
+  });
+
   return {
     workspaceId: seededWorkspace.id,
     workspaceRepo,
@@ -404,6 +425,9 @@ export function createRouteDeps(): NewsletterRouteDeps {
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
+    mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo(),
+    composioConfigRepo,
+    composioConnectors,
     executionSettingsReady,
     settingsUiTabsReady,
     analyticsSettingsReady,
@@ -704,6 +728,11 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // moved up here since its only real constraint, "before `/:slug`", still holds — see
   // `modules/media.ts`'s file header for the full disclosure).
   createMediaModule(routeDeps).registerRoutes?.(app);
+  // The `connectors` server module — Composio-backed third-party accounts behind the admin's
+  // Settings → Connectors tab. Registered next to `integrations-admin` above because the two share
+  // the `admin.integrations.manage` permission, but they own different subsystems (outbound
+  // webhooks there, inbound third-party accounts here) — see `modules/connectors.ts`.
+  createConnectorsModule(routeDeps).registerRoutes?.(app);
   // ADR-046 Phase 3 (SPEC-040): the `users` server module — 8 admin CRUD/list routes over
   // users/roles/policies (ADR-021/SPEC-006 identity RBAC).
   createUsersModule(routeDeps).registerRoutes?.(app);
@@ -844,6 +873,18 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // client-side routing, so `site-chat-static.ts` has no `index.html` SPA fallback to serve.
   registerSiteChatStatic(app, {
     distDir: process.env.TOVU_SITE_CHAT_DIST ?? path.resolve(__dirname, "../../apps/site-chat/dist"),
+  });
+
+  // SPIKE — `static`-tier theme preview builds at /theme-preview/<theme-id>/<dark|light>/...; see
+  // theme-preview-static.ts's file header for exactly what this is (and isn't) wired up to.
+  registerThemePreviewStatic(app, {
+    themesStaticDir: path.resolve(__dirname, "../themes/static"),
+  });
+
+  // Real (non-spike) asset serving for static-tier themes' css/js, used by
+  // render.ts's static-tier branch when actually rendering one as the live site.
+  registerThemeStaticAssets(app, {
+    themesStaticDir: path.resolve(__dirname, "../themes/static"),
   });
 
   // SPEC-044: the `workspace` server module (list/create/get/update/delete) is registered near the

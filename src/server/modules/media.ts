@@ -1,10 +1,12 @@
 import { registerAdminMediaDeleteRoute } from "../routes/admin/media/delete";
+import { registerAdminMediaGetProvidersRoute } from "../routes/admin/media/get-providers";
 import { registerAdminMediaListRoute } from "../routes/admin/media/list";
 import { registerAdminMediaOriginalRoute } from "../routes/admin/media/original";
+import { registerAdminMediaPutProvidersRoute } from "../routes/admin/media/put-providers";
 import { registerAdminMediaTrashRoute } from "../routes/admin/media/trash";
 import { registerAdminMediaUpdateRoute } from "../routes/admin/media/update";
 import { registerAdminMediaUploadRoute } from "../routes/admin/media/upload";
-import type { MediaRouteDeps } from "../routes/admin/media/deps";
+import type { MediaProviderRouteDeps, MediaRouteDeps } from "../routes/admin/media/deps";
 import { registerMediaRenditionRoute } from "../routes/site/media-rendition";
 import type { ServerModuleHandle } from "./types";
 
@@ -37,7 +39,7 @@ import type { ServerModuleHandle } from "./types";
  * `SharpImageTransformer`/`InMemoryImageTransformer` itself; the composition root
  * (`server/app.ts`/`server/deps.ts`) still selects which concrete adapter `imageTransformer` is.
  */
-export function createMediaModule(deps: MediaRouteDeps): ServerModuleHandle {
+export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps): ServerModuleHandle {
   return {
     name: "media",
     registerRoutes: (app) => {
@@ -48,6 +50,8 @@ export function createMediaModule(deps: MediaRouteDeps): ServerModuleHandle {
       registerAdminMediaDeleteRoute(app, deps);
       registerAdminMediaOriginalRoute(app, deps);
       registerMediaRenditionRoute(app, deps);
+      registerAdminMediaGetProvidersRoute(app, deps);
+      registerAdminMediaPutProvidersRoute(app, deps);
     },
   };
 }

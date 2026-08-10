@@ -51,7 +51,27 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
         },
       });
 
-      res.json(toAdminPresentationResponse({ settings: result.settings, availableThemeIds: result.availableThemeIds }));
+      // Post-template-picker feature (2026-08-10) — recomputed from the NEWLY active theme (not the
+      // one that was active before this PATCH), so switching themes immediately updates what the
+      // Post editor's picker offers, matching `get.ts`'s identical computation.
+      const activeTheme = deps.themes.find((t) => t.manifest.id === result.settings.activeThemeId);
+      const activeThemePostTemplates = activeTheme?.manifest.postTemplate ?? [];
+      const activeThemeStaticPageIds = activeTheme ? Object.keys(activeTheme.pages) : [];
+      // Themes admin screen (2026-08-10) — same computation as `get.ts`, so a theme switch's
+      // response keeps the tab-grouping data in sync without a follow-up GET.
+      const availableThemes = deps.themes
+        .filter((t) => t.status === "valid")
+        .map((t) => ({ id: t.manifest.id, tier: t.manifest.tier }));
+
+      res.json(
+        toAdminPresentationResponse({
+          settings: result.settings,
+          availableThemeIds: result.availableThemeIds,
+          availableThemes,
+          activeThemePostTemplates,
+          activeThemeStaticPageIds,
+        })
+      );
     } catch (err) {
       if (err instanceof PresentationSettingsValidationError) {
         res.status(400).json({ error: err.message });

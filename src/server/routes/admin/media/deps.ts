@@ -34,3 +34,27 @@ export type MediaRouteDeps = Pick<
 >;
 
 export type MediaRouteRegistrar = (app: Express, deps: MediaRouteDeps) => void;
+
+/**
+ * Slice for the two media-PROVIDER-credential routes (`get-providers.ts`/`put-providers.ts`).
+ *
+ * Kept separate from `MediaRouteDeps` above rather than widening it: those 7 routes move asset
+ * bytes and need the blob/rendition/transform ports, while these 2 store vendor API keys and need
+ * the sealer/keyring instead. Neither set reads the other's fields, and a single union would make
+ * every asset route look like it depends on the secret store.
+ *
+ * The sealer and keyring are ADR-058's instances, reused rather than re-derived — `SecretSealerPort`
+ * is a generic seal/open primitive and does not need a second domain-separation boundary per table,
+ * the same reasoning `adminExecutionCredentials` already relies on.
+ */
+export type MediaProviderRouteDeps = Pick<
+  RouteDeps,
+  | "workspaceId"
+  | "authorize"
+  | "clock"
+  | "mediaProviderCredentialRepo"
+  | "siteAssistantSecretSealer"
+  | "siteAssistantSecretKeyring"
+>;
+
+export type MediaProviderRouteRegistrar = (app: Express, deps: MediaProviderRouteDeps) => void;

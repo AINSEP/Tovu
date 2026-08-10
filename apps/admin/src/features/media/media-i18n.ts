@@ -2,10 +2,10 @@
  * @file Spanish dictionary for `Media.tsx`'s own UI chrome — page header, tab strip, toolbar,
  * empty states, the metadata edit panel, and the lightbox/purge dialogs.
  *
- * Deliberately does NOT cover `media-provider-catalog.ts` (`OD_MEDIA_PROVIDER_CATALOG`) — those are
- * real third-party provider names ("AIHubMix", "ElevenLabs", …) transcribed from Open Design, not
- * UI copy this screen authored, so they stay as-is regardless of locale. Same `DICT[locale]?.[key]
- * ?? key` shape `SettingsUi.tsx`'s own `const t` uses.
+ * Deliberately does NOT cover the media-provider catalog rendered by the "Media providers" tab
+ * (`@jini-ai/ui`'s `DEFAULT_MEDIA_PROVIDER_CATALOG`) — those are real third-party provider names
+ * ("AIHubMix", "ElevenLabs", …), not UI copy this screen authored, so they stay as-is regardless
+ * of locale. Same `DICT[locale]?.[key] ?? key` shape `SettingsUi.tsx`'s own `const t` uses.
  */
 export const MEDIA_DICT: Record<string, Record<string, string>> = {
   es: {

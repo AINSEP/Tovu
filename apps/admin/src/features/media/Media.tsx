@@ -1,7 +1,10 @@
 import { useRef } from "react";
 import type { AdminMedia } from "../../lib/api";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import { MediaProvidersTab, createFakeMediaProvidersPort } from "@jini-ai/ui";
+import { MediaProvidersTab } from "@jini-ai/ui";
+
+import { MEDIA_PROVIDER_CATALOG } from "./media-provider-catalog";
+import { mediaProvidersPort } from "./media-providers-port";
 import "@jini-ai/ui/settings-dialog.css";
 import { mediaRowMenuItems } from "./rules";
 import { useMedia } from "./hooks/use-media.hooks";
@@ -609,10 +612,6 @@ export function Media({ useMediaHook = useMedia }: MediaProps = {}) {
   const { activeTab, setActiveTab } = useMediaTabs();
   const locale = useAdminLocale();
   const t = (key: string): string => MEDIA_DICT[locale]?.[key] ?? key;
-  // `useRef`, not a bare call: `createFakeMediaProvidersPort()` returns a fresh in-memory store
-  // each time, so a plain call here would forget every typed-but-unsaved field on the next
-  // render — same reasoning as `use-settings-ui.hooks.ts`'s own `mediaProvidersPort` ref.
-  const mediaProvidersPort = useRef(createFakeMediaProvidersPort());
 
   if (error && !media) return <div className="notice error">{error}</div>;
   if (!media) return <div className="notice">Loading media…</div>;
@@ -627,11 +626,11 @@ export function Media({ useMediaHook = useMedia }: MediaProps = {}) {
         </div>
       </div>
 
-      {/* OD-parity tab bar (owner instruction, 2026-08-08) — UI-review pass only, see
-          `use-media-tabs.hooks.ts`'s doc comment. "Media providers" mounts the real
-          `@jini-ai/ui` component fed `OD_MEDIA_PROVIDER_CATALOG` (the real OD provider list,
-          transcribed live) against a fake, in-memory-only port — no Tovu backend exists yet, so
-          nothing typed here survives a reload. That's the explicit next step, not this pass. */}
+      {/* OD-parity tab bar (owner instruction, 2026-08-08); see `use-media-tabs.hooks.ts` for why
+          this is still plain tab state rather than a URL-synced `?tab=`. "Media providers" mounts
+          `@jini-ai/ui`'s component against Tovu's own backend: credentials persist per workspace
+          in `media_provider_credentials` and survive a reload. Both the port and the catalog are
+          module-level constants, so neither needs a `useRef` to stay stable across renders. */}
       <div className="media-tabs" role="tablist" aria-label="Media">
         {MEDIA_TABS.map((tab) => (
           <button
@@ -655,7 +654,7 @@ export function Media({ useMediaHook = useMedia }: MediaProps = {}) {
         // set to dark mode while the rest of the (light-only) admin shell stays light. This screen
         // has no appearance control of its own, so pin to light rather than leave it themable.
         <div data-theme="light">
-          <MediaProvidersTab port={mediaProvidersPort.current} />
+          <MediaProvidersTab port={mediaProvidersPort} catalog={MEDIA_PROVIDER_CATALOG} />
         </div>
       ) : activeTab === "images" ? (
         <MediaTypeFilterPlaceholder kind="images" t={t} />
