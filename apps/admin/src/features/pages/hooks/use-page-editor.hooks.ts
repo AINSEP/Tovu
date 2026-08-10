@@ -127,11 +127,21 @@ export function usePageEditor(routeSlug: string): PageEditorController {
       setError(null);
       setMessage(null);
       const statusToWrite = nextStatus ?? status;
+      // `updatePageHtml` is the bespoke-HTML writer (`routes/admin/pages/update-html.ts`) and its
+      // FIRST call on a still-`doc`-format Page converts it to `html` format and drops `body_json`
+      // — see that route's own doc comment. This editor has no way to render a doc-format body (it
+      // always loads `html` as `""` for that format), so calling it here would silently replace the
+      // page's real, already-authored content with an empty string on every ordinary Save/Publish.
+      // Only call it for a Page already in `html` format; a doc-format Page saves title/slug/status
+      // only, until the separately-scoped dual-mode editor (task #30) can represent its real body.
+      const canSaveHtml = page.bodyFormat === "html";
       try {
         // Two writes, in this order, because they are two different server-side paths and only the
         // second one can create the html row. Body first: if the metadata write fails on a slug
         // conflict, the operator's actual content is already safe.
-        await api.updatePageHtml(page.id, html);
+        if (canSaveHtml) {
+          await api.updatePageHtml(page.id, html);
+        }
         // No `bodyJson` — a bespoke-HTML Page has no Tiptap document, and the server no longer
         // demands one for an html-format row (it used to, which made such a Page's title
         // permanently un-editable). Sending a dummy empty doc to satisfy a validation that does not
@@ -143,9 +153,16 @@ export function usePageEditor(routeSlug: string): PageEditorController {
         setPage(updated);
         setSlug(updated.slug);
         setStatus(updated.status);
-        setSavedHtml(html);
+        if (canSaveHtml) setSavedHtml(html);
         if (nextStatus) setStatus(nextStatus);
-        setMessage(t(locale, "Saved"));
+        setMessage(
+          canSaveHtml
+            ? t(locale, "Saved")
+            : t(
+                locale,
+                "Saved title, slug, and status. This page's body uses the document editor and can't be edited here yet."
+              )
+        );
       } catch (e) {
         setError(e instanceof Error ? e.message : t(locale, "failed to save page"));
       } finally {
@@ -186,7 +203,15 @@ export function usePageEditor(routeSlug: string): PageEditorController {
     device,
     setDevice,
     saving,
-    dirty: html !== savedHtml,
+    // HTML changes only count when they're actually savable (see `save()`'s `canSaveHtml`) — for a
+    // doc-format Page, `html` never reflects real persisted content, so comparing it to `savedHtml`
+    // would report edits as dirty (or, worse, as clean) independent of anything actually saveable.
+    dirty:
+      page !== null &&
+      (title !== page.title ||
+        slug !== page.slug ||
+        status !== page.status ||
+        (page.bodyFormat === "html" && html !== savedHtml)),
     save,
     remove,
     confirmingDelete,
