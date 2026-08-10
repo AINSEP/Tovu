@@ -93,7 +93,7 @@ export const ALLOWED_HANDLEBARS_HELPERS: ReadonlySet<string> = new Set(["render_
  * except the ones named here.
  *
  * `post.content` earns the exemption on the same basis `{{ post.content |
- * raw }}` does in `themes/liquidjs/*`: that value is not theme data and not
+ * raw }}` does in `themes/templated/*`: that value is not theme data and not
  * user data as-typed — it is the server's own `renderDocNode()` output, HTML
  * this codebase generated from a TipTap document through a closed node
  * vocabulary with `escapeHtml()` on every text run and `safeHref()` on every
