@@ -1,0 +1,24 @@
+{
+  "_comment": "Grandfathered apps/admin complexity/cognitive-complexity debt, F06 option B (2026-08-10). Single source of truth for BOTH eslint.config.mjs's grandfather block and check-admin-complexity-drift.ts. A prior full ceiling->9/9 pass across apps/admin (ADS-memory/reports/refactor/2026-08-06-complexity-ceiling-brief.md, ADS-memory/reports/handoffs/2026-08-06-admin-complexity-round-audit.md) was started and paused by the owner in favor of a <=15 warn bar; these are the functions that pass never reached, listed here so the new error/9 gate doesn't fail CI on pre-existing debt while still blocking any NEW apps/admin function from landing over the line. Delete a file's entry once every violation in it is refactored under 9/9 -- do not add new entries here to silence a new violation; refactor it instead (or get an explicit, reviewed exception).",
+  "files": [
+    { "file": "apps/admin/src/App.tsx", "note": "App: cyclomatic 13, cognitive 12 (limit 9/9)" },
+    { "file": "apps/admin/src/components/AssistantDock/AssistantDock.tsx", "note": "AssistantDock: cyclomatic 10" },
+    { "file": "apps/admin/src/components/ImagePreviewModal.tsx", "note": "cognitive 15" },
+    { "file": "apps/admin/src/components/Select/Select.hooks.tsx", "note": "handlePanelKeyDown: cyclomatic 13" },
+    { "file": "apps/admin/src/features/ai-assistant/AiAssistant.tsx", "note": "AdminExecutionMode: cyclomatic 11; VisitorCredentialKeyFooter: cyclomatic 10" },
+    { "file": "apps/admin/src/features/appearance/Appearance.tsx", "note": "Appearance: cyclomatic 11" },
+    { "file": "apps/admin/src/features/media/Media.tsx", "note": "Media: cyclomatic 12, cognitive 21" },
+    { "file": "apps/admin/src/features/menus/MenuEditor.tsx", "note": "MenuEditor: cyclomatic 10" },
+    { "file": "apps/admin/src/features/pages/Pages.tsx", "note": "Pages: cyclomatic 13" },
+    { "file": "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts", "note": "async arrow (line 121): cyclomatic 10" },
+    { "file": "apps/admin/src/features/posts/PostEditor.tsx", "note": "selector: cyclomatic 27; PostEditor: cyclomatic 14, cognitive 11" },
+    { "file": "apps/admin/src/features/seo/Seo.tsx", "note": "SeoEntryPanel: cyclomatic 25" },
+    { "file": "apps/admin/src/features/settings/ComposioKeyField.tsx", "note": "ComposioKeyField: cyclomatic 12" },
+    { "file": "apps/admin/src/features/settings/SettingsUi.tsx", "note": "SettingsUi: cyclomatic 13" },
+    { "file": "apps/admin/src/features/settings/hooks/use-external-mcp.hooks.ts", "note": "updateSource: cyclomatic 10" },
+    { "file": "apps/admin/src/features/widgets/hooks/use-widget-instance-editor.hooks.ts", "note": "save (line 91): cognitive 10" },
+    { "file": "apps/admin/src/lib/__tests__/media-image-extension.unit.test.tsx", "note": "arrow (line 194): cyclomatic 11 -- a test file" },
+    { "file": "apps/admin/src/lib/api.ts", "note": "request: cyclomatic 12, cognitive 10" },
+    { "file": "apps/admin/src/lib/assistant-transport.ts", "note": "translateRunAgentPayload: cyclomatic 12" }
+  ]
+}

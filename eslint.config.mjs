@@ -1,5 +1,17 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import tseslint from 'typescript-eslint';
 import sonarjs from 'eslint-plugin-sonarjs';
+
+// Single source of truth shared with `development/scripts/check-admin-complexity-drift.ts` — see
+// that file's header and the block below for why this list exists and how to shrink it.
+const ADMIN_COMPLEXITY_DEBT_PATH = fileURLToPath(
+  new URL('development/scripts/admin-complexity-debt.json', import.meta.url)
+);
+const ADMIN_COMPLEXITY_DEBT_FILES = JSON.parse(readFileSync(ADMIN_COMPLEXITY_DEBT_PATH, 'utf8')).files.map(
+  (entry) => entry.file
+);
 
 export default [
   {
@@ -123,6 +135,36 @@ export default [
             'require() of TanStack Query is restricted for the same reason import is: it pins the dependency outside lib/fetch-query/adapter.tanstack.tsx and voids the rip-out guarantee.',
         },
       ],
+    },
+  },
+  {
+    /**
+     * F06 option B (2026-08-10): `apps/admin` enforces the documented ≤9 cyclomatic / ≤9
+     * cognitive-complexity ceiling as a hard error, not the repo-wide `warn`/15 the block near the
+     * top of this file still sets everywhere else. Deliberately NOT a repo-wide flag day — ~114
+     * pre-existing findings exist outside `apps/admin` today and are out of scope for this pass.
+     *
+     * This block alone would also fail on every file listed in `admin-complexity-debt.json` — the
+     * grandfather block directly below re-lowers exactly those files back to `warn`/15 (flat config
+     * resolves later blocks over earlier ones for the same file+rule), so today's pre-existing debt
+     * doesn't fail CI while any NEW apps/admin function over the line still does.
+     */
+    files: ['apps/admin/src/**/*.ts', 'apps/admin/src/**/*.tsx'],
+    languageOptions: { parser: tseslint.parser },
+    plugins: { sonarjs },
+    rules: {
+      complexity: ['error', 9],
+      'sonarjs/cognitive-complexity': ['error', 9],
+    },
+  },
+  {
+    // Grandfathered debt for the block above — see `development/scripts/admin-complexity-debt.json`
+    // for what's here and why, and `development/scripts/check-admin-complexity-drift.ts` (`npm run
+    // check:admin-complexity-drift`) for the check that keeps this list from silently growing.
+    files: ADMIN_COMPLEXITY_DEBT_FILES,
+    rules: {
+      complexity: ['warn', 15],
+      'sonarjs/cognitive-complexity': ['warn', 15],
     },
   },
 ];
