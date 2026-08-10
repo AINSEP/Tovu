@@ -47,6 +47,7 @@
     "@jini-ai/core": "file:../Jini/packages/core",
     "@jini-ai/daemon": "file:../Jini/packages/daemon",
     "@jini-ai/http-kit": "file:../Jini/packages/http-kit",
+    "@jini-ai/integrations": "file:../Jini/packages/integrations",
     "@jini-ai/mcp": "file:../Jini/packages/mcp",
     "@jini-ai/sqlite": "file:../Jini/packages/sqlite",
     "@jini-ai/ui": "file:../Jini/packages/ui",

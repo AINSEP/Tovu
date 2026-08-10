@@ -14,7 +14,6 @@
     "@jini-ai/agentic": "file:../../../Jini/packages/agentic",
     "@jini-ai/chat": "file:../../../Jini/packages/chat",
     "@jini-ai/protocol": "file:../../../Jini/packages/protocol",
-    "@jini-ai/renderers-react": "file:../../../Jini/packages/renderers-react",
     "@jini-ai/ui": "file:../../../Jini/packages/ui",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"

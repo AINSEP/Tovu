@@ -36,6 +36,9 @@ import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSub
 import type { WebhookSigner } from "../../integrations/signing";
 import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store";
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store";
+import type { ComposioConfigRepoPort } from "../../connectors/composio-config-store";
+import type { ComposioConnectors } from "../../connectors/composio-service";
+import type { MediaProviderCredentialRepoPort } from "../../media/provider-credential-store";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
@@ -187,6 +190,34 @@ export interface RouteDeps {
    * have run.
    */
   adminExecutionCredentialRepo: AdminExecutionCredentialRepoPort;
+  /**
+   * Per-workspace media-generation vendor credentials, backing the GET/PUT
+   * `.../media/providers` routes the admin's Media → "Media providers" tab talks to. Sealed via
+   * the same two capabilities above, for the same reason the BYOK store reuses them.
+   *
+   * Multi-row per workspace (one per vendor), unlike both credential repos above — see
+   * `media/provider-credential-store.ts` for why this one is workspace-scoped rather than
+   * per-principal. No matching `*Ready` promise: a plain table, usable as soon as migrations run.
+   */
+  mediaProviderCredentialRepo: MediaProviderCredentialRepoPort;
+  /**
+   * The workspace's sealed Composio project key + provisioned auth-config ids, backing the admin's
+   * Settings → Connectors tab (`connectors/composio-config-store.ts`).
+   *
+   * Single-row per workspace, unlike `mediaProviderCredentialRepo` above — a workspace has one
+   * Composio project, not a roster. Sealed with the same shared ADR-058 sealer/keyring as every
+   * other credential table here. No matching `*Ready` promise: a plain table, usable as soon as
+   * migrations run.
+   */
+  composioConfigRepo: ComposioConfigRepoPort;
+  /**
+   * The long-lived Composio provider + service the connectors routes read through.
+   *
+   * A live service rather than a repo because `ComposioConnectorProvider` owns in-process caches
+   * and (for OAuth) pending-authorization state that must survive across requests — see
+   * `connectors/composio-service.ts` for why it cannot be rebuilt per request.
+   */
+  composioConnectors: ComposioConnectors;
   /**
    * Resolves once the one-time `ensureExecutionSettingDefinitions()` boot call registers the 8
    * `core.execution.*` setting definitions backing the admin "Execution mode" tab (`@jini-ai/ui`'s
