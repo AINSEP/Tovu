@@ -252,7 +252,12 @@ export const seededPosts: PostRecord[] = [
 
 export const seededPresentation: PresentationSettingsRecord = {
   workspaceId: seededWorkspace.id,
-  activeThemeId: "tovu-official",
+  // `tovu-official` (until 2026-08-10) lived only under `src/theme-archive/`, which discovery never
+  // scans — a fresh workspace's active theme silently fell through `resolveActiveTheme()`'s fallback
+  // to whatever the alphabetically-first *valid* discovered theme happened to be, making the real
+  // default effectively arbitrary. `basic` (`src/themes/static/basic/`) is a real, valid, currently
+  // shipping static theme, so the stored id now resolves directly instead of relying on the fallback.
+  activeThemeId: "basic",
   updatedAt: "2026-04-06T00:00:00.000Z",
 };
 
