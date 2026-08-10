@@ -86,7 +86,7 @@ import { createRouteDeps } from "../server/app";
 import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../server/deps";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../server/middleware/rate-limit";
 import { resolveRuntimeMode } from "../server/runtime-mode";
-import { listAssistantAgents } from "./agents";
+import { listAssistantAgents, rescanAssistantAgents } from "./agents";
 import { createCustomInstructionsCache } from "./custom-instructions";
 import { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-auth";
 import { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes";
@@ -594,7 +594,11 @@ app.use("/api/runs/:runId", requireRunOwnership(runOwners));
 app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }));
 
 registerRunRoutes(app, { lifecycle, onStarted }, adapter);
-registerAgentRoutes(app, { listAgents: listAssistantAgents }, adapter);
+// `rescanAgents` wired explicitly (not left to fall back to `listAgents`, `@jini-ai/http-kit`'s own
+// default): `listAssistantAgents` is now cached (see `agents.ts`'s module doc — this file's own
+// gap was the fallback silently serving the same stale cache `POST /api/agents/rescan` exists to
+// bypass). `rescanAssistantAgents` is the one path that actually forces a fresh PATH probe.
+registerAgentRoutes(app, { listAgents: listAssistantAgents, rescanAgents: rescanAssistantAgents }, adapter);
 registerDelegatedToolRoutes(app, { lifecycle, toolExecutor, resolvePrincipal }, adapter);
 // The MCP-UI callback endpoint. Two shapes reach it: an exchange delivery, where a form's OR
 // content_post_delete's answer resolves an agent tool call still waiting on it (ADR-055 Decision 1
