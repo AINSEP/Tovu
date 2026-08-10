@@ -101,6 +101,57 @@ describe("initial load", () => {
       }),
     ).resolves.toBeUndefined();
   });
+
+  it("preserves an edit made WHILE the initial load is still in flight, instead of letting the load response overwrite it", async () => {
+    // Same hazard class `refresh()` already guards against (see `canAcceptRefresh`), but on the
+    // OTHER load path: nothing today stops the mount effect's own `.then()` from blindly replacing
+    // `latest`/`value` with server state that predates an edit the operator made before that first
+    // `load()` call happened to settle.
+    let resolveLoad: ((v: string) => void) | undefined;
+    const load = vi.fn(() => new Promise<string>((resolve) => (resolveLoad = resolve)));
+    const { result } = renderHook(() => useSettingsSlice({ load, save: vi.fn(), defaultValue: "default" }));
+
+    expect(result.current.value).toBeNull();
+    act(() => result.current.onChange("typed before load settled"));
+    expect(result.current.value).toBe("typed before load settled");
+
+    await act(async () => {
+      resolveLoad?.("server value");
+      await Promise.resolve();
+    });
+
+    expect(result.current.value).toBe("typed before load settled");
+  });
+
+  it("still lets a save fire correctly (against the real server value as the diff base) after preserving a pre-settle edit", async () => {
+    vi.useFakeTimers();
+    let resolveLoad: ((v: string) => void) | undefined;
+    const load = vi.fn(() => new Promise<string>((resolve) => (resolveLoad = resolve)));
+    const save = vi.fn(async () => ["k"]);
+    const { result } = renderHook(() => useSettingsSlice({ load, save, defaultValue: "default" }));
+
+    act(() => result.current.onChange("typed before load settled"));
+    await act(async () => {
+      resolveLoad?.("server value");
+      await Promise.resolve();
+    });
+    expect(result.current.value).toBe("typed before load settled");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SAVE_DEBOUNCE_MS);
+    });
+    // The diff base is the real server value the late-arriving load reported, not the
+    // never-actually-persisted `defaultValue` — an accurate diff even though `value`/`latest` were
+    // preserved instead of being overwritten.
+    expect(save).toHaveBeenCalledWith("typed before load settled", "server value");
+  });
+
+  it("applies a normal (non-racing) load exactly as before when no edit preceded it", async () => {
+    const load = vi.fn(async () => "server value");
+    const { result } = renderHook(() => useSettingsSlice({ load, save: vi.fn(), defaultValue: "default" }));
+    await settle();
+    expect(result.current.value).toBe("server value");
+  });
 });
 
 describe("onChange debouncing", () => {
