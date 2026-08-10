@@ -33,9 +33,12 @@ const THEME_BLURBS: Record<string, string> = {
 const MARKETPLACE_TAB_ID = "marketplace";
 
 /** `group` capitalized for a tab label — honest rather than inventing marketing names for tiers
- *  (`code`) that have no shipped theme and no established product name yet. */
-function tabGroupLabel(group: ThemeTabGroup): string {
-  return group.charAt(0).toUpperCase() + group.slice(1);
+ *  (`code`) that have no shipped theme and no established product name yet. Routed through `t()`
+ *  (same pattern as the "Marketplace (soon)" label right next to it) so these translate instead of
+ *  always rendering the raw English capitalization — the capitalized form is also the dictionary
+ *  key, so an untranslated locale still falls back to the correct English label. */
+function tabGroupLabel(t: (key: string) => string, group: ThemeTabGroup): string {
+  return t(group.charAt(0).toUpperCase() + group.slice(1));
 }
 
 /**
@@ -154,7 +157,7 @@ export function Appearance({ useAppearanceHook = useAppearance }: AppearanceProp
         ariaLabel={t("Themes")}
         tabs={[
           ...THEME_TAB_GROUPS.map(
-            (group): TabBarTab => ({ id: group, label: tabGroupLabel(group), count: grouped[group].length }),
+            (group): TabBarTab => ({ id: group, label: tabGroupLabel(t, group), count: grouped[group].length }),
           ),
           // Scaffolding for a future theme-marketplace search — no real backend to search yet, so
           // this is a visible-but-inert placeholder (2026-08-10 owner feedback), not a fake search

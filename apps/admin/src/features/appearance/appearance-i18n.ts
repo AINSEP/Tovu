@@ -8,6 +8,10 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const APPEARANCE_DICT: Record<string, Record<string, string>> = {
   es: {
+    Declarative: "Declarativo",
+    Templated: "Basado en plantillas",
+    Static: "Estático",
+    Code: "Código",
     Studio: "Estudio",
     Themes: "Temas",
     "The active theme controls what visitors see across the entire public site.":
@@ -25,6 +29,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "Un blog de producto luminoso, con cabecera color cobalto y una cuadrícula de tarjetas redondeadas.",
   },
   id: {
+    Declarative: "Deklaratif",
+    Templated: "Berbasis templat",
+    Static: "Statis",
+    Code: "Kode",
     Studio: "Studio",
     Themes: "Tema",
     "The active theme controls what visitors see across the entire public site.":
@@ -42,6 +50,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "Blog produk yang cerah — header berwarna kobalt dan tata letak kartu bersudut membulat.",
   },
   de: {
+    Declarative: "Deklarativ",
+    Templated: "Vorlagenbasiert",
+    Static: "Statisch",
+    Code: "Code",
     Studio: "Studio",
     Themes: "Designs",
     "The active theme controls what visitors see across the entire public site.":
@@ -59,6 +71,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "Ein helles Produkt-Blog — kobaltblaue Kopfzeile und ein Raster mit abgerundeten Karten.",
   },
   "zh-CN": {
+    Declarative: "声明式",
+    Templated: "模板式",
+    Static: "静态",
+    Code: "代码",
     Studio: "工作室",
     Themes: "主题",
     "The active theme controls what visitors see across the entire public site.":
@@ -76,6 +92,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "明亮的产品博客主题——钴蓝色页眉搭配圆角卡片网格。",
   },
   "zh-TW": {
+    Declarative: "宣告式",
+    Templated: "範本式",
+    Static: "靜態",
+    Code: "程式碼",
     Studio: "工作室",
     Themes: "佈景主題",
     "The active theme controls what visitors see across the entire public site.":
@@ -93,6 +113,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "明亮的產品部落格佈景主題 — 鈷藍色頁首搭配圓角卡片網格。",
   },
   "pt-BR": {
+    Declarative: "Declarativo",
+    Templated: "Baseado em modelo",
+    Static: "Estático",
+    Code: "Código",
     Studio: "Estúdio",
     Themes: "Temas",
     "The active theme controls what visitors see across the entire public site.":
@@ -110,6 +134,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "Um blog de produto vibrante — cabeçalho azul-cobalto e uma grade de cartões arredondados.",
   },
   ru: {
+    Declarative: "Декларативный",
+    Templated: "На основе шаблонов",
+    Static: "Статический",
+    Code: "Код",
     Studio: "Студия",
     Themes: "Темы",
     "The active theme controls what visitors see across the entire public site.":
@@ -127,6 +155,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "Яркий блог о продукте — кобальтовая шапка и сетка карточек со скруглёнными углами.",
   },
   fa: {
+    Declarative: "اعلانی",
+    Templated: "مبتنی بر قالب",
+    Static: "ایستا",
+    Code: "کد",
     Studio: "استودیو",
     Themes: "پوسته‌ها",
     "The active theme controls what visitors see across the entire public site.":
@@ -144,6 +176,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "یک وبلاگ محصول روشن — سربرگ آبی کبالتی و شبکه‌ای از کارت‌های گردگوشه.",
   },
   ar: {
+    Declarative: "تصريحي",
+    Templated: "قائم على القوالب",
+    Static: "ثابت",
+    Code: "كود",
     Studio: "الاستوديو",
     Themes: "القوالب",
     "The active theme controls what visitors see across the entire public site.":
@@ -161,6 +197,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "مدونة منتج مشرقة — رأس صفحة بلون الكوبالت وشبكة بطاقات بزوايا مستديرة.",
   },
   ja: {
+    Declarative: "宣言的",
+    Templated: "テンプレート",
+    Static: "静的",
+    Code: "コード",
     Studio: "スタジオ",
     Themes: "テーマ",
     "The active theme controls what visitors see across the entire public site.":
@@ -178,6 +218,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "明るいプロダクトブログ系テーマ — コバルトブルーのヘッダーと角丸カードのグリッドが特徴です。",
   },
   ko: {
+    Declarative: "선언형",
+    Templated: "템플릿 기반",
+    Static: "정적",
+    Code: "코드",
     Studio: "스튜디오",
     Themes: "테마",
     "The active theme controls what visitors see across the entire public site.":
@@ -195,6 +239,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "밝은 프로덕트 블로그 테마 — 코발트블루 헤더와 둥근 카드 그리드가 특징입니다.",
   },
   pl: {
+    Declarative: "Deklaratywny",
+    Templated: "Oparty na szablonach",
+    Static: "Statyczny",
+    Code: "Kod",
     Studio: "Studio",
     Themes: "Motywy",
     "The active theme controls what visitors see across the entire public site.":
@@ -212,6 +260,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "Jasny blog produktowy — kobaltowy nagłówek i siatka zaokrąglonych kart.",
   },
   hu: {
+    Declarative: "Deklaratív",
+    Templated: "Sablonalapú",
+    Static: "Statikus",
+    Code: "Kód",
     Studio: "Stúdió",
     Themes: "Témák",
     "The active theme controls what visitors see across the entire public site.":
@@ -229,6 +281,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "Egy világos, termékbemutató blog téma — kobaltkék fejléc és lekerekített kártyarács.",
   },
   fr: {
+    Declarative: "Déclaratif",
+    Templated: "Basé sur des modèles",
+    Static: "Statique",
+    Code: "Code",
     Studio: "Studio",
     Themes: "Thèmes",
     "The active theme controls what visitors see across the entire public site.":
@@ -246,6 +302,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "Un blog produit lumineux — bandeau bleu cobalt et une grille de cartes aux coins arrondis.",
   },
   uk: {
+    Declarative: "Декларативний",
+    Templated: "На основі шаблонів",
+    Static: "Статичний",
+    Code: "Код",
     Studio: "Студія",
     Themes: "Теми",
     "The active theme controls what visitors see across the entire public site.":
@@ -263,6 +323,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "Яскравий блог про продукт — кобальтовий заголовок і сітка карток із заокругленими кутами.",
   },
   tr: {
+    Declarative: "Bildirimsel",
+    Templated: "Şablon tabanlı",
+    Static: "Statik",
+    Code: "Kod",
     Studio: "Stüdyo",
     Themes: "Temalar",
     "The active theme controls what visitors see across the entire public site.":
@@ -280,6 +344,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "Canlı bir ürün blogu teması — kobalt renkli üst bilgi ve yuvarlatılmış kart ızgarası.",
   },
   th: {
+    Declarative: "เชิงประกาศ",
+    Templated: "อิงเทมเพลต",
+    Static: "แบบคงที่",
+    Code: "โค้ด",
     Studio: "สตูดิโอ",
     Themes: "ธีม",
     "The active theme controls what visitors see across the entire public site.":
@@ -297,6 +365,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "ธีมบล็อกผลิตภัณฑ์ที่สดใส — ส่วนหัวสีโคบอลต์และตารางการ์ดมุมโค้ง",
   },
   it: {
+    Declarative: "Dichiarativo",
+    Templated: "Basato su modelli",
+    Static: "Statico",
+    Code: "Codice",
     Studio: "Studio",
     Themes: "Temi",
     "The active theme controls what visitors see across the entire public site.":
@@ -314,6 +386,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "Un blog di prodotto luminoso — intestazione blu cobalto e una griglia di card con angoli arrotondati.",
   },
   hi: {
+    Declarative: "घोषणात्मक",
+    Templated: "टेम्पलेट-आधारित",
+    Static: "स्थिर",
+    Code: "कोड",
     Studio: "स्टूडियो",
     Themes: "थीम",
     "The active theme controls what visitors see across the entire public site.":
@@ -331,6 +407,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "एक जीवंत प्रोडक्ट-ब्लॉग — कोबाल्ट रंग का मास्टहेड और गोल कोनों वाला कार्ड ग्रिड।",
   },
   ur: {
+    Declarative: "اعلانی",
+    Templated: "ٹیمپلیٹ پر مبنی",
+    Static: "جامد",
+    Code: "کوڈ",
     Studio: "اسٹوڈیو",
     Themes: "تھیمز",
     "The active theme controls what visitors see across the entire public site.":
@@ -348,6 +428,10 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
       "ایک روشن پروڈکٹ بلاگ — کوبالٹ رنگ کا ہیڈر اور گول کونوں والے کارڈز کا گرڈ۔",
   },
   bn: {
+    Declarative: "ঘোষণামূলক",
+    Templated: "টেমপ্লেট-ভিত্তিক",
+    Static: "স্ট্যাটিক",
+    Code: "কোড",
     Studio: "স্টুডিও",
     Themes: "থিম",
     "The active theme controls what visitors see across the entire public site.":
