@@ -142,13 +142,17 @@ export function usePageEditor(routeSlug: string): PageEditorController {
         if (canSaveHtml) {
           await api.updatePageHtml(page.id, html);
         }
-        // No `bodyJson` — a bespoke-HTML Page has no Tiptap document, and the server no longer
-        // demands one for an html-format row (it used to, which made such a Page's title
-        // permanently un-editable). Sending a dummy empty doc to satisfy a validation that does not
-        // apply would be the wrong fix.
+        // `updatePost` (`features/post/post.ts`'s own `updatePost`) requires `bodyJson` to be a JSON
+        // object for any Page NOT already in `html` format — it's meaningless for an html-format row
+        // (no Tiptap document exists) so the server skips the check there, but a doc-format row's
+        // `bodyJson` IS its real content and the check is real. This editor has no way to EDIT that
+        // document, but `page.bodyJson` is already the value loaded from the server, so round-tripping
+        // it unchanged satisfies the requirement without touching the real content — the alternative
+        // (omitting it) throws "bodyJson must be a JSON object" and leaves title/slug/status stuck
+        // un-editable for every doc-format Page, which is worse than a no-op round-trip.
         const { post: updated } = await api.updatePost(
           { id: page.id },
-          { title, slug, status: statusToWrite }
+          { title, slug, status: statusToWrite, ...(canSaveHtml ? {} : { bodyJson: page.bodyJson }) }
         );
         setPage(updated);
         setSlug(updated.slug);

@@ -103,6 +103,14 @@ describe("save() on a doc-format Page (the F01 regression)", () => {
     );
     expect(metadataCalls).toHaveLength(1);
 
+    // Regression: the server's real updatePost (features/post/post.ts) requires bodyJson to be a
+    // JSON object for any Page not already in html format — omitting it throws "bodyJson must be a
+    // JSON object" and leaves a doc-format Page's title/slug/status permanently un-editable. This
+    // was missed by an earlier version of this test because a mocked fetch succeeds regardless of
+    // what was sent; asserting the actual request body is what catches it.
+    const [, sentInit] = metadataCalls[0] as [string, RequestInit];
+    expect(JSON.parse(String(sentInit.body))).toMatchObject({ bodyJson: DOC_PAGE.bodyJson });
+
     expect(result.current.error).toBeNull();
     expect(result.current.message).toMatch(/document editor/i);
   });
@@ -119,7 +127,24 @@ describe("save() on a doc-format Page (the F01 regression)", () => {
       string,
       RequestInit,
     ];
-    expect(JSON.parse(String(init.body))).toMatchObject({ status: "draft" });
+    // bodyJson must round-trip the EXISTING value unchanged — this editor has no way to edit it, so
+    // sending anything else (or omitting it, see the test above) would be wrong.
+    expect(JSON.parse(String(init.body))).toMatchObject({ status: "draft", bodyJson: DOC_PAGE.bodyJson });
+  });
+
+  it("does not send bodyJson at all for an html-format Page (would be meaningless)", async () => {
+    const { result } = await mountLoaded("landing", HTML_PAGE);
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: HTML_PAGE }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: HTML_PAGE }));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    const [, init] = fetchMock.mock.calls.find(
+      (call) => String(call[0]).includes("/posts/pg-html") && (call[1] as RequestInit | undefined)?.method === "PUT"
+    ) as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).not.toHaveProperty("bodyJson");
   });
 });
 
