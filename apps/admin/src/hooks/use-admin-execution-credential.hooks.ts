@@ -3,12 +3,14 @@ import type { ByokConfig } from "@jini-ai/ui";
 
 import { ApiError, type AdminExecutionCredential, type AdminExecutionCredentialPatch, describeApiError as describeApiErrorDefault } from "../lib/api";
 import {
+  EXECUTION_NAMESPACE,
   clearLegacyLocalCredential,
   hasUsableAdminKey,
   loadAdminExecutionCredential,
   readLegacyLocalCredential,
   saveAdminExecutionCredential,
 } from "../lib/execution-settings";
+import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
 
 /**
  * @file State for the admin's own BYOK credential — the "Save key" control and the one-time
@@ -25,6 +27,21 @@ import {
  * affordance under it, since `ExecutionTab` owns the provider chips and other fields via the
  * existing `core.execution` ledger slice) and it additionally owns the migration prompt, which the
  * visitor screen has no equivalent of (there was never a browser-local visitor key to migrate).
+ *
+ * ## Cross-mount staleness (disclosed residual, closed here)
+ *
+ * `stored`/`apiKeyStoredExternally` is each mounted instance's OWN copy of one server fact — every
+ * `SettingsUi.tsx` mount, every `AiAssistant.tsx` mount, AND `AssistantDock.hooks.tsx`'s own
+ * independent `loadAdminExecutionCredential()` call (`useExecutionConfig`'s `hasStoredAdminKey`) are
+ * three separate reads of the same row. A save/migrate in ONE of them updated only its own local
+ * `stored` state, so the other two kept showing whatever they last fetched — briefly, if the operator
+ * happened to remount that screen soon after, or indefinitely for the dock, which mounts once at the
+ * app shell and never remounts for the session (`AssistantDock.tsx`'s own header comment). Now wired
+ * to `settings-refresh-bus.ts`, the same seam `useSettingsSlice`'s `runSave` already uses for exactly
+ * this "same-tab sibling with no shared state" problem: every successful write publishes
+ * `EXECUTION_NAMESPACE`, and every mount (including the publisher's own, harmlessly — see
+ * `runSave`'s doc for why that redundant self-refresh is accepted rather than tracked around) re-reads
+ * on receiving it.
  */
 
 export type AdminByokSaveState =
@@ -122,19 +139,32 @@ export function useAdminExecutionCredential({
   const [legacyKey, setLegacyKey] = useState<string | null>(null);
   const [legacyDismissed, setLegacyDismissed] = useState(false);
 
-  // Hydrate the stored view once. Silent on failure, same posture
-  // `use-visitor-credential-form.hooks.ts` takes for its own GET: a failed read must not put an
-  // error next to a key field the operator has not touched yet, and the only visible consequence
-  // is that the "already stored" affordances stay absent until a refresh works.
+  // Hydrate the stored view, on mount AND whenever another mount (or `AssistantDock`'s own separate
+  // copy) publishes a change to this same server row — see this file's "Cross-mount staleness" doc
+  // above. Silent on failure, same posture `use-visitor-credential-form.hooks.ts` takes for its own
+  // GET: a failed read must not put an error next to a key field the operator has not touched yet,
+  // and the only visible consequence is that the "already stored" affordances stay at whatever they
+  // last held until a refresh works.
   useEffect(() => {
     let cancelled = false;
-    loadAdminExecutionCredential()
-      .then((view) => {
-        if (!cancelled) setStored(view);
-      })
-      .catch(() => undefined);
+    const refresh = () => {
+      loadAdminExecutionCredential()
+        .then((view) => {
+          if (!cancelled) setStored(view);
+        })
+        .catch(() => undefined);
+    };
+    refresh();
+    // `scope` is `null` ("refresh everything") or the list of namespaces a publisher named — narrow
+    // to this credential's own namespace so an unrelated slice's save does not trigger a pointless
+    // refetch here, matching `useSettingsSlice`'s identical narrowing.
+    const unsubscribe = subscribeToSettingsRefresh((scope) => {
+      if (scope && !scope.includes(EXECUTION_NAMESPACE)) return;
+      refresh();
+    });
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, []);
 
@@ -163,6 +193,9 @@ export function useAdminExecutionCredential({
       const view = await saveAdminExecutionCredential(patch);
       setStored(view);
       setSaveState({ status: "saved" });
+      // Tells every other mounted copy of this credential (the other settings screen, the dock) to
+      // re-read — see this file's "Cross-mount staleness" doc above.
+      publishSettingsRefresh([EXECUTION_NAMESPACE]);
       // Clear the field once the key is safely stored — see this file's `onByokChange` doc.
       if (apiKey) onByokChange({ ...byok, apiKey: "" });
     } catch (error) {
@@ -192,6 +225,8 @@ export function useAdminExecutionCredential({
       setStored(view);
       setLegacyKey(null);
       setSaveState({ status: "saved" });
+      // Same cross-mount notification `saveKey` above sends — a migration is a write to the same row.
+      publishSettingsRefresh([EXECUTION_NAMESPACE]);
     } catch (error) {
       setSaveState({ status: "error", message: describeAdminExecutionCredentialError(error, "failed to save the migrated key") });
     }
