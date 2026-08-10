@@ -72,6 +72,8 @@ import { navigate } from "../../lib/router";
 import { describeSaveStatus, resolveDialogDataTheme } from "./rules";
 import { useSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
+import { ComposioKeyField } from "./ComposioKeyField";
+import { connectorsDependencies } from "./connectors-port";
 import { useAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt } from "../../components/AdminByokKeyPanel";
 import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
@@ -498,46 +500,41 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi, tabId = null }: 
         </TabIcon>
       ),
       /**
-       * `ConnectorsBrowser` needs no props beyond `unlocked` to render safely
-       * — omitting `dependencies` makes it default to an empty in-memory fake
-       * (`useWiredConnectorsBrowser`'s own fallback), and `unlocked={false}`
-       * is Tovu's real state (no Composio key configured), not a fabricated
-       * one.
+       * LIVE, no longer `inert`. `dependencies` is Tovu's real `ConnectorsPort`
+       * (`connectors-port.ts`) over the `/connectors` admin routes, so the grid
+       * shows the provider's real 181-entry Composio catalog rather than the
+       * empty in-memory fake this tab used to fall back to.
        *
-       * `gate` WAS omitted here (see git history) on the reasoning that its
-       * `ctaHref` would be "a CTA link nothing backs." Revisited during the
-       * 2026-07-31 OD-parity pass: the entire subtree is already `inert` —
-       * nothing inside it, including this link, can ever be clicked — so
-       * that risk doesn't actually exist, and omitting `gate` was also
-       * making `ConnectorGrid` render as a blank rectangle (zero connectors,
-       * no overlay) instead of `od-settings-connectors.png`'s designed empty
-       * state. Copy is adapted, not verbatim OD: OD's real copy says "Paste
-       * your key above," referring to an API-key input field that lives in
-       * OD's own page chrome, one this component has never had and Tovu
-       * doesn't render — repeating that line here would describe a field
-       * that isn't on screen. `ctaHref` points at Composio's real site
-       * (`app.composio.dev`, per `packages/ui/source-map.md`'s provenance
-       * note for this component) rather than a dead placeholder.
+       * `unlocked` tracks whether a Composio API key is actually saved, so it
+       * is still Tovu's real state — just a state the operator can now change,
+       * via the `ComposioKeyField` above (the input OD had in its own page
+       * chrome and this component has never shipped).
+       *
+       * Connect/disconnect are fully wired: authorizing opens Composio's
+       * consent page in a popup and finishes at Tovu's own public callback
+       * route, which `postMessage`s this window (see `connectors-port.ts`).
+       * While still locked, `ConnectorGrid` masks the grid and disables every
+       * card, so those actions are unreachable until a key exists rather than
+       * merely failing.
+       *
+       * `ctaHref` points at Composio's real site (`app.composio.dev`, per
+       * `packages/ui/source-map.md`'s provenance note for this component).
        */
       panel: (
-        <div className="settings-ui-inert-wrap">
-          <p className="settings-ui-inert-note" role="note">
-            {tCap(
-              "Composio-backed third-party connectors aren't wired up in Tovu yet. The control below is shown for reference and disabled until they are.",
-            )}
-          </p>
-          <div className="settings-ui-inert-control" inert>
-            <ConnectorsBrowser
-              unlocked={false}
-              gate={{
-                title: "Add your Composio API key to continue",
-                body: "Save a Composio API key to load available integrations.",
-                ctaLabel: "Get API Key",
-                ctaHref: "https://app.composio.dev",
-              }}
-            />
-          </div>
-        </div>
+        <>
+          <ComposioKeyField composio={s.composio} />
+          <ConnectorsBrowser
+            unlocked={s.composio.unlocked}
+            dependencies={connectorsDependencies}
+            catalogRefreshKey={s.composio.catalogRefreshKey}
+            gate={{
+              title: "Add your Composio API key to continue",
+              body: "Paste your key above to load available integrations.",
+              ctaLabel: "Get API Key",
+              ctaHref: "https://app.composio.dev",
+            }}
+          />
+        </>
       ),
     },
     {
