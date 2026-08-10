@@ -256,8 +256,14 @@ section.band { padding: 88px 0; border-top: 1px solid var(--border); }
 .post-detail-body img { max-width: 100%; border-radius: 10px; margin: 20px 0; }
 
 /* ---------- blog ---------- */
-.blog-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); }
-.post-card { background: var(--bg); padding: 26px; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+/* Hairlines drawn per-card (not via the container-background-peeking-through-`gap`
+   trick `.service-grid-simple`/`.awards-grid`/`.pricing-grid` use) because this grid's
+   post count isn't guaranteed to be a multiple of 3: with an incomplete last row, the
+   old technique painted the container's raw `--border` fill into the unfilled trailing
+   cell — a solid gray box with no content. Per-card borders never paint a cell that has
+   no card. */
+.blog-grid { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--border); border-right: 0; border-bottom: 0; }
+.post-card { background: var(--bg); padding: 26px; display: flex; flex-direction: column; min-height: 0; min-width: 0; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .post-card-media { aspect-ratio: 16/10; margin-bottom: 16px; font-size: 12px; border-radius: 4px; }
 .post-card .tag { font: 11px/1 var(--font-mono); letter-spacing: 0.03em; color: var(--muted); margin-bottom: 10px; display: block; }
 .post-card h3 { font-size: 17px; font-weight: 500; letter-spacing: -0.01em; margin-bottom: 8px; }
@@ -288,7 +294,8 @@ section.band { padding: 88px 0; border-top: 1px solid var(--border); }
 }
 @media (max-width: 860px) {
   .awards-grid, .testimonial-grid, .pricing-grid { grid-template-columns: 1fr; }
-  .blog-grid { grid-template-columns: 1fr; }
+  .blog-grid { grid-template-columns: 1fr; border-right: 1px solid var(--border); }
+  .blog-grid .post-card { border-right: 0; }
   .form-row { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
