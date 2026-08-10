@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 import type { ComposioConfig, ComposioConfigStore } from "@jini-ai/integrations/composio";
 
@@ -143,6 +145,40 @@ function assertValidApiKey(apiKey: string): void {
 }
 
 /**
+ * Whether `candidate` is byte-for-byte the same key already sealed in `existing`, decrypting the
+ * stored key to compare — the only reliable way, since the tail is too short to be an identity
+ * check (see {@link saveComposioApiKey}) and the ciphertext is randomized per seal.
+ *
+ * Constant-time on the equal-length path (`timingSafeEqual`): the comparison result gates whether
+ * a request retains another record's prior `authConfigIds`, so it is treated as secret-comparison
+ * adjacent rather than a pure business-logic check, even though nothing here is an auth decision.
+ *
+ * @returns `false` (treat as changed) whenever there is no prior key, or the prior key cannot be
+ *   opened — never throws, because a comparison this function cannot make confidently must not
+ *   block the save it is only an optimization for.
+ * @complexity O(1) — at most one AEAD open plus one fixed-cost buffer comparison.
+ * @overallScore 100
+ */
+async function isSameApiKey(input: {
+  sealer: SecretSealerPort;
+  existing: ComposioConfigRecord | null;
+  candidate: string;
+}): Promise<boolean> {
+  const { sealer, existing, candidate } = input;
+  if (existing?.sealed == null) return false;
+  let existingPlaintext: string;
+  try {
+    existingPlaintext = await sealer.open({ sealed: existing.sealed });
+  } catch {
+    return false;
+  }
+  const existingBytes = Buffer.from(existingPlaintext, "utf8");
+  const candidateBytes = Buffer.from(candidate, "utf8");
+  if (existingBytes.length !== candidateBytes.length) return false;
+  return timingSafeEqual(existingBytes, candidateBytes);
+}
+
+/**
  * Seals and stores a new Composio API key, replacing any existing one.
  *
  * Provisioned `authConfigIds` are DISCARDED when the key actually changes, matching
@@ -177,10 +213,17 @@ export async function saveComposioApiKey(
     );
   }
 
-  // Compare tails, not ciphertexts: AES-GCM is randomized, so the same key seals to a different
-  // blob every time and a ciphertext comparison would report "changed" on every save.
+  // `keyTail` (4 chars, see below) is a DISPLAY marker only, never an identity check — two
+  // different keys can share the same last 4 characters, and treating that as "unchanged" would
+  // carry the OLD key's `authConfigIds` (Composio auth-config ids scoped to the OLD project)
+  // forward onto a record that now seals a genuinely different key, corrupting state for the new
+  // project rather than simply re-provisioning it. The real "did the key change" answer requires
+  // comparing full plaintexts. This does mean decrypting the previously-stored key once per save
+  // (unlike the ciphertext, which is randomized per seal and can never be compared directly) — an
+  // acceptable cost for a low-frequency admin action, and it fails CLOSED (treated as "changed") if
+  // the existing key cannot be opened, e.g. after a master-secret rotation, rather than guessing.
   const keyTail = apiKey.slice(-KEY_TAIL_LENGTH);
-  const keyUnchanged = existing?.sealed !== null && existing?.keyTail === keyTail;
+  const keyUnchanged = await isSameApiKey({ sealer: deps.sealer, existing, candidate: apiKey });
 
   const record: ComposioConfigRecord = {
     workspaceId: input.workspaceId,

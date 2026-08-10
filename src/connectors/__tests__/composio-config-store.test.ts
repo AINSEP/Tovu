@@ -23,10 +23,13 @@ import {
  * Settings → Connectors tab.
  *
  * The assertions that matter most: the key is never echoed back through any read path, provisioned
- * `authConfigIds` are dropped on a key CHANGE but survive re-pasting the same key (the tail
- * comparison, not a ciphertext comparison, is what makes that work at all under randomized AEAD), a
- * missing master secret fails closed before anything is written, and the synchronous snapshot store
- * refuses to become a second source of truth for the key.
+ * `authConfigIds` are dropped on a key CHANGE but survive re-pasting the same key (a full-plaintext
+ * comparison of the decrypted stored key against the candidate is what makes that work at all under
+ * randomized AEAD, where comparing ciphertexts directly would wrongly report every re-paste as a
+ * change) — and a same-tail-but-different key is NOT mistaken for a re-paste, because the 4-char
+ * tail is a display marker only, never the identity check. A missing master secret fails closed
+ * before anything is written, and the synchronous snapshot store refuses to become a second source
+ * of truth for the key.
  */
 
 const WORKSPACE = "workspace-1";
@@ -114,6 +117,59 @@ test("saving a DIFFERENT key discards auth-config ids from the previous project"
   const config = await readComposioConfig(deps, { workspaceId: WORKSPACE });
   assert.deepEqual(config.authConfigIds, {});
   assert.equal(config.apiKey, "comp_live_OTHER9999");
+});
+
+test("saving a DIFFERENT key that happens to share the same tail still discards stale auth-config ids", async () => {
+  // Regression test: `saveComposioApiKey` used to compare only the last 4 characters (`keyTail`)
+  // to decide whether the key had changed. Two distinct keys sharing a tail would then be
+  // misreported as "unchanged", carrying the PREVIOUS project's auth-config ids onto a record now
+  // sealing a genuinely different key — silently pointing the provider at resources the new key
+  // cannot see (see `saveComposioApiKey`'s doc comment for the 404 this produces downstream).
+  const deps = makeDeps();
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_AAAAAAAA1234" });
+  await saveComposioAuthConfigIds(deps, {
+    workspaceId: WORKSPACE,
+    authConfigIds: { github: "ac_github_1" },
+  });
+
+  // Same last 4 characters ("1234") as the key above, but not the same key.
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_ZZZZZZZZ1234" });
+
+  const config = await readComposioConfig(deps, { workspaceId: WORKSPACE });
+  assert.deepEqual(
+    config.authConfigIds,
+    {},
+    "a same-tail but different key must be treated as changed, not mistaken for a re-paste"
+  );
+  assert.equal(config.apiKey, "comp_live_ZZZZZZZZ1234");
+});
+
+test("an existing key that can no longer be decrypted is treated as changed, not compared", async () => {
+  // Models a rotated master secret: the OLD sealed row cannot be opened by the CURRENT keyring.
+  // The comparison must fail closed (report "changed") rather than throw or silently skip the
+  // save — a comparison the code cannot make confidently must not block the write it only
+  // optimizes.
+  const repo = new InMemoryComposioConfigRepo();
+  const firstKeyring = new InMemoryKeyring();
+  await saveComposioApiKey(
+    { repo, keyring: firstKeyring, sealer: new AesGcmSecretSealer(firstKeyring), clock },
+    { workspaceId: WORKSPACE, apiKey: "comp_live_SECRET1234" }
+  );
+  await saveComposioAuthConfigIds(
+    { repo, keyring: firstKeyring, sealer: new AesGcmSecretSealer(firstKeyring), clock },
+    { workspaceId: WORKSPACE, authConfigIds: { github: "ac_github_1" } }
+  );
+
+  const rotatedKeyring = new InMemoryKeyring();
+  const rotatedDeps = { repo, keyring: rotatedKeyring, sealer: new AesGcmSecretSealer(rotatedKeyring), clock };
+  await saveComposioApiKey(rotatedDeps, { workspaceId: WORKSPACE, apiKey: "comp_live_SECRET1234" });
+
+  const config = await readComposioConfig(rotatedDeps, { workspaceId: WORKSPACE });
+  assert.deepEqual(
+    config.authConfigIds,
+    {},
+    "an unopenable prior key must not be assumed unchanged just because it cannot be checked"
+  );
 });
 
 test("clearing removes the key and every auth-config id, and is idempotent", async () => {
