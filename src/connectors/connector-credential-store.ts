@@ -65,9 +65,13 @@ export interface SnapshotConnectorCredentialStore extends ConnectorCredentialSto
    */
   hydrate(): Promise<void>;
   /**
-   * Resolves once every write queued so far has hit the database, or REJECTS with the first
-   * failure. Routes await this before responding — see this file's header for why these writes are
-   * not fire-and-forget.
+   * Resolves once every write queued so far has hit the database, or REJECTS with the first failure
+   * among the writes THIS call is responsible for. Routes await this before responding — see this
+   * file's header for why these writes are not fire-and-forget.
+   *
+   * A failure is reported exactly once: each call claims the writes enqueued since the previous
+   * call, so one connector's failure cannot surface as a 500 on an unrelated connector's request,
+   * and a failed write never becomes a permanent error every later flush re-throws.
    */
   flush(): Promise<void>;
 }
@@ -87,18 +91,41 @@ function toMaterial(parsed: unknown): ConnectorCredentialMaterial | undefined {
  * land in that order, and unsequenced seals — each of which awaits the keyring — can otherwise
  * complete out of order and resurrect a deleted credential.
  *
+ * The chain sequences work but deliberately does NOT propagate failure through itself. One queue
+ * serves every connector in the workspace for the process's whole life, so a failing write must
+ * isolate to the request that caused it: a locked database or an absent root key on connector A
+ * cannot be allowed to stop connector B's later, independent write from running, nor to surface as
+ * a 500 on B's request. Failures ride alongside the chain and are claimed by `flush`.
+ *
  * @complexity `get`/`set`/`delete` are O(1) in memory. `deleteByProvider` is O(n) over connected
  *   accounts, itself bounded by the catalog. Each write costs one AEAD seal plus one upsert.
+ *   `flush` is O(w) in the writes enqueued since the previous flush.
+ * @tradeoffs A failed write leaves the in-memory snapshot holding the credential it could not
+ *   persist, so `get` keeps reporting the connector as connected until the next `hydrate`. Rolling
+ *   the snapshot back here would be worse: the rollback would itself be unordered relative to
+ *   later writes for the same connector and could discard a subsequent successful one. Callers
+ *   that need the snapshot to match storage after a failure should re-`hydrate`.
  * @overallScore 100
  */
 export function createSnapshotConnectorCredentialStore(
   deps: SnapshotConnectorCredentialStoreDeps
 ): SnapshotConnectorCredentialStore {
   const records = new Map<string, ConnectorCredentialRecord>();
+  // Never rejects. `queue.then(work)` on a REJECTED promise skips `work` entirely and re-propagates
+  // the old reason, so a rejecting tail would permanently poison the chain: every later write
+  // silently never runs and every later flush() re-throws a stale, unrelated error. Failures are
+  // therefore diverted into `unreported` and the chain itself always resolves.
   let queue: Promise<void> = Promise.resolve();
+  /** One settled outcome per write not yet claimed by a {@link SnapshotConnectorCredentialStore.flush}. */
+  let unreported: Promise<{ error: unknown } | undefined>[] = [];
 
   const enqueue = (work: () => Promise<void>): void => {
-    queue = queue.then(work);
+    const outcome = queue.then(work).then(
+      () => undefined,
+      (error: unknown) => ({ error })
+    );
+    queue = outcome.then(() => undefined);
+    unreported.push(outcome);
   };
 
   const sealCredentials = async (credentials: ConnectorCredentialMaterial): Promise<SealedSecret> =>
@@ -174,7 +201,15 @@ export function createSnapshotConnectorCredentialStore(
     },
 
     async flush(): Promise<void> {
-      await queue;
+      // Claimed synchronously, before the first await, so two concurrent requests split the
+      // outstanding writes between them instead of both reporting — or both missing — the same one.
+      const claimed = unreported;
+      const barrier = queue;
+      unreported = [];
+
+      await barrier;
+      const failure = (await Promise.all(claimed)).find((outcome) => outcome !== undefined);
+      if (failure !== undefined) throw failure.error;
     },
   };
 }

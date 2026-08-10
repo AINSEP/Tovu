@@ -249,14 +249,30 @@ export type PostTemplateResolution =
  *   bug reappearing on the next post created outside the editor.
  * - `""` — *explicitly opted out*, the admin picker's "No template chosen" option. A deliberate
  *   author action, and the one value no naive insert produces. Keeps showing the diagnostic page,
- *   which is the designed product behavior ("not a silent fallback to generic rendering").
- * - `"blog-post.html"` — an explicit choice, rendered as-is.
+ *   which is the designed product behavior ("not a silent fallback to generic rendering"). It is
+ *   the ONLY value that reaches the diagnostic page without the theme first getting a say.
+ * - `"blog-post.html"` — an explicit choice. Rendered as-is when the ACTIVE theme can honor it,
+ *   and otherwise treated exactly like the never-chosen case, for the reason below.
+ *
+ * A stored choice is **theme-relative but not theme-scoped**: it names a file in whatever theme was
+ * active when an author picked it, and nothing on the row records which theme that was. Switching
+ * the site's active theme therefore strands every explicit choice at once. Reading a stranded
+ * choice as an opt-out would put every one of those posts back on the HTTP-200 diagnostic page —
+ * the same outage as the `null` regression, reached by a routine admin action instead of a
+ * migration, and unreachable by any backfill because the stored value is a real filename rather
+ * than `null`. "This theme has no such template" is the absence of a decision *for this theme*, not
+ * a decision, so it falls back. Only `""` is theme-independent enough to mean opt-out.
+ *
+ * A page that exists but ships no post slot counts as "cannot honor" for the same reason and falls
+ * back too; the diagnostic page is reached only when the theme's own first template is also
+ * unusable, since rendering a slotless template would silently drop the post's body.
  *
  * `theme.pages` is keyed by filename WITHOUT `.html` (`loadTheme`'s convention) while
  * `templateChoice`/`postTemplate` entries carry it; the `.replace` below is the one place that
  * naming mismatch is bridged.
  *
- * @complexity O(n) in the template's HTML length for the slot check; O(1) lookups otherwise.
+ * @complexity O(n) in the template's HTML length for the slot check, over at most two candidates;
+ *   O(1) lookups otherwise.
  * @overallScore 100
  */
 export function resolvePostTemplate(
@@ -264,13 +280,18 @@ export function resolvePostTemplate(
   _optional: Record<string, never> = {}
 ): PostTemplateResolution {
   const { theme, templateChoice } = required;
-  const choice = templateChoice ?? theme.manifest.postTemplate?.[0];
-  if (choice === undefined || choice === "") return { kind: "diagnostic" };
+  if (templateChoice === "") return { kind: "diagnostic" };
 
-  const pageId = choice.replace(/\.html$/, "");
-  const html = theme.pages[pageId];
-  // A template with no post slot can't host a post at all — a theme-capability gap that stays
-  // diagnostic even for the fallback, since rendering it would silently drop the post's body.
-  if (html === undefined || !html.includes('data-embed-id="{{post}}"')) return { kind: "diagnostic" };
-  return { kind: "template", pageId, html };
+  const resolveAgainstTheme = (choice: string | undefined): PostTemplateResolution | undefined => {
+    if (choice === undefined || choice === "") return undefined;
+    const pageId = choice.replace(/\.html$/, "");
+    const html = theme.pages[pageId];
+    if (html === undefined || !html.includes('data-embed-id="{{post}}"')) return undefined;
+    return { kind: "template", pageId, html };
+  };
+
+  return (
+    resolveAgainstTheme(templateChoice ?? undefined) ??
+    resolveAgainstTheme(theme.manifest.postTemplate?.[0]) ?? { kind: "diagnostic" }
+  );
 }

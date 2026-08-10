@@ -165,6 +165,98 @@ function parseTier(value: JsonValue | undefined): ThemeTier {
     : "declarative";
 }
 
+/** Everything only a static theme ships. Returned by {@link loadStaticTierAssets}. */
+interface StaticTierAssets {
+  tokensLight: ThemeTokens;
+  pages: Record<string, string>;
+  partials: Record<string, string>;
+  /** Validation failures, for the caller to merge into the theme's own `errors`. */
+  errors: string[];
+}
+
+/** No static assets, for every tier that ships none. */
+const NO_STATIC_TIER_ASSETS: StaticTierAssets = {
+  tokensLight: {},
+  pages: {},
+  partials: {},
+  errors: [],
+};
+
+/**
+ * Read `tokens.light.json`, a static theme's optional light-mode override set.
+ *
+ * Optional unlike `tokens.json`: absent is not an error, it just means the theme ships no light
+ * variant, which leaves the map empty so no `:root` override block is emitted at all.
+ */
+function readLightTokens(
+  required: { themeDir: string; errors: string[] },
+  _optional: Record<string, never> = {}
+): ThemeTokens {
+  const { themeDir, errors } = required;
+  const path = join(themeDir, "tokens.light.json");
+  if (!existsSync(path)) return {};
+  try {
+    const raw = readJson(path);
+    if (!isObject(raw)) throw new Error("tokens.light.json is not an object");
+    return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, String(v)]));
+  } catch (err) {
+    errors.push(`tokens.light.json: ${(err as Error).message}`);
+    return {};
+  }
+}
+
+/**
+ * Read the static tier's assets as one unit, or nothing at all for any other tier.
+ *
+ * A static theme is a different kind of artifact from every other tier — already-complete HTML
+ * documents plus their partials and an optional light-token variant, rather than a route map of
+ * templates a rendering engine fills in — so none of this shares a branch with the other tiers.
+ * Kept out of {@link loadTheme}, tier check included, because inlining it there made one function
+ * responsible for four unrelated on-disk layouts and left the caller re-testing the tier three
+ * separate times.
+ *
+ * Errors are returned rather than thrown, matching {@link loadTheme}'s contract that one bad theme
+ * degrades to `status: "invalid"` instead of breaking discovery for every other theme.
+ *
+ * @complexity O(f) in the theme folder's entries, each read at most once.
+ * @overallScore 100
+ */
+function loadStaticTierAssets(
+  required: { themeDir: string; tier: ThemeTier },
+  _optional: Record<string, never> = {}
+): StaticTierAssets {
+  const { themeDir, tier } = required;
+  if (tier !== "static") return NO_STATIC_TIER_ASSETS;
+
+  const errors: string[] = [];
+  const tokensLight = readLightTokens({ themeDir, errors });
+
+  // REQ-01's spirit, not its exact home+entry pair: a static theme's minimum is one page to
+  // actually show, not a route id a templating engine would fill in.
+  const pages: Record<string, string> = {};
+  const pagesDir = join(themeDir, "pages");
+  if (existsSync(pagesDir)) {
+    for (const file of readdirSync(pagesDir)) {
+      if (file.endsWith(".html")) {
+        pages[file.slice(0, -".html".length)] = readFileSync(join(pagesDir, file), "utf8");
+      }
+    }
+  }
+  if (!pages.index) errors.push("pages/index.html is required");
+
+  // `nav` and `footer` (plus `footer-*` variants) live at the theme root, not under pages/, because
+  // a static page embeds them via a `data-tovu-slot` marker the renderer resolves rather than a
+  // template-include directive baked in at author time.
+  const partials: Record<string, string> = {};
+  for (const file of readdirSync(themeDir)) {
+    if (file.endsWith(".html") && (file === "nav.html" || file.startsWith("footer"))) {
+      partials[file.slice(0, -".html".length)] = readFileSync(join(themeDir, file), "utf8");
+    }
+  }
+
+  return { tokensLight, pages, partials, errors };
+}
+
 /**
  * Load one theme folder. Returns a DiscoveredTheme with `status: "invalid"` and
  * a populated `errors` list instead of throwing, so one bad theme never breaks
@@ -208,21 +300,14 @@ export function loadTheme(
     errors.push(`tokens.json: ${(err as Error).message}`);
   }
 
-  // Optional, static tier only — unlike tokens.json, a missing tokens.light.json is not an error;
-  // it just means the theme has no light variant (leaves tokensLight empty, no :root override).
-  let tokensLight: ThemeTokens = {};
-  if (manifest.tier === "static") {
-    const tokensLightPath = join(themeDir, "tokens.light.json");
-    if (existsSync(tokensLightPath)) {
-      try {
-        const raw = readJson(tokensLightPath);
-        if (!isObject(raw)) throw new Error("tokens.light.json is not an object");
-        tokensLight = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, String(v)]));
-      } catch (err) {
-        errors.push(`tokens.light.json: ${(err as Error).message}`);
-      }
-    }
-  }
+  // The static tier's whole on-disk layout — light tokens, pages/, root partials — loaded in one
+  // call rather than as branches threaded through the tier-agnostic loading below. Empty for every
+  // other tier, so nothing here needs to re-test which tier this is.
+  const { tokensLight, pages, partials, errors: staticErrors } = loadStaticTierAssets({
+    themeDir,
+    tier: manifest.tier,
+  });
+  errors.push(...staticErrors);
 
   const templates: Record<string, TemplateNode> = {};
   const liquidTemplates: Record<string, string> = {};
@@ -275,28 +360,9 @@ export function loadTheme(
       }
     }
   }
-  // Static tier has no `templates/` route map at all — it ships already-complete
-  // HTML documents under `pages/*.html` instead, so it gets its own required-file
-  // check (REQ-01's spirit, not its exact home+entry pair: a static theme's
-  // minimum is one page to actually show, not a route id a templating engine
-  // would fill in). Kept out of the `templates`/`liquidTemplates`/
-  // `handlebarsTemplates` branch below entirely rather than forced through it.
-  const pages: Record<string, string> = {};
-  const partials: Record<string, string> = {};
-  if (manifest.tier === "static") {
-    const pagesDir = join(themeDir, "pages");
-    if (existsSync(pagesDir)) {
-      for (const file of readdirSync(pagesDir)) {
-        if (file.endsWith(".html")) pages[file.slice(0, -".html".length)] = readFileSync(join(pagesDir, file), "utf8");
-      }
-    }
-    if (!pages.index) errors.push("pages/index.html is required");
-    for (const file of readdirSync(themeDir)) {
-      if (file.endsWith(".html") && (file === "nav.html" || file.startsWith("footer"))) {
-        partials[file.slice(0, -".html".length)] = readFileSync(join(themeDir, file), "utf8");
-      }
-    }
-  } else {
+  // A static theme has no `templates/` route map at all, so its required-file check is
+  // `loadStaticTierAssets`'s job, not this one's.
+  if (manifest.tier !== "static") {
     // REQ-01: a theme's required template minimum is home + entry (the base). C3:
     // post/page are optional specializations that fall through to entry (REQ-03).
     // The required set is tier-aware: templated themes ship `.liquid`, handlebars
