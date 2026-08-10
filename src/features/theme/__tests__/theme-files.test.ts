@@ -55,8 +55,8 @@ test("a folder outside the themes root is NOT a recognized theme root", () => {
 
 test("a folder nested too deep under an UNRECOGNIZED subfolder is not a theme root, even inside the themes root", () => {
   const { root } = makeThemesRoot();
-  // `themes/liquidjs/x` is fine (liquidjs is a named engine subfolder); `themes/random/x` is not.
-  assert.equal(isRecognizedThemeRoot({ themeDir: path.join(root, "liquidjs", "x"), themesRoot: root }), true);
+  // `themes/templated/x` is fine (templated is a named engine subfolder); `themes/random/x` is not.
+  assert.equal(isRecognizedThemeRoot({ themeDir: path.join(root, "templated", "x"), themesRoot: root }), true);
   assert.equal(isRecognizedThemeRoot({ themeDir: path.join(root, "random", "x"), themesRoot: root }), false);
   assert.equal(isRecognizedThemeRoot({ themeDir: path.join(root, "handlebars", "x", "deeper"), themesRoot: root }), false);
 });

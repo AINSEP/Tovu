@@ -160,7 +160,7 @@ test("both logic tiers see the identical render-data contract — the same field
   hbs.handlebarsTemplates.home = "@@{{site.title}}|{{route}}|{{#each posts}}{{title}}:{{slug}}:{{dateShort}}{{/each}}@@";
   const hbsHtml = await renderSite({ theme: hbs, route: "home", siteTitle: "Shared", posts });
 
-  const liquid = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  const liquid = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "templated", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(liquid.status, "valid");
   liquid.liquidTemplates.home = "@@{{ site.title }}|{{ route }}|{% for p in posts %}{{ p.title }}:{{ p.slug }}:{{ p.dateShort }}{% endfor %}@@";
   const liquidHtml = await renderSite({ theme: liquid, route: "home", siteTitle: "Shared", posts });

@@ -12,7 +12,7 @@ import { ALLOWED_LIQUID_FILTERS, ALLOWED_LIQUID_TAGS, lintLiquidTemplate } from 
  */
 
 function dispatchTemplate(name: "home" | "entry"): string {
-  return readFileSync(join(process.cwd(), "src", "themes", "liquidjs", "dispatch", "templates", `${name}.liquid`), "utf8");
+  return readFileSync(join(process.cwd(), "src", "themes", "templated", "dispatch", "templates", `${name}.liquid`), "utf8");
 }
 
 test("a clean template with no tags/filters at all reports no violations", () => {

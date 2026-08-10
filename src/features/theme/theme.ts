@@ -405,7 +405,7 @@ export function loadTheme(
  *
  * `exclude` skips named subdirectories that aren't themes themselves — used by
  * {@link discoverAllBuiltInThemes} to keep the engine-specific subfolders
- * (`liquidjs/`, `handlebars/`) from being scanned as (invalid) top-level theme
+ * (`templated/`, `handlebars/`) from being scanned as (invalid) top-level theme
  * candidates when it also scans them directly as their own theme roots.
  */
 export function discoverThemes(
@@ -425,18 +425,21 @@ export function discoverThemes(
 }
 
 /**
- * Named engine-specific subfolders under a themes root: declarative (JSON block-tree) themes stay
- * at the top level as Tovu's native format; each other engine gets its own subfolder so `themes/`
- * doesn't mix formats in one flat listing. Scanning a missing subfolder is a no-op
- * (`discoverThemes`'s own missing-dir ⇒ empty-list behavior), so adding an engine here ahead of its
- * first theme costs nothing.
+ * Named engine-specific subfolders under a themes root, one per {@link ThemeTier} except `code`
+ * (not built yet) — every tier's themes live under its own subfolder so `themes/` doesn't mix
+ * formats in one flat listing (2026-08-10: `declarative` moved off the bare top level, and the
+ * LiquidJS-tier folder renamed from `liquidjs/` to `templated/` to match its `ThemeTier` value —
+ * `templated` names the tier, not the engine, so more templating engines can land under this same
+ * folder later without another rename). Scanning a missing subfolder is a no-op (`discoverThemes`'s
+ * own missing-dir ⇒ empty-list behavior), so adding an engine here ahead of its first theme costs
+ * nothing.
  *
  * Exported because it is also the containment boundary the `themes` agent-tool domain enforces
  * (`agent-tools.ts`/`tool-registrations.ts`): a theme folder that is not a direct child of the
  * themes root or of one of THESE subfolders is not a recognized theme root, and no agent-driven file
  * write may resolve into it.
  */
-export const ENGINE_SUBFOLDERS = ["liquidjs", "handlebars", "static"] as const;
+export const ENGINE_SUBFOLDERS = ["declarative", "templated", "handlebars", "static"] as const;
 
 /**
  * Discover every built-in theme across the top-level (declarative) folder plus every engine
