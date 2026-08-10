@@ -115,7 +115,7 @@ No loader branch, no renderer branch, no validator, nothing. `ThemeTier` include
 
 ## 3. `theme.json` schema reference
 
-Split deliberately into two tables, because this is a real divergence, verified by grepping the whole `src/` tree for every field name: **every live theme's `theme.json` contains fields the loader never reads.** `loadTheme()`'s manifest construction (`theme.ts:277-288`) is the complete list of fields any code path consumes. `modes`, `defaultMode`, and `pages` appear in every static theme's `theme.json` on disk and are 100% ignored by every file in `src/` — no loader, no validator, no admin UI reads them (verified: `grep -rn '"slots"\|manifest\.(slots|modes|defaultMode)\|raw\.(slots|modes|defaultMode|pages)'` across `src/` returns zero hits outside theme content itself and doc comments). `slots` is the same story with one caveat noted below.
+Split deliberately into two tables, because this is a real (if now smaller) divergence, verified by grepping the whole `src/` tree for every field name: `loadTheme()`'s manifest construction (`theme.ts:358-372`) is the complete list of fields any code path consumes. As of 2026-08-10, `modes`, `defaultMode`, and `slots` are parsed and actually drive render-time behavior — §3.1 covers them alongside the fields that were already wired. `pages` remains the one field every static theme's `theme.json` authors that no loader, validator, or admin route reads (§3.2): `DiscoveredTheme.pages` is populated independently, by scanning the `pages/` directory on disk (`loadStaticTierAssets`, `theme.ts:305-339`).
 
 ### 3.1 Fields the loader actually reads and validates
 
@@ -132,21 +132,49 @@ Split deliberately into two tables, because this is a real divergence, verified 
 | `regions` | string[] | all (declared, only meaningfully consumed outside `static`) | no | Widget-placement region keys (ADR-047 §2a) — see §6.4. **No live theme declares this field today** (verified: zero `"regions"` hits under `src/themes/`). |
 | `skipLiquidAllowlist` | boolean | `templated` only | no (default `false`) | Opts a Liquid theme out of the tag/filter allowlist. Has no equivalent for `handlebars` — see §2.4. |
 | `postTemplate` | string[] | `static` only | no | Ordered list of `pages/*.html` filenames a Post author can pick between (§7.1). First entry is the implicit default. |
+| `modes` | string[] (e.g. `["dark","light"]`) | `static` only | no | The color-mode names this theme ships token overrides for. A mode name is nothing more than the value written into `data-theme` on `<html>` — it has no other effect on its own. See §3.3. |
+| `defaultMode` | string | `static` only | no | Which of `modes` a freshly-served page starts in. Emitted as `data-theme="<defaultMode>"` on `<html>` (`injectColorMode`, `static-render.ts:231-234`). Declaring a `defaultMode` outside `modes` is a **hard manifest error** — the theme loads with `status: "invalid"` (`theme.ts:378-382`), not a silent fallback. Absent ⇒ no `data-theme` is emitted at all (the pre-2026-08-10 behavior, unchanged). See §3.3. |
+| `slots` | `Record<string, { source, activeAttr?, variants? }>` | `static` only | no (defaults to `DEFAULT_THEME_SLOTS`, the legacy hardcoded `nav`/`footer` pair) | Maps a `data-tovu-slot="<key>"` marker to the root partial file it renders, optionally naming the marker-side "current page" attribute (`activeAttr`) and/or an explicit `data-slot-variant` → filename map (`variants`). See §6.1. |
 
 ### 3.2 Fields written by every theme, read by nothing
 
+As of 2026-08-10 this table is down to one field — `modes`, `defaultMode`, and `slots` moved to §3.1 above once they were wired up.
+
 | Field | Type | Present in | What it's for | Actual current effect |
 |---|---|---|---|---|
-| `modes` | string[] (e.g. `["dark","light"]`) | every static theme | Documents which color modes the theme supports | **None.** Not read by `loadTheme()`, any admin route, or any file under `apps/admin/src`. |
-| `defaultMode` | string | every static theme | Documents the default mode | **None**, same as above. |
-| `pages` | string[] | every static theme | Documents which `pages/*.html` files exist | **None** — `DiscoveredTheme.pages` is populated by scanning the `pages/` directory on disk (`loadStaticTierAssets`, `theme.ts:236-244`), completely independent of this manifest array. The array can drift from the real directory contents with zero validation error. |
-| `slots` | object (`{ nav: { source, activeAttr }, footer: { source, variants } }`) | every static theme that has nav/footer | Documents the slot wiring | **Not read by the resolver.** See §6.1 — the actual mechanism is filename convention (`nav.html`, `footer*.html`) plus a hardcoded regex on a literal `data-tovu-slot="nav"`/`data-tovu-slot="footer"` marker in the page HTML, not this field. Every theme's `slots.nav.activeAttr` value happens to say `"data-nav-current"`, matching what `resolveSlots()` hardcodes — but that agreement is convention, not enforcement. If you change `activeAttr` in `theme.json` alone, nothing downstream will honor it. |
+| `pages` | string[] | every static theme | Documents which `pages/*.html` files exist | **None** — `DiscoveredTheme.pages` is populated by scanning the `pages/` directory on disk (`loadStaticTierAssets`, `theme.ts:305-339`), completely independent of this manifest array. The array can drift from the real directory contents with zero validation error. |
 
-**Practical implication:** these four fields are effectively author-facing documentation embedded in the manifest — useful for a human or an AI editing tool to understand a theme's shape at a glance, harmless to keep writing them for consistency with the other 7 themes, but do not expect changing them to change rendering behavior. If you need slot wiring to actually change, it has to change in `src/features/theme/static-render.ts`.
+**Verified across all 7 static themes (not inferred from a sample):** no theme's `pages` array ever lists a filename it doesn't actually ship in `pages/*.html` — the "listed but not shipped" direction never happens. The drift runs the other way, and only for two reasons:
 
-### 3.3 Runtime dark/light toggling (context for the `modes` field)
+| Theme | Shipped but not listed in `pages` | Why |
+|---|---|---|
+| `basic` | `404`, `blog-post` | `pages/404.html` is the themed-404 fallback (`pages.ts` step 7, §1.4); `blog-post.html` is the post-template page (`postTemplate: ["blog-post.html"]`) |
+| `tailark-dusk` | `blog-post` | same post-template reason |
+| `tailark-quartz-dark` | `blog-post` | same post-template reason |
+| `tailark-quartz-libre` | `blog-post` | same post-template reason |
+| `fuel`, `gracious-timing`, `portfolite` | none | full agreement between `pages` and the directory |
 
-Since `modes`/`defaultMode` aren't read by any server code, dark/light switching is entirely client-side: each static theme ships its own `js/theme-toggle.js`, which toggles a `data-theme="light"` attribute on the document root in response to a `[data-theme-toggle]` button click (e.g. `src/themes/static/basic/js/theme-toggle.js:6-18`). The CSS that responds to it comes from `tokensToRootCss()` (`static-render.ts:16-23`), which emits `:root { ...dark tokens... }` plus `:root[data-theme="light"] { ...light tokens... }` from `tokens.json` + the optional `tokens.light.json`. The `modes`/`defaultMode` manifest fields describe this behavior; they don't drive it.
+The pattern isn't even consistently applied: `basic`, `tailark-dusk`, `tailark-quartz-dark`, and `tailark-quartz-libre` all omit their own `postTemplate` file from `pages`, but `portfolite` and `gracious-timing` list theirs (`blog-post`, `project` respectively) anyway. There's no rule enforcing either convention, because nothing reads the field either way.
+
+**Practical implication:** `pages` is effectively author-facing documentation embedded in the manifest — useful for a human or an AI editing tool to get a quick inventory of a theme's pages, harmless to keep authoring for consistency with the other themes, but changing it does not change which routes actually resolve, and `DiscoveredTheme.pages` (the disk scan) is always what every render path actually reads.
+
+### 3.3 Color modes: server-established starting value, client-owned toggle
+
+As of 2026-08-10, `modes`/`defaultMode` are parsed and `defaultMode` drives one concrete thing: the starting value of `data-theme` on the page's `<html>` element. `injectColorMode()` (`static-render.ts:231-234`) stamps `data-theme="<defaultMode>"` onto `<html>` at render time — unless the page's own source already carries a `data-theme` attribute (left alone), or the manifest declares no `defaultMode` (nothing is emitted, same as before this wiring). This is also the exact selector `tokensToRootCss()` (`static-render.ts:16-23`) already emitted its `tokens.light.json` override block under (`:root[data-theme="light"] { ... }`) — before this wiring, that block was loaded and emitted into every page but structurally unreachable, because nothing ever set the attribute it keys off.
+
+**A user-flippable toggle is still entirely the theme's own job.** The engine's responsibility ends at the server-rendered starting value; runtime switching is client-side, unchanged by this wiring: each static theme ships its own `js/theme-toggle.js`, which flips `data-theme` on `document.documentElement` in response to a `[data-theme-toggle]` button click (e.g. `src/themes/static/basic/js/theme-toggle.js:6-18`). A theme author who wants this needs exactly:
+
+```html
+<button data-theme-toggle>Toggle theme</button>
+<script>
+  document.querySelector('[data-theme-toggle]').addEventListener('click', () => {
+    document.documentElement.dataset.theme =
+      document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  });
+</script>
+```
+
+**Same attribute name, different meaning, different tier — worth naming explicitly so it doesn't trip you up reading both render paths in one sitting:** on the `static` tier, `data-theme` on `<html>` is the *color mode* (`"dark"`/`"light"`, this section). On every other tier, `renderSite()` puts `data-theme="<theme.manifest.id>"` on a `<div class="site">` wrapper instead (`render.ts:1134`) — there `data-theme` names the *theme id* (`"storefront"`, `"basic-declarative"`, …), not a color mode. Different element, different tier, no runtime collision in practice — but the shared attribute name is a real trap for anyone skimming both paths at once.
 
 ---
 
@@ -240,12 +268,29 @@ A static page marks where a partial goes with an empty, self-closing-in-spirit d
 <div data-tovu-slot="footer" data-slot-variant="minimal"></div>
 ```
 
-`resolveSlots()` (`static-render.ts:163-178`) matches these with two hardcoded regexes:
+As of 2026-08-10, `resolveSlots()` (`static-render.ts:192-218`) is driven by `theme.json`'s `slots` map (`theme.manifest.slots ?? DEFAULT_THEME_SLOTS` — `static-render.ts:278`), not a hardcoded `nav`/`footer` pair. `DEFAULT_THEME_SLOTS` (`theme.ts:148-151`) reproduces that old hardcoded pair verbatim, so a theme that declares no `slots` renders byte-identically to before this wiring — which is exactly why landing the change didn't alter any existing theme's output.
 
-- `data-tovu-slot="nav"` → replaced with `partials.nav`'s HTML, with an `aria-current="page"` attribute spliced onto whichever `<a href="..." data-nav-id="<data-nav-current value>">` matches inside it.
-- `data-tovu-slot="footer"` → replaced with `partials.footer`, or `partials["footer-<variant>"]` if `data-slot-variant="<variant>"` is present.
+For each marker key present in the resolved slots map:
 
-As covered in §3.2, `theme.json`'s `slots` field does **not** drive this — the marker attribute names and the partial-lookup logic are hardcoded in `static-render.ts`, not read from the manifest.
+- **`source`** — the root partial filename the marker resolves to by default (e.g. `"footer.html"`).
+- **`activeAttr`** (optional) — names the attribute on the *marker* element that carries the current page's id, e.g. `activeAttr: "data-nav-current"` reads `data-nav-current="pricing"` off the marker above. The anchor side of the convention is **fixed, not configurable**: whichever `<a href="..." data-nav-id="<that value>">` exists inside the resolved partial gets `aria-current="page"` spliced onto it. Only the marker-side attribute *name* varies by theme; the partial-side anchor always keys off `data-nav-id`.
+- **`variants`** (optional) — an explicit `{ "<variant-name>": "<filename>.html" }` map consulted when the marker carries `data-slot-variant="<name>"`. A variant with no entry in this map falls back to the `<source-stem>-<variant>.html` naming convention `resolveSlots()` has always applied — e.g. a `footer` slot with variant `minimal` and no explicit map entry resolves to `footer-minimal.html`.
+
+A theme declaring no `slots` at all gets exactly the legacy pair from `DEFAULT_THEME_SLOTS`: `nav` → `nav.html` with `activeAttr: "data-nav-current"`, `footer` → `footer.html` with no variants map (so any footer variant falls through to the naming convention). A marker whose resolved partial doesn't exist still collapses to empty, same as before this wiring.
+
+**Worked example — `basic`** (`src/themes/static/basic/theme.json`, the only live theme with an explicit `variants` map):
+
+```json
+"slots": {
+  "nav": { "source": "nav.html", "activeAttr": "data-nav-current" },
+  "footer": {
+    "source": "footer.html",
+    "variants": { "minimal": "footer-minimal.html" }
+  }
+}
+```
+
+`pages/signin.html` (`src/themes/static/basic/pages/signin.html:12,36`) uses both: `<div data-tovu-slot="nav" data-nav-current="signin"></div>` and `<div data-tovu-slot="footer" data-slot-variant="minimal"></div>`, the latter resolving via the explicit map to `footer-minimal.html`. **Worth being honest about:** `basic`'s explicit `minimal → footer-minimal.html` entry produces the exact same result the naming-convention fallback would have produced on its own — no live theme's `variants` map currently diverges from what the convention alone would resolve to, so this field's first real payload doesn't (yet) observably prove the explicit-map-over-convention precedence, even though that code path exists and is exercised.
 
 ### 6.2 Menu embeds (`data-embed-type="menu"`, `static` tier)
 
@@ -350,9 +395,9 @@ Covered in §5. `DiscoveredTheme.css`'s own field comment says "unsanitized in t
 
 Covered in full in §2.4. Restated because it's the most likely thing to be misjudged from the directory listing alone: `src/themes/handlebars/` being empty means "no one has authored a theme here," not "this code path doesn't work."
 
-### 8.6 `theme.json`'s `modes`, `defaultMode`, `pages`, and `slots` fields are unread
+### 8.6 `theme.json`'s `pages` field is unread (the other three were wired 2026-08-10)
 
-Covered in full in §3.2/§6.1. If you're debugging "why doesn't changing X in `theme.json` do anything," check this table first — four of the commonly-present fields are genuinely inert.
+Covered in full in §3.2. `modes`, `defaultMode`, and `slots` used to sit in this same "authored, ignored" bucket — as of 2026-08-10 they're parsed and drive real render-time behavior (§3.1, §3.3, §6.1). `pages` is the one still-inert field: `DiscoveredTheme.pages` is populated by scanning the `pages/` directory on disk, completely independent of this manifest array, and the array can drift from the real directory contents with zero validation error (§3.2 has the verified per-theme drift table). If you're debugging "why doesn't changing `pages` in `theme.json` do anything," that's why.
 
 ### 8.7 `templateChoice`'s `null` vs `""` distinction is a real historical bug, not a hypothetical trap
 
