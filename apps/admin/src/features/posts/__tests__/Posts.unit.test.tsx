@@ -96,6 +96,44 @@ describe("populated table", () => {
   });
 });
 
+describe("Updated column sort (2026-08-10)", () => {
+  const older = { ...POST, id: "p-old", title: "Older Post", slug: "older-post", updatedAt: "2026-01-01T00:00:00.000Z" };
+  const newer = { ...POST, id: "p-new", title: "Newer Post", slug: "newer-post", updatedAt: "2026-08-01T00:00:00.000Z" };
+
+  function rowOrder(): string[] {
+    return screen.getAllByRole("row").slice(1).map((row) => row.textContent ?? "");
+  }
+
+  it("defaults to newest-first even though the input array arrives oldest-first", () => {
+    renderWith({ posts: [older, newer] });
+    const order = rowOrder();
+    expect(order[0]).toContain("Newer Post");
+    expect(order[1]).toContain("Older Post");
+  });
+
+  it("the header button's accessible name states the current direction, not just a glyph", () => {
+    renderWith({ posts: [older, newer] });
+    expect(screen.getByRole("button", { name: /newest first.*activate to sort oldest first/i })).toBeInTheDocument();
+  });
+
+  it("clicking the header toggles to oldest-first", async () => {
+    const user = userEvent.setup();
+    renderWith({ posts: [older, newer] });
+    await user.click(screen.getByRole("button", { name: /sorted by updated date/i }));
+    expect(rowOrder()[0]).toContain("Older Post");
+    expect(screen.getByRole("button", { name: /oldest first.*activate to sort newest first/i })).toBeInTheDocument();
+  });
+
+  it("clicking twice returns to newest-first", async () => {
+    const user = userEvent.setup();
+    renderWith({ posts: [older, newer] });
+    const header = () => screen.getByRole("button", { name: /sorted by updated date/i });
+    await user.click(header());
+    await user.click(header());
+    expect(rowOrder()[0]).toContain("Newer Post");
+  });
+});
+
 describe("New Post action", () => {
   it("disables the button and shows 'Creating…' while creating is true", () => {
     renderWith({ creating: true });

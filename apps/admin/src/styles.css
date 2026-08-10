@@ -831,6 +831,18 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .list-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
 .list-table th, .list-table td { text-align: left; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--fg-2); }
 .list-table th { background: var(--surface-2); font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+/* Posts list's sortable "Updated" column header (2026-08-10) — a `<button>` sitting inside a
+   `<th>`, not a `<td>`, so the row-action reset above (`.list-table td button...`) does not reach
+   it; this rule inherits the `<th>`'s own type treatment instead of the default filled-primary
+   button chrome, so the column heading still reads as a heading with a click affordance, not a
+   loose CTA floating in the table header. */
+.sortable-column-header {
+  display: inline-flex; align-items: center; gap: 2px;
+  background: transparent; border: none; padding: 0; margin: 0;
+  font: inherit; text-transform: inherit; letter-spacing: inherit; color: inherit;
+  cursor: pointer;
+}
+.sortable-column-header:hover, .sortable-column-header:focus-visible { color: var(--fg); opacity: 1; }
 .list-table tbody tr:last-child td { border-bottom: none; }
 .list-table tbody tr:hover { background: var(--surface-2); }
 /* Row actions default to a quiet/secondary treatment instead of inheriting the bare `button`

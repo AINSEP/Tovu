@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { droppedUri, handleImageDrop, postRowMenuItems, readFileAsDataUrl, toolbarBtnClass } from "../rules";
+import {
+  droppedUri,
+  handleImageDrop,
+  postRowMenuItems,
+  readFileAsDataUrl,
+  sortPostsByUpdated,
+  toolbarBtnClass,
+  updatedSortButtonLabel,
+} from "../rules";
 import type { AdminPost } from "../../../lib/api";
 
 /**
@@ -140,6 +148,56 @@ describe("toolbarBtnClass", () => {
 
   it("stays plain when inactive", () => {
     expect(toolbarBtnClass(false)).toBe("tb-btn");
+  });
+});
+
+describe("sortPostsByUpdated", () => {
+  const oldest = post({ id: "p-old", updatedAt: "2026-01-01T00:00:00.000Z" });
+  const middle = post({ id: "p-mid", updatedAt: "2026-06-01T00:00:00.000Z" });
+  const newest = post({ id: "p-new", updatedAt: "2026-08-10T00:00:00.000Z" });
+
+  it("'newest' sorts most-recently-updated first", () => {
+    const result = sortPostsByUpdated([middle, oldest, newest], "newest");
+    expect(result.map((p) => p.id)).toEqual(["p-new", "p-mid", "p-old"]);
+  });
+
+  it("'oldest' sorts least-recently-updated first", () => {
+    const result = sortPostsByUpdated([middle, oldest, newest], "oldest");
+    expect(result.map((p) => p.id)).toEqual(["p-old", "p-mid", "p-new"]);
+  });
+
+  it("does not mutate the input array", () => {
+    const input = [middle, oldest, newest];
+    const original = [...input];
+    sortPostsByUpdated(input, "newest");
+    expect(input).toEqual(original);
+  });
+
+  it("returns [] for an empty list in either direction", () => {
+    expect(sortPostsByUpdated([], "newest")).toEqual([]);
+    expect(sortPostsByUpdated([], "oldest")).toEqual([]);
+  });
+
+  it("is stable-ish for a single row", () => {
+    expect(sortPostsByUpdated([oldest], "newest")).toEqual([oldest]);
+  });
+});
+
+describe("updatedSortButtonLabel", () => {
+  it("states 'newest first' and offers oldest-first as the next action when direction is newest", () => {
+    const label = updatedSortButtonLabel("newest");
+    expect(label).toMatch(/newest first/i);
+    expect(label).toMatch(/oldest first/i);
+  });
+
+  it("states 'oldest first' and offers newest-first as the next action when direction is oldest", () => {
+    const label = updatedSortButtonLabel("oldest");
+    expect(label).toMatch(/oldest first/i);
+    expect(label).toMatch(/newest first/i);
+  });
+
+  it("the two directions produce different labels", () => {
+    expect(updatedSortButtonLabel("newest")).not.toBe(updatedSortButtonLabel("oldest"));
   });
 });
 
