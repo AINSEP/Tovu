@@ -37,6 +37,11 @@ ul { margin: 0; padding: 0; }
 .brand .mark { width: 24px; height: 24px; display: grid; place-items: center; }
 .brand .mark svg { width: 22px; height: 22px; }
 .main-nav { display: flex; align-items: center; gap: 26px; }
+/* Wraps only the bound-menu links (not the .nav-auth-link mobile Sign in/Get started actions that
+   follow as siblings) so a bound header menu replaces just this span's content — `display: contents`
+   drops the span's own box from the layout tree entirely, so its <a> children keep acting as direct
+   flex items of .main-nav (row+gap on desktop, column dropdown on mobile) exactly as before the wrap. */
+.main-nav-links { display: contents; }
 .main-nav a { font-size: 14px; color: var(--muted); transition: color 0.15s ease; }
 .main-nav a:hover, .main-nav a[aria-current="page"] { color: var(--fg); }
 .nav-actions { display: flex; align-items: center; gap: 8px; }

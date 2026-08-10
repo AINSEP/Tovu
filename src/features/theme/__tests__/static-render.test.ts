@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 
 import { renderStaticPage, scanMenuEmbedIds, type StaticMenuItem } from "../static-render";
-import type { DiscoveredTheme } from "../theme";
+import { loadTheme, type DiscoveredTheme } from "../theme";
 
 /**
  * @file Direct menu-embed wiring — certifies `renderStaticPage`'s `data-embed-type="menu"
@@ -143,4 +144,34 @@ test("scanMenuEmbedIds: a theme with no menu markers returns an empty array", ()
   const theme = makeTheme();
   theme.partials = {};
   assert.deepEqual(scanMenuEmbedIds(theme), []);
+});
+
+test("renderStaticPage: tailark-quartz-libre's mobile Sign in/Get started survive a bound header menu", () => {
+  // Regression, 2026-08-10: the real theme's nav.html originally put the `.nav-auth-link` mobile
+  // Sign in/Get started actions INSIDE the `data-embed-type="menu"` marker `<nav>`, alongside the
+  // real nav links — so a bound header menu wiped them out along with the placeholder links, exactly
+  // like the footer heading bug above. Fix: they're now siblings of a `main-nav-links` wrapper that
+  // alone carries the marker, kept visually identical via `.main-nav-links { display: contents }`.
+  const theme = loadTheme({
+    themeDir: path.join(process.cwd(), "src/themes/static/tailark-quartz-libre"),
+    id: "tailark-quartz-libre",
+    source: "built-in",
+  });
+  assert.equal(theme.status, "valid");
+
+  const withoutMenu = renderStaticPage({ theme, pageId: "index" });
+  assert.ok(withoutMenu?.includes(">Sign in<"));
+  assert.ok(withoutMenu?.includes(">Get started<"));
+
+  const withMenu = renderStaticPage({
+    theme,
+    pageId: "index",
+    menus: {
+      "menu-header-nav": items({ label: "Features", href: "/features" }, { label: "Docs", href: "/docs" }),
+    },
+  });
+  assert.ok(withMenu?.includes('<a href="/features">Features</a>'));
+  assert.ok(withMenu?.includes('<a href="/docs">Docs</a>'));
+  assert.ok(withMenu?.includes(">Sign in<"), "mobile Sign in action must survive a bound header menu");
+  assert.ok(withMenu?.includes(">Get started<"), "mobile Get started action must survive a bound header menu");
 });
