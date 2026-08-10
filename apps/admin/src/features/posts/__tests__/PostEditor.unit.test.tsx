@@ -206,6 +206,55 @@ describe("Template picker", () => {
     await waitFor(() => expect(select).toHaveValue("blog-post.html"));
   });
 
+  it("the View Template button is disabled once 'No template chosen' is selected", async () => {
+    const user = userEvent.setup();
+    activeThemePostTemplates = ["blog-post.html"];
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, templateChoice: "blog-post.html" } }));
+
+    render(<PostEditor postId="p1" />);
+
+    await screen.findByRole("button", { name: /^save$/i });
+    expect(screen.getByRole("button", { name: /view template/i })).toBeEnabled();
+    await user.selectOptions(templateSelect(), "");
+    expect(screen.getByRole("button", { name: /view template/i })).toBeDisabled();
+  });
+
+  it("clicking View Template opens the read-only modal for the selected template", async () => {
+    const user = userEvent.setup();
+    activeThemePostTemplates = ["blog-post.html"];
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, templateChoice: "blog-post.html" } }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (url.includes("/theme-assets/")) return Promise.resolve(new Response("<p>hi</p>", { status: 200 }));
+        if (url.includes("/settings/effective")) return Promise.resolve(jsonResponse({ data: [] }));
+        if (url.includes("/presentation")) {
+          return Promise.resolve(
+            jsonResponse({
+              settings: { activeThemeId: "basic" },
+              availableThemeIds: [],
+              availableThemes: [{ id: "basic", tier: "static" }],
+              activeThemePostTemplates,
+              activeThemeStaticPageIds: [],
+            }),
+          );
+        }
+        return fetchMock(input);
+      }),
+    );
+
+    render(<PostEditor postId="p1" />);
+
+    await screen.findByRole("button", { name: /^save$/i });
+    await user.click(screen.getByRole("button", { name: /view template/i }));
+
+    // "blog-post.html" also appears as the picker's own <option> text, so scope to the modal's
+    // title node specifically rather than a bare `findByText` (which errors on the ambiguity).
+    await waitFor(() => expect(document.querySelector("[data-preview-modal-title]")).toHaveTextContent("blog-post.html"));
+    expect(await screen.findByText("<p>hi</p>")).toBeInTheDocument();
+  });
+
   it('persists an explicit "No template chosen" as "" so the opt-out is distinguishable from never-chosen', async () => {
     const user = userEvent.setup();
     activeThemePostTemplates = ["blog-post.html"];
