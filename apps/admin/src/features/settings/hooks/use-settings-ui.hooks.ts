@@ -41,6 +41,7 @@ import {
   type AppearanceConfig,
 } from "../../../lib/settings-tabs";
 import { mergeSaveStates, useSettingsSlice, type SaveState, type SettingsSlice } from "../../../hooks/use-settings-slice.hooks";
+import { useComposioConfig, type ComposioConfigController } from "./use-composio-config.hooks";
 import { areAnySlicesLoading, firstLoadError } from "../rules";
 
 /**
@@ -73,6 +74,12 @@ export interface SettingsUiController {
   mediaProvidersPort: ReturnType<typeof createFakeMediaProvidersPort>;
   skillsPort: ReturnType<typeof createFakeSkillsPort>;
   externalMcpDependencies: ReturnType<typeof createFakeSourceConfigDependencies<SourceConfigItem>>;
+
+  /**
+   * The Connectors tab's Composio API key. Not a `SettingsSlice` — it is backed by its own sealed
+   * `composio_config` row rather than the settings ledger; see `use-composio-config.hooks.ts`.
+   */
+  composio: ComposioConfigController;
 
   execution: SettingsSlice<ExecutionConfig>;
   instructions: SettingsSlice<string>;
@@ -114,6 +121,7 @@ export function useSettingsUi(): SettingsUiController {
   // showing. Local view state only — nothing here persists, matching every
   // other prop this tab's `inert` control feeds.
   const [memoryTopTab, setMemoryTopTab] = useState<MemoryTopTab>("memories");
+  const composio = useComposioConfig();
 
   const execution = useSettingsSlice<ExecutionConfig>({
     load: loadExecutionConfig,
@@ -173,6 +181,8 @@ export function useSettingsUi(): SettingsUiController {
     mediaProvidersPort: mediaProvidersPort.current,
     skillsPort: skillsPort.current,
     externalMcpDependencies: externalMcpDependencies.current,
+
+    composio,
 
     execution,
     instructions,
