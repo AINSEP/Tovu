@@ -487,6 +487,24 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
   min-width: 0;
 }
 
+/* The docs article reuses `.post-detail` for its typography, which also carries
+   `padding: 72px 0 96px` — correct for a full-width article page, wrong here, because
+   `.docs-layout` already supplies the top spacing. The two stacked, so the article started 72px
+   below the sidebar's first item instead of level with it. Only the top is zeroed; the 96px
+   bottom is still wanted. */
+.docs-layout .docs-content {
+  padding-top: 0;
+}
+
+/* A section heading is a label, not a destination, so it takes the accent colour on its own rather
+   than the filled pill a real current page gets — the pill on an uppercase heading read as a
+   selected row and fought the content for attention. */
+.docs-nav .menu-item.depth-0.has-children.is-current > a,
+.docs-nav .menu-item.depth-0.has-children > a[aria-current="page"] {
+  background: transparent;
+  color: var(--accent);
+}
+
 .docs-content h2[id],
 .docs-content h3[id] {
   scroll-margin-top: 96px;
