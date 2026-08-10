@@ -1,38 +1,34 @@
 {
   "meta": {
-    "fileCount": 667,
-    "moduleCount": 38
+    "fileCount": 730,
+    "moduleCount": 42
   },
-  "propagationCostPct": 10.23,
-  "backEdgesIntoServer": 28,
+  "propagationCostPct": 7.6,
+  "backEdgesIntoServer": 26,
   "moduleCycles": {
-    "mutualCycleCount": 17,
+    "mutualCycleCount": 13,
     "largestScc": 33,
     "pairs": [
+      "assistant <-> db",
       "assistant <-> features/plugins",
       "assistant <-> features/post",
       "assistant <-> server",
       "comments <-> server",
       "core <-> db",
       "core <-> features/post",
-      "core <-> features/settings",
       "db <-> features/database",
       "features/database <-> features/recovery",
-      "features/database <-> server",
       "features/plugin-runtime <-> server",
-      "features/recovery <-> server",
-      "features/taxonomy <-> server",
       "forms <-> server",
       "mail <-> server",
-      "seo <-> server",
-      "server <-> widgets"
+      "seo <-> server"
     ]
   },
-  "moduleApiSurfaceFiles": 211,
-  "deepImportsBypassingIndex": 780,
+  "moduleApiSurfaceFiles": 220,
+  "deepImportsBypassingIndex": 581,
   "coreSize": {
-    "count": 82,
-    "total": 667,
-    "pct": 12.29
+    "count": 111,
+    "total": 730,
+    "pct": 15.21
   }
 }
