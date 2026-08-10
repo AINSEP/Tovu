@@ -103,7 +103,7 @@ function comingSoonDescription(locale: string, label: string): string {
   return interpolate(COMING_SOON_TEMPLATE[locale] ?? COMING_SOON_TEMPLATE.en, { label });
 }
 
-export function ComingSoonNotice(props: { kicker: string; label: string; locale?: string }) {
+export function ComingSoonNotice(props: { kicker: string; label: string; locale?: string; note?: string }) {
   const locale = props.locale ?? DEFAULT_LOCALE;
   return (
     <div className="page">
@@ -112,6 +112,16 @@ export function ComingSoonNotice(props: { kicker: string; label: string; locale?
           <p className="page-kicker">{props.kicker}</p>
           <h1 className="page-title">{props.label}</h1>
           <p className="page-description">{comingSoonDescription(locale, props.label)}</p>
+          {/* Optional second line for a section whose label alone could be mistaken for a
+              DIFFERENT, already-shipped screen (`admin-appearance`, 2026-08-10: "Appearance" sits
+              in the same Studio group as `id: "themes"`, itself labelled "Themes" but also
+              rendering as an `Appearance` component under the hood — see `panels.tsx`'s own
+              comment on that collision). Every other `soon` caller omits `note` and renders
+              exactly as before; this does not become a second "coming soon" shape, just an
+              optional extra sentence in the one that already exists. Untranslated, same disclosed
+              precedent as `PostEditor.tsx`'s template picker (2026-08-10): this repo's 19-locale
+              dictionaries are out of scope for a one-line disambiguation note. */}
+          {props.note ? <p className="page-description">{props.note}</p> : null}
         </div>
       </div>
     </div>
@@ -140,7 +150,7 @@ const UNKNOWN_SECTION_PREFIX: Record<string, string> = {
   it: "Sezione sconosciuta",
 };
 
-export function Placeholder(props: { sectionId: string }) {
+export function Placeholder(props: { sectionId: string; note?: string }) {
   const locale = useAdminLocale();
   const item = findNavItem(props.sectionId);
   if (!item) {
@@ -157,6 +167,7 @@ export function Placeholder(props: { sectionId: string }) {
       kicker={translateAdminNavLabel(locale, findNavGroupLabel(props.sectionId))}
       label={translateAdminNavLabel(locale, item.label)}
       locale={locale}
+      note={props.note}
     />
   );
 }

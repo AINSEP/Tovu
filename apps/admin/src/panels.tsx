@@ -440,6 +440,34 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     },
   },
   {
+    // No screen yet — `soon: true` + `Placeholder`, the same shape `skills`/`design-system` above
+    // use. `id: "admin-appearance"`, NOT `"appearance"` — that id is already taken (see the
+    // nav-less `id: "appearance"` entry further down, which renders the SITE-themes `<Appearance>`
+    // screen, same component `id: "themes"` above also renders under its own label). This entry is
+    // for a genuinely different, not-yet-built thing: letting the OPERATOR restyle Tovu's own admin
+    // chrome (CSS/motifs for this panel, not the public site) — labelled "Appearance" per the
+    // owner's own wording, deliberately placed in Studio next to `themes` where an operator would
+    // look for either. The `note` below is what stops that placement reading as a duplicate of
+    // `themes`: `ComingSoonNotice`'s one generic "X is coming soon." sentence alone doesn't say
+    // WHICH X, and "Appearance" sitting one row below "Themes" (which itself renders a component
+    // literally named `Appearance`) is exactly the ambiguity an operator would hit cold.
+    id: "admin-appearance",
+    render: () => (
+      <Placeholder
+        sectionId="admin-appearance"
+        note="This is the admin panel's own look — not the public site's themes (see Themes above). Planned, not yet built."
+      />
+    ),
+    nav: {
+      label: "Appearance",
+      group: "Studio",
+      soon: true,
+      // A paintbrush + drop — a different primitive from `themes`' three overlapping circles,
+      // `skills`' four-point star, and `design-system`'s 2x2 tile grid at icon-only rail size.
+      icon: '<path d="M12.5 2.5l3 3-6.5 6.5-3.5.8.8-3.5z"/><circle cx="5" cy="14" r="1.5"/>',
+    },
+  },
+  {
     id: "playground",
     // Not `soon: true`, unlike Skills/Design System above — this one is real: a live A2UI surface
     // over `@jini-ai/ui`'s `interactive-ui` registry. See `features/playground/Playground.tsx`'s

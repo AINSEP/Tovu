@@ -25,6 +25,21 @@ describe("a soon: true nav.ts item", () => {
   });
 });
 
+describe("an optional disambiguation note (2026-08-10, admin-appearance)", () => {
+  it("renders the note as a second line when provided", () => {
+    render(<Placeholder sectionId="newsletter" note="This is a disambiguation note." />);
+    expect(screen.getByText("Newsletter is coming soon.")).toBeInTheDocument();
+    expect(screen.getByText("This is a disambiguation note.")).toBeInTheDocument();
+  });
+
+  it("renders nothing extra when omitted — every other soon caller stays unchanged", () => {
+    render(<Placeholder sectionId="newsletter" />);
+    expect(screen.getByText("Newsletter is coming soon.")).toBeInTheDocument();
+    // Only the one page-description paragraph — no empty second <p>.
+    expect(document.querySelectorAll(".page-description")).toHaveLength(1);
+  });
+});
+
 describe("an id absent from nav.ts entirely", () => {
   it("renders the Unknown section error, matching the legacy /section/:id fallback's expectations", () => {
     render(<Placeholder sectionId="does-not-exist-12345" />);
