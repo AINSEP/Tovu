@@ -39,6 +39,7 @@ import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution
 import type { ComposioConfigRepoPort } from "../../connectors/composio-config-store";
 import type { ComposioConnectors } from "../../connectors/composio-service";
 import type { MediaProviderCredentialRepoPort } from "../../media/provider-credential-store";
+import type { ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
@@ -200,6 +201,17 @@ export interface RouteDeps {
    * per-principal. No matching `*Ready` promise: a plain table, usable as soon as migrations run.
    */
   mediaProviderCredentialRepo: MediaProviderCredentialRepoPort;
+  /**
+   * The workspace's roster of external MCP servers, backing the admin's Settings → External MCP tab
+   * and read by the agent daemon at boot to decide what to federate
+   * (`assistant/external-mcp-store.ts`).
+   *
+   * Multi-row per workspace like `mediaProviderCredentialRepo` above. Its sealed column holds a
+   * whole `KEY=VALUE` environment block rather than one key, sealed with the same shared ADR-058
+   * sealer/keyring as every other credential table here. No matching `*Ready` promise: a plain
+   * table, usable as soon as migrations run.
+   */
+  externalMcpServerRepo: ExternalMcpServerRepoPort;
   /**
    * The workspace's sealed Composio project key + provisioned auth-config ids, backing the admin's
    * Settings → Connectors tab (`connectors/composio-config-store.ts`).

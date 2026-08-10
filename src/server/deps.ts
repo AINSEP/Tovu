@@ -57,6 +57,7 @@ import { SqliteAdminExecutionCredentialRepo } from "../db/sqlite/execution-crede
 import { SqliteComposioConfigRepo } from "../db/sqlite/composio-config-repo.sqlite";
 import { SqliteConnectorCredentialRepo } from "../db/sqlite/composio-connector-credential-repo.sqlite";
 import { SqliteMediaProviderCredentialRepo } from "../db/sqlite/media-provider-credential-repo.sqlite";
+import { SqliteExternalMcpServerRepo } from "../db/sqlite/external-mcp-repo.sqlite";
 import { createComposioConnectors } from "../connectors/composio-service";
 import {
   LocalFsBlobStore,
@@ -602,6 +603,7 @@ export function createSqliteRouteDeps(
     adminExecutionCredentialRepo: new SqliteAdminExecutionCredentialRepo(db),
     // Same shared sealer/keyring again — one sealing capability across all three credential tables.
     mediaProviderCredentialRepo: new SqliteMediaProviderCredentialRepo(db),
+    externalMcpServerRepo: new SqliteExternalMcpServerRepo(db),
     // Same shared sealer/keyring once more — see the note above the BYOK repo.
     composioConfigRepo,
     composioConnectors,

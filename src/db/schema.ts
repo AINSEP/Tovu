@@ -1507,6 +1507,75 @@ export const composioConfig = sqliteTable(
 );
 
 /**
+ * Per-workspace external MCP server connections — what the admin's Settings → External MCP tab
+ * persists, and what the agent daemon reads at boot to decide which third-party MCP servers to
+ * federate (`assistant/mcp-federation/`).
+ *
+ * Multi-row per workspace and keyed by an operator-chosen id, so this follows
+ * `mediaProviderCredentials`' composite-PK shape rather than the single-row `composioConfig`.
+ *
+ * `server_id` becomes part of every federated tool id the model sees (`mcp__<server_id>__<tool>`),
+ * which is why `mcp-federation/trust.ts` restricts it to `[a-z0-9-]` — a `_` would blur that
+ * namespace separator. The trust tier re-validates on read rather than trusting the column.
+ *
+ * `allowed_tool_names` is a SECURITY column, not a convenience. Federation is default-deny
+ * (trust.ts R2): a server contributes only the remote tools this JSON array names, and an empty
+ * array correctly yields zero tools. It is operator-authored on purpose — a remote server
+ * classifying its own tools as safe is precisely what R2 exists to refuse, so this must never be
+ * backfilled from what a server advertises about itself.
+ *
+ * The env block is sealed as ONE blob rather than per-variable: it routinely carries live tokens,
+ * and the whole block is handed to the child process together, so no read path wants one variable
+ * without the others. `env_names` holds just the variable NAMES in plaintext so the tab can show
+ * which are set without unsealing — the same split the UI's `secret-textarea` field kind makes
+ * (names visible, values masked).
+ *
+ * Sealed via the SAME ADR-058 `AesGcmSecretSealer`/`KeyringPort` instances the three credential
+ * tables above reuse. The all-null-or-all-set CHECK covers only the four `sealed_*` columns: a row
+ * may legitimately hold no env at all (a server launched with no credentials is normal), and
+ * `env_names` varies independently of whether a blob is present.
+ */
+export const externalMcpServers = sqliteTable(
+  "external_mcp_servers",
+  {
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** Operator-chosen `[a-z0-9-]` id — see this table's header for why the charset is load-bearing. */
+    serverId: text("server_id").notNull(),
+    label: text("label"),
+    /** `'stdio'` today — `mcp-federation/adapter.stdio.ts` is the only transport implemented.
+     *  Stored rather than assumed so adding one later is data, not a reinterpretation of old rows. */
+    transport: text("transport").notNull(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull(),
+    command: text("command"),
+    /** JSON array of argv strings. Secrets never belong here — argv is world-readable via `ps`. */
+    args: text("args"),
+    /** JSON array of admissible remote tool names. See this table's header. */
+    allowedToolNames: text("allowed_tool_names"),
+    /** JSON array of env variable NAMES, plaintext. Values live in the sealed columns below. */
+    envNames: text("env_names"),
+    /** `SealedSecret.keyId`; NULL iff no env block is stored. */
+    sealedKeyId: text("sealed_key_id"),
+    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag`. */
+    sealedCiphertext: text("sealed_ciphertext"),
+    /** Base64 12-byte AES-GCM IV. */
+    sealedNonce: text("sealed_nonce"),
+    /** Always `'aes-256-gcm'` today; stored so a future algorithm change is data. */
+    sealedAlg: text("sealed_alg"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.serverId] }),
+    check(
+      "external_mcp_servers_sealed_shape",
+      sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL)`
+    ),
+  ]
+);
+
+/**
  * One connected third-party ACCOUNT per `(workspace_id, connector_id)` — what survives an OAuth
  * handshake, and what `connectors/connector-credential-store.ts` seals.
  *

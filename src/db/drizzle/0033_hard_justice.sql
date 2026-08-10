@@ -1,0 +1,20 @@
+CREATE TABLE `external_mcp_servers` (
+	`workspace_id` text NOT NULL,
+	`server_id` text NOT NULL,
+	`label` text,
+	`transport` text NOT NULL,
+	`enabled` integer NOT NULL,
+	`command` text,
+	`args` text,
+	`allowed_tool_names` text,
+	`env_names` text,
+	`sealed_key_id` text,
+	`sealed_ciphertext` text,
+	`sealed_nonce` text,
+	`sealed_alg` text,
+	`created_at` text NOT NULL,
+	`updated_at` text NOT NULL,
+	PRIMARY KEY(`workspace_id`, `server_id`),
+	FOREIGN KEY (`workspace_id`) REFERENCES `workspaces`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "external_mcp_servers_sealed_shape" CHECK(("external_mcp_servers"."sealed_key_id" IS NULL AND "external_mcp_servers"."sealed_ciphertext" IS NULL AND "external_mcp_servers"."sealed_nonce" IS NULL AND "external_mcp_servers"."sealed_alg" IS NULL) OR ("external_mcp_servers"."sealed_key_id" IS NOT NULL AND "external_mcp_servers"."sealed_ciphertext" IS NOT NULL AND "external_mcp_servers"."sealed_nonce" IS NOT NULL AND "external_mcp_servers"."sealed_alg" IS NOT NULL))
+);
