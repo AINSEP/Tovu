@@ -210,15 +210,22 @@ export function useExecutionConfig(): UseExecutionConfig {
    * chokepoint), so the two surfaces can never disagree about which mode is active. Functional
    * `setExecutionConfig` update (not `executionConfigRef.current`) to avoid a stale-closure write
    * racing a config the settings tab saved in another tab in the same instant.
+   *
+   * `publishSettingsRefresh([EXECUTION_NAMESPACE])` on save success — same cross-mount staleness
+   * fix `handleByokModelChange` below already applies to a model pick, now applied here too so an
+   * already-open settings tab (or another `AssistantDock` mount) re-reads instead of sitting on the
+   * mode the operator just changed away from.
    */
   const handleExecutionModeChange = useCallback((mode: "local" | "api") => {
     const nextMode: ExecutionConfig["mode"] = mode === "api" ? "byok" : "local-cli";
     setExecutionConfig((previous) => {
       if (previous.mode === nextMode) return previous;
       const next: ExecutionConfig = { ...previous, mode: nextMode };
-      void saveExecutionConfig(next, previous).catch((error: unknown) => {
-        console.error("[AssistantDock] failed to save execution mode", error);
-      });
+      void saveExecutionConfig(next, previous)
+        .then(() => publishSettingsRefresh([EXECUTION_NAMESPACE]))
+        .catch((error: unknown) => {
+          console.error("[AssistantDock] failed to save execution mode", error);
+        });
       return next;
     });
   }, []);

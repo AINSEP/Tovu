@@ -213,6 +213,22 @@ describe("useExecutionConfig", () => {
     );
   });
 
+  it("publishes a settings refresh once the mode-switch save succeeds", async () => {
+    const { result } = renderHook(() => useExecutionConfig());
+
+    act(() => result.current.handleExecutionModeChange("api"));
+
+    await waitFor(() => expect(mockPublishSettingsRefresh).toHaveBeenCalledWith(["core.execution"]));
+  });
+
+  it("does not publish a settings refresh when the picked mode is already active", () => {
+    const { result } = renderHook(() => useExecutionConfig());
+
+    act(() => result.current.handleExecutionModeChange("local")); // DEFAULT_EXECUTION_CONFIG.mode is "local-cli"
+
+    expect(mockPublishSettingsRefresh).not.toHaveBeenCalled();
+  });
+
   it("logs rather than throwing when the mode-switch save rejects", async () => {
     mockSaveExecutionConfig.mockRejectedValue(new Error("write failed"));
     const { result } = renderHook(() => useExecutionConfig());
