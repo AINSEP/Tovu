@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { listAssistantAgents } from "../agents";
+import { listAssistantAgents, rescanAssistantAgents } from "../agents";
 
 /**
  * @file Regression coverage for `listAssistantAgents()` projecting model/reasoning metadata.
@@ -41,4 +41,32 @@ test("listAssistantAgents never returns an agent with an empty id/name", async (
     assert.ok(agent.id, `agent missing id: ${JSON.stringify(agent)}`);
     assert.ok(agent.name, `agent ${agent.id} missing name`);
   }
+});
+
+/**
+ * @file Regression coverage for the 2026-08-10 caching fix: `listAssistantAgents()` used to re-run
+ * the full 24-def PATH probe on every single call, and `POST /api/agents/rescan` had no way to tell
+ * apart from a plain read (see `agents.ts`'s module doc for the production cost — `AssistantDock`'s
+ * health-check poll re-triggered the full sweep dozens of times a minute). These pin the memoization
+ * contract directly: same underlying async work reused across calls, without needing to mock
+ * `@jini-ai/agent-runtime` — asserting on PROMISE IDENTITY across back-to-back (unawaited) calls is
+ * enough to prove a second probe was never started, and works against the real `AGENT_DEFS`
+ * registry like the two tests above.
+ */
+test("listAssistantAgents memoizes — two back-to-back calls reuse the same in-flight/settled probe", () => {
+  const first = listAssistantAgents();
+  const second = listAssistantAgents();
+  assert.strictEqual(first, second, "expected the second call to reuse the first call's own promise, not start a new probe");
+});
+
+test("rescanAssistantAgents forces a fresh probe, and a later listAssistantAgents call picks up that fresh result", async () => {
+  const before = listAssistantAgents();
+  await before;
+
+  const rescanned = rescanAssistantAgents();
+  assert.notStrictEqual(rescanned, before, "expected rescan to start a NEW probe rather than reuse the cached one");
+
+  const after = listAssistantAgents();
+  assert.strictEqual(after, rescanned, "expected the cache to now hold the rescanned probe, not the stale pre-rescan one");
+  await after;
 });
