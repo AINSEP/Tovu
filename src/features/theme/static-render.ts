@@ -73,6 +73,10 @@ export interface StaticMenuItem {
   readonly href: string | null;
   readonly available: boolean;
   readonly isCurrent: boolean;
+  /** True when this item OR a descendant is current — what a sidebar uses to expand a section. */
+  readonly isActive?: boolean | undefined;
+  /** `NavItemAttrs` passthrough. Only the presentational fields this renderer emits are declared. */
+  readonly attrs?: { readonly cssClass?: string | undefined; readonly description?: string | undefined; readonly icon?: string | undefined } | undefined;
   readonly children: readonly StaticMenuItem[];
 }
 
@@ -105,6 +109,62 @@ function renderMenuLinks(items: readonly StaticMenuItem[]): string {
 }
 
 /**
+ * Renders a resolved menu as a nested `<ul>`/`<li>` tree — the shape a docs sidebar needs and
+ * {@link renderMenuLinks} cannot produce. **Opt-in per marker** via `data-embed-variant="tree"`, and
+ * that is a hard requirement rather than a preference: every static theme's nav CSS today targets
+ * direct `<a>` children of a flex container (`basic`'s own `.main-nav { display: flex }` with
+ * `.main-nav a`, and the same shape in the other six), so unconditionally introducing a `<ul>` wrapper
+ * would collapse each of those navs to a single flex child. Flat stays the default and stays
+ * byte-identical; a theme opts a specific marker into the tree when its CSS is ready for one.
+ *
+ * Emitted hooks, all of which `renderMenuLinks` drops on the floor: `is-current` (this item is the
+ * page), `is-active` (this item or a descendant is — what expands the right section), `has-children`,
+ * a `depth-N` class, and the item's own authored `attrs.cssClass`. `description`/`icon` render as
+ * child spans so a theme can style or ignore them without the renderer knowing an icon set.
+ *
+ * Availability rule, which differs from the flat renderer's on purpose: an unavailable **leaf** is
+ * omitted entirely (the flat contract — never emit a dead link), but an unavailable **branch** is
+ * kept as inert text so its available children are not deleted along with it. A trashed section
+ * heading should not silently take its whole subtree off the page.
+ */
+function renderMenuTree(items: readonly StaticMenuItem[], depth = 0): string {
+  const rendered = items
+    .map((item) => {
+      const linkable = item.available && item.href !== null;
+      const children = item.children.length > 0 ? renderMenuTree(item.children, depth + 1) : "";
+      if (!linkable && children === "") return "";
+
+      const classes = [
+        "menu-item",
+        `depth-${depth}`,
+        item.children.length > 0 ? "has-children" : "",
+        item.isCurrent ? "is-current" : "",
+        item.isActive ? "is-active" : "",
+        item.attrs?.cssClass ?? "",
+      ]
+        .filter((c) => c !== "")
+        .join(" ");
+
+      const label = escapeHtml(item.label);
+      const icon = item.attrs?.icon
+        ? `<span class="menu-item-icon" data-icon="${escapeHtml(item.attrs.icon)}"></span>`
+        : "";
+      const description = item.attrs?.description
+        ? `<span class="menu-item-desc">${escapeHtml(item.attrs.description)}</span>`
+        : "";
+      const body = linkable
+        ? `<a href="${escapeHtml(item.href as string)}"${item.isCurrent ? ' aria-current="page"' : ""}>${icon}${label}${description}</a>`
+        : `<span class="menu-item-label">${icon}${label}${description}</span>`;
+
+      return `<li class="${classes}">${body}${children}</li>`;
+    })
+    .filter((li) => li !== "")
+    .join("");
+
+  return rendered === "" ? "" : `<ul class="menu-list depth-${depth}">${rendered}</ul>`;
+}
+
+/**
  * Fills a theme's `data-embed-type="menu" data-embed-id="<menuId>"` marker element with that real
  * menu's resolved items, or leaves the marker's authored content completely untouched when no menu
  * data is supplied for that id (deleted menu, typo in theme markup, or the id simply resolves to
@@ -127,12 +187,19 @@ function renderMenuLinks(items: readonly StaticMenuItem[]): string {
  */
 function injectMenuEmbed(html: string, menuId: string, items: readonly StaticMenuItem[] | undefined): string {
   if (items === undefined) return html;
-  const linksHtml = renderMenuLinks(items);
-  if (linksHtml === "") return html;
   const marker = new RegExp(
     `<([a-z]+)([^>]*data-embed-type="menu"[^>]*data-embed-id="${menuId}"[^>]*)>[\\s\\S]*?<\\/\\1>`
   );
-  return html.replace(marker, (_m, tag: string, attrs: string) => `<${tag}${attrs}>${linksHtml}</${tag}>`);
+  return html.replace(marker, (whole: string, tag: string, attrs: string) => {
+    // `data-embed-variant="tree"` is read off the marker the theme authored, so the choice of markup
+    // shape belongs to whoever owns the CSS around it — see {@link renderMenuTree} for why this
+    // cannot default to the tree.
+    const tree = /data-embed-variant="tree"/.test(attrs);
+    const inner = tree ? renderMenuTree(items) : renderMenuLinks(items);
+    // Unchanged contract: an empty render leaves the marker's own authored fallback content alone
+    // rather than blanking the nav.
+    return inner === "" ? whole : `<${tag}${attrs}>${inner}</${tag}>`;
+  });
 }
 
 /**
