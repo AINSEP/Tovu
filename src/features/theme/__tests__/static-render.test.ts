@@ -177,6 +177,145 @@ test("renderStaticPage: tailark-quartz-libre's mobile Sign in/Get started surviv
 });
 
 /**
+ * Tree-variant menu rendering (docs sidebar, 2026-08-10). The back-compat floor is the point of the
+ * first test here: every static theme's nav CSS targets direct `<a>` children of a flex container,
+ * so the tree is opt-in per marker and the default output stays byte-identical.
+ */
+
+const TREE_MARKER = `<nav data-embed-type="menu" data-embed-id="${HEADER_ID}" data-embed-variant="tree"></nav>`;
+
+function treeTheme(): DiscoveredTheme {
+  const theme = makeTheme();
+  theme.partials = {};
+  theme.pages["index"] = `<html><body>${TREE_MARKER}</body></html>`;
+  return theme;
+}
+
+test("renderMenuTree: a marker WITHOUT the tree variant still gets flat <a> output, byte-identical", () => {
+  const theme = makeTheme();
+  theme.partials = { nav: `<nav data-embed-type="menu" data-embed-id="${HEADER_ID}"></nav>` };
+  const html = renderStaticPage({
+    theme,
+    pageId: "index",
+    menus: { [HEADER_ID]: items({ label: "Docs", href: "/docs" }) },
+  });
+  assert.ok(html?.includes('<a href="/docs">Docs</a>'));
+  assert.ok(!html?.includes("<ul"), "no list wrapper — .main-nav's flex layout depends on bare anchors");
+});
+
+test("renderMenuTree: the tree variant emits nested <ul>/<li> with depth classes", () => {
+  const html = renderStaticPage({
+    theme: treeTheme(),
+    pageId: "index",
+    menus: {
+      [HEADER_ID]: items({
+        label: "Themes",
+        href: "#themes",
+        children: items({ label: "Tokens", href: "#tokens" }),
+      }),
+    },
+  });
+  assert.ok(html?.includes('<ul class="menu-list depth-0">'));
+  assert.ok(html?.includes('<ul class="menu-list depth-1">'));
+  assert.ok(html?.includes('<a href="#tokens">Tokens</a>'));
+  assert.match(html ?? "", /class="menu-item depth-0 has-children"/);
+});
+
+test("renderMenuTree: isCurrent and isActive become distinct class hooks", () => {
+  const html = renderStaticPage({
+    theme: treeTheme(),
+    pageId: "index",
+    menus: {
+      [HEADER_ID]: items({
+        label: "Themes",
+        href: "#themes",
+        isActive: true,
+        children: items({ label: "Tokens", href: "#tokens", isCurrent: true, isActive: true }),
+      }),
+    },
+  });
+  assert.match(html ?? "", /class="menu-item depth-0 has-children is-active"/);
+  assert.match(html ?? "", /class="menu-item depth-1 is-current is-active"/);
+  assert.ok(html?.includes('aria-current="page"'));
+});
+
+test("renderMenuTree: an unavailable BRANCH stays as inert text so its children survive", () => {
+  const html = renderStaticPage({
+    theme: treeTheme(),
+    pageId: "index",
+    menus: {
+      [HEADER_ID]: items({
+        label: "Trashed Section",
+        href: null,
+        available: false,
+        children: items({ label: "Still Here", href: "#still-here" }),
+      }),
+    },
+  });
+  assert.ok(html?.includes('<span class="menu-item-label">Trashed Section</span>'));
+  assert.ok(html?.includes('<a href="#still-here">Still Here</a>'), "the subtree must not be deleted with its parent");
+});
+
+test("renderMenuTree: an unavailable LEAF is omitted entirely, never a dead link", () => {
+  const html = renderStaticPage({
+    theme: treeTheme(),
+    pageId: "index",
+    menus: {
+      [HEADER_ID]: items(
+        { label: "Gone", href: null, available: false },
+        { label: "Fine", href: "#fine" }
+      ),
+    },
+  });
+  assert.ok(!html?.includes("Gone"));
+  assert.ok(html?.includes('<a href="#fine">Fine</a>'));
+});
+
+test("renderMenuTree: authored cssClass, description and icon reach the markup", () => {
+  const html = renderStaticPage({
+    theme: treeTheme(),
+    pageId: "index",
+    menus: {
+      [HEADER_ID]: items({
+        label: "Tokens",
+        href: "#tokens",
+        attrs: { cssClass: "is-new", description: "Design variables", icon: "swatch" },
+      }),
+    },
+  });
+  assert.match(html ?? "", /class="menu-item depth-0 is-new"/);
+  assert.ok(html?.includes('<span class="menu-item-desc">Design variables</span>'));
+  assert.ok(html?.includes('data-icon="swatch"'));
+});
+
+test("renderMenuTree: a tree that renders to nothing leaves the marker's authored fallback alone", () => {
+  const theme = treeTheme();
+  theme.pages["index"] =
+    `<html><body><nav data-embed-type="menu" data-embed-id="${HEADER_ID}" data-embed-variant="tree">FALLBACK</nav></body></html>`;
+  const html = renderStaticPage({
+    theme,
+    pageId: "index",
+    menus: { [HEADER_ID]: items({ label: "Gone", href: null, available: false }) },
+  });
+  assert.ok(html?.includes("FALLBACK"), "an empty render must never blank the marker");
+});
+
+test("the real `basic` theme ships blog-sidebar-template.html and declares it as a post template", () => {
+  const theme = loadTheme({
+    themeDir: path.join(process.cwd(), "src/themes/static/basic"),
+    id: "basic",
+    source: "built-in",
+  });
+  assert.equal(theme.status, "valid");
+  assert.ok(theme.manifest.postTemplate?.includes("blog-sidebar-template.html"));
+  assert.ok(theme.pages["blog-sidebar-template"] !== undefined, "the template must be discovered off disk");
+  assert.ok(
+    theme.pages["blog-sidebar-template"].includes('data-embed-variant="tree"'),
+    "the docs sidebar marker must opt into tree rendering"
+  );
+});
+
+/**
  * `theme.json`'s `modes`/`defaultMode`/`slots` were authored by every static theme on disk but read
  * by nothing until 2026-08-10 — `resolveSlots` hardcoded the nav/footer pair, and no code ever set
  * the `data-theme` attribute the light-token block keys off, so `tokens.light.json` was unreachable.
