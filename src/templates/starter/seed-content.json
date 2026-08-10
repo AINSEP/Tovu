@@ -147,7 +147,7 @@
       "version": 1
     },
     {
-      "id": "page-about",
+      "id": "post-about",
       "workspaceId": "workspace-local",
       "title": "What Is Tovu?",
       "slug": "about",
@@ -289,7 +289,7 @@
       "version": 1
     },
     {
-      "id": "page-themes",
+      "id": "post-themes",
       "workspaceId": "workspace-local",
       "title": "How Themes Work",
       "slug": "how-themes-work",
@@ -733,7 +733,7 @@
       "version": 1
     },
     {
-      "id": "page-plugins",
+      "id": "post-plugins",
       "workspaceId": "workspace-local",
       "title": "How Plugins Work",
       "slug": "how-plugins-work",
@@ -891,7 +891,7 @@
       "version": 1
     },
     {
-      "id": "page-plugin-api",
+      "id": "post-plugin-api",
       "workspaceId": "workspace-local",
       "title": "The Plugin API",
       "slug": "plugin-api",
@@ -1069,7 +1069,7 @@
       "version": 1
     },
     {
-      "id": "page-self-hosting",
+      "id": "post-self-hosting",
       "workspaceId": "workspace-local",
       "title": "Self-Hosting — Coming Soon",
       "slug": "self-hosting",

@@ -42,6 +42,22 @@ interface AdminPostFields {
    * all, and every pre-feature field above is unchanged.
    */
   ext?: Record<string, Record<string, unknown>>;
+  /**
+   * Post-template-picker feature (2026-08-10) — NEW field, additive and OPTIONAL, same migration-
+   * safety pattern as `ext` above: the `pages/*.html` filename (of the active static theme's
+   * `theme.json` `postTemplate` array) this post renders through. `toHeadlessPost` always populates
+   * a real value (`post.templateChoice ?? null`) on every live response, so a consumer only ever
+   * sees `undefined` in a hand-built test fixture that predates this field, never from the real API.
+   * `null` and `""` are NOT interchangeable — see `PostRecord.templateChoice` for the tri-state.
+   */
+  templateChoice?: string | null;
+  /**
+   * Slug-collision override (2026-08-10) — NEW field, additive and OPTIONAL, same pattern as
+   * `templateChoice` above: `true` when this post has been explicitly set to win over an active
+   * static theme's own same-slug page. `toHeadlessPost` always populates a real boolean on every
+   * live response; `undefined` only appears in a pre-feature test fixture.
+   */
+  overridesThemePage?: boolean;
 }
 
 /**
@@ -71,6 +87,18 @@ export interface ContentPost {
   updatedAt: string;
 }
 
+/**
+ * ADR-020 capability tier, mirrored locally from `features/theme`'s `ThemeTier` for the same
+ * decoupling reason as `HeadlessEntryKind` above — the wire contract doesn't import feature
+ * internals. Kept in lockstep by `toAdminPresentationResponse`, the only place that populates it.
+ */
+export type HeadlessThemeTier = "declarative" | "templated" | "handlebars" | "static" | "code";
+
+export interface HeadlessThemeSummary {
+  id: HeadlessThemeId;
+  tier: HeadlessThemeTier;
+}
+
 export interface AdminPresentation {
   settings: {
     workspaceId: string;
@@ -78,6 +106,27 @@ export interface AdminPresentation {
     updatedAt: string;
   };
   availableThemeIds: HeadlessThemeId[];
+  /**
+   * Themes admin screen (2026-08-10) — every available theme's id plus its ADR-020 capability
+   * tier, so the Themes screen can group cards by tier without a second round trip. Same id set
+   * as `availableThemeIds` above (that field stays for callers that only need ids); this is the
+   * superset callers that need tier read instead.
+   */
+  availableThemes: HeadlessThemeSummary[];
+  /**
+   * Post-template-picker feature (2026-08-10) — the active theme's `theme.json` `postTemplate`
+   * array (e.g. `["blog-post.html"]`), or `[]` when the active theme doesn't declare one. The Post
+   * editor's template picker reads this to populate its options; an empty array means the picker
+   * has nothing to offer and stays hidden, not broken.
+   */
+  activeThemePostTemplates: string[];
+  /**
+   * Slug-collision override (2026-08-10) — every page id (`theme.pages` key) the active theme ships,
+   * or `[]` for a non-`static`-tier theme. The Post editor uses this to warn an author when a post's
+   * slug matches one of these — that slug's route currently belongs to the theme's own page, not the
+   * post, unless the post's `overridesThemePage` is set.
+   */
+  activeThemeStaticPageIds: string[];
 }
 
 export interface ContentPostPayload {

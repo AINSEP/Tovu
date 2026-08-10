@@ -122,9 +122,9 @@ const LIST_SCHEMA = {
   properties: {
     tier: {
       type: "string",
-      enum: ["declarative", "templated", "handlebars", "code"],
+      enum: ["declarative", "templated", "handlebars", "static", "code"],
       description:
-        "Filter to themes of exactly this capability tier. 'declarative' = JSON block trees, 'templated' = LiquidJS, 'handlebars' = Handlebars, 'code' = signed-plugin JS (reserved, no themes exist). Omit to list every tier.",
+        "Filter to themes of exactly this capability tier. 'declarative' = JSON block trees, 'templated' = LiquidJS, 'handlebars' = Handlebars, 'static' = plain HTML/CSS/JS pages, 'code' = signed-plugin JS (reserved, no themes exist). Omit to list every tier.",
     },
     status: {
       type: "string",

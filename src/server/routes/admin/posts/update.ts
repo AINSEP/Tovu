@@ -1,6 +1,7 @@
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { processOutbox } from "#src/core/events/index";
 import {
+  getAdminPostByIdOrSlug,
   PostConflictError,
   PostNotFoundError,
   PostValidationError,
@@ -42,7 +43,16 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
         return;
       }
 
-      const postId = String(req.params.postId ?? "");
+      const rawParam = String(req.params.postId ?? "");
+      // Admin URLs use the slug when one resolves (2026-08-10) — resolve to the real stable id up
+      // front, before the command gateway starts, so `entityId`/`captureInverse`/`updatePost` all
+      // key off the same real id even when the URL's own slug is one of the fields being changed in
+      // this very request. Falls back to the raw param on no match, which reaches the exact same
+      // "not found" 404 path this route already had (captureInverse's own findById returns null).
+      const postId = (await getAdminPostByIdOrSlug({
+        deps: { repo: deps.postRepo },
+        input: { workspaceId: deps.workspaceId, idOrSlug: rawParam },
+      }).catch(() => null))?.post.id ?? rawParam;
       const idempotencyKey = req.get("Idempotency-Key") || undefined;
 
       // Full pre-edit record, captured in captureInverse and reused verbatim by
@@ -83,6 +93,8 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
                 slug: priorPost.slug,
                 bodyJson: priorPost.bodyJson,
                 status: priorPost.status,
+                templateChoice: priorPost.templateChoice ?? null,
+                overridesThemePage: priorPost.overridesThemePage ?? false,
                 // SPEC-005 BR-08 (T024) — the pre-edit plugin `ext` bag travels in the pre-image
                 // alongside the core fields, so one revert restores both together. Spread
                 // conditionally: an entry with no `ext` yet must produce an inverse payload with
@@ -100,6 +112,8 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
                   slug: String(req.body?.slug ?? ""),
                   bodyJson: req.body?.bodyJson,
                   status: req.body?.status,
+                  templateChoice: req.body?.templateChoice,
+                  overridesThemePage: req.body?.overridesThemePage,
                 },
               }),
             captureEntityVersion: (r) => r.post.version,

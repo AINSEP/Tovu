@@ -78,7 +78,7 @@ function fakePost(overrides: Partial<PostRecord> = {}): PostRecord {
 }
 
 test("renderSite renders the live themes/dispatch home page: header/footer components, entry grid, escaped titles, no leftover Liquid tags", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid", `expected dispatch to load valid, got errors: ${JSON.stringify(theme.errors)}`);
 
   const posts = [fakePost(), fakePost({ id: "2", slug: "second", title: "Second Post", updatedAt: "2026-06-01T00:00:00.000Z" })];
@@ -95,7 +95,7 @@ test("renderSite renders the live themes/dispatch home page: header/footer compo
 });
 
 test("renderSite renders the live themes/dispatch entry (post) page: content injected raw, title escaped in the shell", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
 
   const post = fakePost();
@@ -111,7 +111,7 @@ test("renderSite renders the live themes/dispatch entry (post) page: content inj
 });
 
 test("renderSite: the ADR-054 visitor-chat mount node + script are absent by default, and every pre-existing caller (no siteAssistantEnabled param) keeps getting no widget", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
 
   const html = await renderSite({ theme, route: "home", siteTitle: "Dispatch Demo", posts: [] });
@@ -121,7 +121,7 @@ test("renderSite: the ADR-054 visitor-chat mount node + script are absent by def
 });
 
 test("renderSite: siteAssistantEnabled:false is the same as omitting it — no mount node, no script, no stylesheet", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
 
   const html = await renderSite({ theme, route: "home", siteTitle: "Dispatch Demo", posts: [], siteAssistantEnabled: false });
@@ -131,7 +131,7 @@ test("renderSite: siteAssistantEnabled:false is the same as omitting it — no m
 });
 
 test("renderSite: siteAssistantEnabled:true injects the stylesheet link, mount node, and deferred script, once each, in the page shell (not a theme template)", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
 
   const html = await renderSite({ theme, route: "home", siteTitle: "Dispatch Demo", posts: [], siteAssistantEnabled: true });
@@ -153,7 +153,7 @@ test("renderSite: siteAssistantEnabled:true injects the stylesheet link, mount n
 });
 
 test("renderSite falls back to the minimal built-in body (never 500s) when a templated theme's source is hostile at render time", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   // Simulate a template hot-edited on disk to smuggle a disallowed tag after
   // `loadTheme` already validated it — the worker's defensive re-lint must
@@ -227,7 +227,7 @@ test("renderSite (declarative tier): a region with no resolved widgets (or no wi
 });
 
 test("renderSite (Liquid tier): {% render_block region: \"footer\" %} resolves the same widget list over the same render_block seam, no new Liquid capability needed (ADR-047 §2a)", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   theme.liquidTemplates.home = '<div id="footer-region">{% render_block region: "footer" %}</div>';
 
@@ -444,7 +444,7 @@ test("renderSite: a ref-based image node embedded in a real post body renders a 
       content: [{ type: "image", attrs: { assetId: "asset-42", transformName: "public", alt: "Team photo" } }],
     },
   });
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   const html = await renderSite({
     theme,
@@ -465,7 +465,7 @@ test("renderSite: an image node embedded in a real post body renders the placeho
       content: [{ type: "image", attrs: { src: "data:image/png;base64,AAAA", alt: "Team photo" } }],
     },
   });
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
   const html = await renderSite({ theme, route: "post", siteTitle: "Dispatch Demo", posts: [post], post });
   assert.match(html, /media-ph/);
@@ -639,7 +639,7 @@ function htmlEmbeds(byType: Readonly<Record<string, ReadonlyMap<string, WidgetRe
 }
 
 test("renderSite (Slice 1): an 'html'-format post's body_html renders raw through the live dispatch theme's post.content — its bodyJson is never walked", async () => {
-  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "liquidjs", "dispatch"), id: "dispatch", source: "built-in" });
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "src", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
 
   const post = htmlPage({

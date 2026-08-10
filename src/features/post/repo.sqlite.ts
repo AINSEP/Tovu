@@ -63,6 +63,8 @@ function toRecord(row: PostRow): PostRecord {
     version: row.version,
     seoExtJson: row.seoExtJson ?? null,
     deletedAt: row.deletedAt ?? null,
+    templateChoice: row.templateChoice ?? null,
+    overridesThemePage: row.overridesThemePage,
     ...(ext !== undefined ? { ext } : {}),
   };
 }
@@ -112,6 +114,8 @@ export class SqlitePostRepo implements PostRepoPort {
       // writes a record with `deletedAt: null` through `save()` — actually clears the marker.
       // SETTING a marker still goes through `softDelete` alone (see `PostRepoPort`'s own doc).
       deletedAt: record.deletedAt ?? null,
+      templateChoice: record.templateChoice ?? null,
+      overridesThemePage: record.overridesThemePage ?? false,
       ext: JSON.stringify(record.ext ?? {}),
     };
     this.db
@@ -132,6 +136,8 @@ export class SqlitePostRepo implements PostRepoPort {
           version: row.version,
           seoExtJson: row.seoExtJson,
           deletedAt: row.deletedAt,
+          templateChoice: row.templateChoice,
+          overridesThemePage: row.overridesThemePage,
           ext: row.ext,
         },
       })

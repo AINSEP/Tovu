@@ -38,6 +38,13 @@ test("admin and content serializers stay aligned with shared headless contracts"
   const adminPresentationPayload: AdminPresentation = toAdminPresentationResponse({
     settings: seedPresentation,
     availableThemeIds: ["paper", "atlas", "glassmorphic"],
+    availableThemes: [
+      { id: "paper", tier: "declarative" },
+      { id: "atlas", tier: "declarative" },
+      { id: "glassmorphic", tier: "declarative" },
+    ],
+    activeThemePostTemplates: [],
+    activeThemeStaticPageIds: [],
   });
   const contentPayload: ContentPostPayload = toContentPostResponse({
     post: seedPost,
@@ -59,6 +66,13 @@ test("admin and content serializers stay aligned with shared headless contracts"
       status: "published",
       updatedAt: "2026-04-06T00:00:00.000Z",
       version: 3,
+      // Post-template-picker / slug-collision-override features — `toAdminPostResponse` populates
+      // both on every live response even when the record itself carries neither (see
+      // `HeadlessPost.templateChoice`'s doc), so the serialized shape gains two keys the
+      // `seedPost` above never sets. `null` here is "never chosen", NOT "opted out" — the two are
+      // distinct stored values, see `resolvePostTemplate`.
+      templateChoice: null,
+      overridesThemePage: false,
     },
   });
 
@@ -69,6 +83,13 @@ test("admin and content serializers stay aligned with shared headless contracts"
       updatedAt: "2026-04-06T00:00:00.000Z",
     },
     availableThemeIds: ["paper", "atlas", "glassmorphic"],
+    availableThemes: [
+      { id: "paper", tier: "declarative" },
+      { id: "atlas", tier: "declarative" },
+      { id: "glassmorphic", tier: "declarative" },
+    ],
+    activeThemePostTemplates: [],
+    activeThemeStaticPageIds: [],
   });
 
   assert.deepEqual(contentPayload, {
