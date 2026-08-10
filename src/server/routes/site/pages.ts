@@ -217,7 +217,16 @@ async function resolveStaticMenusForRender(
 
   const entries = await Promise.all(
     menuIds.map(async (menuId): Promise<readonly [string, readonly StaticMenuItem[]] | undefined> => {
-      const menu = await deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: menuId });
+      // Resolved by SLUG first, id second. A theme marker is authored once and shipped to every
+      // install, but `createMenu` mints a menu's id with `idGen.newId()` — so a hardcoded
+      // `data-embed-id` could only ever match on the one install where that random id happened to
+      // be generated. The slug is the stable machine handle the model already documents for exactly
+      // this ("e.g. `primary-nav`", navigation/types.ts:161), so it is what a shipped theme can
+      // actually name. The id lookup stays as the fallback for a marker pointing at a specific
+      // stored menu, which is what the pre-2026-08-10 behavior did unconditionally.
+      const menu =
+        (await deps.menuRepo.findBySlug({ workspaceId: deps.workspaceId, slug: menuId })) ??
+        (await deps.menuRepo.findById({ workspaceId: deps.workspaceId, id: menuId }));
       if (!menu) return undefined;
       const items = await resolveMenuDoc({
         doc: menu.doc,
