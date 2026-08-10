@@ -1133,4 +1133,193 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Stato dell'assistente, numero di conversazioni recenti e spesa fino ad oggi — la vista che ti segnalerebbe un problema di budget o di limitazione della frequenza mentre si sta verificando.",
     "Not implemented": "Non implementato",
   },
+  hi: {
+    "Turn the visitor-facing assistant on or off for your public site.":
+      "अपनी सार्वजनिक साइट पर विज़िटर के सामने आने वाले सहायक को चालू या बंद करें।",
+    "Loading AI assistant settings…": "एआई सहायक की सेटिंग्स लोड हो रही हैं…",
+    "Visitor's AI Assistant": "विज़िटर का एआई सहायक",
+    "The assistant your published site offers to readers.": "वह सहायक जो आपकी प्रकाशित साइट पाठकों को उपलब्ध कराती है।",
+    "Admin AI Assistant": "एडमिन एआई सहायक",
+    "The assistant in this admin, for signed-in administrators.":
+      "इस एडमिन में मौजूद सहायक, साइन-इन किए हुए प्रशासकों के लिए है।",
+    "Not built yet": "अभी तक नहीं बनाया गया",
+    "Operator controls that are planned but not implemented.": "ऐसे ऑपरेटर नियंत्रण जिनकी योजना है लेकिन जिन्हें अभी लागू नहीं किया गया है।",
+    "Enable the AI assistant on the public site. *API Key needed*":
+      "सार्वजनिक साइट पर एआई सहायक सक्षम करें। *API कुंजी आवश्यक है*",
+    "Visitors can chat with the assistant. It is served on every public page.":
+      "विज़िटर सहायक से चैट कर सकते हैं। यह हर सार्वजनिक पेज पर उपलब्ध कराया जाता है।",
+    "Off. The public site ships no assistant code and exposes no assistant endpoint — this is a full disable, not a hidden widget.":
+      "बंद। सार्वजनिक साइट में कोई सहायक कोड शामिल नहीं होता और न ही कोई सहायक एंडपॉइंट उजागर होता है — यह एक पूर्ण निष्क्रियकरण है, कोई छुपा हुआ विजेट नहीं।",
+    "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
+      "यह कुंजी आपके विज़िटर के लिए है, आपके लिए नहीं। यह वही है जो आपकी प्रकाशित साइट पढ़ने वाले लोगों को सवाल पूछने और जवाब पाने देती है। यह सर्वर पर संग्रहीत होती है और हर विज़िटर बातचीत के लिए उपयोग की जाती है।",
+    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is saved only in this browser, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "यह सेटिंग्स → निष्पादन मोड → BYOK में मौजूद कुंजी से अलग कुंजी है। वह कुंजी आपकी अपनी है, केवल इसी ब्राउज़र में सहेजी जाती है, और इस एडमिन में सहायक को शक्ति देती है। डिप्लॉय की गई साइट इसे कभी उपयोग नहीं कर सकती — इसीलिए वहां कुंजी सहेजने से विज़िटर चैट चालू नहीं होता।",
+    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
+      'नीचे दिए गए "केवल इस होस्ट द्वारा संग्रहीत" नोट को अनदेखा करें। यह साझा फ़ॉर्म घटक से संबंधित है और सेटिंग्स स्क्रीन पर सटीक है, यहां नहीं। यह कुंजी सर्वर पर एन्क्रिप्टेड रूप से संग्रहीत की जाएगी।',
+    "See more about the visitor key": "विज़िटर कुंजी के बारे में अधिक जानें",
+    "See more": "अधिक देखें",
+    "See less": "कम देखें",
+    Protocols: "प्रोटोकॉल",
+    Gateways: "गेटवे",
+    Configured: "कॉन्फ़िगर किया गया",
+    "Not configured": "कॉन्फ़िगर नहीं किया गया",
+    Save: "सहेजें",
+    "Saving…": "सहेजा जा रहा है…",
+    "Test Key": "कुंजी टेस्ट करें",
+    "Testing…": "टेस्ट हो रहा है…",
+    "Key works — {count} models available.": "कुंजी काम कर रही है — {count} मॉडल उपलब्ध हैं।",
+    "Checks the key against the provider and lists the models it can use.":
+      "यह कुंजी को प्रदाता के पास जांचता है और उन मॉडल की सूची दिखाता है जिन्हें यह उपयोग कर सकती है।",
+    "Asking the provider which models this key allows…": "प्रदाता से पूछा जा रहा है कि यह कुंजी किन मॉडल की अनुमति देती है…",
+    "Saved to the server, encrypted.": "सर्वर पर एन्क्रिप्टेड रूप से सहेजा गया।",
+    "Not saved yet — press Save.": "अभी तक सहेजा नहीं गया — सहेजें दबाएं।",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "सर्वर पर एन्क्रिप्टेड रूप से संग्रहीत। इसे बदलने के लिए एक नई कुंजी पेस्ट करें।",
+    "Paste your key, check it with Show, then press Save.":
+      "अपनी कुंजी पेस्ट करें, दिखाएं से इसकी जांच करें, फिर सहेजें दबाएं।",
+    "Show the AI assistant on the admin site": "एडमिन साइट पर एआई सहायक दिखाएं",
+    "Open. The assistant panel is showing on the right.": "खुला है। सहायक पैनल दाईं ओर दिखाया जा रहा है।",
+    "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
+      "इस एडमिन में सहायक पैनल खोलता है — ठीक वही जो नीचे-दाईं ओर के फ़्लोटिंग बटन से होता है।",
+    "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
+      "साइन-इन प्रशासकों के लिए हमेशा उपलब्ध, इसलिए यह केवल पैनल को दिखाता या छुपाता है। यदि फ़्लोटिंग बटन कभी स्क्रीन से बाहर हो या ढूंढना मुश्किल हो तो इसका उपयोग करें।",
+    "Loading execution settings…": "निष्पादन सेटिंग्स लोड हो रही हैं…",
+    "Detected on the Tovu server, not on your own computer.": "Tovu सर्वर पर पहचाना गया, आपके अपने कंप्यूटर पर नहीं।",
+    "Saved.": "सहेजा गया।",
+    "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
+      "ये ऑपरेटर नियंत्रण योजनाबद्ध हैं लेकिन अभी लागू नहीं हुए हैं। नीचे दिया गया कुछ भी सक्रिय नहीं है — आज सहायक को चालू करने का मतलब है इसे बिना किसी लागत सीमा के, बिना प्रति-विज़िटर दर सीमा के, और बिना लाइव गतिविधि दृश्य के चलाना।",
+    "Token / cost budget caps": "टोकन / लागत बजट सीमाएं",
+    "Per-day and per-conversation spend ceilings, with the assistant disabling itself when a ceiling is exhausted. Until this exists, the switch above is the only spending control.":
+      "प्रति-दिन और प्रति-बातचीत खर्च सीमाएं, जिनमें सीमा समाप्त होने पर सहायक स्वयं को निष्क्रिय कर देता है। जब तक यह मौजूद नहीं है, ऊपर दिया गया स्विच ही एकमात्र खर्च नियंत्रण है।",
+    "Live status and recent activity": "लाइव स्थिति और हाल की गतिविधि",
+    "Assistant health, recent conversation counts, and spend to date — the view that would tell you a budget or rate-limit problem is happening while it is happening.":
+      "सहायक की स्थिति, हाल की बातचीत की संख्या, और अब तक का खर्च — वह दृश्य जो घटित होते समय ही आपको बजट या दर-सीमा की समस्या के बारे में बता देगा।",
+    "Not implemented": "लागू नहीं किया गया",
+  },
+  ur: {
+    "Turn the visitor-facing assistant on or off for your public site.":
+      "اپنی عوامی سائٹ کے لیے وزیٹر کو نظر آنے والے اسسٹنٹ کو آن یا آف کریں۔",
+    "Loading AI assistant settings…": "AI اسسٹنٹ کی ترتیبات لوڈ ہو رہی ہیں…",
+    "Visitor's AI Assistant": "وزیٹر کا AI اسسٹنٹ",
+    "The assistant your published site offers to readers.": "وہ اسسٹنٹ جو آپ کی شائع شدہ سائٹ قارئین کو فراہم کرتی ہے۔",
+    "Admin AI Assistant": "ایڈمن AI اسسٹنٹ",
+    "The assistant in this admin, for signed-in administrators.":
+      "اس ایڈمن میں موجود اسسٹنٹ، سائن اِن ایڈمنسٹریٹرز کے لیے ہے۔",
+    "Not built yet": "ابھی تک نہیں بنایا گیا",
+    "Operator controls that are planned but not implemented.": "آپریٹر کنٹرولز جن کا منصوبہ ہے مگر جنہیں ابھی نافذ نہیں کیا گیا۔",
+    "Enable the AI assistant on the public site. *API Key needed*":
+      "عوامی سائٹ پر AI اسسٹنٹ فعال کریں۔ *API کلید درکار ہے*",
+    "Visitors can chat with the assistant. It is served on every public page.":
+      "وزیٹرز اسسٹنٹ کے ساتھ چیٹ کر سکتے ہیں۔ یہ ہر عوامی صفحے پر فراہم کی جاتی ہے۔",
+    "Off. The public site ships no assistant code and exposes no assistant endpoint — this is a full disable, not a hidden widget.":
+      "بند۔ عوامی سائٹ میں اسسٹنٹ کا کوئی کوڈ شامل نہیں ہوتا اور نہ ہی کوئی اسسٹنٹ اینڈ پوائنٹ ظاہر ہوتا ہے — یہ مکمل غیرفعالیت ہے، کوئی چھپا ہوا ویجٹ نہیں۔",
+    "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
+      "یہ کلید آپ کے وزیٹرز کے لیے ہے، آپ کے لیے نہیں۔ یہی وہ چیز ہے جو آپ کی شائع شدہ سائٹ پڑھنے والے لوگوں کو سوالات پوچھنے اور جوابات حاصل کرنے دیتی ہے۔ یہ سرور پر محفوظ ہوتی ہے اور ہر وزیٹر گفتگو کے لیے استعمال ہوتی ہے۔",
+    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is saved only in this browser, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "یہ ترتیبات → ایگزیکیوشن موڈ → BYOK کے تحت موجود کلید سے مختلف کلید ہے۔ وہ آپ کی اپنی ہے، صرف اسی براؤزر میں محفوظ ہوتی ہے، اور اس ایڈمن میں اسسٹنٹ کو طاقت دیتی ہے۔ کوئی ڈیپلائے شدہ سائٹ اسے کبھی استعمال نہیں کر سکتی — اسی لیے وہاں کلید محفوظ کرنے سے وزیٹر چیٹ فعال نہیں ہوتی۔",
+    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
+      'نیچے دیے گئے "صرف اسی ہوسٹ کے ذریعے محفوظ" نوٹ کو نظر انداز کریں۔ یہ مشترکہ فارم جزو سے تعلق رکھتا ہے اور ترتیبات کی اسکرین پر درست ہے، یہاں نہیں۔ یہ کلید سرور پر خفیہ کاری کے ساتھ محفوظ کی جائے گی۔',
+    "See more about the visitor key": "وزیٹر کلید کے بارے میں مزید دیکھیں",
+    "See more": "مزید دیکھیں",
+    "See less": "کم دیکھیں",
+    Protocols: "پروٹوکولز",
+    Gateways: "گیٹ ویز",
+    Configured: "کنفیگر کیا گیا",
+    "Not configured": "کنفیگر نہیں کیا گیا",
+    Save: "محفوظ کریں",
+    "Saving…": "محفوظ ہو رہا ہے…",
+    "Test Key": "کلید ٹیسٹ کریں",
+    "Testing…": "ٹیسٹ ہو رہا ہے…",
+    "Key works — {count} models available.": "کلید کام کر رہی ہے — {count} ماڈلز دستیاب ہیں۔",
+    "Checks the key against the provider and lists the models it can use.":
+      "کلید کو فراہم کنندہ کے پاس چیک کرتی ہے اور ان ماڈلز کی فہرست دکھاتی ہے جو یہ استعمال کر سکتی ہے۔",
+    "Asking the provider which models this key allows…": "فراہم کنندہ سے پوچھا جا رہا ہے کہ یہ کلید کن ماڈلز کی اجازت دیتی ہے…",
+    "Saved to the server, encrypted.": "سرور پر خفیہ کاری کے ساتھ محفوظ ہو گئی۔",
+    "Not saved yet — press Save.": "ابھی تک محفوظ نہیں ہوئی — محفوظ کریں دبائیں۔",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "سرور پر خفیہ کاری کے ساتھ محفوظ ہے۔ اسے بدلنے کے لیے نئی کلید پیسٹ کریں۔",
+    "Paste your key, check it with Show, then press Save.":
+      "اپنی کلید پیسٹ کریں، دکھائیں کے ذریعے اسے چیک کریں، پھر محفوظ کریں دبائیں۔",
+    "Show the AI assistant on the admin site": "ایڈمن سائٹ پر AI اسسٹنٹ دکھائیں",
+    "Open. The assistant panel is showing on the right.": "کھلا ہے۔ اسسٹنٹ پینل دائیں جانب دکھایا جا رہا ہے۔",
+    "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
+      "اس ایڈمن میں اسسٹنٹ پینل کھولتا ہے — بالکل وہی کام جو نیچے دائیں کونے میں موجود فلوٹنگ بٹن کرتا ہے۔",
+    "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
+      "سائن اِن ایڈمنسٹریٹرز کے لیے ہمیشہ دستیاب، اس لیے یہ صرف پینل کو دکھاتا یا چھپاتا ہے۔ اگر فلوٹنگ بٹن کبھی اسکرین سے باہر ہو جائے یا ڈھونڈنا مشکل ہو تو اسے استعمال کریں۔",
+    "Loading execution settings…": "ایگزیکیوشن کی ترتیبات لوڈ ہو رہی ہیں…",
+    "Detected on the Tovu server, not on your own computer.": "Tovu سرور پر شناخت ہوئی، آپ کے اپنے کمپیوٹر پر نہیں۔",
+    "Saved.": "محفوظ ہو گیا۔",
+    "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
+      "یہ آپریٹر کنٹرولز کا منصوبہ ہے مگر یہ نافذ نہیں کیے گئے۔ نیچے دی گئی کوئی بھی چیز فعال نہیں ہے — آج اسسٹنٹ کو آن کرنے کا مطلب ہے اسے بغیر کسی لاگت کی حد کے، بغیر فی وزیٹر ریٹ لیمیٹنگ کے، اور بغیر لائیو سرگرمی کے منظر کے چلانا۔",
+    "Token / cost budget caps": "ٹوکن / لاگت بجٹ کی حدیں",
+    "Per-day and per-conversation spend ceilings, with the assistant disabling itself when a ceiling is exhausted. Until this exists, the switch above is the only spending control.":
+      "روزانہ اور فی گفتگو خرچ کی حدیں، جن میں حد ختم ہونے پر اسسٹنٹ خود کو غیرفعال کر لیتی ہے۔ جب تک یہ موجود نہیں، اوپر دیا گیا سوئچ ہی خرچ کا واحد کنٹرول ہے۔",
+    "Live status and recent activity": "لائیو حیثیت اور حالیہ سرگرمی",
+    "Assistant health, recent conversation counts, and spend to date — the view that would tell you a budget or rate-limit problem is happening while it is happening.":
+      "اسسٹنٹ کی صحت، حالیہ گفتگو کی تعداد، اور اب تک کا خرچ — وہ منظر جو آپ کو بجٹ یا ریٹ لمیٹ کے مسئلے کے بارے میں اسی وقت بتا دیتا جب وہ ہو رہا ہوتا۔",
+    "Not implemented": "نافذ نہیں کیا گیا",
+  },
+  bn: {
+    "Turn the visitor-facing assistant on or off for your public site.":
+      "আপনার পাবলিক সাইটের জন্য ভিজিটরমুখী সহকারী চালু বা বন্ধ করুন।",
+    "Loading AI assistant settings…": "এআই সহকারীর সেটিংস লোড হচ্ছে…",
+    "Visitor's AI Assistant": "ভিজিটরের এআই সহকারী",
+    "The assistant your published site offers to readers.": "আপনার প্রকাশিত সাইট পাঠকদের যে সহকারী প্রদান করে।",
+    "Admin AI Assistant": "অ্যাডমিন এআই সহকারী",
+    "The assistant in this admin, for signed-in administrators.":
+      "এই অ্যাডমিনের সহকারী, সাইন-ইন করা প্রশাসকদের জন্য।",
+    "Not built yet": "এখনও তৈরি হয়নি",
+    "Operator controls that are planned but not implemented.": "যেসব অপারেটর নিয়ন্ত্রণ পরিকল্পিত কিন্তু বাস্তবায়িত হয়নি।",
+    "Enable the AI assistant on the public site. *API Key needed*":
+      "পাবলিক সাইটে এআই সহকারী সক্ষম করুন। *API কী প্রয়োজন*",
+    "Visitors can chat with the assistant. It is served on every public page.":
+      "ভিজিটররা সহকারীর সাথে চ্যাট করতে পারেন। এটি প্রতিটি পাবলিক পৃষ্ঠায় দেওয়া হয়।",
+    "Off. The public site ships no assistant code and exposes no assistant endpoint — this is a full disable, not a hidden widget.":
+      "বন্ধ। পাবলিক সাইট কোনো সহকারী কোড পাঠায় না এবং কোনো সহকারী এন্ডপয়েন্ট প্রকাশ করে না — এটি সম্পূর্ণ নিষ্ক্রিয়করণ, কোনো লুকানো উইজেট নয়।",
+    "This key is for your visitors, not for you. It is what lets people reading your published site ask questions and get answers. It is stored on the server and used for every visitor conversation.":
+      "এই কী আপনার ভিজিটরদের জন্য, আপনার জন্য নয়। এটিই আপনার প্রকাশিত সাইট পড়া মানুষদের প্রশ্ন জিজ্ঞাসা করতে ও উত্তর পেতে দেয়। এটি সার্ভারে সংরক্ষিত থাকে এবং প্রতিটি ভিজিটর কথোপকথনে ব্যবহৃত হয়।",
+    "It is a different key from the one under Settings → Execution mode → BYOK. That one is your own, it is saved only in this browser, and it powers the assistant in this admin. A deployed site can never use it — which is why saving a key there does not switch on the visitor chat.":
+      "সেটিংস → এক্সিকিউশন মোড → BYOK-এর অধীনে থাকা কী থেকে এটি ভিন্ন একটি কী। সেটি আপনার নিজের, শুধু এই ব্রাউজারেই সংরক্ষিত থাকে, এবং এই অ্যাডমিনের সহকারীকে চালায়। কোনো ডিপ্লয় করা সাইট কখনো এটি ব্যবহার করতে পারে না — তাই সেখানে কী সংরক্ষণ করলে ভিজিটর চ্যাট চালু হয় না।",
+    'Ignore the "Stored only by this host" note below. It belongs to the shared form component and is accurate on the Settings screen, not here. This key will be stored on the server, encrypted.':
+      'নিচের "শুধু এই হোস্ট দ্বারা সংরক্ষিত" নোটটি উপেক্ষা করুন। এটি শেয়ার্ড ফর্ম কম্পোনেন্টের অংশ এবং সেটিংস স্ক্রিনে সঠিক, এখানে নয়। এই কী এনক্রিপ্ট করে সার্ভারে সংরক্ষণ করা হবে।',
+    "See more about the visitor key": "ভিজিটর কী সম্পর্কে আরও দেখুন",
+    "See more": "আরও দেখুন",
+    "See less": "কম দেখুন",
+    Protocols: "প্রোটোকল",
+    Gateways: "গেটওয়ে",
+    Configured: "কনফিগার করা হয়েছে",
+    "Not configured": "কনফিগার করা হয়নি",
+    Save: "সংরক্ষণ করুন",
+    "Saving…": "সংরক্ষণ করা হচ্ছে…",
+    "Test Key": "কী পরীক্ষা করুন",
+    "Testing…": "পরীক্ষা করা হচ্ছে…",
+    "Key works — {count} models available.": "কী কাজ করছে — {count}টি মডেল উপলব্ধ।",
+    "Checks the key against the provider and lists the models it can use.":
+      "প্রদানকারীর কাছে কী যাচাই করে এবং এটি যেসব মডেল ব্যবহার করতে পারে তার তালিকা দেখায়।",
+    "Asking the provider which models this key allows…": "প্রদানকারীর কাছে জিজ্ঞাসা করা হচ্ছে এই কী কোন কোন মডেলের অনুমতি দেয়…",
+    "Saved to the server, encrypted.": "এনক্রিপ্ট করে সার্ভারে সংরক্ষিত হয়েছে।",
+    "Not saved yet — press Save.": "এখনও সংরক্ষিত হয়নি — সংরক্ষণ করুন চাপুন।",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "এনক্রিপ্ট করে সার্ভারে সংরক্ষিত আছে। প্রতিস্থাপন করতে নতুন কী পেস্ট করুন।",
+    "Paste your key, check it with Show, then press Save.":
+      "আপনার কী পেস্ট করুন, দেখান দিয়ে এটি যাচাই করুন, তারপর সংরক্ষণ করুন চাপুন।",
+    "Show the AI assistant on the admin site": "অ্যাডমিন সাইটে এআই সহকারী দেখান",
+    "Open. The assistant panel is showing on the right.": "খোলা আছে। সহকারী প্যানেল ডানদিকে দেখানো হচ্ছে।",
+    "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
+      "এই অ্যাডমিনে সহকারী প্যানেল খোলে — নিচে-ডানদিকের কোণে থাকা ফ্লোটিং বোতাম যা করে ঠিক তাই।",
+    "Always available to signed-in administrators, so this only shows or hides the panel. Use it if the floating button is ever off-screen or hard to find.":
+      "সাইন-ইন করা প্রশাসকদের জন্য সবসময় উপলব্ধ, তাই এটি শুধু প্যানেলটি দেখায় বা লুকায়। ফ্লোটিং বোতাম কখনো স্ক্রিনের বাইরে চলে গেলে বা খুঁজে পেতে কঠিন হলে এটি ব্যবহার করুন।",
+    "Loading execution settings…": "এক্সিকিউশন সেটিংস লোড হচ্ছে…",
+    "Detected on the Tovu server, not on your own computer.": "Tovu সার্ভারে শনাক্ত হয়েছে, আপনার নিজের কম্পিউটারে নয়।",
+    "Saved.": "সংরক্ষিত হয়েছে।",
+    "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
+      "এই অপারেটর নিয়ন্ত্রণগুলো পরিকল্পিত কিন্তু বাস্তবায়িত হয়নি। নিচের কোনোটিই সক্রিয় নয় — আজ সহকারী চালু করার অর্থ হলো এটিকে কোনো খরচের সীমা ছাড়া, প্রতি-ভিজিটর রেট লিমিটিং ছাড়া, এবং লাইভ কার্যকলাপ ভিউ ছাড়া চালানো।",
+    "Token / cost budget caps": "টোকেন / খরচের বাজেট সীমা",
+    "Per-day and per-conversation spend ceilings, with the assistant disabling itself when a ceiling is exhausted. Until this exists, the switch above is the only spending control.":
+      "প্রতিদিন ও প্রতি-কথোপকথন খরচের সীমা, যেখানে সীমা শেষ হয়ে গেলে সহকারী নিজে থেকেই নিষ্ক্রিয় হয়ে যায়। এটি চালু না হওয়া পর্যন্ত, উপরের সুইচটিই একমাত্র খরচ নিয়ন্ত্রণ।",
+    "Live status and recent activity": "লাইভ স্ট্যাটাস ও সাম্প্রতিক কার্যকলাপ",
+    "Assistant health, recent conversation counts, and spend to date — the view that would tell you a budget or rate-limit problem is happening while it is happening.":
+      "সহকারীর স্বাস্থ্য, সাম্প্রতিক কথোপকথনের সংখ্যা, এবং এ পর্যন্ত খরচ — এমন একটি ভিউ যা বাজেট বা রেট-লিমিট সমস্যা ঘটার সময়েই আপনাকে জানিয়ে দিত।",
+    "Not implemented": "বাস্তবায়িত হয়নি",
+  },
 };

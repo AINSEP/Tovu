@@ -117,6 +117,24 @@ const SETTINGS_RAW_DICT: Record<string, Record<string, string>> = {
     "Failed to clear value": "Impossibile cancellare il valore",
     "Failed to reset namespace": "Impossibile ripristinare il namespace",
   },
+  hi: {
+    "Failed to load namespace": "नेमस्पेस लोड नहीं हो सका",
+    "Failed to save value": "मान सहेजा नहीं जा सका",
+    "Failed to clear value": "मान साफ़ नहीं हो सका",
+    "Failed to reset namespace": "नेमस्पेस रीसेट नहीं हो सका",
+  },
+  ur: {
+    "Failed to load namespace": "نیم اسپیس لوڈ نہیں ہو سکا",
+    "Failed to save value": "قدر محفوظ نہیں ہو سکی",
+    "Failed to clear value": "قدر صاف نہیں ہو سکی",
+    "Failed to reset namespace": "نیم اسپیس ری سیٹ نہیں ہو سکا",
+  },
+  bn: {
+    "Failed to load namespace": "নেমস্পেস লোড করা যায়নি",
+    "Failed to save value": "মান সংরক্ষণ করা যায়নি",
+    "Failed to clear value": "মান মুছে ফেলা যায়নি",
+    "Failed to reset namespace": "নেমস্পেস রিসেট করা যায়নি",
+  },
 };
 
 export const t = createDictionaryTranslator(SETTINGS_RAW_DICT);
@@ -141,6 +159,9 @@ const PRINCIPAL_NOT_FOUND_TEMPLATE: Record<string, string> = {
   tr: 'PRINCIPAL_NOT_FOUND: "{principalIdRaw}" ile eşleşen etkin bir principal yok.',
   th: 'PRINCIPAL_NOT_FOUND: ไม่มี principal ที่ใช้งานอยู่ตรงกับ "{principalIdRaw}"',
   it: 'PRINCIPAL_NOT_FOUND: nessun principal attivo corrisponde a "{principalIdRaw}".',
+  hi: 'PRINCIPAL_NOT_FOUND: "{principalIdRaw}" से कोई सक्रिय principal मेल नहीं खाता।',
+  ur: 'PRINCIPAL_NOT_FOUND: "{principalIdRaw}" سے کوئی فعال principal مماثل نہیں۔',
+  bn: 'PRINCIPAL_NOT_FOUND: "{principalIdRaw}"-এর সাথে কোনো সক্রিয় principal মেলে না।',
 };
 
 /** `onSubmitPrincipal`'s no-match error — keeps the `PRINCIPAL_NOT_FOUND:` machine-readable code
@@ -171,6 +192,9 @@ const SAVED_AT_SCOPE_TEMPLATE: Record<string, string> = {
   tr: "{namespace}.{key}, {scope} kapsamında kaydedildi.",
   th: "บันทึก {namespace}.{key} ในขอบเขต {scope} แล้ว",
   it: "{namespace}.{key} salvato nell'ambito {scope}.",
+  hi: "{scope} स्कोप में {namespace}.{key} सहेजा गया।",
+  ur: "{scope} اسکوپ میں {namespace}.{key} محفوظ ہو گیا۔",
+  bn: "{scope} স্কোপে {namespace}.{key} সংরক্ষণ করা হয়েছে।",
 };
 
 /** `onSubmitValue`'s live-region success announcement — embeds `namespace`/`key`/`scope`
@@ -199,6 +223,9 @@ const CLEARED_AT_SCOPE_TEMPLATE: Record<string, string> = {
   tr: "{namespace}.{key}, {scope} kapsamında temizlendi.",
   th: "ล้าง {namespace}.{key} ในขอบเขต {scope} แล้ว",
   it: "{namespace}.{key} cancellato nell'ambito {scope}.",
+  hi: "{scope} स्कोप में {namespace}.{key} साफ़ किया गया।",
+  ur: "{scope} اسکوپ میں {namespace}.{key} صاف کر دیا گیا۔",
+  bn: "{scope} স্কোপে {namespace}.{key} মুছে ফেলা হয়েছে।",
 };
 
 /** `onClearValue`'s live-region success announcement — same shape as {@link savedAtScopeMessage}. */
@@ -282,6 +309,18 @@ const RESET_NAMESPACE_TEMPLATE: Record<string, { one: string; other: string }> =
   it: {
     one: "{clearedCount} impostazione ripristinata ai valori predefiniti in {namespace} (ambito {scope}).",
     other: "{clearedCount} impostazioni ripristinate ai valori predefiniti in {namespace} (ambito {scope}).",
+  },
+  hi: {
+    one: "{namespace} ({scope} स्कोप) की {clearedCount} सेटिंग को डिफ़ॉल्ट पर रीसेट किया गया।",
+    other: "{namespace} ({scope} स्कोप) की {clearedCount} सेटिंग को डिफ़ॉल्ट पर रीसेट किया गया।",
+  },
+  ur: {
+    one: "{namespace} ({scope} اسکوپ) کی {clearedCount} سیٹنگ کو ڈیفالٹ پر ری سیٹ کر دیا گیا۔",
+    other: "{namespace} ({scope} اسکوپ) کی {clearedCount} سیٹنگ کو ڈیفالٹ پر ری سیٹ کر دیا گیا۔",
+  },
+  bn: {
+    one: "{namespace}-এর ({scope} স্কোপ) {clearedCount}টি সেটিং ডিফল্টে রিসেট করা হয়েছে।",
+    other: "{namespace}-এর ({scope} স্কোপ) {clearedCount}টি সেটিং ডিফল্টে রিসেট করা হয়েছে।",
   },
 };
 

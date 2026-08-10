@@ -1170,8 +1170,14 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .editor-body .tiptap blockquote { border-left: 3px solid var(--border-strong); margin: 1rem 0; padding-left: 1rem; color: var(--muted); }
 
 /* Appearance — the card backgrounds are intentional theme swatches (a preview of
-   each theme's palette); tokens drive the frame, active state, and tag only. */
-.theme-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1.2rem; }
+   each theme's palette); tokens drive the frame, active state, and tag only.
+   `auto-fill`, not `auto-fit`: a tab with only one theme (e.g. the `declarative` tier
+   today) must not let that lone card's track absorb every other unused column's
+   width — `auto-fit` collapses empty tracks and hands their space to the occupied
+   ones, ballooning a single card (and its 16:10 preview) to the full grid width.
+   `auto-fill` keeps the phantom tracks reserved, so a lone card sizes the same as
+   it would in a fully populated row. */
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1.2rem; }
 .theme-card { position: relative; border-radius: var(--r-lg); padding: 1.4rem; box-shadow: var(--shadow-sm); background: var(--surface); border: 1.5px solid var(--border); transition: transform 0.14s, box-shadow 0.14s; }
 .theme-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 /* Active theme card "border beam" (2026-08-09) — replaces the old plain 1px accent outline+ring

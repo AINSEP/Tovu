@@ -254,6 +254,9 @@ export const ADMIN_LOCALES: readonly LocaleOption[] = [
   { code: "tr", label: "Türkçe" },
   { code: "th", label: "ภาษาไทย" },
   { code: "it", label: "Italiano" },
+  { code: "hi", label: "हिन्दी" },
+  { code: "ur", label: "اردو" },
+  { code: "bn", label: "বাংলা" },
 ];
 
 export async function loadLanguage(): Promise<string> {

@@ -793,6 +793,135 @@ const RECOVERY_DICT: Record<string, Record<string, string>> = {
   "Failed to confirm the restore": "Impossibile confermare il ripristino",
   "Failed to execute the restore": "Impossibile eseguire il ripristino",
   },
+  hi: {
+  "Go to Database": "डेटाबेस पर जाएं",
+  "posts/pages writes": "पोस्ट/पेज लेखन",
+  "plugin-table rows": "प्लगइन तालिकाओं की पंक्तियाँ",
+  "Unblock (not yet available)": "अनब्लॉक करें (अभी उपलब्ध नहीं)",
+  "No unblock route exists yet — see this screen's file header.":
+    "अभी तक कोई अनब्लॉक रूट मौजूद नहीं है — इस स्क्रीन के फ़ाइल हेडर को देखें।",
+  "No restore points yet.": "अभी तक कोई पुनर्स्थापना बिंदु नहीं है।",
+  Trigger: "ट्रिगर",
+  "Cost class": "लागत वर्ग",
+  "No restore-point mechanism available — see the runbook.": "कोई पुनर्स्थापना-बिंदु तंत्र उपलब्ध नहीं है — रनबुक देखें।",
+  "Restore…": "पुनर्स्थापित करें…",
+  "This covers watermark-stamped write paths only (posts/pages and plugin-table writes today) and is NOT a complete count of everything written since this restore point — change-sets, taxonomy writes, Collections entries, and sessions are not yet counted here.":
+    "यह केवल वॉटरमार्क-चिह्नित लेखन पथों को कवर करता है (आज के लिए, पोस्ट/पेज लेखन और प्लगइन-तालिका लेखन) और इस पुनर्स्थापना बिंदु के बाद से लिखी गई हर चीज़ की पूरी गिनती नहीं है — चेंज-सेट, टैक्सोनॉमी लेखन, संग्रह की प्रविष्टियां और सत्र अभी यहां नहीं गिने जाते।",
+  "I understand this count is partial, not exhaustive, and accept the loss window described above.":
+    "मुझे समझ है कि यह गिनती आंशिक है, पूरी नहीं, और मुझे ऊपर बताई गई हानि-अवधि स्वीकार्य है।",
+  "Acknowledge the disclosure above to continue.": "जारी रखने के लिए ऊपर दिए गए प्रकटीकरण को स्वीकार करें।",
+  "Continue to confirm": "पुष्टि के लिए जारी रखें",
+  "Planning…": "योजना बनाई जा रही है…",
+  "Confirming…": "पुष्टि की जा रही है…",
+  "Confirm restore": "पुनर्स्थापना की पुष्टि करें",
+  "Confirmed. Executing performs the restore — this cannot be undone.":
+    "पुष्टि हो गई। निष्पादित करने पर पुनर्स्थापना की जाएगी — इसे पूर्ववत नहीं किया जा सकता।",
+  "Restoring…": "पुनर्स्थापित हो रहा है…",
+  "Execute restore": "पुनर्स्थापना निष्पादित करें",
+  "The database file was replaced — this server process is still serving the pre-restore data from its open connection. Restart the server now to pick up the restored data.":
+    "डेटाबेस फ़ाइल बदल दी गई है — यह सर्वर प्रक्रिया अभी भी अपने खुले कनेक्शन से पुनर्स्थापना-पूर्व डेटा दे रही है। पुनर्स्थापित डेटा लागू करने के लिए अभी सर्वर को पुनः आरंभ करें।",
+  "← Restore points": "← पुनर्स्थापना बिंदु",
+  "Restore to": "पुनर्स्थापना गंतव्य",
+  "Restore capability:": "पुनर्स्थापना क्षमता:",
+  Operations: "संचालन",
+  Recovery: "रिकवरी",
+  "Restore this site to a previous point in time using a captured restore point.":
+    "कैप्चर किए गए पुनर्स्थापना बिंदु का उपयोग करके इस साइट को पिछले समय बिंदु पर पुनर्स्थापित करें।",
+  "Loading restore points…": "पुनर्स्थापना बिंदु लोड हो रहे हैं…",
+  "Computing the discarded-write-window disclosure…": "छोड़े गए लेखन-विंडो प्रकटीकरण की गणना की जा रही है…",
+  "failed to load Recovery": "रिकवरी लोड करना विफल रहा",
+  "Failed to compute the discarded-write-window disclosure":
+    "छोड़े गए लेखन-विंडो प्रकटीकरण की गणना करना विफल रहा",
+  "Failed to plan the restore": "पुनर्स्थापना की योजना बनाना विफल रहा",
+  "Failed to confirm the restore": "पुनर्स्थापना की पुष्टि करना विफल रहा",
+  "Failed to execute the restore": "पुनर्स्थापना निष्पादित करना विफल रहा",
+  },
+  ur: {
+  "Go to Database": "ڈیٹا بیس پر جائیں",
+  "posts/pages writes": "پوسٹس/صفحات کی تحریریں",
+  "plugin-table rows": "پلگ ان ٹیبلز کی قطاریں",
+  "Unblock (not yet available)": "ان بلاک کریں (ابھی دستیاب نہیں)",
+  "No unblock route exists yet — see this screen's file header.":
+    "ابھی تک کوئی ان بلاک روٹ موجود نہیں ہے — اس اسکرین کے فائل ہیڈر کو دیکھیں۔",
+  "No restore points yet.": "ابھی تک کوئی بحالی پوائنٹ نہیں ہے۔",
+  Trigger: "ٹریگر",
+  "Cost class": "لاگت کا درجہ",
+  "No restore-point mechanism available — see the runbook.": "کوئی بحالی پوائنٹ میکانزم دستیاب نہیں ہے — رن بک دیکھیں۔",
+  "Restore…": "بحال کریں…",
+  "This covers watermark-stamped write paths only (posts/pages and plugin-table writes today) and is NOT a complete count of everything written since this restore point — change-sets, taxonomy writes, Collections entries, and sessions are not yet counted here.":
+    "یہ صرف واٹر مارک شدہ تحریری راستوں کا احاطہ کرتا ہے (فی الحال پوسٹس/صفحات اور پلگ ان ٹیبل کی تحریریں) اور یہ اس بحالی پوائنٹ کے بعد سے لکھی گئی ہر چیز کی مکمل گنتی نہیں ہے — چینج سیٹس، ٹیکسونومی تحریریں، مجموعوں کے اندراجات اور سیشنز ابھی یہاں شمار نہیں کیے جاتے۔",
+  "I understand this count is partial, not exhaustive, and accept the loss window described above.":
+    "مجھے سمجھ ہے کہ یہ گنتی جزوی ہے، مکمل نہیں، اور مجھے مذکورہ بالا نقصان کی مدت قابلِ قبول ہے۔",
+  "Acknowledge the disclosure above to continue.": "جاری رکھنے کے لیے مذکورہ بالا انکشاف کی توثیق کریں۔",
+  "Continue to confirm": "تصدیق کے لیے جاری رکھیں",
+  "Planning…": "منصوبہ بندی ہو رہی ہے…",
+  "Confirming…": "تصدیق ہو رہی ہے…",
+  "Confirm restore": "بحالی کی تصدیق کریں",
+  "Confirmed. Executing performs the restore — this cannot be undone.":
+    "تصدیق ہو گئی۔ عمل درآمد کرنے پر بحالی انجام دی جائے گی — اسے واپس نہیں لایا جا سکتا۔",
+  "Restoring…": "بحال ہو رہا ہے…",
+  "Execute restore": "بحالی عمل میں لائیں",
+  "The database file was replaced — this server process is still serving the pre-restore data from its open connection. Restart the server now to pick up the restored data.":
+    "ڈیٹا بیس فائل تبدیل کر دی گئی ہے — یہ سرور پراسیس ابھی بھی اپنے کھلے کنکشن سے بحالی سے پہلے کا ڈیٹا فراہم کر رہا ہے۔ بحال شدہ ڈیٹا لاگو کرنے کے لیے ابھی سرور دوبارہ شروع کریں۔",
+  "← Restore points": "← بحالی پوائنٹس",
+  "Restore to": "بحالی کی منزل",
+  "Restore capability:": "بحالی کی صلاحیت:",
+  Operations: "کارروائیاں",
+  Recovery: "بازیابی",
+  "Restore this site to a previous point in time using a captured restore point.":
+    "کیپچر کیے گئے بحالی پوائنٹ کا استعمال کرتے ہوئے اس سائٹ کو ایک سابقہ وقت کے نقطے پر بحال کریں۔",
+  "Loading restore points…": "بحالی پوائنٹس لوڈ ہو رہے ہیں…",
+  "Computing the discarded-write-window disclosure…": "ضائع شدہ تحریری ونڈو کے انکشاف کا حساب لگایا جا رہا ہے…",
+  "failed to load Recovery": "بازیابی لوڈ کرنا ناکام ہوا",
+  "Failed to compute the discarded-write-window disclosure":
+    "ضائع شدہ تحریری ونڈو کے انکشاف کا حساب لگانا ناکام ہوا",
+  "Failed to plan the restore": "بحالی کی منصوبہ بندی کرنا ناکام ہوا",
+  "Failed to confirm the restore": "بحالی کی تصدیق کرنا ناکام ہوا",
+  "Failed to execute the restore": "بحالی عمل میں لانا ناکام ہوا",
+  },
+  bn: {
+  "Go to Database": "ডেটাবেসে যান",
+  "posts/pages writes": "পোস্ট/পেজ লেখা",
+  "plugin-table rows": "প্লাগইন টেবিলের সারি",
+  "Unblock (not yet available)": "আনব্লক করুন (এখনও উপলব্ধ নয়)",
+  "No unblock route exists yet — see this screen's file header.":
+    "এখনও কোনো আনব্লক রুট নেই — এই স্ক্রিনের ফাইল হেডার দেখুন।",
+  "No restore points yet.": "এখনও কোনো পুনরুদ্ধার বিন্দু নেই।",
+  Trigger: "ট্রিগার",
+  "Cost class": "খরচের শ্রেণি",
+  "No restore-point mechanism available — see the runbook.": "কোনো পুনরুদ্ধার-বিন্দু প্রক্রিয়া উপলব্ধ নেই — রানবুক দেখুন।",
+  "Restore…": "পুনরুদ্ধার করুন…",
+  "This covers watermark-stamped write paths only (posts/pages and plugin-table writes today) and is NOT a complete count of everything written since this restore point — change-sets, taxonomy writes, Collections entries, and sessions are not yet counted here.":
+    "এটি কেবল ওয়াটারমার্কযুক্ত লেখার পথগুলিকে কভার করে (বর্তমানে পোস্ট/পেজ ও প্লাগইন-টেবিল লেখা) এবং এই পুনরুদ্ধার বিন্দুর পর থেকে লেখা সবকিছুর সম্পূর্ণ গণনা নয় — চেঞ্জ-সেট, ট্যাক্সোনমি লেখা, সংগ্রহের এন্ট্রি এবং সেশন এখনও এখানে গণনা করা হয় না।",
+  "I understand this count is partial, not exhaustive, and accept the loss window described above.":
+    "আমি বুঝি যে এই গণনা আংশিক, সম্পূর্ণ নয়, এবং উপরে বর্ণিত ক্ষতির সময়সীমা মেনে নিচ্ছি।",
+  "Acknowledge the disclosure above to continue.": "চালিয়ে যেতে উপরের প্রকাশনাটি স্বীকার করুন।",
+  "Continue to confirm": "নিশ্চিত করতে এগিয়ে যান",
+  "Planning…": "পরিকল্পনা করা হচ্ছে…",
+  "Confirming…": "নিশ্চিত করা হচ্ছে…",
+  "Confirm restore": "পুনরুদ্ধার নিশ্চিত করুন",
+  "Confirmed. Executing performs the restore — this cannot be undone.":
+    "নিশ্চিত করা হয়েছে। কার্যকর করলে পুনরুদ্ধার সম্পন্ন হবে — এটি পূর্বাবস্থায় ফেরানো যাবে না।",
+  "Restoring…": "পুনরুদ্ধার হচ্ছে…",
+  "Execute restore": "পুনরুদ্ধার কার্যকর করুন",
+  "The database file was replaced — this server process is still serving the pre-restore data from its open connection. Restart the server now to pick up the restored data.":
+    "ডেটাবেস ফাইলটি প্রতিস্থাপিত হয়েছে — এই সার্ভার প্রক্রিয়া এখনও তার খোলা সংযোগ থেকে পুনরুদ্ধার-পূর্ববর্তী ডেটা সরবরাহ করছে। পুনরুদ্ধারকৃত ডেটা প্রয়োগ করতে এখনই সার্ভার পুনরায় চালু করুন।",
+  "← Restore points": "← পুনরুদ্ধার বিন্দু",
+  "Restore to": "পুনরুদ্ধারের গন্তব্য",
+  "Restore capability:": "পুনরুদ্ধারের সক্ষমতা:",
+  Operations: "অপারেশনস",
+  Recovery: "পুনরুদ্ধার",
+  "Restore this site to a previous point in time using a captured restore point.":
+    "ক্যাপচার করা একটি পুনরুদ্ধার বিন্দু ব্যবহার করে এই সাইটটিকে পূর্ববর্তী একটি সময়বিন্দুতে পুনরুদ্ধার করুন।",
+  "Loading restore points…": "পুনরুদ্ধার বিন্দু লোড হচ্ছে…",
+  "Computing the discarded-write-window disclosure…": "বাতিল করা লেখা-উইন্ডো প্রকাশনার হিসাব করা হচ্ছে…",
+  "failed to load Recovery": "পুনরুদ্ধার লোড করা ব্যর্থ হয়েছে",
+  "Failed to compute the discarded-write-window disclosure":
+    "বাতিল করা লেখা-উইন্ডো প্রকাশনার হিসাব করা ব্যর্থ হয়েছে",
+  "Failed to plan the restore": "পুনরুদ্ধারের পরিকল্পনা করা ব্যর্থ হয়েছে",
+  "Failed to confirm the restore": "পুনরুদ্ধার নিশ্চিত করা ব্যর্থ হয়েছে",
+  "Failed to execute the restore": "পুনরুদ্ধার কার্যকর করা ব্যর্থ হয়েছে",
+  },
 };
 
 /** Same two-step fallback every other `t()` in this app uses: translated value, else the English
@@ -821,6 +950,9 @@ const SINCE_DISCARD_FRAGMENTS: Record<string, { before: string; after: string }>
   tr: { before: "", after: " tarihinden bu yana burada geri yükleme yapmak en az şunları silecektir:" },
   th: { before: "ตั้งแต่ ", after: " การกู้คืนที่นี่จะละทิ้งอย่างน้อย:" },
   it: { before: "Dal ", after: ", il ripristino qui scarterebbe almeno:" },
+  hi: { before: "", after: " से, यहां पुनर्स्थापित करने पर कम से कम निम्नलिखित छूट जाएगा:" },
+  ur: { before: "", after: " سے، یہاں بحال کرنے پر کم از کم درج ذیل ضائع ہو جائے گا:" },
+  bn: { before: "", after: " থেকে, এখানে পুনরুদ্ধার করলে অন্তত নিম্নলিখিতগুলি বাদ যাবে:" },
 };
 
 export function sinceDiscardMessage(locale: string, createdAt: string): ReactNode {
@@ -857,6 +989,9 @@ const UNKNOWN_DISCARD_COUNT_PREFIX: Record<string, string> = {
   tr: "en az bilinmeyen sayıda ",
   th: "อย่างน้อยจำนวนที่ไม่ทราบของ ",
   it: "almeno un numero sconosciuto di ",
+  hi: "कम से कम अज्ञात संख्या के ",
+  ur: "کم از کم ایک نامعلوم تعداد کی ",
+  bn: "কমপক্ষে অজানা সংখ্যক ",
 };
 
 export function discardCountLine(locale: string, count: number | "unknown", categoryLabelText: string): ReactNode {
@@ -899,6 +1034,9 @@ const BASELINE_UNAVAILABLE_TEXT: Record<string, string> = {
   tr: 'Bu site için atılan yazma penceresi temel değeri şu anda hesaplanamadı — yukarıdaki her sayım, doğrulanmış bir sıfır olarak değil, "bilinmiyor" olarak gösterilir.',
   th: 'ไม่สามารถคำนวณค่าพื้นฐานของช่วงเวลาการเขียนที่ถูกละทิ้งสำหรับเว็บไซต์นี้ได้ในขณะนี้ — จำนวนทั้งหมดข้างต้นแสดงเป็น "ไม่ทราบ" ไม่ใช่ศูนย์ที่ยืนยันแล้ว',
   it: 'Non è stato possibile calcolare la baseline della finestra di scrittura scartata per questo sito in questo momento — ogni conteggio sopra è mostrato come "sconosciuto", non come uno zero verificato.',
+  hi: 'इस साइट के लिए छोड़े गए लेखन-विंडो की आधाररेखा अभी गणना नहीं की जा सकी — ऊपर दिखाई गई हर गिनती "अज्ञात" के रूप में दिखाई जाती है, सत्यापित शून्य के रूप में नहीं।',
+  ur: 'اس سائٹ کے لیے ضائع شدہ تحریری ونڈو کی بیس لائن ابھی حساب نہیں کی جا سکی — اوپر دکھائی گئی ہر گنتی "نامعلوم" کے طور پر ظاہر ہوتی ہے، تصدیق شدہ صفر کے طور پر نہیں۔',
+  bn: 'এই সাইটের জন্য বাতিল করা লেখা-উইন্ডোর বেসলাইন এখনই গণনা করা যায়নি — উপরের প্রতিটি গণনা "অজানা" হিসেবে দেখানো হয়েছে, যাচাইকৃত শূন্য হিসেবে নয়।',
 };
 
 export function baselineUnavailableMessage(locale: string): ReactNode {
@@ -984,6 +1122,18 @@ const RESTORE_PLAN_READY_FRAGMENTS: Record<string, { before: string; after: stri
     before: "Piano di ripristino pronto (piano ",
     after: "). La conferma emette un token di esecuzione monouso — non è stato ancora ripristinato nulla.",
   },
+  hi: {
+    before: "पुनर्स्थापना योजना तैयार है (योजना ",
+    after: ")। पुष्टि करने पर एक बार उपयोग होने वाला निष्पादन टोकन जारी होता है — अभी तक कुछ भी पुनर्स्थापित नहीं हुआ है।",
+  },
+  ur: {
+    before: "بحالی کا منصوبہ تیار ہے (منصوبہ ",
+    after: ")۔ تصدیق کرنے پر ایک بار استعمال ہونے والا ایگزیکیوشن ٹوکن جاری ہوتا ہے — ابھی تک کچھ بھی بحال نہیں ہوا۔",
+  },
+  bn: {
+    before: "পুনরুদ্ধার পরিকল্পনা প্রস্তুত (পরিকল্পনা ",
+    after: ")। নিশ্চিত করলে একবার ব্যবহারযোগ্য এক্সিকিউশন টোকেন ইস্যু হয় — এখনও কিছুই পুনরুদ্ধার করা হয়নি।",
+  },
 };
 
 export function restorePlanReadyMessage(locale: string, planId: string): ReactNode {
@@ -1020,6 +1170,9 @@ const RESTORE_DONE_FRAGMENTS: Record<string, { before: string; middle: string; a
   tr: { before: "Geri yükleme çalıştırması ", middle: " şu durumda tamamlandı: ", after: "." },
   th: { before: "การรันการกู้คืน ", middle: " เสร็จสิ้นในสถานะ ", after: "" },
   it: { before: "L'esecuzione del ripristino ", middle: " è terminata nello stato ", after: "." },
+  hi: { before: "पुनर्स्थापना रन ", middle: " की स्थिति ", after: " में समाप्त हुई।" },
+  ur: { before: "بحالی رن ", middle: " کی حالت ", after: " میں مکمل ہوئی۔" },
+  bn: { before: "পুনরুদ্ধার রান ", middle: "-এর অবস্থা ", after: "-এ শেষ হয়েছে।" },
 };
 
 export function restoreDoneMessage(locale: string, restoreRunId: string, stateNode: ReactNode): ReactNode {
