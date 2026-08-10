@@ -30,22 +30,48 @@
     .filter(Boolean);
   if (targets.length === 0) return;
 
+  /**
+   * Clear everything, then mark the current item and its ancestors.
+   *
+   * Deliberately two passes rather than one toggle-per-target loop. In a single pass each sibling
+   * also toggles the SHARED parent, so a later sibling's `false` wipes the `is-active` the current
+   * item just set — which made the highlight work only when the current item happened to be the
+   * last child of its section, and silently fail for every first or middle child.
+   */
   function setActive(entry) {
-    targets.forEach(function (t) {
-      var li = t.link.closest(".menu-item");
-      var on = t === entry;
-      t.link.toggleAttribute("aria-current", on);
-      if (li) li.classList.toggle("is-current", on);
-      // Mark the enclosing section too, so a collapsed/styled parent stays visibly open.
-      var parentLi = li && li.parentElement ? li.parentElement.closest(".menu-item") : null;
-      if (parentLi) parentLi.classList.toggle("is-active", on);
+    nav.querySelectorAll(".menu-item.is-current, .menu-item.is-active").forEach(function (li) {
+      li.classList.remove("is-current", "is-active");
     });
+    nav.querySelectorAll("a[aria-current]").forEach(function (a) {
+      a.removeAttribute("aria-current");
+    });
+    if (!entry) return;
+
+    // setAttribute, NOT toggleAttribute: the latter writes `aria-current=""`, which is both
+    // meaningless to a screen reader and misses the theme's own `[aria-current="page"]` rule.
+    entry.link.setAttribute("aria-current", "page");
+    var li = entry.link.closest(".menu-item");
+    if (li) li.classList.add("is-current");
+    // Walk every enclosing section, not just the immediate one, so nesting deeper than two levels
+    // keeps the whole path to the current item open.
+    var ancestor = li && li.parentElement ? li.parentElement.closest(".menu-item") : null;
+    while (ancestor) {
+      ancestor.classList.add("is-active");
+      ancestor = ancestor.parentElement ? ancestor.parentElement.closest(".menu-item") : null;
+    }
   }
+
+  // A click scrolls the page, which fires the observer mid-flight and lands the highlight on
+  // whichever heading the scroll happened to pass through — so a click on "Color modes" would end
+  // up highlighting the next section instead. The click sets the answer directly and holds the
+  // observer off until the scroll settles.
+  var lockedUntil = 0;
 
   // `rootMargin`'s large negative bottom means a heading counts as "current" once it reaches the
   // upper band of the viewport, rather than the moment it appears at the very bottom.
   var observer = new IntersectionObserver(
     function (entries) {
+      if (Date.now() < lockedUntil) return;
       var visible = entries.filter(function (e) {
         return e.isIntersecting;
       });
@@ -63,5 +89,16 @@
 
   targets.forEach(function (t) {
     observer.observe(t.el);
+  });
+
+  // Clicking a link whose section is ALREADY on screen produces no intersection change at all, so
+  // the observer alone would leave the highlight on the previous section — the one case a reader is
+  // most likely to notice, since they just clicked. Set it directly and hold the observer off while
+  // the jump settles; it resumes on the next scroll.
+  targets.forEach(function (t) {
+    t.link.addEventListener("click", function () {
+      lockedUntil = Date.now() + 700;
+      setActive(t);
+    });
   });
 })();
