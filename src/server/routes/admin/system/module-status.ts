@@ -39,6 +39,13 @@ export function registerAdminModuleStatusRoute(app: Express, deps: AdminModuleSt
       return;
     }
 
-    res.json(getReadinessSnapshot());
+    // Mirrors `/readyz`'s status-code mapping (`ops/health.ts`'s `registerReadyzRoute`): `ok:false`
+    // in the snapshot means a CRITICAL module actually failed to come up, which is a real failure
+    // state for the caller to notice programmatically (a monitoring probe polling this route, not
+    // just an operator reading the JSON by eye) — not something a 200 should paper over. The body is
+    // unchanged either way; this route's whole reason to exist over `/readyz` is the full detail, and
+    // that must stay readable exactly the same regardless of status code.
+    const snapshot = getReadinessSnapshot();
+    res.status(snapshot.ok ? 200 : 503).json(snapshot);
   });
 }

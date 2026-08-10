@@ -73,6 +73,29 @@ test("module-status: the seeded owner (wildcard grant) gets 200 with the full mo
   assert.deepEqual(await res.json(), knownResult);
 });
 
+test("module-status: reports 503 (not 200) when the snapshot's ok is false, same body as always", async (t) => {
+  // Mirrors `/readyz`'s own mapping — a CRITICAL module actually failing to boot is a real failure
+  // state a monitoring probe must be able to see from the status code alone, not just from reading
+  // the JSON body. Regression for the route unconditionally returning 200 regardless of `ok`.
+  const knownResult: BootResult = {
+    ok: false,
+    modules: [
+      { name: "settings", owner: "features/settings", criticality: "critical", lifecycle: { status: "failed", reasonCode: "boom", remediationHint: "check logs" } },
+    ],
+  };
+  setReadinessSnapshot(knownResult);
+
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/module-status`, {
+    headers: { cookie },
+  });
+  assert.equal(res.status, 503);
+  assert.deepEqual(await res.json(), knownResult);
+});
+
 test("module-status: a mismatched workspaceId in the URL 404s", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };
   const app = createApp(deps);
