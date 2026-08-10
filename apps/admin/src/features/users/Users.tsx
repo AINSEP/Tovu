@@ -96,146 +96,166 @@ function NewUserForm({ username, setUsername, email, setEmail, password, setPass
   );
 }
 
-interface UserManagePanelProps {
+/** The subset of `AdminRole`/`AdminPolicy` a grant `<select>` actually renders. Named rather than
+ *  taking the full records, so the shared control below cannot come to depend on anything a role has
+ *  and a policy does not. */
+export interface GrantOption {
+  id: string;
+  name: string;
+  isBuiltin: boolean;
+}
+
+/** One "pick something, then grant it to this user" control. Both grants on the Manage panel are
+ *  this same shape, which is what lets them share {@link GrantSelect} instead of being two
+ *  near-identical blocks whose props had to be threaded separately. */
+export interface GrantSelectController {
+  options: GrantOption[];
+  /** The id currently selected in the `<select>`, or `""` for the placeholder row. */
+  pendingId: string;
+  setPendingId: Dispatch<SetStateAction<string>>;
+  submit: (principalId: string) => Promise<void>;
+}
+
+/**
+ * Everything the expanded "Manage" panel needs, as one object.
+ *
+ * Replaces the fifteen loose state/setter/callback props this panel used to take and `UserRow` used
+ * to relay through an `Omit<UserManagePanelProps, "principalId">` rest spread. The grouping is by
+ * interaction, not by convenience: the email editor and the two grants are three independent
+ * controls that happen to share one error line and one in-flight flag, and saying so in the type is
+ * what lets a test build a Manage panel without also standing up a row, a table, and a page.
+ */
+export interface UserManageController {
+  /** The one error line the whole panel shares — any of the three writes can set it. */
+  error: string | null;
+  /** Shared by both grants: the panel issues one grant at a time. */
+  saving: boolean;
+  email: {
+    value: string;
+    set: Dispatch<SetStateAction<string>>;
+    saving: boolean;
+    save: (principalId: string) => Promise<void>;
+  };
+  roleGrant: GrantSelectController;
+  policyGrant: GrantSelectController;
+}
+
+interface GrantSelectProps {
   principalId: string;
-  roles: AdminRole[];
-  policies: AdminPolicy[];
-  grantError: string | null;
-  editEmail: string;
-  setEditEmail: Dispatch<SetStateAction<string>>;
-  emailSaving: boolean;
-  onSaveEmail: (principalId: string) => Promise<void>;
-  pendingRoleId: string;
-  setPendingRoleId: Dispatch<SetStateAction<string>>;
-  grantSaving: boolean;
-  onAssignRole: (principalId: string) => Promise<void>;
-  pendingPolicyId: string;
-  setPendingPolicyId: Dispatch<SetStateAction<string>>;
-  onAttachPolicy: (principalId: string) => Promise<void>;
+  label: string;
+  placeholder: string;
+  submitLabel: string;
+  grant: GrantSelectController;
+  saving: boolean;
   t: (key: string) => string;
 }
 
-/** The expanded "Manage" row's contents (email edit, role/policy grant forms) — extracted out of
- *  `UserRow` verbatim. `UserRow` on its own was still over the complexity ceiling after the first
- *  extraction pass because this panel's five own branches (`grantError`, `emailSaving`, two
- *  disabled-guard `||`s, two `grantSaving` labels) were still counted in its scope; splitting the
- *  panel into its own function is what actually moves them out, per this pass's "extract to a
- *  top-level function, not a nested closure" rule. */
-function UserManagePanel({
-  principalId,
-  roles,
-  policies,
-  grantError,
-  editEmail,
-  setEditEmail,
-  emailSaving,
-  onSaveEmail,
-  pendingRoleId,
-  setPendingRoleId,
-  grantSaving,
-  onAssignRole,
-  pendingPolicyId,
-  setPendingPolicyId,
-  onAttachPolicy,
-  t,
-}: UserManagePanelProps) {
+/** The select-plus-button both grants render. */
+function GrantSelect({ principalId, label, placeholder, submitLabel, grant, saving, t }: GrantSelectProps) {
+  return (
+    <label>
+      {label}
+      <span className="editor-actions">
+        <select value={grant.pendingId} onChange={(e) => grant.setPendingId(e.target.value)}>
+          <option value="">{placeholder}</option>
+          {grant.options.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+              {option.isBuiltin ? ` ${t("(built-in)")}` : ""}
+            </option>
+          ))}
+        </select>
+        <button type="button" disabled={!grant.pendingId || saving} onClick={() => grant.submit(principalId)}>
+          {saving ? t("Saving…") : submitLabel}
+        </button>
+      </span>
+    </label>
+  );
+}
+
+export interface UserManagePanelProps {
+  principalId: string;
+  manage: UserManageController;
+  t: (key: string) => string;
+}
+
+/** The expanded "Manage" row's contents (email edit, role/policy grant forms).
+ *
+ *  Exported so a test can drive it with a hand-built {@link UserManageController} — the seam only
+ *  counts as one if something other than `Users` can supply it. */
+export function UserManagePanel({ principalId, manage, t }: UserManagePanelProps) {
   return (
     <tr>
       <td colSpan={6}>
         <div className="notice integrations-form">
-          {grantError ? <span className="save-error">{grantError}</span> : null}
+          {manage.error ? <span className="save-error">{manage.error}</span> : null}
           <label>
             {t("Email")}
             <span className="editor-actions">
               <input
                 type="email"
-                value={editEmail}
-                onChange={(e) => setEditEmail(e.target.value)}
+                value={manage.email.value}
+                onChange={(e) => manage.email.set(e.target.value)}
                 placeholder={t("(none)")}
               />
-              <button type="button" disabled={emailSaving} onClick={() => onSaveEmail(principalId)}>
-                {emailSaving ? t("Saving…") : t("Save email")}
-              </button>
-            </span>
-          </label>
-          <label>
-            {t("Assign role")}
-            <span className="editor-actions">
-              <select value={pendingRoleId} onChange={(e) => setPendingRoleId(e.target.value)}>
-                <option value="">{t("Select a role…")}</option>
-                {roles.map((role) => (
-                  <option key={role.id} value={role.id}>
-                    {role.name}
-                    {role.isBuiltin ? ` ${t("(built-in)")}` : ""}
-                  </option>
-                ))}
-              </select>
               <button
                 type="button"
-                disabled={!pendingRoleId || grantSaving}
-                onClick={() => onAssignRole(principalId)}
+                disabled={manage.email.saving}
+                onClick={() => manage.email.save(principalId)}
               >
-                {grantSaving ? t("Saving…") : t("Assign")}
+                {manage.email.saving ? t("Saving…") : t("Save email")}
               </button>
             </span>
           </label>
-          <label>
-            {t("Attach policy")}
-            <span className="editor-actions">
-              <select value={pendingPolicyId} onChange={(e) => setPendingPolicyId(e.target.value)}>
-                <option value="">{t("Select a policy…")}</option>
-                {policies.map((policy) => (
-                  <option key={policy.id} value={policy.id}>
-                    {policy.name}
-                    {policy.isBuiltin ? ` ${t("(built-in)")}` : ""}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                disabled={!pendingPolicyId || grantSaving}
-                onClick={() => onAttachPolicy(principalId)}
-              >
-                {grantSaving ? t("Saving…") : t("Attach")}
-              </button>
-            </span>
-          </label>
+          <GrantSelect
+            principalId={principalId}
+            label={t("Assign role")}
+            placeholder={t("Select a role…")}
+            submitLabel={t("Assign")}
+            grant={manage.roleGrant}
+            saving={manage.saving}
+            t={t}
+          />
+          <GrantSelect
+            principalId={principalId}
+            label={t("Attach policy")}
+            placeholder={t("Select a policy…")}
+            submitLabel={t("Attach")}
+            grant={manage.policyGrant}
+            saving={manage.saving}
+            t={t}
+          />
         </div>
       </td>
     </tr>
   );
 }
 
-type UserRowProps = Omit<UserManagePanelProps, "principalId"> & {
+/** A user row's own affordances — expand/collapse and the three menu actions. Distinct from
+ *  {@link UserManageController}, which describes what the expanded panel does once it is open. */
+export interface UserRowActionsController {
+  expandedId: string | null;
+  toggleExpanded: (user: AdminIdentityUser) => void;
+  /** Which row has a status write in flight — drives that row's disabled menu item only. */
+  savingId: string | null;
+  requestDisable: (user: AdminIdentityUser) => void;
+  toggleStatus: (user: AdminIdentityUser) => Promise<void>;
+  openResetPassword: (user: AdminIdentityUser) => void;
+}
+
+export interface UserRowProps {
   user: AdminIdentityUser;
   roleById: ReadonlyMap<string, AdminRole>;
   policyById: ReadonlyMap<string, AdminPolicy>;
-  expandedId: string | null;
-  toggleExpanded: (user: AdminIdentityUser) => void;
-  toggleSavingId: string | null;
-  requestDisable: (user: AdminIdentityUser) => void;
-  onToggleStatus: (user: AdminIdentityUser) => Promise<void>;
-  openResetPassword: (user: AdminIdentityUser) => void;
+  actions: UserRowActionsController;
+  manage: UserManageController;
+  t: (key: string) => string;
   locale: string;
-};
+}
 
-/** One user's row plus its optional expanded "Manage" row — extracted from `UsersTable`'s
- *  `.map()` body verbatim. `key` lives on the `<UserRow>` element at the call site, not inside
- *  here, since this is no longer the array-mapping callback itself. */
-function UserRow({
-  user,
-  roleById,
-  policyById,
-  expandedId,
-  toggleExpanded,
-  toggleSavingId,
-  requestDisable,
-  onToggleStatus,
-  openResetPassword,
-  t,
-  locale,
-  ...managePanelProps
-}: UserRowProps) {
+/** One user's row plus its optional expanded "Manage" row. `key` lives on the `<UserRow>` element at
+ *  the call site, not inside here, since this is no longer the array-mapping callback itself. */
+function UserRow({ user, roleById, policyById, actions, manage, t, locale }: UserRowProps) {
   const roleLabel = formatGrantLabel(user.roleIds, roleById);
   const policyLabel = formatGrantLabel(user.policyIds, policyById);
   return (
@@ -254,8 +274,8 @@ function UserRow({
           <button
             type="button"
             className="link-button"
-            onClick={() => toggleExpanded(user)}
-            aria-expanded={expandedId === user.principalId}
+            onClick={() => actions.toggleExpanded(user)}
+            aria-expanded={actions.expandedId === user.principalId}
           >
             {user.username}
           </button>
@@ -275,32 +295,40 @@ function UserRow({
             triggerLabel={`${t("Actions for user")} "${user.username}"`}
             items={userRowMenuItems(
               user,
-              toggleSavingId === user.principalId,
+              actions.savingId === user.principalId,
               {
-                onRequestDisable: requestDisable,
-                onEnable: (u) => void onToggleStatus(u),
-                onManage: toggleExpanded,
-                onResetPassword: openResetPassword,
+                onRequestDisable: actions.requestDisable,
+                onEnable: (u) => void actions.toggleStatus(u),
+                onManage: actions.toggleExpanded,
+                onResetPassword: actions.openResetPassword,
               },
               locale,
             )}
           />
         </td>
       </tr>
-      {expandedId === user.principalId ? (
-        <UserManagePanel principalId={user.principalId} t={t} {...managePanelProps} />
+      {actions.expandedId === user.principalId ? (
+        <UserManagePanel principalId={user.principalId} manage={manage} t={t} />
       ) : null}
     </>
   );
 }
 
-type UsersTableProps = Omit<UserRowProps, "user" | "roleById" | "policyById"> & {
+export interface UsersTableProps {
   users: AdminIdentityUser[];
-};
+  /** The full records, for the Roles/Policies label columns. The grant selects get their own
+   *  `options` through `manage`, so neither consumer has to reach into the other's props. */
+  roles: AdminRole[];
+  policies: AdminPolicy[];
+  actions: UserRowActionsController;
+  manage: UserManageController;
+  t: (key: string) => string;
+  locale: string;
+}
 
-/** The users table, or the empty state — extracted from `Users` verbatim. Builds the
- *  role/policy lookup maps once per render rather than once per row. */
-function UsersTable({ users, roles, policies, t, ...rowProps }: UsersTableProps) {
+/** The users table, or the empty state. Builds the role/policy lookup maps once per render rather
+ *  than once per row. */
+function UsersTable({ users, roles, policies, actions, manage, t, locale }: UsersTableProps) {
   if (users.length === 0) {
     return (
       <div className="card">
@@ -331,7 +359,15 @@ function UsersTable({ users, roles, policies, t, ...rowProps }: UsersTableProps)
         <tbody>
           {users.map((user) => (
             <Fragment key={user.principalId}>
-              <UserRow user={user} roleById={roleById} policyById={policyById} roles={roles} policies={policies} t={t} {...rowProps} />
+              <UserRow
+                user={user}
+                roleById={roleById}
+                policyById={policyById}
+                actions={actions}
+                manage={manage}
+                t={t}
+                locale={locale}
+              />
             </Fragment>
           ))}
         </tbody>
@@ -571,24 +607,31 @@ export function Users({ useUsersHook = useUsers }: UsersProps = {}) {
         users={users}
         roles={roles}
         policies={policies}
-        expandedId={expandedId}
-        toggleExpanded={toggleExpanded}
-        toggleSavingId={toggleSavingId}
-        requestDisable={requestDisable}
-        onToggleStatus={onToggleStatus}
-        openResetPassword={openResetPassword}
-        grantError={grantError}
-        editEmail={editEmail}
-        setEditEmail={setEditEmail}
-        emailSaving={emailSaving}
-        onSaveEmail={onSaveEmail}
-        pendingRoleId={pendingRoleId}
-        setPendingRoleId={setPendingRoleId}
-        grantSaving={grantSaving}
-        onAssignRole={onAssignRole}
-        pendingPolicyId={pendingPolicyId}
-        setPendingPolicyId={setPendingPolicyId}
-        onAttachPolicy={onAttachPolicy}
+        actions={{
+          expandedId,
+          toggleExpanded,
+          savingId: toggleSavingId,
+          requestDisable,
+          toggleStatus: onToggleStatus,
+          openResetPassword,
+        }}
+        manage={{
+          error: grantError,
+          saving: grantSaving,
+          email: { value: editEmail, set: setEditEmail, saving: emailSaving, save: onSaveEmail },
+          roleGrant: {
+            options: roles,
+            pendingId: pendingRoleId,
+            setPendingId: setPendingRoleId,
+            submit: onAssignRole,
+          },
+          policyGrant: {
+            options: policies,
+            pendingId: pendingPolicyId,
+            setPendingId: setPendingPolicyId,
+            submit: onAttachPolicy,
+          },
+        }}
         t={t}
         locale={locale}
       />

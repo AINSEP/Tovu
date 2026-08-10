@@ -47,57 +47,63 @@ export interface RolesProps {
   useRolesHook?: typeof useRoles;
 }
 
-interface RolesSectionProps {
+/**
+ * The create-a-role form, as one thing the section can be handed.
+ *
+ * Replaces the five loose `roleName`/`setRoleName`/`roleSaving`/`roleError`/`onCreateRole` props the
+ * section used to take. They were never independent — every one of them is meaningless without the
+ * other four — so naming the group is what lets a caller (or a test) supply a form rather than
+ * assemble one out of parts.
+ */
+export interface RoleCreateFormController {
+  name: string;
+  setName: (name: string) => void;
+  saving: boolean;
+  error: string | null;
+  submit: (e: FormEvent) => Promise<void>;
+}
+
+/** A role row's own affordances: rename in place, or ask for deletion. Grouped for the same reason
+ *  as {@link RoleCreateFormController} — `editingId` and `draftName` describe one interaction. */
+export interface RoleRowController {
+  /** Which role is mid-rename, or `null`. */
+  editingId: string | null;
+  setEditingId: (roleId: string | null) => void;
+  draftName: string;
+  setDraftName: (name: string) => void;
+  startRename: (role: AdminRole) => void;
+  saveRename: (roleId: string) => Promise<void>;
+  /** Which row has a write in flight — drives the per-row Saving… label, not a page-wide spinner. */
+  savingId: string | null;
+  requestDelete: (role: AdminRole | null) => void;
+}
+
+export interface RolesSectionProps {
   roles: AdminRole[];
-  roleName: string;
-  setRoleName: (name: string) => void;
-  roleSaving: boolean;
-  roleError: string | null;
-  onCreateRole: (e: FormEvent) => Promise<void>;
-  editingRoleId: string | null;
-  setEditingRoleId: (roleId: string | null) => void;
-  editingRoleName: string;
-  setEditingRoleName: (name: string) => void;
-  startEditRole: (role: AdminRole) => void;
-  onSaveRole: (roleId: string) => Promise<void>;
-  rowSavingId: string | null;
-  setPendingRoleDelete: (role: AdminRole | null) => void;
+  create: RoleCreateFormController;
+  row: RoleRowController;
   t: (key: string) => string;
   locale: string;
 }
 
-/** "Roles" heading, create-role form, and the roles `DataTable` — extracted from `Roles` verbatim.
+/** "Roles" heading, create-role form, and the roles `DataTable`.
  *  `DataTable`'s own `cell` callbacks are already separately-scoped closures under ESLint (each
- *  gets its own report), so this split is about the create-form's own branches, not the table. */
-function RolesSection({
-  roles,
-  roleName,
-  setRoleName,
-  roleSaving,
-  roleError,
-  onCreateRole,
-  editingRoleId,
-  setEditingRoleId,
-  editingRoleName,
-  setEditingRoleName,
-  startEditRole,
-  onSaveRole,
-  rowSavingId,
-  setPendingRoleDelete,
-  t,
-  locale,
-}: RolesSectionProps) {
+ *  gets its own report), so this split is about the create-form's own branches, not the table.
+ *
+ *  Exported so a test can render it against hand-built controllers — the seam only counts as one if
+ *  something other than `Roles` can drive it. */
+export function RolesSection({ roles, create, row, t, locale }: RolesSectionProps) {
   return (
     <>
       <h2>{t("Roles")}</h2>
-      <form onSubmit={onCreateRole} className="notice integrations-form">
-        {roleError ? <span className="save-error">{roleError}</span> : null}
+      <form onSubmit={create.submit} className="notice integrations-form">
+        {create.error ? <span className="save-error">{create.error}</span> : null}
         <label>
           {t("Role name")}
-          <input value={roleName} onChange={(e) => setRoleName(e.target.value)} required />
+          <input value={create.name} onChange={(e) => create.setName(e.target.value)} required />
         </label>
-        <button type="submit" disabled={roleSaving || !roleName}>
-          {roleSaving ? t("Creating…") : t("Create role")}
+        <button type="submit" disabled={create.saving || !create.name}>
+          {create.saving ? t("Creating…") : t("Create role")}
         </button>
       </form>
       <DataTable
@@ -115,8 +121,8 @@ function RolesSection({
             key: "name",
             header: t("Name"),
             cell: (role) =>
-              editingRoleId === role.id ? (
-                <input value={editingRoleName} onChange={(e) => setEditingRoleName(e.target.value)} />
+              row.editingId === role.id ? (
+                <input value={row.draftName} onChange={(e) => row.setDraftName(e.target.value)} />
               ) : (
                 role.name
               ),
@@ -128,19 +134,19 @@ function RolesSection({
             cell: (role) =>
               role.isBuiltin ? (
                 <span className="muted-cell">—</span>
-              ) : editingRoleId === role.id ? (
+              ) : row.editingId === role.id ? (
                 <span className="editor-actions">
-                  <button type="button" disabled={rowSavingId === role.id} onClick={() => onSaveRole(role.id)}>
-                    {rowSavingId === role.id ? t("Saving…") : t("Save")}
+                  <button type="button" disabled={row.savingId === role.id} onClick={() => row.saveRename(role.id)}>
+                    {row.savingId === role.id ? t("Saving…") : t("Save")}
                   </button>
-                  <button type="button" onClick={() => setEditingRoleId(null)}>
+                  <button type="button" onClick={() => row.setEditingId(null)}>
                     {t("Cancel")}
                   </button>
                 </span>
               ) : (
                 <RowMenu
                   triggerLabel={`${t("Actions for role")} "${role.name}"`}
-                  items={roleMenuItems(role, { onRename: startEditRole, onDelete: setPendingRoleDelete }, locale)}
+                  items={roleMenuItems(role, { onRename: row.startRename, onDelete: row.requestDelete }, locale)}
                 />
               ),
           },
@@ -150,39 +156,49 @@ function RolesSection({
   );
 }
 
-interface PolicyRowProps {
+/** A policy row's own affordances — {@link RoleRowController}'s counterpart, with the extra
+ *  description field a policy carries. */
+export interface PolicyRowController {
+  /** Which policy is mid-rename, or `null`. */
+  editingId: string | null;
+  setEditingId: (policyId: string | null) => void;
+  draftName: string;
+  setDraftName: (name: string) => void;
+  draftDescription: string;
+  setDraftDescription: (description: string) => void;
+  startRename: (policy: AdminPolicy) => void;
+  saveRename: (policyId: string) => Promise<void>;
+  savingId: string | null;
+  requestDelete: (policy: AdminPolicy | null) => void;
+}
+
+/** The inline "Add permission" editor: which row it is open on, its two fields, and its write.
+ *  Separate from {@link PolicyRowController} because it is a different interaction on the same row —
+ *  a row can be mid-rename or mid-permission, and neither controller's state means anything to the
+ *  other. */
+export interface PolicyPermissionController {
+  /** The policy whose permission form is open, or `null` when none is. */
+  openForPolicyId: string | null;
+  permission: string;
+  setPermission: (permission: string) => void;
+  resourceType: string;
+  setResourceType: (resourceType: string) => void;
+  toggleForm: (policyId: string) => void;
+  write: (policyId: string) => Promise<void>;
+}
+
+export interface PolicyRowProps {
   policy: AdminPolicy;
-  editingPolicyId: string | null;
-  setEditingPolicyId: (policyId: string | null) => void;
-  editingPolicyName: string;
-  setEditingPolicyName: (name: string) => void;
-  editingPolicyDescription: string;
-  setEditingPolicyDescription: (description: string) => void;
-  startEditPolicy: (policy: AdminPolicy) => void;
-  onSavePolicy: (policyId: string) => Promise<void>;
-  rowSavingId: string | null;
-  permissionPolicyId: string | null;
-  permissionInput: string;
-  setPermissionInput: (permission: string) => void;
-  resourceTypeInput: string;
-  setResourceTypeInput: (resourceType: string) => void;
-  togglePermissionForm: (policyId: string) => void;
-  onWritePermission: (policyId: string) => Promise<void>;
-  setPendingPolicyDelete: (policy: AdminPolicy | null) => void;
+  row: PolicyRowController;
+  permission: PolicyPermissionController;
   t: (key: string) => string;
   locale: string;
 }
 
 interface PolicyRowActionsProps {
   policy: AdminPolicy;
-  editingPolicyId: string | null;
-  setEditingPolicyId: (policyId: string | null) => void;
-  onSavePolicy: (policyId: string) => Promise<void>;
-  rowSavingId: string | null;
-  permissionPolicyId: string | null;
-  startEditPolicy: (policy: AdminPolicy) => void;
-  togglePermissionForm: (policyId: string) => void;
-  setPendingPolicyDelete: (policy: AdminPolicy | null) => void;
+  row: PolicyRowController;
+  permission: PolicyPermissionController;
   t: (key: string) => string;
   locale: string;
 }
@@ -192,27 +208,15 @@ interface PolicyRowActionsProps {
  *  split pass because this cell's own branches (the `||` guard plus its two nested ternaries) were
  *  still counted in `PolicyRow`'s scope. Same "the panel, not the row, was the actual size" lesson
  *  `Users.tsx`'s `UserRow` -> `UserManagePanel` split already applied. */
-function PolicyRowActions({
-  policy,
-  editingPolicyId,
-  setEditingPolicyId,
-  onSavePolicy,
-  rowSavingId,
-  permissionPolicyId,
-  startEditPolicy,
-  togglePermissionForm,
-  setPendingPolicyDelete,
-  t,
-  locale,
-}: PolicyRowActionsProps) {
+function PolicyRowActions({ policy, row, permission, t, locale }: PolicyRowActionsProps) {
   if (policy.isBuiltin || policy.isFrozen) return <span className="muted-cell">—</span>;
-  if (editingPolicyId === policy.id) {
+  if (row.editingId === policy.id) {
     return (
       <span className="editor-actions">
-        <button type="button" disabled={rowSavingId === policy.id} onClick={() => onSavePolicy(policy.id)}>
-          {rowSavingId === policy.id ? t("Saving…") : t("Save")}
+        <button type="button" disabled={row.savingId === policy.id} onClick={() => row.saveRename(policy.id)}>
+          {row.savingId === policy.id ? t("Saving…") : t("Save")}
         </button>
-        <button type="button" onClick={() => setEditingPolicyId(null)}>
+        <button type="button" onClick={() => row.setEditingId(null)}>
           {t("Cancel")}
         </button>
       </span>
@@ -223,11 +227,11 @@ function PolicyRowActions({
       triggerLabel={`${t("Actions for policy")} "${policy.name}"`}
       items={policyMenuItems(
         policy,
-        permissionPolicyId,
+        permission.openForPolicyId,
         {
-          onRename: startEditPolicy,
-          onTogglePermissionForm: togglePermissionForm,
-          onDelete: setPendingPolicyDelete,
+          onRename: row.startRename,
+          onTogglePermissionForm: permission.toggleForm,
+          onDelete: row.requestDelete,
         },
         locale,
       )}
@@ -237,27 +241,14 @@ function PolicyRowActions({
 
 interface PolicyPermissionFormProps {
   policyId: string;
-  rowSavingId: string | null;
-  permissionInput: string;
-  setPermissionInput: (permission: string) => void;
-  resourceTypeInput: string;
-  setResourceTypeInput: (resourceType: string) => void;
-  onWritePermission: (policyId: string) => Promise<void>;
+  savingId: string | null;
+  permission: PolicyPermissionController;
   t: (key: string) => string;
 }
 
 /** The inline "Add permission" row — extracted out of `PolicyRow` verbatim, for the same reason as
  *  `PolicyRowActions` above. */
-function PolicyPermissionForm({
-  policyId,
-  rowSavingId,
-  permissionInput,
-  setPermissionInput,
-  resourceTypeInput,
-  setResourceTypeInput,
-  onWritePermission,
-  t,
-}: PolicyPermissionFormProps) {
+function PolicyPermissionForm({ policyId, savingId, permission, t }: PolicyPermissionFormProps) {
   return (
     <tr>
       <td colSpan={4}>
@@ -266,21 +257,21 @@ function PolicyPermissionForm({
             {t("Permission")}
             <span className="editor-actions">
               <input
-                value={permissionInput}
-                onChange={(e) => setPermissionInput(e.target.value)}
+                value={permission.permission}
+                onChange={(e) => permission.setPermission(e.target.value)}
                 placeholder="e.g. content.write"
               />
               <input
-                value={resourceTypeInput}
-                onChange={(e) => setResourceTypeInput(e.target.value)}
+                value={permission.resourceType}
+                onChange={(e) => permission.setResourceType(e.target.value)}
                 placeholder={t("resource type (optional)")}
               />
               <button
                 type="button"
-                disabled={!permissionInput || rowSavingId === policyId}
-                onClick={() => onWritePermission(policyId)}
+                disabled={!permission.permission || savingId === policyId}
+                onClick={() => permission.write(policyId)}
               >
-                {rowSavingId === policyId ? t("Saving…") : t("Add")}
+                {savingId === policyId ? t("Saving…") : t("Add")}
               </button>
             </span>
           </label>
@@ -290,47 +281,25 @@ function PolicyPermissionForm({
   );
 }
 
-/** One policy's row plus its optional inline "Add permission" row — extracted from
- *  `PoliciesSection`'s `.map()` body verbatim. `key` lives on the `<PolicyRow>` element at the
- *  call site, same convention `Users.tsx`'s `UserRow` uses. */
-function PolicyRow({
-  policy,
-  editingPolicyId,
-  setEditingPolicyId,
-  editingPolicyName,
-  setEditingPolicyName,
-  editingPolicyDescription,
-  setEditingPolicyDescription,
-  startEditPolicy,
-  onSavePolicy,
-  rowSavingId,
-  permissionPolicyId,
-  permissionInput,
-  setPermissionInput,
-  resourceTypeInput,
-  setResourceTypeInput,
-  togglePermissionForm,
-  onWritePermission,
-  setPendingPolicyDelete,
-  t,
-  locale,
-}: PolicyRowProps) {
+/** One policy's row plus its optional inline "Add permission" row. `key` lives on the `<PolicyRow>`
+ *  element at the call site, same convention `Users.tsx`'s `UserRow` uses.
+ *
+ *  Exported for the same reason as {@link RolesSection}. */
+export function PolicyRow({ policy, row, permission, t, locale }: PolicyRowProps) {
+  const renaming = row.editingId === policy.id;
   return (
     <>
       <tr>
         <td>
-          {editingPolicyId === policy.id ? (
-            <input value={editingPolicyName} onChange={(e) => setEditingPolicyName(e.target.value)} />
+          {renaming ? (
+            <input value={row.draftName} onChange={(e) => row.setDraftName(e.target.value)} />
           ) : (
             policy.name
           )}
         </td>
         <td>
-          {editingPolicyId === policy.id ? (
-            <input
-              value={editingPolicyDescription}
-              onChange={(e) => setEditingPolicyDescription(e.target.value)}
-            />
+          {renaming ? (
+            <input value={row.draftDescription} onChange={(e) => row.setDraftDescription(e.target.value)} />
           ) : (
             policy.description ?? <span className="muted-cell">—</span>
           )}
@@ -340,77 +309,57 @@ function PolicyRow({
           {policy.isFrozen ? ` ${t("(frozen)")}` : ""}
         </td>
         <td>
-          <PolicyRowActions
-            policy={policy}
-            editingPolicyId={editingPolicyId}
-            setEditingPolicyId={setEditingPolicyId}
-            onSavePolicy={onSavePolicy}
-            rowSavingId={rowSavingId}
-            permissionPolicyId={permissionPolicyId}
-            startEditPolicy={startEditPolicy}
-            togglePermissionForm={togglePermissionForm}
-            setPendingPolicyDelete={setPendingPolicyDelete}
-            t={t}
-            locale={locale}
-          />
+          <PolicyRowActions policy={policy} row={row} permission={permission} t={t} locale={locale} />
         </td>
       </tr>
-      {permissionPolicyId === policy.id ? (
-        <PolicyPermissionForm
-          policyId={policy.id}
-          rowSavingId={rowSavingId}
-          permissionInput={permissionInput}
-          setPermissionInput={setPermissionInput}
-          resourceTypeInput={resourceTypeInput}
-          setResourceTypeInput={setResourceTypeInput}
-          onWritePermission={onWritePermission}
-          t={t}
-        />
+      {permission.openForPolicyId === policy.id ? (
+        <PolicyPermissionForm policyId={policy.id} savingId={row.savingId} permission={permission} t={t} />
       ) : null}
     </>
   );
 }
 
-type PoliciesSectionProps = Omit<PolicyRowProps, "policy"> & {
-  policies: AdminPolicy[];
-  policyName: string;
-  setPolicyName: (name: string) => void;
-  policyDescription: string;
-  setPolicyDescription: (description: string) => void;
-  policySaving: boolean;
-  policyError: string | null;
-  onCreatePolicy: (e: FormEvent) => Promise<void>;
-};
+/** The create-a-policy form — {@link RoleCreateFormController} plus the description field. */
+export interface PolicyCreateFormController {
+  name: string;
+  setName: (name: string) => void;
+  description: string;
+  setDescription: (description: string) => void;
+  saving: boolean;
+  error: string | null;
+  submit: (e: FormEvent) => Promise<void>;
+}
 
-/** "Policies" heading, create-policy form, and the policies table (or its empty state) —
- *  extracted from `Roles` verbatim. */
-function PoliciesSection({
-  policies,
-  policyName,
-  setPolicyName,
-  policyDescription,
-  setPolicyDescription,
-  policySaving,
-  policyError,
-  onCreatePolicy,
-  t,
-  ...rowProps
-}: PoliciesSectionProps) {
+export interface PoliciesSectionProps {
+  policies: AdminPolicy[];
+  create: PolicyCreateFormController;
+  row: PolicyRowController;
+  permission: PolicyPermissionController;
+  t: (key: string) => string;
+  locale: string;
+}
+
+/** "Policies" heading, create-policy form, and the policies table (or its empty state).
+ *
+ *  The row controllers pass straight through rather than being spread from an `Omit<PolicyRowProps,
+ *  "policy">` rest object, which is what the old flat prop bag forced: with the props named, this
+ *  section no longer has to restate the row's entire surface in its own type just to relay it. */
+export function PoliciesSection({ policies, create, row, permission, t, locale }: PoliciesSectionProps) {
   return (
     <>
       <h2>{t("Policies")}</h2>
-      <form onSubmit={onCreatePolicy} className="notice integrations-form">
-        {policyError ? <span className="save-error">{policyError}</span> : null}
+      <form onSubmit={create.submit} className="notice integrations-form">
+        {create.error ? <span className="save-error">{create.error}</span> : null}
         <label>
           {t("Policy name")}
-          <input value={policyName} onChange={(e) => setPolicyName(e.target.value)} required />
+          <input value={create.name} onChange={(e) => create.setName(e.target.value)} required />
         </label>
         <label>
           {t("Description (optional)")}
-          <input value={policyDescription} onChange={(e) => setPolicyDescription(e.target.value)} />
+          <input value={create.description} onChange={(e) => create.setDescription(e.target.value)} />
         </label>
-        <button type="submit" disabled={policySaving || !policyName}>
-          {policySaving ? t("Creating…") : t("Create policy")}
+        <button type="submit" disabled={create.saving || !create.name}>
+          {create.saving ? t("Creating…") : t("Create policy")}
         </button>
       </form>
       {policies.length === 0 ? (
@@ -433,7 +382,7 @@ function PoliciesSection({
             <tbody>
               {policies.map((policy) => (
                 <Fragment key={policy.id}>
-                  <PolicyRow policy={policy} t={t} {...rowProps} />
+                  <PolicyRow policy={policy} row={row} permission={permission} t={t} locale={locale} />
                 </Fragment>
               ))}
             </tbody>
@@ -592,49 +541,59 @@ export function Roles({ useRolesHook = useRoles }: RolesProps = {}) {
 
       <RolesSection
         roles={roles}
-        roleName={roleName}
-        setRoleName={setRoleName}
-        roleSaving={roleSaving}
-        roleError={roleError}
-        onCreateRole={onCreateRole}
-        editingRoleId={editingRoleId}
-        setEditingRoleId={setEditingRoleId}
-        editingRoleName={editingRoleName}
-        setEditingRoleName={setEditingRoleName}
-        startEditRole={startEditRole}
-        onSaveRole={onSaveRole}
-        rowSavingId={rowSavingId}
-        setPendingRoleDelete={setPendingRoleDelete}
+        create={{
+          name: roleName,
+          setName: setRoleName,
+          saving: roleSaving,
+          error: roleError,
+          submit: onCreateRole,
+        }}
+        row={{
+          editingId: editingRoleId,
+          setEditingId: setEditingRoleId,
+          draftName: editingRoleName,
+          setDraftName: setEditingRoleName,
+          startRename: startEditRole,
+          saveRename: onSaveRole,
+          savingId: rowSavingId,
+          requestDelete: setPendingRoleDelete,
+        }}
         t={t}
         locale={locale}
       />
 
       <PoliciesSection
         policies={policies}
-        policyName={policyName}
-        setPolicyName={setPolicyName}
-        policyDescription={policyDescription}
-        setPolicyDescription={setPolicyDescription}
-        policySaving={policySaving}
-        policyError={policyError}
-        onCreatePolicy={onCreatePolicy}
-        editingPolicyId={editingPolicyId}
-        setEditingPolicyId={setEditingPolicyId}
-        editingPolicyName={editingPolicyName}
-        setEditingPolicyName={setEditingPolicyName}
-        editingPolicyDescription={editingPolicyDescription}
-        setEditingPolicyDescription={setEditingPolicyDescription}
-        startEditPolicy={startEditPolicy}
-        onSavePolicy={onSavePolicy}
-        rowSavingId={rowSavingId}
-        permissionPolicyId={permissionPolicyId}
-        permissionInput={permissionInput}
-        setPermissionInput={setPermissionInput}
-        resourceTypeInput={resourceTypeInput}
-        setResourceTypeInput={setResourceTypeInput}
-        togglePermissionForm={togglePermissionForm}
-        onWritePermission={onWritePermission}
-        setPendingPolicyDelete={setPendingPolicyDelete}
+        create={{
+          name: policyName,
+          setName: setPolicyName,
+          description: policyDescription,
+          setDescription: setPolicyDescription,
+          saving: policySaving,
+          error: policyError,
+          submit: onCreatePolicy,
+        }}
+        row={{
+          editingId: editingPolicyId,
+          setEditingId: setEditingPolicyId,
+          draftName: editingPolicyName,
+          setDraftName: setEditingPolicyName,
+          draftDescription: editingPolicyDescription,
+          setDraftDescription: setEditingPolicyDescription,
+          startRename: startEditPolicy,
+          saveRename: onSavePolicy,
+          savingId: rowSavingId,
+          requestDelete: setPendingPolicyDelete,
+        }}
+        permission={{
+          openForPolicyId: permissionPolicyId,
+          permission: permissionInput,
+          setPermission: setPermissionInput,
+          resourceType: resourceTypeInput,
+          setResourceType: setResourceTypeInput,
+          toggleForm: togglePermissionForm,
+          write: onWritePermission,
+        }}
         t={t}
         locale={locale}
       />

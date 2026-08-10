@@ -3,7 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AdminPolicy, AdminRole } from "../../../lib/api";
-import { Roles } from "../Roles";
+import {
+  PolicyRow,
+  Roles,
+  RolesSection,
+  type PolicyPermissionController,
+  type PolicyRowController,
+  type RoleCreateFormController,
+  type RoleRowController,
+} from "../Roles";
 import type { RolesController } from "../hooks/use-roles.hooks";
 
 /**
@@ -251,5 +259,102 @@ describe("create forms", () => {
   it("shows 'Creating…' and disables the button while policySaving is true", () => {
     renderRoles({ policyName: "New Policy", policySaving: true });
     expect(screen.getByRole("button", { name: /creating…/i })).toBeDisabled();
+  });
+});
+
+/**
+ * The controller seam introduced by the F05 coupling fix (audit `TM-20260810-01`). `RolesSection`
+ * and `PolicyRow` used to take 14 and 19 loose state/setter/callback props respectively, which meant
+ * the only practical way to render either was through `Roles` with a whole `RolesController`
+ * standing behind it. These assertions drive them directly off hand-built controllers — if either
+ * component reached back for anything outside the controller it was handed, none of this would
+ * render.
+ */
+describe("section/row controller seam", () => {
+  function roleCreate(overrides: Partial<RoleCreateFormController> = {}): RoleCreateFormController {
+    return { name: "", setName: vi.fn(), saving: false, error: null, submit: vi.fn(), ...overrides };
+  }
+
+  function roleRow(overrides: Partial<RoleRowController> = {}): RoleRowController {
+    return {
+      editingId: null,
+      setEditingId: vi.fn(),
+      draftName: "",
+      setDraftName: vi.fn(),
+      startRename: vi.fn(),
+      saveRename: vi.fn(),
+      savingId: null,
+      requestDelete: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  function policyRow(overrides: Partial<PolicyRowController> = {}): PolicyRowController {
+    return {
+      editingId: null,
+      setEditingId: vi.fn(),
+      draftName: "",
+      setDraftName: vi.fn(),
+      draftDescription: "",
+      setDraftDescription: vi.fn(),
+      startRename: vi.fn(),
+      saveRename: vi.fn(),
+      savingId: null,
+      requestDelete: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  function policyPermission(overrides: Partial<PolicyPermissionController> = {}): PolicyPermissionController {
+    return {
+      openForPolicyId: null,
+      permission: "",
+      setPermission: vi.fn(),
+      resourceType: "",
+      setResourceType: vi.fn(),
+      toggleForm: vi.fn(),
+      write: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  const t = (key: string): string => key;
+
+  it("renders RolesSection from nothing but a create form and a row controller", async () => {
+    const create = roleCreate({ name: "Editor" });
+    render(<RolesSection roles={[CUSTOM_ROLE]} create={create} row={roleRow()} t={t} locale="en" />);
+
+    expect(screen.getByRole("button", { name: "Create role" })).toBeEnabled();
+    await userEvent.type(screen.getByRole("textbox"), "!");
+    expect(create.setName).toHaveBeenCalled();
+  });
+
+  it("routes RolesSection's mid-rename save through the row controller alone", async () => {
+    const row = roleRow({ editingId: CUSTOM_ROLE.id, draftName: "Renamed" });
+    render(<RolesSection roles={[CUSTOM_ROLE]} create={roleCreate()} row={row} t={t} locale="en" />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(row.saveRename).toHaveBeenCalledWith(CUSTOM_ROLE.id);
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(row.setEditingId).toHaveBeenCalledWith(null);
+  });
+
+  it("keeps PolicyRow's rename and permission controllers independent of each other", async () => {
+    const row = policyRow();
+    const permission = policyPermission({ openForPolicyId: CUSTOM_POLICY.id, permission: "content.write" });
+    render(
+      <table>
+        <tbody>
+          <PolicyRow policy={CUSTOM_POLICY} row={row} permission={permission} t={t} locale="en" />
+        </tbody>
+      </table>,
+    );
+
+    // The permission form is open, and the row is NOT mid-rename — two controllers, two states.
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(permission.write).toHaveBeenCalledWith(CUSTOM_POLICY.id);
+    expect(row.saveRename).not.toHaveBeenCalled();
   });
 });
