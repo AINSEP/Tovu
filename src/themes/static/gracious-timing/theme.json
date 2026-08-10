@@ -1,0 +1,16 @@
+{
+  "id": "gracious-timing",
+  "name": "Atelier",
+  "version": "0.1.0",
+  "tier": "static",
+  "description": "A premium dark creative-agency & portfolio theme — home, about, contact, a projects index, a case-study template (plus two more case studies built on the same template), and a blog index, sharing one nav, footer, and reveal-animation system. Plain HTML/CSS/JS, no build step, no template language.",
+  "modes": ["dark", "light"],
+  "defaultMode": "dark",
+  "fonts": ["Inter:wght@400;500;600;700", "Playfair Display:ital@1"],
+  "pages": ["index", "about", "contact", "projects", "project", "project-theo-agency-rebranding", "project-virtual-reality-encounter", "blog"],
+  "postTemplate": ["project.html"],
+  "slots": {
+    "nav": { "source": "nav.html", "activeAttr": "data-nav-current" },
+    "footer": { "source": "footer.html" }
+  }
+}

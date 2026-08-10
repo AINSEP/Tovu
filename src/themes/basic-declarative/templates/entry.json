@@ -1,0 +1,63 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "component",
+      "id": "tovu/nav",
+      "props": {
+        "brand": "Basic",
+        "items": [
+          { "label": "Pricing", "href": "/pricing" },
+          { "label": "Docs", "href": "/docs" },
+          { "label": "Blog", "href": "/blog" },
+          { "label": "Changelog", "href": "/changelog" },
+          { "label": "About", "href": "/about" },
+          { "label": "Download", "href": "/download" }
+        ],
+        "cta": { "label": "Get started", "href": "/signup" }
+      }
+    },
+    { "type": "component", "id": "tovu/entry-content", "props": {} },
+    {
+      "type": "component",
+      "id": "tovu/footer",
+      "props": {
+        "brand": "Basic",
+        "blurb": "Premium themed websites, ready to launch — built for teams who'd rather publish than fight a page builder.",
+        "columns": [
+          {
+            "title": "Product",
+            "links": [
+              { "label": "Pricing", "href": "/pricing" },
+              { "label": "Download", "href": "/download" },
+              { "label": "Changelog", "href": "/changelog" }
+            ]
+          },
+          {
+            "title": "Resources",
+            "links": [
+              { "label": "Docs", "href": "/docs" },
+              { "label": "Blog", "href": "/blog" },
+              { "label": "About", "href": "/about" }
+            ]
+          },
+          {
+            "title": "Account",
+            "links": [
+              { "label": "Sign in", "href": "/signin" },
+              { "label": "Get started", "href": "/signup" }
+            ]
+          },
+          {
+            "title": "Legal",
+            "links": [
+              { "label": "Privacy", "href": "#" },
+              { "label": "Terms", "href": "#" }
+            ]
+          }
+        ],
+        "legal": "© 2026 Basic. All rights reserved."
+      }
+    }
+  ]
+}
