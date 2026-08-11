@@ -287,7 +287,7 @@ async function resolveWidgetTypeEmbeds(
   const ids = new Set<UUID>();
   for (const ref of refs) {
     if (ref.id === null) {
-      console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "widget" reference — missing or invalid data-embed-id', {
+      console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "widget" reference — missing or invalid "id" in data-embed-config', {
         workspaceId: context.workspaceId,
       });
       continue;
@@ -318,7 +318,7 @@ async function resolveFormTypeEmbeds(
   const formDefinitionIds: string[] = [];
   for (const ref of refs) {
     if (ref.id === null) {
-      console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "form" reference — missing or invalid data-embed-id', {
+      console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "form" reference — missing or invalid "id" in data-embed-config', {
         workspaceId: context.workspaceId,
       });
       continue;
@@ -420,7 +420,7 @@ async function resolveMediaTypeEmbeds(
       const transformName = ref.variant ?? CORE_PUBLIC_TRANSFORM_NAME;
       if (assetId === null || !isPlausibleMediaRefId(assetId) || !isPlausibleMediaRefId(transformName)) {
         console.warn(
-          '[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — missing or invalid data-embed-id/data-embed-variant',
+          '[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — missing or invalid "id"/"variant" in data-embed-config',
           { workspaceId: context.workspaceId }
         );
         return;
@@ -502,7 +502,7 @@ async function resolvePostTypeEmbeds(
   await Promise.all(
     refs.map(async (ref) => {
       if (ref.id === null) {
-        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "post" reference — missing or invalid data-embed-id', {
+        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "post" reference — missing or invalid "id" in data-embed-config', {
           workspaceId: context.workspaceId,
         });
         return;
