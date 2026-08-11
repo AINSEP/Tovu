@@ -10,7 +10,7 @@
   "pages": ["index", "about", "pricing", "docs", "blog", "changelog", "download", "signin", "signup"],
   "postTemplate": ["blog-post.html", "blog-sidebar-template.html"],
   "slots": {
-    "nav": { "source": "nav.html", "activeAttr": "data-nav-current" },
+    "nav": { "source": "nav.html", "honorsCurrentPage": true },
     "footer": {
       "source": "footer.html",
       "variants": { "minimal": "footer-minimal.html" }
