@@ -56,11 +56,6 @@
      contrast comfortably; the dark block below flips this because its link is a light blue. Kept as
      a token rather than hardcoded per rule so anything filling with `--link` gets the right ink. */
   --link-ink:  oklch(99% 0 0);
-  /* Explore's fill. A flat token, NOT `color-mix(… var(--link) … var(--surface))`: `--surface` is
-     `oklch(100% 0 0)`, whose chroma is 0 and whose hue is therefore undefined, so mixing blue into
-     it interpolates hue 250 → 0 and the button rendered PINK. Kept dark enough that white label
-     text clears contrast in both modes. */
-  --explore-bg: oklch(50% 0.16 250);
   --ok:        oklch(48% 0.12 150);
   --ok-bg:     oklch(93% 0.05 150);
   --danger:    oklch(52% 0.19 25);
@@ -144,9 +139,6 @@
   --link:      oklch(74% 0.11 245);
   /* Dark mode's link is a LIGHT blue (74% L), so the ink inverts to near-black. */
   --link-ink:  oklch(18% 0.006 260);
-  /* Slightly lighter than the light-mode blue so it reads against a dark surface, but still dark
-     enough for white label text — the ink stays white in BOTH modes here, unlike `--link-ink`. */
-  --explore-bg: oklch(56% 0.17 252);
   --ok:        oklch(74% 0.14 150);
   --ok-bg:     oklch(45% 0.08 150 / 0.24);
   --danger:    oklch(74% 0.16 25);
@@ -416,17 +408,23 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    it — a download that silently lands as `basic-1` reads as a failure otherwise. */
 .theme-card-note { font-size: 0.8rem; color: var(--fg-2); margin: 0 0 var(--space-2); }
 .theme-card-note code { font-family: var(--font-mono, monospace); font-size: 0.78rem; }
-/* Explore is a solid blue, distinct from Activate's burnt orange. Two filled buttons on one card is
-   fine precisely because they are different colors doing different things: orange changes what the
-   whole site looks like, blue takes you somewhere. `--link` is the palette's existing blue (it
-   already colors every anchor) and is defined in both light and dark, so this adds no new hue —
-   only `--link-ink`, the text color that stays readable on it in both modes. */
-.btn-explore {
-  background: var(--explore-bg);
-  color: oklch(99% 0 0);
-  border: 1px solid transparent;
-}
-.btn-explore:hover { opacity: 0.88; }
+/* Explore was solid blue (commit 8a7169b, same day) so it read as a second filled CTA distinct from
+   Activate's burnt orange. Reversed on owner feedback: two solid-filled buttons of different hues
+   still compete for primary attention instead of establishing one. Explore is the secondary action
+   here, so it now takes the app's existing secondary/outline shape (`.btn-secondary`'s
+   `--surface`/`--border-strong` pairing, same idiom as the plain-white `<input>` fields) instead of
+   a bespoke fill — `--surface` computes to true white and `--fg` to near-black in light mode (see
+   those tokens' own definitions above), and both flip correctly under a dark skin without this rule
+   knowing it happened. `--fg` rather than `.btn-secondary`'s dimmer `--fg-2`: the owner asked for
+   "black text" by name, and a button label is high-emphasis actionable text, not the muted
+   secondary prose `--fg-2` is for. No `color-mix` against `--surface` here — that chroma-0 token
+   already broke one blend on this exact button (see the `.theme-card button.btn-explore` override
+   below); flat token assignments sidestep the hue-interpolation trap entirely. Border makes it read
+   as a button against the equally-white card, not as plain text — `button:focus-visible`'s app-wide
+   `--accent-text` ring (styles.css, global rules) already resolves dark-on-white in light mode and
+   light-on-dark in dark mode, so no button-specific focus override is needed either. */
+.btn-explore { background: var(--surface); color: var(--fg); border: 1px solid var(--border-strong); }
+.btn-explore:hover { background: var(--surface-2); opacity: 1; }
 
 /* Explore screen: file list beside the editor. `minmax(0, 1fr)` on the second column rather than a
    bare `1fr` — without it a wide `<pre>`/`<textarea>` sets the column's min-content width and pushes
@@ -1458,13 +1456,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .theme-card button.btn-primary:hover { background: var(--primary); opacity: 0.88; }
 /* Explore loses the same specificity fight `.btn-primary` above documents, and for the same reason:
    `.theme-card button` (0,1,1) outranks a bare `.btn-explore` (0,1,0), so the card's currentColor
-   tint won and the button rendered grey no matter what `.btn-explore` said. Re-asserted here at one
-   class higher, exactly as Activate is. Solid blue with white ink, per owner instruction — an
-   earlier tinted version mixed `--link` into `--surface`, which is `oklch(100% 0 0)`: chroma 0, so
-   hue undefined, so the mix interpolated hue 250 → 0 and rendered PINK. Do not reintroduce a mix
-   against a neutral here. */
-.theme-card button.btn-explore { background: var(--explore-bg); color: oklch(99% 0 0); border: 1px solid transparent; }
-.theme-card button.btn-explore:hover { background: var(--explore-bg); opacity: 0.88; }
+   tint won underneath whatever `.btn-explore` said. Re-asserted here at one class higher, exactly as
+   Activate is. White surface / near-black text now (reversed from the solid-blue fill commit
+   8a7169b shipped the same day — see `.btn-explore`'s own comment above for why and for the
+   chroma-0/`color-mix` trap this rule must keep avoiding, since a fix here can't rely on that
+   comment alone catching a future edit). */
+.theme-card button.btn-explore { background: var(--surface); color: var(--fg); border: 1px solid var(--border-strong); }
+.theme-card button.btn-explore:hover { background: var(--surface-2); opacity: 1; }
 .theme-paper { background: #faf6ef; color: #2b2620; }
 .theme-atlas { background: #0e1420; color: #e8ecf4; }
 .theme-glassmorphic { background: linear-gradient(135deg, #1c2740, #3a2a55); color: #f2f4fb; }
