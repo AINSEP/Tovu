@@ -165,6 +165,43 @@ function renderMenuTree(items: readonly StaticMenuItem[], depth = 0): string {
 }
 
 /**
+ * Parses a marker's `data-embed-config='...'` attribute (marker-spine unification, 2026-08-10 —
+ * `data-embed-type`/`data-embed-id`/`data-embed-config` is now the one vocabulary every static-theme
+ * marker (menu embeds, partial slots) authors against, replacing the separate `data-embed-variant`/
+ * `data-tovu-slot`+`data-nav-current`+`data-slot-variant` attributes that drifted apart). Single-
+ * quoted, deliberately: every real config so far is a JSON object whose values are themselves
+ * double-quoted strings (`data-embed-config='{"variant":"tree"}'`), so single-quoting the attribute
+ * means the author never has to escape an inner `"`.
+ *
+ * Malformed or absent JSON degrades to an empty config with a `console.warn`, mirroring
+ * `resolver-service.ts`'s `resolveHtmlPageEmbeds` degrading an unknown embed type the same way:
+ * never throws, never fails the render — a typo in a marker's config must not take the whole page
+ * down, only silently lose that one marker's variant/current-page behavior.
+ *
+ * @complexity O(n) in `attrs`' length for the regex extract, plus `JSON.parse`'s own cost on the
+ * (small, marker-scoped) matched string.
+ */
+function parseEmbedConfig(attrs: string, context: { themeId: string; marker: string }): Record<string, unknown> {
+  const raw = /data-embed-config='([^']*)'/.exec(attrs)?.[1];
+  if (raw === undefined) return {};
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    console.warn(`[theme] ${context.themeId}: data-embed-config on ${context.marker} is not valid JSON — ignoring`, {
+      raw,
+      error: (err as Error).message,
+    });
+    return {};
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    console.warn(`[theme] ${context.themeId}: data-embed-config on ${context.marker} is not a JSON object — ignoring`, { raw });
+    return {};
+  }
+  return parsed as Record<string, unknown>;
+}
+
+/**
  * Fills a theme's `data-embed-type="menu" data-embed-id="<menuId>"` marker element with that real
  * menu's resolved items, or leaves the marker's authored content completely untouched when no menu
  * data is supplied for that id (deleted menu, typo in theme markup, or the id simply resolves to
@@ -185,16 +222,20 @@ function renderMenuTree(items: readonly StaticMenuItem[], depth = 0): string {
  * author introducing a marker whose tag nests inside itself would need a different mechanism; not a
  * case any theme built this session hits.
  */
-function injectMenuEmbed(html: string, menuId: string, items: readonly StaticMenuItem[] | undefined): string {
+function injectMenuEmbed(html: string, themeId: string, menuId: string, items: readonly StaticMenuItem[] | undefined): string {
   if (items === undefined) return html;
   const marker = new RegExp(
     `<([a-z]+)([^>]*data-embed-type="menu"[^>]*data-embed-id="${menuId}"[^>]*)>[\\s\\S]*?<\\/\\1>`
   );
   return html.replace(marker, (whole: string, tag: string, attrs: string) => {
-    // `data-embed-variant="tree"` is read off the marker the theme authored, so the choice of markup
+    // The tree-vs-flat choice is read off the marker's own `data-embed-config` (marker-spine
+    // unification, 2026-08-10 — this used to be a bare `data-embed-variant="tree"` attribute; that
+    // spelling is retired outright, not kept alongside this one, since it shipped hours earlier the
+    // same day and every real theme using it is migrated in this same pass). The choice of markup
     // shape belongs to whoever owns the CSS around it — see {@link renderMenuTree} for why this
     // cannot default to the tree.
-    const tree = /data-embed-variant="tree"/.test(attrs);
+    const config = parseEmbedConfig(attrs, { themeId, marker: `menu:${menuId}` });
+    const tree = config.variant === "tree";
     const inner = tree ? renderMenuTree(items) : renderMenuLinks(items);
     // Unchanged contract: an empty render leaves the marker's own authored fallback content alone
     // rather than blanking the nav.
@@ -238,47 +279,111 @@ function partialIdFromSource(source: string): string {
 }
 
 /**
- * Replace every `<div data-tovu-slot="<key>"></div>` marker with the root partial the theme's
- * `theme.json` `slots` block maps that key to. Driven by the manifest rather than the hardcoded
- * `nav`/`footer` pair this function carried before 2026-08-10 — that pair now lives in
- * {@link DEFAULT_THEME_SLOTS} and is used verbatim for a theme declaring no `slots`, so a theme that
- * never adopts the field renders byte-identically to how it did.
+ * Resolves one already-matched slot marker's `{current, variant}` (whichever spelling produced them,
+ * see {@link resolveSlots}) against a partial's source content — the part of the old, single-spelling
+ * `resolveSlots` that both marker vocabularies still share verbatim: pick the source (`variants` map,
+ * else the `<source-stem>-<variant>.html` convention), then splice `aria-current="page"` onto the
+ * partial's own `data-nav-id="<current>"` anchor when the descriptor names an `activeAttr` at all —
+ * `current` itself being present or absent is what decides whether anything is marked current, not
+ * `activeAttr`'s exact configured name (see {@link resolveSlots}'s new-spelling branch for why the
+ * config key is always the fixed string `"current"` regardless of that name).
  *
- * Two per-marker modifiers, both optional and both honored for any slot key rather than only the two
- * the old code special-cased:
- * - `activeAttr` — the marker attribute naming the current page (`data-nav-current="pricing"`), which
- *   marks the partial's `data-nav-id="pricing"` anchor `aria-current="page"`. Unlike the old nav
- *   branch, a marker *without* this attribute still resolves (it previously matched nothing and was
- *   left in the page as a literal empty `<div>`).
- * - `data-slot-variant="<name>"` — swaps the source, via the descriptor's explicit `variants` map or,
- *   failing that, the `<source-stem>-<variant>.html` convention the old footer branch assumed.
+ * A marker whose resolved partial does not exist collapses to empty, matching the pre-2026-08-10
+ * behavior's `?? ""` for the same case.
+ */
+function resolveSlotMarker(
+  descriptor: ThemeSlotDescriptor,
+  partials: Record<string, string>,
+  normalized: { current: string | undefined; variant: string | undefined }
+): string {
+  const source =
+    normalized.variant === undefined
+      ? descriptor.source
+      : descriptor.variants?.[normalized.variant] ?? `${partialIdFromSource(descriptor.source)}-${normalized.variant}.html`;
+  let partial = partials[partialIdFromSource(source)] ?? "";
+
+  if (descriptor.activeAttr !== undefined && normalized.current !== undefined) {
+    const linkRe = new RegExp(`(<a href="[^"]+" data-nav-id="${escapeRegExp(normalized.current)}")(>)`);
+    partial = partial.replace(linkRe, '$1 aria-current="page"$2');
+  }
+  return partial;
+}
+
+/**
+ * Replace every partial-slot marker with the root partial the theme's `theme.json` `slots` block
+ * maps that key to. Driven by the manifest rather than the hardcoded `nav`/`footer` pair this
+ * function carried before 2026-08-10 — that pair now lives in {@link DEFAULT_THEME_SLOTS} and is
+ * used verbatim for a theme declaring no `slots`, so a theme that never adopts the field renders
+ * byte-identically to how it did.
  *
- * A marker whose resolved partial does not exist collapses to empty, matching the old behavior's
- * `?? ""` for the same case.
+ * **Two accepted marker spellings** (marker-spine unification, 2026-08-10):
+ *
+ * - **New** — `<div data-embed-type="partial" data-embed-id="<key>" [data-embed-config='{"current":
+ *   "<page>","variant":"<name>"}']></div>`. The one spelling every theme in this repo now authors
+ *   (all 7 migrated in this same pass); `current`/`variant` are fixed config keys, not per-descriptor
+ *   configurable names — `data-nav-current`'s old per-theme `activeAttr` name (`descriptor.activeAttr`)
+ *   still decides WHETHER a slot honors a current-page marker at all, just no longer WHAT the JSON key
+ *   is called.
+ * - **Deprecated** — `<div data-tovu-slot="<key>" [data-nav-current="<page>"]
+ *   [data-slot-variant="<name>"]></div>`, the pre-2026-08-10 spelling. Still accepted, not removed,
+ *   so a site-authored theme outside this repo (which cannot be migrated in this pass) does not break
+ *   the moment this ships — `console.warn`'d exactly once per `resolveSlots` call (i.e. once per page
+ *   render that uses it at all), not once per occurrence, so a page with a dozen deprecated markers
+ *   doesn't spam a dozen near-identical warnings.
+ *
+ * A theme may freely mix both spellings across different markers (verified live during the 7-theme
+ * migration — a theme mid-migration is not a broken theme); each marker resolves independently. A
+ * deprecated `data-tovu-slot` marker may ALSO carry `data-embed-config` — config wins over
+ * `data-nav-current`/`data-slot-variant` when present — which is what lets Task 1's config migration
+ * (`data-slot-variant="minimal"` → `data-embed-config`) land independently of Task 2's marker-identity
+ * rename (`data-tovu-slot` → `data-embed-type="partial"`), rather than forcing both in lockstep.
+ *
+ * @complexity O(slots × html.length) — one full regex pass per declared slot key, times two (new +
+ * deprecated spelling), same shape the pre-2026-08-10 single-spelling version already had.
  */
 function resolveSlots(
   html: string,
   partials: Record<string, string>,
-  slots: Readonly<Record<string, ThemeSlotDescriptor>> = DEFAULT_THEME_SLOTS
+  slots: Readonly<Record<string, ThemeSlotDescriptor>> = DEFAULT_THEME_SLOTS,
+  themeId = "unknown-theme"
 ): string {
+  let warnedLegacySpelling = false;
   for (const [key, descriptor] of Object.entries(slots)) {
-    const marker = new RegExp(`<div data-tovu-slot="${escapeRegExp(key)}"([^>]*)></div>`, "g");
-    html = html.replace(marker, (_m, attrs: string) => {
-      const variant = /data-slot-variant="([^"]+)"/.exec(attrs)?.[1];
-      const source =
-        variant === undefined
-          ? descriptor.source
-          : descriptor.variants?.[variant] ?? `${partialIdFromSource(descriptor.source)}-${variant}.html`;
-      let partial = partials[partialIdFromSource(source)] ?? "";
+    const newMarker = new RegExp(
+      `<div\\b(?=[^>]*\\bdata-embed-type="partial")(?=[^>]*\\bdata-embed-id="${escapeRegExp(key)}")([^>]*)></div>`,
+      "g"
+    );
+    html = html.replace(newMarker, (_m, attrs: string) => {
+      const config = parseEmbedConfig(attrs, { themeId, marker: `partial:${key}` });
+      const current = typeof config.current === "string" ? config.current : undefined;
+      const variant = typeof config.variant === "string" ? config.variant : undefined;
+      return resolveSlotMarker(descriptor, partials, { current, variant });
+    });
 
-      if (descriptor.activeAttr !== undefined) {
-        const current = new RegExp(`${escapeRegExp(descriptor.activeAttr)}="([^"]+)"`).exec(attrs)?.[1];
-        if (current !== undefined) {
-          const linkRe = new RegExp(`(<a href="[^"]+" data-nav-id="${escapeRegExp(current)}")(>)`);
-          partial = partial.replace(linkRe, '$1 aria-current="page"$2');
-        }
+    const legacyMarker = new RegExp(`<div data-tovu-slot="${escapeRegExp(key)}"([^>]*)></div>`, "g");
+    html = html.replace(legacyMarker, (_m, attrs: string) => {
+      if (!warnedLegacySpelling) {
+        console.warn(
+          `[theme] ${themeId}: uses the deprecated data-tovu-slot/data-nav-current/data-slot-variant marker ` +
+            `spelling — migrate to data-embed-type="partial" data-embed-id="<key>" (+ data-embed-config for ` +
+            `current/variant)`
+        );
+        warnedLegacySpelling = true;
       }
-      return partial;
+      // A `data-tovu-slot` marker MAY also carry `data-embed-config` — an intermediate migration
+      // state (Task 1 migrated `data-slot-variant`/`data-nav-current` to config independently of
+      // Task 2's marker-identity rename, so the two attributes can land in either order across a
+      // theme's files). Config wins when present; the dedicated old attributes are the fallback for
+      // a marker that hasn't picked up config at all yet.
+      const config = parseEmbedConfig(attrs, { themeId, marker: `partial:${key}(deprecated-spelling)` });
+      const current =
+        typeof config.current === "string"
+          ? config.current
+          : descriptor.activeAttr !== undefined
+            ? new RegExp(`${escapeRegExp(descriptor.activeAttr)}="([^"]+)"`).exec(attrs)?.[1]
+            : undefined;
+      const variant = typeof config.variant === "string" ? config.variant : /data-slot-variant="([^"]+)"/.exec(attrs)?.[1];
+      return resolveSlotMarker(descriptor, partials, { current, variant });
     });
   }
   return html;
@@ -342,9 +447,9 @@ export function renderStaticPage(
   );
   html = rewriteAssetPaths(html, theme.manifest.id);
   html = injectColorMode(html, theme.manifest.defaultMode);
-  html = resolveSlots(html, theme.partials, theme.manifest.slots ?? DEFAULT_THEME_SLOTS);
+  html = resolveSlots(html, theme.partials, theme.manifest.slots ?? DEFAULT_THEME_SLOTS, theme.manifest.id);
   for (const [menuId, items] of Object.entries(menus ?? {})) {
-    html = injectMenuEmbed(html, menuId, items);
+    html = injectMenuEmbed(html, theme.manifest.id, menuId, items);
   }
   html = rewritePageLinks(html);
   return html;

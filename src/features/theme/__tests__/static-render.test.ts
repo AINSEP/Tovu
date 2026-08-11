@@ -182,7 +182,7 @@ test("renderStaticPage: tailark-quartz-libre's mobile Sign in/Get started surviv
  * so the tree is opt-in per marker and the default output stays byte-identical.
  */
 
-const TREE_MARKER = `<nav data-embed-type="menu" data-embed-id="${HEADER_ID}" data-embed-variant="tree"></nav>`;
+const TREE_MARKER = `<nav data-embed-type="menu" data-embed-id="${HEADER_ID}" data-embed-config='{"variant":"tree"}'></nav>`;
 
 function treeTheme(): DiscoveredTheme {
   const theme = makeTheme();
@@ -291,7 +291,7 @@ test("renderMenuTree: authored cssClass, description and icon reach the markup",
 test("renderMenuTree: a tree that renders to nothing leaves the marker's authored fallback alone", () => {
   const theme = treeTheme();
   theme.pages["index"] =
-    `<html><body><nav data-embed-type="menu" data-embed-id="${HEADER_ID}" data-embed-variant="tree">FALLBACK</nav></body></html>`;
+    `<html><body><nav data-embed-type="menu" data-embed-id="${HEADER_ID}" data-embed-config='{"variant":"tree"}'>FALLBACK</nav></body></html>`;
   const html = renderStaticPage({
     theme,
     pageId: "index",
@@ -310,8 +310,8 @@ test("the real `basic` theme ships blog-sidebar-template.html and declares it as
   assert.ok(theme.manifest.postTemplate?.includes("blog-sidebar-template.html"));
   assert.ok(theme.pages["blog-sidebar-template"] !== undefined, "the template must be discovered off disk");
   assert.ok(
-    theme.pages["blog-sidebar-template"].includes('data-embed-variant="tree"'),
-    "the docs sidebar marker must opt into tree rendering"
+    theme.pages["blog-sidebar-template"].includes(`data-embed-config='{"variant":"tree"}'`),
+    "the docs sidebar marker must opt into tree rendering via config (marker-spine unification, 2026-08-10)"
   );
 });
 
@@ -354,6 +354,156 @@ test("resolveSlots: manifest slots drive arbitrary keys, not just the hardcoded 
   theme.pages["index"] = '<html><body><div data-tovu-slot="sidebar"></div></body></html>';
   const html = renderStaticPage({ theme, pageId: "index" });
   assert.ok(html?.includes("<aside>docs sidebar</aside>"));
+});
+
+/**
+ * Marker-spine unification (2026-08-10): `data-embed-type="partial" data-embed-id="<key>"` +
+ * `data-embed-config` is the new marker spelling `resolveSlots` now accepts alongside the deprecated
+ * `data-tovu-slot` spelling every test above this block exercises. These certify the new spelling
+ * gets the exact same behavior (current-page marking, variant source-swap), that malformed config
+ * degrades safely instead of crashing the render, that both spellings can coexist in one page, and
+ * that the deprecation warning fires once per render, not once per marker.
+ */
+
+test("resolveSlots (new spelling): data-embed-type=\"partial\" resolves the same as data-tovu-slot", () => {
+  const theme = makeTheme();
+  theme.pages["index"] = '<html><body><div data-embed-type="partial" data-embed-id="nav"></div></body></html>';
+  const html = renderStaticPage({ theme, pageId: "index" });
+  assert.ok(html?.includes('class="main-nav"'));
+  assert.ok(!html?.includes("data-embed-type=\"partial\""), "the marker itself must be consumed, not left in the page");
+});
+
+test("resolveSlots (new spelling): data-embed-config's \"current\" key marks the matching anchor aria-current", () => {
+  const theme = makeTheme();
+  theme.pages["index"] =
+    '<html><body><div data-embed-type="partial" data-embed-id="nav" data-embed-config=\'{"current":"pricing"}\'></div></body></html>';
+  const html = renderStaticPage({ theme, pageId: "index" });
+  assert.ok(html?.includes('data-nav-id="pricing" aria-current="page"'));
+});
+
+test("resolveSlots (new spelling): data-embed-config's \"variant\" key swaps the source, same as data-slot-variant", () => {
+  const theme = makeTheme();
+  theme.manifest = {
+    ...theme.manifest,
+    slots: { footer: { source: "footer.html", variants: { minimal: "footer-tiny.html" } } },
+  };
+  theme.partials = { "footer-tiny": "<footer>tiny</footer>" };
+  theme.pages["index"] =
+    '<html><body><div data-embed-type="partial" data-embed-id="footer" data-embed-config=\'{"variant":"minimal"}\'></div></body></html>';
+  const html = renderStaticPage({ theme, pageId: "index" });
+  assert.ok(html?.includes("<footer>tiny</footer>"));
+});
+
+test("resolveSlots (new spelling): attribute order is irrelevant — data-embed-id before data-embed-type still matches", () => {
+  const theme = makeTheme();
+  theme.pages["index"] = '<html><body><div data-embed-id="nav" data-embed-type="partial"></div></body></html>';
+  const html = renderStaticPage({ theme, pageId: "index" });
+  assert.ok(html?.includes('class="main-nav"'));
+});
+
+test("resolveSlots: malformed data-embed-config JSON degrades to an empty config, never throws", () => {
+  const theme = makeTheme();
+  theme.pages["index"] =
+    '<html><body><div data-embed-type="partial" data-embed-id="nav" data-embed-config=\'{not valid json\'></div></body></html>';
+  const originalWarn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  try {
+    const html = renderStaticPage({ theme, pageId: "index" });
+    assert.ok(html?.includes('class="main-nav"'), "the marker still resolves, just with no current/variant applied");
+    assert.ok(warnings.length > 0, "a warning is emitted for the malformed config");
+    assert.match(String(warnings[0]?.[0]), /not valid JSON/);
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
+test("resolveSlots: a deprecated data-tovu-slot marker carrying data-embed-config uses config over the old dedicated attributes", () => {
+  // The intermediate migration state basic/pages/signin.html and signup.html actually ship in
+  // (Task 1's data-slot-variant->config migration landed independently of Task 2's data-tovu-slot
+  // rename): identity is still the deprecated spelling, but current/variant already come from config.
+  const theme = makeTheme();
+  theme.manifest = {
+    ...theme.manifest,
+    slots: { footer: { source: "footer.html", variants: { minimal: "footer-tiny.html" } } },
+  };
+  theme.partials = { "footer-tiny": "<footer>tiny</footer>" };
+  theme.pages["index"] =
+    '<html><body><div data-tovu-slot="footer" data-embed-config=\'{"variant":"minimal"}\'></div></body></html>';
+  const html = renderStaticPage({ theme, pageId: "index" });
+  assert.ok(html?.includes("<footer>tiny</footer>"), "config's variant wins even though the marker identity is still the old spelling");
+});
+
+test("resolveSlots: both marker spellings resolve independently on the same page", () => {
+  const theme = makeTheme();
+  theme.pages["index"] = [
+    '<html><body>',
+    '<div data-embed-type="partial" data-embed-id="nav" data-embed-config=\'{"current":"pricing"}\'></div>',
+    '<div data-tovu-slot="footer"></div>',
+    '</body></html>',
+  ].join("");
+  const html = renderStaticPage({ theme, pageId: "index" });
+  assert.ok(html?.includes('data-nav-id="pricing" aria-current="page"'), "new-spelling nav marker resolved");
+  assert.ok(html?.includes("<h4>Legal</h4>"), "deprecated-spelling footer marker also resolved");
+});
+
+test("resolveSlots: the deprecated data-tovu-slot spelling warns exactly once per render, not once per marker", () => {
+  const theme = makeTheme();
+  theme.pages["index"] = [
+    '<html><body>',
+    '<div data-tovu-slot="nav" data-nav-current="pricing"></div>',
+    '<div data-tovu-slot="footer"></div>',
+    '</body></html>',
+  ].join("");
+  const originalWarn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  try {
+    const html = renderStaticPage({ theme, pageId: "index" });
+    assert.ok(html?.includes('class="main-nav"'));
+    assert.ok(html?.includes("<h4>Legal</h4>"));
+    const deprecationWarnings = warnings.filter((w) => String(w[0]).includes("deprecated data-tovu-slot"));
+    assert.equal(deprecationWarnings.length, 1, "two deprecated markers on one page must warn once, not twice");
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
+test("resolveSlots: the new spelling alone never triggers the deprecation warning", () => {
+  const theme = makeTheme();
+  theme.pages["index"] = '<html><body><div data-embed-type="partial" data-embed-id="nav"></div></body></html>';
+  const originalWarn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  try {
+    renderStaticPage({ theme, pageId: "index" });
+    assert.equal(warnings.length, 0);
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
+test("injectMenuEmbed (new spelling): data-embed-config's \"variant\":\"tree\" opts into nested rendering, same as the retired data-embed-variant attribute", () => {
+  const html = renderStaticPage({
+    theme: treeTheme(),
+    pageId: "index",
+    menus: { [HEADER_ID]: items({ label: "Themes", href: "#themes" }) },
+  });
+  assert.ok(html?.includes('<ul class="menu-list depth-0">'));
+});
+
+test("injectMenuEmbed: a bare data-embed-variant=\"tree\" attribute (the retired spelling) is no longer honored — falls back to flat rendering", () => {
+  const theme = makeTheme();
+  theme.partials = {};
+  theme.pages["index"] =
+    `<html><body><nav data-embed-type="menu" data-embed-id="${HEADER_ID}" data-embed-variant="tree"></nav></body></html>`;
+  const html = renderStaticPage({
+    theme,
+    pageId: "index",
+    menus: { [HEADER_ID]: items({ label: "Themes", href: "#themes" }) },
+  });
+  assert.ok(html?.includes('<a href="#themes">Themes</a>'));
+  assert.ok(!html?.includes("<ul"), "the retired attribute is inert now — the marker's own config, not this old one, decides the shape");
 });
 
 test("resolveSlots: an explicit variants map wins, and an undeclared variant falls back to the filename convention", () => {
