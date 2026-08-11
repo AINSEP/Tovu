@@ -18,8 +18,10 @@ import { registerAdminThemeRescanRoute } from "../routes/admin/presentation/resc
 import { registerAdminThemesListRoute } from "../routes/admin/themes/list";
 import {
   registerAdminThemeDetailRoute,
+  registerAdminThemeFileCopyRoute,
   registerAdminThemeFileGetRoute,
   registerAdminThemeFilePutRoute,
+  registerAdminThemeFileRenameRoute,
   registerAdminThemeFileResetRoute,
 } from "../routes/admin/themes/explore";
 import { registerAdminMarketplaceThemesListRoute } from "../routes/admin/marketplace/list";
@@ -91,6 +93,8 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       registerAdminThemeFileGetRoute(app, deps);
       registerAdminThemeFilePutRoute(app, deps);
       registerAdminThemeFileResetRoute(app, deps);
+      registerAdminThemeFileCopyRoute(app, deps);
+      registerAdminThemeFileRenameRoute(app, deps);
       registerAdminThemeDetailRoute(app, deps);
     },
   };

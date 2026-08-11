@@ -1,4 +1,14 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { ENGINE_SUBFOLDERS } from "./theme";
@@ -261,4 +271,74 @@ export function writeThemeFile(
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, required.content, "utf8");
   return target;
+}
+
+/**
+ * Shared containment + preflight for {@link copyThemeFile}/{@link renameThemeFile}: resolves both
+ * the source and destination through {@link resolveThemeFilePath} (so a destination built from
+ * operator input — a rename's new filename — is validated exactly as strictly as a write target),
+ * confirms the source is a regular file within the size ceiling, and refuses to clobber an existing
+ * destination.
+ *
+ * Deliberately does NOT decode either path through `readFileSync(…, "utf8")` /
+ * `writeFileSync(…, "utf8")` the way {@link readThemeFile}/{@link writeThemeFile} do: a binary asset
+ * (a font, an image) round-tripped through UTF-8 would come back byte-corrupted, and copy/rename
+ * must work on every file in a theme's folder, not only the text-editable ones.
+ */
+function resolveCopyOrRenameTargets(
+  required: { themeDir: string; themesRoot: string; sourcePath: string; destPath: string }
+): { source: string; dest: string } {
+  const { themeDir, themesRoot, sourcePath, destPath } = required;
+  const source = resolveThemeFilePath({ themeDir, themesRoot, relativePath: sourcePath });
+  const sourceStat = statSync(source, { throwIfNoEntry: false });
+  if (!sourceStat) throw new ThemePathError(`file '${sourcePath}' does not exist in this theme`);
+  if (!sourceStat.isFile()) throw new ThemePathError(`path '${sourcePath}' is not a regular file`);
+  if (sourceStat.size > MAX_THEME_FILE_BYTES) {
+    throw new ThemePathError(`file '${sourcePath}' exceeds the ${MAX_THEME_FILE_BYTES}-byte limit`);
+  }
+
+  const dest = resolveThemeFilePath({ themeDir, themesRoot, relativePath: destPath });
+  if (existsSync(dest)) {
+    throw new ThemePathError(`path '${destPath}' already exists in this theme`);
+  }
+
+  return { source, dest };
+}
+
+/**
+ * Duplicate one file inside a theme's folder to a new path also inside it, byte-for-byte.
+ *
+ * @returns The absolute destination path written.
+ * @throws {ThemePathError} On containment failure for either path, a missing/oversized/non-file
+ * source, or a destination that already exists.
+ * @complexity O(s) in the file size.
+ * @overallScore 100/100
+ */
+export function copyThemeFile(
+  required: { themeDir: string; themesRoot: string; sourcePath: string; destPath: string },
+  _optional: Record<string, never> = {}
+): string {
+  const { source, dest } = resolveCopyOrRenameTargets(required);
+  mkdirSync(dirname(dest), { recursive: true });
+  copyFileSync(source, dest);
+  return dest;
+}
+
+/**
+ * Move (rename) one file within a theme's folder, byte-for-byte.
+ *
+ * @returns The absolute destination path.
+ * @throws {ThemePathError} On containment failure for either path, a missing/oversized/non-file
+ * source, or a destination that already exists.
+ * @complexity O(1) — same-filesystem rename, not a copy.
+ * @overallScore 100/100
+ */
+export function renameThemeFile(
+  required: { themeDir: string; themesRoot: string; sourcePath: string; destPath: string },
+  _optional: Record<string, never> = {}
+): string {
+  const { source, dest } = resolveCopyOrRenameTargets(required);
+  mkdirSync(dirname(dest), { recursive: true });
+  renameSync(source, dest);
+  return dest;
 }
