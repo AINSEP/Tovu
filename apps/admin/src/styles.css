@@ -52,6 +52,10 @@
   --primary-ring:   oklch(55.29% 0.1129 43.4 / 0.22);
 
   --link:      oklch(45% 0.13 250);
+  /* Readable text ON `--link` as a fill. Light mode's link is a deep blue (45% L), so white clears
+     contrast comfortably; the dark block below flips this because its link is a light blue. Kept as
+     a token rather than hardcoded per rule so anything filling with `--link` gets the right ink. */
+  --link-ink:  oklch(99% 0 0);
   --ok:        oklch(48% 0.12 150);
   --ok-bg:     oklch(93% 0.05 150);
   --danger:    oklch(52% 0.19 25);
@@ -133,6 +137,8 @@
   --primary-ring:   oklch(56% 0.10 44 / 0.30);
 
   --link:      oklch(74% 0.11 245);
+  /* Dark mode's link is a LIGHT blue (74% L), so the ink inverts to near-black. */
+  --link-ink:  oklch(18% 0.006 260);
   --ok:        oklch(74% 0.14 150);
   --ok-bg:     oklch(45% 0.08 150 / 0.24);
   --danger:    oklch(74% 0.16 25);
@@ -397,19 +403,45 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--space-2); flex-wrap: wrap;
 }
-/* Explore is blue, not the neutral grey the other secondary buttons use, because it is the one
-   action here that goes somewhere rather than changing something. `--link` is the palette's
-   existing blue (it already colors every anchor) and is defined in both light and dark, so this
-   needs no new token. Tinted rather than filled: a second solid button would compete with
-   Activate's burnt-orange fill, which is the one action with a site-wide consequence. */
+/* Explore is a solid blue, distinct from Activate's burnt orange. Two filled buttons on one card is
+   fine precisely because they are different colors doing different things: orange changes what the
+   whole site looks like, blue takes you somewhere. `--link` is the palette's existing blue (it
+   already colors every anchor) and is defined in both light and dark, so this adds no new hue —
+   only `--link-ink`, the text color that stays readable on it in both modes. */
 .btn-explore {
-  background: color-mix(in oklch, var(--link) 10%, transparent);
-  color: var(--link);
-  border: 1px solid color-mix(in oklch, var(--link) 40%, transparent);
+  background: var(--link);
+  color: var(--link-ink);
+  border: 1px solid transparent;
 }
-.btn-explore:hover {
-  background: color-mix(in oklch, var(--link) 18%, transparent);
-  border-color: var(--link); opacity: 1;
+.btn-explore:hover { opacity: 0.88; }
+
+/* Explore screen: file list beside the editor. `minmax(0, 1fr)` on the second column rather than a
+   bare `1fr` — without it a wide `<pre>`/`<textarea>` sets the column's min-content width and pushes
+   the grid past the viewport instead of scrolling inside its own box. */
+.theme-explore {
+  display: grid; grid-template-columns: 190px minmax(0, 1fr);
+  gap: var(--space-4); align-items: start;
+}
+@media (max-width: 720px) { .theme-explore { grid-template-columns: minmax(0, 1fr); } }
+.theme-explore-directions { border-left: 3px solid var(--link); }
+.theme-explore-files ul { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+.theme-explore-files-heading {
+  margin: 0 0 4px; font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-3, var(--fg-2));
+}
+.theme-explore-files button {
+  display: block; width: 100%; text-align: left;
+  padding: 5px 8px; border: 0; border-radius: var(--r-sm);
+  background: transparent; color: var(--fg-2);
+  font-family: var(--font-mono, monospace); font-size: 0.8rem; cursor: pointer;
+}
+.theme-explore-files button:hover { background: var(--surface-2); opacity: 1; }
+.theme-explore-files button.is-active { background: var(--accent-dim); color: var(--fg-1); font-weight: 600; }
+.theme-explore-main { min-width: 0; }
+.theme-explore-preview {
+  width: 100%; height: min(72vh, 900px);
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  background: var(--surface);
 }
 
 /* `@jini-ai/ui`'s Toast ships behavior (TTL, exit timing, ARIA) but no styling — it renders class

@@ -16,6 +16,11 @@ import { registerAdminPresentationGetRoute } from "../routes/admin/presentation/
 import { registerAdminPresentationPatchRoute } from "../routes/admin/presentation/patch-active-theme";
 import { registerAdminThemeRescanRoute } from "../routes/admin/presentation/rescan-themes";
 import { registerAdminThemesListRoute } from "../routes/admin/themes/list";
+import {
+  registerAdminThemeDetailRoute,
+  registerAdminThemeFileGetRoute,
+  registerAdminThemeFilePutRoute,
+} from "../routes/admin/themes/explore";
 import { registerAdminMarketplaceThemesListRoute } from "../routes/admin/marketplace/list";
 import { registerAdminMarketplaceThemeDownloadRoute } from "../routes/admin/marketplace/download";
 import type { ContentRouteDeps } from "../routes/admin/content/deps";
@@ -78,6 +83,13 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       registerAdminThemesListRoute(app, deps);
       registerAdminMarketplaceThemesListRoute(app, deps);
       registerAdminMarketplaceThemeDownloadRoute(app, deps);
+      // Explore screen. `/themes/:themeId/file` is registered BEFORE `/themes/:themeId` would
+      // shadow it — Express matches in registration order, and while `/themes/:themeId` has no
+      // trailing segment today, the ordering is the guarantee rather than the current path shapes
+      // (the same reasoning the pages `/html` route above is ordered by).
+      registerAdminThemeFileGetRoute(app, deps);
+      registerAdminThemeFilePutRoute(app, deps);
+      registerAdminThemeDetailRoute(app, deps);
     },
   };
 }
