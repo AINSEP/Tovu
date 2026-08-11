@@ -741,6 +741,17 @@ export const ENGINE_SUBFOLDERS = ["declarative", "templated", "handlebars", "sta
 export const THEME_CATALOG_DIR = "__original-themes__";
 
 /**
+ * The local marketplace fixture root under a themes root — a stand-in for a remote theme
+ * marketplace (see `src/themes/__marketplace__/README.md` for what a real one would still need:
+ * network, search, versioning). Same shape as {@link THEME_CATALOG_DIR}: `<tier>/<id>/` per
+ * {@link ENGINE_SUBFOLDERS}, and the same NOT-a-tier/NOT-a-theme status, for the same reason —
+ * discovery skips it outright. A marketplace entry becomes a real, runnable theme only via
+ * `downloadMarketplaceTheme` (`marketplace.ts`), which copies it into both {@link THEME_CATALOG_DIR}
+ * and a live tier folder under a freshly assigned id ({@link nextAvailableThemeId}).
+ */
+export const MARKETPLACE_CATALOG_DIR = "__marketplace__";
+
+/**
  * Discover every built-in theme across the top-level (declarative) folder plus every engine
  * subfolder in {@link ENGINE_SUBFOLDERS}. The one call site every composition root should use
  * instead of a raw {@link discoverThemes} call, so the liquidjs/handlebars split is a detail this
@@ -751,9 +762,52 @@ export function discoverAllBuiltInThemes(
   _optional: Record<string, never> = {}
 ): DiscoveredTheme[] {
   const { dir, source } = required;
-  const topLevel = discoverThemes({ dir, source, exclude: [...ENGINE_SUBFOLDERS, THEME_CATALOG_DIR] });
+  const topLevel = discoverThemes({
+    dir,
+    source,
+    exclude: [...ENGINE_SUBFOLDERS, THEME_CATALOG_DIR, MARKETPLACE_CATALOG_DIR],
+  });
   const engineThemes = ENGINE_SUBFOLDERS.flatMap((sub) => discoverThemes({ dir: join(dir, sub), source }));
   return [...topLevel, ...engineThemes].sort((a, b) => a.manifest.id.localeCompare(b.manifest.id));
+}
+
+/**
+ * Assign a folder-safe id for a NEW theme being installed under `themesRoot`, guaranteeing it does
+ * not collide with anything already there. Theme ids are unique per FOLDER, not globally (see
+ * {@link duplicateThemeIds}) — the fix is to never create a second folder claiming an id already in
+ * use, which is what this makes possible at the one call site that creates theme folders today
+ * (`downloadMarketplaceTheme`, `marketplace.ts`).
+ *
+ * Checks BOTH the installed tier folder (`<themesRoot>/<tier>/<id>`) and the catalog
+ * (`<themesRoot>/{@link THEME_CATALOG_DIR}/<tier>/<id>`) — a download writes to both in lockstep, so
+ * a folder existing in only one of them (e.g. a previous run left the pair out of sync) still counts
+ * as taken. Picking an id free in one and not the other would recreate the exact desync this exists
+ * to prevent.
+ *
+ * `desiredId` is only ever SUFFIXED, never renumbered: an id that already ends in a digit (e.g.
+ * `basic9`) gets `basic9-1` on collision, not `basic10` — the suffix always unambiguously means "the
+ * Nth copy of this id", never a digit that could be mistaken for part of the original id.
+ *
+ * @param required.desiredId - The id to try first (typically a marketplace fixture's own `theme.json` id).
+ * @param required.themesRoot - The themes root both the tier folder and the catalog live under.
+ * @param required.tier - Which {@link ENGINE_SUBFOLDERS} tier's folder to check.
+ * @returns `desiredId` if free, else `desiredId-1`, `desiredId-2`, … — the first free suffix.
+ * @complexity O(n) filesystem existence checks, where n is the number of prior collisions on
+ * `desiredId` (2 checks each); O(1) (2 checks) in the common, no-collision case.
+ */
+export function nextAvailableThemeId(
+  required: { desiredId: string; themesRoot: string; tier: ThemeTier },
+  _optional: Record<string, never> = {}
+): string {
+  const { desiredId, themesRoot, tier } = required;
+  const isTaken = (id: string): boolean =>
+    existsSync(join(themesRoot, tier, id)) || existsSync(join(themesRoot, THEME_CATALOG_DIR, tier, id));
+
+  if (!isTaken(desiredId)) return desiredId;
+
+  let suffix = 1;
+  while (isTaken(`${desiredId}-${suffix}`)) suffix += 1;
+  return `${desiredId}-${suffix}`;
 }
 
 /**

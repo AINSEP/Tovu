@@ -6,16 +6,28 @@ export {
   validThemeIds,
   rescanThemes,
   duplicateThemeIds,
+  nextAvailableThemeId,
   resolveTemplateId,
   resolveLiquidTemplateId,
   resolveHandlebarsTemplateId,
   ENGINE_SUBFOLDERS,
+  THEME_CATALOG_DIR,
+  MARKETPLACE_CATALOG_DIR,
   type ThemeManifest,
   type ThemeTier,
   type ThemeTokens,
   type TemplateNode,
   type DiscoveredTheme,
 } from "./theme";
+
+export {
+  listMarketplaceThemes,
+  downloadMarketplaceTheme,
+  MarketplaceThemeError,
+  type MarketplaceListItem,
+  type ThemeLineage,
+  type DownloadMarketplaceThemeResult,
+} from "./marketplace";
 
 export {
   renderStaticPage,
