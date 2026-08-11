@@ -224,3 +224,130 @@ disclosed above with the specific evidence:
 
 Everything else — `static-render.test.ts`, the `parent` field + `basic-child`, and `novice` — was
 deleted exactly as specified, after the requested verification.
+
+---
+
+## Retro: function-quality self-check (added 2026-08-11, after initial handoff)
+
+The original dispatch brief omitted the `programmer` persona's function-quality obligations
+(`AI-Dev-Shop/skills/function-quality-assessment/SKILL.md`) — the coordinator's miss, caught by the
+owner after the four items above were already committed. Retro pass, scoped to what this session
+actually **added** (deletion-only work only ever reduces complexity and was excluded from scope by
+the coordinator's own framing):
+
+1. The `preview/`-exclusion filter logic in `marketplace.ts`'s download flow (item 4).
+2. `menu-tree-render.test.ts` (item 1) — assessed for real logic, not just straight assertions.
+
+### `menu-tree-render.test.ts` — no assessment units found
+
+Read every helper in the file against the skill's scope test ("meaningful branching, I/O, error
+handling, scale risk, security/privacy risk, or independent reuse pressure"): `items()` (spreads
+caller entries over fixed defaults, no branching), `makeTheme()` (a flat object literal), `flatTheme()`/
+`treeTheme(fallback = "")` (each a one-line call into `makeTheme()` with a template string). None
+branch, none touch I/O, none carry a policy decision. The `test(...)` bodies are direct assertions
+against `renderStaticPage`'s output, not logic-bearing functions themselves. Recording this
+determination rather than silently skipping the file: **no assessment units in scope here.**
+
+### `marketplace.ts` — assessed units
+
+**Unit 1 — `isGeneratedPreviewPath` (new, now exported for direct testability).**
+
+- Purpose/inputs/outputs/purity: single job, two required string params, pure boolean return, no
+  exported-boundary two-object-param convention applied (justified deviation — this was a private,
+  two-required-arg internal helper until this pass; exporting it for testability doesn't change that
+  the shape is unambiguous at 2 args).
+- **Finding (Medium, `structure`, RECOMMENDED):** `explore.ts` already has its own independent
+  "is this the generated preview path" predicate (`GENERATED_DIRS`/`isGenerated`, a relative-path
+  prefix check scoped to the file-listing use case). This new one is a second, differently-shaped
+  implementation of the same concept for the copy-time use case. Not literally duplicated code, but
+  a future third generated directory needs updating in two places, or the two drift. Extraction that
+  would resolve it: a shared `isGeneratedThemePath(relativePath, generatedDirNames)` predicate in
+  `theme.ts` (or a new small shared module) both files import. **Not locally fixable in this pass** —
+  the fix touches `explore.ts`, which is the concurrent agent's file and off-limits per the original
+  brief. Reported, not fixed, per instruction.
+- **Finding (Medium, `test-seam-and-evidence`) — fixed locally.** The function was undocumented for
+  `@param`/`@returns`/`@throws`/side effects, and had no `@complexity` tag (5e1 requirement) — added
+  all four. It also had no direct test proving its one non-obvious branch: the trailing-separator
+  check that stops a `preview`-*prefixed* sibling (`preview-notes/`) from being wrongly excluded by a
+  naive `startsWith("preview")`. Added `src/features/theme/__tests__/marketplace.test.ts`, 6 direct
+  tests covering both `||` branches and both true/false outcomes (exact match, nested file, prefixed
+  sibling, no-separator suffix, ordinary file, fixture root itself). 6/6 green.
+- Disposition: **RECOMMENDED** (one surviving Medium finding, not blocking, needs a Refactor-agent
+  pass that also touches `explore.ts`).
+
+**Unit 2 — `downloadMarketplaceTheme` (materially changed: added the `filter` computation and passed
+it to both `cpSync` calls).**
+
+- The function already carried a correct `@complexity` tag from before this session
+  (`O(f)` in the fixture's file count, two recursive copies, plus `rescanThemes`'s `O(t)`); the
+  filter callback is `O(1)` per visited path and folds into that existing term — no update needed.
+- No new impurity, hidden state, resource-bound, or determinism risk introduced; the effect boundary
+  (already-effectful function, already doing real fs I/O) is unchanged.
+- **Finding (Medium, `test-seam-and-evidence`) — fixed locally, then negative-verified.** Before this
+  pass, no test — unit or integration — actually proved the download route excludes `preview/`: the
+  real `src/themes/__marketplace__/` fixture never contained one, and the integration test builds its
+  own synthetic fixture that also didn't. Added a `preview/index.html` file to the synthetic fixture
+  in `marketplace-download-route.integration.test.ts`'s `makeThemesRoot()`, plus assertions that
+  `preview/` is absent from BOTH the catalog and editable copies while an ordinary file
+  (`tokens.json`) still lands in both (proving selective exclusion, not an accidentally-empty copy).
+  **Negative-verified**: temporarily stripped the `filter` option from both `cpSync` calls, re-ran —
+  the new assertion failed exactly as expected (`catalog copy must not carry preview/`), confirming
+  the test is real evidence and not vacuously true; restored the filter immediately after, `tsc`
+  clean, full suite re-confirmed green.
+- Disposition: **NO_RECORDED_FINDINGS** for the assessed delta (the pre-existing rest of the function
+  was not re-assessed — out of scope, unchanged).
+
+### Zero-findings skepticism pass
+
+Not triggered: `isGeneratedPreviewPath` carries a surviving `RECOMMENDED` finding, so this is not an
+across-the-board `NO_RECORDED_FINDINGS` result. Stating this explicitly rather than silently skipping
+the check, per the skill's own warning that under-reporting is the cheapest failure mode in a
+findings regime.
+
+### Compact function-quality table
+
+| unit | disposition | findings (severity:tag:one-line) | local fix attempted |
+|---|---|---|---|
+| `isGeneratedPreviewPath` (`marketplace.ts`) | RECOMMENDED | Medium:structure:duplicate generated-dir-exclusion concept vs. `explore.ts`'s `GENERATED_DIRS`, not shared, drift risk | No — fix requires editing `explore.ts` (off-limits); reported instead |
+| `isGeneratedPreviewPath` (`marketplace.ts`) | (same unit) | Medium:test-seam-and-evidence:no direct test of the prefix-vs-exact separator boundary; also missing `@param`/`@returns`/`@throws`/`@complexity` | Yes — added `marketplace.test.ts` (6/6 green) + full JSDoc incl. `@complexity` |
+| `downloadMarketplaceTheme` delta (`marketplace.ts`) | NO_RECORDED_FINDINGS | Medium:test-seam-and-evidence:no integration-level proof the download route actually excludes `preview/` (resolved, listed for traceability) | Yes — added fixture `preview/` file + 4 assertions to the integration test, negative-verified |
+| `menu-tree-render.test.ts` helpers | N/A — no assessment units | — | — trivial fixture builders, no branching/I/O/policy; documented determination above |
+
+### Coverage evidence
+
+No local coverage-percentage command was run for this narrow retro scope (the repo's `test:cov`
+targets the whole suite, out of proportion to a 2-unit retro check). Direct-test mapping instead:
+`isGeneratedPreviewPath`'s both branches (`rel === "preview"`, `rel.startsWith(...)`) and both
+outcomes are each hit by a dedicated case in `marketplace.test.ts` (6/6). `downloadMarketplaceTheme`'s
+new `filter` wiring is proven end-to-end by
+`marketplace-download-route.integration.test.ts`'s first test (negative-verified, see above).
+
+### `npm run check:admin-complexity-drift` — baseline
+
+Run from repo root, not modified (the debt file it would edit is tied to files this session was
+told not to touch):
+
+```
+check:admin-complexity-drift — 2 debt entries no longer violate(s) the ceiling; delete from admin-complexity-debt.json:
+  - apps/admin/src/features/appearance/Appearance.tsx
+  - apps/admin/src/features/menus/MenuEditor.tsx
+check:admin-complexity-drift — 2 NEW apps/admin complexity violation(s), not in admin-complexity-debt.json:
+  - apps/admin/src/features/themes/ThemeExplore.tsx
+  - apps/admin/src/features/themes/Themes.tsx
+Refactor under the 9/9 ceiling, or add a justified entry to admin-complexity-debt.json.
+```
+
+Exit code `1` (failing). Neither `ThemeExplore.tsx` nor `Themes.tsx` was touched by this session —
+`ThemeExplore.tsx`'s violation is new *right now*, while the other agent is actively editing it, so
+this is the pre-existing-vs-new baseline for that agent's own handoff, not something for this
+session to fix. `Appearance.tsx`/`MenuEditor.tsx` no longer violating is stale-debt-list cleanup,
+also outside this session's scope (neither file was touched here).
+
+### Retro commit
+
+Files touched in this retro pass, all within scope (none of `explore.ts`/`theme-files.ts`/
+`ThemeExplore.tsx`/`src/themes/static/basic/`): `src/features/theme/marketplace.ts` (JSDoc +
+`@complexity` + exported `isGeneratedPreviewPath`), `src/features/theme/__tests__/marketplace.test.ts`
+(new), `src/server/__tests__/routes/marketplace-download-route.integration.test.ts` (fixture +
+assertions). `tsc --noEmit` clean. 20/20 relevant tests green
+(`marketplace.test.ts`, `marketplace-download-route.integration.test.ts`, `menu-tree-render.test.ts`).

@@ -34,11 +34,21 @@ function writeMinimalStaticTheme(dir: string, id: string, name: string): void {
 }
 
 /** A scratch themes root with an already-installed `basic` AND a marketplace fixture also id'd
- * `basic`, so downloading it always collides — mirroring the real fixture's own deliberate collision. */
+ * `basic`, so downloading it always collides — mirroring the real fixture's own deliberate collision.
+ *
+ * The marketplace fixture also carries a `preview/index.html` — `build-preview.mjs`'s generated
+ * output shape — so the download route's `preview/`-exclusion filter (`marketplace.ts`'s
+ * `isGeneratedPreviewPath`) has something to actually exclude. Without this, the filter's own unit
+ * test would be the only evidence it does anything, and the real `src/themes/__marketplace__/`
+ * fixture this test otherwise mirrors doesn't happen to ship a `preview/` dir either.
+ */
 function makeThemesRoot(): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-marketplace-"));
   writeMinimalStaticTheme(path.join(root, "static", "basic"), "basic", "Basic");
-  writeMinimalStaticTheme(path.join(root, MARKETPLACE_CATALOG_DIR, "static", "basic"), "basic", "Basic (Marketplace)");
+  const marketplaceDir = path.join(root, MARKETPLACE_CATALOG_DIR, "static", "basic");
+  writeMinimalStaticTheme(marketplaceDir, "basic", "Basic (Marketplace)");
+  fs.mkdirSync(path.join(marketplaceDir, "preview"), { recursive: true });
+  fs.writeFileSync(path.join(marketplaceDir, "preview", "index.html"), "<!doctype html><html><body>stale</body></html>", "utf8");
   return root;
 }
 
@@ -82,6 +92,16 @@ test("marketplace download: an id collision installs the new theme at '<id>-1' o
   const installedManifestPath = path.join(themesRoot, "static", "basic-1", "theme.json");
   assert.ok(fs.existsSync(catalogManifestPath), "the catalog original must exist on disk");
   assert.ok(fs.existsSync(installedManifestPath), "the editable copy must exist on disk");
+
+  // The fixture's generated preview/ must not survive the copy into either destination — the
+  // filter's whole point — while an ordinary file it ships alongside it (tokens.json) still does, so
+  // this proves selective exclusion rather than an accidentally-empty or failed copy.
+  const catalogDir = path.join(themesRoot, THEME_CATALOG_DIR, "static", "basic-1");
+  const installedDir = path.join(themesRoot, "static", "basic-1");
+  assert.ok(!fs.existsSync(path.join(catalogDir, "preview")), "catalog copy must not carry preview/");
+  assert.ok(!fs.existsSync(path.join(installedDir, "preview")), "editable copy must not carry preview/");
+  assert.ok(fs.existsSync(path.join(catalogDir, "tokens.json")), "catalog copy must still carry ordinary files");
+  assert.ok(fs.existsSync(path.join(installedDir, "tokens.json")), "editable copy must still carry ordinary files");
 
   const catalogManifest = JSON.parse(fs.readFileSync(catalogManifestPath, "utf8")) as Record<string, unknown>;
   const installedManifest = JSON.parse(fs.readFileSync(installedManifestPath, "utf8")) as Record<string, unknown>;
