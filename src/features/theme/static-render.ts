@@ -110,6 +110,48 @@ export function injectPageContent(template: string, contentHtml: string): string
   return substituteMarkers(template, (marker) => (marker.type === "content" ? withInnerContent(marker, contentHtml) : undefined));
 }
 
+/** Minimal HTML-attribute/text escaping, matching `server/http/site/render.ts`'s `escapeHtml`
+ * byte-for-byte. Not imported from there: that module pulls in the full template-tree renderer
+ * (widgets, Liquid/Handlebars sandboxes, forms), and `render.ts` already imports TYPES from this
+ * theme module — importing a runtime value back would open the one runtime import cycle between
+ * `features/theme` and `server/http/site` that does not exist today. A four-line pure function is
+ * cheaper than that edge. */
+function escapeHtmlText(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+}
+
+/**
+ * Substitutes a page-template's title placeholder with a Page's own real title —
+ * `injectPageContent`'s sibling for the `<title>` tag, following the same "string substitution, not a
+ * marker rewrite" convention {@link injectPostEmbedId} documents.
+ *
+ * Matches the WHOLE `<title>...</title>` element the placeholder sits in, not a bare token search —
+ * learned the hard way while authoring `page-shell.html`: that file's own explanatory HTML comment
+ * mentions the placeholder as prose, and a bare-token `.replace()` matched THAT occurrence (the first
+ * one in the file) instead of the real one in `<head>`, silently leaving the `<title>` tag unfilled.
+ * Scoping the match to the full element, the same way {@link injectPostEmbedId} scopes its match to
+ * `"id":"..."` rather than a bare `{{post}}`, makes an incidental mention elsewhere in the template
+ * (a comment, authored copy) structurally unable to collide with the real slot.
+ *
+ * Exists because the template-picker's other rendering path, `renderPostViaTemplate`, has a disclosed,
+ * ACCEPTED limitation here: `blog-post.html`'s `<title>` is one fixed string, and every post rendered
+ * through it shows that generic title in the browser tab. That is tolerable for posts (their real
+ * title still renders in the visible `<h1>`), but the five legacy Pages this template targets used to
+ * be silently mis-templated for the exact same reason — a hardcoded template `<title>` overriding
+ * their real one (Task 1's render-gate fix, this session). Shipping a page-template with the same
+ * fixed-title limitation would reintroduce that regression through a new door, so unlike the Post
+ * side, the Page template gets a real per-render substitution instead of accepting the limitation.
+ *
+ * A page-template file authored without this exact `<title>...</title>` shape is simply unaffected —
+ * `replace` is a no-op when the pattern isn't present, same degrade `injectPostEmbedId` relies on for
+ * a template missing `{{post}}`.
+ *
+ * @complexity O(n) over `html`'s length — one string search-and-replace.
+ */
+export function injectPageTitle(html: string, title: string): string {
+  return html.replace(/<title>\{\{title\}\}<\/title>/, () => `<title>${escapeHtmlText(title)}</title>`);
+}
+
 /**
  * The minimal structural shape this module needs from a resolved menu item — matches
  * `ResolvedNavItem` (`@jini-ai/cms/navigation`, re-exported by `#src/navigation`) field-for-field on

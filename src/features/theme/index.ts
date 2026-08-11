@@ -34,6 +34,7 @@ export {
   renderStaticPartial,
   injectPostEmbedId,
   injectPageContent,
+  injectPageTitle,
   resolvePostTemplate,
   resolvePageTemplate,
   isEligibleForPostTemplateBranch,
