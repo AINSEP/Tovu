@@ -482,9 +482,27 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
   flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 /* Scaled down from the table row menu's 30px default — this column is 190px wide total, shared with
-   a filename that is often longer than the space left after a full-size trigger. */
-.theme-explore-file-row .row-menu-trigger { width: 22px; height: 22px; flex-shrink: 0; }
+   a filename that is often longer than the space left after a full-size trigger. `flex-shrink: 0`
+   plus the fixed width reserve this space in the row's layout AT ALL TIMES — the `opacity` toggle
+   below only ever changes visibility, never the box the row is laid out around, so revealing the
+   trigger can never shift the filename or reflow the row. */
+.theme-explore-file-row .row-menu-trigger { width: 22px; height: 22px; flex-shrink: 0; opacity: 0; }
 .theme-explore-file-row .row-menu-trigger svg { width: 13px; height: 13px; }
+/* Eight-plus always-visible ⋮ glyphs read as noise before an operator has touched anything — reveal
+   on row hover, on the SELECTED file's own row (so working a file doesn't require re-hovering it to
+   reach its menu), and on `:focus-within` rather than `:focus` on the trigger alone: `:focus` would
+   never fire for a keyboard user tabbing toward it, since a `focus`-only rule requires the element
+   to already be visible/reachable to look right, and `:focus-within` reveals the row the instant
+   focus enters it, matching the mouse-hover behavior instead of trailing it. Also forced visible
+   while the menu it opens is itself open (`aria-expanded`), so moving the pointer onto the portaled
+   popup — which is not a descendant of this row, so `:hover`/`:focus-within` above cannot see it —
+   does not make the trigger that opened it disappear underneath an open menu. */
+.theme-explore-file-row:hover .row-menu-trigger,
+.theme-explore-file-row:focus-within .row-menu-trigger,
+.theme-explore-file-row.is-active .row-menu-trigger,
+.theme-explore-file-row .row-menu-trigger[aria-expanded="true"] {
+  opacity: 1;
+}
 /* Takes over the filename button's slot and sizing while a rename is in progress, so double-clicking
    a name and typing over it reads as editing that same control rather than swapping to a visually
    unrelated one. */

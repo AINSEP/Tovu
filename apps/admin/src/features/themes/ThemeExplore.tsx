@@ -115,6 +115,220 @@ function readOnlyReason(file: ThemeExploreFile): string {
     : "This file type is read-only in Explore.";
 }
 
+/**
+ * Whether the Save button should be offered at all for the selected file — `undefined` (nothing
+ * selected yet) defaults to showing it, matching the pre-existing behavior before per-file
+ * editability existed. Pulled out to a top-level predicate for the same complexity-drift reason
+ * {@link themeExploreHtmlMode} documents, rather than left as an inline `||` in `ThemeExplore`'s own
+ * JSX.
+ *
+ * @complexity O(1).
+ * @overallScore 100/100
+ */
+function canSaveSelectedFile(file: ThemeExploreFile | undefined): boolean {
+  return file === undefined || file.editable;
+}
+
+/**
+ * Which of the HTML tab's three renderings applies to a file — pulled out of `ThemeExplore`'s own
+ * render body into a plain top-level function rather than a `useCallback`/inline ternary chain.
+ *
+ * `apps/admin`'s own complexity-drift check (`npm run check:admin-complexity-drift`) aggregates
+ * closures declared INSIDE a component back into that component's count even where ESLint's
+ * `complexity`/`sonarjs/cognitive-complexity` rules score a `useCallback` body as its own unit — only
+ * a genuinely top-level function moves branch count out of both. `undefined` (nothing selected yet)
+ * intentionally maps to `"editable"`, matching the pre-existing fallback behavior: an empty textarea,
+ * not a binary notice, is what rendered here before this file/kind concept existed.
+ *
+ * @complexity O(1) — three independent boolean checks, no iteration.
+ * @overallScore 100/100
+ */
+function themeExploreHtmlMode(file: ThemeExploreFile | undefined): "binary" | "readonly" | "editable" {
+  if (!file) return "editable";
+  if (!file.readable) return "binary";
+  if (!file.editable) return "readonly";
+  return "editable";
+}
+
+/**
+ * The HTML tab's body for the selected file — binary (no source, Preview tab instead), read-only
+ * (script/`other`, visible but not saveable), or a normal editable textarea. Extracted to top level
+ * for the same complexity-drift reason {@link themeExploreHtmlMode} documents: this was three
+ * `ThemeExplore`-body ternaries plus their markup, now one independently-scored component.
+ *
+ * @complexity O(1) — renders exactly one of three fixed shapes.
+ * @overallScore 100/100
+ */
+function ThemeExploreHtmlPane({
+  file,
+  source,
+  setSource,
+  t,
+}: {
+  file: ThemeExploreFile | undefined;
+  source: string;
+  setSource: (value: string) => void;
+  t: (key: string) => string;
+}) {
+  const mode = themeExploreHtmlMode(file);
+
+  if (mode === "binary") {
+    // Never rendered into a textarea: reading a PNG as UTF-8 gives mojibake, and saving that back
+    // would truly corrupt it. The Preview tab shows the real bytes.
+    return (
+      <div className="notice">
+        {t("This is a binary file, so it has no editable source. Use the Preview tab to view it.")}
+      </div>
+    );
+  }
+
+  if (mode === "readonly") {
+    // Readable but not editable — a script or an `other`-group file. Shown as source (unlike the
+    // binary case above), but `readOnly` and paired with a visible reason: an editable-looking
+    // textarea next to a Save button that can never fire would be worse than either showing nothing
+    // or being honest about why. `file` is non-null here — `themeExploreHtmlMode` only returns
+    // `"readonly"` when it was given one.
+    return (
+      <>
+        <div className="notice">{t(readOnlyReason(file as ThemeExploreFile))}</div>
+        <textarea
+          className="page-html-source"
+          value={source}
+          readOnly
+          spellCheck={false}
+          aria-label={t("Theme file source (read-only)")}
+        />
+      </>
+    );
+  }
+
+  return (
+    <textarea
+      className="page-html-source"
+      value={source}
+      spellCheck={false}
+      onChange={(e) => setSource(e.target.value)}
+      aria-label={t("Theme file source")}
+    />
+  );
+}
+
+/**
+ * Enter commits the inline rename, Escape abandons it. Blur (clicking away) also abandons it rather
+ * than committing — unlike Finder/Explorer's commit-on-blur, this sidesteps the whole double-fire
+ * class of bug a commit-on-blur design has to guard against (Enter firing the rename, then the
+ * input's own removal from the DOM firing a second blur-triggered attempt): a deliberate Enter, or
+ * the ⋮ menu's Rename item, are the two ways to actually commit, and both are equally fast for this
+ * screen's stated use case (typing a new name and pressing Enter).
+ *
+ * Top-level rather than a closure inside {@link ThemeExploreFileRow} for the same complexity-drift
+ * reason {@link themeExploreHtmlMode} documents.
+ *
+ * @complexity O(1).
+ * @overallScore 100/100
+ */
+function handleFileRowRenameKeyDown(
+  e: KeyboardEvent<HTMLInputElement>,
+  actions: { commitRename: () => void; cancelRename: () => void }
+): void {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    actions.commitRename();
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    actions.cancelRename();
+  }
+}
+
+/**
+ * One sidebar row: the filename control (or its inline-rename replacement) plus the ⋮ overflow menu
+ * — 2026-08-11 owner ask (Copy/Rename). Extracted to top level, not a nested closure inside
+ * `ThemeExplore`'s `.map()`, for the same complexity-drift reason {@link themeExploreHtmlMode}
+ * documents — this was the single largest contributor to that function's complexity growing past
+ * the project's 9/9 ceiling when the ⋮ menu and inline rename were added inline.
+ *
+ * @complexity O(1) per row — the list's own O(n) iteration lives in the caller's `.map()`.
+ * @overallScore 100/100
+ */
+function ThemeExploreFileRow({
+  file,
+  selected,
+  select,
+  renamingPath,
+  renameDraft,
+  setRenameDraft,
+  startRename,
+  cancelRename,
+  commitRename,
+  copyingPath,
+  copyFile,
+  t,
+}: {
+  file: ThemeExploreFile;
+  selected: string | null;
+  select: (path: string) => void;
+  renamingPath: string | null;
+  renameDraft: string;
+  setRenameDraft: (value: string) => void;
+  startRename: (path: string) => void;
+  cancelRename: () => void;
+  commitRename: () => void;
+  copyingPath: string | null;
+  copyFile: (path: string) => Promise<void>;
+  t: (key: string) => string;
+}) {
+  const isSelected = selected === file.path;
+
+  return (
+    <li className={isSelected ? "theme-explore-file-row is-active" : "theme-explore-file-row"}>
+      {renamingPath === file.path ? (
+        <input
+          className="theme-explore-rename-input"
+          value={renameDraft}
+          autoFocus
+          onChange={(e) => setRenameDraft(e.target.value)}
+          onKeyDown={(e) => handleFileRowRenameKeyDown(e, { commitRename, cancelRename })}
+          onBlur={cancelRename}
+          aria-label={t("New name for {file}").replace("{file}", file.label)}
+        />
+      ) : (
+        <button
+          type="button"
+          className={isSelected ? "is-active" : undefined}
+          aria-current={isSelected ? "true" : undefined}
+          onClick={() => select(file.path)}
+          onDoubleClick={() => startRename(file.path)}
+          title={file.path}
+        >
+          {file.label}
+        </button>
+      )}
+      {/* Copy is unconditional — see `previewSrcFor`'s sibling `copyFile` doc comment in the hook for
+          why duplicating bytes carries none of the risk editing does. Rename is always offered too: a
+          LOCKED file (pages/index.html, theme.json, tokens.json) still shows the item, but selecting
+          it surfaces `error` with the reason instead of opening the inline editor — `RowMenu` has no
+          built-in disabled-item affordance to hang a tooltip reason off, so the reason is surfaced
+          through the same error surface the rest of this screen already uses, rather than silently
+          doing nothing. */}
+      <RowMenu
+        triggerLabel={t("More actions for {file}").replace("{file}", file.label)}
+        items={[
+          {
+            key: "copy",
+            label: copyingPath === file.path ? t("Copying…") : t("Copy"),
+            onSelect: () => void copyFile(file.path),
+          },
+          {
+            key: "rename",
+            label: t("Rename"),
+            onSelect: () => startRename(file.path),
+          },
+        ]}
+      />
+    </li>
+  );
+}
+
 export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }: ThemeExploreProps) {
   const locale = useAdminLocale();
   const t = (key: string): string => translateThemes(locale, key);
@@ -200,24 +414,6 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
     if (e.target === dialogRef.current) closeFullscreen();
   }
 
-  /**
-   * Enter commits the inline rename, Escape abandons it. Blur (clicking away) also abandons it
-   * rather than committing — unlike Finder/Explorer's commit-on-blur, this sidesteps the whole
-   * double-fire class of bug a commit-on-blur design has to guard against (Enter firing the rename,
-   * then the input's own removal from the DOM firing a second blur-triggered attempt): a deliberate
-   * Enter, or the ⋮ menu's Rename item, are the two ways to actually commit, and both are equally
-   * fast for this screen's stated use case (typing a new name and pressing Enter).
-   */
-  function handleRenameKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      commitRename();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      cancelRename();
-    }
-  }
-
   if (error && !detail) return <div className="notice error">{error}</div>;
   if (!detail) return <div className="notice">{t("Loading theme…")}</div>;
 
@@ -296,53 +492,21 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
                 <p className="theme-explore-files-heading">{t(label)}</p>
                 <ul>
                   {group.map((file) => (
-                    <li key={file.path} className="theme-explore-file-row">
-                      {renamingPath === file.path ? (
-                        <input
-                          className="theme-explore-rename-input"
-                          value={renameDraft}
-                          autoFocus
-                          onChange={(e) => setRenameDraft(e.target.value)}
-                          onKeyDown={handleRenameKeyDown}
-                          onBlur={cancelRename}
-                          aria-label={t("New name for {file}").replace("{file}", file.label)}
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          className={selected === file.path ? "is-active" : undefined}
-                          aria-current={selected === file.path ? "true" : undefined}
-                          onClick={() => select(file.path)}
-                          onDoubleClick={() => startRename(file.path)}
-                          title={file.path}
-                        >
-                          {file.label}
-                        </button>
-                      )}
-                      {/* Copy is unconditional — see `previewSrcFor`'s sibling `copyFile` doc comment
-                          in the hook for why duplicating bytes carries none of the risk editing does.
-                          Rename is always offered too: a LOCKED file (pages/index.html, theme.json,
-                          tokens.json) still shows the item, but selecting it surfaces `error` with the
-                          reason instead of opening the inline editor — `RowMenu` has no built-in
-                          disabled-item affordance to hang a tooltip reason off, so the reason is
-                          surfaced through the same error surface the rest of this screen already
-                          uses, rather than silently doing nothing. */}
-                      <RowMenu
-                        triggerLabel={t("More actions for {file}").replace("{file}", file.label)}
-                        items={[
-                          {
-                            key: "copy",
-                            label: copyingPath === file.path ? t("Copying…") : t("Copy"),
-                            onSelect: () => void copyFile(file.path),
-                          },
-                          {
-                            key: "rename",
-                            label: t("Rename"),
-                            onSelect: () => startRename(file.path),
-                          },
-                        ]}
-                      />
-                    </li>
+                    <ThemeExploreFileRow
+                      key={file.path}
+                      file={file}
+                      selected={selected}
+                      select={select}
+                      renamingPath={renamingPath}
+                      renameDraft={renameDraft}
+                      setRenameDraft={setRenameDraft}
+                      startRename={startRename}
+                      cancelRename={cancelRename}
+                      commitRename={commitRename}
+                      copyingPath={copyingPath}
+                      copyFile={copyFile}
+                      t={t}
+                    />
                   ))}
                 </ul>
               </div>
@@ -421,7 +585,7 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
                   become true for a read-only file (its textarea below has no `onChange`), so this is
                   a belt-and-suspenders hide rather than the only thing standing between the operator
                   and an accidental save. */}
-              {selectedFile === undefined || selectedFile.editable ? (
+              {canSaveSelectedFile(selectedFile) ? (
                 <button
                   className="btn-primary"
                   disabled={!dirty || saving}
@@ -440,35 +604,8 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
             ) : (
               <div className="notice">{t("Select a file to preview.")}</div>
             )
-          ) : selectedFile && !selectedFile.readable ? (
-            // Binary. Never rendered into a textarea: reading a PNG as UTF-8 gives mojibake, and
-            // saving that back would truly corrupt it. The Preview tab shows the real bytes.
-            <div className="notice">
-              {t("This is a binary file, so it has no editable source. Use the Preview tab to view it.")}
-            </div>
-          ) : selectedFile && !selectedFile.editable ? (
-            // Readable but not editable — a script or an `other`-group file. Shown as source (unlike
-            // the binary case above), but `readOnly` and paired with a visible reason: an editable-
-            // looking textarea next to a Save button that can never fire would be worse than either
-            // showing nothing or being honest about why.
-            <>
-              <div className="notice">{t(readOnlyReason(selectedFile))}</div>
-              <textarea
-                className="page-html-source"
-                value={source}
-                readOnly
-                spellCheck={false}
-                aria-label={t("Theme file source (read-only)")}
-              />
-            </>
           ) : (
-            <textarea
-              className="page-html-source"
-              value={source}
-              spellCheck={false}
-              onChange={(e) => setSource(e.target.value)}
-              aria-label={t("Theme file source")}
-            />
+            <ThemeExploreHtmlPane file={selectedFile} source={source} setSource={setSource} t={t} />
           )}
         </div>
       </div>
