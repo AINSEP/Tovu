@@ -19,6 +19,17 @@
  * `max-width` on the label itself would sit on a box that is never generated and do nothing. `flex:
  * 1 1 50%` + `max-width: 50%` (rather than a bare `width: 50%`) lets the title GROW to fill the
  * half if the slug group is narrower than its own half, while never exceeding it.
+ *
+ * The `border-image` fade on the title (below) matches the Post editor's `.editor-title-row
+ * .editor-title` treatment (`styles.css`, 2026-08-11) — same problem, same fix: a hard-edged
+ * `border-bottom` that stops at the input's half-width edge reads as an accidentally truncated
+ * divider, because it sits directly beside the slug group with no comparable line under it. Tapering
+ * it to transparent over the last third of the input's width reads as a deliberate typographic
+ * accent instead. `:focus` gets its own override for the same reason the Post editor's does: once
+ * `border-image` is set it owns painting that edge, so the base `border-bottom-color` this input
+ * would otherwise pick up on focus (`.editor-title:focus`, `styles.css`) has nothing left to paint —
+ * the override below carries that same `--accent-text` focus signal through the gradient instead.
+ * Keep the two editors in sync if this changes again — same DOM shape, same rule, same fix.
  */
 .page-title-row {
   display: flex;
@@ -32,6 +43,11 @@
   flex: 1 1 50%;
   max-width: 50%;
   min-width: 0;
+  border-image: linear-gradient(to right, var(--border) 65%, transparent) 1;
+}
+
+.page-title-row .editor-title:focus {
+  border-image: linear-gradient(to right, var(--accent-text) 65%, transparent) 1;
 }
 
 /* Below this width the halves read as cramped rather than "comfortably usable" (title and slug are
