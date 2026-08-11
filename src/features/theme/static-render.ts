@@ -67,6 +67,50 @@ export function injectPostEmbedId(html: string, postId: string): string {
 }
 
 /**
+ * Splices a Page's own already-authored body HTML into every `{"type":"content"}` marker in a chosen
+ * page-template file — the page-template counterpart to {@link injectPostEmbedId} immediately above,
+ * and the mechanism the Pages template picker needs that a Post's `{{post}}` substitution does not: a
+ * Post is IDENTIFIED by an id a template can carry as a literal placeholder and defer to a resolver
+ * stage; a Page's body is not a reference to look up at all — the route already fetched the Page row
+ * before choosing to render it through a template, so `contentHtml` is already in hand and there is
+ * nothing to defer.
+ *
+ * **Deliberately NOT a `resolver-service.ts` `HTML_EMBED_RESOLVERS` entry.** An async registry
+ * resolver's failure mode is the REQ-28 generic placeholder — the right degrade for "this referenced
+ * widget was deleted", and the wrong one for "this page has no body": there is no such case at this
+ * point in the call chain, only a string that may be empty. Placing `content` alongside `partial`/
+ * `menu` instead (theme-owned, `isPageEmbedType("content")` is `false` with no registry entry to add)
+ * means an unsubstituted marker — this function skipped, or called against html that never had one —
+ * survives exactly as authored, the same "unresolved means untouched" contract theme nav/footer
+ * already rely on (`resolver-service.ts`'s `isPageEmbedType` doc). Silently blanking a page's entire
+ * body to a widget-shaped placeholder would be a materially worse failure than leaving a visible,
+ * debuggable marker in the output.
+ *
+ * Called BEFORE `resolveHtmlPageEmbeds`, the same pipeline position `injectPostEmbedId` occupies in
+ * `renderPostViaTemplate` — any `widget`/`media`/`post` marker authored INSIDE the page's own body
+ * (not only the template's) is therefore resolved in the same later pass once the two strings are
+ * combined here.
+ *
+ * Uses {@link withInnerContent} (keeps the marker's own tag and authored attributes, splices only what
+ * is inside) rather than a whole-element replace. A content slot is far likelier to carry the theme's
+ * own styling wrapper (`<main class="page-body" data-embed-config='{"type":"content"}'></main>`) that
+ * must survive — the same reason a `menu` marker uses `withInnerContent` — and unlike `post`/`partial`,
+ * whose marker element is a bare, classless `<div>` in every theme shipped in this repo today
+ * (verified: zero `class` attributes on any `post`/`partial` marker across `src/themes/static/*\/pages/
+ * *.html`), so whole-element replacement has never had anything to preserve for those two types.
+ *
+ * Every `content` marker present receives the SAME `contentHtml` — more than one content slot in one
+ * template is unusual but not invalid, and silently filling only the first occurrence would be a worse
+ * surprise than filling every one identically.
+ *
+ * @complexity O(n) over `template`'s length — one `substituteMarkers` scan-and-splice pass, the same
+ * cost shape every other marker-substitution call in this codebase already pays.
+ */
+export function injectPageContent(template: string, contentHtml: string): string {
+  return substituteMarkers(template, (marker) => (marker.type === "content" ? withInnerContent(marker, contentHtml) : undefined));
+}
+
+/**
  * The minimal structural shape this module needs from a resolved menu item — matches
  * `ResolvedNavItem` (`@jini-ai/cms/navigation`, re-exported by `#src/navigation`) field-for-field on
  * every field actually used here. A local shape rather than importing that type keeps `features/theme`
