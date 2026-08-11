@@ -136,16 +136,37 @@ test("copying the same source twice increments the suffix instead of colliding",
 });
 
 /**
- * Adversarial case found during the 2026-08-11 function-quality self-check on
+ * Adversarial case originally written during the 2026-08-11 function-quality self-check on
  * `resolveCopyOrRenameTargets`: its own `existsSync(dest)` pre-check leaves a TOCTOU window between
- * "checked the name is free" and "wrote the file" — two requests issued close enough together (a
- * genuine double-click, or two tabs) can both compute the SAME auto-suffixed destination and both
- * pass that check before either writes. `copyThemeFile` closes this specific window with
- * `copyFileSync`'s `COPYFILE_EXCL` flag; this test proves that closure rather than asserting it by
- * reading the source. `Promise.all` fires both requests without awaiting the first, so both start
- * from the identical pre-copy directory listing.
+ * "checked the name is free" and "wrote the file," and the concern was that two requests issued close
+ * together could both compute the SAME auto-suffixed destination and both pass that check before
+ * either writes.
+ *
+ * **2026-08-11, corrected:** the original version of this test asserted `[200, 400]` — one request
+ * wins, the other fails — which this route can never actually produce. `authorizeThemeAccess` is the
+ * only `await` before the route's `listThemeFiles` → `nextAvailableFileName` → `copyThemeFile` chain,
+ * and that whole chain is fully SYNCHRONOUS with no further `await` inside it. Node's run-to-completion
+ * semantics mean that once one request's continuation resumes after its `await`, its entire
+ * list-compute-write sequence runs as one atomic stretch before the event loop can give the other
+ * request's continuation any CPU time at all — so the second request's OWN `listThemeFiles` call
+ * always sees the first request's file already on disk, and correctly computes the NEXT suffix rather
+ * than colliding with it. Verified directly (temporary debug output on this exact `Promise.all`):
+ * both requests consistently return 200 with `about-1.html` and `about-2.html`, never a 400. The
+ * original assertion was simply describing a race this implementation's request-handling shape cannot
+ * produce, not the invariant it meant to protect.
+ *
+ * The invariant itself — two callers who DO land on the same destination must not silently clobber one
+ * another — is real and still worth protecting (a future async refactor of the copy path, or two
+ * separate server processes sharing a themes directory, could reintroduce exactly the interleaving
+ * this route's current shape rules out). It is now pinned directly at the `copyThemeFile` level, where
+ * it can be forced deterministically instead of attempted-and-hoped-for over HTTP: see
+ * `theme-files.test.ts`'s `"copyThemeFile refuses to silently overwrite an existing destination"`.
+ *
+ * What THIS test asserts instead is the actual, and better, observed behavior: two concurrent copy
+ * requests for the same source both succeed, each getting its own correctly-bumped suffix, and neither
+ * corrupts the other.
  */
-test("two concurrent copies of the same source do not silently overwrite one another", async (t) => {
+test("two concurrent copies of the same source both succeed with distinct, uncorrupted suffixes", async (t) => {
   const themesRoot = makeThemesRoot();
   const deps = testDeps(themesRoot);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
@@ -158,17 +179,16 @@ test("two concurrent copies of the same source do not silently overwrite one ano
     });
 
   const [a, b] = await Promise.all([copyOnce(), copyOnce()]);
-  const statuses = [a.status, b.status].sort();
-  // Exactly one wins the race for `about-1.html`; the other must fail cleanly (400, containment
-  // error) rather than silently landing on the same path a second time or corrupting either file.
-  assert.deepEqual(statuses, [200, 400]);
+  assert.deepEqual([a.status, b.status], [200, 200]);
 
-  const winner = a.status === 200 ? a : b;
-  const winnerBody = (await winner.json()) as { path: string };
-  assert.equal(winnerBody.path, "pages/about-1.html");
+  const [aBody, bBody] = (await Promise.all([a.json(), b.json()])) as { path: string }[];
+  const paths = [aBody.path, bBody.path].sort();
+  assert.deepEqual(paths, ["pages/about-1.html", "pages/about-2.html"]);
 
-  const onDisk = fs.readFileSync(path.join(themesRoot, "static", "scratch", "pages", "about-1.html"), "utf8");
-  assert.match(onDisk, /ABOUT-ORIGINAL/, "the winning copy must be intact, not a corrupted partial write");
+  for (const p of paths) {
+    const onDisk = fs.readFileSync(path.join(themesRoot, "static", "scratch", ...p.split("/")), "utf8");
+    assert.match(onDisk, /ABOUT-ORIGINAL/, `${p} must be intact, not a corrupted partial write`);
+  }
 });
 
 test("copying a script (read-only-to-edit) is allowed — read-only blocks editing, not duplicating", async (t) => {

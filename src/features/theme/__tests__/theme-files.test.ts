@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  copyThemeFile,
   isGeneratedThemePath,
   isRecognizedThemeRoot,
   listThemeFiles,
@@ -233,4 +234,47 @@ test("a backslash-separated (Windows-shaped) relative path is normalized before 
 
 test("an ordinary theme file is NOT matched", () => {
   assert.equal(isGeneratedThemePath("pages/about.html"), false);
+});
+
+/**
+ * `copyThemeFile` never silently overwrites an existing destination — the invariant behind both
+ * `resolveCopyOrRenameTargets`' own `existsSync(dest)` pre-check AND `copyFileSync`'s
+ * `COPYFILE_EXCL` flag inside `copyThemeFile` itself. Negatively verified as a PAIR, not just
+ * asserted from the doc comments: with only the `existsSync` pre-check removed, `COPYFILE_EXCL`
+ * alone still catches this (an `EEXIST` from the OS); with only `COPYFILE_EXCL` removed, the
+ * pre-check alone still catches it. The two are genuine defense-in-depth for different scenarios —
+ * the pre-check is what protects ordinary sequential calls (this test's own shape); `COPYFILE_EXCL`
+ * is the narrower backstop for a TRUE OS-level race the pre-check's own check-then-act shape cannot
+ * close (two separate PROCESSES, or a future async refactor with a real `await` between the check
+ * and the write) — a scenario this single-process, fully-synchronous test cannot itself force open,
+ * so it is not separately exercised here; see `theme-files.ts`'s own `COPYFILE_EXCL` comment.
+ *
+ * Deliberately exercised here at the `copyThemeFile` level with an explicit, IDENTICAL `destPath` on
+ * both calls, not via two concurrent HTTP requests through the copy ROUTE (which is what an earlier
+ * version of this coverage tried). That route computes its own auto-suffixed `destPath` via a fully
+ * synchronous `listThemeFiles` → `nextAvailableFileName` → `copyThemeFile` chain with no `await`
+ * inside it, and Node's run-to-completion semantics mean one request's ENTIRE chain finishes before a
+ * second request's continuation ever runs — so two requests hitting that route can never actually
+ * observe each other mid-computation and land on the same computed name; each just gets a correctly
+ * bumped `-1`, `-2`, … suffix in turn (see
+ * `theme-file-copy-rename-route.integration.test.ts`'s own "two concurrent copies" test and its
+ * comment for that confirmed, deterministic behavior). This test instead pins the lower-level
+ * INVARIANT `copyThemeFile` itself guarantees whenever two callers DO land on the same destination —
+ * true regardless of how they got there — by forcing exactly that with an explicit shared `destPath`.
+ */
+test("copyThemeFile refuses to silently overwrite an existing destination", () => {
+  const { root, themeDir } = makeThemesRoot();
+  const first = copyThemeFile({ themeDir, themesRoot: root, sourcePath: "theme.json", destPath: "theme-copy.json" });
+  assert.equal(fs.readFileSync(first, "utf8"), "{}");
+
+  // A second copy onto the SAME destination, now that the source has since changed — if this
+  // silently "succeeded" by overwriting, the destination would pick up "poisoned" below instead of
+  // staying exactly what the first, legitimate copy wrote.
+  fs.writeFileSync(path.join(themeDir, "theme.json"), "poisoned", "utf8");
+  assert.throws(
+    () => copyThemeFile({ themeDir, themesRoot: root, sourcePath: "theme.json", destPath: "theme-copy.json" }),
+    /already exists/
+  );
+
+  assert.equal(fs.readFileSync(first, "utf8"), "{}", "the first copy's bytes must survive the refused second copy untouched");
 });
