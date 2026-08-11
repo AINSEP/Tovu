@@ -31,6 +31,7 @@ export {
 
 export {
   renderStaticPage,
+  renderStaticPartial,
   injectPostEmbedId,
   resolvePostTemplate,
   scanMenuEmbedIds,

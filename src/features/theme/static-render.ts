@@ -359,6 +359,54 @@ export function renderStaticPage(
   return html;
 }
 
+/**
+ * The minimal host document a partial renders inside when previewed standalone. Carries the exact
+ * literal `<link rel="stylesheet" href="../css/styles.css" />` {@link renderStaticPage}'s own
+ * token-injection step matches against (see its call to {@link tokensToRootCss} above), so a partial
+ * preview picks up the theme's design tokens and stylesheet through the SAME code path a real page
+ * uses — no second "inject styles into a fragment" mechanism to keep in sync with the first.
+ */
+function wrapPartialInHostDocument(partialHtml: string): string {
+  return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Partial preview</title>
+<link rel="stylesheet" href="../css/styles.css" />
+</head>
+<body>
+${partialHtml}
+</body>
+</html>`;
+}
+
+/**
+ * Render a static theme's PARTIAL (`nav`, `footer`, `sidebar`, any slot's root file) standalone,
+ * styled with the theme's own tokens and stylesheet — for the Explore screen's preview, which used to
+ * refuse partials outright ("Partials have no standalone preview") on the theory that a fragment out
+ * of page context is meaningless. It isn't: a partial IS complete, styled markup the moment its CSS
+ * loads, and wrapping it in {@link wrapPartialInHostDocument} and handing that to
+ * {@link renderStaticPage} as `htmlOverride` gets it every treatment a real page gets — token
+ * injection, asset-path rewrite, its own slot/menu markers (if it happens to carry any), internal
+ * link rewrite — through the one pipeline rather than a parallel partial-only one.
+ *
+ * `pageId` passed to `renderStaticPage` is irrelevant here (it only reads `theme.pages[pageId]` as a
+ * fallback when `htmlOverride` is absent, and this always supplies one), so the partial id doubles
+ * for it rather than inventing a placeholder.
+ *
+ * Returns `null` if the theme has no partial under that id — same "unknown id, not found" contract
+ * {@link renderStaticPage} already uses for an unknown page id.
+ */
+export function renderStaticPartial(
+  required: { theme: DiscoveredTheme; partialId: string },
+  _optional: Record<string, never> = {}
+): string | null {
+  const { theme, partialId } = required;
+  const partial = theme.partials[partialId];
+  if (partial === undefined) return null;
+  return renderStaticPage({ theme, pageId: partialId, htmlOverride: wrapPartialInHostDocument(partial) });
+}
+
 /** Outcome of {@link resolvePostTemplate}: either a usable template, or the diagnostic page. */
 export type PostTemplateResolution =
   | { kind: "template"; pageId: string; html: string }
