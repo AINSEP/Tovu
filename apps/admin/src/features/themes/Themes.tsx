@@ -6,7 +6,7 @@ import { navigate } from "../../lib/router";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ImagePreviewModal } from "../../components/ImagePreviewModal";
-import { useAppearance } from "./hooks/use-appearance.hooks";
+import { useThemes } from "./hooks/use-themes.hooks";
 import {
   isActiveTheme,
   isStrandedActiveTheme,
@@ -15,12 +15,12 @@ import {
   THEME_TAB_GROUPS,
   type ThemeTabGroup,
 } from "./rules";
-import { t as translateAppearance } from "./appearance-i18n";
+import { t as translateThemes } from "./themes-i18n";
 
 /**
- * @file The Appearance/Themes screen — markup only.
+ * @file The Themes screen — markup only.
  *
- * State, the fetch, and theme activation live in `hooks/use-appearance.hooks.ts`. The
+ * State, the fetch, and theme activation live in `hooks/use-themes.hooks.ts`. The
  * active-theme status derivation and tab grouping live in `rules.ts`. `THEME_BLURBS` is static
  * copy, not a derivation, so it stays here.
  */
@@ -96,15 +96,15 @@ function ThemeCardPreview({ themeId }: { themeId: string }) {
   );
 }
 
-export interface AppearanceProps {
+export interface ThemesProps {
   /**
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
-  useAppearanceHook?: typeof useAppearance;
+  useThemesHook?: typeof useThemes;
 }
 
-export function Appearance({ useAppearanceHook = useAppearance }: AppearanceProps = {}) {
+export function Themes({ useThemesHook = useThemes }: ThemesProps = {}) {
   const {
     settings,
     themes,
@@ -118,15 +118,19 @@ export function Appearance({ useAppearanceHook = useAppearance }: AppearanceProp
     rescanNotice = null,
     rescan,
     dismissRescanNotice,
-  } = useAppearanceHook();
+    marketplace = [],
+    marketplaceLoading = false,
+    loadMarketplace,
+    downloading = null,
+    download,
+  } = useThemesHook();
   const locale = useAdminLocale();
-  const t = (key: string): string => translateAppearance(locale, key);
+  const t = (key: string): string => translateThemes(locale, key);
   // Manual override once the operator picks a tab; `null` means "not yet touched", so the tab
   // shown on load tracks the active theme's own tab group (`defaultThemeTabGroup`) without a
   // mount-time effect — same derived-value-with-override shape as `useSettingsDialogShell`'s own
-  // active tab. Typed as plain `string` (not `ThemeTabGroup`) because the Marketplace placeholder
-  // tab's id isn't a tab group — it's `disabled` in `TabBar` and never reachable via `onChange`
-  // regardless, but the state shape shouldn't claim otherwise.
+  // active tab. Typed as plain `string` (not `ThemeTabGroup`) because the Marketplace tab's id is
+  // not a tab group — it lists what is installable rather than what is installed.
   const [manualTab, setManualTab] = useState<string | null>(null);
 
   if (error && !settings) return <div className="notice error">{error}</div>;
@@ -134,11 +138,11 @@ export function Appearance({ useAppearanceHook = useAppearance }: AppearanceProp
 
   const grouped = groupThemesByTabGroup(themes, themeTiers);
   const activeTab = manualTab ?? defaultThemeTabGroup(settings, themeTiers);
-  // Safe to index directly (no `?? []` fallback): `activeTab` is either `defaultThemeTabGroup`'s
-  // result (always a real `ThemeTabGroup`) or a `manualTab` set from `TabBar`'s `onChange`, which
-  // never fires for the `disabled` Marketplace tab — so `activeTab` can never actually be
-  // `MARKETPLACE_TAB_ID` at this point, only cast for it structurally.
-  const visibleThemes = grouped[activeTab as ThemeTabGroup];
+  // `?? []` is load-bearing now. It used to be safe to index directly because the Marketplace tab
+  // was `disabled`, so `activeTab` provably named a real `ThemeTabGroup`. Enabling that tab made
+  // `MARKETPLACE_TAB_ID` reachable here, and `grouped["marketplace"]` is `undefined` — the branch
+  // below renders the marketplace instead, but this line still evaluates first.
+  const visibleThemes = grouped[activeTab as ThemeTabGroup] ?? [];
 
   return (
     <div className="page">
@@ -202,15 +206,58 @@ export function Appearance({ useAppearanceHook = useAppearance }: AppearanceProp
           ...THEME_TAB_GROUPS.map(
             (group): TabBarTab => ({ id: group, label: tabGroupLabel(t, group), count: grouped[group].length }),
           ),
-          // Scaffolding for a future theme-marketplace search — no real backend to search yet, so
-          // this is a visible-but-inert placeholder (2026-08-10 owner feedback), not a fake search
-          // UI with invented results.
-          { id: MARKETPLACE_TAB_ID, label: t("Marketplace (soon)"), disabled: true },
+          // Live as of the local fixture (`src/themes/__marketplace__/`): a real listing served by a
+          // real route, downloading real theme folders. Still not a real marketplace — no network,
+          // no search, no publisher identity, no versioning (see development/todos.md).
+          { id: MARKETPLACE_TAB_ID, label: t("Marketplace"), count: marketplace.length || undefined },
         ]}
         activeId={activeTab}
-        onChange={(id) => setManualTab(id)}
+        onChange={(id) => {
+          setManualTab(id);
+          // Fetched on first open rather than on mount: the Themes screen is the common case and
+          // should not pay for a listing most visits never look at.
+          if (id === MARKETPLACE_TAB_ID && marketplace.length === 0) void loadMarketplace?.();
+        }}
       />
-      {visibleThemes.length === 0 ? (
+      {activeTab === MARKETPLACE_TAB_ID ? (
+        marketplaceLoading ? (
+          <div className="notice">{t("Loading the marketplace…")}</div>
+        ) : marketplace.length === 0 ? (
+          <div className="card">
+            <div className="empty-state">
+              <p>{t("Nothing available to download right now.")}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="theme-grid" role="group" aria-label={t("Marketplace")}>
+            {marketplace.map((item) => (
+              <div key={item.id} className="theme-card">
+                <h3>{item.name}</h3>
+                <p>{item.description}</p>
+                {/* Says up front what the name will actually be. A download that silently lands as
+                    `basic-1` after the operator asked for `basic` is the kind of surprise that makes
+                    people think something went wrong — so the rename is announced before it happens,
+                    not just reported after. */}
+                {item.idTaken ? (
+                  <p className="theme-card-note">
+                    {t("You already have a theme called")} <code>{item.id}</code>.{" "}
+                    {t("This one will be installed under a new name.")}
+                  </p>
+                ) : null}
+                <div className="theme-card-actions">
+                  <button
+                    className="btn-primary"
+                    disabled={downloading !== null}
+                    onClick={() => void download?.(item.id)}
+                  >
+                    {downloading === item.id ? t("Downloading…") : t("Download")}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : visibleThemes.length === 0 ? (
         <div className="card">
           <div className="empty-state">
             <p>{t("No themes in this tier yet.")}</p>

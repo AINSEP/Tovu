@@ -6,5 +6,5 @@
  * directory without the router noticing. Adding a file to this feature is not an API change unless
  * it is exported from this line.
  */
-export { Appearance } from "./Appearance";
+export { Themes } from "./Themes";
 export { ThemeExplore } from "./ThemeExplore";

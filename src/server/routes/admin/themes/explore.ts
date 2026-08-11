@@ -3,8 +3,13 @@ import { join } from "node:path";
 
 import type { Response } from "express";
 
-import { findTheme, rescanThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
-import { readThemeFile, writeThemeFile, ThemePathError } from "#src/features/theme/theme-files";
+import { findTheme, loadTheme, THEME_CATALOG_DIR } from "#src/features/theme/index";
+import {
+  listThemeFiles,
+  readThemeFile,
+  writeThemeFile,
+  ThemePathError,
+} from "#src/features/theme/theme-files";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteDeps } from "../content/deps";
 import type { ContentRouteRegistrar } from "../content/deps";
@@ -66,6 +71,67 @@ function sendThemeFileError(res: Response, err: unknown): void {
   res.status(500).json({ error: "internal error" });
 }
 
+/**
+ * Re-read one theme from disk and swap it into the live `deps.themes` array.
+ *
+ * Mandatory after ANY write to a theme's files. `DiscoveredTheme.pages`/`partials` hold file
+ * CONTENTS, `readFileSync`-ed once at discovery and then held for the life of the process — and the
+ * preview renders out of those maps, not off disk. Skip this and a save changes disk and nothing
+ * else: the operator saves, the preview redraws identically, and "saving is broken" is the only
+ * honest reading. That is exactly the bug this screen shipped with.
+ *
+ * Reloads ONE theme rather than rescanning all of them, matching what the `theme_write_file` AGENT
+ * tool has always done (`features/theme/tool-registrations.ts`) — that path had this right first,
+ * and two surfaces onto the same capability should not refresh state two different ways.
+ *
+ * Re-validates through the same `loadTheme` boot-time discovery uses, so a file written here is
+ * checked identically to one written by hand, and a theme edited into an invalid state reports
+ * `status: "invalid"` rather than silently rendering stale-but-valid markup.
+ */
+function reloadTheme(deps: ContentRouteDeps, themeId: string): void {
+  const index = deps.themes.findIndex((t) => t.manifest.id === themeId);
+  if (index < 0) return;
+  const current = deps.themes[index];
+  deps.themes[index] = loadTheme({ themeDir: current.dir, id: themeId, source: current.source });
+}
+
+/**
+ * Extensions safe to hand back as UTF-8 text, and therefore editable in a textarea.
+ *
+ * Everything NOT listed is treated as binary and is never read as text: `readFileSync(…, "utf8")` on
+ * a PNG returns mojibake that looks like a corrupt file, and saving that back would actually corrupt
+ * it. Binary files are still listed and still viewable — the Explore screen renders them straight
+ * from `/theme-assets/{themeId}/{path}`, which already serves every theme's folder — just not
+ * editable as source.
+ *
+ * `.svg` is deliberately on the TEXT side: it is markup, authors do hand-edit it, and it round-trips
+ * through UTF-8 losslessly.
+ */
+const TEXT_EDITABLE_EXTENSIONS = new Set([
+  ".html", ".css", ".js", ".mjs", ".cjs", ".json", ".md", ".txt", ".svg", ".webmanifest",
+]);
+
+function isTextEditable(relativePath: string): boolean {
+  const dot = relativePath.lastIndexOf(".");
+  return dot === -1 ? false : TEXT_EDITABLE_EXTENSIONS.has(relativePath.slice(dot).toLowerCase());
+}
+
+/**
+ * Coarse grouping for the Explore file list, derived from path/extension alone.
+ *
+ * Presentation-only: the server does not care what a file is FOR, but a flat 60-entry list of every
+ * screenshot and vendor script buries the four files an author actually edits. Kept here rather than
+ * in the client so the classification has one definition, and stays available to any other consumer.
+ */
+function fileGroup(relativePath: string): "page" | "partial" | "style" | "script" | "asset" | "config" {
+  if (relativePath.startsWith("pages/")) return "page";
+  if (relativePath.endsWith(".css")) return "style";
+  if (/\.(m|c)?js$/.test(relativePath)) return "script";
+  if (/^(theme|tokens|tokens\.light)\.json$/.test(relativePath)) return "config";
+  if (!relativePath.includes("/") && relativePath.endsWith(".html")) return "partial";
+  return "asset";
+}
+
 /** GET one theme's detail — what the Explore screen lists and what its banner says. */
 export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/themes/:themeId", async (req, res) => {
@@ -101,6 +167,19 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
         join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id)
       );
 
+      // Every file in the theme folder, not just the pages/partials the RENDERER knows about — CSS,
+      // JS, tokens, images. Those are the files an author most often actually needs to change to
+      // make a downloaded theme theirs, and until now the screen hid all of them.
+      const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
+      const files = listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir }).map((path) => ({
+        path,
+        group: fileGroup(path),
+        editable: isTextEditable(path),
+        // Whether THIS file can be reset — a file the author added themselves has no original to go
+        // back to, and offering a Reset that would fail is worse than not offering one.
+        resettable: hasOriginal && existsSync(join(catalogDir, path)),
+      }));
+
       res.json({
         id: theme.manifest.id,
         name: theme.manifest.name,
@@ -109,6 +188,7 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
         errors: theme.errors,
         pages: Object.keys(theme.pages).sort(),
         partials: Object.keys(theme.partials).sort(),
+        files,
         lineage,
         hasOriginal,
       });
@@ -171,21 +251,78 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
 
       writeThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path, content });
 
-      // Re-read from disk after writing, or the save is invisible. `DiscoveredTheme.pages` is a map
-      // of file CONTENTS, `readFileSync`-ed once at discovery and then held in `deps.themes` for the
-      // life of the process — and the preview renders out of that map. Without this, writing the
-      // file changed disk and nothing else: the operator saved, the preview redrew identically, and
-      // the only honest reading was "saving is broken".
-      //
-      // Rescans every theme rather than reloading just this one, because `rescanThemes` is the
-      // function the download and rescan routes already use and a second, narrower reload path would
-      // be a second thing that can drift. It re-reads `.html`/`.json` only (never the image assets
-      // that dominate a theme's size), and a save is an explicit button press, not a keystroke — so
-      // the extra work is bounded and rare. If theme count ever makes this hurt, the targeted fix is
-      // reloading `theme.dir` alone, not caching harder.
-      rescanThemes({ themes: deps.themes, dir: deps.themesDir });
+
+      // Re-read from disk after writing, or the save is invisible. See `reloadTheme`.
+      reloadTheme(deps, theme.manifest.id);
 
       res.json({ path, bytes: Buffer.byteLength(content, "utf8") });
+    } catch (err) {
+      sendThemeFileError(res, err);
+    }
+  });
+};
+
+/**
+ * POST — restore ONE file to the pristine copy in the originals catalog.
+ *
+ * This is the payoff for the whole copy-not-inherit model, and the reason the catalog has to be
+ * genuinely untouched rather than a hash or a manifest note: "put it back" is a file copy, needing
+ * no diff, no history, and no tooling anybody has to build. It is only possible because the original
+ * still exists byte-for-byte.
+ *
+ * Refuses in two distinct cases, kept distinct because they mean opposite things to the operator:
+ * the theme has NO stored original at all (nothing anywhere to restore from — a hand-made theme), or
+ * the theme has one but this particular file is not in it (a file the AUTHOR added; restoring it
+ * would mean deleting their file, which is a different and more destructive operation than "reset",
+ * and is not what a button labelled Reset should silently do).
+ *
+ * DESTRUCTIVE and deliberately not undoable here: it overwrites the working copy with no backup.
+ * The confirmation belongs in the UI, where the operator can be told what they are about to lose in
+ * words — a server-side "are you sure" flag would just be a second thing to get wrong.
+ */
+export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, deps) => {
+  app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/reset", async (req, res) => {
+    try {
+      if (!(await authorizeThemeAccess(deps, req, res))) return;
+
+      const themeId = String(req.params.themeId ?? "");
+      const theme = findTheme({ themes: deps.themes, id: themeId });
+      if (!theme) {
+        res.status(404).json({ error: `theme '${themeId}' was not found` });
+        return;
+      }
+
+      const path = String(((req.body ?? {}) as Record<string, unknown>).path ?? "");
+      const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
+      if (!existsSync(catalogDir)) {
+        res.status(409).json({
+          error: `theme '${themeId}' has no stored original, so nothing can be reset`,
+          code: "NO_ORIGINAL",
+        });
+        return;
+      }
+
+      // Read through the containment helper against the CATALOG root rather than joining paths by
+      // hand: `path` is operator input, and this is the one place in the file that resolves it
+      // against a directory outside the theme's own folder.
+      let original: string;
+      try {
+        original = readThemeFile({ themeDir: catalogDir, themesRoot: join(deps.themesDir, THEME_CATALOG_DIR), relativePath: path });
+      } catch (err) {
+        if (err instanceof ThemePathError) {
+          res.status(409).json({
+            error: `'${path}' is not in this theme's original, so there is nothing to reset it to`,
+            code: "NOT_IN_ORIGINAL",
+          });
+          return;
+        }
+        throw err;
+      }
+
+      writeThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path, content: original });
+      reloadTheme(deps, theme.manifest.id);
+
+      res.json({ path, bytes: Buffer.byteLength(original, "utf8"), content: original });
     } catch (err) {
       sendThemeFileError(res, err);
     }

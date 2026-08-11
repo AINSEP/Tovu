@@ -9,14 +9,30 @@ import { api } from "../../../lib/api";
 
 export type ThemeExploreView = "preview" | "html";
 
-/** Files a theme exposes for editing, flattened into one list with their real relative paths. */
+export type ThemeFileGroup = "page" | "partial" | "style" | "script" | "config" | "asset";
+
+/** One entry in the Explore file list. */
 export interface ThemeExploreFile {
-  /** Path relative to the theme root, e.g. `pages/about.html` or `footer.html`. */
+  /** Path relative to the theme root, e.g. `pages/about.html` or `css/styles.css`. */
   path: string;
-  /** What to show in the list — the page id or partial name, without the folder or extension. */
+  /** What to show in the list. */
   label: string;
-  kind: "page" | "partial";
+  kind: ThemeFileGroup;
+  /** False for binaries — viewable via `/theme-assets/`, never round-tripped through a textarea. */
+  editable: boolean;
+  /** False for files the author added, which have no original to restore from. */
+  resettable: boolean;
 }
+
+/** Heading order for the file list — most-edited first, generated/vendored last. */
+export const THEME_FILE_GROUPS: ReadonlyArray<{ key: ThemeFileGroup; label: string }> = [
+  { key: "page", label: "Pages" },
+  { key: "partial", label: "Partials" },
+  { key: "style", label: "Styles" },
+  { key: "script", label: "Scripts" },
+  { key: "config", label: "Config" },
+  { key: "asset", label: "Assets" },
+];
 
 export interface ThemeExploreDetail {
   id: string;
@@ -46,6 +62,19 @@ export interface ThemeExploreController {
   notice: string | null;
   dismissNotice: () => void;
   save: () => Promise<void>;
+  /** True while a reset round trip is in flight. */
+  resetting: boolean;
+  /**
+   * Whether the destructive-action confirmation is showing.
+   *
+   * Held in the controller rather than local component state so the confirmation and the action it
+   * guards cannot drift apart — a dialog that closes without the reset running, or a reset that
+   * runs with the dialog still open, are both states this makes unrepresentable.
+   */
+  resetConfirmOpen: boolean;
+  openResetConfirm: () => void;
+  closeResetConfirm: () => void;
+  reset: () => Promise<void>;
   /**
    * Bumped after every successful save. The preview iframe keys off this to force a reload — the
    * rendered page lives on the site server, not in this app's state, so re-rendering the component
@@ -54,10 +83,16 @@ export interface ThemeExploreController {
   previewNonce: number;
 }
 
-/** `pages/about.html` → `about`; `footer-minimal.html` → `footer-minimal`. */
-function fileLabel(path: string): string {
+/**
+ * `pages/about.html` → `about`; `css/styles.css` → `styles.css`.
+ *
+ * Pages and partials drop their `.html` because within those groups the extension is redundant —
+ * every entry has it. Everything else KEEPS its extension, because `styles` vs `styles.css` vs
+ * `styles.min.css` is exactly the distinction an author needs to see in a Styles or Assets list.
+ */
+function fileLabel(path: string, kind: ThemeFileGroup): string {
   const base = path.slice(path.lastIndexOf("/") + 1);
-  return base.replace(/\.html$/, "");
+  return kind === "page" || kind === "partial" ? base.replace(/\.html$/, "") : base;
 }
 
 export function useThemeExplore(themeId: string): ThemeExploreController {
@@ -71,6 +106,8 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [previewNonce, setPreviewNonce] = useState(0);
+  const [resetting, setResetting] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,14 +124,25 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
           lineage: r.lineage,
           hasOriginal: r.hasOriginal,
         });
-        const list: ThemeExploreFile[] = [
-          ...r.pages.map((p): ThemeExploreFile => ({ path: `pages/${p}.html`, label: p, kind: "page" })),
-          ...r.partials.map((p): ThemeExploreFile => ({ path: `${p}.html`, label: p, kind: "partial" })),
-        ];
+        // Sourced from the server's full folder listing rather than the renderer's pages/partials
+        // maps: CSS, JS, tokens and images are exactly what an author changes to make a downloaded
+        // theme theirs, and the screen used to hide every one of them.
+        const list: ThemeExploreFile[] = r.files.map((f) => ({
+          path: f.path,
+          label: fileLabel(f.path, f.group),
+          kind: f.group,
+          editable: f.editable,
+          resettable: f.resettable,
+        }));
         setFiles(list);
-        // Open `index` by default when the theme has one — it is the page an author is most likely
-        // to want first, and `loadTheme` requires it, so a valid theme always has one.
-        setSelected(list.find((f) => f.label === "index")?.path ?? list[0]?.path ?? null);
+        // Open `pages/index.html` by default — the page an author most likely wants first, and
+        // `loadTheme` requires it, so a valid theme always has one.
+        setSelected(
+          list.find((f) => f.path === "pages/index.html")?.path ??
+            list.find((f) => f.kind === "page")?.path ??
+            list[0]?.path ??
+            null
+        );
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : "failed to load theme");
@@ -106,6 +154,14 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
 
   useEffect(() => {
     if (selected === null) return;
+    // Binaries are never fetched as text. `readFileSync(…, "utf8")` on a PNG returns mojibake, and
+    // saving that back would genuinely corrupt the file — so the request is not made at all rather
+    // than made and then guarded against in the UI.
+    if (files.find((f) => f.path === selected)?.editable === false) {
+      setSource("");
+      setSavedSource("");
+      return;
+    }
     let cancelled = false;
     api
       .getThemeFile(themeId, selected)
@@ -120,7 +176,7 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
     return () => {
       cancelled = true;
     };
-  }, [themeId, selected]);
+  }, [themeId, selected, files]);
 
   const save = useCallback(async () => {
     if (selected === null) return;
@@ -137,6 +193,33 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
       setSaving(false);
     }
   }, [themeId, selected, source]);
+
+  /**
+   * Restore the open file to its catalog original.
+   *
+   * Overwrites the working copy with no backup, so the caller is expected to have confirmed with the
+   * operator first — `resetConfirmOpen` below is that gate. Deliberately NOT wired to the ⌘S-style
+   * convenience path for the same reason.
+   */
+  const reset = useCallback(async () => {
+    if (selected === null) return;
+    setResetting(true);
+    setError(null);
+    try {
+      const r = await api.resetThemeFile(themeId, selected);
+      // Adopt the server's returned content rather than re-fetching: it is the exact bytes just
+      // written, so the editor cannot briefly show the pre-reset source.
+      setSource(r.content);
+      setSavedSource(r.content);
+      setNotice(`Reset ${selected} to the original`);
+      setPreviewNonce((n) => n + 1);
+      setResetConfirmOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to reset file");
+    } finally {
+      setResetting(false);
+    }
+  }, [themeId, selected]);
 
   const dirty = source !== savedSource;
 
@@ -178,6 +261,11 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
     notice,
     dismissNotice: () => setNotice(null),
     save,
+    resetting,
+    resetConfirmOpen,
+    openResetConfirm: () => setResetConfirmOpen(true),
+    closeResetConfirm: () => setResetConfirmOpen(false),
+    reset,
     previewNonce,
   };
 }

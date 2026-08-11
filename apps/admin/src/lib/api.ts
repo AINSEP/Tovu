@@ -1152,6 +1152,27 @@ export const api = {
       activeThemePostTemplates: string[];
       activeThemeStaticPageIds: string[];
     }>(`/workspaces/${WORKSPACE_ID}/presentation`),
+  /** What's installable from the marketplace. `idTaken` means a download will get a `-N` suffix. */
+  listMarketplaceThemes: () =>
+    request<{
+      themes: Array<{ id: string; name: string; tier: string; description?: string; idTaken: boolean }>;
+    }>(`/workspaces/${WORKSPACE_ID}/marketplace/themes`),
+  /**
+   * Download a marketplace theme: writes the pristine original into the catalog AND an editable
+   * copy alongside it, then rescans so the new theme is usable without a server restart.
+   *
+   * `id` in the response is the id actually ASSIGNED, which is not necessarily the one requested —
+   * a collision makes it `basic-1`. Callers must show what they got rather than what they asked for.
+   */
+  downloadMarketplaceTheme: (themeId: string) =>
+    request<{
+      id: string;
+      suffixed: boolean;
+      tier: string;
+      rescan: { added: string[]; removed: string[]; total: number };
+    }>(`/workspaces/${WORKSPACE_ID}/marketplace/themes/${encodeURIComponent(themeId)}/download`, {
+      method: "POST",
+    }),
   /**
    * One theme's editable surface: which pages it ships, which root partials, and where it was
    * copied from. Drives the Explore screen's file list and its "you are editing a copy" banner.
@@ -1165,10 +1186,31 @@ export const api = {
       errors: string[];
       pages: string[];
       partials: string[];
+      /**
+       * Every file in the theme folder, not just the ones the renderer knows about. `editable` is
+       * false for binaries (images, fonts) — those are viewable via `/theme-assets/` but must never
+       * be round-tripped through a textarea. `resettable` is false for files the author added
+       * themselves, which have no original to go back to.
+       */
+      files: Array<{
+        path: string;
+        group: "page" | "partial" | "style" | "script" | "asset" | "config";
+        editable: boolean;
+        resettable: boolean;
+      }>;
       lineage: { from?: string; tier?: string; version?: string; catalog?: string } | null;
       /** True when an untouched original of this theme exists in the catalog to reset back to. */
       hasOriginal: boolean;
     }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}`),
+  /**
+   * Restore one file to the pristine copy in the originals catalog. DESTRUCTIVE — overwrites the
+   * working copy with no backup, so the caller must confirm with the operator first.
+   */
+  resetThemeFile: (themeId: string, path: string) =>
+    request<{ path: string; bytes: number; content: string }>(
+      `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/reset`,
+      { method: "POST", body: JSON.stringify({ path }) }
+    ),
   /** Raw source of one file inside a theme, relative to the theme root (`pages/about.html`). */
   getThemeFile: (themeId: string, path: string) =>
     request<{ path: string; content: string }>(

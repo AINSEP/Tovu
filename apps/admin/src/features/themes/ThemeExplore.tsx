@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState, type MouseEvent, type SyntheticEvent } from "react";
+import { ConfirmDialog } from "@jini-ai/admin/react";
 import { Toast } from "@jini-ai/ui";
 
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { PAGE_PREVIEW_WIDTHS, type PagePreviewDevice } from "../pages/hooks/use-page-editor.hooks";
-import { useThemeExplore, type ThemeExploreFile, type ThemeExploreView } from "./hooks/use-theme-explore.hooks";
+import {
+  THEME_FILE_GROUPS,
+  useThemeExplore,
+  type ThemeExploreFile,
+  type ThemeExploreView,
+} from "./hooks/use-theme-explore.hooks";
 import { t as translateThemes } from "./themes-i18n";
 
 /**
@@ -14,7 +20,10 @@ import { t as translateThemes } from "./themes-i18n";
  * The screen the copy-not-inherit model needed. Every installed theme is a COPY of an original that
  * still exists untouched in the catalog, so editing here is always safe in the one way that matters:
  * the thing you forked from is still on disk, byte-identical, to reset back to. That is what the
- * banner says, and it is why there is no "are you sure" dialog anywhere on this screen.
+ * banner says, and it is why ordinary editing here needs no confirmation at all.
+ *
+ * Reset is the one exception, and does confirm: restoring a file to its original overwrites the
+ * working copy with no backup, so it is the only action on this screen that can destroy work.
  *
  * The preview is an `<iframe src>` pointed at the SITE server, not `srcDoc`. A rendered theme page
  * references `/theme-assets/<id>/css/...`, which only the site server serves — a `srcDoc` iframe
@@ -65,16 +74,33 @@ const DEVICES: ReadonlyArray<{ key: PagePreviewDevice; label: string }> = [
   { key: "mobile", label: "Mobile" },
 ];
 
-/** The URL for the currently selected file's preview, or `null` before a file is selected — every
- *  file (page or partial) is previewable now, so the only `null` case left is "nothing chosen yet". */
+/**
+ * The URL for the selected file's preview, or `null` when the file has no meaningful one.
+ *
+ * Three shapes, because "preview" means three different things here:
+ * - a **page** renders through the theme's own shell at `/theme-explore/{theme}/{page}`
+ * - a **partial** renders standalone inside a minimal styled host, at `…/partial/{id}`
+ * - an **asset** (image, font) is served raw from `/theme-assets/`, the same URL a visitor's browser
+ *   would fetch it from — so what the operator sees IS the file, not a re-encoding of it
+ *
+ * CSS/JS/JSON get `null`: there is nothing to render standalone. Editing those and switching to
+ * Preview shows the page that consumes them instead, which is the honest thing to show.
+ */
 function previewSrcFor(
   themeId: string,
   file: ThemeExploreFile | undefined,
   previewNonce: number
 ): string | null {
   if (!file) return null;
-  const segment = file.kind === "page" ? encodeURIComponent(file.label) : `partial/${encodeURIComponent(file.label)}`;
-  return siteUrl(`/theme-explore/${encodeURIComponent(themeId)}/${segment}?v=${previewNonce}`);
+  const theme = encodeURIComponent(themeId);
+  if (file.kind === "page") return siteUrl(`/theme-explore/${theme}/${encodeURIComponent(file.label)}?v=${previewNonce}`);
+  if (file.kind === "partial") {
+    return siteUrl(`/theme-explore/${theme}/partial/${encodeURIComponent(file.label)}?v=${previewNonce}`);
+  }
+  if (file.kind === "asset" && !file.editable) {
+    return siteUrl(`/theme-assets/${theme}/${file.path.split("/").map(encodeURIComponent).join("/")}?v=${previewNonce}`);
+  }
+  return null;
 }
 
 export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }: ThemeExploreProps) {
@@ -95,6 +121,11 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
     notice,
     dismissNotice,
     save,
+    resetting,
+    resetConfirmOpen,
+    openResetConfirm,
+    closeResetConfirm,
+    reset,
     previewNonce,
   } = useThemeExploreHook(themeId);
 
@@ -210,16 +241,17 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
       {notice ? <Toast message={notice} tone="success" ttlMs={5000} onDismiss={dismissNotice} /> : null}
 
       <div className="theme-explore">
-        {/* Flat page/partial list for now, grouped by kind. A real nested file tree is a separate
-            component — this theme's whole editable surface is ~20 entries two folders deep, which a
-            tree would not make more legible. */}
+        {/* Flat list grouped by kind, most-edited groups first. A real nested file tree is a separate
+            component — a theme's editable surface is ~20 entries two folders deep, which a tree would
+            not make more legible. Assets appear last: there are many of them and they are the ones an
+            author is least likely to be looking for. */}
         <nav className="theme-explore-files" aria-label={t("Theme files")}>
-          {(["page", "partial"] as const).map((kind) => {
+          {THEME_FILE_GROUPS.map(({ key: kind, label }) => {
             const group = files.filter((f) => f.kind === kind);
             if (group.length === 0) return null;
             return (
               <div key={kind}>
-                <p className="theme-explore-files-heading">{kind === "page" ? t("Pages") : t("Partials")}</p>
+                <p className="theme-explore-files-heading">{t(label)}</p>
                 <ul>
                   {group.map((file) => (
                     <li key={file.path}>
@@ -228,6 +260,7 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
                         className={selected === file.path ? "is-active" : undefined}
                         aria-current={selected === file.path ? "true" : undefined}
                         onClick={() => select(file.path)}
+                        title={file.path}
                       >
                         {file.label}
                       </button>
@@ -286,6 +319,21 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
                   </button>
                 </>
               ) : null}
+              {/* Reset is `.btn-danger` and sits BEFORE Save rather than beside it: it is the only
+                  irreversible control on this screen, and the styling is what says so. Hidden
+                  entirely (not disabled) when the file has no original — a greyed-out Reset invites
+                  "why can't I?", where absence just means the option does not apply here. */}
+              {selectedFile?.resettable ? (
+                <button
+                  type="button"
+                  className="btn-danger"
+                  disabled={resetting}
+                  onClick={openResetConfirm}
+                  title={t("Restore this file to the original theme's version")}
+                >
+                  {resetting ? t("Resetting…") : t("Reset")}
+                </button>
+              ) : null}
               {/* The ⌘/Ctrl+S hint is a `title` rather than a visible label: the shortcut is worth
                   discovering, but not worth widening a button that changes text three ways already.
                   `isApplePlatform` picks the glyph the operator's own keyboard has — showing a Mac
@@ -308,13 +356,21 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
               <div className="notice">{t("Select a file to preview.")}</div>
             )
           ) : (
-            <textarea
-              className="page-html-source"
-              value={source}
-              spellCheck={false}
-              onChange={(e) => setSource(e.target.value)}
-              aria-label={t("Theme file source")}
-            />
+            selectedFile && !selectedFile.editable ? (
+              // Binary. Never rendered into a textarea: reading a PNG as UTF-8 gives mojibake, and
+              // saving that back would truly corrupt it. The Preview tab shows the real bytes.
+              <div className="notice">
+                {t("This is a binary file, so it has no editable source. Use the Preview tab to view it.")}
+              </div>
+            ) : (
+              <textarea
+                className="page-html-source"
+                value={source}
+                spellCheck={false}
+                onChange={(e) => setSource(e.target.value)}
+                aria-label={t("Theme file source")}
+              />
+            )
           )}
         </div>
       </div>
@@ -350,6 +406,27 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
           />
         ) : null}
       </dialog>
+
+      {/* The only confirmation on this screen, because Reset is the only thing here that can lose
+          work. Names the file explicitly rather than saying "this file": a destructive prompt should
+          never be ambiguous about its target. */}
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        title={t("Reset this file to the original?")}
+        body={
+          <p>
+            {t("This replaces")} <code>{selected}</code>{" "}
+            {t(
+              "with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone."
+            )}
+          </p>
+        }
+        confirmLabel={t("Reset file")}
+        destructive
+        pending={resetting}
+        onConfirm={() => void reset()}
+        onCancel={closeResetConfirm}
+      />
     </div>
   );
 }
