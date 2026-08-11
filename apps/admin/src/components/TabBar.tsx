@@ -3,7 +3,7 @@
  * no persistence, no per-tab panel contract (unlike `@jini-ai/ui`'s `SettingsDialogShell`, which
  * bundles a vertical sidebar of tabs with its own kicker/title/subtitle header and dialog/inline
  * presentation modes). Built local because neither `@jini-ai/ui` nor `@jini-ai/admin/react` exports
- * a standalone tab-bar outside that dialog shell — see `features/appearance/Appearance.tsx` and
+ * a standalone tab-bar outside that dialog shell — see `features/themes/Themes.tsx` and
  * `features/pages/Pages.tsx`, the two full-page list screens this backs.
  *
  * Same `role="tablist"`/`role="tab"`/`aria-selected` shape `features/media/Media.tsx`'s inline tab
