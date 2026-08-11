@@ -197,9 +197,28 @@ function assertHeldBackOrResolved(required: {
   }
 }
 
+/**
+ * Every static theme that stands on its own. CHILD themes are excluded, and that exclusion is a
+ * statement about this file's unit of measurement rather than a gap in coverage.
+ *
+ * `readTheme` below deliberately assembles a `DiscoveredTheme` from files on disk instead of calling
+ * `loadTheme` — so that a canary failure can only ever mean the RENDER pipeline changed, never the
+ * loader. That is the right trade for a self-contained theme and the wrong one for a child, whose
+ * defining property is that most of its assets come from somewhere other than its own folder. A
+ * child ships no `tokens.json` at all; reading one here would not merely fail, it would be asking
+ * the wrong question.
+ *
+ * Inheritance is certified in `theme-inheritance.test.ts`, against the real `basic-child`, through
+ * the real `loadTheme` — which is the only unit that can answer it.
+ */
 const STATIC_THEME_IDS = fs
   .readdirSync(STATIC_THEMES_DIR)
-  .filter((entry) => fs.statSync(path.join(STATIC_THEMES_DIR, entry)).isDirectory());
+  .filter((entry) => fs.statSync(path.join(STATIC_THEMES_DIR, entry)).isDirectory())
+  .filter((entry) => {
+    const manifestPath = path.join(STATIC_THEMES_DIR, entry, "theme.json");
+    if (!fs.existsSync(manifestPath)) return false;
+    return typeof JSON.parse(fs.readFileSync(manifestPath, "utf8")).parent !== "string";
+  });
 
 for (const themeId of STATIC_THEME_IDS) {
   test(`canary: ${themeId} — every page renders and carries no retired embed attribute`, () => {

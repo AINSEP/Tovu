@@ -119,6 +119,19 @@ export interface ThemeManifest {
    * which is why wiring this changed no existing theme's output.
    */
   slots?: Record<string, ThemeSlotDescriptor>;
+  /**
+   * This theme's PARENT — the id of a sibling theme folder whose assets it inherits. A child ships
+   * only what it changes; everything else falls through per key (see `inheritFromParent`).
+   *
+   * The point is that a fork should be small enough to leave stale. A `static` layout is markers,
+   * not code, so overriding one is ~10 lines of structure while the parent keeps supplying the nav
+   * and footer content, the CSS, and the tokens. `css` in particular is APPENDED to the parent's
+   * rather than replacing it, because overriding via the cascade is the intended move.
+   *
+   * One level only: a parent that is itself a child fails the theme with a message rather than
+   * resolving a chain.
+   */
+  parent?: string;
 }
 
 /** One entry of {@link ThemeManifest.slots}. */
@@ -399,6 +412,7 @@ export function loadTheme(
       modes: Array.isArray(raw.modes) ? raw.modes.map(String) : undefined,
       defaultMode: typeof raw.defaultMode === "string" ? raw.defaultMode : undefined,
       slots: parseSlots(raw.slots),
+      parent: typeof raw.parent === "string" && raw.parent !== "" ? raw.parent : undefined,
     };
     if (manifest.id !== id) errors.push(`theme.json id '${manifest.id}' must equal folder name '${id}'`);
     // A `defaultMode` the theme ships no tokens for would silently render the base `:root` block
@@ -504,7 +518,7 @@ export function loadTheme(
   const cssPath = join(themeDir, manifest.tier === "static" ? "css/styles.css" : "styles.css");
   if (existsSync(cssPath)) css = readFileSync(cssPath, "utf8");
 
-  return {
+  const loaded: DiscoveredTheme = {
     manifest,
     dir: themeDir,
     tokens,
@@ -518,6 +532,122 @@ export function loadTheme(
     source,
     status: errors.length === 0 ? "valid" : "invalid",
     errors,
+  };
+
+  return manifest.parent === undefined ? loaded : inheritFromParent(loaded, manifest.parent);
+}
+
+/**
+ * Resolve a child theme against its parent: everything the child does not ship falls through to the
+ * parent, per key.
+ *
+ * **Why this exists, and why the fork stays small.** WordPress child themes rot because the unit of
+ * forking is a whole PHP template — markup, loop, escaping, and hook calls, hundreds of lines that
+ * genuinely drift from upstream. A `static`-tier layout here is markers:
+ *
+ *     <div data-embed-config='{"type":"partial","id":"nav"}'></div>
+ *     <main><div data-embed-config='{"type":"post","id":"{{post}}"}'></div></main>
+ *     <div data-embed-config='{"type":"partial","id":"footer"}'></div>
+ *
+ * Forking that forks ~10 lines of STRUCTURE. The nav and footer content still resolves from the
+ * parent's partials, the parent's CSS and tokens still apply, and every layout the child did not
+ * override still updates. "Remove the footer" is deleting one line; "use the minimal footer" is
+ * changing one marker's id. That is a fork small enough to leave stale for years, which is the whole
+ * argument for doing it this way.
+ *
+ * **Merged per key, not deep.** `pages` and `partials` merge by filename — a child overriding
+ * `pages/blog-post.html` replaces exactly that page and inherits the rest. `tokens`/`tokensLight`
+ * merge by token name, so a child can restate three colors without recopying the set. `css` is
+ * CONCATENATED parent-then-child rather than replaced, because the cascade is the mechanism a child
+ * is expected to use: appending `.site-footer { display: none }` must not cost it the parent's
+ * entire stylesheet.
+ *
+ * **One level only, deliberately.** A parent that is itself a child is rejected rather than resolved
+ * recursively. Chains are where inheritance stops being predictable — a three-deep override is
+ * already hard to reason about and invites cycles — and WordPress reached the same conclusion. If a
+ * chain is ever genuinely wanted it should be a designed feature, not something that falls out of
+ * this function not checking.
+ *
+ * The parent is a SIBLING FOLDER, resolved off the child's own `dir`. That keeps built-in and
+ * site-installed themes on identical rules and needs no registry lookup, which matters because this
+ * runs inside `loadTheme`, before any theme collection exists.
+ */
+/** Load and validate a child's declared parent. Split out so {@link inheritFromParent} stays a merge
+ * and nothing else — all three rejection branches live here, mirroring how `marker.ts` pulled
+ * `parseMarkerConfig` out of `scanEmbedMarkers` for the same reason. */
+function resolveParentTheme(
+  child: DiscoveredTheme,
+  parentId: string
+): { parent: DiscoveredTheme } | { errors: readonly string[] } {
+  const parentDir = join(child.dir, "..", parentId);
+  if (!existsSync(parentDir)) return { errors: [`theme.json parent '${parentId}' was not found`] };
+
+  const parent = loadTheme({ themeDir: parentDir, id: parentId, source: child.source });
+  if (parent.manifest.parent !== undefined) {
+    return { errors: [`theme.json parent '${parentId}' is itself a child theme — inheritance is one level only`] };
+  }
+  if (parent.status === "invalid") return { errors: parent.errors.map((e) => `parent '${parentId}': ${e}`) };
+  return { parent };
+}
+
+/** Child manifest over parent manifest. The optional fields are re-stated rather than left to the
+ * spread: a child that omits one would otherwise spread its own `undefined` over the parent's real
+ * value and blank it. */
+function mergeManifests(parent: ThemeManifest, child: ThemeManifest): ThemeManifest {
+  return {
+    ...parent,
+    ...child,
+    slots: child.slots ?? parent.slots,
+    postTemplate: child.postTemplate ?? parent.postTemplate,
+    modes: child.modes ?? parent.modes,
+    defaultMode: child.defaultMode ?? parent.defaultMode,
+    regions: child.regions ?? parent.regions,
+    fonts: child.fonts ?? parent.fonts,
+  };
+}
+
+/**
+ * Requirements a child is allowed not to satisfy alone, because inheriting them is the entire point
+ * of being a child. `loadTheme` raises these while reading the child's own folder — the only unit it
+ * can see — and a child that ships two files legitimately trips both. They are re-checked against
+ * the MERGED theme below, so nothing is waived, only deferred to the right unit.
+ *
+ * Matched by pattern rather than by a structured error type because `loadTheme`'s errors are plain
+ * strings shared with the admin's theme-status surface; introducing a code just for this would
+ * change that contract for every other caller. If these strings are ever reworded, the
+ * `theme-inheritance.test.ts` case asserting a two-file child loads valid fails immediately, which
+ * is the intended tripwire.
+ */
+const INHERITABLE_REQUIREMENT_ERRORS: readonly RegExp[] = [
+  /^tokens\.json: ENOENT/,
+  /^pages\/index\.html is required$/,
+];
+
+function inheritFromParent(child: DiscoveredTheme, parentId: string): DiscoveredTheme {
+  const resolved = resolveParentTheme(child, parentId);
+  if ("errors" in resolved) {
+    return { ...child, status: "invalid", errors: [...child.errors, ...resolved.errors] };
+  }
+  const { parent } = resolved;
+
+  const pages = { ...parent.pages, ...child.pages };
+  const errors = child.errors.filter((e) => !INHERITABLE_REQUIREMENT_ERRORS.some((re) => re.test(e)));
+  // Re-checked post-merge: waived above only on the promise that the parent supplies it.
+  if (!pages.index) errors.push("pages/index.html is required (neither this theme nor its parent ships one)");
+
+  return {
+    ...child,
+    manifest: mergeManifests(parent.manifest, child.manifest),
+    tokens: { ...parent.tokens, ...child.tokens },
+    tokensLight: { ...parent.tokensLight, ...child.tokensLight },
+    templates: { ...parent.templates, ...child.templates },
+    liquidTemplates: { ...parent.liquidTemplates, ...child.liquidTemplates },
+    handlebarsTemplates: { ...parent.handlebarsTemplates, ...child.handlebarsTemplates },
+    pages,
+    partials: { ...parent.partials, ...child.partials },
+    css: child.css === "" ? parent.css : `${parent.css}\n${child.css}`,
+    errors,
+    status: errors.length === 0 ? "valid" : "invalid",
   };
 }
 
