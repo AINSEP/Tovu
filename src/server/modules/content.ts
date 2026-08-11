@@ -16,6 +16,8 @@ import { registerAdminPresentationGetRoute } from "../routes/admin/presentation/
 import { registerAdminPresentationPatchRoute } from "../routes/admin/presentation/patch-active-theme";
 import { registerAdminThemeRescanRoute } from "../routes/admin/presentation/rescan-themes";
 import { registerAdminThemesListRoute } from "../routes/admin/themes/list";
+import { registerAdminMarketplaceThemesListRoute } from "../routes/admin/marketplace/list";
+import { registerAdminMarketplaceThemeDownloadRoute } from "../routes/admin/marketplace/download";
 import type { ContentRouteDeps } from "../routes/admin/content/deps";
 import type { ServerModuleHandle } from "./types";
 
@@ -41,6 +43,12 @@ import type { ServerModuleHandle } from "./types";
  * SPEC-004 `THEMES_LIST` (api.spec.md, drift-audit gap): added `registerAdminThemesListRoute` — reads
  * the same `deps.themes`/`deps.presentationRepo` the 2 presentation registrations already use, so it
  * lives in this module rather than a new one — now 14 registrations total.
+ *
+ * Local marketplace fixture (2026-08-10, no spec id — build-only workstream): added
+ * `registerAdminMarketplaceThemesListRoute`/`registerAdminMarketplaceThemeDownloadRoute`. Same
+ * `deps.themes`/`deps.themesDir` the theme-rescan/list registrations already read, and the download
+ * route ends by calling the same `rescanThemes` `rescan-themes.ts` already exposes as its own route —
+ * now 16 registrations total.
  */
 export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle {
   return {
@@ -68,6 +76,8 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       registerAdminPresentationPatchRoute(app, deps);
       registerAdminThemeRescanRoute(app, deps);
       registerAdminThemesListRoute(app, deps);
+      registerAdminMarketplaceThemesListRoute(app, deps);
+      registerAdminMarketplaceThemeDownloadRoute(app, deps);
     },
   };
 }
