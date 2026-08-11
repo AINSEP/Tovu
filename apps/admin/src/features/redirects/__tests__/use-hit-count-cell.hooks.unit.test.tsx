@@ -3,13 +3,14 @@ import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "../../../lib/fetch-query";
-import { useHitCountCell } from "../hooks/use-hit-count-cell.hooks";
+import { createFakeRedirectsPort } from "../hooks/redirects-dependencies.hooks";
+import { useHitCountCell, useWiredHitCountCell } from "../hooks/use-hit-count-cell.hooks";
 
 /**
  * @file `useHitCountCell` (SPEC-037 REQ-03) — the lazy per-row hit-count read. The whole point of
- * this hook is that `api.getRedirectHits` does NOT fire until `request()` is called; that gate is
- * the one thing worth pinning here, plus the "0 hits still renders" contract `data` vs `hitCount`
- * truthiness exists for.
+ * this hook is that the port's `getRedirectHits` does NOT fire until `request()` is called; that
+ * gate is the one thing worth pinning here, plus the "0 hits still renders" contract `data` vs
+ * `hitCount` truthiness exists for.
  *
  * Goes through `useFetchQuery`, so every render needs a `FetchQueryProvider` — a fresh one per
  * test, matching `fetch-query.test.tsx`'s own convention (cold cache per test).
@@ -32,7 +33,7 @@ describe("useHitCountCell", () => {
     const fetchMock = vi.fn(() => new Promise(() => {}));
     vi.stubGlobal("fetch", fetchMock);
 
-    renderHook(() => useHitCountCell({ redirectId: "r1" }), { wrapper });
+    renderHook(() => useWiredHitCountCell({ redirectId: "r1" }), { wrapper });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -42,7 +43,7 @@ describe("useHitCountCell", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useHitCountCell({ redirectId: "r1" }), { wrapper });
+    const { result } = renderHook(() => useWiredHitCountCell({ redirectId: "r1" }), { wrapper });
     act(() => result.current.request());
 
     await waitFor(() => expect(result.current.data?.data.hitCount).toBe(7));
@@ -55,7 +56,7 @@ describe("useHitCountCell", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useHitCountCell({ redirectId: "r1" }), { wrapper });
+    const { result } = renderHook(() => useWiredHitCountCell({ redirectId: "r1" }), { wrapper });
     act(() => result.current.request());
 
     await waitFor(() => expect(result.current.data).toBeDefined());
@@ -67,7 +68,7 @@ describe("useHitCountCell", () => {
     const fetchMock = vi.fn(() => new Promise<Response>((resolve) => (resolveFetch = resolve)));
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useHitCountCell({ redirectId: "r1" }), { wrapper });
+    const { result } = renderHook(() => useWiredHitCountCell({ redirectId: "r1" }), { wrapper });
     act(() => result.current.request());
 
     await waitFor(() => expect(result.current.isFetching).toBe(true));
@@ -82,10 +83,42 @@ describe("useHitCountCell", () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ error: "hits route down" }, 500));
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useHitCountCell({ redirectId: "r1" }), { wrapper });
+    const { result } = renderHook(() => useWiredHitCountCell({ redirectId: "r1" }), { wrapper });
     act(() => result.current.request());
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error?.message).toBe("hits route down");
+  });
+});
+
+describe("useHitCountCell — injected port (no fetch stub)", () => {
+  it("stays lazy against the injected port too — request() is what triggers the read", async () => {
+    let called = false;
+    const port = createFakeRedirectsPort({ hits: { r1: { redirectId: "r1", workspaceId: "ws1", hitCount: 9, lastHitAt: null } } });
+    const wrappedGetHits = port.getRedirectHits.bind(port);
+    port.getRedirectHits = (id) => {
+      called = true;
+      return wrappedGetHits(id);
+    };
+
+    const { result } = renderHook(() => useHitCountCell({ redirectId: "r1" }, port), { wrapper });
+    expect(called).toBe(false);
+
+    act(() => result.current.request());
+    await waitFor(() => expect(result.current.data?.data.hitCount).toBe(9));
+    expect(called).toBe(true);
+  });
+
+  /**
+   * Negative verification: swap the seeded hit count and confirm the assertion tracks the port's
+   * data, not a hardcoded expectation — proves this test is reading through the injection rather
+   * than passing regardless of what the fake returns.
+   */
+  it("resolves whatever hitCount the injected port was seeded with", async () => {
+    const port = createFakeRedirectsPort({ hits: { r1: { redirectId: "r1", workspaceId: "ws1", hitCount: 42, lastHitAt: null } } });
+    const { result } = renderHook(() => useHitCountCell({ redirectId: "r1" }, port), { wrapper });
+
+    act(() => result.current.request());
+    await waitFor(() => expect(result.current.data?.data.hitCount).toBe(42));
   });
 });

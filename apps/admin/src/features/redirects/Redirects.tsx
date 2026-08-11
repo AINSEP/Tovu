@@ -2,9 +2,9 @@ import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/ad
 
 import { describeApiError } from "../../lib/api";
 import { redirectRowMenuItems } from "./rules";
-import { useRedirects } from "./hooks/use-redirects.hooks";
-import { useHitCountCell } from "./hooks/use-hit-count-cell.hooks";
-import { useImportRedirectsForm } from "./hooks/use-import-redirects-form.hooks";
+import { useWiredRedirects } from "./hooks/use-redirects.hooks";
+import { useWiredHitCountCell } from "./hooks/use-hit-count-cell.hooks";
+import { useWiredImportRedirectsForm } from "./hooks/use-import-redirects-form.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import {
   t,
@@ -58,13 +58,13 @@ export interface HitCountCellProps {
   locale: string;
   redirectId: string;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
-  useHitCountCellHook?: typeof useHitCountCell;
+  useHitCountCellHook?: typeof useWiredHitCountCell;
 }
 
 /** Lazy hit-count cell (REQ-03) — fetches on first click rather than on mount, so a list of many
  *  rows never fires a synchronous burst of `/hits` requests. A rule with zero recorded hits still
  *  renders `0` (not blank), matching `hits.ts`'s own "still 200s with hitCount: 0" contract. */
-function HitCountCell({ locale, redirectId, useHitCountCellHook = useHitCountCell }: HitCountCellProps) {
+function HitCountCell({ locale, redirectId, useHitCountCellHook = useWiredHitCountCell }: HitCountCellProps) {
   const { error, data, isFetching, request } = useHitCountCellHook({ redirectId });
 
   if (error) return <span className="save-error">{describeApiError(error, "failed")}</span>;
@@ -82,14 +82,14 @@ function HitCountCell({ locale, redirectId, useHitCountCellHook = useHitCountCel
 export interface ImportRedirectsFormProps {
   locale: string;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
-  useImportRedirectsFormHook?: typeof useImportRedirectsForm;
+  useImportRedirectsFormHook?: typeof useWiredImportRedirectsForm;
 }
 
 /** Bulk-import affordance (REQ-04) — paste a JSON array of rule objects, submit through
  * `api.importRedirects`, and surface the `207` per-item created/failed breakdown directly
  * (never collapsed into a single pass/fail toast — a partial-batch failure is the route's own
  * designed behavior, not an edge case). */
-function ImportRedirectsForm({ locale, useImportRedirectsFormHook = useImportRedirectsForm }: ImportRedirectsFormProps) {
+function ImportRedirectsForm({ locale, useImportRedirectsFormHook = useWiredImportRedirectsForm }: ImportRedirectsFormProps) {
   const { raw, setRaw, error, result, importing, submit } = useImportRedirectsFormHook();
 
   return (
@@ -151,10 +151,10 @@ export interface RedirectsProps {
    * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
    * nothing and behave exactly as before. See `PostsProps.usePostsHook` for the full rationale.
    */
-  useRedirectsHook?: typeof useRedirects;
+  useRedirectsHook?: typeof useWiredRedirects;
 }
 
-export function Redirects({ useRedirectsHook = useRedirects }: RedirectsProps = {}) {
+export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsProps = {}) {
   const locale = useAdminLocale();
   const {
     redirects,
