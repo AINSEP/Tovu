@@ -17,6 +17,9 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
     "The active theme controls what visitors see across the entire public site.":
       "El tema activo controla lo que ven los visitantes en todo el sitio público.",
     "View site ↗": "Ver sitio ↗",
+    Explore: "Explorar",
+    "Rescan themes": "Volver a escanear temas",
+    "Rescanning…": "Escaneando…",
     "Loading themes…": "Cargando temas…",
     Active: "Activo",
     "Activating…": "Activando…",
@@ -38,6 +41,9 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
     "The active theme controls what visitors see across the entire public site.":
       "Tema aktif mengontrol apa yang dilihat pengunjung di seluruh situs publik.",
     "View site ↗": "Lihat situs ↗",
+    Explore: "Jelajahi",
+    "Rescan themes": "Pindai ulang tema",
+    "Rescanning…": "Memindai…",
     "Loading themes…": "Memuat tema…",
     Active: "Aktif",
     "Activating…": "Mengaktifkan…",
@@ -59,6 +65,9 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
     "The active theme controls what visitors see across the entire public site.":
       "Das aktive Design bestimmt, was Besucher auf der gesamten öffentlichen Website sehen.",
     "View site ↗": "Website ansehen ↗",
+    Explore: "Erkunden",
+    "Rescan themes": "Themes neu einlesen",
+    "Rescanning…": "Wird eingelesen…",
     "Loading themes…": "Designs werden geladen…",
     Active: "Aktiv",
     "Activating…": "Wird aktiviert…",
@@ -80,6 +89,9 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
     "The active theme controls what visitors see across the entire public site.":
       "当前启用的主题决定访问者在整个公开网站上看到的内容。",
     "View site ↗": "查看网站 ↗",
+    Explore: "浏览",
+    "Rescan themes": "重新扫描主题",
+    "Rescanning…": "正在扫描…",
     "Loading themes…": "正在加载主题…",
     Active: "已启用",
     "Activating…": "正在启用…",
@@ -101,6 +113,9 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
     "The active theme controls what visitors see across the entire public site.":
       "現行的佈景主題會決定訪客在整個公開網站上看到的內容。",
     "View site ↗": "檢視網站 ↗",
+    Explore: "瀏覽",
+    "Rescan themes": "重新掃描佈景主題",
+    "Rescanning…": "正在掃描…",
     "Loading themes…": "正在載入佈景主題…",
     Active: "已啟用",
     "Activating…": "正在啟用…",
@@ -122,6 +137,9 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
     "The active theme controls what visitors see across the entire public site.":
       "O tema ativo controla o que os visitantes veem em todo o site público.",
     "View site ↗": "Ver site ↗",
+    Explore: "Explorar",
+    "Rescan themes": "Reexaminar temas",
+    "Rescanning…": "Examinando…",
     "Loading themes…": "Carregando temas…",
     Active: "Ativo",
     "Activating…": "Ativando…",
@@ -143,6 +161,9 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
     "The active theme controls what visitors see across the entire public site.":
       "Активная тема определяет, что посетители видят на всём публичном сайте.",
     "View site ↗": "Открыть сайт ↗",
+    Explore: "Обзор",
+    "Rescan themes": "Пересканировать темы",
+    "Rescanning…": "Сканирование…",
     "Loading themes…": "Загрузка тем…",
     Active: "Активна",
     "Activating…": "Активация…",
@@ -164,6 +185,9 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
     "The active theme controls what visitors see across the entire public site.":
       "پوسته فعال، آنچه بازدیدکنندگان در سراسر سایت عمومی می‌بینند را کنترل می‌کند.",
     "View site ↗": "مشاهده سایت ↗",
+    Explore: "کاوش",
+    "Rescan themes": "بازبینی پوسته‌ها",
+    "Rescanning…": "در حال بررسی…",
     "Loading themes…": "در حال بارگذاری پوسته‌ها…",
     Active: "فعال",
     "Activating…": "در حال فعال‌سازی…",
@@ -185,6 +209,9 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
     "The active theme controls what visitors see across the entire public site.":
       "يتحكم القالب النشط في ما يراه الزوار في جميع أنحاء الموقع العام.",
     "View site ↗": "عرض الموقع ↗",
+    Explore: "استكشاف",
+    "Rescan themes": "إعادة فحص السمات",
+    "Rescanning…": "جارٍ الفحص…",
     "Loading themes…": "جارٍ تحميل القوالب…",
     Active: "نشط",
     "Activating…": "جارٍ التفعيل…",

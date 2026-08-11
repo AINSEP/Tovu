@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { Toast } from "@jini-ai/ui";
 
 import { siteUrl } from "../../lib/site-url";
+import { navigate } from "../../lib/router";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ImagePreviewModal } from "../../components/ImagePreviewModal";
@@ -103,7 +105,20 @@ export interface AppearanceProps {
 }
 
 export function Appearance({ useAppearanceHook = useAppearance }: AppearanceProps = {}) {
-  const { settings, themes, themeTiers = {}, error, busyTheme, activate } = useAppearanceHook();
+  const {
+    settings,
+    themes,
+    themeTiers = {},
+    error,
+    busyTheme,
+    activate,
+    // Optional so a pre-existing test double supplying only the original controller fields still
+    // type-checks — same reason `themeTiers` is optional above.
+    rescanning = false,
+    rescanNotice = null,
+    rescan,
+    dismissRescanNotice,
+  } = useAppearanceHook();
   const locale = useAdminLocale();
   const t = (key: string): string => translateAppearance(locale, key);
   // Manual override once the operator picks a tab; `null` means "not yet touched", so the tab
@@ -136,9 +151,37 @@ export function Appearance({ useAppearanceHook = useAppearance }: AppearanceProp
           </p>
         </div>
       </div>
-      <p>
+      {/* "View site" and the rescan control share one row, the rescan pushed to the far right. The
+          server discovers themes once at boot, so anything that reaches the themes folder afterwards
+          — a marketplace download, a copy of an original, a `git pull`, the `npm run theme` CLI — is
+          invisible here until someone asks it to look again. In-app actions will rescan on their own;
+          this is the control for every change the app never saw happen. */}
+      <div className="page-toolbar">
         <a href={siteUrl("/")} target="_blank" rel="noreferrer">{t("View site ↗")}</a>
-      </p>
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={rescanning || rescan === undefined}
+          onClick={() => void rescan?.()}
+        >
+          {rescanning ? t("Rescanning…") : t("Rescan themes")}
+        </button>
+      </div>
+      {/* Transient, not a persistent banner: the rescan outcome confirms something the operator just
+          did, so it clears itself rather than accumulating above the grid. Passing `onDismiss` is
+          what makes the component render its own X — the same handler the auto-dismiss timer calls,
+          so closing early and timing out are one code path. A duplicate-id result still gets
+          `role="alert"` (announced immediately by a screen reader) because it means the site may be
+          rendering a theme nobody picked. */}
+      {rescanNotice ? (
+        <Toast
+          message={rescanNotice}
+          role={rescanNotice.includes("Duplicate") ? "alert" : "status"}
+          tone={rescanNotice.includes("Duplicate") ? "error" : "success"}
+          ttlMs={5000}
+          onDismiss={dismissRescanNotice}
+        />
+      ) : null}
       {error ? <div className="notice error">{error}</div> : null}
       {/* Stranded active theme (2026-08-10) — `settings.activeThemeId` names a theme the server no
           longer resolves, so no card below can ever show the Active tag and nothing else said why.
@@ -188,13 +231,26 @@ export function Appearance({ useAppearanceHook = useAppearance }: AppearanceProp
                 <ThemeCardPreview themeId={themeId} />
                 <h3>{themeId}</h3>
                 <p>{t(THEME_BLURBS[themeId] ?? "")}</p>
-                {active ? (
-                  <span className="theme-active-tag">{t("Active")}</span>
-                ) : (
-                  <button className="btn-primary" disabled={busyTheme !== null} onClick={() => activate(themeId)}>
-                    {busyTheme === themeId ? t("Activating…") : t("Activate")}
+                {/* Activate stays left, Explore is pushed right. Explore is blue-tinted rather than
+                    a second filled button: the burnt-orange fill marks the one action with a
+                    site-wide consequence, and exploring changes nothing, so it should not look like
+                    it does — but it is not grey either, since it is a real destination. */}
+                <div className="theme-card-actions">
+                  {active ? (
+                    <span className="theme-active-tag">{t("Active")}</span>
+                  ) : (
+                    <button className="btn-primary" disabled={busyTheme !== null} onClick={() => activate(themeId)}>
+                      {busyTheme === themeId ? t("Activating…") : t("Activate")}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn-explore"
+                    onClick={() => navigate(`/themes/explore?theme=${encodeURIComponent(themeId)}`)}
+                  >
+                    {t("Explore")}
                   </button>
-                )}
+                </div>
               </div>
             );
           })}

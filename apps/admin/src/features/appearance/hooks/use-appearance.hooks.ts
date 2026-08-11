@@ -26,6 +26,25 @@ export interface AppearanceController {
   /** The theme id currently being activated, or `null` when no activation is in flight. */
   busyTheme: string | null;
   activate: (themeId: string) => Promise<void>;
+  /**
+   * True while a rescan round trip is in flight.
+   *
+   * This and the two fields below are optional for the same reason `themeTiers` is: a test double
+   * written against the earlier controller shape supplies neither, and should keep type-checking
+   * rather than being rewritten to satisfy a field its test does not exercise.
+   */
+  rescanning?: boolean;
+  /**
+   * Outcome of the last rescan, or `null` if none has run this session.
+   *
+   * Held as a message rather than a boolean because "nothing changed" and "didn't run" look identical
+   * to someone who just pressed the button, and that ambiguity is the entire reason the control
+   * exists — a rescan that finds nothing has to say so out loud.
+   */
+  rescanNotice?: string | null;
+  rescan?: () => Promise<void>;
+  /** Clears `rescanNotice`. The toast auto-dismisses on a timer and calls this when it does. */
+  dismissRescanNotice?: () => void;
 }
 
 /**
@@ -37,6 +56,8 @@ export function useAppearance(): AppearanceController {
   const [themeTiers, setThemeTiers] = useState<Record<string, ThemeTier>>({});
   const [error, setError] = useState<string | null>(null);
   const [busyTheme, setBusyTheme] = useState<string | null>(null);
+  const [rescanning, setRescanning] = useState(false);
+  const [rescanNotice, setRescanNotice] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -48,6 +69,32 @@ export function useAppearance(): AppearanceController {
       })
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load themes"));
   }, []);
+
+  /**
+   * Ask the server to re-read the themes directory, then reload this screen's data from it.
+   *
+   * Two round trips on purpose: the rescan route reports what changed (which is what the notice is
+   * built from) but the screen also needs tiers and settings, which only `getPresentation` returns.
+   * Re-fetching rather than patching state from the rescan response keeps one source of truth for
+   * what this screen shows.
+   */
+  async function rescan() {
+    setRescanning(true);
+    setError(null);
+    setRescanNotice(null);
+    try {
+      const r = await api.rescanThemes();
+      const fresh = await api.getPresentation();
+      setSettings(fresh.settings);
+      setThemes(fresh.availableThemeIds);
+      setThemeTiers(Object.fromEntries(fresh.availableThemes.map((t) => [t.id, t.tier])));
+      setRescanNotice(describeRescan(r));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to rescan themes");
+    } finally {
+      setRescanning(false);
+    }
+  }
 
   async function activate(themeId: string) {
     setBusyTheme(themeId);
@@ -62,5 +109,39 @@ export function useAppearance(): AppearanceController {
     }
   }
 
-  return { settings, themes, themeTiers, error, busyTheme, activate };
+  return {
+    settings,
+    themes,
+    themeTiers,
+    error,
+    busyTheme,
+    activate,
+    rescanning,
+    rescanNotice,
+    rescan,
+    dismissRescanNotice: () => setRescanNotice(null),
+  };
+}
+
+/**
+ * Turn a rescan result into one sentence.
+ *
+ * Duplicates lead when present: two themes claiming one id means the site renders whichever sorts
+ * first with no error anywhere, so it outranks the added/removed counts an operator was actually
+ * looking at. "No changes" is stated explicitly rather than left blank — silence after pressing a
+ * button reads as a broken button.
+ */
+function describeRescan(result: {
+  added: string[];
+  removed: string[];
+  total: number;
+  duplicateIds: string[];
+}): string {
+  const parts: string[] = [];
+  if (result.added.length > 0) parts.push(`added ${result.added.join(", ")}`);
+  if (result.removed.length > 0) parts.push(`removed ${result.removed.join(", ")}`);
+  const summary = parts.length > 0 ? parts.join(" · ") : `no changes — ${result.total} themes`;
+  return result.duplicateIds.length > 0
+    ? `${summary}. Duplicate theme ids: ${result.duplicateIds.join(", ")} — only one of each will ever load.`
+    : summary;
 }

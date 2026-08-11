@@ -39,7 +39,8 @@
     "admin:install": "npm --prefix apps/admin install",
     "admin:build": "npm --prefix apps/admin run build",
     "admin:dev": "npm --prefix apps/admin run dev",
-    "setup": "npm install && npm run admin:install && npm run admin:build"
+    "setup": "npm install && npm run admin:install && npm run admin:build",
+    "theme": "tsx development/scripts/theme-tool.ts"
   },
   "dependencies": {
     "@jini-ai/agent-runtime": "file:../Jini/packages/agent-runtime",

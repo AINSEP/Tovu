@@ -203,7 +203,7 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
    for color regardless of this rule also matching. See the `a.btn-*` block below this one for
    the anchor-specific fixes (`display`, `text-decoration`) a bare shape rule can't provide. */
 button,
-.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary {
+.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore {
   background: var(--primary); color: var(--primary-ink); border: 1px solid transparent;
   border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
   font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
@@ -383,6 +383,76 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
   gap: var(--space-4); flex-wrap: wrap;
 }
 .page-header-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* One row of page-level actions under the header: leading links sit left, everything after them is
+   pushed to the far right by the auto margin on the first button. Wraps rather than overflowing on
+   narrow viewports, at which point the auto margin collapses and the button simply follows the link. */
+.page-toolbar {
+  display: flex; align-items: center; gap: var(--space-3);
+  flex-wrap: wrap; margin: var(--space-3) 0;
+}
+.page-toolbar > button:first-of-type { margin-left: auto; }
+/* Card action row: Activate (or the Active tag) stays left, Explore is pushed to the right edge.
+   `align-items` centers the tag against the buttons, whose padding makes them taller. */
+.theme-card-actions {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-2); flex-wrap: wrap;
+}
+/* Explore is blue, not the neutral grey the other secondary buttons use, because it is the one
+   action here that goes somewhere rather than changing something. `--link` is the palette's
+   existing blue (it already colors every anchor) and is defined in both light and dark, so this
+   needs no new token. Tinted rather than filled: a second solid button would compete with
+   Activate's burnt-orange fill, which is the one action with a site-wide consequence. */
+.btn-explore {
+  background: color-mix(in oklch, var(--link) 10%, transparent);
+  color: var(--link);
+  border: 1px solid color-mix(in oklch, var(--link) 40%, transparent);
+}
+.btn-explore:hover {
+  background: color-mix(in oklch, var(--link) 18%, transparent);
+  border-color: var(--link); opacity: 1;
+}
+
+/* `@jini-ai/ui`'s Toast ships behavior (TTL, exit timing, ARIA) but no styling — it renders class
+   names and leaves the look to the host, which is why these live here rather than in the package.
+   `.leaving` is the one non-optional rule: the component sets it at `ttlMs - TOAST_EXIT_MS` and
+   unmounts at `ttlMs`, so without a matching animation the toast vanishes abruptly instead of
+   fading. Fixed position so it never displaces page content the way the old inline banner did. */
+.jini-toast {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 60;
+  max-width: min(560px, calc(100vw - var(--space-6)));
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-2); color: var(--fg-1);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+  animation: jini-toast-in 140ms ease-out;
+}
+.jini-toast.placement-bottom { bottom: var(--space-5); }
+.jini-toast.placement-top { top: var(--space-5); }
+.jini-toast.tone-success { border-color: var(--ok, var(--border-strong)); }
+.jini-toast.tone-error { border-color: var(--danger, var(--border-strong)); }
+.jini-toast.leaving { animation: jini-toast-out 160ms ease-in forwards; }
+.jini-toast-body { display: flex; align-items: center; gap: var(--space-2); padding-right: var(--space-4); }
+.jini-toast-message { font-size: 0.9rem; line-height: 1.4; }
+.jini-toast-details { margin-top: 4px; font-size: 0.8rem; color: var(--fg-2); }
+/* The component renders this X itself whenever `onDismiss` is passed — it is not markup the host
+   supplies, only styling the host owes it. Absolutely positioned so a long message wraps under the
+   full width instead of reserving a column for a 13px glyph. */
+.jini-toast-close {
+  position: absolute; top: 6px; right: 6px;
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0;
+  background: transparent; border: 0; border-radius: var(--r-sm);
+  color: var(--fg-3, var(--fg-2)); cursor: pointer;
+}
+.jini-toast-close:hover { background: var(--surface); color: var(--fg-1); opacity: 1; }
+@keyframes jini-toast-in { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes jini-toast-out { to { opacity: 0; transform: translate(-50%, 6px); } }
+/* Honors the OS "reduce motion" setting: the toast still appears and still leaves on the same
+   schedule, it just does not slide. */
+@media (prefers-reduced-motion: reduce) {
+  .jini-toast, .jini-toast.leaving { animation: none; }
+}
 /* Scoped under `.page-header` (not bare `.page-kicker`/`.page-title`/`.page-description`) so
    these reliably beat the legacy `.admin-content h1` / `h1 + p` rules above on specificity
    (0,2,0 vs 0,1,1) — that legacy pair still owns every section this canary does not touch, and
@@ -2237,6 +2307,75 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   border: 1px solid oklch(100% 0 0 / 0.35); box-shadow: var(--shadow-md);
 }
 .image-preview-modal-close:hover { background: oklch(0% 0 0 / 0.72); opacity: 1; }
+
+/* Agent Plugin package inspector — Jini's exported `PreviewModalShell` supplies the accessible
+   dialog/Escape/close behaviour and `CodeWithLines` supplies the read-only line-number pane. Tovu
+   owns only this host layout around its compile-time source allowlist. */
+.agent-plugin-source-modal {
+  z-index: 80;
+  padding: var(--space-4);
+  background: oklch(0% 0 0 / 0.48);
+}
+.agent-plugin-source-modal [data-preview-modal] {
+  max-width: 72rem;
+  max-height: min(52rem, calc(100vh - 2rem));
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+}
+.agent-plugin-source-modal [data-preview-modal-header] {
+  min-height: 4rem;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+.agent-plugin-source-modal [data-preview-modal-title] { font-weight: 700; color: var(--fg); }
+.agent-plugin-source-modal [data-preview-modal-subtitle] { margin-top: 2px; font-size: var(--text-sm); color: var(--muted); }
+.agent-plugin-source-modal [data-preview-modal-close],
+.agent-plugin-source-modal [data-preview-modal-stage-fullscreen] {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 2rem; min-height: 2rem; padding: 0.4rem;
+  color: var(--fg-2); background: transparent;
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+}
+.agent-plugin-source-modal [data-preview-modal-stage-fullscreen] { position: absolute; z-index: 1; top: var(--space-3); right: var(--space-3); }
+.agent-plugin-source-modal [data-preview-modal-stage-custom] { width: 100%; height: 100%; min-height: 0; }
+.agent-plugin-source-browser { display: grid; grid-template-columns: minmax(14rem, 20rem) minmax(0, 1fr); width: 100%; height: 100%; min-height: 0; }
+.agent-plugin-source-files {
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 0; padding: var(--space-3); overflow: auto;
+  border-right: 1px solid var(--border); background: var(--surface-2);
+}
+.agent-plugin-source-files button {
+  width: 100%; padding: 0.5rem 0.6rem;
+  color: var(--fg-2); background: transparent; border: 1px solid transparent; border-radius: var(--r-sm);
+  font: inherit; font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.4;
+  overflow-wrap: anywhere; text-align: left; cursor: pointer;
+}
+.agent-plugin-source-files button:hover,
+.agent-plugin-source-files button[aria-pressed="true"] { color: var(--fg); background: var(--surface); border-color: var(--border); opacity: 1; }
+.agent-plugin-source-content { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.agent-plugin-source-content h3 {
+  margin: 0; padding: var(--space-3) 4rem var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border); font: 600 var(--text-sm)/1.4 var(--font-mono); overflow-wrap: anywhere;
+}
+.agent-plugin-source-content .code-viewer {
+  display: grid; grid-template-columns: auto minmax(max-content, 1fr);
+  flex: 1; min-height: 0; margin: 0; overflow: auto;
+  color: var(--fg-2); background: var(--surface); font: var(--text-xs)/1.6 var(--font-mono);
+}
+.agent-plugin-source-content .code-viewer code { display: block; padding: var(--space-4); white-space: pre; }
+.agent-plugin-source-content .code-viewer .gutter {
+  position: sticky; left: 0; text-align: right; user-select: none;
+  color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
+}
+
+@media (max-width: 720px) {
+  .agent-plugin-source-browser { grid-template-columns: 1fr; grid-template-rows: minmax(8rem, 32%) minmax(0, 1fr); }
+  .agent-plugin-source-files { border-right: none; border-bottom: 1px solid var(--border); }
+}
 
 /* "View Template" (2026-08-10, `PostTemplateModal.tsx`) — same `PreviewModalShell` host chrome as
    `.agent-plugin-source-modal` above, but a single stage pane rather than a file-browser grid: this

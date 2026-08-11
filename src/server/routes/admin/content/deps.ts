@@ -33,6 +33,10 @@ import type { RouteDeps } from "../../types";
  *   Migration Safety), not `PresentationSettingsRepoPort`.
  * - `presentationRepo`/`themes`: `presentation/get.ts`/`presentation/patch-active-theme.ts`
  *   (`themes` via `validThemeIds(deps.themes)`).
+ * - `themesDir`: `presentation/rescan-themes.ts` — the root to re-run discovery against. Taken from
+ *   deps rather than re-derived so a composition root that overrides `TOVU_THEMES_DIR` rescans the
+ *   same folder it originally discovered from, instead of silently repopulating the theme list from
+ *   the default path.
  */
 export type ContentRouteDeps = Pick<
   RouteDeps,
@@ -48,6 +52,7 @@ export type ContentRouteDeps = Pick<
   | "settingsRepo"
   | "presentationRepo"
   | "themes"
+  | "themesDir"
 >;
 
 export type ContentRouteRegistrar = (app: Express, deps: ContentRouteDeps) => void;
