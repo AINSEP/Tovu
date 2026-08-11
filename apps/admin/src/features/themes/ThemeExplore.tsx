@@ -590,7 +590,7 @@ function ThemeExploreToolbarButtons({
           true for a read-only file (its textarea has no `onChange`), so this is belt-and-suspenders. */}
       {canSaveSelectedFile(selectedFile) ? (
         <button
-          className="btn-success"
+          className="btn-solid"
           disabled={!dirty || saving}
           onClick={() => void save()}
           title={isApplePlatform() ? t("Save (⌘S)") : t("Save (Ctrl+S)")}
@@ -882,7 +882,18 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
 
   return (
     <div className="page">
-      <div className="page-header">
+      {/* 2026-08-11: header row matches `PageEditor.tsx`'s own header exactly — `.page-header-text`
+          (kicker/title/description) and `.page-actions` (← All themes / Save / Reset) as SIBLINGS
+          inside the same `.page-header`, not stacked as two separate blocks. `.page-header`'s own
+          `display: flex; justify-content: space-between` (shared, styles.css) is what puts the title
+          on the left and the button row on the right of the SAME line — that rule already does the
+          work for Pages, so this screen only needed to adopt the same DOM shape, not new CSS. The
+          previous layout had `.page-actions` as a second row below `.page-header`, which is also why
+          the "You're editing your own copy" banner used to read as sitting directly under an empty
+          second header row — it now sits in the space that row vacated, immediately under the
+          title/actions line, which is the position `.theme-explore-directions`'s own width cap
+          (below) was designed against. */}
+      <div className="page-header theme-explore-header">
         <div className="page-header-text">
           <p className="page-kicker">{t("Studio")}</p>
           <h1 className="page-title">{detail.name}</h1>
@@ -890,36 +901,28 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
             {t("Edit this theme and see it rendered. Nothing here changes your live site until you activate it.")}
           </p>
         </div>
-      </div>
-
-      {/* 2026-08-11 toolbar restructure (owner-approved): matches `PageEditor.tsx`'s own
-          `[← Pages] [Published ▾] [Save] [Delete]` row shape and its `.page-actions` class, not the
-          `.page-toolbar` this row used before — `.page-toolbar`'s own CSS pushes its first BUTTON to
-          the far right via an auto-margin (correct for a leading LINK followed by a button group,
-          which is what every other current `.page-toolbar` caller is), which would misfire on `←
-          All themes` now that it is a button and the first child. `.page-actions` carries no such
-          rule, so all three buttons simply pack left-to-right in one row, the same as Pages'. */}
-      <div className="page-actions">
-        <a
-          href="/admin/themes"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate("/themes");
-          }}
-        >
-          <button type="button" className="btn-secondary">
-            {t("← All themes")}
-          </button>
-        </a>
-        <ThemeExploreToolbarButtons
-          selectedFile={selectedFile}
-          resetting={resetting}
-          openResetConfirm={openResetConfirm}
-          dirty={dirty}
-          saving={saving}
-          save={save}
-          t={t}
-        />
+        <div className="page-actions">
+          <a
+            href="/admin/themes"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate("/themes");
+            }}
+          >
+            <button type="button" className="btn-secondary">
+              {t("← All themes")}
+            </button>
+          </a>
+          <ThemeExploreToolbarButtons
+            selectedFile={selectedFile}
+            resetting={resetting}
+            openResetConfirm={openResetConfirm}
+            dirty={dirty}
+            saving={saving}
+            save={save}
+            t={t}
+          />
+        </div>
       </div>
 
       <ThemeExploreDirectionsNotice detail={detail} t={t} />

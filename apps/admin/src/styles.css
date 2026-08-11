@@ -72,19 +72,6 @@
   --link-ink:  oklch(99% 0 0);
   --ok:        oklch(48% 0.12 150);
   --ok-bg:     oklch(93% 0.05 150);
-  /* A SOLID-FILL pair for a green button with white text (Explore's Save, 2026-08-11 toolbar
-     restructure) — deliberately separate from `--ok`/`--ok-bg` above, not a second name for the same
-     thing. `--ok` is tuned as PILL TEXT/tint color (`.theme-active-tag`, `.status-*`): light mode's
-     48% L already clears white-text contrast (6.18:1, measured the same way `--primary`'s own comment
-     documents — see that token), but dark mode's `--ok` goes to 74% L specifically so it reads AS TEXT
-     against a dark surface, and a light 74%-L fill under WHITE button text lands at only ~2.2:1,
-     failing AA. `--ok-solid` stays close to `--ok`'s LIGHT value in BOTH themes instead — the same
-     "barely moves between themes" shape `--primary`/`--primary-ink` already use for exactly this
-     reason (a solid CTA fill needs to hold contrast against its own OWN white ink in both modes, not
-     shift for legibility as text-on-surface the way `--ok` intentionally does). Same hue/chroma
-     family as `--ok` (150/0.12), so it still reads as "the same green" as the Active pill it echoes. */
-  --ok-solid:      oklch(48% 0.12 150); /* ~#19703C — 6.18:1 vs white */
-  --ok-solid-ink:  oklch(99% 0 0);
   --danger:    oklch(52% 0.19 25);
   --danger-bg: oklch(95% 0.04 25);
   /* Third tier between secondary/neutral and destructive — reversible but access-affecting
@@ -241,7 +228,7 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
    for color regardless of this rule also matching. See the `a.btn-*` block below this one for
    the anchor-specific fixes (`display`, `text-decoration`) a bare shape rule can't provide. */
 button,
-.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-success, .btn-explore {
+.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-solid, .btn-explore {
   background: var(--primary); color: var(--primary-ink); border: 1px solid transparent;
   border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
   font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
@@ -466,6 +453,19 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
 .btn-explore { background: var(--surface); color: var(--fg); border: 1px solid currentColor; }
 .btn-explore:hover { background: var(--surface-2); opacity: 1; }
 
+/* Explore's subtitle used to inherit the shared `.page-header .page-description` 60ch prose measure
+   (above) unscoped, which still ran most of the page's width at this screen's typical container size
+   — 60ch is sized for genuinely long copy elsewhere (Settings, Pages), not this one-sentence caption.
+   Capped tighter here, to roughly a third of the page per owner feedback ("it's currently wrapping
+   across nearly the full page width"). `ch`, not a viewport percentage, for the same reason the
+   shared rule already uses it: it tracks the font's own measure rather than the container, so it
+   reads as "about a third" at the widths this screen is actually used at without recomputing per
+   breakpoint. Three classes deep (`.theme-explore-header.page-header .page-description`, specificity
+   0,3,0) to unambiguously outrank the shared 0,2,0 rule regardless of source order — the same
+   "re-assert one class higher" pattern `.theme-card button.btn-primary` below already uses to beat a
+   tied/lower-specificity shared rule. */
+.theme-explore-header.page-header .page-description { max-width: 34ch; }
+
 /* Explore screen: file list beside the editor. `minmax(0, 1fr)` on the second column rather than a
    bare `1fr` — without it a wide `<pre>`/`<textarea>` sets the column's min-content width and pushes
    the grid past the viewport instead of scrolling inside its own box. */
@@ -474,7 +474,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
   gap: var(--space-4);
 }
 @media (max-width: 720px) { .theme-explore { grid-template-columns: minmax(0, 1fr); } }
-.theme-explore-directions { border-left: 3px solid var(--link); }
+/* `max-width: 50%` (of `.page`, the nearest sized ancestor) — owner: "it spans the whole page, which
+   is just unnecessary and disgusting." Percentage rather than `ch` here, unlike the subtitle rule
+   above: the ask was explicitly "half the page," a relationship to the CONTAINER, not a fixed prose
+   measure, and a `ch` cap would drift away from actually being half as the container itself resizes. */
+.theme-explore-directions { border-left: 3px solid var(--link); max-width: 50%; }
 /* 2026-08-11: the sidebar needs to span the SAME height as `.theme-explore-main` (its toolbar row
    plus the preview/HTML pane) — but ONE direction only: matching `.theme-explore-main`'s own natural
    height, never the other way around. A first attempt just gave both grid items `align-items: stretch`
@@ -711,25 +715,29 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    seeing the intent in the className, not just inheriting it silently from the element type). */
 .btn-primary { background: var(--primary); color: var(--primary-ink); border: 1px solid transparent; }
 .btn-primary:hover { opacity: 0.88; }
-/* Green-filled, white text — Explore's Save (2026-08-11 toolbar restructure), deliberately NOT
-   `.btn-primary`'s brown/rust fill: the owner asked for green specifically, reusing the hue behind
-   the Themes page's `.theme-active-tag` "Active" pill rather than introducing an unrelated color.
-   `--ok-solid`/`--ok-solid-ink`, not `--ok`/`--primary-ink` — see that token pair's own comment for
-   why a THIRD pair exists instead of composing the other two. */
-.btn-success { background: var(--ok-solid); color: var(--ok-solid-ink); border: 1px solid transparent; }
-.btn-success:hover { opacity: 0.88; }
+/* Black-on-white (white-on-black in dark mode) — Explore's Save, 2026-08-11 owner feedback: "I just
+   wanna have some basic colors. I think I have too many colors," replacing this button's previous
+   green fill (`--ok-solid`/`--ok-solid-ink`, since removed — this was their only consumer). `--fg`/
+   `--surface`, not a new pair of literal black/white tokens: those two are already the app's
+   high-contrast neutral pair and already FLIP correctly per theme (light mode: near-black `--fg` on
+   white `--surface`; dark mode: near-white `--fg` on near-black `--surface`), which is exactly
+   "inverts sensibly" rather than a button that goes literally-black-on-dark-surface and disappears —
+   the failure mode the brief for this change called out by name. No `@media` branch needed for the
+   same reason `.btn-explore` above needs none: both tokens already know which theme is active. */
+.btn-solid { background: var(--fg); color: var(--surface); border: 1px solid transparent; }
+.btn-solid:hover { opacity: 0.88; }
 /* The global `button:disabled` rule (above, ~L242) paints a `color-mix` tint of `--primary` — a
-   burnt-orange hue — behind EVERY disabled button regardless of class, which is what actually produced
-   a muted pink/brown "Saved" button here instead of a muted green one (same defect already found and
-   fixed for `.tab-bar-item:disabled`, see that rule's own comment). `.btn-success:disabled`'s (0,2,0)
+   burnt-orange hue — behind EVERY disabled button regardless of class, which would produce a muted
+   brown "Saved" button here instead of a dimmed black/white one (same defect already found and fixed
+   for `.tab-bar-item:disabled`, see that rule's own comment). `.btn-solid:disabled`'s (0,2,0)
    specificity beats the base rule's (0,1,1) on class count alone, so no `!important`/selector tricks
-   are needed — same `color-mix` MECHANISM as the base rule, just built from `--ok-solid`/
-   `--ok-solid-ink` so a disabled Save still reads as "a dimmed green button," consistent with how the
+   are needed — same `color-mix` MECHANISM as the base rule, just built from `--fg`/`--surface` so a
+   disabled Save still reads as "a dimmed version of its own resting state," consistent with how the
    rest of the app dims a primary button rather than going neutral grey. */
-.btn-success:disabled {
+.btn-solid:disabled {
   cursor: default; opacity: 1;
-  background: color-mix(in oklch, var(--ok-solid) 30%, var(--surface));
-  color: color-mix(in oklch, var(--ok-solid-ink) 55%, var(--surface));
+  background: color-mix(in oklch, var(--fg) 30%, var(--surface));
+  color: color-mix(in oklch, var(--surface) 55%, var(--fg));
 }
 
 /* Anchor-specific fixes the shape rule above cannot provide by itself. An `<a>` is inline by
