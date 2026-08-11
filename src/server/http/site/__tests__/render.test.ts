@@ -685,10 +685,10 @@ test("renderSite (Slice 2): a data-embed-type=\"widget\" embed substitutes to it
   assert.equal((html.match(/widget-placeholder/g) ?? []).length, 1, "only the unresolved id degrades to the placeholder");
 });
 
-test("renderSite (Slice 2): a data-embed-type=\"form\" embed substitutes to its resolved contact-form IR — the same renderer a real contact-form widget instance uses", async () => {
+test("renderSite (Slice 2): a contact-form WIDGET embed substitutes to its resolved contact-form IR — since `form` was removed as an embed type (2026-08-10) this is the ONE way a Page embeds a form, and it goes through the widget renderer unchanged", async () => {
   const theme = declarativeTheme({ type: "doc", content: [] });
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
-  const post = htmlPage({ bodyHtml: '<div data-embed-type="form" data-embed-id="form-1"></div>' });
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"widget","id":"cf-widget-1"}'></div>` });
 
   const html = await renderSite({
     theme,
@@ -697,7 +697,9 @@ test("renderSite (Slice 2): a data-embed-type=\"form\" embed substitutes to its 
     posts: [post],
     post,
     pageHtmlEmbeds: htmlEmbeds({
-      form: new Map([["form-1", { componentId: "contact-form", props: { slug: "contact-us", fields: [], successMessage: null } }]]),
+      widget: new Map([
+        ["cf-widget-1", { componentId: "contact-form", props: { slug: "contact-us", fields: [], successMessage: null } }],
+      ]),
     }),
   });
 

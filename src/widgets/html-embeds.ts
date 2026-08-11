@@ -7,8 +7,8 @@
  * A TipTap `widgetEmbed` node has a structured home (`bodyJson`) to carry a `{placementId,
  * widgetEntryId}` attrs object. A Page's body is a free-form HTML string with no such tree, so an
  * embed there has to be a literal markup convention instead:
- * `<div data-embed-config='{"type":"widget","id":"{widgetEntryId}"}'></div>` (or `"type":"form"`,
- * `"media"`, `"post"`, or any future type token), anywhere in the page's `body_html`.
+ * `<div data-embed-config='{"type":"widget","id":"{widgetEntryId}"}'></div>` (or `"type":"media"`,
+ * `"post"`, or any future type token), anywhere in the page's `body_html`.
  *
  * **This file no longer owns a pattern.** Locating and parsing a marker is `core/embeds/marker.ts`'s
  * single job; this module is only the adapter that projects a parsed marker into the
