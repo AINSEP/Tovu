@@ -16,9 +16,18 @@ import type { DiscoveredTheme } from "../theme";
  * The "never chosen" cases matter beyond the legacy rows: any creation path that doesn't know this
  * field exists (seed script, agent tool, direct API or DB insert) also writes `null`, so these are
  * the tests that stop the bug reappearing on the next post created outside the admin editor.
+ *
+ * Fixture note (2026-08-11): `POST_SLOT` was rewritten from the retired `data-embed-type`/
+ * `data-embed-id` attribute pair to the current single-attribute `data-embed-config` JSON vocabulary
+ * (`#src/core/embeds/marker.ts`'s `MARKER_PATTERN`, landed in the 2026-08-10 marker-spine
+ * unification). `resolvePostTemplate`'s own "has a post slot" check now asks the shared
+ * `markersOfType()` parser, which only recognizes an element carrying `data-embed-config` — a marker
+ * spelled the old way is invisible to it, not merely non-matching, so every "template" assertion
+ * below silently became "diagnostic" the moment the implementation moved on. This was pre-existing
+ * test rot from that migration, not a change in what `resolvePostTemplate` itself is certified to do.
  */
 
-const POST_SLOT = '<div data-embed-type="post" data-embed-id="{{post}}"></div>';
+const POST_SLOT = '<div data-embed-config=\'{"type":"post","id":"{{post}}"}\'></div>';
 
 function makeTheme(
   overrides: { postTemplate?: string[]; pages?: Record<string, string> } = {}
@@ -159,7 +168,7 @@ test("the resolved template html is returned so the caller never re-reads theme.
   const theme = makeTheme({ postTemplate: ["blog-post.html"] });
   const result = resolvePostTemplate({ theme, templateChoice: null });
 
-  assert.ok(result.kind === "template" && result.html.includes('data-embed-id="{{post}}"'));
+  assert.ok(result.kind === "template" && result.html.includes('"id":"{{post}}"'));
 });
 
 test("a choice carrying no .html suffix still resolves against the page key", () => {
