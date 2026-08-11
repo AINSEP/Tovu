@@ -590,7 +590,7 @@ function ThemeExploreToolbarButtons({
           true for a read-only file (its textarea has no `onChange`), so this is belt-and-suspenders. */}
       {canSaveSelectedFile(selectedFile) ? (
         <button
-          className="btn-solid"
+          className="btn-primary"
           disabled={!dirty || saving}
           onClick={() => void save()}
           title={isApplePlatform() ? t("Save (⌘S)") : t("Save (Ctrl+S)")}

@@ -228,7 +228,7 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
    for color regardless of this rule also matching. See the `a.btn-*` block below this one for
    the anchor-specific fixes (`display`, `text-decoration`) a bare shape rule can't provide. */
 button,
-.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-solid, .btn-explore {
+.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore {
   background: var(--primary); color: var(--primary-ink); border: 1px solid transparent;
   border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
   font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
@@ -728,30 +728,17 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    seeing the intent in the className, not just inheriting it silently from the element type). */
 .btn-primary { background: var(--primary); color: var(--primary-ink); border: 1px solid transparent; }
 .btn-primary:hover { opacity: 0.88; }
-/* Black-on-white (white-on-black in dark mode) — Explore's Save, 2026-08-11 owner feedback: "I just
-   wanna have some basic colors. I think I have too many colors," replacing this button's previous
-   green fill (`--ok-solid`/`--ok-solid-ink`, since removed — this was their only consumer). `--fg`/
-   `--surface`, not a new pair of literal black/white tokens: those two are already the app's
-   high-contrast neutral pair and already FLIP correctly per theme (light mode: near-black `--fg` on
-   white `--surface`; dark mode: near-white `--fg` on near-black `--surface`), which is exactly
-   "inverts sensibly" rather than a button that goes literally-black-on-dark-surface and disappears —
-   the failure mode the brief for this change called out by name. No `@media` branch needed for the
-   same reason `.btn-explore` above needs none: both tokens already know which theme is active. */
-.btn-solid { background: var(--fg); color: var(--surface); border: 1px solid transparent; }
-.btn-solid:hover { opacity: 0.88; }
-/* The global `button:disabled` rule (above, ~L242) paints a `color-mix` tint of `--primary` — a
-   burnt-orange hue — behind EVERY disabled button regardless of class, which would produce a muted
-   brown "Saved" button here instead of a dimmed black/white one (same defect already found and fixed
-   for `.tab-bar-item:disabled`, see that rule's own comment). `.btn-solid:disabled`'s (0,2,0)
-   specificity beats the base rule's (0,1,1) on class count alone, so no `!important`/selector tricks
-   are needed — same `color-mix` MECHANISM as the base rule, just built from `--fg`/`--surface` so a
-   disabled Save still reads as "a dimmed version of its own resting state," consistent with how the
-   rest of the app dims a primary button rather than going neutral grey. */
-.btn-solid:disabled {
-  cursor: default; opacity: 1;
-  background: color-mix(in oklch, var(--fg) 30%, var(--surface));
-  color: color-mix(in oklch, var(--surface) 55%, var(--fg));
-}
+/* `.btn-solid` lived here and is GONE (2026-08-11). It existed only for Explore's Save button, which
+   cycled green (`--ok-solid`) -> black/white (`--fg`/`--surface`) -> `--primary`, the app's burnt
+   orange, on owner instruction ("can you make the saved button the orange color now? .btn-primary").
+   Its single consumer now uses `.btn-primary` directly, so the class is deleted rather than left as
+   an unused alias — same call already made for `--ok-solid`/`--explore-bg` when their last consumers
+   went away.
+   Its `:disabled` override goes with it, and that is the point rather than a loss: that rule existed
+   solely to BEAT the global `button:disabled` tint (~L242), which color-mixes `--primary` behind
+   every disabled button and would have painted a muted brown "Saved" behind a black/white button.
+   Now that this button IS `--primary`, the global rule is already the correct treatment — a dimmed
+   version of its own resting state, exactly what the removed override was hand-rolling. */
 
 /* Anchor-specific fixes the shape rule above cannot provide by itself. An `<a>` is inline by
    default, so the shape rule's `padding` never gets the box to center around — `inline-flex` +

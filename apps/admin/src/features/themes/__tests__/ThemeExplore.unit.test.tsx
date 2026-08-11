@@ -535,7 +535,7 @@ describe("toolbar restructure — back button plus file-bound Save/Reset", () =>
       />
     );
     const button = screen.getByRole("button", { name: "Save about" });
-    expect(button).toHaveClass("btn-solid");
+    expect(button).toHaveClass("btn-primary");
     await user.click(button);
     expect(save).toHaveBeenCalledTimes(1);
   });
