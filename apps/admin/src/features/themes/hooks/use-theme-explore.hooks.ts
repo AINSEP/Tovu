@@ -99,6 +99,11 @@ export interface ThemeExploreController {
   dirty: boolean;
   saving: boolean;
   error: string | null;
+  /** Manually clear `error` — the toast's own close button, so a dismissed message cannot resurface
+   *  on the next unrelated render (the same reason {@link dismissNotice} exists for `notice`). Every
+   *  action that CAN fail also clears `error` itself at the start of its own attempt, so this only
+   *  matters for the "operator dismissed it and did nothing else yet" path. */
+  dismissError: () => void;
   notice: string | null;
   dismissNotice: () => void;
   save: () => Promise<void>;
@@ -363,15 +368,19 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
     [themeId, selected]
   );
 
-  const startRename = useCallback((path: string) => {
-    if (LOCKED_RENAME_PATHS.has(path)) {
-      setError(lockedRenameReason(path));
-      return;
-    }
-    setError(null);
-    setRenamingPath(path);
-    setRenameDraft(basenameOf(path));
-  }, []);
+  const startRename = useCallback(
+    (path: string) => {
+      const kind = files.find((f) => f.path === path)?.kind;
+      if (LOCKED_RENAME_PATHS.has(path) || (kind !== undefined && READ_ONLY_RENAME_GROUPS.has(kind))) {
+        setError(lockedRenameReason(path, kind ?? "config"));
+        return;
+      }
+      setError(null);
+      setRenamingPath(path);
+      setRenameDraft(basenameOf(path));
+    },
+    [files]
+  );
 
   const cancelRename = useCallback(() => {
     setRenamingPath(null);
@@ -486,6 +495,7 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
     dirty,
     saving,
     error,
+    dismissError: () => setError(null),
     notice,
     dismissNotice: () => setNotice(null),
     save,
