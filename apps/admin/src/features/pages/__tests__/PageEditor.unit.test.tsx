@@ -280,6 +280,33 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     expect(screen.queryByLabelText("Page HTML")).not.toBeInTheDocument();
   });
 
+  // 2026-08-11 fix: the preview used to always show the raw stored body in a sandboxed iframe with
+  // no theme CSS (`ADS-memory/reports/implementation/2026-08-11-basic-page-template.md`'s own "Risks"
+  // section flagged this as a real gap, not a regression). A published, un-dirtied page now iframes
+  // the real public URL instead, so a visitor sees exactly what the operator sees.
+  it("preview iframes the real public URL when the page is published and has no unsaved changes", () => {
+    renderEditor({ view: "preview", status: "published", dirty: false, slug: "about" });
+    const preview = screen.getByTitle("Page preview");
+    expect(preview).toHaveAttribute("src", expect.stringContaining("/about"));
+    expect(screen.queryByText(/preview them with the theme/i)).not.toBeInTheDocument();
+  });
+
+  // `SrcDocSandbox` also renders an `<iframe title="Page preview">` (via `srcDoc`, not `src`) — the
+  // fallback is distinguished by the ABSENCE of a `src` attribute, not by element type.
+  it("preview falls back to the raw-body sandbox, with a notice, for a draft page", () => {
+    renderEditor({ view: "preview", status: "draft", dirty: false });
+    const preview = screen.getByTitle("Page preview");
+    expect(preview).not.toHaveAttribute("src");
+    expect(screen.getByText(/publish this page to preview it with the theme/i)).toBeInTheDocument();
+  });
+
+  it("preview falls back to the raw-body sandbox, with a notice, when a published page has unsaved changes", () => {
+    renderEditor({ view: "preview", status: "published", dirty: true });
+    const preview = screen.getByTitle("Page preview");
+    expect(preview).not.toHaveAttribute("src");
+    expect(screen.getByText(/save your changes to preview them with the theme/i)).toBeInTheDocument();
+  });
+
   it("renders an editable HTML textarea (not the preview) in html view", () => {
     renderEditor({ view: "html", html: "<p>hi</p>" });
     expect(screen.getByLabelText("Page HTML")).toHaveValue("<p>hi</p>");
