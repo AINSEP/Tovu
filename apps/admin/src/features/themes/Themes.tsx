@@ -278,10 +278,12 @@ export function Themes({ useThemesHook = useThemes }: ThemesProps = {}) {
                 <ThemeCardPreview themeId={themeId} />
                 <h3>{themeId}</h3>
                 <p>{t(THEME_BLURBS[themeId] ?? "")}</p>
-                {/* Activate stays left, Explore is pushed right. Explore is blue-tinted rather than
-                    a second filled button: the burnt-orange fill marks the one action with a
-                    site-wide consequence, and exploring changes nothing, so it should not look like
-                    it does — but it is not grey either, since it is a real destination. */}
+                {/* Activate stays left, Explore is pushed right. Explore takes the app's existing
+                    secondary/outline shape (white surface, bordered — see `.btn-explore` in
+                    styles.css) rather than a second filled button: the burnt-orange fill marks the
+                    one action with a site-wide consequence, and exploring changes nothing, so it
+                    should not compete with Activate for primary attention — but it still reads as a
+                    real, clickable destination, not plain text on the card. */}
                 <div className="theme-card-actions">
                   {active ? (
                     <span className="theme-active-tag">{t("Active")}</span>
