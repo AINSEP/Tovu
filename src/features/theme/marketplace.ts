@@ -1,5 +1,5 @@
 import { cpSync, existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 
 import {
   discoverThemes,
@@ -150,6 +150,25 @@ function rewriteThemeManifestId(required: { themeDir: string; id: string; extra?
 }
 
 /**
+ * Refuses `preview/` — `build-preview.mjs`'s generated output (a full second copy of every page and
+ * script, once per color mode: 36 of `novice`'s 79 files were this before it was deleted). Worthless
+ * the moment it's copied: nothing reads a copy's `preview/` (a fresh `build-preview.mjs` run
+ * regenerates it from the theme's own real files) and the Explore file list already hides it
+ * (`GENERATED_DIRS`, `explore.ts`) for whichever copy is being browsed.
+ *
+ * `screenshots/` is deliberately NOT filtered here, in either copy. Excluding it from the EDITABLE
+ * copy would break Explore, which lists it for the working copy on purpose. Excluding it from the
+ * CATALOG copy would look like the same win but isn't one: the catalog is what "reset to original"
+ * restores from, so a screenshot excluded there would become permanently non-resettable the moment a
+ * user edited or deleted their working copy's. Real marketing asset, not a build artifact — the size
+ * cost is accepted, not overlooked.
+ */
+function isGeneratedPreviewPath(fixtureDir: string, candidate: string): boolean {
+  const rel = relative(fixtureDir, candidate);
+  return rel === "preview" || rel.startsWith(`preview${sep}`);
+}
+
+/**
  * Where a downloaded theme came from — written into the EDITABLE copy's `theme.json` only (never the
  * catalog copy, which stays byte-identical to what shipped). A local folder id (`assignedId`) is
  * meaningless on another machine, and meaningless again after a second, independent download of the
@@ -218,8 +237,9 @@ export function downloadMarketplaceTheme(
   const catalogDir = join(themesRoot, THEME_CATALOG_DIR, tier, assignedId);
   const installedDir = join(themesRoot, tier, assignedId);
 
-  cpSync(fixture.dir, catalogDir, { recursive: true });
-  cpSync(fixture.dir, installedDir, { recursive: true });
+  const filter = (source: string) => !isGeneratedPreviewPath(fixture.dir, source);
+  cpSync(fixture.dir, catalogDir, { recursive: true, filter });
+  cpSync(fixture.dir, installedDir, { recursive: true, filter });
 
   rewriteThemeManifestId({ themeDir: catalogDir, id: assignedId });
 
