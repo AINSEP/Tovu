@@ -22,7 +22,11 @@ import { loadTheme } from "../theme";
  */
 
 function ledgerTemplate(name: "home" | "entry"): string {
-  return readFileSync(join(process.cwd(), "src", "themes", "handlebars", "ledger", "templates", `${name}.hbs`), "utf8");
+  // `ledger` was archived to `src/theme-archive/` (commit 4f6ce56, 2026-08-09); `src/themes/handlebars/`
+  // has shipped zero themes since, so this is the only real (non-fixture) handlebars template source
+  // left to certify the allowlist and `loadTheme`'s handlebars-tier path against — same re-point
+  // `theme.test.ts` already made for `dispatch`, the templated-tier sibling of this same commit.
+  return readFileSync(join(process.cwd(), "src", "theme-archive", "ledger", "templates", `${name}.hbs`), "utf8");
 }
 
 test("a clean template with no expressions at all reports no violations", () => {
@@ -233,7 +237,7 @@ test("an oversized template source is rejected before it is ever parsed", () => 
 
 test("the live themes/handlebars/ledger demonstrator theme loads as valid end-to-end", () => {
   const theme = loadTheme({
-    themeDir: join(process.cwd(), "src", "themes", "handlebars", "ledger"),
+    themeDir: join(process.cwd(), "src", "theme-archive", "ledger"),
     id: "ledger",
     source: "built-in",
   });
