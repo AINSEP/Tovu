@@ -281,6 +281,23 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
 .post-card p { font-size: 14px; margin-bottom: 16px; flex: 1; }
 .post-meta { font: 12.5px/1 var(--font-mono); color: var(--muted); display: flex; gap: 8px; margin-top: auto; }
 
+/* ---------- blog post (single-post template) ---------- */
+.post-detail { max-width: 720px; margin: 0 auto; padding: 72px 0 96px; }
+.post-detail-header { margin-bottom: 40px; }
+.post-detail-header h1 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.08; letter-spacing: -0.02em; margin-bottom: 16px; }
+.post-detail-header .post-meta { font-size: 13px; }
+.post-detail-body { font-size: 17px; line-height: 1.7; max-width: 66ch; }
+.post-detail-body h2 { font-size: 26px; margin: 40px 0 16px; letter-spacing: -0.01em; }
+.post-detail-body h3 { font-size: 20px; margin: 32px 0 12px; letter-spacing: -0.01em; }
+.post-detail-body p { margin-bottom: 18px; }
+.post-detail-body ul, .post-detail-body ol { margin: 0 0 18px 22px; }
+.post-detail-body li { margin-bottom: 6px; }
+.post-detail-body blockquote { border-left: 2px solid var(--border-strong); padding-left: 20px; margin: 24px 0; color: var(--muted); font-style: italic; }
+.post-detail-body code { font: 13px/1 var(--font-mono); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
+.post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; }
+.post-detail-body pre code { border: none; background: none; padding: 0; }
+.post-detail-body img { max-width: 100%; border-radius: 10px; margin: 20px 0; }
+
 /* ---------- about ---------- */
 .about-hero { padding: 88px 0 56px; }
 .about-hero h1 { font-size: clamp(36px, 5vw, 56px); max-width: 16ch; margin-bottom: 20px; }
@@ -352,4 +369,158 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
     font-size: 15px;
   }
   .nav-toggle { display: inline-flex; }
+}
+
+/* ---------------------------------------------------------------------------
+   Docs layout + sidebar menu (blog-sidebar-template.html)
+
+   The .menu-list / .menu-item / is-current / is-active / has-children / depth-N
+   hooks are emitted by the engine's tree renderer (static-render.ts::renderMenuTree),
+   not authored here, so these rules work for ANY menu bound to a tree-variant
+   marker — that is the whole point of the sidebar being reusable.
+   --------------------------------------------------------------------------- */
+
+.docs-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+  padding-top: 48px;
+  padding-bottom: 96px;
+}
+
+.docs-sidebar {
+  position: sticky;
+  top: 88px;
+  max-height: calc(100vh - 112px);
+  overflow-y: auto;
+}
+
+/* The engine emits one <ul class="menu-list depth-0"> per tree; nested levels get depth-1, etc. */
+.docs-nav .menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.docs-nav .menu-list.depth-1 {
+  margin: 4px 0 8px;
+  padding-left: 14px;
+  border-left: 1px solid var(--border);
+}
+
+.docs-nav .menu-item {
+  margin: 0;
+}
+
+.docs-nav .menu-item > a,
+.docs-nav .menu-item > .menu-item-label {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+  text-decoration: none;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.docs-nav .menu-item > a:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
+/* A top-level item with children is a section heading, not a destination. */
+.docs-nav .menu-item.depth-0.has-children > a,
+.docs-nav .menu-item.depth-0.has-children > .menu-item-label {
+  margin-top: 18px;
+  color: var(--fg);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.docs-nav .menu-item.depth-0:first-child.has-children > a,
+.docs-nav .menu-item.depth-0:first-child.has-children > .menu-item-label {
+  margin-top: 0;
+}
+
+/* is-current = this exact item. is-active = this item or a descendant, which is what keeps the
+   surrounding section visibly open while you read one of its pages. */
+.docs-nav .menu-item.is-current > a,
+.docs-nav .menu-item > a[aria-current="page"] {
+  color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 12%, transparent);
+  font-weight: 500;
+}
+
+.docs-nav .menu-item.is-active:not(.is-current) > a {
+  color: var(--fg);
+}
+
+/* An unavailable branch renders as inert text so its children survive — dim it so it does not read
+   as a link that failed to work. */
+.docs-nav .menu-item > .menu-item-label {
+  color: var(--muted);
+  opacity: 0.7;
+  cursor: default;
+}
+
+.docs-nav .menu-item-desc {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.docs-nav .menu-item-icon {
+  display: inline-block;
+  width: 1em;
+  margin-right: 6px;
+  vertical-align: -0.1em;
+}
+
+.docs-content {
+  min-width: 0;
+}
+
+/* The docs article reuses `.post-detail` for its typography, which also carries
+   `padding: 72px 0 96px` — correct for a full-width article page, wrong here, because
+   `.docs-layout` already supplies the top spacing. The two stacked, so the article started 72px
+   below the sidebar's first item instead of level with it. Only the top is zeroed; the 96px
+   bottom is still wanted. */
+.docs-layout .docs-content {
+  padding-top: 0;
+}
+
+/* A section heading is a label, not a destination, so it takes the accent colour on its own rather
+   than the filled pill a real current page gets — the pill on an uppercase heading read as a
+   selected row and fought the content for attention. */
+.docs-nav .menu-item.depth-0.has-children.is-current > a,
+.docs-nav .menu-item.depth-0.has-children > a[aria-current="page"] {
+  background: transparent;
+  color: var(--accent);
+}
+
+.docs-content h2[id],
+.docs-content h3[id] {
+  scroll-margin-top: 96px;
+}
+
+@media (max-width: 900px) {
+  .docs-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding-top: 32px;
+  }
+
+  .docs-sidebar {
+    position: static;
+    max-height: none;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
 }
