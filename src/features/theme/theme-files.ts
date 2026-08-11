@@ -1,4 +1,5 @@
 import {
+  constants as fsConstants,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -320,7 +321,22 @@ export function copyThemeFile(
 ): string {
   const { source, dest } = resolveCopyOrRenameTargets(required);
   mkdirSync(dirname(dest), { recursive: true });
-  copyFileSync(source, dest);
+  try {
+    // `COPYFILE_EXCL` closes the TOCTOU window `resolveCopyOrRenameTargets`' own `existsSync(dest)`
+    // check leaves open: two concurrent copy requests both landing on the same auto-suffixed name
+    // (e.g. two rapid clicks generating `about-1.html` from the same source) would otherwise both
+    // pass that pre-check and race to overwrite one another. `copyFileSync` has an atomic
+    // exclusive-write mode for exactly this; `renameSync` (below) does not, so the identical race is
+    // a known, narrower, accepted gap there — this domain is a single authenticated operator's admin
+    // tool, not a multi-tenant race target, and every other write in this file already accepts the
+    // same class of risk (`writeThemeFile` has no equivalent guard at all).
+    copyFileSync(source, dest, fsConstants.COPYFILE_EXCL);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new ThemePathError(`path '${required.destPath}' already exists in this theme`);
+    }
+    throw err;
+  }
   return dest;
 }
 

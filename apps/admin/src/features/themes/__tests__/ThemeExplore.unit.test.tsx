@@ -110,6 +110,27 @@ describe("preview src — pages vs. partials", () => {
     expect(iframe.src).toContain("/theme-explore/novice/partial/footer");
     expect(iframe.src).toContain("v=3");
   });
+
+  /**
+   * Not previously covered at all (found during the 2026-08-11 function-quality self-check on
+   * `previewSrcFor`): the asset-serving branch was gated on `kind === "asset" && !editable` before
+   * the readable/editable split, then broadened to `!readable` alone so an unrecognized-extension
+   * binary landing in the new `other` group also gets served — but nothing asserted either shape.
+   */
+  it("points a non-readable ASSET's preview at the raw /theme-assets/ URL", () => {
+    renderExplore({ selected: "screenshots/index.png" });
+    const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
+    expect(iframe.src).toContain("/theme-assets/novice/screenshots/index.png");
+  });
+
+  it("points a non-readable OTHER-group file's preview at the same raw URL — the broadened case, not just assets", () => {
+    renderExplore({
+      files: [...FILES, { path: "vendor.bin", label: "vendor.bin", kind: "other", readable: false, editable: false, resettable: false }],
+      selected: "vendor.bin",
+    });
+    const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
+    expect(iframe.src).toContain("/theme-assets/novice/vendor.bin");
+  });
 });
 
 describe("device width control", () => {
@@ -334,6 +355,25 @@ describe("read-only groups (scripts, other)", () => {
 /** The ⋮ menu (Copy/Rename) and double-click-to-rename — 2026-08-11 owner ask, the headline feature
  *  of this pass. */
 describe("per-file overflow menu — copy and rename", () => {
+  /**
+   * The ⋮ trigger is revealed by CSS (`:hover`/`:focus-within`/`[aria-expanded]`), which jsdom does
+   * not compute — not testable directly here. What IS testable, and is the one piece of that reveal
+   * logic actually driven by React state rather than pure CSS interaction, is that the SELECTED
+   * row's own `.is-active` class (the state class `.theme-explore-file-row.is-active .row-menu-trigger`
+   * keys off) tracks `selected` correctly. A regression here (e.g. `is-active` applied to the wrong
+   * row) would make the CSS rule's live-browser behavior wrong regardless of the rule itself.
+   */
+  it("marks only the selected file's row is-active, for the CSS reveal rule to key off", () => {
+    render(
+      <ThemeExplore themeId="novice" useThemeExploreHook={() => controller({ selected: "pages/about.html" })} />
+    );
+    const aboutRow = screen.getByRole("button", { name: "about" }).closest("li");
+    const indexRow = screen.getByRole("button", { name: "index" }).closest("li");
+    expect(aboutRow).toHaveClass("theme-explore-file-row", "is-active");
+    expect(indexRow).toHaveClass("theme-explore-file-row");
+    expect(indexRow).not.toHaveClass("is-active");
+  });
+
   it("offers Copy and Rename for every file, including read-only-to-edit ones", async () => {
     const user = userEvent.setup();
     render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);

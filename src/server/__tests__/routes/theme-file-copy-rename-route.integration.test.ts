@@ -132,6 +132,42 @@ test("copying the same source twice increments the suffix instead of colliding",
   assert.equal(second.path, "pages/about-2.html");
 });
 
+/**
+ * Adversarial case found during the 2026-08-11 function-quality self-check on
+ * `resolveCopyOrRenameTargets`: its own `existsSync(dest)` pre-check leaves a TOCTOU window between
+ * "checked the name is free" and "wrote the file" — two requests issued close enough together (a
+ * genuine double-click, or two tabs) can both compute the SAME auto-suffixed destination and both
+ * pass that check before either writes. `copyThemeFile` closes this specific window with
+ * `copyFileSync`'s `COPYFILE_EXCL` flag; this test proves that closure rather than asserting it by
+ * reading the source. `Promise.all` fires both requests without awaiting the first, so both start
+ * from the identical pre-copy directory listing.
+ */
+test("two concurrent copies of the same source do not silently overwrite one another", async (t) => {
+  const themesRoot = makeThemesRoot();
+  const deps = testDeps(themesRoot);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const copyOnce = () =>
+    fetch(copyUrl(baseUrl, deps.workspaceId, "scratch"), {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ path: "pages/about.html" }),
+    });
+
+  const [a, b] = await Promise.all([copyOnce(), copyOnce()]);
+  const statuses = [a.status, b.status].sort();
+  // Exactly one wins the race for `about-1.html`; the other must fail cleanly (400, containment
+  // error) rather than silently landing on the same path a second time or corrupting either file.
+  assert.deepEqual(statuses, [200, 400]);
+
+  const winner = a.status === 200 ? a : b;
+  const winnerBody = (await winner.json()) as { path: string };
+  assert.equal(winnerBody.path, "pages/about-1.html");
+
+  const onDisk = fs.readFileSync(path.join(themesRoot, "static", "scratch", "pages", "about-1.html"), "utf8");
+  assert.match(onDisk, /ABOUT-ORIGINAL/, "the winning copy must be intact, not a corrupted partial write");
+});
+
 test("copying a script (read-only-to-edit) is allowed — read-only blocks editing, not duplicating", async (t) => {
   const themesRoot = makeThemesRoot();
   const deps = testDeps(themesRoot);
