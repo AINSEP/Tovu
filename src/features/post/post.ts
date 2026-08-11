@@ -828,24 +828,22 @@ export async function getPublishedPostBySlug(
  * Admin-facing lookup that accepts either a record's slug or its id — same trash-blind 404 as
  * {@link getAdminPostById}. **Slug first, id second** (2026-08-11).
  *
- * This used to try the id first, justified in its own doc by the claim that "an id and a slug never
- * collide (ids are opaque UUIDs)". That claim was false when it was written and is false now: this
- * workspace holds six rows whose ids are `post-home`, `post-about`, `post-themes`, `post-plugins`,
- * `post-plugin-api`, and `post-self-hosting` — seed-authored, human-shaped, and in exactly the same
- * character space a user-authored slug occupies. Two id generators have been in play (seed literals
- * and `idGen.newId()`'s UUIDs), so the two namespaces genuinely overlap and a collision resolves to
- * whichever lookup runs first.
+ * The slug is the handle a human types, reads, and puts in a URL; the id is an implementation
+ * detail they never chose. So the slug is what resolves, and the id lookup stays as the fallback
+ * so every existing id-based bookmark keeps working. Same precedent as `ffc0f44`'s slug-first menu
+ * marker resolution.
  *
- * Slug wins, because the slug is the handle a human typed and the id is an implementation detail
- * they never chose. Under id-first, creating a page slugged `post-about` would silently open the
- * seeded `post-about` row instead — an edit landing on the wrong document with nothing failing.
- * Under slug-first the worst case inverts to something benign and visible: an id-shaped URL for a
- * row that also happens to be some other row's slug opens the slug's row, which is the one the URL
- * literally names.
+ * This used to try the id first, justified by the claim that "an id and a slug never collide (ids
+ * are opaque UUIDs)". Half of that is wrong and the other half is unverified. Ids are NOT uniformly
+ * opaque: six rows carry seed-authored ids (`post-home`, `post-about`, `post-themes`, `post-plugins`,
+ * `post-plugin-api`, `post-self-hosting`) in the same character space slugs occupy, alongside
+ * `idGen.newId()`'s UUIDs. But **no id currently equals any slug** — checked, 2026-08-11 — so
+ * nothing was silently resolving to the wrong row, and order was a correctness question only in the
+ * hypothetical. Recorded precisely because the original comment stated its no-collision premise as
+ * settled fact rather than as the assumption it was; do not restate it either way without re-checking.
  *
- * Same precedent, same reasoning, as `ffc0f44`'s slug-first menu-marker resolution: a hardcoded
- * human-authored handle can never match a randomly minted id, so the handle has to be what resolves.
- * The id lookup stays as the fallback so every existing id-based bookmark keeps working.
+ * Order therefore decides one real thing today: which lookup a URL is resolved BY, and so which
+ * handle the product treats as a record's identity. That is a product answer, not a defensive one.
  */
 export async function getAdminPostByIdOrSlug(
   required: GetPostByIdOrSlugRequired,
