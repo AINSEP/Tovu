@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PostEditor } from "../PostEditor";
+import type { PostEditorController } from "../hooks/use-post-editor.hooks";
+import type { AdminPost } from "../../../lib/api";
 
 /**
  * @file `PostEditor` — pins three new/fixed user-visible behaviors from the forms/PostEditor deep
@@ -272,5 +274,123 @@ describe("Template picker", () => {
     const body = JSON.parse(String((fetchMock.mock.calls[1]?.[1] as RequestInit).body));
     expect(body.templateChoice).toBe("");
     expect(body.templateChoice).not.toBeNull();
+  });
+});
+
+/**
+ * Edit/Preview toolbar (2026-08-11) — drives `PostEditor` through the `usePostEditorHook` DI seam
+ * rather than `fetch` mocks, same convention `PageEditor.unit.test.tsx` established for its own
+ * "view toggle" suite: this is about `PostEditor`'s own tab-switching wiring and preview-eligibility
+ * branching, not `usePostEditor`'s internals, and the seam already exists for exactly this. `editor:
+ * null` throughout — none of these tests need a mounted TipTap instance (`EditorContent`/`Toolbar`
+ * both already null-gate on it), and stubbing it keeps the suite fast, matching `PostEditorProps`'s
+ * own doc comment on why the seam exists.
+ */
+function postController(overrides: Partial<PostEditorController> = {}): PostEditorController {
+  return {
+    post: DRAFT_POST as AdminPost,
+    editor: null,
+    title: "Hello world",
+    setTitle: vi.fn(),
+    slug: "hello-world",
+    setSlug: vi.fn(),
+    status: "draft",
+    setStatus: vi.fn(),
+    templateChoice: null,
+    setTemplateChoice: vi.fn(),
+    availableTemplates: [],
+    activeThemeId: null,
+    activeThemeTier: null,
+    overridesThemePage: false,
+    setOverridesThemePage: vi.fn(),
+    hasSlugCollision: false,
+    view: "edit",
+    setView: vi.fn(),
+    message: null,
+    error: null,
+    confirmingDelete: false,
+    setConfirmingDelete: vi.fn(),
+    deleting: false,
+    confirmLeave: () => true,
+    dirty: false,
+    save: vi.fn(),
+    remove: vi.fn(),
+    ...overrides,
+  };
+}
+
+function renderPostEditor(overrides: Partial<PostEditorController> = {}) {
+  const ctrl = postController(overrides);
+  const usePostEditorHook = () => ctrl;
+  const utils = render(<PostEditor postId="p1" usePostEditorHook={usePostEditorHook} />);
+  return { ctrl, ...utils };
+}
+
+describe("Edit/Preview toolbar", () => {
+  it("marks the active view tab as selected", () => {
+    renderPostEditor({ view: "edit" });
+    expect(screen.getByRole("tab", { name: "Edit" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("clicking the Preview tab calls setView('preview')", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ view: "edit" });
+    await user.click(screen.getByRole("tab", { name: "Preview" }));
+    expect(ctrl.setView).toHaveBeenCalledWith("preview");
+  });
+
+  it("clicking the Edit tab calls setView('edit')", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ view: "preview" });
+    await user.click(screen.getByRole("tab", { name: "Edit" }));
+    expect(ctrl.setView).toHaveBeenCalledWith("edit");
+  });
+
+  it("renders the Tiptap body editor, not the preview iframe, in edit view", () => {
+    renderPostEditor({ view: "edit" });
+    expect(document.querySelector('[data-agent-element="post-body"]')).toBeInTheDocument();
+    expect(screen.queryByTitle("Post preview")).not.toBeInTheDocument();
+  });
+
+  it("renders the preview iframe, not the Tiptap body editor, in preview view", () => {
+    renderPostEditor({ view: "preview" });
+    expect(screen.getByTitle("Post preview")).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="post-body"]')).not.toBeInTheDocument();
+  });
+
+  // 2026-08-11: mirrors `PageEditor.tsx`'s own live-vs-fallback preview rule (see `PostPreview`'s
+  // doc comment in `PostEditor.tsx`) — a published, un-dirtied post iframes its real public URL;
+  // anything else falls back to a rendering of the editor buffer with a notice explaining why.
+  it("preview iframes the real public URL when the post is published and has no unsaved changes", () => {
+    renderPostEditor({ view: "preview", status: "published", dirty: false, slug: "hello-world" });
+    const preview = screen.getByTitle("Post preview");
+    expect(preview).toHaveAttribute("src", expect.stringContaining("/hello-world"));
+    expect(screen.queryByText(/preview them with the theme/i)).not.toBeInTheDocument();
+  });
+
+  // `SrcDocSandbox` also renders an `<iframe title="Post preview">` (via `srcDoc`, not `src`) — the
+  // fallback is distinguished by the ABSENCE of a `src` attribute, same idiom `PageEditor.unit.test.tsx`
+  // uses for its own equivalent branch.
+  it("preview falls back to a rendering of the editor buffer, with a notice, for a draft post", () => {
+    renderPostEditor({ view: "preview", status: "draft", dirty: false });
+    const preview = screen.getByTitle("Post preview");
+    expect(preview).not.toHaveAttribute("src");
+    expect(screen.getByText(/publish this post to preview it with the theme/i)).toBeInTheDocument();
+  });
+
+  it("preview falls back to a rendering of the editor buffer, with a notice, when a published post has unsaved changes", () => {
+    renderPostEditor({ view: "preview", status: "published", dirty: true });
+    const preview = screen.getByTitle("Post preview");
+    expect(preview).not.toHaveAttribute("src");
+    expect(screen.getByText(/save your changes to preview them with the theme/i)).toBeInTheDocument();
+  });
+
+  // The template picker is a publish-time setting, not tab-specific content — it has to survive the
+  // toolbar restructure (2026-08-11: moved out of its own `.editor-slug-row` into this toolbar's
+  // right-hand side) and stay visible regardless of which tab is active.
+  it("keeps the template picker visible in preview view, not just edit view", () => {
+    renderPostEditor({ view: "preview", availableTemplates: ["blog-post.html"], templateChoice: "blog-post.html" });
+    expect(document.querySelector('[data-agent-element="post-template-choice"]')).toBeInTheDocument();
   });
 });

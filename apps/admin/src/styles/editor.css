@@ -54,3 +54,43 @@
  * its root (`:not([class*="btn-"]):not(.link-button)`) rather than out-specificing it from a
  * second file, which is the better fix — this file's copy was removed rather than left as
  * redundant, competing CSS for the same class. */
+
+/*
+ * Edit/Preview toolbar + preview pane (2026-08-11) — the Post editor's own half of the
+ * `.page-editor-toolbar`/`.segmented` chrome it now reuses directly from `styles/pages.css` (see
+ * `PostEditor.tsx`'s own comment on that toolbar for why reuse, not a parallel copy). What's new
+ * here is Post-specific: the toolbar-to-pane gap fix and the preview iframe's own sizing, neither
+ * of which Pages has an equivalent of (Pages scales its preview to simulated device widths; Posts
+ * doesn't, so it needs none of that machinery).
+ */
+
+/* `.page` is `display: flex; flex-direction: column; gap: var(--space-6)` (styles.css) — that gap
+ * lands between `.page-editor-toolbar` and whichever pane follows it (the Tiptap shell or
+ * `PostPreview`'s frame) same as it does everywhere else on this screen, but the owner wants
+ * noticeably less space specifically at this one step (2026-08-11 feedback, matching the identical
+ * ask already fixed on the Pages side — `styles/pages.css`'s own `.page > .page-preview-frame` rule
+ * and its "Measured: 36px -> 12px" note). Cancelling exactly `--space-6` here leaves only
+ * `.page-editor-toolbar`'s own `0.75rem` bottom margin as the visible gap, reusing a token already
+ * on the page rather than a new magic number.
+ *
+ * A dedicated class, not a `.page > .editor-shell` child-combinator like Pages used: `.editor-shell`
+ * has OTHER direct-child-of-`.page` consumers with no toolbar above them at all
+ * (`CollectionEntryEditor.tsx`) — a child combinator would have pulled THEIR pane up too, with
+ * nothing to close the gap against. Applied to both of `PostEditor.tsx`'s panes (the Tiptap shell
+ * and `PostPreview`'s frame) so the toolbar-to-pane gap is identical whichever tab is active. */
+.post-editor-pane { margin-top: calc(-1 * var(--space-6)); }
+
+/* The Preview tab's iframe — either the live public site (`siteUrl`) or `SrcDocSandbox`'s sandboxed
+ * `srcDoc` render of the editor buffer; see `PostPreview`'s own doc comment in `PostEditor.tsx` for
+ * which and when. No device-width scaling transform here (unlike Pages' `.page-preview-scaler`) —
+ * nothing asked for a Desktop/Tablet/Mobile toggle on this screen, so the frame just fills its
+ * `.editor-shell` at natural width. `32rem` matches Pages' own HTML/Interactive tab height
+ * (`.page-html-source`/`.interactive-html-editor`, `styles/pages.css`) for the same reason those two
+ * chose one shared number: visual parity between the two editors' panes. */
+.editor-preview-iframe { width: 100%; height: 32rem; border: 0; display: block; background: var(--surface); }
+
+/* Shown under the frame only when `PostPreview` cannot iframe the real published URL (draft, or
+   unsaved changes) — mirrors `styles/pages.css`'s `.page-preview-notice` verbatim; not reused
+   directly since it lives in the Pages-only stylesheet (see that file's own header on why Pages and
+   Posts stay separate). */
+.editor-preview-notice { margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--muted); }
