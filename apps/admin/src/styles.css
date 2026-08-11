@@ -437,8 +437,29 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
 }
 @media (max-width: 720px) { .theme-explore { grid-template-columns: minmax(0, 1fr); } }
 .theme-explore-directions { border-left: 3px solid var(--link); }
+/* Scrolls in its own box instead of running the page down. Adding the Assets group turned this from
+   ~12 entries into 60+ on an image-heavy theme, so it now needs its own scroll rather than making
+   the whole page taller than the preview it sits beside. `sticky` keeps it in view while the preview
+   scrolls; `2/3 viewport` per owner instruction, minus a little so the cap is visibly a cap rather
+   than looking like it happens to end there. */
+.theme-explore-files {
+  max-height: min(66vh, calc(100vh - 12rem));
+  overflow-y: auto;
+  position: sticky;
+  top: var(--space-4);
+  /* Room for the scrollbar so it never overlaps the file names. */
+  padding-right: var(--space-2);
+  overscroll-behavior: contain;
+}
 .theme-explore-files ul { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+/* Group headings stay visible while their own group scrolls past — with six groups and 60 entries,
+   a name alone does not say whether you are looking at a script or an asset. */
 .theme-explore-files-heading {
+  /* Sticky within the scrolling list: with six groups and 60+ entries, a filename alone does not say
+     whether you are looking at a script or an asset once its heading has scrolled away. Needs an
+     opaque background or the rows show through it. */
+  position: sticky; top: 0; z-index: 1;
+  background: var(--surface); padding-top: var(--space-2);
   margin: 0 0 4px; font-size: 0.7rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-3, var(--fg-2));
 }
