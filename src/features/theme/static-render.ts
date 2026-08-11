@@ -116,7 +116,8 @@ function renderMenuLinks(items: readonly StaticMenuItem[]): string {
 
 /**
  * Renders a resolved menu as a nested `<ul>`/`<li>` tree — the shape a docs sidebar needs and
- * {@link renderMenuLinks} cannot produce. **Opt-in per marker** via `data-embed-variant="tree"`, and
+ * {@link renderMenuLinks} cannot produce. **Opt-in per marker** via `{"variant":"tree"}` in the
+ * marker's `data-embed-config`, and
  * that is a hard requirement rather than a preference: every static theme's nav CSS today targets
  * direct `<a>` children of a flex container (`basic`'s own `.main-nav { display: flex }` with
  * `.main-nav a`, and the same shape in the other six), so unconditionally introducing a `<ul>` wrapper
