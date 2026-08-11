@@ -1,10 +1,56 @@
 # Handoff — session 3, 2026-08-11 (Explore/Pages/Posts UI + templates unification)
 
-**Status: IN PROGRESS.** Two agents were still running when this was written (`TemplateRenderBug`,
-`HeaderPolish`). Run the full `/handoff` once they land to complete it. This file exists now so the
-open items below cannot be lost to a restart.
+**Status: IN PROGRESS — session may have been disconnected mid-flight.** Branch `general-work`.
+**Nothing pushed.**
 
-Branch `general-work`. **Nothing pushed.**
+## FIRST THING TO DO ON RESUME
+
+Two agents were live when this was written and their work may be half-finished:
+
+1. **`TemplateRenderBug`** — investigating why switching a template renders with no CSS (Posts) and
+   why the preview does not re-render (Pages). **Owner-facing bug, highest priority.** Brief and
+   hypothesis are below under "Live agents".
+2. **`HeaderPolish`** — post-title underline scope + collapsing the Explore "editing your own copy"
+   callout to one line with an info tooltip, moved under the button row.
+
+**Their in-flight CSS was snapshotted by the Coordinator** in a `wip(admin): snapshot HeaderPolish's
+in-flight CSS` commit — `apps/admin/src/styles.css` and `styles/pages.css`. That commit is
+**unreviewed and possibly a partial mid-write state**. Verify it; do not assume it is complete or
+correct. Check `git log --oneline -15` for anything they committed themselves afterwards.
+
+**Do NOT `git checkout` `src/themes/static/basic/`** — `pages/index.html` and `pages/pricing.html`
+carry the owner's own uncommitted hand-edits (the `<title>`/`<h1>` mentioning "Leon", and a
+`headcountss` typo on the live pricing page the owner is aware of and chose to leave).
+
+Also still uncommitted and NOT agent work — leave alone: `AssistantDock.tsx`,
+`AgentPlugins.tsx`, `panels.tsx`, `src/server/app.ts`, `development/todos.md`,
+`development/docs/themes/theme-authoring-guide.md`, plus untracked commerce/auth/plugins trees.
+
+### Live agents — what they were told
+
+**`TemplateRenderBug`.** Symptoms, owner's words: on Posts, *"when I switch the template it renders
+with no CSS — page shell and blog sidebar template; blog post seems fine."* On Pages, *"when I choose
+a template from the dropdown sometimes it doesn't re-render — blog sidebar template does, page shell
+and blog post don't."*
+
+Coordinator's hypothesis, given to it explicitly as something to **verify or kill, not assume**: the
+preview iframes the real public URL when a record is published AND clean, but falls back to a raw
+themeless render when dirty. Selecting a template probably marks the editor dirty, which would make
+"no CSS" the fallback branch firing, and "doesn't re-render" the iframe `src` never changing because
+the choice was never saved. **Tell-tale check: if that branch is firing, its explanatory notice
+should be visible on screen. The owner did not mention seeing one** — so either the theory is wrong
+or the notice is not rendering.
+
+It was also told to confirm the PUBLIC render at `:3000` is correct per template before concluding
+this is preview-only, since `page-shell.html` was authored as a *page* shell and may simply lack the
+chrome a post needs.
+
+**`HeaderPolish`.** Underline back to the title's own width (the owner has now seen both the
+half-width and full-row versions and prefers the short rule — make it look deliberate, not
+truncated). Callout → one line plus an ⓘ tooltip carrying *"An untouched original is kept
+separately…"*, positioned under the `← All themes` row, reclaiming the vertical space. Told to reuse
+an existing tooltip component if one exists and to prefer a plain `title` attribute if it suffices,
+per the owner's standing "if CSS can handle it, don't build tooltip machinery" rule.
 
 ---
 
@@ -103,3 +149,36 @@ convention only its author knows.
 - **Screenshots are not evidence.** Two real defects this session were invisible in images and caught
   only by `getBoundingClientRect` — including a class silently doing nothing because it sat on a
   `display: contents` element.
+
+---
+
+## What shipped this session (all committed on `general-work`)
+
+| area | commits | what |
+|---|---|---|
+| Cleanup | `c408ff7` `085e4c1` `26cd91f` `8e06816` `303f6f3` | Dead `parent` inheritance + `basic-child` deleted; `novice` removed (2.8M); `preview/` excluded from catalog copies. **Two deletions were REFUSED and fixed instead** — `post-template-resolution.test.ts` was live coverage with a 2-line fixture bug, and the allowlist tests guard live SSTI/XSS code. Three handoffs had said to delete both. |
+| Explore file ops | `2786ba3` `d0898b1` `a43af2c` | `assets` screened to media, new read-only `other` group, JS read-only enforced server-side AND in UI, ⋮ menu with Copy/Rename + double-click rename. |
+| Explore UI | `0910f52` `83e26a0` `04a5b23` `beab5a3` `fd81d10` `497ec8e` `ce82334` `88d9e5f` | `ThemeExplore` complexity 27→8 / 29→6 by top-level extraction; full-height sidebar; toolbar restructure; error toast; tier tab reorder; Explore button → black fill; Activate de-orangified; Save → `--primary` and `.btn-solid` deleted. |
+| Pages templates | `2488e3f` `b345518` `f27f27d` `3ee2838` `fd403b6` `27fa181` | Render gate no longer hijacks Pages into the Post template branch; `injectPageTitle`; `validateTemplateDeclarations`; `basic/page-shell.html`; five legacy pages templated. |
+| **Unified markers** | `69e08d9` `cebbcd3` | One `templates` array, one `{"type":"content"}` marker with optional id, resolver dispatching on `bodyFormat`. 63 files. **Found and fixed a pre-existing draft-leak hole** in the generic `post` resolver (unguarded `findById` since 2026-08-10). Recursion + visibility guards fault-injected. |
+| Pages/Posts editors | `b9a2206` `486c75c` `46f0234` `7421b80` `935a6cf` `5d73e41` | Toolbar gap 36→12px; template picker merged into the toolbar row; title/slug share one row; HTML tab pretty-printer; themed preview; Editor/Preview tabs on Posts. |
+| Mobile | `161d124` | Slug row no longer splits into three lines; Explore callout releases its 50% cap under 640px. |
+| Hooks | `2ea11f4` `75655f7` | `features/redirects` converted to `useWiredX` as the demonstration slice; full 93-file audit. |
+
+### Live-content migrations — restore points exist
+
+- Nine legacy `doc` Pages converted to `html` via
+  `development/scripts/convert-legacy-doc-pages-to-html.ts --apply`. Restore point:
+  `infra/restore-point-convert-legacy-doc-pages-to-html-wm2-1786480868809.db`.
+- Five published pages assigned `template_choice = page-shell.html`. Restore point:
+  `infra/restore-point-assign-page-shell-template-to-legacy-pages-wm2-1786484079805.db`.
+
+Both were run through `PagesHtmlDocumentStore` / the real admin route, never raw SQL.
+
+### The headline fix
+
+`terms-of-service`, `privacy-policy`, `contact`, `team` and `faq` were rendering as
+`<title>Blog post — Basic</title>` on the live site, because the render gate checked `bodyFormat`
+and never `kind` despite a comment claiming it was "scoped to Posts only". They now render their own
+titles, content, and theme template. **The asymmetry that fixes it must survive future refactors:**
+Posts fall back to the theme's first template when nothing is chosen; **Pages deliberately do not.**
