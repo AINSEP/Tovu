@@ -1371,12 +1371,42 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    `.editor-title` still carries its own `border-bottom` (above) everywhere else it's used bare
    (`MenuEditor.tsx`, `CollectionEntryEditor.tsx`, `WidgetInstanceEditor.tsx`, full-width, so the
    line already spans the whole control) — capping it to 50% width here made that same line stop
-   dead in the middle of the row, reading as a broken separator rather than a page-header rule
-   (caught live, 2026-08-11). Scoped to this row only: the line moves off the input and onto the row
-   itself, so it spans BOTH halves — title and slug — as one continuous rule instead of two
-   mismatched ones. */
-.editor-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4, 1rem); flex-wrap: wrap; border-bottom: 1px solid var(--border); }
-.editor-title-row .editor-title { flex: 1 1 50%; max-width: 50%; min-width: 0; border-bottom: none; }
+   dead in the middle of the row (caught live, 2026-08-11). A same-day fix moved the line off the
+   input and onto `.editor-title-row` itself so it spanned both halves as one continuous rule.
+   REVERTED the same day, on a second look: spanning the slug half made the rule read as a
+   structural divider for the whole row, which drew the eye to the slug group as though it too sat
+   "under a line" — a boundary the slug was never meant to have. The owner's actual read of the
+   half-width version was not "broken", it was "looks like it was truncated by accident" — i.e. a
+   presentation problem (an unstyled hairline stopping with nothing to explain why it stops there),
+   not a correctness one.
+
+   Tried recoloring the rest state to `--accent-text` first — rejected after checking computed
+   style: this theme's `--accent-text` resolves to oklch(26% 0.006 260), a near-black practically
+   indistinguishable from `--fg`'s own oklch(24% 0.022 262), so it read as "bolder line", not
+   "accent". Worse, `.editor-title:focus` (two lines up) ALREADY uses `--accent-text` as its only
+   focus signal on this field (`outline: none; box-shadow: none`) — recoloring the resting state to
+   the same token would have made focus invisible on this control, trading a cosmetic fix for an
+   accessibility regression.
+
+   Landed on a left-to-right fade instead (`border-image`, not `border-bottom-color`): solid for the
+   first ~65% of the input's width, fading to transparent at the edge. Verified live, side by side —
+   a hard-edged hairline reads as clipped, the same fade with a soft trailing edge reads as a
+   deliberate typographic accent (the same idiom pull-quote rules and section dividers use to taper
+   rather than stop dead). `border-image` takes over painting that edge entirely once set, so
+   `border-bottom-color` above no longer has anything to change on `:focus` — the dedicated
+   `:focus` override below swaps the gradient's solid stop to `--accent-text` so the focus affordance
+   this input already had is preserved, just carried by the gradient instead of a flat color. Width
+   still tracks `.editor-title`'s own rendered box exactly (flex/max-width below) — the fade is
+   layered on top of that box, not measured independently, so it can't drift from it. */
+.editor-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4, 1rem); flex-wrap: wrap; }
+.editor-title-row .editor-title {
+  flex: 1 1 50%; max-width: 50%; min-width: 0;
+  border-bottom: 1px solid var(--border);
+  border-image: linear-gradient(to right, var(--border) 65%, transparent) 1;
+}
+.editor-title-row .editor-title:focus {
+  border-image: linear-gradient(to right, var(--accent-text) 65%, transparent) 1;
+}
 .editor-slug { color: var(--muted); font-size: 0.85rem; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; row-gap: 0.4rem; }
 .editor-slug input { width: 14rem; }
 .editor-id { display: inline-flex; align-items: center; gap: 0.35rem; margin-left: 0.5rem; padding-left: 1rem; border-left: 1px solid var(--border); }
