@@ -29,7 +29,10 @@ import { POSTS_DICT } from "./posts-i18n";
 /** Product-facing labels, not library ones — "Tiptap" never appears in the UI; an author reads
  *  these as "the editor" and "how it looks on the site". */
 const VIEWS: ReadonlyArray<{ key: PostEditorView; label: string }> = [
-  { key: "edit", label: "Edit" },
+  // "Editor", not "Edit" (owner, 2026-08-11): the pair names two VIEWS of the same post, so both
+  // labels should be nouns. "Edit" alongside "Preview" reads as a verb next to a noun, and collides
+  // with the post-list row menu's own "Edit" ACTION (`rules.ts`), which does something different.
+  { key: "edit", label: "Editor" },
   { key: "preview", label: "Preview" },
 ];
 

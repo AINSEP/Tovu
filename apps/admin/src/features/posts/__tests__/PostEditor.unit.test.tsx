@@ -329,7 +329,7 @@ function renderPostEditor(overrides: Partial<PostEditorController> = {}) {
 describe("Edit/Preview toolbar", () => {
   it("marks the active view tab as selected", () => {
     renderPostEditor({ view: "edit" });
-    expect(screen.getByRole("tab", { name: "Edit" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Editor" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "false");
   });
 
@@ -343,7 +343,7 @@ describe("Edit/Preview toolbar", () => {
   it("clicking the Edit tab calls setView('edit')", async () => {
     const user = userEvent.setup();
     const { ctrl } = renderPostEditor({ view: "preview" });
-    await user.click(screen.getByRole("tab", { name: "Edit" }));
+    await user.click(screen.getByRole("tab", { name: "Editor" }));
     expect(ctrl.setView).toHaveBeenCalledWith("edit");
   });
 
