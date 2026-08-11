@@ -4,7 +4,7 @@ import { api } from "../../../lib/api";
 
 /**
  * @file State for the Explore screen, so `ThemeExplore.tsx` is only markup — same split as
- * `use-appearance.hooks.ts` / `Appearance.tsx`.
+ * `use-themes.hooks.ts` / `Themes.tsx`.
  */
 
 export type ThemeExploreView = "preview" | "html";
@@ -138,6 +138,31 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
     }
   }, [themeId, selected, source]);
 
+  const dirty = source !== savedSource;
+
+  /**
+   * ⌘S / Ctrl+S saves the open file.
+   *
+   * `preventDefault` is the load-bearing half, and it runs even when there is nothing to save: the
+   * browser's own "Save Page As…" dialog is what ⌘S does otherwise, and a text editor that opens a
+   * file-download dialog on the universal save chord is worse than one with no shortcut at all. So
+   * the key is always swallowed on this screen, and only the SAVE is conditional.
+   *
+   * Bound to `window` in a capture-phase-free listener rather than to the textarea, because the
+   * chord should work from anywhere on the screen — after clicking a file in the sidebar, or with
+   * focus in the preview toolbar — not only while the caret happens to be in the editor.
+   */
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") return;
+      event.preventDefault();
+      if (!dirty || saving || selected === null) return;
+      void save();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [dirty, saving, selected, save]);
+
   return {
     detail,
     files,
@@ -147,7 +172,7 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
     setView,
     source,
     setSource,
-    dirty: source !== savedSource,
+    dirty,
     saving,
     error,
     notice,

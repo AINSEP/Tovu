@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import type { Response } from "express";
 
-import { findTheme, THEME_CATALOG_DIR } from "#src/features/theme/index";
+import { findTheme, rescanThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
 import { readThemeFile, writeThemeFile, ThemePathError } from "#src/features/theme/theme-files";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteDeps } from "../content/deps";
@@ -170,6 +170,21 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
       }
 
       writeThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path, content });
+
+      // Re-read from disk after writing, or the save is invisible. `DiscoveredTheme.pages` is a map
+      // of file CONTENTS, `readFileSync`-ed once at discovery and then held in `deps.themes` for the
+      // life of the process — and the preview renders out of that map. Without this, writing the
+      // file changed disk and nothing else: the operator saved, the preview redrew identically, and
+      // the only honest reading was "saving is broken".
+      //
+      // Rescans every theme rather than reloading just this one, because `rescanThemes` is the
+      // function the download and rescan routes already use and a second, narrower reload path would
+      // be a second thing that can drift. It re-reads `.html`/`.json` only (never the image assets
+      // that dominate a theme's size), and a save is an explicit button press, not a keystroke — so
+      // the extra work is bounded and rare. If theme count ever makes this hurt, the targeted fix is
+      // reloading `theme.dir` alone, not caching harder.
+      rescanThemes({ themes: deps.themes, dir: deps.themesDir });
+
       res.json({ path, bytes: Buffer.byteLength(content, "utf8") });
     } catch (err) {
       sendThemeFileError(res, err);
