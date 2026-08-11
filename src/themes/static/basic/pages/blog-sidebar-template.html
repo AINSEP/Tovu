@@ -17,15 +17,17 @@
 <main>
   <div class="docs-layout wrap">
     <!-- The sidebar is theme markup + CSS; the only thing resolved at request time is the menu
-         inside it. `data-embed-variant="tree"` opts this one marker into nested <ul>/<li> rendering
-         (see static-render.ts::renderMenuTree) — the default flat <a> output is what every other
-         marker in this theme still gets, because .main-nav's flex layout depends on it.
+         inside it. `data-embed-config='{"variant":"tree"}'` opts this one marker into nested
+         <ul>/<li> rendering (see static-render.ts::renderMenuTree) — the default flat <a> output is
+         what every other marker in this theme still gets, because .main-nav's flex layout depends
+         on it. (Marker-spine unification, 2026-08-10: this used to be a bare `data-embed-variant=
+         "tree"` attribute, retired in favor of config — see static-render.ts's own file header.)
 
          The authored content below is a real fallback, not a placeholder: if `docs-themes-menu`
          does not exist yet, or resolves to zero renderable links, this markup is left exactly as-is
          rather than blanked. -->
     <aside class="docs-sidebar">
-      <nav class="docs-nav" aria-label="Documentation" data-embed-type="menu" data-embed-id="docs-themes-menu" data-embed-variant="tree">
+      <nav class="docs-nav" aria-label="Documentation" data-embed-type="menu" data-embed-id="docs-themes-menu" data-embed-config='{"variant":"tree"}'>
         <ul class="menu-list depth-0">
           <li class="menu-item depth-0"><span class="menu-item-label">No docs menu bound yet</span></li>
         </ul>
