@@ -442,16 +442,29 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    as a button against the equally-white card, not as plain text — `button:focus-visible`'s app-wide
    `--accent-text` ring (styles.css, global rules) already resolves dark-on-white in light mode and
    light-on-dark in dark mode, so no button-specific focus override is needed either. */
-/* Border color (2026-08-11 owner feedback: "have it have a black outline ... I just wanna see it
-   actually") — `--border-strong` (a light gray tuned for quiet dividers) nearly disappeared against
-   this button's own white `--surface`. `currentColor` rather than a second explicit token: the
-   button's text is already `--fg`, so the border tracks it for free in both modes — near-black in
-   light, near-light in dark — with no `@media` branch and no risk of the two ever drifting apart. A
-   literal dark hex would fix light mode and vanish again in dark, the same class of bug the
-   `--surface` chroma-0 comment above already flags for this exact button. Scoped to `.btn-explore`
-   only, not folded into `.btn-secondary` — that class's other consumers were never reported faint. */
-.btn-explore { background: var(--surface); color: var(--fg); border: 1px solid currentColor; }
-.btn-explore:hover { background: var(--surface-2); opacity: 1; }
+/* INVERTED 2026-08-11, third and final iteration on this button: blue fill (8a7169b) -> white
+   surface with a black outline -> solid black fill with white text, on owner instruction ("make the
+   explore button white text black background"). The outline step was a way-point, not the
+   destination: it fixed Explore competing with Activate for primary attention, but the owner's wider
+   goal is fewer hues overall ("I just wanna have some basic colors. I think I have too many
+   colors"). A neutral black fill reads as a strong action without introducing a fourth hue next to
+   Activate's burnt orange and the green Active pill.
+
+   `--fg`/`--surface` rather than literal black/white, and deliberately inverted from the pair above:
+   both tokens already know which theme is active, so under a dark skin this becomes a light button
+   with dark text — still a high-contrast filled control against a dark card, with no `@media`
+   branch. A hardcoded `#000` background would swallow itself on a dark surface.
+
+   Border is `var(--fg)` explicitly, NOT `currentColor`: `currentColor` now resolves to the white
+   `--surface` text, which would ring a black button in white and read as a gap against the card.
+   Matching the background keeps the box metrics identical to the outlined version it replaces.
+
+   Still no `color-mix` against `--surface` — that chroma-0 token already broke one blend on this
+   exact button (see the `.theme-card button.btn-explore` override below). Flat token assignments
+   sidestep the hue-interpolation trap. Hover moves to `--fg-2`, which is dimmer than `--fg` in BOTH
+   modes, so the state change is visible either way rather than only in light. */
+.btn-explore { background: var(--fg); color: var(--surface); border: 1px solid var(--fg); }
+.btn-explore:hover { background: var(--fg-2); border-color: var(--fg-2); opacity: 1; }
 
 /* Explore's subtitle used to inherit the shared `.page-header .page-description` 60ch prose measure
    (above) unscoped, which still ran most of the page's width at this screen's typical container size
@@ -1560,8 +1573,8 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    8a7169b shipped the same day — see `.btn-explore`'s own comment above for why and for the
    chroma-0/`color-mix` trap this rule must keep avoiding, since a fix here can't rely on that
    comment alone catching a future edit). */
-.theme-card button.btn-explore { background: var(--surface); color: var(--fg); border: 1px solid currentColor; }
-.theme-card button.btn-explore:hover { background: var(--surface-2); opacity: 1; }
+.theme-card button.btn-explore { background: var(--fg); color: var(--surface); border: 1px solid var(--fg); }
+.theme-card button.btn-explore:hover { background: var(--fg-2); border-color: var(--fg-2); opacity: 1; }
 .theme-paper { background: #faf6ef; color: #2b2620; }
 .theme-atlas { background: #0e1420; color: #e8ecf4; }
 .theme-glassmorphic { background: linear-gradient(135deg, #1c2740, #3a2a55); color: #f2f4fb; }
