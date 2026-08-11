@@ -57,6 +57,7 @@ function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExplo
     dirty: false,
     saving: false,
     error: null,
+    dismissError: vi.fn(),
     notice: null,
     dismissNotice: vi.fn(),
     save: vi.fn(),
@@ -267,7 +268,9 @@ describe("reset to original", () => {
         useThemeExploreHook={() => controller({ openResetConfirm, reset })}
       />
     );
-    await user.click(screen.getByRole("button", { name: "Reset" }));
+    // "Reset index" — filename-qualified (2026-08-11 toolbar restructure), not bare "Reset"; see
+    // the "toolbar buttons are bound to the file" describe block below for the dedicated coverage.
+    await user.click(screen.getByRole("button", { name: "Reset index" }));
     expect(openResetConfirm).toHaveBeenCalledTimes(1);
     // The whole point of the confirmation: the destructive call has NOT happened yet.
     expect(reset).not.toHaveBeenCalled();
@@ -295,7 +298,7 @@ describe("reset to original", () => {
     );
     // Absent rather than disabled: a greyed-out Reset invites "why can't I?", absence just means
     // the option does not apply.
-    expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^reset/i })).not.toBeInTheDocument();
   });
 });
 
@@ -505,5 +508,96 @@ describe("page rename URL-change warning", () => {
     await user.click(screen.getByRole("button", { name: "Rename page" }));
     expect(confirmPageRename).toHaveBeenCalledTimes(1);
     expect(cancelPageRenameWarning).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * 2026-08-11 toolbar restructure (owner-approved): `← All themes` becomes a button, and Save/Reset
+ * move up beside it into the same row instead of docking to the Preview/HTML tab row below. The one
+ * requirement that keeps a page-level toolbar honest about acting on a per-FILE screen: both buttons
+ * carry the selected file's own name in their label.
+ */
+describe("toolbar restructure — back button plus file-bound Save/Reset", () => {
+  it("renders '← All themes' as a button, not a bare link", () => {
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
+    const back = screen.getByRole("button", { name: "← All themes" });
+    expect(back.tagName).toBe("BUTTON");
+    expect(back).toHaveClass("btn-secondary");
+  });
+
+  it("labels Save with the selected file's name, and calls save() on click", async () => {
+    const user = userEvent.setup();
+    const save = vi.fn();
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ selected: "pages/about.html", dirty: true, save })}
+      />
+    );
+    const button = screen.getByRole("button", { name: "Save about" });
+    expect(button).toHaveClass("btn-success");
+    await user.click(button);
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it("labels Reset with the selected file's name", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ selected: "pages/about.html" })}
+      />
+    );
+    expect(screen.getByRole("button", { name: "Reset about" })).toBeInTheDocument();
+  });
+
+  it("Save reads 'Saved' (not the filename label) once the file is no longer dirty", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ selected: "pages/about.html", dirty: false })}
+      />
+    );
+    expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save about" })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Every error on this screen (rename refusal, name collision, containment rejection, a save/reset
+ * failure) shares one presentation now: a `Toast`, not the full-width inline banner this used to be
+ * (2026-08-11, owner: "it should be a toast" — see `use-theme-explore.hooks.ts`'s `lockedRenameReason`
+ * for the rename-refusal case specifically, which is what actually produces `error` for this screen
+ * in practice).
+ */
+describe("error toast", () => {
+  it("renders the error as an alert-role toast, not the old inline banner", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ error: "theme.json can't be renamed — every theme requires this exact file to load at all." })}
+      />
+    );
+    const toast = screen.getByRole("alert");
+    expect(toast).toHaveTextContent("theme.json can't be renamed");
+    // Not a second, competing presentation of the same message.
+    expect(document.querySelectorAll(".notice.error").length).toBe(0);
+  });
+
+  it("dismissing the toast calls dismissError", async () => {
+    const user = userEvent.setup();
+    const dismissError = vi.fn();
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ error: "boom", dismissError })}
+      />
+    );
+    await user.click(screen.getByRole("button", { name: /dismiss/i }));
+    expect(dismissError).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders nothing error-shaped when there is no error", () => {
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller({ error: null })} />);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
