@@ -492,6 +492,18 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    above: the ask was explicitly "half the page," a relationship to the CONTAINER, not a fixed prose
    measure, and a `ch` cap would drift away from actually being half as the container itself resizes. */
 .theme-explore-directions { border-left: 3px solid var(--link); max-width: 50%; }
+/* The 50% cap above is a DESKTOP-only ask ("it's unnecessary and disgusting" AT FULL WIDTH) — it
+   was never meant to survive down to phone width, where halving an already-narrow viewport squeezes
+   this one-sentence-plus-lineage callout into a column roughly a quarter of the screen's width and
+   it wraps to seven-plus short lines with dead space beside it. `.theme-explore-directions` is a
+   sibling of `.theme-explore` (the file-list/editor grid), not a grid item itself, so it doesn't
+   pick up that grid's own `max-width: 720px` column collapse for free — it needs its own release.
+   Same breakpoint the rest of this file's component-level (not grid-level) mobile rules use
+   (`.editor-slug` and others above), rather than reusing 720px: 720px is where `.theme-explore`'s
+   two-column grid collapses to one, a wider "tablet" cutoff than this callout needs — at 768px, for
+   instance, the halved column is still wide enough to read as two or three lines, not stacked
+   trash, so there is no reason to release the cap that early. */
+@media (max-width: 640px) { .theme-explore-directions { max-width: 100%; } }
 /* 2026-08-11: the sidebar needs to span the SAME height as `.theme-explore-main` (its toolbar row
    plus the preview/HTML pane) — but ONE direction only: matching `.theme-explore-main`'s own natural
    height, never the other way around. A first attempt just gave both grid items `align-items: stretch`
@@ -1390,7 +1402,18 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   .editor-id { margin-left: 0; padding-left: 0.75rem; justify-content: center; }
   .editor-template-picker select { width: 100%; }
   .editor-template-picker { flex-wrap: wrap; }
-  .editor-slug input { width: 100%; }
+  /* `width: 100%` here (pre-2026-08-11) was the actual mobile bug: a full-width flex child inside
+     `.editor-slug`'s wrapping row always isolates itself onto its own line, forcing the `/` prefix
+     above it and `view ↗` below it — three stacked lines instead of one. `.editor-slug` is a flex
+     container in its own right (not just the stacked group above it), so the input only needs to
+     SHRINK to share the row, not claim the whole row. `flex: 1 1 auto` lets it grow to fill the
+     leftover space next to the tiny `/` and `view ↗` siblings while `min-width: 0` overrides the
+     browser's default `min-width: auto` on flex items (which floors at the input's content size and
+     is what was defeating plain `flex-shrink` here) so it can still shrink below that on the
+     narrowest phones. Shared by both editors: Pages' `.page-title-row .editor-slug` and Posts'
+     `.editor-title-row .editor-slug` both resolve to this same base `.editor-slug input` rule since
+     neither stylesheet overrides the input's width, only the group's alignment. */
+  .editor-slug input { flex: 1 1 auto; min-width: 0; }
 }
 
 /* Menu tree editor */
