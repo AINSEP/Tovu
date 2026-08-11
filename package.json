@@ -33,6 +33,7 @@
     "check:inventory": "tsx development/scripts/check-capability-inventory.ts",
     "check:outbox-bridge": "tsx development/scripts/check-outbox-bridge.ts",
     "check:admin-complexity-drift": "tsx development/scripts/check-admin-complexity-drift.ts",
+    "check:embed-marker-drift": "tsx development/scripts/check-embed-marker-drift.ts",
     "lint": "biome lint .",
     "complexity": "eslint --no-error-on-unmatched-pattern .",
     "admin:install": "npm --prefix apps/admin install",
