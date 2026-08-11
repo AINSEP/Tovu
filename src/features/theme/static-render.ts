@@ -483,3 +483,58 @@ export function resolvePostTemplate(
     resolveAgainstTheme(theme.manifest.postTemplate?.[0]) ?? { kind: "diagnostic" }
   );
 }
+
+/**
+ * Gates whether a `posts`-table record should even be routed into the post-template render branch
+ * (`renderPostViaTemplate` in `server/routes/site/pages.ts`) — a decision distinct from, and prior
+ * to, {@link resolvePostTemplate}'s own tri-state resolution of WHICH template to use once inside
+ * that branch.
+ *
+ * The two `kind`s need different answers for the same `templateChoice: null`/`undefined` input:
+ *
+ * - `kind: "post"` — eligible whenever the record is `doc`-format, `templateChoice` included.
+ *   `resolvePostTemplate` treats `null`/`undefined` as "never chosen" and deliberately falls back to
+ *   the theme's first-listed template (see that function's own doc): migration `0028` added
+ *   `template_choice` as an additive nullable column with no backfill, so every pre-feature and
+ *   externally-inserted Post reads `null`, and "no opinion yet" must render *something* sensible
+ *   rather than a diagnostic page.
+ * - `kind: "page"` — eligible ONLY when `templateChoice` is not `null`/`undefined`, i.e. an admin has
+ *   actually set it (a real filename, or `""` for explicit opt-out — both still handled by
+ *   `resolvePostTemplate` unchanged). The "never chosen → theme's first template" fallback that is
+ *   safe for Posts is wrong for Pages: no admin surface has ever set `template_choice` on a `kind:
+ *   "page"` row (as of 2026-08-11, `PageEditor.tsx` has no template control), so every existing Page
+ *   reads `null` not because an author had no opinion but because the field does not exist for Pages
+ *   yet. Falling back would apply a Post-shaped template to a Page that never asked for one — the
+ *   live bug this function fixes: `terms-of-service`, `privacy-policy`, `contact`, `team`, `faq` and
+ *   two `untitled` Pages rendered under the theme's first `postTemplate` entry (observed as `<title>
+ *   Blog post — Basic</title>` on Terms of Service) purely because `bodyFormat === "doc"` was the
+ *   only condition checked, with no `kind` check at all.
+ *
+ * `our-story` (`kind: "page"`, `bodyFormat: "doc"`, `templateChoice: "page-shell.html"`, set by hand
+ * via SQL as the proof-of-concept for the whole page-template model) keeps rendering through this
+ * branch under the rule above, because its choice IS explicit.
+ *
+ * Deliberately narrower than "any Page with an explicit choice": `bodyFormat` is still required to
+ * be `"doc"` for both kinds. An `"html"`-format Page (what `PageEditor.tsx` actually produces) has
+ * its own body already in hand and its own embed-resolution path (`resolveHtmlEmbedsForRender` in
+ * `pages.ts`) — routing it through `renderPostViaTemplate` would run `injectPostEmbedId` and the
+ * `{"type":"post"}` marker machinery against a record that isn't a Post lookup target, discarding
+ * the Page's real body. That is a distinct, not-yet-built feature (a `{"type":"content"}` marker),
+ * not a relaxation of this gate.
+ *
+ * @complexity O(1) — field comparisons only, no I/O or iteration.
+ */
+export function isEligibleForPostTemplateBranch(
+  required: {
+    theme: DiscoveredTheme;
+    post: { kind: "post" | "page"; bodyFormat: "doc" | "html"; templateChoice?: string | null };
+  },
+  _optional: Record<string, never> = {}
+): boolean {
+  const { theme, post } = required;
+  if (theme.manifest.tier !== "static") return false;
+  if ((theme.manifest.postTemplate?.length ?? 0) === 0) return false;
+  if (post.bodyFormat !== "doc") return false;
+  if (post.kind === "post") return true;
+  return post.templateChoice !== null && post.templateChoice !== undefined;
+}
