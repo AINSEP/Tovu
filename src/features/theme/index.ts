@@ -33,6 +33,7 @@ export {
   renderStaticPage,
   renderStaticPartial,
   injectPostEmbedId,
+  injectPageContent,
   resolvePostTemplate,
   isEligibleForPostTemplateBranch,
   scanMenuEmbedIds,

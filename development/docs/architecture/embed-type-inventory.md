@@ -143,8 +143,41 @@ later stage, never touched by the page-embed stage:
 |---|---|---|
 | `partial` | `static-render.ts`'s slot resolution | 164 occurrences |
 | `menu` | `static-render.ts`'s `injectMenuEmbeds` | 61 occurrences |
+| `content` | `static-render.ts`'s `injectPageContent` | new, 2026-08-11 |
 
 (`post` also appears in theme markup, 12 occurrences, via the post-template picker.)
+
+### `content` (2026-08-11) — the Pages template picker's missing piece
+
+Built for the Pages template picker (recon 2026-08-11 flagged this as the highest-value next step,
+called for by two independent peer reviews): a page-template file needs a slot meaning "the Page's
+own body goes here", the way `{"type":"post"}` means "this chosen post's body goes here" in a
+post-template file.
+
+**Placed with `partial`/`menu`, not in `HTML_EMBED_RESOLVERS`, despite looking at first glance like it
+should sit next to `post`.** The apparent parallel to `post` is real but shallow: both are resolved by
+the CALLER (`renderPostViaTemplate`/`renderPageViaTemplate`) before `resolveHtmlPageEmbeds` ever runs,
+via a literal pre-substitution (`injectPostEmbedId`/`injectPageContent`) rather than an async registry
+lookup. But `post`'s pre-substitution only swaps a placeholder ID into the marker's JSON — the marker
+still gets a real, async, ID-keyed resolution afterward (`resolvePostTypeEmbeds`, a `postRepo.findById`
+call that CAN fail: post deleted, bad id). `content` has no such second stage and cannot fail the same
+way: by the time a route calls `injectPageContent`, it already holds the Page's own `bodyHtml` as a
+plain string (possibly empty, never absent) — there is no id to look up and no "not found" outcome to
+model. Registering it in `HTML_EMBED_RESOLVERS` anyway would give it the REQ-28 generic-placeholder
+failure mode, which is right for "a referenced widget was deleted" and actively wrong for "this page
+has no body" — there is no legitimate case where a Page's own content "fails to resolve". Keeping it
+theme-owned (`isPageEmbedType("content")` is `false`, matching `partial`/`menu`) means a marker that
+somehow reaches `resolveHtmlPageEmbeds` unsubstituted (the injection step skipped, or a stray marker in
+a non-Page template) is left exactly as authored rather than blanked — the same load-bearing default
+that already protects theme nav/footer from being wiped by a resolution miss.
+
+**Uses `withInnerContent`, not a whole-element replace, unlike `post`/`partial`.** Both of those are
+bare, classless `<div>`s in every theme shipped in this repo (verified by grep across
+`src/themes/static/*/pages/*.html` on this date) — whole-element replacement has never had a styling
+hook to lose for them. A `content` slot is far more likely to be authored as
+`<main class="page-body" data-embed-config='{"type":"content"}'></main>`, the same reason `menu`
+markers already use `withInnerContent`: the theme's own wrapper and its authored fallback content must
+survive, with only the inside swapped.
 
 **Indexed into `entry_refs` (`HTML_EMBED_TARGET_KINDS`)**: `widget` → `"entry"`, `media` →
 `"asset"`. A type absent from that map is still scanned but produces no row — guessing a target kind
