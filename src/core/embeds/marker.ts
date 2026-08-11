@@ -158,6 +158,50 @@ export function markersOfType(html: string, type: string): readonly EmbedMarker[
 }
 
 /**
+ * Rebuild a marker's element around new inner content, keeping its own tag and every authored
+ * attribute (`class`, `aria-label`, …). The counterpart to a wholesale replace: a menu marker keeps
+ * its `<nav class="docs-nav">` wrapper and only swaps what's inside, whereas a partial slot marker
+ * disappears entirely and is replaced by the partial.
+ *
+ * Synthesizing the open tag from `config` alone instead of using this is a silent bug — it drops the
+ * theme's styling hooks and accessible names with nothing failing.
+ */
+export function withInnerContent(marker: EmbedMarker, inner: string): string {
+  return `<${marker.tag}${marker.attrs}>${inner}</${marker.tag}>`;
+}
+
+/**
+ * Replace each marker's WHOLE element with what `resolve` returns for it.
+ *
+ * Whole-element rather than inner-content because the two consumers genuinely differ: a partial slot
+ * marker is scaffolding that vanishes once the partial is spliced in, while a menu marker is real
+ * theme markup that must survive with only its contents swapped. Callers in the second camp wrap
+ * their output in {@link withInnerContent}; making that explicit at the call site is better than a
+ * mode flag, because the choice is a real per-type decision and not a preference.
+ *
+ * `resolve` returning `undefined` means "leave this marker exactly as authored", and that default is
+ * load-bearing: a menu that does not exist, a target that was deleted, or a render that produces
+ * nothing must fall back to the theme's authored content rather than blanking a nav. Every consumer
+ * wants that rule, so it lives here rather than being re-implemented per call site.
+ *
+ * Applies right-to-left so each splice leaves the earlier markers' offsets valid.
+ */
+export function substituteMarkers(
+  html: string,
+  resolve: (marker: EmbedMarker) => string | undefined
+): string {
+  const { markers } = scanEmbedMarkers(html);
+  let out = html;
+  for (let i = markers.length - 1; i >= 0; i -= 1) {
+    const m = markers[i];
+    const replacement = resolve(m);
+    if (replacement === undefined) continue;
+    out = out.slice(0, m.index) + replacement + out.slice(m.index + m.whole.length);
+  }
+  return out;
+}
+
+/**
  * Human-readable one-liner for a rejection, for a warning line or a write-time validation error.
  * Deliberately quotes the offending JSON: the author needs to see what they typed, and the raw text
  * is theme- or admin-authored, never end-user input.
