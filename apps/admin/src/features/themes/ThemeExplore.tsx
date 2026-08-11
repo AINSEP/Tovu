@@ -339,13 +339,34 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
  * comment for why the preview has to be a real URL at all.
  */
 function ThemeExplorePreview({ src, width, title }: { src: string; width: number; title: string }) {
-  // Same rough reference `PagePreview`'s own comment documents: the pane is roughly this wide with
-  // the file list open, and a real measurement (ResizeObserver) is the follow-up, not the prototype.
-  const paneWidth = 880;
+  const frameRef = useRef<HTMLDivElement>(null);
+  // The frame's REAL rendered width, not a guessed constant — the previous flat `880` (copied from
+  // `PagePreview`'s own same-shaped placeholder) never tracked the pane actually resizing: no
+  // listener of any kind, so the scale computed once and stayed frozen across a window resize, a
+  // sidebar collapse, or the assistant dock opening/closing (reported live as "the preview is not
+  // responsive"). `880` survives only as the pre-measurement default, so the first paint still has a
+  // sane scale instead of `Infinity`/`NaN` from a zero-width ref.
+  //
+  // jsdom implements no `ResizeObserver` at all (`__tests__/setup.ts`'s own comment — deliberately
+  // left unstubbed, so a test can't pass without the measurement ever happening) — guarded exactly
+  // like `SeeMore.hooks.tsx`'s own `typeof ResizeObserver !== "function"` check, so this component
+  // still renders (at the `880` default) in every existing/new unit test.
+  const [paneWidth, setPaneWidth] = useState(880);
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el || typeof ResizeObserver !== "function") return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setPaneWidth(entry.contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const scale = Math.min(1, paneWidth / width);
 
   return (
-    <div className="page-preview-frame" style={{ height: `${900 * scale}px` }}>
+    <div ref={frameRef} className="page-preview-frame" style={{ height: `${900 * scale}px` }}>
       <div
         className="page-preview-scaler"
         style={{ width: `${width}px`, height: "900px", transform: `scale(${scale})` }}
