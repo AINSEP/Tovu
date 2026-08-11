@@ -1366,15 +1366,17 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    made and caught on the Pages side, and only because `getBoundingClientRect` returned an all-zero
    rect; the screenshot looked identical either way. `flex: 1 1 50%` with `max-width: 50%` rather
    than a bare `width: 50%` lets the title grow into its half when the slug group is narrower,
-   without ever exceeding it. */
-.editor-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4, 1rem); flex-wrap: wrap; }
-.editor-title-row .editor-title { flex: 1 1 50%; max-width: 50%; min-width: 0; }
-/* `flex-end`, not `space-between`: the slug group moved up to the title row above, so the template
-   picker is the only child left and `space-between` would slide it to the left edge. Keeping it
-   right-aligned preserves where it already sits on screen — moving the slug was the requested
-   change, moving the picker was not. This class has one consumer (PostEditor), so the change cannot
-   reach another screen. */
-.editor-slug-row { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; flex-wrap: wrap; row-gap: 0.6rem; }
+   without ever exceeding it.
+
+   `.editor-title` still carries its own `border-bottom` (above) everywhere else it's used bare
+   (`MenuEditor.tsx`, `CollectionEntryEditor.tsx`, `WidgetInstanceEditor.tsx`, full-width, so the
+   line already spans the whole control) — capping it to 50% width here made that same line stop
+   dead in the middle of the row, reading as a broken separator rather than a page-header rule
+   (caught live, 2026-08-11). Scoped to this row only: the line moves off the input and onto the row
+   itself, so it spans BOTH halves — title and slug — as one continuous rule instead of two
+   mismatched ones. */
+.editor-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4, 1rem); flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+.editor-title-row .editor-title { flex: 1 1 50%; max-width: 50%; min-width: 0; border-bottom: none; }
 .editor-slug { color: var(--muted); font-size: 0.85rem; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; row-gap: 0.4rem; }
 .editor-slug input { width: 14rem; }
 .editor-id { display: inline-flex; align-items: center; gap: 0.35rem; margin-left: 0.5rem; padding-left: 1rem; border-left: 1px solid var(--border); }
@@ -1393,7 +1395,6 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    into two clearly separated rows instead of trying to force three variable-width controls onto one
    line at narrow widths. */
 @media (max-width: 640px) {
-  .editor-slug-row { flex-direction: column; align-items: stretch; }
   /* Same reasoning the Pages editor's equivalent rule gives: below this width two halves read as
      cramped rather than usable, and both are free-typed inputs. Stack them full-width instead. */
   .editor-title-row { flex-direction: column; align-items: stretch; }

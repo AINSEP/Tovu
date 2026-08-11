@@ -2,10 +2,11 @@ import { useState } from "react";
 import { EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { ConfirmDialog } from "@jini-ai/admin/react";
+import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
 import { siteUrl } from "../../lib/site-url";
-import { usePostEditor } from "./hooks/use-post-editor.hooks";
+import { usePostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { PostTemplateModal } from "./PostTemplateModal";
 import { toolbarBtnClass } from "./rules";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -24,6 +25,13 @@ import { POSTS_DICT } from "./posts-i18n";
  * Shared between posts and pages via the same `/admin/posts/{id}` route — see `Pages.tsx`'s file
  * header. `post.kind` drives the display copy and the back-link target only.
  */
+
+/** Product-facing labels, not library ones — "Tiptap" never appears in the UI; an author reads
+ *  these as "the editor" and "how it looks on the site". */
+const VIEWS: ReadonlyArray<{ key: PostEditorView; label: string }> = [
+  { key: "edit", label: "Edit" },
+  { key: "preview", label: "Preview" },
+];
 
 /** Formatting toolbar wired to the live editor. Active state stays in sync via useEditorState. */
 function Toolbar({ editor }: { editor: Editor }) {
@@ -280,12 +288,15 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
     overridesThemePage,
     setOverridesThemePage,
     hasSlugCollision,
+    view,
+    setView,
     message,
     error,
     confirmingDelete,
     setConfirmingDelete,
     deleting,
     confirmLeave,
+    dirty,
     save,
     remove,
   } = usePostEditorHook(postId);
@@ -324,8 +335,9 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
           right-justified in the other half. Deliberately the same SHAPE as the Pages editor's
           `.page-title-row` but a separate class: Pages and Posts are separate features with separate
           stylesheets, and `styles/pages.css` says in its own header why their shared chrome lives in
-          `editor.css` rather than being copied between them. The template picker keeps its own row
-          below — it is not part of the record's identity the way the title and slug are. */}
+          `editor.css` rather than being copied between them. The template picker used to keep its own
+          row below this one; it now lives in the Edit/Preview toolbar row instead (see the comment on
+          `.page-editor-toolbar` just below) — the row that carried it, `.editor-slug-row`, is gone. */}
       <div className="editor-title-row">
         <label className="a11y-label-wrap">
           <span className="visually-hidden">Post title</span>
@@ -365,87 +377,116 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
               and the row list; it just no longer competes with the slug for the author's attention. */}
         </div>
       </div>
-      <div className="editor-slug-row">
-        {/* Post-template-picker feature (2026-08-10) — rendered whenever this row is a Post/
-            formulaic-body record (`bodyFormat: "doc"`), not an `"html"`-format Page — a Page's body
-            IS its own design already (see `resolveHtmlEmbedsForRender`'s own doc), so it has nothing
-            to pick between. Untranslated (`t()` falls back to the raw key, same graceful-degrade
-            every other string on this screen already relies on) — this repo's i18n dictionaries
-            cover 19 locales and adding this feature's strings to all of them is out of scope for
-            this pass; disclosed rather than silently skipped.
+      {/* Edit/Preview toolbar (2026-08-11, owner: "Let's have a preview button... a tab that shows
+          either tiptap so they can edit, or how it looks when it's rendered" + "Keeping the template
+          chooser on the right... that's how the others work"). Deliberately the SAME structure as
+          the Pages editor's `.page-editor-toolbar` (`features/pages/PageEditor.tsx`) — tabs left,
+          `.page-editor-toolbar-end` right — reusing its classes directly (`styles/pages.css`) rather
+          than parallel Post-only ones: those classes already have a second consumer beyond Pages
+          (`ThemeExplore.tsx`), so this is a third, not a fork. The template picker moved into
+          `.page-editor-toolbar-end` verbatim from the old `.editor-slug-row` below it — only its
+          MARKUP location changed; where its options/value come from is untouched (a concurrent
+          agent owns that wiring). */}
+      <div className="page-editor-toolbar">
+        <div className="segmented" role="tablist" aria-label="Editor view">
+          {VIEWS.map((entry) => (
+            <button
+              key={entry.key}
+              type="button"
+              role="tab"
+              aria-selected={view === entry.key}
+              className={view === entry.key ? "is-active" : undefined}
+              onClick={() => setView(entry.key)}
+            >
+              {t(entry.label)}
+            </button>
+          ))}
+        </div>
+        <div className="page-editor-toolbar-end">
+          {/* Post-template-picker feature (2026-08-10) — rendered whenever this is a Post/
+              formulaic-body record (`bodyFormat: "doc"`), not an `"html"`-format Page — a Page's body
+              IS its own design already (see `resolveHtmlEmbedsForRender`'s own doc), so it has nothing
+              to pick between. Untranslated (`t()` falls back to the raw key, same graceful-degrade
+              every other string on this screen already relies on) — this repo's i18n dictionaries
+              cover 19 locales and adding this feature's strings to all of them is out of scope for
+              this pass; disclosed rather than silently skipped.
 
-            Options list real templates FIRST, "No template chosen" LAST (owner's own ordering
-            request) — matches `theme.json`'s own `postTemplate` doc ("ordered to nudge the right
-            choice"): opting OUT is the one deliberate action, not the default you land on. The
-            SELECTED value defaults to the first template too when nothing has been chosen yet (see
-            the load effect below) — an author only ever sees "No template chosen" selected if they
-            (or a prior save) explicitly picked it.
+              Options list real templates FIRST, "No template chosen" LAST (owner's own ordering
+              request) — matches `theme.json`'s own `postTemplate` doc ("ordered to nudge the right
+              choice"): opting OUT is the one deliberate action, not the default you land on. The
+              SELECTED value defaults to the first template too when nothing has been chosen yet (see
+              the load effect below) — an author only ever sees "No template chosen" selected if they
+              (or a prior save) explicitly picked it.
 
-            When the active theme declares zero templates, the row previously vanished entirely
-            (owner feedback, 2026-08-09: "it makes sense... but it should still be there" — an empty
-            theme should read as "nothing to choose" in the UI, not disappear as if the feature
-            itself weren't there). Renders a disabled control with a one-line explanation instead. */}
-        {(post.bodyFormat ?? "doc") === "doc" ? (
-          <div className="editor-template-picker">
-            <label className="a11y-label-wrap">
-              <span className="visually-hidden">{t("Template")}</span>
-            </label>
-            {availableTemplates.length > 0 ? (
-              <select
-                value={templateChoice ?? ""}
-                // `e.target.value`, NOT `|| null` — "No template chosen" must persist as `""`
-                // (explicitly opted out), which `resolveTemplate` treats differently from `null`
-                // (never chosen → falls back to the first template). Coercing to `null` here is what
-                // made the two indistinguishable and served 15 posts a diagnostic page.
-                onChange={(e) => setTemplateChoice(e.target.value)}
-                {...agentHandle("post-template-choice", {
-                  role: "field",
-                  label:
-                    "Which theme page template this post renders through on the public site. " +
-                    "Setting this to \"No template chosen\" shows a diagnostic page instead of the post, " +
-                    "not a silent fallback to generic rendering.",
-                })}
-              >
-                {availableTemplates.map((template) => (
-                  <option key={template} value={template}>
-                    {template}
-                  </option>
-                ))}
-                <option value="">{t("No template chosen")}</option>
-              </select>
-            ) : null}
-            {availableTemplates.length > 0 ? (
-              // Read-only inspection, not editing (`PostTemplateModal.tsx`'s own file header —
-              // "I just wanna see it" is the owner's own framing). Disabled rather than hidden
-              // when nothing is chosen: an operator who opted out via "No template chosen" (`""`)
-              // still sees the control, just inert, matching this screen's own precedent for the
-              // theme-with-zero-templates `<select>` above rather than the row disappearing.
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={!templateChoice}
-                onClick={() => setShowTemplateModal(true)}
-                {...agentHandle("post-view-template", {
-                  role: "button",
-                  label: "Open a read-only view of the selected template's HTML source. Nothing here is editable.",
-                })}
-              >
-                {t("View Template")}
-              </button>
-            ) : (
-              <select
-                disabled
-                value=""
-                {...agentHandle("post-template-choice", {
-                  role: "field",
-                  label: "The active theme declares no post templates, so there is nothing to choose here.",
-                })}
-              >
-                <option value="">{t("No templates for this theme")}</option>
-              </select>
-            )}
-          </div>
-        ) : null}
+              When the active theme declares zero templates, the row previously vanished entirely
+              (owner feedback, 2026-08-09: "it makes sense... but it should still be there" — an empty
+              theme should read as "nothing to choose" in the UI, not disappear as if the feature
+              itself weren't there). Renders a disabled control with a one-line explanation instead.
+
+              Rendered regardless of `view` — same as Pages' own picker — because the template choice
+              is a publish-time setting, not something specific to either tab. */}
+          {(post.bodyFormat ?? "doc") === "doc" ? (
+            <div className="editor-template-picker">
+              <label className="a11y-label-wrap">
+                <span className="visually-hidden">{t("Template")}</span>
+              </label>
+              {availableTemplates.length > 0 ? (
+                <select
+                  value={templateChoice ?? ""}
+                  // `e.target.value`, NOT `|| null` — "No template chosen" must persist as `""`
+                  // (explicitly opted out), which `resolveTemplate` treats differently from `null`
+                  // (never chosen → falls back to the first template). Coercing to `null` here is what
+                  // made the two indistinguishable and served 15 posts a diagnostic page.
+                  onChange={(e) => setTemplateChoice(e.target.value)}
+                  {...agentHandle("post-template-choice", {
+                    role: "field",
+                    label:
+                      "Which theme page template this post renders through on the public site. " +
+                      "Setting this to \"No template chosen\" shows a diagnostic page instead of the post, " +
+                      "not a silent fallback to generic rendering.",
+                  })}
+                >
+                  {availableTemplates.map((template) => (
+                    <option key={template} value={template}>
+                      {template}
+                    </option>
+                  ))}
+                  <option value="">{t("No template chosen")}</option>
+                </select>
+              ) : null}
+              {availableTemplates.length > 0 ? (
+                // Read-only inspection, not editing (`PostTemplateModal.tsx`'s own file header —
+                // "I just wanna see it" is the owner's own framing). Disabled rather than hidden
+                // when nothing is chosen: an operator who opted out via "No template chosen" (`""`)
+                // still sees the control, just inert, matching this screen's own precedent for the
+                // theme-with-zero-templates `<select>` above rather than the row disappearing.
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={!templateChoice}
+                  onClick={() => setShowTemplateModal(true)}
+                  {...agentHandle("post-view-template", {
+                    role: "button",
+                    label: "Open a read-only view of the selected template's HTML source. Nothing here is editable.",
+                  })}
+                >
+                  {t("View Template")}
+                </button>
+              ) : (
+                <select
+                  disabled
+                  value=""
+                  {...agentHandle("post-template-choice", {
+                    role: "field",
+                    label: "The active theme declares no post templates, so there is nothing to choose here.",
+                  })}
+                >
+                  <option value="">{t("No templates for this theme")}</option>
+                </select>
+              )}
+            </div>
+          ) : null}
+        </div>
       </div>
       {/* Slug-collision override (2026-08-10) — surfaced live this session: a post at slug "about"
           was silently unreachable because the active theme ships its own pages/about.html at the
@@ -474,24 +515,32 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
           </label>
         </div>
       ) : null}
-      <div
-        className="editor-shell"
-        {...agentHandle("post-editor-shell", {
-          role: "region",
-          label: "Formatting toolbar and the post body editor",
-        })}
-      >
-        {editor ? <Toolbar editor={editor} /> : null}
-        {/* `role: "field"` rather than `region`: this is a TipTap `contenteditable`, which the
-            page driver treats as a fillable rich-text surface (see its `isEditableRegion`), so an
-            agent can read and write the body through the same field verbs it uses for an input. */}
+      {view === "preview" ? (
+        // `editor.getHTML()` read fresh every render, same idiom the hook already uses for
+        // `editor.getJSON()` in its own dirty comparison — TipTap's content lives in the editor's
+        // own imperative state, and `onUpdate`'s `bodyVersion` bump is what makes this re-evaluate
+        // after a keystroke rather than going stale.
+        <PostPreview bodyHtml={editor?.getHTML() ?? ""} slug={slug} status={status} dirty={dirty} />
+      ) : (
         <div
-          className="editor-body"
-          {...agentHandle("post-body", { role: "field", label: "The post's rich-text body content" })}
+          className="editor-shell post-editor-pane"
+          {...agentHandle("post-editor-shell", {
+            role: "region",
+            label: "Formatting toolbar and the post body editor",
+          })}
         >
-          <EditorContent editor={editor} />
+          {editor ? <Toolbar editor={editor} /> : null}
+          {/* `role: "field"` rather than `region`: this is a TipTap `contenteditable`, which the
+              page driver treats as a fillable rich-text surface (see its `isEditableRegion`), so an
+              agent can read and write the body through the same field verbs it uses for an input. */}
+          <div
+            className="editor-body"
+            {...agentHandle("post-body", { role: "field", label: "The post's rich-text body content" })}
+          >
+            <EditorContent editor={editor} />
+          </div>
         </div>
-      </div>
+      )}
       <ConfirmDialog
         open={confirmingDelete}
         title={t("Move to trash?")}
@@ -527,5 +576,70 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Renders the post the way the Preview tab shows it — mirrors `features/pages/PageEditor.tsx`'s
+ * `PagePreview` exactly, same branching rule and same reasoning, reused rather than reinvented (see
+ * `ADS-memory/reports/implementation/2026-08-11-html-view-and-preview.md` for the original decision
+ * record this repeats): a PUBLISHED, un-dirtied post is shown by iframing its own real public URL
+ * (`siteUrl`, the same helper the "view ↗" link already uses) directly — the exact response a
+ * visitor gets, template/theme CSS/nav/footer/widget resolution and all, with zero risk of a second
+ * render path drifting from the real one (`renderDocNode`, `src/server/http/site/render.ts` — out
+ * of this change's scope, and reimplementing it here would be exactly that drift risk).
+ *
+ * A draft, or a published post with unsaved edits, has nothing (or stale content) at that public
+ * URL yet — `getPublishedPostBySlug` 404s on anything not `status: "published"`, and unsaved edits
+ * are by definition not saved there until Save runs — so both fall back to a rendering of the LIVE
+ * EDITOR BUFFER instead, with a notice explaining why the theme isn't applied. Unlike Pages (whose
+ * body already IS raw HTML), a post's body is TipTap `bodyJson`, so the fallback's `bodyHtml` comes
+ * from `editor.getHTML()` — TipTap's own client-side serializer, not the server's `renderDocNode` —
+ * fed into the same sandboxed `SrcDocSandbox` Pages' fallback uses. This is a deliberately shallower
+ * render than the real one (plain marks-to-tags only: no widget resolution, no media-transform
+ * URLs, no theme wrapper) — disclosed as a rough shape/content check, not parity, for the same
+ * reason the live-site branch above exists: building a second `renderDocNode` here would be the
+ * duplication this whole approach is chosen to avoid.
+ *
+ * No device-width scaling here (unlike `PagePreview`) — that machinery exists so an operator can
+ * preview a page at Desktop/Tablet/Mobile widths, which nothing in this dispatch asked for on the
+ * Post side; the frame simply fills the pane at its natural width, same as the Tiptap editor above
+ * it always has.
+ */
+function PostPreview({
+  bodyHtml,
+  slug,
+  status,
+  dirty,
+}: {
+  bodyHtml: string;
+  slug: string;
+  status: "draft" | "published";
+  dirty: boolean;
+}) {
+  const canShowLiveSite = status === "published" && !dirty;
+
+  return (
+    <>
+      <div className="editor-shell post-editor-pane">
+        {canShowLiveSite ? (
+          <iframe
+            src={siteUrl(`/${slug}`)}
+            title="Post preview"
+            className="editor-preview-iframe"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <SrcDocSandbox html={bodyHtml} title="Post preview" className="editor-preview-iframe" />
+        )}
+      </div>
+      {canShowLiveSite ? null : (
+        <p className="editor-preview-notice">
+          {status !== "published"
+            ? "This is a rough render of the editor buffer only — publish this post to preview it with the theme's real template and CSS."
+            : "This is a rough render of the editor buffer only — save your changes to preview them with the theme's real template and CSS."}
+        </p>
+      )}
+    </>
   );
 }

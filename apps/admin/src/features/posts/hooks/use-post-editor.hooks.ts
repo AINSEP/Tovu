@@ -34,6 +34,12 @@ export interface PostFormState {
   overridesThemePage: boolean;
 }
 
+/** The two things the editor's main pane can show — the rich-text editor, or a rendered preview
+ *  of the post. Named for what an author sees, not the library underneath ("Tiptap" never appears
+ *  in the UI) — mirrors `features/pages/hooks/use-page-editor.hooks.ts`'s `PageEditorView`, minus
+ *  the HTML/Interactive tabs a `bodyJson`-based post has no equivalent of. */
+export type PostEditorView = "edit" | "preview";
+
 export interface PostEditorController {
   /** `null` until the post loads — the caller renders a loading state. */
   post: AdminPost | null;
@@ -67,6 +73,8 @@ export interface PostEditorController {
   /** `true` when this post's own `slug` matches one of the active theme's own page ids — the caller
    *  shows the collision warning + override checkbox only then. */
   hasSlugCollision: boolean;
+  view: PostEditorView;
+  setView: (value: PostEditorView) => void;
   message: string | null;
   error: string | null;
   confirmingDelete: boolean;
@@ -75,6 +83,11 @@ export interface PostEditorController {
   /** `false` when the operator declined to discard unsaved edits — the caller must then
    *  `preventDefault()` the navigation. */
   confirmLeave: () => boolean;
+  /** Whether the working copy (title/slug/status/body/template/override) has drifted from the
+   *  last loaded-or-saved state — the same comparison `confirmLeave` already gates navigation on
+   *  (`useDirtyGuard`'s `isDirty`), exposed directly so the Preview tab can decide whether the
+   *  saved, published post at its public URL still matches what's in the editor right now. */
+  dirty: boolean;
   save: (statusOverride?: "draft" | "published") => Promise<void>;
   remove: () => Promise<void>;
 }
@@ -117,6 +130,11 @@ export function usePostEditor(postId: string): PostEditorController {
   // closing before the request resolves.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Tab state for the toolbar's Edit/Preview pair (2026-08-11) — defaults to "edit" so opening a
+  // post shows exactly what every post editor has always shown, not a behavior change bundled
+  // into the new tab. Not reset by the load effect below: unlike `original`/`title`/`slug`, which
+  // post is loaded doesn't need to force a specific pane back open.
+  const [view, setView] = useState<PostEditorView>("edit");
 
   const editor = useEditor({
     extensions: [StarterKit, MediaImage, WidgetEmbed],
@@ -179,7 +197,7 @@ export function usePostEditor(postId: string): PostEditorController {
 
   const hasSlugCollision = staticPageIds.includes(slug);
 
-  const { confirmLeave } = useDirtyGuard<PostFormState>(
+  const { isDirty, confirmLeave } = useDirtyGuard<PostFormState>(
     { title, slug, status, bodyJson: editor?.getJSON() ?? null, templateChoice, overridesThemePage },
     original,
   );
@@ -269,6 +287,8 @@ export function usePostEditor(postId: string): PostEditorController {
     overridesThemePage,
     setOverridesThemePage,
     hasSlugCollision,
+    view,
+    setView,
     setStatus,
     message,
     error,
@@ -276,6 +296,7 @@ export function usePostEditor(postId: string): PostEditorController {
     setConfirmingDelete,
     deleting,
     confirmLeave,
+    dirty: isDirty,
     save,
     remove,
   };
