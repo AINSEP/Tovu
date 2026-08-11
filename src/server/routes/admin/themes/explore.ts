@@ -117,6 +117,28 @@ function isTextEditable(relativePath: string): boolean {
 }
 
 /**
+ * Directories whose contents are GENERATED, and so are never shown as editable theme files.
+ *
+ * `preview/` is `build-preview.mjs`'s output: a full second copy of the theme's pages and scripts,
+ * once per color mode. On `novice` that is 36 of 79 listed files — `js/main.js`,
+ * `preview/dark/js/main.js` and `preview/light/js/main.js` all show as "main.js" with nothing to
+ * distinguish them, which buried the ~30 real source files under three-way duplicates of themselves.
+ *
+ * Editing one of these would also be pointless-to-harmful: the next `build-preview.mjs` run
+ * overwrites it, so the change silently disappears. (That script is itself a legacy spike predating
+ * static-tier rendering — see `theme-preview-static.ts` — and retiring it would remove this folder
+ * entirely.)
+ *
+ * `screenshots/` is deliberately NOT excluded: those are real assets an author may want to look at
+ * or replace, and they are the theme's own marketing images rather than a copy of its source.
+ */
+const GENERATED_DIRS = ["preview/"];
+
+function isGenerated(relativePath: string): boolean {
+  return GENERATED_DIRS.some((dir) => relativePath.startsWith(dir));
+}
+
+/**
  * Coarse grouping for the Explore file list, derived from path/extension alone.
  *
  * Presentation-only: the server does not care what a file is FOR, but a flat 60-entry list of every
@@ -171,14 +193,16 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
       // JS, tokens, images. Those are the files an author most often actually needs to change to
       // make a downloaded theme theirs, and until now the screen hid all of them.
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
-      const files = listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir }).map((path) => ({
-        path,
-        group: fileGroup(path),
-        editable: isTextEditable(path),
-        // Whether THIS file can be reset — a file the author added themselves has no original to go
-        // back to, and offering a Reset that would fail is worse than not offering one.
-        resettable: hasOriginal && existsSync(join(catalogDir, path)),
-      }));
+      const files = listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir })
+        .filter((path) => !isGenerated(path))
+        .map((path) => ({
+          path,
+          group: fileGroup(path),
+          editable: isTextEditable(path),
+          // Whether THIS file can be reset — a file the author added themselves has no original to
+          // go back to, and offering a Reset that would fail is worse than not offering one.
+          resettable: hasOriginal && existsSync(join(catalogDir, path)),
+        }));
 
       res.json({
         id: theme.manifest.id,

@@ -75,6 +75,13 @@ Three separate symptoms, all the same cause:
    `src/server/routes/admin/themes/explore.ts`, with a negative-verified regression test at
    `src/server/__tests__/routes/theme-file-save-route.integration.test.ts`.
 
+**A fourth, unrelated listing bug (fixed `2026-08-11`, commit at session end):** the Explore file
+list showed `preview/` — `build-preview.mjs`'s generated output, a full copy of every page and script
+once per color mode. 36 of `novice`'s 79 files, so `js/main.js`, `preview/dark/js/main.js` and
+`preview/light/js/main.js` all displayed as "main.js" with nothing to tell them apart, burying the
+real source. Now filtered via `GENERATED_DIRS` in `explore.ts`. 79 → 43 files, zero duplicate
+basenames. `screenshots/` is deliberately kept — those are real assets, not a copy of the source.
+
 **The `theme_write_file` AGENT tool had this right from the start** and the HTTP route did not — a
 second surface onto one capability that didn't carry over the first one's correctness. Worth checking
 for other instances of that shape.
@@ -90,6 +97,30 @@ Both domains are already registered in `src/assistant/tool-registrations.ts`:
 
 The owner asked whether the AI can already edit and save pages/themes. **It can.** What was missing
 was the human-facing equivalent, which is what the Explore screen now provides.
+
+---
+
+## NEXT TASK — file operations in the Explore sidebar (owner asked, not built)
+
+Owner's words: *"I think we need a three vertical dot icon right next to each file name, which
+creates more options. And then one of those is gonna be copy, and then it'll just copy it right in
+the sidebar. One of them is also gonna be renamed. Maybe we can also have, like, a double click to
+rename it rather than having to go to the 3 vertical dots."*
+
+So: a per-file overflow (⋮) menu with **Copy** and **Rename**, plus **double-click a filename to
+rename inline** as the shortcut path. Copy lands the duplicate in the sidebar immediately.
+
+Nothing of this exists yet. It needs:
+- Two new routes beside the existing ones in `src/server/routes/admin/themes/explore.ts` — copy and
+  rename. Both must go through `theme-files.ts`'s containment helpers (never join paths by hand: the
+  new name is operator input) and must call `reloadTheme` afterwards, or the change will not appear
+  in the preview — see the boot-time-snapshot section above, which has already bitten three times.
+- Name-collision handling. `nextAvailableThemeId` in `src/features/theme/theme.ts` already solves the
+  identical problem for theme ids (`basic` → `basic-1`); a copy of `about.html` should follow the
+  same shape (`about-1.html`) rather than inventing a second convention.
+- Renaming a PAGE changes its URL, and renaming `pages/index.html` breaks the theme outright
+  (`loadTheme` requires it). Both need guarding.
+- **Dispatch this to a Sonnet subagent** per the process instruction at the top of this file.
 
 ---
 
