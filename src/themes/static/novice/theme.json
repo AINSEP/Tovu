@@ -1,0 +1,56 @@
+{
+  "id": "novice",
+  "name": "Novice",
+  "version": "0.1.0",
+  "tier": "static",
+  "description": "A premium-themed-websites marketing + auth site (home, about, pricing, docs, blog, changelog, download, sign in, sign up). Plain HTML/CSS/JS, no build step, no template language — every byte is editable. Ships both a dark and a light token set.",
+  "modes": [
+    "dark",
+    "light"
+  ],
+  "defaultMode": "dark",
+  "fonts": [
+    "Geist:wght@400;500",
+    "Geist+Mono:wght@400;500"
+  ],
+  "pages": [
+    "404",
+    "about",
+    "blog",
+    "blog-post",
+    "blog-sidebar-template",
+    "changelog",
+    "docs",
+    "download",
+    "index",
+    "pricing",
+    "signin",
+    "signup",
+    "team"
+  ],
+  "postTemplate": [
+    "blog-post.html",
+    "blog-sidebar-template.html"
+  ],
+  "slots": {
+    "nav": {
+      "source": "nav.html",
+      "honorsCurrentPage": true
+    },
+    "footer": {
+      "source": "footer.html",
+      "variants": {
+        "minimal": "footer-minimal.html"
+      }
+    },
+    "sidebar": {
+      "source": "sidebar.html"
+    }
+  },
+  "lineage": {
+    "from": "basic",
+    "tier": "static",
+    "version": "0.1.0",
+    "catalog": "__original-themes__/static/basic"
+  }
+}

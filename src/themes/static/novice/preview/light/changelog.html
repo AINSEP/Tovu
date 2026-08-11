@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Changelog — Basic</title>
+<style>
+:root {
+  --bg: oklch(9% 0.004 250);
+  --surface: oklch(12% 0.005 250);
+  --surface-2: oklch(15% 0.006 250);
+  --fg: oklch(96% 0.003 250);
+  --muted: oklch(65% 0.012 250);
+  --border: rgba(255,255,255,0.10);
+  --border-strong: rgba(255,255,255,0.16);
+  --accent: oklch(72% 0.17 152);
+  --accent-fg: oklch(14% 0.03 152);
+  --font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  --font-body: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace;
+  --container: 1120px;
+}
+:root[data-theme="light"] {
+  --bg: #f6f9f8;
+  --surface: #f1f4f2;
+  --surface-2: #e8ece9;
+  --fg: #09140f;
+  --muted: #4b5952;
+  --border: rgba(9,20,15,0.10);
+  --border-strong: rgba(9,20,15,0.18);
+  --accent: #22c373;
+  --accent-fg: #f8fbf9;
+  --font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  --font-body: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace;
+  --container: 1120px;
+}
+</style>
+<link rel="stylesheet" href="css/styles.css" />
+<script src="js/theme-toggle.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap nav-row">
+    <a href="index.html" class="brand">
+      <span class="mark"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="var(--bg)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      Basic
+    </a>
+    <nav class="main-nav" data-embed-config='{"type":"menu","id":"menu-header-nav"}'>
+      <a href="pricing.html" data-nav-id="pricing">Pricing</a>
+      <a href="docs.html" data-nav-id="docs">Docs</a>
+      <a href="blog.html" data-nav-id="blog">Blog</a>
+      <a href="changelog.html" data-nav-id="changelog" aria-current="page">Changelog</a>
+      <a href="about.html" data-nav-id="about">About</a>
+      <a href="download.html" data-nav-id="download">Download</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="theme-toggle" type="button" aria-label="Switch to light mode" data-theme-toggle>
+        <span class="icon-stack">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2.2M12 18.8V21M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M3 12h2.2M18.8 12H21M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>
+        </span>
+      </button>
+      <button class="nav-toggle btn btn-ghost" aria-expanded="false" aria-label="Toggle menu">Menu</button>
+      <a href="signin.html" class="btn btn-ghost">Sign in</a>
+      <a href="signup.html" class="btn btn-solid">Get started</a>
+    </div>
+  </div>
+</header>
+
+
+<main>
+  <section class="hero wrap" data-reveal style="padding-bottom: 40px;">
+    <h1 style="font-size: clamp(34px, 5vw, 54px);">Changelog</h1>
+    <p class="lede">What shipped, when it shipped, and why it matters.</p>
+  </section>
+
+  <section class="wrap" style="padding-bottom: 96px;">
+    <div class="changelog-list">
+      <article class="changelog-entry">
+        <time datetime="2026-07-14">Jul 14, 2026</time>
+        <div>
+          <span class="tag">Feature</span>
+          <h3>Multi-device preview</h3>
+          <p>Preview a page across desktop, tablet, and mobile at once, with results grouped in one panel instead of scattered across separate tabs.</p>
+        </div>
+      </article>
+      <article class="changelog-entry">
+        <time datetime="2026-06-02">Jun 2, 2026</time>
+        <div>
+          <span class="tag">Improvement</span>
+          <h3>Faster theme editor</h3>
+          <p>Reworked our editor's rendering pipeline to cut average load time by 40% during peak hours — most pages now open in under three seconds.</p>
+        </div>
+      </article>
+      <article class="changelog-entry">
+        <time datetime="2026-04-28">Apr 28, 2026</time>
+        <div>
+          <span class="tag">Feature</span>
+          <h3>Publish approvals</h3>
+          <p>Require a manual sign-off before a page promotes to production. Approvers get a diff summary and a one-click approve or block.</p>
+        </div>
+      </article>
+      <article class="changelog-entry">
+        <time datetime="2026-03-11">Mar 11, 2026</time>
+        <div>
+          <span class="tag">Fix</span>
+          <h3>Image cache invalidation on asset changes</h3>
+          <p>Image caches now correctly bust when an asset is replaced mid-edit, fixing a class of "works in the editor, stale on the live site" reports.</p>
+        </div>
+      </article>
+      <article class="changelog-entry">
+        <time datetime="2026-01-22">Jan 22, 2026</time>
+        <div>
+          <span class="tag">Feature</span>
+          <h3>Slack publish notifications</h3>
+          <p>Route publish and preview events straight to a Slack channel, with pass/fail status and a link back to the live page.</p>
+        </div>
+      </article>
+      <article class="changelog-entry">
+        <time datetime="2025-11-30">Nov 30, 2025</time>
+        <div>
+          <span class="tag">Launch</span>
+          <h3>Basic public beta</h3>
+          <p>Basic opened up to the public — zero-config themes, live preview links, and instant version history, free for the first 3 published sites.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <div class="brand" style="margin-bottom:16px;"><span class="mark"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L19 7" stroke="var(--bg)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Basic</div>
+        <p style="font-size:13px; max-width:26ch;">Premium themed websites, ready to launch — built for teams who'd rather publish than fight a page builder.</p>
+      </div>
+      <div class="footer-col"><h4>Product</h4><a href="pricing.html">Pricing</a><a href="download.html">Download</a><a href="changelog.html">Changelog</a></div>
+      <div class="footer-col"><h4>Resources</h4><a href="docs.html">Docs</a><a href="blog.html">Blog</a><a href="about.html">About</a></div>
+      <div class="footer-col"><h4>Account</h4><a href="signin.html">Sign in</a><a href="signup.html">Get started</a></div>
+      <div class="footer-col"><h4>Legal</h4><div data-embed-config='{"type":"menu","id":"menu-footer-nav"}'><a href="#">Privacy</a><a href="#">Terms</a></div></div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Basic. All rights reserved.</span>
+      <span>A Tovu theme, adapted from an original Open Design export</span>
+    </div>
+  </div>
+</footer>
+
+
+<script src="js/main.js"></script>
+<script src="js/vendor/motion.js"></script>
+<script src="js/reveal.js"></script>
+</body>
+</html>

@@ -330,6 +330,40 @@ function readLightTokens(
 }
 
 /**
+ * Read the root partial files a static theme's declared {@link ThemeManifest.slots} name.
+ *
+ * Before this, the partial scan was a hardcoded filename allowlist — `nav.html` or anything starting
+ * with `footer` — which meant a theme could DECLARE a slot (`"sidebar": { "source": "sidebar.html" }`)
+ * and have its file read by nothing, so the marker resolved empty with no error anywhere. Slots are
+ * now the single source of truth for which root `.html` files are partials, which is what makes
+ * adding a region to a copied theme a manifest edit rather than a code change here.
+ *
+ * A slot matches its own `source` plus the `<stem>-<variant>.html` convention `resolveSlots` already
+ * falls back to for a variant with no explicit `variants` entry — so `footer.html` still pulls in
+ * `footer-minimal.html`, and a new `sidebar` slot gets `sidebar-*.html` on the same terms rather than
+ * a second, differently-shaped rule.
+ */
+function loadSlotPartials(
+  required: { themeDir: string; slots: Record<string, ThemeSlotDescriptor> },
+  _optional: Record<string, never> = {}
+): Record<string, string> {
+  const { themeDir, slots } = required;
+  const descriptors = Object.values(slots);
+  const stems = descriptors.map((slot) => slot.source.replace(/\.html$/, ""));
+  const explicitVariants = new Set(descriptors.flatMap((slot) => Object.values(slot.variants ?? {})));
+
+  const partials: Record<string, string> = {};
+  for (const file of readdirSync(themeDir)) {
+    if (!file.endsWith(".html")) continue;
+    const named = explicitVariants.has(file);
+    const conventional = stems.some((stem) => file === `${stem}.html` || file.startsWith(`${stem}-`));
+    if (!named && !conventional) continue;
+    partials[file.slice(0, -".html".length)] = readFileSync(join(themeDir, file), "utf8");
+  }
+  return partials;
+}
+
+/**
  * Read the static tier's assets as one unit, or nothing at all for any other tier.
  *
  * A static theme is a different kind of artifact from every other tier — already-complete HTML
@@ -346,10 +380,10 @@ function readLightTokens(
  * @overallScore 100
  */
 function loadStaticTierAssets(
-  required: { themeDir: string; tier: ThemeTier },
+  required: { themeDir: string; tier: ThemeTier; slots?: Record<string, ThemeSlotDescriptor> },
   _optional: Record<string, never> = {}
 ): StaticTierAssets {
-  const { themeDir, tier } = required;
+  const { themeDir, tier, slots } = required;
   if (tier !== "static") return NO_STATIC_TIER_ASSETS;
 
   const errors: string[] = [];
@@ -368,15 +402,11 @@ function loadStaticTierAssets(
   }
   if (!pages.index) errors.push("pages/index.html is required");
 
-  // `nav` and `footer` (plus `footer-*` variants) live at the theme root, not under pages/, because
-  // a static page embeds them via a `data-tovu-slot` marker the renderer resolves rather than a
-  // template-include directive baked in at author time.
-  const partials: Record<string, string> = {};
-  for (const file of readdirSync(themeDir)) {
-    if (file.endsWith(".html") && (file === "nav.html" || file.startsWith("footer"))) {
-      partials[file.slice(0, -".html".length)] = readFileSync(join(themeDir, file), "utf8");
-    }
-  }
+  // Root partials (`nav`, `footer`, and anything else the manifest declares) live at the theme root,
+  // not under pages/, because a static page embeds them via a `{"type":"partial"}` marker the
+  // renderer resolves rather than a template-include directive baked in at author time. A theme with
+  // no `slots` block gets DEFAULT_THEME_SLOTS, which is the nav/footer pair this scan used to hardcode.
+  const partials = loadSlotPartials({ themeDir, slots: slots ?? DEFAULT_THEME_SLOTS });
 
   return { tokensLight, pages, partials, errors };
 }
@@ -442,6 +472,7 @@ export function loadTheme(
   const { tokensLight, pages, partials, errors: staticErrors } = loadStaticTierAssets({
     themeDir,
     tier: manifest.tier,
+    slots: manifest.slots,
   });
   errors.push(...staticErrors);
 
@@ -694,6 +725,22 @@ export function discoverThemes(
 export const ENGINE_SUBFOLDERS = ["declarative", "templated", "handlebars", "static"] as const;
 
 /**
+ * The pristine-originals catalog under a themes root: shipped themes kept untouched so a copy can
+ * always be compared against, reset to, or re-forked from what it started as.
+ *
+ * It is NOT a tier and NOT a theme — it holds its own `<tier>/<theme>/` tree — so discovery skips it
+ * outright. A catalog theme is never runnable, never listed, and never the active theme; it becomes
+ * either of those only by being COPIED into a real tier folder, which is the whole point: editing
+ * your copy can never damage the thing you'd want to compare it against.
+ *
+ * The `__` prefix is load-bearing rather than decorative. It makes "this is not an installed theme"
+ * a property of the name that any code path can check, instead of a list every new write path has to
+ * remember to consult — see the containment note on {@link ENGINE_SUBFOLDERS}, which already refuses
+ * agent-driven writes to anything that isn't a direct child of the root or of an engine subfolder.
+ */
+export const THEME_CATALOG_DIR = "__original-themes__";
+
+/**
  * Discover every built-in theme across the top-level (declarative) folder plus every engine
  * subfolder in {@link ENGINE_SUBFOLDERS}. The one call site every composition root should use
  * instead of a raw {@link discoverThemes} call, so the liquidjs/handlebars split is a detail this
@@ -704,9 +751,69 @@ export function discoverAllBuiltInThemes(
   _optional: Record<string, never> = {}
 ): DiscoveredTheme[] {
   const { dir, source } = required;
-  const topLevel = discoverThemes({ dir, source, exclude: ENGINE_SUBFOLDERS });
+  const topLevel = discoverThemes({ dir, source, exclude: [...ENGINE_SUBFOLDERS, THEME_CATALOG_DIR] });
   const engineThemes = ENGINE_SUBFOLDERS.flatMap((sub) => discoverThemes({ dir: join(dir, sub), source }));
   return [...topLevel, ...engineThemes].sort((a, b) => a.manifest.id.localeCompare(b.manifest.id));
+}
+
+/**
+ * Re-run discovery and refill `themes` IN PLACE with the result.
+ *
+ * Discovery is otherwise a boot-time snapshot: the composition root calls {@link
+ * discoverAllBuiltInThemes} once and freezes the array into `RouteDeps.themes`, so a theme that
+ * appears on disk afterwards — downloaded from the marketplace, copied from the originals catalog,
+ * dropped in by hand, pulled in by git — is invisible until the process restarts. That is fine for a
+ * server whose themes only ever ship with it, and wrong for one where copying a theme is a normal
+ * thing a user does in the admin UI.
+ *
+ * Mutates rather than returns because `RouteDeps.themes` is a plain array every consumer already
+ * holds a reference to and reads per request (`deps.themes.find(...)` at request time, not at
+ * registration time). Refilling that one array updates every reader at once; handing back a new array
+ * would update only whoever remembered to re-read it, which is the same staleness bug one level in.
+ *
+ * Returns what changed so a caller can report it — a rescan that silently finds nothing is
+ * indistinguishable from a rescan that didn't run.
+ */
+export function rescanThemes(
+  required: { themes: DiscoveredTheme[]; dir: string; source?: "built-in" | "site" },
+  _optional: Record<string, never> = {}
+): { added: string[]; removed: string[]; total: number } {
+  const { themes, dir, source = "built-in" } = required;
+  const before = new Set(themes.map((t) => t.manifest.id));
+  const fresh = discoverAllBuiltInThemes({ dir, source });
+  const after = new Set(fresh.map((t) => t.manifest.id));
+
+  themes.length = 0;
+  themes.push(...fresh);
+
+  return {
+    added: [...after].filter((id) => !before.has(id)).sort(),
+    removed: [...before].filter((id) => !after.has(id)).sort(),
+    total: fresh.length,
+  };
+}
+
+/**
+ * Theme ids that more than one discovered theme claims.
+ *
+ * Ids are unique per FOLDER, not globally: `loadTheme` only checks that `theme.json`'s `id` equals
+ * its own folder name, and {@link discoverAllBuiltInThemes} concatenates the top level with every
+ * engine subfolder. So `static/nordic` and `handlebars/nordic` both load, both claim `nordic`, and
+ * {@link findTheme} silently returns whichever sorts first — meaning `active_theme_id` can name two
+ * different themes and the site renders one of them with no error anywhere.
+ *
+ * Surfaced rather than resolved: picking a winner here would hide the collision, and the real fix is
+ * assigning a unique id when the theme is created (a download/copy appends `-1`, `-2`, …). This is
+ * what lets the admin say so instead of rendering the wrong theme quietly.
+ */
+export function duplicateThemeIds(themes: DiscoveredTheme[]): string[] {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const theme of themes) {
+    if (seen.has(theme.manifest.id)) duplicates.add(theme.manifest.id);
+    seen.add(theme.manifest.id);
+  }
+  return [...duplicates].sort();
 }
 
 /** Ids of discovered themes that passed validation. */

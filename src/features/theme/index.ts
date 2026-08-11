@@ -4,6 +4,8 @@ export {
   loadTheme,
   findTheme,
   validThemeIds,
+  rescanThemes,
+  duplicateThemeIds,
   resolveTemplateId,
   resolveLiquidTemplateId,
   resolveHandlebarsTemplateId,

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- Same disclosed limitation blog-post.html carries: a static theme's <title> is one fixed string
+     per file. The real post title still renders in the <h1> via the post-content embed below; only
+     the browser-tab/SEO title stays generic here. -->
+<title>Documentation — Basic</title>
+<link rel="stylesheet" href="../css/styles.css" />
+<script src="../js/theme-toggle.js"></script>
+</head>
+<body>
+
+<div data-embed-config='{"type":"partial","id":"nav","current":"docs"}'></div>
+
+<main>
+  <div class="docs-layout wrap">
+    <!-- The sidebar is theme markup + CSS; the only thing resolved at request time is the menu
+         inside it. `data-embed-config='{"variant":"tree"}'` opts this one marker into nested
+         <ul>/<li> rendering (see static-render.ts::renderMenuTree) — the default flat <a> output is
+         what every other marker in this theme still gets, because .main-nav's flex layout depends
+         on it. (Marker-spine unification, 2026-08-10: this used to be a bare `data-embed-variant=
+         "tree"` attribute, retired in favor of config — see static-render.ts's own file header.)
+
+         The authored content below is a real fallback, not a placeholder: if `docs-themes-menu`
+         does not exist yet, or resolves to zero renderable links, this markup is left exactly as-is
+         rather than blanked. -->
+    <aside class="docs-sidebar">
+      <nav class="docs-nav" aria-label="Documentation" data-embed-config='{"type":"menu","id":"docs-themes-menu","variant":"tree"}'>
+        <ul class="menu-list depth-0">
+          <li class="menu-item depth-0"><span class="menu-item-label">No docs menu bound yet</span></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <article class="docs-content post-detail" data-reveal>
+      <div data-embed-config='{"type":"post","id":"{{post}}"}'></div>
+    </article>
+  </div>
+</main>
+
+<div data-embed-config='{"type":"partial","id":"footer"}'></div>
+
+<script src="../js/main.js"></script>
+<script src="../js/vendor/motion.js"></script>
+<script src="../js/reveal.js"></script>
+<script src="../js/docs-sidebar.js"></script>
+</body>
+</html>

@@ -1152,6 +1152,19 @@ export const api = {
       activeThemePostTemplates: string[];
       activeThemeStaticPageIds: string[];
     }>(`/workspaces/${WORKSPACE_ID}/presentation`),
+  /**
+   * Re-run theme discovery server-side. Needed because the server's theme list is built once at
+   * boot, so a theme added to disk afterwards (downloaded, copied, pulled in by git, created by the
+   * `npm run theme` CLI) does not exist as far as this screen is concerned until someone asks.
+   */
+  rescanThemes: () =>
+    request<{
+      added: string[];
+      removed: string[];
+      total: number;
+      availableThemeIds: string[];
+      duplicateIds: string[];
+    }>(`/workspaces/${WORKSPACE_ID}/themes/rescan`, { method: "POST" }),
   setActiveTheme: (activeThemeId: string) =>
     request<{ settings: PresentationSettings; availableThemeIds: string[] }>(
       `/workspaces/${WORKSPACE_ID}/presentation`,

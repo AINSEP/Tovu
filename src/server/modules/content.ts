@@ -14,6 +14,7 @@ import { registerAdminChangeSetGetRoute } from "../routes/admin/change-sets/get"
 import { registerAdminChangeSetRevertRoute } from "../routes/admin/change-sets/revert";
 import { registerAdminPresentationGetRoute } from "../routes/admin/presentation/get";
 import { registerAdminPresentationPatchRoute } from "../routes/admin/presentation/patch-active-theme";
+import { registerAdminThemeRescanRoute } from "../routes/admin/presentation/rescan-themes";
 import { registerAdminThemesListRoute } from "../routes/admin/themes/list";
 import type { ContentRouteDeps } from "../routes/admin/content/deps";
 import type { ServerModuleHandle } from "./types";
@@ -65,6 +66,7 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       registerAdminChangeSetRevertRoute(app, deps);
       registerAdminPresentationGetRoute(app, deps);
       registerAdminPresentationPatchRoute(app, deps);
+      registerAdminThemeRescanRoute(app, deps);
       registerAdminThemesListRoute(app, deps);
     },
   };
