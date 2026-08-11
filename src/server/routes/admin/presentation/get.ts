@@ -49,6 +49,8 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
       // so the Post editor's picker always reflects whichever theme is actually live right now.
       const activeTheme = deps.themes.find((t) => t.manifest.id === result.settings.activeThemeId);
       const activeThemePostTemplates = activeTheme?.manifest.postTemplate ?? [];
+      // Pages template picker (Task 4, 2026-08-11) — same shape, the Page editor's own array.
+      const activeThemePageTemplates = activeTheme?.manifest.pageTemplate ?? [];
       // Slug-collision override (2026-08-10) — every page id the active theme ships, so the editor
       // can warn when a post's own slug is currently claimed by one of the theme's own pages.
       const activeThemeStaticPageIds = activeTheme ? Object.keys(activeTheme.pages) : [];
@@ -65,6 +67,7 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
           availableThemeIds: result.availableThemeIds,
           availableThemes,
           activeThemePostTemplates,
+          activeThemePageTemplates,
           activeThemeStaticPageIds,
         })
       );

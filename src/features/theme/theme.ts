@@ -93,6 +93,22 @@ export interface ThemeManifest {
    */
   postTemplate?: string[];
   /**
+   * `static` tier only — the ordered list of `pages/*.html` filenames a Page (`kind: "page"`,
+   * `bodyFormat: "html"`) can pick between, same "ordered to nudge the right choice, first entry is
+   * the implicit default" convention as {@link postTemplate}. Deliberately a SEPARATE array, not a
+   * shared one with `postTemplate` (2026-08-11 design decision, Pages template picker) — a template
+   * containing `{"type":"content"}` (Task 3, `injectPageContent`) is a different artifact from one
+   * containing `{"type":"post"}`, and conflating them would let the admin picker offer a Post-shaped
+   * template to a Page or vice versa, which either fails to render (no matching slot) or, worse,
+   * quietly renders whatever the theme's first entry happens to be regardless of which array that
+   * author intended it for. Two homogeneous arrays keep "theme's first-listed template" (the
+   * `resolvePostTemplate`/`resolvePageTemplate` fallback both rely on) meaningful for each. Absent/
+   * undefined means this theme ships no page templates — a Page's `templateChoice` then has nothing
+   * to resolve against, same "misconfigured, not silently generic" treatment `postTemplate`'s own doc
+   * describes.
+   */
+  pageTemplate?: string[];
+  /**
    * `static` tier only — the color modes this theme ships token sets for, e.g. `["dark", "light"]`.
    * A mode name is just the value written into the page's root `data-theme` attribute, which is the
    * selector `tokensToRootCss` (`static-render.ts`) already emits its `tokens.light.json` override
@@ -426,6 +442,7 @@ export function loadTheme(
       regions: Array.isArray(raw.regions) ? raw.regions.map(String) : undefined,
       skipLiquidAllowlist: raw.skipLiquidAllowlist === true,
       postTemplate: Array.isArray(raw.postTemplate) ? raw.postTemplate.map(String) : undefined,
+      pageTemplate: Array.isArray(raw.pageTemplate) ? raw.pageTemplate.map(String) : undefined,
       modes: Array.isArray(raw.modes) ? raw.modes.map(String) : undefined,
       defaultMode: typeof raw.defaultMode === "string" ? raw.defaultMode : undefined,
       slots: parseSlots(raw.slots),

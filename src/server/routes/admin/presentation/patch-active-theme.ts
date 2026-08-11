@@ -56,6 +56,9 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
       // Post editor's picker offers, matching `get.ts`'s identical computation.
       const activeTheme = deps.themes.find((t) => t.manifest.id === result.settings.activeThemeId);
       const activeThemePostTemplates = activeTheme?.manifest.postTemplate ?? [];
+      // Pages template picker (Task 4, 2026-08-11) — same recompute-on-switch shape as
+      // `activeThemePostTemplates` just above.
+      const activeThemePageTemplates = activeTheme?.manifest.pageTemplate ?? [];
       const activeThemeStaticPageIds = activeTheme ? Object.keys(activeTheme.pages) : [];
       // Themes admin screen (2026-08-10) — same computation as `get.ts`, so a theme switch's
       // response keeps the tab-grouping data in sync without a follow-up GET.
@@ -69,6 +72,7 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
           availableThemeIds: result.availableThemeIds,
           availableThemes,
           activeThemePostTemplates,
+          activeThemePageTemplates,
           activeThemeStaticPageIds,
         })
       );

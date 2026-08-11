@@ -121,6 +121,16 @@ export interface AdminPresentation {
    */
   activeThemePostTemplates: string[];
   /**
+   * Pages template picker (Task 4, 2026-08-11) — {@link activeThemePostTemplates}'s counterpart for
+   * Pages: the active theme's `theme.json` `pageTemplate` array, or `[]` when the active theme
+   * doesn't declare one. A SEPARATE array from `activeThemePostTemplates`, not a shared one — see
+   * `ThemeManifest.pageTemplate`'s own doc (`features/theme/theme.ts`) for why a template containing
+   * `{"type":"content"}` is a different artifact from one containing `{"type":"post"}`, and why
+   * offering the same list to both editors would let an operator pick a Post-shaped template for a
+   * Page (or vice versa).
+   */
+  activeThemePageTemplates: string[];
+  /**
    * Slug-collision override (2026-08-10) — every page id (`theme.pages` key) the active theme ships,
    * or `[]` for a non-`static`-tier theme. The Post editor uses this to warn an author when a post's
    * slug matches one of these — that slug's route currently belongs to the theme's own page, not the

@@ -1150,6 +1150,8 @@ export const api = {
       availableThemeIds: string[];
       availableThemes: AdminThemeSummary[];
       activeThemePostTemplates: string[];
+      /** Pages template picker (Task 4, 2026-08-11) — `activeThemePostTemplates`'s counterpart. */
+      activeThemePageTemplates: string[];
       activeThemeStaticPageIds: string[];
     }>(`/workspaces/${WORKSPACE_ID}/presentation`),
   /** What's installable from the marketplace. `idTaken` means a download will get a `-N` suffix. */

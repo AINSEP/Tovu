@@ -15,9 +15,13 @@ import { usePageEditor } from "../hooks/use-page-editor.hooks";
  *
  * Follows the fetch-mocking harness `use-pages.unit.test.ts` established for this package (mock
  * global `fetch`, not the `api` module). `usePageEditor` also calls `useAdminLocale()`, which fires
- * its own fetch on mount racing `getPage`'s — the mount helper below queues the page response
- * TWICE so whichever of the two fires first still gets a valid `Response` (the locale hook is
- * tolerant of the shape; it only reads a `values` key that won't be present and falls back).
+ * its own fetch on mount racing `getPage`'s, and (Task 4, 2026-08-11) `getPresentation()` for the
+ * template picker's `activeThemePageTemplates` — the mount helper below queues the page response
+ * THREE times so whichever of the three fires first (and second, and third) still gets a valid
+ * `Response` (both the locale hook and the presentation-shaped consumer are tolerant of the wrong
+ * shape: the locale hook only reads a `values` key that won't be present and falls back, and
+ * `availableTemplates` simply ends up `undefined` rather than `[]`, which nothing in these hook-level
+ * tests reads `.length` off of).
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -73,6 +77,7 @@ function callsTo(pathFragment: string): unknown[] {
 
 /** Mounts `usePageEditor` and waits for `page` to load, absorbing the locale-hook's racing fetch. */
 async function mountLoaded(routeSlug: string, page: unknown) {
+  fetchMock.mockResolvedValueOnce(jsonResponse({ post: page }));
   fetchMock.mockResolvedValueOnce(jsonResponse({ post: page }));
   fetchMock.mockResolvedValueOnce(jsonResponse({ post: page }));
   const view = renderHook(() => usePageEditor(routeSlug));

@@ -144,6 +144,9 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
     setSlug,
     status,
     setStatus,
+    templateChoice,
+    setTemplateChoice,
+    availableTemplates,
     html,
     setHtml,
     view,
@@ -199,6 +202,45 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
           view ↗
         </a>
       </div>
+
+      {/* Pages template picker (Task 4, 2026-08-11) — mirrors `PostEditor.tsx`'s own
+          `.editor-template-picker` markup/classes verbatim (no new CSS added, per this task's file-
+          ownership constraint on `styles.css`). Rendered only for an `"html"`-format Page: a
+          `"doc"`-format Page (pre-conversion legacy row) has no render path that would honor a
+          template choice yet (`isEligibleForPageTemplateBranch` requires `bodyFormat: "html"`), so
+          showing the picker on one would let an operator set a value with no visible effect.
+
+          UNLIKE the Post picker, the selected value is NOT defaulted to the theme's first template
+          when unset — see `use-page-editor.hooks.ts`'s load effect and `isEligibleForPageTemplateBranch`'s
+          doc for the full reasoning: "no template chosen" is a Page's normal, fully-working state
+          (render its own body), not an absence-of-decision needing a UI default to stay honest. */}
+      {page.bodyFormat === "html" ? (
+        <div className="editor-template-picker">
+          <label className="a11y-label-wrap">
+            <span className="visually-hidden">Template</span>
+          </label>
+          {availableTemplates.length > 0 ? (
+            <select
+              value={templateChoice ?? ""}
+              // `e.target.value`, not `|| null` — `""` is a legitimate stored value here (though,
+              // unlike Posts, it behaves identically to `null` at render time — see
+              // `isEligibleForPageTemplateBranch`'s doc).
+              onChange={(e) => setTemplateChoice(e.target.value)}
+            >
+              {availableTemplates.map((template) => (
+                <option key={template} value={template}>
+                  {template}
+                </option>
+              ))}
+              <option value="">No template chosen</option>
+            </select>
+          ) : (
+            <select disabled value="">
+              <option value="">No templates for this theme</option>
+            </select>
+          )}
+        </div>
+      ) : null}
 
       <div className="page-editor-toolbar">
         <div className="segmented" role="tablist" aria-label="Editor view">

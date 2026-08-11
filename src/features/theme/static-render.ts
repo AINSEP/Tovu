@@ -451,27 +451,43 @@ export function renderStaticPartial(
   return renderStaticPage({ theme, pageId: partialId, htmlOverride: wrapPartialInHostDocument(partial) });
 }
 
-/** Outcome of {@link resolvePostTemplate}: either a usable template, or the diagnostic page. */
+/**
+ * Outcome of {@link resolvePostTemplate} or {@link resolvePageTemplate}: either a usable template, or
+ * the diagnostic page. Name kept singular ("Post") for historical/import-compatibility reasons — this
+ * type is shared, kind-agnostic shape, not Post-specific; renaming it is a pure rename with no
+ * behavior change and was left out of this task's scope.
+ */
 export type PostTemplateResolution =
   | { kind: "template"; pageId: string; html: string }
   | { kind: "diagnostic" };
 
 /**
- * Decide which of a static theme's `postTemplate` pages a post renders through. Pure — the caller
- * owns the embed-resolution I/O that follows.
+ * Decide which of a static theme's template pages a Post or Page renders through — the shared
+ * tri-state engine behind both {@link resolvePostTemplate} (`postTemplate`/`"post"` slot) and
+ * {@link resolvePageTemplate} (`pageTemplate`/`"content"` slot, Task 4, 2026-08-11). Pure — the
+ * caller owns the embed-resolution I/O that follows.
  *
  * `templateChoice` is a **tri-state**, and the difference between two of its values is the whole
  * point of this function (regression, 2026-08-09: 15 of 19 published posts served the diagnostic
  * page at HTTP 200 because the two were conflated):
  *
  * - `null`/`undefined` — *never chosen*. Migration `0028` added `template_choice` as an additive
- *   nullable column with no backfill, so every pre-feature post reads `null`, as does any row
+ *   nullable column with no backfill, so every pre-feature row reads `null`, as does any row
  *   written by a path that doesn't know this field exists (seed script, agent tool, direct API or
  *   DB insert). That is the absence of a decision, not a decision, so it falls back to the theme's
- *   first-listed template — the same value the admin editor's picker already defaults an unset post
+ *   first-listed template — the same value the admin editor's picker already defaults an unset row
  *   to on load, which keeps what an author sees selected and what the public site renders in
  *   agreement. Making the *column default* the *safe* behavior is deliberate: it is what stops this
- *   bug reappearing on the next post created outside the editor.
+ *   bug reappearing on the next row created outside the editor.
+ *
+ *   For a `kind: "page"` row specifically, this fallback arm is never reached in practice —
+ *   `isEligibleForPostTemplateBranch`'s Page rule (`pages.ts`) refuses to route a Page into this
+ *   resolution at all unless `templateChoice` is already non-`null`/`undefined`. It stays here
+ *   rather than being special-cased away because the tri-state is a property of the CHOICE, not of
+ *   which kind of row is asking — a caller that ever legitimately wants "never chosen -> theme's
+ *   first template" for a Page (none does today) gets correct behavior for free, and duplicating
+ *   this function per kind (rejected — see `resolvePageTemplate`'s own doc) would only recreate the
+ *   exact regression class this function exists to prevent.
  * - `""` — *explicitly opted out*, the admin picker's "No template chosen" option. A deliberate
  *   author action, and the one value no naive insert produces. Keeps showing the diagnostic page,
  *   which is the designed product behavior ("not a silent fallback to generic rendering"). It is
@@ -482,50 +498,89 @@ export type PostTemplateResolution =
  * A stored choice is **theme-relative but not theme-scoped**: it names a file in whatever theme was
  * active when an author picked it, and nothing on the row records which theme that was. Switching
  * the site's active theme therefore strands every explicit choice at once. Reading a stranded
- * choice as an opt-out would put every one of those posts back on the HTTP-200 diagnostic page —
+ * choice as an opt-out would put every one of those rows back on the HTTP-200 diagnostic page —
  * the same outage as the `null` regression, reached by a routine admin action instead of a
  * migration, and unreachable by any backfill because the stored value is a real filename rather
  * than `null`. "This theme has no such template" is the absence of a decision *for this theme*, not
  * a decision, so it falls back. Only `""` is theme-independent enough to mean opt-out.
  *
- * A page that exists but ships no post slot counts as "cannot honor" for the same reason and falls
- * back too; the diagnostic page is reached only when the theme's own first template is also
- * unusable, since rendering a slotless template would silently drop the post's body.
+ * A page that exists but ships no slot of `slotMarkerType` counts as "cannot honor" for the same
+ * reason and falls back too; the diagnostic page is reached only when the theme's own first
+ * template is also unusable, since rendering a slotless template would silently drop the row's body.
  *
  * `theme.pages` is keyed by filename WITHOUT `.html` (`loadTheme`'s convention) while
- * `templateChoice`/`postTemplate` entries carry it; the `.replace` below is the one place that
- * naming mismatch is bridged.
+ * `templateChoice`/`templateCandidates` entries carry it; the `.replace` below is the one place
+ * that naming mismatch is bridged.
  *
  * @complexity O(n) in the template's HTML length for the slot check, over at most two candidates;
  *   O(1) lookups otherwise.
- * @overallScore 100
  */
-export function resolvePostTemplate(
-  required: { theme: DiscoveredTheme; templateChoice: string | null | undefined },
-  _optional: Record<string, never> = {}
-): PostTemplateResolution {
-  const { theme, templateChoice } = required;
+function resolveTemplateChoice(required: {
+  theme: DiscoveredTheme;
+  templateChoice: string | null | undefined;
+  templateCandidates: readonly string[] | undefined;
+  slotMarkerType: string;
+}): PostTemplateResolution {
+  const { theme, templateChoice, templateCandidates, slotMarkerType } = required;
   if (templateChoice === "") return { kind: "diagnostic" };
 
   const resolveAgainstTheme = (choice: string | undefined): PostTemplateResolution | undefined => {
     if (choice === undefined || choice === "") return undefined;
     const pageId = choice.replace(/\.html$/, "");
     const html = theme.pages[pageId];
-    // "Ships a post slot" is asked of the shared parser, never of a substring match. The literal
+    // "Ships a slot" is asked of the shared parser, never of a substring match. The literal
     // `data-embed-id="{{post}}"` this used to test for stopped existing the moment the themes moved
     // onto `data-embed-config` (2026-08-10), and because the miss is indistinguishable from "this
     // theme has no such template", EVERY post silently fell through to the diagnostic page at HTTP
     // 200 — the exact 2026-08-09 regression this function's own doc was written about, re-entered
     // through a different door. Asking `markersOfType` also means a template carrying a hardcoded
-    // real post id counts as having a slot, which it does.
-    if (html === undefined || markersOfType(html, "post").length === 0) return undefined;
+    // real post id (or an already-spliced Page body) counts as having a slot, which it does.
+    if (html === undefined || markersOfType(html, slotMarkerType).length === 0) return undefined;
     return { kind: "template", pageId, html };
   };
 
   return (
     resolveAgainstTheme(templateChoice ?? undefined) ??
-    resolveAgainstTheme(theme.manifest.postTemplate?.[0]) ?? { kind: "diagnostic" }
+    resolveAgainstTheme(templateCandidates?.[0]) ?? { kind: "diagnostic" }
   );
+}
+
+/** {@link resolveTemplateChoice} specialized to Posts: `theme.manifest.postTemplate`, `"post"` slot. */
+export function resolvePostTemplate(
+  required: { theme: DiscoveredTheme; templateChoice: string | null | undefined },
+  _optional: Record<string, never> = {}
+): PostTemplateResolution {
+  return resolveTemplateChoice({
+    theme: required.theme,
+    templateChoice: required.templateChoice,
+    templateCandidates: required.theme.manifest.postTemplate,
+    slotMarkerType: "post",
+  });
+}
+
+/**
+ * {@link resolveTemplateChoice} specialized to Pages (Task 4, 2026-08-11): `theme.manifest.
+ * pageTemplate`, `"content"` slot (`injectPageContent`'s marker, Task 3) instead of `"post"`.
+ *
+ * A thin wrapper rather than a copy-pasted twin of {@link resolvePostTemplate} on purpose: the two
+ * differ only in which manifest array and which marker type they check, and the 2026-08-09
+ * null-vs-""-conflation regression `resolvePostTemplate`'s own doc describes is exactly the kind of
+ * bug a second, independently-maintained copy of this logic would be positioned to reintroduce.
+ * `pages.ts`'s `isEligibleForPostTemplateBranch` is the layer that actually withholds the
+ * null/undefined fallback arm from Pages — see that function's doc — not this one; this function
+ * stays a faithful, kind-agnostic tri-state resolver so it never has to know why a caller withheld
+ * a value from it.
+ */
+export function resolvePageTemplate(
+  required: { theme: DiscoveredTheme; templateChoice: string | null | undefined },
+  _optional: Record<string, never> = {}
+): PostTemplateResolution {
+  return resolveTemplateChoice({
+    theme: required.theme,
+    templateChoice: required.templateChoice,
+    templateCandidates: required.theme.manifest.pageTemplate,
+    slotMarkerType: "content",
+  });
 }
 
 /**
@@ -563,8 +618,13 @@ export function resolvePostTemplate(
  * its own body already in hand and its own embed-resolution path (`resolveHtmlEmbedsForRender` in
  * `pages.ts`) — routing it through `renderPostViaTemplate` would run `injectPostEmbedId` and the
  * `{"type":"post"}` marker machinery against a record that isn't a Post lookup target, discarding
- * the Page's real body. That is a distinct, not-yet-built feature (a `{"type":"content"}` marker),
- * not a relaxation of this gate.
+ * the Page's real body. `renderPageViaTemplate`/{@link isEligibleForPageTemplateBranch} (Task 4,
+ * 2026-08-11) is the real, now-built counterpart for that case — a deliberately SEPARATE function
+ * rather than a widened branch here, since the two route to different render functions
+ * (`renderPostViaTemplate` vs `renderPageViaTemplate`) using different resolvers (`resolvePostTemplate`
+ * vs `resolvePageTemplate`) and different injection primitives (`injectPostEmbedId` vs
+ * `injectPageContent`) — merging them would need this function's return type to say WHICH branch to
+ * call, turning a boolean gate into a dispatch table for no real gain.
  *
  * @complexity O(1) — field comparisons only, no I/O or iteration.
  */
@@ -581,4 +641,49 @@ export function isEligibleForPostTemplateBranch(
   if (post.bodyFormat !== "doc") return false;
   if (post.kind === "post") return true;
   return post.templateChoice !== null && post.templateChoice !== undefined;
+}
+
+/**
+ * {@link isEligibleForPostTemplateBranch}'s counterpart for the Pages template picker (Task 4,
+ * 2026-08-11): gates whether a `kind: "page"`, `bodyFormat: "html"` record should be routed into
+ * `renderPageViaTemplate` (`pages.ts`) instead of the generic `resolveHtmlEmbedsForRender` path.
+ *
+ * Only `kind: "page"` + `bodyFormat: "html"` + a NON-EMPTY, EXPLICIT `templateChoice` (a real
+ * filename) qualifies — no "never chosen, fall back to the theme's first template" arm at all,
+ * unlike Posts. This is the same explicit-choice-only rule `isEligibleForPostTemplateBranch` applies
+ * to Pages, one step stricter here because there is no legacy-migration excuse to relax it: every
+ * `bodyFormat: "html"` Page was created (or converted, see `development/scripts/
+ * convert-legacy-doc-pages-to-html.ts`) after the Pages picker existed as a concept, so `null`
+ * `templateChoice` on one of these rows always means "this Page's own body is the whole page" — the
+ * existing, working, default behavior — never "an admin surface that doesn't exist yet couldn't have
+ * set it".
+ *
+ * **`""` is treated identically to `null`/`undefined` here — a deliberate DIVERGENCE from Posts'
+ * tri-state, not an oversight.** For a Post, `""` (the admin picker's explicit "No template chosen")
+ * routes to a loud diagnostic page rather than a silent fallback, because the owner's own words were
+ * "not a silent fallback to generic rendering" — a Post's generic single-post layout is a real,
+ * separate rendering mode an author might not have intended to land on by skipping the picker. A
+ * Page has no such distinction: "no template" IS a Page's normal, fully-functional, default
+ * behavior (render its own authored body) — there is no separate "generic Page rendering" an
+ * operator could be surprised to land on. Routing an explicit "" to the diagnostic page for a Page
+ * would therefore let a dropdown selection break an otherwise-working page for no benefit, so both
+ * "never chosen" and "explicitly chose nothing" collapse to the same safe outcome: render the Page's
+ * own body directly, exactly as every `"html"`-format Page has always rendered before this feature
+ * existed.
+ *
+ * @complexity O(1) — field comparisons only, no I/O or iteration.
+ */
+export function isEligibleForPageTemplateBranch(
+  required: {
+    theme: DiscoveredTheme;
+    post: { kind: "post" | "page"; bodyFormat: "doc" | "html"; templateChoice?: string | null };
+  },
+  _optional: Record<string, never> = {}
+): boolean {
+  const { theme, post } = required;
+  if (theme.manifest.tier !== "static") return false;
+  if ((theme.manifest.pageTemplate?.length ?? 0) === 0) return false;
+  if (post.kind !== "page") return false;
+  if (post.bodyFormat !== "html") return false;
+  return post.templateChoice !== null && post.templateChoice !== undefined && post.templateChoice !== "";
 }
