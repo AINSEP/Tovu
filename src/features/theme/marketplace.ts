@@ -1,5 +1,5 @@
 import { cpSync, existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { join, relative } from "node:path";
 
 import {
   discoverThemes,
@@ -12,6 +12,7 @@ import {
   type DiscoveredTheme,
   type ThemeTier,
 } from "./theme";
+import { isGeneratedThemePath } from "./theme-files";
 
 /**
  * @file The local theme marketplace — a FAKE marketplace (no network, no remote catalog, no search,
@@ -150,11 +151,9 @@ function rewriteThemeManifestId(required: { themeDir: string; id: string; extra?
 }
 
 /**
- * Refuses `preview/` — `build-preview.mjs`'s generated output (a full second copy of every page and
- * script, once per color mode: 36 of `novice`'s 79 files were this before it was deleted). Worthless
- * the moment it's copied: nothing reads a copy's `preview/` (a fresh `build-preview.mjs` run
- * regenerates it from the theme's own real files) and the Explore file list already hides it
- * (`GENERATED_DIRS`, `explore.ts`) for whichever copy is being browsed.
+ * Refuses `preview/` — `build-preview.mjs`'s generated output. Worthless the moment it's copied:
+ * nothing reads a copy's `preview/` (a fresh `build-preview.mjs` run regenerates it from the theme's
+ * own real files) and the Explore file list already hides it for whichever copy is being browsed.
  *
  * `screenshots/` is deliberately NOT filtered here, in either copy. Excluding it from the EDITABLE
  * copy would break Explore, which lists it for the working copy on purpose. Excluding it from the
@@ -163,22 +162,30 @@ function rewriteThemeManifestId(required: { themeDir: string; id: string; extra?
  * user edited or deleted their working copy's. Real marketing asset, not a build artifact — the size
  * cost is accepted, not overlooked.
  *
+ * A thin adapter over {@link isGeneratedThemePath} (`theme-files.ts`), the single shared definition of
+ * "generated preview output" this used to duplicate independently (2026-08-11) — the check itself
+ * (and its own doc comment's reasoning on `screenshots/`) lives there now. This function's own job is
+ * only the shape conversion `isGeneratedThemePath` needs but a `cpSync` filter callback doesn't supply
+ * directly: two ABSOLUTE paths (`fixtureDir`, `candidate`) relativized into the one relative-path
+ * string the shared check expects. Kept as a named export, not inlined at the one call site below,
+ * because {@link isGeneratedPreviewPath}'s own direct unit tests (`__tests__/marketplace.test.ts`)
+ * pin the exact edge case — a sibling merely PREFIXED with "preview" (`preview-notes/`) must not
+ * match — against this two-absolute-path signature specifically.
+ *
  * @param fixtureDir - The marketplace fixture's own root, the same first argument passed to `cpSync`.
  * @param candidate - One absolute path `cpSync`'s walk is currently considering, passed to its
  * `filter` callback.
  * @returns `true` for `fixtureDir/preview` itself or anything under it; `false` for every other path,
- * including a merely `preview`-prefixed sibling (`preview-notes/`), which the trailing separator
- * check exists specifically to not match.
- * @throws Never — `path.relative`/`String.startsWith` do not throw for arbitrary string inputs.
- * Pure: no filesystem access, no side effects.
+ * including a merely `preview`-prefixed sibling (`preview-notes/`).
+ * @throws Never — `path.relative` does not throw for arbitrary string inputs. Pure: no filesystem
+ * access, no side effects.
  *
- * @complexity Time: O(k), where k is `candidate`'s path length (one `relative` + one `startsWith`).
+ * @complexity Time: O(k), where k is `candidate`'s path length (one `relative` + one delegated check).
  * @complexity Space: O(k) for the computed relative-path string; no allocation scales with the
  * fixture's file count.
  */
 export function isGeneratedPreviewPath(fixtureDir: string, candidate: string): boolean {
-  const rel = relative(fixtureDir, candidate);
-  return rel === "preview" || rel.startsWith(`preview${sep}`);
+  return isGeneratedThemePath(relative(fixtureDir, candidate));
 }
 
 /**

@@ -6,6 +6,7 @@ import type { Response } from "express";
 import { findTheme, loadTheme, THEME_CATALOG_DIR } from "#src/features/theme/index";
 import {
   copyThemeFile,
+  isGeneratedThemePath,
   listThemeFiles,
   readThemeFile,
   renameThemeFile,
@@ -123,28 +124,6 @@ const TEXT_READABLE_EXTENSIONS = new Set([
 function isTextReadable(relativePath: string): boolean {
   const dot = relativePath.lastIndexOf(".");
   return dot === -1 ? false : TEXT_READABLE_EXTENSIONS.has(relativePath.slice(dot).toLowerCase());
-}
-
-/**
- * Directories whose contents are GENERATED, and so are never shown as editable theme files.
- *
- * `preview/` is `build-preview.mjs`'s output: a full second copy of the theme's pages and scripts,
- * once per color mode. On `novice` that is 36 of 79 listed files — `js/main.js`,
- * `preview/dark/js/main.js` and `preview/light/js/main.js` all show as "main.js" with nothing to
- * distinguish them, which buried the ~30 real source files under three-way duplicates of themselves.
- *
- * Editing one of these would also be pointless-to-harmful: the next `build-preview.mjs` run
- * overwrites it, so the change silently disappears. (That script is itself a legacy spike predating
- * static-tier rendering — see `theme-preview-static.ts` — and retiring it would remove this folder
- * entirely.)
- *
- * `screenshots/` is deliberately NOT excluded: those are real assets an author may want to look at
- * or replace, and they are the theme's own marketing images rather than a copy of its source.
- */
-const GENERATED_DIRS = ["preview/"];
-
-function isGenerated(relativePath: string): boolean {
-  return GENERATED_DIRS.some((dir) => relativePath.startsWith(dir));
 }
 
 /**
@@ -340,8 +319,10 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
       // JS, tokens, images. Those are the files an author most often actually needs to change to
       // make a downloaded theme theirs, and until now the screen hid all of them.
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
+      // `isGeneratedThemePath` (`theme-files.ts`) — the shared definition of "this is
+      // `build-preview.mjs` output, not real theme source"; see its own doc comment for why.
       const files = listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir })
-        .filter((path) => !isGenerated(path))
+        .filter((path) => !isGeneratedThemePath(path))
         .map((path) => describeThemeFile(path, { catalogDir, hasOriginal }));
 
       res.json({
@@ -569,6 +550,20 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
  * does NOT block renaming an ordinary page — that only changes its public URL, which is a warning
  * the UI shows before confirming, not a server-side refusal; the operator may have a real reason to
  * do it.
+ *
+ * Also hard-blocks {@link READ_ONLY_GROUPS} (`script`, `other`) — 2026-08-11 judgment call, deliberate
+ * and not part of the original ask. The entire reason those two groups are read-only for CONTENT
+ * (`isThemeFileWritable`) is "nobody breaks the page from this screen"; leaving their NAME renameable
+ * would quietly reopen that same hole through a different door — a `<script src="main.js">` (or an
+ * `<link rel="manifest" href="site.webmanifest">`, an `other`-group file) the operator just renamed to
+ * `main-old.js` now 404s on the live page, and Explore's script viewer is read-only, so the operator
+ * cannot even open the referencing HTML's OWN unaffected copy to see what still points at the old name
+ * — unlike a page rename, which gets a warning naming exactly what changes because the renderer already
+ * tracks page routes. No such tracking exists for arbitrary cross-file references, and following the
+ * copy/rename pass's own reasoning for not warning on this ("an unreliable warning is worse than none")
+ * a step further: blocking outright needs no reference-tracking accuracy claim at all, it just extends
+ * the existing "can't touch this file's identity from this screen" principle from content to filename.
+ * Copy is deliberately NOT blocked here — see {@link registerAdminThemeFileCopyRoute}'s own comment.
  */
 export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/rename", async (req, res) => {
@@ -590,6 +585,13 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
         res.status(409).json({
           error: `'${sourcePath}' cannot be renamed — every theme requires it at this exact path`,
           code: "REQUIRED_FILE_LOCKED",
+        });
+        return;
+      }
+      if (READ_ONLY_GROUPS.has(fileGroup(sourcePath))) {
+        res.status(409).json({
+          error: `'${sourcePath}' is read-only in Explore and cannot be renamed`,
+          code: "READ_ONLY_FILE",
         });
         return;
       }
