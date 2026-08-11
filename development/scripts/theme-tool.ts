@@ -25,6 +25,8 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
+import { nextAvailableThemeId, type ThemeTier } from "../../src/features/theme/theme";
+
 const THEMES_ROOT = process.env.TOVU_THEMES_DIR ?? resolve(process.cwd(), "src/themes");
 const CATALOG_DIR = "__original-themes__";
 const ENGINE_SUBFOLDERS = ["declarative", "templated", "handlebars", "static"] as const;
@@ -131,21 +133,32 @@ function insertMarker(
  * the copy renders. It exists so a later tool can answer "what did I change since I forked this",
  * which is answerable precisely because the original is still sitting there untouched.
  */
-function cmdCopy(catalogId: string, newId: string, tier: string): void {
+function cmdCopy(catalogId: string, requestedId: string, tier: string): void {
   const from = catalogThemeDir(catalogId, tier);
-  const to = join(THEMES_ROOT, tier, newId);
-  if (existsSync(to)) fail(`'${newId}' already exists at ${to} — pick another id or delete it first`);
+
+  // Suffix on collision (`basic` → `basic-1`) rather than refusing. Sharing `nextAvailableThemeId`
+  // with the marketplace download path is the point: both create a theme, so both must assign ids
+  // the same way, or the CLI and the admin disagree about what "taken" means. It checks the catalog
+  // as well as the tier folder, since a download writes to both and they have to stay in step.
+  const assignedId = nextAvailableThemeId({ desiredId: requestedId, themesRoot: THEMES_ROOT, tier: tier as ThemeTier });
+  const to = join(THEMES_ROOT, tier, assignedId);
 
   cpSync(from, to, { recursive: true });
 
   const manifest = readManifest(to);
   const sourceVersion = String(manifest.version ?? "0.0.0");
-  manifest.id = newId;
-  manifest.name = `${String(manifest.name ?? catalogId)} (${newId})`;
+  // `id` must equal the folder name or the theme loads `invalid` — but `name` is the human label and
+  // is deliberately NOT suffixed. Two themes both displaying "Basic" is correct; only the key needs
+  // to be unique.
+  manifest.id = assignedId;
+  manifest.name = String(manifest.name ?? catalogId);
   manifest.lineage = { from: catalogId, tier, version: sourceVersion, catalog: `${CATALOG_DIR}/${tier}/${catalogId}` };
   writeManifest(to, manifest);
 
-  console.log(`copied ${CATALOG_DIR}/${tier}/${catalogId} → ${tier}/${newId}`);
+  console.log(`copied ${CATALOG_DIR}/${tier}/${catalogId} → ${tier}/${assignedId}`);
+  if (assignedId !== requestedId) {
+    console.log(`  note: '${requestedId}' was already taken, so it was installed as '${assignedId}'`);
+  }
   console.log(`  lineage: from '${catalogId}' v${sourceVersion} (metadata only — no runtime link)`);
 }
 

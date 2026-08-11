@@ -56,6 +56,11 @@
      contrast comfortably; the dark block below flips this because its link is a light blue. Kept as
      a token rather than hardcoded per rule so anything filling with `--link` gets the right ink. */
   --link-ink:  oklch(99% 0 0);
+  /* Explore's fill. A flat token, NOT `color-mix(… var(--link) … var(--surface))`: `--surface` is
+     `oklch(100% 0 0)`, whose chroma is 0 and whose hue is therefore undefined, so mixing blue into
+     it interpolates hue 250 → 0 and the button rendered PINK. Kept dark enough that white label
+     text clears contrast in both modes. */
+  --explore-bg: oklch(50% 0.16 250);
   --ok:        oklch(48% 0.12 150);
   --ok-bg:     oklch(93% 0.05 150);
   --danger:    oklch(52% 0.19 25);
@@ -139,6 +144,9 @@
   --link:      oklch(74% 0.11 245);
   /* Dark mode's link is a LIGHT blue (74% L), so the ink inverts to near-black. */
   --link-ink:  oklch(18% 0.006 260);
+  /* Slightly lighter than the light-mode blue so it reads against a dark surface, but still dark
+     enough for white label text — the ink stays white in BOTH modes here, unlike `--link-ink`. */
+  --explore-bg: oklch(56% 0.17 252);
   --ok:        oklch(74% 0.14 150);
   --ok-bg:     oklch(45% 0.08 150 / 0.24);
   --danger:    oklch(74% 0.16 25);
@@ -403,14 +411,19 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--space-2); flex-wrap: wrap;
 }
+/* Marketplace card's "this will be renamed on install" line. Sits above the Download button rather
+   than appearing after the fact, so the operator learns the name will change before they commit to
+   it — a download that silently lands as `basic-1` reads as a failure otherwise. */
+.theme-card-note { font-size: 0.8rem; color: var(--fg-2); margin: 0 0 var(--space-2); }
+.theme-card-note code { font-family: var(--font-mono, monospace); font-size: 0.78rem; }
 /* Explore is a solid blue, distinct from Activate's burnt orange. Two filled buttons on one card is
    fine precisely because they are different colors doing different things: orange changes what the
    whole site looks like, blue takes you somewhere. `--link` is the palette's existing blue (it
    already colors every anchor) and is defined in both light and dark, so this adds no new hue —
    only `--link-ink`, the text color that stays readable on it in both modes. */
 .btn-explore {
-  background: var(--link);
-  color: var(--link-ink);
+  background: var(--explore-bg);
+  color: oklch(99% 0 0);
   border: 1px solid transparent;
 }
 .btn-explore:hover { opacity: 0.88; }
@@ -1396,6 +1409,15 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    above for the identical bare-`button` shape problem. */
 .theme-card button.btn-primary { background: var(--primary); color: var(--primary-ink); border: 1px solid transparent; }
 .theme-card button.btn-primary:hover { background: var(--primary); opacity: 0.88; }
+/* Explore loses the same specificity fight `.btn-primary` above documents, and for the same reason:
+   `.theme-card button` (0,1,1) outranks a bare `.btn-explore` (0,1,0), so the card's currentColor
+   tint won and the button rendered grey no matter what `.btn-explore` said. Re-asserted here at one
+   class higher, exactly as Activate is. Solid blue with white ink, per owner instruction — an
+   earlier tinted version mixed `--link` into `--surface`, which is `oklch(100% 0 0)`: chroma 0, so
+   hue undefined, so the mix interpolated hue 250 → 0 and rendered PINK. Do not reintroduce a mix
+   against a neutral here. */
+.theme-card button.btn-explore { background: var(--explore-bg); color: oklch(99% 0 0); border: 1px solid transparent; }
+.theme-card button.btn-explore:hover { background: var(--explore-bg); opacity: 0.88; }
 .theme-paper { background: #faf6ef; color: #2b2620; }
 .theme-atlas { background: #0e1420; color: #e8ecf4; }
 .theme-glassmorphic { background: linear-gradient(135deg, #1c2740, #3a2a55); color: #f2f4fb; }
