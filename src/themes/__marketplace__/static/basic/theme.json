@@ -1,0 +1,13 @@
+{
+  "id": "basic",
+  "name": "Basic",
+  "version": "0.1.0",
+  "tier": "static",
+  "description": "Marketplace fixture (deliberately id-colliding with the already-installed 'basic' theme, so a download exercises the '-1' suffixing path). A single-page brand/package designer portfolio — hero, trusted-by strip, about, recent works, process, services, testimonials, FAQ, and contact, all on one scrolling page. Plain HTML/CSS/JS, no build step, no template language.",
+  "modes": ["dark", "light"],
+  "defaultMode": "dark",
+  "fonts": ["Plus+Jakarta+Sans:wght@600;700;800", "Inter:wght@400;500;600"],
+  "pages": ["index", "blog-post"],
+  "postTemplate": ["blog-post.html"],
+  "slots": {}
+}
