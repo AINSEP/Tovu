@@ -1,8 +1,10 @@
 import { useState } from "react";
 
-import { api, type AdminRedirect } from "../../../lib/api";
+import type { AdminRedirect } from "../../../lib/api";
 import { useFetchMutation, useFetchQuery, type QueryStatus } from "../../../lib/fetch-query";
 import { KEYS, buildCreateRedirectPayload, firstWriteError, isAnyWritePending, nextRedirectStatus, visibleRedirectsError } from "../rules";
+import { defaultRedirectsPort } from "./redirects-dependencies.hooks";
+import type { RedirectsPort } from "./redirects-port.hooks";
 
 /**
  * @file Everything the Redirects LIST screen does, so `Redirects.tsx` is only markup.
@@ -16,6 +18,11 @@ import { KEYS, buildCreateRedirectPayload, firstWriteError, isAnyWritePending, n
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because
  * nothing outside `features/redirects` needs it.
+ *
+ * `port` is injected — see `redirects-port.hooks.ts` — rather than importing `lib/api` directly, so
+ * a test can describe list/write outcomes against `createFakeRedirectsPort` instead of stubbing
+ * global `fetch`. `useWiredRedirects` below is the zero-argument pair `Redirects.tsx` actually
+ * mounts.
  */
 
 export interface RedirectsController {
@@ -41,24 +48,24 @@ export interface RedirectsController {
   onRequestDelete: (rule: AdminRedirect) => void;
 }
 
-export function useRedirects(): RedirectsController {
-  const list = useFetchQuery({ key: KEYS.list, fetch: () => api.listRedirects() });
+export function useRedirects(port: RedirectsPort): RedirectsController {
+  const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listRedirects() });
 
   // Each write names the cache it affects rather than calling a loader; the
   // list refetches because it is mounted under that key, not because this
   // component remembered to ask it to.
   const createRule = useFetchMutation({
-    run: (form: FormData) => api.createRedirect(buildCreateRedirectPayload(form)),
+    run: (form: FormData) => port.createRedirect(buildCreateRedirectPayload(form)),
     invalidates: [KEYS.list],
   });
 
   const toggleStatus = useFetchMutation({
-    run: (rule: AdminRedirect) => api.updateRedirect({ id: rule.id }, { status: nextRedirectStatus(rule.status) }),
+    run: (rule: AdminRedirect) => port.updateRedirect({ id: rule.id }, { status: nextRedirectStatus(rule.status) }),
     invalidates: [KEYS.list],
   });
 
   const removeRule = useFetchMutation({
-    run: (rule: AdminRedirect) => api.tombstoneRedirect(rule.id),
+    run: (rule: AdminRedirect) => port.tombstoneRedirect(rule.id),
     invalidates: [KEYS.list],
   });
 
@@ -141,4 +148,14 @@ export function useRedirects(): RedirectsController {
     onToggleStatus,
     onRequestDelete,
   };
+}
+
+/**
+ * Binds the real `/api/.../redirects` client — see `redirects-dependencies.hooks.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Redirects.tsx`
+ * composes this and a test composes {@link useRedirects} with `createFakeRedirectsPort`.
+ */
+export function useWiredRedirects(): RedirectsController {
+  return useRedirects(defaultRedirectsPort);
 }

@@ -2,7 +2,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "../../../lib/fetch-query";
-import { useImportRedirectsForm } from "../hooks/use-import-redirects-form.hooks";
+import { createFakeRedirectsPort } from "../hooks/redirects-dependencies.hooks";
+import { useImportRedirectsForm, useWiredImportRedirectsForm } from "../hooks/use-import-redirects-form.hooks";
 
 /**
  * @file `useImportRedirectsForm` (SPEC-037 REQ-04) — the bulk-import textarea's lifecycle.
@@ -34,7 +35,7 @@ describe("useImportRedirectsForm — client-side parse gate", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useImportRedirectsForm(), { wrapper });
+    const { result } = renderHook(() => useWiredImportRedirectsForm(), { wrapper });
     act(() => result.current.setRaw("not json"));
     await act(async () => result.current.submit(fakeSubmitEvent()));
 
@@ -47,7 +48,7 @@ describe("useImportRedirectsForm — client-side parse gate", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useImportRedirectsForm(), { wrapper });
+    const { result } = renderHook(() => useWiredImportRedirectsForm(), { wrapper });
     act(() => result.current.setRaw('{"not":"an array"}'));
     await act(async () => result.current.submit(fakeSubmitEvent()));
 
@@ -66,7 +67,7 @@ describe("useImportRedirectsForm — submit", () => {
     };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(response)));
 
-    const { result } = renderHook(() => useImportRedirectsForm(), { wrapper });
+    const { result } = renderHook(() => useWiredImportRedirectsForm(), { wrapper });
     act(() => result.current.setRaw(VALID_RAW));
     await act(async () => result.current.submit(fakeSubmitEvent()));
 
@@ -81,7 +82,7 @@ describe("useImportRedirectsForm — submit", () => {
       vi.fn(() => new Promise<Response>((resolve) => (resolveFetch = resolve))),
     );
 
-    const { result } = renderHook(() => useImportRedirectsForm(), { wrapper });
+    const { result } = renderHook(() => useWiredImportRedirectsForm(), { wrapper });
     act(() => result.current.setRaw(VALID_RAW));
 
     let submitPromise!: Promise<void>;
@@ -100,7 +101,7 @@ describe("useImportRedirectsForm — submit", () => {
   it("surfaces a transport/route failure through describeApiError", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ error: "import route down" }, 500)));
 
-    const { result } = renderHook(() => useImportRedirectsForm(), { wrapper });
+    const { result } = renderHook(() => useWiredImportRedirectsForm(), { wrapper });
     act(() => result.current.setRaw(VALID_RAW));
     await act(async () => result.current.submit(fakeSubmitEvent()));
 
@@ -113,7 +114,7 @@ describe("useImportRedirectsForm — submit", () => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "import route down" }, 500));
 
-    const { result } = renderHook(() => useImportRedirectsForm(), { wrapper });
+    const { result } = renderHook(() => useWiredImportRedirectsForm(), { wrapper });
     act(() => result.current.setRaw(VALID_RAW));
     await act(async () => result.current.submit(fakeSubmitEvent()));
     expect(result.current.error).toBe("import route down");
@@ -129,7 +130,7 @@ describe("useImportRedirectsForm — submit", () => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValueOnce(jsonResponse({ created: [{ id: "r1" }], failed: [] }));
 
-    const { result } = renderHook(() => useImportRedirectsForm(), { wrapper });
+    const { result } = renderHook(() => useWiredImportRedirectsForm(), { wrapper });
     act(() => result.current.setRaw(VALID_RAW));
     await act(async () => result.current.submit(fakeSubmitEvent()));
     expect(result.current.result).not.toBeNull();
@@ -138,6 +139,45 @@ describe("useImportRedirectsForm — submit", () => {
     // linger on screen next to the new parse error.
     act(() => result.current.setRaw("not json"));
     await act(async () => result.current.submit(fakeSubmitEvent()));
+    expect(result.current.result).toBeNull();
+  });
+});
+
+describe("useImportRedirectsForm — injected port (no fetch stub)", () => {
+  const VALID_RAW = JSON.stringify([{ matchType: "exact", fromPattern: "/a", toTarget: "/b", statusCode: 301 }]);
+
+  it("submits through the injected port and surfaces what it returns as `result`", async () => {
+    const port = createFakeRedirectsPort({
+      onImport: () => ({
+        created: [],
+        failed: [{ index: 0, code: "DUPLICATE", message: "already exists" }],
+      }),
+    });
+    const { result } = renderHook(() => useImportRedirectsForm(port), { wrapper });
+
+    act(() => result.current.setRaw(VALID_RAW));
+    await act(async () => result.current.submit(fakeSubmitEvent()));
+
+    expect(result.current.result).toEqual({ created: [], failed: [{ index: 0, code: "DUPLICATE", message: "already exists" }] });
+    expect(result.current.error).toBeNull();
+  });
+
+  /**
+   * Negative verification: a port whose `importRedirects` rejects proves this hook's error path is
+   * wired to the INJECTED dependency, not to a module-level `api`/`fetch` stub — breaking the port
+   * (rather than global `fetch`) is enough to make the hook report a failure.
+   */
+  it("surfaces a rejected port call as an error", async () => {
+    const port = createFakeRedirectsPort();
+    port.importRedirects = async () => {
+      throw new Error("port down");
+    };
+    const { result } = renderHook(() => useImportRedirectsForm(port), { wrapper });
+
+    act(() => result.current.setRaw(VALID_RAW));
+    await act(async () => result.current.submit(fakeSubmitEvent()));
+
+    expect(result.current.error).toBe("port down");
     expect(result.current.result).toBeNull();
   });
 });

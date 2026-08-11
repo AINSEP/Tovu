@@ -1,8 +1,10 @@
 import { useState } from "react";
 
-import { api, type AdminRedirectHitStats } from "../../../lib/api";
+import type { AdminRedirectHitStats } from "../../../lib/api";
 import { useFetchQuery } from "../../../lib/fetch-query";
 import { KEYS } from "../rules";
+import { defaultRedirectsPort } from "./redirects-dependencies.hooks";
+import type { RedirectsPort } from "./redirects-port.hooks";
 
 /**
  * @file The lazy per-row hit-count cell (SPEC-037 REQ-03), so `HitCountCell` in `Redirects.tsx` is
@@ -14,6 +16,9 @@ import { KEYS } from "../rules";
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because
  * nothing outside `features/redirects` needs it.
+ *
+ * `port` is injected (see `redirects-port.hooks.ts`) — shared with `use-redirects.hooks.ts` and
+ * `use-import-redirects-form.hooks.ts`, since all three read the same `/redirects` resource.
  */
 
 export interface HitCountCellController {
@@ -27,14 +32,14 @@ export interface HitCountCellController {
   request: () => void;
 }
 
-export function useHitCountCell(props: { redirectId: string }): HitCountCellController {
+export function useHitCountCell(props: { redirectId: string }, port: RedirectsPort): HitCountCellController {
   // `enabled` is what keeps this lazy: the query is declared for every row but
   // runs for none of them until its own button is pressed, preserving the
   // no-N+1-burst property without a manual imperative fetch.
   const [requested, setRequested] = useState(false);
   const hits = useFetchQuery({
     key: KEYS.hits(props.redirectId),
-    fetch: () => api.getRedirectHits(props.redirectId),
+    fetch: () => port.getRedirectHits(props.redirectId),
     enabled: requested,
   });
 
@@ -44,4 +49,10 @@ export function useHitCountCell(props: { redirectId: string }): HitCountCellCont
     isFetching: hits.isFetching,
     request: () => setRequested(true),
   };
+}
+
+/** Binds the real client — see `redirects-dependencies.hooks.ts`. The zero-argument half of the
+ *  `useX(dependencies)` / `useWiredX()` pair; `Redirects.tsx`'s `HitCountCell` composes this. */
+export function useWiredHitCountCell(props: { redirectId: string }): HitCountCellController {
+  return useHitCountCell(props, defaultRedirectsPort);
 }
