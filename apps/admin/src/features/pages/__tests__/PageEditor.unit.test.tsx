@@ -64,6 +64,9 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     setSlug: vi.fn(),
     status: "draft",
     setStatus: vi.fn(),
+    templateChoice: null,
+    setTemplateChoice: vi.fn(),
+    availableTemplates: [],
     html: "<p>Hello</p>",
     setHtml: vi.fn(),
     view: "preview",
@@ -209,7 +212,11 @@ describe("status, publish, save", () => {
   it("changing the status select calls setStatus", async () => {
     const user = userEvent.setup();
     const { ctrl } = renderEditor({ status: "draft" });
-    await user.selectOptions(screen.getByRole("combobox"), "published");
+    // Disambiguated by displayed value, not `getByRole("combobox")` alone — the template picker
+    // (Task 4, 2026-08-11) shares the `combobox` role with the status select once a Page is
+    // `bodyFormat: "html"` (`BASE_PAGE`'s own default), the same collision `PostEditor.unit.test.tsx`
+    // notes for its own status select vs. its template picker.
+    await user.selectOptions(screen.getByDisplayValue("Draft"), "published");
     expect(ctrl.setStatus).toHaveBeenCalledWith("published");
   });
 });

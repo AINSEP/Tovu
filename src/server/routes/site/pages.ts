@@ -8,8 +8,11 @@ import {
   findTheme,
   renderStaticPage,
   injectPostEmbedId,
+  injectPageContent,
   resolvePostTemplate,
+  resolvePageTemplate,
   isEligibleForPostTemplateBranch,
+  isEligibleForPageTemplateBranch,
   scanMenuEmbedIds,
   type DiscoveredTheme,
   type StaticMenuItem,
@@ -284,6 +287,36 @@ function buildMissingPostTemplateHtml(): string {
 }
 
 /**
+ * {@link buildMissingPostTemplateHtml}'s counterpart for a Page whose chosen template could not be
+ * honored (Task 4, 2026-08-11) — same reused `.hero`/`.wrap` shell, same `renderStaticPage`
+ * `htmlOverride` mechanism, different copy naming the Pages editor rather than the post editor.
+ */
+function buildMissingPageTemplateHtml(): string {
+  return [
+    "<!doctype html>",
+    '<html lang="en">',
+    "<head>",
+    '<meta charset="utf-8" />',
+    '<meta name="viewport" content="width=device-width, initial-scale=1" />',
+    "<title>Template not configured</title>",
+    '<link rel="stylesheet" href="../css/styles.css" />',
+    "</head>",
+    "<body>",
+    `<div data-embed-config='{"type":"partial","id":"nav","current":""}'></div>`,
+    "<main>",
+    '<section class="hero wrap">',
+    '<div class="eyebrow-row"><span class="status-pill"><span class="dot"></span>Not configured</span></div>',
+    "<h1>This page has no usable template</h1>",
+    '<p class="lede">This page\'s chosen template has no content slot to render into, or the active theme declares no page templates. Pick a different template in the Pages editor to fix this.</p>',
+    "</section>",
+    "</main>",
+    `<div data-embed-config='{"type":"partial","id":"footer"}'></div>`,
+    "</body>",
+    "</html>",
+  ].join("\n");
+}
+
+/**
  * Post-template-picker feature (2026-08-10) — renders `post` through its chosen static-theme
  * template (`theme.json`'s `postTemplate` array), or the explicit diagnostic page above when
  * unresolvable. Only called when the active theme is `static` tier AND declares a non-empty
@@ -321,6 +354,47 @@ async function renderPostViaTemplate(
     input: { workspaceId: deps.workspaceId, html: withRealId },
   });
   const bodyResolvedHtml = renderHtmlPageBody(withRealId, resolved);
+  return renderStaticPage({ theme, pageId, htmlOverride: bodyResolvedHtml, menus: staticMenus }) ?? "";
+}
+
+/**
+ * Pages template picker (Task 4, 2026-08-10 recon / 2026-08-11 build) — the `renderPostViaTemplate`
+ * counterpart for a `kind: "page"`, `bodyFormat: "html"` record. Only called when
+ * `isEligibleForPageTemplateBranch` already returned `true` for this `theme`/`post` pair (checked by
+ * the caller, same convention as `renderPostViaTemplate`).
+ *
+ * Structurally simpler than `renderPostViaTemplate`: there is no id to substitute and no async
+ * lookup to defer. `post.bodyHtml` is already the exact string to render — this function's whole
+ * job is deciding WHICH template via {@link resolvePageTemplate}, splicing that body in via
+ * {@link injectPageContent} (the `{"type":"content"}` marker, Task 3), then resolving whatever
+ * `widget`/`media`/`post` markers exist in the COMBINED template+body string (the page's own
+ * authored embeds included, not only the template's).
+ */
+async function renderPageViaTemplate(
+  deps: RouteDeps,
+  theme: DiscoveredTheme,
+  post: PostRecord,
+  staticMenus: Readonly<Record<string, readonly StaticMenuItem[]>> | undefined
+): Promise<string> {
+  const resolution = resolvePageTemplate({ theme, templateChoice: post.templateChoice });
+  if (resolution.kind === "diagnostic") {
+    return (
+      renderStaticPage({
+        theme,
+        pageId: "page-template-missing",
+        htmlOverride: buildMissingPageTemplateHtml(),
+        menus: staticMenus,
+      }) ?? ""
+    );
+  }
+  const { pageId, html: rawTemplate } = resolution;
+
+  const withContent = injectPageContent(rawTemplate, post.bodyHtml ?? "");
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo: deps.entryRepo, postRepo: deps.postRepo },
+    input: { workspaceId: deps.workspaceId, html: withContent },
+  });
+  const bodyResolvedHtml = renderHtmlPageBody(withContent, resolved);
   return renderStaticPage({ theme, pageId, htmlOverride: bodyResolvedHtml, menus: staticMenus }) ?? "";
 }
 
@@ -541,9 +615,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
 
       // Post-template-picker feature (2026-08-10) — a `bodyFormat: "doc"` post ("formulaic" content,
       // the owner's own term) renders through its chosen theme template instead of the generic
-      // post-rendering path below, whenever the active theme actually supports templates. `"html"`-
-      // format Pages are untouched (they already have their own embed-authoring mechanism, see
-      // `resolveHtmlEmbedsForRender` above).
+      // post-rendering path below, whenever the active theme actually supports templates.
       //
       // `kind: "page"` rows with `bodyFormat: "doc"` DO also flow through this branch, but only on an
       // explicit `templateChoice` (see `isEligibleForPostTemplateBranch`'s doc) — NOT on the "never
@@ -554,6 +626,18 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // live site — fixed here by gating on `kind`, not just `bodyFormat`.
       if (isEligibleForPostTemplateBranch({ theme, post })) {
         res.type("html").send(await renderPostViaTemplate(deps, theme, post, staticMenus));
+        return;
+      }
+
+      // Pages template picker (Task 4, 2026-08-11) — the `"html"`-format counterpart to the branch
+      // just above. A `kind: "page"`, `bodyFormat: "html"` row with an EXPLICIT `templateChoice`
+      // renders through its chosen template via `renderPageViaTemplate` (the `{"type":"content"}`
+      // marker, Task 3) instead of the generic `resolveHtmlEmbedsForRender` path below. There is no
+      // "never chosen" fallback arm here at all (see `isEligibleForPageTemplateBranch`'s doc) — a
+      // Page that has never picked a template keeps rendering its own body directly, exactly as
+      // every `"html"`-format Page already did before this feature existed.
+      if (isEligibleForPageTemplateBranch({ theme, post })) {
+        res.type("html").send(await renderPageViaTemplate(deps, theme, post, staticMenus));
         return;
       }
 

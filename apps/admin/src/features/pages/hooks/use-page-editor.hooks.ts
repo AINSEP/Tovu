@@ -44,6 +44,15 @@ export interface PageEditorController {
   setSlug: (value: string) => void;
   status: "draft" | "published";
   setStatus: (value: "draft" | "published") => void;
+  /** Pages template picker (Task 4, 2026-08-11) — same tri-state contract as `usePostEditor`'s own
+   *  `templateChoice`: `null` (never chosen, this Page renders its own body directly — the existing
+   *  default behavior), `""` (explicit "No template chosen"), or a real filename. */
+  templateChoice: string | null;
+  setTemplateChoice: (value: string | null) => void;
+  /** The active theme's declared `pageTemplate` list (`theme.json`) — `[]` when the theme doesn't
+   *  support Page templates, in which case the caller should not render the picker at all. Mirrors
+   *  `usePostEditor`'s `availableTemplates`, sourced from the SEPARATE `pageTemplate` array. */
+  availableTemplates: string[];
   /** The working copy of the page's HTML — what the preview renders and what Save persists. */
   html: string;
   setHtml: (value: string) => void;
@@ -83,6 +92,12 @@ export function usePageEditor(routeSlug: string): PageEditorController {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [status, setStatus] = useState<"draft" | "published">("draft");
+  // Pages template picker (Task 4, 2026-08-11) — `savedTemplateChoice` is `templateChoice`'s own
+  // baseline for the manual dirty comparison below, same "captured on load/save" shape `savedHtml`
+  // already uses for `html`.
+  const [templateChoice, setTemplateChoice] = useState<string | null>(null);
+  const [savedTemplateChoice, setSavedTemplateChoice] = useState<string | null>(null);
+  const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
   const [html, setHtml] = useState("");
   const [savedHtml, setSavedHtml] = useState("");
   const [view, setView] = useState<PageEditorView>("preview");
@@ -93,14 +108,24 @@ export function usePageEditor(routeSlug: string): PageEditorController {
 
   useEffect(() => {
     let cancelled = false;
-    api
-      .getPage(routeSlug)
-      .then(({ post }) => {
+    // Loaded together, same reasoning as `usePostEditor`'s identical `Promise.all` — the picker
+    // needs `activeThemePageTemplates` in hand before it can render anything meaningful, and a fast
+    // page-load racing a slow presentation-settings load would otherwise flash an empty picker.
+    Promise.all([api.getPage(routeSlug), api.getPresentation()])
+      .then(([{ post }, { activeThemePageTemplates }]) => {
         if (cancelled) return;
+        setAvailableTemplates(activeThemePageTemplates);
         setPage(post);
         setTitle(post.title);
         setSlug(post.slug);
         setStatus(post.status);
+        // UNLIKE `usePostEditor`, no "default to the theme's first template" here — `null` is a
+        // Page's normal, fully-working state (render its own body), not an absence-of-decision that
+        // needs papering over for the UI and the public render to agree (see
+        // `isEligibleForPageTemplateBranch`'s doc for the full reasoning). The picker simply shows
+        // whatever is actually stored.
+        setTemplateChoice(post.templateChoice ?? null);
+        setSavedTemplateChoice(post.templateChoice ?? null);
         // A Page that has never been opened in this editor is still `doc`-format and has no
         // `bodyHtml` yet — the server births the html row on the first save. Starting from an empty
         // string (rather than seeding a skeleton client-side) keeps the skeleton defined in exactly
@@ -152,11 +177,12 @@ export function usePageEditor(routeSlug: string): PageEditorController {
         // un-editable for every doc-format Page, which is worse than a no-op round-trip.
         const { post: updated } = await api.updatePost(
           { id: page.id },
-          { title, slug, status: statusToWrite, ...(canSaveHtml ? {} : { bodyJson: page.bodyJson }) }
+          { title, slug, status: statusToWrite, templateChoice, ...(canSaveHtml ? {} : { bodyJson: page.bodyJson }) }
         );
         setPage(updated);
         setSlug(updated.slug);
         setStatus(updated.status);
+        setSavedTemplateChoice(templateChoice);
         if (canSaveHtml) setSavedHtml(html);
         if (nextStatus) setStatus(nextStatus);
         setMessage(
@@ -173,7 +199,7 @@ export function usePageEditor(routeSlug: string): PageEditorController {
         setSaving(false);
       }
     },
-    [page, html, title, slug, status, locale]
+    [page, html, title, slug, status, templateChoice, locale]
   );
 
   const remove = useCallback(async () => {
@@ -200,6 +226,9 @@ export function usePageEditor(routeSlug: string): PageEditorController {
     setSlug,
     status,
     setStatus,
+    templateChoice,
+    setTemplateChoice,
+    availableTemplates,
     html,
     setHtml,
     view,
@@ -215,6 +244,7 @@ export function usePageEditor(routeSlug: string): PageEditorController {
       (title !== page.title ||
         slug !== page.slug ||
         status !== page.status ||
+        templateChoice !== savedTemplateChoice ||
         (page.bodyFormat === "html" && html !== savedHtml)),
     save,
     remove,

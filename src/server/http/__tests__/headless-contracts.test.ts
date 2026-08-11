@@ -44,6 +44,7 @@ test("admin and content serializers stay aligned with shared headless contracts"
       { id: "glassmorphic", tier: "declarative" },
     ],
     activeThemePostTemplates: [],
+    activeThemePageTemplates: [],
     activeThemeStaticPageIds: [],
   });
   const contentPayload: ContentPostPayload = toContentPostResponse({
@@ -89,6 +90,7 @@ test("admin and content serializers stay aligned with shared headless contracts"
       { id: "glassmorphic", tier: "declarative" },
     ],
     activeThemePostTemplates: [],
+    activeThemePageTemplates: [],
     activeThemeStaticPageIds: [],
   });
 

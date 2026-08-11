@@ -6,10 +6,17 @@ export function toAdminPresentationResponse(required: {
   availableThemeIds: string[];
   availableThemes: HeadlessThemeSummary[];
   activeThemePostTemplates: string[];
+  activeThemePageTemplates: string[];
   activeThemeStaticPageIds: string[];
 }): AdminPresentation {
-  const { settings, availableThemeIds, availableThemes, activeThemePostTemplates, activeThemeStaticPageIds } =
-    required;
+  const {
+    settings,
+    availableThemeIds,
+    availableThemes,
+    activeThemePostTemplates,
+    activeThemePageTemplates,
+    activeThemeStaticPageIds,
+  } = required;
   return {
     settings: {
       workspaceId: settings.workspaceId,
@@ -19,6 +26,7 @@ export function toAdminPresentationResponse(required: {
     availableThemeIds,
     availableThemes,
     activeThemePostTemplates,
+    activeThemePageTemplates,
     activeThemeStaticPageIds,
   };
 }
