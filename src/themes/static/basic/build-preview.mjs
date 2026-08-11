@@ -1,15 +1,26 @@
-#!/usr/bin/env node
+#!/usr/bin/env -S npx tsx
 // Stand-in for Tovu's real `static`-tier theme loader (not wired into
 // src/features/theme/theme.ts yet). Stitches nav/footer slots + both token sets into
 // standalone HTML under preview/<mode>/, mirroring what the host renderer will do:
 // read tokens.json + tokens.light.json, emit :root and :root[data-theme="light"],
-// resolve data-tovu-slot markers against the theme's declared partials. Every output
-// page ships BOTH token sets and the live toggle — <mode> only controls the page's
-// initial data-theme, not which tokens are available. Re-run after editing nav.html,
-// footer.html, pages/*.html, or either tokens file.
+// resolve `type: "partial"` `data-embed-config` markers against the theme's declared
+// partials, via the shared parser so this script can't drift from the real one. Every
+// output page ships BOTH token sets and the live toggle — <mode> only controls the
+// page's initial data-theme, not which tokens are available. Re-run after editing
+// nav.html, footer.html, pages/*.html, or either tokens file.
+//
+// Run: ./build-preview.mjs (uses the shebang above) or `npx tsx build-preview.mjs`.
+// This script needs the TS loader to reach the shared marker parser; plain
+// `node build-preview.mjs` cannot load a TypeScript module and will fail.
+// NOTE: keep the shebang's interpreter command free of the literal word
+// "import" (e.g. don't rewrite this as `node --import tsx`) — tsx@4.19's
+// dynamic-import prescan misreads that word in a shebang as real code and
+// throws a bogus "Parse error" the moment the file also has a `//` comment.
+// Confirmed by bisection; not our bug to fix here.
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { substituteMarkers } from "#src/core/embeds/marker";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 
@@ -23,21 +34,27 @@ function tokensToCss(darkTokens, lightTokens) {
 }
 
 function resolveSlots(html, { navHtml, footerHtml, footerMinimalHtml }) {
-  html = html.replace(
-    /<div data-tovu-slot="nav"[^>]*data-nav-current="([^"]+)"[^>]*><\/div>/,
-    (_m, current) => {
+  // Both slots go through the one shared marker parser (src/core/embeds/marker.ts) —
+  // see development/docs/architecture/embed-marker-migration.md. `resolve` returning
+  // undefined leaves a marker exactly as authored, which also covers every
+  // `data-embed-config` this preview script doesn't know about (e.g. `type: "menu"`
+  // markers inside nav.html/footer.html themselves stay untouched, same as before).
+  return substituteMarkers(html, (marker) => {
+    if (marker.type !== "partial") return undefined;
+    if (marker.id === "nav") {
+      const current = marker.config.current;
+      if (typeof current !== "string") return navHtml;
       // Mark the matching nav link with aria-current="page" — mirrors what the
       // original export did inline per-page; here it's derived from one shared
-      // partial + the page's declared data-nav-current, not duplicated markup.
+      // partial + the marker's declared `current`, not duplicated markup.
       const re = new RegExp(`(<a href="[^"]+" data-nav-id="${current}")(>)`);
       return navHtml.replace(re, '$1 aria-current="page"$2');
     }
-  );
-  html = html.replace(
-    /<div data-tovu-slot="footer"( data-slot-variant="minimal")?[^>]*><\/div>/,
-    (_m, minimal) => (minimal ? footerMinimalHtml : footerHtml)
-  );
-  return html;
+    if (marker.id === "footer") {
+      return marker.config.variant === "minimal" ? footerMinimalHtml : footerHtml;
+    }
+    return undefined;
+  });
 }
 
 function build(mode) {

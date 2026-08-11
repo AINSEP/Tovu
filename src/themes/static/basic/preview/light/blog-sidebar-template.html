@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Changelog — Basic</title>
+<!-- Same disclosed limitation blog-post.html carries: a static theme's <title> is one fixed string
+     per file. The real post title still renders in the <h1> via the post-content embed below; only
+     the browser-tab/SEO title stays generic here. -->
+<title>Documentation — Basic</title>
 <style>
 :root {
   --bg: oklch(9% 0.004 250);
@@ -49,9 +52,9 @@
     </a>
     <nav class="main-nav" data-embed-config='{"type":"menu","id":"menu-header-nav"}'>
       <a href="pricing.html" data-nav-id="pricing">Pricing</a>
-      <a href="docs.html" data-nav-id="docs">Docs</a>
+      <a href="docs.html" data-nav-id="docs" aria-current="page">Docs</a>
       <a href="blog.html" data-nav-id="blog">Blog</a>
-      <a href="changelog.html" data-nav-id="changelog" aria-current="page">Changelog</a>
+      <a href="changelog.html" data-nav-id="changelog">Changelog</a>
       <a href="about.html" data-nav-id="about">About</a>
       <a href="download.html" data-nav-id="download">Download</a>
     </nav>
@@ -71,63 +74,29 @@
 
 
 <main>
-  <section class="hero wrap" data-reveal style="padding-bottom: 40px;">
-    <h1 style="font-size: clamp(34px, 5vw, 54px);">Changelog</h1>
-    <p class="lede">What shipped, when it shipped, and why it matters.</p>
-  </section>
+  <div class="docs-layout wrap">
+    <!-- The sidebar is theme markup + CSS; the only thing resolved at request time is the menu
+         inside it. `data-embed-config='{"variant":"tree"}'` opts this one marker into nested
+         <ul>/<li> rendering (see static-render.ts::renderMenuTree) — the default flat <a> output is
+         what every other marker in this theme still gets, because .main-nav's flex layout depends
+         on it. (Marker-spine unification, 2026-08-10: this used to be a bare `data-embed-variant=
+         "tree"` attribute, retired in favor of config — see static-render.ts's own file header.)
 
-  <section class="wrap" style="padding-bottom: 96px;">
-    <div class="changelog-list">
-      <article class="changelog-entry">
-        <time datetime="2026-07-14">Jul 14, 2026</time>
-        <div>
-          <span class="tag">Feature</span>
-          <h3>Multi-device preview</h3>
-          <p>Preview a page across desktop, tablet, and mobile at once, with results grouped in one panel instead of scattered across separate tabs.</p>
-        </div>
-      </article>
-      <article class="changelog-entry">
-        <time datetime="2026-06-02">Jun 2, 2026</time>
-        <div>
-          <span class="tag">Improvement</span>
-          <h3>Faster theme editor</h3>
-          <p>Reworked our editor's rendering pipeline to cut average load time by 40% during peak hours — most pages now open in under three seconds.</p>
-        </div>
-      </article>
-      <article class="changelog-entry">
-        <time datetime="2026-04-28">Apr 28, 2026</time>
-        <div>
-          <span class="tag">Feature</span>
-          <h3>Publish approvals</h3>
-          <p>Require a manual sign-off before a page promotes to production. Approvers get a diff summary and a one-click approve or block.</p>
-        </div>
-      </article>
-      <article class="changelog-entry">
-        <time datetime="2026-03-11">Mar 11, 2026</time>
-        <div>
-          <span class="tag">Fix</span>
-          <h3>Image cache invalidation on asset changes</h3>
-          <p>Image caches now correctly bust when an asset is replaced mid-edit, fixing a class of "works in the editor, stale on the live site" reports.</p>
-        </div>
-      </article>
-      <article class="changelog-entry">
-        <time datetime="2026-01-22">Jan 22, 2026</time>
-        <div>
-          <span class="tag">Feature</span>
-          <h3>Slack publish notifications</h3>
-          <p>Route publish and preview events straight to a Slack channel, with pass/fail status and a link back to the live page.</p>
-        </div>
-      </article>
-      <article class="changelog-entry">
-        <time datetime="2025-11-30">Nov 30, 2025</time>
-        <div>
-          <span class="tag">Launch</span>
-          <h3>Basic public beta</h3>
-          <p>Basic opened up to the public — zero-config themes, live preview links, and instant version history, free for the first 3 published sites.</p>
-        </div>
-      </article>
-    </div>
-  </section>
+         The authored content below is a real fallback, not a placeholder: if `docs-themes-menu`
+         does not exist yet, or resolves to zero renderable links, this markup is left exactly as-is
+         rather than blanked. -->
+    <aside class="docs-sidebar">
+      <nav class="docs-nav" aria-label="Documentation" data-embed-config='{"type":"menu","id":"docs-themes-menu","variant":"tree"}'>
+        <ul class="menu-list depth-0">
+          <li class="menu-item depth-0"><span class="menu-item-label">No docs menu bound yet</span></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <article class="docs-content post-detail" data-reveal>
+      <div data-embed-config='{"type":"post","id":"{{post}}"}'></div>
+    </article>
+  </div>
 </main>
 
 <footer class="site-footer">
@@ -153,5 +122,6 @@
 <script src="js/main.js"></script>
 <script src="js/vendor/motion.js"></script>
 <script src="js/reveal.js"></script>
+<script src="../js/docs-sidebar.js"></script>
 </body>
 </html>
