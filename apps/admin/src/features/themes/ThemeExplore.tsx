@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type SyntheticEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type RefObject,
+  type SyntheticEvent,
+} from "react";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { Toast } from "@jini-ai/ui";
 
@@ -9,6 +17,7 @@ import { PAGE_PREVIEW_WIDTHS, type PagePreviewDevice } from "../pages/hooks/use-
 import {
   THEME_FILE_GROUPS,
   useThemeExplore,
+  type ThemeExploreDetail,
   type ThemeExploreFile,
   type ThemeExploreView,
 } from "./hooks/use-theme-explore.hooks";
@@ -39,6 +48,19 @@ import { t as translateThemes } from "./themes-i18n";
  * `PAGE_PREVIEW_WIDTHS` and `.page-preview-frame`/`.page-preview-scaler`/`.page-preview-iframe`
  * classes rather than a parallel set — same widths, same scale-to-fit mechanism, just pointed at a
  * real `src` URL instead of `SrcDocSandbox`'s `srcDoc`.
+ *
+ * This component's own render body is deliberately thin. Every conditional block that does not need
+ * `ThemeExplore`'s local `useState`/`useRef` values has been pulled out to a top-level function or
+ * component below (`ThemeExploreDirectionsNotice`, `ThemeExploreFileList`, `ThemeExploreToolbarButtons`,
+ * `ThemeExplorePreviewControls`, `ThemeExploreMainPane`, `ThemeExploreFullscreenDialog`,
+ * `syncFullscreenDialog`) — `apps/admin`'s complexity-drift check (`npm run
+ * check:admin-complexity-drift`) scores a component's OWN cyclomatic/cognitive complexity from every
+ * ternary/`&&`/`.map()`-with-branching directly inside its JSX, and this component's markup used to
+ * carry roughly a dozen of those inline, landing at 27/29 against a 9/9 ceiling. Each extraction below
+ * is a genuinely TOP-LEVEL function, not a `useCallback` or nested closure — a nested closure is still
+ * scored as its own unit by ESLint's `complexity`/`sonarjs/cognitive-complexity` rules, but the
+ * separate drift tool this repo also gates on aggregates a closure DECLARED INSIDE a component back
+ * into that component's own count, so only moving the code to actual module scope lowers both.
  */
 export interface ThemeExploreProps {
   /** Theme id from `?theme=`. */
@@ -118,30 +140,22 @@ function readOnlyReason(file: ThemeExploreFile): string {
 /**
  * Whether the Save button should be offered at all for the selected file — `undefined` (nothing
  * selected yet) defaults to showing it, matching the pre-existing behavior before per-file
- * editability existed. Pulled out to a top-level predicate for the same complexity-drift reason
- * {@link themeExploreHtmlMode} documents, rather than left as an inline `||` in `ThemeExplore`'s own
- * JSX.
+ * editability existed.
  *
  * @complexity O(1).
- * @overallScore 100/100
  */
 function canSaveSelectedFile(file: ThemeExploreFile | undefined): boolean {
   return file === undefined || file.editable;
 }
 
 /**
- * Which of the HTML tab's three renderings applies to a file — pulled out of `ThemeExplore`'s own
- * render body into a plain top-level function rather than a `useCallback`/inline ternary chain.
+ * Which of the HTML tab's three renderings applies to a file.
  *
- * `apps/admin`'s own complexity-drift check (`npm run check:admin-complexity-drift`) aggregates
- * closures declared INSIDE a component back into that component's count even where ESLint's
- * `complexity`/`sonarjs/cognitive-complexity` rules score a `useCallback` body as its own unit — only
- * a genuinely top-level function moves branch count out of both. `undefined` (nothing selected yet)
- * intentionally maps to `"editable"`, matching the pre-existing fallback behavior: an empty textarea,
- * not a binary notice, is what rendered here before this file/kind concept existed.
+ * `undefined` (nothing selected yet) intentionally maps to `"editable"`, matching the pre-existing
+ * fallback behavior: an empty textarea, not a binary notice, is what rendered here before this
+ * file/kind concept existed.
  *
  * @complexity O(1) — three independent boolean checks, no iteration.
- * @overallScore 100/100
  */
 function themeExploreHtmlMode(file: ThemeExploreFile | undefined): "binary" | "readonly" | "editable" {
   if (!file) return "editable";
@@ -152,12 +166,9 @@ function themeExploreHtmlMode(file: ThemeExploreFile | undefined): "binary" | "r
 
 /**
  * The HTML tab's body for the selected file — binary (no source, Preview tab instead), read-only
- * (script/`other`, visible but not saveable), or a normal editable textarea. Extracted to top level
- * for the same complexity-drift reason {@link themeExploreHtmlMode} documents: this was three
- * `ThemeExplore`-body ternaries plus their markup, now one independently-scored component.
+ * (script/`other`, visible but not saveable), or a normal editable textarea.
  *
  * @complexity O(1) — renders exactly one of three fixed shapes.
- * @overallScore 100/100
  */
 function ThemeExploreHtmlPane({
   file,
@@ -221,11 +232,7 @@ function ThemeExploreHtmlPane({
  * the ⋮ menu's Rename item, are the two ways to actually commit, and both are equally fast for this
  * screen's stated use case (typing a new name and pressing Enter).
  *
- * Top-level rather than a closure inside {@link ThemeExploreFileRow} for the same complexity-drift
- * reason {@link themeExploreHtmlMode} documents.
- *
  * @complexity O(1).
- * @overallScore 100/100
  */
 function handleFileRowRenameKeyDown(
   e: KeyboardEvent<HTMLInputElement>,
@@ -242,13 +249,18 @@ function handleFileRowRenameKeyDown(
 
 /**
  * One sidebar row: the filename control (or its inline-rename replacement) plus the ⋮ overflow menu
- * — 2026-08-11 owner ask (Copy/Rename). Extracted to top level, not a nested closure inside
- * `ThemeExplore`'s `.map()`, for the same complexity-drift reason {@link themeExploreHtmlMode}
- * documents — this was the single largest contributor to that function's complexity growing past
- * the project's 9/9 ceiling when the ⋮ menu and inline rename were added inline.
+ * — 2026-08-11 owner ask (Copy/Rename).
+ *
+ * `title={file.path}` is the FULL relative path (e.g. `pages/blog-post.html`), not just `file.label`
+ * — two files that render the same LABEL under different groups (or, before now, before an ellipsis
+ * fix landed, two long names that both got clipped to the same visible prefix) had no way to tell
+ * which was which without this. CSS-only per the owner's own instruction ("if CSS can handle that
+ * without us having to do tooltips and all that, do it") — this `title` attribute plus
+ * `.theme-explore-file-row button:not(.row-menu-trigger) { overflow: hidden; text-overflow: ellipsis;
+ * white-space: nowrap; }` (`styles.css`) is the entire truncation implementation, deliberately with
+ * no character cap: the sidebar column is resizable, so any fixed count would be wrong at most widths.
  *
  * @complexity O(1) per row — the list's own O(n) iteration lives in the caller's `.map()`.
- * @overallScore 100/100
  */
 function ThemeExploreFileRow({
   file,
@@ -303,13 +315,13 @@ function ThemeExploreFileRow({
           {file.label}
         </button>
       )}
-      {/* Copy is unconditional — see `previewSrcFor`'s sibling `copyFile` doc comment in the hook for
-          why duplicating bytes carries none of the risk editing does. Rename is always offered too: a
-          LOCKED file (pages/index.html, theme.json, tokens.json) still shows the item, but selecting
-          it surfaces `error` with the reason instead of opening the inline editor — `RowMenu` has no
-          built-in disabled-item affordance to hang a tooltip reason off, so the reason is surfaced
-          through the same error surface the rest of this screen already uses, rather than silently
-          doing nothing. */}
+      {/* Copy is unconditional — see the hook's own `copyFile` doc comment for why duplicating bytes
+          carries none of the risk editing does. Rename is always offered too: a LOCKED file
+          (pages/index.html, theme.json, tokens.json, or any script/`other`-group file) still shows
+          the item, but selecting it surfaces the refusal as a toast (`ThemeExplore`'s own `error`
+          Toast below) instead of opening the inline editor — `RowMenu` has no built-in disabled-item
+          affordance to hang a reason off, and a greyed-out item would explain nothing anyway (owner,
+          2026-08-11: "I like the fact that we got the error ... it should be a toast"). */}
       <RowMenu
         triggerLabel={t("More actions for {file}").replace("{file}", file.label)}
         items={[
@@ -329,6 +341,467 @@ function ThemeExploreFileRow({
   );
 }
 
+/**
+ * The sidebar file list — one flat list grouped by kind, most-edited groups first (assets last: there
+ * are many of them and they are the ones an author is least likely to be looking for). A real nested
+ * file tree is a separate component a theme's editable surface (~20 entries, two folders deep) does
+ * not need.
+ *
+ * Extracted to top level, not inline in `ThemeExplore`'s own JSX, for the complexity-drift reason this
+ * file's own header comment documents: the `.map()` over `THEME_FILE_GROUPS` plus its `if
+ * (group.length === 0) return null` guard was contributing branch count to `ThemeExplore` itself even
+ * though each row's own rendering was already `ThemeExploreFileRow`.
+ *
+ * @complexity O(g·n) — `g` fixed group count times `n` files; each row is O(1) of its own.
+ */
+function ThemeExploreFileList({
+  files,
+  selected,
+  select,
+  renamingPath,
+  renameDraft,
+  setRenameDraft,
+  startRename,
+  cancelRename,
+  commitRename,
+  copyingPath,
+  copyFile,
+  t,
+}: {
+  files: ThemeExploreFile[];
+  selected: string | null;
+  select: (path: string) => void;
+  renamingPath: string | null;
+  renameDraft: string;
+  setRenameDraft: (value: string) => void;
+  startRename: (path: string) => void;
+  cancelRename: () => void;
+  commitRename: () => void;
+  copyingPath: string | null;
+  copyFile: (path: string) => Promise<void>;
+  t: (key: string) => string;
+}) {
+  return (
+    // `.theme-explore-files-wrap` is the actual grid item (see `.theme-explore`'s own CSS comment for
+    // why): it has no in-flow content of its own, only this absolutely-positioned `<nav>`, so it
+    // contributes NOTHING to the grid row's auto-height calculation and just stretches to match
+    // whatever height `.theme-explore-main` naturally ends up being. The `<nav>` then fills that
+    // stretched wrapper exactly (`inset: 0`) and scrolls internally if its OWN content — up to ~60
+    // files across six groups — is taller than that.
+    <div className="theme-explore-files-wrap">
+      <nav className="theme-explore-files" aria-label={t("Theme files")}>
+        {THEME_FILE_GROUPS.map(({ key: kind, label }) => {
+          const group = files.filter((f) => f.kind === kind);
+          if (group.length === 0) return null;
+          return (
+            <div key={kind}>
+              <p className="theme-explore-files-heading">{t(label)}</p>
+              <ul>
+                {group.map((file) => (
+                  <ThemeExploreFileRow
+                    key={file.path}
+                    file={file}
+                    selected={selected}
+                    select={select}
+                    renamingPath={renamingPath}
+                    renameDraft={renameDraft}
+                    setRenameDraft={setRenameDraft}
+                    startRename={startRename}
+                    cancelRename={cancelRename}
+                    commitRename={commitRename}
+                    copyingPath={copyingPath}
+                    copyFile={copyFile}
+                    t={t}
+                  />
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}
+
+/**
+ * The "you're editing your own copy" directions, or the no-original warning when there is nothing to
+ * fall back to. Deliberately NOT the words "child theme" — there is no runtime relationship between
+ * this theme and the one it came from, and calling it a child would teach that changing the original
+ * still feeds into this one, which it does not.
+ *
+ * Extracted to top level for the complexity-drift reason this file's own header comment documents:
+ * three conditionals (`hasOriginal`, `lineage?.from`, `lineage.version`), two of them nested inside
+ * each other, is exactly the shape that inflates cognitive complexity fastest once left inline.
+ *
+ * @complexity O(1).
+ */
+function ThemeExploreDirectionsNotice({
+  detail,
+  t,
+}: {
+  detail: ThemeExploreDetail;
+  t: (key: string) => string;
+}) {
+  if (!detail.hasOriginal) {
+    return (
+      <div className="notice warning">
+        {t(
+          "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback."
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="notice theme-explore-directions">
+      <strong>{t("You're editing your own copy.")}</strong>{" "}
+      {t(
+        "An untouched original is kept separately, so you can change anything here without losing what you started from."
+      )}
+      {detail.lineage?.from ? (
+        <>
+          {" "}
+          {t("Copied from")} <code>{detail.lineage.from}</code>
+          {detail.lineage.version ? ` v${detail.lineage.version}` : null}.
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The "this theme is not loading" error banner — `null` when the theme's own `status` is `"valid"`.
+ * Extracted to top level for the complexity-drift reason this file's own header comment documents;
+ * one guard clause here is one fewer ternary scored against `ThemeExplore` itself.
+ *
+ * @complexity O(1).
+ */
+function ThemeExploreStatusNotice({
+  detail,
+  t,
+}: {
+  detail: ThemeExploreDetail;
+  t: (key: string) => string;
+}) {
+  if (detail.status === "valid") return null;
+  return (
+    <div className="notice error">
+      {t("This theme is not loading:")} {detail.errors.join("; ")}
+    </div>
+  );
+}
+
+/**
+ * The page-URL-change warning `ConfirmDialog`'s body — pulled out mainly so the two optional-chain
+ * reads of `pageRenameWarning` (only ever non-null while this dialog is open) are scored against a
+ * function of their own rather than `ThemeExplore`'s, per this file's own header comment.
+ *
+ * @complexity O(1).
+ */
+function PageRenameWarningBody({
+  pageRenameWarning,
+  t,
+}: {
+  pageRenameWarning: { path: string; name: string } | null;
+  t: (key: string) => string;
+}) {
+  return (
+    <p>
+      {t("Renaming")} <code>{pageRenameWarning?.path}</code> {t("to")}{" "}
+      <code>{pageRenameWarning?.name}</code>{" "}
+      {t("changes its public URL. Anything already linking to it directly will need updating.")}
+    </p>
+  );
+}
+
+/**
+ * Save button label: filename-qualified whenever a file is selected ("Save about.html"), plain
+ * ("Save") when nothing is (matches {@link canSaveSelectedFile}'s own `undefined`-defaults-to-shown
+ * behavior). See {@link ThemeExploreToolbarButtons}'s own doc comment for why the label carries the
+ * filename at all. A top-level if-chain rather than the nested nested-ternary this replaced
+ * (`saving ? … : dirty ? … : …`) — both for the complexity-drift reason this file's own header
+ * comment documents, and because sonarjs' cognitive-complexity scoring penalizes NESTED ternaries
+ * more heavily than sequential early returns at the same depth.
+ *
+ * @complexity O(1).
+ */
+function themeExploreSaveLabel(
+  state: { saving: boolean; dirty: boolean; file: ThemeExploreFile | undefined },
+  t: (key: string) => string
+): string {
+  if (state.saving) return t("Saving…");
+  if (!state.dirty) return t("Saved");
+  return state.file ? `${t("Save")} ${state.file.label}` : t("Save");
+}
+
+/** Reset button label — same filename-qualified shape as {@link themeExploreSaveLabel}, for the same
+ *  reason. @complexity O(1). */
+function themeExploreResetLabel(
+  state: { resetting: boolean; file: ThemeExploreFile | undefined },
+  t: (key: string) => string
+): string {
+  if (state.resetting) return t("Resetting…");
+  return state.file ? `${t("Reset")} ${state.file.label}` : t("Reset");
+}
+
+/**
+ * The outer toolbar's Save/Reset pair — 2026-08-11 toolbar restructure (owner-approved), matching
+ * `PageEditor.tsx`'s `[← Pages] [Published ▾] [Save] [Delete]` shape: `← All themes` outline/secondary,
+ * Save filled, Reset red-outline-destructive, all in one row above the file list/editor instead of
+ * docked to the Preview/HTML tab row below (`.theme-explore-toolbar-actions`, further down this file).
+ *
+ * Both buttons are labelled with the FILE's own name ("Save about.html", "Reset about.html"), not left
+ * bare — the one thing that keeps this move honest. On Pages, Save saves THE PAGE and Delete deletes
+ * THE PAGE, so a page-level toolbar reads correctly by itself; here Save saves the SELECTED FILE and
+ * Reset resets the SELECTED FILE, and a bare "Save"/"Reset" sitting in the page-level row could read
+ * as acting on the whole theme — an operator with edits open in `about.html` who sees an unqualified
+ * "Save" in the header could reasonably believe everything they have touched just landed. Naming the
+ * file in the label is the chosen fix over the alternative the brief also allowed (visually binding
+ * the pair to the editor pane instead) — a label reads correctly from a screenshot, a screen reader's
+ * accessible-name announcement, or a glance from across the room, none of which a purely spatial
+ * grouping communicates on its own.
+ *
+ * Extracted to top level for the complexity-drift reason this file's own header comment documents;
+ * the label text itself is further delegated to {@link themeExploreSaveLabel}/
+ * {@link themeExploreResetLabel} so this component's own body is just two guarded buttons.
+ *
+ * @complexity O(1).
+ */
+function ThemeExploreToolbarButtons({
+  selectedFile,
+  resetting,
+  openResetConfirm,
+  dirty,
+  saving,
+  save,
+  t,
+}: {
+  selectedFile: ThemeExploreFile | undefined;
+  resetting: boolean;
+  openResetConfirm: () => void;
+  dirty: boolean;
+  saving: boolean;
+  save: () => Promise<void>;
+  t: (key: string) => string;
+}) {
+  return (
+    <>
+      {/* Absent, not disabled, for a read-only file — a greyed-out button invites "why can't I?",
+          where absence just means the option does not apply to this file. `dirty` can never become
+          true for a read-only file (its textarea has no `onChange`), so this is belt-and-suspenders. */}
+      {canSaveSelectedFile(selectedFile) ? (
+        <button
+          className="btn-success"
+          disabled={!dirty || saving}
+          onClick={() => void save()}
+          title={isApplePlatform() ? t("Save (⌘S)") : t("Save (Ctrl+S)")}
+        >
+          {themeExploreSaveLabel({ saving, dirty, file: selectedFile }, t)}
+        </button>
+      ) : null}
+      {/* Hidden entirely, not disabled, when the file has no original to restore from — same
+          reasoning as Save's own absence above. Reset stays reachable for a read-only file, though:
+          it can only ever write back the file's ORIGINAL bytes, never operator-authored content, so
+          "read-only" here means "cannot be AUTHORED from this screen," not "cannot be restored" — the
+          restriction Save enforces has no bearing on what Reset does. */}
+      {selectedFile?.resettable ? (
+        <button
+          type="button"
+          className="btn-danger"
+          disabled={resetting}
+          onClick={openResetConfirm}
+          title={t("Restore this file to the original theme's version")}
+        >
+          {themeExploreResetLabel({ resetting, file: selectedFile }, t)}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * The device-width segmented control plus the fullscreen trigger — only ever rendered while the
+ * Preview tab is active. Extracted to top level for the complexity-drift reason this file's own
+ * header comment documents: `ThemeExplore`'s own JSX now only decides WHETHER to show this
+ * (`view === "preview"`), not what is inside it.
+ *
+ * @complexity O(1) — the `DEVICES` iteration is a fixed-length constant (3), not caller-controlled.
+ */
+function ThemeExplorePreviewControls({
+  device,
+  setDevice,
+  previewWidth,
+  previewSrc,
+  fullscreenTriggerRef,
+  setFullscreen,
+  t,
+}: {
+  device: PagePreviewDevice;
+  setDevice: (value: PagePreviewDevice) => void;
+  previewWidth: number;
+  previewSrc: string | null;
+  fullscreenTriggerRef: RefObject<HTMLButtonElement | null>;
+  setFullscreen: (value: boolean) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <>
+      <div className="segmented" role="group" aria-label={t("Preview width")}>
+        {DEVICES.map((entry) => (
+          <button
+            key={entry.key}
+            type="button"
+            aria-pressed={device === entry.key}
+            className={device === entry.key ? "is-active" : undefined}
+            onClick={() => setDevice(entry.key)}
+          >
+            {t(entry.label)}
+          </button>
+        ))}
+        <span className="page-editor-width">{previewWidth}px</span>
+      </div>
+      <button
+        type="button"
+        ref={fullscreenTriggerRef}
+        className="theme-explore-fullscreen-trigger"
+        onClick={() => setFullscreen(true)}
+        disabled={previewSrc === null}
+        aria-label={t("View preview fullscreen")}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+          <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" />
+        </svg>
+      </button>
+    </>
+  );
+}
+
+/**
+ * The main pane's body: the HTML source view, or the live preview (itself either the rendered iframe
+ * or a "select a file" notice, depending on whether the selected file has anything to preview).
+ *
+ * A flat if-chain rather than a nested ternary directly in `ThemeExplore`'s own return — extracted
+ * for the complexity-drift reason this file's own header comment documents, and flattened rather than
+ * merely relocated because sonarjs' cognitive-complexity scoring penalizes NESTED conditionals more
+ * heavily than sequential ones at the same depth.
+ *
+ * @complexity O(1) — three mutually exclusive branches, no iteration.
+ */
+function ThemeExploreMainPane({
+  view,
+  previewSrc,
+  previewWidth,
+  selectedFile,
+  source,
+  setSource,
+  t,
+}: {
+  view: ThemeExploreView;
+  previewSrc: string | null;
+  previewWidth: number;
+  selectedFile: ThemeExploreFile | undefined;
+  source: string;
+  setSource: (value: string) => void;
+  t: (key: string) => string;
+}) {
+  if (view === "html") {
+    return <ThemeExploreHtmlPane file={selectedFile} source={source} setSource={setSource} t={t} />;
+  }
+  if (previewSrc === null) {
+    return <div className="notice">{t("Select a file to preview.")}</div>;
+  }
+  return <ThemeExplorePreview src={previewSrc} width={previewWidth} title={t("Theme preview")} />;
+}
+
+/**
+ * Open/close the native `<dialog>` to match `fullscreen` — the same `showModal()`/`close()` with an
+ * `open`-attribute jsdom fallback `ImagePreviewModal.tsx` established, extracted to a plain top-level
+ * function so the `useEffect` that calls it is a single expression rather than an 8-line nested-if
+ * body scored as part of `ThemeExplore` itself (this was the file's second-largest single
+ * cognitive-complexity contributor, after the render body's own branching, before this extraction).
+ *
+ * Flattened relative to the original inline version: an early return once `dialog.open` already
+ * matches `fullscreen` replaces two separate nested "only call the native method if not already in
+ * that state" checks. This is behavior-preserving for the jsdom fallback branch too — that branch used
+ * to call `setAttribute`/`removeAttribute` unconditionally, which is an idempotent no-op when the
+ * attribute is already correct, so skipping it changes nothing observable.
+ *
+ * @complexity O(1) — four independent branches, no iteration, no nesting deeper than one level.
+ */
+function syncFullscreenDialog(dialog: HTMLDialogElement | null, fullscreen: boolean): void {
+  if (!dialog) return;
+  if (fullscreen === dialog.open) return;
+  const supportsNativeDialog = typeof dialog.showModal === "function" && typeof dialog.close === "function";
+  if (fullscreen) {
+    if (supportsNativeDialog) dialog.showModal();
+    else dialog.setAttribute("open", "");
+    return;
+  }
+  if (supportsNativeDialog) dialog.close();
+  else dialog.removeAttribute("open");
+}
+
+/**
+ * The fullscreen preview `<dialog>` — extracted to top level for the complexity-drift reason this
+ * file's own header comment documents: `fullscreen && previewSrc` conditionally mounting the iframe
+ * was one more branch scored against `ThemeExplore` itself.
+ *
+ * No device-width control duplicated in here — the docked toolbar's Desktop/Tablet/Mobile group
+ * already owns that choice (`device` is shared state, so fullscreen just renders at whatever was last
+ * selected), and a second set of identically-labelled buttons would be a real duplicate-tab-target for
+ * keyboard/screen-reader users, not just visual clutter. The iframe is only mounted while `fullscreen`
+ * is true — an always-mounted iframe here would fire a second, hidden request to the site server on
+ * every render alongside the docked preview's own.
+ *
+ * @complexity O(1).
+ */
+function ThemeExploreFullscreenDialog({
+  dialogRef,
+  fullscreen,
+  previewSrc,
+  previewWidth,
+  onClose,
+  onCancel,
+  onBackdropClick,
+  t,
+}: {
+  dialogRef: RefObject<HTMLDialogElement | null>;
+  fullscreen: boolean;
+  previewSrc: string | null;
+  previewWidth: number;
+  onClose: () => void;
+  onCancel: (e: SyntheticEvent<HTMLDialogElement>) => void;
+  onBackdropClick: (e: MouseEvent<HTMLDialogElement>) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <dialog
+      ref={dialogRef}
+      className="theme-explore-preview-dialog"
+      aria-label={t("Theme preview, fullscreen")}
+      onCancel={onCancel}
+      onClick={onBackdropClick}
+    >
+      <button
+        type="button"
+        className="theme-explore-preview-dialog-close"
+        onClick={onClose}
+        aria-label={t("Close fullscreen preview")}
+      >
+        ×
+      </button>
+      {fullscreen && previewSrc ? (
+        <iframe
+          key={previewSrc}
+          className="theme-explore-preview-dialog-iframe"
+          title={t("Theme preview, fullscreen")}
+          src={previewSrc}
+          style={{ width: `${previewWidth}px` }}
+        />
+      ) : null}
+    </dialog>
+  );
+}
+
 export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }: ThemeExploreProps) {
   const locale = useAdminLocale();
   const t = (key: string): string => translateThemes(locale, key);
@@ -344,6 +817,7 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
     dirty,
     saving,
     error,
+    dismissError,
     notice,
     dismissNotice,
     save,
@@ -373,24 +847,9 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   // Same open/close lifecycle `ImagePreviewModal.tsx` established for a native `<dialog>` driven by a
-  // boolean prop: `showModal()`/`close()` when supported, an `open` attribute toggle as the jsdom
-  // fallback (neither method exists there), guarded so an already-open/closed dialog is a no-op.
+  // boolean prop — see `syncFullscreenDialog`'s own doc comment for the mechanism.
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (fullscreen) {
-      if (typeof dialog.showModal === "function") {
-        if (!dialog.open) dialog.showModal();
-      } else {
-        dialog.setAttribute("open", "");
-      }
-    } else {
-      if (typeof dialog.close === "function") {
-        if (dialog.open) dialog.close();
-      } else {
-        dialog.removeAttribute("open");
-      }
-    }
+    syncFullscreenDialog(dialogRef.current, fullscreen);
   }, [fullscreen]);
 
   function closeFullscreen() {
@@ -433,7 +892,14 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
         </div>
       </div>
 
-      <div className="page-toolbar">
+      {/* 2026-08-11 toolbar restructure (owner-approved): matches `PageEditor.tsx`'s own
+          `[← Pages] [Published ▾] [Save] [Delete]` row shape and its `.page-actions` class, not the
+          `.page-toolbar` this row used before — `.page-toolbar`'s own CSS pushes its first BUTTON to
+          the far right via an auto-margin (correct for a leading LINK followed by a button group,
+          which is what every other current `.page-toolbar` caller is), which would misfire on `←
+          All themes` now that it is a button and the first child. `.page-actions` carries no such
+          rule, so all three buttons simply pack left-to-right in one row, the same as Pages'. */}
+      <div className="page-actions">
         <a
           href="/admin/themes"
           onClick={(e) => {
@@ -441,78 +907,53 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
             navigate("/themes");
           }}
         >
-          {t("← All themes")}
+          <button type="button" className="btn-secondary">
+            {t("← All themes")}
+          </button>
         </a>
+        <ThemeExploreToolbarButtons
+          selectedFile={selectedFile}
+          resetting={resetting}
+          openResetConfirm={openResetConfirm}
+          dirty={dirty}
+          saving={saving}
+          save={save}
+          t={t}
+        />
       </div>
 
-      {/* The directions. Deliberately NOT the words "child theme": there is no runtime relationship
-          between this theme and the one it came from — it is a fork, and calling it a child would
-          teach that changing the original still feeds into this one, which it does not. */}
-      {detail.hasOriginal ? (
-        <div className="notice theme-explore-directions">
-          <strong>{t("You're editing your own copy.")}</strong>{" "}
-          {t(
-            "An untouched original is kept separately, so you can change anything here without losing what you started from."
-          )}
-          {detail.lineage?.from ? (
-            <>
-              {" "}
-              {t("Copied from")} <code>{detail.lineage.from}</code>
-              {detail.lineage.version ? ` v${detail.lineage.version}` : null}.
-            </>
-          ) : null}
-        </div>
-      ) : (
-        <div className="notice warning">
-          {t(
-            "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback."
-          )}
-        </div>
-      )}
-
-      {detail.status !== "valid" ? (
-        <div className="notice error">
-          {t("This theme is not loading:")} {detail.errors.join("; ")}
-        </div>
+      <ThemeExploreDirectionsNotice detail={detail} t={t} />
+      <ThemeExploreStatusNotice detail={detail} t={t} />
+      {/* Every error on this screen shares one presentation now — a rename refusal, a name
+          collision, a containment rejection, a save/reset failure — rather than the full-width pink
+          inline banner this used to be. `placement="top"` + centered (the `Toast` component's own
+          styling, `styles.css`) rather than the default bottom placement `notice`/success toasts
+          below use, per the owner's own ask: a mid-screen overlay would cover the file list and the
+          editor, which is where the operator is looking when an error fires. `ttlMs={0}` pins it open
+          (no auto-dismiss timer) — an operator who looked away has no way to recover text that
+          vanished on a clock, so the close button is the only way this goes away. `role="alert"` so
+          screen readers announce it immediately, matching the "the error is the feature" reasoning
+          the owner gave for keeping Rename attemptable everywhere instead of disabling it. */}
+      {error ? (
+        <Toast message={error} tone="error" role="alert" placement="top" ttlMs={0} onDismiss={dismissError} />
       ) : null}
-      {error ? <div className="notice error">{error}</div> : null}
       {notice ? <Toast message={notice} tone="success" ttlMs={5000} onDismiss={dismissNotice} /> : null}
 
       <div className="theme-explore">
-        {/* Flat list grouped by kind, most-edited groups first. A real nested file tree is a separate
-            component — a theme's editable surface is ~20 entries two folders deep, which a tree would
-            not make more legible. Assets appear last: there are many of them and they are the ones an
-            author is least likely to be looking for. */}
-        <nav className="theme-explore-files" aria-label={t("Theme files")}>
-          {THEME_FILE_GROUPS.map(({ key: kind, label }) => {
-            const group = files.filter((f) => f.kind === kind);
-            if (group.length === 0) return null;
-            return (
-              <div key={kind}>
-                <p className="theme-explore-files-heading">{t(label)}</p>
-                <ul>
-                  {group.map((file) => (
-                    <ThemeExploreFileRow
-                      key={file.path}
-                      file={file}
-                      selected={selected}
-                      select={select}
-                      renamingPath={renamingPath}
-                      renameDraft={renameDraft}
-                      setRenameDraft={setRenameDraft}
-                      startRename={startRename}
-                      cancelRename={cancelRename}
-                      commitRename={commitRename}
-                      copyingPath={copyingPath}
-                      copyFile={copyFile}
-                      t={t}
-                    />
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-        </nav>
+        <ThemeExploreFileList
+          files={files}
+          selected={selected}
+          select={select}
+          renamingPath={renamingPath}
+          renameDraft={renameDraft}
+          setRenameDraft={setRenameDraft}
+          startRename={startRename}
+          cancelRename={cancelRename}
+          commitRename={commitRename}
+          copyingPath={copyingPath}
+          copyFile={copyFile}
+          t={t}
+        />
 
         <div className="theme-explore-main">
           <div className="page-editor-toolbar">
@@ -532,115 +973,41 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
             </div>
             <div className="theme-explore-toolbar-actions">
               {view === "preview" ? (
-                <>
-                  <div className="segmented" role="group" aria-label={t("Preview width")}>
-                    {DEVICES.map((entry) => (
-                      <button
-                        key={entry.key}
-                        type="button"
-                        aria-pressed={device === entry.key}
-                        className={device === entry.key ? "is-active" : undefined}
-                        onClick={() => setDevice(entry.key)}
-                      >
-                        {t(entry.label)}
-                      </button>
-                    ))}
-                    <span className="page-editor-width">{previewWidth}px</span>
-                  </div>
-                  <button
-                    type="button"
-                    ref={fullscreenTriggerRef}
-                    className="theme-explore-fullscreen-trigger"
-                    onClick={() => setFullscreen(true)}
-                    disabled={previewSrc === null}
-                    aria-label={t("View preview fullscreen")}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                      <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" />
-                    </svg>
-                  </button>
-                </>
-              ) : null}
-              {/* Reset is `.btn-danger` and sits BEFORE Save rather than beside it: it is the only
-                  irreversible control on this screen, and the styling is what says so. Hidden
-                  entirely (not disabled) when the file has no original — a greyed-out Reset invites
-                  "why can't I?", where absence just means the option does not apply here. */}
-              {selectedFile?.resettable ? (
-                <button
-                  type="button"
-                  className="btn-danger"
-                  disabled={resetting}
-                  onClick={openResetConfirm}
-                  title={t("Restore this file to the original theme's version")}
-                >
-                  {resetting ? t("Resetting…") : t("Reset")}
-                </button>
-              ) : null}
-              {/* The ⌘/Ctrl+S hint is a `title` rather than a visible label: the shortcut is worth
-                  discovering, but not worth widening a button that changes text three ways already.
-                  `isApplePlatform` picks the glyph the operator's own keyboard has — showing a Mac
-                  user "Ctrl+S" for a chord that is ⌘S there is worse than showing nothing. */}
-              {/* Absent, not disabled, for a read-only file — same "why can't I?" reasoning Reset's
-                  own conditional presence above already applies to this screen. `dirty` can never
-                  become true for a read-only file (its textarea below has no `onChange`), so this is
-                  a belt-and-suspenders hide rather than the only thing standing between the operator
-                  and an accidental save. */}
-              {canSaveSelectedFile(selectedFile) ? (
-                <button
-                  className="btn-primary"
-                  disabled={!dirty || saving}
-                  onClick={() => void save()}
-                  title={isApplePlatform() ? t("Save (⌘S)") : t("Save (Ctrl+S)")}
-                >
-                  {saving ? t("Saving…") : dirty ? t("Save") : t("Saved")}
-                </button>
+                <ThemeExplorePreviewControls
+                  device={device}
+                  setDevice={setDevice}
+                  previewWidth={previewWidth}
+                  previewSrc={previewSrc}
+                  fullscreenTriggerRef={fullscreenTriggerRef}
+                  setFullscreen={setFullscreen}
+                  t={t}
+                />
               ) : null}
             </div>
           </div>
 
-          {view === "preview" ? (
-            previewSrc ? (
-              <ThemeExplorePreview src={previewSrc} width={previewWidth} title={t("Theme preview")} />
-            ) : (
-              <div className="notice">{t("Select a file to preview.")}</div>
-            )
-          ) : (
-            <ThemeExploreHtmlPane file={selectedFile} source={source} setSource={setSource} t={t} />
-          )}
+          <ThemeExploreMainPane
+            view={view}
+            previewSrc={previewSrc}
+            previewWidth={previewWidth}
+            selectedFile={selectedFile}
+            source={source}
+            setSource={setSource}
+            t={t}
+          />
         </div>
       </div>
 
-      <dialog
-        ref={dialogRef}
-        className="theme-explore-preview-dialog"
-        aria-label={t("Theme preview, fullscreen")}
+      <ThemeExploreFullscreenDialog
+        dialogRef={dialogRef}
+        fullscreen={fullscreen}
+        previewSrc={previewSrc}
+        previewWidth={previewWidth}
+        onClose={closeFullscreen}
         onCancel={handleFullscreenCancel}
-        onClick={handleFullscreenBackdropClick}
-      >
-        {/* No device-width control duplicated in here — the docked toolbar's Desktop/Tablet/Mobile
-            group already owns that choice (`device` is shared state, so fullscreen just renders at
-            whatever was last selected), and a second set of identically-labelled buttons would be a
-            real duplicate-tab-target for keyboard/screen-reader users, not just visual clutter. */}
-        <button
-          type="button"
-          className="theme-explore-preview-dialog-close"
-          onClick={closeFullscreen}
-          aria-label={t("Close fullscreen preview")}
-        >
-          ×
-        </button>
-        {/* Only mounted while open — an always-mounted iframe here would fire a second, hidden
-            request to the site server on every render alongside the docked preview's own. */}
-        {fullscreen && previewSrc ? (
-          <iframe
-            key={previewSrc}
-            className="theme-explore-preview-dialog-iframe"
-            title={t("Theme preview, fullscreen")}
-            src={previewSrc}
-            style={{ width: `${previewWidth}px` }}
-          />
-        ) : null}
-      </dialog>
+        onBackdropClick={handleFullscreenBackdropClick}
+        t={t}
+      />
 
       {/* The only DESTRUCTIVE confirmation on this screen — Reset is the only thing here that can
           lose work. Names the file explicitly rather than saying "this file": a destructive prompt
@@ -669,13 +1036,7 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
       <ConfirmDialog
         open={pageRenameWarning !== null}
         title={t("Rename this page?")}
-        body={
-          <p>
-            {t("Renaming")} <code>{pageRenameWarning?.path}</code> {t("to")}{" "}
-            <code>{pageRenameWarning?.name}</code>{" "}
-            {t("changes its public URL. Anything already linking to it directly will need updating.")}
-          </p>
-        }
+        body={<PageRenameWarningBody pageRenameWarning={pageRenameWarning} t={t} />}
         confirmLabel={t("Rename page")}
         tone="warning"
         pending={renaming}

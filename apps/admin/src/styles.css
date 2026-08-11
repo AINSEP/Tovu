@@ -12,7 +12,21 @@
      admin is printed on. Written in oklch to match the file's convention; it
      round-trips to #FAF9F7 exactly, so the hex is recoverable, not approximated. */
   --bg:            #fff; /* was oklch(98.2% 0.0029 84.6) === #FAF9F7 */
-  --surface:       oklch(100% 0 0);
+  /* `none`, not a literal `0`, for the hue component — 2026-08-11, found while building Explore's
+     green Save button. Visually identical either way (a hue angle does nothing when chroma is 0), but
+     `color-mix(in oklch, …)` treats the two very differently: `none` marks the hue POWERLESS, so any
+     interpolation against a chromatic partner correctly carries the OTHER color's hue through
+     unchanged (CSS Color 4's own rule for a powerless component). A literal `0` is an ordinary,
+     fully-specified hue angle as far as `color-mix` is concerned — indistinguishable from having
+     authored "this white is slightly reddish" — so mixing it against `--ok-solid` (hue 150) landed at
+     hue 45, and against `--primary` (hue 43.4) at hue 13, both dragged hard toward red. This is what
+     was actually producing the pink/mauve tint on every disabled `--primary`-based button in light
+     mode (`button:disabled`, below) — a real, previously-unnoticed bug this token fix corrects
+       app-wide, not a workaround scoped to the one new button that surfaced it. Verified directly:
+     `color-mix(in oklch, oklch(48% 0.12 150) 30%, oklch(100% 0 0))` → `oklch(84.4% 0.036 45)` (wrong);
+     the same mix against `oklch(100% 0 none)` → `oklch(84.4% 0.036 150)` (correct, hue preserved).
+     Dark mode's `--surface` (below) already carries real chroma/hue and was never affected. */
+  --surface:       oklch(100% 0 none);
   --surface-2:     oklch(96.6% 0.006 250);
   --surface-3:     oklch(94% 0.008 250);
   --fg:            oklch(24% 0.022 262);
@@ -58,6 +72,19 @@
   --link-ink:  oklch(99% 0 0);
   --ok:        oklch(48% 0.12 150);
   --ok-bg:     oklch(93% 0.05 150);
+  /* A SOLID-FILL pair for a green button with white text (Explore's Save, 2026-08-11 toolbar
+     restructure) — deliberately separate from `--ok`/`--ok-bg` above, not a second name for the same
+     thing. `--ok` is tuned as PILL TEXT/tint color (`.theme-active-tag`, `.status-*`): light mode's
+     48% L already clears white-text contrast (6.18:1, measured the same way `--primary`'s own comment
+     documents — see that token), but dark mode's `--ok` goes to 74% L specifically so it reads AS TEXT
+     against a dark surface, and a light 74%-L fill under WHITE button text lands at only ~2.2:1,
+     failing AA. `--ok-solid` stays close to `--ok`'s LIGHT value in BOTH themes instead — the same
+     "barely moves between themes" shape `--primary`/`--primary-ink` already use for exactly this
+     reason (a solid CTA fill needs to hold contrast against its own OWN white ink in both modes, not
+     shift for legibility as text-on-surface the way `--ok` intentionally does). Same hue/chroma
+     family as `--ok` (150/0.12), so it still reads as "the same green" as the Active pill it echoes. */
+  --ok-solid:      oklch(48% 0.12 150); /* ~#19703C — 6.18:1 vs white */
+  --ok-solid-ink:  oklch(99% 0 0);
   --danger:    oklch(52% 0.19 25);
   --danger-bg: oklch(95% 0.04 25);
   /* Third tier between secondary/neutral and destructive — reversible but access-affecting
@@ -141,6 +168,11 @@
   --link-ink:  oklch(18% 0.006 260);
   --ok:        oklch(74% 0.14 150);
   --ok-bg:     oklch(45% 0.08 150 / 0.24);
+  /* See the light-theme block's own comment on `--ok-solid` for why this is a near-repeat of the
+     light value rather than following `--ok`'s own much-lighter dark-mode shift: 47% L keeps
+     ~6.4:1 against white text, still comfortably clear of the 4.5:1 AA floor on this darker surface. */
+  --ok-solid:      oklch(47% 0.12 150);
+  --ok-solid-ink:  oklch(99% 0 0);
   --danger:    oklch(74% 0.16 25);
   --danger-bg: oklch(50% 0.12 25 / 0.22);
   --warning:    oklch(76% 0.13 82);
@@ -209,7 +241,7 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
    for color regardless of this rule also matching. See the `a.btn-*` block below this one for
    the anchor-specific fixes (`display`, `text-decoration`) a bare shape rule can't provide. */
 button,
-.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-explore {
+.btn-secondary, .btn-ghost, .btn-danger, .btn-warning, .btn-primary, .btn-success, .btn-explore {
   background: var(--primary); color: var(--primary-ink); border: 1px solid transparent;
   border-radius: var(--r-sm); padding: 0.5rem 0.95rem; cursor: pointer;
   font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.01em;
@@ -431,20 +463,30 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    the grid past the viewport instead of scrolling inside its own box. */
 .theme-explore {
   display: grid; grid-template-columns: 190px minmax(0, 1fr);
-  gap: var(--space-4); align-items: start;
+  gap: var(--space-4);
 }
 @media (max-width: 720px) { .theme-explore { grid-template-columns: minmax(0, 1fr); } }
 .theme-explore-directions { border-left: 3px solid var(--link); }
-/* Scrolls in its own box instead of running the page down. Adding the Assets group turned this from
-   ~12 entries into 60+ on an image-heavy theme, so it now needs its own scroll rather than making
-   the whole page taller than the preview it sits beside. `sticky` keeps it in view while the preview
-   scrolls; `2/3 viewport` per owner instruction, minus a little so the cap is visibly a cap rather
-   than looking like it happens to end there. */
+/* 2026-08-11: the sidebar needs to span the SAME height as `.theme-explore-main` (its toolbar row
+   plus the preview/HTML pane) — but ONE direction only: matching `.theme-explore-main`'s own natural
+   height, never the other way around. A first attempt just gave both grid items `align-items: stretch`
+   (the grid default) plus `height: 100%` on the file list — that mutually stretches whichever column
+   is TALLER onto the other, and with up to 60 files across six groups the SIDEBAR is very often the
+   taller one, which then inflated `.theme-explore-main` far past its own content (toolbar + a ~500px
+   textarea, or a ~700px scaled preview iframe), leaving hundreds of pixels of dead space below it —
+   worse than the fixed-cap version this replaced, not better.
+   The fix: `.theme-explore-files-wrap` is the actual grid item. It has no IN-FLOW content of its own
+   — only the absolutely-positioned `<nav>` below — so it contributes NOTHING to the grid row's
+   auto-height calculation; the row's height is set by `.theme-explore-main` alone. `align-items:
+   stretch` (the grid default, so no rule needed for it) still stretches the now-empty wrap to that
+   row height, and the `<nav>`'s `position: absolute; inset: 0` fills exactly that stretched box,
+   scrolling internally via `overflow-y: auto` if its own content is taller than the space this leaves
+   it — the "keep the scroll container, drop the fixed number" fix `6161855`'s vh-based cap needed,
+   now actually matching the PANE'S height instead of a viewport guess OR the file list's own size. */
+.theme-explore-files-wrap { position: relative; }
 .theme-explore-files {
-  max-height: min(66vh, calc(100vh - 12rem));
+  position: absolute; inset: 0;
   overflow-y: auto;
-  position: sticky;
-  top: var(--space-4);
   /* Room for the scrollbar so it never overlaps the file names. */
   padding-right: var(--space-2);
   overscroll-behavior: contain;
@@ -521,9 +563,12 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    2026-08-11: "make the pages title flush with preview and HTML tabs ... it just looks off." Scoped
    to this one context so `PageEditor`'s own spacing is untouched. */
 .theme-explore-main .page-editor-toolbar { margin-top: 0; }
-/* The view tabs sit on the left of the toolbar; width control, fullscreen trigger, and Save group on
-   the right — `.page-editor-toolbar`'s own `justify-content: space-between` then only has to place
-   TWO children (this group and the tabs), not referee three or four fighting for the same row. */
+/* The view tabs sit on the left of the toolbar; the preview-width control and fullscreen trigger
+   (Preview tab only) sit on the right — `.page-editor-toolbar`'s own `justify-content: space-between`
+   then only has to place TWO children (this group and the tabs). Save/Reset used to live in here too;
+   the 2026-08-11 toolbar restructure moved them up into the outer `.page-actions` row beside
+   `← All themes`, matching `PageEditor.tsx`'s own toolbar shape — see `ThemeExplore.tsx`'s
+   `ThemeExploreToolbarButtons` for why. */
 .theme-explore-toolbar-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .theme-explore-fullscreen-trigger {
   display: inline-flex; align-items: center; justify-content: center;
@@ -658,6 +703,26 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    seeing the intent in the className, not just inheriting it silently from the element type). */
 .btn-primary { background: var(--primary); color: var(--primary-ink); border: 1px solid transparent; }
 .btn-primary:hover { opacity: 0.88; }
+/* Green-filled, white text — Explore's Save (2026-08-11 toolbar restructure), deliberately NOT
+   `.btn-primary`'s brown/rust fill: the owner asked for green specifically, reusing the hue behind
+   the Themes page's `.theme-active-tag` "Active" pill rather than introducing an unrelated color.
+   `--ok-solid`/`--ok-solid-ink`, not `--ok`/`--primary-ink` — see that token pair's own comment for
+   why a THIRD pair exists instead of composing the other two. */
+.btn-success { background: var(--ok-solid); color: var(--ok-solid-ink); border: 1px solid transparent; }
+.btn-success:hover { opacity: 0.88; }
+/* The global `button:disabled` rule (above, ~L242) paints a `color-mix` tint of `--primary` — a
+   burnt-orange hue — behind EVERY disabled button regardless of class, which is what actually produced
+   a muted pink/brown "Saved" button here instead of a muted green one (same defect already found and
+   fixed for `.tab-bar-item:disabled`, see that rule's own comment). `.btn-success:disabled`'s (0,2,0)
+   specificity beats the base rule's (0,1,1) on class count alone, so no `!important`/selector tricks
+   are needed — same `color-mix` MECHANISM as the base rule, just built from `--ok-solid`/
+   `--ok-solid-ink` so a disabled Save still reads as "a dimmed green button," consistent with how the
+   rest of the app dims a primary button rather than going neutral grey. */
+.btn-success:disabled {
+  cursor: default; opacity: 1;
+  background: color-mix(in oklch, var(--ok-solid) 30%, var(--surface));
+  color: color-mix(in oklch, var(--ok-solid-ink) 55%, var(--surface));
+}
 
 /* Anchor-specific fixes the shape rule above cannot provide by itself. An `<a>` is inline by
    default, so the shape rule's `padding` never gets the box to center around — `inline-flex` +
