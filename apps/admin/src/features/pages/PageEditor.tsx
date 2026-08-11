@@ -181,66 +181,38 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
 
       {/* `editor-title`/`editor-slug` are the existing editor chrome from `styles/editor.css`,
           reused verbatim so a Page's header looks and behaves exactly like the screen it replaces.
-          The chrome was never the problem — the Tiptap body under it was. */}
-      <label className="a11y-label-wrap">
-        <span className="visually-hidden">Page title</span>
-        <input
-          className="editor-title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Untitled"
-        />
-      </label>
+          The chrome was never the problem — the Tiptap body under it was.
 
-      <div className="editor-slug">
-        <span>/</span>
+          Owner feedback (2026-08-11): "Cap the title input at half the page and then put the
+          hacker news slug and view. Right justify it as the other half of that line of the
+          title." — title and slug now share one row instead of stacking on two. `.page-title-row`
+          is a new, Pages-only wrapper class (`styles/pages.css`, scoped as `.page-title-row
+          .editor-title` — see that rule's own comment for why the width cap has to target the
+          input directly rather than a class on this `display: contents` label) that constrains
+          widths without changing `.editor-title`/`.editor-slug` themselves, so `PostEditor.tsx`'s
+          own full-width title row is unaffected. */}
+      <div className="page-title-row">
         <label className="a11y-label-wrap">
-          <span className="visually-hidden">URL slug</span>
-          <input value={slug} onChange={(e) => setSlug(e.target.value)} />
+          <span className="visually-hidden">Page title</span>
+          <input
+            className="editor-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Untitled"
+          />
         </label>
-        <a href={siteUrl(`/${slug}`)} target="_blank" rel="noreferrer">
-          view ↗
-        </a>
-      </div>
 
-      {/* Pages template picker (Task 4, 2026-08-11) — mirrors `PostEditor.tsx`'s own
-          `.editor-template-picker` markup/classes verbatim (no new CSS added, per this task's file-
-          ownership constraint on `styles.css`). Rendered only for an `"html"`-format Page: a
-          `"doc"`-format Page (pre-conversion legacy row) has no render path that would honor a
-          template choice yet (`isEligibleForPageTemplateBranch` requires `bodyFormat: "html"`), so
-          showing the picker on one would let an operator set a value with no visible effect.
-
-          UNLIKE the Post picker, the selected value is NOT defaulted to the theme's first template
-          when unset — see `use-page-editor.hooks.ts`'s load effect and `isEligibleForPageTemplateBranch`'s
-          doc for the full reasoning: "no template chosen" is a Page's normal, fully-working state
-          (render its own body), not an absence-of-decision needing a UI default to stay honest. */}
-      {page.bodyFormat === "html" ? (
-        <div className="editor-template-picker">
+        <div className="editor-slug">
+          <span>/</span>
           <label className="a11y-label-wrap">
-            <span className="visually-hidden">Template</span>
+            <span className="visually-hidden">URL slug</span>
+            <input value={slug} onChange={(e) => setSlug(e.target.value)} />
           </label>
-          {availableTemplates.length > 0 ? (
-            <select
-              value={templateChoice ?? ""}
-              // `e.target.value`, not `|| null` — `""` is a legitimate stored value here (though,
-              // unlike Posts, it behaves identically to `null` at render time — see
-              // `isEligibleForPageTemplateBranch`'s doc).
-              onChange={(e) => setTemplateChoice(e.target.value)}
-            >
-              {availableTemplates.map((template) => (
-                <option key={template} value={template}>
-                  {template}
-                </option>
-              ))}
-              <option value="">No template chosen</option>
-            </select>
-          ) : (
-            <select disabled value="">
-              <option value="">No templates for this theme</option>
-            </select>
-          )}
+          <a href={siteUrl(`/${slug}`)} target="_blank" rel="noreferrer">
+            view ↗
+          </a>
         </div>
-      ) : null}
+      </div>
 
       <div className="page-editor-toolbar">
         <div className="segmented" role="tablist" aria-label="Editor view">
@@ -257,22 +229,69 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
             </button>
           ))}
         </div>
-        {view === "preview" ? (
-          <div className="segmented" role="group" aria-label="Preview width">
-            {DEVICES.map((entry) => (
-              <button
-                key={entry.key}
-                type="button"
-                aria-pressed={device === entry.key}
-                className={device === entry.key ? "is-active" : undefined}
-                onClick={() => setDevice(entry.key)}
-              >
-                {entry.label}
-              </button>
-            ))}
-            <span className="page-editor-width">{PAGE_PREVIEW_WIDTHS[device]}px</span>
-          </div>
-        ) : null}
+        {/* Device-width control and template picker share the toolbar's right-hand side (owner
+            feedback, 2026-08-11: "move the UI for the template dropdown where the desktop tablet
+            mobile is right now ... so it's all one row" — the picker's own standalone row above is
+            gone). `.page-editor-toolbar-end` is a plain grouping wrapper (`pages.css`) so
+            `.page-editor-toolbar`'s existing `justify-content: space-between` still only has to
+            place two things: the view tabs on the left, this group on the right. */}
+        <div className="page-editor-toolbar-end">
+          {view === "preview" ? (
+            <div className="segmented" role="group" aria-label="Preview width">
+              {DEVICES.map((entry) => (
+                <button
+                  key={entry.key}
+                  type="button"
+                  aria-pressed={device === entry.key}
+                  className={device === entry.key ? "is-active" : undefined}
+                  onClick={() => setDevice(entry.key)}
+                >
+                  {entry.label}
+                </button>
+              ))}
+              <span className="page-editor-width">{PAGE_PREVIEW_WIDTHS[device]}px</span>
+            </div>
+          ) : null}
+          {/* Pages template picker (Task 4, 2026-08-11) — mirrors `PostEditor.tsx`'s own
+              `.editor-template-picker` markup/classes verbatim. Rendered only for an `"html"`-format
+              Page: a `"doc"`-format Page (pre-conversion legacy row) has no render path that would
+              honor a template choice yet (`isEligibleForPageTemplateBranch` requires
+              `bodyFormat: "html"`), so showing the picker on one would let an operator set a value
+              with no visible effect.
+
+              UNLIKE the Post picker, the selected value is NOT defaulted to the theme's first
+              template when unset — see `use-page-editor.hooks.ts`'s load effect and
+              `isEligibleForPageTemplateBranch`'s doc for the full reasoning: "no template chosen" is
+              a Page's normal, fully-working state (render its own body), not an absence-of-decision
+              needing a UI default to stay honest. */}
+          {page.bodyFormat === "html" ? (
+            <div className="editor-template-picker">
+              <label className="a11y-label-wrap">
+                <span className="visually-hidden">Template</span>
+              </label>
+              {availableTemplates.length > 0 ? (
+                <select
+                  value={templateChoice ?? ""}
+                  // `e.target.value`, not `|| null` — `""` is a legitimate stored value here (though,
+                  // unlike Posts, it behaves identically to `null` at render time — see
+                  // `isEligibleForPageTemplateBranch`'s doc).
+                  onChange={(e) => setTemplateChoice(e.target.value)}
+                >
+                  {availableTemplates.map((template) => (
+                    <option key={template} value={template}>
+                      {template}
+                    </option>
+                  ))}
+                  <option value="">No template chosen</option>
+                </select>
+              ) : (
+                <select disabled value="">
+                  <option value="">No templates for this theme</option>
+                </select>
+              )}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {view === "preview" ? (

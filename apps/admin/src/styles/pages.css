@@ -7,6 +7,42 @@
  * definition, shared, rather than two that drift.
  */
 
+/*
+ * Title + slug share one row (owner feedback, 2026-08-11: "Cap the title input at half the page
+ * ... Right justify [the slug] as the other half of that line of the title"). `justify-content:
+ * space-between` does the right-justify: `.editor-slug` has no explicit width, so it hugs the
+ * row's right edge on its own.
+ *
+ * The width cap targets `.editor-title` directly, NOT a wrapping class on its `<label>` — the
+ * label carries `.a11y-label-wrap` (`styles/editor.css`), which is `display: contents` precisely so
+ * the label drops out of the layout tree and its child input becomes the row's real flex item; a
+ * `max-width` on the label itself would sit on a box that is never generated and do nothing. `flex:
+ * 1 1 50%` + `max-width: 50%` (rather than a bare `width: 50%`) lets the title GROW to fill the
+ * half if the slug group is narrower than its own half, while never exceeding it.
+ */
+.page-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4, 1rem);
+  flex-wrap: wrap;
+}
+
+.page-title-row .editor-title {
+  flex: 1 1 50%;
+  max-width: 50%;
+  min-width: 0;
+}
+
+/* Below this width the halves read as cramped rather than "comfortably usable" (title and slug are
+   both free-typed inputs) — stack them full-width instead, same breakpoint `.editor-slug-row` (the
+   Post editor's equivalent row, `styles.css`) already stacks at. */
+@media (max-width: 640px) {
+  .page-title-row { flex-direction: column; align-items: stretch; }
+  .page-title-row .editor-title { max-width: 100%; }
+  .page-title-row .editor-slug { justify-content: center; text-align: center; }
+}
+
 .page-editor-toolbar {
   display: flex;
   align-items: center;
@@ -47,6 +83,35 @@
   font-size: 0.8rem;
   color: var(--text-muted, #5f5b55);
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Groups the device-width control and the template picker on the toolbar's right side (owner
+ * feedback, 2026-08-11: both move onto the one row the view tabs already occupy). A plain
+ * wrapper, not a new flex-item shape — `.page-editor-toolbar`'s own `justify-content: space-between`
+ * still just places two things: the tabs on the left, this group on the right.
+ *
+ * `flex-wrap: wrap` here (independent of `.page-editor-toolbar`'s own wrap) is the narrow-viewport
+ * degrade: three variable-width control clusters (tabs, device-width, template) collide sooner than
+ * the two-cluster toolbar did before this change, so this group can drop its own two children to a
+ * second line without the tabs above it needing to move. The template `<select>` shrinking below its
+ * shared 14rem width (`.editor-template-picker select`, `styles.css`) is the OTHER half of that
+ * degrade — scoped to this wrapper only, so `PostEditor.tsx`'s own picker keeps its normal width.
+ */
+.page-editor-toolbar-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .page-editor-toolbar-end .editor-template-picker select {
+    width: auto;
+    min-width: 0;
+    max-width: 11rem;
+  }
 }
 
 /*
