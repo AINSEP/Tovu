@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
 import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
@@ -275,14 +276,34 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
  * generated markup cannot reach the admin's cookies, storage or DOM even though scripts run in it.
  */
 function PagePreview({ html, width }: { html: string; width: number }) {
-  // The pane is roughly this wide once the assistant dock is open; scaling against a fixed
-  // reference keeps the preview stable as the window resizes rather than reflowing under the
-  // operator mid-edit. A real measurement (ResizeObserver) is the follow-up, not the prototype.
-  const paneWidth = 880;
+  const frameRef = useRef<HTMLDivElement>(null);
+  // The frame's REAL rendered width, measured live via `ResizeObserver` rather than a guessed
+  // constant — a flat `880` here previously meant the scale computed once at mount and stayed frozen
+  // across a window resize, a sidebar collapse, or the assistant dock opening/closing (this is the
+  // bug `ThemeExplore.tsx`'s own `ThemeExplorePreview` copied verbatim from here, then fixed live —
+  // see that file's `fd26d93`). `880` survives only as the pre-measurement default so the first
+  // paint still has a sane scale instead of `Infinity`/`NaN` from a zero-width ref.
+  //
+  // jsdom implements no `ResizeObserver` at all (`__tests__/setup.ts`'s own comment — deliberately
+  // left unstubbed, so a test can't pass without the measurement ever happening) — guarded exactly
+  // like `SeeMore.hooks.tsx`'s own `typeof ResizeObserver !== "function"` check, so this component
+  // still renders (at the `880` default) in every existing/new unit test.
+  const [paneWidth, setPaneWidth] = useState(880);
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el || typeof ResizeObserver !== "function") return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setPaneWidth(entry.contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const scale = Math.min(1, paneWidth / width);
 
   return (
-    <div className="page-preview-frame" style={{ height: `${900 * scale}px` }}>
+    <div ref={frameRef} className="page-preview-frame" style={{ height: `${900 * scale}px` }}>
       <div
         className="page-preview-scaler"
         style={{ width: `${width}px`, height: "900px", transform: `scale(${scale})` }}
