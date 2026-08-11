@@ -162,8 +162,21 @@ function rewriteThemeManifestId(required: { themeDir: string; id: string; extra?
  * restores from, so a screenshot excluded there would become permanently non-resettable the moment a
  * user edited or deleted their working copy's. Real marketing asset, not a build artifact — the size
  * cost is accepted, not overlooked.
+ *
+ * @param fixtureDir - The marketplace fixture's own root, the same first argument passed to `cpSync`.
+ * @param candidate - One absolute path `cpSync`'s walk is currently considering, passed to its
+ * `filter` callback.
+ * @returns `true` for `fixtureDir/preview` itself or anything under it; `false` for every other path,
+ * including a merely `preview`-prefixed sibling (`preview-notes/`), which the trailing separator
+ * check exists specifically to not match.
+ * @throws Never — `path.relative`/`String.startsWith` do not throw for arbitrary string inputs.
+ * Pure: no filesystem access, no side effects.
+ *
+ * @complexity Time: O(k), where k is `candidate`'s path length (one `relative` + one `startsWith`).
+ * @complexity Space: O(k) for the computed relative-path string; no allocation scales with the
+ * fixture's file count.
  */
-function isGeneratedPreviewPath(fixtureDir: string, candidate: string): boolean {
+export function isGeneratedPreviewPath(fixtureDir: string, candidate: string): boolean {
   const rel = relative(fixtureDir, candidate);
   return rel === "preview" || rel.startsWith(`preview${sep}`);
 }
