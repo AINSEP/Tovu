@@ -24,7 +24,7 @@
     "legal-document-two",
     "pricing"
   ],
-  "postTemplate": ["blog-post.html"],
+  "templates": ["blog-post.html"],
   "slots": {
     "nav": { "source": "nav.html", "honorsCurrentPage": true },
     "footer": { "source": "footer.html" }

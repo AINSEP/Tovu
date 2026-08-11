@@ -5,18 +5,10 @@ export function toAdminPresentationResponse(required: {
   settings: PresentationSettingsRecord;
   availableThemeIds: string[];
   availableThemes: HeadlessThemeSummary[];
-  activeThemePostTemplates: string[];
-  activeThemePageTemplates: string[];
+  activeThemeTemplates: string[];
   activeThemeStaticPageIds: string[];
 }): AdminPresentation {
-  const {
-    settings,
-    availableThemeIds,
-    availableThemes,
-    activeThemePostTemplates,
-    activeThemePageTemplates,
-    activeThemeStaticPageIds,
-  } = required;
+  const { settings, availableThemeIds, availableThemes, activeThemeTemplates, activeThemeStaticPageIds } = required;
   return {
     settings: {
       workspaceId: settings.workspaceId,
@@ -25,8 +17,7 @@ export function toAdminPresentationResponse(required: {
     },
     availableThemeIds,
     availableThemes,
-    activeThemePostTemplates,
-    activeThemePageTemplates,
+    activeThemeTemplates,
     activeThemeStaticPageIds,
   };
 }

@@ -275,13 +275,13 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
           {/* Pages template picker (Task 4, 2026-08-11) — mirrors `PostEditor.tsx`'s own
               `.editor-template-picker` markup/classes verbatim. Rendered only for an `"html"`-format
               Page: a `"doc"`-format Page (pre-conversion legacy row) has no render path that would
-              honor a template choice yet (`isEligibleForPageTemplateBranch` requires
+              honor a template choice yet (`isEligibleForTemplateBranch` requires
               `bodyFormat: "html"`), so showing the picker on one would let an operator set a value
               with no visible effect.
 
               UNLIKE the Post picker, the selected value is NOT defaulted to the theme's first
               template when unset — see `use-page-editor.hooks.ts`'s load effect and
-              `isEligibleForPageTemplateBranch`'s doc for the full reasoning: "no template chosen" is
+              `isEligibleForTemplateBranch`'s doc for the full reasoning: "no template chosen" is
               a Page's normal, fully-working state (render its own body), not an absence-of-decision
               needing a UI default to stay honest. */}
           {page.bodyFormat === "html" ? (
@@ -294,7 +294,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
                   value={templateChoice ?? ""}
                   // `e.target.value`, not `|| null` — `""` is a legitimate stored value here (though,
                   // unlike Posts, it behaves identically to `null` at render time — see
-                  // `isEligibleForPageTemplateBranch`'s doc).
+                  // `isEligibleForTemplateBranch`'s doc).
                   onChange={(e) => setTemplateChoice(e.target.value)}
                 >
                   {availableTemplates.map((template) => (
@@ -369,7 +369,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
  * by the predecessor session that shipped `page-shell.html` (`ADS-memory/reports/implementation/
  * 2026-08-11-basic-page-template.md`'s own "Risks" section) and by reading this function before
  * touching it: `html` here is the editor's raw body string, never passed through
- * `renderPageViaTemplate`/`renderStaticPage`.
+ * `renderViaTemplate`/`renderStaticPage`.
  *
  * Rather than reimplement that whole server-side render pipeline a second time in the admin (a
  * second source of truth that would drift from `src/server/routes/site/pages.ts`'s real one), a

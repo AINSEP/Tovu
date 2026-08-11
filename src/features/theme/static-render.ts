@@ -1,4 +1,4 @@
-import { markersOfType, substituteMarkers, withInnerContent } from "#src/core/embeds/marker";
+import { markersOfType, substituteMarkers, withAddedId, withInnerContent } from "#src/core/embeds/marker";
 import { DEFAULT_THEME_SLOTS, type DiscoveredTheme, type ThemeSlotDescriptor, type ThemeTokens } from "./theme";
 
 /**
@@ -47,67 +47,39 @@ function rewritePageLinks(html: string): string {
 }
 
 /**
- * A post-template page (e.g. `blog-post.html`, referenced from a theme's `theme.json` `postTemplate`
- * array) ships `data-embed-config='{"type":"post","id":"{{post}}"}'` — a literal placeholder, not a
- * real id, since the template is authored once and reused across whichever posts pick it. The route
- * layer (`pages.ts`) already knows which real post is being rendered by the time it calls this, so it
- * substitutes the real stored id here, BEFORE the embed scanner/resolver ever sees the html —
- * `resolveHtmlPageEmbeds` (`widgets/resolver-service.ts`) and `renderHtmlPageBody`
- * (`server/http/site/render.ts`) then treat this exactly like any other real `{"type":"post"}`
- * reference, no special-casing needed downstream. A page with no `{{post}}` placeholder (a non-post-
- * template page, or a misauthored template missing the slot) is simply unaffected — `replace` is a
- * no-op when the token isn't present.
+ * Fills the current entity's real id into every `{"type":"content"}` marker in `html` that carries NO
+ * id — the unified-marker (2026-08-11) replacement for BOTH `injectPostEmbedId`'s `{{post}}` literal
+ * substitution AND `injectPageContent`'s direct body-HTML splice.
  *
- * A string substitution rather than a marker rewrite on purpose: `{{post}}` is authored INSIDE the
- * JSON as a legal string value (that is what the `marker.canary.test.ts` `{{post}}` canary pins), so
- * swapping it leaves the surrounding config byte-identical and cannot perturb any other key.
+ * A theme-authored, id-less `{"type":"content"}` marker means "the entity the route already
+ * resolved" (the unified-content-marker design doc's own wording) — the route layer (`pages.ts`)
+ * knows that entity's real id by the time it calls this, so it fills it in here, BEFORE the embed
+ * scanner/resolver ever sees the html. Everything downstream (the recursive `"html"`-format
+ * pre-splice pass, `resolveHtmlPageEmbeds`'s registered `"content"` resolver, a later re-scan) then
+ * sees an ORDINARY id-carrying marker — the same one an author gets by typing a real id directly —
+ * with no "no id means current entity" special case anywhere else in the pipeline.
+ *
+ * A marker that ALREADY carries an id (an author's explicit reference to some OTHER entity) is left
+ * completely untouched — this function only ever fills a gap, never overwrites an explicit choice.
+ * The old `blog-post.html`/`page-shell.html` split (one marker type per kind) is gone: BOTH doc-format
+ * Posts and Pages, and html-format Pages, use this exact same function now, since the row's
+ * `bodyFormat` — not the marker's type — is what decides how the referenced content actually renders
+ * (`resolveContentTypeEmbeds`, `resolver-service.ts`, and the recursive pre-splice in `pages.ts`).
+ *
+ * Marker-based (via {@link withAddedId}), not a literal string replace like the retired
+ * `injectPostEmbedId` — that function could rely on `{{post}}` being authored as a specific literal
+ * JSON value; here there is no literal token to search for (the marker's ABSENCE of an `id` key is
+ * the whole signal), so filling the gap correctly for a marker carrying extra config keys (e.g. a
+ * future `{"type":"content","variant":"..."}"`) needs the real parsed marker, not a substring match.
+ *
+ * @complexity O(n) over `html`'s length — one `substituteMarkers` scan-and-splice pass, the same cost
+ * shape every other marker-substitution call in this codebase already pays.
  */
-export function injectPostEmbedId(html: string, postId: string): string {
-  return html.replace('"id":"{{post}}"', `"id":${JSON.stringify(postId)}`);
-}
-
-/**
- * Splices a Page's own already-authored body HTML into every `{"type":"content"}` marker in a chosen
- * page-template file — the page-template counterpart to {@link injectPostEmbedId} immediately above,
- * and the mechanism the Pages template picker needs that a Post's `{{post}}` substitution does not: a
- * Post is IDENTIFIED by an id a template can carry as a literal placeholder and defer to a resolver
- * stage; a Page's body is not a reference to look up at all — the route already fetched the Page row
- * before choosing to render it through a template, so `contentHtml` is already in hand and there is
- * nothing to defer.
- *
- * **Deliberately NOT a `resolver-service.ts` `HTML_EMBED_RESOLVERS` entry.** An async registry
- * resolver's failure mode is the REQ-28 generic placeholder — the right degrade for "this referenced
- * widget was deleted", and the wrong one for "this page has no body": there is no such case at this
- * point in the call chain, only a string that may be empty. Placing `content` alongside `partial`/
- * `menu` instead (theme-owned, `isPageEmbedType("content")` is `false` with no registry entry to add)
- * means an unsubstituted marker — this function skipped, or called against html that never had one —
- * survives exactly as authored, the same "unresolved means untouched" contract theme nav/footer
- * already rely on (`resolver-service.ts`'s `isPageEmbedType` doc). Silently blanking a page's entire
- * body to a widget-shaped placeholder would be a materially worse failure than leaving a visible,
- * debuggable marker in the output.
- *
- * Called BEFORE `resolveHtmlPageEmbeds`, the same pipeline position `injectPostEmbedId` occupies in
- * `renderPostViaTemplate` — any `widget`/`media`/`post` marker authored INSIDE the page's own body
- * (not only the template's) is therefore resolved in the same later pass once the two strings are
- * combined here.
- *
- * Uses {@link withInnerContent} (keeps the marker's own tag and authored attributes, splices only what
- * is inside) rather than a whole-element replace. A content slot is far likelier to carry the theme's
- * own styling wrapper (`<main class="page-body" data-embed-config='{"type":"content"}'></main>`) that
- * must survive — the same reason a `menu` marker uses `withInnerContent` — and unlike `post`/`partial`,
- * whose marker element is a bare, classless `<div>` in every theme shipped in this repo today
- * (verified: zero `class` attributes on any `post`/`partial` marker across `src/themes/static/*\/pages/
- * *.html`), so whole-element replacement has never had anything to preserve for those two types.
- *
- * Every `content` marker present receives the SAME `contentHtml` — more than one content slot in one
- * template is unusual but not invalid, and silently filling only the first occurrence would be a worse
- * surprise than filling every one identically.
- *
- * @complexity O(n) over `template`'s length — one `substituteMarkers` scan-and-splice pass, the same
- * cost shape every other marker-substitution call in this codebase already pays.
- */
-export function injectPageContent(template: string, contentHtml: string): string {
-  return substituteMarkers(template, (marker) => (marker.type === "content" ? withInnerContent(marker, contentHtml) : undefined));
+export function injectCurrentEntityContentId(html: string, entityId: string): string {
+  return substituteMarkers(html, (marker) => {
+    if (marker.type !== "content" || marker.id !== undefined) return undefined;
+    return withAddedId(marker, entityId);
+  });
 }
 
 /** Minimal HTML-attribute/text escaping, matching `server/http/site/render.ts`'s `escapeHtml`
@@ -121,30 +93,25 @@ function escapeHtmlText(value: string): string {
 }
 
 /**
- * Substitutes a page-template's title placeholder with a Page's own real title —
- * `injectPageContent`'s sibling for the `<title>` tag, following the same "string substitution, not a
- * marker rewrite" convention {@link injectPostEmbedId} documents.
+ * Substitutes a page-template's title placeholder with the rendered row's own real title —
+ * {@link injectCurrentEntityContentId}'s sibling for the `<title>` tag, a string substitution rather
+ * than a marker rewrite (same convention that function documents for filling in a marker's `id`).
  *
  * Matches the WHOLE `<title>...</title>` element the placeholder sits in, not a bare token search —
  * learned the hard way while authoring `page-shell.html`: that file's own explanatory HTML comment
  * mentions the placeholder as prose, and a bare-token `.replace()` matched THAT occurrence (the first
  * one in the file) instead of the real one in `<head>`, silently leaving the `<title>` tag unfilled.
- * Scoping the match to the full element, the same way {@link injectPostEmbedId} scopes its match to
- * `"id":"..."` rather than a bare `{{post}}`, makes an incidental mention elsewhere in the template
- * (a comment, authored copy) structurally unable to collide with the real slot.
+ * Scoping the match to the full element makes an incidental mention elsewhere in the template (a
+ * comment, authored copy) structurally unable to collide with the real slot.
  *
- * Exists because the template-picker's other rendering path, `renderPostViaTemplate`, has a disclosed,
- * ACCEPTED limitation here: `blog-post.html`'s `<title>` is one fixed string, and every post rendered
- * through it shows that generic title in the browser tab. That is tolerable for posts (their real
- * title still renders in the visible `<h1>`), but the five legacy Pages this template targets used to
- * be silently mis-templated for the exact same reason — a hardcoded template `<title>` overriding
- * their real one (Task 1's render-gate fix, this session). Shipping a page-template with the same
- * fixed-title limitation would reintroduce that regression through a new door, so unlike the Post
- * side, the Page template gets a real per-render substitution instead of accepting the limitation.
+ * Runs for every kind now (2026-08-11 unification; previously Post-rendered pages accepted a fixed
+ * title as a disclosed limitation and only Pages got this substitution) — `blog-post.html`'s `<title>`
+ * remains one fixed string with no placeholder, so calling this on a Post rendered through IT is
+ * still a no-op, unchanged; a Post rendered through `page-shell.html` now correctly gets its own
+ * title instead of a generic one, closing that disclosed gap for free.
  *
- * A page-template file authored without this exact `<title>...</title>` shape is simply unaffected —
- * `replace` is a no-op when the pattern isn't present, same degrade `injectPostEmbedId` relies on for
- * a template missing `{{post}}`.
+ * A template file authored without this exact `<title>...</title>` shape is simply unaffected —
+ * `replace` is a no-op when the pattern isn't present.
  *
  * @complexity O(n) over `html`'s length — one string search-and-replace.
  */
@@ -494,20 +461,21 @@ export function renderStaticPartial(
 }
 
 /**
- * Outcome of {@link resolvePostTemplate} or {@link resolvePageTemplate}: either a usable template, or
- * the diagnostic page. Name kept singular ("Post") for historical/import-compatibility reasons — this
- * type is shared, kind-agnostic shape, not Post-specific; renaming it is a pure rename with no
- * behavior change and was left out of this task's scope.
+ * Outcome of {@link resolveTemplate}: either a usable template, or the diagnostic page. Name kept
+ * singular ("Post") for historical/import-compatibility reasons — the type predates the 2026-08-11
+ * unification and was already documented as shared/kind-agnostic before this change; renaming it
+ * remains a pure rename with no behavior change and stays out of this pass's scope too.
  */
 export type PostTemplateResolution =
   | { kind: "template"; pageId: string; html: string }
   | { kind: "diagnostic" };
 
 /**
- * Decide which of a static theme's template pages a Post or Page renders through — the shared
- * tri-state engine behind both {@link resolvePostTemplate} (`postTemplate`/`"post"` slot) and
- * {@link resolvePageTemplate} (`pageTemplate`/`"content"` slot, Task 4, 2026-08-11). Pure — the
- * caller owns the embed-resolution I/O that follows.
+ * Decide which of a static theme's template pages a Post or Page renders through (2026-08-11
+ * unification — collapses what were the separate `resolvePostTemplate`/`resolvePageTemplate`
+ * specializations of this same tri-state engine into one function, now that both kinds resolve
+ * against the SAME `theme.manifest.templates` array and the SAME `"content"` slot marker). Pure —
+ * the caller owns the embed-resolution I/O that follows.
  *
  * `templateChoice` is a **tri-state**, and the difference between two of its values is the whole
  * point of this function (regression, 2026-08-09: 15 of 19 published posts served the diagnostic
@@ -523,13 +491,13 @@ export type PostTemplateResolution =
  *   bug reappearing on the next row created outside the editor.
  *
  *   For a `kind: "page"` row specifically, this fallback arm is never reached in practice —
- *   `isEligibleForPostTemplateBranch`'s Page rule (`pages.ts`) refuses to route a Page into this
+ *   `isEligibleForTemplateBranch`'s Page rule (`pages.ts`) refuses to route a Page into this
  *   resolution at all unless `templateChoice` is already non-`null`/`undefined`. It stays here
  *   rather than being special-cased away because the tri-state is a property of the CHOICE, not of
  *   which kind of row is asking — a caller that ever legitimately wants "never chosen -> theme's
- *   first template" for a Page (none does today) gets correct behavior for free, and duplicating
- *   this function per kind (rejected — see `resolvePageTemplate`'s own doc) would only recreate the
- *   exact regression class this function exists to prevent.
+ *   first template" for a Page (none does today) gets correct behavior for free, and that asymmetry
+ *   living in the ELIGIBILITY gate rather than in here is exactly what let it survive this merge:
+ *   this function did not have to change to preserve it, only its caller's gating did.
  * - `""` — *explicitly opted out*, the admin picker's "No template chosen" option. A deliberate
  *   author action, and the one value no naive insert produces. Keeps showing the diagnostic page,
  *   which is the designed product behavior ("not a silent fallback to generic rendering"). It is
@@ -546,24 +514,22 @@ export type PostTemplateResolution =
  * than `null`. "This theme has no such template" is the absence of a decision *for this theme*, not
  * a decision, so it falls back. Only `""` is theme-independent enough to mean opt-out.
  *
- * A page that exists but ships no slot of `slotMarkerType` counts as "cannot honor" for the same
- * reason and falls back too; the diagnostic page is reached only when the theme's own first
- * template is also unusable, since rendering a slotless template would silently drop the row's body.
+ * A page that exists but ships no `"content"` slot counts as "cannot honor" for the same reason and
+ * falls back too; the diagnostic page is reached only when the theme's own first template is also
+ * unusable, since rendering a slotless template would silently drop the row's body.
  *
  * `theme.pages` is keyed by filename WITHOUT `.html` (`loadTheme`'s convention) while
- * `templateChoice`/`templateCandidates` entries carry it; the `.replace` below is the one place
- * that naming mismatch is bridged.
+ * `templateChoice`/`theme.manifest.templates` entries carry it; the `.replace` below is the one
+ * place that naming mismatch is bridged.
  *
  * @complexity O(n) in the template's HTML length for the slot check, over at most two candidates;
  *   O(1) lookups otherwise.
  */
-function resolveTemplateChoice(required: {
-  theme: DiscoveredTheme;
-  templateChoice: string | null | undefined;
-  templateCandidates: readonly string[] | undefined;
-  slotMarkerType: string;
-}): PostTemplateResolution {
-  const { theme, templateChoice, templateCandidates, slotMarkerType } = required;
+export function resolveTemplate(
+  required: { theme: DiscoveredTheme; templateChoice: string | null | undefined },
+  _optional: Record<string, never> = {}
+): PostTemplateResolution {
+  const { theme, templateChoice } = required;
   if (templateChoice === "") return { kind: "diagnostic" };
 
   const resolveAgainstTheme = (choice: string | undefined): PostTemplateResolution | undefined => {
@@ -576,101 +542,73 @@ function resolveTemplateChoice(required: {
     // theme has no such template", EVERY post silently fell through to the diagnostic page at HTTP
     // 200 — the exact 2026-08-09 regression this function's own doc was written about, re-entered
     // through a different door. Asking `markersOfType` also means a template carrying a hardcoded
-    // real post id (or an already-spliced Page body) counts as having a slot, which it does.
-    if (html === undefined || markersOfType(html, slotMarkerType).length === 0) return undefined;
+    // real id (or an already-spliced body) counts as having a slot, which it does.
+    if (html === undefined || markersOfType(html, "content").length === 0) return undefined;
     return { kind: "template", pageId, html };
   };
 
   return (
     resolveAgainstTheme(templateChoice ?? undefined) ??
-    resolveAgainstTheme(templateCandidates?.[0]) ?? { kind: "diagnostic" }
+    resolveAgainstTheme(theme.manifest.templates?.[0]) ?? { kind: "diagnostic" }
   );
 }
 
-/** {@link resolveTemplateChoice} specialized to Posts: `theme.manifest.postTemplate`, `"post"` slot. */
-export function resolvePostTemplate(
-  required: { theme: DiscoveredTheme; templateChoice: string | null | undefined },
-  _optional: Record<string, never> = {}
-): PostTemplateResolution {
-  return resolveTemplateChoice({
-    theme: required.theme,
-    templateChoice: required.templateChoice,
-    templateCandidates: required.theme.manifest.postTemplate,
-    slotMarkerType: "post",
-  });
-}
-
 /**
- * {@link resolveTemplateChoice} specialized to Pages (Task 4, 2026-08-11): `theme.manifest.
- * pageTemplate`, `"content"` slot (`injectPageContent`'s marker, Task 3) instead of `"post"`.
+ * Gates whether a `posts`-table record should even be routed into the template render branch
+ * (`renderViaTemplate` in `server/routes/site/pages.ts`) — a decision distinct from, and prior to,
+ * {@link resolveTemplate}'s own tri-state resolution of WHICH template to use once inside that
+ * branch.
  *
- * A thin wrapper rather than a copy-pasted twin of {@link resolvePostTemplate} on purpose: the two
- * differ only in which manifest array and which marker type they check, and the 2026-08-09
- * null-vs-""-conflation regression `resolvePostTemplate`'s own doc describes is exactly the kind of
- * bug a second, independently-maintained copy of this logic would be positioned to reintroduce.
- * `pages.ts`'s `isEligibleForPostTemplateBranch` is the layer that actually withholds the
- * null/undefined fallback arm from Pages — see that function's doc — not this one; this function
- * stays a faithful, kind-agnostic tri-state resolver so it never has to know why a caller withheld
- * a value from it.
- */
-export function resolvePageTemplate(
-  required: { theme: DiscoveredTheme; templateChoice: string | null | undefined },
-  _optional: Record<string, never> = {}
-): PostTemplateResolution {
-  return resolveTemplateChoice({
-    theme: required.theme,
-    templateChoice: required.templateChoice,
-    templateCandidates: required.theme.manifest.pageTemplate,
-    slotMarkerType: "content",
-  });
-}
-
-/**
- * Gates whether a `posts`-table record should even be routed into the post-template render branch
- * (`renderPostViaTemplate` in `server/routes/site/pages.ts`) — a decision distinct from, and prior
- * to, {@link resolvePostTemplate}'s own tri-state resolution of WHICH template to use once inside
- * that branch.
+ * 2026-08-11 unification: collapses what were the separate `isEligibleForPostTemplateBranch`/
+ * `isEligibleForPageTemplateBranch` gates into one function, now that both route to the SAME
+ * `renderViaTemplate` using the SAME `theme.manifest.templates` array. The two gates existed
+ * separately only because a Post-shaped and a Page-shaped template used to be structurally different
+ * artifacts (different marker type, different manifest array) that needed different eligibility
+ * arrays to check against; the unified `"content"` marker and single `templates` array removed that
+ * split at the source, so keeping two near-identical functions here would just be the same
+ * duplicated-logic risk `resolveTemplate`'s own doc already warns about.
  *
- * The two `kind`s need different answers for the same `templateChoice: null`/`undefined` input:
+ * The BEHAVIORAL asymmetries the two old gates encoded are preserved exactly, not merged away —
+ * losing either would silently reintroduce a live bug:
  *
  * - `kind: "post"` — eligible whenever the record is `doc`-format, `templateChoice` included.
- *   `resolvePostTemplate` treats `null`/`undefined` as "never chosen" and deliberately falls back to
- *   the theme's first-listed template (see that function's own doc): migration `0028` added
+ *   {@link resolveTemplate} treats `null`/`undefined` as "never chosen" and deliberately falls back
+ *   to the theme's first-listed template (see that function's own doc): migration `0028` added
  *   `template_choice` as an additive nullable column with no backfill, so every pre-feature and
  *   externally-inserted Post reads `null`, and "no opinion yet" must render *something* sensible
- *   rather than a diagnostic page.
- * - `kind: "page"` — eligible ONLY when `templateChoice` is not `null`/`undefined`, i.e. an admin has
- *   actually set it (a real filename, or `""` for explicit opt-out — both still handled by
- *   `resolvePostTemplate` unchanged). The "never chosen → theme's first template" fallback that is
- *   safe for Posts is wrong for Pages: no admin surface has ever set `template_choice` on a `kind:
- *   "page"` row (as of 2026-08-11, `PageEditor.tsx` has no template control), so every existing Page
- *   reads `null` not because an author had no opinion but because the field does not exist for Pages
- *   yet. Falling back would apply a Post-shaped template to a Page that never asked for one — the
- *   live bug this function fixes: `terms-of-service`, `privacy-policy`, `contact`, `team`, `faq` and
- *   two `untitled` Pages rendered under the theme's first `postTemplate` entry (observed as `<title>
- *   Blog post — Basic</title>` on Terms of Service) purely because `bodyFormat === "doc"` was the
- *   only condition checked, with no `kind` check at all.
- *
- * `our-story` (`kind: "page"`, `bodyFormat: "doc"`, `templateChoice: "page-shell.html"`, set by hand
- * via SQL as the proof-of-concept for the whole page-template model) keeps rendering through this
- * branch under the rule above, because its choice IS explicit.
- *
- * Deliberately narrower than "any Page with an explicit choice": `bodyFormat` is still required to
- * be `"doc"` for both kinds. An `"html"`-format Page (what `PageEditor.tsx` actually produces) has
- * its own body already in hand and its own embed-resolution path (`resolveHtmlEmbedsForRender` in
- * `pages.ts`) — routing it through `renderPostViaTemplate` would run `injectPostEmbedId` and the
- * `{"type":"post"}` marker machinery against a record that isn't a Post lookup target, discarding
- * the Page's real body. `renderPageViaTemplate`/{@link isEligibleForPageTemplateBranch} (Task 4,
- * 2026-08-11) is the real, now-built counterpart for that case — a deliberately SEPARATE function
- * rather than a widened branch here, since the two route to different render functions
- * (`renderPostViaTemplate` vs `renderPageViaTemplate`) using different resolvers (`resolvePostTemplate`
- * vs `resolvePageTemplate`) and different injection primitives (`injectPostEmbedId` vs
- * `injectPageContent`) — merging them would need this function's return type to say WHICH branch to
- * call, turning a boolean gate into a dispatch table for no real gain.
+ *   rather than a diagnostic page. Posts are always `doc`-format (CIC-3, `PostBodyFormat`'s own
+ *   doc), so `bodyFormat` needs no separate check for this arm.
+ * - `kind: "page"`, `bodyFormat: "doc"` — eligible ONLY when `templateChoice` is not
+ *   `null`/`undefined` (a real filename, or `""` for explicit opt-out — both still handled by
+ *   `resolveTemplate` unchanged). The "never chosen → theme's first template" fallback that is safe
+ *   for Posts is wrong for Pages: no admin surface set `template_choice` on a `kind: "page"` row
+ *   before the Pages template picker shipped, so a Page reading `null` means "an admin surface that
+ *   didn't exist yet couldn't have set it", not "no opinion". Falling back would apply a Post-shaped
+ *   template to a Page that never asked for one — the live bug this asymmetry fixes: `terms-of-
+ *   service`, `privacy-policy`, `contact`, `team`, `faq` rendered under the theme's first template
+ *   entry (observed as `<title>Blog post — Basic</title>` on Terms of Service) purely because
+ *   `bodyFormat === "doc"` was once the only condition checked, with no `kind` check at all.
+ *   `our-story` (`kind: "page"`, `bodyFormat: "doc"`, `templateChoice: "page-shell.html"`, the
+ *   proof-of-concept demo row) keeps rendering through this branch under this rule, because its
+ *   choice IS explicit.
+ * - `kind: "page"`, `bodyFormat: "html"` — same explicit-choice requirement, one step stricter:
+ *   `""` is ALSO treated as ineligible here (identically to `null`/`undefined`), a deliberate
+ *   DIVERGENCE from the `doc`-format Page/Post rule above, not an oversight. For a Post, `""` (the
+ *   admin picker's explicit "No template chosen") routes to a loud diagnostic page rather than a
+ *   silent fallback, because the owner's own words were "not a silent fallback to generic
+ *   rendering" — a Post's generic single-post layout is a real, separate rendering mode an author
+ *   might not have intended to land on by skipping the picker. An `"html"`-format Page has no such
+ *   distinction: "no template" IS its normal, fully-functional, default behavior (render its own
+ *   authored body via the generic `resolveHtmlEmbedsForRender` path) — there is no separate
+ *   "generic Page rendering" an operator could be surprised to land on, so routing an explicit `""`
+ *   to the diagnostic page would let a dropdown selection break an otherwise-working page for no
+ *   benefit. This narrower `doc`-vs-`html` divergence predates the 2026-08-11 unification and is
+ *   preserved verbatim here, not resolved — unifying it too was not asked for and would be an
+ *   undisclosed behavior change for `doc`-format Pages.
  *
  * @complexity O(1) — field comparisons only, no I/O or iteration.
  */
-export function isEligibleForPostTemplateBranch(
+export function isEligibleForTemplateBranch(
   required: {
     theme: DiscoveredTheme;
     post: { kind: "post" | "page"; bodyFormat: "doc" | "html"; templateChoice?: string | null };
@@ -679,53 +617,13 @@ export function isEligibleForPostTemplateBranch(
 ): boolean {
   const { theme, post } = required;
   if (theme.manifest.tier !== "static") return false;
-  if ((theme.manifest.postTemplate?.length ?? 0) === 0) return false;
-  if (post.bodyFormat !== "doc") return false;
-  if (post.kind === "post") return true;
-  return post.templateChoice !== null && post.templateChoice !== undefined;
-}
+  if ((theme.manifest.templates?.length ?? 0) === 0) return false;
 
-/**
- * {@link isEligibleForPostTemplateBranch}'s counterpart for the Pages template picker (Task 4,
- * 2026-08-11): gates whether a `kind: "page"`, `bodyFormat: "html"` record should be routed into
- * `renderPageViaTemplate` (`pages.ts`) instead of the generic `resolveHtmlEmbedsForRender` path.
- *
- * Only `kind: "page"` + `bodyFormat: "html"` + a NON-EMPTY, EXPLICIT `templateChoice` (a real
- * filename) qualifies — no "never chosen, fall back to the theme's first template" arm at all,
- * unlike Posts. This is the same explicit-choice-only rule `isEligibleForPostTemplateBranch` applies
- * to Pages, one step stricter here because there is no legacy-migration excuse to relax it: every
- * `bodyFormat: "html"` Page was created (or converted, see `development/scripts/
- * convert-legacy-doc-pages-to-html.ts`) after the Pages picker existed as a concept, so `null`
- * `templateChoice` on one of these rows always means "this Page's own body is the whole page" — the
- * existing, working, default behavior — never "an admin surface that doesn't exist yet couldn't have
- * set it".
- *
- * **`""` is treated identically to `null`/`undefined` here — a deliberate DIVERGENCE from Posts'
- * tri-state, not an oversight.** For a Post, `""` (the admin picker's explicit "No template chosen")
- * routes to a loud diagnostic page rather than a silent fallback, because the owner's own words were
- * "not a silent fallback to generic rendering" — a Post's generic single-post layout is a real,
- * separate rendering mode an author might not have intended to land on by skipping the picker. A
- * Page has no such distinction: "no template" IS a Page's normal, fully-functional, default
- * behavior (render its own authored body) — there is no separate "generic Page rendering" an
- * operator could be surprised to land on. Routing an explicit "" to the diagnostic page for a Page
- * would therefore let a dropdown selection break an otherwise-working page for no benefit, so both
- * "never chosen" and "explicitly chose nothing" collapse to the same safe outcome: render the Page's
- * own body directly, exactly as every `"html"`-format Page has always rendered before this feature
- * existed.
- *
- * @complexity O(1) — field comparisons only, no I/O or iteration.
- */
-export function isEligibleForPageTemplateBranch(
-  required: {
-    theme: DiscoveredTheme;
-    post: { kind: "post" | "page"; bodyFormat: "doc" | "html"; templateChoice?: string | null };
-  },
-  _optional: Record<string, never> = {}
-): boolean {
-  const { theme, post } = required;
-  if (theme.manifest.tier !== "static") return false;
-  if ((theme.manifest.pageTemplate?.length ?? 0) === 0) return false;
-  if (post.kind !== "page") return false;
-  if (post.bodyFormat !== "html") return false;
-  return post.templateChoice !== null && post.templateChoice !== undefined && post.templateChoice !== "";
+  if (post.kind === "post") return true;
+
+  // kind === "page" — no "never chosen" fallback arm, ever (see this function's own doc for why).
+  if (post.bodyFormat === "html") {
+    return post.templateChoice !== null && post.templateChoice !== undefined && post.templateChoice !== "";
+  }
+  return post.bodyFormat === "doc" && post.templateChoice !== null && post.templateChoice !== undefined;
 }

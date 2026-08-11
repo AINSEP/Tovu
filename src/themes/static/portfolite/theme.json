@@ -8,6 +8,6 @@
   "defaultMode": "dark",
   "fonts": ["Plus+Jakarta+Sans:wght@600;700;800", "Inter:wght@400;500;600"],
   "pages": ["index", "blog-post"],
-  "postTemplate": ["blog-post.html"],
+  "templates": ["blog-post.html"],
   "slots": {}
 }

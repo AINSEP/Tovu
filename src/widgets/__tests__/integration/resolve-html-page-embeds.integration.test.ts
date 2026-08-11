@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEntryRepo } from "#src/features/entries/repo.memory";
+import { InMemoryPostRepo } from "#src/features/post/index";
+import type { PostRecord } from "#src/features/post/index";
 import { InMemoryFormDefinitionRepo } from "#src/forms/repo.memory";
 import type { FormDefinitionRecord } from "#src/forms/types";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/media/bootstrap";
@@ -423,4 +425,132 @@ test("resolveHtmlPageEmbeds: media and widget embeds on the same page all resolv
 
   assert.equal(resolved.get("widget")?.size, 2);
   assert.equal(resolved.get("media")?.size, 1);
+});
+
+// ---------------------------------------------------------------------------
+// `content`/`post` types (2026-08-11 unification) — guard 2 (visibility) at the resolver layer.
+// `content` is the unified id-addressable marker's "doc"-format half; `post` is the legacy generic
+// reference, retrofitted with the SAME visibility fix alongside it. Both resolve via
+// `findPublishedPostById` (`features/post/post.ts`), not `PostRepoPort.findById` directly — these
+// tests prove that filter is load-bearing at THIS seam, not just at `findPublishedPostById`'s own
+// unit tests (`features/post/__tests__/post.test.ts`).
+// ---------------------------------------------------------------------------
+
+const WORKSPACE_ID_POST = "ws-content-embeds";
+
+function postRecord(overrides: Partial<PostRecord> = {}): PostRecord {
+  return {
+    id: "entity-1",
+    workspaceId: WORKSPACE_ID_POST,
+    title: "A published entity",
+    slug: "a-published-entity",
+    bodyJson: { type: "doc", content: [{ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Hi" }] }] },
+    bodyFormat: "doc",
+    bodyHtml: null,
+    status: "published",
+    kind: "post",
+    updatedAt: "2026-08-11T00:00:00.000Z",
+    version: 1,
+    ...overrides,
+  };
+}
+
+test('resolveHtmlPageEmbeds: a "content" embed resolves a published, "doc"-format row (Post OR Page) to real data', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord({ kind: "page" })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: {
+      workspaceId: WORKSPACE_ID_POST,
+      html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>`,
+    },
+  });
+
+  const ir = resolved.get("content")?.get("entity-1");
+  assert.ok(ir);
+  assert.equal(ir?.componentId, "post-content");
+  assert.equal(ir?.props.title, "A published entity");
+});
+
+test('GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a DRAFT row never resolves, regardless of kind', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord({ id: "draft-1", status: "draft" })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"draft-1"}'></div>` },
+  });
+
+  assert.equal(resolved.get("content")?.has("draft-1"), false, "a draft must not leak onto a public page via its id");
+});
+
+test('GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a TRASHED row never resolves', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([
+    postRecord({ id: "trashed-1", status: "published", deletedAt: "2026-08-11T00:00:00.000Z" }),
+  ]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"trashed-1"}'></div>` },
+  });
+
+  assert.equal(resolved.get("content")?.has("trashed-1"), false);
+});
+
+test('resolveHtmlPageEmbeds: a "content" embed referencing an "html"-format row does not resolve at the registry stage — it is the recursive pre-splice pass\'s target, not this one\'s', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord({ id: "html-1", bodyFormat: "html", bodyHtml: "<p>hi</p>", kind: "page" })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"html-1"}'></div>` },
+  });
+
+  assert.equal(resolved.get("content")?.has("html-1"), false);
+});
+
+test('resolveHtmlPageEmbeds: with NO postRepo dependency supplied, a "content" embed never throws and simply cannot resolve', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+
+  assert.equal(resolved.get("content")?.size, 0);
+});
+
+test('GUARD 2: resolveHtmlPageEmbeds — the legacy "post" embed type also refuses a DRAFT (retrofitted alongside "content", same hazard)', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord({ id: "draft-2", status: "draft" })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"post","id":"draft-2"}'></div>` },
+  });
+
+  assert.equal(resolved.get("post")?.has("draft-2"), false);
+});
+
+test('GUARD 2 NEGATIVE VERIFICATION: a published row DOES resolve via "content" and "post" — proves the guard filters on status, not merely "postRepo present"', async () => {
+  // Paired with the draft/trashed cases above: if the guard were vestigial (e.g. accidentally
+  // checking `postRepo` truthiness instead of the row's own status), both the published and the
+  // draft case would resolve identically. This pins the published case succeeding as the control.
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord({ id: "published-1" })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: {
+      workspaceId: WORKSPACE_ID_POST,
+      html:
+        `<div data-embed-config='{"type":"content","id":"published-1"}'></div>` +
+        `<div data-embed-config='{"type":"post","id":"published-1"}'></div>`,
+    },
+  });
+
+  assert.ok(resolved.get("content")?.has("published-1"));
+  assert.ok(resolved.get("post")?.has("published-1"));
 });

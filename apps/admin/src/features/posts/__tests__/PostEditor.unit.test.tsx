@@ -32,12 +32,12 @@ const DRAFT_POST = {
 const DRAFT_PAGE = { ...DRAFT_POST, id: "pg1", kind: "page" as const, title: "About", slug: "about" };
 
 let fetchMock: ReturnType<typeof vi.fn>;
-/** Per-test override for the active theme's `postTemplate` list; `[]` disables the picker. */
-let activeThemePostTemplates: string[];
+/** Per-test override for the active theme's `templates` list; `[]` disables the picker. */
+let activeThemeTemplates: string[];
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  activeThemePostTemplates = [];
+  activeThemeTemplates = [];
   // `PostEditor` now also reads `core.language.locale` (via `useAdminLocale`) to translate its own
   // chrome — a real `fetch` call this file's tests never queued for. Routed here, ahead of
   // `fetchMock`, so it never consumes a slot from the post-load/save `mockResolvedValueOnce`
@@ -61,7 +61,7 @@ beforeEach(() => {
           settings: { activeThemeId: "basic" },
           availableThemeIds: [],
           availableThemes: [],
-          activeThemePostTemplates,
+          activeThemeTemplates,
           activeThemeStaticPageIds: [],
         })
       );
@@ -196,7 +196,7 @@ describe("Template picker", () => {
    * diagnostic page.
    */
   it("defaults an unset post to the theme's first template rather than 'No template chosen'", async () => {
-    activeThemePostTemplates = ["blog-post.html", "long-form.html"];
+    activeThemeTemplates = ["blog-post.html", "long-form.html"];
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, templateChoice: null } }));
 
     render(<PostEditor postId="p1" />);
@@ -208,7 +208,7 @@ describe("Template picker", () => {
 
   it("the View Template button is disabled once 'No template chosen' is selected", async () => {
     const user = userEvent.setup();
-    activeThemePostTemplates = ["blog-post.html"];
+    activeThemeTemplates = ["blog-post.html"];
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, templateChoice: "blog-post.html" } }));
 
     render(<PostEditor postId="p1" />);
@@ -221,7 +221,7 @@ describe("Template picker", () => {
 
   it("clicking View Template opens the read-only modal for the selected template", async () => {
     const user = userEvent.setup();
-    activeThemePostTemplates = ["blog-post.html"];
+    activeThemeTemplates = ["blog-post.html"];
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, templateChoice: "blog-post.html" } }));
     vi.stubGlobal(
       "fetch",
@@ -235,7 +235,7 @@ describe("Template picker", () => {
               settings: { activeThemeId: "basic" },
               availableThemeIds: [],
               availableThemes: [{ id: "basic", tier: "static" }],
-              activeThemePostTemplates,
+              activeThemeTemplates,
               activeThemeStaticPageIds: [],
             }),
           );
@@ -257,7 +257,7 @@ describe("Template picker", () => {
 
   it('persists an explicit "No template chosen" as "" so the opt-out is distinguishable from never-chosen', async () => {
     const user = userEvent.setup();
-    activeThemePostTemplates = ["blog-post.html"];
+    activeThemeTemplates = ["blog-post.html"];
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, templateChoice: "blog-post.html" } }))
       .mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_POST, templateChoice: "", version: 2 } }));

@@ -54,6 +54,15 @@ export interface EmbedMarker {
   readonly attrs: string;
   /** The full matched element including its inner content and closing tag. */
   readonly whole: string;
+  /**
+   * The marker's own original inner content (between its open and close tag), exactly as authored.
+   * The mirror image of {@link withInnerContent}'s parameter: that function takes NEW inner content
+   * and keeps the marker's existing tag/attrs; this field is for a caller going the other way —
+   * keeping (or transforming) the marker's existing inner content while changing its attrs/config,
+   * e.g. {@link withAddedId} filling in a missing `id` without disturbing whatever fallback markup
+   * the author put inside the marker.
+   */
+  readonly inner: string;
   /** Index of `whole` within the scanned html — substitution without re-searching. */
   readonly index: number;
   /** 1-based position among all markers found, for stable locators (`entry_refs` `fieldPath`). */
@@ -128,7 +137,7 @@ export function scanEmbedMarkers(html: string): ScanEmbedMarkersResult {
 
   for (const match of html.matchAll(MARKER_PATTERN)) {
     occurrence += 1;
-    const [whole, tag, attrs, raw] = match as unknown as [string, string, string, string];
+    const [whole, tag, attrs, raw, inner] = match as unknown as [string, string, string, string, string];
     const index = match.index ?? 0;
     const result = parseMarkerConfig(raw);
 
@@ -144,6 +153,7 @@ export function scanEmbedMarkers(html: string): ScanEmbedMarkersResult {
       tag,
       attrs,
       whole,
+      inner,
       index,
       occurrence,
     });
@@ -168,6 +178,50 @@ export function markersOfType(html: string, type: string): readonly EmbedMarker[
  */
 export function withInnerContent(marker: EmbedMarker, inner: string): string {
   return `<${marker.tag}${marker.attrs}>${inner}</${marker.tag}>`;
+}
+
+/**
+ * Rebuild a marker's element with `id` added to its `data-embed-config`, keeping every other
+ * authored config key, the marker's own tag, its other attributes, and its authored inner content
+ * ({@link EmbedMarker.inner}) completely unchanged. The counterpart to {@link withInnerContent} for a
+ * caller that needs to SUPPLY a marker's target rather than its content — e.g. the unified `content`
+ * marker (2026-08-11): a theme-authored `{"type":"content"}` with no `id` means "the entity the route
+ * already resolved", and the route fills that id in here before the marker is ever resolved, so every
+ * downstream consumer (the scanner, the resolver, a later re-scan) sees an ordinary id-carrying marker
+ * rather than needing its own "no id means current entity" special case.
+ *
+ * Callers must check `marker.id === undefined` themselves before calling this — an author's own
+ * explicit id always wins over a caller-supplied default, and this function does not re-check that
+ * (it would silently overwrite an explicit reference otherwise, which is the one thing the unified
+ * marker's id-vs-no-id contract must never do).
+ *
+ * @complexity O(n) over the marker's own attrs length (one JSON stringify of a small object, one
+ * regex replace over `attrs`) — independent of the surrounding document's size.
+ */
+export function withAddedId(marker: EmbedMarker, id: string): string {
+  const config = JSON.stringify({ ...marker.config, id });
+  const attrsWithId = marker.attrs.replace(/data-embed-config='[^']*'/, `data-embed-config='${config}'`);
+  return `<${marker.tag}${attrsWithId}>${marker.inner}</${marker.tag}>`;
+}
+
+/**
+ * Rebuild a marker's element around new inner content, like {@link withInnerContent}, but ALSO strips
+ * the marker's own `data-embed-config` attribute from the rebuilt tag — every other authored attribute
+ * (`class`, `aria-label`, …) survives, only the marker-ness is removed.
+ *
+ * For a caller that performs its OWN final resolution outside the shared registry/render pipeline
+ * (`pages.ts`'s recursive `content`-marker pre-splice, which fetches and inlines an `"html"`-format
+ * entity's own body ahead of the normal `resolveHtmlPageEmbeds`/`renderHtmlPageBody` pass) and must
+ * guarantee the result is not rediscovered and re-resolved by a LATER marker scan over the same output
+ * — an ordinary {@link withInnerContent} splice would leave `data-embed-config` intact, and the next
+ * scan would see what looks like a fresh, unresolved marker and try to resolve it again.
+ *
+ * @complexity O(n) over the marker's own attrs length (one regex replace) — independent of the
+ * surrounding document's size.
+ */
+export function withInnerContentFinal(marker: EmbedMarker, inner: string): string {
+  const attrsWithoutMarker = marker.attrs.replace(/\s*data-embed-config='[^']*'/, "");
+  return `<${marker.tag}${attrsWithoutMarker}>${inner}</${marker.tag}>`;
 }
 
 /**

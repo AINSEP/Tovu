@@ -33,7 +33,7 @@ export interface PostTemplateModalProps {
    *  `activeThemeTier`), which this treats as its own honest case rather than guessing a specific
    *  tier that might be wrong. */
   readonly themeTier: ThemeTier | null;
-  /** The selected template's filename (`theme.json`'s `postTemplate` entry, e.g.
+  /** The selected template's filename (`theme.json`'s `templates` entry, e.g.
    *  `"blog-post.html"`) — never `""`/`null`; `PostEditor.tsx` only renders the button that opens
    *  this modal once a real template is chosen. */
   readonly templateFilename: string;

@@ -38,7 +38,18 @@
  *    2026-08-10 and is now a hard failure — see {@link findLegacyActiveAttrFindings} for why the
  *    advisory was right then and wrong now, and why it fires on the KEY rather than the value.
  *
- * 4. Stored Page bodies (`posts.body_html` in `content.db`), same two rules as check 1 and 2.
+ * 3b. The retired post-template-slot placeholder `{"type":"post","id":"{{post}}"}` (2026-08-11
+ *    unified-content-marker migration — see `ADS-memory/reports/design/
+ *    2026-08-11-unified-content-marker-and-templates.md`). `injectPostEmbedId`, the function that
+ *    used to substitute a real id into this exact literal, no longer exists — the unified
+ *    `{"type":"content"}` marker (no id → the entity the route resolved) replaced it — so this
+ *    literal string, wherever it still appears, is permanently dead: nothing will ever fill it in
+ *    again, and the marker it sits in resolves to nothing forever. Same literal-substring-match
+ *    style as check 1 (`RETIRED_ATTR_PATTERN`), for the same reason: `{{post}}` has no OTHER
+ *    legitimate meaning as an `id` value now that the mechanism reading it is gone, so a plain
+ *    substring match is precise enough without needing to also confirm the surrounding `"type"`.
+ *
+ * 4. Stored Page bodies (`posts.body_html` in `content.db`), same rules as checks 1, 2, and 3b.
  *    **Skipped, not failed, when no database is present**, so CI without one still passes.
  *
  *    Check 4 exists because of what checks 1-3 structurally cannot see, and it is not hypothetical:
@@ -57,7 +68,8 @@
  *        npx tsx development/scripts/check-embed-marker-drift.ts --db <path>    (alternate content.db)
  *        npx tsx development/scripts/check-embed-marker-drift.ts --no-db        (skip check 4)
  * Exit codes: 0 = no retired attribute in markup or stored content, no unparseable
- *             data-embed-config, no legacy manifest field. 1 = at least one.
+ *             data-embed-config, no legacy manifest field, no retired post-template placeholder.
+ *             1 = at least one.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -148,6 +160,32 @@ function findRejectedMarkerFindings(file: string, html: string): Finding[] {
   return rejected.map((r) => ({ file, line: lineAt(html, r.index), message: describeRejection(r) }));
 }
 
+/** The retired post-template-slot placeholder value — see check 3b's own doc above. */
+const RETIRED_POST_PLACEHOLDER = '"id":"{{post}}"';
+
+/** Check 3b for one file: the retired `{"type":"post","id":"{{post}}"}` placeholder, comments
+ * excluded (same `stripHtmlComments` pass check 1 already applies, for the same reason — a theme
+ * file narrating its own migration history in prose must not trip this). */
+function findRetiredPostPlaceholderFindings(file: string, html: string): Finding[] {
+  const stripped = stripHtmlComments(html);
+  const findings: Finding[] = [];
+  let cursor = 0;
+  for (;;) {
+    const at = stripped.indexOf(RETIRED_POST_PLACEHOLDER, cursor);
+    if (at === -1) break;
+    findings.push({
+      file,
+      line: lineAt(html, at),
+      message:
+        'retired post-template-slot placeholder {"type":"post","id":"{{post}}"} — the substitution mechanism ' +
+        '(injectPostEmbedId) that used to fill this in is gone; use {"type":"content"} instead (no id means ' +
+        "\"the entity the route resolved\", the direct replacement — see the 2026-08-11 unified-content-marker design doc)",
+    });
+    cursor = at + RETIRED_POST_PLACEHOLDER.length;
+  }
+  return findings;
+}
+
 /**
  * Check 3: any `slots.*.activeAttr` in a theme manifest, BLOCKING as of 2026-08-10.
  *
@@ -217,7 +255,11 @@ function findStoredPageFindings(): { findings: Finding[]; scanned: number } | un
 
     const findings = rows.flatMap((row) => {
       const where = `posts/${row.slug} (${row.id})`;
-      return [...findRetiredAttrFindings(where, row.bodyHtml), ...findRejectedMarkerFindings(where, row.bodyHtml)];
+      return [
+        ...findRetiredAttrFindings(where, row.bodyHtml),
+        ...findRejectedMarkerFindings(where, row.bodyHtml),
+        ...findRetiredPostPlaceholderFindings(where, row.bodyHtml),
+      ];
     });
     return { findings, scanned: rows.length };
   } finally {
@@ -234,7 +276,11 @@ function main(): void {
   const htmlFiles = collectHtmlFiles(THEMES_DIR);
   const findings = htmlFiles.flatMap((file) => {
     const html = fs.readFileSync(file, "utf8");
-    return [...findRetiredAttrFindings(file, html), ...findRejectedMarkerFindings(file, html)];
+    return [
+      ...findRetiredAttrFindings(file, html),
+      ...findRejectedMarkerFindings(file, html),
+      ...findRetiredPostPlaceholderFindings(file, html),
+    ];
   });
   findings.push(...collectThemeManifests(THEMES_DIR).flatMap(findLegacyActiveAttrFindings));
 
@@ -246,7 +292,7 @@ function main(): void {
 
   if (findings.length === 0) {
     console.log(
-      `check:embed-marker-drift — OK: ${htmlFiles.length} theme file(s) scanned, ${storedNote}; no retired attribute, no unparseable data-embed-config, no legacy activeAttr.`
+      `check:embed-marker-drift — OK: ${htmlFiles.length} theme file(s) scanned, ${storedNote}; no retired attribute, no unparseable data-embed-config, no legacy activeAttr, no retired post-template placeholder.`
     );
     return;
   }

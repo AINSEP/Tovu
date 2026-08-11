@@ -8,7 +8,7 @@
   "defaultMode": "dark",
   "fonts": ["Inter:wght@400;500;600;700", "Playfair Display:ital@1"],
   "pages": ["index", "about", "contact", "projects", "project", "project-theo-agency-rebranding", "project-virtual-reality-encounter", "blog"],
-  "postTemplate": ["project.html"],
+  "templates": ["project.html"],
   "slots": {
     "nav": { "source": "nav.html", "honorsCurrentPage": true },
     "footer": { "source": "footer.html" }

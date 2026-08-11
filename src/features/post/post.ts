@@ -86,13 +86,17 @@ export interface PostRecord {
    */
   deletedAt?: string | null;
   /**
-   * Post-template-picker feature (2026-08-10) — the `pages/*.html` filename (from the active static
-   * theme's `theme.json` `postTemplate` array, e.g. `"blog-post.html"`) this post renders through.
+   * Template-picker feature (2026-08-10, unified 2026-08-11) — the `pages/*.html` filename (from the
+   * active static theme's `theme.json` `templates` array, e.g. `"blog-post.html"`) this row renders
+   * through. Shared by both Posts and Pages (one field, same as the one manifest array it resolves
+   * against).
    *
    * Tri-state, and the `null`-vs-`""` difference is load-bearing: `null`/absent means *never chosen*
-   * (falls back to the theme's first-listed template at render time), `""` means the author
-   * *explicitly opted out* via the admin picker's "No template chosen" (renders the diagnostic page,
-   * not a silent fallback to generic rendering). See `resolvePostTemplate` for the full rationale.
+   * (falls back to the theme's first-listed template at render time for a Post — never for a Page,
+   * see `isEligibleForTemplateBranch`'s doc), `""` means the author *explicitly opted out* via the
+   * admin picker's "No template chosen" (renders the diagnostic page, not a silent fallback to
+   * generic rendering). See `resolveTemplate` (`features/theme/static-render.ts`) for the full
+   * rationale.
    */
   templateChoice?: string | null;
   /**
@@ -822,6 +826,35 @@ export async function getPublishedPostBySlug(
     throw new PostNotFoundError(`post '${slug}' was not found`);
   }
   return { post };
+}
+
+/**
+ * Fetch a post/page row by id, but only when it is publicly visible — published and not trashed.
+ * The `findById`-shaped, NON-THROWING counterpart to {@link getPublishedPostBySlug}: a resolver
+ * consulting this on behalf of an id a THEME AUTHOR or CONTENT AUTHOR typed into an embed marker
+ * (`{"type":"content","id":"..."}"`, `{"type":"post","id":"..."}"`) needs "not visible" and "does not
+ * exist" to look identical and non-fatal (the REQ-27 never-throws contract every `widgets/
+ * resolver-service.ts` resolver follows), not a thrown domain error a route 404s on — that is
+ * `getPublishedPostBySlug`'s job, for a URL a VISITOR typed.
+ *
+ * Guards the exact hazard an id-addressable embed marker introduces that a slug-addressable ROUTE
+ * never had: a route's slug lookup can only ever resolve to the one page a visitor asked for, but an
+ * id embedded inside a marker can name ANY row in the table, including a draft or a trashed one — so
+ * "fetch by id" alone is not the same operation as "fetch the row a route has already proven is
+ * public". Filtering here, at the one seam every id-driven embed resolver goes through, is what keeps
+ * a draft page's content off the public site when a `content`/`post` marker happens to reference it
+ * (2026-08-11 unified-content-marker design doc, guard 2 — the highest-risk part of that change).
+ *
+ * @complexity O(1) — one indexed `findById` call plus two field comparisons, no iteration.
+ */
+export async function findPublishedPostById(
+  required: GetPostByIdRequired,
+  _optional: GetPostOptional = {}
+): Promise<PostRecord | null> {
+  const { workspaceId, id } = required.input;
+  const post = await required.deps.repo.findById({ workspaceId, id });
+  if (!post || isTrashed(post) || post.status !== "published") return null;
+  return post;
 }
 
 /**

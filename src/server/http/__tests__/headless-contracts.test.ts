@@ -43,8 +43,7 @@ test("admin and content serializers stay aligned with shared headless contracts"
       { id: "atlas", tier: "declarative" },
       { id: "glassmorphic", tier: "declarative" },
     ],
-    activeThemePostTemplates: [],
-    activeThemePageTemplates: [],
+    activeThemeTemplates: [],
     activeThemeStaticPageIds: [],
   });
   const contentPayload: ContentPostPayload = toContentPostResponse({
@@ -71,7 +70,7 @@ test("admin and content serializers stay aligned with shared headless contracts"
       // both on every live response even when the record itself carries neither (see
       // `HeadlessPost.templateChoice`'s doc), so the serialized shape gains two keys the
       // `seedPost` above never sets. `null` here is "never chosen", NOT "opted out" — the two are
-      // distinct stored values, see `resolvePostTemplate`.
+      // distinct stored values, see `resolveTemplate`.
       templateChoice: null,
       overridesThemePage: false,
     },
@@ -89,8 +88,7 @@ test("admin and content serializers stay aligned with shared headless contracts"
       { id: "atlas", tier: "declarative" },
       { id: "glassmorphic", tier: "declarative" },
     ],
-    activeThemePostTemplates: [],
-    activeThemePageTemplates: [],
+    activeThemeTemplates: [],
     activeThemeStaticPageIds: [],
   });
 
