@@ -1564,8 +1564,25 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    `.btn-primary` on selector specificity — so this re-asserts it at one class higher than the rule
    it's overriding, same "outrank than replace" approach `.list-table td button:not(...)` documents
    above for the identical bare-`button` shape problem. */
-.theme-card button.btn-primary { background: var(--primary); color: var(--primary-ink); border: 1px solid transparent; }
-.theme-card button.btn-primary:hover { background: var(--primary); opacity: 0.88; }
+/* 2026-08-11: burnt orange dropped from this button on owner instruction ("change the Activate
+   button ... instead of the orange it is now"), continuing the same de-saturation that took Explore
+   from blue to a neutral black fill — the stated goal is fewer hues overall, not a different hue.
+
+   Activate takes the INVERSE of Explore's pairing rather than the same one. Both buttons sit side by
+   side on every non-active card, so giving them identical black fills would make the primary and
+   secondary actions visually indistinguishable — the exact problem the blue-vs-orange pairing was
+   changed to solve, just re-created in monochrome. Outline for Activate, solid for Explore, keeps
+   one of them obviously dominant with no color doing the work.
+
+   Scoped to `.theme-card` only. The app-wide `.btn-primary` (~line 729) still owns `--primary` and is
+   deliberately untouched: every primary action in the admin uses it, and this instruction was about
+   one button on one screen.
+
+   Still re-asserted at one class higher for the specificity reason the original comment below
+   records — `.theme-card button` (0,1,1) outranks a bare `.btn-primary` (0,1,0), so the card's
+   `currentColor` tint wins otherwise. That trap has now been hit three times on this card. */
+.theme-card button.btn-primary { background: var(--surface); color: var(--fg); border: 1px solid var(--fg); }
+.theme-card button.btn-primary:hover { background: var(--surface-2); opacity: 1; }
 /* Explore loses the same specificity fight `.btn-primary` above documents, and for the same reason:
    `.theme-card button` (0,1,1) outranks a bare `.btn-explore` (0,1,0), so the card's currentColor
    tint won underneath whatever `.btn-explore` said. Re-asserted here at one class higher, exactly as
