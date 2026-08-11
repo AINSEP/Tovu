@@ -343,17 +343,22 @@ this session): `js/theme-toggle.js` (per-theme `localStorage` key
 `tovu-theme:gracious-timing`), a toggle button in `nav.html`, matching
 `.theme-toggle`/`.icon-stack` CSS, and the script tag added to all 8 page files.
 
-**Real, pre-existing gap found, not fixed (out of scope for this pass):** `theme.json`
-already declares `"postTemplate": ["project.html"]`, but `pages/project.html` has **no
-`data-embed-type="post"` marker anywhere in it** (confirmed via grep — zero matches).
-The post-template picker feature would let an admin pick this file as a post's
-template, but nothing would actually render if they did — the page is a rich,
-fully-hardcoded case-study layout (hero, "Project Overview," "The Challenge," "Design &
-Frontend Approach," "Responsive Experience," a "More work" band, and an FAQ band), and
-naively swapping its whole body for one embed div would destroy that illustrative
-content wholesale. A real fix needs a design decision about which sections stay static
-furniture (the "more work"/FAQ bands plausibly should) versus which become the one
-embed slot (the four prose sections most plausibly collapse into it) — that's a
-judgment call for whoever owns this theme's content design, not something to rush
-through as a side effect of a light-mode/blog-post-template dispatch scoped to other
-themes.
+**Real, pre-existing gap found — since fixed:** `theme.json` already declared
+`"postTemplate": ["project.html"]`, but at the time this was written `pages/project.html`
+had **no post marker anywhere in it** (confirmed via grep — zero matches). The
+post-template picker feature would let an admin pick this file as a post's template, but
+nothing would actually render if they did — the page was a rich, fully-hardcoded
+case-study layout (hero, "Project Overview," "The Challenge," "Design & Frontend
+Approach," "Responsive Experience," a "More work" band, and an FAQ band), and naively
+swapping its whole body for one embed div would have destroyed that illustrative content
+wholesale. A real fix needed a design decision about which sections stay static furniture
+(the "more work"/FAQ bands plausibly should) versus which become the one embed slot (the
+four prose sections most plausibly collapse into it) — that's a judgment call for
+whoever owns this theme's content design, not something to rush through as a side effect
+of a light-mode/blog-post-template dispatch scoped to other themes.
+
+**Resolution:** the hero/cover/four prose sections collapsed into one
+`data-embed-config='{"type":"post","id":"{{post}}"}'` marker wrapping the whole
+`<article class="post-detail wrap">`; "More work"/FAQ bands stayed static template
+furniture — exactly the split this note called for. See the inline comment at the top of
+`pages/project.html`'s `<main>` for the reasoning.

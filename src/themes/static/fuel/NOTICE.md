@@ -243,7 +243,8 @@ brief.
   against this theme folder: `status: "valid"`, zero errors, all 12 pages and both
   partials discovered correctly.
 - `renderStaticPage()` (the real engine function, `src/features/theme/static-render.ts`)
-  run directly for all 12 pages — token injection, `data-tovu-slot` resolution, and
+  run directly for all 12 pages — token injection, partial-slot marker resolution
+  (`data-embed-config`; `data-tovu-slot` at the time this was written), and
   `../css/`/`../js/` → `/theme-assets/fuel/...` rewriting all confirmed working, with
   the rendered output written to disk and screenshotted (not the raw un-rendered
   source files).

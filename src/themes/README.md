@@ -19,10 +19,10 @@ handlebars/<id>/     Handlebars templates, sandboxed — directory exists, curre
 
 ## Before you write a `theme.json` field and expect it to do something
 
-Not every field in an existing theme's `theme.json` is read by the loader. `modes`, `defaultMode`, `pages`, and `slots` are written by every static theme but consumed by nothing in `src/` — see the guide's §3 for the verified field-by-field breakdown of what's actually functional vs. documentary-only.
+Not every field in an existing theme's `theme.json` is read by the loader. `pages` is written by every static theme but consumed by nothing in `src/` (page discovery reads the real files under `pages/`, not this declared list) — see the guide's §3 for the verified field-by-field breakdown of what's actually functional vs. documentary-only. `modes`, `defaultMode`, and `slots` **are** read: `defaultMode` sets the page's initial `data-theme`, `modes` is validated against it at load time, and `slots` drives nav/footer partial resolution.
 
-## Don't assume nested menus render, or that every theme embeds the CMS menu
+## Nested menus are opt-in, not automatic — and not every theme embeds the CMS menu
 
-Static-theme navs render only top-level menu items (`static-render.ts`'s `renderMenuLinks` — no static theme ships submenu CSS). And not every static theme wires `data-embed-type="menu"` into its nav — one currently hardcodes its links instead, so CMS menu edits don't reach it. See the guide's §6.3/§8 for exactly which theme and why.
+Static-theme navs render only top-level menu items by default (`static-render.ts`'s `renderMenuLinks`). A menu marker can opt into nested rendering instead via `{"variant":"tree"}` in its `data-embed-config` (`renderMenuTree`, since `77f567d`) — basic's docs sidebar is the one theme using it today, and its CSS already ships the `.menu-list.depth-N` styles the tree needs; a theme opting in without shipping equivalent styles gets unstyled nesting. And not every static theme wires a `type:"menu"` marker into its nav — one currently hardcodes its links instead, so CMS menu edits don't reach it. See the guide's §6.3/§8 for exactly which theme and why.
 
 See `development/docs/themes/theme-authoring-guide.md` for everything else, including a minimal worked example of a new static theme.

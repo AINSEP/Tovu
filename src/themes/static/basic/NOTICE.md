@@ -10,9 +10,11 @@ theme:
   each with the nav/footer markup duplicated verbatim (confirmed via hash comparison —
   footer was byte-identical across 6 of 8 pages; the auth pages `signin`/`signup` use a
   lighter `footer-minimal.html` variant). Pages reference them via
-  `data-tovu-slot="nav"` / `data-tovu-slot="footer"`, following the same
-  data-attribute pattern as Tovu's `data-embed-type` contract, rather than a template
-  include directive — no executable code ships inside the theme.
+  `data-embed-config='{"type":"partial","id":"nav"}'` /
+  `data-embed-config='{"type":"partial","id":"footer"}'` (originally two attributes,
+  `data-tovu-slot`/`data-nav-current`, consolidated onto the one JSON-valued marker
+  attribute in `b7acc21`), rather than a template include directive — no executable
+  code ships inside the theme.
 - The brand mark's checkmark stroke was hardcoded `#08090b` (near-black) in the
   source, correct only against the dark-mode mark background. Changed to
   `stroke="var(--bg)"` so it reads correctly against the light-mode mark too — a real
