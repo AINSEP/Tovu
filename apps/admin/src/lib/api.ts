@@ -1194,7 +1194,12 @@ export const api = {
        */
       files: Array<{
         path: string;
-        group: "page" | "partial" | "style" | "script" | "asset" | "config";
+        group: "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
+        /** Whether the raw source can be fetched/displayed as text at all — false only for binary
+         *  assets (images, fonts). Independent of `editable`: a script is readable but not editable. */
+        readable: boolean;
+        /** Whether the file can be saved (PUT/reset). False for binaries AND for read-only groups
+         *  (`script`, `other`) even though those stay `readable`. */
         editable: boolean;
         resettable: boolean;
       }>;
@@ -1216,12 +1221,49 @@ export const api = {
     request<{ path: string; content: string }>(
       `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file?path=${encodeURIComponent(path)}`
     ),
-  /** Overwrite one file inside a theme. Refused for catalog originals — those are never editable. */
+  /** Overwrite one file inside a theme. Refused for catalog originals — those are never editable —
+   *  and for read-only groups (scripts, `other`); see `ApiError.code === "READ_ONLY_FILE"`. */
   putThemeFile: (themeId: string, path: string, content: string) =>
     request<{ path: string; bytes: number }>(
       `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file`,
       { method: "PUT", body: JSON.stringify({ path, content }) }
     ),
+  /**
+   * Duplicate one file inside a theme. The server computes the destination name (`about.html` ->
+   * `about-1.html`, following collisions) — this call takes only the source path, nothing operator-
+   * typed. Offered for every group, including read-only-to-edit ones: copying a script's bytes is
+   * harmless even though editing one is refused.
+   */
+  copyThemeFile: (themeId: string, path: string) =>
+    request<{
+      path: string;
+      group: "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
+      readable: boolean;
+      editable: boolean;
+      resettable: boolean;
+      copiedFrom: string;
+    }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/copy`, {
+      method: "POST",
+      body: JSON.stringify({ path }),
+    }),
+  /**
+   * Rename one file within its current folder. `name` is a bare filename (no `/`), so this can never
+   * move a file between folders. Refused for `pages/index.html`/`theme.json`/`tokens.json`
+   * (`ApiError.code === "REQUIRED_FILE_LOCKED"`) and for a name already taken
+   * (`code === "NAME_TAKEN"`).
+   */
+  renameThemeFile: (themeId: string, path: string, name: string) =>
+    request<{
+      path: string;
+      group: "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
+      readable: boolean;
+      editable: boolean;
+      resettable: boolean;
+      renamedFrom: string;
+    }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/rename`, {
+      method: "POST",
+      body: JSON.stringify({ path, name }),
+    }),
   /**
    * Re-run theme discovery server-side. Needed because the server's theme list is built once at
    * boot, so a theme added to disk afterwards (downloaded, copied, pulled in by git, created by the
