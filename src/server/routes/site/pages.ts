@@ -263,7 +263,12 @@ function buildMissingPostTemplateHtml(): string {
     '<link rel="stylesheet" href="../css/styles.css" />',
     "</head>",
     "<body>",
-    '<div data-tovu-slot="nav" data-nav-current=""></div>',
+    // Authored in the same marker vocabulary a theme file uses, because `renderStaticPage` resolves
+    // this override through the exact same `resolveSlots` pass — the retired `data-tovu-slot`
+    // spelling this carried until 2026-08-10 would have left two raw `<div>`s in the diagnostic
+    // page, i.e. the error page telling an author something is misconfigured would itself have been
+    // the most visibly broken page on the site.
+    `<div data-embed-config='{"type":"partial","id":"nav","current":""}'></div>`,
     "<main>",
     '<section class="hero wrap">',
     '<div class="eyebrow-row"><span class="status-pill"><span class="dot"></span>Not configured</span></div>',
@@ -271,7 +276,7 @@ function buildMissingPostTemplateHtml(): string {
     '<p class="lede">This post has no template chosen, or its chosen template has no post slot to render into. Pick a template in the post editor to fix this.</p>',
     "</section>",
     "</main>",
-    '<div data-tovu-slot="footer"></div>',
+    `<div data-embed-config='{"type":"partial","id":"footer"}'></div>`,
     "</body>",
     "</html>",
   ].join("\n");

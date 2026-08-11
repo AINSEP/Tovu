@@ -545,6 +545,32 @@ const HTML_EMBED_RESOLVERS: Readonly<Record<string, HtmlEmbedResolver>> = {
 };
 
 /**
+ * Does the page-embed stage OWN this marker type — i.e. is a REQ-28 placeholder the honest answer
+ * when it fails to resolve?
+ *
+ * This question did not exist before the 2026-08-10 marker unification, and its absence was a real
+ * bug for exactly as long as the unification was half-done. `html-embeds.ts` used to match only an
+ * empty `<div data-embed-type="…">`, so a theme's own `partial`/`menu` markers were INVISIBLE to
+ * this stage — "unknown type" could only ever mean an author's typo, and rendering the REQ-28
+ * placeholder for it was right. Sharing one permissive parser made every marker visible to every
+ * consumer, so `renderHtmlPageBody` began substituting placeholders over the nav, the docs menu, and
+ * the footer of any post rendered through a theme template — three markers a LATER stage
+ * (`static-render.ts`'s `resolveSlots`/`injectMenuEmbeds`) owns and would have resolved.
+ *
+ * So ownership must be asked of this registry, never inferred from "did resolution produce
+ * anything". A type present here that failed to resolve still degrades to the placeholder — that is
+ * REQ-28 and unchanged. A type absent from here is not this stage's to render OR to blank: it is
+ * left exactly as authored, which is the shared parser's own "unresolved means untouched" invariant.
+ *
+ * The cost of being wrong is asymmetric and that is why the default is untouched: a marker wrongly
+ * left alone is visible in the output the moment anyone looks at the page, while a marker wrongly
+ * replaced is a silently-deleted nav that renders as a tidy, plausible page with a hole in it.
+ */
+export function isPageEmbedType(type: string): boolean {
+  return Object.hasOwn(HTML_EMBED_RESOLVERS, type);
+}
+
+/**
  * Resolved embed IR, keyed by embed type then by the referenced id (`resolved.get(ref.type)?.get(
  * ref.id)`). A type absent from the outer map means either nothing of that type was found on the
  * page or the type has no registered resolver (`render.ts`'s `renderHtmlPageBody` treats both

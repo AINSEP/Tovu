@@ -48,14 +48,19 @@ function rewritePageLinks(html: string): string {
 
 /**
  * A post-template page (e.g. `blog-post.html`, referenced from a theme's `theme.json` `postTemplate`
- * array) ships `data-embed-id="{{post}}"` — a literal placeholder, not a real id, since the template
- * is authored once and reused across whichever posts pick it. The route layer (`pages.ts`) already
- * knows which real post is being rendered by the time it calls this, so it substitutes the real
- * stored id here, BEFORE the embed scanner/resolver ever sees the html — `resolveHtmlPageEmbeds`
- * (`widgets/resolver-service.ts`) and `renderHtmlPageBody` (`server/http/site/render.ts`) then treat
- * this exactly like any other real `data-embed-type="post"` reference, no special-casing needed
- * downstream. A page with no `{{post}}` placeholder (a non-post-template page, or a misauthored
- * template missing the slot) is simply unaffected — `replace` is a no-op when the token isn't present.
+ * array) ships `data-embed-config='{"type":"post","id":"{{post}}"}'` — a literal placeholder, not a
+ * real id, since the template is authored once and reused across whichever posts pick it. The route
+ * layer (`pages.ts`) already knows which real post is being rendered by the time it calls this, so it
+ * substitutes the real stored id here, BEFORE the embed scanner/resolver ever sees the html —
+ * `resolveHtmlPageEmbeds` (`widgets/resolver-service.ts`) and `renderHtmlPageBody`
+ * (`server/http/site/render.ts`) then treat this exactly like any other real `{"type":"post"}`
+ * reference, no special-casing needed downstream. A page with no `{{post}}` placeholder (a non-post-
+ * template page, or a misauthored template missing the slot) is simply unaffected — `replace` is a
+ * no-op when the token isn't present.
+ *
+ * A string substitution rather than a marker rewrite on purpose: `{{post}}` is authored INSIDE the
+ * JSON as a legal string value (that is what the `marker.canary.test.ts` `{{post}}` canary pins), so
+ * swapping it leaves the surrounding config byte-identical and cannot perturb any other key.
  */
 export function injectPostEmbedId(html: string, postId: string): string {
   return html.replace('"id":"{{post}}"', `"id":${JSON.stringify(postId)}`);
@@ -413,7 +418,14 @@ export function resolvePostTemplate(
     if (choice === undefined || choice === "") return undefined;
     const pageId = choice.replace(/\.html$/, "");
     const html = theme.pages[pageId];
-    if (html === undefined || !html.includes('data-embed-id="{{post}}"')) return undefined;
+    // "Ships a post slot" is asked of the shared parser, never of a substring match. The literal
+    // `data-embed-id="{{post}}"` this used to test for stopped existing the moment the themes moved
+    // onto `data-embed-config` (2026-08-10), and because the miss is indistinguishable from "this
+    // theme has no such template", EVERY post silently fell through to the diagnostic page at HTTP
+    // 200 — the exact 2026-08-09 regression this function's own doc was written about, re-entered
+    // through a different door. Asking `markersOfType` also means a template carrying a hardcoded
+    // real post id counts as having a slot, which it does.
+    if (html === undefined || markersOfType(html, "post").length === 0) return undefined;
     return { kind: "template", pageId, html };
   };
 
