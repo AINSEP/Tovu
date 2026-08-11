@@ -4,6 +4,7 @@ import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
+import { prettifyHtml } from "./lib/prettify-html";
 import {
   PAGE_PREVIEW_WIDTHS,
   usePageEditor,
@@ -162,6 +163,25 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
     deleting,
   } = usePageEditorHook(routeSlug);
 
+  // HTML tab pretty-printing (owner-reported regression, 2026-08-11 — verified nothing formatted
+  // this view before either; see `lib/prettify-html.ts`'s file header). `draftHtml` is a LOCAL,
+  // display-only copy of `html`: merely switching to the HTML tab reformats and shows it here, but
+  // never calls `setHtml`, so `dirty` (computed as `html !== savedHtml` in the hook) stays exactly
+  // what it was before the operator looked at this tab — a display concern must never by itself mark
+  // the page as having unsaved changes. Typing in the textarea below writes straight through to
+  // BOTH `draftHtml` and the real `setHtml`, unchanged from how the textarea always worked, so the
+  // only way the prettified whitespace becomes part of the saved page is if the operator actually
+  // edits on top of it (the formatter's own safety rule makes that whitespace render-invisible
+  // either way — see the file header).
+  const [draftHtml, setDraftHtml] = useState(() => prettifyHtml(html));
+  const prevViewRef = useRef(view);
+  useEffect(() => {
+    if (view === "html" && prevViewRef.current !== "html") {
+      setDraftHtml(prettifyHtml(html));
+    }
+    prevViewRef.current = view;
+  }, [view, html]);
+
   if (error && !page) return <div className="notice error">{error}</div>;
   if (!page) return <div className="notice">Loading editor…</div>;
 
@@ -295,7 +315,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
       </div>
 
       {view === "preview" ? (
-        <PagePreview html={html} width={PAGE_PREVIEW_WIDTHS[device]} />
+        <PagePreview html={html} width={PAGE_PREVIEW_WIDTHS[device]} slug={slug} status={status} dirty={dirty} />
       ) : view === "interactive" ? (
         // Remounts with fresh `html` on every tab switch — see `InteractiveHtmlEditor`'s own file
         // header for why it reads `html` once at mount rather than reacting to later prop changes.
@@ -303,8 +323,14 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
       ) : (
         <textarea
           className="page-html-source"
-          value={html}
-          onChange={(e) => setHtml(e.target.value)}
+          value={draftHtml}
+          onChange={(e) => {
+            // Raw pass-through, same as before this tab had any formatting — an edit made on top of
+            // the pretty-printed baseline becomes the new working copy verbatim, not reformatted
+            // again mid-keystroke (which would fight the operator's cursor position).
+            setDraftHtml(e.target.value);
+            setHtml(e.target.value);
+          }}
           spellCheck={false}
           aria-label="Page HTML"
           placeholder="This page has no HTML yet. Ask the assistant to build it, or write some here."
@@ -330,13 +356,60 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
  *
  * The scale is a CSS transform on a fixed-width box, not a responsive iframe, and that difference is
  * the entire point — see `PAGE_PREVIEW_WIDTHS`. The wrapper's height is scaled to match so the
- * transformed content does not leave a gap or overflow underneath it.
+ * transformed content does not leave a gap or overflow underneath it. Both branches below fill this
+ * same scaled box identically (`.page-preview-iframe` sets `width/height: 100%` on either element),
+ * so `3ac885e`'s live pane-width tracking and the toolbar-to-preview spacing are unaffected by which
+ * branch renders.
  *
- * `SrcDocSandbox` (`@jini-ai/ui/renderers`) gives the document an opaque origin: its `sandbox`
- * attribute omits `allow-same-origin`, which is asserted by that component's own regression test, so
- * generated markup cannot reach the admin's cookies, storage or DOM even though scripts run in it.
+ * **What this shows, and why (2026-08-11 — the theme-CSS gap was diagnosed, not assumed a
+ * regression)**: this component previously fed the page's raw stored body HTML into
+ * `SrcDocSandbox` — a sandboxed `srcdoc` iframe with no template wrapper, no nav/footer, and no
+ * theme stylesheet, regardless of the page's template choice. That was never wired to the real
+ * render path; it cannot have regressed, because it never rendered themed. Confirmed independently
+ * by the predecessor session that shipped `page-shell.html` (`ADS-memory/reports/implementation/
+ * 2026-08-11-basic-page-template.md`'s own "Risks" section) and by reading this function before
+ * touching it: `html` here is the editor's raw body string, never passed through
+ * `renderPageViaTemplate`/`renderStaticPage`.
+ *
+ * Rather than reimplement that whole server-side render pipeline a second time in the admin (a
+ * second source of truth that would drift from `src/server/routes/site/pages.ts`'s real one), a
+ * PUBLISHED, un-dirtied page is shown by iframing the real public URL (`siteUrl`) directly — the
+ * exact same response a visitor gets, template, theme CSS, nav/footer and all, with zero risk of the
+ * two ever disagreeing. This is deliberately a preview of the SAVED page, not the live editor
+ * buffer: `getPublishedPostBySlug` (`features/post/post.ts`) 404s on anything not `status:
+ * "published"`, so a draft has nothing at that URL to show yet, and unsaved edits in the buffer
+ * are, by definition, not at that URL either until Save runs. Both cases fall back to the previous
+ * raw-body-in-sandbox view (still useful for a rough shape/content check) with a notice explaining
+ * why the theme isn't applied, instead of failing to explain the gap the way the unconditional
+ * raw view silently did before.
+ *
+ * The public URL is cross-origin from the admin (`:5173` vs. `:3000` in dev) — by design, since it
+ * has to be the real site, not a re-hosted copy. `<iframe src>` embedding does not require CORS (only
+ * script-driven cross-origin reads do), and this codebase sets no `X-Frame-Options`/
+ * `frame-ancestors` anywhere that would block it (checked `src/server/app.ts`). The cross-origin
+ * document's `contentDocument` is therefore unreachable from here — nothing in this component (or
+ * the raw-view fallback) depends on reaching into it.
+ *
+ * `SrcDocSandbox` (`@jini-ai/ui/renderers`) gives the raw-view fallback's document an opaque origin:
+ * its `sandbox` attribute omits `allow-same-origin`, which is asserted by that component's own
+ * regression test, so generated markup cannot reach the admin's cookies, storage or DOM even though
+ * scripts run in it. The live-site branch below does not need that same sandboxing — it is the same
+ * origin-appropriate, unsandboxed load any real site visitor already gets, and adding `sandbox`
+ * there would only break the theme's own scripts (nav toggle, reveal-on-scroll) for no security gain.
  */
-function PagePreview({ html, width }: { html: string; width: number }) {
+function PagePreview({
+  html,
+  width,
+  slug,
+  status,
+  dirty,
+}: {
+  html: string;
+  width: number;
+  slug: string;
+  status: "draft" | "published";
+  dirty: boolean;
+}) {
   const frameRef = useRef<HTMLDivElement>(null);
   // The frame's REAL rendered width, measured live via `ResizeObserver` rather than a guessed
   // constant — a flat `880` here previously meant the scale computed once at mount and stayed frozen
@@ -362,15 +435,34 @@ function PagePreview({ html, width }: { html: string; width: number }) {
   }, []);
 
   const scale = Math.min(1, paneWidth / width);
+  const canShowLiveSite = status === "published" && !dirty;
 
   return (
-    <div ref={frameRef} className="page-preview-frame" style={{ height: `${900 * scale}px` }}>
-      <div
-        className="page-preview-scaler"
-        style={{ width: `${width}px`, height: "900px", transform: `scale(${scale})` }}
-      >
-        <SrcDocSandbox html={html} title="Page preview" className="page-preview-iframe" />
+    <>
+      <div ref={frameRef} className="page-preview-frame" style={{ height: `${900 * scale}px` }}>
+        <div
+          className="page-preview-scaler"
+          style={{ width: `${width}px`, height: "900px", transform: `scale(${scale})` }}
+        >
+          {canShowLiveSite ? (
+            <iframe
+              src={siteUrl(`/${slug}`)}
+              title="Page preview"
+              className="page-preview-iframe"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <SrcDocSandbox html={html} title="Page preview" className="page-preview-iframe" />
+          )}
+        </div>
       </div>
-    </div>
+      {canShowLiveSite ? null : (
+        <p className="page-preview-notice">
+          {status !== "published"
+            ? "This is the raw body only — publish this page to preview it with the theme's real template and CSS."
+            : "This is the raw body only — save your changes to preview them with the theme's real template and CSS."}
+        </p>
+      )}
+    </>
   );
 }

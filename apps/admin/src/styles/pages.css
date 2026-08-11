@@ -159,6 +159,15 @@
   display: block;
 }
 
+/* Shown under the frame only when `PagePreview` cannot iframe the real published URL (draft, or
+   unsaved changes) — see that component's own doc for why the raw-body fallback needs this
+   explanation instead of silently looking unstyled. */
+.page-preview-notice {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted, #5f5b55);
+}
+
 .page-html-source {
   width: 100%;
   min-height: 32rem;
