@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type MouseEvent, type SyntheticEvent } from "react";
-import { ConfirmDialog } from "@jini-ai/admin/react";
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type SyntheticEvent } from "react";
+import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { Toast } from "@jini-ai/ui";
 
 import { siteUrl } from "../../lib/site-url";
@@ -97,10 +97,22 @@ function previewSrcFor(
   if (file.kind === "partial") {
     return siteUrl(`/theme-explore/${theme}/partial/${encodeURIComponent(file.label)}?v=${previewNonce}`);
   }
-  if (file.kind === "asset" && !file.editable) {
+  // Any non-readable file (not just `asset`-group ones — an unrecognized binary extension can land
+  // in the `other` catch-all too) gets served raw rather than shown as nothing: what the operator
+  // sees IS the file, not a re-encoding of it.
+  if (!file.readable) {
     return siteUrl(`/theme-assets/${theme}/${file.path.split("/").map(encodeURIComponent).join("/")}?v=${previewNonce}`);
   }
   return null;
+}
+
+/** Why the HTML tab shows a read-only viewer instead of a textarea, for a file that IS readable but
+ *  not editable (`kind === "script"` or `"other"`) — see `ThemeExploreFile.editable`'s doc comment
+ *  for the readable/editable split this answers. */
+function readOnlyReason(file: ThemeExploreFile): string {
+  return file.kind === "script"
+    ? "Scripts are read-only in Explore."
+    : "This file type is read-only in Explore.";
 }
 
 export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }: ThemeExploreProps) {
@@ -127,6 +139,18 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
     closeResetConfirm,
     reset,
     previewNonce,
+    renamingPath,
+    renameDraft,
+    setRenameDraft,
+    startRename,
+    cancelRename,
+    commitRename,
+    renaming,
+    pageRenameWarning,
+    confirmPageRename,
+    cancelPageRenameWarning,
+    copyingPath,
+    copyFile,
   } = useThemeExploreHook(themeId);
 
   const [device, setDevice] = useState<PagePreviewDevice>("desktop");
@@ -174,6 +198,24 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
 
   function handleFullscreenBackdropClick(e: MouseEvent<HTMLDialogElement>) {
     if (e.target === dialogRef.current) closeFullscreen();
+  }
+
+  /**
+   * Enter commits the inline rename, Escape abandons it. Blur (clicking away) also abandons it
+   * rather than committing — unlike Finder/Explorer's commit-on-blur, this sidesteps the whole
+   * double-fire class of bug a commit-on-blur design has to guard against (Enter firing the rename,
+   * then the input's own removal from the DOM firing a second blur-triggered attempt): a deliberate
+   * Enter, or the ⋮ menu's Rename item, are the two ways to actually commit, and both are equally
+   * fast for this screen's stated use case (typing a new name and pressing Enter).
+   */
+  function handleRenameKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitRename();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      cancelRename();
+    }
   }
 
   if (error && !detail) return <div className="notice error">{error}</div>;
@@ -254,16 +296,52 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
                 <p className="theme-explore-files-heading">{t(label)}</p>
                 <ul>
                   {group.map((file) => (
-                    <li key={file.path}>
-                      <button
-                        type="button"
-                        className={selected === file.path ? "is-active" : undefined}
-                        aria-current={selected === file.path ? "true" : undefined}
-                        onClick={() => select(file.path)}
-                        title={file.path}
-                      >
-                        {file.label}
-                      </button>
+                    <li key={file.path} className="theme-explore-file-row">
+                      {renamingPath === file.path ? (
+                        <input
+                          className="theme-explore-rename-input"
+                          value={renameDraft}
+                          autoFocus
+                          onChange={(e) => setRenameDraft(e.target.value)}
+                          onKeyDown={handleRenameKeyDown}
+                          onBlur={cancelRename}
+                          aria-label={t("New name for {file}").replace("{file}", file.label)}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          className={selected === file.path ? "is-active" : undefined}
+                          aria-current={selected === file.path ? "true" : undefined}
+                          onClick={() => select(file.path)}
+                          onDoubleClick={() => startRename(file.path)}
+                          title={file.path}
+                        >
+                          {file.label}
+                        </button>
+                      )}
+                      {/* Copy is unconditional — see `previewSrcFor`'s sibling `copyFile` doc comment
+                          in the hook for why duplicating bytes carries none of the risk editing does.
+                          Rename is always offered too: a LOCKED file (pages/index.html, theme.json,
+                          tokens.json) still shows the item, but selecting it surfaces `error` with the
+                          reason instead of opening the inline editor — `RowMenu` has no built-in
+                          disabled-item affordance to hang a tooltip reason off, so the reason is
+                          surfaced through the same error surface the rest of this screen already
+                          uses, rather than silently doing nothing. */}
+                      <RowMenu
+                        triggerLabel={t("More actions for {file}").replace("{file}", file.label)}
+                        items={[
+                          {
+                            key: "copy",
+                            label: copyingPath === file.path ? t("Copying…") : t("Copy"),
+                            onSelect: () => void copyFile(file.path),
+                          },
+                          {
+                            key: "rename",
+                            label: t("Rename"),
+                            onSelect: () => startRename(file.path),
+                          },
+                        ]}
+                      />
                     </li>
                   ))}
                 </ul>
@@ -338,14 +416,21 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
                   discovering, but not worth widening a button that changes text three ways already.
                   `isApplePlatform` picks the glyph the operator's own keyboard has — showing a Mac
                   user "Ctrl+S" for a chord that is ⌘S there is worse than showing nothing. */}
-              <button
-                className="btn-primary"
-                disabled={!dirty || saving}
-                onClick={() => void save()}
-                title={isApplePlatform() ? t("Save (⌘S)") : t("Save (Ctrl+S)")}
-              >
-                {saving ? t("Saving…") : dirty ? t("Save") : t("Saved")}
-              </button>
+              {/* Absent, not disabled, for a read-only file — same "why can't I?" reasoning Reset's
+                  own conditional presence above already applies to this screen. `dirty` can never
+                  become true for a read-only file (its textarea below has no `onChange`), so this is
+                  a belt-and-suspenders hide rather than the only thing standing between the operator
+                  and an accidental save. */}
+              {selectedFile === undefined || selectedFile.editable ? (
+                <button
+                  className="btn-primary"
+                  disabled={!dirty || saving}
+                  onClick={() => void save()}
+                  title={isApplePlatform() ? t("Save (⌘S)") : t("Save (Ctrl+S)")}
+                >
+                  {saving ? t("Saving…") : dirty ? t("Save") : t("Saved")}
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -355,22 +440,35 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
             ) : (
               <div className="notice">{t("Select a file to preview.")}</div>
             )
-          ) : (
-            selectedFile && !selectedFile.editable ? (
-              // Binary. Never rendered into a textarea: reading a PNG as UTF-8 gives mojibake, and
-              // saving that back would truly corrupt it. The Preview tab shows the real bytes.
-              <div className="notice">
-                {t("This is a binary file, so it has no editable source. Use the Preview tab to view it.")}
-              </div>
-            ) : (
+          ) : selectedFile && !selectedFile.readable ? (
+            // Binary. Never rendered into a textarea: reading a PNG as UTF-8 gives mojibake, and
+            // saving that back would truly corrupt it. The Preview tab shows the real bytes.
+            <div className="notice">
+              {t("This is a binary file, so it has no editable source. Use the Preview tab to view it.")}
+            </div>
+          ) : selectedFile && !selectedFile.editable ? (
+            // Readable but not editable — a script or an `other`-group file. Shown as source (unlike
+            // the binary case above), but `readOnly` and paired with a visible reason: an editable-
+            // looking textarea next to a Save button that can never fire would be worse than either
+            // showing nothing or being honest about why.
+            <>
+              <div className="notice">{t(readOnlyReason(selectedFile))}</div>
               <textarea
                 className="page-html-source"
                 value={source}
+                readOnly
                 spellCheck={false}
-                onChange={(e) => setSource(e.target.value)}
-                aria-label={t("Theme file source")}
+                aria-label={t("Theme file source (read-only)")}
               />
-            )
+            </>
+          ) : (
+            <textarea
+              className="page-html-source"
+              value={source}
+              spellCheck={false}
+              onChange={(e) => setSource(e.target.value)}
+              aria-label={t("Theme file source")}
+            />
           )}
         </div>
       </div>
@@ -407,9 +505,9 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
         ) : null}
       </dialog>
 
-      {/* The only confirmation on this screen, because Reset is the only thing here that can lose
-          work. Names the file explicitly rather than saying "this file": a destructive prompt should
-          never be ambiguous about its target. */}
+      {/* The only DESTRUCTIVE confirmation on this screen — Reset is the only thing here that can
+          lose work. Names the file explicitly rather than saying "this file": a destructive prompt
+          should never be ambiguous about its target. */}
       <ConfirmDialog
         open={resetConfirmOpen}
         title={t("Reset this file to the original?")}
@@ -426,6 +524,26 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
         pending={resetting}
         onConfirm={() => void reset()}
         onCancel={closeResetConfirm}
+      />
+
+      {/* NOT `destructive` — renaming a page loses no data and can be undone by renaming it back.
+          It still warrants a pause because it changes something outside this screen's own state: the
+          page's public URL, which anything already linking to it will silently stop reaching. */}
+      <ConfirmDialog
+        open={pageRenameWarning !== null}
+        title={t("Rename this page?")}
+        body={
+          <p>
+            {t("Renaming")} <code>{pageRenameWarning?.path}</code> {t("to")}{" "}
+            <code>{pageRenameWarning?.name}</code>{" "}
+            {t("changes its public URL. Anything already linking to it directly will need updating.")}
+          </p>
+        }
+        confirmLabel={t("Rename page")}
+        tone="warning"
+        pending={renaming}
+        onConfirm={() => void confirmPageRename()}
+        onCancel={cancelPageRenameWarning}
       />
     </div>
   );

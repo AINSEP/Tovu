@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { api } from "../../../lib/api";
+import { api, ApiError } from "../../../lib/api";
 
 /**
  * @file State for the Explore screen, so `ThemeExplore.tsx` is only markup — same split as
@@ -9,7 +9,7 @@ import { api } from "../../../lib/api";
 
 export type ThemeExploreView = "preview" | "html";
 
-export type ThemeFileGroup = "page" | "partial" | "style" | "script" | "config" | "asset";
+export type ThemeFileGroup = "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
 
 /** One entry in the Explore file list. */
 export interface ThemeExploreFile {
@@ -18,13 +18,21 @@ export interface ThemeExploreFile {
   /** What to show in the list. */
   label: string;
   kind: ThemeFileGroup;
-  /** False for binaries — viewable via `/theme-assets/`, never round-tripped through a textarea. */
+  /** Whether the raw source can be fetched/displayed as text at all. False only for binary assets
+   *  (images, fonts) — `readFileSync(…, "utf8")` on those returns mojibake. Independent of
+   *  `editable`: a script is readable (you can look at it) but not editable (you can't save it). */
+  readable: boolean;
+  /** Whether the file can be SAVED — false for binaries (which are also not `readable`) and for
+   *  read-only groups (`script`, `other`) even though those stay `readable`. 2026-08-11: this used
+   *  to be the same flag as `readable` (`editable`), which meant "make scripts read-only" had no way
+   *  to also keep them viewable without a bigger change than the ask called for — splitting the two
+   *  concepts is what unblocks that. */
   editable: boolean;
   /** False for files the author added, which have no original to restore from. */
   resettable: boolean;
 }
 
-/** Heading order for the file list — most-edited first, generated/vendored last. */
+/** Heading order for the file list — most-edited first, generated/vendored/catch-all last. */
 export const THEME_FILE_GROUPS: ReadonlyArray<{ key: ThemeFileGroup; label: string }> = [
   { key: "page", label: "Pages" },
   { key: "partial", label: "Partials" },
@@ -32,6 +40,7 @@ export const THEME_FILE_GROUPS: ReadonlyArray<{ key: ThemeFileGroup; label: stri
   { key: "script", label: "Scripts" },
   { key: "config", label: "Config" },
   { key: "asset", label: "Assets" },
+  { key: "other", label: "Other" },
 ];
 
 export interface ThemeExploreDetail {
@@ -42,6 +51,22 @@ export interface ThemeExploreDetail {
   errors: string[];
   lineage: { from?: string; tier?: string; version?: string; catalog?: string } | null;
   hasOriginal: boolean;
+}
+
+/**
+ * Mirrors the server's `REQUIRED_THEME_FILES` (`explore.ts`) — `loadTheme` fails without any of
+ * these (missing `pages/index.html`, or a `theme.json`/`tokens.json` that no longer parses), so
+ * renaming one away reproduces that same breakage. The SERVER is the actual enforcement point (it
+ * refuses the rename with `code: "REQUIRED_FILE_LOCKED"` regardless of what the client does); this
+ * client-side copy only avoids a pointless round trip for the common case of double-clicking one of
+ * these three files directly.
+ */
+const LOCKED_RENAME_PATHS: ReadonlySet<string> = new Set(["pages/index.html", "theme.json", "tokens.json"]);
+
+function lockedRenameReason(path: string): string {
+  return path === "pages/index.html"
+    ? "pages/index.html can't be renamed — every theme requires this exact page to load at all."
+    : `${path} can't be renamed — every theme requires this exact file to load at all.`;
 }
 
 export interface ThemeExploreController {
@@ -81,6 +106,32 @@ export interface ThemeExploreController {
    * would otherwise show the pre-save HTML from the browser's cache.
    */
   previewNonce: number;
+  /** Path of the file currently in inline-rename edit mode (double-click, or the ⋮ menu's Rename),
+   *  or `null` when nothing is being renamed. */
+  renamingPath: string | null;
+  /** The inline rename input's current text. */
+  renameDraft: string;
+  setRenameDraft: (value: string) => void;
+  /** Begin renaming `path` — refused inline (with `error` set to why) for `LOCKED_RENAME_PATHS`. */
+  startRename: (path: string) => void;
+  /** Abandon the in-progress rename with no server call. */
+  cancelRename: () => void;
+  /** Commit the current `renameDraft`. A same-name draft is a silent no-op close; a PAGE (other than
+   *  the locked index) is diverted into `pageRenameWarning` instead of renaming immediately, since
+   *  that changes the page's public URL. */
+  commitRename: () => void;
+  /** True while a rename round trip is in flight. */
+  renaming: boolean;
+  /** Set when `commitRename` targets a non-index PAGE — holds enough to actually perform the rename
+   *  once the operator confirms past the URL-change warning. */
+  pageRenameWarning: { path: string; name: string } | null;
+  confirmPageRename: () => Promise<void>;
+  cancelPageRenameWarning: () => void;
+  /** Path of the file currently being duplicated, or `null`. Copy has no confirmation step — "it'll
+   *  just copy it right in the sidebar" — so this only exists to keep a rapid double-select from
+   *  firing the request twice. */
+  copyingPath: string | null;
+  copyFile: (path: string) => Promise<void>;
 }
 
 /**
@@ -93,6 +144,55 @@ export interface ThemeExploreController {
 function fileLabel(path: string, kind: ThemeFileGroup): string {
   const base = path.slice(path.lastIndexOf("/") + 1);
   return kind === "page" || kind === "partial" ? base.replace(/\.html$/, "") : base;
+}
+
+/** The path's own filename segment, extension included — what an inline rename edits. */
+function basenameOf(path: string): string {
+  return path.slice(path.lastIndexOf("/") + 1);
+}
+
+/** Server file-list entry shape, as returned by `getThemeDetail`/`copyThemeFile`/`renameThemeFile`. */
+interface ServerFileEntry {
+  path: string;
+  group: ThemeFileGroup;
+  readable: boolean;
+  editable: boolean;
+  resettable: boolean;
+}
+
+function mapDetailFiles(entries: ServerFileEntry[]): ThemeExploreFile[] {
+  return entries.map((f) => ({
+    path: f.path,
+    label: fileLabel(f.path, f.group),
+    kind: f.group,
+    readable: f.readable,
+    editable: f.editable,
+    resettable: f.resettable,
+  }));
+}
+
+/**
+ * Fetch one theme's detail and map it into this hook's shapes in one place, so the initial load
+ * effect and the post-copy/post-rename refresh (which must NOT also re-run the initial effect's
+ * default-selection logic) share one definition of "what does the server say about this theme"
+ * instead of two `.map()`s drifting apart.
+ */
+async function fetchThemeExploreState(
+  themeId: string
+): Promise<{ detail: ThemeExploreDetail; files: ThemeExploreFile[] }> {
+  const r = await api.getThemeDetail(themeId);
+  return {
+    detail: {
+      id: r.id,
+      name: r.name,
+      tier: r.tier,
+      status: r.status,
+      errors: r.errors,
+      lineage: r.lineage,
+      hasOriginal: r.hasOriginal,
+    },
+    files: mapDetailFiles(r.files),
+  };
 }
 
 export function useThemeExplore(themeId: string): ThemeExploreController {
@@ -108,39 +208,25 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
   const [previewNonce, setPreviewNonce] = useState(0);
   const [resetting, setResetting] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const [pageRenameWarning, setPageRenameWarning] = useState<{ path: string; name: string } | null>(null);
+  const [copyingPath, setCopyingPath] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    api
-      .getThemeDetail(themeId)
-      .then((r) => {
+    fetchThemeExploreState(themeId)
+      .then(({ detail: nextDetail, files: nextFiles }) => {
         if (cancelled) return;
-        setDetail({
-          id: r.id,
-          name: r.name,
-          tier: r.tier,
-          status: r.status,
-          errors: r.errors,
-          lineage: r.lineage,
-          hasOriginal: r.hasOriginal,
-        });
-        // Sourced from the server's full folder listing rather than the renderer's pages/partials
-        // maps: CSS, JS, tokens and images are exactly what an author changes to make a downloaded
-        // theme theirs, and the screen used to hide every one of them.
-        const list: ThemeExploreFile[] = r.files.map((f) => ({
-          path: f.path,
-          label: fileLabel(f.path, f.group),
-          kind: f.group,
-          editable: f.editable,
-          resettable: f.resettable,
-        }));
-        setFiles(list);
+        setDetail(nextDetail);
+        setFiles(nextFiles);
         // Open `pages/index.html` by default — the page an author most likely wants first, and
         // `loadTheme` requires it, so a valid theme always has one.
         setSelected(
-          list.find((f) => f.path === "pages/index.html")?.path ??
-            list.find((f) => f.kind === "page")?.path ??
-            list[0]?.path ??
+          nextFiles.find((f) => f.path === "pages/index.html")?.path ??
+            nextFiles.find((f) => f.kind === "page")?.path ??
+            nextFiles[0]?.path ??
             null
         );
       })
@@ -154,10 +240,11 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
 
   useEffect(() => {
     if (selected === null) return;
-    // Binaries are never fetched as text. `readFileSync(…, "utf8")` on a PNG returns mojibake, and
-    // saving that back would genuinely corrupt the file — so the request is not made at all rather
-    // than made and then guarded against in the UI.
-    if (files.find((f) => f.path === selected)?.editable === false) {
+    // Non-text files are never fetched as text. `readFileSync(…, "utf8")` on a PNG returns mojibake,
+    // and saving that back would genuinely corrupt the file — so the request is not made at all
+    // rather than made and then guarded against in the UI. Gated on `readable`, NOT `editable`: a
+    // script is not editable but IS readable, and still needs its source fetched to be viewed.
+    if (files.find((f) => f.path === selected)?.readable === false) {
       setSource("");
       setSavedSource("");
       return;
@@ -221,6 +308,132 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
     }
   }, [themeId, selected]);
 
+  /**
+   * Actually perform a rename against the server and reconcile local state — the one place both the
+   * inline-edit fast path and the page-URL-change confirm dialog end up, so the two entry points
+   * cannot land on two different post-rename behaviors.
+   *
+   * Refetches the whole theme detail rather than patching `files` in place: the server is
+   * authoritative for the renamed entry's `group`/`editable`/`resettable` (a `.html` renamed to
+   * `.txt` would reclassify, for instance), and a targeted patch would have to reproduce that logic
+   * a second time to stay correct.
+   */
+  const performRename = useCallback(
+    async (sourcePath: string, name: string) => {
+      setRenaming(true);
+      setError(null);
+      try {
+        const r = await api.renameThemeFile(themeId, sourcePath, name);
+        const nextSelected = selected === sourcePath ? r.path : selected;
+        const { detail: nextDetail, files: nextFiles } = await fetchThemeExploreState(themeId);
+        setDetail(nextDetail);
+        setFiles(nextFiles);
+        setSelected(nextSelected);
+        setNotice(`Renamed to ${r.path}`);
+        setPreviewNonce((n) => n + 1);
+      } catch (e) {
+        setError(
+          e instanceof ApiError && e.code === "NAME_TAKEN"
+            ? `'${name}' already exists in this theme`
+            : e instanceof Error
+              ? e.message
+              : "failed to rename file"
+        );
+      } finally {
+        setRenaming(false);
+        setRenamingPath(null);
+        setRenameDraft("");
+      }
+    },
+    [themeId, selected]
+  );
+
+  const startRename = useCallback((path: string) => {
+    if (LOCKED_RENAME_PATHS.has(path)) {
+      setError(lockedRenameReason(path));
+      return;
+    }
+    setError(null);
+    setRenamingPath(path);
+    setRenameDraft(basenameOf(path));
+  }, []);
+
+  const cancelRename = useCallback(() => {
+    setRenamingPath(null);
+    setRenameDraft("");
+  }, []);
+
+  /**
+   * Validate and dispatch the current `renameDraft`. A page (other than the locked index, which
+   * never reaches here) is diverted to `pageRenameWarning` instead of renaming immediately — renaming
+   * it changes its public URL, and that is worth a pause the way Reset's confirm dialog is, even
+   * though a rename is not itself destructive to file contents the way Reset is.
+   */
+  const commitRename = useCallback(() => {
+    if (renamingPath === null) return;
+    const sourcePath = renamingPath;
+    const name = renameDraft.trim();
+    const currentBase = basenameOf(sourcePath);
+
+    if (name.length === 0) {
+      setError("Name cannot be empty");
+      return;
+    }
+    if (name.includes("/") || name.includes("\\")) {
+      setError("Name cannot contain a path separator");
+      return;
+    }
+    if (name === currentBase) {
+      cancelRename();
+      return;
+    }
+
+    const file = files.find((f) => f.path === sourcePath);
+    if (file?.kind === "page") {
+      setRenamingPath(null);
+      setPageRenameWarning({ path: sourcePath, name });
+      return;
+    }
+
+    setRenamingPath(null);
+    void performRename(sourcePath, name);
+  }, [renamingPath, renameDraft, files, performRename, cancelRename]);
+
+  const confirmPageRename = useCallback(async () => {
+    if (!pageRenameWarning) return;
+    const { path, name } = pageRenameWarning;
+    setPageRenameWarning(null);
+    await performRename(path, name);
+  }, [pageRenameWarning, performRename]);
+
+  const cancelPageRenameWarning = useCallback(() => setPageRenameWarning(null), []);
+
+  /**
+   * Duplicate a file. No confirmation step by design ("it'll just copy it right in the sidebar" —
+   * the owner's own framing) — offered for every group, including read-only-to-edit ones, since
+   * copying bytes changes nothing about the source and nothing any existing reference points at.
+   */
+  const copyFile = useCallback(
+    async (path: string) => {
+      if (copyingPath !== null) return;
+      setCopyingPath(path);
+      setError(null);
+      try {
+        const r = await api.copyThemeFile(themeId, path);
+        const { detail: nextDetail, files: nextFiles } = await fetchThemeExploreState(themeId);
+        setDetail(nextDetail);
+        setFiles(nextFiles);
+        setSelected(r.path);
+        setNotice(`Copied to ${r.path}`);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "failed to copy file");
+      } finally {
+        setCopyingPath(null);
+      }
+    },
+    [themeId, copyingPath]
+  );
+
   const dirty = source !== savedSource;
 
   /**
@@ -267,5 +480,17 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
     closeResetConfirm: () => setResetConfirmOpen(false),
     reset,
     previewNonce,
+    renamingPath,
+    renameDraft,
+    setRenameDraft,
+    startRename,
+    cancelRename,
+    commitRename,
+    renaming,
+    pageRenameWarning,
+    confirmPageRename,
+    cancelPageRenameWarning,
+    copyingPath,
+    copyFile,
   };
 }

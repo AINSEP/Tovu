@@ -463,14 +463,40 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
   margin: 0 0 4px; font-size: 0.7rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-3, var(--fg-2));
 }
-.theme-explore-files button {
+/* `:not(.row-menu-trigger)` — without it this rule's (0,1,1) specificity beats `.row-menu-trigger`'s
+   own (0,1,0) further down this file (both are plain classes/type selectors, no cascade layers), so
+   the ⋮ button inside this list would otherwise inherit `width: 100%; display: block`, an unlabeled
+   full-width bar rather than the small round trigger every other row-actions menu in the app uses. */
+.theme-explore-files button:not(.row-menu-trigger) {
   display: block; width: 100%; text-align: left;
   padding: 5px 8px; border: 0; border-radius: var(--r-sm);
   background: transparent; color: var(--fg-2);
   font-family: var(--font-mono, monospace); font-size: 0.8rem; cursor: pointer;
 }
-.theme-explore-files button:hover { background: var(--surface-2); opacity: 1; }
+.theme-explore-files button:not(.row-menu-trigger):hover { background: var(--surface-2); opacity: 1; }
 .theme-explore-files button.is-active { background: var(--accent-dim); color: var(--fg-1); font-weight: 600; }
+/* Each row pairs the filename control (or its inline-rename replacement) with the ⋮ overflow menu —
+   2026-08-11 owner ask (Copy/Rename). Flex rather than the plain block layout the rest of this list
+   uses, so the trigger sits fixed-width at the row's end instead of forcing a second line under a
+   full-width filename button. */
+.theme-explore-file-row { display: flex; align-items: center; gap: 2px; }
+.theme-explore-file-row button:not(.row-menu-trigger) {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Scaled down from the table row menu's 30px default — this column is 190px wide total, shared with
+   a filename that is often longer than the space left after a full-size trigger. */
+.theme-explore-file-row .row-menu-trigger { width: 22px; height: 22px; flex-shrink: 0; }
+.theme-explore-file-row .row-menu-trigger svg { width: 13px; height: 13px; }
+/* Takes over the filename button's slot and sizing while a rename is in progress, so double-clicking
+   a name and typing over it reads as editing that same control rather than swapping to a visually
+   unrelated one. */
+.theme-explore-rename-input {
+  flex: 1; min-width: 0;
+  padding: 4px 7px; border: 1px solid var(--link); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--fg-1);
+  font-family: var(--font-mono, monospace); font-size: 0.8rem;
+}
+.theme-explore-rename-input:focus { outline: none; box-shadow: 0 0 0 2px var(--accent-dim); }
 .theme-explore-main { min-width: 0; }
 /* `.page-editor-toolbar`'s shared 1rem top margin exists to separate it from the title/slug rows
    above it on `PageEditor.tsx` — the OTHER screen this class comes from. Here it is the first thing

@@ -20,15 +20,20 @@ import type { ThemeExploreController, ThemeExploreFile } from "../hooks/use-them
  */
 
 const FILES: ThemeExploreFile[] = [
-  { path: "pages/index.html", label: "index", kind: "page", editable: true, resettable: true },
-  { path: "pages/about.html", label: "about", kind: "page", editable: true, resettable: true },
-  { path: "nav.html", label: "nav", kind: "partial", editable: true, resettable: true },
-  { path: "footer.html", label: "footer", kind: "partial", editable: true, resettable: true },
-  { path: "css/styles.css", label: "styles.css", kind: "style", editable: true, resettable: true },
-  { path: "js/main.js", label: "main.js", kind: "script", editable: true, resettable: true },
+  { path: "pages/index.html", label: "index", kind: "page", readable: true, editable: true, resettable: true },
+  { path: "pages/about.html", label: "about", kind: "page", readable: true, editable: true, resettable: true },
+  { path: "nav.html", label: "nav", kind: "partial", readable: true, editable: true, resettable: true },
+  { path: "footer.html", label: "footer", kind: "partial", readable: true, editable: true, resettable: true },
+  { path: "css/styles.css", label: "styles.css", kind: "style", readable: true, editable: true, resettable: true },
+  // Read-only-to-edit (2026-08-11 owner ask): readable so its source can be viewed, not editable so
+  // it can't be saved from this screen.
+  { path: "js/main.js", label: "main.js", kind: "script", readable: true, editable: false, resettable: true },
+  // The `other` catch-all group — also read-only-to-edit, but for a different reason (never asked to
+  // be edited here at all, not "the owner doesn't want it edited").
+  { path: "NOTICE.md", label: "NOTICE.md", kind: "other", readable: true, editable: false, resettable: false },
   // Binary + author-added: the two cases that must NOT offer an editor or a Reset respectively.
-  { path: "screenshots/index.png", label: "index.png", kind: "asset", editable: false, resettable: true },
-  { path: "pages/mine.html", label: "mine", kind: "page", editable: true, resettable: false },
+  { path: "screenshots/index.png", label: "index.png", kind: "asset", readable: false, editable: false, resettable: true },
+  { path: "pages/mine.html", label: "mine", kind: "page", readable: true, editable: true, resettable: false },
 ];
 
 function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExploreController {
@@ -61,6 +66,18 @@ function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExplo
     closeResetConfirm: vi.fn(),
     reset: vi.fn(),
     previewNonce: 0,
+    renamingPath: null,
+    renameDraft: "",
+    setRenameDraft: vi.fn(),
+    startRename: vi.fn(),
+    cancelRename: vi.fn(),
+    commitRename: vi.fn(),
+    renaming: false,
+    pageRenameWarning: null,
+    confirmPageRename: vi.fn(),
+    cancelPageRenameWarning: vi.fn(),
+    copyingPath: null,
+    copyFile: vi.fn(),
     ...overrides,
   };
 }
@@ -258,5 +275,195 @@ describe("reset to original", () => {
     // Absent rather than disabled: a greyed-out Reset invites "why can't I?", absence just means
     // the option does not apply.
     expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * JS/`other` read-only (2026-08-11 owner ask: "I don't want JS edited from this screen"). `readable`
+ * and `editable` used to be one flag; a script is now `readable: true, editable: false`, which must
+ * render as visible-but-not-editable, not as the binary-file notice these files are NOT.
+ */
+describe("read-only groups (scripts, other)", () => {
+  it("shows a script's source in a read-only viewer with a visible reason, not an editable textarea", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ selected: "js/main.js", view: "html" })}
+      />
+    );
+    // Not the binary notice — a script IS text, and must still be readable.
+    expect(screen.queryByText(/binary file/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/scripts are read-only in explore/i)).toBeInTheDocument();
+    const textarea = screen.getByLabelText("Theme file source (read-only)") as HTMLTextAreaElement;
+    expect(textarea).toHaveAttribute("readonly");
+  });
+
+  it("shows an 'other'-group file (e.g. NOTICE.md) in the same read-only viewer, with a generic reason", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ selected: "NOTICE.md", view: "html" })}
+      />
+    );
+    expect(screen.queryByText(/binary file/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/read-only in explore/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Theme file source (read-only)")).toHaveAttribute("readonly");
+  });
+
+  it("hides the Save button entirely for a read-only file — not just disabled", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ selected: "js/main.js", view: "html" })}
+      />
+    );
+    expect(screen.queryByRole("button", { name: /^save/i })).not.toBeInTheDocument();
+  });
+
+  it("still shows the Save button for an editable file", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ selected: "pages/about.html", view: "html" })}
+      />
+    );
+    expect(screen.getByRole("button", { name: /saved|save/i })).toBeInTheDocument();
+  });
+});
+
+/** The ⋮ menu (Copy/Rename) and double-click-to-rename — 2026-08-11 owner ask, the headline feature
+ *  of this pass. */
+describe("per-file overflow menu — copy and rename", () => {
+  it("offers Copy and Rename for every file, including read-only-to-edit ones", async () => {
+    const user = userEvent.setup();
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
+    await user.click(screen.getByRole("button", { name: /more actions for main\.js/i }));
+    expect(screen.getByRole("menuitem", { name: "Copy" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Rename" })).toBeInTheDocument();
+  });
+
+  it("Copy in the ⋮ menu calls copyFile with that file's path", async () => {
+    const user = userEvent.setup();
+    const copyFile = vi.fn();
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller({ copyFile })} />);
+    await user.click(screen.getByRole("button", { name: /more actions for about/i }));
+    await user.click(screen.getByRole("menuitem", { name: "Copy" }));
+    expect(copyFile).toHaveBeenCalledWith("pages/about.html");
+  });
+
+  it("Rename in the ⋮ menu calls startRename with that file's path", async () => {
+    const user = userEvent.setup();
+    const startRename = vi.fn();
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller({ startRename })} />);
+    await user.click(screen.getByRole("button", { name: /more actions for about/i }));
+    await user.click(screen.getByRole("menuitem", { name: "Rename" }));
+    expect(startRename).toHaveBeenCalledWith("pages/about.html");
+  });
+
+  it("double-clicking a filename calls startRename — the fast path the owner asked for alongside the menu", async () => {
+    const user = userEvent.setup();
+    const startRename = vi.fn();
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller({ startRename })} />);
+    await user.dblClick(screen.getByRole("button", { name: "about" }));
+    expect(startRename).toHaveBeenCalledWith("pages/about.html");
+  });
+
+  it("renders an inline text input in place of the filename while that file is being renamed", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ renamingPath: "pages/about.html", renameDraft: "about" })}
+      />
+    );
+    expect(screen.getByDisplayValue("about")).toBeInTheDocument();
+    // The plain filename button for THIS file is replaced, not just covered — only one control for
+    // "about" should exist at a time.
+    expect(screen.queryByRole("button", { name: "about" })).not.toBeInTheDocument();
+    // A different file's row is unaffected.
+    expect(screen.getByRole("button", { name: "index" })).toBeInTheDocument();
+  });
+
+  it("typing in the rename input calls setRenameDraft", async () => {
+    const user = userEvent.setup();
+    const setRenameDraft = vi.fn();
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ renamingPath: "pages/about.html", renameDraft: "about", setRenameDraft })}
+      />
+    );
+    await user.type(screen.getByDisplayValue("about"), "x");
+    expect(setRenameDraft).toHaveBeenCalled();
+  });
+
+  it("Enter commits the rename, Escape abandons it", async () => {
+    const user = userEvent.setup();
+    const commitRename = vi.fn();
+    const cancelRename = vi.fn();
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() =>
+          controller({ renamingPath: "pages/about.html", renameDraft: "about-us", commitRename, cancelRename })
+        }
+      />
+    );
+    const input = screen.getByDisplayValue("about-us");
+    await user.type(input, "{Enter}");
+    expect(commitRename).toHaveBeenCalledTimes(1);
+    expect(cancelRename).not.toHaveBeenCalled();
+
+    await user.type(input, "{Escape}");
+    expect(cancelRename).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** Renaming a page changes its public URL — the one rename outcome this screen warns about before
+ *  it happens, the same way Reset warns before it destroys work. */
+describe("page rename URL-change warning", () => {
+  it("is not shown until commitRename has diverted into it", () => {
+    // `ConfirmDialog` renders its body markup regardless of `open` — same native-`<dialog>` shape as
+    // the fullscreen preview dialog above in this file — so the check is the `open` attribute
+    // (queried directly, like that dialog's own tests do; `getByRole` treats a `<dialog>` without
+    // `open` as outside the accessibility tree, so it cannot find content inside one either).
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
+    const dialogs = Array.from(document.querySelectorAll("dialog.confirm-dialog"));
+    const dialog = dialogs.find((d) => d.textContent?.includes("Rename this page?"));
+    expect(dialog?.hasAttribute("open")).toBe(false);
+  });
+
+  it("names both the source path and the new name once it is open", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() =>
+          controller({ pageRenameWarning: { path: "pages/about.html", name: "about-us.html" } })
+        }
+      />
+    );
+    expect(screen.getByText(/changes its public url/i)).toBeInTheDocument();
+    expect(screen.getByText("pages/about.html")).toBeInTheDocument();
+    expect(screen.getByText("about-us.html")).toBeInTheDocument();
+  });
+
+  it("confirming calls confirmPageRename; cancelling calls cancelPageRenameWarning without it", async () => {
+    const user = userEvent.setup();
+    const confirmPageRename = vi.fn();
+    const cancelPageRenameWarning = vi.fn();
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() =>
+          controller({
+            pageRenameWarning: { path: "pages/about.html", name: "about-us.html" },
+            confirmPageRename,
+            cancelPageRenameWarning,
+          })
+        }
+      />
+    );
+    await user.click(screen.getByRole("button", { name: "Rename page" }));
+    expect(confirmPageRename).toHaveBeenCalledTimes(1);
+    expect(cancelPageRenameWarning).not.toHaveBeenCalled();
   });
 });
