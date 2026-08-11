@@ -1,10 +1,14 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 
-import { findTheme, renderStaticPage, type DiscoveredTheme } from "#src/features/theme/index";
+import { findTheme, renderStaticPage, renderStaticPartial, type DiscoveredTheme } from "#src/features/theme/index";
 
 /**
  * @file Serves any static theme's page, fully rendered, at `/theme-explore/{themeId}/{pageId}` — the
- * admin Explore screen's preview iframe.
+ * admin Explore screen's preview iframe. Also serves a theme's PARTIALS (`nav`, `footer`, `sidebar`,
+ * …) standalone at `/theme-explore/{themeId}/partial/{partialId}`, a sibling route rather than a
+ * branch of the page route: partial ids and page ids are different namespaces (a theme could
+ * legitimately have a page and a partial that happen to share a name), and a distinct URL shape says
+ * so instead of relying on a lookup order to disambiguate.
  *
  * Rendered through the real loader (`renderStaticPage`), not a prebuilt copy: markers resolved,
  * design tokens inlined, asset paths rewritten to `/theme-assets/{themeId}/`. That last part is why
@@ -25,28 +29,45 @@ import { findTheme, renderStaticPage, type DiscoveredTheme } from "#src/features
  * in place, and a theme downloaded after boot must be previewable without a restart — which is the
  * whole point of the rescan work this sits on top of.
  */
+/**
+ * The lookup + tier check both routes below need before they can render anything: find the theme,
+ * 404 if it doesn't exist, 422 if it isn't `static` tier (the only tier this whole file's rendering
+ * path understands). Returns the theme on success, or `null` after already writing the error
+ * response — the caller's job is just to `return` in that case, same shape `findTheme` itself uses
+ * for "not found".
+ */
+function resolveStaticTheme(
+  res: Response,
+  required: { themes: DiscoveredTheme[]; themeId: string }
+): DiscoveredTheme | null {
+  const { themes, themeId } = required;
+  const theme = findTheme({ themes, id: themeId });
+  if (!theme) {
+    res.status(404).type("text/plain").send(`theme '${themeId}' was not found`);
+    return null;
+  }
+  if (theme.manifest.tier !== "static") {
+    res
+      .status(422)
+      .type("text/plain")
+      .send(`theme '${themeId}' is a '${theme.manifest.tier}' theme; only static themes preview this way`);
+    return null;
+  }
+  return theme;
+}
+
 export function registerThemePagePreview(
   app: Express,
   required: { getThemes: () => DiscoveredTheme[] }
 ): void {
   const { getThemes } = required;
 
-  app.get("/theme-explore/:themeId/:pageId", (req, res) => {
+  app.get("/theme-explore/:themeId/:pageId", (req: Request, res: Response) => {
     const themeId = String(req.params.themeId ?? "");
     const pageId = String(req.params.pageId ?? "");
 
-    const theme = findTheme({ themes: getThemes(), id: themeId });
-    if (!theme) {
-      res.status(404).type("text/plain").send(`theme '${themeId}' was not found`);
-      return;
-    }
-    if (theme.manifest.tier !== "static") {
-      res
-        .status(422)
-        .type("text/plain")
-        .send(`theme '${themeId}' is a '${theme.manifest.tier}' theme; only static themes preview this way`);
-      return;
-    }
+    const theme = resolveStaticTheme(res, { themes: getThemes(), themeId });
+    if (!theme) return;
 
     const html = renderStaticPage({ theme, pageId });
     if (html === null) {
@@ -56,6 +77,24 @@ export function registerThemePagePreview(
 
     // Never cached: the Explore screen re-requests this immediately after every save, and a cached
     // response would show the operator their pre-save markup and read as "the save did not work".
+    res.set("Cache-Control", "no-store").type("text/html").send(html);
+  });
+
+  // Partials (`nav`, `footer`, `sidebar`, …) previewed standalone — see this file's header for why
+  // this is a sibling route rather than a fallback inside the page route above.
+  app.get("/theme-explore/:themeId/partial/:partialId", (req: Request, res: Response) => {
+    const themeId = String(req.params.themeId ?? "");
+    const partialId = String(req.params.partialId ?? "");
+
+    const theme = resolveStaticTheme(res, { themes: getThemes(), themeId });
+    if (!theme) return;
+
+    const html = renderStaticPartial({ theme, partialId });
+    if (html === null) {
+      res.status(404).type("text/plain").send(`partial '${partialId}' was not found in theme '${themeId}'`);
+      return;
+    }
+
     res.set("Cache-Control", "no-store").type("text/html").send(html);
   });
 }
