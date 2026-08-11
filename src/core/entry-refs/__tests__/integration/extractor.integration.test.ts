@@ -110,11 +110,11 @@ test("REQ-29: extracting a widget instance with no references produces an empty 
 // SPEC-047 Slice 3 — extractHtmlEntryRefs, the "html"-format Page sibling.
 // ---------------------------------------------------------------------------
 
-test("extractHtmlEntryRefs: a data-embed-type=\"widget\" placeholder produces a page-html-embed ref row targeting the widget entry", () => {
+test("extractHtmlEntryRefs: a widget-type marker produces a page-html-embed ref row targeting the widget entry", () => {
   const refs = extractHtmlEntryRefs({
     workspaceId: "ws-1",
     sourceEntryId: "page-1",
-    html: '<section><div data-embed-type="widget" data-embed-id="widget-social"></div></section>',
+    html: `<section><div data-embed-config='{"type":"widget","id":"widget-social"}'></div></section>`,
   });
 
   assert.equal(refs.length, 1);
@@ -123,11 +123,11 @@ test("extractHtmlEntryRefs: a data-embed-type=\"widget\" placeholder produces a 
   assert.equal(refs[0]?.targetId, "widget-social");
 });
 
-test("extractHtmlEntryRefs: a data-embed-type=\"form\" placeholder also produces an entry-target page-html-embed row — same targetKind convention as menuRef/formDefinitionId elsewhere", () => {
+test("extractHtmlEntryRefs: a form-type marker also produces an entry-target page-html-embed row — same targetKind convention as menuRef/formDefinitionId elsewhere", () => {
   const refs = extractHtmlEntryRefs({
     workspaceId: "ws-1",
     sourceEntryId: "page-1",
-    html: '<div data-embed-type="form" data-embed-id="form-contact-us"></div>',
+    html: `<div data-embed-config='{"type":"form","id":"form-contact-us"}'></div>`,
   });
 
   assert.equal(refs.length, 1);
@@ -142,8 +142,8 @@ test("extractHtmlEntryRefs: a page with both kinds of embed and plain content ex
     sourceEntryId: "page-1",
     html:
       "<h1>Welcome</h1><p>Some copy.</p>" +
-      '<div data-embed-type="widget" data-embed-id="w1"></div>' +
-      '<div data-embed-type="form" data-embed-id="f1"></div>',
+      `<div data-embed-config='{"type":"widget","id":"w1"}'></div>` +
+      `<div data-embed-config='{"type":"form","id":"f1"}'></div>`,
   });
 
   assert.equal(refs.length, 2);
@@ -156,7 +156,7 @@ test("extractHtmlEntryRefs: a page with no embeds produces an empty ref set, not
 });
 
 test("extractHtmlEntryRefs: idempotent — re-extracting unchanged html produces the identical ref set (pure function of its input, matching extractEntryRefs' own INV-06 discipline)", () => {
-  const input = { workspaceId: "ws-1", sourceEntryId: "page-1", html: '<div data-embed-type="widget" data-embed-id="w1"></div>' };
+  const input = { workspaceId: "ws-1", sourceEntryId: "page-1", html: `<div data-embed-config='{"type":"widget","id":"w1"}'></div>` };
   assert.deepEqual(extractHtmlEntryRefs(input), extractHtmlEntryRefs(input));
 });
 
@@ -164,7 +164,7 @@ test("extractHtmlEntryRefs: a placeholder referencing a deleted/nonexistent widg
   const refs = extractHtmlEntryRefs({
     workspaceId: "ws-1",
     sourceEntryId: "page-1",
-    html: '<div data-embed-type="widget" data-embed-id="widget-that-was-deleted"></div>',
+    html: `<div data-embed-config='{"type":"widget","id":"widget-that-was-deleted"}'></div>`,
   });
 
   assert.equal(refs.length, 1, "a dangling reference must still produce an entry_refs row — that is the row REQ-34/REQ-42's safe-delete check needs to find");
@@ -175,7 +175,7 @@ test("extractHtmlEntryRefs: a media-type embed is indexed with targetKind \"asse
   const refs = extractHtmlEntryRefs({
     workspaceId: "ws-1",
     sourceEntryId: "page-1",
-    html: '<div data-embed-type="media" data-embed-id="asset-1"></div>',
+    html: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>`,
   });
 
   assert.equal(refs.length, 1);
@@ -188,7 +188,7 @@ test("extractHtmlEntryRefs: an unregistered/future embed type is scanned but not
   const refs = extractHtmlEntryRefs({
     workspaceId: "ws-1",
     sourceEntryId: "page-1",
-    html: '<div data-embed-type="some-future-type" data-embed-id="x1"></div>',
+    html: `<div data-embed-config='{"type":"some-future-type","id":"x1"}'></div>`,
   });
 
   assert.deepEqual(refs, []);
