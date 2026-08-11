@@ -455,7 +455,15 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    as a button against the equally-white card, not as plain text — `button:focus-visible`'s app-wide
    `--accent-text` ring (styles.css, global rules) already resolves dark-on-white in light mode and
    light-on-dark in dark mode, so no button-specific focus override is needed either. */
-.btn-explore { background: var(--surface); color: var(--fg); border: 1px solid var(--border-strong); }
+/* Border color (2026-08-11 owner feedback: "have it have a black outline ... I just wanna see it
+   actually") — `--border-strong` (a light gray tuned for quiet dividers) nearly disappeared against
+   this button's own white `--surface`. `currentColor` rather than a second explicit token: the
+   button's text is already `--fg`, so the border tracks it for free in both modes — near-black in
+   light, near-light in dark — with no `@media` branch and no risk of the two ever drifting apart. A
+   literal dark hex would fix light mode and vanish again in dark, the same class of bug the
+   `--surface` chroma-0 comment above already flags for this exact button. Scoped to `.btn-explore`
+   only, not folded into `.btn-secondary` — that class's other consumers were never reported faint. */
+.btn-explore { background: var(--surface); color: var(--fg); border: 1px solid currentColor; }
 .btn-explore:hover { background: var(--surface-2); opacity: 1; }
 
 /* Explore screen: file list beside the editor. `minmax(0, 1fr)` on the second column rather than a
@@ -1544,7 +1552,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    8a7169b shipped the same day — see `.btn-explore`'s own comment above for why and for the
    chroma-0/`color-mix` trap this rule must keep avoiding, since a fix here can't rely on that
    comment alone catching a future edit). */
-.theme-card button.btn-explore { background: var(--surface); color: var(--fg); border: 1px solid var(--border-strong); }
+.theme-card button.btn-explore { background: var(--surface); color: var(--fg); border: 1px solid currentColor; }
 .theme-card button.btn-explore:hover { background: var(--surface-2); opacity: 1; }
 .theme-paper { background: #faf6ef; color: #2b2620; }
 .theme-atlas { background: #0e1420; color: #e8ecf4; }

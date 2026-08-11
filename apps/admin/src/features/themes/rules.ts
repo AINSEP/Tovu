@@ -77,8 +77,13 @@ const TIER_TAB_GROUP: Record<ThemeTier, ThemeTabGroup> = {
   code: "code",
 };
 
-/** The Themes screen's tab order. */
-export const THEME_TAB_GROUPS: readonly ThemeTabGroup[] = ["declarative", "templated", "static", "code"];
+/**
+ * The Themes screen's tab order (2026-08-11 owner feedback: `static` reads before `templated`,
+ * since Tovu ships a working static theme today and no templated one yet). Distinct from
+ * {@link THEME_TIERS}'s ADR-020 order, which stays fixed — this is a display-only sequencing
+ * concern, not a change to tier semantics.
+ */
+export const THEME_TAB_GROUPS: readonly ThemeTabGroup[] = ["declarative", "static", "templated", "code"];
 
 /**
  * `themeId`'s tab group — {@link themeTier}'s tier, folded through {@link TIER_TAB_GROUP}.
