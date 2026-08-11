@@ -168,22 +168,31 @@ const MAX_HTML_EMBED_REF_ID_LENGTH = 200;
 
 /**
  * Embed types this function currently knows how to target-map into `entry_refs`, and which
- * {@link EntryRefTargetKind} each maps to. `widget`/`form` -> `"entry"` (mirrors
- * `MENU_REGISTRATION`'s `menuRef`/`CONTACT_FORM_REGISTRATION`'s `formDefinitionId` both being
- * extracted as `"entry"`-target refs elsewhere in this codebase even though neither a menu nor a
- * Forms definition is a literal `entries`-table row; `targetKind` marks "a durable content object",
- * not literal table membership). `media` -> `"asset"` (2026-08-07,
+ * {@link EntryRefTargetKind} each maps to. `widget` -> `"entry"` (mirrors `MENU_REGISTRATION`'s
+ * `menuRef`/`CONTACT_FORM_REGISTRATION`'s `formDefinitionId` both being extracted as
+ * `"entry"`-target refs elsewhere in this codebase even though neither a menu nor a Forms definition
+ * is a literal `entries`-table row; `targetKind` marks "a durable content object", not literal table
+ * membership). `media` -> `"asset"` (2026-08-07,
  * `IMPLEMENTATION-PLAN-data-embed-type-2026-08-07.md` §4 — a media asset lives in a genuinely
  * different storage domain than the generic `entries` graph, so it gets its own target kind rather
- * than overloading `"entry"` the way the first two do). A type absent from this map is still
- * SCANNED (the shared parser reports every marker regardless of type) but produces no row: an
- * unrecognized/future type has no known target-kind mapping yet, and guessing one would be actively
- * wrong data, not just incomplete. Widening this map is exactly the "one place to change" a new
- * indexable type needs; the parser never does.
+ * than overloading `"entry"`). A type absent from this map is still SCANNED (the shared parser
+ * reports every marker regardless of type) but produces no row: an unrecognized/future type has no
+ * known target-kind mapping yet, and guessing one would be actively wrong data, not just
+ * incomplete. Widening this map is exactly the "one place to change" a new indexable type needs; the
+ * parser never does.
+ *
+ * **`form` mapped to `"entry"` here until 2026-08-10 and is deliberately gone** — see
+ * `development/docs/architecture/embed-type-inventory.md`. It was never a distinct target: a `form`
+ * marker's id was a Forms *definition* id, and the resolver behind it built a throwaway
+ * `contact-form` widget instance around that id rather than resolving anything of its own. Removing
+ * it costs this index nothing, because the same reference is still indexed — via the `contact-form`
+ * widget instance's own `config.formDefinitionId`, which `classifyRefFieldKey` above already
+ * extracts as an `"entry"`-target `config-field` row. The chain is one hop longer (page -> widget ->
+ * form definition) and every hop is a real, persisted object, which is what safe-delete's where-used
+ * check actually wants.
  */
 const HTML_EMBED_TARGET_KINDS: ReadonlyMap<string, EntryRefTargetKind> = new Map([
   ["widget", "entry"],
-  ["form", "entry"],
   ["media", "asset"],
 ]);
 

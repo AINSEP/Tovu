@@ -123,17 +123,17 @@ test("extractHtmlEntryRefs: a widget-type marker produces a page-html-embed ref 
   assert.equal(refs[0]?.targetId, "widget-social");
 });
 
-test("extractHtmlEntryRefs: a form-type marker also produces an entry-target page-html-embed row — same targetKind convention as menuRef/formDefinitionId elsewhere", () => {
+test("extractHtmlEntryRefs: a RETIRED form-type marker produces no row at all — `form` was removed as an embed type (2026-08-10), and a stale one in stored content must degrade like any unregistered type rather than fabricating a ref", () => {
   const refs = extractHtmlEntryRefs({
     workspaceId: "ws-1",
     sourceEntryId: "page-1",
     html: `<div data-embed-config='{"type":"form","id":"form-contact-us"}'></div>`,
   });
 
-  assert.equal(refs.length, 1);
-  assert.equal(refs[0]?.sourceKind, "page-html-embed");
-  assert.equal(refs[0]?.targetKind, "entry");
-  assert.equal(refs[0]?.targetId, "form-contact-us");
+  // The reference this row used to carry is not lost, it moved one hop: a form is now embedded as a
+  // `contact-form` WIDGET instance, and that instance's own `config.formDefinitionId` is extracted as
+  // an entry-target `config-field` row by `extractEntryRefs` above. See `embed-type-inventory.md`.
+  assert.deepEqual(refs, []);
 });
 
 test("extractHtmlEntryRefs: a page with both kinds of embed and plain content extracts exactly the embed refs, none for the plain content", () => {
@@ -143,11 +143,11 @@ test("extractHtmlEntryRefs: a page with both kinds of embed and plain content ex
     html:
       "<h1>Welcome</h1><p>Some copy.</p>" +
       `<div data-embed-config='{"type":"widget","id":"w1"}'></div>` +
-      `<div data-embed-config='{"type":"form","id":"f1"}'></div>`,
+      `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>`,
   });
 
   assert.equal(refs.length, 2);
-  assert.deepEqual(refs.map((r) => r.targetId).sort(), ["f1", "w1"]);
+  assert.deepEqual(refs.map((r) => r.targetId).sort(), ["asset-1", "w1"]);
 });
 
 test("extractHtmlEntryRefs: a page with no embeds produces an empty ref set, not an error (REQ-29's spirit, carried over)", () => {

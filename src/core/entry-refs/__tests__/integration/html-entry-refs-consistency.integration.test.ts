@@ -30,15 +30,21 @@ import { extractHtmlEntryRefs } from "../../extractor";
 
 const FIXTURES: readonly string[] = [
   `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`,
+  // `form` was removed as an embed type on 2026-08-10 (see `embed-type-inventory.md`). Kept as a
+  // fixture precisely BECAUSE it is retired: stored Page bodies written before the removal may still
+  // carry one, and the invariant this suite exists for must hold for a dead type exactly as it does
+  // for a live one — the scanner still reports it, the extractor no longer indexes it, and that
+  // asymmetry is the safe direction (an unindexed reference never lets safe-delete believe something
+  // is referenced that it cannot see).
   `<div data-embed-config='{"type":"form","id":"form-1"}'></div>`,
   `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>`,
-  `<h1>Welcome</h1><p>Some copy.</p><div data-embed-config='{"type":"widget","id":"w1"}'></div><div data-embed-config='{"type":"form","id":"f1"}'></div>`,
+  `<h1>Welcome</h1><p>Some copy.</p><div data-embed-config='{"type":"widget","id":"w1"}'></div><div data-embed-config='{"type":"media","id":"asset-1"}'></div>`,
   `<div class="slot" data-embed-config='{"type":"widget","id":"w1"}' data-extra="y"></div>`,
   `<div data-embed-config='{"type":"widget","id":"w1"}'>\n</div>`,
   // Inner content is now MATCHED, not skipped — a marker's authored content is a real fallback.
   `<div data-embed-config='{"type":"widget","id":"w1"}'><span>authored fallback</span></div>`,
   "<p>no embeds at all</p>",
-  `<div data-embed-config='{"type":"widget","id":"w1"}'></div><div data-embed-config='{"type":"widget","id":"w1"}'></div><div data-embed-config='{"type":"form","id":"f1"}'></div>`,
+  `<div data-embed-config='{"type":"widget","id":"w1"}'></div><div data-embed-config='{"type":"widget","id":"w1"}'></div><div data-embed-config='{"type":"media","id":"asset-1"}'></div>`,
   `<div data-embed-config='{"type":"widget","id":""}'></div>`,
   // Theme-owned types share the vocabulary but not this index — the scanner sees them, the
   // extractor has no target kind for them, and neither treats that as an error.
