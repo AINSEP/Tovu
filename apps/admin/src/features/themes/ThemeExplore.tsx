@@ -38,6 +38,20 @@ export interface ThemeExploreProps {
   useThemeExploreHook?: typeof useThemeExplore;
 }
 
+/**
+ * Whether to label the save chord ⌘ or Ctrl.
+ *
+ * Reads `navigator.platform` despite it being deprecated, because the replacement
+ * (`navigator.userAgentData.platform`) is not in Safari or Firefox — the exact browsers where
+ * getting this wrong is most likely. Wrong answer costs a slightly off tooltip, so the deprecated
+ * property with a guard beats a feature-detection ladder. Guarded for jsdom/SSR, where `navigator`
+ * may be absent entirely.
+ */
+function isApplePlatform(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /mac|iphone|ipad|ipod/i.test(navigator.platform ?? "");
+}
+
 const VIEWS: ReadonlyArray<{ key: ThemeExploreView; label: string }> = [
   { key: "preview", label: "Preview" },
   { key: "html", label: "HTML" },
@@ -272,7 +286,16 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
                   </button>
                 </>
               ) : null}
-              <button className="btn-primary" disabled={!dirty || saving} onClick={() => void save()}>
+              {/* The ⌘/Ctrl+S hint is a `title` rather than a visible label: the shortcut is worth
+                  discovering, but not worth widening a button that changes text three ways already.
+                  `isApplePlatform` picks the glyph the operator's own keyboard has — showing a Mac
+                  user "Ctrl+S" for a chord that is ⌘S there is worse than showing nothing. */}
+              <button
+                className="btn-primary"
+                disabled={!dirty || saving}
+                onClick={() => void save()}
+                title={isApplePlatform() ? t("Save (⌘S)") : t("Save (Ctrl+S)")}
+              >
                 {saving ? t("Saving…") : dirty ? t("Save") : t("Saved")}
               </button>
             </div>
