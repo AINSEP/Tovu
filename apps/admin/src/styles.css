@@ -438,10 +438,54 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
 .theme-explore-files button:hover { background: var(--surface-2); opacity: 1; }
 .theme-explore-files button.is-active { background: var(--accent-dim); color: var(--fg-1); font-weight: 600; }
 .theme-explore-main { min-width: 0; }
-.theme-explore-preview {
-  width: 100%; height: min(72vh, 900px);
+/* `.page-editor-toolbar`'s shared 1rem top margin exists to separate it from the title/slug rows
+   above it on `PageEditor.tsx` — the OTHER screen this class comes from. Here it is the first thing
+   inside `.theme-explore-main`, so that margin pushed the Preview/HTML tabs a full line below the
+   file list's "PAGES" heading, which starts flush with the grid's own top edge. Owner feedback
+   2026-08-11: "make the pages title flush with preview and HTML tabs ... it just looks off." Scoped
+   to this one context so `PageEditor`'s own spacing is untouched. */
+.theme-explore-main .page-editor-toolbar { margin-top: 0; }
+/* The view tabs sit on the left of the toolbar; width control, fullscreen trigger, and Save group on
+   the right — `.page-editor-toolbar`'s own `justify-content: space-between` then only has to place
+   TWO children (this group and the tabs), not referee three or four fighting for the same row. */
+.theme-explore-toolbar-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.theme-explore-fullscreen-trigger {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2rem; height: 2rem; padding: 0; flex-shrink: 0;
+  background: transparent; color: var(--fg-2); border: 1px solid var(--border); border-radius: var(--r-sm);
+}
+.theme-explore-fullscreen-trigger svg { width: 15px; height: 15px; }
+.theme-explore-fullscreen-trigger:hover { background: var(--surface-2); color: var(--fg-1); opacity: 1; }
+.theme-explore-fullscreen-trigger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Explore preview, fullscreen — same native-`<dialog>` foundation as `.confirm-dialog`/
+   `.image-preview-modal` (see those rules' own comments for the full rationale) and the SAME
+   `[open]`-scoped `display` split: an unscoped `display` rule on the bare class beats the UA
+   stylesheet's `dialog:not([open]) { display: none }` regardless of specificity, so `display` only
+   ever lives on the `[open]` variant below. Sized to most of the viewport rather than the image
+   lightbox's content-sized box — a page preview has no intrinsic size to shrink-wrap. The close
+   button is the lightbox's own corner-badge treatment (`.image-preview-modal-close`), reused rather
+   than reinvented, since this is the same "one close affordance over the content" shape. */
+.theme-explore-preview-dialog {
+  position: relative;
+  border: 1px solid var(--border-strong); border-radius: var(--r-lg); padding: var(--space-5);
+  width: 96vw; height: 92vh; max-width: 96vw; max-height: 92vh;
+  background: var(--surface); color: var(--fg); box-shadow: var(--shadow-md);
+}
+.theme-explore-preview-dialog[open] { display: flex; align-items: center; justify-content: center; }
+.theme-explore-preview-dialog::backdrop { background: oklch(0% 0 0 / 0.55); }
+.theme-explore-preview-dialog-close {
+  position: absolute; top: var(--space-3); right: var(--space-3); z-index: 1;
+  width: 2.1rem; height: 2.1rem; padding: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); color: var(--fg-2); border: 1px solid var(--border);
+  font-size: 1.3rem; line-height: 1; box-shadow: var(--shadow-sm);
+}
+.theme-explore-preview-dialog-close:hover { background: var(--accent-dim); color: var(--fg-1); opacity: 1; }
+.theme-explore-preview-dialog-iframe {
+  max-width: 100%; height: 100%;
   border: 1px solid var(--border-strong); border-radius: var(--r-sm);
-  background: var(--surface);
+  background: #fff;
 }
 
 /* `@jini-ai/ui`'s Toast ships behavior (TTL, exit timing, ARIA) but no styling — it renders class
