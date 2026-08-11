@@ -1153,6 +1153,34 @@ export const api = {
       activeThemeStaticPageIds: string[];
     }>(`/workspaces/${WORKSPACE_ID}/presentation`),
   /**
+   * One theme's editable surface: which pages it ships, which root partials, and where it was
+   * copied from. Drives the Explore screen's file list and its "you are editing a copy" banner.
+   */
+  getThemeDetail: (themeId: string) =>
+    request<{
+      id: string;
+      name: string;
+      tier: string;
+      status: string;
+      errors: string[];
+      pages: string[];
+      partials: string[];
+      lineage: { from?: string; tier?: string; version?: string; catalog?: string } | null;
+      /** True when an untouched original of this theme exists in the catalog to reset back to. */
+      hasOriginal: boolean;
+    }>(`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}`),
+  /** Raw source of one file inside a theme, relative to the theme root (`pages/about.html`). */
+  getThemeFile: (themeId: string, path: string) =>
+    request<{ path: string; content: string }>(
+      `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file?path=${encodeURIComponent(path)}`
+    ),
+  /** Overwrite one file inside a theme. Refused for catalog originals — those are never editable. */
+  putThemeFile: (themeId: string, path: string, content: string) =>
+    request<{ path: string; bytes: number }>(
+      `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file`,
+      { method: "PUT", body: JSON.stringify({ path, content }) }
+    ),
+  /**
    * Re-run theme discovery server-side. Needed because the server's theme list is built once at
    * boot, so a theme added to disk afterwards (downloaded, copied, pulled in by git, created by the
    * `npm run theme` CLI) does not exist as far as this screen is concerned until someone asks.

@@ -7,3 +7,4 @@
  * it is exported from this line.
  */
 export { Appearance } from "./Appearance";
+export { ThemeExplore } from "./ThemeExplore";
