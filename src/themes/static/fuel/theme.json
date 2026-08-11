@@ -13,7 +13,7 @@
     "blog", "blog-two", "blog-three", "blog-four"
   ],
   "slots": {
-    "nav": { "source": "nav.html", "activeAttr": "data-nav-current" },
+    "nav": { "source": "nav.html", "honorsCurrentPage": true },
     "footer": { "source": "footer.html" }
   }
 }

@@ -243,9 +243,9 @@ function partialIdFromSource(source: string): string {
  * explicit `variants` map, else the `<source-stem>-<variant>.html` convention), then splice
  * `aria-current="page"` onto the partial's own `data-nav-id="<current>"` anchor.
  *
- * `descriptor.activeAttr` no longer names an attribute to read — the config key is always `current`.
- * It survives as the theme's declaration of WHETHER this slot honors a current-page hint at all,
- * which is still a per-slot fact (a footer has no current item).
+ * `descriptor.honorsCurrentPage` no longer names an attribute to read — the config key is always
+ * `current`. It survives as the theme's declaration of WHETHER this slot honors a current-page hint
+ * at all, which is still a per-slot fact (a footer has no current item).
  *
  * A marker whose resolved partial does not exist collapses to empty, matching the pre-2026-08-10
  * behavior for the same case.
@@ -263,7 +263,7 @@ function resolveSlotMarker(
       : descriptor.variants?.[variant] ?? `${partialIdFromSource(descriptor.source)}-${variant}.html`;
   const partial = partials[partialIdFromSource(source)] ?? "";
 
-  if (descriptor.activeAttr === undefined || current === undefined) return partial;
+  if (descriptor.honorsCurrentPage !== true || current === undefined) return partial;
   const linkRe = new RegExp(`(<a href="[^"]+" data-nav-id="${escapeRegExp(current)}")(>)`);
   return partial.replace(linkRe, '$1 aria-current="page"$2');
 }

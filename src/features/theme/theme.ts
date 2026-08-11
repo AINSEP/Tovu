@@ -111,12 +111,12 @@ export interface ThemeManifest {
    */
   defaultMode?: string;
   /**
-   * `static` tier only — the `data-tovu-slot="<key>"` markers this theme's pages embed, mapped to the
-   * root partial file each one pulls in. Read by `resolveSlots` (`static-render.ts`); before this was
-   * wired, that function hardcoded exactly the `nav`/`footer` pair every theme on disk happens to
-   * declare, so the field was authored but never parsed. {@link DEFAULT_THEME_SLOTS} reproduces that
-   * hardcoded pair for a theme that declares no `slots`, which is why wiring this changed no existing
-   * theme's output.
+   * `static` tier only — the `{"type":"partial","id":"<key>"}` `data-embed-config` markers this
+   * theme's pages embed, mapped to the root partial file each one pulls in. Read by `resolveSlots`
+   * (`static-render.ts`); before this was wired, that function hardcoded exactly the `nav`/`footer`
+   * pair every theme on disk happens to declare, so the field was authored but never parsed.
+   * {@link DEFAULT_THEME_SLOTS} reproduces that hardcoded pair for a theme that declares no `slots`,
+   * which is why wiring this changed no existing theme's output.
    */
   slots?: Record<string, ThemeSlotDescriptor>;
 }
@@ -126,14 +126,24 @@ export interface ThemeSlotDescriptor {
   /** Root partial filename this slot renders, e.g. `nav.html`. */
   source: string;
   /**
-   * Name of the attribute on the *marker* element carrying the current page id (e.g.
-   * `data-nav-current`). When present, the anchor inside the partial whose `data-nav-id` equals that
-   * value gets `aria-current="page"`. `data-nav-id` is the fixed anchor-side half of the convention;
-   * only the marker-side attribute name is configurable, because that is the only half themes vary.
+   * Whether this slot's marker can carry a `current` key (e.g.
+   * `{"type":"partial","id":"nav","current":"pricing"}`) that marks the matching `data-nav-id`
+   * anchor inside the resolved partial with `aria-current="page"`. A boolean opt-in, not an
+   * attribute name — `data-nav-id` is the only half of this convention themes ever varied, so
+   * there was never a second attribute name to configure; only `nav`-shaped slots set this, a
+   * `footer` has no current item.
+   *
+   * Legacy: `theme.json` may instead carry `"activeAttr": "<any string>"` — the pre-2026-08-10
+   * spelling, from when this really did name an attribute on the marker element
+   * (`data-nav-current`, since retired). {@link parseSlots} treats ANY string value there as
+   * `honorsCurrentPage: true`; the string's own content was already dead weight by the time this
+   * field was renamed; only its presence ever mattered. Drop that fallback once no in-repo
+   * `theme.json` still writes `activeAttr` and the marker drift check
+   * (`development/docs/architecture/embed-marker-migration.md` item 4) is extended to gate on it.
    */
-  activeAttr?: string;
+  honorsCurrentPage?: boolean;
   /**
-   * Alternate sources selected by a marker's `data-slot-variant="<name>"`, e.g.
+   * Alternate sources selected by a marker's `variant` config key, e.g.
    * `{ "minimal": "footer-minimal.html" }`. A variant with no entry here falls back to the
    * `<source-stem>-<variant>.html` filename convention, which is what `resolveSlots` did for every
    * variant before this field was parsed.
@@ -146,7 +156,7 @@ export interface ThemeSlotDescriptor {
  * Used verbatim when a static theme declares no `slots`, so such a theme renders exactly as it did.
  */
 export const DEFAULT_THEME_SLOTS: Readonly<Record<string, ThemeSlotDescriptor>> = {
-  nav: { source: "nav.html", activeAttr: "data-nav-current" },
+  nav: { source: "nav.html", honorsCurrentPage: true },
   footer: { source: "footer.html" },
 };
 
@@ -222,25 +232,45 @@ function parseTier(value: JsonValue | undefined): ThemeTier {
 }
 
 /**
+ * `raw.honorsCurrentPage` (current) or a legacy `raw.activeAttr` string (pre-2026-08-10 spelling —
+ * see {@link ThemeSlotDescriptor.honorsCurrentPage}) — either one opts a slot in. Split out of
+ * {@link parseSlots} so that function stays a plain per-key loop, the same shape `parseMarkerConfig`
+ * was split out of `scanEmbedMarkers` for (`core/embeds/marker.ts`).
+ */
+function parseSlotHonorsCurrentPage(raw: Readonly<Record<string, unknown>>): boolean {
+  return raw.honorsCurrentPage === true || typeof raw.activeAttr === "string";
+}
+
+/** `raw.variants`, keeping only string-valued entries — `undefined` if there are none worth keeping. */
+function parseSlotVariants(raw: Readonly<Record<string, unknown>>): Record<string, string> | undefined {
+  if (!isObject(raw.variants)) return undefined;
+  const variants = Object.fromEntries(
+    Object.entries(raw.variants).filter(([, v]) => typeof v === "string").map(([k, v]) => [k, String(v)])
+  );
+  return Object.keys(variants).length > 0 ? variants : undefined;
+}
+
+/**
  * Parse `theme.json.slots` into {@link ThemeSlotDescriptor}s, skipping any entry that isn't an object
  * with a string `source`. Returns `undefined` for an absent/unusable field so the caller falls back to
  * {@link DEFAULT_THEME_SLOTS} rather than resolving zero slots — a theme whose `slots` block is
  * malformed still renders its nav and footer under the legacy convention instead of losing both.
+ *
+ * `honorsCurrentPage` accepts both spellings, additively: the current boolean, or the legacy
+ * `activeAttr` string (any non-empty string). An out-of-tree theme.json that never migrates off
+ * `activeAttr` must keep wiring `aria-current` exactly as it does today; this normalizes either
+ * spelling onto the one field every downstream reader sees.
  */
 function parseSlots(value: JsonValue | undefined): Record<string, ThemeSlotDescriptor> | undefined {
   if (!isObject(value)) return undefined;
   const slots: Record<string, ThemeSlotDescriptor> = {};
   for (const [key, raw] of Object.entries(value)) {
     if (!isObject(raw) || typeof raw.source !== "string") continue;
-    const variants = isObject(raw.variants)
-      ? Object.fromEntries(
-          Object.entries(raw.variants).filter(([, v]) => typeof v === "string").map(([k, v]) => [k, String(v)])
-        )
-      : undefined;
+    const variants = parseSlotVariants(raw);
     slots[key] = {
       source: raw.source,
-      ...(typeof raw.activeAttr === "string" ? { activeAttr: raw.activeAttr } : {}),
-      ...(variants && Object.keys(variants).length > 0 ? { variants } : {}),
+      ...(parseSlotHonorsCurrentPage(raw) ? { honorsCurrentPage: true } : {}),
+      ...(variants ? { variants } : {}),
     };
   }
   return Object.keys(slots).length > 0 ? slots : undefined;
