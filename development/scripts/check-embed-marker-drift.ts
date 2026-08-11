@@ -34,31 +34,44 @@
  * (`src/themes/README.md`). Conflating the two would make this check's pass/fail depend on
  * someone else's in-flight, explicitly-delegated cleanup.
  *
- * One judgment call worth naming: every static theme's `theme.json` still writes
- * `"activeAttr": "data-nav-current"` in its `slots` block. That's a JSON manifest VALUE, not HTML
- * markup — never in "attribute position" — and `static-render.ts`'s `resolveSlotMarker` only tests
- * `descriptor.activeAttr` for presence/absence today (`ffb54fd`); the string content is inert. Not
- * scanned by either check above (a JSON string value failing an HTML-attribute-shaped regex would be
- * a category error), and deliberately not RATCHETED here either, because another agent is separately
- * deciding whether to rename that field — this script would otherwise be asserting an opinion on a
- * decision explicitly delegated elsewhere, and could start failing (or passing) out from under that
- * work for reasons unrelated to real markup drift. It IS surfaced, as a non-blocking advisory line,
- * so it stays visible without gating anyone's unrelated work.
+ * 3. Any `slots.*.activeAttr` key in a theme `theme.json`. This was a non-blocking advisory until
+ *    2026-08-10 and is now a hard failure — see {@link findLegacyActiveAttrFindings} for why the
+ *    advisory was right then and wrong now, and why it fires on the KEY rather than the value.
+ *
+ * 4. Stored Page bodies (`posts.body_html` in `content.db`), same two rules as check 1 and 2.
+ *    **Skipped, not failed, when no database is present**, so CI without one still passes.
+ *
+ *    Check 4 exists because of what checks 1-3 structurally cannot see, and it is not hypothetical:
+ *    the `b7acc21` sweep covered 93 theme files ON DISK and every on-disk check reported OK, while a
+ *    real Page in the database still carried `data-embed-type="form"` and had silently stopped
+ *    rendering its contact form. A marker vocabulary check that only looks at the filesystem
+ *    certifies half the surface and reads as if it certified all of it. Content is the other half.
+ *
+ *    Opens the database READ-ONLY, deliberately: `openContentDb` would run the migration stream and
+ *    write a watermark row, and a check that mutates the thing it is checking is not a check.
  *
  * Usage: npx tsx development/scripts/check-embed-marker-drift.ts
  *        npx tsx development/scripts/check-embed-marker-drift.ts --dir <path>   (scan an alternate
  *        directory instead of `src/themes` — used to self-test this script against a synthetic
  *        fixture without needing a real violation to exist; production behavior is unaffected)
- * Exit codes: 0 = no retired attribute in markup, no unparseable data-embed-config. 1 = at least one.
+ *        npx tsx development/scripts/check-embed-marker-drift.ts --db <path>    (alternate content.db)
+ *        npx tsx development/scripts/check-embed-marker-drift.ts --no-db        (skip check 4)
+ * Exit codes: 0 = no retired attribute in markup or stored content, no unparseable
+ *             data-embed-config, no legacy manifest field. 1 = at least one.
  */
 import fs from "node:fs";
 import path from "node:path";
+
+import Database from "better-sqlite3";
 
 import { scanEmbedMarkers, describeRejection } from "../../src/core/embeds/marker.js";
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const dirFlagIndex = process.argv.indexOf("--dir");
 const THEMES_DIR = dirFlagIndex === -1 ? path.join(REPO_ROOT, "src", "themes") : path.resolve(process.argv[dirFlagIndex + 1]);
+const dbFlagIndex = process.argv.indexOf("--db");
+const CONTENT_DB = dbFlagIndex === -1 ? path.join(REPO_ROOT, "infra", "content.db") : path.resolve(process.argv[dbFlagIndex + 1]);
+const SKIP_DB = process.argv.includes("--no-db");
 
 const RETIRED_ATTRS = ["data-embed-type", "data-embed-id", "data-embed-variant", "data-tovu-slot", "data-slot-variant", "data-nav-current"];
 
@@ -135,24 +148,86 @@ function findRejectedMarkerFindings(file: string, html: string): Finding[] {
   return rejected.map((r) => ({ file, line: lineAt(html, r.index), message: describeRejection(r) }));
 }
 
-/** Non-blocking: every `theme.json` `slots.*.activeAttr` whose VALUE still spells a retired
- * attribute name — see this file's header for why this is advisory, not a ratcheted failure. */
-function findActiveAttrAdvisories(manifestPath: string): string[] {
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as { slots?: Record<string, { activeAttr?: string }> };
-  const advisories: string[] = [];
-  for (const [slotId, descriptor] of Object.entries(manifest.slots ?? {})) {
-    if (descriptor.activeAttr !== undefined && RETIRED_ATTRS.includes(descriptor.activeAttr)) {
-      advisories.push(`${path.relative(REPO_ROOT, manifestPath)}: slots.${slotId}.activeAttr = "${descriptor.activeAttr}" (inert value, presence-only today — not ratcheted, see file header)`);
-    }
+/**
+ * Check 3: any `slots.*.activeAttr` in a theme manifest, BLOCKING as of 2026-08-10.
+ *
+ * This was a non-blocking advisory while the rename decision was open, and that was right — another
+ * agent owned the decision, and this script had no business asserting an opinion that could start
+ * failing out from under them. The decision landed in `bd7f97a`: the field is `honorsCurrentPage?:
+ * boolean`, and all 6 in-repo manifests were migrated. With nothing left to break, the advisory
+ * became a ratchet.
+ *
+ * Fails on the KEY's presence, not on its value. The old advisory only fired when the value spelled
+ * a retired attribute name, which made sense while the field was live and its content was the
+ * question. Now the field itself is the legacy — `"activeAttr": "anything-at-all"` is equally dead,
+ * and flagging only the familiar spelling would let a hand-written variant through silently.
+ *
+ * `parseSlots` still ACCEPTS the legacy string, deliberately, so an out-of-tree theme keeps working.
+ * That tolerance is for themes this check never scans; in-repo manifests are held to the new field.
+ */
+function findLegacyActiveAttrFindings(manifestPath: string): Finding[] {
+  const raw = fs.readFileSync(manifestPath, "utf8");
+  let manifest: { slots?: Record<string, { activeAttr?: unknown }> };
+  try {
+    manifest = JSON.parse(raw) as typeof manifest;
+  } catch (err) {
+    // A theme.json that does not parse is a real problem and must not crash this script with a bare
+    // stack trace — it is reported like any other finding, naming the file.
+    return [{ file: manifestPath, line: 1, message: `theme.json is not valid JSON (${(err as Error).message})` }];
   }
-  return advisories;
+
+  const findings: Finding[] = [];
+  // Cursor advances past each match so the Nth offending slot reports the Nth occurrence's line, not
+  // the first one's. `Object.entries` preserves the manifest's own key order for these string keys,
+  // which is what makes walking the two in step correct.
+  let cursor = 0;
+  for (const [slotId, descriptor] of Object.entries(manifest.slots ?? {})) {
+    if (descriptor === null || typeof descriptor !== "object" || !Object.hasOwn(descriptor, "activeAttr")) continue;
+    const at = raw.indexOf('"activeAttr"', cursor);
+    if (at !== -1) cursor = at + 1;
+    findings.push({
+      file: manifestPath,
+      line: lineAt(raw, at === -1 ? 0 : at),
+      message:
+        `retired manifest field "slots.${slotId}.activeAttr" — renamed to "honorsCurrentPage" (boolean) in bd7f97a. ` +
+        "The value is inert; the field name is what static-render reads.",
+    });
+  }
+  return findings;
 }
 
-function printAdvisories(manifests: string[]): void {
-  const advisories = manifests.flatMap(findActiveAttrAdvisories);
-  if (advisories.length === 0) return;
-  console.log(`check:embed-marker-drift — ${advisories.length} non-blocking activeAttr advisory(ies):`);
-  for (const a of advisories) console.log(`  - ${a}`);
+/**
+ * Check 4 — the same two markup rules applied to stored Page bodies. Returns `undefined` when there
+ * is no database to check, which the caller reports as a SKIP rather than a pass: "no db present"
+ * and "db present and clean" are different states, and printing OK for the first would be the exact
+ * false assurance this check was added to remove.
+ *
+ * `file` on each finding is a `posts` locator rather than a path — these findings have no file, and
+ * inventing one would send a reader to the filesystem for content that only exists in a row.
+ */
+function findStoredPageFindings(): { findings: Finding[]; scanned: number } | undefined {
+  if (SKIP_DB || !fs.existsSync(CONTENT_DB)) return undefined;
+
+  // READ-ONLY on purpose — see this file's header. A check must never migrate what it inspects.
+  const db = new Database(CONTENT_DB, { readonly: true, fileMustExist: true });
+  try {
+    const rows = db
+      .prepare("SELECT id, slug, body_html AS bodyHtml FROM posts WHERE body_html IS NOT NULL")
+      .all() as { id: string; slug: string; bodyHtml: string }[];
+
+    const findings = rows.flatMap((row) => {
+      const where = `posts/${row.slug} (${row.id})`;
+      return [...findRetiredAttrFindings(where, row.bodyHtml), ...findRejectedMarkerFindings(where, row.bodyHtml)];
+    });
+    return { findings, scanned: rows.length };
+  } finally {
+    db.close();
+  }
+}
+
+/** Findings carry either a real path or a `posts/...` row locator; only the former is relativized. */
+function describeLocation(file: string): string {
+  return file.startsWith("posts/") ? file : path.relative(REPO_ROOT, file);
 }
 
 function main(): void {
@@ -161,16 +236,23 @@ function main(): void {
     const html = fs.readFileSync(file, "utf8");
     return [...findRetiredAttrFindings(file, html), ...findRejectedMarkerFindings(file, html)];
   });
+  findings.push(...collectThemeManifests(THEMES_DIR).flatMap(findLegacyActiveAttrFindings));
 
-  printAdvisories(collectThemeManifests(THEMES_DIR));
+  const stored = findStoredPageFindings();
+  if (stored) findings.push(...stored.findings);
+  const storedNote = stored
+    ? `${stored.scanned} stored Page body(ies) scanned`
+    : `stored Page bodies SKIPPED (${SKIP_DB ? "--no-db" : `no database at ${path.relative(REPO_ROOT, CONTENT_DB)}`})`;
 
   if (findings.length === 0) {
-    console.log(`check:embed-marker-drift — OK: ${htmlFiles.length} theme file(s) scanned, no retired attribute, no unparseable data-embed-config.`);
+    console.log(
+      `check:embed-marker-drift — OK: ${htmlFiles.length} theme file(s) scanned, ${storedNote}; no retired attribute, no unparseable data-embed-config, no legacy activeAttr.`
+    );
     return;
   }
 
-  console.error(`check:embed-marker-drift — ${findings.length} violation(s):`);
-  for (const f of findings) console.error(`  - ${path.relative(REPO_ROOT, f.file)}:${f.line}: ${f.message}`);
+  console.error(`check:embed-marker-drift — ${findings.length} violation(s) (${htmlFiles.length} theme file(s) scanned, ${storedNote}):`);
+  for (const f of findings) console.error(`  - ${describeLocation(f.file)}:${f.line}: ${f.message}`);
   process.exit(1);
 }
 
