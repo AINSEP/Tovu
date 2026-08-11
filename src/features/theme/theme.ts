@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import type { JsonObject, JsonValue } from "@jini-ai/cms/core";
+import { markersOfType } from "#src/core/embeds/marker";
 import { lintHandlebarsTemplate } from "./handlebars-allowlist";
 import { lintLiquidTemplate } from "./liquid-allowlist";
 
@@ -367,6 +368,53 @@ function loadSlotPartials(
 }
 
 /**
+ * Validates one `postTemplate`/`pageTemplate` array against the theme's already-loaded `pages`
+ * (2026-08-11, owner decision — see `ADS-memory/reports/continuity/2026-08-11-pages-template-
+ * decisions.md`): a listed entry that resolves to no file, or to a file with zero markers of
+ * `slotMarkerType`, renders a structurally fine page with its actual content silently missing — "the
+ * worst failure class this codebase keeps hitting", in the owner's own words, and the same class of
+ * bug REQ-10's `pages/index.html is required` check exists to catch at load time rather than on a
+ * visitor's page view. Symmetric by design: `postTemplate`/`"post"` and `pageTemplate`/`"content"`
+ * share one check rather than two hand-maintained copies, the same reasoning
+ * `resolveTemplateChoice` (`static-render.ts`) already gives for unifying its own two callers.
+ *
+ * Not itself tier-gated — `pages` is empty for every non-static theme (`loadStaticTierAssets`'s own
+ * early return), so a non-static theme is already incapable of tripping this on `templates` it isn't
+ * documented to declare; gating here too would just be a second copy of that same guarantee.
+ *
+ * @complexity O(t) over `templates`' length; each entry's marker scan is O(n) in that one page's HTML
+ *   length (`markersOfType`), the same cost `resolveTemplateChoice` already pays per request.
+ */
+function validateTemplateDeclarations(
+  required: {
+    fieldName: "postTemplate" | "pageTemplate";
+    templates: readonly string[] | undefined;
+    pages: Readonly<Record<string, string>>;
+    slotMarkerType: string;
+  },
+  _optional: Record<string, never> = {}
+): string[] {
+  const { fieldName, templates, pages, slotMarkerType } = required;
+  if (!templates) return [];
+
+  const errors: string[] = [];
+  for (const entry of templates) {
+    const pageId = entry.replace(/\.html$/, "");
+    const html = pages[pageId];
+    if (html === undefined) {
+      errors.push(`theme.json ${fieldName} entry '${entry}' has no matching pages/${pageId}.html file`);
+      continue;
+    }
+    if (markersOfType(html, slotMarkerType).length === 0) {
+      errors.push(
+        `pages/${pageId}.html is declared in theme.json ${fieldName} but has no {"type":"${slotMarkerType}"} marker`
+      );
+    }
+  }
+  return errors;
+}
+
+/**
  * Read the static tier's assets as one unit, or nothing at all for any other tier.
  *
  * A static theme is a different kind of artifact from every other tier — already-complete HTML
@@ -383,10 +431,16 @@ function loadSlotPartials(
  * @overallScore 100
  */
 function loadStaticTierAssets(
-  required: { themeDir: string; tier: ThemeTier; slots?: Record<string, ThemeSlotDescriptor> },
+  required: {
+    themeDir: string;
+    tier: ThemeTier;
+    slots?: Record<string, ThemeSlotDescriptor>;
+    postTemplate?: string[];
+    pageTemplate?: string[];
+  },
   _optional: Record<string, never> = {}
 ): StaticTierAssets {
-  const { themeDir, tier, slots } = required;
+  const { themeDir, tier, slots, postTemplate, pageTemplate } = required;
   if (tier !== "static") return NO_STATIC_TIER_ASSETS;
 
   const errors: string[] = [];
@@ -404,6 +458,13 @@ function loadStaticTierAssets(
     }
   }
   if (!pages.index) errors.push("pages/index.html is required");
+
+  errors.push(
+    ...validateTemplateDeclarations({ fieldName: "postTemplate", templates: postTemplate, pages, slotMarkerType: "post" })
+  );
+  errors.push(
+    ...validateTemplateDeclarations({ fieldName: "pageTemplate", templates: pageTemplate, pages, slotMarkerType: "content" })
+  );
 
   // Root partials (`nav`, `footer`, and anything else the manifest declares) live at the theme root,
   // not under pages/, because a static page embeds them via a `{"type":"partial"}` marker the
@@ -476,6 +537,8 @@ export function loadTheme(
     themeDir,
     tier: manifest.tier,
     slots: manifest.slots,
+    postTemplate: manifest.postTemplate,
+    pageTemplate: manifest.pageTemplate,
   });
   errors.push(...staticErrors);
 

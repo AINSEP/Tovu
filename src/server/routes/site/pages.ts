@@ -9,6 +9,7 @@ import {
   renderStaticPage,
   injectPostEmbedId,
   injectPageContent,
+  injectPageTitle,
   resolvePostTemplate,
   resolvePageTemplate,
   isEligibleForPostTemplateBranch,
@@ -366,9 +367,11 @@ async function renderPostViaTemplate(
  * Structurally simpler than `renderPostViaTemplate`: there is no id to substitute and no async
  * lookup to defer. `post.bodyHtml` is already the exact string to render — this function's whole
  * job is deciding WHICH template via {@link resolvePageTemplate}, splicing that body in via
- * {@link injectPageContent} (the `{"type":"content"}` marker, Task 3), then resolving whatever
- * `widget`/`media`/`post` markers exist in the COMBINED template+body string (the page's own
- * authored embeds included, not only the template's).
+ * {@link injectPageContent} (the `{"type":"content"}` marker, Task 3) and the Page's own title in
+ * via {@link injectPageTitle} (the `{{title}}` placeholder — see that function's doc for why the
+ * Page side gets a real substitution where `renderPostViaTemplate` accepts a fixed template title),
+ * then resolving whatever `widget`/`media`/`post` markers exist in the COMBINED template+body string
+ * (the page's own authored embeds included, not only the template's).
  */
 async function renderPageViaTemplate(
   deps: RouteDeps,
@@ -389,7 +392,8 @@ async function renderPageViaTemplate(
   }
   const { pageId, html: rawTemplate } = resolution;
 
-  const withContent = injectPageContent(rawTemplate, post.bodyHtml ?? "");
+  const withTitle = injectPageTitle(rawTemplate, post.title);
+  const withContent = injectPageContent(withTitle, post.bodyHtml ?? "");
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo: deps.entryRepo, postRepo: deps.postRepo },
     input: { workspaceId: deps.workspaceId, html: withContent },
