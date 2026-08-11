@@ -2,7 +2,7 @@
   "name": "tovu",
   "version": "0.1.0",
   "private": true,
-  "description": "Tovu — the website product: CMS runtime (public site + per-site admin + content model).",
+  "description": "Tovu \u2014 the website product: CMS runtime (public site + per-site admin + content model).",
   "type": "commonjs",
   "workspaces": [
     "packages/*"
@@ -50,6 +50,7 @@
     "@jini-ai/core": "file:../Jini/packages/core",
     "@jini-ai/daemon": "file:../Jini/packages/daemon",
     "@jini-ai/http-kit": "file:../Jini/packages/http-kit",
+    "@jini-ai/infra": "file:../Jini/packages/infra",
     "@jini-ai/integrations": "file:../Jini/packages/integrations",
     "@jini-ai/mcp": "file:../Jini/packages/mcp",
     "@jini-ai/sqlite": "file:../Jini/packages/sqlite",

@@ -1,7 +1,4 @@
-import { randomBytes } from "node:crypto";
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
+import { SqliteDbOpsAdapter as InfraSqliteDbOpsAdapter } from "@jini-ai/infra/db/sqlite";
 
 import type { DbOpsPort, RestoreCapability } from "../../core/gated-mutations/ports";
 import { getCurrentWatermark } from "../../core/gated-mutations/watermark";
@@ -16,30 +13,46 @@ import type { ContentDb } from "./content-db";
  * produces a consistent copy even while the source connection has an open WAL.
  *
  * How it relates to the project:
- * `ContentDb` (content-db.ts) is widened with `$client` — the raw `better-sqlite3` `Database`
- * instance `drizzle()` already returns at runtime — precisely so this adapter can call `.backup()`
- * directly rather than re-implementing SQLite's backup protocol.
+ * The backup/restore mechanics moved to `@jini-ai/infra/db/sqlite` on 2026-08-11 — they are
+ * genuinely product-independent (online backup, copy-then-atomic-rename, WAL/SHM sidecar
+ * cleanup, restore-point artifact naming), and the trickiest code in this folder. What stays
+ * here is the part that is Tovu's: this product's `DbOpsPort` shape, and where the watermark
+ * lives. The infra adapter takes that as an injected `readWatermark` rather than importing
+ * `core/gated-mutations`, so the package never learns Tovu's schema.
+ *
+ * Why this file still exists at all rather than the composition root using the infra class
+ * directly: Tovu's `RestoreCapability` union is deliberately wider than the infra one — it also
+ * admits `"unavailable"` and `"external"`, which non-SQLite adapters here need. This class is
+ * the seam where the narrow SQLite answer widens into Tovu's port, and it is the only place
+ * that conversion happens.
  *
  * Architectural role:
  * Infrastructure adapter for `core/gated-mutations`'s `DbOpsPort`. Only this file (and its
  * Postgres sibling) implement the port; domain code depends on the port, never on this adapter.
  */
 export class SqliteDbOpsAdapter implements DbOpsPort {
-  private readonly db: ContentDb;
-  private readonly filePath: string;
+  private readonly inner: InfraSqliteDbOpsAdapter;
 
   constructor(deps: { db: ContentDb; filePath: string }) {
-    this.db = deps.db;
-    this.filePath = deps.filePath;
+    this.inner = new InfraSqliteDbOpsAdapter({
+      db: deps.db,
+      filePath: deps.filePath,
+      // Read lazily per capture, not captured at construction — the watermark advances with
+      // every gated write, and a restore point must be stamped with its value at capture time
+      // (REQ-06), not at wiring time.
+      readWatermark: () => getCurrentWatermark({ db: deps.db }).value,
+    });
   }
 
   /**
-   * Pure, side-effect-free (REQ-19) — SQLite always reports the same static capability.
+   * Pure, side-effect-free (REQ-19) — SQLite always reports the same static capability. The
+   * infra answer (`cheap`/`file-snapshot`) is a subset of Tovu's wider union, so this widens
+   * without converting.
    * @complexity O(1).
    * @overallScore 100
    */
   async getCapabilities(): Promise<{ restorePoint: RestoreCapability }> {
-    return { restorePoint: { costClass: "cheap", kind: "file-snapshot" } };
+    return this.inner.getCapabilities();
   }
 
   /**
@@ -49,62 +62,24 @@ export class SqliteDbOpsAdapter implements DbOpsPort {
    * @complexity O(db size) — a full page-by-page backup copy.
    * @overallScore 100
    */
-  async captureRestorePoint(required: { scopeId: string }): Promise<{ artifactRef: string; watermarkAtCapture: number }> {
-    const watermarkAtCapture = getCurrentWatermark({ db: this.db }).value;
-    const targetDir = this.filePath === ":memory:" ? os.tmpdir() : path.dirname(this.filePath);
-    const artifactRef = path.join(
-      targetDir,
-      `restore-point-${sanitizeForFilename(required.scopeId)}-wm${watermarkAtCapture}-${Date.now()}.db`
-    );
-
-    await this.db.$client.backup(artifactRef);
-
-    return { artifactRef, watermarkAtCapture };
+  async captureRestorePoint(required: {
+    scopeId: string;
+  }): Promise<{ artifactRef: string; watermarkAtCapture: number }> {
+    return this.inner.captureRestorePoint(required);
   }
 
   /**
    * Closes the "ledger-only" disclosed gap (`features/recovery/gated-hooks.ts`'s
    * `buildRestoreHooks`): physically swaps `content.db` for a previously-captured artifact.
    *
-   * Crash-safety: copies the artifact to a same-directory temp file first, then does a single
-   * `fs.rename()` — atomic on the same filesystem (POSIX rename semantics). If the process dies
-   * before the rename, `content.db` is untouched; the rename itself either fully completes or
-   * doesn't happen, never a partial file. The already-running process keeps its own open file
-   * descriptor pointing at the now-unlinked old inode (and keeps serving from it, unaware anything
-   * changed) until it restarts and reopens `filePath` fresh — this is *why* `restartRequired` is
-   * always `true` for this real adapter, not an incidental detail.
-   *
-   * Stale `-wal`/`-shm` sidecar cleanup is best-effort (`Promise.allSettled`): SQLite's own WAL
-   * header carries a salt tied to the specific main-file version it was written against, so even
-   * an un-cleaned stale sidecar cannot silently corrupt the swapped-in file on next boot (SQLite
-   * detects the mismatch and discards it) — this cleanup exists to avoid ambiguity, not because
-   * skipping it would be unsafe.
+   * Crash-safety and the always-`true` `restartRequired` for a real file-backed adapter are
+   * documented on the infra implementation — the short version is that the copy-then-rename is
+   * atomic under POSIX rename semantics, and the running process keeps serving from its own
+   * descriptor on the now-unlinked old inode until it reopens the path fresh.
    *
    * @complexity O(db size) — one file copy, one rename, two best-effort unlinks.
    */
   async restoreFromArtifact(required: { artifactRef: string }): Promise<{ restartRequired: boolean }> {
-    if (this.filePath === ":memory:") {
-      // TOVU_DB=memory dev mode — no real file to restore into.
-      return { restartRequired: false };
-    }
-
-    await fs.access(required.artifactRef);
-
-    const dir = path.dirname(this.filePath);
-    const tmpPath = path.join(dir, `.${path.basename(this.filePath)}.restoring-${randomBytes(6).toString("hex")}`);
-    await fs.copyFile(required.artifactRef, tmpPath);
-    await fs.rename(tmpPath, this.filePath);
-
-    await Promise.allSettled([
-      fs.rm(`${this.filePath}-wal`, { force: true }),
-      fs.rm(`${this.filePath}-shm`, { force: true }),
-    ]);
-
-    return { restartRequired: true };
+    return this.inner.restoreFromArtifact(required);
   }
-}
-
-/** Keeps a caller-supplied `scopeId` from producing an unsafe/nested filesystem path segment. */
-function sanitizeForFilename(value: string): string {
-  return value.replace(/[^a-zA-Z0-9_-]/g, "_");
 }
