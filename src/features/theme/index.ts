@@ -34,6 +34,7 @@ export {
   renderStaticPartial,
   injectPostEmbedId,
   resolvePostTemplate,
+  isEligibleForPostTemplateBranch,
   scanMenuEmbedIds,
   type StaticMenuItem,
   type PostTemplateResolution,

@@ -9,6 +9,7 @@ import {
   renderStaticPage,
   injectPostEmbedId,
   resolvePostTemplate,
+  isEligibleForPostTemplateBranch,
   scanMenuEmbedIds,
   type DiscoveredTheme,
   type StaticMenuItem,
@@ -542,8 +543,16 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // the owner's own term) renders through its chosen theme template instead of the generic
       // post-rendering path below, whenever the active theme actually supports templates. `"html"`-
       // format Pages are untouched (they already have their own embed-authoring mechanism, see
-      // `resolveHtmlEmbedsForRender` above) — this is deliberately scoped to Posts only.
-      if (theme.manifest.tier === "static" && post.bodyFormat === "doc" && (theme.manifest.postTemplate?.length ?? 0) > 0) {
+      // `resolveHtmlEmbedsForRender` above).
+      //
+      // `kind: "page"` rows with `bodyFormat: "doc"` DO also flow through this branch, but only on an
+      // explicit `templateChoice` (see `isEligibleForPostTemplateBranch`'s doc) — NOT on the "never
+      // chosen, fall back to the theme's first template" arm that Posts rely on. That arm is safe for
+      // Posts (an author genuinely had no opinion) but was firing for legacy Pages that have never had
+      // any admin surface to set `template_choice` at all, which is how `terms-of-service` et al. were
+      // rendering under the theme's first Post template (`<title>Blog post — Basic</title>`) on the
+      // live site — fixed here by gating on `kind`, not just `bodyFormat`.
+      if (isEligibleForPostTemplateBranch({ theme, post })) {
         res.type("html").send(await renderPostViaTemplate(deps, theme, post, staticMenus));
         return;
       }
