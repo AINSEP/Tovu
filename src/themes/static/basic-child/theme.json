@@ -1,0 +1,10 @@
+{
+  "id": "basic-child",
+  "name": "Basic (child)",
+  "version": "1.0.0",
+  "tier": "static",
+  "engine": 1,
+  "parent": "basic",
+  "description": "A child of `basic` that adds one page layout. Ships two files and inherits everything else — pages, partials, CSS, tokens, slots — from its parent, so upstream changes to `basic` keep arriving.",
+  "postTemplate": ["page-shell.html", "blog-post.html", "blog-sidebar-template.html"]
+}

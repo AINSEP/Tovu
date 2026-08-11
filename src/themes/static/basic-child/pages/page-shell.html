@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="../css/styles.css" />
+<title>Page — Basic</title>
+</head>
+<body>
+
+<!-- THE POINT OF THIS FILE: it is structure only. Every line below is either a marker or a wrapper
+     element. There is no nav markup here, no footer markup, and no page content — a page rendered
+     through this layout cannot forget its sidebar or its footer, because they were never its to
+     author. The theme supplies the frame on every render; the page supplies only what goes in the
+     hole.
+
+     That is also why forking this file is cheap. It is ~10 lines of structure, so a child theme that
+     overrides it keeps inheriting the parent's actual nav and footer CONTENT (nav.html/footer.html),
+     its CSS, and its tokens. Removing the footer means deleting one line; swapping to the minimal
+     footer means changing one marker's id to "footer-minimal". Compare a WordPress child theme,
+     where the fork unit is a whole PHP template carrying markup, the loop, escaping, and hooks. -->
+
+<div data-embed-config='{"type":"partial","id":"nav","current":""}'></div>
+
+<main>
+  <article class="wrap post-detail" data-reveal>
+    <div data-embed-config='{"type":"post","id":"{{post}}"}'></div>
+  </article>
+</main>
+
+<div data-embed-config='{"type":"partial","id":"footer"}'></div>
+
+<script src="../js/main.js"></script>
+<script src="../js/reveal.js"></script>
+</body>
+</html>
