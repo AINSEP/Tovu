@@ -1,8 +1,11 @@
 # Embed marker migration — worked example and remaining work
 
-Status as of 2026-08-10, branch `refactor/jini-admin-extraction`, HEAD `b7acc21`. Nothing pushed.
+Status as of 2026-08-10, branch `refactor/jini-admin-extraction`, HEAD `83bb623`. Nothing pushed.
 
 **Read this before touching any embed/marker code.** It is the contract, not a summary.
+
+Companion: `embed-type-inventory.md` — why `form` was removed, why `menu` keeps two mechanisms, what
+registering a new type costs, and the state of taxonomy and `pages.edit_html`.
 
 ---
 
@@ -112,38 +115,62 @@ consumer-side work is worth doing until it passes.
 - 184 markers across 93 theme files consolidated to the single attribute (`b7acc21`).
 - `src/core/embeds/marker.ts` — the shared parser, within 9/9, tsc clean.
 - 9 canaries green against real themes.
+- **All four consumers rewired onto `scanEmbedMarkers`** (was item 1 below). Their local regexes are
+  gone; `static-render.ts` landed in `ffb54fd`.
+- **Stored Page content migrated** (`5436508`). See the next section — this was never on the list.
+- **`form` removed as an embed type** (`47af7b2`). Rationale and the `menu` decision:
+  `embed-type-inventory.md`.
+- **Drift check ratcheted** (`83bb623`): a legacy `slots.*.activeAttr` is now a hard failure, and the
+  check scans stored Page bodies as well as theme files.
+- **`PUT /pages/:id/html` gated on `content.write`** (`ee7af59`) — it previously had no authz at all.
+
+## The gap that was never on this list: stored content
+
+**Page bodies live in the database, and the sweep only ever touched disk.** `posts.body_html` in
+`content.db` still carried the retired vocabulary long after every theme file was clean, and nothing
+reported it — a retired attribute is invisible to the shared parser, so such an embed does not
+render as broken, it renders as an inert empty `<div>`.
+
+This was not theoretical. Page `glassmorphic-landing` carried
+`<div data-embed-type="form" data-embed-id="…">` and its contact form had silently stopped
+rendering. Confirmed by curling the live site before the fix (raw marker markup came back, no form)
+and after (a real `<form action="/forms/contact-us/submit">`).
+
+Closed by `development/scripts/migrate-page-embed-markers.ts` — dry-run by default, idempotent,
+prints reversal SQL, refuses to write a body the shared parser rejects, and reports BLOCKED rather
+than guessing when a `form` marker has no `contact-form` widget to migrate onto. `entry_refs` is
+re-extracted for every html-format page, because the locator format itself changed
+(`bodyHtml[data-embed-type=form#1]` → `bodyHtml[embed:widget#1]`).
+
+**The lesson worth carrying: a marker-vocabulary change is a CONTENT migration, not only a code
+one.** Any future change to the spine has to ask what is already stored. `check:embed-marker-drift`
+now scans the database for exactly this reason (skipping gracefully when none is present).
 
 ## Not done — in order
 
-**The themes do not render correctly right now.** The markup moved; the consumers did not. That is
-deliberate — the parser and the sweep were committed separately so they could be reviewed alone —
-but it means step 1 is not optional.
-
-1. **Rewire the four consumers onto `scanEmbedMarkers`.** Delete their local regexes.
-   - `src/features/theme/static-render.ts` — `injectMenuEmbed`, `scanMenuEmbedIds`, `resolveSlots`,
-     and `injectPostEmbedId` (its `{{post}}` substitution matched the old flat attribute; the
-     placeholder now lives at `config.id`).
-   - `src/widgets/html-embeds.ts` — `scanHtmlEmbeds`. Note this one previously required an EMPTY
-     `<div></div>`; the shared parser is permissive, so confirm nothing depended on the strictness.
-   - `src/core/entry-refs/extractor.ts` — reference extraction. **Its skip must be loud.**
-   - `src/server/routes/site/pages.ts` — resolves markers by slug then id (`ffc0f44`).
+1. ~~**Rewire the four consumers onto `scanEmbedMarkers`.**~~ Done — see above.
 2. **Write-chokepoint validation.** Reject any write whose `data-embed-config` fails to parse or
    lacks a `type`. Not a security control — an integrity one: `entry-refs` builds the where-used
    index safe-delete trusts, and one stray character anywhere in a config would otherwise drop a
    reference from it and let a delete proceed against something still in use. Render-time stays
    forgiving (warn + degrade, never throw); the gate is at write time, and it must cover agent-tool
    and direct-API writes, not only the admin editor.
-3. **Register `partial` as a real embed type** in `HTML_EMBED_RESOLVERS`
-   (`src/widgets/resolver-service.ts:540`), which currently knows only `widget`/`form`/`media`/`post`.
-4. **Drift check.** A script + `package.json` entry that fails on any retired attribute left in a
-   theme AND validates that every `data-embed-config` parses and carries a `type`. Same ratchet shape
-   as `check:admin-complexity-drift`. Prove it with a synthetic bad marker.
+3. **Register `partial` as a real embed type** in `HTML_EMBED_RESOLVERS`, which knows
+   `widget`/`media`/`post` (`form` was removed 2026-08-10 — `embed-type-inventory.md`). Note this is
+   entangled with the open decision at the bottom of this file: registering `partial` here means the
+   page-embed stage OWNS it, and today `static-render.ts` resolves it instead. Do not do this without
+   settling that first — `isPageEmbedType` returning true for `partial` would let this stage
+   substitute a placeholder over a theme's own scaffolding.
+4. ~~**Drift check.**~~ Done — `development/scripts/check-embed-marker-drift.ts` +
+   `npm run check:embed-marker-drift`, ratcheted further in `83bb623`.
 5. **`html` widget type** — `capability: "static"`, config `{ html: string }`, scripts permitted.
    Purpose: save a named raw-HTML snippet once, place it anywhere by reference.
-6. **Wire `pages.edit_html`** (SPEC-047 REQ-9). Owner reversed an earlier decision and now wants this
-   closed. It is specified but never wired, and both `src/features/pages/tool-registrations.ts:27`
-   and `src/server/routes/admin/pages/update-html.ts:43` disclose the gap in their own headers.
-   Test the **refusal** path — a test that only checks the happy path passes against an ungated route.
+6. **Wire `pages.edit_html`** (SPEC-047 REQ-9). **Blocked outside this repository, not merely
+   undone.** `authorize()` matches literal `policy_permissions` rows and never reads the permission
+   catalog; no row spells `pages.edit_html`, and the seed lives in `@jini-ai/cms`. Gating on it
+   before that seed exists would leave only `owner` able to edit Page HTML. The interim
+   `content.write` gate landed in `ee7af59` with refusal-path tests; see `embed-type-inventory.md`
+   for exactly what it does and does not buy.
 7. **Stale references to the old vocabulary** in comments and docs: `theme-authoring-guide.md`
    (§6.1 slots, and §8.2 which still claims nested menus never render — untrue since `77f567d`),
    `src/themes/*/build-preview.mjs` (per-theme authoring preview scripts, 4 hits in `basic` alone —
