@@ -5,8 +5,10 @@ import type { Response } from "express";
 
 import { findTheme, loadTheme, THEME_CATALOG_DIR } from "#src/features/theme/index";
 import {
+  copyThemeFile,
   listThemeFiles,
   readThemeFile,
+  renameThemeFile,
   writeThemeFile,
   ThemePathError,
 } from "#src/features/theme/theme-files";
@@ -96,24 +98,31 @@ function reloadTheme(deps: ContentRouteDeps, themeId: string): void {
 }
 
 /**
- * Extensions safe to hand back as UTF-8 text, and therefore editable in a textarea.
- *
+ * Extensions safe to hand back as UTF-8 text at all — i.e. "can this be read/displayed as text",
+ * which is a DIFFERENT question from "can this be saved" ({@link isThemeFileWritable} below).
  * Everything NOT listed is treated as binary and is never read as text: `readFileSync(…, "utf8")` on
- * a PNG returns mojibake that looks like a corrupt file, and saving that back would actually corrupt
- * it. Binary files are still listed and still viewable — the Explore screen renders them straight
- * from `/theme-assets/{themeId}/{path}`, which already serves every theme's folder — just not
- * editable as source.
+ * a PNG returns mojibake that looks like a corrupt file, and writing that back would actually
+ * corrupt it. Binary files are still listed and still viewable — the Explore screen renders them
+ * straight from `/theme-assets/{themeId}/{path}`, which already serves every theme's folder — just
+ * not as decoded source.
  *
  * `.svg` is deliberately on the TEXT side: it is markup, authors do hand-edit it, and it round-trips
  * through UTF-8 losslessly.
+ *
+ * This set is intentionally broader than what is writable: `.js`/`.mjs`/`.cjs` stay here so a script
+ * can still be opened and read in the HTML tab, even though {@link isThemeFileWritable} refuses to
+ * save one (2026-08-11 owner ask — scripts are read-only in Explore, but "read-only" means exactly
+ * that, not "invisible"). Conflating the two here is the bug this split fixes: the file list's old
+ * single `editable` flag used to mean both "fetch as text" and "show a Save button", so making
+ * scripts read-only would have hidden their source entirely — a regression, not the ask.
  */
-const TEXT_EDITABLE_EXTENSIONS = new Set([
+const TEXT_READABLE_EXTENSIONS = new Set([
   ".html", ".css", ".js", ".mjs", ".cjs", ".json", ".md", ".txt", ".svg", ".webmanifest",
 ]);
 
-function isTextEditable(relativePath: string): boolean {
+function isTextReadable(relativePath: string): boolean {
   const dot = relativePath.lastIndexOf(".");
-  return dot === -1 ? false : TEXT_EDITABLE_EXTENSIONS.has(relativePath.slice(dot).toLowerCase());
+  return dot === -1 ? false : TEXT_READABLE_EXTENSIONS.has(relativePath.slice(dot).toLowerCase());
 }
 
 /**
@@ -139,19 +148,157 @@ function isGenerated(relativePath: string): boolean {
 }
 
 /**
+ * Media extensions that make up the `assets` group: images, video, audio, and fonts — the file
+ * kinds an Explore author might replace but never hand-edits as source. (`.svg` is the one image
+ * format also on {@link TEXT_READABLE_EXTENSIONS}, deliberately — see that set's comment.)
+ *
+ * 2026-08-11 owner ask: `assets` used to be a catch-all for anything that wasn't a page, partial,
+ * style, script, or config file — which silently swept in `.md`/`.txt`/`.webmanifest` and any other
+ * stray file alongside actual images. Those now fall to {@link fileGroup}'s `other` bucket instead.
+ */
+const ASSET_EXTENSIONS = new Set([
+  // Images
+  ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".svg", ".ico", ".bmp", ".tif", ".tiff",
+  // Video
+  ".mp4", ".webm", ".mov", ".avi", ".mkv", ".m4v",
+  // Audio
+  ".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac",
+  // Fonts
+  ".woff", ".woff2", ".ttf", ".otf", ".eot",
+]);
+
+function isAssetExtension(relativePath: string): boolean {
+  const dot = relativePath.lastIndexOf(".");
+  return dot === -1 ? false : ASSET_EXTENSIONS.has(relativePath.slice(dot).toLowerCase());
+}
+
+/** Every group `fileGroup` can return, exported so the response type and the client's file-list
+ *  grouping share one vocabulary rather than each re-deriving it. */
+export type ThemeExploreFileGroup = "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
+
+/**
  * Coarse grouping for the Explore file list, derived from path/extension alone.
  *
  * Presentation-only: the server does not care what a file is FOR, but a flat 60-entry list of every
  * screenshot and vendor script buries the four files an author actually edits. Kept here rather than
- * in the client so the classification has one definition, and stays available to any other consumer.
+ * in the client so the classification has one definition, and stays available to any other consumer
+ * (also used by {@link isThemeFileWritable} and the copy/rename routes below, so "what group is
+ * this" is answered exactly once).
+ *
+ * `other` is the catch-all this group set used to lack: anything that isn't a page, partial, style,
+ * script, config, or recognized media extension — `.md`, `.txt`, `.webmanifest`, and any stray data
+ * file an author or a downloaded theme happens to ship.
  */
-function fileGroup(relativePath: string): "page" | "partial" | "style" | "script" | "asset" | "config" {
+function fileGroup(relativePath: string): ThemeExploreFileGroup {
   if (relativePath.startsWith("pages/")) return "page";
   if (relativePath.endsWith(".css")) return "style";
   if (/\.(m|c)?js$/.test(relativePath)) return "script";
   if (/^(theme|tokens|tokens\.light)\.json$/.test(relativePath)) return "config";
   if (!relativePath.includes("/") && relativePath.endsWith(".html")) return "partial";
-  return "asset";
+  if (isAssetExtension(relativePath)) return "asset";
+  return "other";
+}
+
+/**
+ * Groups that are never writable through the PUT/rename/reset routes, regardless of whether their
+ * extension is otherwise text-readable.
+ *
+ * `script`: 2026-08-11 owner ask — "I don't want JS edited from this screen." Enforced here rather
+ * than only in the client (which the previous `editable` flag already hid the Save button for) —
+ * `editable` was advisory, read by the UI to decide what to render, but nothing stopped a PUT
+ * constructed by hand. This is the actual enforcement point.
+ *
+ * `other`: the new catch-all group (`.md`, `.txt`, `.webmanifest`, stray files) was never a group an
+ * author was asked to edit from this screen either; it existed by omission (falling into `asset`)
+ * rather than by design, and making it explicitly read-only is more honest than accidentally
+ * writable.
+ */
+const READ_ONLY_GROUPS: ReadonlySet<ThemeExploreFileGroup> = new Set(["script", "other"]);
+
+/**
+ * Whether a file can be saved (PUT) or reset — the narrower of the two questions
+ * {@link isTextReadable} used to answer alone. A file must be text-readable AND not in a
+ * {@link READ_ONLY_GROUPS} group to be writable: `.svg` (asset group, text-readable) stays writable
+ * exactly as before, `.js` (script group, text-readable) does not.
+ */
+function isThemeFileWritable(relativePath: string): boolean {
+  return isTextReadable(relativePath) && !READ_ONLY_GROUPS.has(fileGroup(relativePath));
+}
+
+/**
+ * Files `loadTheme` treats as REQUIRED — their absence pushes a load error and flips the theme's
+ * `status` to `"invalid"` (`theme.ts`: `pages.index` at the `pages/index.html` check, and the
+ * `theme.json`/`tokens.json` `readJson` calls each wrapped in a try/catch that pushes an error on
+ * failure, ENOENT included). Renaming any of these out from under a theme reproduces that same
+ * breakage, so all three are hard-blocked in {@link registerAdminThemeFileRenameRoute} — not just
+ * `pages/index.html`, which was the one example named when this was scoped, but the identical
+ * failure shape extends to the other two.
+ *
+ * `tokens.light.json` is deliberately NOT here: `theme.ts` documents it as optional (`"Optional
+ * unlike tokens.json: absent is not an error, it just means the theme ships no light variant"`), so
+ * renaming it degrades a theme rather than breaking it — closer to the "renaming a page changes its
+ * URL" warning-not-block case than to this hard block.
+ */
+const REQUIRED_THEME_FILES: ReadonlySet<string> = new Set(["pages/index.html", "theme.json", "tokens.json"]);
+
+/**
+ * Build one file-list entry — shared by the detail route's full listing and the copy/rename routes'
+ * single-file response, so "what does the client learn about a file" has one definition instead of
+ * three ad hoc object literals drifting apart.
+ *
+ * `readable` and `editable` are deliberately separate fields (2026-08-11): `readable` gates whether
+ * the client fetches/displays the file as text at all, `editable` gates whether it renders an
+ * editable textarea with a live Save button. A script is `readable: true, editable: false` — visible,
+ * not saveable. A binary asset is `readable: false, editable: false` — neither.
+ */
+function describeThemeFile(
+  relativePath: string,
+  options: { catalogDir: string; hasOriginal: boolean }
+): { path: string; group: ThemeExploreFileGroup; readable: boolean; editable: boolean; resettable: boolean } {
+  return {
+    path: relativePath,
+    group: fileGroup(relativePath),
+    readable: isTextReadable(relativePath),
+    editable: isThemeFileWritable(relativePath),
+    // Whether THIS file can be reset — a file the author added themselves (including a fresh copy)
+    // has no original to go back to, and offering a Reset that would fail is worse than not
+    // offering one.
+    resettable: options.hasOriginal && existsSync(join(options.catalogDir, relativePath)),
+  };
+}
+
+/**
+ * Suffix a caller-desired relative path to avoid colliding with anything already in `existingPaths`,
+ * following the same `name`, `name-1`, `name-2` … shape {@link nextAvailableThemeId} uses for theme
+ * ids — but split around the extension, since a theme id (`basic`) is a bare folder name with no
+ * extension to preserve, while a file path (`pages/about.html`) needs `about-1.html`, not
+ * `about.html-1`. That shape difference is why this is its own small function instead of a direct
+ * call into `nextAvailableThemeId`: the collision LOOP is identical, the thing being suffixed is not.
+ *
+ * @complexity O(n) in the number of existing collisions with the desired name.
+ * @overallScore 100/100
+ */
+function nextAvailableFileName(
+  required: { desiredPath: string; existingPaths: ReadonlySet<string> },
+  _optional: Record<string, never> = {}
+): string {
+  const { desiredPath, existingPaths } = required;
+  const slash = desiredPath.lastIndexOf("/");
+  const dot = desiredPath.lastIndexOf(".");
+  // A dot has to fall AFTER the last slash to be the filename's own extension — otherwise it belongs
+  // to a directory segment (not a real case in this theme layout, but cheap to get right).
+  const hasExt = dot > slash;
+  const base = hasExt ? desiredPath.slice(0, dot) : desiredPath;
+  const ext = hasExt ? desiredPath.slice(dot) : "";
+
+  if (!existingPaths.has(desiredPath)) return desiredPath;
+  let suffix = 1;
+  let candidate = `${base}-${suffix}${ext}`;
+  while (existingPaths.has(candidate)) {
+    suffix += 1;
+    candidate = `${base}-${suffix}${ext}`;
+  }
+  return candidate;
 }
 
 /** GET one theme's detail — what the Explore screen lists and what its banner says. */
@@ -195,14 +342,7 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
       const files = listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir })
         .filter((path) => !isGenerated(path))
-        .map((path) => ({
-          path,
-          group: fileGroup(path),
-          editable: isTextEditable(path),
-          // Whether THIS file can be reset — a file the author added themselves has no original to
-          // go back to, and offering a Reset that would fail is worse than not offering one.
-          resettable: hasOriginal && existsSync(join(catalogDir, path)),
-        }));
+        .map((path) => describeThemeFile(path, { catalogDir, hasOriginal }));
 
       res.json({
         id: theme.manifest.id,
@@ -270,6 +410,17 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
       const content = body.content;
       if (typeof content !== "string") {
         res.status(400).json({ error: "content must be a string", code: "INVALID_BODY" });
+        return;
+      }
+
+      // Enforced here, not only by the client hiding the Save button — a PUT built by hand (or by an
+      // older cached client) must be refused the same way. `isThemeFileWritable` is the ONE place
+      // this policy is decided; see its doc comment for why scripts and `other`-group files fail it.
+      if (!isThemeFileWritable(path)) {
+        res.status(403).json({
+          error: `'${path}' is read-only in Explore and cannot be saved`,
+          code: "READ_ONLY_FILE",
+        });
         return;
       }
 
@@ -347,6 +498,137 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
       reloadTheme(deps, theme.manifest.id);
 
       res.json({ path, bytes: Buffer.byteLength(original, "utf8"), content: original });
+    } catch (err) {
+      sendThemeFileError(res, err);
+    }
+  });
+};
+
+/**
+ * POST — duplicate one file inside a theme, landing the copy in the same folder under the next
+ * available `name-1`, `name-2`, … suffix (see {@link nextAvailableFileName}).
+ *
+ * Deliberately takes ONLY the source `path` — the destination name is server-computed, not operator
+ * input, which is why this route (unlike rename) needs no filename-shape validation of its own. The
+ * one piece of untrusted input, `path`, is still resolved through `copyThemeFile`'s containment
+ * checks exactly like every other route here.
+ *
+ * Offered for every group, including `script`/`other` (read-only-to-EDIT, not read-only-to-copy):
+ * duplicating a file's bytes under a new name changes nothing about the original and nothing any
+ * existing reference points at, so it carries none of the risk a script's content-edit block exists
+ * to prevent.
+ */
+export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps) => {
+  app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/copy", async (req, res) => {
+    try {
+      if (!(await authorizeThemeAccess(deps, req, res))) return;
+
+      const themeId = String(req.params.themeId ?? "");
+      const theme = findTheme({ themes: deps.themes, id: themeId });
+      if (!theme) {
+        res.status(404).json({ error: `theme '${themeId}' was not found` });
+        return;
+      }
+
+      const sourcePath = String(((req.body ?? {}) as Record<string, unknown>).path ?? "");
+      const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir }));
+      if (!existingPaths.has(sourcePath)) {
+        res.status(404).json({ error: `file '${sourcePath}' was not found in this theme`, code: "FILE_NOT_FOUND" });
+        return;
+      }
+
+      const destPath = nextAvailableFileName({ desiredPath: sourcePath, existingPaths });
+      copyThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath });
+
+      // A new file on disk is exactly the same boot-time-snapshot problem writes are — see
+      // `reloadTheme`'s doc comment. Skipping this means the copy exists on disk but the preview and
+      // the next GET of `pages`/`partials` still act as if it does not.
+      reloadTheme(deps, theme.manifest.id);
+
+      const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
+      const hasOriginal = existsSync(catalogDir);
+      res.json({ ...describeThemeFile(destPath, { catalogDir, hasOriginal }), copiedFrom: sourcePath });
+    } catch (err) {
+      sendThemeFileError(res, err);
+    }
+  });
+};
+
+/**
+ * POST — rename (move within the same folder) one file inside a theme.
+ *
+ * `name` is a bare filename, not a path: it may not contain a `/` or `\`, which keeps rename from
+ * doubling as an undocumented move-between-folders operation and — combined with resolving the
+ * assembled destination through `renameThemeFile`'s own containment check — means the one piece of
+ * real operator-authored path input here is validated exactly as strictly as a write target, per the
+ * containment rule every route in this file follows.
+ *
+ * Hard-blocks {@link REQUIRED_THEME_FILES}: renaming `pages/index.html`, `theme.json`, or
+ * `tokens.json` away reproduces the exact `loadTheme` failure that makes a theme's `status` flip to
+ * `"invalid"` (see that constant's doc comment for the three matching checks in `theme.ts`). This
+ * does NOT block renaming an ordinary page — that only changes its public URL, which is a warning
+ * the UI shows before confirming, not a server-side refusal; the operator may have a real reason to
+ * do it.
+ */
+export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, deps) => {
+  app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/rename", async (req, res) => {
+    try {
+      if (!(await authorizeThemeAccess(deps, req, res))) return;
+
+      const themeId = String(req.params.themeId ?? "");
+      const theme = findTheme({ themes: deps.themes, id: themeId });
+      if (!theme) {
+        res.status(404).json({ error: `theme '${themeId}' was not found` });
+        return;
+      }
+
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const sourcePath = String(body.path ?? "");
+      const name = String(body.name ?? "");
+
+      if (REQUIRED_THEME_FILES.has(sourcePath)) {
+        res.status(409).json({
+          error: `'${sourcePath}' cannot be renamed — every theme requires it at this exact path`,
+          code: "REQUIRED_FILE_LOCKED",
+        });
+        return;
+      }
+      if (name.length === 0) {
+        res.status(400).json({ error: "name is required", code: "INVALID_NAME" });
+        return;
+      }
+      if (name.includes("/") || name.includes("\\") || name === "." || name === "..") {
+        res.status(400).json({
+          error: `name '${name}' must be a plain filename in the same folder, not a path`,
+          code: "INVALID_NAME",
+        });
+        return;
+      }
+
+      const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir }));
+      if (!existingPaths.has(sourcePath)) {
+        res.status(404).json({ error: `file '${sourcePath}' was not found in this theme`, code: "FILE_NOT_FOUND" });
+        return;
+      }
+
+      const slash = sourcePath.lastIndexOf("/");
+      const destPath = slash === -1 ? name : `${sourcePath.slice(0, slash)}/${name}`;
+
+      // Renaming to the name it already has is a no-op, not a collision — without this check it
+      // would fail NAME_TAKEN against itself, since `destPath === sourcePath` is still "already in
+      // `existingPaths`".
+      if (destPath !== sourcePath) {
+        if (existingPaths.has(destPath)) {
+          res.status(409).json({ error: `'${destPath}' already exists in this theme`, code: "NAME_TAKEN" });
+          return;
+        }
+        renameThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath });
+        reloadTheme(deps, theme.manifest.id);
+      }
+
+      const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
+      const hasOriginal = existsSync(catalogDir);
+      res.json({ ...describeThemeFile(destPath, { catalogDir, hasOriginal }), renamedFrom: sourcePath });
     } catch (err) {
       sendThemeFileError(res, err);
     }
