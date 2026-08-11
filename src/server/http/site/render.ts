@@ -7,7 +7,7 @@ import {
   resolveHandlebarsTemplateId,
   renderStaticPage,
 } from "#src/features/theme/index";
-import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
+import { isPageEmbedType, type ResolveHtmlPageEmbedsResult, type ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
 import type { WidgetRenderIR } from "#src/widgets/types";
 import { substituteHtmlEmbeds } from "#src/widgets/html-embeds";
 import { ATTRIBUTE_NAME_PATTERN } from "#src/forms/forms";
@@ -454,29 +454,41 @@ function entryList(ctx: SiteRenderContext, props: JsonObject): string {
 const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeholder", props: {} };
 
 /**
- * Substitutes every `data-embed-type` placeholder in an `"html"`-format Page's `bodyHtml` with its
+ * Substitutes every embed marker THIS STAGE OWNS in an `"html"`-format Page's `bodyHtml` with its
  * resolved markup (SPEC-047 Slice 2, generalized 2026-08-07). Pure — `resolved` is the already-
  * batch-loaded, type-then-id-keyed result of `resolver-service.ts`'s `resolveHtmlPageEmbeds`,
  * computed by the caller (a route handler) ahead of `renderSite`, the same "resolved data in, HTML
  * out" discipline this file's own header states for every other widget-shaped render path here.
- * `resolved` being `undefined` (no pre-existing caller of `renderSite` passes `pageHtmlEmbeds`), a
- * ref's `type` having no entry in `resolved` (unknown embed type), or a ref's `id` being `null`
- * (missing/invalid `data-embed-id`) all degrade identically to the public-safe REQ-28 marker — this
- * function never distinguishes "unresolved" from "unresolvable" from "never attempted", never a
- * crash and never the literal, unresolved `<div data-embed-type="…">` markup reaching a visitor.
  *
- * @complexity O(n) over `html`'s length (one regex substitution pass); O(1) additional work per
- * embed occurrence (two map lookups plus `renderWidgetIr`'s own O(1) dispatch).
+ * Within an owned type, `resolved` being `undefined` (no pre-existing caller of `renderSite` passes
+ * `pageHtmlEmbeds`), that type having no entry in `resolved`, or a ref's `id` being `null` (missing
+ * or invalid `id` key) all degrade identically to the public-safe REQ-28 marker — this function
+ * never distinguishes "unresolved" from "unresolvable" from "never attempted", never a crash and
+ * never literal, unresolved marker markup reaching a visitor.
+ *
+ * A marker of an UNOWNED type is a different case and gets the opposite treatment: untouched. Since
+ * the 2026-08-10 marker unification every consumer shares one permissive parser, so this stage now
+ * sees a theme's `partial` and `menu` markers, which `static-render.ts` resolves AFTER this runs
+ * (`pages.ts`'s `renderPostViaTemplate` calls this, then `renderStaticPage`). Treating those as
+ * unknown-and-therefore-placeholder replaced the nav, the docs sidebar menu, and the footer of every
+ * post rendered through a theme template with an empty widget placeholder — a page that still looked
+ * plausible, which is what made it worth encoding the rule rather than remembering it. See
+ * `isPageEmbedType`'s own doc for why ownership is asked of the resolver registry and not inferred
+ * from whether resolution produced anything.
+ *
+ * @complexity O(n) over `html`'s length (one substitution pass); O(1) additional work per marker (an
+ * ownership check plus two map lookups plus `renderWidgetIr`'s own O(1) dispatch).
  * @overallScore 100
  *
  * Exported for `pages.ts`'s post-template render path (post-template-picker feature, 2026-08-10) —
- * a chosen `blog-post.html` template's `data-embed-type="post"` slot substitutes through this exact
- * same function, not a second implementation; the only difference from an `"html"`-format Page is
- * WHERE the html/resolved pair comes from (a theme's `pages/*.html` plus a real-id substitution, not
+ * a chosen `blog-post.html` template's `{"type":"post"}` slot substitutes through this exact same
+ * function, not a second implementation; the only difference from an `"html"`-format Page is WHERE
+ * the html/resolved pair comes from (a theme's `pages/*.html` plus a real-id substitution, not
  * `post.bodyHtml`).
  */
 export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbedsResult | undefined): string {
   return substituteHtmlEmbeds(html, (ref) => {
+    if (!isPageEmbedType(ref.type)) return undefined;
     const ir = (ref.id !== null ? resolved?.get(ref.type)?.get(ref.id) : undefined) ?? HTML_EMBED_PLACEHOLDER_IR;
     return renderWidgetIr(ir);
   });
