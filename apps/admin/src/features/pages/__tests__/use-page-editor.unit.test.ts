@@ -16,7 +16,8 @@ import { usePageEditor } from "../hooks/use-page-editor.hooks";
  * Follows the fetch-mocking harness `use-pages.unit.test.ts` established for this package (mock
  * global `fetch`, not the `api` module). `usePageEditor` also calls `useAdminLocale()`, which fires
  * its own fetch on mount racing `getPage`'s, and (Task 4, 2026-08-11) `getPresentation()` for the
- * template picker's `activeThemePageTemplates` — the mount helper below queues the page response
+ * template picker's `activeThemeTemplates` (unified 2026-08-11, was `activeThemePageTemplates`) —
+ * the mount helper below queues the page response
  * THREE times so whichever of the three fires first (and second, and third) still gets a valid
  * `Response` (both the locale hook and the presentation-shaped consumer are tolerant of the wrong
  * shape: the locale hook only reads a `values` key that won't be present and falls back, and

@@ -5,7 +5,7 @@ import test from "node:test";
 
 import { scanEmbedMarkers, type EmbedMarker } from "#src/core/embeds/marker";
 import { renderHtmlPageBody } from "#src/server/http/site/render";
-import { injectPostEmbedId, renderStaticPage, resolvePostTemplate, scanMenuEmbedIds } from "../static-render";
+import { injectCurrentEntityContentId, renderStaticPage, resolveTemplate, scanMenuEmbedIds } from "../static-render";
 import type { DiscoveredTheme, StaticMenuItem } from "../index";
 
 /**
@@ -268,32 +268,35 @@ for (const themeId of STATIC_THEME_IDS) {
     }
   });
 
-  const postTemplates = (readTheme(themeId).manifest.postTemplate as string[] | undefined) ?? [];
-  for (const choice of postTemplates) {
-    test(`canary: ${themeId} — post template "${choice}" resolves post body, nav, footer, and menus together`, () => {
+  // 2026-08-11 unification: `postTemplate` collapsed into `templates` (one array, shared by Posts
+  // and Pages) and the marker collapsed onto `{"type":"content"}` — `injectCurrentEntityContentId`/
+  // `resolveTemplate` replace `injectPostEmbedId`/`resolvePostTemplate` below unchanged in spirit.
+  const templates = (readTheme(themeId).manifest.templates as string[] | undefined) ?? [];
+  for (const choice of templates) {
+    test(`canary: ${themeId} — template "${choice}" resolves entity body, nav, footer, and menus together`, () => {
       const theme = readTheme(themeId);
       const menus = sentinelMenus(theme);
-      const resolution = resolvePostTemplate({ theme, templateChoice: choice });
-      assert.equal(resolution.kind, "template", `${themeId}/${choice}: the theme's own declared postTemplate entry must resolve to a template`);
+      const resolution = resolveTemplate({ theme, templateChoice: choice });
+      assert.equal(resolution.kind, "template", `${themeId}/${choice}: the theme's own declared templates entry must resolve to a template`);
       if (resolution.kind !== "template") return;
 
-      const postId = "22222222-2222-4222-8222-222222222222";
-      const withRealId = injectPostEmbedId(resolution.html, postId);
-      const postProps = {
+      const entityId = "22222222-2222-4222-8222-222222222222";
+      const withRealId = injectCurrentEntityContentId(resolution.html, entityId);
+      const entityProps = {
         title: "Sweep Sentinel Post",
         updatedAt: "2026-08-10T00:00:00.000Z",
         bodyJson: { type: "doc", content: [{ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Sweep Sentinel Body" }] }] },
       };
-      const resolved = new Map([["post", new Map([[postId, { componentId: "post-content", props: postProps }]])]]);
+      const resolved = new Map([["content", new Map([[entityId, { componentId: "post-content", props: entityProps }]])]]);
       const bodyResolved = renderHtmlPageBody(withRealId, resolved as never);
       const full = renderStaticPage({ theme, pageId: resolution.pageId, htmlOverride: bodyResolved, menus }) ?? "";
 
       assert.ok(!full.includes("widget-placeholder"), `${themeId}/${choice}: no marker may render as an empty widget placeholder`);
       assert.ok(
         full.includes("Sweep Sentinel Post") || full.includes("Sweep Sentinel Body"),
-        `${themeId}/${choice}: the resolved post must render into the template's slot`
+        `${themeId}/${choice}: the resolved entity must render into the template's slot`
       );
-      assert.ok(!full.includes('"type":"post"'), `${themeId}/${choice}: the post marker itself must not leak into the output`);
+      assert.ok(!full.includes('"type":"content"'), `${themeId}/${choice}: the content marker itself must not leak into the output`);
       assertNoRetiredMarkers(full, `${themeId}/${choice}`);
 
       for (const marker of scanEmbedMarkers(resolution.html).markers) {

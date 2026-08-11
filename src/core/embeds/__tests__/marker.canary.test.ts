@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { describeRejection, markersOfType, scanEmbedMarkers } from "../marker";
+import { describeRejection, markersOfType, scanEmbedMarkers, withAddedId } from "../marker";
 
 /**
  * @file CANARIES for the unified `data-embed-config` marker spine (2026-08-10).
@@ -96,14 +96,24 @@ test("canary: the docs sidebar keeps its tree variant AND its authored fallback 
   assert.ok(menu.whole.includes("No docs menu bound yet"), "authored fallback content must be captured, not skipped");
 });
 
-test("canary: the post-template placeholder survives inside JSON", () => {
-  // `{{post}}` is substituted with a real id before resolution. It has to stay a legal JSON string
-  // through the migration, or every post template breaks at once.
-  const { markers, rejected } = scanEmbedMarkers(read("basic/pages/blog-post.html"));
+test("canary: the real theme's content-slot marker carries no id, and a real id can be added without breaking the JSON", () => {
+  // 2026-08-11 unification retired the `{"type":"post","id":"{{post}}"}` literal-placeholder marker
+  // this canary used to pin — replaced by `{"type":"content"}` with no id at all, filled in at render
+  // time by `injectCurrentEntityContentId`/`withAddedId` rather than a pre-authored placeholder
+  // string. The property worth canary-testing against the real file is now the ADD-an-id path itself:
+  // it must produce legal, re-parseable JSON for the theme's own real (not synthetic) marker shape.
+  const html = read("basic/pages/blog-post.html");
+  const { markers, rejected } = scanEmbedMarkers(html);
   assert.deepEqual(rejected, []);
-  const post = markers.find((m) => m.type === "post");
-  assert.ok(post, "the post template must carry a post marker");
-  assert.equal(post.id, "{{post}}");
+  const content = markers.find((m) => m.type === "content");
+  assert.ok(content, "the template must carry a content marker");
+  assert.equal(content.id, undefined, "the theme's own authored marker carries no id — that is what makes it a template slot");
+
+  const withId = withAddedId(content, "22222222-2222-4222-8222-222222222222");
+  const { markers: reparsed, rejected: reparsedRejected } = scanEmbedMarkers(withId);
+  assert.deepEqual(reparsedRejected, [], "adding an id must still produce valid, parseable JSON");
+  assert.equal(reparsed[0]?.type, "content");
+  assert.equal(reparsed[0]?.id, "22222222-2222-4222-8222-222222222222");
 });
 
 test("canary: other authored attributes on a marker element are preserved verbatim", () => {

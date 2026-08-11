@@ -1149,9 +1149,11 @@ export const api = {
       settings: PresentationSettings;
       availableThemeIds: string[];
       availableThemes: AdminThemeSummary[];
-      activeThemePostTemplates: string[];
-      /** Pages template picker (Task 4, 2026-08-11) — `activeThemePostTemplates`'s counterpart. */
-      activeThemePageTemplates: string[];
+      /** Template-picker feature (2026-08-10, unified 2026-08-11) — ONE list shared by both the
+       *  Post editor's and the Pages editor's pickers (was two separate fields,
+       *  `activeThemePostTemplates`/`activeThemePageTemplates`, until the unified `content` marker
+       *  removed the reason they needed to differ). */
+      activeThemeTemplates: string[];
       activeThemeStaticPageIds: string[];
     }>(`/workspaces/${WORKSPACE_ID}/presentation`),
   /** What's installable from the marketplace. `idTaken` means a download will get a `-N` suffix. */

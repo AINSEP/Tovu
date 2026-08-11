@@ -47,7 +47,7 @@ export interface PostEditorController {
   setStatus: (status: "draft" | "published") => void;
   templateChoice: string | null;
   setTemplateChoice: (templateChoice: string | null) => void;
-  /** The active static theme's declared `postTemplate` list — `[]` when the theme doesn't support
+  /** The active static theme's declared `templates` list — `[]` when the theme doesn't support
    *  templates, in which case the caller should not render the picker at all. */
   availableTemplates: string[];
   /** The workspace's currently active theme id (`PresentationSettings.activeThemeId`) — `null`
@@ -85,7 +85,7 @@ export function usePostEditor(postId: string): PostEditorController {
   const [slug, setSlug] = useState("");
   const [status, setStatus] = useState<"draft" | "published">("draft");
   const [templateChoice, setTemplateChoice] = useState<string | null>(null);
-  // The active static theme's own declared template list (theme.json's `postTemplate`) — fetched
+  // The active static theme's own declared template list (theme.json's `templates`) — fetched
   // once, independent of which post is loaded, so the picker always reflects whichever theme is
   // actually live right now. `[]` (the default, and the steady state for any non-participating
   // theme) means the picker has nothing to offer and stays hidden, not broken.
@@ -132,13 +132,13 @@ export function usePostEditor(postId: string): PostEditorController {
     setError(null);
     // Loaded together (not two independent effects) so the template default below never races: the
     // owner's own ordering request ("default to the template... I don't want it to be no template
-    // chosen") needs `activeThemePostTemplates` in hand at the exact moment `post.templateChoice` is
+    // chosen") needs `activeThemeTemplates` in hand at the exact moment `post.templateChoice` is
     // read, or a fast post-load racing a slow presentation-settings load could default to "" before
     // the real list arrives. Costs one extra GET per post switch (presentation settings re-fetched
     // even though it rarely changes) — an acceptable trade for a local admin panel.
     Promise.all([api.getPost(postId), api.getPresentation()])
-      .then(([{ post }, { settings, availableThemes, activeThemePostTemplates, activeThemeStaticPageIds }]) => {
-        setAvailableTemplates(activeThemePostTemplates);
+      .then(([{ post }, { settings, availableThemes, activeThemeTemplates, activeThemeStaticPageIds }]) => {
+        setAvailableTemplates(activeThemeTemplates);
         setStaticPageIds(activeThemeStaticPageIds);
         setActiveThemeId(settings.activeThemeId);
         setActiveThemeTier(availableThemes.find((theme) => theme.id === settings.activeThemeId)?.tier ?? null);
@@ -151,7 +151,7 @@ export function usePostEditor(postId: string): PostEditorController {
         // offers templates; otherwise `post.templateChoice ?? null` (unset stays unset, same as
         // before this change) since there is nothing to default TO.
         const defaultedTemplateChoice =
-          post.templateChoice ?? (activeThemePostTemplates.length > 0 ? activeThemePostTemplates[0] : null);
+          post.templateChoice ?? (activeThemeTemplates.length > 0 ? activeThemeTemplates[0] : null);
         setTemplateChoice(defaultedTemplateChoice);
         setOverridesThemePage(post.overridesThemePage ?? false);
         if (editor) {

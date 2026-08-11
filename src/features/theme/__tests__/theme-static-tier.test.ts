@@ -119,48 +119,52 @@ test("a non-static theme gets no pages, partials or light tokens even when those
 
 /**
  * The load-time content-marker guard (2026-08-11 owner decision, `ADS-memory/reports/continuity/
- * 2026-08-11-pages-template-decisions.md`): a declared `pageTemplate`/`postTemplate` entry that ships
- * no slot for its kind renders a structurally fine page with its actual content silently missing —
- * caught here, at load, rather than on a visitor's page view. Symmetric across both fields on purpose
- * (`validateTemplateDeclarations` in `theme.ts`, one function for both) — the owner's brief asked
- * for `pageTemplate` and explicitly invited adding the same check to `postTemplate` if the shape is
- * identical, which it is.
+ * 2026-08-11-pages-template-decisions.md`, extended by the same-day unification — `ADS-memory/
+ * reports/design/2026-08-11-unified-content-marker-and-templates.md`): a declared `templates` entry
+ * that ships no `"content"` slot renders a structurally fine page with its actual content silently
+ * missing — caught here, at load, rather than on a visitor's page view.
+ *
+ * Was two symmetric checks (`pageTemplate`/`"content"` and `postTemplate`/`"post"`) before the
+ * unification collapsed both the manifest array and the marker type into one of each — now there is
+ * only one field and one marker to check, so `validateTemplateDeclarations` (`theme.ts`) dropped its
+ * `fieldName`/`slotMarkerType` parameters entirely rather than keeping them for a single always-the-
+ * same-value caller.
  */
-test("a pageTemplate entry naming a file that does not exist is invalid, naming the entry", () => {
+test("a templates entry naming a file that does not exist is invalid, naming the entry", () => {
   const dir = makeStaticThemeDir({ "pages/index.html": "<html></html>" }, "static", {
-    pageTemplate: ["missing-shell.html"],
+    templates: ["missing-shell.html"],
   });
   const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
 
   assert.equal(theme.status, "invalid");
-  assert.ok(theme.errors.includes("theme.json pageTemplate entry 'missing-shell.html' has no matching pages/missing-shell.html file"));
+  assert.ok(theme.errors.includes("theme.json templates entry 'missing-shell.html' has no matching pages/missing-shell.html file"));
 });
 
-test("a pageTemplate entry whose file has no {\"type\":\"content\"} marker is invalid, naming the file", () => {
+test("a templates entry whose file has no {\"type\":\"content\"} marker is invalid, naming the file", () => {
   const dir = makeStaticThemeDir(
     {
       "pages/index.html": "<html></html>",
       "pages/page-shell.html": "<html><body><p>No content slot here</p></body></html>",
     },
     "static",
-    { pageTemplate: ["page-shell.html"] }
+    { templates: ["page-shell.html"] }
   );
   const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
 
   assert.equal(theme.status, "invalid");
   assert.ok(
-    theme.errors.includes('pages/page-shell.html is declared in theme.json pageTemplate but has no {"type":"content"} marker')
+    theme.errors.includes('pages/page-shell.html is declared in theme.json templates but has no {"type":"content"} marker')
   );
 });
 
-test("a pageTemplate entry whose file DOES carry a content marker loads valid", () => {
+test("a templates entry whose file DOES carry a content marker loads valid", () => {
   const dir = makeStaticThemeDir(
     {
       "pages/index.html": "<html></html>",
       "pages/page-shell.html": "<html><body><div data-embed-config='{\"type\":\"content\"}'></div></body></html>",
     },
     "static",
-    { pageTemplate: ["page-shell.html"] }
+    { templates: ["page-shell.html"] }
   );
   const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
 
@@ -168,24 +172,38 @@ test("a pageTemplate entry whose file DOES carry a content marker loads valid", 
   assert.equal(theme.status, "valid");
 });
 
-test("the symmetric guard also applies to postTemplate — a listed file with no post marker is invalid", () => {
+test("two templates entries are each checked independently — one bad entry does not hide the other's error", () => {
   const dir = makeStaticThemeDir(
     {
       "pages/index.html": "<html></html>",
-      "pages/blog-post.html": "<html><body><p>No post slot here</p></body></html>",
+      "pages/blog-post.html": "<html><body><div data-embed-config='{\"type\":\"content\"}'></div></body></html>",
+      "pages/slotless.html": "<html><body><p>No content slot here</p></body></html>",
     },
     "static",
-    { postTemplate: ["blog-post.html"] }
+    { templates: ["blog-post.html", "slotless.html"] }
   );
   const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
 
   assert.equal(theme.status, "invalid");
-  assert.ok(
-    theme.errors.includes('pages/blog-post.html is declared in theme.json postTemplate but has no {"type":"post"} marker')
-  );
+  assert.ok(theme.errors.includes('pages/slotless.html is declared in theme.json templates but has no {"type":"content"} marker'));
 });
 
-test("a theme declaring no pageTemplate/postTemplate at all is unaffected by the guard", () => {
+test("a legacy postTemplate/pageTemplate manifest field is silently ignored — no back-compat alias", () => {
+  // 2026-08-11 owner's standing rule: strictness over compat code. A manifest that still carries the
+  // retired field names loads with no templates at all, same as one that never declared any — this is
+  // exactly what `check:embed-marker-drift` (not `loadTheme`) exists to catch and report loudly.
+  const dir = makeStaticThemeDir({ "pages/index.html": "<html></html>" }, "static", {
+    postTemplate: ["blog-post.html"],
+    pageTemplate: ["page-shell.html"],
+  });
+  const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
+
+  assert.deepEqual(theme.errors, [], "an unrecognized manifest key is not itself a load error");
+  assert.equal(theme.status, "valid");
+  assert.equal(theme.manifest.templates, undefined, "the retired field names are not read into `templates`");
+});
+
+test("a theme declaring no templates at all is unaffected by the guard", () => {
   const dir = makeStaticThemeDir({ "pages/index.html": "<html></html>" });
   const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
 

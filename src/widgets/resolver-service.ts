@@ -26,6 +26,7 @@ import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/bootstrap";
 import { getLatestTransformDefinition } from "../media/index";
 import type { MediaRepoPort, TransformDefinitionRepoPort } from "../media/index";
 import type { PostRepoPort } from "../features/post/index";
+import { findPublishedPostById } from "../features/post/index";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload";
 import { scanHtmlEmbeds } from "./html-embeds";
 import type { PageHtmlEmbedRef } from "./html-embeds";
@@ -440,6 +441,14 @@ async function resolveMediaTypeEmbeds(
  *
  * A caller with no `postRepo` supplied (every pre-existing call site) behaves exactly like a `media`
  * embed with no `mediaRepo` — every occurrence degrades to the placeholder, logged once, not silently.
+ *
+ * **Visibility fix, 2026-08-11**: was `postRepo.findById` directly — `PostRepoPort.findById` is
+ * trash- and status-BLIND by design (`post.ts`'s own doc on that port), so this resolver could
+ * previously pull ANY row by id, including an unpublished draft or a trashed one, onto the public
+ * site. That hole predates and is independent of this date's `content`-marker work, but is fixed
+ * here alongside it (same file, same class of hazard, same fix already being built for
+ * {@link resolveContentTypeEmbeds}'s guard) rather than left live next to a freshly-hardened sibling
+ * resolver. See {@link findPublishedPostById}'s own doc for why this differs from the raw port call.
  */
 async function resolvePostTypeEmbeds(
   refs: readonly PageHtmlEmbedRef[],
@@ -466,9 +475,9 @@ async function resolvePostTypeEmbeds(
         });
         return;
       }
-      const post = await postRepo.findById({ workspaceId: context.workspaceId, id: ref.id });
+      const post = await findPublishedPostById({ deps: { repo: postRepo }, input: { workspaceId: context.workspaceId, id: ref.id } });
       if (!post) {
-        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "post" reference — no such post', {
+        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "post" reference — no such published post', {
           workspaceId: context.workspaceId,
           postId: ref.id,
         });
@@ -477,6 +486,89 @@ async function resolvePostTypeEmbeds(
       resolved.set(ref.id, {
         componentId: "post-content",
         props: { title: post.title, slug: post.slug, updatedAt: post.updatedAt, bodyJson: post.bodyJson },
+      });
+    })
+  );
+
+  return resolved;
+}
+
+/**
+ * `data-embed-type="content"` resolver — the unified content marker's registry-owned half
+ * (2026-08-11, `ADS-memory/reports/design/2026-08-11-unified-content-marker-and-templates.md`).
+ * Handles `"doc"`-format targets ONLY: an `"html"`-format target's own body, and any FURTHER
+ * `content` markers nested inside it, are fetched, recursively resolved, and spliced in BEFORE this
+ * stage ever runs (`pages.ts`'s `resolveHtmlFormatContentMarkers` pre-pass, called ahead of
+ * `resolveHtmlPageEmbeds` from the template render path) — by the time the shared marker scan reaches
+ * this registry, an `html`-format reference has either already been consumed by that pre-pass or hit
+ * its depth/budget guard (below). Either way there is nothing safe to do here but degrade to the
+ * placeholder, same as any other unresolved reference: this resolver must never splice raw HTML
+ * itself, which is exactly what would collapse guard 1's doc/html escaping split into one branchless
+ * path (a TipTap doc renders through `renderDocNode`'s node-aware escaping; stored Page HTML is
+ * spliced at the trust level `PagesHtmlDocumentStore`/`pages.edit_html` already assume for it — the
+ * two must stay on separate code paths, never merged behind one generic "just render whatever this
+ * is" function).
+ *
+ * Reuses the EXISTING `"post-content"` render IR (`renderWidgetPostContent` in `render.ts`) rather
+ * than a new componentId: that function already renders ANY `{title, bodyJson, updatedAt}` bag
+ * regardless of the source row's `kind` — nothing in it is Post-specific — so a `kind: "page"`
+ * doc-format row (e.g. `our-story`) renders through the identical, already-vetted path a `kind:
+ * "post"` row does. The `"post-content"` label itself is pre-existing and not renamed here (`render.ts`
+ * is not in this change's file list); a follow-up rename to a kind-neutral label is low-priority tech
+ * debt, disclosed rather than silently left unmentioned.
+ *
+ * Visibility-filtered via {@link findPublishedPostById} (guard 2, the highest-risk part of the
+ * unified-marker design): an id supplied by an author, OR auto-filled by `injectCurrentEntityContentId`
+ * for the entity the route already resolved, can in principle name ANY row — this is the one place in
+ * the new marker's resolution chain that decides whether that row is allowed to reach the public page.
+ *
+ * @complexity O(e) over the `content` refs present (already capped upstream at
+ * `MAX_HTML_EMBEDS_PER_PAGE`) — one `findPublishedPostById` call per ref, run concurrently via
+ * `Promise.all`, mirroring every other resolver in this registry.
+ */
+async function resolveContentTypeEmbeds(
+  refs: readonly PageHtmlEmbedRef[],
+  deps: ResolveHtmlPageEmbedsDeps,
+  context: WidgetResolveContext
+): Promise<ReadonlyMap<string, WidgetRenderIR>> {
+  const resolved = new Map<string, WidgetRenderIR>();
+  const { postRepo } = deps;
+  if (!postRepo) {
+    if (refs.length > 0) {
+      console.warn(
+        '[widgets] resolveHtmlPageEmbeds: "content" embeds present but no postRepo dependency was supplied — every occurrence degrades to the placeholder',
+        { workspaceId: context.workspaceId, occurrences: refs.length }
+      );
+    }
+    return resolved;
+  }
+
+  await Promise.all(
+    refs.map(async (ref) => {
+      if (ref.id === null) {
+        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id" in data-embed-config', {
+          workspaceId: context.workspaceId,
+        });
+        return;
+      }
+      const entity = await findPublishedPostById({ deps: { repo: postRepo }, input: { workspaceId: context.workspaceId, id: ref.id } });
+      if (!entity) {
+        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity', {
+          workspaceId: context.workspaceId,
+          entityId: ref.id,
+        });
+        return;
+      }
+      if (entity.bodyFormat === "html") {
+        console.warn(
+          '[widgets] resolveHtmlPageEmbeds: unresolved "content" reference — html-format entity reached the registry resolver instead of the recursive pre-splice pass (depth/budget guard, or a direct reference outside a template render)',
+          { workspaceId: context.workspaceId, entityId: ref.id }
+        );
+        return;
+      }
+      resolved.set(ref.id, {
+        componentId: "post-content",
+        props: { title: entity.title, slug: entity.slug, updatedAt: entity.updatedAt, bodyJson: entity.bodyJson },
       });
     })
   );
@@ -509,6 +601,7 @@ const HTML_EMBED_RESOLVERS: Readonly<Record<string, HtmlEmbedResolver>> = {
   widget: resolveWidgetTypeEmbeds,
   media: resolveMediaTypeEmbeds,
   post: resolvePostTypeEmbeds,
+  content: resolveContentTypeEmbeds,
 };
 
 /**

@@ -14,7 +14,7 @@
     "customer-story-two", "customer-story-three",
     "blog-two", "blog-three", "blog-article-two", "blog-article-three"
   ],
-  "postTemplate": ["blog-post.html"],
+  "templates": ["blog-post.html"],
   "slots": {
     "nav": { "source": "nav.html", "honorsCurrentPage": true },
     "footer": { "source": "footer.html" }

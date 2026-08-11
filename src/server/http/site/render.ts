@@ -469,7 +469,7 @@ const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeho
  * A marker of an UNOWNED type is a different case and gets the opposite treatment: untouched. Since
  * the 2026-08-10 marker unification every consumer shares one permissive parser, so this stage now
  * sees a theme's `partial` and `menu` markers, which `static-render.ts` resolves AFTER this runs
- * (`pages.ts`'s `renderPostViaTemplate` calls this, then `renderStaticPage`). Treating those as
+ * (`pages.ts`'s `renderViaTemplate` calls this, then `renderStaticPage`). Treating those as
  * unknown-and-therefore-placeholder replaced the nav, the docs sidebar menu, and the footer of every
  * post rendered through a theme template with an empty widget placeholder — a page that still looked
  * plausible, which is what made it worth encoding the rule rather than remembering it. See

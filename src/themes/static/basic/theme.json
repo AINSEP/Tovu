@@ -8,8 +8,7 @@
   "defaultMode": "dark",
   "fonts": ["Geist:wght@400;500", "Geist+Mono:wght@400;500"],
   "pages": ["index", "about", "pricing", "docs", "blog", "changelog", "download", "signin", "signup"],
-  "postTemplate": ["blog-post.html", "blog-sidebar-template.html"],
-  "pageTemplate": ["page-shell.html"],
+  "templates": ["blog-post.html", "blog-sidebar-template.html", "page-shell.html"],
   "slots": {
     "nav": { "source": "nav.html", "honorsCurrentPage": true },
     "footer": {

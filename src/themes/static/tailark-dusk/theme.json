@@ -8,7 +8,7 @@
   "defaultMode": "dark",
   "fonts": ["Inter:wght@400;500;600;700", "Geist+Mono:wght@400;500"],
   "pages": ["index", "landing-one", "landing-two", "landing-three", "landing-four", "landing-five", "landing-six", "landing-seven", "landing-nine", "landing-ten"],
-  "postTemplate": ["blog-post.html"],
+  "templates": ["blog-post.html"],
   "slots": {
     "nav": { "source": "nav.html", "honorsCurrentPage": true },
     "footer": { "source": "footer.html" }

@@ -86,29 +86,33 @@ export interface ThemeManifest {
   skipLiquidAllowlist?: boolean;
   /**
    * `static` tier only — the ordered list of `pages/*.html` filenames (e.g. `["blog-post.html",
-   * "blog-post-v2.html"]`) an author can pick between when a Post uses this theme, "ordered to nudge
-   * the right choice" (first entry is the implicit default in the admin picker). Absent/undefined
-   * means this theme ships no post templates — a Post's `templateChoice` then has nothing to resolve
-   * against, which the render path treats as "misconfigured", not "fall back to generic rendering"
-   * (see `pages.ts`'s post-template branch).
+   * "page-shell.html"]`) a Post OR a Page can pick between, "ordered to nudge the right choice"
+   * (first entry is the implicit default in the Post editor's picker). Absent/undefined means this
+   * theme ships no templates — a row's `templateChoice` then has nothing to resolve against, which
+   * the render path treats as "misconfigured", not "fall back to generic rendering" (see
+   * `pages.ts`'s template branch).
+   *
+   * ONE array for both kinds (2026-08-11 unification), superseding the earlier separate
+   * `postTemplate`/`pageTemplate` split (2026-08-10/11 design docs) — that split existed only
+   * because the OLD marker vocabulary made a template's slot type kind-specific
+   * (`{"type":"post","id":"{{post}}"}"` vs `{"type":"content"}"`), so the wrong array could offer a
+   * Post-shaped template to a Page. The unified `content` marker (`{"type":"content"}"`, optional
+   * `id`) removed that distinction at the source: the resolver reads the referenced row's
+   * `bodyFormat` at RENDER time and dispatches, so a template file no longer declares which kind it
+   * is for. One array is therefore no longer a hazard, and keeping two would just be two
+   * independently-maintained copies of the same list to keep in sync — the same "duplicated logic
+   * regresses" argument `resolveTemplate`'s own history already made once (2026-08-09
+   * null-vs-`""`-conflation).
+   *
+   * **What this does NOT solve**: which templates make SENSE for a Post vs a Page (a blog template's
+   * byline/date/next-post chrome does not belong on Privacy Policy) is a template-APPLICABILITY
+   * question this field is silent on — see `ADS-memory/reports/implementation/
+   * 2026-08-11-unified-content-marker.md` for why marker-based applicability inference (the design
+   * doc's own "interim" proposal) has no signal left to key off now that every template's primary
+   * slot carries the identical `{"type":"content"}"` marker, and both admin pickers therefore offer
+   * this one flat list unfiltered, same as they always effectively did within their own kind.
    */
-  postTemplate?: string[];
-  /**
-   * `static` tier only — the ordered list of `pages/*.html` filenames a Page (`kind: "page"`,
-   * `bodyFormat: "html"`) can pick between, same "ordered to nudge the right choice, first entry is
-   * the implicit default" convention as {@link postTemplate}. Deliberately a SEPARATE array, not a
-   * shared one with `postTemplate` (2026-08-11 design decision, Pages template picker) — a template
-   * containing `{"type":"content"}` (Task 3, `injectPageContent`) is a different artifact from one
-   * containing `{"type":"post"}`, and conflating them would let the admin picker offer a Post-shaped
-   * template to a Page or vice versa, which either fails to render (no matching slot) or, worse,
-   * quietly renders whatever the theme's first entry happens to be regardless of which array that
-   * author intended it for. Two homogeneous arrays keep "theme's first-listed template" (the
-   * `resolvePostTemplate`/`resolvePageTemplate` fallback both rely on) meaningful for each. Absent/
-   * undefined means this theme ships no page templates — a Page's `templateChoice` then has nothing
-   * to resolve against, same "misconfigured, not silently generic" treatment `postTemplate`'s own doc
-   * describes.
-   */
-  pageTemplate?: string[];
+  templates?: string[];
   /**
    * `static` tier only — the color modes this theme ships token sets for, e.g. `["dark", "light"]`.
    * A mode name is just the value written into the page's root `data-theme` attribute, which is the
@@ -367,34 +371,39 @@ function loadSlotPartials(
   return partials;
 }
 
+/** Every `templates` entry must resolve against `pages/<id>.html` and carry this marker type. */
+const TEMPLATE_SLOT_MARKER_TYPE = "content";
+
 /**
- * Validates one `postTemplate`/`pageTemplate` array against the theme's already-loaded `pages`
- * (2026-08-11, owner decision — see `ADS-memory/reports/continuity/2026-08-11-pages-template-
- * decisions.md`): a listed entry that resolves to no file, or to a file with zero markers of
- * `slotMarkerType`, renders a structurally fine page with its actual content silently missing — "the
- * worst failure class this codebase keeps hitting", in the owner's own words, and the same class of
- * bug REQ-10's `pages/index.html is required` check exists to catch at load time rather than on a
- * visitor's page view. Symmetric by design: `postTemplate`/`"post"` and `pageTemplate`/`"content"`
- * share one check rather than two hand-maintained copies, the same reasoning
- * `resolveTemplateChoice` (`static-render.ts`) already gives for unifying its own two callers.
+ * Validates the theme's `templates` array against its already-loaded `pages` (2026-08-11, owner
+ * decision — see `ADS-memory/reports/continuity/2026-08-11-pages-template-decisions.md`, extended to
+ * the unified single array by `ADS-memory/reports/design/2026-08-11-unified-content-marker-and-
+ * templates.md`): a listed entry that resolves to no file, or to a file with zero `"content"`
+ * markers, renders a structurally fine page with its actual content silently missing — "the worst
+ * failure class this codebase keeps hitting", in the owner's own words, and the same class of bug
+ * REQ-10's `pages/index.html is required` check exists to catch at load time rather than on a
+ * visitor's page view.
+ *
+ * One field, one marker type, one call site — collapsed from the pre-unification version that took a
+ * `fieldName`/`slotMarkerType` pair and was called twice (once for `postTemplate`/`"post"`, once for
+ * `pageTemplate`/`"content"`). With only one array and one marker type left to check, parameterizing
+ * either would just be indirection with a single value ever passed through it.
  *
  * Not itself tier-gated — `pages` is empty for every non-static theme (`loadStaticTierAssets`'s own
- * early return), so a non-static theme is already incapable of tripping this on `templates` it isn't
- * documented to declare; gating here too would just be a second copy of that same guarantee.
+ * early return), so a non-static theme is already incapable of tripping this on a `templates` field it
+ * isn't documented to declare; gating here too would just be a second copy of that same guarantee.
  *
  * @complexity O(t) over `templates`' length; each entry's marker scan is O(n) in that one page's HTML
- *   length (`markersOfType`), the same cost `resolveTemplateChoice` already pays per request.
+ *   length (`markersOfType`), the same cost `resolveTemplate` already pays per request.
  */
 function validateTemplateDeclarations(
   required: {
-    fieldName: "postTemplate" | "pageTemplate";
     templates: readonly string[] | undefined;
     pages: Readonly<Record<string, string>>;
-    slotMarkerType: string;
   },
   _optional: Record<string, never> = {}
 ): string[] {
-  const { fieldName, templates, pages, slotMarkerType } = required;
+  const { templates, pages } = required;
   if (!templates) return [];
 
   const errors: string[] = [];
@@ -402,12 +411,12 @@ function validateTemplateDeclarations(
     const pageId = entry.replace(/\.html$/, "");
     const html = pages[pageId];
     if (html === undefined) {
-      errors.push(`theme.json ${fieldName} entry '${entry}' has no matching pages/${pageId}.html file`);
+      errors.push(`theme.json templates entry '${entry}' has no matching pages/${pageId}.html file`);
       continue;
     }
-    if (markersOfType(html, slotMarkerType).length === 0) {
+    if (markersOfType(html, TEMPLATE_SLOT_MARKER_TYPE).length === 0) {
       errors.push(
-        `pages/${pageId}.html is declared in theme.json ${fieldName} but has no {"type":"${slotMarkerType}"} marker`
+        `pages/${pageId}.html is declared in theme.json templates but has no {"type":"${TEMPLATE_SLOT_MARKER_TYPE}"} marker`
       );
     }
   }
@@ -435,12 +444,11 @@ function loadStaticTierAssets(
     themeDir: string;
     tier: ThemeTier;
     slots?: Record<string, ThemeSlotDescriptor>;
-    postTemplate?: string[];
-    pageTemplate?: string[];
+    templates?: string[];
   },
   _optional: Record<string, never> = {}
 ): StaticTierAssets {
-  const { themeDir, tier, slots, postTemplate, pageTemplate } = required;
+  const { themeDir, tier, slots, templates } = required;
   if (tier !== "static") return NO_STATIC_TIER_ASSETS;
 
   const errors: string[] = [];
@@ -459,12 +467,7 @@ function loadStaticTierAssets(
   }
   if (!pages.index) errors.push("pages/index.html is required");
 
-  errors.push(
-    ...validateTemplateDeclarations({ fieldName: "postTemplate", templates: postTemplate, pages, slotMarkerType: "post" })
-  );
-  errors.push(
-    ...validateTemplateDeclarations({ fieldName: "pageTemplate", templates: pageTemplate, pages, slotMarkerType: "content" })
-  );
+  errors.push(...validateTemplateDeclarations({ templates, pages }));
 
   // Root partials (`nav`, `footer`, and anything else the manifest declares) live at the theme root,
   // not under pages/, because a static page embeds them via a `{"type":"partial"}` marker the
@@ -502,8 +505,11 @@ export function loadTheme(
       fonts: Array.isArray(raw.fonts) ? raw.fonts.map(String) : undefined,
       regions: Array.isArray(raw.regions) ? raw.regions.map(String) : undefined,
       skipLiquidAllowlist: raw.skipLiquidAllowlist === true,
-      postTemplate: Array.isArray(raw.postTemplate) ? raw.postTemplate.map(String) : undefined,
-      pageTemplate: Array.isArray(raw.pageTemplate) ? raw.pageTemplate.map(String) : undefined,
+      // No `postTemplate`/`pageTemplate` back-compat aliases (2026-08-11 unification, owner's
+      // standing rule on this contract: strictness over compat code). A manifest still carrying the
+      // retired spelling simply loads with no templates, same as one that never declared any —
+      // `check:embed-marker-drift` is what catches a manifest that needed converting, not this parse.
+      templates: Array.isArray(raw.templates) ? raw.templates.map(String) : undefined,
       modes: Array.isArray(raw.modes) ? raw.modes.map(String) : undefined,
       defaultMode: typeof raw.defaultMode === "string" ? raw.defaultMode : undefined,
       slots: parseSlots(raw.slots),
@@ -537,8 +543,7 @@ export function loadTheme(
     themeDir,
     tier: manifest.tier,
     slots: manifest.slots,
-    postTemplate: manifest.postTemplate,
-    pageTemplate: manifest.pageTemplate,
+    templates: manifest.templates,
   });
   errors.push(...staticErrors);
 

@@ -114,22 +114,16 @@ export interface AdminPresentation {
    */
   availableThemes: HeadlessThemeSummary[];
   /**
-   * Post-template-picker feature (2026-08-10) — the active theme's `theme.json` `postTemplate`
-   * array (e.g. `["blog-post.html"]`), or `[]` when the active theme doesn't declare one. The Post
-   * editor's template picker reads this to populate its options; an empty array means the picker
-   * has nothing to offer and stays hidden, not broken.
+   * Template-picker feature (2026-08-10, unified 2026-08-11) — the active theme's `theme.json`
+   * `templates` array (e.g. `["blog-post.html", "page-shell.html"]`), or `[]` when the active theme
+   * doesn't declare one. BOTH the Post editor's and the Pages editor's picker read this SAME field to
+   * populate their options — was two separate fields (`activeThemePostTemplates`/
+   * `activeThemePageTemplates`) until the unified `content` marker removed the reason they needed to
+   * differ (see `ThemeManifest.templates`'s own doc, `features/theme/theme.ts`, for the full
+   * reasoning and what it does NOT solve — template applicability). An empty array means a picker has
+   * nothing to offer and stays hidden, not broken.
    */
-  activeThemePostTemplates: string[];
-  /**
-   * Pages template picker (Task 4, 2026-08-11) — {@link activeThemePostTemplates}'s counterpart for
-   * Pages: the active theme's `theme.json` `pageTemplate` array, or `[]` when the active theme
-   * doesn't declare one. A SEPARATE array from `activeThemePostTemplates`, not a shared one — see
-   * `ThemeManifest.pageTemplate`'s own doc (`features/theme/theme.ts`) for why a template containing
-   * `{"type":"content"}` is a different artifact from one containing `{"type":"post"}`, and why
-   * offering the same list to both editors would let an operator pick a Post-shaped template for a
-   * Page (or vice versa).
-   */
-  activeThemePageTemplates: string[];
+  activeThemeTemplates: string[];
   /**
    * Slug-collision override (2026-08-10) — every page id (`theme.pages` key) the active theme ships,
    * or `[]` for a non-`static`-tier theme. The Post editor uses this to warn an author when a post's

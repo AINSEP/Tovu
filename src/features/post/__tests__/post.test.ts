@@ -4,6 +4,7 @@ import test from "node:test";
 import type { OutboxPort } from "@jini-ai/cms/core";
 import {
   createPost,
+  findPublishedPostById,
   getAdminPostByIdOrSlug,
   getPublishedPostBySlug,
   listAdminPages,
@@ -420,6 +421,55 @@ test("getPublishedPostBySlug hides drafts", async () => {
       }),
     PostNotFoundError
   );
+});
+
+/**
+ * {@link findPublishedPostById} — the non-throwing, id-based counterpart to `getPublishedPostBySlug`
+ * (2026-08-11, guard 2 of the unified-content-marker design). This is the seam the `content`/`post`
+ * embed resolvers (`widgets/resolver-service.ts`) and the recursive `"html"`-format pre-splice
+ * (`server/routes/site/pages.ts`) consult before letting an author- or auto-filled id reach a public
+ * page — see that function's own doc for the hazard an id-driven lookup introduces that a slug-driven
+ * route lookup never had.
+ */
+test("findPublishedPostById returns the row for a published id", async () => {
+  const repo = new InMemoryPostRepo([seedPost]);
+  const found = await findPublishedPostById({ deps: { repo }, input: { workspaceId: "workspace-1", id: "post-1" } });
+  assert.equal(found?.id, "post-1");
+});
+
+test("GUARD 2: findPublishedPostById returns null for a draft row — never leaks it by id", async () => {
+  const repo = new InMemoryPostRepo([{ ...seedPost, status: "draft" }]);
+  const found = await findPublishedPostById({ deps: { repo }, input: { workspaceId: "workspace-1", id: "post-1" } });
+  assert.equal(found, null, "a draft must not be returned even when its exact id is known");
+});
+
+test("GUARD 2: findPublishedPostById returns null for a trashed row, even if published", async () => {
+  const repo = new InMemoryPostRepo([{ ...seedPost, status: "published", deletedAt: "2026-08-11T00:00:00.000Z" }]);
+  const found = await findPublishedPostById({ deps: { repo }, input: { workspaceId: "workspace-1", id: "post-1" } });
+  assert.equal(found, null);
+});
+
+test("findPublishedPostById returns null for a nonexistent id — same shape as \"not visible\", never throws", async () => {
+  const repo = new InMemoryPostRepo([seedPost]);
+  const found = await findPublishedPostById({ deps: { repo }, input: { workspaceId: "workspace-1", id: "does-not-exist" } });
+  assert.equal(found, null);
+});
+
+test("findPublishedPostById is workspace-scoped — a published row in a DIFFERENT workspace is invisible", async () => {
+  const repo = new InMemoryPostRepo([seedPost]);
+  const found = await findPublishedPostById({ deps: { repo }, input: { workspaceId: "workspace-2", id: "post-1" } });
+  assert.equal(found, null);
+});
+
+test("GUARD 2 NEGATIVE VERIFICATION: stubbing out the status/trash filter would let a draft through — proves the guard is load-bearing, not vestigial", async () => {
+  // Same discipline the design doc's guard 2 calls for: don't just assert the guarded behavior,
+  // prove the guard is the reason it holds. A bare `repo.findById` call (what this function replaced)
+  // WOULD return the draft below — that is the exact hole this function exists to close.
+  const repo = new InMemoryPostRepo([{ ...seedPost, status: "draft" }]);
+  const unguarded = await repo.findById({ workspaceId: "workspace-1", id: "post-1" });
+  assert.ok(unguarded, "sanity check: the raw, unfiltered repo call DOES return the draft");
+  const guarded = await findPublishedPostById({ deps: { repo }, input: { workspaceId: "workspace-1", id: "post-1" } });
+  assert.equal(guarded, null, "the guarded lookup must refuse what the raw repo call allows");
 });
 
 test("getAdminPostByIdOrSlug resolves by real id", async () => {

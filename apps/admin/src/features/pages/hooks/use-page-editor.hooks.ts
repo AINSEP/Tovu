@@ -49,9 +49,10 @@ export interface PageEditorController {
    *  default behavior), `""` (explicit "No template chosen"), or a real filename. */
   templateChoice: string | null;
   setTemplateChoice: (value: string | null) => void;
-  /** The active theme's declared `pageTemplate` list (`theme.json`) — `[]` when the theme doesn't
-   *  support Page templates, in which case the caller should not render the picker at all. Mirrors
-   *  `usePostEditor`'s `availableTemplates`, sourced from the SEPARATE `pageTemplate` array. */
+  /** The active theme's declared `templates` list (`theme.json`) — `[]` when the theme doesn't
+   *  support templates, in which case the caller should not render the picker at all. The SAME field
+   *  `usePostEditor`'s `availableTemplates` reads (unified 2026-08-11 — was a separate `pageTemplate`
+   *  array before the `content` marker removed the reason Posts and Pages needed different lists). */
   availableTemplates: string[];
   /** The working copy of the page's HTML — what the preview renders and what Save persists. */
   html: string;
@@ -109,12 +110,12 @@ export function usePageEditor(routeSlug: string): PageEditorController {
   useEffect(() => {
     let cancelled = false;
     // Loaded together, same reasoning as `usePostEditor`'s identical `Promise.all` — the picker
-    // needs `activeThemePageTemplates` in hand before it can render anything meaningful, and a fast
+    // needs `activeThemeTemplates` in hand before it can render anything meaningful, and a fast
     // page-load racing a slow presentation-settings load would otherwise flash an empty picker.
     Promise.all([api.getPage(routeSlug), api.getPresentation()])
-      .then(([{ post }, { activeThemePageTemplates }]) => {
+      .then(([{ post }, { activeThemeTemplates }]) => {
         if (cancelled) return;
-        setAvailableTemplates(activeThemePageTemplates);
+        setAvailableTemplates(activeThemeTemplates);
         setPage(post);
         setTitle(post.title);
         setSlug(post.slug);
@@ -122,8 +123,8 @@ export function usePageEditor(routeSlug: string): PageEditorController {
         // UNLIKE `usePostEditor`, no "default to the theme's first template" here — `null` is a
         // Page's normal, fully-working state (render its own body), not an absence-of-decision that
         // needs papering over for the UI and the public render to agree (see
-        // `isEligibleForPageTemplateBranch`'s doc for the full reasoning). The picker simply shows
-        // whatever is actually stored.
+        // `isEligibleForTemplateBranch`'s doc, `features/theme/static-render.ts`, for the full
+        // reasoning). The picker simply shows whatever is actually stored.
         setTemplateChoice(post.templateChoice ?? null);
         setSavedTemplateChoice(post.templateChoice ?? null);
         // A Page that has never been opened in this editor is still `doc`-format and has no

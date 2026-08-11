@@ -4,11 +4,12 @@ import test from "node:test";
 import { injectPageTitle } from "../static-render";
 
 /**
- * @file Certifies {@link injectPageTitle} — the page-template counterpart to `injectPostEmbedId`,
- * substituting a page-template's `<title>` placeholder with a Page's own real title (Task, 2026-08-11:
- * without this, a Page rendered through `basic`'s new `page-shell.html` would show the template's
- * hardcoded title in every browser tab, reintroducing the exact "Blog post — Basic" class of bug
- * Task 1's render-gate fix eliminated for the pre-templated render path).
+ * @file Certifies {@link injectPageTitle}, substituting a template's `<title>` placeholder with the
+ * rendered row's own real title (Task, 2026-08-11: without this, a Page rendered through `basic`'s
+ * new `page-shell.html` would show the template's hardcoded title in every browser tab, reintroducing
+ * the exact "Blog post — Basic" class of bug Task 1's render-gate fix eliminated for the
+ * pre-templated render path). Runs for both Posts and Pages since the same-day marker unification —
+ * see this function's own doc in `static-render.ts`.
  */
 
 test("substitutes the placeholder inside <title> with the real title", () => {

@@ -134,7 +134,8 @@ owns these, and a failure to resolve degrades to the REQ-28 placeholder:
 |---|---|---|
 | `widget` | a `widget`-type `entries` row | `resolveWidgetTypeEmbeds` — batched, any widget type |
 | `media` | a media asset (`MediaRepoPort`) | `resolveMediaTypeEmbeds` — image-only today; `MediaRecord` persists no mime type |
-| `post` | a `posts` row | `resolvePostTypeEmbeds` — returns raw post data, `render.ts` renders it |
+| `post` | a `posts` row (any `kind`) | `resolvePostTypeEmbeds` — returns raw post data, `render.ts` renders it. Legacy generic reference; largely superseded by `content` below, kept for backward compatibility with any existing authored reference |
+| `content` | a `posts` row (any `kind`), `"doc"`-format only | `resolveContentTypeEmbeds` — the unified marker's doc-format half; see below |
 
 **Theme-owned, deliberately absent from that registry** — seen by the shared parser, resolved by a
 later stage, never touched by the page-embed stage:
@@ -143,45 +144,74 @@ later stage, never touched by the page-embed stage:
 |---|---|---|
 | `partial` | `static-render.ts`'s slot resolution | 164 occurrences |
 | `menu` | `static-render.ts`'s `injectMenuEmbeds` | 61 occurrences |
-| `content` | `static-render.ts`'s `injectPageContent` | new, 2026-08-11 |
 
-(`post` also appears in theme markup, 12 occurrences, via the post-template picker.)
+### `content` (2026-08-11, unified) — one marker replaces `post`'s template-slot form and the Pages template picker's own `content`
 
-### `content` (2026-08-11) — the Pages template picker's missing piece
+Originally built for the Pages template picker (2026-08-11, morning): a page-template file needed a
+slot meaning "the Page's own body goes here", the way `{"type":"post","id":"{{post}}"}` meant "this
+chosen post's body goes here" in a post-template file. **Same day, later**: the owner decided the two
+markers — and the `postTemplate`/`pageTemplate` manifest arrays they gated — should collapse into one
+(`ADS-memory/reports/design/2026-08-11-unified-content-marker-and-templates.md`), because Posts and
+Pages are literally the same `posts` table split by `kind`/`bodyFormat`, and the marker forcing an
+author to declare which one at authoring time duplicated a fact the database already owns at render
+time.
 
-Built for the Pages template picker (recon 2026-08-11 flagged this as the highest-value next step,
-called for by two independent peer reviews): a page-template file needs a slot meaning "the Page's
-own body goes here", the way `{"type":"post"}` means "this chosen post's body goes here" in a
-post-template file.
+The unified marker: `{"type":"content"}` (no `id`) means "the entity the route already resolved" — a
+template's OWN primary slot, filled in by `injectCurrentEntityContentId` (`static-render.ts`) before
+the scanner ever runs, the direct replacement for both `injectPostEmbedId`'s `{{post}}` substitution
+and the original `injectPageContent`'s direct body splice. `{"type":"content","id":"<real id>"}"`
+means "splice in THIS OTHER row" — a new capability neither predecessor had (a related-post or
+featured-page embed, expressed the same way a template's own slot is).
 
-**Placed with `partial`/`menu`, not in `HTML_EMBED_RESOLVERS`, despite looking at first glance like it
-should sit next to `post`.** The apparent parallel to `post` is real but shallow: both are resolved by
-the CALLER (`renderPostViaTemplate`/`renderPageViaTemplate`) before `resolveHtmlPageEmbeds` ever runs,
-via a literal pre-substitution (`injectPostEmbedId`/`injectPageContent`) rather than an async registry
-lookup. But `post`'s pre-substitution only swaps a placeholder ID into the marker's JSON — the marker
-still gets a real, async, ID-keyed resolution afterward (`resolvePostTypeEmbeds`, a `postRepo.findById`
-call that CAN fail: post deleted, bad id). `content` has no such second stage and cannot fail the same
-way: by the time a route calls `injectPageContent`, it already holds the Page's own `bodyHtml` as a
-plain string (possibly empty, never absent) — there is no id to look up and no "not found" outcome to
-model. Registering it in `HTML_EMBED_RESOLVERS` anyway would give it the REQ-28 generic-placeholder
-failure mode, which is right for "a referenced widget was deleted" and actively wrong for "this page
-has no body" — there is no legitimate case where a Page's own content "fails to resolve". Keeping it
-theme-owned (`isPageEmbedType("content")` is `false`, matching `partial`/`menu`) means a marker that
-somehow reaches `resolveHtmlPageEmbeds` unsubstituted (the injection step skipped, or a stray marker in
-a non-Page template) is left exactly as authored rather than blanked — the same load-bearing default
-that already protects theme nav/footer from being wiped by a resolution miss.
+**Split across TWO resolution stages, not one — this is guard 1 of the design doc (escaping stays
+per-format) made concrete:**
 
-**Uses `withInnerContent`, not a whole-element replace, unlike `post`/`partial`.** Both of those are
-bare, classless `<div>`s in every theme shipped in this repo (verified by grep across
-`src/themes/static/*/pages/*.html` on this date) — whole-element replacement has never had a styling
-hook to lose for them. A `content` slot is far more likely to be authored as
+- An **`"html"`-format** target is fetched, recursively resolved (including any FURTHER `content`
+  markers nested in ITS body, up to a depth/fetch-budget guard — guard 3), and spliced in as raw HTML
+  by `pages.ts`'s `resolveHtmlFormatContentMarkers`, called BEFORE `resolveHtmlPageEmbeds` ever runs
+  — the same trust level `PagesHtmlDocumentStore`/`pages.edit_html` already assume for stored Page
+  HTML, unchanged by this marker.
+- A **`"doc"`-format** target is left as an ordinary id-carrying marker for the REGISTRY resolver
+  (`resolveContentTypeEmbeds`, table above) to handle in the normal async pass — it renders through
+  `renderDocNode`'s node-aware escaping (via the reused `"post-content"` IR, `render.ts`), the same
+  path a `post` reference already used.
+
+These two paths are deliberately never merged into one branchless function — a TipTap doc and stored
+HTML have different safety rules, and collapsing them "would be a security hole" (the codebase's own
+settled rule, see `static-render.ts`'s file header).
+
+**Visibility-filtered (guard 2, the highest-risk part of the design)**: both stages fetch through
+`findPublishedPostById` (`features/post/post.ts`), not `PostRepoPort.findById` directly — an id
+embedded in a marker can name ANY row, including a draft or trashed one, unlike the old `{{post}}`
+placeholder, which could only ever reference the entity being rendered. The legacy `post` resolver
+(above) had this SAME hole from when it shipped (2026-08-10) and is fixed the same way here, alongside
+`content`, rather than left live next to a freshly-hardened sibling.
+
+**Uses `withInnerContent`/`withInnerContentFinal`, not a whole-element replace, for its own slot,
+unlike `post`/`partial`.** Both of those are bare, classless `<div>`s in every theme shipped in this
+repo (verified by grep across `src/themes/static/*/pages/*.html`) — whole-element replacement has
+never had a styling hook to lose for them. A `content` slot is far more likely to be authored as
 `<main class="page-body" data-embed-config='{"type":"content"}'></main>`, the same reason `menu`
 markers already use `withInnerContent`: the theme's own wrapper and its authored fallback content must
-survive, with only the inside swapped.
+survive, with only the inside swapped. `withInnerContentFinal` (`core/embeds/marker.ts`) additionally
+strips the `data-embed-config` attribute after an `"html"`-format splice, so the result is inert to a
+later re-scan — an ordinary `withInnerContent` splice would leave the marker rediscoverable.
 
 **Indexed into `entry_refs` (`HTML_EMBED_TARGET_KINDS`)**: `widget` → `"entry"`, `media` →
 `"asset"`. A type absent from that map is still scanned but produces no row — guessing a target kind
-would be actively wrong data, not merely incomplete.
+would be actively wrong data, not merely incomplete. `content`/`post` remain absent from this map,
+unchanged by the 2026-08-11 unification.
+
+### Template applicability — evaluated, not implemented, 2026-08-11
+
+The design doc's own "interim" proposal for keeping a blog template off Privacy Policy was: infer
+applicability by scanning which markers a template file carries. That signal no longer exists once
+the marker is unified — `blog-post.html` and `page-shell.html` both carry the identical
+`{"type":"content"}"` primary-slot marker post-conversion, so a marker-type scan cannot distinguish
+them. Both admin pickers therefore offer the SAME flat `theme.manifest.templates` list, unfiltered —
+functionally the same as before within each kind, now also across kinds. See `ADS-memory/reports/
+implementation/2026-08-11-unified-content-marker.md` for the full reasoning and the design doc's own
+"end state" (field markers replacing post-specific chrome) as the real fix.
 
 ### What registering a new type costs
 
