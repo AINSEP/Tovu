@@ -1,12 +1,12 @@
 /**
- * @file Spanish translation for the Appearance/Themes screen (`Appearance.tsx`) — this feature's
+ * @file Spanish translation for the Themes screen (`Themes.tsx`) — this feature's
  * own dictionary, not the shared `lib/admin-nav-i18n.ts` one, so parallel translation passes over
  * other admin sections can't collide on the same file. Same two-step fallback every other `t()` in
  * this app uses: translated value, else the English source string itself.
  */
 import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
-const APPEARANCE_DICT: Record<string, Record<string, string>> = {
+const THEMES_DICT: Record<string, Record<string, string>> = {
   es: {
     Declarative: "Declarativo",
     Templated: "Basado en plantillas",
@@ -477,4 +477,4 @@ const APPEARANCE_DICT: Record<string, Record<string, string>> = {
   },
 };
 
-export const t = createDictionaryTranslator(APPEARANCE_DICT);
+export const t = createDictionaryTranslator(THEMES_DICT);

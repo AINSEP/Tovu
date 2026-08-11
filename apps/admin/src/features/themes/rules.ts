@@ -19,7 +19,7 @@ export function isActiveTheme(settings: PresentationSettings, themeId: string): 
 /**
  * Whether the site's chosen theme is STRANDED — `settings.activeThemeId` names a theme id the
  * server no longer resolves at all, so it is absent from `themes` (the discovered/installed set
- * `useAppearance` fetched alongside `settings`). This can happen with zero admin-UI action: a theme
+ * `useThemes` fetched alongside `settings`). This can happen with zero admin-UI action: a theme
  * folder removed from disk, a bad manual DB edit, or (ADR-020's tiered themes) a tier's worker
  * becoming unavailable between one load and the next.
  *
@@ -27,7 +27,7 @@ export function isActiveTheme(settings: PresentationSettings, themeId: string): 
  * `resolveActiveTheme` returns `null` for every public route, and the whole public site serves a 500
  * "No themes installed" page until a different theme is activated — not merely a display glitch this
  * screen alone should shrug off. Before this check, nothing told the admin why every card in the grid
- * shows an Activate button and none shows Active — {@link Appearance} renders a warning off this.
+ * shows an Activate button and none shows Active — {@link Themes} renders a warning off this.
  *
  * @complexity Time/space: O(n) in `themes.length` (a `.includes` scan) — negligible next to the
  * catalogue sizes this screen already renders in full.

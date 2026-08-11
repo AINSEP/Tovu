@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -20,10 +20,15 @@ import type { ThemeExploreController, ThemeExploreFile } from "../hooks/use-them
  */
 
 const FILES: ThemeExploreFile[] = [
-  { path: "pages/index.html", label: "index", kind: "page" },
-  { path: "pages/about.html", label: "about", kind: "page" },
-  { path: "nav.html", label: "nav", kind: "partial" },
-  { path: "footer.html", label: "footer", kind: "partial" },
+  { path: "pages/index.html", label: "index", kind: "page", editable: true, resettable: true },
+  { path: "pages/about.html", label: "about", kind: "page", editable: true, resettable: true },
+  { path: "nav.html", label: "nav", kind: "partial", editable: true, resettable: true },
+  { path: "footer.html", label: "footer", kind: "partial", editable: true, resettable: true },
+  { path: "css/styles.css", label: "styles.css", kind: "style", editable: true, resettable: true },
+  { path: "js/main.js", label: "main.js", kind: "script", editable: true, resettable: true },
+  // Binary + author-added: the two cases that must NOT offer an editor or a Reset respectively.
+  { path: "screenshots/index.png", label: "index.png", kind: "asset", editable: false, resettable: true },
+  { path: "pages/mine.html", label: "mine", kind: "page", editable: true, resettable: false },
 ];
 
 function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExploreController {
@@ -50,6 +55,11 @@ function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExplo
     notice: null,
     dismissNotice: vi.fn(),
     save: vi.fn(),
+    resetting: false,
+    resetConfirmOpen: false,
+    openResetConfirm: vi.fn(),
+    closeResetConfirm: vi.fn(),
+    reset: vi.fn(),
     previewNonce: 0,
     ...overrides,
   };
@@ -175,5 +185,78 @@ describe("fullscreen preview", () => {
   it("disables the fullscreen trigger when there is nothing selected to preview", () => {
     renderExplore({ view: "preview", selected: null });
     expect(screen.getByRole("button", { name: /view preview fullscreen/i })).toBeDisabled();
+  });
+});
+
+/**
+ * Assets, CSS, and Reset (2026-08-11 owner asks). The file list used to show ONLY pages and
+ * partials, which hid every file an author changes to make a downloaded theme theirs.
+ */
+describe("file list beyond pages and partials", () => {
+  it("groups styles, scripts and assets alongside pages and partials", () => {
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
+    const list = screen.getByRole("navigation", { name: "Theme files" });
+    for (const heading of ["Pages", "Partials", "Styles", "Scripts", "Assets"]) {
+      expect(within(list).getByText(heading)).toBeInTheDocument();
+    }
+    // Non-page/partial entries keep their extension — `styles` vs `styles.css` is the distinction
+    // an author needs in a Styles list.
+    expect(within(list).getByRole("button", { name: "styles.css" })).toBeInTheDocument();
+    expect(within(list).getByRole("button", { name: "main.js" })).toBeInTheDocument();
+  });
+
+  it("refuses to put a binary file in the editor, offering the preview instead", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ selected: "screenshots/index.png", view: "html" })}
+      />
+    );
+    // A textarea here would show mojibake, and saving it back would corrupt the file.
+    expect(screen.queryByRole("textbox", { name: "Theme file source" })).not.toBeInTheDocument();
+    expect(screen.getByText(/binary file/i)).toBeInTheDocument();
+  });
+});
+
+describe("reset to original", () => {
+  it("asks before resetting, and does not reset on the click that opens the prompt", async () => {
+    const user = userEvent.setup();
+    const openResetConfirm = vi.fn();
+    const reset = vi.fn();
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ openResetConfirm, reset })}
+      />
+    );
+    await user.click(screen.getByRole("button", { name: "Reset" }));
+    expect(openResetConfirm).toHaveBeenCalledTimes(1);
+    // The whole point of the confirmation: the destructive call has NOT happened yet.
+    expect(reset).not.toHaveBeenCalled();
+  });
+
+  it("warns that work will be lost, and names the exact file", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ resetConfirmOpen: true, selected: "pages/about.html" })}
+      />
+    );
+    expect(screen.getByText(/will be lost/i)).toBeInTheDocument();
+    expect(screen.getByText(/cannot be undone/i)).toBeInTheDocument();
+    // Named explicitly rather than "this file" — the prompt must never be ambiguous about its target.
+    expect(screen.getByText("pages/about.html")).toBeInTheDocument();
+  });
+
+  it("offers no Reset for a file the author added, which has no original to restore", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ selected: "pages/mine.html" })}
+      />
+    );
+    // Absent rather than disabled: a greyed-out Reset invites "why can't I?", absence just means
+    // the option does not apply.
+    expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
   });
 });

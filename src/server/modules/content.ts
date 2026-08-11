@@ -20,6 +20,7 @@ import {
   registerAdminThemeDetailRoute,
   registerAdminThemeFileGetRoute,
   registerAdminThemeFilePutRoute,
+  registerAdminThemeFileResetRoute,
 } from "../routes/admin/themes/explore";
 import { registerAdminMarketplaceThemesListRoute } from "../routes/admin/marketplace/list";
 import { registerAdminMarketplaceThemeDownloadRoute } from "../routes/admin/marketplace/download";
@@ -89,6 +90,7 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       // (the same reasoning the pages `/html` route above is ordered by).
       registerAdminThemeFileGetRoute(app, deps);
       registerAdminThemeFilePutRoute(app, deps);
+      registerAdminThemeFileResetRoute(app, deps);
       registerAdminThemeDetailRoute(app, deps);
     },
   };

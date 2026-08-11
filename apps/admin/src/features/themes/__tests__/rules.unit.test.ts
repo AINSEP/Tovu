@@ -12,9 +12,9 @@ import {
 } from "../rules";
 
 /**
- * @file Pure-logic coverage for `features/appearance/rules.ts` — the active-theme status
+ * @file Pure-logic coverage for `features/themes/rules.ts` — the active-theme status
  * derivation driving both a theme card's `.active` class and its Active-tag-vs-Activate-button
- * branch. `features/appearance` was 3.6% covered with no dedicated test file before this pass.
+ * branch. `features/themes` was 3.6% covered with no dedicated test file before this pass.
  */
 
 const SETTINGS: PresentationSettings = {

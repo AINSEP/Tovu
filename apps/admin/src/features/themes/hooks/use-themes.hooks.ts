@@ -3,14 +3,14 @@ import { useEffect, useState } from "react";
 import { api, type PresentationSettings, type ThemeTier } from "../../../lib/api";
 
 /**
- * @file Everything the Appearance/Themes screen does, so `Appearance.tsx` is only markup.
+ * @file Everything the Themes screen does, so `Themes.tsx` is only markup.
  *
  * Extracted verbatim — same state, same effect, same error strings. Naming follows
  * `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because nothing
- * outside `features/appearance` needs it.
+ * outside `features/themes` needs it.
  */
 
-export interface AppearanceController {
+export interface ThemesController {
   /** `null` until the initial load settles — the caller renders a loading state. */
   settings: PresentationSettings | null;
   themes: string[];
@@ -45,12 +45,29 @@ export interface AppearanceController {
   rescan?: () => Promise<void>;
   /** Clears `rescanNotice`. The toast auto-dismisses on a timer and calls this when it does. */
   dismissRescanNotice?: () => void;
+  /** What the marketplace offers. Empty until the Marketplace tab is first opened. */
+  marketplace?: MarketplaceItem[];
+  marketplaceLoading?: boolean;
+  /** Loads the marketplace listing. Called lazily so the Themes screen costs nothing extra. */
+  loadMarketplace?: () => Promise<void>;
+  /** Marketplace id currently downloading, or `null`. */
+  downloading?: string | null;
+  download?: (themeId: string) => Promise<void>;
+}
+
+export interface MarketplaceItem {
+  id: string;
+  name: string;
+  tier: string;
+  description?: string;
+  /** True when this id is already used locally, so downloading assigns a `-N` suffix instead. */
+  idTaken: boolean;
 }
 
 /**
  * @complexity Time/space: O(1) per call — one settings round trip on mount, one per `activate`.
  */
-export function useAppearance(): AppearanceController {
+export function useThemes(): ThemesController {
   const [settings, setSettings] = useState<PresentationSettings | null>(null);
   const [themes, setThemes] = useState<string[]>([]);
   const [themeTiers, setThemeTiers] = useState<Record<string, ThemeTier>>({});
@@ -58,6 +75,9 @@ export function useAppearance(): AppearanceController {
   const [busyTheme, setBusyTheme] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
   const [rescanNotice, setRescanNotice] = useState<string | null>(null);
+  const [marketplace, setMarketplace] = useState<MarketplaceItem[]>([]);
+  const [marketplaceLoading, setMarketplaceLoading] = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -109,6 +129,48 @@ export function useAppearance(): AppearanceController {
     }
   }
 
+  async function loadMarketplace() {
+    setMarketplaceLoading(true);
+    try {
+      const r = await api.listMarketplaceThemes();
+      setMarketplace(r.themes);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to load the marketplace");
+    } finally {
+      setMarketplaceLoading(false);
+    }
+  }
+
+  /**
+   * Download, then reload both the installed list and the marketplace listing.
+   *
+   * The marketplace has to be re-fetched too, not just the theme grid: every item's `idTaken` flag
+   * is a statement about local state, and downloading is exactly what changes it. Skipping that
+   * refresh would leave a freshly-taken id still advertising itself as free.
+   */
+  async function download(themeId: string) {
+    setDownloading(themeId);
+    setError(null);
+    setRescanNotice(null);
+    try {
+      const r = await api.downloadMarketplaceTheme(themeId);
+      const fresh = await api.getPresentation();
+      setSettings(fresh.settings);
+      setThemes(fresh.availableThemeIds);
+      setThemeTiers(Object.fromEntries(fresh.availableThemes.map((t) => [t.id, t.tier])));
+      await loadMarketplace();
+      setRescanNotice(
+        r.suffixed
+          ? `Installed as “${r.id}” — “${themeId}” was already taken, so it was renamed.`
+          : `Installed “${r.id}”.`
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "failed to download theme");
+    } finally {
+      setDownloading(null);
+    }
+  }
+
   return {
     settings,
     themes,
@@ -120,6 +182,11 @@ export function useAppearance(): AppearanceController {
     rescanNotice,
     rescan,
     dismissRescanNotice: () => setRescanNotice(null),
+    marketplace,
+    marketplaceLoading,
+    loadMarketplace,
+    downloading,
+    download,
   };
 }
 
