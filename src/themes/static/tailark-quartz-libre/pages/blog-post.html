@@ -14,16 +14,16 @@
 </head>
 <body>
 
-<div data-tovu-slot="nav" data-nav-current="blog"></div>
+<div data-embed-config='{"type":"partial","id":"nav","current":"blog"}'></div>
 
 <main>
   <div class="wrap post-detail">
     <a href="blog.html" class="post-detail-back">&larr; Back to blog</a>
-    <div data-embed-type="post" data-embed-id="{{post}}"></div>
+    <div data-embed-config='{"type":"post","id":"{{post}}"}'></div>
   </div>
 </main>
 
-<div data-tovu-slot="footer"></div>
+<div data-embed-config='{"type":"partial","id":"footer"}'></div>
 
 <script src="../js/main.js"></script>
 </body>

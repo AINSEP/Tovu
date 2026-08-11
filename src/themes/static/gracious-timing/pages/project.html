@@ -9,7 +9,7 @@
 </head>
 <body>
 
-<div data-tovu-slot="nav" data-nav-current="projects"></div>
+<div data-embed-config='{"type":"partial","id":"nav","current":"projects"}'></div>
 
 <main>
   <!-- Post-template-picker gap fix (2026-08-10, see NOTICE.md "Real, pre-existing gap found" for
@@ -21,7 +21,7 @@
        "More work"/FAQ bands below are template-level furniture, not per-case-study content, so they
        stay static. -->
   <article class="post-detail wrap" data-reveal>
-    <div data-embed-type="post" data-embed-id="{{post}}"></div>
+    <div data-embed-config='{"type":"post","id":"{{post}}"}'></div>
   </article>
 
   <section class="band wrap">
@@ -59,7 +59,7 @@
   </section>
 </main>
 
-<div data-tovu-slot="footer"></div>
+<div data-embed-config='{"type":"partial","id":"footer"}'></div>
 
 <script src="../js/main.js"></script>
 <script src="../js/vendor/motion.js"></script>
