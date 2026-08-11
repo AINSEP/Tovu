@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  isGeneratedThemePath,
   isRecognizedThemeRoot,
   listThemeFiles,
   MAX_THEME_FILE_BYTES,
@@ -205,4 +206,31 @@ test("an oversized write is refused", () => {
     /exceeds the .* per-file limit/
   );
   assert.equal(fs.existsSync(path.join(themeDir, "big.css")), false);
+});
+
+/**
+ * `isGeneratedThemePath` — the single shared "is this build-preview.mjs output" check `explore.ts`'s
+ * file list and `marketplace.ts`'s download-copy filter both delegate to (2026-08-11, replacing two
+ * independent copies of this exact predicate). The one edge case worth pinning directly: a sibling
+ * merely PREFIXED with the generated dir's own name (`preview-notes/`) must NOT match — only the exact
+ * `preview` segment or a path nested under it.
+ */
+test("the generated directory itself is matched", () => {
+  assert.equal(isGeneratedThemePath("preview"), true);
+});
+
+test("a file nested inside the generated directory is matched", () => {
+  assert.equal(isGeneratedThemePath("preview/dark/js/main.js"), true);
+});
+
+test("a sibling directory merely PREFIXED with the generated dir's name is NOT matched", () => {
+  assert.equal(isGeneratedThemePath("preview-notes/todo.md"), false);
+});
+
+test("a backslash-separated (Windows-shaped) relative path is normalized before matching", () => {
+  assert.equal(isGeneratedThemePath("preview\\dark\\index.html"), true);
+});
+
+test("an ordinary theme file is NOT matched", () => {
+  assert.equal(isGeneratedThemePath("pages/about.html"), false);
 });

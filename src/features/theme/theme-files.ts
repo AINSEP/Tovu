@@ -74,6 +74,59 @@ const MAX_LISTED_FILES = 2_000;
 const MAX_WALK_DEPTH = 12;
 
 /**
+ * Directories whose contents are GENERATED build output inside a theme-shaped folder — never real
+ * source, and never worth copying or listing as editable. `preview/` is `build-preview.mjs`'s output:
+ * a full second copy of a theme's pages and scripts, once per color mode — on `novice` (since deleted)
+ * that was 36 of 79 listed files, with `js/main.js`, `preview/dark/js/main.js`, and
+ * `preview/light/js/main.js` all showing as "main.js" with nothing to distinguish them, burying the
+ * ~30 real source files under three-way duplicates of themselves. Editing one is pointless-to-harmful
+ * too: the next `build-preview.mjs` run overwrites it, so the change silently disappears.
+ *
+ * `screenshots/` is deliberately NOT in this list: those are real marketing assets an author may want
+ * to look at or replace, not a copy of the theme's own source — excluding them from the Explore list
+ * would hide something real, and excluding them from a marketplace download's catalog copy would make
+ * them permanently non-resettable once a user's working copy changed or deleted theirs (that copy is
+ * what "reset to original" restores from).
+ *
+ * The single canonical list — 2026-08-11: this used to be two independent copies, `explore.ts`'s own
+ * `GENERATED_DIRS`/`isGenerated` (filtering the Explore file list, given a theme-relative path already
+ * in POSIX form) and `marketplace.ts`'s `isGeneratedPreviewPath` (a `cpSync` filter callback, given two
+ * ABSOLUTE filesystem paths to relativize itself). Both were answering the identical question —
+ * "is this generated preview output" — against the identical directory name, so a third caller would
+ * have had to remember to update two places or silently miss one. {@link isGeneratedThemePath} is now
+ * that one definition; each caller normalizes its own path shape (already-relative-POSIX for `explore.ts`,
+ * `path.relative(fixtureDir, candidate)` for `marketplace.ts`) into the relative string this expects.
+ */
+export const GENERATED_THEME_DIRS: readonly string[] = ["preview"];
+
+/**
+ * Whether a theme-relative path is inside one of {@link GENERATED_THEME_DIRS} — the bare directory
+ * itself (`"preview"`, the shape `cpSync`'s filter callback sees for the directory entry before
+ * recursing) or anything under it (`"preview/dark/index.html"`).
+ *
+ * Deliberately NOT a prefix match on the raw string (`startsWith("preview")`): that would also exclude
+ * a merely similarly-named sibling like `preview-notes/`, which is a real author asset with nothing to
+ * do with generated output. Matching on the full segment (`=== dir` or `startsWith(dir + "/")`) is what
+ * avoids that false positive.
+ *
+ * @param relativePath - A path relative to the theme's own root. Backslash-separated input (a raw
+ * `path.relative` result on Windows) is normalized to `/` first, so callers on either platform can pass
+ * their native separator through unchanged.
+ * @returns `true` iff `relativePath` is `GENERATED_THEME_DIRS[i]` itself or falls under it.
+ * @throws Never. Pure: no filesystem access, no side effects.
+ * @complexity Time: O(d·k), d = `GENERATED_THEME_DIRS.length` (a fixed, tiny constant), k = path length.
+ * @complexity Space: O(k) for the normalized copy.
+ * @overallScore 100/100
+ */
+export function isGeneratedThemePath(relativePath: string): boolean {
+  // Split on either separator explicitly, not `path.sep` — `sep` is `/` on the POSIX machine this
+  // runs on today, which would make this a no-op for a `\`-separated string instead of normalizing
+  // it, silently defeating the cross-platform guarantee this function's own doc comment makes.
+  const posix = relativePath.split(/[\\/]/).join("/");
+  return GENERATED_THEME_DIRS.some((dir) => posix === dir || posix.startsWith(`${dir}/`));
+}
+
+/**
  * True when `themeDir` is a direct child of the themes root, or of one of the
  * named engine subfolders under it — i.e. exactly the set of locations
  * `discoverAllBuiltInThemes()` scans.

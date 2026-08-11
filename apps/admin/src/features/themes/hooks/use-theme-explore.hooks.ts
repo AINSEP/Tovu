@@ -63,10 +63,25 @@ export interface ThemeExploreDetail {
  */
 const LOCKED_RENAME_PATHS: ReadonlySet<string> = new Set(["pages/index.html", "theme.json", "tokens.json"]);
 
-function lockedRenameReason(path: string): string {
-  return path === "pages/index.html"
-    ? "pages/index.html can't be renamed — every theme requires this exact page to load at all."
-    : `${path} can't be renamed — every theme requires this exact file to load at all.`;
+/**
+ * Groups whose files can never be renamed — mirrors the server's own `READ_ONLY_GROUPS` rename block
+ * in `explore.ts` (see that constant's doc comment for the full reasoning). 2026-08-11 judgment call:
+ * `script`/`other` are already read-only for CONTENT so nobody breaks the page from this screen; a
+ * silent rename would reopen the same hole through a `<script src>` or similar reference this screen
+ * has no way to find and fix (unlike a page rename, which gets a URL-change warning because the
+ * renderer tracks page routes — nothing tracks arbitrary cross-file references the same way). This
+ * client-side copy only avoids a pointless round trip; the server is the real enforcement point.
+ */
+const READ_ONLY_RENAME_GROUPS: ReadonlySet<ThemeFileGroup> = new Set(["script", "other"]);
+
+function lockedRenameReason(path: string, kind: ThemeFileGroup): string {
+  if (path === "pages/index.html") {
+    return "pages/index.html can't be renamed — every theme requires this exact page to load at all.";
+  }
+  if (LOCKED_RENAME_PATHS.has(path)) {
+    return `${path} can't be renamed — every theme requires this exact file to load at all.`;
+  }
+  return `${path} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.`;
 }
 
 export interface ThemeExploreController {

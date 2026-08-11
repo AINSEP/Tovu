@@ -10,8 +10,11 @@ import { bootAuthenticated } from "../helpers/http-test-server";
 import type { RouteDeps } from "../../routes/types";
 
 /**
- * @file The Explore screen's ⋮ menu (Copy/Rename), read-only-group enforcement, and the file-list
- * regrouping that added `other` and narrowed `assets` to media extensions (2026-08-11).
+ * @file The Explore screen's ⋮ menu (Copy/Rename), read-only-group enforcement (now covering RENAME
+ * too, not just PUT — a `script`/`other` file's read-only content lock exists so nobody breaks the
+ * page from this screen, and a silent rename would reopen that same hole through a different door),
+ * and the file-list regrouping that added `other` and narrowed `assets` to media extensions
+ * (2026-08-11).
  *
  * Runs against a throwaway themes root (`fs.mkdtempSync`), never `src/themes/` — these routes write
  * real files, and a dev server may be serving off that checkout.
@@ -260,6 +263,43 @@ test("rename hard-blocks theme.json and tokens.json — the same loadTheme-requi
     assert.equal(body.code, "REQUIRED_FILE_LOCKED");
     assert.ok(fs.existsSync(path.join(themesRoot, "static", "scratch", locked)), `${locked} must still exist`);
   }
+});
+
+test("rename hard-blocks script and other read-only-group files — renaming could break a reference the read-only content lock has no way to help fix", async (t) => {
+  const themesRoot = makeThemesRoot();
+  const deps = testDeps(themesRoot);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  for (const readOnly of ["js/main.js", "NOTICE.md"]) {
+    const res = await fetch(renameUrl(baseUrl, deps.workspaceId, "scratch"), {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ path: readOnly, name: "renamed" }),
+    });
+    assert.equal(res.status, 409, `expected 409 for renaming ${readOnly}`);
+    const body = (await res.json()) as { code: string };
+    assert.equal(body.code, "READ_ONLY_FILE");
+    assert.ok(
+      fs.existsSync(path.join(themesRoot, "static", "scratch", ...readOnly.split("/"))),
+      `${readOnly} must still exist at its original path`
+    );
+  }
+});
+
+test("rename does NOT block an asset (binary, not text-readable, but not a read-only GROUP)", async (t) => {
+  const themesRoot = makeThemesRoot();
+  const deps = testDeps(themesRoot);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const res = await fetch(renameUrl(baseUrl, deps.workspaceId, "scratch"), {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "logo.png", name: "brand.png" }),
+  });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as FileEntry & { renamedFrom: string };
+  assert.equal(body.path, "brand.png");
+  assert.equal(body.group, "asset");
 });
 
 test("rename rejects a name that carries a path separator, instead of allowing a move across folders", async (t) => {
