@@ -319,19 +319,24 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
           wrapping `<label>` + `.visually-hidden` text gives each a real accessible name without
           adding a visible caption above this screen's large title/slug controls (see
           `styles/editor.css`'s `.a11y-label-wrap` comment for why the wrap costs no layout). */}
-      <label className="a11y-label-wrap">
-        <span className="visually-hidden">Post title</span>
-        <input
-          className="editor-title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={t("Post title")}
-          {...agentHandle("post-title", { role: "field", label: "This post's title" })}
-        />
-      </label>
-      {/* Slug (+ view link) and the template picker share one row, space-between, to save vertical
-          space — both are short, single-line controls with no reason to stack (2026-08-10). */}
-      <div className="editor-slug-row">
+      {/* Title + slug share one row (owner, 2026-08-11: "put the slug input right next to the title
+          ... like we did the pages"), title capped at half the width with the slug group
+          right-justified in the other half. Deliberately the same SHAPE as the Pages editor's
+          `.page-title-row` but a separate class: Pages and Posts are separate features with separate
+          stylesheets, and `styles/pages.css` says in its own header why their shared chrome lives in
+          `editor.css` rather than being copied between them. The template picker keeps its own row
+          below — it is not part of the record's identity the way the title and slug are. */}
+      <div className="editor-title-row">
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">Post title</span>
+          <input
+            className="editor-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t("Post title")}
+            {...agentHandle("post-title", { role: "field", label: "This post's title" })}
+          />
+        </label>
         <div className="editor-slug">
           /{" "}
           <label className="a11y-label-wrap">
@@ -359,6 +364,8 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
               detail as though it were the record's identity. It is still reachable through the API
               and the row list; it just no longer competes with the slug for the author's attention. */}
         </div>
+      </div>
+      <div className="editor-slug-row">
         {/* Post-template-picker feature (2026-08-10) — rendered whenever this row is a Post/
             formulaic-body record (`bodyFormat: "doc"`), not an `"html"`-format Page — a Page's body
             IS its own design already (see `resolveHtmlEmbedsForRender`'s own doc), so it has nothing
@@ -387,7 +394,7 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
               <select
                 value={templateChoice ?? ""}
                 // `e.target.value`, NOT `|| null` — "No template chosen" must persist as `""`
-                // (explicitly opted out), which `resolvePostTemplate` treats differently from `null`
+                // (explicitly opted out), which `resolveTemplate` treats differently from `null`
                 // (never chosen → falls back to the first template). Coercing to `null` here is what
                 // made the two indistinguishable and served 15 posts a diagnostic page.
                 onChange={(e) => setTemplateChoice(e.target.value)}

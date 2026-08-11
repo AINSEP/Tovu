@@ -1346,7 +1346,23 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .editor-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; padding: 0.6rem 0.2rem; width: 100%; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--fg); }
 .editor-title::placeholder { color: var(--faint); font-weight: 500; }
 .editor-title:focus { outline: none; box-shadow: none; border-bottom-color: var(--accent-text); }
-.editor-slug-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; row-gap: 0.6rem; }
+/* Title + slug on one row (2026-08-11), matching the Pages editor's `.page-title-row`. The cap
+   targets `.editor-title` directly and NOT a class on its wrapping `<label>`: that label carries
+   `.a11y-label-wrap` (`styles/editor.css`), which is `display: contents` precisely so the label
+   drops out of the layout tree and the input becomes the row's real flex item — a `max-width` on the
+   label would sit on a box that is never generated and silently do nothing. That exact mistake was
+   made and caught on the Pages side, and only because `getBoundingClientRect` returned an all-zero
+   rect; the screenshot looked identical either way. `flex: 1 1 50%` with `max-width: 50%` rather
+   than a bare `width: 50%` lets the title grow into its half when the slug group is narrower,
+   without ever exceeding it. */
+.editor-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4, 1rem); flex-wrap: wrap; }
+.editor-title-row .editor-title { flex: 1 1 50%; max-width: 50%; min-width: 0; }
+/* `flex-end`, not `space-between`: the slug group moved up to the title row above, so the template
+   picker is the only child left and `space-between` would slide it to the left edge. Keeping it
+   right-aligned preserves where it already sits on screen — moving the slug was the requested
+   change, moving the picker was not. This class has one consumer (PostEditor), so the change cannot
+   reach another screen. */
+.editor-slug-row { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; flex-wrap: wrap; row-gap: 0.6rem; }
 .editor-slug { color: var(--muted); font-size: 0.85rem; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; row-gap: 0.4rem; }
 .editor-slug input { width: 14rem; }
 .editor-id { display: inline-flex; align-items: center; gap: 0.35rem; margin-left: 0.5rem; padding-left: 1rem; border-left: 1px solid var(--border); }
@@ -1366,6 +1382,10 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    line at narrow widths. */
 @media (max-width: 640px) {
   .editor-slug-row { flex-direction: column; align-items: stretch; }
+  /* Same reasoning the Pages editor's equivalent rule gives: below this width two halves read as
+     cramped rather than usable, and both are free-typed inputs. Stack them full-width instead. */
+  .editor-title-row { flex-direction: column; align-items: stretch; }
+  .editor-title-row .editor-title { max-width: 100%; }
   .editor-slug { justify-content: center; text-align: center; }
   .editor-id { margin-left: 0; padding-left: 0.75rem; justify-content: center; }
   .editor-template-picker select { width: 100%; }
