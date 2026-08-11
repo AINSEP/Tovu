@@ -308,25 +308,12 @@ export function MenuEditor(props: { menuId: string | null }) {
           <span className="visually-hidden">Menu slug</span>
           <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="menu-slug" />
         </label>
-        {/* Internal id, visible for reference (2026-08-09) — same `readOnly` (not `disabled`) +
-            `.editor-id` treatment as PostEditor's own id field, added the same way for the same
-            reason: an operator can select/copy it, and no draft/published status field exists here
-            (or should — menus are always live, no draft workflow, confirmed by the owner) so this
-            is the one identity fact worth surfacing next to the slug. Only shown once a real menu
-            is loaded — a not-yet-saved new menu has no id to show yet. */}
-        {!isNew && menu ? (
-          <span className="editor-id">
-            <label className="a11y-label-wrap">
-              <span className="visually-hidden">Internal menu id</span>
-              <span aria-hidden="true">id:</span>
-              <input
-                value={menu.id}
-                readOnly
-                {...agentHandle("menu-id", { role: "field", label: "This menu's internal id — read-only, shown for reference only" })}
-              />
-            </label>
-          </span>
-        ) : null}
+        {/* The internal id used to be surfaced here as a read-only field (2026-08-09). Removed
+            2026-08-11 alongside PostEditor's, and this one had the stronger case for going: a menu's
+            id is minted by `idGen.newId()`, so it is random per install and a theme can never
+            reference it — which is exactly why `ffc0f44` made theme menu markers resolve by SLUG
+            first. Showing the id next to the slug invited an author to paste the one handle that
+            provably cannot work in a shipped theme. */}
       </div>
       <div className="menu-tree">
         {items.map((item, i) => (

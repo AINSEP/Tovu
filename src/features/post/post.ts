@@ -825,18 +825,35 @@ export async function getPublishedPostBySlug(
 }
 
 /**
- * Admin-facing lookup that accepts either a record's id or its slug — same trash-blind 404 as
- * {@link getAdminPostById}. Tries the id first: an id and a slug never collide (ids are opaque
- * UUIDs `findById` matches exactly, slugs are user-authored strings), so a stale id-based
- * bookmark and a newer slug-based URL both resolve to the same row through one lookup path.
+ * Admin-facing lookup that accepts either a record's slug or its id — same trash-blind 404 as
+ * {@link getAdminPostById}. **Slug first, id second** (2026-08-11).
+ *
+ * This used to try the id first, justified in its own doc by the claim that "an id and a slug never
+ * collide (ids are opaque UUIDs)". That claim was false when it was written and is false now: this
+ * workspace holds six rows whose ids are `post-home`, `post-about`, `post-themes`, `post-plugins`,
+ * `post-plugin-api`, and `post-self-hosting` — seed-authored, human-shaped, and in exactly the same
+ * character space a user-authored slug occupies. Two id generators have been in play (seed literals
+ * and `idGen.newId()`'s UUIDs), so the two namespaces genuinely overlap and a collision resolves to
+ * whichever lookup runs first.
+ *
+ * Slug wins, because the slug is the handle a human typed and the id is an implementation detail
+ * they never chose. Under id-first, creating a page slugged `post-about` would silently open the
+ * seeded `post-about` row instead — an edit landing on the wrong document with nothing failing.
+ * Under slug-first the worst case inverts to something benign and visible: an id-shaped URL for a
+ * row that also happens to be some other row's slug opens the slug's row, which is the one the URL
+ * literally names.
+ *
+ * Same precedent, same reasoning, as `ffc0f44`'s slug-first menu-marker resolution: a hardcoded
+ * human-authored handle can never match a randomly minted id, so the handle has to be what resolves.
+ * The id lookup stays as the fallback so every existing id-based bookmark keeps working.
  */
 export async function getAdminPostByIdOrSlug(
   required: GetPostByIdOrSlugRequired,
   _optional: GetPostOptional = {}
 ): Promise<{ post: PostRecord }> {
   const { workspaceId, idOrSlug } = required.input;
-  const byId = await required.deps.repo.findById({ workspaceId, id: idOrSlug });
-  const post = byId ?? (await required.deps.repo.findBySlug({ workspaceId, slug: idOrSlug.trim().toLowerCase() }));
+  const bySlug = await required.deps.repo.findBySlug({ workspaceId, slug: idOrSlug.trim().toLowerCase() });
+  const post = bySlug ?? (await required.deps.repo.findById({ workspaceId, id: idOrSlug }));
   if (!post || isTrashed(post)) throw new PostNotFoundError(`post '${idOrSlug}' was not found`);
   return { post };
 }

@@ -350,27 +350,14 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
           >
             view ↗
           </a>
-          {/* Internal id, visible for reference (2026-08-10) — `readOnly`, not `disabled`: the id is
-              genuinely never editable (renaming a post's stored id isn't something this app's own
-              repo layer supports, unlike the slug above), but readOnly still lets an operator select
-              and copy it, which disabled would block in most browsers.
-
-              The visual spacing/divider lives on THIS outer span, not the `<label>` — `.a11y-label-
-              wrap` sets `display: contents` (see that class's own comment in editor.css), which
-              strips a label's own box entirely, so any margin/padding/border placed directly on the
-              label is silently a no-op. Real bug, found live: the divider never rendered and the
-              id sat crowded against "view" with only the parent row's own small gap. */}
-          <span className="editor-id">
-            <label className="a11y-label-wrap">
-              <span className="visually-hidden">Internal post id</span>
-              <span aria-hidden="true">id:</span>
-              <input
-                value={post.id}
-                readOnly
-                {...agentHandle("post-id", { role: "field", label: "This post's internal id — read-only, shown for reference only" })}
-              />
-            </label>
-          </span>
+          {/* The internal id used to be surfaced here as a read-only field (2026-08-10). Removed
+              2026-08-11: the slug immediately to the left is now the record's routing key
+              (`getAdminPostByIdOrSlug` resolves slug FIRST, id second) and is the only identity an
+              author ever types or reads. Two id generators have been in play — seed literals like
+              `post-about` and `idGen.newId()` UUIDs — so the stored id is neither stable in shape
+              nor meaningful, and displaying it beside the real handle presented an implementation
+              detail as though it were the record's identity. It is still reachable through the API
+              and the row list; it just no longer competes with the slug for the author's attention. */}
         </div>
         {/* Post-template-picker feature (2026-08-10) — rendered whenever this row is a Post/
             formulaic-body record (`bodyFormat: "doc"`), not an `"html"`-format Page — a Page's body
