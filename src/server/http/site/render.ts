@@ -43,7 +43,17 @@ export interface SiteProduct {
   id: string;
   title: string;
   price: number; // cents
-  stock: number;
+  /**
+   * `undefined` for a product source with no inventory tracking (Commerce, as of 2026-08-12 —
+   * `features/commerce/storefront.ts`'s own doc names this explicitly rather than fabricating a
+   * count). The sample store plugin always sets a real, decremented number. `buildTemplateRenderData`
+   * passes this through unchanged; a template that reads `product.stock` sees Liquid's ordinary
+   * nil/falsy behavior for the untracked case, not a lie about availability.
+   */
+  stock?: number;
+  /** Cents. `undefined` = not on sale — degrades to no strikethrough price shown, matching
+   * `fashion-modern/templates/products.liquid`'s own documented fallback. */
+  compareAtPrice?: number;
 }
 
 /** Everything a template + its components need to render one page. */
@@ -1590,12 +1600,23 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
           content: renderPostBody(ctx),
         }
       : null,
-    // `price` stays in cents — themes format it themselves; `priceFormatted` is precomputed here so
-    // a theme can just read one field.
-    products: ctx.products.map((p) => ({ id: p.id, title: p.title, price: p.price, priceFormatted: formatCents(p.price), stock: p.stock })),
-    product: ctx.product
-      ? { id: ctx.product.id, title: ctx.product.title, price: ctx.product.price, priceFormatted: formatCents(ctx.product.price), stock: ctx.product.stock }
-      : null,
+    // `price` stays in cents — themes format it themselves; `priceFormatted`/`compareAtPriceFormatted`
+    // are precomputed here so a theme can just read one field.
+    products: ctx.products.map(siteProductRenderShape),
+    product: ctx.product ? siteProductRenderShape(ctx.product) : null,
+  };
+}
+
+/** Shared `SiteProduct` -> template-facing shape, used for both the `products` list and the
+ * single `product` (product-detail route) — one mapping, not two kept in agreement by hand. */
+function siteProductRenderShape(p: SiteProduct): Record<string, unknown> {
+  return {
+    id: p.id,
+    title: p.title,
+    price: p.price,
+    priceFormatted: formatCents(p.price),
+    stock: p.stock,
+    compareAtPriceFormatted: p.compareAtPrice === undefined ? undefined : formatCents(p.compareAtPrice),
   };
 }
 
