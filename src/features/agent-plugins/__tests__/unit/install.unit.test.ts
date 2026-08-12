@@ -428,3 +428,94 @@ test("TENANT-GRADE: two workspaces installing the identical archive extract INDE
     await forceRemove(cwd);
   }
 });
+
+// ---------------------------------------------------------------------------
+// PROVEN, security pass 2026-08-13 (ADS-memory/reports/security/2026-08-13-post-session-security-pass.md):
+// the tenant-isolation guarantee above holds only when every caller derives `layout` via
+// `instanceLayout.forWorkspace(workspaceId)`. `AgentPluginWorkspaceLayout` (layout.ts) is a plain
+// interface of four string/function fields with no `workspaceId` tag and no back-reference to the
+// instance root it came from -- `installAgentPlugin` never re-derives or re-validates `layout`
+// against any expected workspace. This was flagged as "convention, not compiler-enforced" and
+// requested as a negative test; it did not exist before this pass. The two tests below prove it two
+// ways: a layout stitched from two DIFFERENT real workspaces' own directories, and a layout that is
+// not derived from `forWorkspace` at all.
+// ---------------------------------------------------------------------------
+
+test("PROVEN GAP: a layout literal stitching workspace A's `packages` onto workspace B's `staging` type-checks and installAgentPlugin honors it uncritically -- nothing here is tied back to one workspace", async () => {
+  const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-install-test-"));
+  try {
+    const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+    const workspaceA = instanceLayout.forWorkspace("11111111-1111-4111-8111-111111111111");
+    const workspaceB = instanceLayout.forWorkspace("22222222-2222-4222-8222-222222222222");
+
+    // Nothing prevents this: every field a real `forWorkspace()` result exposes is a plain string or
+    // function, so a mixed object satisfies `AgentPluginWorkspaceLayout` structurally. This is the
+    // "hand-built literal satisfies the workspace type" gap named in the dispatch brief -- reproduced
+    // here with directories that already exist as two DIFFERENT real workspaces' own trees, not with
+    // fabricated strings, so the result below is not an artifact of an invalid path.
+    const confusedLayout = {
+      root: workspaceA.root,
+      packages: workspaceB.packages, // <- workspace B's real package tree
+      staging: workspaceB.staging, // <- workspace B's real staging tree
+      pluginDataDir: workspaceA.pluginDataDir,
+    };
+
+    const archive = new Uint8Array(Buffer.from("archive-bytes-confused-layout"));
+    const digest = createHash("sha256").update(archive).digest("hex");
+
+    const installed = await installAgentPlugin({
+      archive,
+      expectedSha256: digest,
+      archiveReader: reader(validPackageEntries()),
+      layout: confusedLayout,
+    });
+
+    // The bytes landed under workspace B's tree, not workspace A's -- a caller that believed it was
+    // installing "for workspace A" (the id embedded in `confusedLayout.root` and `pluginDataDir`) in
+    // fact wrote into workspace B's package store. `installAgentPlugin` raised no error and performed
+    // no consistency check between `root`/`pluginDataDir` (A) and `packages`/`staging` (B).
+    assert.equal(path.relative(workspaceB.root, installed.packageRoot).startsWith(".."), false);
+    assert.equal(path.relative(workspaceA.root, installed.packageRoot).startsWith(".."), true);
+
+    const publishedInB = await readFile(path.join(workspaceB.packages, digest, "plugin.json"), "utf8");
+    assert.equal(publishedInB, VALID_MANIFEST, "the archive was published into workspace B's real package store");
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("PROVEN GAP: a layout never derived from forWorkspace() at all -- arbitrary strings -- is accepted with no origin check, extracting outside the entire agent-plugins tree", async () => {
+  const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-install-test-"));
+  try {
+    // A location that has nothing to do with `infra/agent-plugins`, `resolveAgentPluginLayout`, or
+    // any workspace id at all -- simulating a caller-side bug (wrong variable, stale closure, a
+    // future code path that assembles a layout object by hand instead of calling `forWorkspace`).
+    const rogueRoot = path.join(cwd, "somewhere-else-entirely");
+
+    const rogueLayout = {
+      root: rogueRoot,
+      packages: path.join(rogueRoot, "packages", "sha256"),
+      staging: path.join(rogueRoot, "staging"),
+      pluginDataDir: (pluginId: string) => path.join(rogueRoot, "data", pluginId),
+    };
+
+    const archive = new Uint8Array(Buffer.from("archive-bytes-rogue-layout"));
+    const digest = createHash("sha256").update(archive).digest("hex");
+
+    const installed = await installAgentPlugin({
+      archive,
+      expectedSha256: digest,
+      archiveReader: reader(validPackageEntries()),
+      layout: rogueLayout,
+    });
+
+    // installAgentPlugin performed every containment/size/symlink check inside the package it was
+    // given -- none of those checks are the gap. The gap is one level up: nothing verifies the
+    // package ROOT itself is under a real, workspace-scoped `AgentPluginLayout` at all.
+    assert.equal(installed.packageRoot, path.join(rogueRoot, "packages", "sha256", digest));
+    const published = await readFile(path.join(rogueRoot, "packages", "sha256", digest, "plugin.json"), "utf8");
+    assert.equal(published, VALID_MANIFEST);
+  } finally {
+    await forceRemove(cwd);
+  }
+});
