@@ -7,7 +7,7 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
 import { TabBar } from "../../components/TabBar";
 import { pageRowMenuItems } from "./rules";
-import { usePages } from "./hooks/use-pages.hooks";
+import { useWiredPages } from "./hooks/use-pages.hooks";
 import { useWiredThemePages } from "./hooks/use-theme-pages.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { PAGES_DICT } from "./pages-i18n";
@@ -42,7 +42,7 @@ export interface PagesProps {
    * mid-delete, load failure, empty list — without module mocking, a fake `fetch`, or waiting on a
    * real request. That matters here specifically: this screen has no unit test today.
    */
-  usePagesHook?: typeof usePages;
+  usePagesHook?: typeof useWiredPages;
   /** Same DI seam as `usePagesHook`, for the Theme Pages tab's own data source. */
   useThemePagesHook?: typeof useWiredThemePages;
 }
@@ -135,7 +135,7 @@ function ThemePagesTab({
   );
 }
 
-export function Pages({ usePagesHook = usePages, useThemePagesHook = useWiredThemePages }: PagesProps) {
+export function Pages({ usePagesHook = useWiredPages, useThemePagesHook = useWiredThemePages }: PagesProps) {
   const {
     pages,
     error,
