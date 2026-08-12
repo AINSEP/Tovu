@@ -87,6 +87,12 @@ function collectionsController(overrides: Partial<CollectionsController> = {}): 
     actionError: null,
     load: vi.fn(),
     runLifecycle: vi.fn(async () => {}),
+    // Identity `t` + "en" locale — matches what the pre-`useWiredX` component got from a real,
+    // unmocked `useAdminLocale()` call in this render-only test (defaults to `DEFAULT_LOCALE`
+    // synchronously; `COLLECTIONS_DICT` has no "en" entries, so every lookup already fell through
+    // to `?? key`), so every existing literal-English-string assertion below stays valid unchanged.
+    t: (key: string) => key,
+    locale: "en",
     ...overrides,
   };
 }

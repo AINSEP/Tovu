@@ -10,7 +10,7 @@ import {
 import { WidgetEmbed } from "../../../lib/widget-embed-extension";
 import { navigate as defaultNavigate } from "../../../lib/router";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import { entryLifecycleFailureMessage, t } from "../collections-i18n";
+import { COLLECTIONS_DICT, entryLifecycleFailureMessage, t as translate } from "../collections-i18n";
 import { defaultCollectionEntryEditorPort } from "./collection-entry-editor-dependencies.hooks";
 import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.hooks";
 
@@ -30,11 +30,15 @@ import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.h
  * than reaching `lib/api`/`lib/router`/`useAdminLocale()` directly, so a test can describe load/
  * save/lifecycle outcomes against `createFakeCollectionEntryEditorPort` instead of stubbing global
  * `fetch`. `useWiredCollectionEntryEditor` below is the pair `CollectionEntryEditor.tsx` actually
- * mounts. `t` stays a direct import — a pure, no-I/O string lookup, same category as
- * `describeApiError` (see this module's own "what stays a direct import" precedent set by every
- * other `features/collections` hook converted this session: `use-collections.hooks.ts`,
- * `use-new-content-type-dialog.hooks.ts`, `use-term-picker.hooks.ts`), not the four-things-injected
- * shape `use-page-editor.hooks.ts` demonstrates elsewhere.
+ * mounts.
+ *
+ * `t` is now ALSO injected (standing i18n rule, 2026-08-11, superseding this file's earlier
+ * "stays a direct import" note above — see `use-collections.hooks.ts`'s identical update) so
+ * `CollectionEntryEditor.tsx` sources its UI copy from this hook instead of its own
+ * `useAdminLocale()`/`COLLECTIONS_DICT` import. `collections-i18n.ts`'s own `t(locale, key)` —
+ * aliased `translate` here to avoid colliding with this file's bound `(key) => string` closure —
+ * stays a direct, uninjected import for this hook's OWN error strings: a pure lookup that already
+ * takes `locale` explicitly, not a host reach.
  */
 
 export interface CollectionEntryEditorController {
@@ -55,12 +59,16 @@ export interface CollectionEntryEditorController {
   editor: Editor | null;
   save: () => Promise<void>;
   toggleLifecycle: (op: "publish" | "unpublish") => Promise<void>;
+  /** Bound translator — `CollectionEntryEditor.tsx`'s only source of UI copy; see this file's own
+   *  header. */
+  t: (key: string) => string;
 }
 
 export interface CollectionEntryEditorDependencies {
   port: CollectionEntryEditorPort;
   navigate: (path: string) => void;
   locale: string;
+  t: (key: string) => string;
 }
 
 export function useCollectionEntryEditor(
@@ -70,7 +78,7 @@ export function useCollectionEntryEditor(
   },
   deps: CollectionEntryEditorDependencies
 ): CollectionEntryEditorController {
-  const { port, navigate, locale } = deps;
+  const { port, navigate, locale, t } = deps;
   const [contentType, setContentType] = useState<AdminContentType | null | undefined>(undefined);
   const [entry, setEntry] = useState<AdminEntry | null>(null);
   const [title, setTitle] = useState("");
@@ -97,7 +105,7 @@ export function useCollectionEntryEditor(
       port.listTaxonomies().catch(() => ({ items: [] as AdminTaxonomyWithTerms[] })),
     ])
       .then(([typesResult, entriesResult, taxonomyResult]) => {
-        const ct = typesResult.items.find((t) => t.key === props.contentTypeKey) ?? null;
+        const ct = typesResult.items.find((type) => type.key === props.contentTypeKey) ?? null;
         setContentType(ct);
         setTaxonomies(taxonomyResult.items);
 
@@ -122,7 +130,7 @@ export function useCollectionEntryEditor(
           editor?.commands.setContent("");
         }
       })
-      .catch((e) => setLoadError(describeApiError(e, t(locale, "failed to load entry"))))
+      .catch((e) => setLoadError(describeApiError(e, translate(locale, "failed to load entry"))))
       .finally(() => setLoaded(true));
     // `port` is added — see `use-page-editor.hooks.ts`'s identical note: a function-scoped value
     // ESLint's exhaustive-deps rule can see, referentially stable in production, so this changes
@@ -158,7 +166,7 @@ export function useCollectionEntryEditor(
         navigate(`/collections/${props.contentTypeKey}/${created.id}`);
       }
     } catch (e) {
-      setError(describeApiError(e, t(locale, "save failed")));
+      setError(describeApiError(e, translate(locale, "save failed")));
     } finally {
       setSaving(false);
     }
@@ -194,20 +202,22 @@ export function useCollectionEntryEditor(
     editor,
     save,
     toggleLifecycle,
+    t,
   };
 }
 
 /**
- * Binds the real `/api/.../content-types`+`/entries` client, `lib/router`'s `navigate`, and the
- * resolved `useAdminLocale()` value — see `collection-entry-editor-dependencies.hooks.ts`. The
- * zero-argument-deps half of the `useX(dependencies)` / `useWiredX()` pair, so
- * `CollectionEntryEditor.tsx` composes this and a test composes {@link useCollectionEntryEditor}
- * with `createFakeCollectionEntryEditorPort`.
+ * Binds the real `/api/.../content-types`+`/entries` client, `lib/router`'s `navigate`, the
+ * resolved `useAdminLocale()` value, and a `COLLECTIONS_DICT`-bound translator — see
+ * `collection-entry-editor-dependencies.hooks.ts`. The zero-argument-deps half of the
+ * `useX(dependencies)` / `useWiredX()` pair, so `CollectionEntryEditor.tsx` composes this and a
+ * test composes {@link useCollectionEntryEditor} with `createFakeCollectionEntryEditorPort`.
  */
 export function useWiredCollectionEntryEditor(props: {
   contentTypeKey: string;
   entryId: string | null;
 }): CollectionEntryEditorController {
   const locale = useAdminLocale();
-  return useCollectionEntryEditor(props, { port: defaultCollectionEntryEditorPort, navigate: defaultNavigate, locale });
+  const t = (key: string): string => COLLECTIONS_DICT[locale]?.[key] ?? key;
+  return useCollectionEntryEditor(props, { port: defaultCollectionEntryEditorPort, navigate: defaultNavigate, locale, t });
 }

@@ -5,8 +5,6 @@ import { useWiredCollections } from "./hooks/use-collections.hooks";
 import { useWiredNewContentTypeDialog } from "./hooks/use-new-content-type-dialog.hooks";
 import { useWiredEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";
 import { useLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { COLLECTIONS_DICT } from "./collections-i18n";
 
 /**
  * @file Collections screen (design-spec.md §1, ADR-022/ADR-043) — the `/admin/collections`
@@ -400,9 +398,9 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
     actionError,
     load,
     runLifecycle,
+    t,
+    locale,
   } = useCollectionsHook();
-  const locale = useAdminLocale();
-  const t = (key: string): string => COLLECTIONS_DICT[locale]?.[key] ?? key;
 
   if (error && !types) return <div className="notice error">{error}</div>;
   if (!types) return <div className="notice">Loading content types…</div>;

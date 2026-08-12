@@ -161,7 +161,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     vi.stubGlobal("fetch", fetchMock);
     try {
       const port = createFakeCollectionsPort({ types: [TYPE] });
-      const { result } = renderHook(() => useCollections({ port, locale: "en" }));
+      const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }));
       await waitFor(() => expect(result.current.types).not.toBeNull());
 
       expect(result.current.types).toEqual([TYPE]);
@@ -173,7 +173,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
   it("runLifecycle deprecates through the injected port and reloads the list, reflecting the update", async () => {
     const port = createFakeCollectionsPort({ types: [TYPE] });
-    const { result } = renderHook(() => useCollections({ port, locale: "en" }));
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }));
     await waitFor(() => expect(result.current.types).not.toBeNull());
 
     await act(async () => {
@@ -189,7 +189,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     // fallback for ApiError.message === "" (matching what a real 500-with-no-body response
     // becomes via `request()`); a plain Error's own (even empty) `.message` always wins.
     const port = createFakeCollectionsPort({ types: [TYPE], lifecycleError: new ApiError("", 500) });
-    const { result } = renderHook(() => useCollections({ port, locale: "en" }));
+    const { result } = renderHook(() => useCollections({ port, locale: "en", t: (k) => k }));
     await waitFor(() => expect(result.current.types).not.toBeNull());
 
     await act(async () => {

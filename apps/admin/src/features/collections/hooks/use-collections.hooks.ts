@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { describeApiError, type AdminContentType } from "../../../lib/api";
 import type { LifecycleConfirmOp } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import { lifecycleFailureMessage, t } from "../collections-i18n";
+import { COLLECTIONS_DICT, lifecycleFailureMessage, t as translate } from "../collections-i18n";
 import { defaultCollectionsPort } from "./collections-dependencies.hooks";
 import type { CollectionsPort } from "./collections-port.hooks";
 
@@ -23,6 +23,16 @@ import type { CollectionsPort } from "./collections-port.hooks";
  * `useAdminLocale()` directly, so a test can describe load/lifecycle outcomes against
  * `createFakeCollectionsPort` instead of stubbing global `fetch`. `useWiredCollections` below is
  * the pair `Collections.tsx` actually mounts.
+ *
+ * `t` (standing i18n rule, 2026-08-11 — a component with a hook gets a BOUND `t` from that hook,
+ * not its own `useAdminLocale()`/dictionary import, same shape `use-pages.hooks.ts` established):
+ * injected alongside `port`/`locale` because `Collections.tsx` and its three dialogs need translated
+ * UI copy. `collections-i18n.ts`'s own `t(locale, key)` — aliased `translate` here to avoid
+ * colliding with this file's own bound `(key) => string` closure — stays a direct, uninjected
+ * import: it's a pure `COLLECTIONS_DICT[locale]?.[key] ?? key` lookup that already takes `locale`
+ * as an explicit argument, not a host reach (see wired-hooks-convention.md's "pure, no-I/O rules"
+ * carve-out). `useAdminLocale()` and `COLLECTIONS_DICT` are read only inside
+ * {@link useWiredCollections}.
  */
 
 export interface CollectionsController {
@@ -42,15 +52,23 @@ export interface CollectionsController {
   actionError: string | null;
   load: () => void;
   runLifecycle: (contentType: AdminContentType, op: "deprecate" | "reactivate" | "tombstone") => Promise<void>;
+  /** Bound translator — `Collections.tsx`'s and its three dialogs' only source of UI copy; see this
+   *  file's own header for why it arrives via the hook rather than direct `useAdminLocale()`. */
+  t: (key: string) => string;
+  /** The raw resolved locale — exposed only because `contentTypeMenuItems` (`../rules.ts`)
+   *  genuinely needs it, not `t`, same "row-menu builder is a different, out-of-scope thing"
+   *  precedent `use-pages.hooks.ts` cites for `pageRowMenuItems`. */
+  locale: string;
 }
 
 export interface CollectionsDependencies {
   port: CollectionsPort;
   locale: string;
+  t: (key: string) => string;
 }
 
 export function useCollections(deps: CollectionsDependencies): CollectionsController {
-  const { port, locale } = deps;
+  const { port, locale, t } = deps;
   const [types, setTypes] = useState<AdminContentType[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
@@ -62,7 +80,7 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
     port
       .listContentTypes()
       .then((r) => setTypes(r.items))
-      .catch((e) => setError(describeApiError(e, t(locale, "failed to load content types"))));
+      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load content types"))));
   }
 
   // `port` is added to the effect's dependency array — see `use-page-editor.hooks.ts`'s identical
@@ -94,16 +112,20 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
     actionError,
     load,
     runLifecycle,
+    t,
+    locale,
   };
 }
 
 /**
- * Binds the real `/api/.../content-types` client and the resolved `useAdminLocale()` value — see
+ * Binds the real `/api/.../content-types` client, the resolved `useAdminLocale()` value, and a
+ * `COLLECTIONS_DICT`-bound translator — see
  * `collections-dependencies.hooks.ts`. The zero-argument-deps half of the `useX(dependencies)` /
  * `useWiredX()` pair, so `Collections.tsx` composes this and a test composes {@link useCollections}
  * with `createFakeCollectionsPort`.
  */
 export function useWiredCollections(): CollectionsController {
   const locale = useAdminLocale();
-  return useCollections({ port: defaultCollectionsPort, locale });
+  const t = (key: string): string => COLLECTIONS_DICT[locale]?.[key] ?? key;
+  return useCollections({ port: defaultCollectionsPort, locale, t });
 }
