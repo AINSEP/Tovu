@@ -2,7 +2,7 @@ import type { Response } from "express";
 import type { JsonObject } from "@jini-ai/cms/core";
 
 import type { PostRecord } from "#src/features/post/index";
-import { getPresentationSettings } from "#src/features/presentation/index";
+import { getPresentationSettings, PresentationSettingsNotFoundError } from "#src/features/presentation/index";
 import { getPublishedPostBySlug, findPublishedPostById, listPublishedPosts, PostNotFoundError } from "#src/features/post/index";
 import { isPublicAssistantEnabled } from "#src/assistant/index";
 import {
@@ -119,6 +119,30 @@ const SITE_TITLE = "Tovu Demo Site";
  * durable, and 404 caching wasn't part of what the audit measured or the owner decided on.
  */
 const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
+
+/**
+ * Resolves the workspace's stored `activeThemeId` preference, degrading to `""` — which
+ * {@link resolveActiveTheme} immediately below already treats as "missing/invalid, fall back to
+ * the first valid theme" — when the workspace has no `presentation_settings` row yet at all
+ * (a freshly created workspace via SPEC-044's `CREATE_WORKSPACE` admin route, or a `content.db`
+ * mid-seed), rather than letting `getPresentationSettings`'s `PresentationSettingsNotFoundError`
+ * propagate out of this route's own `Promise.all` uncaught. Both `GET /` and `GET /:slug` below
+ * previously let that error fall into their outer catch-all, turning a plain "not configured yet"
+ * state into a bare 500 indistinguishable from a genuine fault. Any OTHER error (a real repo/DB
+ * failure) still propagates unchanged — this narrows only the one documented "no row yet" case.
+ */
+async function resolveActiveThemeId(deps: RouteDeps): Promise<string> {
+  try {
+    const { settings } = await getPresentationSettings({
+      deps: { repo: deps.presentationRepo },
+      input: { workspaceId: deps.workspaceId },
+    });
+    return settings.activeThemeId;
+  } catch (err) {
+    if (err instanceof PresentationSettingsNotFoundError) return "";
+    throw err;
+  }
+}
 
 /**
  * Resolve the theme to render with: the active theme when discovered and valid,
@@ -628,16 +652,16 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
     try {
       if (await tryRedirectPhase("pre_content", req.path, deps.workspaceId, res)) return;
 
-      const [{ posts }, settings, siteAssistantEnabled] = await Promise.all([
+      const [{ posts }, activeThemeId, siteAssistantEnabled] = await Promise.all([
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
-        getPresentationSettings({ deps: { repo: deps.presentationRepo }, input: { workspaceId: deps.workspaceId } }),
+        resolveActiveThemeId(deps),
         // ADR-054 — the visitor-chat master switch. `render.ts` never reads settings itself; every
         // route that calls `renderSite` resolves this the same way (see `pages.ts`'s other handler
         // and `products.ts`'s two handlers).
         isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }),
       ]);
 
-      const theme = resolveActiveTheme(deps, settings.settings.activeThemeId);
+      const theme = resolveActiveTheme(deps, activeThemeId);
       if (!theme) {
         res.status(500).type("html").send("<h1>No themes installed</h1>");
         return;
@@ -683,13 +707,13 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
     try {
       if (await tryRedirectPhase("pre_content", req.path, deps.workspaceId, res)) return;
 
-      const [settings, { posts }, siteAssistantEnabled] = await Promise.all([
-        getPresentationSettings({ deps: { repo: deps.presentationRepo }, input: { workspaceId: deps.workspaceId } }),
+      const [activeThemeId, { posts }, siteAssistantEnabled] = await Promise.all([
+        resolveActiveThemeId(deps),
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
         isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }),
       ]);
 
-      theme = resolveActiveTheme(deps, settings.settings.activeThemeId);
+      theme = resolveActiveTheme(deps, activeThemeId);
       if (!theme) {
         res.status(500).type("html").send("<h1>No themes installed</h1>");
         return;
