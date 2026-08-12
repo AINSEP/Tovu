@@ -267,6 +267,13 @@
       "when": 1786565238065,
       "tag": "0037_purple_rocket_racer",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1786565823044,
+      "tag": "0038_volatile_wilson_fisk",
+      "breakpoints": true
     }
   ]
 }

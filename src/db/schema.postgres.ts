@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 73
+ * Tables: 74
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -184,6 +184,7 @@ export const commercePrices = pgTable("commerce_prices", {
   workspaceId: text("workspace_id").notNull(),
   productId: text("product_id").notNull(),
   unitAmountCents: bigint("unit_amount_cents", { mode: "number" }).notNull(),
+  compareAtAmountCents: bigint("compare_at_amount_cents", { mode: "number" }),
   currency: text("currency").notNull(),
   billingInterval: text("billing_interval"),
   status: text("status").notNull(),
@@ -193,10 +194,26 @@ export const commercePrices = pgTable("commerce_prices", {
     foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
     foreignKey({ columns: [t.productId], foreignColumns: [commerceProducts.id] }).onDelete("restrict"),
     check("commerce_prices_unit_amount_cents_check", sql`unit_amount_cents >= 0`),
+    check("commerce_prices_compare_at_amount_cents_check", sql`compare_at_amount_cents IS NULL OR compare_at_amount_cents > unit_amount_cents`),
     check("commerce_prices_currency_check", sql`length(currency) = 3 AND currency = lower(currency)`),
     check("commerce_prices_status_check", sql`status IN ('active', 'archived')`),
     check("commerce_prices_billing_interval_check", sql`billing_interval IS NULL OR billing_interval IN ('month', 'year')`),
     index("idx_commerce_prices_product").on(t.productId),
+  ]);
+
+export const commerceProductImages = pgTable("commerce_product_images", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  productId: text("product_id").notNull(),
+  mediaId: text("media_id").notNull(),
+  position: bigint("position", { mode: "number" }).notNull().default(0),
+  createdAt: text("created_at").notNull(),
+}, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
+    foreignKey({ columns: [t.productId], foreignColumns: [commerceProducts.id] }).onDelete("cascade"),
+    foreignKey({ columns: [t.mediaId], foreignColumns: [media.id] }).onDelete("restrict"),
+    uniqueIndex("commerce_product_images_product_media_unique").on(t.productId, t.mediaId),
+    index("idx_commerce_product_images_product_position").on(t.productId, t.position),
   ]);
 
 export const commerceProducts = pgTable("commerce_products", {
@@ -208,6 +225,7 @@ export const commerceProducts = pgTable("commerce_products", {
   status: text("status").notNull(),
   description: text("description"),
   grantsMemberTierId: text("grants_member_tier_id"),
+  specsJson: text("specs_json"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
   version: bigint("version", { mode: "number" }).notNull(),

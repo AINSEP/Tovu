@@ -1746,6 +1746,23 @@ export const commerceProducts = sqliteTable(
      * with no tier bridge needs no special-casing here.
      */
     grantsMemberTierId: text("grants_member_tier_id"),
+    /**
+     * Migration 0038 — variable-key, per-product display attributes (theme example: "Material" ->
+     * "Thick premium weight combed cotton", "Care" -> "...", "Warranty" -> "..."; different
+     * products use different keys). Column-vs-document call, made explicitly rather than by
+     * silently stretching this file's "provider-owned payload" JSON scope: this data is
+     * author-owned, not provider-owned, so that framing doesn't literally apply — but the
+     * decisive property under the underlying rule still holds. Nothing today queries, filters, or
+     * sorts on a spec label, so it is a document.
+     *
+     * PROMOTION TRIGGER, recorded so it isn't re-litigated from scratch later: the day someone
+     * wants "filter by material: cotton", this is NOT an index-the-JSON-path fix — SQLite and
+     * MySQL only index a NAMED EXTRACTED SCALAR, not an arbitrary JSON path per row, so there is
+     * no way to index "whichever key happens to be present." It needs
+     * `product_attribute_definitions` (a controlled label vocabulary) + `product_attribute_values`
+     * (typed value, FK to definition) — a migration, not a follow-up index.
+     */
+    specsJson: text("specs_json"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
     version: integer("version").notNull(),
@@ -1758,6 +1775,35 @@ export const commerceProducts = sqliteTable(
       foreignColumns: [memberTiers.workspaceId, memberTiers.id],
     }).onDelete("restrict"),
     check("commerce_products_status_check", sql`${table.status} IN ('active', 'archived')`),
+  ]
+);
+
+/**
+ * Migration 0038 — ordered product image gallery. Deliberately a thin join over the EXISTING
+ * `media`/`assetBlobs` system (content-addressed storage, alt/title/caption already modeled
+ * there) rather than a parallel media table — this table carries only the product<->media
+ * relationship and its display position, nothing about the image asset itself.
+ */
+export const commerceProductImages = sqliteTable(
+  "commerce_product_images",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "restrict" }),
+    productId: text("product_id")
+      .notNull()
+      .references(() => commerceProducts.id, { onDelete: "cascade" }),
+    mediaId: text("media_id")
+      .notNull()
+      .references(() => media.id, { onDelete: "restrict" }),
+    /** Gallery display order, ascending. Ties broken by `id` (insertion order) at read time. */
+    position: integer("position").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("commerce_product_images_product_media_unique").on(table.productId, table.mediaId),
+    index("idx_commerce_product_images_product_position").on(table.productId, table.position),
   ]
 );
 
@@ -1781,6 +1827,16 @@ export const commercePrices = sqliteTable(
       .notNull()
       .references(() => commerceProducts.id, { onDelete: "restrict" }),
     unitAmountCents: integer("unit_amount_cents").notNull(),
+    /**
+     * Migration 0038 — the struck-through "was" price shown next to `unitAmountCents`'s "now"
+     * price (a static list-price display, not a time-boxed promotion or coupon — those are a
+     * separate, genuinely temporal/conditional concern this column deliberately does not model).
+     * A column, not a document: it is the same class of fact as `unitAmountCents` itself (a
+     * typed, filterable/sortable money figure), and money is never JSON under this file's own
+     * convention. NULL means "not on sale." The CHECK below prevents a data-entry error from
+     * displaying a fake discount (a compare-at price that isn't actually higher than the real one).
+     */
+    compareAtAmountCents: integer("compare_at_amount_cents"),
     /** Lowercase ISO-4217, matching Stripe's own convention — enforced by the CHECK below. */
     currency: text("currency").notNull(),
     /** NULL = one-time. 'month' | 'year' = recurring, mirroring `memberTiers`' monthly/yearly split. */
@@ -1792,6 +1848,10 @@ export const commercePrices = sqliteTable(
   (table) => [
     index("idx_commerce_prices_product").on(table.productId),
     check("commerce_prices_unit_amount_cents_check", sql`${table.unitAmountCents} >= 0`),
+    check(
+      "commerce_prices_compare_at_amount_cents_check",
+      sql`${table.compareAtAmountCents} IS NULL OR ${table.compareAtAmountCents} > ${table.unitAmountCents}`
+    ),
     check(
       "commerce_prices_currency_check",
       sql`length(${table.currency}) = 3 AND ${table.currency} = lower(${table.currency})`
