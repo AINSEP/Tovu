@@ -165,7 +165,12 @@ export default [
     // complexity ceiling on test code (setup tables, parametrized assertions) is a different, and
     // weaker, argument than on production logic, and grandfathering implies "debt someone should pay
     // down," which isn't the claim here. They still get the repo-wide `warn`/15 from the block above.
-    ignores: ['apps/admin/src/**/__tests__/**'],
+    // `__measurements__/` is the same category under a different name: vitest files that assert
+    // request counts and render costs rather than correctness (see the request-volume /
+    // render-churn harnesses). They are setup tables and parametrized assertions exactly as above,
+    // so the weaker-argument reasoning applies unchanged — they are not production logic and not
+    // debt anyone should pay down.
+    ignores: ['apps/admin/src/**/__tests__/**', 'apps/admin/src/**/__measurements__/**'],
     languageOptions: { parser: tseslint.parser },
     plugins: { sonarjs },
     rules: {
