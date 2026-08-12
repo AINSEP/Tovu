@@ -1,5 +1,5 @@
 import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
-import { useMenus } from "./hooks/use-menus.hooks";
+import { useWiredMenus } from "./hooks/use-menus.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { MENUS_DICT } from "./menus-i18n";
 
@@ -21,7 +21,7 @@ export function Menus() {
     forceDeleting,
     trashOrPurge,
     confirmForceDelete,
-  } = useMenus();
+  } = useWiredMenus();
   const locale = useAdminLocale();
   const t = (key: string): string => MENUS_DICT[locale]?.[key] ?? key;
 
