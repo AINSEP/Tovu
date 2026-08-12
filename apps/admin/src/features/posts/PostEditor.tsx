@@ -7,7 +7,7 @@ import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
 import { api } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
-import { usePostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
+import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { PostTemplateModal } from "./PostTemplateModal";
 import { toolbarBtnClass } from "./rules";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -309,10 +309,10 @@ export interface PostEditorProps {
    * header, the status select, the Publish/Save branch and the confirm dialog without mounting
    * TipTap or serving a post — the existing suite currently has to stand up both.
    */
-  usePostEditorHook?: typeof usePostEditor;
+  usePostEditorHook?: typeof useWiredPostEditor;
 }
 
-export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEditorProps) {
+export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: PostEditorProps) {
   const {
     post,
     editor,
