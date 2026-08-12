@@ -670,8 +670,20 @@ export function Media({ useMediaHook = useWiredMedia }: MediaProps = {}) {
             t={t}
           />
 
+          {/* `key` (2026-08-12 audit round 2, blocker F1 — domain 4, writing to the wrong record).
+              Without it this panel is a single reused instance: `toggleEditing` goes from item A's id
+              straight to item B's id (`setEditingId((id) => id === item.id ? null : item.id)` — it only
+              passes through `null` when you re-click the SAME row, and `mediaRowMenuItems` leaves every
+              other row's "Edit metadata" enabled while one is open), so React re-renders rather than
+              remounting. `useEditMediaPanel` seeds `draft` in a `useState` initializer, which runs once
+              per mount and never re-reads `item` — so `draft` stayed bound to A while `item` became B,
+              and `save()` PATCHed B's id with A's title/alt/caption/credit/dimensions. Two ordinary
+              clicks, no race, no adversarial input, and zero test coverage.
+              This surface was wrongly recorded as already covered by the `panels.tsx` `key=` sweep —
+              it is not router-driven, so that sweep never reached it. */}
           {editingItem ? (
             <EditMediaPanel
+              key={editingItem.id}
               item={editingItem}
               onSaved={onMetadataSaved}
               onCancel={() => setEditingId(null)}
