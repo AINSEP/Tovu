@@ -12,16 +12,40 @@ import { useI18n } from "@jini-ai/ui";
  * dependency). See that file's own header for why `I18nProvider` needs this at all: `initialLocale`
  * is read once, at mount, via a lazy `useState` initializer — not a controlled prop — so a locale
  * change after mount would otherwise only take effect on the next full remount.
+ *
+ * `useI18n()`'s `{ locale, setLocale }` pair is injected — see `useX(dependencies)` / `useWiredX()`
+ * on `assistant-chats-port.hooks.ts` — rather than called directly, so a test can describe "the
+ * provider's locale disagrees with the prop" without mounting a real `I18nProvider`.
+ * `useWiredAiAssistantLocaleSync` below is the zero-argument pair `AiAssistant.tsx` actually mounts.
  */
 
 export interface AiAssistantLocaleSyncHookProps {
   locale: string;
 }
 
+/** What this hook needs from `useI18n()` — just the two fields it reads/calls, not the whole
+ *  provider surface. */
+export interface AiAssistantLocaleSyncDependencies {
+  activeLocale: string;
+  setLocale: (locale: string) => void;
+}
+
 /** @complexity O(1) — one equality check per render, no iteration. */
-export function useAiAssistantLocaleSync({ locale }: AiAssistantLocaleSyncHookProps): void {
-  const { locale: activeLocale, setLocale } = useI18n();
+export function useAiAssistantLocaleSync(
+  { locale }: AiAssistantLocaleSyncHookProps,
+  { activeLocale, setLocale }: AiAssistantLocaleSyncDependencies,
+): void {
   useEffect(() => {
     if (activeLocale !== locale) setLocale(locale);
   }, [locale, activeLocale, setLocale]);
+}
+
+/**
+ * Binds the real `useI18n()` — the zero-dependency half of the `useX(dependencies)` / `useWiredX()`
+ * pair, so `AiAssistant.tsx` composes this and a test composes {@link useAiAssistantLocaleSync}
+ * directly with a fake `setLocale`.
+ */
+export function useWiredAiAssistantLocaleSync(props: AiAssistantLocaleSyncHookProps): void {
+  const { locale: activeLocale, setLocale } = useI18n();
+  useAiAssistantLocaleSync(props, { activeLocale, setLocale });
 }
