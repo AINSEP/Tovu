@@ -19,7 +19,7 @@
  * wiring live here (that is out of scope for this v0 build) — this file is
  * pure resolution logic over injected ports and in-module registries.
  */
-import type { PostRecord } from "../features/post/post";
+import type { PostRecord } from "../features/post";
 
 import type { RouteResolverDeps } from "./ports";
 import type {

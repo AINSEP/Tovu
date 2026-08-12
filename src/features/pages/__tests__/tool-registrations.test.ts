@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo } from "../../post/repo.memory";
-import { createPost } from "../../post/post";
+import { InMemoryPostRepo, createPost } from "../../post";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory";
 import { buildPagesRegistrations } from "../tool-registrations";
 

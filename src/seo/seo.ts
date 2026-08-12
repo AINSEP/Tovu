@@ -1,5 +1,5 @@
 import type { JsonValue } from "@jini-ai/cms/core";
-import type { PostKind, PostRecord, PostRepoPort } from "../features/post/post";
+import type { PostKind, PostRecord, PostRepoPort } from "../features/post";
 import { getEffective, type SettingsRepoPort } from "../features/settings";
 import { urlFor } from "../routing";
 import type { RouteResolverDeps } from "../routing/ports";

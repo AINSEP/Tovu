@@ -20,7 +20,7 @@
  *    convenience so `seo` callers don't need two import paths.
  */
 import type { JsonObject } from "@jini-ai/cms/core";
-import type { PostRecord } from "../features/post/post";
+import type { PostRecord } from "../features/post";
 
 export type {
   HeadElement,

@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { InMemoryPostRepo } from "../../features/post";
-import type { PostRecord } from "../../features/post/post";
+import { InMemoryPostRepo, type PostRecord } from "../../features/post";
 import {
   SeoEntryNotFoundError,
   SeoFieldValidationError,
