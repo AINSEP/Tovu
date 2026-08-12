@@ -1,6 +1,0 @@
-{
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "ui-ux-design",
-  "version": "1.1.0",
-  "description": "AI Dev Shop UI/UX and interface design guidance packaged as a portable Agent Skill."
-}

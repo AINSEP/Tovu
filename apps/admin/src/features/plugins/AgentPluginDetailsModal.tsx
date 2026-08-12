@@ -14,11 +14,15 @@ export interface AgentPluginDetailsModalProps {
 }
 
 /**
- * Read-only inspection of an explicitly bundled plugin package.
+ * Read-only inspection of a bundled plugin package.
  *
- * The modal receives no path/loading adapter. Its only content source is the compile-time
- * allowlist returned by `getBundledAgentPluginSourceFiles`, so selecting a row is a pure lookup
- * and can never become an arbitrary file read.
+ * The modal receives no path/loading adapter. Its only content source is
+ * `getBundledAgentPluginSourceFiles`, which is itself built from an `import.meta.glob(...,
+ * { eager: true })` over the package's `skills/` tree (see `agent-plugin-source-catalog.ts` for
+ * why) -- Vite inlines every matched file's content into the built bundle at compile time, so the
+ * set of selectable rows is still fixed before the app ever runs. Selecting a row is a pure
+ * lookup over that fixed set, never an arbitrary file read, even though which files are IN the
+ * set now tracks the Jini package automatically rather than a hand-written list.
  */
 export function AgentPluginDetailsModal({ plugin, onClose }: AgentPluginDetailsModalProps) {
   const files = getBundledAgentPluginSourceFiles(plugin.id);
