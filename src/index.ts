@@ -5,7 +5,7 @@ import { createApp, createRouteDeps } from "./server/app";
 import { createSqliteRouteDeps, defaultContentDbPath } from "./server/deps";
 import { CAPABILITY_INVENTORY } from "./server/capability-inventory";
 import { runProductionReadinessGate } from "./server/production-readiness-gate";
-import { resolveRuntimeMode } from "./server/runtime-mode";
+import { resolveRuntimeMode } from "#src/core/runtime-mode";
 import { runBootLifecycle } from "./server/boot-lifecycle";
 import { buildBootModules } from "./server/bootstrap";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure, setReadinessSnapshot } from "./server/readiness-state";

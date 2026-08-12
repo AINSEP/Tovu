@@ -5,7 +5,7 @@ import test from "node:test";
 
 import { CAPABILITY_INVENTORY } from "../../capability-inventory";
 import { runProductionReadinessGate } from "../../production-readiness-gate";
-import { resolveRuntimeMode } from "../../runtime-mode";
+import { resolveRuntimeMode } from "#src/core/runtime-mode";
 
 /**
  * @file SPEC-022 — real-composition integration coverage (AC-01, AC-05, AC-12, AC-23/24,

@@ -119,7 +119,7 @@ import {
 } from "../features/taxonomy/repo.sqlite";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../core/gated-mutations/composition";
-import { resolveRuntimeMode } from "./runtime-mode";
+import { resolveRuntimeMode } from "#src/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer";
 
 /**

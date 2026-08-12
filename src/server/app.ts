@@ -107,7 +107,7 @@ import {
 } from "../features/taxonomy/repo.memory";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../core/gated-mutations/composition";
-import { resolveRuntimeMode } from "./runtime-mode";
+import { resolveRuntimeMode } from "#src/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer";
 import { registerAdminTaxonomyMergeTermRoutes } from "./routes/admin/taxonomy/merge-term";
 import { registerAdminDatabaseMigrateForwardRoutes } from "./routes/admin/database/migrate-forward";

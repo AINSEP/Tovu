@@ -9,7 +9,7 @@
 
 import type { CapabilityInventoryEntry } from "./capability-inventory";
 import { findCapabilityEntry } from "./capability-inventory";
-import type { RuntimeMode } from "./runtime-mode";
+import type { RuntimeMode } from "#src/core/runtime-mode";
 
 export interface EnvSnapshot {
   hasDevSecretPlaceholder: boolean;

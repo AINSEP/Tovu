@@ -85,7 +85,7 @@ import { openContentDb } from "../db/sqlite/content-db";
 import { createRouteDeps } from "../server/app";
 import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../server/deps";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/core/rate-limit/rate-limit";
-import { resolveRuntimeMode } from "../server/runtime-mode";
+import { resolveRuntimeMode } from "#src/core/runtime-mode";
 import { listAssistantAgents, rescanAssistantAgents } from "./agents";
 import { createCustomInstructionsCache } from "./custom-instructions";
 import { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-auth";
