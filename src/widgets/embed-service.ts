@@ -26,11 +26,13 @@ import type { ClockPort, JsonValue, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
 import { extractEntryRefs } from "../core/entry-refs/extractor";
 import type { ContentTypeRepoPort } from "../features/content-types/write-service";
-import { VersionConflictError } from "../features/entries/errors";
-import { toEntryOutbox } from "../features/entries/repo.memory";
-import type { EntryRecord } from "../features/entries/types";
-import { updateEntry } from "../features/entries/write-service";
-import type { EntryRepoPort } from "../features/entries/write-service";
+import {
+  VersionConflictError,
+  toEntryOutbox,
+  updateEntry,
+  type EntryRecord,
+  type EntryRepoPort,
+} from "../features/entries";
 import {
   PRE_AUTHORIZED,
   requireWidgetPermission,

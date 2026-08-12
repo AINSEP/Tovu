@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InMemoryEntryRefsRepo } from "#src/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/repo.memory";
-import { InMemoryEntryRepo } from "#src/features/entries/repo.memory";
+import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { getWidgetInstance, listWidgetInstances, type WidgetReadServiceDeps } from "../../read-service";
 import { WidgetForbiddenError, WidgetInstanceNotFoundError } from "../../errors";
 import { createWidgetInstance, trashWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service";
