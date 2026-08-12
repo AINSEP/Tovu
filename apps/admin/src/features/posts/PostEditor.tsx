@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@jini-ai/admin/react";
 import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
-import { api } from "../../lib/api";
+import { api, type AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { PostTemplateModal } from "./PostTemplateModal";
@@ -45,7 +45,18 @@ const VIEWS: ReadonlyArray<{ key: PostEditorView; label: string }> = [
 ];
 
 /** Formatting toolbar wired to the live editor. Active state stays in sync via useEditorState. */
-function Toolbar({ editor }: { editor: Editor }) {
+function Toolbar({
+  editor,
+  mentionablePosts,
+  currentPostId,
+}: {
+  editor: Editor;
+  /** Mention feature (2026-08-11) — every other post/page this workspace has, unfiltered (this
+   *  component excludes `currentPostId` at render time). See `use-post-editor.hooks.ts`'s own
+   *  field doc for why an empty array here means "loading or fetch failed", not "no other posts". */
+  mentionablePosts: AdminPost[];
+  currentPostId: string;
+}) {
   const s = useEditorState({
     editor,
     // EXEMPTION (complexity ceiling, 2026-08-06, updated for the ≤9/≤9 bar; field count updated
@@ -243,15 +254,25 @@ function Toolbar({ editor }: { editor: Editor }) {
         <button className="tb-btn" title="Undo (⌘Z)" disabled={!s.canUndo} onClick={() => chain().undo().run()}>↺</button>
         <button className="tb-btn" title="Redo (⌘⇧Z)" disabled={!s.canRedo} onClick={() => chain().redo().run()}>↻</button>
       </div>
-      {/* Text/background color (owner, 2026-08-11: "anything and everything") — native
-          `<input type="color">` swatches, no color-picker dependency, same "no icon dependency"
-          spirit the align-icon SVGs above follow. A native color input only ever emits a strict
-          6-digit hex, so `chain().setColor()`/`setBackgroundColor()` never receive anything
-          `safeCssColor` (render.ts) would reject — the allowlist there is defense-in-depth against
-          `bodyJson` written some OTHER way (a direct API call, pasted content), not something this
-          UI can trigger on its own. `hexOrDefault` only affects what the swatch DISPLAYS when
-          nothing is selected or the current mark's color isn't a plain hex string (e.g. inherited
-          from pasted `rgb(...)`/keyword content) — it never touches what gets applied on change. */}
+      {/* Text/background color (owner, 2026-08-11: "anything and everything"; consolidated to fewer
+          controls 2026-08-11 toolbar-polish pass) — native `<input type="color">` swatches, no
+          color-picker dependency, same "no icon dependency" spirit the align-icon SVGs above
+          follow. A native color input only ever emits a strict 6-digit hex, so
+          `chain().setColor()`/`setBackgroundColor()` never receive anything `safeCssColor`
+          (render.ts) would reject — the allowlist there is defense-in-depth against `bodyJson`
+          written some OTHER way (a direct API call, pasted content), not something this UI can
+          trigger on its own. `hexOrDefault` only affects what the swatch DISPLAYS when nothing is
+          selected or the current mark's color isn't a plain hex string (e.g. inherited from pasted
+          `rgb(...)`/keyword content) — it never touches what gets applied on change.
+
+          The "×" clear button used to be unconditional — a swatch AND a separate always-visible ×
+          for each of text/background, four controls for two concepts, and an ambiguous glyph on
+          top of that (owner: this reads as "four buttons" when it's really two ideas). Each × now
+          renders ONLY while that color is actually set (`s.color !== null` / `s.backgroundColor !==
+          null`, the same live cursor-state `hexOrDefault` already reads) — with nothing set, this
+          row is exactly the two swatches; the clear affordance appears exactly when there is
+          something to clear. Accessible names are unchanged (`aria-label`s below are verbatim what
+          they were before this pass) since an existing e2e suite selects by them. */}
       <div className="grp">
         <label className="tb-color" title="Text color">
           <input
@@ -261,7 +282,9 @@ function Toolbar({ editor }: { editor: Editor }) {
             onChange={(e) => chain().setColor(e.target.value).run()}
           />
         </label>
-        <button className="tb-btn" title="Clear text color" aria-label="Clear text color" onClick={() => chain().unsetColor().run()}>×</button>
+        {s.color !== null ? (
+          <button className="tb-btn" title="Clear text color" aria-label="Clear text color" onClick={() => chain().unsetColor().run()}>×</button>
+        ) : null}
         <label className="tb-color" title="Background color">
           <input
             type="color"
@@ -270,47 +293,65 @@ function Toolbar({ editor }: { editor: Editor }) {
             onChange={(e) => chain().setBackgroundColor(e.target.value).run()}
           />
         </label>
-        <button className="tb-btn" title="Clear background color" aria-label="Clear background color" onClick={() => chain().unsetBackgroundColor().run()}>×</button>
+        {s.backgroundColor !== null ? (
+          <button className="tb-btn" title="Clear background color" aria-label="Clear background color" onClick={() => chain().unsetBackgroundColor().run()}>×</button>
+        ) : null}
       </div>
-      {/* Font family/size, line height (owner, 2026-08-11: "anything and everything") — closed
-          preset `<select>`s (`rules.ts`'s `FONT_FAMILY_OPTIONS`/`FONT_SIZE_OPTIONS`/
-          `LINE_HEIGHT_OPTIONS`), not free-text inputs: every value they can produce already passes
-          `render.ts`'s own allowlist by construction. `""` (the shared "Default" option every list
-          leads with) unsets the attribute entirely rather than setting it to an empty string. */}
+      {/* Font family/size, line height (owner, 2026-08-11: "anything and everything"; made
+          self-describing 2026-08-11 toolbar-polish pass) — closed preset `<select>`s (`rules.ts`'s
+          `FONT_FAMILY_OPTIONS`/`FONT_SIZE_OPTIONS`/`LINE_HEIGHT_OPTIONS`), not free-text inputs:
+          every value they can produce already passes `render.ts`'s own allowlist by construction.
+          `""` (the leading option every list starts with — see `rules.ts`'s own comment for exactly
+          how its LABEL was derived from a live measurement) unsets the attribute entirely rather
+          than setting it to an empty string.
+
+          Each select is now paired with a short visible `.tb-select-label` (owner: three controls
+          that all read "Default" gave no clue which was font/size/line-height without hovering for
+          the `title`). The label is `aria-hidden` — the select's own `aria-label` below already
+          carries the accessible name, so a screen reader is not told the same thing twice. */}
       <div className="grp">
-        <select
-          className="tb-select"
-          title="Font family"
-          aria-label="Font family"
-          value={s.fontFamily}
-          onChange={(e) => (e.target.value ? chain().setFontFamily(e.target.value).run() : chain().unsetFontFamily().run())}
-        >
-          {FONT_FAMILY_OPTIONS.map((opt) => (
-            <option key={opt.label} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-        <select
-          className="tb-select"
-          title="Font size"
-          aria-label="Font size"
-          value={s.fontSize}
-          onChange={(e) => (e.target.value ? chain().setFontSize(e.target.value).run() : chain().unsetFontSize().run())}
-        >
-          {FONT_SIZE_OPTIONS.map((opt) => (
-            <option key={opt.label} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-        <select
-          className="tb-select"
-          title="Line height"
-          aria-label="Line height"
-          value={s.lineHeight}
-          onChange={(e) => (e.target.value ? chain().setLineHeight(e.target.value).run() : chain().unsetLineHeight().run())}
-        >
-          {LINE_HEIGHT_OPTIONS.map((opt) => (
-            <option key={opt.label} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
+        <span className="tb-select-group">
+          <span className="tb-select-label" aria-hidden="true">Font</span>
+          <select
+            className="tb-select"
+            title="Font family"
+            aria-label="Font family"
+            value={s.fontFamily}
+            onChange={(e) => (e.target.value ? chain().setFontFamily(e.target.value).run() : chain().unsetFontFamily().run())}
+          >
+            {FONT_FAMILY_OPTIONS.map((opt) => (
+              <option key={opt.label} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </span>
+        <span className="tb-select-group">
+          <span className="tb-select-label" aria-hidden="true">Size</span>
+          <select
+            className="tb-select"
+            title="Font size"
+            aria-label="Font size"
+            value={s.fontSize}
+            onChange={(e) => (e.target.value ? chain().setFontSize(e.target.value).run() : chain().unsetFontSize().run())}
+          >
+            {FONT_SIZE_OPTIONS.map((opt) => (
+              <option key={opt.label} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </span>
+        <span className="tb-select-group">
+          <span className="tb-select-label" aria-hidden="true">Line</span>
+          <select
+            className="tb-select"
+            title="Line height"
+            aria-label="Line height"
+            value={s.lineHeight}
+            onChange={(e) => (e.target.value ? chain().setLineHeight(e.target.value).run() : chain().unsetLineHeight().run())}
+          >
+            {LINE_HEIGHT_OPTIONS.map((opt) => (
+              <option key={opt.label} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </span>
       </div>
       <div className="grp">
         {/* Single "Embed" control (quick-and-dirty pass, 2026-08-05 — owner explicitly skipped
@@ -349,6 +390,30 @@ function Toolbar({ editor }: { editor: Editor }) {
         >
           YouTube
         </button>
+        {/* Mention another post (coordinator MSG A#1 licensing sweep, 2026-08-11) — a single
+            action `<select>` (`value=""` always, matching a menu-styled dropdown-button rather than
+            a retained current-selection field): choosing a post inserts a mention node immediately
+            and the control snaps back to its placeholder. `id` stores the mentioned post's SLUG
+            (what `render.ts`'s `"mention"` case builds a link from), `label` its title. Excludes
+            `currentPostId` — mentioning the post you're currently writing has no meaning. */}
+        <select
+          className="tb-select"
+          title="Mention a post"
+          aria-label="Mention a post"
+          value=""
+          onChange={(e) => {
+            const target = mentionablePosts.find((p) => p.slug === e.target.value);
+            if (!target) return;
+            chain().insertContent({ type: "mention", attrs: { id: target.slug, label: target.title } }).run();
+          }}
+        >
+          <option value="">Mention…</option>
+          {mentionablePosts
+            .filter((p) => p.id !== currentPostId)
+            .map((p) => (
+              <option key={p.id} value={p.slug}>{p.title}</option>
+            ))}
+        </select>
       </div>
       {/* CharacterCount (owner, 2026-08-11: "anything and everything") — a plain readout, not a
           button: nothing to click, just the live count `editor.storage.characterCount` already
@@ -580,6 +645,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     templateChoice,
     setTemplateChoice,
     availableTemplates,
+    mentionablePosts,
     activeThemeId,
     activeThemeTier,
     overridesThemePage,
@@ -834,7 +900,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
             label: "Formatting toolbar and the post body editor",
           })}
         >
-          {editor ? <Toolbar editor={editor} /> : null}
+          {editor ? <Toolbar editor={editor} mentionablePosts={mentionablePosts} currentPostId={post.id} /> : null}
           {editor ? <BubbleFormattingMenu editor={editor} /> : null}
           {/* Drag handle (owner, 2026-08-11: "anything and everything") — a grip icon that appears
               beside whichever top-level block the cursor is hovering, letting an author reorder

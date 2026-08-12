@@ -70,6 +70,19 @@ beforeEach(() => {
         })
       );
     }
+    // Mention feature (2026-08-11) — `use-post-editor.hooks.ts`'s own load effect now also fires
+    // `port.listPosts()` on mount, a real `fetch` call this file's tests never queued for either.
+    // Same reasoning as `/settings/effective`/`/presentation` just above: routed here, ahead of
+    // `fetchMock`, so it never eats a slot from the post-load/save `mockResolvedValueOnce` sequence
+    // every test below still queues on `fetchMock` itself, unchanged. Matched on the BARE
+    // `/workspaces/{ws}/posts` URL with no id segment AND no explicit method — `createPost` hits the
+    // same bare URL but as a `POST`, and every per-post call (`getPost`/`updatePost`/`deletePost`)
+    // always has an `/{id}` suffix, so this cannot accidentally intercept either. Defaults to no
+    // other posts, which keeps the mention picker in its empty/disabled state — what every
+    // pre-existing assertion in this file was written against.
+    if (/\/posts$/.test(url) && (init?.method ?? "GET") === "GET") {
+      return Promise.resolve(jsonResponse({ posts: [] }));
+    }
     return fetchMock(input, init);
   });
 });
@@ -350,6 +363,7 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     templateChoice: null,
     setTemplateChoice: vi.fn(),
     availableTemplates: [],
+    mentionablePosts: [],
     activeThemeId: null,
     activeThemeTier: null,
     overridesThemePage: false,

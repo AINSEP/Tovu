@@ -13,6 +13,7 @@ export const defaultPostEditorPort: PostEditorPort = {
   getPresentation: () => api.getPresentation(),
   updatePost: (target, patch) => api.updatePost(target, patch),
   deletePost: (id) => api.deletePost(id),
+  listPosts: () => api.listPosts(),
 };
 
 /** Seed state for {@link createFakePostEditorPort}. */
@@ -30,6 +31,10 @@ export interface FakePostEditorPortOptions {
   updatePostError?: string;
   /** Rejects `deletePost` with this message instead of resolving — the delete-failure path. */
   deletePostError?: string;
+  /** Mention feature's picker list — defaults to `[]` (no other posts to mention), same
+   *  "explicit seed, safe empty default" shape every other array/list field on this options type
+   *  already follows. */
+  mentionablePosts?: AdminPost[];
 }
 
 const DEFAULT_POST: AdminPost = {
@@ -103,6 +108,10 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
       if (options.deletePostError) throw new Error(options.deletePostError);
       if (id !== state.post.id) throw new Error(`fake post not found: ${id}`);
       return { post: state.post };
+    },
+
+    async listPosts() {
+      return { posts: (options.mentionablePosts ?? []).map((post) => ({ post })) };
     },
   };
 }
