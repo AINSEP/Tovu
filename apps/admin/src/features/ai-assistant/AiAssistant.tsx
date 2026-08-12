@@ -14,7 +14,7 @@ import { SeeMore } from "../../components/SeeMore/SeeMore";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt } from "../../components/AdminByokKeyPanel";
 import { useAdminAssistantSwitch } from "./hooks/use-admin-assistant-switch.hooks";
 import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
-import { useAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
+import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { useAiAssistant } from "./hooks/use-ai-assistant.hooks";
 import { useVisitorCredentialForm, type VisitorCredentialFormController } from "./hooks/use-visitor-credential-form.hooks";
@@ -236,7 +236,7 @@ function AdminExecutionMode({
   // same reasoning `SettingsUi.tsx`'s identical call documents: the credential hook's own effects
   // don't read `byok` until an explicit Save/migrate press, and the panel this feeds isn't rendered
   // until past the gate anyway.
-  const adminCredential = useAdminExecutionCredential({
+  const adminCredential = useWiredAdminExecutionCredential({
     byok: execution.value?.byok ?? DEFAULT_EXECUTION_CONFIG.byok,
     onByokChange: (byok) => execution.onChange({ ...(execution.value ?? DEFAULT_EXECUTION_CONFIG), byok }),
   });

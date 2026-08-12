@@ -74,7 +74,7 @@ import { useSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
 import { ComposioKeyField } from "./ComposioKeyField";
 import { connectorsDependencies } from "./connectors-port";
-import { useAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
+import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt } from "../../components/AdminByokKeyPanel";
 import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
 import { t as tCapability } from "./settings-capabilities-i18n";
@@ -234,7 +234,7 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi, tabId = null }: 
   // `DEFAULT_EXECUTION_CONFIG.byok` while `s.execution.value` is still `null`, which is harmless:
   // the credential hook's own effects don't read `byok` until an explicit Save/migrate press, and
   // the tab this feeds isn't rendered until past the gate anyway.
-  const adminCredential = useAdminExecutionCredential({
+  const adminCredential = useWiredAdminExecutionCredential({
     byok: (s.execution.value as ExecutionConfig | null)?.byok ?? DEFAULT_EXECUTION_CONFIG.byok,
     onByokChange: (byok) => s.execution.onChange({ ...(s.execution.value as ExecutionConfig), byok }),
   });
