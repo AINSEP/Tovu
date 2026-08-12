@@ -22,6 +22,15 @@ import { t } from "../roles-i18n";
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts` and `features/posts/hooks/use-posts.hooks.ts`:
  * `use-<thing>.hooks.ts`. Feature-local because nothing outside `features/roles` needs it.
+ *
+ * `t`/`locale` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from that
+ * hook, not its own `useAdminLocale()`/dictionary import): this hook already called
+ * `useAdminLocale()` for its own error-string translations, so exposing that SAME already-resolved
+ * `locale` as a bound `t` (plus the raw value, still needed for `rules.ts`'s `roleMenuItems`/
+ * `policyMenuItems` and `roles-i18n.tsx`'s several part-builder helpers, all of which take `locale`
+ * directly) on the return value adds no new fetch — `Roles.tsx` used to call `useAdminLocale()` a
+ * second time and rebuild its own `translateRoles(locale, key)` closure, entirely redundant with
+ * the resolution this hook was already doing internally.
  */
 
 export interface RolesController {
@@ -82,6 +91,13 @@ export interface RolesController {
   pendingPolicyDelete: AdminPolicy | null;
   setPendingPolicyDelete: (policy: AdminPolicy | null) => void;
   onDeletePolicy: () => Promise<void>;
+
+  /** Bound translator — `key` already resolved against the caller's locale, so `Roles.tsx` never
+   *  imports `useAdminLocale`/`roles-i18n` itself. See this file's header. */
+  t: (key: string) => string;
+  /** Raw resolved locale — `rules.ts`'s row-menu builders and `roles-i18n.tsx`'s part-builder
+   *  helpers take `locale` directly rather than a bound translator. See this file's header. */
+  locale: string;
 }
 
 /** The shape `onDeleteRole`/`onDeletePolicy` both repeat: guard on nothing pending, set the shared
@@ -117,6 +133,7 @@ async function runRowDelete(
 
 export function useRoles(): RolesController {
   const locale = useAdminLocale();
+  const boundT = (key: string): string => t(locale, key);
   const [roles, setRoles] = useState<AdminRole[] | null>(null);
   const [policies, setPolicies] = useState<AdminPolicy[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -344,5 +361,8 @@ export function useRoles(): RolesController {
     pendingPolicyDelete,
     setPendingPolicyDelete,
     onDeletePolicy,
+
+    t: boundT,
+    locale,
   };
 }
