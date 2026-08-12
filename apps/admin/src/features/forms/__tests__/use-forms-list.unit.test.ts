@@ -1,0 +1,60 @@
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { useFormsList } from "../hooks/use-forms-list.hooks";
+import { createFakeFormsPort } from "../hooks/forms-dependencies.hooks";
+import type { AdminFormDefinition } from "../../../lib/api";
+
+/**
+ * @file `useFormsList` — the Forms LIST screen's load/status-toggle state.
+ * `FormsList.unit.test.tsx` already exercises the full UI flow through a stubbed `fetch`; this
+ * file is the hook's own injected-port coverage — see `forms-port.hooks.ts` for why the injection
+ * exists.
+ */
+
+function formFixture(overrides: Partial<AdminFormDefinition> = {}): AdminFormDefinition {
+  return {
+    id: "f1",
+    workspaceId: "fake-ws",
+    name: "Contact",
+    slug: "contact",
+    fields: [],
+    notify: { enabled: false, recipients: [] },
+    status: "active",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("useFormsList — injected port", () => {
+  it("loads forms on mount from the fake port's seed, with no fetch involved", async () => {
+    const networkMock = vi.fn();
+    vi.stubGlobal("fetch", networkMock);
+    const port = createFakeFormsPort({ forms: [formFixture()] });
+
+    const { result } = renderHook(() => useFormsList(port));
+
+    await waitFor(() => expect(result.current.forms).not.toBeNull());
+    expect(result.current.forms).toEqual([formFixture()]);
+    expect(result.current.error).toBeNull();
+    expect(networkMock).not.toHaveBeenCalled();
+  });
+
+  it("toggleStatus flips the form's status through the port", async () => {
+    const port = createFakeFormsPort({ forms: [formFixture({ status: "active" })] });
+    const { result } = renderHook(() => useFormsList(port));
+    await waitFor(() => expect(result.current.forms).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.toggleStatus(formFixture({ status: "active" }));
+    });
+
+    expect(result.current.forms?.[0]?.status).toBe("disabled");
+    expect(result.current.rowSavingId).toBeNull();
+  });
+});

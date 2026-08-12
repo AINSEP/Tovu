@@ -1,7 +1,7 @@
 import { type AdminFormDefinition } from "../../lib/api";
 import { navigate } from "../../lib/router";
 import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
-import { useFormsList } from "./hooks/use-forms-list.hooks";
+import { useWiredFormsList } from "./hooks/use-forms-list.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { FORMS_DICT } from "./forms-i18n";
 
@@ -35,10 +35,10 @@ export interface FormsListProps {
    * Dependency injection seam for tests — see `RedirectsProps.useRedirectsHook` for the
    * convention. Defaulted to the real hook, so `panels.tsx` passes nothing.
    */
-  useFormsListHook?: typeof useFormsList;
+  useFormsListHook?: typeof useWiredFormsList;
 }
 
-export function FormsList({ useFormsListHook = useFormsList }: FormsListProps = {}) {
+export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListProps = {}) {
   const { forms, error, rowSavingId, toggleStatus } = useFormsListHook();
   const locale = useAdminLocale();
   const t = (key: string): string => FORMS_DICT[locale]?.[key] ?? key;
