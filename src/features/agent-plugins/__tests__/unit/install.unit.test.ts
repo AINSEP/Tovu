@@ -6,12 +6,13 @@ import path from "node:path";
 import test from "node:test";
 
 import { forceRemove } from "../fixtures/force-remove";
-import { resolveAgentPluginLayout } from "../../layout";
+import { resolveAgentPluginLayout, type AgentPluginLayout } from "../../layout";
 import {
   AgentPluginInstallError,
   installAgentPlugin,
   type AgentPluginArchiveEntry,
   type AgentPluginArchiveReaderPort,
+  type InstallAgentPluginRequired,
 } from "../../install";
 
 /**
@@ -430,29 +431,29 @@ test("TENANT-GRADE: two workspaces installing the identical archive extract INDE
 });
 
 // ---------------------------------------------------------------------------
-// PROVEN, security pass 2026-08-13 (ADS-memory/reports/security/2026-08-13-post-session-security-pass.md):
-// the tenant-isolation guarantee above holds only when every caller derives `layout` via
-// `instanceLayout.forWorkspace(workspaceId)`. `AgentPluginWorkspaceLayout` (layout.ts) is a plain
-// interface of four string/function fields with no `workspaceId` tag and no back-reference to the
-// instance root it came from -- `installAgentPlugin` never re-derives or re-validates `layout`
-// against any expected workspace. This was flagged as "convention, not compiler-enforced" and
-// requested as a negative test; it did not exist before this pass. The two tests below prove it two
-// ways: a layout stitched from two DIFFERENT real workspaces' own directories, and a layout that is
-// not derived from `forWorkspace` at all.
+// RED, security pass 2026-08-13 (ADS-memory/reports/security/2026-08-13-post-session-security-pass.md,
+// Finding 2 -- fix follows in the next commit). The tenant-isolation guarantee above holds only when
+// every caller derives `layout` via `instanceLayout.forWorkspace(workspaceId)` and never mixes the
+// results of two different calls. `AgentPluginWorkspaceLayout` (layout.ts) is a plain interface of
+// four string/function fields with no `workspaceId` tag and no back-reference to the instance root it
+// came from -- `installAgentPlugin` never re-derives or re-validates `layout` against any expected
+// workspace. The two tests below describe the INTENDED, post-fix contract -- `installAgentPlugin`
+// taking the instance-level `AgentPluginLayout` plus a `workspaceId` instead of a pre-resolved
+// workspace layout -- and are RED against `install.ts` as it stands in this commit: `installAgentPlugin`
+// does not accept a `workspaceId` field yet, and a hand-stitched/rogue layout object still
+// type-checks and is honored uncritically. See the follow-up fix commit for `install.ts`'s change and
+// this section's own updated header once it lands.
 // ---------------------------------------------------------------------------
 
-test("PROVEN GAP: a layout literal stitching workspace A's `packages` onto workspace B's `staging` type-checks and installAgentPlugin honors it uncritically -- nothing here is tied back to one workspace", async () => {
+test("CLOSED: a layout literal stitching workspace A's `packages` onto workspace B's `staging` is now a compile-time type error, and a cast-bypassed call fails at runtime instead of publishing into the wrong tree", async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-install-test-"));
   try {
     const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
     const workspaceA = instanceLayout.forWorkspace("11111111-1111-4111-8111-111111111111");
     const workspaceB = instanceLayout.forWorkspace("22222222-2222-4222-8222-222222222222");
 
-    // Nothing prevents this: every field a real `forWorkspace()` result exposes is a plain string or
-    // function, so a mixed object satisfies `AgentPluginWorkspaceLayout` structurally. This is the
-    // "hand-built literal satisfies the workspace type" gap named in the dispatch brief -- reproduced
-    // here with directories that already exist as two DIFFERENT real workspaces' own trees, not with
-    // fabricated strings, so the result below is not an artifact of an invalid path.
+    // The IDENTICAL hostile object from the original gap this test used to prove -- unchanged, so
+    // what follows is still proof against the SAME exploit attempt, not a weaker substitute.
     const confusedLayout = {
       root: workspaceA.root,
       packages: workspaceB.packages, // <- workspace B's real package tree
@@ -463,33 +464,51 @@ test("PROVEN GAP: a layout literal stitching workspace A's `packages` onto works
     const archive = new Uint8Array(Buffer.from("archive-bytes-confused-layout"));
     const digest = createHash("sha256").update(archive).digest("hex");
 
-    const installed = await installAgentPlugin({
+    // Proof 1 (compile-time): `confusedLayout` is not assignable to `InstallAgentPluginRequired["layout"]`
+    // anymore (it has no `forWorkspace` method), and `workspaceId` is a required field that's simply
+    // absent here. This never calls `installAgentPlugin` -- it only constructs (and immediately
+    // discards) a same-shaped argument object, purely so `@ts-expect-error` has something concrete to
+    // check. If `install.ts`'s signature ever regressed back to accepting a bare workspace layout,
+    // this line would stop producing a type error and `tsc --noEmit` would fail on the now-unused
+    // `@ts-expect-error` directive itself -- the proof is self-checking, not just a comment.
+    void ((): InstallAgentPluginRequired => ({
       archive,
       expectedSha256: digest,
       archiveReader: reader(validPackageEntries()),
+      // @ts-expect-error -- confusedLayout has no forWorkspace method; workspaceId is also missing entirely
       layout: confusedLayout,
-    });
+    }))();
 
-    // The bytes landed under workspace B's tree, not workspace A's -- a caller that believed it was
-    // installing "for workspace A" (the id embedded in `confusedLayout.root` and `pluginDataDir`) in
-    // fact wrote into workspace B's package store. `installAgentPlugin` raised no error and performed
-    // no consistency check between `root`/`pluginDataDir` (A) and `packages`/`staging` (B).
-    assert.equal(path.relative(workspaceB.root, installed.packageRoot).startsWith(".."), false);
-    assert.equal(path.relative(workspaceA.root, installed.packageRoot).startsWith(".."), true);
+    // Proof 2 (runtime): the realistic worst case is a caller who bypasses the type system entirely.
+    // Even then, `confusedLayout` has no `forWorkspace` method -- `installAgentPlugin`'s very first
+    // line now calls `layout.forWorkspace(workspaceId)`, which throws immediately, before any digest
+    // check, mkdir, or extraction happens.
+    await assert.rejects(
+      () =>
+        installAgentPlugin({
+          archive,
+          expectedSha256: digest,
+          archiveReader: reader(validPackageEntries()),
+          layout: confusedLayout as unknown as AgentPluginLayout,
+          workspaceId: "11111111-1111-4111-8111-111111111111",
+        }),
+      /forWorkspace is not a function/,
+    );
 
-    const publishedInB = await readFile(path.join(workspaceB.packages, digest, "plugin.json"), "utf8");
-    assert.equal(publishedInB, VALID_MANIFEST, "the archive was published into workspace B's real package store");
+    // And the bytes genuinely never landed anywhere -- neither workspace's tree gained a package.
+    assert.deepEqual(await readdir(workspaceA.packages).catch(() => []), []);
+    assert.deepEqual(await readdir(workspaceB.packages).catch(() => []), []);
   } finally {
     await forceRemove(cwd);
   }
 });
 
-test("PROVEN GAP: a layout never derived from forWorkspace() at all -- arbitrary strings -- is accepted with no origin check, extracting outside the entire agent-plugins tree", async () => {
+test("CLOSED: a layout never derived from forWorkspace() at all -- arbitrary strings -- is now a compile-time type error, and a cast-bypassed call fails at runtime instead of extracting outside the agent-plugins tree", async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-install-test-"));
   try {
     // A location that has nothing to do with `infra/agent-plugins`, `resolveAgentPluginLayout`, or
-    // any workspace id at all -- simulating a caller-side bug (wrong variable, stale closure, a
-    // future code path that assembles a layout object by hand instead of calling `forWorkspace`).
+    // any workspace id at all -- the IDENTICAL hostile shape from the original gap this test used to
+    // prove.
     const rogueRoot = path.join(cwd, "somewhere-else-entirely");
 
     const rogueLayout = {
@@ -502,19 +521,32 @@ test("PROVEN GAP: a layout never derived from forWorkspace() at all -- arbitrary
     const archive = new Uint8Array(Buffer.from("archive-bytes-rogue-layout"));
     const digest = createHash("sha256").update(archive).digest("hex");
 
-    const installed = await installAgentPlugin({
+    // Proof 1 (compile-time): same shape as the test above -- no `forWorkspace`, no `workspaceId`.
+    void ((): InstallAgentPluginRequired => ({
       archive,
       expectedSha256: digest,
       archiveReader: reader(validPackageEntries()),
+      // @ts-expect-error -- rogueLayout has no forWorkspace method; workspaceId is also missing entirely
       layout: rogueLayout,
-    });
+    }))();
 
-    // installAgentPlugin performed every containment/size/symlink check inside the package it was
-    // given -- none of those checks are the gap. The gap is one level up: nothing verifies the
-    // package ROOT itself is under a real, workspace-scoped `AgentPluginLayout` at all.
-    assert.equal(installed.packageRoot, path.join(rogueRoot, "packages", "sha256", digest));
-    const published = await readFile(path.join(rogueRoot, "packages", "sha256", digest, "plugin.json"), "utf8");
-    assert.equal(published, VALID_MANIFEST);
+    // Proof 2 (runtime): cast-bypassed, exactly like the test above -- `rogueLayout` has no
+    // `forWorkspace` either, so the failure mode is identical regardless of whether the hostile
+    // object claims to be "two real workspaces confused" or "not a workspace at all."
+    await assert.rejects(
+      () =>
+        installAgentPlugin({
+          archive,
+          expectedSha256: digest,
+          archiveReader: reader(validPackageEntries()),
+          layout: rogueLayout as unknown as AgentPluginLayout,
+          workspaceId: "11111111-1111-4111-8111-111111111111",
+        }),
+      /forWorkspace is not a function/,
+    );
+
+    // No bytes were written outside the agent-plugins tree at all -- `rogueRoot` was never created.
+    await assert.rejects(() => stat(rogueRoot));
   } finally {
     await forceRemove(cwd);
   }
