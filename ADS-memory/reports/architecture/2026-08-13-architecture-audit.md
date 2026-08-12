@@ -149,3 +149,160 @@ written. If that check instead surfaces a feature-specific file wrongly sitting 
 fan-in/fan-out band, fix that placement first, then update.
 
 ---
+
+## 4. The true module-cycle inventory
+
+### Resolving the discrepancy the dispatch brief flagged
+
+**The tool's own current output is unambiguous: 8 pairs.** Ran live (not read from a report):
+`module cycles (mutual pairs) 8`, listing exactly 8 `<->` pairs. The baseline JSON
+(`development/scripts/check-architecture.baseline.json`, commit `e8688e1`) records `mutualCycleCount: 13`
+with all 13 pairs enumerated. Diffing the two pair lists: **0 new pairs introduced, 5 pairs removed**
+(`comments<->server`, `core<->db`, `features/plugin-runtime<->server`, `forms<->server`,
+`mail<->server`), 13 − 5 = 8. **"13 → 8" (from `ADS-memory/.local-artifacts/handoff/20260812-212303-
+handoff.md:37`) is the correct figure and matches the tool exactly.**
+
+**"5 module cycles remain" (same file, line 97) is a miscount, traced to its own source:** the bullet
+list under that claim (lines 98–102) groups the current 8 pairs into 5 *diagnostic buckets* — one bucket
+per root cause, not one bucket per pair — because 4 of the 8 pairs share one root cause
+(`agent-daemon-server.ts`, see below). The list itself even labels that bucket "`assistant`×**3**", which
+undercounts even the bucket's own pair count: tracing it directly (below) shows **4** `assistant` pairs,
+not 3. So the "5" is a count of *causes*, mislabeled as a count of *cycles*, and undercounts by one even
+on its own terms. The corrected framing: **8 pairs, 5 distinct root causes.** Use "8 module cycles remain
+(5 root causes)" going forward, not "5 module cycles remain" — the latter reads as a pair count and is
+one any future agent will (reasonably) take literally.
+
+### The 8 pairs, traced to source, with disposition
+
+**1–4. `assistant <-> db`, `assistant <-> features/plugins`, `assistant <-> server` (partially),
+`core <-> features/post`... — see the two separate root causes below.**
+
+#### Root cause A — `assistant/agent-daemon-server.ts`: 3 of 4 `assistant` pairs, cleanly
+
+Confirmed by direct import trace, not by re-citing the 2026-08-02 report's claim:
+
+- `agent-daemon-server.ts` alone is the **only** file in `assistant/` that imports `features/plugins`
+  (`registerSupabaseMcpPreset`, line 81) or `db` (`openContentDb`, line 84) — verified by grepping every
+  other file in `src/assistant/**` for those two targets; no other file matches. It also imports `server`
+  (`createRouteDeps`, `createSqliteRouteDepsForWorkspace`, `defaultContentDbPath`, lines 85–86).
+- **24 files inside `assistant/`** import `agent-daemon-server.ts` back (verified count, including 6 test
+  files) — confirming the dispatch brief's figure exactly. Relocating the file to `server/` (the
+  2026-08-02 report's Phase-3 recommendation) would force all 24 to reach *outside* their own module for
+  a file that is conceptually the daemon's own composition root — inverting the defect, not fixing it,
+  exactly as the brief stated. **This needs a split** (pull the `db`/`features/plugins`/`server`-touching
+  composition logic into a thin boot-time entry point, leaving the daemon's own internals — the 24
+  consumers' actual dependency — inside `assistant/`), not a move. Architect-level: the split boundary is
+  a design decision, not mechanical.
+- This one file fully explains `assistant<->db` and `assistant<->features/plugins` (each has exactly one
+  source file on the `assistant` side) and is *one of two* sources of `assistant<->server`.
+
+#### Root cause A, correction — `assistant<->server` has a second, independent source
+
+`assistant/byok-tool-surface.ts:43` imports `type { RouteDeps } from "../server/routes/types"` — a
+type-only import, unrelated to `agent-daemon-server.ts`. **Splitting `agent-daemon-server.ts` alone does
+not fully clear `assistant<->server`** — this second edge survives the split and needs its own call: is
+a narrower type (matching the `RouteDeps`-narrowing work already done for the 22 `tool-registrations.ts`
+files per the 2026-08-02 report Phase-2) the fix here too, or is a type-only dependency on `RouteDeps`
+acceptable as-is? Flagged as open, not resolved by this audit — Architect judgment call, cheap either way
+(one file).
+
+#### Root cause B — `assistant<->features/post`: unrelated to `agent-daemon-server.ts` entirely
+
+Three files — `assistant/tool-registrations.ts`, `assistant/site/client-directives.ts`,
+`assistant/site/tools.ts` — import `features/post` directly (`PostRecord`, `PostRepoPort`,
+`listPublishedPosts`, `buildPostRegistrations`). None of these touch `agent-daemon-server.ts`. This is
+`assistant` acting as an AI-tool composition root (aggregating every domain's `buildXRegistrations`,
+matching `server`'s role for HTTP routes) and as the public site-assistant's read surface over published
+content — both look like the module's actual job, not a misplacement. The reverse edge
+(`features/post/tool-registrations.ts` and `features/post/delete-confirmation-ui.ts` importing
+`askOnce`/`SurfaceExchange`/`SURFACE_EXCHANGE_ID_PARAM` from `assistant/surface-exchanges.ts`) is a
+*different* shape: `features/post` needs `assistant`'s generic ask-once/confirmation primitive to
+implement its own delete-confirmation AI tool. That primitive (`surface-exchanges.ts`, 364 lines,
+explicitly documented as "channel-agnostic on purpose") is cross-cutting by its own header's design intent —
+any feature module with a destructive AI tool will want it, not just `post`. **Diagnosis: the
+confirmation primitive is misplaced, not the post-reads.** Moving `surface-exchanges.ts`'s public
+contract to a neutral location (`core/`, alongside the other generic primitives already there) would
+remove the `features/post → assistant` edge without touching the `assistant → features/post` edge (which
+is legitimate and would remain — same shape as `server` legitimately importing every domain to wire
+routes). That does not fully break the pair (the remaining one-directional edge means it's no longer a
+*cycle*, which is the actual goal). Architect-level: touches a documented, deliberately-designed
+primitive's public location — worth a short design note, not a large change.
+
+**5. `core <-> features/post`** — confirmed exactly as the handoff described. `core/commands/appliers.ts`
+hard-codes `postUpdateReverter`/`postDeleteReverter` (`EntityReverter` instances, lines 93/173) and
+imports concrete `PostRecord`/`PostRepoPort`/`PostStatus`/`classifyStatusTransition` from
+`../../features/post` — `core` should be generic over entity type and isn't. The reverse edge
+(`features/post/tool-registrations.ts` importing `core/commands`/`core/events` to execute commands) is
+the *correct* direction — features registering into core's generic executor is the expected shape, same
+as every other domain. **Fix: genericize `EntityReverter<TDeps>`/`ReverterDeps`, move the two concrete
+`post` reverters into `features/post` registering into `core`'s now-generic registry.** ~4-file
+public-signature change (`core/commands/appliers.ts` + its 3 direct consumers, per the handoff's
+estimate — file list not independently re-verified beyond `appliers.ts` itself). Programmer-level once
+the generic shape is specified; the generic-shape decision itself is Architect-level (small).
+
+**6. `db <-> features/database`** — confirmed exactly as the handoff described.
+`db/sqlite/database-journal-repo.ts` (lines 3–4) imports `LedgerReadPort`/`LedgerRow` from
+`features/database/timeline` and `BootLedgerPort`/`MigrationRunsRepoPort` from
+`features/database/boot/reconcile-interrupted-migration` — a low-level SQLite adapter reaching *up* into
+a feature module for port types, backwards from the intended `features/database → db` direction (the
+reverse edge, `features/database/adapter.sqlite.ts` importing `ContentDb` from `db/sqlite/content-db`, is
+the correct direction). **Fix: the port types (`LedgerReadPort`, `LedgerRow`, `BootLedgerPort`,
+`MigrationRunsRepoPort`) belong at the `db` layer (or a shared ports location `db` can own) since they
+describe what an adapter provides, not feature-specific business logic — `features/database` should
+depend on `db`'s port definitions, not the reverse.** Small, mechanical once the target location is
+picked. Programmer-level.
+
+**7. `features/database <-> features/recovery`** — confirmed genuinely bidirectional, and more
+extensively than "may need a shared abstraction" suggested: **5 files on each side**, several with
+mirrored names (`tool-registrations.ts`, `gated-hooks.ts`, `agent-tools.ts`, `repo.memory.ts` exist in
+both modules and cross-import each other). The code is self-aware about this — comments in both
+directions reference "the same 'no shared import, kept decoupled' convention" and flag a live tool-id
+collision (`backup_create_restore_point` vs. a same-named entry in `recovery/agent-tools.ts`) that a
+comment records as "already fixed" elsewhere. Concrete symbols crossing the boundary:
+`recovery/tool-registrations.ts` imports `LedgerAppendPort` (from `database/gated-hooks.ts`),
+`listRestorePoints`/`RestorePointListPort` (from `database/restore-points.ts`), and reconciliation types
+from `database/boot/reconcile-interrupted-migration`; `database/repo.memory.ts` imports
+`CreateRestorePointRepoPort` from `recovery/restore-points.ts`. **These four port/type names
+(`LedgerAppendPort`, `RestorePointListPort`, `CreateRestorePointRepoPort`, and the reconciliation types)
+are the extraction candidates** — a shared ports module (`features/database` and `features/recovery` both
+depend on it downward) would let both sides keep their "no shared import" intent honest instead of
+importing each other's concrete files. This is genuinely two capabilities (create a restore point;
+recover from one) that got split into separate feature folders without a shared vocabulary — Architect-
+level: naming and owning the shared ports module is a real design decision, not mechanical, even though
+each individual import swap is small.
+
+**8. `seo <-> server`** — **not a defect. This is an ACCEPTED, human-approved architectural decision,
+not something needing an ADR call — the ADR call has already been made.** `page-head.ts`'s own header
+cites "ADR-032's own Open item 3" as the reason it lives in `server/http/site/`, not `seo/`. Read ADR-032
+(`ADS-memory/reports/architecture/ADR-032-seo.md`) directly: Open item 3 explicitly names this exact
+ownership gap as unresolved and defers it to "the theme-contract owner." That deferral was resolved —
+not by ADR-032 itself, but by **ADR-PIPE-008** (`ADS-memory/reports/pipeline/008-seo/adr.md`), **Status:
+ACCEPTED 2026-07-13, human approval: Leona Burime**, Decision §2, titled verbatim "The `page.head` seam —
+owned by the render layer, not by SEO." That ADR's own Pattern Evaluation table considered and explicitly
+rejected the alternative the 2026-08-02 report recommends: *"`page.head` seam: keep entirely inside
+`src/seo/`, `render.ts` imports SEO directly ... Not selected — ADR-032 itself frames this as the theme
+layer's seam, not SEO's."* Tracing the actual edges: `seo/{page-head-contributor,ports,types}.ts` import
+`HeadElement`/`PageHeadContext`/`PageHeadHook` types from `server/http/site/page-head.ts` (the accepted,
+intentional direction — SEO is *a* contributor to a registry it doesn't own); `server/routes/admin/seo/*`
+and `server/routes/site/{robots,sitemap}.ts` import from `#src/seo/index` (ordinary composition-root
+route wiring, same shape every other domain has). **The 2026-08-02 report's "move page-head.ts to seo/"
+recommendation is not merely wrong, it directly contradicts a specific, owner-signed-off ADR decision
+that considered and rejected that exact move by name.** No further Architect or ADR work is needed here
+— only correcting the stale 2026-08-02 report so it stops being cited as live guidance. If the cycle
+itself is worth removing later (not required), the mechanical option that doesn't reopen ADR-PIPE-008 is
+extracting the three type names into a neutral module both `server` and `seo` can import downward from —
+noted as a possible future item, not proposed for action here.
+
+### Disposition summary
+
+| pair(s) | root cause | needs |
+|---|---|---|
+| `assistant<->db`, `assistant<->features/plugins`, `assistant<->server` (1 of 2 sources) | `agent-daemon-server.ts` doing composition-root work inside a feature module | **Architect** — split, not move |
+| `assistant<->server` (2nd source) | `byok-tool-surface.ts`'s `RouteDeps` type import | **Architect** (small) — narrow-type call |
+| `assistant<->features/post` | `surface-exchanges.ts`'s confirmation primitive housed in `assistant`, needed generically | **Architect** (small) — relocation design note |
+| `core<->features/post` | `EntityReverter` not generic; concrete `post` reverters live in `core` | **Architect** (small, shape) then **Programmer** (mechanical) |
+| `db<->features/database` | port types defined in the feature layer, consumed backwards by the adapter | **Programmer** — mechanical |
+| `features/database<->features/recovery` | two capabilities split without a shared ports module | **Architect** — naming/ownership decision |
+| `seo<->server` | **not a defect** — ACCEPTED ADR-PIPE-008 decision | **none** — correct the stale 2026-08-02 report |
+
+---
