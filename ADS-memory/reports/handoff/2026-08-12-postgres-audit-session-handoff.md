@@ -1,6 +1,6 @@
 # Handoff — Postgres manifest: 4 audit rounds, all findings fixed
 
-**Date:** 2026-08-12 · **Branch:** `general-work` · **Nothing pushed.** · **typecheck exit 0**
+**Date:** 2026-08-12 · **Branch:** `general-work` · **Pushed.** · **typecheck exit 0**
 
 > **STOP HERE. The work is done.** Do not run a round 5. Rationale below under *Why to stop*.
 
@@ -32,9 +32,10 @@
 | `2cb39fc` | 5 unconventioned JSON columns classified |
 | `aa68742` | round-2 audit report |
 
-**In flight, not committed:** agent `fix-r4` was implementing a heuristic fail-closed tripwire test
-(test-only, `migration-manifest.test.ts`) for the one round-4 finding. **If it did not land, that is
-fine** — see *Known-open* below. Nothing depends on it.
+**RESOLVED 2026-08-12 (session 7):** `fix-r4`'s tripwire landed and is committed (`3cd312d`), together
+with a fix for a hole in it that mutation-testing found — see *Known-open* item 1. Also committed:
+`c4bc276`, the untracked `src/db/sqlite/jsonb-column.ts` that `schema.ts:1713` had been pointing at
+since it was written (every clone had a dangling reference until now).
 
 ## Why to stop
 
@@ -54,8 +55,16 @@ where these guarantees actually get spent.
    end-to-end classification, and a 5-column snapshot — none asserts anything about a column *not* in
    the registry, and `classifyCoreColumn` falls through to `plain-text` (`manifest.ts:474`) ungated. A
    future genuinely-JSON column named outside `_json`/`Json` and not registered will silently
-   misclassify. Owner chose the heuristic tripwire fix; if `fix-r4` didn't land it, this is the only
-   open item and it is hypothetical (all 5 known instances are fixed).
+   misclassify. Owner chose the heuristic tripwire fix. **CLOSED `3cd312d`** — but note *how* it closed,
+   because it is the trap of this whole audit in miniature: the tripwire was green and blind. Mutation
+   -testing it (plant a JSON-looking column, three declaration shapes) showed both signals fire on the two
+   single-line shapes and NEITHER fires when the builder chain wraps `.default("{}")` onto continuation
+   lines. Its own comment claimed the sanity count-assertion would catch that first; it does not, because
+   `declPattern`'s trailing `(.*)` matches the empty string, so a wrapped declaration still counts as one
+   declaration and both sides of the equality move together. Fixed by folding `.`-prefixed continuation
+   lines into `declLine`. **A green scanner test proves nothing until you make it fail.** The tripwire is
+   still a heuristic by design and says so — a JSON column with no "JSON" in its doc comment and no
+   `{}`/`[]` default still slips through.
 2. **Pid-reuse race in the fixture sweep.** Failure mode is "database does not exist" on a sibling test
    run — infra churn, not data loss. A UUID nonce would fix it but ends auto-reclaim of pid-suffixed
    fixtures. Deliberately declined.
