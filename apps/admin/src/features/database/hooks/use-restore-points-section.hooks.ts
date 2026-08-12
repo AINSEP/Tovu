@@ -9,6 +9,12 @@ import { t } from "../database-i18n";
  *
  * Extracted verbatim — same state, same declaration order, same effect, same error strings,
  * including the decision record on `costAck: true` below.
+ *
+ * `t` (2026-08-11, standing i18n rule — see `use-timeline-section.hooks.ts`'s own file header for
+ * the full rationale): this hook already called `useAdminLocale()` for its own error-string
+ * translations, so exposing that same already-resolved `locale` as a bound `t` on the return value
+ * adds no new fetch. No raw `locale` needed here — `RestorePointsSection` has no local
+ * subcomponents that take it directly.
  */
 
 export interface RestorePointsSectionController {
@@ -16,10 +22,14 @@ export interface RestorePointsSectionController {
   error: string | null;
   creating: boolean;
   createRestorePoint: () => Promise<void>;
+  /** Bound translator — `key` already resolved against the caller's locale, so `Database.tsx`
+   *  never imports `useAdminLocale`/`database-i18n` for this section. See this file's header. */
+  t: (key: string) => string;
 }
 
 export function useRestorePointsSection(): RestorePointsSectionController {
   const locale = useAdminLocale();
+  const boundT = (key: string): string => t(locale, key);
   const [points, setPoints] = useState<AdminRestorePoint[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -51,5 +61,5 @@ export function useRestorePointsSection(): RestorePointsSectionController {
     }
   }
 
-  return { points, error, creating, createRestorePoint };
+  return { points, error, creating, createRestorePoint, t: boundT };
 }

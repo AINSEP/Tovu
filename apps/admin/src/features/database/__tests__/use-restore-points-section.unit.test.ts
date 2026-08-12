@@ -131,3 +131,26 @@ describe("createRestorePoint", () => {
     expect(result.current.error).toBe("site is unavailable for snapshots");
   });
 });
+
+describe("t (2026-08-11, standing i18n rule)", () => {
+  /** `Database.tsx` no longer imports `useAdminLocale`/`database-i18n` for this section — `t` must
+   *  reflect this hook's OWN already-resolved locale (the same one it already used for its own
+   *  error strings), not a hardcoded English pass-through. */
+  it("t reflects the locale settings fetch's resolved value, not the DEFAULT_LOCALE this hook starts with", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ items: [POINT] }));
+    // Cast rather than calling `fetchMock` directly — this vitest version's `Mock` type is not
+    // itself callable without narrowing (a pre-existing tsc gap this whole file's `beforeEach`
+    // already carries; scoped locally here rather than touching that shared declaration).
+    const network = fetchMock as unknown as (url: string, init?: RequestInit) => Promise<Response>;
+    vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+      if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) {
+        return Promise.resolve(jsonResponse({ data: [{ key: "locale", value: "es" }] }));
+      }
+      return network(url, init);
+    });
+
+    const { result } = renderHook(() => useRestorePointsSection());
+
+    await waitFor(() => expect(result.current.t("Restore points")).toBe("Puntos de restauración"));
+  });
+});

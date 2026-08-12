@@ -22,6 +22,11 @@ import type { AdminLedgerRow, AdminRestorePoint } from "../../../lib/api";
  * `use*Section` hook is the seam that's actually reachable: each mock is driven through a
  * `vi.hoisted` ref that tests mutate before rendering, giving direct control over every section's
  * state without a real `fetch`.
+ *
+ * `t`/`locale` (2026-08-11, standing i18n rule): each controller fixture below defaults `t` to the
+ * identity function (and `locale` to `"en"`, where the controller carries one) — matching
+ * `wired-hooks-convention.md`'s own `t: (k) => k` example — so every existing assertion above stays
+ * matched against the raw English key with no behavior change.
  */
 
 vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
@@ -79,6 +84,8 @@ function timelineController(overrides: Partial<TimelineSectionController> = {}):
     loadingMore: false,
     applyFilters: vi.fn((e: React.FormEvent) => e.preventDefault()),
     loadMore: vi.fn(),
+    t: (key: string) => key,
+    locale: "en",
     ...overrides,
   };
 }
@@ -89,6 +96,7 @@ function restorePointsController(overrides: Partial<RestorePointsSectionControll
     error: null,
     creating: false,
     createRestorePoint: vi.fn(async () => {}),
+    t: (key: string) => key,
     ...overrides,
   };
 }
@@ -105,6 +113,8 @@ function migrateForwardController(overrides: Partial<MigrateForwardSectionContro
     startPlan: vi.fn(async () => {}),
     doConfirm: vi.fn(async () => {}),
     doExecute: vi.fn(async () => {}),
+    t: (key: string) => key,
+    locale: "en",
     ...overrides,
   };
 }
