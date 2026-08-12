@@ -3,7 +3,6 @@ import { Toast } from "@jini-ai/ui";
 
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ImagePreviewModal } from "../../components/ImagePreviewModal";
 import { useWiredThemes } from "./hooks/use-themes.hooks";
@@ -15,7 +14,6 @@ import {
   THEME_TAB_GROUPS,
   type ThemeTabGroup,
 } from "./rules";
-import { t as translateThemes } from "./themes-i18n";
 
 /**
  * @file The Themes screen — markup only.
@@ -123,9 +121,8 @@ export function Themes({ useThemesHook = useWiredThemes }: ThemesProps = {}) {
     loadMarketplace,
     downloading = null,
     download,
+    t,
   } = useThemesHook();
-  const locale = useAdminLocale();
-  const t = (key: string): string => translateThemes(locale, key);
   // Manual override once the operator picks a tab; `null` means "not yet touched", so the tab
   // shown on load tracks the active theme's own tab group (`defaultThemeTabGroup`) without a
   // mount-time effect — same derived-value-with-override shape as `useSettingsDialogShell`'s own

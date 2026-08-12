@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { type PresentationSettings, type ThemeTier } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t as translateThemes } from "../themes-i18n";
 import { defaultThemesPort } from "./themes-dependencies.hooks";
 import type { ThemesPort } from "./themes-port.hooks";
 
@@ -13,10 +15,19 @@ import type { ThemesPort } from "./themes-port.hooks";
  *
  * `deps.port` is injected (see `themes-port.hooks.ts`) rather than reaching for `lib/api`'s `api`
  * directly.
+ *
+ * `deps.t` (standing i18n rule, 2026-08-11 — a component with a hook gets a BOUND `t` from that
+ * hook, not its own `useAdminLocale()`/dictionary import, same shape `use-pages.hooks.ts`
+ * established): injected so `Themes.tsx` sources its UI copy from this hook instead of building
+ * its own `(key) => translateThemes(locale, key)` closure. This hook's OWN error strings stay
+ * hardcoded English (unchanged) — `useAdminLocale()`/`themes-i18n.ts`'s `t` (aliased
+ * `translateThemes`, its own established name in this feature) are read only inside
+ * {@link useWiredThemes}.
  */
 
 export interface ThemesDependencies {
   port: ThemesPort;
+  t: (key: string) => string;
 }
 
 export interface ThemesController {
@@ -62,6 +73,8 @@ export interface ThemesController {
   /** Marketplace id currently downloading, or `null`. */
   downloading?: string | null;
   download?: (themeId: string) => Promise<void>;
+  /** Bound translator — `Themes.tsx`'s only source of UI copy; see this file's own header. */
+  t: (key: string) => string;
 }
 
 export interface MarketplaceItem {
@@ -76,7 +89,7 @@ export interface MarketplaceItem {
 /**
  * @complexity Time/space: O(1) per call — one settings round trip on mount, one per `activate`.
  */
-export function useThemes({ port }: ThemesDependencies): ThemesController {
+export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   const [settings, setSettings] = useState<PresentationSettings | null>(null);
   const [themes, setThemes] = useState<string[]>([]);
   const [themeTiers, setThemeTiers] = useState<Record<string, ThemeTier>>({});
@@ -196,17 +209,21 @@ export function useThemes({ port }: ThemesDependencies): ThemesController {
     loadMarketplace,
     downloading,
     download,
+    t,
   };
 }
 
 /**
- * Binds the real `/api/.../presentation` + `/marketplace` client — see `themes-dependencies.hooks.ts`.
+ * Binds the real `/api/.../presentation` + `/marketplace` client and a `themes-i18n.ts`-bound
+ * translator — see `themes-dependencies.hooks.ts`.
  *
  * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Themes.tsx` composes
  * this and a test composes {@link useThemes} with `createFakeThemesPort`.
  */
 export function useWiredThemes(): ThemesController {
-  return useThemes({ port: defaultThemesPort });
+  const locale = useAdminLocale();
+  const t = (key: string): string => translateThemes(locale, key);
+  return useThemes({ port: defaultThemesPort, t });
 }
 
 /**
