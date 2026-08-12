@@ -4,6 +4,7 @@ import { api, describeApiError, type AdminPost } from "../../../lib/api";
 import { mergeRecent } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../dashboard-i18n";
+import type { Translate } from "../../../lib/dictionary-translator";
 
 /**
  * @file Everything the Dashboard screen loads, so `Dashboard.tsx` is only markup.
@@ -65,7 +66,7 @@ export interface DashboardController {
   recent: AdminPost[] | null;
   /** Bound translator — `key` already resolved against the caller's locale, so `Dashboard.tsx`
    *  never imports `useAdminLocale`/`DASHBOARD_DICT` itself. See this file's header. */
-  t: (key: string) => string;
+  t: Translate;
 }
 
 export function useDashboard(): DashboardController {
