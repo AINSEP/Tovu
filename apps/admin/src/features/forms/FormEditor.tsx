@@ -9,8 +9,6 @@ import { useFormFieldsEditor } from "./hooks/use-form-fields-editor.hooks";
 import { useWiredFormSubmissionDetail } from "./hooks/use-form-submission-detail.hooks";
 import { useWiredFormSubmissions } from "./hooks/use-form-submissions.hooks";
 import { useWiredFormEditor } from "./hooks/use-form-editor.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { FORMS_DICT } from "./forms-i18n";
 
 /**
  * @file Form editor screen (SPEC-010 ui.spec.md §2.2-2.5/§3.2-3.5) — the `/admin/forms/:formId` route.
@@ -726,9 +724,8 @@ export function FormEditor({ formId, useFormEditorHook = useWiredFormEditor }: F
     onTabsKeyDown,
     handleSave,
     handleStatusToggle,
+    t,
   } = useFormEditorHook({ formId });
-  const locale = useAdminLocale();
-  const t = (key: string): string => FORMS_DICT[locale]?.[key] ?? key;
 
   if (!isNew && !form && !error) return <div className="notice">Loading form…</div>;
   // Previously this was the ONLY guard, and it only covers the pre-error case — once the load

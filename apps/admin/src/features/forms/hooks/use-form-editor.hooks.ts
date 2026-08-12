@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 
 import type { AdminFormDefinition, AdminFormField, AdminFormNotify } from "../../../lib/api";
 import { navigate as defaultNavigate } from "../../../lib/router";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { FORM_TABS, blankField, existingFieldIdsOf, nextTabIndex, parseRecipients } from "../rules";
+import { FORMS_DICT } from "../forms-i18n";
 import { defaultFormsPort } from "./forms-dependencies.hooks";
 import type { FormsPort } from "./forms-port.hooks";
 
@@ -28,9 +30,17 @@ import type { FormsPort } from "./forms-port.hooks";
  * since both read/write the same `AdminFormDefinition` resource) — rather than reaching `lib/api`/
  * `lib/router` directly, so a test can describe load/save outcomes against `createFakeFormsPort`
  * instead of stubbing global `fetch`. `useWiredFormEditor` below is the zero-argument pair
- * `FormEditor.tsx` actually mounts. No `t`/`locale` injection here — every message in this file is
- * hardcoded English, unlike `features/pages`' `usePageEditor`; adding locale injection that was
- * never there would be a scope-creeping behavior addition, not a refactor.
+ * `FormEditor.tsx` actually mounts. This hook's OWN error strings stay hardcoded English (unlike
+ * `features/pages`' `usePageEditor`) — that part of the earlier "no t/locale here" note still
+ * holds, and adding locale to messages that were never localized would be a scope-creeping
+ * behavior addition, not a refactor.
+ *
+ * `t` (standing i18n rule — a component with a hook gets a BOUND `t` from that hook, not its own
+ * `useAdminLocale()`/dictionary import, same shape `use-post-editor.hooks.ts` established for this
+ * conversion): injected alongside `port`/`navigate` because `FormEditor.tsx` itself (the copy
+ * around this hook's own state — tab labels, Save button, etc.) DOES need translated strings, even
+ * though this hook's own error messages don't. Pre-bound to `(key: string) => string`.
+ * `useAdminLocale()` and `FORMS_DICT` are called/read only inside {@link useWiredFormEditor}.
  */
 
 export interface FormEditorController {
@@ -65,13 +75,16 @@ export interface FormEditorController {
   onTabsKeyDown: (e: React.KeyboardEvent) => void;
   handleSave: () => void;
   handleStatusToggle: () => void;
+  /** Bound translator — see this file's own header for why it arrives via the hook rather than
+   *  `FormEditor.tsx` calling `useAdminLocale()`/`FORMS_DICT` directly. */
+  t: (key: string) => string;
 }
 
 export function useFormEditor(
   props: { formId: string },
-  deps: { port: FormsPort; navigate: (path: string) => void }
+  deps: { port: FormsPort; navigate: (path: string) => void; t: (key: string) => string }
 ): FormEditorController {
-  const { port, navigate } = deps;
+  const { port, navigate, t } = deps;
   const isNew = props.formId === "new";
   const [form, setForm] = useState<AdminFormDefinition | null>(null);
   const [name, setName] = useState("");
@@ -168,17 +181,20 @@ export function useFormEditor(
     onTabsKeyDown,
     handleSave,
     handleStatusToggle,
+    t,
   };
 }
 
 /**
- * Binds the real `/api/.../forms` client and `lib/router`'s `navigate` — see
- * `forms-dependencies.hooks.ts`.
+ * Binds the real `/api/.../forms` client, `lib/router`'s `navigate`, and a `FORMS_DICT`-bound
+ * translator — see `forms-dependencies.hooks.ts`.
  *
  * The zero-argument-deps half of the `useX(dependencies)` / `useWiredX()` pair, so
  * `FormEditor.tsx` composes this and a test composes {@link useFormEditor} with
- * `createFakeFormsPort` and a fake `navigate`.
+ * `createFakeFormsPort`, a fake `navigate`, and a fake `t`.
  */
 export function useWiredFormEditor(props: { formId: string }): FormEditorController {
-  return useFormEditor(props, { port: defaultFormsPort, navigate: defaultNavigate });
+  const locale = useAdminLocale();
+  const t = (key: string): string => FORMS_DICT[locale]?.[key] ?? key;
+  return useFormEditor(props, { port: defaultFormsPort, navigate: defaultNavigate, t });
 }
