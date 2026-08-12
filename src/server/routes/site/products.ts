@@ -1,5 +1,5 @@
 import { getPresentationSettings } from "#src/features/presentation/index";
-import { isPublicAssistantEnabled } from "#src/assistant/public-assistant-settings";
+import { isPublicAssistantEnabled } from "#src/assistant/index";
 import { toSiteProducts } from "#src/features/commerce/storefront";
 import { findTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import { renderSite, type SiteProduct } from "../../http/site/render";

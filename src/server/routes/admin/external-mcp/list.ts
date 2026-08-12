@@ -1,4 +1,4 @@
-import { listExternalMcpServerViews } from "#src/assistant/external-mcp-store";
+import { listExternalMcpServerViews } from "#src/assistant/index";
 import type { ExternalMcpRouteRegistrar } from "./deps";
 import { guardExternalMcpRequest } from "./guard";
 

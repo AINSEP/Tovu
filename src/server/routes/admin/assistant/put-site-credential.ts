@@ -1,9 +1,9 @@
-import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/public-assistant-settings";
 import {
+  ADMIN_ASSISTANT_PERMISSION,
   SiteAssistantCredentialValidationError,
   SiteAssistantSecretStoreUnconfiguredError,
   setSiteAssistantCredential,
-} from "#src/assistant/site-credential-store";
+} from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { AssistantSettingsRouteRegistrar } from "./deps";
 

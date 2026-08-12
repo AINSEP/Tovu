@@ -1,4 +1,4 @@
-import { getExecutionCredential } from "#src/assistant/execution-credential-store";
+import { getExecutionCredential } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { AssistantSettingsRouteRegistrar } from "./deps";
 

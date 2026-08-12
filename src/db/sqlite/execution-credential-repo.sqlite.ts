@@ -1,9 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import type {
-  AdminExecutionCredentialRecord,
-  AdminExecutionCredentialRepoPort,
-} from "../../assistant/execution-credential-store";
+import type { AdminExecutionCredentialRecord, AdminExecutionCredentialRepoPort } from "../../assistant";
 import type { UUID, ISODateTime } from "@jini-ai/cms/core";
 import { adminExecutionCredentials } from "../schema";
 import type { ContentDb } from "./content-db";

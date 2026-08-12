@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store";
+import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "../../assistant";
 import { externalMcpServers } from "../schema";
 import type { ContentDb } from "./content-db";
 
