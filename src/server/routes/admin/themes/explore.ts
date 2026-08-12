@@ -208,31 +208,55 @@ function isThemeFileWritable(relativePath: string): boolean {
 }
 
 /**
- * Extensions a BUILT theme's own hand-authored `build.sourceDir` may plausibly ship, beyond what
- * {@link TEXT_READABLE_EXTENSIONS} already covers for the static file layout (`.html`, `.css`, `.js`,
- * `.mjs`, `.cjs`, `.json`, `.md`, `.txt`, `.svg`, `.webmanifest`). Framework source is open-ended —
- * a new framework brings a new extension — but this list stays a fixed allowlist rather than "any
- * extension," and deliberately excludes anything a server/shell could execute (`.php`, `.sh`, `.py`,
- * `.rb`, …) or that carries operational secrets (`.env`, `.pem`), because `build.sourceDir`, unlike
- * `pages/`/`css/`/`js/`'s OWN files, is not merely edited here — see {@link isCompiledSourceFile}'s
- * own doc for why that distinction matters for this specific directory.
+ * A framework's own source extensions, open-ended by nature — a new framework brings a new one — but
+ * kept a fixed list rather than "any extension." Deliberately excludes anything a server/shell could
+ * execute (`.php`, `.sh`, `.py`, `.rb`, …), anything carrying operational secrets (`.env`, `.pem`),
+ * AND — the part that matters most, see {@link SOURCE_DIR_WRITABLE_EXTENSIONS}'s own doc — anything a
+ * BROWSER can independently execute or render as active content, because `build.sourceDir` is
+ * statically served, not merely edited here.
  */
 const FRAMEWORK_SOURCE_EXTENSIONS = new Set([".tsx", ".ts", ".jsx", ".vue", ".svelte", ".astro", ".scss", ".less"]);
 
 /**
- * Whether `relativePath` is a BUILT theme's real, hand-authored source (ADR-020 §5,
- * `build.sourceDir`) — bounded by an EXPLICIT extension allowlist ({@link TEXT_READABLE_EXTENSIONS} ∪
- * {@link FRAMEWORK_SOURCE_EXTENSIONS}), not "every file `resolveThemeFileWriteScope` calls editable."
+ * The full extension allowlist {@link isSourceDirWritableExtension} accepts inside `build.sourceDir` —
+ * {@link FRAMEWORK_SOURCE_EXTENSIONS} plus `.css` and the genuinely inert subset of
+ * {@link TEXT_READABLE_EXTENSIONS} (`.json`, `.md`, `.txt`).
+ *
+ * DELIBERATELY NARROWER than {@link TEXT_READABLE_EXTENSIONS} itself: `.html`, `.svg`, `.js`, `.mjs`,
+ * `.cjs`, and `.webmanifest` are all text-readable elsewhere in a theme but excluded HERE, because
+ * `build.sourceDir` is statically served (verified, not assumed — see
+ * {@link isInsideCompiledSourceDir}'s own doc for the citation) and each of those five is a format a
+ * BROWSER can independently execute or
+ * render as active content the instant its URL is visited directly: `.html`/`.svg` can carry a
+ * `<script>` tag, `.js`/`.mjs`/`.cjs` literally ARE script. Confirmed exploitable, not theoretical: a
+ * PUT of `{ path: "src/thing.html", content: "<script>...</script>" }` against a compiled theme
+ * returned 200 before this allowlist existed. `.js`/`.mjs`/`.cjs` exclusion also matches this
+ * codebase's own prior, unrelated decision to keep static-theme JS read-only from this screen at all
+ * (`READ_ONLY_GROUPS`'s own doc: "2026-08-11 owner ask — I don't want JS edited from this screen").
+ *
+ * Disclosed limitation, not silently dropped: Angular pairs a `.ts` component with a `.component.html`
+ * template in the SAME source directory, so this excludes that convention from being SAVED through
+ * this screen (a file that exists on disk some other way stays READABLE — {@link isTextReadable} is
+ * untouched — only writable-through-Explore is narrower). Whether/how Angular templates get edited
+ * here is left open, the same way the debate itself left "can Angular even emit the literal asset
+ * sentinel" open — not decided as a side effect of closing this gap.
+ */
+const SOURCE_DIR_WRITABLE_EXTENSIONS = new Set([...FRAMEWORK_SOURCE_EXTENSIONS, ".css", ".json", ".md", ".txt"]);
+
+/**
+ * Whether `relativePath` sits inside a BUILT theme's real, hand-authored source (ADR-020 §5,
+ * `build.sourceDir`) — the LOCATION half of the sourceDir carve-out; see
+ * {@link isSourceDirWritableExtension} for the extension half this must be paired with, and why they
+ * are not just OR'd into `resolveThemeFileWriteScope`'s own "editable" result.
  *
  * Why the bound matters, verified rather than assumed: `build.sourceDir` is NOT build-input-only.
  * `registerThemeStaticAssets` (`server/middleware/theme-static-assets.ts:29-37`) mounts
  * `express.static(themeDir)` on a static theme's ENTIRE folder at `/theme-assets/{themeId}/...` — that
- * file's own doc comment claims it serves only `css/`/`js/`, but the actual `express.static` call is
- * unscoped to any subpath, so `build.sourceDir` is served identically to every other file in the
- * theme, confirmed by reading the mount, not inferred from the (misleading) comment above it. An
+ * file's own doc comment (now corrected) used to claim it serves only `css/`/`js/`, but the actual
+ * `express.static` call is unscoped to any subpath, so `build.sourceDir` is served identically to
+ * every other file in the theme, confirmed by reading the mount, not inferred from a comment. An
  * unbounded "anything that isn't theme.json" carve-out would therefore let a `theme.edit`-permitted
- * admin write an arbitrary-extension file (`.php`, `.sh`, `.env`) into a publicly fetchable path —
- * Tovu never executes it server-side, but serving it as static content is still a materially wider
+ * admin write attacker-controlled markup to a publicly fetchable, same-origin URL — a materially wider
  * surface than {@link isThemeFileWritable}'s allowlist was permitting a moment earlier, for every
  * OTHER location in a theme.
  *
@@ -241,24 +265,36 @@ const FRAMEWORK_SOURCE_EXTENSIONS = new Set([".tsx", ".ts", ".jsx", ".vue", ".sv
  * either caller below checks this, but {@link isThemeFileWritable}'s GROUP half
  * ({@link READ_ONLY_GROUPS}) classifies almost anything outside `pages/`/`css/`/root-`.html` as
  * `"other"` — read-only — which is correct for a static theme's OWN layout and simply inapplicable to
- * a framework source tree with its own, different, layout conventions. This function bypasses only
- * that group classification, never the extension allowlist.
+ * a framework source tree with its own, different, layout conventions.
  *
  * `theme.json` is deliberately excluded: it already passes both halves of
  * {@link isThemeFileWritable} on its own (the `config` group, and `.json` is text-readable), so it
  * never needs this carve-out — keeping the carve-out scoped to exactly `build.sourceDir`.
+ *
+ * This is a LOCATION predicate only — see {@link isSourceDirWritableExtension} for the extension half.
+ * They are DELIBERATELY NOT combined into one boolean with the general `isThemeFileWritable` gate as an
+ * OR-fallback: `.svg` (and any other extension {@link fileGroup} classifies `"asset"`, a group that has
+ * never been read-only, since it is a pure extension check with no notion of location) already passes
+ * `isThemeFileWritable` on its own, ANYWHERE in a theme. Falling back to that general gate for a
+ * compiled theme's sourceDir would silently readmit exactly the extensions
+ * {@link SOURCE_DIR_WRITABLE_EXTENSIONS} exists to exclude — confirmed by a failing test before this
+ * split existed. Both call sites below use this predicate to decide whether
+ * {@link isSourceDirWritableExtension} is the ONLY applicable rule (this theme's sourceDir) or whether
+ * the general gate still applies unchanged (everything else).
  */
-function isCompiledSourceFile(
+function isInsideCompiledSourceDir(
   theme: Pick<DiscoveredTheme, "manifest">,
   relativePath: string,
   writeScope: ThemeFileWriteScope
 ): boolean {
-  if (theme.manifest.build?.source !== "compiled" || writeScope.kind !== "editable" || relativePath === "theme.json") {
-    return false;
-  }
-  const dot = relativePath.lastIndexOf(".");
-  const extension = dot === -1 ? "" : relativePath.slice(dot).toLowerCase();
-  return TEXT_READABLE_EXTENSIONS.has(extension) || FRAMEWORK_SOURCE_EXTENSIONS.has(extension);
+  return theme.manifest.build?.source === "compiled" && writeScope.kind === "editable" && relativePath !== "theme.json";
+}
+
+/** The extension half of the sourceDir carve-out — see {@link isInsideCompiledSourceDir}'s own doc for
+ * why this is checked SEPARATELY from, and as the SOLE gate for (never OR'd with the general
+ * `isThemeFileWritable` gate), a path already inside a compiled theme's sourceDir. */
+function isSourceDirWritableExtension(relativePath: string): boolean {
+  return SOURCE_DIR_WRITABLE_EXTENSIONS.has(fileExtension(relativePath));
 }
 
 /**
@@ -276,6 +312,14 @@ function isCompiledSourceFile(
  * URL" warning-not-block case than to this hard block.
  */
 const REQUIRED_THEME_FILES: ReadonlySet<string> = new Set(["pages/index.html", "theme.json", "tokens.json"]);
+
+/** A path's own extension, lowercased (`""` if none) — the dot must fall after the last slash to
+ * count, matching {@link nextAvailableFileName}'s identical rule for the same reason. */
+function fileExtension(relativePath: string): string {
+  const dot = relativePath.lastIndexOf(".");
+  const slash = relativePath.lastIndexOf("/");
+  return dot > slash ? relativePath.slice(dot).toLowerCase() : "";
+}
 
 /**
  * Build one file-list entry — shared by the detail route's full listing and the copy/rename routes'
@@ -463,11 +507,16 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
       }
 
       // Enforced here, not only by the client hiding the Save button — a PUT built by hand (or by an
-      // older cached client) must be refused the same way. `isThemeFileWritable` is the ONE place
-      // this policy is decided; see its doc comment for why scripts and `other`-group files fail it.
-      // A compiled theme's OWN sourceDir bypasses it — see `isCompiledSourceFile`'s own doc for why
-      // that vocabulary has no opinion worth applying to a framework's uncompiled source.
-      if (!isCompiledSourceFile(theme, path, writeScope) && !isThemeFileWritable(path)) {
+      // older cached client) must be refused the same way. Two DISJOINT rules, not one gate OR'd with
+      // another: inside a compiled theme's sourceDir, ONLY `isSourceDirWritableExtension` decides —
+      // see `isInsideCompiledSourceDir`'s own doc for why falling back to the general
+      // `isThemeFileWritable` gate here would silently readmit extensions (`.svg`, classified `asset`
+      // — never read-only, with no notion of location) the sourceDir allowlist exists to exclude.
+      // Everywhere else, `isThemeFileWritable` is unchanged.
+      const writable = isInsideCompiledSourceDir(theme, path, writeScope)
+        ? isSourceDirWritableExtension(path)
+        : isThemeFileWritable(path);
+      if (!writable) {
         res.status(403).json({
           error: `'${path}' is read-only in Explore and cannot be saved`,
           code: "READ_ONLY_FILE",
@@ -701,14 +750,18 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
       }
       // ADR-020 §5: a built theme's generated tree has no per-file identity to rename — it restores
       // or stays exactly as shipped, atomically. See `resolveThemeFileWriteScope`'s own doc. Computed
-      // before the READ_ONLY_GROUPS check below so a compiled theme's sourceDir file (`isCompiledSourceFile`)
-      // can bypass that unrelated static-file-layout vocabulary the same way the PUT route does.
+      // before the writability check below so a compiled theme's sourceDir file is judged by
+      // `isSourceDirWritableExtension` alone, the same disjoint-rules shape the PUT route uses — see
+      // `isInsideCompiledSourceDir`'s own doc for why that must not fall back to the general gate.
       const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: sourcePath });
       if (writeScope.kind === "generated-readonly") {
         res.status(409).json({ error: `'${sourcePath}' is read-only: ${writeScope.reason}`, code: "GENERATED_READONLY" });
         return;
       }
-      if (!isCompiledSourceFile(theme, sourcePath, writeScope) && READ_ONLY_GROUPS.has(fileGroup(sourcePath))) {
+      const sourceRenamable = isInsideCompiledSourceDir(theme, sourcePath, writeScope)
+        ? isSourceDirWritableExtension(sourcePath)
+        : !READ_ONLY_GROUPS.has(fileGroup(sourcePath));
+      if (!sourceRenamable) {
         res.status(409).json({
           error: `'${sourcePath}' is read-only in Explore and cannot be renamed`,
           code: "READ_ONLY_FILE",
@@ -744,6 +797,38 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
           res.status(409).json({ error: `'${destPath}' already exists in this theme`, code: "NAME_TAKEN" });
           return;
         }
+
+        // Defense-in-depth, not currently reachable through THIS route: `destPath` is always built
+        // from `sourcePath`'s OWN directory (`name` may not contain `/`, checked above), so its
+        // write-scope is provably identical to `sourcePath`'s already-checked one — a rename can
+        // never cross from a compiled theme's sourceDir into its generated tree today. Asserted
+        // directly anyway rather than left as an inference some future refactor could quietly
+        // invalidate (e.g. a cross-folder move added to this route later).
+        const destWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: destPath });
+        if (destWriteScope.kind === "generated-readonly") {
+          res.status(409).json({ error: `'${destPath}' is read-only: ${destWriteScope.reason}`, code: "GENERATED_READONLY" });
+          return;
+        }
+
+        // A rename never changes BYTES, only the name — so the one thing it CAN change is how a
+        // browser INTERPRETS those bytes, since `express.static` decides content-type by extension.
+        // Requiring the extension to survive a rename means a file's interpretation can never change
+        // via this route: a name already vetted (as either an ordinary writable file, or — inside a
+        // compiled theme's sourceDir — a `SOURCE_DIR_WRITABLE_EXTENSIONS` member) cannot be relabeled
+        // into a DIFFERENT, more dangerous extension the same content was never vetted against. This
+        // is what actually closes "PUT a safe extension, then rename it to a dangerous one" — merely
+        // re-running PUT's own check against `destPath` would NOT have closed it, since `.html`/`.svg`
+        // are themselves ordinarily-writable extensions elsewhere in a theme; the bytes staying
+        // unvetted-as-that-extension is the real invariant, not the extension's mere presence on an
+        // allowlist.
+        if (fileExtension(sourcePath) !== fileExtension(destPath)) {
+          res.status(400).json({
+            error: `renaming '${sourcePath}' to '${name}' would change its extension, which Explore does not allow — a file's extension decides how it is served and must not change via rename`,
+            code: "EXTENSION_CHANGE_NOT_ALLOWED",
+          });
+          return;
+        }
+
         renameThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath });
         reloadTheme(deps, theme.manifest.id);
       }

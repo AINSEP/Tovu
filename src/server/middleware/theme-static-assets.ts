@@ -4,11 +4,20 @@ import express from "express";
 import type { Express } from "express";
 
 /**
- * @file Serves each `static`-tier theme's own `css/` and `js/` folders at
- * `/theme-assets/{themeId}/{css,js}/...`, straight from the theme's source directory — not a
- * prebuilt copy. `server/http/site/render.ts`'s static-tier branch rewrites a page's `../css/`
- * and `../js/` references (correct only from inside the theme's own `pages/` folder) to this
- * prefix before serving it as the live site's response.
+ * @file Serves a `static`-tier theme's `css/`/`js/` at `/theme-assets/{themeId}/{css,js}/...` for
+ * `server/http/site/render.ts`'s static-tier branch, which rewrites a page's `../css/`/`../js/`
+ * references (correct only from inside the theme's own `pages/` folder) to this prefix before serving
+ * it as the live site's response — that is this mount's PURPOSE and its only intended traffic.
+ *
+ * CORRECTED 2026-08-12 (ADR-020 §5 review): this comment previously claimed the mount only serves
+ * `css/`/`js/`. It does not. `express.static(themeDir)` below is unscoped to any subpath — it serves
+ * a theme's ENTIRE folder, every file, not just those two directories. That was found while reviewing
+ * whether `build.sourceDir` (a compiled theme's own framework source) is reachable over HTTP: it is,
+ * identically to every other file in the theme, at `/theme-assets/{themeId}/{sourceDir}/...`. Anyone
+ * reasoning about what write access to a theme's files can expose over HTTP — the actual load-bearing
+ * question, e.g. `src/server/routes/admin/themes/explore.ts`'s `isCompiledSourceFile`/
+ * `SOURCE_DIR_WRITABLE_EXTENSIONS` — must start from "the whole theme folder is public," not from this
+ * comment's old, narrower claim.
  *
  * ONE dynamic route, not one `express.static` mount per theme.
  *
