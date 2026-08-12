@@ -1214,6 +1214,69 @@ function extractTitleNode(
   };
 }
 
+/**
+ * Reconstructs the `mediaTransformVersions` map `renderDocNode`'s `image` case needs, from the
+ * plain-JSON form `resolver-service.ts` stashes into `WidgetRenderIR.props` (`widgets/` must not
+ * import this file — see that module's own layering note — so it can't build a real `Map` and hand
+ * it across the boundary; a `Record<string, number>` is the JSON-safe equivalent). Same
+ * defaults-to-empty, never-throws shape every other optional map on this render path already
+ * follows: a malformed or absent value degrades to {@link EMPTY_MEDIA_TRANSFORM_VERSIONS}, which
+ * `renderDocNode`'s `image` case already treats as "nothing resolvable, placeholder".
+ */
+function readMediaTransformVersions(value: JsonValue | undefined): ReadonlyMap<string, number> {
+  if (!isObject(value)) return EMPTY_MEDIA_TRANSFORM_VERSIONS;
+  const entries = Object.entries(value).filter((entry): entry is [string, number] => typeof entry[1] === "number");
+  return entries.length > 0 ? new Map(entries) : EMPTY_MEDIA_TRANSFORM_VERSIONS;
+}
+
+/** Same reconstruction as {@link readMediaTransformVersions}, for `mediaAssetMetadata` — see that
+ *  function's own doc for why this crosses the `widgets/`-to-`render.ts` boundary as plain JSON
+ *  rather than a real `Map`. A malformed per-asset entry (not an object) is skipped, not thrown;
+ *  missing `width`/`height`/`cssClass` fields degrade to `null` ("not set"), matching
+ *  {@link MediaAssetRenderMeta}'s own "`null` means not set, not zero" contract. */
+function readMediaAssetMetadata(value: JsonValue | undefined): ReadonlyMap<string, MediaAssetRenderMeta> {
+  if (!isObject(value)) return EMPTY_MEDIA_ASSET_METADATA;
+  const entries: [string, MediaAssetRenderMeta][] = [];
+  for (const [assetId, raw] of Object.entries(value)) {
+    if (!isObject(raw)) continue;
+    entries.push([
+      assetId,
+      {
+        width: typeof raw.width === "number" ? raw.width : null,
+        height: typeof raw.height === "number" ? raw.height : null,
+        cssClass: typeof raw.cssClass === "string" ? raw.cssClass : null,
+      },
+    ]);
+  }
+  return entries.length > 0 ? new Map(entries) : EMPTY_MEDIA_ASSET_METADATA;
+}
+
+/**
+ * Owner-reported bug (2026-08-12): a ref-based image dropped into a post's body rendered as a
+ * labelled placeholder box showing the filename — everywhere this function's output reaches (the
+ * editor's own "Preview" tab, which renders through `routes/admin/posts/template-preview.ts` ->
+ * `renderViaTemplate` -> this same "post-content" IR, AND the published public page) — even though
+ * the asset, its `"public"` transform registration, and the `/m/` rendition route were all
+ * confirmed live and working. Root cause: this function called `renderDocNode(bodyJson)` with only
+ * ONE argument, so `mediaTransformVersions`/`mediaAssetMetadata` silently defaulted to EMPTY MAPS
+ * (`renderDocNode`'s own optional-params default) — every ref-based image's `mediaTransformVersions
+ * .get(transformName)` was unconditionally `undefined`, so the `image` case ALWAYS took its
+ * degrade-to-placeholder branch, regardless of whether the referenced asset/transform actually
+ * existed. This is the ONE call site `renderWidgetIr`'s `"post-content"` case reaches
+ * (`resolveHtmlPageEmbeds` never calls `renderDocNode` directly — see this file's header on why
+ * `widgets/` can't import this module), so nothing here was ever going to resolve a real image
+ * without this fix, for ANY post, on ANY render path that goes through a static-theme template
+ * (which is unconditionally true for every `kind: "post"` row on a theme that declares templates —
+ * `isEligibleForTemplateBranch`'s own doc).
+ *
+ * Fix: `resolver-service.ts`'s three `"post-content"` IR builders (`resolvePostTypeEmbeds`,
+ * `resolveContentTypeEmbeds`'s two branches) now resolve the SAME `mediaTransformVersions`/
+ * `mediaAssetMetadata` data `routes/site/pages.ts`'s generic (non-template) render path already
+ * resolves for `renderSite` — reusing the identical `getLatestTransformDefinition`/
+ * `mediaRepo.findById` primitives `resolveMediaTypeEmbeds` (the sibling `"media"` embed resolver)
+ * already calls — and stash it into `props` as plain JSON (`readMediaTransformVersions`/
+ * `readMediaAssetMetadata` above reconstruct the `Map`s this function needs from that JSON).
+ */
 function renderWidgetPostContent(props: JsonObject): string {
   const title = props.title;
   const bodyJson = props.bodyJson;
@@ -1228,12 +1291,14 @@ function renderWidgetPostContent(props: JsonObject): string {
   const titleNode = extractTitleNode(bodyJson as JsonValue);
   const titleHtml =
     titleNode !== null ? `<h1${styleForAlign(titleNode.align)}>${titleNode.html}</h1>` : `<h1>${escapeHtml(title)}</h1>`;
+  const mediaTransformVersions = readMediaTransformVersions(props.mediaTransformVersions as JsonValue | undefined);
+  const mediaAssetMetadata = readMediaAssetMetadata(props.mediaAssetMetadata as JsonValue | undefined);
   return (
     `<div class="post-detail-header">` +
     titleHtml +
     (dateLabel ? `<div class="post-meta"><time datetime="${escapeHtml(updatedAt)}">${escapeHtml(dateLabel)}</time></div>` : "") +
     `</div>` +
-    `<div class="post-detail-body">${renderDocNode(bodyJson)}</div>`
+    `<div class="post-detail-body">${renderDocNode(bodyJson, EMPTY_INLINE_RESOLVED, mediaTransformVersions, mediaAssetMetadata)}</div>`
   );
 }
 

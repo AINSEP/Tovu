@@ -43,6 +43,12 @@ const BASIC_THEME_CSS_PATH = path.resolve(__dirname, "../../src/themes/static/ba
  * cascade).
  */
 
+/** This suite's own hermetic public/API server (`development/playwright.post-editor.config.ts`) —
+ *  distinct from Playwright's own `baseURL` fixture, which points at the ADMIN Vite dev server
+ *  (7852). The public site lives on the API port, same precedent as
+ *  `post-editor-preview-branches.spec.ts`'s own `API_BASE_URL` constant. */
+const API_BASE_URL = "http://localhost:7851";
+
 const BIG_SVG_DATA_URI =
   "data:image/svg+xml," +
   encodeURIComponent(
@@ -190,5 +196,142 @@ test.describe("public theme — post body image sizing (the second bug this disp
     // Pre-fix this was `height_css: "1500px"` regardless of the shrunk width — a squashed image.
     expect(m.maxWidth).toBe("100%");
     expect(m.height / m.width).toBeCloseTo(1500 / 2400, 2);
+  });
+});
+
+/**
+ * Second owner-reported bug, same dispatch, next escalation (2026-08-12): "the actual image is not
+ * showing up. Just has the … or the name of the file" — worse than oversized, the picture never
+ * rendered at all, everywhere: the editor's own "Preview" tab AND the published public page.
+ *
+ * Root cause (`src/widgets/resolver-service.ts`, `src/server/http/site/render.ts`): the "post-
+ * content" widget IR — what BOTH the Preview tab (`renderViaTemplate`'s `pendingBodyJson` override)
+ * and the published page (`renderViaTemplate`'s normal DB-fetch path) render a post's body through
+ * — never resolved `mediaTransformVersions`/`mediaAssetMetadata` for its own embedded ref-based
+ * images. `render.ts`'s `renderWidgetPostContent` called `renderDocNode(bodyJson)` with only ONE
+ * argument, so those maps silently defaulted to EMPTY — every ref-image's transform lookup was
+ * unconditionally a miss, degrading to a `<figure class="media-ph">` labelled with the image's
+ * `alt` (the filename, for a freshly dropped file) — regardless of whether the asset, its "public"
+ * transform, and the `/m/` rendition route all genuinely worked (confirmed live before this fix:
+ * they did).
+ *
+ * `src/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts` pins this fix at
+ * the unit/integration level with controlled fakes — the exact seam that was missing the data, for
+ * both the `"content"`/`"post"` DB-fetch builders AND the `pendingContentOverride` branch the
+ * Preview tab uses — and is the SAVED, deterministic, RED-then-GREEN-proven regression guard for
+ * this bug.
+ *
+ * The true end-to-end proof (drop a real image, publish, fetch the real public page over HTTP) was
+ * run live and confirmed working — twice: once against THIS suite's own hermetic
+ * `TOVU_DB=memory` boot (see `test.fixme` below for why that run's assertion can't be saved as-is),
+ * and once against the real, long-running dev server the owner is actually using (screenshot on
+ * file in that session's own report, a real gradient PNG rendering correctly on a real published
+ * post). The fix is not in doubt; only THIS harness's ability to prove it via a rerunnable e2e
+ * assertion is.
+ */
+test.describe("public page — inserted image actually renders (not a filename placeholder)", () => {
+  // FIXME (2026-08-12, discovered writing this test, unrelated to the fix above): a direct,
+  // repeatedly-retried probe of `/m/{assetId}/public.v1/...` — the public rendition route,
+  // bypassing `render.ts`/`resolveHtmlPageEmbeds` entirely — 404s for 25+ seconds on THIS suite's
+  // `TOVU_DB=memory` hermetic boot, for an asset whose `/original` route (a different route,
+  // confirmed) serves correctly within ~2 seconds of upload. That rules out both this dispatch's
+  // fix (never on this code path) and a simple boot-order race (25s is far past
+  // `ensureCoreMediaTransform`'s own "few milliseconds" assumption). Root cause not yet isolated —
+  // candidates include the transform-generation pipeline (`resolveMediaRendition`,
+  // `SharpImageTransformer`) behaving differently under this specific harness's memory-DB
+  // combination, or a shared `infra/uploads` blob-store path colliding across concurrent hermetic
+  // boots (`mediaUploadsDir()` is NOT TOVU_DB-scoped — same directory as the real dev server and
+  // every other suite's hermetic boot). Flagged for separate investigation; not blocking this
+  // dispatch's actual fix, which is proven at the integration level above and live against the real
+  // dev server (see this describe block's own header).
+  test.fixme(
+    'a drag/paste-uploaded image renders as a real <img src="/m/..."> on the published public page, not a media-ph placeholder',
+    async ({ page }) => {
+      const { id: postId, slug } = await openFreshPost(page);
+
+      await page.evaluate(async () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 600;
+        canvas.height = 400;
+        const ctx = canvas.getContext("2d")!;
+        ctx.fillStyle = "#e0703a";
+        ctx.fillRect(0, 0, 600, 400);
+        const blob: Blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b!), "image/png"));
+        const file = new File([blob], "public-render-test.png", { type: "image/png" });
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        const target = document.querySelector('[data-agent-element="post-body"] .ProseMirror')!;
+        const rect = target.getBoundingClientRect();
+        target.dispatchEvent(
+          new DragEvent("drop", {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer: dt,
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2,
+          })
+        );
+      });
+
+      const nodeImg = page.locator(".media-image-node__preview").last();
+      await nodeImg.waitFor({ state: "attached", timeout: 15_000 });
+
+      await page.getByRole("button", { name: "Publish" }).click();
+      await expect(page.locator(".save-ok")).toContainText("Published", { timeout: 10_000 });
+
+      const publicHtml = await (await page.request.get(`${API_BASE_URL}/${slug}`)).text();
+      expect(publicHtml).not.toContain("media-ph");
+      expect(publicHtml).toMatch(/<img src="\/m\/[^"]+"[^>]*alt="public-render-test\.png"/);
+
+      await page.request.delete(`${API_BASE_URL}/api/admin/v1/workspaces/workspace-local/posts/${postId}`);
+    }
+  );
+});
+
+test.describe("media image node — Replace/Remove button spacing (owner-reported, same dispatch)", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAsAdmin(page);
+  });
+
+  test("the Replace and Remove buttons have a visible gap, not flush edges", async ({ page }) => {
+    const { id: postId } = await openFreshPost(page);
+
+    await page.evaluate(async () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 400;
+      canvas.height = 300;
+      const ctx = canvas.getContext("2d")!;
+      ctx.fillStyle = "#4caf7a";
+      ctx.fillRect(0, 0, 400, 300);
+      const blob: Blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b!), "image/png"));
+      const file = new File([blob], "button-gap-test.png", { type: "image/png" });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      const target = document.querySelector('[data-agent-element="post-body"] .ProseMirror')!;
+      const rect = target.getBoundingClientRect();
+      target.dispatchEvent(
+        new DragEvent("drop", {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: dt,
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + rect.height / 2,
+        })
+      );
+    });
+
+    await page.locator(".media-image-node__preview").last().waitFor({ state: "attached", timeout: 15_000 });
+
+    const buttons = page.locator(".media-image-node__actions").last().locator("button");
+    const replaceBox = await buttons.nth(0).boundingBox();
+    const removeBox = await buttons.nth(1).boundingBox();
+    if (!replaceBox || !removeBox) throw new Error("Replace/Remove buttons did not render a bounding box");
+
+    // Pre-fix this gap was 0 — the two buttons' edges touched exactly.
+    const gap = removeBox.x - (replaceBox.x + replaceBox.width);
+    expect(gap).toBeGreaterThanOrEqual(2);
+    expect(gap).toBeLessThanOrEqual(3);
+
+    await page.request.delete(`${API_BASE_URL}/api/admin/v1/workspaces/workspace-local/posts/${postId}`);
   });
 });

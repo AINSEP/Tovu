@@ -453,6 +453,99 @@ async function resolveMediaTypeEmbeds(
   return resolved;
 }
 
+/** Scans a TipTap-shaped `bodyJson` tree for every ref-based `image` node's `assetId` (ADR-027 §4's
+ *  `{assetId, transformName}` shape). Same walk shape as `routes/site/pages.ts`'s own
+ *  `collectImageAssetIds`, duplicated rather than imported: that module sits above this one in the
+ *  codebase's layering (this file's `resolveMediaTypeEmbeds`'s own doc discloses the same
+ *  constraint for `render.ts`), and `pages.ts`'s copy is itself already a disclosed duplicate of
+ *  `resolver-service.ts`'s per-id scan pattern for the same reason. A legacy `image` node (only
+ *  `attrs.src`, no `assetId`) is never added — nothing here needs a sizing/version override for
+ *  that shape. */
+function collectImageAssetIds(node: unknown, out: Set<string>): void {
+  if (Array.isArray(node)) {
+    for (const child of node) collectImageAssetIds(child, out);
+    return;
+  }
+  if (typeof node !== "object" || node === null) return;
+  const obj = node as Record<string, unknown>;
+  if (obj.type === "image" && typeof obj.attrs === "object" && obj.attrs !== null) {
+    const assetId = (obj.attrs as Record<string, unknown>).assetId;
+    if (typeof assetId === "string") out.add(assetId);
+  }
+  if (Array.isArray(obj.content)) collectImageAssetIds(obj.content, out);
+}
+
+/**
+ * Owner-reported bug (2026-08-12) — resolves the `mediaTransformVersions`/`mediaAssetMetadata`
+ * context a "post-content" IR's embedded TipTap doc needs to render its OWN ref-based `image` nodes
+ * as real pictures instead of the filename-labelled placeholder. Before this function existed,
+ * NEITHER value was ever resolved for this render path at all: `render.ts`'s `renderWidgetPostContent`
+ * called `renderDocNode(bodyJson)` with no media context, which silently defaults both to empty maps
+ * — every ref-based image's transform lookup was unconditionally a miss, regardless of whether the
+ * asset/transform genuinely existed (confirmed live: asset uploaded, `"public"` transform
+ * registered, `/m/` rendition route returning 200 — and still a placeholder, because nothing upstream
+ * ever looked any of that up for this render path). See `renderWidgetPostContent`'s own doc in
+ * `render.ts` for the full trace.
+ *
+ * Mirrors `routes/site/pages.ts`'s `resolveMediaTransformVersionsForRender`/
+ * `resolveMediaAssetMetadataForRender` — the identical resolution the generic (non-template) render
+ * path already performs for `renderSite` — reusing THIS file's own `getLatestTransformDefinition`/
+ * `mediaRepo.findById` primitives (already proven correct here by {@link resolveMediaTypeEmbeds}, the
+ * sibling `"media"` embed resolver) rather than a third implementation of either lookup.
+ *
+ * Returns plain JSON, not `Map`s: `WidgetRenderIR.props` is a `JsonObject`, and this file must not
+ * import `render.ts` (see this file's layering note above) to build a real `Map` and hand it across
+ * that boundary directly. `render.ts`'s `readMediaTransformVersions`/`readMediaAssetMetadata`
+ * reconstruct the `Map`s `renderDocNode` needs from this exact shape.
+ *
+ * Never throws (REQ-27, same discipline every resolver in this file follows): a `bodyJson` with no
+ * ref-based images, or missing `mediaRepo`/`transformRepo` deps, resolves to empty objects —
+ * `render.ts`'s `image` case already degrades an absent transform-version/metadata entry to the
+ * placeholder, never a crash.
+ *
+ * Single-transform-name shortcut deliberately mirrored from `resolveMediaTransformVersionsForRender`
+ * (not a per-node scan of every distinct `transformName` present): `registerTransform` has exactly
+ * one caller anywhere in this codebase (`ensureCoreMediaTransform`), which only ever registers
+ * {@link CORE_PUBLIC_TRANSFORM_NAME} — see that function's own doc for the full disclosure and what
+ * widening this would take.
+ *
+ * @complexity O(a) over the distinct ref-based `assetId`s the body references, each behind one
+ * `mediaRepo.findById` call, run concurrently via `Promise.all` alongside the single transform-
+ * definition lookup — same shape `resolveMediaAssetMetadataForRender` and `resolveMediaTypeEmbeds`
+ * both already use for their own per-asset fan-out.
+ */
+async function resolvePostContentMediaContext(
+  deps: ResolveHtmlPageEmbedsDeps,
+  bodyJson: JsonObject,
+  context: WidgetResolveContext
+): Promise<{ mediaTransformVersions: JsonObject; mediaAssetMetadata: JsonObject }> {
+  const { mediaRepo, transformRepo } = deps;
+  const assetIds = new Set<string>();
+  collectImageAssetIds(bodyJson, assetIds);
+  if (assetIds.size === 0 || !mediaRepo || !transformRepo) {
+    return { mediaTransformVersions: {}, mediaAssetMetadata: {} };
+  }
+
+  const [definition, metaEntries] = await Promise.all([
+    getLatestTransformDefinition({
+      deps: { transformRepo },
+      input: { workspaceId: context.workspaceId, name: CORE_PUBLIC_TRANSFORM_NAME },
+    }),
+    Promise.all(
+      Array.from(assetIds).map(async (assetId): Promise<readonly [string, JsonObject] | undefined> => {
+        const record = await mediaRepo.findById({ workspaceId: context.workspaceId, id: assetId });
+        if (!record) return undefined;
+        return [assetId, { width: record.width, height: record.height, cssClass: record.cssClass }] as const;
+      })
+    ),
+  ]);
+
+  return {
+    mediaTransformVersions: definition ? { [CORE_PUBLIC_TRANSFORM_NAME]: definition.version } : {},
+    mediaAssetMetadata: Object.fromEntries(metaEntries.filter((entry): entry is readonly [string, JsonObject] => entry !== undefined)),
+  };
+}
+
 /**
  * `data-embed-type="post"` resolver — the post-template-picker feature (post-template.md's own
  * design conversation, first shipped 2026-08-10). `data-embed-id` is the post's stored id, exactly
@@ -510,9 +603,10 @@ async function resolvePostTypeEmbeds(
         });
         return;
       }
+      const mediaContext = await resolvePostContentMediaContext(deps, post.bodyJson, context);
       resolved.set(ref.id, {
         componentId: "post-content",
-        props: { title: post.title, slug: post.slug, updatedAt: post.updatedAt, bodyJson: post.bodyJson },
+        props: { title: post.title, slug: post.slug, updatedAt: post.updatedAt, bodyJson: post.bodyJson, ...mediaContext },
       });
     })
   );
@@ -595,6 +689,7 @@ async function resolveContentTypeEmbeds(
       // `renderWidgetPostContent` -> `renderDocNode`) is the SAME code the saved-body path runs,
       // never a second, parallel render path with its own escaping rules.
       if (pendingContentOverride && ref.id === pendingContentOverride.id) {
+        const mediaContext = await resolvePostContentMediaContext(deps, pendingContentOverride.bodyJson, context);
         resolved.set(ref.id, {
           componentId: "post-content",
           props: {
@@ -602,6 +697,7 @@ async function resolveContentTypeEmbeds(
             slug: pendingContentOverride.slug,
             updatedAt: pendingContentOverride.updatedAt,
             bodyJson: pendingContentOverride.bodyJson,
+            ...mediaContext,
           },
         });
         return;
@@ -626,9 +722,10 @@ async function resolveContentTypeEmbeds(
         );
         return;
       }
+      const mediaContext = await resolvePostContentMediaContext(deps, entity.bodyJson, context);
       resolved.set(ref.id, {
         componentId: "post-content",
-        props: { title: entity.title, slug: entity.slug, updatedAt: entity.updatedAt, bodyJson: entity.bodyJson },
+        props: { title: entity.title, slug: entity.slug, updatedAt: entity.updatedAt, bodyJson: entity.bodyJson, ...mediaContext },
       });
     })
   );

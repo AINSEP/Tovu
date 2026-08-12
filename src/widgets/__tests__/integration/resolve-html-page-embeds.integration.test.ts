@@ -554,3 +554,100 @@ test('GUARD 2 NEGATIVE VERIFICATION: a published row DOES resolve via "content" 
   assert.ok(resolved.get("content")?.has("published-1"));
   assert.ok(resolved.get("post")?.has("published-1"));
 });
+
+// ---------------------------------------------------------------------------
+// Owner-reported bug (2026-08-12): a ref-based `image` node inside a "content"/"post" embed's own
+// bodyJson rendered as a filename-labelled placeholder — everywhere this IR reaches (the editor's
+// own "Preview" tab AND the published public page), even with the referenced asset, its "public"
+// transform registration, and the `/m/` rendition route all confirmed live and working. Root cause:
+// `resolvePostTypeEmbeds`/`resolveContentTypeEmbeds` built `"post-content"` IR `props` with only
+// `title`/`slug`/`updatedAt`/`bodyJson` — `render.ts`'s `renderWidgetPostContent` then called
+// `renderDocNode(bodyJson)` with no media context, which silently defaults `mediaTransformVersions`/
+// `mediaAssetMetadata` to EMPTY MAPS, so every ref-based image's transform lookup was
+// UNCONDITIONALLY a miss regardless of whether the asset/transform genuinely existed. These tests
+// pin the fix at the seam that was actually missing the data — `resolvePostContentMediaContext`
+// populating `props.mediaTransformVersions`/`props.mediaAssetMetadata` — not the (separately,
+// already correctly tested) `renderDocNode` `image` case that consumes it.
+// ---------------------------------------------------------------------------
+
+function postRecordWithImage(overrides: Partial<PostRecord> = {}): PostRecord {
+  return postRecord({
+    bodyJson: {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "before" }] },
+        { type: "image", attrs: { assetId: "asset-1", transformName: CORE_PUBLIC_TRANSFORM_NAME, alt: "ref probe" } },
+      ],
+    },
+    ...overrides,
+  });
+}
+
+test('resolveHtmlPageEmbeds: a "content" embed\'s bodyJson containing a ref-based image resolves mediaTransformVersions/mediaAssetMetadata into its IR props — the exact data renderWidgetPostContent needs to render a real <img> instead of the placeholder', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecordWithImage()]);
+  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ workspaceId: WORKSPACE_ID_POST, width: 900, height: 600, cssClass: "hero" })]);
+  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 3 })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo, mediaRepo, transformRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+
+  const ir = resolved.get("content")?.get("entity-1");
+  assert.ok(ir);
+  assert.deepEqual(ir?.props.mediaTransformVersions, { [CORE_PUBLIC_TRANSFORM_NAME]: 3 });
+  assert.deepEqual(ir?.props.mediaAssetMetadata, { "asset-1": { width: 900, height: 600, cssClass: "hero" } });
+});
+
+test('resolveHtmlPageEmbeds: the legacy "post" embed type resolves the SAME mediaTransformVersions/mediaAssetMetadata for its bodyJson\'s ref-based images (both "post-content" IR builders shared the same gap, not just "content")', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecordWithImage()]);
+  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ workspaceId: WORKSPACE_ID_POST })]);
+  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 1 })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo, mediaRepo, transformRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"post","id":"entity-1"}'></div>` },
+  });
+
+  const ir = resolved.get("post")?.get("entity-1");
+  assert.ok(ir);
+  assert.deepEqual(ir?.props.mediaTransformVersions, { [CORE_PUBLIC_TRANSFORM_NAME]: 1 });
+});
+
+test('resolveHtmlPageEmbeds: a "content" embed\'s bodyJson with a ref-based image, but NO mediaRepo/transformRepo supplied, still resolves the post data — mediaTransformVersions/mediaAssetMetadata degrade to empty rather than the whole embed failing (REQ-27, same never-throws discipline every resolver here follows)', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecordWithImage()]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo }, // no mediaRepo/transformRepo
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+
+  const ir = resolved.get("content")?.get("entity-1");
+  assert.ok(ir, "the post itself must still resolve — only the media context degrades");
+  assert.deepEqual(ir?.props.mediaTransformVersions, {});
+  assert.deepEqual(ir?.props.mediaAssetMetadata, {});
+});
+
+test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branch (template-preview\'s unsaved-edit path) ALSO resolves mediaTransformVersions/mediaAssetMetadata for its override bodyJson — this is the editor\'s own "Preview" tab, the other surface the owner reported as broken alongside the published page', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ workspaceId: WORKSPACE_ID_POST })]);
+  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ workspaceId: WORKSPACE_ID_POST, version: 2 })]);
+  const pending = postRecordWithImage({ id: "entity-1" });
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: {
+      entryRepo,
+      mediaRepo,
+      transformRepo,
+      pendingContentOverride: { id: "entity-1", title: pending.title, slug: pending.slug, updatedAt: pending.updatedAt, bodyJson: pending.bodyJson },
+    },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+
+  const ir = resolved.get("content")?.get("entity-1");
+  assert.ok(ir);
+  assert.deepEqual(ir?.props.mediaTransformVersions, { [CORE_PUBLIC_TRANSFORM_NAME]: 2 });
+});
