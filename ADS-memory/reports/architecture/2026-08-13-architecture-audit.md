@@ -222,11 +222,11 @@ explicitly documented as "channel-agnostic on purpose") is cross-cutting by its 
 any feature module with a destructive AI tool will want it, not just `post`. **Diagnosis: the
 confirmation primitive is misplaced, not the post-reads.** Moving `surface-exchanges.ts`'s public
 contract to a neutral location (`core/`, alongside the other generic primitives already there) would
-remove the `features/post → assistant` edge without touching the `assistant → features/post` edge (which
-is legitimate and would remain — same shape as `server` legitimately importing every domain to wire
-routes). That does not fully break the pair (the remaining one-directional edge means it's no longer a
-*cycle*, which is the actual goal). Architect-level: touches a documented, deliberately-designed
-primitive's public location — worth a short design note, not a large change.
+remove the `features/post → assistant` edge while the `assistant → features/post` edge (legitimate —
+same shape as `server` legitimately importing every domain to wire routes) would remain. A single
+remaining one-directional edge is not a *mutual* pair, so this fully clears the pair from the cycle list
+even though the underlying (legitimate) dependency stays. Architect-level: touches a documented,
+deliberately-designed primitive's public location — worth a short design note, not a large change.
 
 **5. `core <-> features/post`** — confirmed exactly as the handoff described. `core/commands/appliers.ts`
 hard-codes `postUpdateReverter`/`postDeleteReverter` (`EntityReverter` instances, lines 93/173) and
@@ -306,3 +306,179 @@ noted as a possible future item, not proposed for action here.
 | `seo<->server` | **not a defect** — ACCEPTED ADR-PIPE-008 decision | **none** — correct the stale 2026-08-02 report |
 
 ---
+
+## 5. Ordered refactor plan (PROPOSAL ONLY — no code changed to produce this report)
+
+Cheapest first where value is comparable. Each item names files touched, blast radius, sign-off needs,
+and which ratcheted metric it moves.
+
+### 1. Correct the 2026-08-02 report's two known-wrong recommendations
+
+- **What:** Add a correction note to `ADS-memory/reports/refactors/2026-08-02-module-graph-analysis.md`
+  §5 Phase 3, retracting "`server/http/site/page-head.ts` → `seo/`" (contradicts accepted ADR-PIPE-008
+  §2, §4) and "`assistant/agent-daemon-server.ts` → `server/`" (inverts the defect — 24 internal
+  consumers). Point both entries at this report instead.
+- **Files touched:** 1 (the stale report itself).
+- **Blast radius:** none — documentation only.
+- **Sign-off:** none needed; this audit is the correction.
+- **Metric moved:** none directly. Protects the metrics already improving (26→16 back-edges, 13→8
+  cycles) from a future agent undoing progress by following the stale plan literally, which is exactly
+  what surfaced in this session's own handoff chain.
+
+### 2. Confirm core-size files, then `check:architecture -- --update`
+
+- **What:** Five-minute check that the 13 newly-core-qualifying files beyond `rate-limit.ts`/
+  `runtime-mode.ts` (§2.3) are legitimate core infrastructure, not a misplaced feature file. Then run
+  `npm run check:architecture -- --update` to move all three regressed metrics to the new, explained
+  baseline (784 files / 45 modules).
+- **Files touched:** 1 (`development/scripts/check-architecture.baseline.json`), machine-generated.
+- **Blast radius:** none — no production code.
+- **Sign-off:** owner acknowledgment recommended (it's a policy artifact, and the owner explicitly asked
+  "what's wrong" — closing the loop with them before moving their gate is the respectful order of
+  operations even though nothing here requires it technically).
+- **Metric moved:** clears CI red immediately (all 3 currently-failing metrics).
+
+### 3. `db<->features/database` — move 4 port types down to the adapter layer
+
+- **What:** Relocate `LedgerReadPort`, `LedgerRow` (from `features/database/timeline`) and
+  `BootLedgerPort`, `MigrationRunsRepoPort` (from `features/database/boot/reconcile-interrupted-
+  migration`) to a location `db` can own (either directly in `db/sqlite/` or a shared ports file `db`
+  exports), so `db/sqlite/database-journal-repo.ts` depends downward instead of reaching up into a
+  feature module.
+- **Files touched:** ~4 directly (`database-journal-repo.ts`, `timeline.ts`,
+  `reconcile-interrupted-migration.ts`, plus wherever the moved types land) + any other consumers of
+  those 4 exported names (not counted — a grep for each name is the first step of implementation, not
+  scoped here since this is propose-only).
+- **Blast radius:** low — type-only relocation, no behavior change; TypeScript's structural typing means
+  most call sites need only an import-path update.
+- **Sign-off:** none — mechanical, Programmer-level.
+- **Metric moved:** module cycles 8→7.
+
+### 4. `core<->features/post` — genericize `EntityReverter<TDeps>`
+
+- **What:** Make `EntityReverter`/`ReverterDeps` in `core/commands/appliers.ts` generic over entity type
+  and dependency shape; move `postUpdateReverter`/`postDeleteReverter` into `features/post`, registering
+  into `core`'s now-generic registry instead of `core` defining them concretely.
+- **Files touched:** ~4 (per the prior session's own estimate — `appliers.ts` plus its direct consumers;
+  not independently re-verified beyond `appliers.ts` itself in this audit).
+- **Blast radius:** low-medium — a public-signature change to a shared registry type, but TDD/Programmer
+  already has a template for this exact pattern from the RouteDeps-narrowing work (2026-08-02 report
+  Phase 2).
+- **Sign-off:** small Architect pass to fix the generic shape (`EntityReverter<TDeps>`'s type
+  parameters) before Programmer implements — the shape decision is real but small.
+- **Metric moved:** module cycles 7→6 (after item 3) or 8→7 (if done independently — items 3 and 4 don't
+  depend on each other).
+
+### 5. `features/database<->features/recovery` — extract a shared ports module
+
+- **What:** Name and create a shared ports location (e.g. `features/database/ports.ts` that `recovery`
+  depends on downward, or a small neutral module both depend on) owning `LedgerAppendPort`,
+  `RestorePointListPort`, `CreateRestorePointRepoPort`, and the reconciliation types currently imported
+  across the two modules' concrete files. Re-point the 10 files (5 per side) currently cross-importing
+  each other's implementation files to import the shared ports module instead.
+- **Files touched:** ~10 directly, possibly more once the tool-id collision the code's own comments flag
+  (`backup_create_restore_point` naming) is looked at in the same pass — worth doing together since both
+  are already-known issues in the same two files.
+- **Blast radius:** medium — the widest of the mechanical items, spread across two modules' tool-
+  registration surfaces, but each individual import swap is small and the target shape (a shared ports
+  module) is a well-worn pattern already used elsewhere in this codebase.
+- **Sign-off:** Architect — naming and owning the shared module is a real decision (which module owns
+  it, or does a third exist), not mechanical.
+- **Metric moved:** module cycles −1 pair.
+
+### 6. `assistant<->server`, second source — `byok-tool-surface.ts`'s `RouteDeps` import
+
+- **What:** Decide whether `byok-tool-surface.ts:43`'s `RouteDeps` type import should be narrowed to a
+  local interface (the same treatment the 22 `tool-registrations.ts` files already received per the
+  2026-08-02 report Phase 2) or left as-is with the pair accepted as a small, type-only exception.
+- **Files touched:** 1, plus wherever the narrower type would need defining.
+- **Blast radius:** trivial — one file, type-only.
+- **Sign-off:** small Architect call (narrow vs. accept) — flagged as genuinely open in §4, not
+  pre-decided here.
+- **Metric moved:** contributes to clearing `assistant<->server`, but **only in combination with item 7**
+  (the `agent-daemon-server.ts` split) — this pair has two independent sources; fixing only one leaves
+  the pair in the cycle list.
+
+### 7. `assistant<->features/post` — relocate `surface-exchanges.ts`'s public contract
+
+- **What:** Move the confirmation/ask-once primitive's public contract (currently
+  `assistant/surface-exchanges.ts`) to a neutral location (`core/`, alongside other generic primitives)
+  so `features/post`'s delete-confirmation tool depends downward instead of sideways into `assistant`.
+- **Files touched:** `surface-exchanges.ts` itself + its consumers in `features/post` (2 files) and
+  within `assistant` (internal re-exports, not separately counted here) + any other feature module that
+  already or will soon use the same confirmation pattern (not searched in this pass — worth a quick
+  grep for `askOnce`/`SurfaceExchange` repo-wide before implementing, since the primitive is explicitly
+  designed to be reused beyond `post`).
+- **Blast radius:** low-medium — a well-documented, self-contained primitive (364 lines, one file) with
+  a small, explicit consumer list.
+- **Sign-off:** Architect — relocating a primitive's declared home is a design decision even when the
+  code itself doesn't change much, and the primitive's own header frames it as deliberately
+  channel-agnostic/reusable, which is the argument for the move.
+- **Metric moved:** module cycles −1 pair (fully clears this one, per the corrected reasoning above —
+  the remaining `assistant → features/post` edge is legitimate and one-directional, not a cycle).
+
+### 8. `assistant` composition-root split — `agent-daemon-server.ts`
+
+- **What:** Split the file's boot/composition-root responsibilities (the `db`/`features/plugins`/
+  `server`-touching wiring: `openContentDb`, `registerSupabaseMcpPreset`, `createRouteDeps`,
+  `createSqliteRouteDepsForWorkspace`, `defaultContentDbPath`) into a thin, separately-located entry
+  point, leaving the daemon's own internal logic — the actual thing the 24 in-module consumers depend
+  on — inside `assistant/`. This is the largest and most architecturally consequential item in this
+  plan; the split boundary (what exactly moves, and where) is a genuine design question, not a
+  mechanical extraction.
+- **Files touched:** 1 directly split, 24 potential import-path updates for the daemon-internal half
+  (most likely unaffected if the split is done right — the 24 consumers want the daemon internals, which
+  stay in `assistant/`; only the few call sites that need the composition-root half would need a new
+  import path).
+- **Blast radius:** highest in this plan — touches the module most other assistant files depend on, and
+  is exactly the kind of change the dispatch brief's operating rules warn is expensive to get wrong
+  (24 dependents, a live daemon).
+- **Sign-off:** **Architect design pass required**, ideally with a short written boundary spec (which
+  functions/responsibilities move, where the new entry point lives) before any Programmer work starts —
+  this is not a "propose in this report and go" item.
+- **Metric moved:** clears `assistant<->db`, `assistant<->features/plugins` fully; clears
+  `assistant<->server` **only combined with item 6**. Also very likely reduces back-edges into `server`
+  further (the file is one of the 3-count contributors to `→ src/server/app.ts` and
+  `→ src/server/deps.ts` in the current `--list` back-edge table) — not separately re-verified here, but
+  the same file already named in both breakdowns.
+
+### Summary — cycle count if all mechanical/small items ship, before the two Architect-heavy items
+
+Items 3, 4, 5, 6 (partial), 7: cycles 8 → 4 (`assistant<->server` needs item 8 too to fully clear).
+Item 8 alone, combined with item 6, clears the last pair: 4 → 3 remaining structural pairs
+(`assistant<->server` fully cleared) → the honest floor after this entire plan, pending the split's own
+design, is close to 0 — every pair in the current inventory has either a named fix or is not a defect
+(`seo<->server`). No pair in this inventory was left without a disposition.
+
+---
+
+## Report contract
+
+- **Inputs used:** `npm run check:architecture` and `-- --list` run live twice (initial read + baseline
+  history walk); `git log`/`git show`/`git ls-tree`/`git diff --stat` against baseline commit `e8688e1`;
+  direct reads of `development/scripts/check-architecture.ts` (full, to verify exact metric semantics
+  before citing any number), `ADS-memory/.local-artifacts/handoff/20260812-212303-handoff.md`,
+  `ADS-memory/reports/continuity/2026-08-12-session-6-handoff.md`,
+  `ADS-memory/reports/refactors/2026-08-02-module-graph-analysis.md`, `ADS-memory/reports/architecture/
+  ADR-032-seo.md` (full), `ADS-memory/reports/pipeline/008-seo/adr.md` (Decision/Pattern-Evaluation
+  sections), and every source file cited by path/line above (`agent-daemon-server.ts`,
+  `byok-tool-surface.ts`, `surface-exchanges.ts`, `core/commands/appliers.ts`,
+  `db/sqlite/database-journal-repo.ts`, `features/database/{restore-points,repo.memory,gated-hooks,
+  tool-registrations,agent-tools}.ts`, `features/recovery/{gated-hooks,tool-registrations,agent-tools}.ts`,
+  `src/seo/{ports,types,page-head-contributor}.ts`, `src/server/http/site/page-head.ts`).
+- **Not used:** `codebase-memory-mcp` graph queries — every question here was a direct "which file
+  imports which" or "what does this document say" lookup that `rg`+`Read` answered faster; noted per the
+  Refactor skill's Phase-0 gate so the choice is visible, not silent.
+- **Output summary:** the architecture is sound; today's 3 CI-red metrics are traced to specific causes
+  (2 fully explained by 3 new legitimate domains, 1 partially); the module-cycle discrepancy is resolved
+  with the tool's own live output as ground truth (8 pairs, 5 root causes — "13→8" correct, "5 remain"
+  a mislabeled bucket count); all 8 cycle pairs have a verified disposition, including one
+  (`seo<->server`) that turns out not to be a defect at all — it's an ACCEPTED, human-approved ADR
+  decision the 2026-08-02 report's recommendation directly contradicts.
+- **Risks / what this report does not cover:** the `assistant` composition-root split (item 8) is
+  sketched at a level sufficient to scope it, not designed — a real Architect pass with a written
+  boundary spec is still needed before implementation. The `features/database<->recovery` shared-ports
+  extraction (item 5) likely also touches the tool-id collision the code's own comments flag as
+  already-fixed-elsewhere; that claim was not independently re-verified. No code was changed; no tests
+  were run (none were needed — no production code touched).
+
